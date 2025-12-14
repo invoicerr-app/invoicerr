@@ -24,6 +24,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { SignaturesModule } from './modules/signatures/signatures.module';
 import { StatsModule } from './modules/stats/stats.module'
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { LoggerModule } from './modules/logger/logger.module';
 import { auth } from "./lib/auth"
 
 @Module({
@@ -52,6 +53,7 @@ import { auth } from "./lib/auth"
     WebhooksModule,
     InvitationsModule,
     PrismaModule,
+    LoggerModule,
   ],
   controllers: [AppController],
   providers: [
