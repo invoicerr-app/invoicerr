@@ -846,6 +846,7 @@
             "pdfTemplates": "PDF-Vorlagen",
             "emailTemplates": "E-Mail-Vorlagen",
             "account": "Konto",
+            "logs": "Protokolle",
             "dangerZone": "Gefahrenzone",
             "plugins": "Plugins",
             "webhooks": "Webhooks",

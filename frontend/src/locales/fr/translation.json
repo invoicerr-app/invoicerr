@@ -851,6 +851,7 @@
             "pdfTemplates": "Modèles PDF",
             "emailTemplates": "Modèles d'email",
             "account": "Compte",
+            "logs": "Journaux",
             "invitations": "Invitations",
             "dangerZone": "Zone de danger",
             "plugins": "Plugins",

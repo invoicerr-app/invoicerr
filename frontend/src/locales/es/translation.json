@@ -846,6 +846,7 @@
             "pdfTemplates": "Plantillas PDF",
             "emailTemplates": "Plantillas de correo",
             "account": "Cuenta",
+            "logs": "Registros",
             "dangerZone": "Zona de peligro",
             "plugins": "Plugins",
             "webhooks": "Webhooks"

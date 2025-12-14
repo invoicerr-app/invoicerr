@@ -847,6 +847,7 @@
             "pdfTemplates": "PDF Templates",
             "emailTemplates": "Email Templates",
             "account": "Account",
+            "logs": "Logs",
             "invitations": "Invitations",
             "dangerZone": "Danger Zone",
             "plugins": "Plugins",
