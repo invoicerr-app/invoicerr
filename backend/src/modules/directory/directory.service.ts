@@ -1,8 +1,9 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import prisma from '@/prisma/prisma.service';
 import { existsSync, mkdirSync, readdirSync, statSync } from 'fs';
 import { normalize, resolve } from 'path';
+
 import { logger } from '@/logger/logger.service';
+import prisma from '@/prisma/prisma.service';
 
 export interface IDirectoryItem {
     name: string;
@@ -119,11 +120,7 @@ export class DirectoryService {
 
             return directories.filter(dir => dir.readable);
         } catch (error) {
-            if (error instanceof BadRequestException) {
-                throw error;
-            }
-            throw new BadRequestException(
-                logger.error(`Failed to list directories: ${error instanceof Error ? error.message : String(error)}`, { category: 'directory', details: { error } });
+            logger.error(`Failed to list directories: ${error instanceof Error ? error.message : String(error)}`, { category: 'directory', details: { error } })
             throw new BadRequestException(
                 `Failed to list directories: ${error instanceof Error ? error.message : String(error)}`
             );
@@ -245,11 +242,7 @@ export class DirectoryService {
                 readable: true,
             };
         } catch (error) {
-            if (error instanceof BadRequestException) {
-                throw error;
-            }
-            throw new BadRequestException(
-                logger.error(`Failed to create directory: ${error instanceof Error ? error.message : String(error)}`, { category: 'directory', details: { error } });
+            logger.error(`Failed to create directory: ${error instanceof Error ? error.message : String(error)}`, { category: 'directory', details: { error } });
             throw new BadRequestException(
                 `Failed to create directory: ${error instanceof Error ? error.message : String(error)}`
             );

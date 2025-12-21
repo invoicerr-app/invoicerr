@@ -171,7 +171,7 @@ export class ReceiptsService {
         });
 
         if (!invoice) {
-            logger.error('Invoice not found', { category: 'receipt', details: { invoiceId } });
+            logger.error('Invoice not found', { category: 'receipt', details: { invoiceId: body.invoiceId } });
             throw new BadRequestException('Invoice not found');
         }
 
@@ -262,7 +262,7 @@ export class ReceiptsService {
         });
 
         if (!existingReceipt) {
-            logger.error('Receipt not found', { category: 'receipt', details: { id: existingReceipt?.id } });
+            logger.error('Receipt not found', { category: 'receipt', details: { receiptId: body.id } });
             throw new BadRequestException('Receipt not found');
         }
 
@@ -328,7 +328,7 @@ export class ReceiptsService {
         });
 
         if (!existingReceipt) {
-            logger.error('Receipt not found', { category: 'receipt', details: { id: existingReceipt?.id } });
+            logger.error('Receipt not found', { category: 'receipt', details: { receiptId: id } });
             throw new BadRequestException('Receipt not found');
         }
 
@@ -376,7 +376,7 @@ export class ReceiptsService {
         });
 
         if (!receipt) {
-            logger.error('Receipt not found', { category: 'receipt', details: { id } });
+            logger.error('Receipt not found', { category: 'receipt', details: { receiptId } });
             throw new BadRequestException('Receipt not found');
         }
 
