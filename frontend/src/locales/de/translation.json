@@ -219,7 +219,8 @@
                 "issued": "Ausgestellt",
                 "validUntil": "Gültig bis",
                 "totalHT": "Gesamt (ohne MwSt.)",
-                "totalTTC": "Gesamt (inkl. MwSt.)"
+                "totalTTC": "Gesamt (inkl. MwSt.)",
+                "total": "Gesamtbetrag"
             },
             "tooltips": {
                 "view": "Details zum Angebot anzeigen",
@@ -341,6 +342,7 @@
                 "totalHT": "Gesamt (ohne MwSt.)",
                 "totalVAT": "MwSt.-Betrag",
                 "totalTTC": "Gesamt (inkl. MwSt.)",
+                "total": "Gesamtbetrag",
                 "signature": "Unterschrift"
             }
         },
@@ -395,7 +397,8 @@
                 "due": ".",
                 "payment": "Zahlung",
                 "totalHT": "Gesamt (ohne MwSt.)",
-                "totalTTC": "Gesamt (inkl. MwSt.)"
+                "totalTTC": "Gesamt (inkl. MwSt.)",
+                "total": "Gesamtbetrag"
             },
             "tooltips": {
                 "view": "Rechnungsdetails anzeigen",
@@ -540,6 +543,7 @@
                 "totalHT": "Gesamt (ohne MwSt.)",
                 "totalVAT": "MwSt.-Betrag",
                 "totalTTC": "Gesamt (inkl. MwSt.)",
+                "total": "Gesamtbetrag",
                 "notes": "Anmerkungen"
             }
         },

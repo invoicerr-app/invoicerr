@@ -220,7 +220,8 @@
                 "issued": "Émis le",
                 "validUntil": "Valide jusqu'au",
                 "totalHT": "Total HT",
-                "totalTTC": "Total TTC"
+                "totalTTC": "Total TTC",
+                "total": "Total"
             },
             "tooltips": {
                 "view": "Voir les détails du devis",
@@ -342,6 +343,7 @@
                 "totalHT": "Total HT",
                 "totalVAT": "Montant TVA",
                 "totalTTC": "Total TTC",
+                "total": "Total",
                 "signature": "Signature"
             }
         },
@@ -396,7 +398,8 @@
                 "due": "Échéance",
                 "payment": "Paiement",
                 "totalHT": "Total HT",
-                "totalTTC": "Total TTC"
+                "totalTTC": "Total TTC",
+                "total": "Total"
             },
             "tooltips": {
                 "view": "Voir les détails de la facture",
@@ -541,6 +544,7 @@
                 "totalHT": "Total HT",
                 "totalVAT": "Montant TVA",
                 "totalTTC": "Total TTC",
+                "total": "Total",
                 "notes": "Notes"
             }
         },

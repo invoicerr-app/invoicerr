@@ -219,7 +219,8 @@
                 "issued": "Emitida",
                 "validUntil": "Válida hasta",
                 "totalHT": "Total (sin IVA)",
-                "totalTTC": "Total (con IVA)"
+                "totalTTC": "Total (con IVA)",
+                "total": "Total"
             },
             "tooltips": {
                 "view": "Ver detalles de la cotización",
@@ -341,6 +342,7 @@
                 "totalHT": "Total (sin IVA)",
                 "totalVAT": "Importe IVA",
                 "totalTTC": "Total (con IVA)",
+                "total": "Total",
                 "signature": "Firma"
             }
         },
@@ -395,7 +397,8 @@
                 "due": "Vence",
                 "payment": "Pago",
                 "totalHT": "Total (sin IVA)",
-                "totalTTC": "Total (con IVA)"
+                "totalTTC": "Total (con IVA)",
+                "total": "Total"
             },
             "tooltips": {
                 "view": "Ver detalles de la factura",
@@ -540,6 +543,7 @@
                 "totalHT": "Total (sin IVA)",
                 "totalVAT": "Importe IVA",
                 "totalTTC": "Total (con IVA)",
+                "total": "Total",
                 "notes": "Notas"
             }
         },

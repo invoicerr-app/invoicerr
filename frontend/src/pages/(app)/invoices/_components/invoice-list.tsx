@@ -234,20 +234,32 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                                     {((invoice.paymentMethod as any)?.name ?? (invoice.paymentMethod as any)?.type) ?? "-"}
                                                                 </span>
                                                             )}
-                                                            <span>
-                                                                <span className="font-medium text-foreground">{t("invoices.list.item.totalHT")}:</span>{" "}
-                                                                {t("common.valueWithCurrency", {
-                                                                    currency: invoice.currency,
-                                                                    amount: invoice.totalHT.toFixed(2),
-                                                                })}
-                                                            </span>
-                                                            <span>
-                                                                <span className="font-medium text-foreground">{t("invoices.list.item.totalTTC")}:</span>{" "}
-                                                                {t("common.valueWithCurrency", {
-                                                                    currency: invoice.currency,
-                                                                    amount: invoice.totalTTC.toFixed(2),
-                                                                })}
-                                                            </span>
+                                                            {(invoice.items.some(item => item.vatRate > 0) ? (
+                                                                <>
+                                                                    <span>
+                                                                        <span className="font-medium text-foreground">{t("invoices.list.item.totalHT")}:</span>{" "}
+                                                                        {t("common.valueWithCurrency", {
+                                                                            currency: invoice.currency,
+                                                                            amount: invoice.totalHT.toFixed(2),
+                                                                        })}
+                                                                    </span>
+                                                                    <span>
+                                                                        <span className="font-medium text-foreground">{t("invoices.list.item.totalTTC")}:</span>{" "}
+                                                                        {t("common.valueWithCurrency", {
+                                                                            currency: invoice.currency,
+                                                                            amount: invoice.totalTTC.toFixed(2),
+                                                                        })}
+                                                                    </span>
+                                                                </>
+                                                            ) : (
+                                                                <span>
+                                                                    <span className="font-medium text-foreground">{t("invoices.list.item.total")}:</span>{" "}
+                                                                    {t("common.valueWithCurrency", {
+                                                                        currency: invoice.currency,
+                                                                        amount: invoice.totalTTC.toFixed(2),
+                                                                    })}
+                                                                </span>
+                                                            ))}
                                                         </div>
                                                     </div>
                                                 </div>

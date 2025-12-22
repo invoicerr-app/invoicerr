@@ -219,7 +219,8 @@
                 "issued": "Issued",
                 "validUntil": "Valid Until",
                 "totalHT": "Total (excl. VAT)",
-                "totalTTC": "Total (incl. VAT)"
+                "totalTTC": "Total (incl. VAT)",
+                "total": "Total"
             },
             "tooltips": {
                 "view": "View quote details",
@@ -341,6 +342,7 @@
                 "totalHT": "Total (excl. VAT)",
                 "totalVAT": "VAT Amount",
                 "totalTTC": "Total (incl. VAT)",
+                "total": "Total",
                 "signature": "Signature"
             }
         },
@@ -395,7 +397,8 @@
                 "due": "Due",
                 "payment": "Payment",
                 "totalHT": "Total (excl. VAT)",
-                "totalTTC": "Total (incl. VAT)"
+                "totalTTC": "Total (incl. VAT)",
+                "total": "Total"
             },
             "tooltips": {
                 "view": "View invoice details",
@@ -540,6 +543,7 @@
                 "totalHT": "Total (excl. VAT)",
                 "totalVAT": "VAT Amount",
                 "totalTTC": "Total (incl. VAT)",
+                "total": "Total",
                 "notes": "Notes"
             }
         },

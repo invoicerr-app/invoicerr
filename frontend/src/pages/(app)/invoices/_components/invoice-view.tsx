@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-
 import type { Invoice, PaymentMethod } from "@/types"
+
 import { PaymentMethodType } from "@/types"
 import { format } from "date-fns"
 import { languageToLocale } from "@/lib/i18n"
@@ -74,7 +74,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-muted/50 p-4 rounded-lg">
                         <div>
                             <p className="text-sm text-muted-foreground">{t("invoices.view.fields.client")}</p>
-                            <p className="font-medium">{invoice.client?.name || invoice.client?.contactFirstname+" "+invoice.client?.contactLastname|| invoice.clientId}</p>
+                            <p className="font-medium">{invoice.client?.name || invoice.client?.contactFirstname + " " + invoice.client?.contactLastname || invoice.clientId}</p>
                         </div>
 
                         <div>
@@ -83,7 +83,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
                                 {(() => {
                                     const pm: any = invoice.paymentMethod as PaymentMethod;
                                     if (pm) {
-                                        return pm.name + " - " + (pm.type==PaymentMethodType.BANK_TRANSFER?t("paymentMethods.fields.type.bank_transfer"):pm.type==PaymentMethodType.PAYPAL?t("paymentMethods.fields.type.paypal"):pm.type==PaymentMethodType.CHECK?t("paymentMethods.fields.type.check"):pm.type==PaymentMethodType.CASH?t("paymentMethods.fields.type.cash"):pm.type==PaymentMethodType.OTHER?t("paymentMethods.fields.type.other"):pm.type)
+                                        return pm.name + " - " + (pm.type == PaymentMethodType.BANK_TRANSFER ? t("paymentMethods.fields.type.bank_transfer") : pm.type == PaymentMethodType.PAYPAL ? t("paymentMethods.fields.type.paypal") : pm.type == PaymentMethodType.CHECK ? t("paymentMethods.fields.type.check") : pm.type == PaymentMethodType.CASH ? t("paymentMethods.fields.type.cash") : pm.type == PaymentMethodType.OTHER ? t("paymentMethods.fields.type.other") : pm.type)
                                     }
                                     return "—";
                                 })()}
@@ -92,29 +92,41 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-muted/50 p-4 rounded-lg">
-                        <div>
-                            <p className="text-sm text-muted-foreground">{t("invoices.view.fields.totalHT")}</p>
-                            <p className="font-medium">{t("common.valueWithCurrency", {
-                                currency: invoice.currency,
-                                amount: invoice.totalHT.toFixed(2)
-                            })}</p>
-                        </div>
+                        {(invoice.items.some(item => item.vatRate > 0) ? (
+                            <>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">{t("invoices.view.fields.totalHT")}</p>
+                                    <p className="font-medium">{t("common.valueWithCurrency", {
+                                        currency: invoice.currency,
+                                        amount: invoice.totalHT.toFixed(2)
+                                    })}</p>
+                                </div>
 
-                        <div>
-                            <p className="text-sm text-muted-foreground">{t("invoices.view.fields.totalVAT")}</p>
-                            <p className="font-medium">{t("common.valueWithCurrency", {
-                                currency: invoice.currency,
-                                amount: invoice.totalVAT.toFixed(2)
-                            })}</p>
-                        </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">{t("invoices.view.fields.totalVAT")}</p>
+                                    <p className="font-medium">{t("common.valueWithCurrency", {
+                                        currency: invoice.currency,
+                                        amount: invoice.totalVAT.toFixed(2)
+                                    })}</p>
+                                </div>
 
-                        <div>
-                            <p className="text-sm text-muted-foreground">{t("invoices.view.fields.totalTTC")}</p>
-                            <p className="font-medium">{t("common.valueWithCurrency", {
-                                currency: invoice.currency,
-                                amount: invoice.totalTTC.toFixed(2)
-                            })}</p>
-                        </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">{t("invoices.view.fields.totalTTC")}</p>
+                                    <p className="font-medium">{t("common.valueWithCurrency", {
+                                        currency: invoice.currency,
+                                        amount: invoice.totalTTC.toFixed(2)
+                                    })}</p>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="sm:col-span-3">
+                                <p className="text-sm text-muted-foreground">{t("invoices.view.fields.total")}</p>
+                                <p className="font-medium">{t("common.valueWithCurrency", {
+                                    currency: invoice.currency,
+                                    amount: invoice.totalTTC.toFixed(2)
+                                })}</p>
+                            </div>
+                        ))}
                     </div>
 
                     {invoice.notes && (
