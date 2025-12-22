@@ -63,7 +63,7 @@ export function QuoteViewDialog({ quote, onOpenChange }: QuoteViewDialogProps) {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-muted/50 p-4 rounded-lg">
                         <div>
                             <p className="text-sm text-muted-foreground">{t("quotes.view.fields.client")}</p>
-                            <p className="font-medium">{quote.client.name||quote.client.contactFirstname+" "+quote.client.contactLastname}</p>
+                            <p className="font-medium">{quote.client.name || quote.client.contactFirstname + " " + quote.client.contactLastname}</p>
                         </div>
                         <div>
                             <p className="text-sm text-muted-foreground">{t("invoices.view.fields.paymentMethod")}</p>
@@ -71,7 +71,7 @@ export function QuoteViewDialog({ quote, onOpenChange }: QuoteViewDialogProps) {
                                 {(() => {
                                     const pm: any = quote.paymentMethod as PaymentMethod;
                                     if (pm) {
-                                        return pm.name + " - " + (pm.type==PaymentMethodType.BANK_TRANSFER?t("paymentMethods.fields.type.bank_transfer"):pm.type==PaymentMethodType.PAYPAL?t("paymentMethods.fields.type.paypal"):pm.type==PaymentMethodType.CHECK?t("paymentMethods.fields.type.check"):pm.type==PaymentMethodType.CASH?t("paymentMethods.fields.type.cash"):pm.type==PaymentMethodType.OTHER?t("paymentMethods.fields.type.other"):pm.type)
+                                        return pm.name + " - " + (pm.type == PaymentMethodType.BANK_TRANSFER ? t("paymentMethods.fields.type.bank_transfer") : pm.type == PaymentMethodType.PAYPAL ? t("paymentMethods.fields.type.paypal") : pm.type == PaymentMethodType.CHECK ? t("paymentMethods.fields.type.check") : pm.type == PaymentMethodType.CASH ? t("paymentMethods.fields.type.cash") : pm.type == PaymentMethodType.OTHER ? t("paymentMethods.fields.type.other") : pm.type)
                                     }
                                     return "—";
                                 })()}
@@ -81,35 +81,47 @@ export function QuoteViewDialog({ quote, onOpenChange }: QuoteViewDialogProps) {
                         {!!quote.signedAt && (
                             <div>
                                 <p className="text-sm text-muted-foreground">{t("quotes.view.fields.signedBy")}</p>
-                                <p className="font-medium">{quote.client.contactEmail || quote.client?.contactFirstname+" "+quote.client?.contactLastname || quote.client?.name || "—"}</p>
+                                <p className="font-medium">{quote.client.contactEmail || quote.client?.contactFirstname + " " + quote.client?.contactLastname || quote.client?.name || "—"}</p>
                             </div>
                         )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-muted/50 p-4 rounded-lg">
-                        <div>
-                            <p className="text-sm text-muted-foreground">{t("quotes.view.fields.totalHT")}</p>
-                            <p className="font-medium">{t("common.valueWithCurrency", {
-                                currency: quote.currency,
-                                amount: quote.totalHT.toFixed(2)
-                            })}</p>
-                        </div>
+                        {(quote.items.some(item => item.vatRate > 0)) ? (
+                            <>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">{t("quotes.view.fields.totalHT")}</p>
+                                    <p className="font-medium">{t("common.valueWithCurrency", {
+                                        currency: quote.currency,
+                                        amount: quote.totalHT.toFixed(2)
+                                    })}</p>
+                                </div>
 
-                        <div>
-                            <p className="text-sm text-muted-foreground">{t("quotes.view.fields.totalVAT")}</p>
-                            <p className="font-medium">{t("common.valueWithCurrency", {
-                                currency: quote.currency,
-                                amount: quote.totalVAT.toFixed(2)
-                            })}</p>
-                        </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">{t("quotes.view.fields.totalVAT")}</p>
+                                    <p className="font-medium">{t("common.valueWithCurrency", {
+                                        currency: quote.currency,
+                                        amount: quote.totalVAT.toFixed(2)
+                                    })}</p>
+                                </div>
 
-                        <div>
-                            <p className="text-sm text-muted-foreground">{t("quotes.view.fields.totalTTC")}</p>
-                            <p className="font-medium">{t("common.valueWithCurrency", {
-                                currency: quote.currency,
-                                amount: quote.totalTTC.toFixed(2)
-                            })}</p>
-                        </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">{t("quotes.view.fields.totalTTC")}</p>
+                                    <p className="font-medium">{t("common.valueWithCurrency", {
+                                        currency: quote.currency,
+                                        amount: quote.totalTTC.toFixed(2)
+                                    })}</p>
+                                </div>
+                            </>
+                        ) : (
+                            <div>
+                                <p className="text-sm text-muted-foreground">{t("quotes.view.fields.total")}</p>
+                                <p className="font-medium">{t("common.valueWithCurrency", {
+                                    currency: quote.currency,
+                                    amount: quote.totalTTC.toFixed(2)
+                                })}</p>
+                            </div>
+                        )}
                     </div>
 
                     {quote.signatureSvg && (

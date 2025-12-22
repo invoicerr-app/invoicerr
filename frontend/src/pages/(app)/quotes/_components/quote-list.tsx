@@ -213,20 +213,32 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                                                                     {new Date(quote.validUntil).toLocaleDateString()}
                                                                 </span>
                                                             )}
-                                                            <span>
-                                                                <span className="font-medium text-foreground">{t("quotes.list.item.totalHT")}:</span>{" "}
-                                                                {t("common.valueWithCurrency", {
-                                                                    currency: quote.currency,
-                                                                    amount: quote.totalHT.toFixed(2),
-                                                                })}
-                                                            </span>
-                                                            <span>
-                                                                <span className="font-medium text-foreground">{t("quotes.list.item.totalTTC")}:</span>{" "}
-                                                                {t("common.valueWithCurrency", {
-                                                                    currency: quote.currency,
-                                                                    amount: quote.totalTTC.toFixed(2),
-                                                                })}
-                                                            </span>
+                                                            {(quote.items.some(item => item.vatRate > 0) ? (
+                                                                <>
+                                                                    <span>
+                                                                        <span className="font-medium text-foreground">{t("quotes.list.item.totalHT")}:</span>{" "}
+                                                                        {t("common.valueWithCurrency", {
+                                                                            currency: quote.currency,
+                                                                            amount: quote.totalHT.toFixed(2),
+                                                                        })}
+                                                                    </span>
+                                                                    <span>
+                                                                        <span className="font-medium text-foreground">{t("quotes.list.item.totalTTC")}:</span>{" "}
+                                                                        {t("common.valueWithCurrency", {
+                                                                            currency: quote.currency,
+                                                                            amount: quote.totalTTC.toFixed(2),
+                                                                        })}
+                                                                    </span>
+                                                                </>
+                                                            ) : (
+                                                                <span>
+                                                                    <span className="font-medium text-foreground">{t("quotes.list.item.total")}:</span>{" "}
+                                                                    {t("common.valueWithCurrency", {
+                                                                        currency: quote.currency,
+                                                                        amount: quote.totalTTC.toFixed(2),
+                                                                    })}
+                                                                </span>
+                                                            ))}
                                                         </div>
                                                     </div>
                                                 </div>
