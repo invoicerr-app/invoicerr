@@ -735,7 +735,7 @@ export default function OnBoarding({
                 {t("common.previous")}
               </Button>
 
-              {currentStepIndex < STEPS.length - 1 ? (
+              {currentStepIndex < STEPS.length ? (
                 <Button
                   type="button"
                   onClick={async () => {
