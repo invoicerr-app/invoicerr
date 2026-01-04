@@ -849,7 +849,8 @@
             "logs": "Registros",
             "dangerZone": "Zona de peligro",
             "plugins": "Plugins",
-            "webhooks": "Webhooks"
+            "webhooks": "Webhooks",
+            "invitations": "Invitaciones"
         },
         "company": {
             "title": "Configuración de la empresa",
@@ -1074,7 +1075,9 @@
             },
             "password": {
                 "title": "Contraseña y seguridad",
-                "description": "Cambiar contraseña y configuración de seguridad"
+                "description": "Cambiar contraseña y configuración de seguridad",
+                "loading": "Cargando...",
+                "noPasswordSet": "Ha iniciado sesión con un proveedor externo (OIDC). Puede establecer una contraseña para iniciar sesión también con su correo electrónico y contraseña."
             },
             "form": {
                 "firstname": {
@@ -1113,7 +1116,8 @@
                         "letter": "La contraseña debe tener al menos una letra",
                         "number": "La contraseña debe tener al menos un número",
                         "special": "La contraseña debe tener al menos un caracter especial"
-                    }
+                    },
+                    "labelNew": "Contraseña"
                 },
                 "confirmPassword": {
                     "label": "Confirmar contraseña",
@@ -1128,7 +1132,8 @@
                 "updatingProfile": "Actualizando...",
                 "updateProfile": "Actualizar perfil",
                 "updatingPassword": "Actualizando...",
-                "updatePassword": "Actualizar contraseña"
+                "updatePassword": "Actualizar contraseña",
+                "setPassword": "Establecer contraseña"
             },
             "messages": {
                 "profileUpdateSuccess": "Perfil actualizado exitosamente",
@@ -1366,6 +1371,48 @@
                 "type": "Type",
                 "events": "Events",
                 "button": "Create Webhook"
+            },
+            "card": {
+                "events": "Escuchando eventos: {{events}}",
+                "edit": "Editar",
+                "delete": "Eliminar",
+                "editPrompt": "Introduce la nueva URL del webhook"
+            }
+        },
+        "title": "Ajustes",
+        "invitations": {
+            "create": {
+                "title": "Crear código de invitación",
+                "description": "Genera un nuevo código de invitación para invitar a alguien a crear una cuenta",
+                "expiresIn": "Expira en (días)",
+                "expiresPlaceholder": "Dejar vacío para que no caduque",
+                "button": "Generar código",
+                "creating": "Generando..."
+            },
+            "list": {
+                "title": "Tus códigos de invitación",
+                "description": "Administra los códigos de invitación que has creado",
+                "code": "Código",
+                "status": "Estado",
+                "createdAt": "Creado",
+                "expiresAt": "Expira",
+                "usedBy": "Usado por",
+                "actions": "Acciones",
+                "empty": "Aún no has creado ningún código de invitación",
+                "noExpiry": "Nunca"
+            },
+            "status": {
+                "active": "Activo",
+                "used": "Usado",
+                "expired": "Expirado"
+            },
+            "messages": {
+                "fetchError": "Error al cargar los códigos de invitación",
+                "createSuccess": "Código de invitación creado con éxito",
+                "createError": "Error al crear el código de invitación",
+                "deleteSuccess": "Código de invitación eliminado",
+                "deleteError": "Error al eliminar el código de invitación",
+                "codeCopied": "Código copiado al portapapeles"
             }
         }
     },
@@ -1449,7 +1496,12 @@
                     "requirements": "Requisitos de contraseña:"
                 },
                 "creatingAccount": "Creando cuenta...",
-                "createButton": "Crear cuenta"
+                "createButton": "Crear cuenta",
+                "invitationCode": {
+                    "label": "Código de invitación",
+                    "placeholder": "Introduce tu código de invitación",
+                    "hint": "Necesitas un código de invitación de un usuario existente para registrarte"
+                }
             },
             "hasAccount": "¿Ya tienes cuenta?",
             "signInLink": "Iniciar sesión",
@@ -1460,7 +1512,10 @@
                 "passwordMinLength": "La contraseña debe tener al menos 8 caracteres",
                 "passwordLetter": "La contraseña debe tener al menos una letra",
                 "passwordNumber": "La contraseña debe tener al menos un número",
-                "passwordSpecial": "La contraseña debe tener al menos un caracter especial"
+                "passwordSpecial": "La contraseña debe tener al menos un caracter especial",
+                "invitationCodeRequired": "Se requiere un código de invitación para registrarse",
+                "invalidInvitationCode": "Código de invitación inválido o expirado",
+                "genericError": "Ha ocurrido un error mientras se creaba tu cuenta"
             },
             "messages": {
                 "accountCreated": "Cuenta creada correctamente"
