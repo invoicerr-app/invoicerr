@@ -113,6 +113,7 @@ const userAfterCreateHook = async (user) => {
 };
 
 export const auth = betterAuth({    
+    baseUrl: process.env.APP_URL || 'http://localhost:3000',
     trustedOrigins: ['http://localhost:5173', process.env.APP_URL, ...(process.env.CORS_ORIGINS?.split(',').map(o => o.trim()) || [])].filter((origin): origin is string => typeof origin === 'string'),
     database: prismaAdapter(prisma, {
         provider: "postgresql",
