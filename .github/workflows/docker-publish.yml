@@ -18,17 +18,33 @@ jobs:
       image-tag: ${{ steps.set-vars.outputs.image-tag }}
       cache-ref: ${{ steps.set-vars.outputs.cache-ref }}
       registry-image: ${{ steps.set-vars.outputs.registry-image }}
+      push-latest: ${{ steps.set-vars.outputs.push-latest }}
     steps:
       - name: Set variables
         id: set-vars
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           REPO_NAME_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
           REGISTRY_IMAGE="${{ env.REGISTRY }}/${REPO_NAME_LOWER}"
           GIT_REF="${GITHUB_REF:-${{ github.ref }}}"
 
+          PUSH_LATEST="false"
+
           if [[ "$GIT_REF" == refs/tags/* ]]; then
             IMAGE_TAG=${GIT_REF#refs/tags/}
             CACHE_REF=release
+            
+            echo "Current Tag: $IMAGE_TAG"
+
+            LATEST_API_TAG=$(gh release view --repo "${{ github.repository }}" --json tagName --jq '.tagName' || echo "")
+
+            echo "API Latest Tag: $LATEST_API_TAG"
+            
+            if [[ "$IMAGE_TAG" == "$LATEST_API_TAG" ]]; then
+              PUSH_LATEST="true"
+            fi
+
           elif [[ "$GIT_REF" == refs/heads/test/workflow ]]; then
             IMAGE_TAG=test-workflow
             CACHE_REF=test-workflow
@@ -43,6 +59,7 @@ jobs:
           echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "cache-ref=$CACHE_REF" >> $GITHUB_OUTPUT
           echo "registry-image=$REGISTRY_IMAGE" >> $GITHUB_OUTPUT
+          echo "push-latest=$PUSH_LATEST" >> $GITHUB_OUTPUT
 
   build:
     needs: prepare
@@ -62,11 +79,8 @@ jobs:
             runner: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-
       - uses: docker/setup-qemu-action@v3
-      
       - uses: docker/setup-buildx-action@v3
-
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -117,8 +131,15 @@ jobs:
 
       - working-directory: /tmp/digests
         run: |
-          docker buildx imagetools create -t ${{ needs.prepare.outputs.registry-image }}:${{ needs.prepare.outputs.image-tag }} \
-            $(printf '${{ needs.prepare.outputs.registry-image }}@sha256:%s ' *)          
+          TAGS="-t ${{ needs.prepare.outputs.registry-image }}:${{ needs.prepare.outputs.image-tag }}"
+          
+          if [[ "${{ needs.prepare.outputs.push-latest }}" == "true" ]]; then
+            TAGS="$TAGS -t ${{ needs.prepare.outputs.registry-image }}:latest"
+            echo "🏷️ Adding 'latest' tag"
+          fi
+          
+          docker buildx imagetools create $TAGS \
+            $(printf '${{ needs.prepare.outputs.registry-image }}@sha256:%s ' *)        
 
       - run: |
           docker buildx imagetools inspect ${{ needs.prepare.outputs.registry-image }}:${{ needs.prepare.outputs.image-tag }}
