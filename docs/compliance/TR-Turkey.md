@@ -27,14 +27,14 @@ The workflow is conditional. Invoicerr must decide the path.
 flowchart TD
     Start[Generate Invoice] --> Check{VknCheck: Is Receiver Registered?}
     
-    Check -- YES (Registered) --> A[Generate **e-Fatura** (UBL-TR)]
+    Check -- YES (Registered) --> A["Generate **e-Fatura** (UBL-TR)"]
     A --> B[Sign with Mali Mühür]
     B --> C[Send to GİB Hub]
     C --> D[GİB Routes to Receiver]
     
-    Check -- NO (Not Registered) --> E[Generate **e-Arşiv** (UBL-TR)]
+    Check -- NO (Not Registered) --> E["Generate **e-Arşiv** (UBL-TR)"]
     E --> F[Sign with Mali Mühür]
-    F --> G[Report to GİB (Daily)]
+    F --> G["Report to GİB (Daily)"]
     F --> H[Send PDF/Link to Receiver]
 
 ```
@@ -85,3 +85,4 @@ You must select the correct profile:
 * **Official Portal:** [e-Belge GİB](https://ebelge.gib.gov.tr/)
 * **Technical Guide:** [UBL-TR Guides](https://www.google.com/search?q=https://ebelge.gib.gov.tr/dosyalar/kilavuzlar/UBL-TR_1.2_Klavuzlari.zip)
 * **Test Portal:** [e-Fatura Test](https://www.google.com/search?q=https://efatura-test.gib.gov.tr/)
+
