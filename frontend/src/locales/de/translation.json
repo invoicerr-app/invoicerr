@@ -31,14 +31,14 @@
             },
             "tooltips": {
                 "view": "Kundendetails anzeigen",
-                "edit": "Kunden bearbeiten",
-                "delete": "Kunden löschen"
+                "edit": "Kunde bearbeiten",
+                "delete": "Kunde löschen"
             }
         },
         "upsert": {
             "title": {
                 "create": "Neue Kunden hinzufügen",
-                "edit": "Kunden bearbeiten"
+                "edit": "Kunde bearbeiten"
             },
             "fields": {
                 "contactFirstname": {
@@ -177,7 +177,7 @@
             "description": "Sind Sie sicher, dass Sie diesen Kunden löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
             "actions": {
                 "cancel": "Abbrechen",
-                "delete": "Kunden löschen"
+                "delete": "Kunde löschen"
             }
         }
     },
@@ -404,8 +404,8 @@
                 "edit": "Rechnung bearbeiten",
                 "markAsPaid": "Als bezahlt markieren",
                 "delete": "Rechnung löschen",
-                "createReceipt": "Create a receipt from this invoice",
-                "sendByEmail": "Send invoice by email"
+                "createReceipt": "Erstelle ein Beleg von dieser Rechnung",
+                "sendByEmail": "Sende Rechnung per Email"
             },
             "actions": {
                 "addNew": "Neue Rechnung hinzufügen",
@@ -762,7 +762,7 @@
         },
         "list": {
             "add": "Zahlungsmethode hinzufügen",
-            "empty": "Noch keine Zahlungsmethoden"
+            "empty": "Keine Zahlungsmethoden gefunden"
         },
         "stats": {
             "total": "Gesamt Zahlungsmethoden",
@@ -894,7 +894,7 @@
                 },
                 "legalId": {
                     "label": "Handelsregister Nr.",
-                    "placeholder": "Handelsregister Nr.",
+                    "placeholder": "Handelsregister Nr. eingeben",
                     "description": "Die gesetzliche Handelsregister Nr. Ihres Unternehmens",
                     "errors": {
                         "required": "Eine gültige Handelsregister Nr. ist erforderlich",
@@ -908,8 +908,8 @@
                     "description": "Die Umsatzsteuer-Identifikationsnummer Ihres Unternehmens",
                     "errors": {
                         "required": "MwSt.-Nummer ist erforderlich",
-                        "empty": "Die Mehrwertsteuernummer darf nicht leer sein.",
-                        "maxLength": "Die Mehrwertsteuernummer muss weniger als 15 Zeichen umfassen.",
+                        "empty": "Die Umsatzsteuernummer darf nicht leer sein.",
+                        "maxLength": "Die Umsatzsteuernummer muss weniger als 15 Zeichen umfassen.",
                         "format": "Das Format der Mehrwertsteuernummer ist ungültig (z. B. FR12345678901)"
                     }
                 },
@@ -1075,7 +1075,9 @@
             },
             "password": {
                 "title": "Passwort & Sicherheit",
-                "description": "Ändern Sie Ihr Passwort und Ihre Sicherheitseinstellungen"
+                "description": "Ändern Sie Ihr Passwort und Ihre Sicherheitseinstellungen",
+                "loading": "Laden...",
+                "noPasswordSet": "Sie haben sich mit einem externen Provider eingeloggt (OICD). Sie können nun ein Passwort festlegen, um sich mit Email und Passwort einzuloggen."
             },
             "form": {
                 "firstname": {
@@ -1114,7 +1116,8 @@
                         "letter": "Das Passwort muss mindestens einen Buchstaben enthalten",
                         "number": "Das Passwort muss mindestens eine Zahl enthalten",
                         "special": "Das Passwort muss mindestens ein Sonderzeichen enthalten"
-                    }
+                    },
+                    "labelNew": "Passwort"
                 },
                 "confirmPassword": {
                     "label": "Bestätigen Sie Ihr Passwort",
@@ -1129,7 +1132,8 @@
                 "updatingProfile": "Aktualisiere...",
                 "updateProfile": "Profil aktualisieren",
                 "updatingPassword": "Aktualisiere...",
-                "updatePassword": "Passwort aktualisieren"
+                "updatePassword": "Passwort aktualisieren",
+                "setPassword": "Passwort setzen"
             },
             "messages": {
                 "profileUpdateSuccess": "Profil erfolgreich aktualisiert",
@@ -1361,12 +1365,18 @@
             "title": "Webhook Settings",
             "description": "Manage outgoing webhooks for events",
             "create": {
-                "title": "Create Webhook",
+                "title": "Erstelle Webhook",
                 "description": "Create a new webhook",
                 "url": "Webhook URL",
                 "type": "Type",
                 "events": "Events",
-                "button": "Create Webhook"
+                "button": "Erstelle Webhook"
+            },
+            "card": {
+                "events": "Warte auf Ereignisse: {{events}}",
+                "edit": "Bearbeiten",
+                "delete": "Löschen",
+                "editPrompt": "Geben Sie eine neue webhook URL ein"
             }
         },
         "title": "Einstellungen",
@@ -1400,7 +1410,9 @@
                 "fetchError": "Laden der Einladungscodes fehlgeschlagen",
                 "createSuccess": "Einladungscode erfolgreich generiert",
                 "createError": "Generieren des Einladungscodes fehlgeschlagen",
-                "deleteSuccess": "Einladungscode gelöscht"
+                "deleteSuccess": "Einladungscode gelöscht",
+                "deleteError": "Generieren des Einladungs-Codes fehlgeschlagen",
+                "codeCopied": "Code in Zwischenablage kopiert"
             }
         }
     },
@@ -1484,7 +1496,12 @@
                     "requirements": "Passwort-Anforderungen:"
                 },
                 "creatingAccount": "Konto erstellen...",
-                "createButton": "Konto erstellen"
+                "createButton": "Konto erstellen",
+                "invitationCode": {
+                    "label": "Einladungs-Code",
+                    "placeholder": "Geben Sie ihren Einladungs-Code ein",
+                    "hint": "Sie benötigen einen Einladungs-Code von einem bestehenden Benutzer zum sich zu registrieren"
+                }
             },
             "hasAccount": "Haben Sie bereits ein Konto?",
             "signInLink": "Anmelden",
@@ -1495,7 +1512,10 @@
                 "passwordMinLength": "Das Passwort muss mindestens 8 Zeichen lang sein.",
                 "passwordLetter": "Das Passwort muss mindestens einen Buchstaben enthalten",
                 "passwordNumber": "Das Passwort muss mindestens eine Zahl enthalten",
-                "passwordSpecial": "Das Passwort muss mindestens ein Sonderzeichen enthalten"
+                "passwordSpecial": "Das Passwort muss mindestens ein Sonderzeichen enthalten",
+                "invitationCodeRequired": "Ein Einladungs-Code wird benötigt zum registrieren",
+                "invalidInvitationCode": "Ungültiger oder abgelaufener Einladungs-Code",
+                "genericError": "Ein Fehler ist aufgetreten beim Erstellen des Kontos"
             },
             "messages": {
                 "accountCreated": "Konto erfolgreich erstellt"
