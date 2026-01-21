@@ -1,30 +1,18 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Res,
-  Sse,
-} from '@nestjs/common';
-
-import { Response } from 'express';
-import { ExportFormat } from '@fin.cx/einvoice';
-import { CreateInvoiceDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
-import { InvoicesService } from '@/modules/invoices/invoices.service';
-import { PluginsService } from '@/modules/plugins/plugins.service';
-import { interval } from 'rxjs/internal/observable/interval';
+import type { ExportFormat } from '@fin.cx/einvoice';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, Sse } from '@nestjs/common';
+import type { Response } from 'express';
 import { from, map, startWith, switchMap } from 'rxjs';
+import { interval } from 'rxjs/internal/observable/interval';
+import type { CreateInvoiceDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
+import type { InvoicesService } from '@/modules/invoices/invoices.service';
+import type { PluginsService } from '@/modules/plugins/plugins.service';
 
 @Controller('invoices')
 export class InvoicesController {
   constructor(
     private readonly invoicesService: InvoicesService,
     private readonly pluginService: PluginsService,
-  ) { }
+  ) {}
 
   @Get()
   async getInvoicesInfo(@Param('page') page: string) {

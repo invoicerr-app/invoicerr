@@ -1,14 +1,17 @@
-import * as bodyParser from 'body-parser';
-
-import { AppModule } from './app.module';
 import { NestFactory } from '@nestjs/core';
+import * as bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
+import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
   app.enableCors({
     credentials: true,
-    origin: ['http://localhost:5173', process.env.APP_URL, ...(process.env.CORS_ORIGINS?.split(',').map(o => o.trim()) || [])].filter(Boolean),
+    origin: [
+      'http://localhost:5173',
+      process.env.APP_URL,
+      ...(process.env.CORS_ORIGINS?.split(',').map((o) => o.trim()) || []),
+    ].filter(Boolean),
   });
   app.use(cookieParser());
   app.setGlobalPrefix('api');

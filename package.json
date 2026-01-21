@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.11"
+  }
+}

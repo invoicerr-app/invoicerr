@@ -47,14 +47,17 @@ export class VIESService {
       </soapenv:Envelope>
     `;
 
-    const response = await fetch('https://ec.europa.eu/taxation_customs/vies/services/checkVatService', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/xml;charset=UTF-8',
-        'SOAPAction': '',
+    const response = await fetch(
+      'https://ec.europa.eu/taxation_customs/vies/services/checkVatService',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/xml;charset=UTF-8',
+          SOAPAction: '',
+        },
+        body: soapEnvelope,
       },
-      body: soapEnvelope,
-    });
+    );
 
     if (!response.ok) {
       throw new Error(`VIES API returned ${response.status}`);

@@ -1,15 +1,20 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  type CanActivate,
+  type ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 
-import { Reflector } from '@nestjs/core';
-import { auth } from '@/lib/auth';
+import type { Reflector } from '@nestjs/core';
 import { fromNodeHeaders } from 'better-auth/node';
+import { auth } from '@/lib/auth';
 
 // Use the same metadata key as @thallesp/nestjs-better-auth
 const IS_PUBLIC_KEY = 'PUBLIC';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private reflector: Reflector) { }
+  constructor(private reflector: Reflector) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [

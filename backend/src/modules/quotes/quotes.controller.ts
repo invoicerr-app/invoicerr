@@ -1,24 +1,12 @@
-import { CreateQuoteDto, EditQuotesDto } from '@/modules/quotes/dto/quotes.dto';
-import { QuotesService } from '@/modules/quotes/quotes.service';
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Res,
-  Sse,
-} from '@nestjs/common';
-
-import { Response } from 'express';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, Sse } from '@nestjs/common';
+import type { Response } from 'express';
 import { from, interval, map, startWith, switchMap } from 'rxjs';
+import type { CreateQuoteDto, EditQuotesDto } from '@/modules/quotes/dto/quotes.dto';
+import type { QuotesService } from '@/modules/quotes/quotes.service';
 
 @Controller('quotes')
 export class QuotesController {
-  constructor(private readonly quotesService: QuotesService) { }
+  constructor(private readonly quotesService: QuotesService) {}
 
   @Get()
   async getQuotesInfo(@Param('page') page: string) {

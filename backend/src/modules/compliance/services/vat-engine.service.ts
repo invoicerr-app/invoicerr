@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { VATRate } from '../interfaces';
+import type { VATRate } from '../interfaces';
 
 export interface VATCalculationInput {
   quantity: number;
@@ -23,11 +23,18 @@ export interface VATRules {
   rates: VATRate[];
   defaultRate: number;
   reverseCharge: boolean;
+  roundingMode?: 'line' | 'total';
 }
 
 @Injectable()
 export class VATEngineService {
+  /**
+   * Calcule les totaux TVA selon les règles du pays
+   * @param items Liste des lignes de facture
+   * @param rules Règles TVA applicables
+   */
   calculate(items: VATCalculationInput[], rules: VATRules): VATCalculationResult {
+    const roundingMode = rules.roundingMode || 'total';
     const breakdown = new Map<number, { code: string; base: number; amount: number }>();
 
     for (const item of items) {
@@ -41,11 +48,26 @@ export class VATEngineService {
 
       const entry = breakdown.get(rate)!;
       entry.base += lineTotal;
+
+      // Si arrondi par ligne, on calcule la TVA ligne par ligne
+      if (roundingMode === 'line' && !rules.reverseCharge) {
+        const lineVAT = Math.round(((lineTotal * rate) / 100) * 100) / 100;
+        entry.amount += lineVAT;
+      }
     }
 
-    // Calculate VAT amounts
-    for (const [rate, entry] of breakdown.entries()) {
-      entry.amount = rules.reverseCharge ? 0 : Math.round(entry.base * rate) / 100;
+    // Si arrondi au total, on calcule la TVA sur le total de chaque taux
+    if (roundingMode === 'total' && !rules.reverseCharge) {
+      for (const [rate, entry] of breakdown.entries()) {
+        entry.amount = Math.round(((entry.base * rate) / 100) * 100) / 100;
+      }
+    }
+
+    // Si autoliquidation, TVA = 0
+    if (rules.reverseCharge) {
+      for (const entry of breakdown.values()) {
+        entry.amount = 0;
+      }
     }
 
     const totalHT = [...breakdown.values()].reduce((sum, e) => sum + e.base, 0);

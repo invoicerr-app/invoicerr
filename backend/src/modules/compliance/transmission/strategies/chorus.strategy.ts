@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { TransmissionPayload, TransmissionResult, TransmissionStrategy } from '../transmission.interface';
+import {
+  TransmissionPayload,
+  TransmissionResult,
+  TransmissionStrategy,
+} from '../transmission.interface';
 
 interface ChorusConfig {
   apiUrl: string;

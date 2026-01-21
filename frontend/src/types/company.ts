@@ -1,19 +1,19 @@
 export interface Company {
-    id: string
-    description: string
-    foundedAt: Date | string
-    name: string
-    currency: string
-    VAT: string
-    exemptVat?: boolean
-    address: string
-    postalCode: string
-    city: string
-    country: string
-    phone: string
-    email: string
-    quoteStartingNumber: number
-    quoteNumberFormat: string
-    invoiceStartingNumber: number
-    invoiceNumberFormat: string
+  id: string;
+  description: string;
+  foundedAt: Date | string;
+  name: string;
+  currency: string;
+  VAT: string;
+  exemptVat?: boolean;
+  address: string;
+  postalCode: string;
+  city: string;
+  country: string;
+  phone: string;
+  email: string;
+  quoteStartingNumber: number;
+  quoteNumberFormat: string;
+  invoiceStartingNumber: number;
+  invoiceNumberFormat: string;
 }

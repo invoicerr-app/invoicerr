@@ -1,100 +1,102 @@
-import { IStorageProvider, IUploadFileProps } from '../../types';
-import { dirname, resolve } from 'path';
-import { mkdirSync, unlinkSync, writeFileSync } from 'fs';
-
+import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import prisma from '@/prisma/prisma.service';
+import type { IStorageProvider, IUploadFileProps } from '../../types';
 
 interface ILocalConfig {
-    storagePath: string;
+  storagePath: string;
 }
 
 export class LocalStorageProvider implements IStorageProvider {
-    id = 'local';
-    name = 'Local Storage';
-    description = 'Store files in a local directory';
+  id = 'local';
+  name = 'Local Storage';
+  description = 'Store files in a local directory';
 
-    constructor() {
+  constructor() {}
+
+  async getConfig(): Promise<ILocalConfig> {
+    const plugin = await prisma.plugin.findUnique({
+      where: { id: this.id },
+    });
+
+    if (!plugin) {
+      throw new Error('Local Storage plugin not found in database.');
     }
 
-    async getConfig(): Promise<ILocalConfig> {
-        const plugin = (await prisma.plugin.findUnique({
-            where: { id: this.id },
-        }))
+    const config = plugin.config as unknown as ILocalConfig;
 
-        if (!plugin) {
-            throw new Error('Local Storage plugin not found in database.');
-        }
-
-        const config = plugin.config as unknown as ILocalConfig;
-
-        if (!config || !config.storagePath) {
-            throw new Error('Local Storage plugin is not configured. Please provide a storage path.');
-        }
-
-        return config;
+    if (!config || !config.storagePath) {
+      throw new Error('Local Storage plugin is not configured. Please provide a storage path.');
     }
 
-    async uploadFile({ key, buffer, mimeType }: IUploadFileProps): Promise<string> {
-        try {
-            const config = await this.getConfig();
-            const filePath = resolve(config.storagePath, key);
-            const fileDir = dirname(filePath);
+    return config;
+  }
 
-            // Create directories if they don't exist
-            mkdirSync(fileDir, { recursive: true });
+  async uploadFile({ key, buffer }: IUploadFileProps): Promise<string> {
+    try {
+      const config = await this.getConfig();
+      const filePath = resolve(config.storagePath, key);
+      const fileDir = dirname(filePath);
 
-            // Convert buffer to Buffer if needed
-            let fileBuffer: Buffer;
-            if (buffer instanceof ArrayBuffer) {
-                fileBuffer = Buffer.from(buffer);
-            } else if (buffer instanceof Uint8Array) {
-                fileBuffer = Buffer.from(buffer);
-            } else {
-                fileBuffer = buffer as Buffer;
-            }
+      // Create directories if they don't exist
+      mkdirSync(fileDir, { recursive: true });
 
-            // Write file to disk
-            writeFileSync(filePath, fileBuffer);
+      // Convert buffer to Buffer if needed
+      let fileBuffer: Buffer;
+      if (buffer instanceof ArrayBuffer) {
+        fileBuffer = Buffer.from(buffer);
+      } else if (buffer instanceof Uint8Array) {
+        fileBuffer = Buffer.from(buffer);
+      } else {
+        fileBuffer = buffer as Buffer;
+      }
 
-            // Return a relative URL-like path that can be used by the frontend
-            // The frontend would need to serve these files through a static file server
-            return `/storage/${key}`;
-        } catch (error) {
-            throw new Error(`Failed to upload file: ${error instanceof Error ? error.message : String(error)}`);
-        }
+      // Write file to disk
+      writeFileSync(filePath, fileBuffer);
+
+      // Return a relative URL-like path that can be used by the frontend
+      // The frontend would need to serve these files through a static file server
+      return `/storage/${key}`;
+    } catch (error) {
+      throw new Error(
+        `Failed to upload file: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  async getSignedUrl(key: string): Promise<string> {
+    return `/storage/${key}`;
+  }
+
+  async deleteFile(key: string): Promise<void> {
+    try {
+      const config = await this.getConfig();
+      const filePath = resolve(config.storagePath, key);
+      unlinkSync(filePath);
+    } catch (error) {
+      throw new Error(
+        `Failed to delete file: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  formatUrl(url: string): string {
+    return url;
+  }
+
+  async validatePlugin(config: ILocalConfig): Promise<boolean> {
+    if (!config.storagePath) {
+      throw new Error('Storage path is required');
     }
 
-    async getSignedUrl(key: string, expiresIn = 3600): Promise<string> {
-        // For local storage, we just return the file path
-        // In a real scenario, you might want to generate a temporary token
-        return `/storage/${key}`;
+    try {
+      // Try to create the directory to verify write permissions
+      mkdirSync(config.storagePath, { recursive: true });
+      return true;
+    } catch (error) {
+      throw new Error(
+        `Unable to access storage path: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
-
-    async deleteFile(key: string): Promise<void> {
-        try {
-            const config = await this.getConfig();
-            const filePath = resolve(config.storagePath, key);
-            unlinkSync(filePath);
-        } catch (error) {
-            throw new Error(`Failed to delete file: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
-
-    formatUrl(url: string): string {
-        return url;
-    }
-
-    async validatePlugin(config: ILocalConfig): Promise<boolean> {
-        if (!config.storagePath) {
-            throw new Error('Storage path is required');
-        }
-
-        try {
-            // Try to create the directory to verify write permissions
-            mkdirSync(config.storagePath, { recursive: true });
-            return true;
-        } catch (error) {
-            throw new Error(`Unable to access storage path: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }
+  }
 }

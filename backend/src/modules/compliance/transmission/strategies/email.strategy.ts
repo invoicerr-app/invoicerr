@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { MailService } from '@/mail/mail.service';
-import { TransmissionPayload, TransmissionResult, TransmissionStrategy } from '../transmission.interface';
+import {
+  TransmissionPayload,
+  TransmissionResult,
+  TransmissionStrategy,
+} from '../transmission.interface';
 
 @Injectable()
 export class EmailTransmissionStrategy implements TransmissionStrategy {

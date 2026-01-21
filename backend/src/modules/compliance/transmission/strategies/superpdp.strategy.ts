@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { TransmissionPayload, TransmissionResult, TransmissionStrategy } from '../transmission.interface';
+import {
+  TransmissionPayload,
+  TransmissionResult,
+  TransmissionStrategy,
+} from '../transmission.interface';
 
 interface SuperPDPConfig {
   apiUrl: string;
@@ -115,7 +119,10 @@ export class SuperPDPTransmissionStrategy implements TransmissionStrategy {
       return {
         success: true,
         externalId: result.id,
-        message: result.status === 'PENDING' ? 'Invoice submitted, pending validation' : 'Invoice accepted',
+        message:
+          result.status === 'PENDING'
+            ? 'Invoice submitted, pending validation'
+            : 'Invoice accepted',
       };
     } catch (error) {
       this.logger.error('SuperPDP transmission failed:', error);

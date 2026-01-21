@@ -1,4 +1,4 @@
-import { CountryConfig } from '../interfaces';
+import type { CountryConfig } from '../interfaces';
 
 export const genericConfig: Omit<CountryConfig, 'code'> = {
   currency: 'EUR',
@@ -13,7 +13,11 @@ export const genericConfig: Omit<CountryConfig, 'code'> = {
     exemptions: [],
     numberFormat: '^[A-Z]{2}[0-9A-Z]+$',
     numberPrefix: '',
-    reverseChargeTextKey: 'compliance.reverseCharge.generic',
+    roundingMode: 'total', // Per-total rounding by default
+    reverseChargeTexts: {
+      services: 'compliance.reverseCharge.services',
+      goods: 'compliance.reverseCharge.goods',
+    },
   },
 
   identifiers: {
@@ -26,18 +30,39 @@ export const genericConfig: Omit<CountryConfig, 'code'> = {
     client: ['name', 'email'],
   },
 
+  documentFormat: {
+    preferred: 'pdf',
+    supported: ['pdf'],
+    xmlSyntax: 'UBL',
+  },
+
   transmission: {
     b2b: {
       method: 'email',
       labelKey: 'transmission.email',
       icon: 'mail',
       mandatory: false,
+      async: false,
     },
     b2g: {
       method: 'email',
       labelKey: 'transmission.email',
       icon: 'mail',
       mandatory: false,
+      async: false,
     },
+  },
+
+  numbering: {
+    seriesRequired: false,
+    seriesRegistration: false,
+    hashChaining: false,
+    gapAllowed: true,
+    resetPeriod: 'never',
+  },
+
+  legalMentions: {
+    mandatory: [],
+    conditional: [],
   },
 };

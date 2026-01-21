@@ -1,4 +1,4 @@
-import type { Company } from "./company";
+import type { Company } from './company';
 
 export enum PaymentMethodType {
   BANK_TRANSFER = 'BANK_TRANSFER',

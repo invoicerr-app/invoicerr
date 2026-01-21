@@ -1,12 +1,11 @@
-import { CompanyService } from '@/modules/company/company.service';
-import { EditCompanyDto, PDFConfigDto } from '@/modules/company/dto/company.dto';
 import { Body, Controller, Get, Post, Put, Sse } from '@nestjs/common';
 import { from, interval, map, startWith, switchMap } from 'rxjs';
-
+import type { CompanyService } from '@/modules/company/company.service';
+import type { EditCompanyDto, PDFConfigDto } from '@/modules/company/dto/company.dto';
 
 @Controller('company')
 export class CompanyController {
-  constructor(private readonly companyService: CompanyService) { }
+  constructor(private readonly companyService: CompanyService) {}
 
   @Get('info')
   async getCompanyInfo() {
@@ -48,14 +47,8 @@ export class CompanyController {
   }
 
   @Put('email-templates')
-  async updateEmailTemplate(
-    @Body() body: { dbId: string; subject: string; body: string },
-  ) {
-    const data = await this.companyService.updateEmailTemplate(
-      body.dbId,
-      body.subject,
-      body.body,
-    );
+  async updateEmailTemplate(@Body() body: { dbId: string; subject: string; body: string }) {
+    const data = await this.companyService.updateEmailTemplate(body.dbId, body.subject, body.body);
     return data || {};
   }
 }

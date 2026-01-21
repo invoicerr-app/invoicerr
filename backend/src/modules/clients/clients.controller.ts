@@ -1,21 +1,11 @@
-import { ClientsService } from '@/modules/clients/clients.service';
-import { EditClientsDto } from '@/modules/clients/dto/clients.dto';
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Sse,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Sse } from '@nestjs/common';
 import { from, interval, map, startWith, switchMap } from 'rxjs';
+import type { ClientsService } from '@/modules/clients/clients.service';
+import type { EditClientsDto } from '@/modules/clients/dto/clients.dto';
 
 @Controller('clients')
 export class ClientsController {
-  constructor(private readonly clientsService: ClientsService) { }
+  constructor(private readonly clientsService: ClientsService) {}
 
   @Get()
   async getClientsInfo(@Param('page') page: string) {

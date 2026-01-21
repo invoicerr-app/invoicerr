@@ -1,43 +1,42 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useEffect, useState } from "react"
-
-import type { Invoice } from "@/types"
-import { useGetRaw } from "@/hooks/use-fetch"
-import { useTranslation } from "react-i18next"
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useGetRaw } from '@/hooks/use-fetch';
+import type { Invoice } from '@/types';
 
 type InvoicePdfModalProps = {
-  invoice: Invoice | null
-  onOpenChange: (open: boolean) => void
-}
+  invoice: Invoice | null;
+  onOpenChange: (open: boolean) => void;
+};
 
 export function InvoicePdfModal({ invoice, onOpenChange }: InvoicePdfModalProps) {
-  const { t } = useTranslation()
-  const { data } = useGetRaw<Response>(`/api/invoices/${invoice?.id}/pdf`)
-  const [pdfData, setPdfData] = useState<Uint8Array | null>(null)
+  const { t } = useTranslation();
+  const { data } = useGetRaw<Response>(`/api/invoices/${invoice?.id}/pdf`);
+  const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
 
   useEffect(() => {
     if (data) {
       data.arrayBuffer().then((buffer) => {
-        setPdfData(new Uint8Array(buffer))
-      })
+        setPdfData(new Uint8Array(buffer));
+      });
     }
-  }, [data])
+  }, [data]);
 
-  if (!invoice) return null
+  if (!invoice) return null;
 
   return (
     <Dialog
       open={!!invoice}
       onOpenChange={(open) => {
         if (!open) {
-          setPdfData(null)
+          setPdfData(null);
         }
-        onOpenChange(open)
+        onOpenChange(open);
       }}
     >
       <DialogContent className="!max-w-none w-fit min-w-[90vw] md:min-w-128 h-[90dvh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>{t("invoices.pdf.title", { number: invoice?.number })}</DialogTitle>
+          <DialogTitle>{t('invoices.pdf.title', { number: invoice?.number })}</DialogTitle>
         </DialogHeader>
         <section className="h-full overflow-auto">
           {pdfData ? (
@@ -45,7 +44,7 @@ export function InvoicePdfModal({ invoice, onOpenChange }: InvoicePdfModalProps)
               <iframe
                 className="w-full h-full"
                 src={`data:application/pdf;base64,${btoa(String.fromCharCode(...pdfData))}`}
-                title={t("invoices.pdf.title", { number: invoice?.number })}
+                title={t('invoices.pdf.title', { number: invoice?.number })}
               />
             </div>
           ) : (
@@ -56,5 +55,5 @@ export function InvoicePdfModal({ invoice, onOpenChange }: InvoicePdfModalProps)
         </section>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

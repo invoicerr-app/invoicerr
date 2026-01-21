@@ -1,63 +1,73 @@
-import { Banknote, Edit, Eye, Plus, Trash2 } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { forwardRef, useImperativeHandle, useState } from "react"
-
-import { Button } from "@/components/ui/button"
-import { PaymentMethodDeleteDialog } from "./payment-method-delete"
-import { PaymentMethodUpsert } from "./payment-method-upsert"
-import { PaymentMethodViewDialog } from "./payment-method-view"
-import type React from "react"
-import { useTranslation } from "react-i18next"
+import { Banknote, Edit, Eye, Plus, Trash2 } from 'lucide-react';
+import type React from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PaymentMethodDeleteDialog } from './payment-method-delete';
+import { PaymentMethodUpsert } from './payment-method-upsert';
+import { PaymentMethodViewDialog } from './payment-method-view';
 
 interface PaymentMethod {
-  id: string
-  name: string
-  details?: string
-  type?: "BANK_TRANSFER" | "PAYPAL" | "CASH" | "OTHER"
-  isActive?: boolean
+  id: string;
+  name: string;
+  details?: string;
+  type?: 'BANK_TRANSFER' | 'PAYPAL' | 'CASH' | 'OTHER';
+  isActive?: boolean;
 }
 
 interface PaymentMethodsListProps {
-  paymentMethods: PaymentMethod[]
-  loading: boolean
-  title: string
-  description: string
-  page?: number
-  pageCount?: number
-  setPage?: (page: number) => void
-  mutate?: () => void
-  emptyState: React.ReactNode
-  showCreateButton?: boolean
+  paymentMethods: PaymentMethod[];
+  loading: boolean;
+  title: string;
+  description: string;
+  page?: number;
+  pageCount?: number;
+  setPage?: (page: number) => void;
+  mutate?: () => void;
+  emptyState: React.ReactNode;
+  showCreateButton?: boolean;
 }
 
 export interface PaymentMethodsListHandle {
-  handleAddClick: () => void
+  handleAddClick: () => void;
 }
 
 export const PaymentMethodsList = forwardRef<PaymentMethodsListHandle, PaymentMethodsListProps>(
-  ({ paymentMethods = [], loading, title, description, mutate, emptyState, showCreateButton = false }, ref) => {
-    const { t } = useTranslation()
-    const [createDialog, setCreateDialog] = useState<boolean>(false)
-    const [editDialog, setEditDialog] = useState<PaymentMethod | null>(null)
-    const [viewDialog, setViewDialog] = useState<PaymentMethod | null>(null)
-    const [deleteDialog, setDeleteDialog] = useState<PaymentMethod | null>(null)
+  (
+    {
+      paymentMethods = [],
+      loading,
+      title,
+      description,
+      mutate,
+      emptyState,
+      showCreateButton = false,
+    },
+    ref,
+  ) => {
+    const { t } = useTranslation();
+    const [createDialog, setCreateDialog] = useState<boolean>(false);
+    const [editDialog, setEditDialog] = useState<PaymentMethod | null>(null);
+    const [viewDialog, setViewDialog] = useState<PaymentMethod | null>(null);
+    const [deleteDialog, setDeleteDialog] = useState<PaymentMethod | null>(null);
 
     useImperativeHandle(ref, () => ({
       handleAddClick() {
-        setCreateDialog(true)
+        setCreateDialog(true);
       },
-    }))
+    }));
 
     function handleEdit(pm: PaymentMethod) {
-      setEditDialog(pm)
+      setEditDialog(pm);
     }
 
     function handleView(pm: PaymentMethod) {
-      setViewDialog(pm)
+      setViewDialog(pm);
     }
 
     function handleDelete(pm: PaymentMethod) {
-      setDeleteDialog(pm)
+      setDeleteDialog(pm);
     }
 
     return (
@@ -74,7 +84,7 @@ export const PaymentMethodsList = forwardRef<PaymentMethodsListHandle, PaymentMe
             {showCreateButton && (
               <Button onClick={() => setCreateDialog(true)}>
                 <Plus className="h-4 w-4 mr-0 md:mr-2" />
-                <span className="hidden md:inline-flex">{t("paymentMethods.list.add")}</span>
+                <span className="hidden md:inline-flex">{t('paymentMethods.list.add')}</span>
               </Button>
             )}
           </CardHeader>
@@ -99,10 +109,15 @@ export const PaymentMethodsList = forwardRef<PaymentMethodsListHandle, PaymentMe
                           <div className="flex flex-wrap items-center gap-2">
                             <h3 className="font-medium text-foreground break-words">{pm.name}</h3>
                             <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${pm.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-                                } w-fit`}
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                pm.isActive
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-gray-100 text-gray-800'
+                              } w-fit`}
                             >
-                              {pm.isActive ? t("clients.stats.active") || "Active" : t("clients.stats.inactive") || "Inactive"}
+                              {pm.isActive
+                                ? t('clients.stats.active') || 'Active'
+                                : t('clients.stats.inactive') || 'Inactive'}
                             </span>
                             <div className="text-sm text-muted-foreground ml-2">
                               {t(`paymentMethods.fields.type.${pm.type?.toLowerCase()}`) || pm.type}
@@ -114,7 +129,7 @@ export const PaymentMethodsList = forwardRef<PaymentMethodsListHandle, PaymentMe
 
                       <div className="grid grid-cols-2 lg:flex justify-start sm:justify-end gap-1 md:gap-2">
                         <Button
-                          tooltip={t("paymentMethods.tooltips.view") || "View"}
+                          tooltip={t('paymentMethods.tooltips.view') || 'View'}
                           variant="ghost"
                           size="icon"
                           onClick={() => handleView(pm)}
@@ -123,11 +138,23 @@ export const PaymentMethodsList = forwardRef<PaymentMethodsListHandle, PaymentMe
                           <Eye className="h-4 w-4" />
                         </Button>
 
-                        <Button tooltip={t("paymentMethods.actions.edit")} variant="ghost" size="icon" onClick={() => handleEdit(pm)} className="text-gray-600 hover:text-green-600">
+                        <Button
+                          tooltip={t('paymentMethods.actions.edit')}
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(pm)}
+                          className="text-gray-600 hover:text-green-600"
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
 
-                        <Button tooltip={t("paymentMethods.actions.delete")} variant="ghost" size="icon" onClick={() => handleDelete(pm)} className="text-gray-600 hover:text-red-600">
+                        <Button
+                          tooltip={t('paymentMethods.actions.delete')}
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(pm)}
+                          className="text-gray-600 hover:text-red-600"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -142,8 +169,8 @@ export const PaymentMethodsList = forwardRef<PaymentMethodsListHandle, PaymentMe
         <PaymentMethodUpsert
           open={createDialog}
           onOpenChange={(open: boolean) => {
-            setCreateDialog(open)
-            if (!open) mutate && mutate()
+            setCreateDialog(open);
+            if (!open) mutate && mutate();
           }}
         />
 
@@ -151,23 +178,26 @@ export const PaymentMethodsList = forwardRef<PaymentMethodsListHandle, PaymentMe
           open={!!editDialog}
           paymentMethod={editDialog}
           onOpenChange={(open: boolean) => {
-            if (!open) setEditDialog(null)
-            mutate && mutate()
+            if (!open) setEditDialog(null);
+            mutate && mutate();
           }}
         />
 
-        <PaymentMethodViewDialog paymentMethod={viewDialog} onOpenChange={(open: boolean) => (open ? undefined : setViewDialog(null))} />
+        <PaymentMethodViewDialog
+          paymentMethod={viewDialog}
+          onOpenChange={(open: boolean) => (open ? undefined : setViewDialog(null))}
+        />
 
         <PaymentMethodDeleteDialog
           paymentMethod={deleteDialog}
           onOpenChange={(open: boolean) => {
-            if (!open) setDeleteDialog(null)
-            mutate && mutate()
+            if (!open) setDeleteDialog(null);
+            mutate && mutate();
           }}
         />
       </>
-    )
+    );
   },
-)
+);
 
-export default PaymentMethodsList
+export default PaymentMethodsList;

@@ -1,59 +1,58 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useEffect, useState } from "react"
-
-import type { Quote } from "@/types"
-import { useGetRaw } from "@/hooks/use-fetch"
-import { useTranslation } from "react-i18next"
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useGetRaw } from '@/hooks/use-fetch';
+import type { Quote } from '@/types';
 
 type QuotePdfModalProps = {
-  quote: Quote | null
-  onOpenChange: (open: boolean) => void
-}
+  quote: Quote | null;
+  onOpenChange: (open: boolean) => void;
+};
 
 export function QuotePdfModal({ quote, onOpenChange }: QuotePdfModalProps) {
-  const { t } = useTranslation()
-  const { data } = useGetRaw<Response>(`/api/quotes/${quote?.id}/pdf`)
-  const [pdfData, setPdfData] = useState<Uint8Array | null>(null)
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const { t } = useTranslation();
+  const { data } = useGetRaw<Response>(`/api/quotes/${quote?.id}/pdf`);
+  const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (data) {
       data.arrayBuffer().then((buffer) => {
-        setPdfData(new Uint8Array(buffer))
-      })
+        setPdfData(new Uint8Array(buffer));
+      });
     }
-  }, [data])
+  }, [data]);
 
   useEffect(() => {
     if (pdfData) {
-      const blob = new Blob([pdfData], { type: "application/pdf" })
-      const url = URL.createObjectURL(blob)
-      setPdfUrl(url)
+      const blob = new Blob([pdfData], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      setPdfUrl(url);
 
       return () => {
-        URL.revokeObjectURL(url)
-      }
+        URL.revokeObjectURL(url);
+      };
     } else {
-      setPdfUrl(null)
+      setPdfUrl(null);
     }
-  }, [pdfData])
+  }, [pdfData]);
 
-  if (!quote) return null
+  if (!quote) return null;
 
   return (
     <Dialog
       open={!!quote}
       onOpenChange={(open) => {
         if (!open) {
-          setPdfData(null)
-          setPdfUrl(null)
+          setPdfData(null);
+          setPdfUrl(null);
         }
-        onOpenChange(open)
+        onOpenChange(open);
       }}
     >
       <DialogContent className="!max-w-none w-fit min-w-[90vw] md:min-w-128 h-[90dvh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>{t("quotes.pdf.title", { number: quote?.number })}</DialogTitle>
+          <DialogTitle>{t('quotes.pdf.title', { number: quote?.number })}</DialogTitle>
         </DialogHeader>
 
         <section className="h-full overflow-auto">
@@ -62,7 +61,7 @@ export function QuotePdfModal({ quote, onOpenChange }: QuotePdfModalProps) {
               <iframe
                 className="w-full h-full"
                 src={pdfUrl}
-                title={t("quotes.pdf.title", { number: quote?.number })}
+                title={t('quotes.pdf.title', { number: quote?.number })}
               />
             </div>
           ) : (
@@ -73,5 +72,5 @@ export function QuotePdfModal({ quote, onOpenChange }: QuotePdfModalProps) {
         </section>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

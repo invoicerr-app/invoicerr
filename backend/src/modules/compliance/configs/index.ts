@@ -1,6 +1,6 @@
-import { CountryConfig } from '../interfaces';
-import { genericConfig } from './generic.config';
+import type { CountryConfig } from '../interfaces';
 import { frConfig } from './countries/fr.config';
+import { genericConfig } from './generic.config';
 
 const configs: Record<string, CountryConfig> = {
   FR: frConfig,

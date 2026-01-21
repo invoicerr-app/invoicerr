@@ -1,15 +1,15 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Sse } from '@nestjs/common';
-import {
-  PaymentMethodsService,
+import { from, interval, map, startWith } from 'rxjs';
+import { switchMap } from 'rxjs/internal/operators/switchMap';
+import type {
   CreatePaymentMethodDto,
   EditPaymentMethodDto,
+  PaymentMethodsService,
 } from './payment-methods.service';
-import { switchMap } from 'rxjs/internal/operators/switchMap';
-import { from, interval, map, startWith } from 'rxjs';
 
 @Controller('payment-methods')
 export class PaymentMethodsController {
-  constructor(private readonly paymentMethodService: PaymentMethodsService) { }
+  constructor(private readonly paymentMethodService: PaymentMethodsService) {}
 
   @Get()
   async findAll() {

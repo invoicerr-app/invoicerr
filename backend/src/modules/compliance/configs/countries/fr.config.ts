@@ -1,4 +1,4 @@
-import { CountryConfig } from '../../interfaces';
+import type { CountryConfig } from '../../interfaces';
 
 export const frConfig: CountryConfig = {
   code: 'FR',
@@ -28,7 +28,11 @@ export const frConfig: CountryConfig = {
     ],
     numberFormat: '^FR[0-9A-Z]{2}[0-9]{9}$',
     numberPrefix: 'FR',
-    reverseChargeTextKey: 'compliance.fr.reverseCharge',
+    roundingMode: 'line', // France: per-line rounding (tax rule)
+    reverseChargeTexts: {
+      services: 'compliance.fr.reverseCharge.services', // "Autoliquidation - art. 283 CGI"
+      goods: 'compliance.fr.reverseCharge.goods', // "Livraison intracommunautaire exonérée - art. 262 ter I CGI"
+    },
   },
 
   identifiers: {
@@ -42,7 +46,7 @@ export const frConfig: CountryConfig = {
       {
         id: 'rcs',
         labelKey: 'identifiers.rcs',
-        format: '^.*$', // Format libre pour RCS
+        format: '^.*$', // Format libre
         required: false,
       },
     ],
@@ -61,13 +65,22 @@ export const frConfig: CountryConfig = {
     client: ['name', 'email', 'address', 'city', 'postalCode'],
   },
 
+  documentFormat: {
+    preferred: 'facturx',
+    supported: ['pdf', 'facturx', 'ubl'],
+    xmlSyntax: 'CII', // Factur-X utilise Cross-Industry Invoice (CII)
+  },
+
   transmission: {
     b2b: {
       method: 'platform',
       labelKey: 'transmission.pdp',
       icon: 'send',
-      mandatory: false, // Will be mandatory in 2026
+      mandatory: false, // Obligatoire en 2026
+      mandatoryFrom: '2026-09-01',
       platform: 'superpdp',
+      async: true,
+      deadlineDays: 7, // Transmission deadline
     },
     b2g: {
       method: 'platform',
@@ -75,6 +88,32 @@ export const frConfig: CountryConfig = {
       icon: 'building-2',
       mandatory: true,
       platform: 'chorus',
+      async: true,
+      deadlineDays: 10,
     },
+  },
+
+  numbering: {
+    seriesRequired: false,
+    seriesRegistration: false,
+    hashChaining: false,
+    gapAllowed: false, // No gaps in numbering
+    resetPeriod: 'yearly', // Annual reset allowed
+  },
+
+  peppol: {
+    enabled: true,
+    schemeId: '0009', // SIRET
+    participantIdPrefix: '0009:',
+  },
+
+  legalMentions: {
+    mandatory: ['compliance.fr.mention.siret', 'compliance.fr.mention.rcs'],
+    conditional: [
+      {
+        condition: 'company.exemptVat',
+        textKey: 'compliance.fr.mention.vatExempt', // "TVA non applicable, art. 293 B du CGI"
+      },
+    ],
   },
 };

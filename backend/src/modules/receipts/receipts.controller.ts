@@ -1,24 +1,12 @@
-import { CreateReceiptDto, EditReceiptDto } from '@/modules/receipts/dto/receipts.dto';
-import { ReceiptsService } from '@/modules/receipts/receipts.service';
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Res,
-  Sse,
-} from '@nestjs/common';
-
-import { Response } from 'express';
-import { interval, from, map, startWith, switchMap } from 'rxjs';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, Sse } from '@nestjs/common';
+import type { Response } from 'express';
+import { from, interval, map, startWith, switchMap } from 'rxjs';
+import type { CreateReceiptDto, EditReceiptDto } from '@/modules/receipts/dto/receipts.dto';
+import type { ReceiptsService } from '@/modules/receipts/receipts.service';
 
 @Controller('receipts')
 export class ReceiptsController {
-  constructor(private readonly receiptsService: ReceiptsService) { }
+  constructor(private readonly receiptsService: ReceiptsService) {}
 
   @Get()
   async getReceiptsInfo(@Param('page') page: string) {

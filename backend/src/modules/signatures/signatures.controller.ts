@@ -1,10 +1,10 @@
-import { SignaturesService } from '@/modules/signatures/signatures.service';
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
+import type { SignaturesService } from '@/modules/signatures/signatures.service';
 
 @Controller('signatures')
 export class SignaturesController {
-  constructor(private readonly signaturesService: SignaturesService) { }
+  constructor(private readonly signaturesService: SignaturesService) {}
 
   @Get('/:id')
   @AllowAnonymous()
@@ -25,10 +25,7 @@ export class SignaturesController {
 
   @Post('/:id/sign')
   @AllowAnonymous()
-  async signQuote(
-    @Param('id') signatureId: string,
-    @Body('otpCode') otpCode: string,
-  ) {
+  async signQuote(@Param('id') signatureId: string, @Body('otpCode') otpCode: string) {
     return this.signaturesService.signQuote(signatureId, otpCode);
   }
 }

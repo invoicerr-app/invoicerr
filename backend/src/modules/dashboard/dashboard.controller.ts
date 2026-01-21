@@ -1,11 +1,11 @@
-import { Controller, Get, Sse } from "@nestjs/common";
-import { from, interval, map, startWith, switchMap } from "rxjs";
+import { Controller, Get, Sse } from '@nestjs/common';
+import { from, interval, map, startWith, switchMap } from 'rxjs';
 
-import { DashboardService } from "@/modules/dashboard/dashboard.service";
+import type { DashboardService } from '@/modules/dashboard/dashboard.service';
 
 @Controller('dashboard')
 export class DashboardController {
-  constructor(private readonly dashboardService: DashboardService) { }
+  constructor(private readonly dashboardService: DashboardService) {}
 
   @Get()
   async getDashboardInfo(): Promise<any> {

@@ -1,24 +1,24 @@
-"use client"
+'use client';
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import type { Log, LogLevel } from "../logs.settings"
-import { Badge } from "@/components/ui/badge"
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import type { Log, LogLevel } from '../logs.settings';
 
 type LogDetailsDialogProps = {
-  log: Log | null
-  onClose: () => void
-}
+  log: Log | null;
+  onClose: () => void;
+};
 
 const levelColors: Record<LogLevel, string> = {
-  DEBUG: "bg-muted text-muted-foreground",
-  INFO: "bg-blue-500/10 text-blue-500",
-  WARN: "bg-yellow-500/10 text-yellow-500",
-  ERROR: "bg-red-500/10 text-red-500",
-  FATAL: "bg-purple-500/10 text-purple-500",
-}
+  DEBUG: 'bg-muted text-muted-foreground',
+  INFO: 'bg-blue-500/10 text-blue-500',
+  WARN: 'bg-yellow-500/10 text-yellow-500',
+  ERROR: 'bg-red-500/10 text-red-500',
+  FATAL: 'bg-purple-500/10 text-purple-500',
+};
 
 export function LogDetailsDialog({ log, onClose }: LogDetailsDialogProps) {
-  if (!log) return null
+  if (!log) return null;
 
   return (
     <Dialog open={!!log} onOpenChange={onClose}>
@@ -36,7 +36,9 @@ export function LogDetailsDialog({ log, onClose }: LogDetailsDialogProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-muted-foreground">Timestamp</label>
-              <p className="text-sm font-mono mt-1 text-foreground">{log.timestamp.toLocaleString()}</p>
+              <p className="text-sm font-mono mt-1 text-foreground">
+                {log.timestamp.toLocaleString()}
+              </p>
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Category</label>
@@ -44,11 +46,11 @@ export function LogDetailsDialog({ log, onClose }: LogDetailsDialogProps) {
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">User ID</label>
-              <p className="text-sm font-mono mt-1 text-foreground">{log.userId || "N/A"}</p>
+              <p className="text-sm font-mono mt-1 text-foreground">{log.userId || 'N/A'}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Path</label>
-              <p className="text-sm font-mono mt-1 text-foreground truncate">{log.path || "N/A"}</p>
+              <p className="text-sm font-mono mt-1 text-foreground truncate">{log.path || 'N/A'}</p>
             </div>
           </div>
 
@@ -71,5 +73,5 @@ export function LogDetailsDialog({ log, onClose }: LogDetailsDialogProps) {
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

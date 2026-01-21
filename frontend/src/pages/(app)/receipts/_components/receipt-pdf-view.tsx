@@ -1,43 +1,44 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useEffect, useState } from "react"
-
-import type { Receipt } from "@/types"
-import { useGetRaw } from "@/hooks/use-fetch"
-import { useTranslation } from "react-i18next"
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useGetRaw } from '@/hooks/use-fetch';
+import type { Receipt } from '@/types';
 
 type ReceiptPdfModalProps = {
-  receipt: Receipt | null
-  onOpenChange: (open: boolean) => void
-}
+  receipt: Receipt | null;
+  onOpenChange: (open: boolean) => void;
+};
 
 export function ReceiptPdfModal({ receipt, onOpenChange }: ReceiptPdfModalProps) {
-  const { t } = useTranslation()
-  const { data } = useGetRaw<Response>(`/api/receipts/${receipt?.id}/pdf`)
-  const [pdfData, setPdfData] = useState<Uint8Array | null>(null)
+  const { t } = useTranslation();
+  const { data } = useGetRaw<Response>(`/api/receipts/${receipt?.id}/pdf`);
+  const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
 
   useEffect(() => {
     if (data) {
       data.arrayBuffer().then((buffer) => {
-        setPdfData(new Uint8Array(buffer))
-      })
+        setPdfData(new Uint8Array(buffer));
+      });
     }
-  }, [data])
+  }, [data]);
 
-  if (!receipt) return null
+  if (!receipt) return null;
 
   return (
     <Dialog
       open={!!receipt}
       onOpenChange={(open) => {
         if (!open) {
-          setPdfData(null)
+          setPdfData(null);
         }
-        onOpenChange(open)
+        onOpenChange(open);
       }}
     >
       <DialogContent className="!max-w-none w-fit min-w-[90vw] md:min-w-128 h-[90dvh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>{t("receipts.pdf.title", { number: receipt.rawNumber || receipt.number })}</DialogTitle>
+          <DialogTitle>
+            {t('receipts.pdf.title', { number: receipt.rawNumber || receipt.number })}
+          </DialogTitle>
         </DialogHeader>
 
         <section className="h-full overflow-auto">
@@ -46,7 +47,7 @@ export function ReceiptPdfModal({ receipt, onOpenChange }: ReceiptPdfModalProps)
               <iframe
                 className="w-full h-full"
                 src={`data:application/pdf;base64,${btoa(String.fromCharCode(...pdfData))}`}
-                title={t("receipts.pdf.title", { number: receipt.rawNumber || receipt.number })}
+                title={t('receipts.pdf.title', { number: receipt.rawNumber || receipt.number })}
               />
             </div>
           ) : (
@@ -56,6 +57,6 @@ export function ReceiptPdfModal({ receipt, onOpenChange }: ReceiptPdfModalProps)
           )}
         </section>
       </DialogContent>
-    </Dialog >
-  )
+    </Dialog>
+  );
 }
