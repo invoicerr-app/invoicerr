@@ -3,7 +3,7 @@ import { logger } from '@/logger/logger.service';
 import type { EditClientsDto } from '@/modules/clients/dto/clients.dto';
 import prisma from '@/prisma/prisma.service';
 import { WebhookEvent } from '../../../prisma/generated/prisma/client';
-import type { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
+import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 
 @Injectable()
 export class ClientsService {

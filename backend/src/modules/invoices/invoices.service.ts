@@ -12,8 +12,8 @@ import { formatDate } from '@/utils/date';
 import { getInvertColor, getPDF } from '@/utils/pdf';
 import { StorageUploadService } from '@/utils/storage-upload';
 import { WebhookEvent } from '../../../prisma/generated/prisma/client';
-import type { ComplianceService } from '../compliance/compliance.service';
-import type { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
+import { ComplianceService } from '../compliance/compliance.service';
+import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 
 @Injectable()
 export class InvoicesService {

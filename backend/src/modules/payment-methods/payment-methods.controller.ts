@@ -1,9 +1,9 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Sse } from '@nestjs/common';
 import { from, interval, map, startWith } from 'rxjs';
 import { switchMap } from 'rxjs/internal/operators/switchMap';
-import type {
-  CreatePaymentMethodDto,
-  EditPaymentMethodDto,
+import {
+  type CreatePaymentMethodDto,
+  type EditPaymentMethodDto,
   PaymentMethodsService,
 } from './payment-methods.service';
 

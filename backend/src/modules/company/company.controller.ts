@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post, Put, Sse } from '@nestjs/common';
 import { from, interval, map, startWith, switchMap } from 'rxjs';
-import type { CompanyService } from '@/modules/company/company.service';
+import { CompanyService } from '@/modules/company/company.service';
 import type { EditCompanyDto, PDFConfigDto } from '@/modules/company/dto/company.dto';
 
 @Controller('company')

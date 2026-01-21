@@ -18,8 +18,8 @@ import type { Request, Response } from 'express';
 import { AuthGuard } from '@/guards/auth.guard';
 import prisma from '@/prisma/prisma.service';
 import { WebhookEvent, WebhookType } from '../../../prisma/generated/prisma/client';
-import type { WebhookDispatcherService } from './webhook-dispatcher.service';
-import type { WebhooksService } from './webhooks.service';
+import { WebhookDispatcherService } from './webhook-dispatcher.service';
+import { WebhooksService } from './webhooks.service';
 
 @Controller('webhooks')
 export class WebhooksController {

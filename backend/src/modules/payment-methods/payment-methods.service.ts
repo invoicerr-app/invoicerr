@@ -6,7 +6,7 @@ import {
   PaymentMethodType,
   WebhookEvent,
 } from '../../../prisma/generated/prisma/client';
-import type { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
+import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 
 export interface CreatePaymentMethodDto {
   name: string;

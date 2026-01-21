@@ -12,7 +12,7 @@ import { Public } from '@thallesp/nestjs-better-auth';
 import { User } from '@/decorators/user.decorator';
 import { pendingInvitationCodes } from '@/lib/auth';
 import type { CurrentUser } from '@/types/user';
-import type { InvitationsService } from './invitations.service';
+import { InvitationsService } from './invitations.service';
 
 @Controller('invitations')
 export class InvitationsController {

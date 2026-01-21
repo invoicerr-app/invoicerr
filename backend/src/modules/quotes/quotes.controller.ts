@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, Sse } fr
 import type { Response } from 'express';
 import { from, interval, map, startWith, switchMap } from 'rxjs';
 import type { CreateQuoteDto, EditQuotesDto } from '@/modules/quotes/dto/quotes.dto';
-import type { QuotesService } from '@/modules/quotes/quotes.service';
+import { QuotesService } from '@/modules/quotes/quotes.service';
 
 @Controller('quotes')
 export class QuotesController {

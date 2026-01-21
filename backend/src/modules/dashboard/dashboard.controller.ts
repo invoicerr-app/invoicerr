@@ -1,7 +1,7 @@
 import { Controller, Get, Sse } from '@nestjs/common';
 import { from, interval, map, startWith, switchMap } from 'rxjs';
 
-import type { DashboardService } from '@/modules/dashboard/dashboard.service';
+import { DashboardService } from '@/modules/dashboard/dashboard.service';
 
 @Controller('dashboard')
 export class DashboardController {

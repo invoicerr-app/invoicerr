@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { logger } from '@/logger/logger.service';
-import type { MailService } from '@/mail/mail.service';
+import { MailService } from '@/mail/mail.service';
 import prisma from '@/prisma/prisma.service';
 import type { CurrentUser } from '@/types/user';
 

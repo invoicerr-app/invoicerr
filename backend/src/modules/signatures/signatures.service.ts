@@ -1,11 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { logger } from '@/logger/logger.service';
-import type { MailService } from '@/mail/mail.service';
+import { MailService } from '@/mail/mail.service';
 import type { ISigningProvider } from '@/plugins/signing/types';
 import prisma from '@/prisma/prisma.service';
 import { PluginType, WebhookEvent } from '../../../prisma/generated/prisma/client';
-import type { PluginsService } from '../plugins/plugins.service';
-import type { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
+import { PluginsService } from '../plugins/plugins.service';
+import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 
 @Injectable()
 export class SignaturesService {

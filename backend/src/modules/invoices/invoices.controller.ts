@@ -4,8 +4,8 @@ import type { Response } from 'express';
 import { from, map, startWith, switchMap } from 'rxjs';
 import { interval } from 'rxjs/internal/observable/interval';
 import type { CreateInvoiceDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
-import type { InvoicesService } from '@/modules/invoices/invoices.service';
-import type { PluginsService } from '@/modules/plugins/plugins.service';
+import { InvoicesService } from '@/modules/invoices/invoices.service';
+import { PluginsService } from '@/modules/plugins/plugins.service';
 
 @Controller('invoices')
 export class InvoicesController {

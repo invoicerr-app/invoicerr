@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { ChorusTransmissionStrategy } from './strategies/chorus.strategy';
-import type { EmailTransmissionStrategy } from './strategies/email.strategy';
-import type { SuperPDPTransmissionStrategy } from './strategies/superpdp.strategy';
+import { ChorusTransmissionStrategy } from './strategies/chorus.strategy';
+import { EmailTransmissionStrategy } from './strategies/email.strategy';
+import { SuperPDPTransmissionStrategy } from './strategies/superpdp.strategy';
 import type {
   TransmissionPayload,
   TransmissionResult,

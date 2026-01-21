@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, Sse } fr
 import type { Response } from 'express';
 import { from, interval, map, startWith, switchMap } from 'rxjs';
 import type { CreateReceiptDto, EditReceiptDto } from '@/modules/receipts/dto/receipts.dto';
-import type { ReceiptsService } from '@/modules/receipts/receipts.service';
+import { ReceiptsService } from '@/modules/receipts/receipts.service';
 
 @Controller('receipts')
 export class ReceiptsController {

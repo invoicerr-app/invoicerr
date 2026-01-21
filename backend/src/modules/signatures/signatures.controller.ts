@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
-import type { SignaturesService } from '@/modules/signatures/signatures.service';
+import { SignaturesService } from '@/modules/signatures/signatures.service';
 
 @Controller('signatures')
 export class SignaturesController {

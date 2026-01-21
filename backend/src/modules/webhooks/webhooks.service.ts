@@ -4,7 +4,7 @@ import { logger } from '@/logger/logger.service';
 import type { IWebhookProvider } from '@/plugins/types';
 import prisma from '@/prisma/prisma.service';
 import type { Webhook, WebhookEvent, WebhookType } from '../../../prisma/generated/prisma/client';
-import type { PluginsService } from '../plugins/plugins.service';
+import { PluginsService } from '../plugins/plugins.service';
 import { DiscordDriver } from './drivers/discord.driver';
 import { GenericDriver } from './drivers/generic.driver';
 import { MattermostDriver } from './drivers/mattermost.driver';

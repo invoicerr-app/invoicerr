@@ -3,14 +3,14 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import * as Handlebars from 'handlebars';
 import { logger } from '@/logger/logger.service';
 
-import type { MailService } from '@/mail/mail.service';
+import { MailService } from '@/mail/mail.service';
 import type { CreateReceiptDto, EditReceiptDto } from '@/modules/receipts/dto/receipts.dto';
 import { baseTemplate } from '@/modules/receipts/templates/base.template';
 import prisma from '@/prisma/prisma.service';
 import { formatDate } from '@/utils/date';
 import { getInvertColor, getPDF } from '@/utils/pdf';
 import { WebhookEvent } from '../../../prisma/generated/prisma/client';
-import type { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
+import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 
 @Injectable()
 export class ReceiptsService {

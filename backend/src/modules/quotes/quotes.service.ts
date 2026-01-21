@@ -11,7 +11,7 @@ import { getInvertColor, getPDF } from '@/utils/pdf';
 import { StorageUploadService } from '@/utils/storage-upload';
 import { PluginType, WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { PluginsService } from '../plugins/plugins.service';
-import type { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
+import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 
 @Injectable()
 export class QuotesService {

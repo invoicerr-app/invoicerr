@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
-import type { PluginsService } from '@/modules/plugins/plugins.service';
+import { PluginsService } from '@/modules/plugins/plugins.service';
 
 @Controller('plugins')
 export class PluginsController {

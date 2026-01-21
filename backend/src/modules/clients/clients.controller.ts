@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Sse } from '@nestjs/common';
 import { from, interval, map, startWith, switchMap } from 'rxjs';
-import type { ClientsService } from '@/modules/clients/clients.service';
+import { ClientsService } from '@/modules/clients/clients.service';
 import type { EditClientsDto } from '@/modules/clients/dto/clients.dto';
 
 @Controller('clients')
