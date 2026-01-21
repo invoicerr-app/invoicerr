@@ -6,6 +6,7 @@ import { AuthGuard } from '@/guards/auth.guard';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { ClientsModule } from './modules/clients/clients.module';
 import { CompanyModule } from './modules/company/company.module';
+import { ComplianceModule } from './modules/compliance/compliance.module';
 import { ConfigModule } from '@nestjs/config';
 import { DangerModule } from './modules/danger/danger.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
@@ -52,6 +53,7 @@ import { auth } from "./lib/auth"
     InvitationsModule,
     PrismaModule,
     LoggerModule,
+    ComplianceModule,
   ],
   controllers: [AppController],
   providers: [

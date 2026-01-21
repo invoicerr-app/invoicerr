@@ -5,9 +5,10 @@ import { MailService } from "@/mail/mail.service";
 import { Module } from "@nestjs/common";
 import { PluginsService } from "@/modules/plugins/plugins.service";
 import { WebhooksModule } from "../webhooks/webhooks.module";
+import { ComplianceModule } from "../compliance/compliance.module";
 
 @Module({
-  imports: [WebhooksModule],
+  imports: [WebhooksModule, ComplianceModule],
   controllers: [InvoicesController],
   providers: [InvoicesService, MailService, JwtService, PluginsService]
 })

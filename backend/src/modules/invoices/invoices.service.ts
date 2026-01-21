@@ -16,13 +16,15 @@ import { formatDate } from '@/utils/date';
 import { logger } from '@/logger/logger.service';
 import { parseAddress } from '@/utils/adress';
 import prisma from '@/prisma/prisma.service';
+import { ComplianceService } from '../compliance/compliance.service';
 
 @Injectable()
 export class InvoicesService {
 
     constructor(
         private readonly mailService: MailService,
-        private readonly webhookDispatcher: WebhookDispatcherService
+        private readonly webhookDispatcher: WebhookDispatcherService,
+        private readonly complianceService: ComplianceService,
     ) {
     }
 
@@ -109,15 +111,36 @@ export class InvoicesService {
             throw new BadRequestException('Client not found');
         }
 
-        const totalHT = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-        let totalVAT = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice * (item.vatRate || 0) / 100), 0);
-        let totalTTC = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice * (1 + (item.vatRate || 0) / 100)), 0);
+        // Build compliance context and resolve rules
+        const context = await this.complianceService.buildContext({
+            company: {
+                countryCode: this.extractCountryCode(company.country),
+                VAT: company.VAT,
+                exemptVat: company.exemptVat,
+            },
+            client: {
+                countryCode: client.country ? this.extractCountryCode(client.country) : null,
+                VAT: client.VAT,
+                type: client.type as 'COMPANY' | 'INDIVIDUAL',
+                isPublicEntity: false, // Not tracked in current schema
+            },
+        });
 
-        const isVatExemptFrance = !!(company.exemptVat && (company.country || '').toUpperCase() === 'FRANCE');
-        if (isVatExemptFrance) {
-            totalVAT = 0;
-            totalTTC = totalHT;
-        }
+        const rules = this.complianceService.resolveRules(context);
+
+        // Calculate VAT using compliance engine
+        const vatResult = this.complianceService.calculateVAT(
+            items.map(item => ({
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                vatRate: rules.vat.reverseCharge ? 0 : (item.vatRate || rules.vat.defaultRate),
+            })),
+            {
+                rates: rules.vat.rates,
+                defaultRate: rules.vat.defaultRate,
+                reverseCharge: rules.vat.reverseCharge,
+            },
+        );
 
         const invoice = await prisma.invoice.create({
             data: {
@@ -127,16 +150,16 @@ export class InvoicesService {
                 paymentDetails: body.paymentDetails,
                 paymentMethodId: body.paymentMethodId,
                 currency: body.currency || client.currency || company.currency,
-                companyId: company.id, // reuse the already fetched company object
-                totalHT,
-                totalVAT,
-                totalTTC,
+                companyId: company.id,
+                totalHT: vatResult.totalHT,
+                totalVAT: vatResult.totalVAT,
+                totalTTC: vatResult.totalTTC,
                 items: {
                     create: items.map(item => ({
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
-                        vatRate: isVatExemptFrance ? 0 : (item.vatRate || 0),
+                        vatRate: rules.vat.reverseCharge ? 0 : (item.vatRate || rules.vat.defaultRate),
                         type: item.type,
                         order: item.order || 0,
                     })),
@@ -202,15 +225,36 @@ export class InvoicesService {
 
         const itemIdsToDelete = existingItemIds.filter(id => !incomingItemIds.includes(id));
 
-        const totalHT = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-        let totalVAT = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice * (item.vatRate || 0) / 100), 0);
-        let totalTTC = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice * (1 + (item.vatRate || 0) / 100)), 0);
+        // Build compliance context and resolve rules
+        const context = await this.complianceService.buildContext({
+            company: {
+                countryCode: this.extractCountryCode(company.country),
+                VAT: company.VAT,
+                exemptVat: company.exemptVat,
+            },
+            client: {
+                countryCode: client.country ? this.extractCountryCode(client.country) : null,
+                VAT: client.VAT,
+                type: client.type as 'COMPANY' | 'INDIVIDUAL',
+                isPublicEntity: false, // Not tracked in current schema
+            },
+        });
 
-        const isVatExemptFrance = !!(company.exemptVat && (company.country || '').toUpperCase() === 'FRANCE');
-        if (isVatExemptFrance) {
-            totalVAT = 0;
-            totalTTC = totalHT;
-        }
+        const rules = this.complianceService.resolveRules(context);
+
+        // Calculate VAT using compliance engine
+        const vatResult = this.complianceService.calculateVAT(
+            items.map(item => ({
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                vatRate: rules.vat.reverseCharge ? 0 : (item.vatRate || rules.vat.defaultRate),
+            })),
+            {
+                rates: rules.vat.rates,
+                defaultRate: rules.vat.defaultRate,
+                reverseCharge: rules.vat.reverseCharge,
+            },
+        );
 
         const updateInvoice = await prisma.invoice.update({
             where: { id },
@@ -224,9 +268,9 @@ export class InvoicesService {
                 notes: data.notes,
                 currency: body.currency || client.currency || company.currency,
                 dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-                totalHT,
-                totalVAT,
-                totalTTC,
+                totalHT: vatResult.totalHT,
+                totalVAT: vatResult.totalVAT,
+                totalTTC: vatResult.totalTTC,
                 items: {
                     deleteMany: {
                         id: { in: itemIdsToDelete },
@@ -239,7 +283,7 @@ export class InvoicesService {
                                 description: i.description,
                                 quantity: i.quantity,
                                 unitPrice: i.unitPrice,
-                                vatRate: isVatExemptFrance ? 0 : (i.vatRate || 0),
+                                vatRate: rules.vat.reverseCharge ? 0 : (i.vatRate || rules.vat.defaultRate),
                                 type: i.type,
                                 order: i.order || 0,
                             },
@@ -250,7 +294,7 @@ export class InvoicesService {
                             description: i.description,
                             quantity: i.quantity,
                             unitPrice: i.unitPrice,
-                            vatRate: isVatExemptFrance ? 0 : (i.vatRate || 0),
+                            vatRate: rules.vat.reverseCharge ? 0 : (i.vatRate || rules.vat.defaultRate),
                             type: i.type,
                             order: i.order || 0,
                         })),
@@ -683,7 +727,7 @@ export class InvoicesService {
         return paidInvoice;
     }
 
-    async sendInvoiceByEmail(invoiceId: string) {
+    async sendInvoice(invoiceId: string) {
         const invoice = await prisma.invoice.findUnique({
             where: { id: invoiceId },
             include: {
@@ -701,59 +745,144 @@ export class InvoicesService {
         // If client has no email, skip sending and return an informative message
         if (!invoice.client?.contactEmail) {
             logger.error('Client has no email configured; invoice not sent', { category: 'invoice' });
-            return { message: 'Client has no email configured; invoice not sent' };
+            return { success: false, message: 'Client has no email configured; invoice not sent' };
         }
+
+        // Build compliance context to determine transmission method
+        const context = await this.complianceService.buildContext({
+            company: {
+                countryCode: this.extractCountryCode(invoice.company.country),
+                VAT: invoice.company.VAT,
+                exemptVat: invoice.company.exemptVat,
+            },
+            client: {
+                countryCode: invoice.client.country ? this.extractCountryCode(invoice.client.country) : null,
+                VAT: invoice.client.VAT,
+                type: invoice.client.type as 'COMPANY' | 'INDIVIDUAL',
+                isPublicEntity: false, // Not tracked in current schema
+            },
+        });
+
+        const rules = this.complianceService.resolveRules(context);
+        const transmissionMethod = rules.transmission.platform || rules.transmission.method;
+
+        logger.info(`Sending invoice via ${transmissionMethod}`, {
+            category: 'invoice',
+            details: { invoiceId, method: transmissionMethod },
+        });
 
         const pdfBuffer = await this.getInvoicePDFFormat(invoiceId, (invoice.company.invoicePDFFormat as ExportFormat || 'pdf'));
 
-        const mailTemplate = await prisma.mailTemplate.findFirst({
-            where: { type: 'INVOICE' },
-            select: { subject: true, body: true }
+        // Use compliance transmission service with strategy pattern
+        const result = await this.complianceService.sendInvoice(transmissionMethod, {
+            invoiceId: invoice.id,
+            invoiceNumber: invoice.rawNumber || invoice.number.toString(),
+            pdfBuffer: Buffer.from(pdfBuffer),
+            recipient: {
+                email: invoice.client.contactEmail,
+                name: invoice.client.name || `${invoice.client.contactFirstname} ${invoice.client.contactLastname}`,
+                siret: invoice.client.legalId || undefined,
+                vatNumber: invoice.client.VAT || undefined,
+            },
+            sender: {
+                email: invoice.company.email || '',
+                name: invoice.company.name,
+                siret: invoice.company.legalId || undefined,
+                vatNumber: invoice.company.VAT || undefined,
+            },
+            metadata: {
+                totalHT: invoice.totalHT,
+                totalVAT: invoice.totalVAT,
+                totalTTC: invoice.totalTTC,
+                currency: invoice.currency,
+            },
         });
 
-        if (!mailTemplate) {
-            logger.error('Email template for signature request not found.', { category: 'invoice' });
-            throw new BadRequestException('Email template for signature request not found.');
-        }
-
-        const envVariables = {
-            APP_URL: process.env.APP_URL,
-            INVOICE_NUMBER: invoice.rawNumber || invoice.number.toString(),
-            COMPANY_NAME: invoice.company.name,
-            CLIENT_NAME: invoice.client.name,
-        };
-
-        const mailOptions = {
-            to: invoice.client.contactEmail,
-            subject: mailTemplate.subject.replace(/{{(\w+)}}/g, (_, key) => envVariables[key] || ''),
-            html: mailTemplate.body.replace(/{{(\w+)}}/g, (_, key) => envVariables[key] || ''),
-            attachments: [{
-                filename: `invoice-${invoice.rawNumber || invoice.number}.pdf`,
-                content: pdfBuffer,
-                contentType: 'application/pdf',
-            }],
-        };
-
-        try {
-            await this.mailService.sendMail(mailOptions);
-        } catch (error) {
-            logger.error('Failed to send invoice email', { category: 'invoice', details: { error } });
-            throw new BadRequestException('Failed to send invoice email. Please check your SMTP configuration.');
-        }
-
-        logger.info('Invoice sent by email', { category: 'invoice', details: { invoiceId, email: invoice.client.contactEmail } });
-
-        try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_SENT, {
-                invoice,
-                client: invoice.client,
-                company: invoice.company,
-                sentAt: new Date(),
+        if (result.success) {
+            logger.info(`Invoice sent successfully via ${transmissionMethod}`, {
+                category: 'invoice',
+                details: { invoiceId, externalId: result.externalId },
             });
-        } catch (error) {
-            logger.error('Failed to dispatch INVOICE_SENT webhook', { category: 'invoice', details: { error } });
+
+            try {
+                await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_SENT, {
+                    invoice,
+                    client: invoice.client,
+                    company: invoice.company,
+                    sentAt: new Date(),
+                    transmissionMethod,
+                    externalId: result.externalId,
+                });
+            } catch (error) {
+                logger.error('Failed to dispatch INVOICE_SENT webhook', { category: 'invoice', details: { error } });
+            }
+        } else {
+            logger.error(`Failed to send invoice via ${transmissionMethod}`, {
+                category: 'invoice',
+                details: { invoiceId, errorCode: result.errorCode, message: result.message },
+            });
         }
 
-        return { message: 'Invoice sent successfully' };
+        return result;
+    }
+
+    // Backward compatibility alias
+    async sendInvoiceByEmail(invoiceId: string) {
+        return this.sendInvoice(invoiceId);
+    }
+
+    /**
+     * Extract ISO country code from country name
+     * Maps common country names to their ISO 3166-1 alpha-2 codes
+     */
+    private extractCountryCode(country: string): string {
+        const countryMap: Record<string, string> = {
+            'france': 'FR',
+            'germany': 'DE',
+            'deutschland': 'DE',
+            'italy': 'IT',
+            'italia': 'IT',
+            'spain': 'ES',
+            'españa': 'ES',
+            'belgium': 'BE',
+            'belgique': 'BE',
+            'netherlands': 'NL',
+            'portugal': 'PT',
+            'austria': 'AT',
+            'österreich': 'AT',
+            'switzerland': 'CH',
+            'suisse': 'CH',
+            'schweiz': 'CH',
+            'united kingdom': 'GB',
+            'uk': 'GB',
+            'ireland': 'IE',
+            'poland': 'PL',
+            'polska': 'PL',
+            'romania': 'RO',
+            'czech republic': 'CZ',
+            'czechia': 'CZ',
+            'hungary': 'HU',
+            'sweden': 'SE',
+            'denmark': 'DK',
+            'finland': 'FI',
+            'norway': 'NO',
+            'greece': 'GR',
+            'luxembourg': 'LU',
+            'united states': 'US',
+            'usa': 'US',
+            'canada': 'CA',
+            'australia': 'AU',
+            'japan': 'JP',
+            'china': 'CN',
+        };
+
+        const normalized = country.toLowerCase().trim();
+
+        // If already a 2-letter code, return uppercase
+        if (normalized.length === 2) {
+            return normalized.toUpperCase();
+        }
+
+        return countryMap[normalized] || 'FR'; // Default to France
     }
 }
