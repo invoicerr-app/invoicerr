@@ -114,93 +114,92 @@ export const RecurringInvoiceList = forwardRef<
               emptyState
             ) : (
               <div className="divide-y">
-                {recurringInvoices &&
-                  recurringInvoices.map((recurringInvoice) => (
-                    <div key={recurringInvoice.id} className="p-4 sm:p-6">
-                      <div className="flex flex-row sm:items-center sm:justify-between gap-4">
-                        <div className="flex flex-row items-center gap-4 w-full">
-                          <div className="p-2 bg-blue-100 rounded-lg mb-4 md:mb-0 w-fit h-fit">
-                            <ReceiptText className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="mt-2 flex flex-col gap-2 text-sm text-muted-foreground">
-                              <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-1">
+                {recurringInvoices?.map((recurringInvoice) => (
+                  <div key={recurringInvoice.id} className="p-4 sm:p-6">
+                    <div className="flex flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="flex flex-row items-center gap-4 w-full">
+                        <div className="p-2 bg-blue-100 rounded-lg mb-4 md:mb-0 w-fit h-fit">
+                          <ReceiptText className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="mt-2 flex flex-col gap-2 text-sm text-muted-foreground">
+                            <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-1">
+                              <span>
+                                <span className="font-medium text-foreground">
+                                  {t('recurringInvoices.list.item.client')}:
+                                </span>{' '}
+                                {recurringInvoice.client.name ||
+                                  recurringInvoice.client.contactFirstname +
+                                    ' ' +
+                                    recurringInvoice.client.contactLastname}
+                              </span>
+                              {recurringInvoice.paymentMethod && (
                                 <span>
                                   <span className="font-medium text-foreground">
-                                    {t('recurringInvoices.list.item.client')}:
+                                    {t('recurringInvoices.list.item.payment')}:
                                   </span>{' '}
-                                  {recurringInvoice.client.name ||
-                                    recurringInvoice.client.contactFirstname +
-                                      ' ' +
-                                      recurringInvoice.client.contactLastname}
+                                  {(recurringInvoice.paymentMethod as any)?.name ??
+                                    (recurringInvoice.paymentMethod as any)?.type ??
+                                    '-'}
                                 </span>
-                                {recurringInvoice.paymentMethod && (
-                                  <span>
-                                    <span className="font-medium text-foreground">
-                                      {t('recurringInvoices.list.item.payment')}:
-                                    </span>{' '}
-                                    {(recurringInvoice.paymentMethod as any)?.name ??
-                                      (recurringInvoice.paymentMethod as any)?.type ??
-                                      '-'}
-                                  </span>
-                                )}
-                                <span>
-                                  <span className="font-medium text-foreground">
-                                    {t('recurringInvoices.list.item.totalHT')}:
-                                  </span>{' '}
-                                  {t('common.valueWithCurrency', {
-                                    currency: recurringInvoice.currency,
-                                    amount: recurringInvoice.totalHT.toFixed(2),
-                                  })}
-                                </span>
-                                <span>
-                                  <span className="font-medium text-foreground">
-                                    {t('recurringInvoices.list.item.totalTTC')}:
-                                  </span>{' '}
-                                  {t('common.valueWithCurrency', {
-                                    currency: recurringInvoice.currency,
-                                    amount: recurringInvoice.totalTTC.toFixed(2),
-                                  })}
-                                </span>
-                              </div>
+                              )}
+                              <span>
+                                <span className="font-medium text-foreground">
+                                  {t('recurringInvoices.list.item.totalHT')}:
+                                </span>{' '}
+                                {t('common.valueWithCurrency', {
+                                  currency: recurringInvoice.currency,
+                                  amount: recurringInvoice.totalHT.toFixed(2),
+                                })}
+                              </span>
+                              <span>
+                                <span className="font-medium text-foreground">
+                                  {t('recurringInvoices.list.item.totalTTC')}:
+                                </span>{' '}
+                                {t('common.valueWithCurrency', {
+                                  currency: recurringInvoice.currency,
+                                  amount: recurringInvoice.totalTTC.toFixed(2),
+                                })}
+                              </span>
                             </div>
                           </div>
                         </div>
+                      </div>
 
-                        <div className="grid grid-cols-2 lg:flex justify-start sm:justify-end gap-1 md:gap-2">
-                          <Button
-                            tooltip={t('recurringInvoices.list.tooltips.view')}
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleView(recurringInvoice)}
-                            className="text-gray-600 hover:text-blue-600"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                      <div className="grid grid-cols-2 lg:flex justify-start sm:justify-end gap-1 md:gap-2">
+                        <Button
+                          tooltip={t('recurringInvoices.list.tooltips.view')}
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleView(recurringInvoice)}
+                          className="text-gray-600 hover:text-blue-600"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
 
-                          <Button
-                            tooltip={t('recurringInvoices.list.tooltips.edit')}
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(recurringInvoice)}
-                            className="text-gray-600 hover:text-green-600"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                        <Button
+                          tooltip={t('recurringInvoices.list.tooltips.edit')}
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(recurringInvoice)}
+                          className="text-gray-600 hover:text-green-600"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
 
-                          <Button
-                            tooltip={t('recurringInvoices.list.tooltips.delete')}
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(recurringInvoice)}
-                            className="text-gray-600 hover:text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <Button
+                          tooltip={t('recurringInvoices.list.tooltips.delete')}
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(recurringInvoice)}
+                          className="text-gray-600 hover:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                  ))}
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
@@ -218,7 +217,7 @@ export const RecurringInvoiceList = forwardRef<
           open={createRecurringInvoiceDialog}
           onOpenChange={(open: boolean) => {
             setCreateRecurringInvoiceDialog(open);
-            if (!open) mutate && mutate();
+            if (!open) mutate?.();
           }}
         />
 
@@ -227,7 +226,7 @@ export const RecurringInvoiceList = forwardRef<
           recurringInvoice={editRecurringInvoiceDialog}
           onOpenChange={(open: boolean) => {
             if (!open) setEditRecurringInvoiceDialog(null);
-            mutate && mutate();
+            mutate?.();
           }}
         />
 
@@ -242,7 +241,7 @@ export const RecurringInvoiceList = forwardRef<
           recurringInvoice={deleteRecurringInvoiceDialog}
           onOpenChange={(open: boolean) => {
             if (!open) setDeleteRecurringInvoiceDialog(null);
-            mutate && mutate();
+            mutate?.();
           }}
         />
       </>

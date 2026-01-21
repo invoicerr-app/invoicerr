@@ -80,7 +80,7 @@ export function PaymentMethodUpsert({
     } else {
       form.reset({ name: '', details: '', type: 'BANK_TRANSFER' });
     }
-  }, [paymentMethod, open, form]);
+  }, [paymentMethod, form]);
 
   const onSubmit = async (data: PaymentMethodForm) => {
     try {

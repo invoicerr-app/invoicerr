@@ -170,7 +170,7 @@ export const PaymentMethodsList = forwardRef<PaymentMethodsListHandle, PaymentMe
           open={createDialog}
           onOpenChange={(open: boolean) => {
             setCreateDialog(open);
-            if (!open) mutate && mutate();
+            if (!open) mutate?.();
           }}
         />
 
@@ -179,7 +179,7 @@ export const PaymentMethodsList = forwardRef<PaymentMethodsListHandle, PaymentMe
           paymentMethod={editDialog}
           onOpenChange={(open: boolean) => {
             if (!open) setEditDialog(null);
-            mutate && mutate();
+            mutate?.();
           }}
         />
 
@@ -192,7 +192,7 @@ export const PaymentMethodsList = forwardRef<PaymentMethodsListHandle, PaymentMe
           paymentMethod={deleteDialog}
           onOpenChange={(open: boolean) => {
             if (!open) setDeleteDialog(null);
-            mutate && mutate();
+            mutate?.();
           }}
         />
       </>

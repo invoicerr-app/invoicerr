@@ -233,15 +233,15 @@ export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDial
                           {(paymentMethods || []).map((pm: PaymentMethod) => (
                             <SelectItem key={pm.id} value={pm.id}>
                               {pm.name} -{' '}
-                              {pm.type == PaymentMethodType.BANK_TRANSFER
+                              {pm.type === PaymentMethodType.BANK_TRANSFER
                                 ? t('paymentMethods.fields.type.bank_transfer')
-                                : pm.type == PaymentMethodType.PAYPAL
+                                : pm.type === PaymentMethodType.PAYPAL
                                   ? t('paymentMethods.fields.type.paypal')
-                                  : pm.type == PaymentMethodType.CHECK
+                                  : pm.type === PaymentMethodType.CHECK
                                     ? t('paymentMethods.fields.type.check')
-                                    : pm.type == PaymentMethodType.CASH
+                                    : pm.type === PaymentMethodType.CASH
                                       ? t('paymentMethods.fields.type.cash')
-                                      : pm.type == PaymentMethodType.OTHER
+                                      : pm.type === PaymentMethodType.OTHER
                                         ? t('paymentMethods.fields.type.other')
                                         : pm.type}
                             </SelectItem>
@@ -260,7 +260,7 @@ export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDial
               <FormItem className="flex flex-col gap-2 mt-2">
                 <FormLabel className="mb-0">{t('receipts.upsert.form.items.label')}</FormLabel>
 
-                <section className="grid grid-cols-1 md:grid-cols-4 gap-2 !m-0">
+                <section className="grid grid-cols-1 md:grid-cols-4 gap-2 m-0!">
                   <FormItem className="col-span-3">
                     <FormControl>
                       <SearchSelect
@@ -291,7 +291,7 @@ export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDial
                 </section>
                 <div className="flex flex-col gap-2">
                   {items.map((item, index) => (
-                    <div className="flex gap-2 items-center">
+                    <div key={item.invoiceItemId} className="flex gap-2 items-center">
                       <FormItem className="flex-1">
                         <FormControl>
                           <BetterInput

@@ -87,7 +87,7 @@ export function LogsFilters({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[240px]">
+        <div className="relative flex-1 min-w-60">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search logs..."
@@ -177,7 +177,7 @@ export function LogsFilters({
                 }
               }}
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-45">
                 <SelectValue placeholder="All categories" />
               </SelectTrigger>
               <SelectContent>

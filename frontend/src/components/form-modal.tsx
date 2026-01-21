@@ -96,6 +96,10 @@ interface DynamicFormModalProps {
   onSubmit: (data: Record<string, any>) => void;
 }
 
+type DynamicFormModalInnerProps = Omit<DynamicFormModalProps, 'config'> & {
+  config: FormConfig;
+};
+
 // Generate Zod schema dynamically based on field configuration
 function generateZodSchema(fields: FormFieldItem[]) {
   const schemaFields: Record<string, z.ZodTypeAny> = {};
@@ -253,6 +257,28 @@ export function DynamicFormModal({
 }: DynamicFormModalProps) {
   if (!config || JSON.stringify(config) === '{}') return null;
 
+  return (
+    <DynamicFormModalInner
+      open={open}
+      title={title}
+      description={description}
+      config={config}
+      currentValues={currentValues}
+      onCancel={onCancel}
+      onSubmit={onSubmit}
+    />
+  );
+}
+
+function DynamicFormModalInner({
+  open,
+  title,
+  description,
+  config,
+  currentValues,
+  onCancel,
+  onSubmit,
+}: DynamicFormModalInnerProps) {
   const schema = generateZodSchema(config.form.fields);
   const defaultValues = generateDefaultValues(config.form.fields, currentValues);
 

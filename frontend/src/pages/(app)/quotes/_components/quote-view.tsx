@@ -30,7 +30,7 @@ export function QuoteViewDialog({ quote, onOpenChange }: QuoteViewDialogProps) {
   return (
     <Dialog open={!!quote} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] lg:max-w-3xl max-h-[90dvh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="text-xl font-semibold">
             {t('quotes.view.title', { number: quote.number })}
           </DialogTitle>
@@ -72,7 +72,7 @@ export function QuoteViewDialog({ quote, onOpenChange }: QuoteViewDialogProps) {
               <p className="text-sm text-muted-foreground">{t('quotes.view.fields.client')}</p>
               <p className="font-medium">
                 {quote.client.name ||
-                  quote.client.contactFirstname + ' ' + quote.client.contactLastname}
+                  `${quote.client.contactFirstname} ${quote.client.contactLastname}`}
               </p>
             </div>
             <div>
@@ -86,15 +86,15 @@ export function QuoteViewDialog({ quote, onOpenChange }: QuoteViewDialogProps) {
                     return (
                       pm.name +
                       ' - ' +
-                      (pm.type == PaymentMethodType.BANK_TRANSFER
+                      (pm.type === PaymentMethodType.BANK_TRANSFER
                         ? t('paymentMethods.fields.type.bank_transfer')
-                        : pm.type == PaymentMethodType.PAYPAL
+                        : pm.type === PaymentMethodType.PAYPAL
                           ? t('paymentMethods.fields.type.paypal')
-                          : pm.type == PaymentMethodType.CHECK
+                          : pm.type === PaymentMethodType.CHECK
                             ? t('paymentMethods.fields.type.check')
-                            : pm.type == PaymentMethodType.CASH
+                            : pm.type === PaymentMethodType.CASH
                               ? t('paymentMethods.fields.type.cash')
-                              : pm.type == PaymentMethodType.OTHER
+                              : pm.type === PaymentMethodType.OTHER
                                 ? t('paymentMethods.fields.type.other')
                                 : pm.type)
                     );
@@ -109,7 +109,7 @@ export function QuoteViewDialog({ quote, onOpenChange }: QuoteViewDialogProps) {
                 <p className="text-sm text-muted-foreground">{t('quotes.view.fields.signedBy')}</p>
                 <p className="font-medium">
                   {quote.client.contactEmail ||
-                    quote.client?.contactFirstname + ' ' + quote.client?.contactLastname ||
+                    `${quote.client?.contactFirstname} ${quote.client?.contactLastname}` ||
                     quote.client?.name ||
                     '—'}
                 </p>

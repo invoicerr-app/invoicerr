@@ -513,6 +513,7 @@ export default function PDFTemplatesSettings() {
     }));
   };
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Don't need all dependencies
   const sampleData = useMemo(
     () => ({
       company: {
@@ -620,7 +621,7 @@ export default function PDFTemplatesSettings() {
       </div>
 
       <div className="hidden lg:block flex-1 min-h-0">
-        <ResizablePanelGroup direction="horizontal" className="!h-[calc(100dvh-18rem)]">
+        <ResizablePanelGroup direction="horizontal" className="h-[calc(100dvh-18rem)]!">
           <ResizablePanel defaultSize={45} minSize={30} maxSize={70}>
             <div className="h-full flex flex-col">
               <div className="flex-1 overflow-y-auto pr-4">
@@ -1245,7 +1246,7 @@ export default function PDFTemplatesSettings() {
 
           <ResizablePanel defaultSize={55} minSize={30}>
             <div className="h-full flex flex-col">
-              <div className="flex-shrink-0 p-6 pb-4 border-b">
+              <div className="shrink-0 p-6 pb-4 border-b">
                 <h3 className="text-lg font-semibold">
                   {t('settings.pdfTemplates.preview.title')}
                 </h3>

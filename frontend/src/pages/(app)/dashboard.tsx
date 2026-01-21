@@ -91,9 +91,8 @@ export default function Dashboard() {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-foreground">{t('dashboard.title')}</h1>
-          {/* @ts-ignore */}
           <p className="text-muted-foreground">
-            {t('dashboard.welcomeMessage', { firstname: user?.user.firstname })}
+            {t('dashboard.welcomeMessage', { firstname: user?.user?.name?.split(' ')[0] || '' })}
           </p>
         </div>
       </div>

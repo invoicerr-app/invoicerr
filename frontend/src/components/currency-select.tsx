@@ -37,7 +37,7 @@ export default function CurrencySelect({
 
   const handleSearchChange = (search: string) => {
     setCurrencySearch(search);
-    if (search.length == 0) {
+    if (search.length === 0) {
       setSearchedCurrencies(
         Object.entries(currencies).map(([code, { name, symbol }]) => ({
           label: `${name} (${symbol})`,

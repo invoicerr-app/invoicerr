@@ -31,7 +31,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
   return (
     <Dialog open={!!invoice} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] lg:max-w-3xl max-h-[90dvh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="text-xl font-semibold">
             {t('invoices.view.title', { number: invoice.number })}
           </DialogTitle>
@@ -83,7 +83,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
               <p className="text-sm text-muted-foreground">{t('invoices.view.fields.client')}</p>
               <p className="font-medium">
                 {invoice.client?.name ||
-                  invoice.client?.contactFirstname + ' ' + invoice.client?.contactLastname ||
+                  `${invoice.client?.contactFirstname} ${invoice.client?.contactLastname}` ||
                   invoice.clientId}
               </p>
             </div>
@@ -99,15 +99,15 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
                     return (
                       pm.name +
                       ' - ' +
-                      (pm.type == PaymentMethodType.BANK_TRANSFER
+                      (pm.type === PaymentMethodType.BANK_TRANSFER
                         ? t('paymentMethods.fields.type.bank_transfer')
-                        : pm.type == PaymentMethodType.PAYPAL
+                        : pm.type === PaymentMethodType.PAYPAL
                           ? t('paymentMethods.fields.type.paypal')
-                          : pm.type == PaymentMethodType.CHECK
+                          : pm.type === PaymentMethodType.CHECK
                             ? t('paymentMethods.fields.type.check')
-                            : pm.type == PaymentMethodType.CASH
+                            : pm.type === PaymentMethodType.CASH
                               ? t('paymentMethods.fields.type.cash')
-                              : pm.type == PaymentMethodType.OTHER
+                              : pm.type === PaymentMethodType.OTHER
                                 ? t('paymentMethods.fields.type.other')
                                 : pm.type)
                     );

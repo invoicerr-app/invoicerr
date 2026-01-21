@@ -86,7 +86,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
             invalid_type_error: t('invoices.upsert.form.items.quantity.errors.required'),
           })
           .min(1, t('invoices.upsert.form.items.quantity.errors.min'))
-          .refine((val) => !isNaN(val), {
+          .refine((val) => !Number.isNaN(val), {
             message: t('invoices.upsert.form.items.quantity.errors.invalid'),
           }),
         unitPrice: z
@@ -94,7 +94,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
             invalid_type_error: t('invoices.upsert.form.items.unitPrice.errors.required'),
           })
           .min(0, t('invoices.upsert.form.items.unitPrice.errors.min'))
-          .refine((val) => !isNaN(val), {
+          .refine((val) => !Number.isNaN(val), {
             message: t('invoices.upsert.form.items.unitPrice.errors.invalid'),
           }),
         vatRate: z
@@ -282,7 +282,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                     <FormControl>
                       <SearchSelect
                         options={(clients || []).map((c) => ({
-                          label: c.name || c.contactFirstname + ' ' + c.contactLastname,
+                          label: c.name || `${c.contactFirstname} ${c.contactLastname}`,
                           value: c.id,
                         }))}
                         value={field.value ?? ''}
@@ -383,15 +383,15 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                           {(paymentMethods || []).map((pm: PaymentMethod) => (
                             <SelectItem key={pm.id} value={pm.id}>
                               {pm.name} -{' '}
-                              {pm.type == PaymentMethodType.BANK_TRANSFER
+                              {pm.type === PaymentMethodType.BANK_TRANSFER
                                 ? t('paymentMethods.fields.type.bank_transfer')
-                                : pm.type == PaymentMethodType.PAYPAL
+                                : pm.type === PaymentMethodType.PAYPAL
                                   ? t('paymentMethods.fields.type.paypal')
-                                  : pm.type == PaymentMethodType.CHECK
+                                  : pm.type === PaymentMethodType.CHECK
                                     ? t('paymentMethods.fields.type.check')
-                                    : pm.type == PaymentMethodType.CASH
+                                    : pm.type === PaymentMethodType.CASH
                                       ? t('paymentMethods.fields.type.cash')
-                                      : pm.type == PaymentMethodType.OTHER
+                                      : pm.type === PaymentMethodType.OTHER
                                         ? t('paymentMethods.fields.type.other')
                                         : pm.type}
                             </SelectItem>

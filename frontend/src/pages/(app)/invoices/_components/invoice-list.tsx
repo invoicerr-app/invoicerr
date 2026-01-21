@@ -145,7 +145,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
       triggerMarkAsPaid({ invoiceId })
         .then(() => {
           toast.success(t('invoices.list.messages.markAsPaidSuccess'));
-          mutate && mutate();
+          mutate?.();
         })
         .catch((error) => {
           console.error('Error marking invoice as paid:', error);
@@ -169,7 +169,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
       triggerCreateReceipt({ id: invoiceId })
         .then(() => {
           toast.success(t('invoices.list.messages.createReceiptSuccess'));
-          mutate && mutate();
+          mutate?.();
         })
         .catch((error) => {
           console.error('Error creating receipt from invoice:', error);
@@ -534,7 +534,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
           open={createInvoiceDialog}
           onOpenChange={(open: boolean) => {
             setCreateInvoiceDialog(open);
-            if (!open) mutate && mutate();
+            if (!open) mutate?.();
           }}
         />
 
@@ -543,7 +543,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
           invoice={editInvoiceDialog}
           onOpenChange={(open: boolean) => {
             if (!open) setEditInvoiceDialog(null);
-            mutate && mutate();
+            mutate?.();
           }}
         />
 
@@ -565,7 +565,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
           invoice={deleteInvoiceDialog}
           onOpenChange={(open: boolean) => {
             if (!open) setDeleteInvoiceDialog(null);
-            mutate && mutate();
+            mutate?.();
           }}
         />
       </>

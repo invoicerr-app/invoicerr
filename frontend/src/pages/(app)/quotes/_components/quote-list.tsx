@@ -129,7 +129,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
           }
 
           toast.success(t('quotes.list.messages.sendSignatureSuccess'));
-          mutate && mutate();
+          mutate?.();
         })
         .catch((error) => {
           console.error('Error sending quote for signature:', error);
@@ -140,7 +140,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
       triggerCreateInvoice({ quoteId })
         .then(() => {
           toast.success(t('quotes.list.messages.invoiceCreated'));
-          mutate && mutate();
+          mutate?.();
         })
         .catch((error) => {
           console.error('Error creating invoice from quote:', error);
@@ -195,8 +195,8 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
               emptyState
             ) : (
               <div className="divide-y">
-                {quotes.map((quote, index) => (
-                  <div key={index} className="p-4 sm:p-6">
+                {quotes.map((quote) => (
+                  <div key={quote.id} className="p-4 sm:p-6">
                     <div className="flex flex-row sm:items-center sm:justify-between gap-4">
                       <div className="flex flex-row items-center gap-4 w-full">
                         <div className="p-2 bg-blue-100 rounded-lg mb-4 md:mb-0 w-fit h-fit">
@@ -204,7 +204,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                         </div>
                         <div className="flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="font-medium text-foreground break-words">
+                            <h3 className="font-medium text-foreground wrap-break-words">
                               {t('quotes.list.item.title', {
                                 number: quote.rawNumber || quote.number,
                                 title: quote.title,
@@ -380,7 +380,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
           open={createQuoteDialog}
           onOpenChange={(open) => {
             setCreateQuoteDialog(open);
-            if (!open) mutate && mutate();
+            if (!open) mutate?.();
           }}
         />
 
@@ -389,7 +389,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
           quote={editQuoteDialog}
           onOpenChange={(open) => {
             if (!open) setEditQuoteDialog(null);
-            mutate && mutate();
+            mutate?.();
           }}
         />
 
@@ -411,7 +411,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
           quote={deleteQuoteDialog}
           onOpenChange={(open: boolean) => {
             if (!open) setDeleteQuoteDialog(null);
-            mutate && mutate();
+            mutate?.();
           }}
         />
       </>

@@ -48,8 +48,8 @@ export default function CompanySettings() {
     const validKeys = ['year', 'month', 'day', 'number'];
     const requiredKeys = ['number'];
 
-    let match;
-    const matches = [];
+    let match: RegExpExecArray | null;
+    const matches: RegExpExecArray[] = [];
 
     while ((match = patternRegex.exec(pattern)) !== null) {
       matches.push(match);
@@ -71,7 +71,7 @@ export default function CompanySettings() {
 
       if (padding !== undefined) {
         const paddingNum = Number.parseInt(padding, 10);
-        if (isNaN(paddingNum) || paddingNum < 0 || paddingNum > 20) {
+        if (Number.isNaN(paddingNum) || paddingNum < 0 || paddingNum > 20) {
           return false;
         }
       }

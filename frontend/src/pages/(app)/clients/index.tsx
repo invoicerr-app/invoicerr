@@ -192,7 +192,7 @@ export default function Clients() {
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="font-medium text-foreground break-words">
-                            {client.name || client.contactFirstname + ' ' + client.contactLastname}
+                            {client.name || `${client.contactFirstname} ${client.contactLastname}`}
                           </h3>
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

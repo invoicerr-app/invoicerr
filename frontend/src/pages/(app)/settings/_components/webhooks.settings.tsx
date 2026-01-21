@@ -41,17 +41,16 @@ export default function WebhooksSettings() {
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
   const [multiResetKey, setMultiResetKey] = useState(0);
 
-  // options.events will be populated from the backend
-
-  useEffect(() => {
-    if (options?.types && options.types.length) {
-      form.reset({ ...form.getValues(), type: options.types[0] });
-    }
-  }, [options]);
-
   const form = useForm<{ url: string; type: string; events: string[] }>({
     defaultValues: { url: '', type: options?.types?.[0] ?? 'GENERIC', events: [] },
   });
+
+  // options.events will be populated from the backend
+  useEffect(() => {
+    if (options?.types?.length) {
+      form.reset({ ...form.getValues(), type: options.types[0] });
+    }
+  }, [options, form]);
 
   const handleCreate = form.handleSubmit(async (values) => {
     if (!values.url?.trim()) return;
@@ -78,7 +77,7 @@ export default function WebhooksSettings() {
       });
       if (!res.ok) return;
       const json = await res.json();
-      if (json && json.success) mutate();
+      if (json?.success) mutate();
     } catch {}
   };
 
@@ -100,7 +99,7 @@ export default function WebhooksSettings() {
         return;
       }
       const json = await res.json();
-      if (json && json.success) mutate();
+      if (json?.success) mutate();
     } catch (e) {
       console.error('Error updating webhook:', e);
     }

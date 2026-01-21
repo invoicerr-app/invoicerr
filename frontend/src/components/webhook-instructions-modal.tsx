@@ -33,7 +33,7 @@ export function WebhookInstructionsModal({
       setCopiedUrl(true);
       toast.success('Webhook URL copied to clipboard!');
       setTimeout(() => setCopiedUrl(false), 2000);
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to copy webhook URL');
     }
   };
@@ -44,7 +44,7 @@ export function WebhookInstructionsModal({
       setCopiedSecret(true);
       toast.success('Webhook secret copied to clipboard!');
       setTimeout(() => setCopiedSecret(false), 2000);
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to copy webhook secret');
     }
   };

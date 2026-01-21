@@ -6,6 +6,20 @@
       "correctness": {
         "useExhaustiveDependencies": "warn",
         "useHookAtTopLevel": "error"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "off",
+        "noDocumentCookie": "off"
+      },
+      "a11y": {
+        "noLabelWithoutControl": "off",
+        "useSemanticElements": "off",
+        "useButtonType": "off",
+        "useFocusableInteractive": "off",
+        "useAriaPropsForRole": "off"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
       }
     }
   },

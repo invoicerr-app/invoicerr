@@ -67,7 +67,7 @@ export function useGetRaw<T = any>(url: string, options?: RequestInit): UseGetRe
     return () => {
       cancelled = true;
     };
-  }, [url]);
+  }, [url, options]);
 
   return { data, loading, error, mutate: () => {} };
 }
@@ -76,7 +76,7 @@ export function useGet<T = any>(url: string | null, options?: RequestInit): UseG
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [refetchIndex, setRefetchIndex] = useState(0);
+  const [_refetchIndex, setRefetchIndex] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -117,7 +117,7 @@ export function useGet<T = any>(url: string | null, options?: RequestInit): UseG
     return () => {
       cancelled = true;
     };
-  }, [url, refetchIndex]);
+  }, [url, options]);
 
   return {
     data,
@@ -182,7 +182,7 @@ export function useSse<T = any>(url: string, options?: EventSourceInit): useSseR
     return () => {
       es.close();
     };
-  }, [url]);
+  }, [url, options]);
 
   const close = () => {
     if (eventSourceRef.current) {

@@ -11,6 +11,6 @@ export default defineConfig({
     },
   },
   server: {
-    port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : 5173,
+    port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT, 10) : 5173,
   },
 });

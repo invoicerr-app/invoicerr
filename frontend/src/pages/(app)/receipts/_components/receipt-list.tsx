@@ -106,7 +106,7 @@ export const ReceiptList = forwardRef<ReceiptListHandle, ReceiptListProps>(
       triggerSendToClient({ id: receipt.id })
         .then(() => {
           toast.success(t('receipts.list.messages.emailSent'));
-          mutate && mutate();
+          mutate?.();
         })
         .catch((error) => {
           console.error('Error sending receipt to client:', error);
@@ -262,7 +262,7 @@ export const ReceiptList = forwardRef<ReceiptListHandle, ReceiptListProps>(
           open={createReceiptDialog}
           onOpenChange={(open) => {
             setCreateReceiptDialog(open);
-            if (!open) mutate && mutate();
+            if (!open) mutate?.();
           }}
         />
 
@@ -271,7 +271,7 @@ export const ReceiptList = forwardRef<ReceiptListHandle, ReceiptListProps>(
           receipt={editReceiptDialog}
           onOpenChange={(open) => {
             if (!open) setEditReceiptDialog(null);
-            mutate && mutate();
+            mutate?.();
           }}
         />
 
@@ -286,7 +286,7 @@ export const ReceiptList = forwardRef<ReceiptListHandle, ReceiptListProps>(
           receipt={deleteReceiptDialog}
           onOpenChange={(open: boolean) => {
             if (!open) setDeleteReceiptDialog(null);
-            mutate && mutate();
+            mutate?.();
           }}
         />
       </>

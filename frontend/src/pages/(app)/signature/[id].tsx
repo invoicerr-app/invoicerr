@@ -71,7 +71,7 @@ export default function Signature() {
         URL.revokeObjectURL(pdfUrl);
       }
     };
-  }, [pdfResponse]);
+  }, [pdfResponse, pdfUrl]);
 
   useEffect(() => {
     if (signature) {
@@ -359,7 +359,7 @@ export default function Signature() {
                 >
                   <ZoomOut className="h-4 w-4" />
                 </Button>
-                <span className="text-sm text-muted-foreground min-w-[60px] text-center">
+                <span className="text-sm text-muted-foreground min-w-15 text-center">
                   {Math.round(zoom * 100)}%
                 </span>
                 <Button
@@ -381,7 +381,7 @@ export default function Signature() {
             <CardContent>
               <div className="rounded-lg overflow-hidden bg-gray-50">
                 {pdfUrl && !pdfError ? (
-                  <div className="h-[800px] w-full overflow-auto">
+                  <div className="h-200 w-full overflow-auto">
                     <iframe
                       src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1&zoom=${Math.round(zoom * 100)}`}
                       className="w-full h-full border-0"

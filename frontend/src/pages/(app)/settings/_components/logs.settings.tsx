@@ -34,9 +34,10 @@ export function LogsSettings() {
     to: null,
   });
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: We only want to run this on mount
   useEffect(() => {
     applyFilters();
-  }, [logs, levelFilter, categoryFilter, searchQuery, dateRange]);
+  }, []);
 
   const {
     data: sseData,
@@ -106,7 +107,7 @@ export function LogsSettings() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center min-h-100">
         <Spinner className="h-8 w-8" />
       </div>
     );

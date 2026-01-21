@@ -73,7 +73,7 @@ export function FolderSelect({ value, onChange, disabled }: FolderSelectProps) {
 
     try {
       const result = await createFolder({ path: currentPath, name: newFolderName });
-      if (result && result.path) {
+      if (result?.path) {
         setNewFolderName('');
         setCreatingFolder(false);
         // Navigate into the newly created folder

@@ -77,7 +77,7 @@ export default function PluginsSettings() {
         .catch((_error) => {
           toast.error(t('settings.plugins.messages.deleteError'));
         });
-    } catch (error) {
+    } catch (_error) {
       toast.error(t('settings.plugins.messages.deleteError'));
     } finally {
       setIsDeleting(null);
@@ -103,7 +103,7 @@ export default function PluginsSettings() {
         .catch((_error) => {
           toast.error(t('settings.plugins.messages.addError'));
         });
-    } catch (error) {
+    } catch (_error) {
       toast.error(t('settings.plugins.messages.addError'));
     }
   };

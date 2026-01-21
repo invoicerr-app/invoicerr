@@ -113,7 +113,9 @@ export default function InvitationsSettings() {
                 min="1"
                 placeholder={t('settings.invitations.create.expiresPlaceholder')}
                 value={expiresInDays}
-                onChange={(e) => setExpiresInDays(e.target.value ? parseInt(e.target.value) : '')}
+                onChange={(e) =>
+                  setExpiresInDays(e.target.value ? parseInt(e.target.value, 10) : '')
+                }
               />
             </div>
             <Button onClick={createInvitation} disabled={creating}>
@@ -166,7 +168,7 @@ export default function InvitationsSettings() {
                     <TableRow key={invitation.id}>
                       <TableCell className="font-mono text-sm">
                         <div className="flex items-center gap-2">
-                          <span className="truncate max-w-[120px]">
+                          <span className="truncate max-w-30">
                             {invitation.code.substring(0, 8)}...
                           </span>
                           <Button
