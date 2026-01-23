@@ -3,6 +3,10 @@ import { MailService } from '@/mail/mail.service';
 import { ComplianceController } from './compliance.controller';
 import { ComplianceService } from './compliance.service';
 import { ConfigRegistry } from './configs';
+import { FormatService } from './formats/format.service';
+import { FacturXGenerator } from './formats/generators/facturx.generator';
+import { FatturaPAGenerator } from './formats/generators/fatturapa.generator';
+import { UBLGenerator } from './formats/generators/ubl.generator';
 import { CorrectionService } from './services/correction.service';
 import { ContextBuilderService } from './services/context-builder.service';
 import { HashChainService } from './services/hash-chain.service';
@@ -45,6 +49,12 @@ import { TransmissionService } from './transmission/transmission.service';
     // Signature
     XadesSignatureService,
 
+    // Format generators
+    FormatService,
+    UBLGenerator,
+    FacturXGenerator,
+    FatturaPAGenerator,
+
     // Transmission
     TransmissionService,
     EmailTransmissionStrategy,
@@ -71,6 +81,7 @@ import { TransmissionService } from './transmission/transmission.service';
     CorrectionService,
     TransmissionService,
     XadesSignatureService,
+    FormatService,
   ],
 })
 export class ComplianceModule {}
