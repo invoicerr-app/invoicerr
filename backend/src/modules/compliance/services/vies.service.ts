@@ -5,12 +5,32 @@ interface CacheEntry {
   timestamp: number;
 }
 
+/**
+ * Service for validating EU VAT numbers via the VIES (VAT Information Exchange System) service.
+ *
+ * IMPORTANT: This service uses a fail-open strategy. If the VIES service is unavailable
+ * or returns an error, VAT numbers are accepted as valid by default. This design choice
+ * prevents VIES downtime from blocking invoice creation, but means invalid VAT numbers
+ * may occasionally pass validation when VIES is unavailable.
+ *
+ * For stricter validation requirements, consider:
+ * - Implementing retry logic with exponential backoff
+ * - Adding a queue for deferred validation
+ * - Flagging invoices for manual review when VIES validation fails
+ */
 @Injectable()
 export class VIESService {
   private readonly logger = new Logger(VIESService.name);
   private cache = new Map<string, CacheEntry>();
   private readonly CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
 
+  /**
+   * Validate a VAT number against the EU VIES service.
+   *
+   * @param vatNumber The VAT number to validate (e.g., "FR12345678901")
+   * @returns true if valid OR if VIES service is unavailable (fail-open behavior)
+   * @see https://ec.europa.eu/taxation_customs/vies/
+   */
   async validate(vatNumber: string): Promise<boolean> {
     if (!vatNumber) return false;
 
@@ -26,7 +46,13 @@ export class VIESService {
       this.cache.set(normalizedVat, { valid: result, timestamp: Date.now() });
       return result;
     } catch (error) {
-      this.logger.warn(`VIES validation failed for ${normalizedVat}, accepting by default:`, error);
+      // FAIL-OPEN: Accept VAT number when VIES service is unavailable
+      // This prevents VIES downtime from blocking business operations
+      // See class documentation for alternative approaches
+      this.logger.warn(
+        `VIES validation failed for ${normalizedVat}, accepting by default (fail-open):`,
+        error,
+      );
       return true;
     }
   }
