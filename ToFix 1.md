@@ -14,7 +14,7 @@
 - [x] **Peppol AS4 envelope signing not implemented** - `peppol.strategy.ts:186-201` - Delegated to Access Point (standard pattern)
 - [x] **SdI response parsing uses regex instead of XML parser** - `sdi.strategy.ts:229-243` - Fragile parsing that could fail
 - [x] **SuperPDP missing `status` field in error responses** - `superpdp.strategy.ts:52,104,130` - Inconsistent response structure
-- [ ] **RuleResolver condition evaluation incomplete** - `rule-resolver.service.ts:213-236` - Many conditions return false without proper evaluation
+- [x] **RuleResolver condition evaluation incomplete** - `rule-resolver.service.ts:213-236` - Many conditions return false without proper evaluation
 
 ## MEDIUM PRIORITY
 

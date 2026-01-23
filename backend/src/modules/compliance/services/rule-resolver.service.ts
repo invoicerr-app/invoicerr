@@ -225,7 +225,12 @@ export class RuleResolverService {
       return this.evaluateStructuredCondition(condition as Record<string, unknown>, context);
     }
 
-    // Handle string conditions
+    // Handle dot-notation path conditions (e.g., "transaction.isIntraEU")
+    if (typeof condition === 'string' && condition.includes('.')) {
+      return this.evaluatePath(condition, context);
+    }
+
+    // Handle string conditions for backwards compatibility
     switch (condition) {
       case 'transaction.isIntraEU':
         return context.transaction.isIntraEU;
@@ -237,13 +242,49 @@ export class RuleResolverService {
         return context.customer.isVatRegistered;
       case 'customer.isPublicEntity':
         return context.customer.isPublicEntity;
-      case 'company.exemptVat':
-        // This would need to be passed in context
-        return false;
+      case 'supplier.isVatRegistered':
+        return context.supplier.isVatRegistered;
+      // Transaction type conditions
+      case 'transaction.type.B2B':
+        return context.transaction.type === 'B2B';
+      case 'transaction.type.B2G':
+        return context.transaction.type === 'B2G';
+      case 'transaction.type.B2C':
+        return context.transaction.type === 'B2C';
+      // Transaction nature conditions
+      case 'transaction.nature.goods':
+        return context.transaction.nature === 'goods';
+      case 'transaction.nature.services':
+        return context.transaction.nature === 'services';
+      case 'transaction.nature.mixed':
+        return context.transaction.nature === 'mixed';
       default:
-        // Unhandled conditions = false
+        this.logger.debug(`Unhandled string condition: ${condition}`);
         return false;
     }
+  }
+
+  /**
+   * Evaluate a dot-notation path against the context
+   */
+  private evaluatePath(path: string, context: TransactionContext): boolean {
+    const parts = path.split('.');
+    let value: unknown = context;
+
+    for (const part of parts) {
+      if (value === null || value === undefined) {
+        return false;
+      }
+      if (typeof value === 'object' && part in value) {
+        value = (value as Record<string, unknown>)[part];
+      } else {
+        this.logger.debug(`Path evaluation failed for "${path}" at "${part}"`);
+        return false;
+      }
+    }
+
+    // Return boolean value, or true if value is truthy
+    return value === true || (typeof value === 'string' && value !== '');
   }
 
   private evaluateStructuredCondition(
@@ -251,20 +292,102 @@ export class RuleResolverService {
     context: TransactionContext,
   ): boolean {
     const type = condition.type as string;
+    const property = condition.property as string;
+    const value = condition.value;
+    const operator = (condition.operator as string) || 'equals';
+
+    // Get the actual value from context
+    let actualValue: unknown;
 
     switch (type) {
       case 'transaction':
-        return context.transaction[condition.property as keyof typeof context.transaction] === true;
+        actualValue = context.transaction[property as keyof typeof context.transaction];
+        break;
       case 'customer':
-        return context.customer[condition.property as keyof typeof context.customer] === true;
-      case 'field':
-        // Would need access to invoice fields
+        actualValue = context.customer[property as keyof typeof context.customer];
+        break;
+      case 'supplier':
+        actualValue = context.supplier[property as keyof typeof context.supplier];
+        break;
+      case 'place':
+        actualValue = context.place[property as keyof typeof context.place];
+        break;
+      case 'path':
+        // Allow arbitrary path evaluation
+        return this.evaluatePath(property, context);
+      case 'and':
+        // Logical AND of multiple conditions
+        if (Array.isArray(condition.conditions)) {
+          return condition.conditions.every((c) =>
+            this.evaluateCondition(c as string | object, context),
+          );
+        }
         return false;
-      case 'expression':
-        // Would need an expression evaluator
+      case 'or':
+        // Logical OR of multiple conditions
+        if (Array.isArray(condition.conditions)) {
+          return condition.conditions.some((c) =>
+            this.evaluateCondition(c as string | object, context),
+          );
+        }
+        return false;
+      case 'not':
+        // Logical NOT of a condition
+        if (condition.condition) {
+          return !this.evaluateCondition(condition.condition as string | object, context);
+        }
         return false;
       default:
+        this.logger.debug(`Unknown condition type: ${type}`);
         return false;
+    }
+
+    // Apply operator
+    return this.applyOperator(actualValue, operator, value);
+  }
+
+  /**
+   * Apply comparison operator
+   */
+  private applyOperator(actual: unknown, operator: string, expected: unknown): boolean {
+    switch (operator) {
+      case 'equals':
+      case 'eq':
+        return actual === expected;
+      case 'notEquals':
+      case 'ne':
+        return actual !== expected;
+      case 'exists':
+        return actual !== null && actual !== undefined;
+      case 'notExists':
+        return actual === null || actual === undefined;
+      case 'in':
+        return Array.isArray(expected) && expected.includes(actual);
+      case 'notIn':
+        return Array.isArray(expected) && !expected.includes(actual);
+      case 'gt':
+        return typeof actual === 'number' && typeof expected === 'number' && actual > expected;
+      case 'gte':
+        return typeof actual === 'number' && typeof expected === 'number' && actual >= expected;
+      case 'lt':
+        return typeof actual === 'number' && typeof expected === 'number' && actual < expected;
+      case 'lte':
+        return typeof actual === 'number' && typeof expected === 'number' && actual <= expected;
+      case 'contains':
+        return typeof actual === 'string' && typeof expected === 'string' && actual.includes(expected);
+      case 'startsWith':
+        return typeof actual === 'string' && typeof expected === 'string' && actual.startsWith(expected);
+      case 'endsWith':
+        return typeof actual === 'string' && typeof expected === 'string' && actual.endsWith(expected);
+      case 'matches':
+        return typeof actual === 'string' && typeof expected === 'string' && new RegExp(expected).test(actual);
+      case 'isTrue':
+        return actual === true;
+      case 'isFalse':
+        return actual === false;
+      default:
+        // Default to equality check
+        return actual === expected;
     }
   }
 }
