@@ -326,11 +326,17 @@ export class PeppolTransmissionStrategy implements TransmissionStrategy {
   }
 
   private buildAS4Envelope(payload: TransmissionPayload, messageId: string): string {
+    // Note: This method is only called after config is validated (see sendAS4Message)
+    if (!this.config) {
+      throw new Error('Peppol configuration required for AS4 envelope');
+    }
+
     const timestamp = new Date().toISOString();
     const senderScheme = payload.sender.peppolId?.split(':')[0] || '0088';
     const senderId = payload.sender.peppolId?.split(':')[1] || payload.sender.siret || '';
     const recipientScheme = payload.recipient.peppolId?.split(':')[0] || '0088';
     const recipientId = payload.recipient.peppolId?.split(':')[1] || payload.recipient.siret || '';
+    const configSenderId = this.config.senderId;
 
     // Build proper ebMS3/AS4 envelope per Peppol AS4 profile
     return `<?xml version="1.0" encoding="UTF-8"?>
@@ -347,7 +353,7 @@ export class PeppolTransmissionStrategy implements TransmissionStrategy {
         </eb:MessageInfo>
         <eb:PartyInfo>
           <eb:From>
-            <eb:PartyId type="urn:fdc:peppol.eu:2017:identifiers:ap">${this.config?.senderId}</eb:PartyId>
+            <eb:PartyId type="urn:fdc:peppol.eu:2017:identifiers:ap">${configSenderId}</eb:PartyId>
             <eb:Role>http://docs.oasis-open.org/ebxml-msg/ebms/v3.0/ns/core/200704/initiator</eb:Role>
           </eb:From>
           <eb:To>
