@@ -27,6 +27,9 @@ export class TransmissionService {
     @Optional() private readonly verifactuStrategy: VerifactuTransmissionStrategy,
     @Optional() private readonly saftStrategy: SaftTransmissionStrategy,
   ) {
+    // Type guard to filter out null/undefined strategies from @Optional() injections
+    const isStrategy = (s: TransmissionStrategy | null | undefined): s is TransmissionStrategy => s != null;
+
     this.strategies = [
       this.emailStrategy,
       this.superPDPStrategy,
@@ -35,7 +38,7 @@ export class TransmissionService {
       this.sdiStrategy,
       this.verifactuStrategy,
       this.saftStrategy,
-    ].filter(Boolean);
+    ].filter(isStrategy);
 
     this.logger.log(`Loaded ${this.strategies.length} transmission strategies: ${this.getAvailableStrategies().join(', ')}`);
   }
