@@ -4,7 +4,7 @@
 
 - [x] **SdI XAdES signature not implemented** - `sdi.strategy.ts:162-168` - FatturaPA signing returns unsigned XML, critical for Italy
 - [x] **Numbering service uses in-memory state** - `numbering.service.ts:30-31` - Sequence lost on server restart, needs database persistence
-- [ ] **Peppol SMP lookup not implemented** - `peppol.strategy.ts:166-176` - Returns mock/hardcoded data instead of actual lookup
+- [x] **Peppol SMP lookup not implemented** - `peppol.strategy.ts:166-176` - Returns mock/hardcoded data instead of actual lookup
 - [ ] **SAF-T transmission strategy missing** - `pt.config.ts` references "saft" platform but no `SaftTransmissionStrategy` exists
 - [ ] **Veri*Factu transmission strategy missing** - `es.config.ts` references "verifactu" platform but no strategy class exists
 
@@ -42,5 +42,5 @@
 ## DOCUMENTATION TODOS FOUND IN CODE
 
 - [ ] SdI: Production implementation incomplete (`sdi.strategy.ts:137,165,202`)
-- [ ] Peppol: Stub/mock implementations (`peppol.strategy.ts:197-200,222-223`)
+- [x] Peppol: Stub/mock implementations (`peppol.strategy.ts:197-200,222-223`)
 - [x] Numbering: In-memory state needs DB (`numbering.service.ts:30-31`)
