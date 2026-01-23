@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { getCountryConfig } from '../configs';
-import { TransactionContext } from '../interfaces';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { ConfigRegistry, getCountryConfig } from '../configs';
+import { CountryConfig, TransactionContext } from '../interfaces';
 import { VIESService } from './vies.service';
 
 export interface ContextBuildInput {
@@ -23,15 +23,27 @@ export interface ContextBuildInput {
   deliveryCountry?: string;
 }
 
+export interface ExtendedTransactionContext extends TransactionContext {
+  supplierConfig: CountryConfig;
+  customerConfig: CountryConfig | null;
+}
+
 @Injectable()
 export class ContextBuilderService {
-  constructor(private readonly viesService: VIESService) {}
+  private readonly logger = new Logger(ContextBuilderService.name);
+
+  constructor(
+    private readonly viesService: VIESService,
+    @Optional() private readonly configRegistry?: ConfigRegistry,
+  ) {}
 
   async build(input: ContextBuildInput): Promise<TransactionContext> {
     const { company, client } = input;
 
-    const supplierConfig = getCountryConfig(company.countryCode);
-    const customerConfig = client.countryCode ? getCountryConfig(client.countryCode) : null;
+    const supplierConfig = this.getConfig(company.countryCode);
+    const customerConfig = client.countryCode
+      ? this.getConfig(client.countryCode)
+      : null;
 
     // Validate customer VAT if intra-EU
     let customerVatValid = false;
@@ -57,6 +69,8 @@ export class ContextBuilderService {
       nature,
       type,
       deliveryPlace: input.deliveryCountry,
+      supplierConfig,
+      customerConfig,
     });
 
     return {
@@ -82,10 +96,42 @@ export class ContextBuilderService {
       },
       place: {
         delivery: input.deliveryCountry || client.countryCode,
-        performance: client.countryCode, // Simplified for B2B services
+        performance: client.countryCode,
         taxation: taxationPlace,
       },
     };
+  }
+
+  /**
+   * Build extended context with configs included
+   */
+  async buildExtended(input: ContextBuildInput): Promise<ExtendedTransactionContext> {
+    const context = await this.build(input);
+    const supplierConfig = this.getConfig(input.company.countryCode);
+    const customerConfig = input.client.countryCode
+      ? this.getConfig(input.client.countryCode)
+      : null;
+
+    return {
+      ...context,
+      supplierConfig,
+      customerConfig,
+    };
+  }
+
+  private getConfig(countryCode: string): CountryConfig {
+    try {
+      if (this.configRegistry) {
+        return this.configRegistry.get(countryCode);
+      }
+      return getCountryConfig(countryCode);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to get config for country ${countryCode}, using fallback: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      // Return generic config as fallback
+      return getCountryConfig('GENERIC');
+    }
   }
 
   /**
@@ -104,7 +150,9 @@ export class ContextBuilderService {
     if (!items || items.length === 0) return 'services';
 
     const hasGoods = items.some((i) => ['PRODUCT'].includes(i.type));
-    const hasServices = items.some((i) => ['HOUR', 'DAY', 'SERVICE', 'DEPOSIT'].includes(i.type));
+    const hasServices = items.some((i) =>
+      ['HOUR', 'DAY', 'SERVICE', 'DEPOSIT'].includes(i.type),
+    );
 
     if (hasGoods && hasServices) return 'mixed';
     if (hasGoods) return 'goods';
@@ -121,8 +169,23 @@ export class ContextBuilderService {
     nature: 'goods' | 'services' | 'mixed';
     type: 'B2B' | 'B2G' | 'B2C';
     deliveryPlace: string | null | undefined;
+    supplierConfig: CountryConfig;
+    customerConfig: CountryConfig | null;
   }): string {
-    const { supplierCountry, customerCountry, customerVatValid, nature, type } = params;
+    const {
+      supplierCountry,
+      customerCountry,
+      customerVatValid,
+      nature,
+      type,
+      supplierConfig,
+      customerConfig,
+    } = params;
+
+    // Non-EU supplier: taxation rules of supplier country
+    if (!supplierConfig.isEU) {
+      return supplierCountry;
+    }
 
     // B2C = always seller's country (except OSS exceptions)
     if (type === 'B2C') {
@@ -132,6 +195,11 @@ export class ContextBuilderService {
     // Domestic = same country
     if (supplierCountry === customerCountry) {
       return supplierCountry;
+    }
+
+    // Export outside EU = no VAT (exempt)
+    if (customerConfig && !customerConfig.isEU) {
+      return supplierCountry; // VAT exempt, but document issued in supplier country
     }
 
     // Intra-EU B2B/B2G services with valid VAT = customer country (reverse charge)
@@ -144,10 +212,8 @@ export class ContextBuilderService {
       return customerCountry;
     }
 
-    // Mixed: use most restrictive case (seller's country)
-    // In practice, the invoice should be split or complex rules applied
-
-    // Default = seller's country
+    // Mixed: complex case - would need to split invoice in practice
+    // Default to seller's country
     return supplierCountry;
   }
 }

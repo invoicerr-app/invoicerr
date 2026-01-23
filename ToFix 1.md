@@ -10,7 +10,7 @@
 
 ## HIGH PRIORITY
 
-- [ ] **Optional ConfigRegistry without error handling** - `context-builder.service.ts:34-35` and `rule-resolver.service.ts:15,33-37` - Could fail silently or throw undefined errors
+- [x] **Optional ConfigRegistry without error handling** - `context-builder.service.ts:34-35` and `rule-resolver.service.ts:15,33-37` - Could fail silently or throw undefined errors
 - [ ] **Peppol AS4 envelope signing not implemented** - `peppol.strategy.ts:186-201` - Only comments, no actual signing/encryption
 - [ ] **SdI response parsing uses regex instead of XML parser** - `sdi.strategy.ts:229-243` - Fragile parsing that could fail
 - [ ] **SuperPDP missing `status` field in error responses** - `superpdp.strategy.ts:52,104,130` - Inconsistent response structure

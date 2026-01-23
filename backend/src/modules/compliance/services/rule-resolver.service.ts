@@ -1,31 +1,50 @@
-import { Injectable } from '@nestjs/common';
-import { getCountryConfig } from '../configs';
-import type {
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { ConfigRegistry, getCountryConfig } from '../configs';
+import {
   ApplicableRules,
   CountryConfig,
   FormatRules,
   TransactionContext,
   TransmissionRules,
-  VATRules,
   ValidationRules,
+  VATRules,
 } from '../interfaces';
 
 @Injectable()
 export class RuleResolverService {
+  private readonly logger = new Logger(RuleResolverService.name);
+
+  constructor(@Optional() private readonly configRegistry?: ConfigRegistry) {}
+
   resolve(context: TransactionContext): ApplicableRules {
-    const supplierConfig = getCountryConfig(context.supplier.countryCode);
+    const supplierConfig = this.getConfig(context.supplier.countryCode);
     const customerConfig = context.customer.countryCode
-      ? getCountryConfig(context.customer.countryCode)
+      ? this.getConfig(context.customer.countryCode)
       : null;
 
     return {
       vat: this.resolveVAT(context, supplierConfig),
       validation: this.resolveValidation(context, supplierConfig, customerConfig),
-      format: this.resolveFormat(supplierConfig),
+      format: this.resolveFormat(context, supplierConfig, customerConfig),
       transmission: this.resolveTransmission(context, supplierConfig, customerConfig),
       numbering: supplierConfig.numbering,
       legalMentionKeys: this.resolveMentions(context, supplierConfig),
     };
+  }
+
+  private getConfig(countryCode: string): CountryConfig {
+    try {
+      if (this.configRegistry) {
+        return this.configRegistry.get(countryCode);
+      }
+      return getCountryConfig(countryCode);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to get config for country ${countryCode}, using fallback: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      // Return generic config as fallback
+      return getCountryConfig('GENERIC');
+    }
   }
 
   /**
@@ -38,14 +57,13 @@ export class RuleResolverService {
       context.customer.isVatRegistered &&
       (context.transaction.type === 'B2B' || context.transaction.type === 'B2G')
     ) {
-      // Choose text based on nature (goods vs services)
       const reverseChargeTextKey =
         context.transaction.nature === 'goods'
           ? config.vat.reverseChargeTexts.goods
           : config.vat.reverseChargeTexts.services;
 
       return {
-        rates: [{ code: 'AE', rate: 0, label: 'vat.reverseCharge' }],
+        rates: [{ code: 'AE', rate: 0, labelKey: 'vat.reverseCharge' }],
         exemptions: config.vat.exemptions,
         defaultRate: 0,
         reverseCharge: true,
@@ -56,7 +74,7 @@ export class RuleResolverService {
     // Export outside EU
     if (context.transaction.isExport) {
       return {
-        rates: [{ code: 'G', rate: 0, label: 'vat.export' }],
+        rates: [{ code: 'G', rate: 0, labelKey: 'vat.export' }],
         exemptions: config.vat.exemptions,
         defaultRate: 0,
         reverseCharge: false,
@@ -109,11 +127,24 @@ export class RuleResolverService {
   /**
    * Resolves document format rules
    */
-  private resolveFormat(config: CountryConfig): FormatRules {
+  private resolveFormat(
+    context: TransactionContext,
+    supplierConfig: CountryConfig,
+    customerConfig: CountryConfig | null,
+  ): FormatRules {
+    // For B2G, customer country format may take precedence
+    if (context.transaction.type === 'B2G' && customerConfig) {
+      return {
+        preferred: customerConfig.format.preferred,
+        supported: customerConfig.format.supported,
+        xmlSyntax: customerConfig.format.syntax,
+      };
+    }
+
     return {
-      preferred: config.documentFormat.preferred,
-      supported: config.documentFormat.supported,
-      xmlSyntax: config.documentFormat.xmlSyntax,
+      preferred: supplierConfig.format.preferred,
+      supported: supplierConfig.format.supported,
+      xmlSyntax: supplierConfig.format.syntax,
     };
   }
 
@@ -129,7 +160,7 @@ export class RuleResolverService {
     if (context.transaction.type === 'B2G' && customerConfig) {
       const b2gConfig = customerConfig.transmission.b2g;
       return {
-        method: b2gConfig.method,
+        method: b2gConfig.model,
         mandatory: b2gConfig.mandatory,
         platform: b2gConfig.platform || null,
         async: b2gConfig.async,
@@ -139,10 +170,24 @@ export class RuleResolverService {
       };
     }
 
-    // B2B/B2C: issuer country rules
+    // B2C: check if specific B2C config exists
+    if (context.transaction.type === 'B2C' && supplierConfig.transmission.b2c) {
+      const b2cConfig = supplierConfig.transmission.b2c;
+      return {
+        method: b2cConfig.model,
+        mandatory: b2cConfig.mandatory,
+        platform: b2cConfig.platform || null,
+        async: b2cConfig.async,
+        deadlineDays: b2cConfig.deadlineDays || null,
+        labelKey: b2cConfig.labelKey,
+        icon: b2cConfig.icon,
+      };
+    }
+
+    // B2B or fallback: issuer country rules
     const b2bConfig = supplierConfig.transmission.b2b;
     return {
-      method: b2bConfig.method,
+      method: b2bConfig.model,
       mandatory: b2bConfig.mandatory,
       platform: b2bConfig.platform || null,
       async: b2bConfig.async,
@@ -160,8 +205,6 @@ export class RuleResolverService {
 
     // Add conditional mentions
     for (const conditional of config.legalMentions.conditional) {
-      // Simplified condition evaluation
-      // In production, use a more robust expression evaluator
       if (this.evaluateCondition(conditional.condition, context)) {
         mentions.push(conditional.textKey);
       }
@@ -171,20 +214,56 @@ export class RuleResolverService {
   }
 
   /**
-   * Evaluates a simple condition
-   * Supports: company.exemptVat, transaction.isIntraEU, etc.
+   * Evaluates a condition (string or structured)
    */
-  private evaluateCondition(condition: string, context: TransactionContext): boolean {
-    // For now, only handle a few basic conditions
+  private evaluateCondition(
+    condition: string | object,
+    context: TransactionContext,
+  ): boolean {
+    // Handle structured conditions
+    if (typeof condition === 'object' && 'type' in condition) {
+      return this.evaluateStructuredCondition(condition as Record<string, unknown>, context);
+    }
+
+    // Handle string conditions
     switch (condition) {
       case 'transaction.isIntraEU':
         return context.transaction.isIntraEU;
       case 'transaction.isExport':
         return context.transaction.isExport;
+      case 'transaction.isDomestic':
+        return context.transaction.isDomestic;
       case 'customer.isVatRegistered':
         return context.customer.isVatRegistered;
+      case 'customer.isPublicEntity':
+        return context.customer.isPublicEntity;
+      case 'company.exemptVat':
+        // This would need to be passed in context
+        return false;
       default:
         // Unhandled conditions = false
+        return false;
+    }
+  }
+
+  private evaluateStructuredCondition(
+    condition: Record<string, unknown>,
+    context: TransactionContext,
+  ): boolean {
+    const type = condition.type as string;
+
+    switch (type) {
+      case 'transaction':
+        return context.transaction[condition.property as keyof typeof context.transaction] === true;
+      case 'customer':
+        return context.customer[condition.property as keyof typeof context.customer] === true;
+      case 'field':
+        // Would need access to invoice fields
+        return false;
+      case 'expression':
+        // Would need an expression evaluator
+        return false;
+      default:
         return false;
     }
   }
