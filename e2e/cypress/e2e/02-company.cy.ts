@@ -156,8 +156,12 @@ describe('Company Settings E2E', () => {
 
             cy.get('[data-cy="company-name-input"]').clear().type('Acme Corp');
             cy.get('[data-cy="company-description-input"]').clear().type('A fictional company');
-            // Note: legalId and VAT fields may not be populated if company was created
-            // via onboarding with dynamic identifiers - skipping these for now
+
+            // Dynamic identifiers based on country (France)
+            cy.get('[data-cy="company-siret-input"]', { timeout: 5000 }).should('be.visible');
+            cy.get('[data-cy="company-siret-input"]').clear().type('12345678901234');
+            cy.get('[data-cy="company-vat-input"]').clear().type('FR12345678901');
+
             cy.get('[data-cy="company-phone-input"]').clear().type('+33123456789');
             cy.get('[data-cy="company-email-input"]').clear().type('contact@acme.org');
             cy.get('[data-cy="company-address-input"]').clear().type('123 Main St');

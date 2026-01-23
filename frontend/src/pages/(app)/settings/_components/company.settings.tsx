@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { getCountryName } from '@/components/country-select';
 import CurrencySelect from '@/components/currency-select';
 import { DatePicker } from '@/components/date-picker';
 import { Button } from '@/components/ui/button';
@@ -27,11 +28,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { useCountryIdentifiers } from '@/hooks/use-compliance';
 import { useGet, usePost } from '@/hooks/use-fetch';
 import type { Company } from '@/types';
 
 export default function CompanySettings() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const ALLOWED_DATE_FORMATS = [
     'dd/MM/yyyy',
@@ -86,14 +88,7 @@ export default function CompanySettings() {
       .min(1, t('settings.company.form.company.errors.empty'))
       .max(100, t('settings.company.form.company.errors.maxLength')),
     description: z.string().max(500, t('settings.company.form.description.errors.maxLength')),
-    legalId: z
-      .string({ required_error: t('settings.company.form.legalId.errors.required') })
-      .max(50, t('settings.company.form.legalId.errors.maxLength'))
-      .optional(),
-    VAT: z
-      .string({ required_error: t('settings.company.form.vat.errors.required') })
-      .max(15, t('settings.company.form.vat.errors.maxLength'))
-      .optional(),
+    identifiers: z.record(z.string()).default({}),
     foundedAt: z
       .date()
       .refine((date) => date <= new Date(), t('settings.company.form.foundedAt.errors.future')),
@@ -172,8 +167,7 @@ export default function CompanySettings() {
     defaultValues: {
       name: '',
       description: '',
-      legalId: '',
-      VAT: '',
+      identifiers: {},
       exemptVat: false,
       foundedAt: new Date(),
       currency: '',
@@ -192,6 +186,12 @@ export default function CompanySettings() {
       receiptNumberFormat: 'REC-{year}-{number}',
     },
   });
+
+  // Watch country to fetch identifier config
+  const selectedCountry = form.watch('country');
+  const { identifiers: countryIdentifiers, vat: vatConfig } = useCountryIdentifiers(
+    selectedCountry || undefined,
+  );
 
   useEffect(() => {
     if (data && Object.keys(data).length > 0) {
@@ -323,48 +323,125 @@ export default function CompanySettings() {
                     </FormItem>
                   )}
                 />
+              </div>
+            </CardContent>
+          </Card>
 
-                <FormField
-                  control={form.control}
-                  name="legalId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('settings.company.form.legalId.label')}</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder={t('settings.company.form.legalId.placeholder')}
-                          {...field}
-                          data-cy="company-legalid-input"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        {t('settings.company.form.legalId.description')}
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="VAT"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('settings.company.form.vat.label')}</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder={t('settings.company.form.vat.placeholder')}
-                          {...field}
-                          data-cy="company-vat-input"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        {t('settings.company.form.vat.description')}
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('settings.company.identifiers.title')}</CardTitle>
+              <CardDescription>{t('settings.company.identifiers.description')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Dynamic identifiers for supported countries */}
+                {countryIdentifiers.length > 0 ? (
+                  <>
+                    {countryIdentifiers.map((identifier) => (
+                      <FormField
+                        key={identifier.id}
+                        control={form.control}
+                        name={`identifiers.${identifier.id}`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel required={identifier.required}>
+                              {t(identifier.labelKey)}
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder={identifier.example || ''}
+                                maxLength={identifier.maxLength || undefined}
+                                {...field}
+                                value={field.value || ''}
+                                data-cy={`company-${identifier.id}-input`}
+                              />
+                            </FormControl>
+                            {identifier.example && (
+                              <FormDescription>
+                                {t('settings.company.form.identifier.formatDescription', {
+                                  example: identifier.example,
+                                })}
+                              </FormDescription>
+                            )}
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                    {/* VAT field for supported countries */}
+                    <FormField
+                      control={form.control}
+                      name="identifiers.vat"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t('identifiers.vat')}</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder={vatConfig.example || ''}
+                              {...field}
+                              value={field.value || ''}
+                              data-cy="company-vat-input"
+                            />
+                          </FormControl>
+                          {vatConfig.example && (
+                            <FormDescription>
+                              {t('settings.company.form.identifier.formatDescription', {
+                                example: vatConfig.example,
+                              })}
+                            </FormDescription>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
+                ) : (
+                  <>
+                    {/* Generic fields for unsupported countries */}
+                    <FormField
+                      control={form.control}
+                      name="identifiers.legalId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t('settings.company.form.legalId.label')}</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder={t('settings.company.form.legalId.placeholder')}
+                              {...field}
+                              value={field.value || ''}
+                              data-cy="company-legalid-input"
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            {t('settings.company.form.legalId.description')}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="identifiers.vat"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t('settings.company.form.vat.label')}</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder={t('settings.company.form.vat.placeholder')}
+                              {...field}
+                              value={field.value || ''}
+                              data-cy="company-vat-input"
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            {t('settings.company.form.vat.description')}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -438,14 +515,18 @@ export default function CompanySettings() {
                   name="country"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel required>{t('settings.company.form.country.label')}</FormLabel>
+                      <FormLabel>{t('settings.company.form.country.label')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={t('settings.company.form.country.placeholder')}
-                          {...field}
+                          value={getCountryName(field.value, i18n.language)}
+                          disabled
+                          className="bg-muted cursor-not-allowed"
                           data-cy="company-country-input"
                         />
                       </FormControl>
+                      <FormDescription>
+                        {t('settings.company.form.country.readOnlyDescription')}
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
