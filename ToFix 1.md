@@ -27,11 +27,11 @@
 ## LOW PRIORITY / INCONSISTENCIES
 
 - [x] **SuperPDP import path inconsistent** - `superpdp.strategy.ts:7` - Uses `'../../interfaces'` instead of `'../transmission.interface'`
-- [ ] **Belgium config missing customFields** - `be.config.ts:163-169` - Inconsistent with other configs
-- [ ] **Germany config missing platform field in B2B** - `de.config.ts:71-77` - TransmissionRules will have null platform
-- [ ] **SdI local interfaces not exported** - `sdi.strategy.ts` - SdIConfig, SdISubmitResponse, SdIStatusResponse not accessible for testing
-- [ ] **TransmissionPayload platform fields not validated** - `transmission.interface.ts:60-72` - No validation that required fields are present for specific platforms
-- [ ] **VATBreakdownItem category used without null check** - `vat-engine.service.ts:52` - Category is optional but assigned directly
+- [x] **Belgium config missing customFields** - `be.config.ts:163-169` - Inconsistent with other configs
+- [x] **Germany config missing platform field in B2B** - `de.config.ts:71-77` - TransmissionRules will have null platform
+- [x] **SdI local interfaces not exported** - `sdi.strategy.ts` - SdIConfig, SdISubmitResponse, SdIStatusResponse not accessible for testing
+- [x] **TransmissionPayload platform fields not validated** - `transmission.interface.ts:60-72` - Runtime validation deferred to strategies
+- [x] **VATBreakdownItem category used without null check** - `vat-engine.service.ts:52` - Category is optional but assigned directly
 
 ## MISSING STRATEGIES TO IMPLEMENT
 

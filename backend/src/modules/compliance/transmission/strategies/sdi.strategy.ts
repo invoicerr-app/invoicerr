@@ -8,20 +8,20 @@ import {
 } from '../transmission.interface';
 import { XadesSignatureService } from '../../services/xades-signature.service';
 
-interface SdIConfig {
+export interface SdIConfig {
   apiUrl: string;
   certificatePath: string;
   privateKeyPath: string;
   password?: string;
 }
 
-interface SdISubmitResponse {
+export interface SdISubmitResponse {
   identificativoSdI: string;
   dataOraRicezione: string;
   nomeFile: string;
 }
 
-interface SdIStatusResponse {
+export interface SdIStatusResponse {
   identificativoSdI: string;
   stato: string;
   dataOraRicezione: string;
