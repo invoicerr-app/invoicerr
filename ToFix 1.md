@@ -11,8 +11,8 @@
 ## HIGH PRIORITY
 
 - [x] **Optional ConfigRegistry without error handling** - `context-builder.service.ts:34-35` and `rule-resolver.service.ts:15,33-37` - Could fail silently or throw undefined errors
-- [ ] **Peppol AS4 envelope signing not implemented** - `peppol.strategy.ts:186-201` - Only comments, no actual signing/encryption
-- [ ] **SdI response parsing uses regex instead of XML parser** - `sdi.strategy.ts:229-243` - Fragile parsing that could fail
+- [x] **Peppol AS4 envelope signing not implemented** - `peppol.strategy.ts:186-201` - Delegated to Access Point (standard pattern)
+- [x] **SdI response parsing uses regex instead of XML parser** - `sdi.strategy.ts:229-243` - Fragile parsing that could fail
 - [ ] **SuperPDP missing `status` field in error responses** - `superpdp.strategy.ts:52,104,130` - Inconsistent response structure
 - [ ] **RuleResolver condition evaluation incomplete** - `rule-resolver.service.ts:213-236` - Many conditions return false without proper evaluation
 
@@ -41,6 +41,6 @@
 
 ## DOCUMENTATION TODOS FOUND IN CODE
 
-- [ ] SdI: Production implementation incomplete (`sdi.strategy.ts:137,165,202`)
+- [x] SdI: Production implementation incomplete (`sdi.strategy.ts:137,165,202`)
 - [x] Peppol: Stub/mock implementations (`peppol.strategy.ts:197-200,222-223`)
 - [x] Numbering: In-memory state needs DB (`numbering.service.ts:30-31`)

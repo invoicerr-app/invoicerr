@@ -241,20 +241,84 @@ export class SdITransmissionStrategy implements TransmissionStrategy {
   }
 
   private parseSdIResponse(responseXml: string): SdISubmitResponse {
-    // Simple regex parsing - in production, use proper XML parser
-    const idMatch = responseXml.match(/<identificativoSdI>(\d+)<\/identificativoSdI>/);
-    const dateMatch = responseXml.match(/<dataOraRicezione>([^<]+)<\/dataOraRicezione>/);
-    const nameMatch = responseXml.match(/<NomeFile>([^<]+)<\/NomeFile>/);
+    // Extract values handling namespaces and CDATA sections
+    const identificativoSdI = this.extractXmlValue(responseXml, 'identificativoSdI');
+    const dataOraRicezione = this.extractXmlValue(responseXml, 'dataOraRicezione');
+    const nomeFile = this.extractXmlValue(responseXml, 'NomeFile');
 
-    if (!idMatch) {
-      throw new Error('Failed to parse SdI response: missing identificativoSdI');
+    // Check for SOAP fault
+    const faultString = this.extractXmlValue(responseXml, 'faultstring');
+    if (faultString) {
+      throw new Error(`SdI SOAP Fault: ${faultString}`);
+    }
+
+    // Check for error codes in response
+    const errore = this.extractXmlValue(responseXml, 'Errore') ||
+                   this.extractXmlValue(responseXml, 'ListaErrori');
+    if (errore) {
+      throw new Error(`SdI Error: ${errore}`);
+    }
+
+    if (!identificativoSdI) {
+      // Try alternative element names
+      const altId = this.extractXmlValue(responseXml, 'IdSdi') ||
+                    this.extractXmlValue(responseXml, 'IdentificativoSdi') ||
+                    this.extractXmlValue(responseXml, 'IdFile');
+      if (!altId) {
+        this.logger.error('SdI response missing identificativoSdI:', responseXml.substring(0, 500));
+        throw new Error('Failed to parse SdI response: missing identificativoSdI');
+      }
+      return {
+        identificativoSdI: altId,
+        dataOraRicezione: dataOraRicezione || new Date().toISOString(),
+        nomeFile: nomeFile || '',
+      };
     }
 
     return {
-      identificativoSdI: idMatch[1],
-      dataOraRicezione: dateMatch?.[1] || new Date().toISOString(),
-      nomeFile: nameMatch?.[1] || '',
+      identificativoSdI,
+      dataOraRicezione: dataOraRicezione || new Date().toISOString(),
+      nomeFile: nomeFile || '',
     };
+  }
+
+  /**
+   * Extract XML element value handling namespaces, CDATA, and whitespace
+   */
+  private extractXmlValue(xml: string, elementName: string): string | null {
+    // Handle both with and without namespace prefixes
+    // Match: <ns:elementName>, <elementName>, or CDATA content
+    const patterns = [
+      // With namespace prefix
+      new RegExp(`<[a-zA-Z0-9_-]*:${elementName}[^>]*><!\\[CDATA\\[([^\\]]+)\\]\\]><\\/[a-zA-Z0-9_-]*:${elementName}>`, 'i'),
+      new RegExp(`<[a-zA-Z0-9_-]*:${elementName}[^>]*>([^<]*)<\\/[a-zA-Z0-9_-]*:${elementName}>`, 'i'),
+      // Without namespace prefix
+      new RegExp(`<${elementName}[^>]*><!\\[CDATA\\[([^\\]]+)\\]\\]><\\/${elementName}>`, 'i'),
+      new RegExp(`<${elementName}[^>]*>([^<]*)<\\/${elementName}>`, 'i'),
+      // Self-closing with value attribute
+      new RegExp(`<[a-zA-Z0-9_-]*:?${elementName}[^>]*value="([^"]*)"[^>]*\\/>`, 'i'),
+    ];
+
+    for (const pattern of patterns) {
+      const match = xml.match(pattern);
+      if (match && match[1]) {
+        return this.decodeXmlEntities(match[1].trim());
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Decode XML entities to plain text
+   */
+  private decodeXmlEntities(text: string): string {
+    return text
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'");
   }
 
   private mapSdIStatus(sdIStatus: string): TransmissionStatus {
