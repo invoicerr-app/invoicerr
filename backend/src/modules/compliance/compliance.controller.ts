@@ -1,10 +1,15 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
 import { ComplianceService } from './compliance.service';
+import { UpdateComplianceSettingsDto } from './dto/compliance-settings.dto';
+import { ComplianceSettingsService } from './services/compliance-settings.service';
 
 @Controller('compliance')
 export class ComplianceController {
-  constructor(private readonly complianceService: ComplianceService) {}
+  constructor(
+    private readonly complianceService: ComplianceService,
+    private readonly complianceSettingsService: ComplianceSettingsService,
+  ) {}
 
   /**
    * Get compliance configuration for frontend
@@ -63,5 +68,57 @@ export class ComplianceController {
   @AllowAnonymous()
   getCorrectionCodes(@Query('country') country: string) {
     return this.complianceService.getCorrectionCodes(country || 'FR');
+  }
+
+  // ==================== COMPLIANCE SETTINGS ====================
+
+  /**
+   * Get compliance settings for a company
+   * Returns masked sensitive fields (only shows if set, not the actual values)
+   */
+  @Get('settings/:companyId')
+  async getComplianceSettings(@Param('companyId') companyId: string) {
+    const settings = await this.complianceSettingsService.getSettingsResponse(companyId);
+    if (!settings) {
+      // Return empty settings structure if none exist
+      return {
+        companyId,
+        configured: false,
+        message: 'No compliance settings configured for this company',
+      };
+    }
+    return { ...settings, configured: true };
+  }
+
+  /**
+   * Update compliance settings for a company
+   * Used to configure API credentials for various platforms
+   */
+  @Patch('settings/:companyId')
+  async updateComplianceSettings(
+    @Param('companyId') companyId: string,
+    @Body() dto: UpdateComplianceSettingsDto,
+  ) {
+    const settings = await this.complianceSettingsService.updateSettings(companyId, dto);
+    const response = await this.complianceSettingsService.getSettingsResponse(companyId);
+    return {
+      success: true,
+      message: 'Compliance settings updated successfully',
+      settings: response,
+    };
+  }
+
+  /**
+   * Get configured platforms for a company
+   * Returns list of platforms that have valid configuration
+   */
+  @Get('settings/:companyId/platforms')
+  async getConfiguredPlatforms(@Param('companyId') companyId: string) {
+    const platforms = await this.complianceSettingsService.getConfiguredPlatforms(companyId);
+    return {
+      companyId,
+      platforms,
+      count: platforms.length,
+    };
   }
 }

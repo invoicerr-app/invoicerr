@@ -10,6 +10,12 @@ export interface XadesSignatureInput {
   password?: string;
 }
 
+export interface XadesSignaturePemInput {
+  certificatePem: string;
+  privateKeyPem: string;
+  password?: string;
+}
+
 export interface SignatureResult {
   success: boolean;
   signedXml?: string;
@@ -51,6 +57,27 @@ export class XadesSignatureService {
     }
   }
 
+  /**
+   * Sign XML with XAdES-BES signature using PEM strings (for DB-stored certificates)
+   */
+  async signXmlWithPem(xml: string, config: XadesSignaturePemInput): Promise<SignatureResult> {
+    try {
+      const certInfo = this.loadCertificateFromPem(config);
+      const signedXml = this.createXadesSignature(xml, certInfo);
+
+      return {
+        success: true,
+        signedXml,
+      };
+    } catch (error) {
+      this.logger.error('Failed to sign XML with PEM:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown signing error',
+      };
+    }
+  }
+
   private async loadCertificate(config: XadesSignatureInput): Promise<CertificateInfo> {
     const certPath = path.resolve(config.certificatePath);
     const keyPath = path.resolve(config.privateKeyPath);
@@ -73,6 +100,24 @@ export class XadesSignatureService {
     // Extract certificate info
     const certBase64 = this.extractCertificateBase64(certPem);
     const { issuer, serialNumber } = this.parseCertificateInfo(certPem);
+
+    return {
+      certificate: certBase64,
+      privateKey,
+      issuer,
+      serialNumber,
+    };
+  }
+
+  private loadCertificateFromPem(config: XadesSignaturePemInput): CertificateInfo {
+    const privateKey = crypto.createPrivateKey({
+      key: config.privateKeyPem,
+      passphrase: config.password,
+    });
+
+    // Extract certificate info
+    const certBase64 = this.extractCertificateBase64(config.certificatePem);
+    const { issuer, serialNumber } = this.parseCertificateInfo(config.certificatePem);
 
     return {
       certificate: certBase64,

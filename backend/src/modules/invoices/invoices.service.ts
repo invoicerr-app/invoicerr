@@ -875,6 +875,7 @@ export class InvoicesService {
 
     // Use compliance transmission service with strategy pattern
     const result = await this.complianceService.sendInvoice(transmissionMethod, {
+      companyId: invoice.companyId,
       invoiceId: invoice.id,
       invoiceNumber: invoice.rawNumber || invoice.number.toString(),
       pdfBuffer: Buffer.from(pdfBuffer),

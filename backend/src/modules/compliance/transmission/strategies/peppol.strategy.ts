@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import {
+  ComplianceSettingsService,
+  PeppolConfig,
+} from '../../services/compliance-settings.service';
 import {
   TransmissionPayload,
   TransmissionResult,
@@ -8,15 +11,6 @@ import {
   TransmissionStrategy,
 } from '../transmission.interface';
 import { validatePeppolPayload } from '../validation';
-
-interface PeppolConfig {
-  accessPointUrl: string;
-  senderId: string;
-  certificatePath?: string;
-  privateKeyPath?: string;
-  smlDomain: string;
-  environment: 'production' | 'test';
-}
 
 interface SMPServiceMetadata {
   endpoint: string;
@@ -35,41 +29,10 @@ export class PeppolTransmissionStrategy implements TransmissionStrategy {
   readonly name = 'peppol';
   readonly supportedPlatforms = ['peppol', 'xrechnung', 'si-ubl', 'pint'];
   private readonly logger = new Logger(PeppolTransmissionStrategy.name);
-  private readonly config: PeppolConfig | null;
 
-  constructor(private readonly configService: ConfigService) {
-    this.config = this.loadConfig();
-  }
-
-  private loadConfig(): PeppolConfig | null {
-    const accessPointUrl = this.configService.get<string>('PEPPOL_AP_URL');
-    const senderId = this.configService.get<string>('PEPPOL_SENDER_ID');
-
-    if (!accessPointUrl || !senderId) {
-      this.logger.warn('Peppol configuration incomplete. Strategy will fail on send.');
-      return null;
-    }
-
-    const environment = this.configService.get<string>('PEPPOL_ENVIRONMENT') === 'production'
-      ? 'production'
-      : 'test';
-
-    // SML domains for Peppol
-    // Production: edelivery.tech.ec.europa.eu
-    // Test: acc.edelivery.tech.ec.europa.eu
-    const smlDomain = environment === 'production'
-      ? 'edelivery.tech.ec.europa.eu'
-      : 'acc.edelivery.tech.ec.europa.eu';
-
-    return {
-      accessPointUrl,
-      senderId,
-      certificatePath: this.configService.get<string>('PEPPOL_CERTIFICATE_PATH'),
-      privateKeyPath: this.configService.get<string>('PEPPOL_PRIVATE_KEY_PATH'),
-      smlDomain,
-      environment,
-    };
-  }
+  constructor(
+    private readonly complianceSettingsService: ComplianceSettingsService,
+  ) {}
 
   supports(platform: string): boolean {
     return this.supportedPlatforms.includes(platform);
@@ -88,12 +51,14 @@ export class PeppolTransmissionStrategy implements TransmissionStrategy {
       };
     }
 
-    if (!this.config) {
+    // Get config from database
+    const config = await this.complianceSettingsService.getPeppolConfig(payload.companyId);
+    if (!config) {
       return {
         success: false,
         status: 'rejected',
         errorCode: 'PEPPOL_NOT_CONFIGURED',
-        message: 'Peppol Access Point is not configured',
+        message: 'Peppol Access Point is not configured. Please configure it in Settings > Compliance.',
       };
     }
 
@@ -112,7 +77,7 @@ export class PeppolTransmissionStrategy implements TransmissionStrategy {
       }
 
       // Step 1: SMP Lookup to find receiver's Access Point
-      const receiverAP = await this.lookupReceiverAP(peppolId);
+      const receiverAP = await this.lookupReceiverAP(peppolId, config);
 
       if (!receiverAP) {
         return {
@@ -124,7 +89,7 @@ export class PeppolTransmissionStrategy implements TransmissionStrategy {
       }
 
       // Step 2: Send via AS4 protocol
-      const result = await this.sendAS4Message(payload, receiverAP);
+      const result = await this.sendAS4Message(payload, receiverAP, config);
 
       this.logger.log(
         `Invoice ${payload.invoiceNumber} sent via Peppol. Message ID: ${result.messageId}`,
@@ -134,7 +99,7 @@ export class PeppolTransmissionStrategy implements TransmissionStrategy {
         success: true,
         status: 'submitted',
         externalId: result.messageId,
-        message: `Invoice sent via Peppol network to ${payload.recipient.peppolId}`,
+        message: `Invoice sent via Peppol network to ${peppolId}`,
       };
     } catch (error) {
       this.logger.error('Peppol transmission failed:', error);
@@ -147,18 +112,25 @@ export class PeppolTransmissionStrategy implements TransmissionStrategy {
     }
   }
 
-  async checkStatus(externalId: string): Promise<TransmissionStatus> {
-    if (!this.config) {
-      throw new Error('Peppol not configured');
+  async checkStatus(externalId: string, companyId?: string): Promise<TransmissionStatus> {
+    if (!companyId) {
+      this.logger.warn('Company ID required for status check');
+      return 'pending';
+    }
+
+    const config = await this.complianceSettingsService.getPeppolConfig(companyId);
+    if (!config) {
+      this.logger.warn('Peppol not configured for company');
+      return 'pending';
     }
 
     try {
       // Query Access Point for message delivery report (MDN)
       const response = await fetch(
-        `${this.config.accessPointUrl}/api/messages/${externalId}/status`,
+        `${config.accessPointUrl}/api/messages/${externalId}/status`,
         {
           headers: {
-            'X-Sender-Id': this.config.senderId,
+            'X-Sender-Id': config.senderId,
           },
         },
       );
@@ -182,20 +154,11 @@ export class PeppolTransmissionStrategy implements TransmissionStrategy {
 
   /**
    * Lookup receiver's Access Point via SMP (Service Metadata Publisher)
-   *
-   * The Peppol SMP lookup process:
-   * 1. Hash the participant identifier using MD5
-   * 2. Build the SMP hostname using SML DNS lookup
-   * 3. Query the SMP for service metadata
-   * 4. Extract the endpoint URL and certificate
    */
   private async lookupReceiverAP(
     peppolId: string,
+    config: PeppolConfig,
   ): Promise<SMPServiceMetadata | null> {
-    if (!this.config) {
-      return null;
-    }
-
     try {
       // Parse participant ID (e.g., "0088:1234567890123" -> scheme:id)
       const colonIndex = peppolId.indexOf(':');
@@ -220,7 +183,7 @@ export class PeppolTransmissionStrategy implements TransmissionStrategy {
 
       // Build SMP hostname using SML DNS lookup pattern
       // Format: B-<hash>.iso6523-actorid-upis.<sml-domain>
-      const smpHostname = `B-${hash}.iso6523-actorid-upis.${this.config.smlDomain}`;
+      const smpHostname = `B-${hash}.iso6523-actorid-upis.${config.smlDomain}`;
 
       this.logger.debug(`Looking up SMP for participant ${peppolId} at ${smpHostname}`);
 
@@ -290,23 +253,20 @@ export class PeppolTransmissionStrategy implements TransmissionStrategy {
   private async sendAS4Message(
     payload: TransmissionPayload,
     receiver: SMPServiceMetadata,
+    config: PeppolConfig,
   ): Promise<AS4Response> {
-    if (!this.config) {
-      throw new Error('Peppol not configured');
-    }
-
     // Build AS4 envelope with proper ebMS3 headers
-    const messageId = `${crypto.randomUUID()}@${this.config.senderId}`;
-    const as4Envelope = this.buildAS4Envelope(payload, messageId);
+    const messageId = `${crypto.randomUUID()}@${config.senderId}`;
+    const as4Envelope = this.buildAS4Envelope(payload, messageId, config);
 
     // For production AS4 transmission, we need to send via our Access Point
     // which handles the cryptographic operations (signing/encryption)
     // The AP will then forward to the receiver's endpoint from SMP lookup
-    const response = await fetch(`${this.config.accessPointUrl}/api/send`, {
+    const response = await fetch(`${config.accessPointUrl}/api/send`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/soap+xml; charset=utf-8',
-        'X-Sender-Id': this.config.senderId,
+        'X-Sender-Id': config.senderId,
         'X-Recipient-Id': payload.recipient.peppolId || '',
         'X-Recipient-Endpoint': receiver.endpoint,
         'X-Recipient-Certificate': receiver.certificate,
@@ -331,12 +291,11 @@ export class PeppolTransmissionStrategy implements TransmissionStrategy {
     };
   }
 
-  private buildAS4Envelope(payload: TransmissionPayload, messageId: string): string {
-    // Note: This method is only called after config is validated (see sendAS4Message)
-    if (!this.config) {
-      throw new Error('Peppol configuration required for AS4 envelope');
-    }
-
+  private buildAS4Envelope(
+    payload: TransmissionPayload,
+    messageId: string,
+    config: PeppolConfig,
+  ): string {
     const timestamp = new Date().toISOString();
     // Parse Peppol IDs safely - expected format: "scheme:identifier" (e.g., "0088:1234567890")
     const parsePeppolId = (peppolId: string | undefined, fallbackId: string | undefined): { scheme: string; id: string } => {
@@ -360,7 +319,7 @@ export class PeppolTransmissionStrategy implements TransmissionStrategy {
     const senderId = sender.id;
     const recipientScheme = recipient.scheme;
     const recipientId = recipient.id;
-    const configSenderId = this.config.senderId;
+    const configSenderId = config.senderId;
 
     // Build proper ebMS3/AS4 envelope per Peppol AS4 profile
     return `<?xml version="1.0" encoding="UTF-8"?>

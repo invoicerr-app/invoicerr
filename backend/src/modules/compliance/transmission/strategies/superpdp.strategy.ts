@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import {
+  ComplianceSettingsService,
+  PDPConfig,
+} from '../../services/compliance-settings.service';
 import {
   TransmissionPayload,
   TransmissionResult,
@@ -7,12 +10,6 @@ import {
   TransmissionStrategy,
 } from '../transmission.interface';
 import { validatePDPPayload } from '../validation';
-
-interface SuperPDPConfig {
-  apiUrl: string;
-  apiKey: string;
-  clientId: string;
-}
 
 interface SuperPDPResponse {
   id: string;
@@ -24,29 +21,15 @@ interface SuperPDPResponse {
 @Injectable()
 export class SuperPDPTransmissionStrategy implements TransmissionStrategy {
   readonly name = 'superpdp';
-  readonly supportedPlatforms = ['superpdp'];
+  readonly supportedPlatforms = ['superpdp', 'pdp'];
   private readonly logger = new Logger(SuperPDPTransmissionStrategy.name);
-  private readonly config: SuperPDPConfig | null;
 
-  constructor(private readonly configService: ConfigService) {
-    this.config = this.loadConfig();
-  }
-
-  private loadConfig(): SuperPDPConfig | null {
-    const apiUrl = this.configService.get<string>('SUPERPDP_API_URL');
-    const apiKey = this.configService.get<string>('SUPERPDP_API_KEY');
-    const clientId = this.configService.get<string>('SUPERPDP_CLIENT_ID');
-
-    if (!apiUrl || !apiKey || !clientId) {
-      this.logger.warn('SuperPDP configuration incomplete. Strategy will fail on send.');
-      return null;
-    }
-
-    return { apiUrl, apiKey, clientId };
-  }
+  constructor(
+    private readonly complianceSettingsService: ComplianceSettingsService,
+  ) {}
 
   supports(platform: string): boolean {
-    return platform === 'superpdp';
+    return this.supportedPlatforms.includes(platform);
   }
 
   async send(payload: TransmissionPayload): Promise<TransmissionResult> {
@@ -62,12 +45,14 @@ export class SuperPDPTransmissionStrategy implements TransmissionStrategy {
       };
     }
 
-    if (!this.config) {
+    // Get config from database
+    const config = await this.complianceSettingsService.getPDPConfig(payload.companyId);
+    if (!config) {
       return {
         success: false,
         status: 'rejected',
         errorCode: 'SUPERPDP_NOT_CONFIGURED',
-        message: 'SuperPDP API credentials are not configured',
+        message: 'PDP API credentials are not configured. Please configure them in Settings > Compliance.',
       };
     }
 
@@ -102,11 +87,11 @@ export class SuperPDPTransmissionStrategy implements TransmissionStrategy {
         formData.append('xml', xmlBlob, `invoice-${payload.invoiceNumber}.xml`);
       }
 
-      const response = await fetch(`${this.config.apiUrl}/invoices/submit`, {
+      const response = await fetch(`${config.apiUrl}/invoices/submit`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.config.apiKey}`,
-          'X-Client-Id': this.config.clientId,
+          Authorization: `Bearer ${config.apiKey}`,
+          'X-Client-Id': config.clientId,
         },
         body: formData,
       });
@@ -156,7 +141,7 @@ export class SuperPDPTransmissionStrategy implements TransmissionStrategy {
     }
   }
 
-  async checkStatus(_externalId: string): Promise<TransmissionStatus> {
+  async checkStatus(_externalId: string, _companyId?: string): Promise<TransmissionStatus> {
     // SuperPDP status check would need to be implemented
     // For now, return pending
     return 'pending';

@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import {
+  ComplianceSettingsService,
+  SdIConfig,
+} from '../../services/compliance-settings.service';
+import { XadesSignatureService } from '../../services/xades-signature.service';
 import {
   TransmissionPayload,
   TransmissionResult,
@@ -7,14 +11,6 @@ import {
   TransmissionStrategy,
 } from '../transmission.interface';
 import { validateSdIPayload } from '../validation';
-import { XadesSignatureService } from '../../services/xades-signature.service';
-
-export interface SdIConfig {
-  apiUrl: string;
-  certificatePath: string;
-  privateKeyPath: string;
-  password?: string;
-}
 
 export interface SdISubmitResponse {
   identificativoSdI: string;
@@ -37,32 +33,11 @@ export class SdITransmissionStrategy implements TransmissionStrategy {
   readonly name = 'sdi';
   readonly supportedPlatforms = ['sdi', 'fatturaPA'];
   private readonly logger = new Logger(SdITransmissionStrategy.name);
-  private readonly config: SdIConfig | null;
 
   constructor(
-    private readonly configService: ConfigService,
+    private readonly complianceSettingsService: ComplianceSettingsService,
     private readonly xadesSignatureService: XadesSignatureService,
-  ) {
-    this.config = this.loadConfig();
-  }
-
-  private loadConfig(): SdIConfig | null {
-    const apiUrl = this.configService.get<string>('SDI_API_URL');
-    const certificatePath = this.configService.get<string>('SDI_CERTIFICATE_PATH');
-    const privateKeyPath = this.configService.get<string>('SDI_PRIVATE_KEY_PATH');
-
-    if (!apiUrl || !certificatePath || !privateKeyPath) {
-      this.logger.warn('SdI configuration incomplete. Strategy will fail on send.');
-      return null;
-    }
-
-    return {
-      apiUrl,
-      certificatePath,
-      privateKeyPath,
-      password: this.configService.get<string>('SDI_CERTIFICATE_PASSWORD'),
-    };
-  }
+  ) {}
 
   supports(platform: string): boolean {
     return this.supportedPlatforms.includes(platform);
@@ -81,24 +56,26 @@ export class SdITransmissionStrategy implements TransmissionStrategy {
       };
     }
 
-    if (!this.config) {
+    // Get config from database
+    const config = await this.complianceSettingsService.getSdIConfig(payload.companyId);
+    if (!config) {
       return {
         success: false,
         status: 'rejected',
         errorCode: 'SDI_NOT_CONFIGURED',
-        message: 'SdI (Sistema di Interscambio) is not configured',
+        message: 'SdI (Sistema di Interscambio) is not configured. Please configure it in Settings > Compliance.',
       };
     }
 
     try {
       // Sign the XML with XAdES signature (xmlContent validated above)
-      const signedXml = await this.signFatturaPA(payload.xmlContent!);
+      const signedXml = await this.signFatturaPA(payload.xmlContent!, config);
 
       // Prepare the filename (required format: IT<vatNumber>_<progressive>.xml)
       const filename = this.generateFilename(payload);
 
       // Submit to SdI
-      const result = await this.submitToSdI(signedXml, filename);
+      const result = await this.submitToSdI(signedXml, filename, config);
 
       this.logger.log(
         `FatturaPA ${payload.invoiceNumber} submitted to SdI. ID: ${result.identificativoSdI}`,
@@ -121,19 +98,22 @@ export class SdITransmissionStrategy implements TransmissionStrategy {
     }
   }
 
-  async checkStatus(externalId: string): Promise<TransmissionStatus> {
-    if (!this.config) {
-      throw new Error('SdI not configured');
+  async checkStatus(externalId: string, companyId?: string): Promise<TransmissionStatus> {
+    if (!companyId) {
+      this.logger.warn('Company ID required for status check');
+      return 'pending';
+    }
+
+    const config = await this.complianceSettingsService.getSdIConfig(companyId);
+    if (!config) {
+      this.logger.warn('SdI not configured for company');
+      return 'pending';
     }
 
     try {
       // TODO(production): SdI requires client certificate (mTLS) authentication.
-      // Configure the fetch agent with:
-      // - Client certificate from SDI_CERTIFICATE_PATH
-      // - Private key from SDI_PRIVATE_KEY_PATH
-      // - Use Node.js https.Agent or undici with TLS options
       const response = await fetch(
-        `${this.config.apiUrl}/fatture/stato/${externalId}`,
+        `${config.apiUrl}/fatture/stato/${externalId}`,
         {
           method: 'GET',
         },
@@ -160,15 +140,11 @@ export class SdITransmissionStrategy implements TransmissionStrategy {
   /**
    * Sign FatturaPA XML with XAdES-BES signature
    */
-  private async signFatturaPA(xml: string): Promise<string> {
-    if (!this.config) {
-      throw new Error('SdI configuration not available for signing');
-    }
-
-    const result = await this.xadesSignatureService.signXml(xml, {
-      certificatePath: this.config.certificatePath,
-      privateKeyPath: this.config.privateKeyPath,
-      password: this.config.password,
+  private async signFatturaPA(xml: string, config: SdIConfig): Promise<string> {
+    const result = await this.xadesSignatureService.signXmlWithPem(xml, {
+      certificatePem: config.certificatePem,
+      privateKeyPem: config.privateKeyPem,
+      password: config.password,
     });
 
     if (!result.success || !result.signedXml) {
@@ -195,17 +171,13 @@ export class SdITransmissionStrategy implements TransmissionStrategy {
   private async submitToSdI(
     signedXml: string,
     filename: string,
+    config: SdIConfig,
   ): Promise<SdISubmitResponse> {
-    if (!this.config) {
-      throw new Error('SdI not configured');
-    }
-
     // Build SOAP envelope for SdI
     const soapEnvelope = this.buildSoapEnvelope(signedXml, filename);
 
     // TODO(production): SdI requires client certificate (mTLS) authentication.
-    // Configure the fetch agent with client certificate and private key.
-    const response = await fetch(this.config.apiUrl, {
+    const response = await fetch(config.apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/xml;charset=UTF-8',

@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import {
+  ChorusConfig,
+  ComplianceSettingsService,
+} from '../../services/compliance-settings.service';
 import {
   TransmissionPayload,
   TransmissionResult,
@@ -7,13 +10,6 @@ import {
   TransmissionStrategy,
 } from '../transmission.interface';
 import { validateChorusPayload } from '../validation';
-
-interface ChorusConfig {
-  apiUrl: string;
-  clientId: string;
-  clientSecret: string;
-  technicalAccountId: string;
-}
 
 interface ChorusTokenResponse {
   access_token: string;
@@ -35,55 +31,42 @@ interface ChorusStatusResponse {
   libelleRetour?: string;
 }
 
+interface TokenCache {
+  token: string;
+  expiry: number;
+}
+
 @Injectable()
 export class ChorusTransmissionStrategy implements TransmissionStrategy {
   readonly name = 'chorus';
   readonly supportedPlatforms = ['chorus'];
   private readonly logger = new Logger(ChorusTransmissionStrategy.name);
-  private readonly config: ChorusConfig | null;
-  private accessToken: string | null = null;
-  private tokenExpiry: number = 0;
+  // Token cache per company
+  private readonly tokenCache = new Map<string, TokenCache>();
 
-  constructor(private readonly configService: ConfigService) {
-    this.config = this.loadConfig();
-  }
-
-  private loadConfig(): ChorusConfig | null {
-    const apiUrl = this.configService.get<string>('CHORUS_API_URL');
-    const clientId = this.configService.get<string>('CHORUS_CLIENT_ID');
-    const clientSecret = this.configService.get<string>('CHORUS_CLIENT_SECRET');
-    const technicalAccountId = this.configService.get<string>('CHORUS_TECHNICAL_ACCOUNT_ID');
-
-    if (!apiUrl || !clientId || !clientSecret || !technicalAccountId) {
-      this.logger.warn('Chorus Pro configuration incomplete. Strategy will fail on send.');
-      return null;
-    }
-
-    return { apiUrl, clientId, clientSecret, technicalAccountId };
-  }
+  constructor(
+    private readonly complianceSettingsService: ComplianceSettingsService,
+  ) {}
 
   supports(platform: string): boolean {
     return platform === 'chorus';
   }
 
-  private async getAccessToken(): Promise<string> {
-    if (this.accessToken && Date.now() < this.tokenExpiry) {
-      return this.accessToken;
+  private async getAccessToken(companyId: string, config: ChorusConfig): Promise<string> {
+    const cached = this.tokenCache.get(companyId);
+    if (cached && Date.now() < cached.expiry) {
+      return cached.token;
     }
 
-    if (!this.config) {
-      throw new Error('Chorus Pro not configured');
-    }
-
-    const response = await fetch(`${this.config.apiUrl}/oauth/token`, {
+    const response = await fetch(`${config.apiUrl}/oauth/token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
         grant_type: 'client_credentials',
-        client_id: this.config.clientId,
-        client_secret: this.config.clientSecret,
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
         scope: 'openid',
       }),
     });
@@ -93,10 +76,11 @@ export class ChorusTransmissionStrategy implements TransmissionStrategy {
     }
 
     const data: ChorusTokenResponse = await response.json();
-    this.accessToken = data.access_token;
-    this.tokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
+    const expiry = Date.now() + (data.expires_in - 60) * 1000;
 
-    return this.accessToken;
+    this.tokenCache.set(companyId, { token: data.access_token, expiry });
+
+    return data.access_token;
   }
 
   async send(payload: TransmissionPayload): Promise<TransmissionResult> {
@@ -112,17 +96,19 @@ export class ChorusTransmissionStrategy implements TransmissionStrategy {
       };
     }
 
-    if (!this.config) {
+    // Get config from database
+    const config = await this.complianceSettingsService.getChorusConfig(payload.companyId);
+    if (!config) {
       return {
         success: false,
         status: 'rejected',
         errorCode: 'CHORUS_NOT_CONFIGURED',
-        message: 'Chorus Pro API credentials are not configured',
+        message: 'Chorus Pro API credentials are not configured. Please configure them in Settings > Compliance.',
       };
     }
 
     try {
-      const token = await this.getAccessToken();
+      const token = await this.getAccessToken(payload.companyId, config);
 
       const formData = new FormData();
 
@@ -153,9 +139,9 @@ export class ChorusTransmissionStrategy implements TransmissionStrategy {
       }
 
       formData.append('syntaxeFlux', syntaxe);
-      formData.append('idUtilisateurCourant', this.config.technicalAccountId);
+      formData.append('idUtilisateurCourant', config.technicalAccountId);
 
-      const response = await fetch(`${this.config.apiUrl}/cpro/factures/v1/deposer/flux`, {
+      const response = await fetch(`${config.apiUrl}/cpro/factures/v1/deposer/flux`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -197,16 +183,23 @@ export class ChorusTransmissionStrategy implements TransmissionStrategy {
     }
   }
 
-  async checkStatus(externalId: string): Promise<TransmissionStatus> {
-    if (!this.config) {
-      throw new Error('Chorus Pro not configured');
+  async checkStatus(externalId: string, companyId?: string): Promise<TransmissionStatus> {
+    if (!companyId) {
+      this.logger.warn('Company ID required for status check');
+      return 'pending';
+    }
+
+    const config = await this.complianceSettingsService.getChorusConfig(companyId);
+    if (!config) {
+      this.logger.warn('Chorus Pro not configured for company');
+      return 'pending';
     }
 
     try {
-      const token = await this.getAccessToken();
+      const token = await this.getAccessToken(companyId, config);
 
       const response = await fetch(
-        `${this.config.apiUrl}/cpro/factures/v1/consulter/statut?idFlux=${externalId}`,
+        `${config.apiUrl}/cpro/factures/v1/consulter/statut?idFlux=${externalId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

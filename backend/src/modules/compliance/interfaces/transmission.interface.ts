@@ -46,6 +46,8 @@ export interface TransmissionConfig {
  * Payload for transmission
  */
 export interface TransmissionPayload {
+  /** Company ID (for loading platform-specific settings) */
+  companyId: string;
   /** Internal invoice ID */
   invoiceId: string;
   /** Invoice number */

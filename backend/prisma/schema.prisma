@@ -334,6 +334,7 @@ model Company {
   emailTemplates   MailTemplate[]
   RecurringInvoice RecurringInvoice[]
   webhooks         Webhook[]
+  complianceSettings ComplianceSettings?
 }
 
 // Client model
@@ -906,6 +907,59 @@ model Log {
 }
 
 // ======= END OF LOGGING SYSTEM ======= //
+
+// ======= COMPLIANCE SETTINGS ======= //
+
+model ComplianceSettings {
+  id        String  @id @default(cuid())
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // ===== Chorus Pro (France B2G) =====
+  chorusApiUrl             String?
+  chorusClientId           String?
+  chorusClientSecret       String?
+  chorusTechnicalAccountId String?
+
+  // ===== SuperPDP / PDP (France B2B) =====
+  pdpApiUrl   String?
+  pdpApiKey   String?
+  pdpClientId String?
+  pdpProvider String? // superpdp, other PDP providers
+
+  // ===== Peppol =====
+  peppolAccessPointUrl String?
+  peppolSenderId       String?
+  peppolCertificatePem String? @db.Text
+  peppolPrivateKeyPem  String? @db.Text
+  peppolEnvironment    String? @default("test") // test, production
+
+  // ===== SdI - Sistema di Interscambio (Italy) =====
+  sdiApiUrl            String?
+  sdiCertificatePem    String? @db.Text
+  sdiPrivateKeyPem     String? @db.Text
+  sdiCertificatePassword String?
+
+  // ===== Verifactu (Spain) =====
+  verifactuApiUrl      String?
+  verifactuCertificatePem String? @db.Text
+  verifactuPrivateKeyPem  String? @db.Text
+  verifactuNif         String? // NIF of the company
+
+  // ===== SAF-T (Portugal) =====
+  saftSoftwareCertificateNumber String?
+  saftHashValidationKey         String?
+
+  // ===== General settings =====
+  defaultTransmissionPlatform String? // email, chorus, peppol, sdi, etc.
+  enableAutoTransmission      Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("compliance_settings")
+}
 
 // ======= COMPLIANCE NUMBERING SEQUENCES ======= //
 
