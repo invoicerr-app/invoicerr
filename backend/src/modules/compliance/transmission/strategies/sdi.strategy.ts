@@ -134,11 +134,15 @@ export class SdITransmissionStrategy implements TransmissionStrategy {
     }
 
     try {
+      // TODO(production): SdI requires client certificate (mTLS) authentication.
+      // Configure the fetch agent with:
+      // - Client certificate from SDI_CERTIFICATE_PATH
+      // - Private key from SDI_PRIVATE_KEY_PATH
+      // - Use Node.js https.Agent or undici with TLS options
       const response = await fetch(
         `${this.config.apiUrl}/fatture/stato/${externalId}`,
         {
           method: 'GET',
-          // In production, add client certificate authentication
         },
       );
 
@@ -206,6 +210,8 @@ export class SdITransmissionStrategy implements TransmissionStrategy {
     // Build SOAP envelope for SdI
     const soapEnvelope = this.buildSoapEnvelope(signedXml, filename);
 
+    // TODO(production): SdI requires client certificate (mTLS) authentication.
+    // Configure the fetch agent with client certificate and private key.
     const response = await fetch(this.config.apiUrl, {
       method: 'POST',
       headers: {
@@ -213,7 +219,6 @@ export class SdITransmissionStrategy implements TransmissionStrategy {
         SOAPAction: 'http://www.fatturapa.gov.it/sdi/ws/trasmissione/v1.0/TrasmissioneFatture/RiceviFatture',
       },
       body: soapEnvelope,
-      // In production, configure client certificate
     });
 
     if (!response.ok) {
