@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   TransmissionPayload,
   TransmissionResult,
+  TransmissionStatus,
   TransmissionStrategy,
 } from '../transmission.interface';
 
@@ -22,6 +23,7 @@ interface SuperPDPResponse {
 @Injectable()
 export class SuperPDPTransmissionStrategy implements TransmissionStrategy {
   readonly name = 'superpdp';
+  readonly supportedPlatforms = ['superpdp'];
   private readonly logger = new Logger(SuperPDPTransmissionStrategy.name);
   private readonly config: SuperPDPConfig | null;
 
@@ -50,6 +52,7 @@ export class SuperPDPTransmissionStrategy implements TransmissionStrategy {
     if (!this.config) {
       return {
         success: false,
+        status: 'rejected',
         errorCode: 'SUPERPDP_NOT_CONFIGURED',
         message: 'SuperPDP API credentials are not configured',
       };
@@ -100,6 +103,7 @@ export class SuperPDPTransmissionStrategy implements TransmissionStrategy {
         this.logger.error(`SuperPDP API error: ${response.status} - ${errorText}`);
         return {
           success: false,
+          status: 'rejected',
           errorCode: `SUPERPDP_HTTP_${response.status}`,
           message: errorText,
         };
@@ -110,14 +114,18 @@ export class SuperPDPTransmissionStrategy implements TransmissionStrategy {
       if (result.status === 'REJECTED') {
         return {
           success: false,
+          status: 'rejected',
           externalId: result.id,
           errorCode: result.errorCode || 'SUPERPDP_REJECTED',
           message: result.message || 'Invoice rejected by SuperPDP',
         };
       }
 
+      const status: TransmissionStatus = result.status === 'PENDING' ? 'submitted' : 'accepted';
+
       return {
         success: true,
+        status,
         externalId: result.id,
         message:
           result.status === 'PENDING'
@@ -128,9 +136,21 @@ export class SuperPDPTransmissionStrategy implements TransmissionStrategy {
       this.logger.error('SuperPDP transmission failed:', error);
       return {
         success: false,
+        status: 'rejected',
         errorCode: 'SUPERPDP_NETWORK_ERROR',
         message: error instanceof Error ? error.message : 'Network error',
       };
     }
+  }
+
+  async checkStatus(_externalId: string): Promise<TransmissionStatus> {
+    // SuperPDP status check would need to be implemented
+    // For now, return pending
+    return 'pending';
+  }
+
+  async cancel(_externalId: string): Promise<boolean> {
+    // SuperPDP doesn't support cancellation
+    return false;
   }
 }
