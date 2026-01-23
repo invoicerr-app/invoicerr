@@ -304,9 +304,8 @@ model Company {
   name        String
   description String?
   currency    Currency @default(EUR)
-  legalId     String?
+  identifiers Json     @default("{}") // Dynamic identifiers based on country (e.g., { siret: "...", vat: "..." })
   foundedAt   DateTime
-  VAT         String?
   exemptVat   Boolean  @default(false)
   address     String
   postalCode  String

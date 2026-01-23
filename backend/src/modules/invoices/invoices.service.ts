@@ -16,6 +16,29 @@ import { ComplianceService } from '../compliance/compliance.service';
 import { FormatResult, InvoiceData as ComplianceInvoiceData } from '../compliance/formats';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 
+/**
+ * Extract VAT number from identifiers JSON field
+ */
+function extractVAT(identifiers: unknown): string | null {
+  if (!identifiers || typeof identifiers !== 'object') return null;
+  const ids = identifiers as Record<string, string>;
+  return ids.vat || ids.VAT || null;
+}
+
+/**
+ * Extract legal ID (first non-VAT identifier) from identifiers JSON field
+ */
+function extractLegalId(identifiers: unknown): string | null {
+  if (!identifiers || typeof identifiers !== 'object') return null;
+  const ids = identifiers as Record<string, string>;
+  // Return SIRET if present (common for France), otherwise first non-VAT identifier
+  if (ids.siret) return ids.siret;
+  for (const [key, value] of Object.entries(ids)) {
+    if (key.toLowerCase() !== 'vat' && value) return value;
+  }
+  return null;
+}
+
 @Injectable()
 export class InvoicesService {
   constructor(
@@ -111,11 +134,13 @@ export class InvoicesService {
 
     // Build compliance context and resolve rules
     const supplierCountryCode = this.extractCountryCode(company.country);
+    const companyIdentifiers = company.identifiers as Record<string, string> | null;
     const context = await this.complianceService.buildContext({
       company: {
         countryCode: supplierCountryCode,
-        VAT: company.VAT,
+        VAT: extractVAT(companyIdentifiers),
         exemptVat: company.exemptVat,
+        identifiers: companyIdentifiers || {},
       },
       client: {
         countryCode: client.country ? this.extractCountryCode(client.country) : null,
@@ -237,11 +262,13 @@ export class InvoicesService {
 
     // Build compliance context and resolve rules
     const supplierCountryCode = this.extractCountryCode(company.country);
+    const companyIdentifiers = company.identifiers as Record<string, string> | null;
     const context = await this.complianceService.buildContext({
       company: {
         countryCode: supplierCountryCode,
-        VAT: company.VAT,
+        VAT: extractVAT(companyIdentifiers),
         exemptVat: company.exemptVat,
+        identifiers: companyIdentifiers || {},
       },
       client: {
         countryCode: client.country ? this.extractCountryCode(client.country) : null,
@@ -569,8 +596,8 @@ export class InvoicesService {
         countryCode: invRec.company.country,
       },
       registrationDetails: {
-        vatId: invRec.company.VAT || 'N/A',
-        registrationId: invRec.company.legalId || 'N/A',
+        vatId: extractVAT(invRec.company.identifiers) || 'N/A',
+        registrationId: extractLegalId(invRec.company.identifiers) || 'N/A',
         registrationName: invRec.company.name,
       },
     };
@@ -844,11 +871,13 @@ export class InvoicesService {
     }
 
     // Build compliance context to determine transmission method
+    const invoiceCompanyIdentifiers = invoice.company.identifiers as Record<string, string> | null;
     const context = await this.complianceService.buildContext({
       company: {
         countryCode: this.extractCountryCode(invoice.company.country),
-        VAT: invoice.company.VAT,
+        VAT: extractVAT(invoiceCompanyIdentifiers),
         exemptVat: invoice.company.exemptVat,
+        identifiers: invoiceCompanyIdentifiers || {},
       },
       client: {
         countryCode: invoice.client.country
@@ -890,8 +919,8 @@ export class InvoicesService {
       sender: {
         email: invoice.company.email || '',
         name: invoice.company.name,
-        siret: invoice.company.legalId || undefined,
-        vatNumber: invoice.company.VAT || undefined,
+        siret: extractLegalId(invoice.company.identifiers) || undefined,
+        vatNumber: extractVAT(invoice.company.identifiers) || undefined,
       },
       metadata: {
         totalHT: invoice.totalHT,
@@ -969,8 +998,8 @@ export class InvoicesService {
       totalTTC: invoice.totalTTC,
       supplier: {
         name: invoice.company.name,
-        vatNumber: invoice.company.VAT || undefined,
-        legalId: invoice.company.legalId || undefined,
+        vatNumber: extractVAT(invoice.company.identifiers) || undefined,
+        legalId: extractLegalId(invoice.company.identifiers) || undefined,
         address: invoice.company.address,
         postalCode: invoice.company.postalCode,
         city: invoice.company.city,

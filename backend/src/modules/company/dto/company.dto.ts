@@ -57,11 +57,10 @@ export interface PDFConfigDto {
 
 export class EditCompanyDto {
   description?: string;
-  legalId?: string;
+  identifiers?: Record<string, string>; // Dynamic identifiers based on country (e.g., { siret: "...", vat: "..." })
   foundedAt: Date;
   name: string;
   currency: finance.TCurrency;
-  VAT?: string;
   exemptVat?: boolean;
   address: string;
   postalCode: string;
