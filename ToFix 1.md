@@ -18,7 +18,7 @@
 
 ## MEDIUM PRIORITY
 
-- [ ] **VIESService not exported from module** - `compliance.module.ts:32` - Cannot be injected into other modules
+- [x] **VIESService not exported from module** - `compliance.module.ts:32` - Cannot be injected into other modules
 - [ ] **QR code service only generates content strings** - `qr-code.service.ts:36-73` - `imageData` field never populated
 - [ ] **Hash chain validation doesn't verify actual hashes** - `hash-chain.service.ts:142-166` - Only validates sequence linkage
 - [ ] **Correction service uses undefined `requiresPreApproval`** - `correction.service.ts:92,117` - Property may not exist on CorrectionConfig

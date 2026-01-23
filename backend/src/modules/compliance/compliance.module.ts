@@ -64,11 +64,13 @@ import { TransmissionService } from './transmission/transmission.service';
     ContextBuilderService,
     RuleResolverService,
     VATEngineService,
+    VIESService,
     NumberingService,
     HashChainService,
     QRCodeService,
     CorrectionService,
     TransmissionService,
+    XadesSignatureService,
   ],
 })
 export class ComplianceModule {}
