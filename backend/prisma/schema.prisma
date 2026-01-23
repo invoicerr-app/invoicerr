@@ -906,3 +906,24 @@ model Log {
 }
 
 // ======= END OF LOGGING SYSTEM ======= //
+
+// ======= COMPLIANCE NUMBERING SEQUENCES ======= //
+
+model NumberingSequence {
+  id           String   @id @default(cuid())
+  companyId    String
+  series       String?
+  documentType String   @default("invoice") // invoice, quote, receipt
+  lastSequence Int      @default(0)
+  lastHash     String?
+  year         Int
+  month        Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([companyId, series, documentType])
+  @@index([companyId])
+  @@map("numbering_sequence")
+}
+
+// ======= END OF COMPLIANCE ======= //
