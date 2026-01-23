@@ -18,6 +18,7 @@ import { PeppolTransmissionStrategy } from './transmission/strategies/peppol.str
 import { SaftTransmissionStrategy } from './transmission/strategies/saft.strategy';
 import { SdITransmissionStrategy } from './transmission/strategies/sdi.strategy';
 import { SuperPDPTransmissionStrategy } from './transmission/strategies/superpdp.strategy';
+import { VerifactuTransmissionStrategy } from './transmission/strategies/verifactu.strategy';
 import { TransmissionService } from './transmission/transmission.service';
 
 @Module({
@@ -52,6 +53,7 @@ import { TransmissionService } from './transmission/transmission.service';
     PeppolTransmissionStrategy,
     SaftTransmissionStrategy,
     SdITransmissionStrategy,
+    VerifactuTransmissionStrategy,
 
     // Mail
     MailService,

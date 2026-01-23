@@ -6,7 +6,7 @@
 - [x] **Numbering service uses in-memory state** - `numbering.service.ts:30-31` - Sequence lost on server restart, needs database persistence
 - [x] **Peppol SMP lookup not implemented** - `peppol.strategy.ts:166-176` - Returns mock/hardcoded data instead of actual lookup
 - [x] **SAF-T transmission strategy missing** - `pt.config.ts` references "saft" platform but no `SaftTransmissionStrategy` exists
-- [ ] **Veri*Factu transmission strategy missing** - `es.config.ts` references "verifactu" platform but no strategy class exists
+- [x] **Veri*Factu transmission strategy missing** - `es.config.ts` references "verifactu" platform but no strategy class exists
 
 ## HIGH PRIORITY
 
@@ -36,7 +36,7 @@
 ## MISSING STRATEGIES TO IMPLEMENT
 
 - [x] `SaftTransmissionStrategy` for Portugal
-- [ ] `VerifactuTransmissionStrategy` for Spain
+- [x] `VerifactuTransmissionStrategy` for Spain
 - [x] XAdES signing service (shared for Italy and others)
 
 ## DOCUMENTATION TODOS FOUND IN CODE
