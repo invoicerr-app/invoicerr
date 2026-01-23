@@ -91,8 +91,8 @@ export class SdITransmissionStrategy implements TransmissionStrategy {
     }
 
     try {
-      // Sign the XML with XAdES signature
-      const signedXml = await this.signFatturaPA(payload.xmlContent);
+      // Sign the XML with XAdES signature (xmlContent validated above)
+      const signedXml = await this.signFatturaPA(payload.xmlContent!);
 
       // Prepare the filename (required format: IT<vatNumber>_<progressive>.xml)
       const filename = this.generateFilename(payload);

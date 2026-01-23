@@ -44,7 +44,7 @@ export class NumberingService {
     const documentType = context.documentType || 'invoice';
 
     // Use a transaction to ensure atomicity
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction<{ sequence: number; sequenceRecord: { id: string } }>(async (tx) => {
       // Find or create the sequence record
       let sequenceRecord = await tx.numberingSequence.findUnique({
         where: {

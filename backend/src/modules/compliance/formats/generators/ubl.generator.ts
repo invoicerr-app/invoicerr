@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { FormatConfig } from '../../interfaces/format.interface';
-import { FormatResult, InvoiceData } from '../format.interface';
+import { FormatResult, InvoiceData, InvoiceLineItem } from '../format.interface';
 import { BaseFormatGenerator } from './base.generator';
 
 /**

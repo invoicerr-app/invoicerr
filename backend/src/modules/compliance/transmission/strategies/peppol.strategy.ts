@@ -98,15 +98,28 @@ export class PeppolTransmissionStrategy implements TransmissionStrategy {
     }
 
     try {
+      // Derive Peppol ID from VAT number if not provided
+      const peppolId = payload.recipient.peppolId ||
+        (payload.recipient.vatNumber ? `9925:${payload.recipient.vatNumber}` : null);
+
+      if (!peppolId) {
+        return {
+          success: false,
+          status: 'rejected',
+          errorCode: 'PEPPOL_NO_RECIPIENT_ID',
+          message: 'Recipient Peppol ID or VAT number is required',
+        };
+      }
+
       // Step 1: SMP Lookup to find receiver's Access Point
-      const receiverAP = await this.lookupReceiverAP(payload.recipient.peppolId);
+      const receiverAP = await this.lookupReceiverAP(peppolId);
 
       if (!receiverAP) {
         return {
           success: false,
           status: 'rejected',
           errorCode: 'PEPPOL_RECIPIENT_NOT_FOUND',
-          message: `Recipient ${payload.recipient.peppolId} not found in Peppol network`,
+          message: `Recipient ${peppolId} not found in Peppol network`,
         };
       }
 

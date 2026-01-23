@@ -23,6 +23,7 @@ import { SaftTransmissionStrategy } from './transmission/strategies/saft.strateg
 import { SdITransmissionStrategy } from './transmission/strategies/sdi.strategy';
 import { SuperPDPTransmissionStrategy } from './transmission/strategies/superpdp.strategy';
 import { VerifactuTransmissionStrategy } from './transmission/strategies/verifactu.strategy';
+import { ResilientTransmissionService } from './transmission/resilient-transmission.service';
 import { TransmissionService } from './transmission/transmission.service';
 
 @Module({
@@ -57,6 +58,7 @@ import { TransmissionService } from './transmission/transmission.service';
 
     // Transmission
     TransmissionService,
+    ResilientTransmissionService,
     EmailTransmissionStrategy,
     SuperPDPTransmissionStrategy,
     ChorusTransmissionStrategy,
@@ -80,6 +82,7 @@ import { TransmissionService } from './transmission/transmission.service';
     QRCodeService,
     CorrectionService,
     TransmissionService,
+    ResilientTransmissionService,
     XadesSignatureService,
     FormatService,
   ],
