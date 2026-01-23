@@ -198,4 +198,11 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get plugin() {
     return this.client.plugin;
   }
+  get numberingSequence() {
+    return this.client.numberingSequence;
+  }
+  // Expose $transaction for complex atomic operations
+  $transaction<T>(fn: Parameters<typeof this.client.$transaction>[0]): Promise<T> {
+    return this.client.$transaction(fn) as Promise<T>;
+  }
 }
