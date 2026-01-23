@@ -332,10 +332,28 @@ export class PeppolTransmissionStrategy implements TransmissionStrategy {
     }
 
     const timestamp = new Date().toISOString();
-    const senderScheme = payload.sender.peppolId?.split(':')[0] || '0088';
-    const senderId = payload.sender.peppolId?.split(':')[1] || payload.sender.siret || '';
-    const recipientScheme = payload.recipient.peppolId?.split(':')[0] || '0088';
-    const recipientId = payload.recipient.peppolId?.split(':')[1] || payload.recipient.siret || '';
+    // Parse Peppol IDs safely - expected format: "scheme:identifier" (e.g., "0088:1234567890")
+    const parsePeppolId = (peppolId: string | undefined, fallbackId: string | undefined): { scheme: string; id: string } => {
+      if (!peppolId) {
+        return { scheme: '0088', id: fallbackId || '' };
+      }
+      const colonIndex = peppolId.indexOf(':');
+      if (colonIndex === -1) {
+        // No colon found - treat entire value as ID with default scheme
+        return { scheme: '0088', id: peppolId };
+      }
+      return {
+        scheme: peppolId.substring(0, colonIndex) || '0088',
+        id: peppolId.substring(colonIndex + 1) || fallbackId || '',
+      };
+    };
+
+    const sender = parsePeppolId(payload.sender.peppolId, payload.sender.siret);
+    const recipient = parsePeppolId(payload.recipient.peppolId, payload.recipient.siret);
+    const senderScheme = sender.scheme;
+    const senderId = sender.id;
+    const recipientScheme = recipient.scheme;
+    const recipientId = recipient.id;
     const configSenderId = this.config.senderId;
 
     // Build proper ebMS3/AS4 envelope per Peppol AS4 profile
