@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import { XadesSignatureService } from '../../services/xades-signature.service';
 import {
   TransmissionPayload,
   TransmissionResult,
@@ -43,7 +44,10 @@ export class VerifactuTransmissionStrategy implements TransmissionStrategy {
   private readonly logger = new Logger(VerifactuTransmissionStrategy.name);
   private readonly config: VerifactuConfig | null;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly xadesSignatureService: XadesSignatureService,
+  ) {
     this.config = this.loadConfig();
   }
 
@@ -305,10 +309,22 @@ export class VerifactuTransmissionStrategy implements TransmissionStrategy {
   }
 
   private async signXml(xml: string): Promise<string> {
-    // For production, implement XAdES-EPES signature
-    // This requires proper certificate handling
-    this.logger.debug('Signing Veri*Factu XML (signature integration required)');
-    return xml;
+    if (!this.config) {
+      throw new Error('Verifactu configuration not available for signing');
+    }
+
+    const result = await this.xadesSignatureService.signXml(xml, {
+      certificatePath: this.config.certificatePath,
+      privateKeyPath: this.config.privateKeyPath,
+      password: this.config.password,
+    });
+
+    if (!result.success || !result.signedXml) {
+      throw new Error(`Verifactu XML signing failed: ${result.error || 'Unknown error'}`);
+    }
+
+    this.logger.log('Verifactu XML signed with XAdES signature');
+    return result.signedXml;
   }
 
   private parseVerifactuResponse(xml: string): VerifactuResponse {
