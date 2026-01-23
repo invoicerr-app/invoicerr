@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   Building2,
   FileText,
+  Globe,
   Mail,
   Plug,
   TicketIcon,
@@ -20,6 +21,7 @@ import {
 import { cn } from '@/lib/utils';
 import AccountSettings from './_components/account.settings';
 import CompanySettings from './_components/company.settings';
+import ComplianceSettings from './_components/compliance.settings';
 import DangerZoneSettings from './_components/danger.settings';
 import InvitationsSettings from './_components/invitations.settings';
 import { LogsSettings } from './_components/logs.settings';
@@ -35,6 +37,7 @@ export default function Settings() {
 
   const validTabs = [
     'company',
+    'compliance',
     'template',
     'email',
     'webhooks',
@@ -55,6 +58,11 @@ export default function Settings() {
       value: 'company',
       label: t('settings.tabs.company'),
       icon: Building2,
+    },
+    {
+      value: 'compliance',
+      label: t('settings.tabs.compliance'),
+      icon: Globe,
     },
     {
       value: 'template',
@@ -104,6 +112,8 @@ export default function Settings() {
     switch (currentTab) {
       case 'company':
         return <CompanySettings />;
+      case 'compliance':
+        return <ComplianceSettings />;
       case 'template':
         return <PDFTemplatesSettings />;
       case 'email':

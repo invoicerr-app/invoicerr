@@ -115,6 +115,11 @@ for (const path in translations) {
   };
 }
 
+/**
+ * List of supported app languages (dynamically derived from locale folders)
+ */
+export const APP_LANGUAGES = Object.keys(resources);
+
 i18n
   .use(
     new LanguageDetector(null, {
