@@ -173,8 +173,12 @@ export class VerifactuTransmissionStrategy implements TransmissionStrategy {
    * The hash chains all invoices together for tamper detection
    */
   private generateInvoiceHash(payload: TransmissionPayload): InvoiceHash {
-    const previousHash = payload.metadata?.previousHash || 'INICIO_CADENA';
-    const chainSequence = (payload.metadata?.chainSequence as number) || 1;
+    const previousHash = typeof payload.metadata?.previousHash === 'string'
+      ? payload.metadata.previousHash
+      : 'INICIO_CADENA';
+    const chainSequence = typeof payload.metadata?.chainSequence === 'number'
+      ? payload.metadata.chainSequence
+      : 1;
 
     // Build data string for hashing per Veri*Factu spec
     // Format: NIF|NumSerie|FechaExpedicion|TipoFactura|CuotaTotal|ImporteTotal|Huella anterior|SistemaInformatico
@@ -183,8 +187,8 @@ export class VerifactuTransmissionStrategy implements TransmissionStrategy {
       payload.invoiceNumber,
       this.formatDate(new Date()),
       'F1', // Invoice type
-      (payload.metadata?.totalVat || 0).toFixed(2),
-      (payload.metadata?.totalTtc || 0).toFixed(2),
+      (Number(payload.metadata?.totalVat) || 0).toFixed(2),
+      (Number(payload.metadata?.totalTtc) || 0).toFixed(2),
       previousHash,
       `${this.config?.softwareId}:${this.config?.softwareName}:${this.config?.softwareVersion}`,
     ].join('|');
@@ -241,8 +245,8 @@ export class VerifactuTransmissionStrategy implements TransmissionStrategy {
         <siiLR:FacturaExpedida>
           <sii:TipoFactura>F1</sii:TipoFactura>
           <sii:ClaveRegimenEspecialOTrascendencia>01</sii:ClaveRegimenEspecialOTrascendencia>
-          <sii:ImporteTotal>${(payload.metadata?.totalTtc || 0).toFixed(2)}</sii:ImporteTotal>
-          <sii:DescripcionOperacion>${this.escapeXml(payload.metadata?.description as string || 'Factura')}</sii:DescripcionOperacion>
+          <sii:ImporteTotal>${(Number(payload.metadata?.totalTtc) || 0).toFixed(2)}</sii:ImporteTotal>
+          <sii:DescripcionOperacion>${this.escapeXml(typeof payload.metadata?.description === 'string' ? payload.metadata.description : 'Factura')}</sii:DescripcionOperacion>
           <sii:Contraparte>
             <sii:NombreRazon>${this.escapeXml(payload.recipient.name)}</sii:NombreRazon>
             ${this.buildCounterpartyId(payload)}
@@ -254,9 +258,9 @@ export class VerifactuTransmissionStrategy implements TransmissionStrategy {
                   <sii:TipoNoExenta>S1</sii:TipoNoExenta>
                   <sii:DesgloseIVA>
                     <sii:DetalleIVA>
-                      <sii:TipoImpositivo>${payload.metadata?.vatRate || '21.00'}</sii:TipoImpositivo>
-                      <sii:BaseImponible>${(payload.metadata?.totalHt || 0).toFixed(2)}</sii:BaseImponible>
-                      <sii:CuotaRepercutida>${(payload.metadata?.totalVat || 0).toFixed(2)}</sii:CuotaRepercutida>
+                      <sii:TipoImpositivo>${typeof payload.metadata?.vatRate === 'number' ? payload.metadata.vatRate.toFixed(2) : '21.00'}</sii:TipoImpositivo>
+                      <sii:BaseImponible>${(Number(payload.metadata?.totalHt) || 0).toFixed(2)}</sii:BaseImponible>
+                      <sii:CuotaRepercutida>${(Number(payload.metadata?.totalVat) || 0).toFixed(2)}</sii:CuotaRepercutida>
                     </sii:DetalleIVA>
                   </sii:DesgloseIVA>
                 </sii:NoExenta>
@@ -371,7 +375,7 @@ export class VerifactuTransmissionStrategy implements TransmissionStrategy {
       nif: this.config.nif,
       numSerie: payload.invoiceNumber,
       fecha: this.formatDate(new Date()),
-      importe: (payload.metadata?.totalTtc || 0).toFixed(2),
+      importe: (Number(payload.metadata?.totalTtc) || 0).toFixed(2),
       huella: hashData.hash,
       csv: csv || '',
     };
