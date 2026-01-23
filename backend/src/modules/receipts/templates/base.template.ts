@@ -29,8 +29,7 @@ export const baseTemplate = `
             {{company.city}}, {{company.postalCode}}<br>
             {{company.country}}<br>
             {{company.email}} | {{company.phone}}<br>
-            {{#if company.legalId}}<strong>{{labels.legalId}}:</strong> {{company.legalId}}<br>{{/if}}
-            {{#if company.VAT}}<strong>{{labels.VATId}}:</strong> {{company.VAT}}{{/if}}</p>
+            {{#each company.identifiers}}<strong>{{@key}}:</strong> {{this}}<br>{{/each}}</p>
         </div>
         <div class="receipt-info">
             <h2>{{labels.receipt}}</h2>
@@ -46,9 +45,8 @@ export const baseTemplate = `
         {{client.address}}<br>
         {{client.city}}, {{client.postalCode}}<br>
         {{client.country}}<br>
-        {{client.email}}</p>
-        {{#if client.legalId}}<strong>{{labels.legalId}}:</strong> {{client.legalId}}<br>{{/if}}
-        {{#if client.VAT}}<strong>{{labels.VATId}}:</strong> {{client.VAT}}{{/if}}</p>
+        {{client.email}}<br>
+        {{#each client.identifiers}}<strong>{{@key}}:</strong> {{this}}<br>{{/each}}</p>
     </div>
 
 

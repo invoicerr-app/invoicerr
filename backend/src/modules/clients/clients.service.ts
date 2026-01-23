@@ -96,12 +96,7 @@ export class ClientsService {
         logger.error('Company name is required for company clients', { category: 'client' });
         throw new BadRequestException('Company name is required for company clients');
       }
-      if (!data.legalId || (data.legalId as string).trim() === '') {
-        logger.error('SIRET/SIREN (legalId) is required for company clients', {
-          category: 'client',
-        });
-        throw new BadRequestException('SIRET/SIREN (legalId) is required for company clients');
-      }
+      // Note: identifiers validation is now handled dynamically based on country requirements
     }
 
     const newClient = await prisma.client.create({ data });
@@ -152,12 +147,7 @@ export class ClientsService {
         logger.error('Company name is required for company clients', { category: 'client' });
         throw new BadRequestException('Company name is required for company clients');
       }
-      if (!data.legalId || (data.legalId as string).trim() === '') {
-        logger.error('SIRET/SIREN (legalId) is required for company clients', {
-          category: 'client',
-        });
-        throw new BadRequestException('SIRET/SIREN (legalId) is required for company clients');
-      }
+      // Note: identifiers validation is now handled dynamically based on country requirements
     }
 
     const updatedClient = await prisma.client.update({

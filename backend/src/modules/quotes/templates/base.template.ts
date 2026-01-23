@@ -32,8 +32,7 @@ export const baseTemplate = `
             {{company.city}}, {{company.postalCode}}<br>
             {{company.country}}<br>
             {{company.email}} | {{company.phone}}<br>
-            {{#if company.legalId}}<strong>{{labels.legalId}}:</strong> {{company.legalId}}<br>{{/if}}
-            {{#if company.VAT}}<strong>{{labels.VATId}}:</strong> {{company.VAT}}{{/if}}</p>
+            {{#each company.identifiers}}<strong>{{@key}}:</strong> {{this}}<br>{{/each}}</p>
         </div>
         <div class="quote-info">
             <h2>{{labels.quote}}</h2>
@@ -50,8 +49,7 @@ export const baseTemplate = `
         {{client.city}}, {{client.postalCode}}<br>
         {{client.country}}<br>
         {{client.email}}</br>
-        {{#if client.legalId}}<strong>{{labels.legalId}}:</strong> {{client.legalId}}<br>{{/if}}
-        {{#if client.VAT}}<strong>{{labels.VATId}}:</strong> {{client.VAT}}{{/if}}</p>
+        {{#each client.identifiers}}<strong>{{@key}}:</strong> {{this}}<br>{{/each}}</p>
     </div>
     <table>
         <thead>

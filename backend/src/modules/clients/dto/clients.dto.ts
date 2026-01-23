@@ -2,8 +2,7 @@ import type { ClientType, Currency } from '../../../../prisma/generated/prisma/c
 
 export class EditClientsDto {
   description?: string;
-  legalId?: string;
-  VAT?: string;
+  identifiers?: Record<string, string>; // Dynamic identifiers based on country (e.g., { siret: "...", vat: "..." })
   foundedAt?: Date;
   id: string;
   name: string;

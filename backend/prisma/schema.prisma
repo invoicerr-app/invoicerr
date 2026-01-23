@@ -341,8 +341,7 @@ model Client {
   id               String             @id @default(cuid())
   name             String
   description      String?
-  legalId          String? // Legal identification number (SIRET, EIN, etc.)
-  VAT              String? // VAT number
+  identifiers      Json               @default("{}") // Dynamic identifiers based on country (e.g., { siret: "...", vat: "..." })
   foundedAt        DateTime? // Date when the client company was founded
   contactFirstname String?
   contactLastname  String?

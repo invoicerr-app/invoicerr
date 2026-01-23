@@ -135,6 +135,7 @@ export class InvoicesService {
     // Build compliance context and resolve rules
     const supplierCountryCode = this.extractCountryCode(company.country);
     const companyIdentifiers = company.identifiers as Record<string, string> | null;
+    const clientIdentifiers = client.identifiers as Record<string, string> | null;
     const context = await this.complianceService.buildContext({
       company: {
         countryCode: supplierCountryCode,
@@ -144,9 +145,10 @@ export class InvoicesService {
       },
       client: {
         countryCode: client.country ? this.extractCountryCode(client.country) : null,
-        VAT: client.VAT,
+        VAT: extractVAT(clientIdentifiers),
         type: client.type as 'COMPANY' | 'INDIVIDUAL',
         isPublicEntity: false,
+        identifiers: clientIdentifiers || {},
       },
       items: items.map((i) => ({ type: i.type })),
     });
@@ -263,6 +265,7 @@ export class InvoicesService {
     // Build compliance context and resolve rules
     const supplierCountryCode = this.extractCountryCode(company.country);
     const companyIdentifiers = company.identifiers as Record<string, string> | null;
+    const clientIdentifiers = client.identifiers as Record<string, string> | null;
     const context = await this.complianceService.buildContext({
       company: {
         countryCode: supplierCountryCode,
@@ -272,9 +275,10 @@ export class InvoicesService {
       },
       client: {
         countryCode: client.country ? this.extractCountryCode(client.country) : null,
-        VAT: client.VAT,
+        VAT: extractVAT(clientIdentifiers),
         type: client.type as 'COMPANY' | 'INDIVIDUAL',
         isPublicEntity: false,
+        identifiers: clientIdentifiers || {},
       },
       items: items.map((i) => ({ type: i.type })),
     });
@@ -632,8 +636,8 @@ export class InvoicesService {
           countryCode: invRec.client.country.slice(0, 2).toUpperCase() || 'FR', // TODO: Refactor the app to store country codes instead of custom country names
         },
         registrationDetails: {
-          vatId: invRec.client.VAT || 'N/A',
-          registrationId: invRec.client.legalId || 'N/A',
+          vatId: extractVAT(invRec.client.identifiers) || 'N/A',
+          registrationId: extractLegalId(invRec.client.identifiers) || 'N/A',
           registrationName: invRec.client.name,
         },
       };
@@ -883,9 +887,10 @@ export class InvoicesService {
         countryCode: invoice.client.country
           ? this.extractCountryCode(invoice.client.country)
           : null,
-        VAT: invoice.client.VAT,
+        VAT: extractVAT(invoice.client.identifiers),
         type: invoice.client.type as 'COMPANY' | 'INDIVIDUAL',
         isPublicEntity: false, // Not tracked in current schema
+        identifiers: (invoice.client.identifiers as Record<string, string>) || {},
       },
     });
 
@@ -913,8 +918,8 @@ export class InvoicesService {
         name:
           invoice.client.name ||
           `${invoice.client.contactFirstname} ${invoice.client.contactLastname}`,
-        siret: invoice.client.legalId || undefined,
-        vatNumber: invoice.client.VAT || undefined,
+        siret: extractLegalId(invoice.client.identifiers) || undefined,
+        vatNumber: extractVAT(invoice.client.identifiers) || undefined,
       },
       sender: {
         email: invoice.company.email || '',
@@ -1009,8 +1014,8 @@ export class InvoicesService {
       },
       customer: {
         name: invoice.client.name || `${invoice.client.contactFirstname} ${invoice.client.contactLastname}`,
-        vatNumber: invoice.client.VAT || undefined,
-        legalId: invoice.client.legalId || undefined,
+        vatNumber: extractVAT(invoice.client.identifiers) || undefined,
+        legalId: extractLegalId(invoice.client.identifiers) || undefined,
         address: invoice.client.address,
         postalCode: invoice.client.postalCode,
         city: invoice.client.city,
