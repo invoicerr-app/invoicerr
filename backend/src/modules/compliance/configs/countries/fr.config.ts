@@ -1,17 +1,21 @@
-import type { CountryConfig } from '../../interfaces';
+import { CountryConfig } from '../../interfaces';
 
 export const frConfig: CountryConfig = {
   code: 'FR',
+  name: 'country.france',
   currency: 'EUR',
+  locale: 'fr-FR',
+  timezone: 'Europe/Paris',
   isEU: true,
+  euSince: '1958-01-01',
 
   vat: {
     rates: [
-      { code: 'S', rate: 20, label: 'vat.standard' },
-      { code: 'R1', rate: 10, label: 'vat.reduced1' },
-      { code: 'R2', rate: 5.5, label: 'vat.reduced2' },
-      { code: 'SR', rate: 2.1, label: 'vat.superReduced' },
-      { code: 'Z', rate: 0, label: 'vat.zero' },
+      { code: 'S', rate: 20, labelKey: 'vat.standard', category: 'S' },
+      { code: 'R1', rate: 10, labelKey: 'vat.reduced1', category: 'AA' },
+      { code: 'R2', rate: 5.5, labelKey: 'vat.reduced2', category: 'AA' },
+      { code: 'SR', rate: 2.1, labelKey: 'vat.superReduced', category: 'AA' },
+      { code: 'Z', rate: 0, labelKey: 'vat.zero', category: 'Z' },
     ],
     defaultRate: 20,
     exemptions: [
@@ -19,19 +23,21 @@ export const frConfig: CountryConfig = {
         code: 'MICRO',
         article: 'Article 293 B du CGI',
         labelKey: 'compliance.fr.exemption.micro',
+        ublCode: 'VATEX-EU-O',
       },
       {
         code: 'FORMATION',
         article: 'Article 261-4-4° a du CGI',
         labelKey: 'compliance.fr.exemption.formation',
+        ublCode: 'VATEX-EU-O',
       },
     ],
     numberFormat: '^FR[0-9A-Z]{2}[0-9]{9}$',
     numberPrefix: 'FR',
-    roundingMode: 'line', // France: per-line rounding (tax rule)
+    roundingMode: 'line',
     reverseChargeTexts: {
-      services: 'compliance.fr.reverseCharge.services', // "Autoliquidation - art. 283 CGI"
-      goods: 'compliance.fr.reverseCharge.goods', // "Livraison intracommunautaire exonérée - art. 262 ter I CGI"
+      services: 'compliance.fr.reverseCharge.services',
+      goods: 'compliance.fr.reverseCharge.goods',
     },
   },
 
@@ -42,12 +48,30 @@ export const frConfig: CountryConfig = {
         labelKey: 'identifiers.siret',
         format: '^[0-9]{14}$',
         required: true,
+        maxLength: 14,
+        luhnCheck: true,
+        peppolScheme: '0009',
+      },
+      {
+        id: 'siren',
+        labelKey: 'identifiers.siren',
+        format: '^[0-9]{9}$',
+        required: false,
+        maxLength: 9,
+        luhnCheck: true,
       },
       {
         id: 'rcs',
         labelKey: 'identifiers.rcs',
-        format: '^.*$', // Format libre
+        format: '^.*$',
         required: false,
+      },
+      {
+        id: 'naf',
+        labelKey: 'identifiers.naf',
+        format: '^[0-9]{4}[A-Z]$',
+        required: false,
+        maxLength: 5,
       },
     ],
     client: [
@@ -56,40 +80,39 @@ export const frConfig: CountryConfig = {
         labelKey: 'identifiers.siret',
         format: '^[0-9]{14}$',
         required: false,
+        maxLength: 14,
+        luhnCheck: true,
+        peppolScheme: '0009',
       },
     ],
   },
 
-  requiredFields: {
-    invoice: ['clientId', 'items', 'dueDate'],
-    client: ['name', 'email', 'address', 'city', 'postalCode'],
-  },
-
-  documentFormat: {
-    preferred: 'facturx',
-    supported: ['pdf', 'facturx', 'ubl'],
-    xmlSyntax: 'CII', // Factur-X utilise Cross-Industry Invoice (CII)
-  },
-
   transmission: {
     b2b: {
-      method: 'platform',
+      model: 'pdp',
+      platform: 'superpdp',
       labelKey: 'transmission.pdp',
       icon: 'send',
-      mandatory: false, // Obligatoire en 2026
+      mandatory: false,
       mandatoryFrom: '2026-09-01',
-      platform: 'superpdp',
       async: true,
-      deadlineDays: 7, // Transmission deadline
+      deadlineDays: 7,
     },
     b2g: {
-      method: 'platform',
+      model: 'clearance',
+      platform: 'chorus',
       labelKey: 'transmission.chorus',
       icon: 'building-2',
       mandatory: true,
-      platform: 'chorus',
       async: true,
       deadlineDays: 10,
+    },
+    b2c: {
+      model: 'email',
+      labelKey: 'transmission.email',
+      icon: 'mail',
+      mandatory: false,
+      async: false,
     },
   },
 
@@ -97,23 +120,113 @@ export const frConfig: CountryConfig = {
     seriesRequired: false,
     seriesRegistration: false,
     hashChaining: false,
-    gapAllowed: false, // No gaps in numbering
-    resetPeriod: 'yearly', // Annual reset allowed
+    gapAllowed: false,
+    resetPeriod: 'yearly',
+  },
+
+  format: {
+    preferred: 'facturx',
+    supported: ['pdf', 'facturx', 'ubl'],
+    syntax: 'CII',
+    version: '1.0',
+    profile: 'EN16931',
+    customizationId: 'urn:cen.eu:en16931:2017#compliant#urn:factur-x.eu:1p0:extended',
+    profileId: 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0',
+  },
+
+  signature: {
+    required: false,
+    type: 'none',
+  },
+
+  qrCode: {
+    required: false,
+  },
+
+  correction: {
+    allowDirectModification: false,
+    method: 'credit_note',
+    requiresOriginalReference: true,
+    codes: [
+      { code: '381', labelKey: 'correction.creditNote', ublTypeCode: '381' },
+      { code: '383', labelKey: 'correction.debitNote', ublTypeCode: '383' },
+    ],
+  },
+
+  archiving: {
+    retentionYears: 10,
+    formatRequired: 'PDF/A-3',
+    searchable: true,
+    searchFields: ['invoiceNumber', 'clientName', 'date', 'totalTTC'],
+    dataResidency: 'EU',
+  },
+
+  clearance: {
+    enabled: true,
+    platform: 'chorus',
+    authMethod: 'oauth2',
+    authEndpoint: 'https://chorus-pro.gouv.fr/oauth/token',
+    submitEndpoint: 'https://chorus-pro.gouv.fr/api/v1/factures',
+    responseType: 'async_poll',
+    pollingEndpoint: 'https://chorus-pro.gouv.fr/api/v1/factures/{id}/status',
+    assignsInvoiceNumber: false,
+    returnsValidationUrl: true,
+    buyerAcceptance: true,
+    acceptanceTimeout: 30,
+    autoAccept: false,
   },
 
   peppol: {
     enabled: true,
-    schemeId: '0009', // SIRET
-    participantIdPrefix: '0009:',
+    schemeId: '0009',
+    participantIdFormat: '0009:{siret}',
+    documentTypeId: 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0::2.1',
+    processId: 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0',
+    customizationId: 'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0',
+    localStandard: 'Factur-X',
+    localVersion: '1.0',
+    fiveCorner: false,
+  },
+
+  requiredFields: {
+    invoice: ['clientId', 'items', 'dueDate', 'issueDate'],
+    client: ['name', 'email', 'address', 'city', 'postalCode', 'country'],
+    quote: ['clientId', 'items', 'validUntil'],
   },
 
   legalMentions: {
-    mandatory: ['compliance.fr.mention.siret', 'compliance.fr.mention.rcs'],
+    mandatory: [
+      'compliance.fr.mention.siret',
+      'compliance.fr.mention.rcs',
+      'compliance.fr.mention.capital',
+    ],
     conditional: [
       {
         condition: 'company.exemptVat',
-        textKey: 'compliance.fr.mention.vatExempt', // "TVA non applicable, art. 293 B du CGI"
+        textKey: 'compliance.fr.mention.vatExempt',
+      },
+      {
+        condition: 'transaction.isIntraEU',
+        textKey: 'compliance.fr.mention.intraEU',
       },
     ],
   },
+
+  customFields: [
+    {
+      id: 'serviceCode',
+      labelKey: 'customFields.fr.serviceCode',
+      type: 'string',
+      required: false,
+      format: '^[0-9]{1,10}$',
+      mappedTo: 'chorus.codeService',
+    },
+    {
+      id: 'engagementNumber',
+      labelKey: 'customFields.fr.engagementNumber',
+      type: 'string',
+      required: false,
+      mappedTo: 'chorus.numeroEngagement',
+    },
+  ],
 };

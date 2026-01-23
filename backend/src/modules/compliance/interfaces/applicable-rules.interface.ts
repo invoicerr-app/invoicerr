@@ -1,4 +1,7 @@
-import type { NumberingConfig, VATExemption, VATRate } from './country-config.interface';
+import type { DocumentSyntax } from './format.interface';
+import type { NumberingConfig } from './numbering.interface';
+import type { TransmissionModel } from './transmission.interface';
+import type { VATExemption, VATRate } from './vat.interface';
 
 export interface VATRules {
   rates: VATRate[];
@@ -20,11 +23,11 @@ export interface ValidationRules {
 export interface FormatRules {
   preferred: string; // 'facturx', 'fatturaPA', 'ubl', etc.
   supported: string[];
-  xmlSyntax: 'UBL' | 'CII' | 'FatturaPA' | 'KSeF';
+  xmlSyntax: DocumentSyntax;
 }
 
 export interface TransmissionRules {
-  method: 'email' | 'peppol' | 'clearance' | 'platform';
+  method: TransmissionModel;
   mandatory: boolean;
   platform: string | null;
   async: boolean;

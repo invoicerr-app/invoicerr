@@ -1,5 +1,6 @@
-import type {
+import {
   CountryIdentifier,
+  CustomFieldDefinition,
   FormatRules,
   NumberingConfig,
   TransmissionRules,
@@ -8,7 +9,7 @@ import type {
 } from '../interfaces';
 
 export interface FrontendComplianceConfigDto {
-  // TVA
+  // VAT
   vatRates: VATRate[];
   defaultVatRate: number;
   reverseCharge: boolean;
@@ -23,7 +24,7 @@ export interface FrontendComplianceConfigDto {
   identifierFormats: Record<string, string>;
   vatNumberFormat: string | null;
 
-  // Format de document
+  // Document format
   format: FormatRules;
 
   // Transmission
@@ -35,15 +36,37 @@ export interface FrontendComplianceConfigDto {
   // Legal mentions
   legalMentionKeys: string[];
 
-  // Identifiants pays
+  // Country identifiers
   identifiers: {
     company: CountryIdentifier[];
     client: CountryIdentifier[];
   };
+
+  // Custom fields
+  customFields: CustomFieldDefinition[];
+
+  // Additional requirements
+  qrCodeRequired: boolean;
+  signatureRequired: boolean;
+  hashChainRequired: boolean;
+
+  // Correction codes
+  correctionCodes: Array<{
+    code: string;
+    labelKey: string;
+    ublTypeCode?: string;
+  }>;
 }
 
 export interface CountrySummaryDto {
   code: string;
+  name?: string;
   currency: string;
   isEU: boolean;
+}
+
+export interface TransmissionStatusDto {
+  status: string;
+  externalId?: string;
+  message?: string;
 }
