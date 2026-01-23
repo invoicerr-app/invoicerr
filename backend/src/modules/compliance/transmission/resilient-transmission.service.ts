@@ -11,10 +11,7 @@ import {
   RetryExhaustedError,
   withResilience,
 } from './resilience';
-import {
-  TransmissionPayload,
-  TransmissionResult,
-} from './transmission.interface';
+import { TransmissionPayload, TransmissionResult } from './transmission.interface';
 import { TransmissionService } from './transmission.service';
 
 /**
@@ -57,19 +54,9 @@ export class ResilientTransmissionService {
   private readonly retryConfig: RetryConfig;
   private readonly circuitBreakerConfig: CircuitBreakerConfig;
 
-  constructor(
-    private readonly transmissionService: TransmissionService,
-    config?: ResilientTransmissionConfig,
-  ) {
-    this.retryConfig = {
-      ...DEFAULT_RETRY_CONFIG,
-      ...config?.retry,
-    };
-
-    this.circuitBreakerConfig = {
-      ...DEFAULT_CIRCUIT_BREAKER_CONFIG,
-      ...config?.circuitBreaker,
-    };
+  constructor(private readonly transmissionService: TransmissionService) {
+    this.retryConfig = DEFAULT_RETRY_CONFIG;
+    this.circuitBreakerConfig = DEFAULT_CIRCUIT_BREAKER_CONFIG;
 
     this.logger.log(
       `Initialized with retry config: ${this.retryConfig.maxAttempts} attempts, ` +
@@ -82,10 +69,7 @@ export class ResilientTransmissionService {
    */
   private getCircuitBreaker(platform: string): CircuitBreaker {
     if (!this.circuitBreakers.has(platform)) {
-      this.circuitBreakers.set(
-        platform,
-        new CircuitBreaker(platform, this.circuitBreakerConfig),
-      );
+      this.circuitBreakers.set(platform, new CircuitBreaker(platform, this.circuitBreakerConfig));
     }
     return this.circuitBreakers.get(platform)!;
   }
@@ -93,10 +77,7 @@ export class ResilientTransmissionService {
   /**
    * Send invoice with retry and circuit breaker protection
    */
-  async send(
-    platform: string,
-    payload: TransmissionPayload,
-  ): Promise<ResilientTransmissionResult> {
+  async send(platform: string, payload: TransmissionPayload): Promise<ResilientTransmissionResult> {
     const circuitBreaker = this.getCircuitBreaker(platform);
 
     // Check if circuit is open
