@@ -6,6 +6,7 @@ import {
   TransmissionStatus,
   TransmissionStrategy,
 } from '../transmission.interface';
+import { validatePDPPayload } from '../validation';
 
 interface SuperPDPConfig {
   apiUrl: string;
@@ -49,6 +50,18 @@ export class SuperPDPTransmissionStrategy implements TransmissionStrategy {
   }
 
   async send(payload: TransmissionPayload): Promise<TransmissionResult> {
+    // Validate payload
+    const validation = validatePDPPayload(payload);
+    if (!validation.valid) {
+      const errorMessages = validation.errors.map((e) => `${e.field}: ${e.message}`).join('; ');
+      return {
+        success: false,
+        status: 'rejected',
+        errorCode: 'SUPERPDP_VALIDATION_ERROR',
+        message: `Validation failed: ${errorMessages}`,
+      };
+    }
+
     if (!this.config) {
       return {
         success: false,

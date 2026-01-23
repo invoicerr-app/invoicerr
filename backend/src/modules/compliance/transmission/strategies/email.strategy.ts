@@ -6,6 +6,7 @@ import {
   TransmissionStatus,
   TransmissionStrategy,
 } from '../transmission.interface';
+import { assertValid, validateEmailPayload } from '../validation';
 
 @Injectable()
 export class EmailTransmissionStrategy implements TransmissionStrategy {
@@ -20,6 +21,10 @@ export class EmailTransmissionStrategy implements TransmissionStrategy {
   }
 
   async send(payload: TransmissionPayload): Promise<TransmissionResult> {
+    // Validate payload
+    const validation = validateEmailPayload(payload);
+    assertValid(validation, 'email transmission');
+
     try {
       const attachments: Array<{
         filename: string;

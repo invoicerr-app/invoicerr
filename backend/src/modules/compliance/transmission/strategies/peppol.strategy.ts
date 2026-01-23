@@ -7,6 +7,7 @@ import {
   TransmissionStatus,
   TransmissionStrategy,
 } from '../transmission.interface';
+import { validatePeppolPayload } from '../validation';
 
 interface PeppolConfig {
   accessPointUrl: string;
@@ -75,32 +76,24 @@ export class PeppolTransmissionStrategy implements TransmissionStrategy {
   }
 
   async send(payload: TransmissionPayload): Promise<TransmissionResult> {
+    // Validate payload
+    const validation = validatePeppolPayload(payload);
+    if (!validation.valid) {
+      const errorMessages = validation.errors.map((e) => `${e.field}: ${e.message}`).join('; ');
+      return {
+        success: false,
+        status: 'rejected',
+        errorCode: 'PEPPOL_VALIDATION_ERROR',
+        message: `Validation failed: ${errorMessages}`,
+      };
+    }
+
     if (!this.config) {
       return {
         success: false,
         status: 'rejected',
         errorCode: 'PEPPOL_NOT_CONFIGURED',
         message: 'Peppol Access Point is not configured',
-      };
-    }
-
-    // Validate that we have XML content (Peppol requires UBL/CII XML)
-    if (!payload.xmlContent) {
-      return {
-        success: false,
-        status: 'rejected',
-        errorCode: 'PEPPOL_NO_XML',
-        message: 'Peppol transmission requires XML content (UBL or CII format)',
-      };
-    }
-
-    // Validate recipient has Peppol ID
-    if (!payload.recipient.peppolId) {
-      return {
-        success: false,
-        status: 'rejected',
-        errorCode: 'PEPPOL_NO_RECIPIENT_ID',
-        message: 'Recipient does not have a Peppol participant ID',
       };
     }
 

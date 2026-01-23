@@ -6,6 +6,7 @@ import {
   TransmissionStatus,
   TransmissionStrategy,
 } from '../transmission.interface';
+import { validateSdIPayload } from '../validation';
 import { XadesSignatureService } from '../../services/xades-signature.service';
 
 export interface SdIConfig {
@@ -68,32 +69,24 @@ export class SdITransmissionStrategy implements TransmissionStrategy {
   }
 
   async send(payload: TransmissionPayload): Promise<TransmissionResult> {
+    // Validate payload
+    const validation = validateSdIPayload(payload);
+    if (!validation.valid) {
+      const errorMessages = validation.errors.map((e) => `${e.field}: ${e.message}`).join('; ');
+      return {
+        success: false,
+        status: 'rejected',
+        errorCode: 'SDI_VALIDATION_ERROR',
+        message: `Validation failed: ${errorMessages}`,
+      };
+    }
+
     if (!this.config) {
       return {
         success: false,
         status: 'rejected',
         errorCode: 'SDI_NOT_CONFIGURED',
         message: 'SdI (Sistema di Interscambio) is not configured',
-      };
-    }
-
-    // SdI requires FatturaPA XML format
-    if (!payload.xmlContent) {
-      return {
-        success: false,
-        status: 'rejected',
-        errorCode: 'SDI_NO_XML',
-        message: 'SdI transmission requires FatturaPA XML content',
-      };
-    }
-
-    // Validate recipient has Codice Destinatario or PEC
-    if (!payload.recipient.codiceDestinatario && !payload.recipient.pec) {
-      return {
-        success: false,
-        status: 'rejected',
-        errorCode: 'SDI_NO_RECIPIENT',
-        message: 'Recipient must have either Codice Destinatario or PEC address',
       };
     }
 
