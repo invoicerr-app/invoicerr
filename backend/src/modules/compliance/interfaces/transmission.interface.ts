@@ -103,6 +103,8 @@ export interface TransmissionResult {
   errorCode?: string;
   /** Human-readable message */
   message?: string;
+  /** Additional platform-specific metadata (e.g., hash chain data, signatures) */
+  metadata?: Record<string, unknown>;
 }
 
 /**
