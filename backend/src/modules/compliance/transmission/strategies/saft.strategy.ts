@@ -234,14 +234,14 @@ export class SaftTransmissionStrategy implements TransmissionStrategy {
 
     return {
       invoiceNo: payload.invoiceNumber,
-      atcud: payload.metadata?.atcud || '0',
+      atcud: typeof payload.metadata?.atcud === 'string' ? payload.metadata.atcud : '0',
       invoiceDate,
       invoiceType,
       customerTaxId: payload.recipient.vatNumber || payload.recipient.siret || '999999990',
       customerCountry: payload.recipient.country || 'PT',
-      taxPayable: (payload.metadata?.totalVat || 0).toFixed(2),
-      netTotal: (payload.metadata?.totalHt || 0).toFixed(2),
-      grossTotal: (payload.metadata?.totalTtc || 0).toFixed(2),
+      taxPayable: (Number(payload.metadata?.totalVat) || 0).toFixed(2),
+      netTotal: (Number(payload.metadata?.totalHt) || 0).toFixed(2),
+      grossTotal: (Number(payload.metadata?.totalTtc) || 0).toFixed(2),
       hashControl,
     };
   }
@@ -249,7 +249,7 @@ export class SaftTransmissionStrategy implements TransmissionStrategy {
   private calculateHashControl(payload: TransmissionPayload): string {
     // In SAF-T PT, each invoice must have a hash that chains to the previous invoice
     // The hashControl is the first 4 characters of the signature
-    if (payload.metadata?.hash) {
+    if (typeof payload.metadata?.hash === 'string') {
       return payload.metadata.hash.substring(0, 4);
     }
 
@@ -347,7 +347,7 @@ export class SaftTransmissionStrategy implements TransmissionStrategy {
     <SalesInvoices>
       <NumberOfEntries>${invoices.length}</NumberOfEntries>
       <TotalDebit>0.00</TotalDebit>
-      <TotalCredit>${invoices.reduce((sum, inv) => sum + (inv.metadata?.totalTtc || 0), 0).toFixed(2)}</TotalCredit>
+      <TotalCredit>${invoices.reduce((sum, inv) => sum + (Number(inv.metadata?.totalTtc) || 0), 0).toFixed(2)}</TotalCredit>
       ${invoiceXml}
     </SalesInvoices>
   </SourceDocuments>`;
@@ -356,7 +356,7 @@ export class SaftTransmissionStrategy implements TransmissionStrategy {
   private buildInvoiceXml(payload: TransmissionPayload): string {
     return `<Invoice>
       <InvoiceNo>${payload.invoiceNumber}</InvoiceNo>
-      <ATCUD>${payload.metadata?.atcud || '0'}</ATCUD>
+      <ATCUD>${typeof payload.metadata?.atcud === 'string' ? payload.metadata.atcud : '0'}</ATCUD>
       <DocumentStatus>
         <InvoiceStatus>N</InvoiceStatus>
         <InvoiceStatusDate>${new Date().toISOString()}</InvoiceStatusDate>
@@ -367,9 +367,9 @@ export class SaftTransmissionStrategy implements TransmissionStrategy {
       <InvoiceDate>${new Date().toISOString().split('T')[0]}</InvoiceDate>
       <InvoiceType>FT</InvoiceType>
       <DocumentTotals>
-        <TaxPayable>${(payload.metadata?.totalVat || 0).toFixed(2)}</TaxPayable>
-        <NetTotal>${(payload.metadata?.totalHt || 0).toFixed(2)}</NetTotal>
-        <GrossTotal>${(payload.metadata?.totalTtc || 0).toFixed(2)}</GrossTotal>
+        <TaxPayable>${(Number(payload.metadata?.totalVat) || 0).toFixed(2)}</TaxPayable>
+        <NetTotal>${(Number(payload.metadata?.totalHt) || 0).toFixed(2)}</NetTotal>
+        <GrossTotal>${(Number(payload.metadata?.totalTtc) || 0).toFixed(2)}</GrossTotal>
       </DocumentTotals>
     </Invoice>`;
   }
