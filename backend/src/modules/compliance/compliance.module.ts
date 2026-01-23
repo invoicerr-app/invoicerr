@@ -15,6 +15,7 @@ import { XadesSignatureService } from './services/xades-signature.service';
 import { ChorusTransmissionStrategy } from './transmission/strategies/chorus.strategy';
 import { EmailTransmissionStrategy } from './transmission/strategies/email.strategy';
 import { PeppolTransmissionStrategy } from './transmission/strategies/peppol.strategy';
+import { SaftTransmissionStrategy } from './transmission/strategies/saft.strategy';
 import { SdITransmissionStrategy } from './transmission/strategies/sdi.strategy';
 import { SuperPDPTransmissionStrategy } from './transmission/strategies/superpdp.strategy';
 import { TransmissionService } from './transmission/transmission.service';
@@ -49,6 +50,7 @@ import { TransmissionService } from './transmission/transmission.service';
     SuperPDPTransmissionStrategy,
     ChorusTransmissionStrategy,
     PeppolTransmissionStrategy,
+    SaftTransmissionStrategy,
     SdITransmissionStrategy,
 
     // Mail
