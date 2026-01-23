@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Patch, Query } from '@nestjs/common';
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
+import { PrismaService } from '@/prisma/prisma.service';
 import { ComplianceService } from './compliance.service';
 import { UpdateComplianceSettingsDto } from './dto/compliance-settings.dto';
 import { ComplianceSettingsService } from './services/compliance-settings.service';
@@ -9,7 +10,19 @@ export class ComplianceController {
   constructor(
     private readonly complianceService: ComplianceService,
     private readonly complianceSettingsService: ComplianceSettingsService,
+    private readonly prisma: PrismaService,
   ) {}
+
+  /**
+   * Helper to get the current company (single-tenant mode)
+   */
+  private async getCurrentCompanyId(): Promise<string> {
+    const company = await this.prisma.company.findFirst({ select: { id: true } });
+    if (!company) {
+      throw new NotFoundException('No company found');
+    }
+    return company.id;
+  }
 
   /**
    * Get compliance configuration for frontend
@@ -73,11 +86,12 @@ export class ComplianceController {
   // ==================== COMPLIANCE SETTINGS ====================
 
   /**
-   * Get compliance settings for a company
+   * Get compliance settings for the current company
    * Returns masked sensitive fields (only shows if set, not the actual values)
    */
-  @Get('settings/:companyId')
-  async getComplianceSettings(@Param('companyId') companyId: string) {
+  @Get('settings')
+  async getComplianceSettings() {
+    const companyId = await this.getCurrentCompanyId();
     const settings = await this.complianceSettingsService.getSettingsResponse(companyId);
     if (!settings) {
       // Return empty settings structure if none exist
@@ -91,15 +105,13 @@ export class ComplianceController {
   }
 
   /**
-   * Update compliance settings for a company
+   * Update compliance settings for the current company
    * Used to configure API credentials for various platforms
    */
-  @Patch('settings/:companyId')
-  async updateComplianceSettings(
-    @Param('companyId') companyId: string,
-    @Body() dto: UpdateComplianceSettingsDto,
-  ) {
-    const settings = await this.complianceSettingsService.updateSettings(companyId, dto);
+  @Patch('settings')
+  async updateComplianceSettings(@Body() dto: UpdateComplianceSettingsDto) {
+    const companyId = await this.getCurrentCompanyId();
+    await this.complianceSettingsService.updateSettings(companyId, dto);
     const response = await this.complianceSettingsService.getSettingsResponse(companyId);
     return {
       success: true,
@@ -109,11 +121,12 @@ export class ComplianceController {
   }
 
   /**
-   * Get configured platforms for a company
+   * Get configured platforms for the current company
    * Returns list of platforms that have valid configuration
    */
-  @Get('settings/:companyId/platforms')
-  async getConfiguredPlatforms(@Param('companyId') companyId: string) {
+  @Get('settings/platforms')
+  async getConfiguredPlatforms() {
+    const companyId = await this.getCurrentCompanyId();
     const platforms = await this.complianceSettingsService.getConfiguredPlatforms(companyId);
     return {
       companyId,
