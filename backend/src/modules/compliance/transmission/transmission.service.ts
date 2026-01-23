@@ -30,6 +30,24 @@ export class TransmissionService {
     // Type guard to filter out null/undefined strategies from @Optional() injections
     const isStrategy = (s: TransmissionStrategy | null | undefined): s is TransmissionStrategy => s != null;
 
+    // Map strategy names to instances for logging unavailable strategies
+    const optionalStrategies: Record<string, TransmissionStrategy | null | undefined> = {
+      SuperPDP: this.superPDPStrategy,
+      Chorus: this.chorusStrategy,
+      Peppol: this.peppolStrategy,
+      SdI: this.sdiStrategy,
+      Verifactu: this.verifactuStrategy,
+      SAF_T: this.saftStrategy,
+    };
+
+    // Log which optional strategies are unavailable (missing configuration)
+    const unavailable = Object.entries(optionalStrategies)
+      .filter(([, strategy]) => !strategy)
+      .map(([name]) => name);
+    if (unavailable.length > 0) {
+      this.logger.debug(`Optional strategies not loaded (missing configuration): ${unavailable.join(', ')}`);
+    }
+
     this.strategies = [
       this.emailStrategy,
       this.superPDPStrategy,
