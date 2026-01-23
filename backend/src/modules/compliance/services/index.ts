@@ -44,6 +44,6 @@ export { VIESService } from './vies.service';
 // Signature
 export {
   XadesSignatureService,
-  SignatureConfig,
+  XadesSignatureInput,
   SignatureResult,
 } from './xades-signature.service';

@@ -4,7 +4,7 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 
-export interface SignatureConfig {
+export interface XadesSignatureInput {
   certificatePath: string;
   privateKeyPath: string;
   password?: string;
@@ -33,7 +33,7 @@ export class XadesSignatureService {
    * Sign XML with XAdES-BES signature (required for FatturaPA)
    * XAdES-BES = XML Advanced Electronic Signatures - Basic Electronic Signature
    */
-  async signXml(xml: string, config: SignatureConfig): Promise<SignatureResult> {
+  async signXml(xml: string, config: XadesSignatureInput): Promise<SignatureResult> {
     try {
       const certInfo = await this.loadCertificate(config);
       const signedXml = this.createXadesSignature(xml, certInfo);
@@ -51,7 +51,7 @@ export class XadesSignatureService {
     }
   }
 
-  private async loadCertificate(config: SignatureConfig): Promise<CertificateInfo> {
+  private async loadCertificate(config: XadesSignatureInput): Promise<CertificateInfo> {
     const certPath = path.resolve(config.certificatePath);
     const keyPath = path.resolve(config.privateKeyPath);
 
