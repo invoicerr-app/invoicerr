@@ -75,6 +75,43 @@ export class ComplianceController {
   }
 
   /**
+   * Get company identifier config for a country (for onboarding)
+   * Returns all company identifiers with label, format regex, example, and required flag
+   * Returns empty array for unsupported countries (generic config)
+   */
+  @Get('identifiers')
+  @AllowAnonymous()
+  getIdentifierConfig(@Query('country') country: string) {
+    if (!country) {
+      return {
+        identifiers: [],
+        vat: { labelKey: null, format: null, example: null },
+      };
+    }
+
+    const config = this.complianceService.getConfig(country);
+    const companyIdentifiers = config.identifiers?.company || [];
+
+    return {
+      identifiers: companyIdentifiers.map((id) => ({
+        id: id.id,
+        labelKey: id.labelKey,
+        format: id.format,
+        example: id.example || null,
+        required: id.required,
+        maxLength: id.maxLength || null,
+      })),
+      vat: {
+        labelKey: 'identifiers.vat',
+        format: config.vat?.numberFormat || null,
+        example: config.vat?.numberPrefix
+          ? `${config.vat.numberPrefix}123456789`
+          : null,
+      },
+    };
+  }
+
+  /**
    * Get correction codes for a country
    */
   @Get('correction-codes')

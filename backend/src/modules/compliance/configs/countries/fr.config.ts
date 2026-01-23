@@ -45,8 +45,9 @@ export const frConfig: CountryConfig = {
     company: [
       {
         id: 'siret',
-        labelKey: 'identifiers.siret',
+        labelKey: 'identifiers.fr.siret',
         format: '^[0-9]{14}$',
+        example: '12345678901234',
         required: true,
         maxLength: 14,
         luhnCheck: true,
@@ -54,22 +55,25 @@ export const frConfig: CountryConfig = {
       },
       {
         id: 'siren',
-        labelKey: 'identifiers.siren',
+        labelKey: 'identifiers.fr.siren',
         format: '^[0-9]{9}$',
+        example: '123456789',
         required: false,
         maxLength: 9,
         luhnCheck: true,
       },
       {
         id: 'rcs',
-        labelKey: 'identifiers.rcs',
+        labelKey: 'identifiers.fr.rcs',
         format: '^.*$',
+        example: 'RCS Paris B 123 456 789',
         required: false,
       },
       {
         id: 'naf',
-        labelKey: 'identifiers.naf',
+        labelKey: 'identifiers.fr.naf',
         format: '^[0-9]{4}[A-Z]$',
+        example: '6201Z',
         required: false,
         maxLength: 5,
       },
@@ -77,8 +81,9 @@ export const frConfig: CountryConfig = {
     client: [
       {
         id: 'siret',
-        labelKey: 'identifiers.siret',
+        labelKey: 'identifiers.fr.siret',
         format: '^[0-9]{14}$',
+        example: '12345678901234',
         required: false,
         maxLength: 14,
         luhnCheck: true,

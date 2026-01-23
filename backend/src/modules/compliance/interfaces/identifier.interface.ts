@@ -8,6 +8,8 @@ export interface IdentifierDefinition {
   labelKey: string;
   /** Validation regex pattern */
   format: string;
+  /** Example value for the identifier */
+  example?: string;
   /** Is this identifier required */
   required: boolean;
   /** Maximum length */

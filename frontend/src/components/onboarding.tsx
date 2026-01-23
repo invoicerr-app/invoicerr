@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import CountrySelect from '@/components/country-select';
 import CurrencySelect from '@/components/currency-select';
 import { DatePicker } from '@/components/date-picker';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { useCountryIdentifiers } from '@/hooks/use-compliance';
 import { usePost } from '@/hooks/use-fetch';
 import type { Company } from '@/types';
 import { StepIndicator } from './step-indicator';
@@ -48,8 +50,7 @@ interface OnBoardingProps {
 export interface OnBoardingData {
   name: string;
   description: string;
-  legalId?: string;
-  VAT?: string;
+  identifiers: Record<string, string>;
   foundedAt: Date;
   currency: string;
   address: string;
@@ -74,6 +75,7 @@ export default function OnBoarding({ isLoading: externalLoading, isOpen = true }
   const STEPS = [
     { id: 'basic', label: t('onboarding.steps.basic') },
     { id: 'address', label: t('onboarding.steps.address') },
+    { id: 'identifiers', label: t('onboarding.steps.identifiers') },
     { id: 'contact', label: t('onboarding.steps.contact') },
     { id: 'settings', label: t('onboarding.steps.settings') },
   ];
@@ -136,14 +138,7 @@ export default function OnBoarding({ isLoading: externalLoading, isOpen = true }
       .min(1, t('settings.company.form.company.errors.empty'))
       .max(100, t('settings.company.form.company.errors.maxLength')),
     description: z.string().max(500, t('settings.company.form.description.errors.maxLength')),
-    legalId: z
-      .string({ required_error: t('settings.company.form.legalId.errors.required') })
-      .max(50, t('settings.company.form.legalId.errors.maxLength'))
-      .optional(),
-    VAT: z
-      .string({ required_error: t('settings.company.form.vat.errors.required') })
-      .max(15, t('settings.company.form.vat.errors.maxLength'))
-      .optional(),
+    identifiers: z.record(z.string()).default({}),
     foundedAt: z
       .date()
       .refine((date) => date <= new Date(), t('settings.company.form.foundedAt.errors.future')),
@@ -222,8 +217,7 @@ export default function OnBoarding({ isLoading: externalLoading, isOpen = true }
     defaultValues: {
       name: '',
       description: '',
-      legalId: '',
-      VAT: '',
+      identifiers: {},
       exemptVat: false,
       foundedAt: new Date(),
       currency: '',
@@ -243,6 +237,12 @@ export default function OnBoarding({ isLoading: externalLoading, isOpen = true }
       receiptNumberFormat: 'REC-{year}-{number}',
     },
   });
+
+  // Watch country to fetch identifier config
+  const selectedCountry = form.watch('country');
+  const { identifiers: countryIdentifiers, vat: vatConfig } = useCountryIdentifiers(
+    selectedCountry || undefined,
+  );
 
   async function onSubmit(values: z.infer<typeof companySchema>) {
     setIsLoading(true);
@@ -264,12 +264,19 @@ export default function OnBoarding({ isLoading: externalLoading, isOpen = true }
   const getStepFields = (stepIndex: number): (keyof z.infer<typeof companySchema>)[] => {
     switch (stepIndex) {
       case 0:
-        return ['name', 'description', 'foundedAt', 'currency', 'legalId', 'VAT'];
+        // Step 1: Company basic info
+        return ['name', 'description', 'foundedAt', 'currency'];
       case 1:
+        // Step 2: Address (country needed for validation rules)
         return ['address', 'postalCode', 'city', 'country'];
       case 2:
-        return ['phone', 'email'];
+        // Step 3: Legal identifiers (depends on country)
+        return ['identifiers'];
       case 3:
+        // Step 4: Contact info
+        return ['phone', 'email'];
+      case 4:
+        // Step 5: Settings
         return [
           'quoteStartingNumber',
           'quoteNumberFormat',
@@ -307,7 +314,7 @@ export default function OnBoarding({ isLoading: externalLoading, isOpen = true }
               completedSteps={completedSteps}
             />
 
-            {/* Basic Info Step */}
+            {/* Step 1: Company Basic Info */}
             {currentStepIndex === 0 && (
               <Card>
                 <CardHeader>
@@ -405,54 +412,12 @@ export default function OnBoarding({ isLoading: externalLoading, isOpen = true }
                         </FormItem>
                       )}
                     />
-
-                    <FormField
-                      control={form.control}
-                      name="legalId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t('settings.company.form.legalId.label')}</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder={t('settings.company.form.legalId.placeholder')}
-                              {...field}
-                              data-cy="onboarding-company-legalid-input"
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            {t('settings.company.form.legalId.description')}
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="VAT"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t('settings.company.form.vat.label')}</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder={t('settings.company.form.vat.placeholder')}
-                              {...field}
-                              data-cy="onboarding-company-vat-input"
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            {t('settings.company.form.vat.description')}
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* Address Step */}
+            {/* Step 2: Address */}
             {currentStepIndex === 1 && (
               <Card>
                 <CardHeader>
@@ -482,6 +447,24 @@ export default function OnBoarding({ isLoading: externalLoading, isOpen = true }
                   />
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="country"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel required>{t('settings.company.form.country.label')}</FormLabel>
+                          <FormControl>
+                            <CountrySelect
+                              value={field.value}
+                              onChange={field.onChange}
+                              data-cy="onboarding-company-country-input"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                     <FormField
                       control={form.control}
                       name="postalCode"
@@ -519,34 +502,138 @@ export default function OnBoarding({ isLoading: externalLoading, isOpen = true }
                         </FormItem>
                       )}
                     />
-
-                    <FormField
-                      control={form.control}
-                      name="country"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel required>{t('settings.company.form.country.label')}</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder={t('settings.company.form.country.placeholder')}
-                              {...field}
-                              data-cy="onboarding-company-country-input"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* Contact Step */}
+            {/* Step 3: Legal Identifiers */}
             {currentStepIndex === 2 && (
               <Card>
                 <CardHeader>
                   <CardTitle>{STEPS[2].label}</CardTitle>
+                  <CardDescription>{t('settings.company.identifiers.description')}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Dynamic identifiers for supported countries */}
+                    {countryIdentifiers.length > 0 ? (
+                      <>
+                        {countryIdentifiers.map((identifier) => (
+                          <FormField
+                            key={identifier.id}
+                            control={form.control}
+                            name={`identifiers.${identifier.id}`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel required={identifier.required}>
+                                  {t(identifier.labelKey)}
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder={identifier.example || ''}
+                                    maxLength={identifier.maxLength || undefined}
+                                    {...field}
+                                    value={field.value || ''}
+                                    data-cy={`onboarding-company-${identifier.id}-input`}
+                                  />
+                                </FormControl>
+                                {identifier.example && (
+                                  <FormDescription>
+                                    {t('settings.company.form.identifier.formatDescription', {
+                                      example: identifier.example,
+                                    })}
+                                  </FormDescription>
+                                )}
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        ))}
+                        {/* VAT field for supported countries */}
+                        <FormField
+                          control={form.control}
+                          name="identifiers.vat"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t('identifiers.vat')}</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder={vatConfig.example || ''}
+                                  {...field}
+                                  value={field.value || ''}
+                                  data-cy="onboarding-company-vat-input"
+                                />
+                              </FormControl>
+                              {vatConfig.example && (
+                                <FormDescription>
+                                  {t('settings.company.form.identifier.formatDescription', {
+                                    example: vatConfig.example,
+                                  })}
+                                </FormDescription>
+                              )}
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        {/* Generic fields for unsupported countries */}
+                        <FormField
+                          control={form.control}
+                          name="identifiers.legalId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t('settings.company.form.legalId.label')}</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder={t('settings.company.form.legalId.placeholder')}
+                                  {...field}
+                                  value={field.value || ''}
+                                  data-cy="onboarding-company-legalid-input"
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                {t('settings.company.form.legalId.description')}
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="identifiers.vat"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t('settings.company.form.vat.label')}</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder={t('settings.company.form.vat.placeholder')}
+                                  {...field}
+                                  value={field.value || ''}
+                                  data-cy="onboarding-company-vat-input"
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                {t('settings.company.form.vat.description')}
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Step 4: Contact */}
+            {currentStepIndex === 3 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>{STEPS[3].label}</CardTitle>
                   <CardDescription>{t('settings.company.contact.description')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -599,12 +686,12 @@ export default function OnBoarding({ isLoading: externalLoading, isOpen = true }
               </Card>
             )}
 
-            {/* Settings Step */}
-            {currentStepIndex === 3 && (
+            {/* Step 5: Settings */}
+            {currentStepIndex === 4 && (
               <>
                 <Card>
                   <CardHeader>
-                    <CardTitle>{STEPS[3].label}</CardTitle>
+                    <CardTitle>{STEPS[4].label}</CardTitle>
                     <CardDescription>{t('settings.company.numbering.description')}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">

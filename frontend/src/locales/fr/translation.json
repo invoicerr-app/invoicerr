@@ -1,4 +1,45 @@
 {
+  "onboarding": {
+    "steps": {
+      "basic": "Infos entreprise",
+      "address": "Adresse",
+      "identifiers": "Identifiants légaux",
+      "contact": "Contact",
+      "settings": "Paramètres"
+    }
+  },
+  "identifiers": {
+    "vat": "Numéro de TVA",
+    "fr": {
+      "siret": "SIRET",
+      "siren": "SIREN",
+      "rcs": "RCS",
+      "naf": "Code NAF"
+    },
+    "de": {
+      "steuernummer": "Numéro fiscal (Steuernummer)",
+      "handelsregister": "Registre du commerce (Handelsregister)",
+      "leitwegId": "Leitweg-ID"
+    },
+    "be": {
+      "enterpriseNumber": "Numéro d'entreprise (BCE/KBO)",
+      "kbo": "Numéro KBO"
+    },
+    "it": {
+      "partitaIva": "Numéro de TVA (Partita IVA)",
+      "codiceFiscale": "Code fiscal (Codice Fiscale)",
+      "rea": "Numéro REA",
+      "codiceDestinatario": "Code destinataire (Codice Destinatario)",
+      "pec": "Email certifié (PEC)"
+    },
+    "es": {
+      "nif": "Numéro d'identification fiscale (NIF)",
+      "cif": "Numéro d'entreprise (CIF)"
+    },
+    "pt": {
+      "nif": "Numéro d'identification fiscale (NIF)"
+    }
+  },
   "clients": {
     "header": {
       "subtitle": "Gérez vos clients",
@@ -855,7 +896,8 @@
       "invitations": "Invitations",
       "dangerZone": "Zone de danger",
       "plugins": "Plugins",
-      "webhooks": "Webhooks"
+      "webhooks": "Webhooks",
+      "compliance": "Conformité"
     },
     "invitations": {
       "create": {
@@ -901,6 +943,10 @@
         "title": "Informations d'adresse",
         "description": "L'emplacement physique de votre entreprise"
       },
+      "identifiers": {
+        "title": "Identifiants légaux",
+        "description": "Les numéros d'identification légaux de votre entreprise (format selon votre pays)"
+      },
       "contact": {
         "title": "Informations de contact",
         "description": "Comment les clients peuvent contacter votre entreprise"
@@ -932,9 +978,12 @@
             "maxLength": "La description doit faire moins de 500 caractères"
           }
         },
+        "identifier": {
+          "formatDescription": "Exemple : {{example}}"
+        },
         "legalId": {
-          "label": "SIREN/SIRET",
-          "placeholder": "Saisir le SIREN/SIRET de l'entreprise",
+          "label": "Identifiant légal",
+          "placeholder": "Saisir l'identifiant légal de l'entreprise",
           "description": "Le numéro d'identification légal de votre entreprise",
           "errors": {
             "required": "L'identifiant légal est requis",
@@ -993,7 +1042,8 @@
         },
         "country": {
           "label": "Pays",
-          "placeholder": "Saisir le pays",
+          "placeholder": "Sélectionner un pays",
+          "readOnlyDescription": "Le pays ne peut pas être modifié après la création de l'entreprise",
           "errors": {
             "empty": "Le pays est requis"
           }
@@ -1414,6 +1464,76 @@
       },
       "card": {
         "events": "Écoute les événements : {{events}}"
+      }
+    },
+    "compliance": {
+      "title": "Paramètres de conformité",
+      "description": "Configurez les plateformes de facturation électronique et la conformité réglementaire",
+      "configuredPlatforms": "Plateformes configurées",
+      "secretSet": "configuré",
+      "leaveBlankToKeep": "Laisser vide pour conserver la valeur actuelle",
+      "saveButton": "Enregistrer",
+      "messages": {
+        "saveSuccess": "Paramètres de conformité enregistrés avec succès",
+        "saveError": "Échec de l'enregistrement des paramètres de conformité"
+      },
+      "general": {
+        "title": "Paramètres généraux",
+        "description": "Paramètres de transmission et d'automatisation par défaut",
+        "defaultPlatform": "Plateforme de transmission par défaut",
+        "autoTransmission": "Transmission automatique",
+        "autoTransmissionDescription": "Transmettre automatiquement les factures à la plateforme configurée lors de la finalisation"
+      },
+      "chorus": {
+        "title": "Chorus Pro (France B2G)",
+        "description": "Plateforme de facturation électronique du gouvernement français pour les transactions B2G",
+        "apiUrl": "URL de l'API",
+        "clientId": "Identifiant client",
+        "clientSecret": "Secret client",
+        "technicalAccountId": "Identifiant du compte technique"
+      },
+      "pdp": {
+        "title": "PDP / SuperPDP (France B2B)",
+        "description": "Plateforme de dématérialisation partenaire pour les transactions B2B",
+        "apiUrl": "URL de l'API",
+        "clientId": "Identifiant client",
+        "apiKey": "Clé API",
+        "provider": "Nom du fournisseur"
+      },
+      "peppol": {
+        "title": "Peppol",
+        "description": "Réseau européen de facturation électronique",
+        "accessPointUrl": "URL du point d'accès",
+        "senderId": "Identifiant émetteur",
+        "senderIdDescription": "Votre identifiant participant Peppol (ex: 0088:1234567890123)",
+        "environment": "Environnement",
+        "certificate": "Certificat (PEM)",
+        "privateKey": "Clé privée (PEM)"
+      },
+      "sdi": {
+        "title": "SdI - Sistema di Interscambio (Italie)",
+        "description": "Système italien de facturation électronique pour FatturaPA",
+        "apiUrl": "URL de l'API",
+        "certificate": "Certificat (PEM)",
+        "privateKey": "Clé privée (PEM)",
+        "certificatePassword": "Mot de passe du certificat",
+        "certificatePasswordDescription": "Mot de passe du certificat (si chiffré)"
+      },
+      "verifactu": {
+        "title": "Verifactu (Espagne)",
+        "description": "Système de facturation électronique de l'agence fiscale espagnole",
+        "apiUrl": "URL de l'API",
+        "nif": "NIF (Numéro d'identification fiscale)",
+        "nifDescription": "Numéro d'identification fiscale espagnol",
+        "certificate": "Certificat (PEM)",
+        "privateKey": "Clé privée (PEM)"
+      },
+      "saft": {
+        "title": "SAF-T (Portugal)",
+        "description": "Fichier d'audit standard portugais pour l'impôt",
+        "softwareCertificateNumber": "Numéro de certificat logiciel",
+        "softwareCertificateDescription": "Numéro de certificat délivré par l'autorité fiscale portugaise",
+        "hashValidationKey": "Clé de validation du hash"
       }
     }
   },

@@ -1,4 +1,45 @@
 {
+  "onboarding": {
+    "steps": {
+      "basic": "Company Info",
+      "address": "Address",
+      "identifiers": "Legal Identifiers",
+      "contact": "Contact",
+      "settings": "Settings"
+    }
+  },
+  "identifiers": {
+    "vat": "VAT Number",
+    "fr": {
+      "siret": "SIRET",
+      "siren": "SIREN",
+      "rcs": "RCS",
+      "naf": "NAF Code"
+    },
+    "de": {
+      "steuernummer": "Tax Number (Steuernummer)",
+      "handelsregister": "Commercial Register (Handelsregister)",
+      "leitwegId": "Leitweg-ID"
+    },
+    "be": {
+      "enterpriseNumber": "Enterprise Number (BCE/KBO)",
+      "kbo": "KBO Number"
+    },
+    "it": {
+      "partitaIva": "VAT Number (Partita IVA)",
+      "codiceFiscale": "Fiscal Code (Codice Fiscale)",
+      "rea": "REA Number",
+      "codiceDestinatario": "Recipient Code (Codice Destinatario)",
+      "pec": "Certified Email (PEC)"
+    },
+    "es": {
+      "nif": "Tax ID (NIF)",
+      "cif": "Company ID (CIF)"
+    },
+    "pt": {
+      "nif": "Tax ID (NIF)"
+    }
+  },
   "clients": {
     "header": {
       "subtitle": "Manage your clients",
@@ -851,7 +892,8 @@
       "invitations": "Invitations",
       "dangerZone": "Danger Zone",
       "plugins": "Plugins",
-      "webhooks": "Webhooks"
+      "webhooks": "Webhooks",
+      "compliance": "Compliance"
     },
     "invitations": {
       "create": {
@@ -897,6 +939,10 @@
         "title": "Address Information",
         "description": "Your company's physical location"
       },
+      "identifiers": {
+        "title": "Legal Identifiers",
+        "description": "Your company's legal identification numbers (format depends on your country)"
+      },
       "contact": {
         "title": "Contact Information",
         "description": "How clients can reach your company"
@@ -927,6 +973,9 @@
           "errors": {
             "maxLength": "Description must be less than 500 characters"
           }
+        },
+        "identifier": {
+          "formatDescription": "Example: {{example}}"
         },
         "legalId": {
           "label": "Legal ID",
@@ -989,7 +1038,8 @@
         },
         "country": {
           "label": "Country",
-          "placeholder": "Enter country",
+          "placeholder": "Select a country",
+          "readOnlyDescription": "Country cannot be changed after company creation",
           "errors": {
             "empty": "Country is required"
           }
@@ -1413,6 +1463,76 @@
         "edit": "Edit",
         "delete": "Delete",
         "editPrompt": "Enter new webhook URL"
+      }
+    },
+    "compliance": {
+      "title": "Compliance Settings",
+      "description": "Configure e-invoicing platforms and regulatory compliance",
+      "configuredPlatforms": "Configured Platforms",
+      "secretSet": "configured",
+      "leaveBlankToKeep": "Leave blank to keep the current value",
+      "saveButton": "Save Settings",
+      "messages": {
+        "saveSuccess": "Compliance settings saved successfully",
+        "saveError": "Failed to save compliance settings"
+      },
+      "general": {
+        "title": "General Settings",
+        "description": "Default transmission and automation settings",
+        "defaultPlatform": "Default Transmission Platform",
+        "autoTransmission": "Automatic Transmission",
+        "autoTransmissionDescription": "Automatically transmit invoices to the configured platform when finalized"
+      },
+      "chorus": {
+        "title": "Chorus Pro (France B2G)",
+        "description": "French government e-invoicing platform for B2G transactions",
+        "apiUrl": "API URL",
+        "clientId": "Client ID",
+        "clientSecret": "Client Secret",
+        "technicalAccountId": "Technical Account ID"
+      },
+      "pdp": {
+        "title": "PDP / SuperPDP (France B2B)",
+        "description": "French private invoicing platform for B2B transactions",
+        "apiUrl": "API URL",
+        "clientId": "Client ID",
+        "apiKey": "API Key",
+        "provider": "Provider Name"
+      },
+      "peppol": {
+        "title": "Peppol",
+        "description": "Pan-European e-invoicing network",
+        "accessPointUrl": "Access Point URL",
+        "senderId": "Sender ID",
+        "senderIdDescription": "Your Peppol participant ID (e.g., 0088:1234567890123)",
+        "environment": "Environment",
+        "certificate": "Certificate (PEM)",
+        "privateKey": "Private Key (PEM)"
+      },
+      "sdi": {
+        "title": "SdI - Sistema di Interscambio (Italy)",
+        "description": "Italian e-invoicing system for FatturaPA",
+        "apiUrl": "API URL",
+        "certificate": "Certificate (PEM)",
+        "privateKey": "Private Key (PEM)",
+        "certificatePassword": "Certificate Password",
+        "certificatePasswordDescription": "Password for the certificate (if encrypted)"
+      },
+      "verifactu": {
+        "title": "Verifactu (Spain)",
+        "description": "Spanish tax agency e-invoicing system",
+        "apiUrl": "API URL",
+        "nif": "NIF (Tax ID)",
+        "nifDescription": "Spanish tax identification number",
+        "certificate": "Certificate (PEM)",
+        "privateKey": "Private Key (PEM)"
+      },
+      "saft": {
+        "title": "SAF-T (Portugal)",
+        "description": "Portuguese Standard Audit File for Tax",
+        "softwareCertificateNumber": "Software Certificate Number",
+        "softwareCertificateDescription": "Certificate number issued by the Portuguese tax authority",
+        "hashValidationKey": "Hash Validation Key"
       }
     }
   },
