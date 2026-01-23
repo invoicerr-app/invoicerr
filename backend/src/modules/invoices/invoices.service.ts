@@ -13,6 +13,7 @@ import { getInvertColor, getPDF } from '@/utils/pdf';
 import { StorageUploadService } from '@/utils/storage-upload';
 import { WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { ComplianceService } from '../compliance/compliance.service';
+import { FormatResult, InvoiceData as ComplianceInvoiceData } from '../compliance/formats';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 
 @Injectable()
@@ -933,6 +934,74 @@ export class InvoicesService {
   // Backward compatibility alias
   async sendInvoiceByEmail(invoiceId: string) {
     return this.sendInvoice(invoiceId);
+  }
+
+  /**
+   * Generate e-invoice XML using compliance format generators
+   * Supports: UBL, Factur-X/ZUGFeRD, FatturaPA
+   */
+  async generateInvoiceXML(invoiceId: string): Promise<FormatResult> {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        items: true,
+        client: true,
+        company: true,
+      },
+    });
+
+    if (!invoice) {
+      throw new BadRequestException('Invoice not found');
+    }
+
+    const supplierCountryCode = this.extractCountryCode(invoice.company.country);
+
+    // Build invoice data for format generator
+    const invoiceData: ComplianceInvoiceData = {
+      id: invoice.id,
+      number: invoice.rawNumber || invoice.number.toString(),
+      issueDate: invoice.createdAt,
+      dueDate: invoice.dueDate,
+      currency: invoice.currency,
+      totalHT: invoice.totalHT,
+      totalVAT: invoice.totalVAT,
+      totalTTC: invoice.totalTTC,
+      supplier: {
+        name: invoice.company.name,
+        vatNumber: invoice.company.VAT || undefined,
+        legalId: invoice.company.legalId || undefined,
+        address: invoice.company.address,
+        postalCode: invoice.company.postalCode,
+        city: invoice.company.city,
+        country: supplierCountryCode,
+        email: invoice.company.email,
+        phone: invoice.company.phone,
+      },
+      customer: {
+        name: invoice.client.name || `${invoice.client.contactFirstname} ${invoice.client.contactLastname}`,
+        vatNumber: invoice.client.VAT || undefined,
+        legalId: invoice.client.legalId || undefined,
+        address: invoice.client.address,
+        postalCode: invoice.client.postalCode,
+        city: invoice.client.city,
+        country: invoice.client.country ? this.extractCountryCode(invoice.client.country) : supplierCountryCode,
+        email: invoice.client.contactEmail || undefined,
+        phone: invoice.client.contactPhone || undefined,
+      },
+      items: invoice.items.map((item) => ({
+        id: item.id,
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        vatRate: item.vatRate,
+        vatAmount: item.quantity * item.unitPrice * (item.vatRate / 100),
+        lineTotal: item.quantity * item.unitPrice,
+        itemType: item.type === 'PRODUCT' ? 'goods' as const : 'services' as const,
+      })),
+      notes: invoice.notes || undefined,
+    };
+
+    return this.complianceService.generateInvoiceXML(invoiceData, supplierCountryCode);
   }
 
   /**
