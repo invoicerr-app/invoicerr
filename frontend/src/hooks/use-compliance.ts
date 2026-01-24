@@ -324,21 +324,42 @@ export interface VATFieldConfig {
 }
 
 /**
+ * Custom field config from API
+ */
+export interface CustomFieldConfig {
+  id: string;
+  labelKey: string;
+  type: 'string' | 'number' | 'date' | 'select' | 'boolean';
+  required: boolean;
+  format: string | null;
+  options: Array<{ value: string; labelKey: string }> | null;
+}
+
+/**
  * Country identifier config response
  */
 export interface CountryIdentifierConfig {
   identifiers: IdentifierFieldConfig[];
   vat: VATFieldConfig;
+  customFields: CustomFieldConfig[];
 }
 
 /**
- * Hook to fetch identifier config for a country (for onboarding)
+ * Hook to fetch identifier config for a country (for onboarding/client creation)
+ * @param country - Country code (e.g., FR, DE)
+ * @param entityType - Entity type: 'company' (default) or 'client'
  * Returns empty identifiers array for unsupported countries
  */
-export function useCountryIdentifiers(country: string | undefined) {
+export function useCountryIdentifiers(
+  country: string | undefined,
+  entityType: 'company' | 'client' = 'company',
+) {
   const url = useMemo(
-    () => (country ? `/api/compliance/identifiers?country=${country}` : null),
-    [country],
+    () =>
+      country
+        ? `/api/compliance/identifiers?country=${country}&entityType=${entityType}`
+        : null,
+    [country, entityType],
   );
 
   const { data, loading, error, mutate } = useGet<CountryIdentifierConfig>(url);
@@ -346,6 +367,7 @@ export function useCountryIdentifiers(country: string | undefined) {
   return {
     identifiers: data?.identifiers || [],
     vat: data?.vat || { labelKey: null, format: null, example: null },
+    customFields: data?.customFields || [],
     isLoading: loading,
     error,
     refetch: mutate,

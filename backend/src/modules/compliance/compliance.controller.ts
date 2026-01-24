@@ -75,25 +75,35 @@ export class ComplianceController {
   }
 
   /**
-   * Get company identifier config for a country (for onboarding)
-   * Returns all company identifiers with label, format regex, example, and required flag
+   * Get identifier config for a country (for onboarding/client creation)
+   * Returns all identifiers with label, format regex, example, and required flag
+   * @param country - Country code (e.g., FR, DE)
+   * @param entityType - Entity type: 'company' (default) or 'client'
    * Returns empty array for unsupported countries (generic config)
    */
   @Get('identifiers')
   @AllowAnonymous()
-  getIdentifierConfig(@Query('country') country: string) {
+  getIdentifierConfig(
+    @Query('country') country: string,
+    @Query('entityType') entityType: 'company' | 'client' = 'company',
+  ) {
     if (!country) {
       return {
         identifiers: [],
         vat: { labelKey: null, format: null, example: null },
+        customFields: [],
       };
     }
 
     const config = this.complianceService.getConfig(country);
-    const companyIdentifiers = config.identifiers?.company || [];
+    const identifiers =
+      entityType === 'client'
+        ? config.identifiers?.client || []
+        : config.identifiers?.company || [];
+    const customFields = entityType === 'company' ? config.customFields || [] : [];
 
     return {
-      identifiers: companyIdentifiers.map((id) => ({
+      identifiers: identifiers.map((id) => ({
         id: id.id,
         labelKey: id.labelKey,
         format: id.format,
@@ -108,6 +118,14 @@ export class ComplianceController {
           ? `${config.vat.numberPrefix}123456789`
           : null,
       },
+      customFields: customFields.map((field) => ({
+        id: field.id,
+        labelKey: field.labelKey,
+        type: field.type,
+        required: field.required,
+        format: field.format || null,
+        options: field.options || null,
+      })),
     };
   }
 
