@@ -15,11 +15,10 @@ import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service
 
 @Injectable()
 export class QuotesService {
-  private readonly pluginsService: PluginsService;
-
-  constructor(private readonly webhookDispatcher: WebhookDispatcherService) {
-    this.pluginsService = new PluginsService();
-  }
+  constructor(
+    private readonly webhookDispatcher: WebhookDispatcherService,
+    private readonly pluginsService: PluginsService,
+  ) {}
 
   async getQuotes(page: string) {
     const pageNumber = parseInt(page, 10) || 1;
@@ -44,16 +43,17 @@ export class QuotesService {
 
     const totalQuotes = await prisma.quote.count();
 
-    // Attach payment method object when available so frontend can consume quote.paymentMethod as an object
-    const quotesWithPM = await Promise.all(
-      quotes.map(async (q: any) => {
-        if (q.paymentMethodId) {
-          const pm = await prisma.paymentMethod.findUnique({ where: { id: q.paymentMethodId } });
-          return { ...q, paymentMethod: pm ?? q.paymentMethod };
-        }
-        return q;
-      }),
-    );
+    // Batch fetch all payment methods in a single query (avoid N+1)
+    const paymentMethodIds = quotes.map((q) => q.paymentMethodId).filter(Boolean) as string[];
+    const paymentMethods = paymentMethodIds.length > 0
+      ? await prisma.paymentMethod.findMany({ where: { id: { in: paymentMethodIds } } })
+      : [];
+    const pmMap = new Map(paymentMethods.map((pm) => [pm.id, pm]));
+
+    const quotesWithPM = quotes.map((q) => ({
+      ...q,
+      paymentMethod: q.paymentMethodId ? pmMap.get(q.paymentMethodId) ?? null : null,
+    }));
 
     return { pageCount: Math.ceil(totalQuotes / pageSize), quotes: quotesWithPM };
   }
@@ -72,17 +72,17 @@ export class QuotesService {
         },
       });
 
-      const resultsWithPM = await Promise.all(
-        results.map(async (q: any) => {
-          if (q.paymentMethodId) {
-            const pm = await prisma.paymentMethod.findUnique({ where: { id: q.paymentMethodId } });
-            return { ...q, paymentMethod: pm ?? q.paymentMethod };
-          }
-          return q;
-        }),
-      );
+      // Batch fetch payment methods (avoid N+1)
+      const pmIds = results.map((q) => q.paymentMethodId).filter(Boolean) as string[];
+      const pms = pmIds.length > 0
+        ? await prisma.paymentMethod.findMany({ where: { id: { in: pmIds } } })
+        : [];
+      const pmMap = new Map(pms.map((pm) => [pm.id, pm]));
 
-      return resultsWithPM;
+      return results.map((q) => ({
+        ...q,
+        paymentMethod: q.paymentMethodId ? pmMap.get(q.paymentMethodId) ?? null : null,
+      }));
     }
 
     const results = await prisma.quote.findMany({
@@ -101,17 +101,17 @@ export class QuotesService {
       },
     });
 
-    const resultsWithPM = await Promise.all(
-      results.map(async (q: any) => {
-        if (q.paymentMethodId) {
-          const pm = await prisma.paymentMethod.findUnique({ where: { id: q.paymentMethodId } });
-          return { ...q, paymentMethod: pm ?? q.paymentMethod };
-        }
-        return q;
-      }),
-    );
+    // Batch fetch payment methods (avoid N+1)
+    const pmIds = results.map((q) => q.paymentMethodId).filter(Boolean) as string[];
+    const pms = pmIds.length > 0
+      ? await prisma.paymentMethod.findMany({ where: { id: { in: pmIds } } })
+      : [];
+    const pmMap = new Map(pms.map((pm) => [pm.id, pm]));
 
-    return resultsWithPM;
+    return results.map((q) => ({
+      ...q,
+      paymentMethod: q.paymentMethodId ? pmMap.get(q.paymentMethodId) ?? null : null,
+    }));
   }
 
   async createQuote(body: CreateQuoteDto) {

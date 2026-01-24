@@ -1,19 +1,19 @@
-import { EInvoice, type ExportFormat } from '@fin.cx/einvoice';
-import type { finance } from '@fin.cx/einvoice/dist_ts/plugins';
 import { BadRequestException, Injectable } from '@nestjs/common';
-import type { business } from '@tsclass/tsclass/dist_ts';
-import * as Handlebars from 'handlebars';
 import { logger } from '@/logger/logger.service';
 import type { CreateInvoiceDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
-import { baseTemplate } from '@/modules/invoices/templates/base.template';
 import prisma from '@/prisma/prisma.service';
-import { parseAddress } from '@/utils/adress';
 import { formatDate } from '@/utils/date';
-import { getInvertColor, getPDF } from '@/utils/pdf';
 import { StorageUploadService } from '@/utils/storage-upload';
 import { WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { ComplianceService } from '../compliance/compliance.service';
-import { FormatResult, InvoiceData as ComplianceInvoiceData } from '../compliance/formats';
+import {
+  DocumentService,
+  OutputFormat,
+  InvoiceDocumentData,
+  DocumentItem,
+  DocumentParty,
+} from '../compliance/documents';
+import { InvoiceData as ComplianceInvoiceData, FormatResult } from '../compliance/formats';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 
 /**
@@ -44,6 +44,7 @@ export class InvoicesService {
   constructor(
     private readonly webhookDispatcher: WebhookDispatcherService,
     private readonly complianceService: ComplianceService,
+    private readonly documentService: DocumentService,
   ) {}
 
   async getInvoices(page: string) {
@@ -69,16 +70,17 @@ export class InvoicesService {
 
     const totalInvoices = await prisma.invoice.count();
 
-    // Attach payment method object when available so frontend can consume invoice.paymentMethod as an object
-    const invoicesWithPM = await Promise.all(
-      invoices.map(async (inv: any) => {
-        if (inv.paymentMethodId) {
-          const pm = await prisma.paymentMethod.findUnique({ where: { id: inv.paymentMethodId } });
-          return { ...inv, paymentMethod: pm ?? inv.paymentMethod };
-        }
-        return inv;
-      }),
-    );
+    // Batch fetch all payment methods in a single query (avoid N+1)
+    const paymentMethodIds = invoices.map((inv) => inv.paymentMethodId).filter(Boolean) as string[];
+    const paymentMethods = paymentMethodIds.length > 0
+      ? await prisma.paymentMethod.findMany({ where: { id: { in: paymentMethodIds } } })
+      : [];
+    const pmMap = new Map(paymentMethods.map((pm) => [pm.id, pm]));
+
+    const invoicesWithPM = invoices.map((inv) => ({
+      ...inv,
+      paymentMethod: inv.paymentMethodId ? pmMap.get(inv.paymentMethodId) ?? null : null,
+    }));
 
     return { pageCount: Math.ceil(totalInvoices / pageSize), invoices: invoicesWithPM };
   }
@@ -102,17 +104,17 @@ export class InvoicesService {
       },
     });
 
-    const resultsWithPM = await Promise.all(
-      results.map(async (inv: any) => {
-        if (inv.paymentMethodId) {
-          const pm = await prisma.paymentMethod.findUnique({ where: { id: inv.paymentMethodId } });
-          return { ...inv, paymentMethod: pm ?? inv.paymentMethod };
-        }
-        return inv;
-      }),
-    );
+    // Batch fetch payment methods (avoid N+1)
+    const pmIds = results.map((inv) => inv.paymentMethodId).filter(Boolean) as string[];
+    const pms = pmIds.length > 0
+      ? await prisma.paymentMethod.findMany({ where: { id: { in: pmIds } } })
+      : [];
+    const pmMap = new Map(pms.map((pm) => [pm.id, pm]));
 
-    return resultsWithPM;
+    return results.map((inv) => ({
+      ...inv,
+      paymentMethod: inv.paymentMethodId ? pmMap.get(inv.paymentMethodId) ?? null : null,
+    }));
   }
 
   async createInvoice(body: CreateInvoiceDto) {
@@ -413,7 +415,10 @@ export class InvoicesService {
     return deletedInvoice;
   }
 
-  async getInvoicePdf(id: string): Promise<Uint8Array> {
+  /**
+   * Generate invoice PDF using the compliance DocumentService
+   */
+  async getInvoicePdf(id: string, format: OutputFormat = 'pdf'): Promise<Uint8Array> {
     const invoice = await prisma.invoice.findUnique({
       where: { id },
       include: {
@@ -430,315 +435,71 @@ export class InvoicesService {
       throw new BadRequestException('Invoice not found');
     }
 
-    const template = Handlebars.compile(baseTemplate);
+    // Get supplier country code
+    const supplierCountryCode = this.extractCountryCode(invoice.company.country);
 
-    // Default payment display values
-    let paymentMethodName = invoice.paymentMethod;
-    let paymentMethodDetails = invoice.paymentDetails;
+    // Transform invoice data to DocumentData format
+    const documentData = await this.buildInvoiceDocumentData(invoice);
 
-    if (invoice.client.name.length === 0) {
-      invoice.client.name = `${invoice.client.contactFirstname} ${invoice.client.contactLastname}`;
-    }
+    // Build PDF config from company settings
+    const pdfConfig = this.buildPdfConfig(invoice.company.pdfConfig);
 
-    const { pdfConfig } = invoice.company;
-
-    // Map payment method enum -> PDFConfig label
-    const paymentMethodLabels: Record<string, string> = {
-      BANK_TRANSFER: pdfConfig.paymentMethodBankTransfer,
-      PAYPAL: pdfConfig.paymentMethodPayPal,
-      CASH: pdfConfig.paymentMethodCash,
-      CHECK: pdfConfig.paymentMethodCheck,
-      OTHER: pdfConfig.paymentMethodOther,
-    };
-
-    // Resolve payment method display values if a saved paymentMethodId is referenced
-    if (invoice.paymentMethodId) {
-      const pm = await prisma.paymentMethod.findUnique({ where: { id: invoice.paymentMethodId } });
-      if (pm) {
-        // Use configured label for the payment method type when available
-        paymentMethodName = paymentMethodLabels[pm.type as string] || pm.type;
-        paymentMethodDetails = pm.details || invoice.paymentDetails;
-      }
-    } else {
-      // If paymentMethod was stored as an enum-like string (e.g. "PAYPAL"), map it to the configured label
-      if (paymentMethodName && paymentMethodLabels[paymentMethodName.toUpperCase()]) {
-        paymentMethodName = paymentMethodLabels[paymentMethodName.toUpperCase()];
-      }
-    }
-
-    // Map item type enums to PDF label text (from pdfConfig)
-    const itemTypeLabels: Record<string, string> = {
-      HOUR: pdfConfig.hour,
-      DAY: pdfConfig.day,
-      DEPOSIT: pdfConfig.deposit,
-      SERVICE: pdfConfig.service,
-      PRODUCT: pdfConfig.product,
-    };
-
-    const html = template({
-      number: invoice.rawNumber || invoice.number.toString(),
-      date: formatDate(invoice.company, invoice.createdAt),
-      dueDate: formatDate(invoice.company, invoice.dueDate),
-      company: invoice.company,
-      client: invoice.client,
-      currency: invoice.currency,
-      items: invoice.items.map((i) => ({
-        description: i.description,
-        quantity: i.quantity,
-        unitPrice: i.unitPrice.toFixed(2),
-        vatRate: (i.vatRate || 0).toFixed(2),
-        totalPrice: (i.quantity * i.unitPrice * (1 + (i.vatRate || 0) / 100)).toFixed(2),
-        type: itemTypeLabels[i.type] || i.type,
-      })),
-      totalHT: invoice.totalHT.toFixed(2),
-      totalVAT: invoice.totalVAT.toFixed(2),
-      totalTTC: invoice.totalTTC.toFixed(2),
-      vatExemptText:
-        invoice.company.exemptVat && (invoice.company.country || '').toUpperCase() === 'FRANCE'
-          ? 'TVA non applicable, art. 293 B du CGI'
-          : null,
-
-      paymentMethod: paymentMethodName,
-      paymentDetails: paymentMethodDetails,
-
-      fontFamily: pdfConfig.fontFamily ?? 'Inter',
-      primaryColor: pdfConfig.primaryColor ?? '#0ea5e9',
-      secondaryColor: pdfConfig.secondaryColor ?? '#f3f4f6',
-      tableTextColor: getInvertColor(pdfConfig.secondaryColor),
-      padding: pdfConfig?.padding ?? 40,
-      includeLogo: !!pdfConfig?.logoB64,
-      logoB64: pdfConfig?.logoB64 ?? '',
-
-      noteExists: !!invoice.notes,
-      notes: (invoice.notes || '').replace(/\n/g, '<br>'),
-
-      // Labels
-      labels: {
-        invoice: pdfConfig.invoice,
-        dueDate: pdfConfig.dueDate,
-        billTo: pdfConfig.billTo,
-        description: pdfConfig.description,
-        type: pdfConfig.type,
-        quantity: pdfConfig.quantity,
-        unitPrice: pdfConfig.unitPrice,
-        vatRate: pdfConfig.vatRate,
-        subtotal: pdfConfig.subtotal,
-        total: pdfConfig.total,
-        vat: pdfConfig.vat,
-        grandTotal: pdfConfig.grandTotal,
-        date: pdfConfig.date,
-        notes: pdfConfig.notes,
-        paymentMethod: pdfConfig.paymentMethod,
-        paymentDetails: pdfConfig.paymentDetails,
-        legalId: pdfConfig.legalId,
-        VATId: pdfConfig.VATId,
-        hour: pdfConfig.hour,
-        day: pdfConfig.day,
-        deposit: pdfConfig.deposit,
-        service: pdfConfig.service,
-        product: pdfConfig.product,
-      },
+    // Generate document using compliance DocumentService
+    const result = await this.documentService.generate({
+      type: 'invoice',
+      data: documentData,
+      format,
+      supplierCountry: supplierCountryCode,
+      pdfConfig,
     });
 
-    const pdfBuffer = await getPDF(html);
-
-    return pdfBuffer;
+    return result.buffer;
   }
 
-  async getInvoiceXMLFormat(id: string): Promise<EInvoice> {
-    const invRec = await prisma.invoice.findUnique({
-      where: { id },
-      include: {
-        items: true,
-        client: true,
-        company: {
-          include: { pdfConfig: true },
-        },
-      },
-    });
-
-    if (!invRec) {
-      logger.error('Invoice not found', { category: 'invoice' });
-      throw new BadRequestException('Invoice not found');
-    }
-
-    const inv = new EInvoice();
-
-    const companyFoundedDate = new Date(invRec.company.foundedAt || new Date());
-    const clientFoundedDate = new Date(invRec.client.foundedAt || new Date());
-
-    inv.id = invRec.rawNumber || invRec.number.toString();
-    inv.issueDate = new Date(invRec.createdAt.toISOString().split('T')[0]);
-    inv.currency = (invRec.company.currency as finance.TCurrency) || 'EUR';
-
-    let fromAdress: { streetName: string; houseNumber: string };
-    try {
-      fromAdress = parseAddress(invRec.company.address || '');
-    } catch {
-      fromAdress = {
-        streetName: invRec.company.address || 'N/A',
-        houseNumber: 'N/A',
-      };
-    }
-
-    inv.from = {
-      name: invRec.company.name,
-      description: invRec.company.description || 'N/A',
-      status: 'active',
-      foundedDate: {
-        day: companyFoundedDate.getDay(),
-        month: companyFoundedDate.getMonth() + 1,
-        year: companyFoundedDate.getFullYear(),
-      },
-      type: 'company',
-      address: {
-        streetName: fromAdress.streetName,
-        houseNumber: fromAdress.houseNumber,
-        city: invRec.company.city,
-        postalCode: invRec.company.postalCode,
-        country: invRec.company.country,
-        countryCode: invRec.company.country,
-      },
-      registrationDetails: {
-        vatId: extractVAT(invRec.company.identifiers) || 'N/A',
-        registrationId: extractLegalId(invRec.company.identifiers) || 'N/A',
-        registrationName: invRec.company.name,
-      },
-    };
-
-    let toAdress: { streetName: string; houseNumber: string };
-    try {
-      toAdress = parseAddress(invRec.client.address || '');
-    } catch {
-      toAdress = {
-        streetName: invRec.client.address || 'N/A',
-        houseNumber: 'N/A',
-      };
-    }
-
-    if (invRec.client.type === 'COMPANY') {
-      const companyContact: business.TCompany = {
-        type: 'company',
-        name: invRec.client.name || 'N/A',
-        description: invRec.client.description || 'N/A',
-        status: invRec.client.isActive ? 'active' : 'planned',
-        foundedDate: {
-          day: clientFoundedDate.getDay(),
-          month: clientFoundedDate.getMonth() + 1,
-          year: clientFoundedDate.getFullYear(),
-        },
-        address: {
-          streetName: toAdress.streetName,
-          houseNumber: toAdress.houseNumber,
-          city: invRec.client.city,
-          postalCode: invRec.client.postalCode,
-          country: invRec.client.country || 'FR',
-          countryCode: invRec.client.country.slice(0, 2).toUpperCase() || 'FR', // TODO: Refactor the app to store country codes instead of custom country names
-        },
-        registrationDetails: {
-          vatId: extractVAT(invRec.client.identifiers) || 'N/A',
-          registrationId: extractLegalId(invRec.client.identifiers) || 'N/A',
-          registrationName: invRec.client.name,
-        },
-      };
-
-      inv.to = companyContact;
-    } else {
-      const personContact: business.TPerson = {
-        type: 'person',
-        name: `${invRec.client.contactFirstname} ${invRec.client.contactLastname}` || 'N/A',
-        description: invRec.client.description || 'N/A',
-        surname: invRec.client.contactLastname || 'N/A',
-        salutation: invRec.client.salutation as 'Mr' | 'Ms' | 'Mrs',
-        sex: invRec.client.sex as 'male' | 'female' | 'other',
-        title: invRec.client.title as 'Doctor' | 'Professor',
-        address: {
-          streetName: toAdress.streetName,
-          houseNumber: toAdress.houseNumber,
-          city: invRec.client.city,
-          postalCode: invRec.client.postalCode,
-          country: invRec.client.country || 'FR',
-          countryCode: invRec.client.country.slice(0, 2).toUpperCase() || 'FR', // TODO: Refactor the app to store country codes instead of custom country names
-        },
-      };
-
-      inv.to = personContact;
-    }
-
-    invRec.items.forEach((item, _index) => {
-      inv.addItem({
-        name: item.description,
-        unitQuantity: item.quantity,
-        unitNetPrice: item.unitPrice,
-        vatPercentage: item.vatRate || 0,
-        unitType:
-          item.type === 'HOUR'
-            ? 'HUR'
-            : item.type === 'DAY'
-              ? 'DAY'
-              : item.type === 'DEPOSIT'
-                ? 'SET'
-                : item.type === 'SERVICE'
-                  ? 'C62'
-                  : item.type === 'PRODUCT'
-                    ? 'C62'
-                    : 'C62',
-      });
-    });
-
-    const validation = await inv.validate();
-
-    logger.info(`E-Invoice validation result: ${validation.valid ? 'valid' : 'invalid'}`, {
-      category: 'invoice',
-    });
-    logger.info(
-      `E-Invoice validation warnings: ${validation.warnings ? validation.warnings.length : '0'}`,
-      { category: 'invoice' },
-    );
-    logger.info(
-      `E-Invoice validation errors: ${validation.errors ? validation.errors.length : '0'}`,
-      { category: 'invoice' },
-    );
-
-    if (!validation.valid) {
-      if (validation.warnings) {
-        logger.warn('Validation warnings:', {
-          category: 'invoice',
-          details: { warnings: validation.warnings },
-        });
-      }
-
-      logger.error('Validation errors:', {
-        category: 'invoice',
-        details: { errors: validation.errors },
-      });
-    }
-
-    return inv;
-  }
-
-  async getInvoicePDFFormat(
+  /**
+   * Get invoice document in the specified format
+   * Supports: pdf, facturx, zugferd, xrechnung, ubl, cii, fatturapa
+   */
+  async getInvoiceDocument(
     invoiceId: string,
-    format: '' | 'pdf' | ExportFormat,
-  ): Promise<Uint8Array> {
-    const invRec = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
-      include: { items: true, client: true, company: true, quote: true },
+    format: OutputFormat = 'pdf',
+  ): Promise<{ buffer: Uint8Array; mimeType: string; filename: string }> {
+    const result = await this.documentService.generate({
+      type: 'invoice',
+      data: await this.getInvoiceDocumentData(invoiceId),
+      format,
+      supplierCountry: await this.getInvoiceCountry(invoiceId),
+      pdfConfig: await this.getInvoicePdfConfig(invoiceId),
     });
-    if (!invRec) {
-      logger.error('Invoice not found', { category: 'invoice' });
-      throw new BadRequestException('Invoice not found');
-    }
 
-    const pdfBuffer = await this.getInvoicePdf(invoiceId);
+    return {
+      buffer: result.buffer,
+      mimeType: result.mimeType,
+      filename: result.filename,
+    };
+  }
 
-    if (format === 'pdf' || format === '') {
-      return pdfBuffer;
-    }
+  /**
+   * Get invoice XML in UBL or CII format
+   */
+  async getInvoiceXML(invoiceId: string, format: 'ubl' | 'cii' = 'ubl'): Promise<string> {
+    const result = await this.documentService.generate({
+      type: 'invoice',
+      data: await this.getInvoiceDocumentData(invoiceId),
+      format,
+      supplierCountry: await this.getInvoiceCountry(invoiceId),
+    });
 
-    const inv = await this.getInvoiceXMLFormat(invoiceId);
+    return result.buffer.toString('utf-8');
+  }
 
-    return await inv.embedInPdf(Buffer.from(pdfBuffer), format);
+  /**
+   * @deprecated Use getInvoiceDocument() instead
+   * Legacy method - redirects to getInvoicePdf with format support
+   */
+  async getInvoicePDFFormat(invoiceId: string, format: '' | OutputFormat): Promise<Uint8Array> {
+    const outputFormat = format === '' ? 'pdf' : format;
+    return this.getInvoicePdf(invoiceId, outputFormat);
   }
 
   async createInvoiceFromQuote(quoteId: string) {
@@ -902,9 +663,9 @@ export class InvoicesService {
       details: { invoiceId, method: transmissionMethod },
     });
 
-    const pdfBuffer = await this.getInvoicePDFFormat(
+    const pdfBuffer = await this.getInvoicePdf(
       invoiceId,
-      (invoice.company.invoicePDFFormat as ExportFormat) || 'pdf',
+      (invoice.company.invoicePDFFormat as OutputFormat) || 'pdf',
     );
 
     // Use compliance transmission service with strategy pattern
@@ -1013,13 +774,17 @@ export class InvoicesService {
         phone: invoice.company.phone,
       },
       customer: {
-        name: invoice.client.name || `${invoice.client.contactFirstname} ${invoice.client.contactLastname}`,
+        name:
+          invoice.client.name ||
+          `${invoice.client.contactFirstname} ${invoice.client.contactLastname}`,
         vatNumber: extractVAT(invoice.client.identifiers) || undefined,
         legalId: extractLegalId(invoice.client.identifiers) || undefined,
         address: invoice.client.address,
         postalCode: invoice.client.postalCode,
         city: invoice.client.city,
-        country: invoice.client.country ? this.extractCountryCode(invoice.client.country) : supplierCountryCode,
+        country: invoice.client.country
+          ? this.extractCountryCode(invoice.client.country)
+          : supplierCountryCode,
         email: invoice.client.contactEmail || undefined,
         phone: invoice.client.contactPhone || undefined,
       },
@@ -1031,7 +796,7 @@ export class InvoicesService {
         vatRate: item.vatRate,
         vatAmount: item.quantity * item.unitPrice * (item.vatRate / 100),
         lineTotal: item.quantity * item.unitPrice,
-        itemType: item.type === 'PRODUCT' ? 'goods' as const : 'services' as const,
+        itemType: item.type === 'PRODUCT' ? ('goods' as const) : ('services' as const),
       })),
       notes: invoice.notes || undefined,
     };
@@ -1092,5 +857,210 @@ export class InvoicesService {
     }
 
     return countryMap[normalized] || 'FR'; // Default to France
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Document Generation Helpers
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Build InvoiceDocumentData from Prisma invoice record
+   */
+  private async buildInvoiceDocumentData(invoice: any): Promise<InvoiceDocumentData> {
+    // Resolve payment method display values
+    let paymentMethodType = invoice.paymentMethod || '';
+    let paymentMethodDetails = invoice.paymentDetails || '';
+
+    if (invoice.paymentMethodId) {
+      const pm = await prisma.paymentMethod.findUnique({
+        where: { id: invoice.paymentMethodId },
+      });
+      if (pm) {
+        paymentMethodType = pm.type;
+        paymentMethodDetails = pm.details || '';
+      }
+    }
+
+    // Build supplier party
+    const supplierIdentifiers = (invoice.company.identifiers as Record<string, string>) || {};
+    const supplier: DocumentParty = {
+      name: invoice.company.name,
+      address: invoice.company.address || '',
+      postalCode: invoice.company.postalCode || '',
+      city: invoice.company.city || '',
+      country: this.extractCountryCode(invoice.company.country),
+      email: invoice.company.email || undefined,
+      phone: invoice.company.phone || undefined,
+      identifiers: supplierIdentifiers,
+    };
+
+    // Build customer party
+    const clientName =
+      invoice.client.name ||
+      `${invoice.client.contactFirstname || ''} ${invoice.client.contactLastname || ''}`.trim() ||
+      'Client';
+
+    const clientIdentifiers = (invoice.client.identifiers as Record<string, string>) || {};
+    const customer: DocumentParty = {
+      name: clientName,
+      address: invoice.client.address || '',
+      postalCode: invoice.client.postalCode || '',
+      city: invoice.client.city || '',
+      country: invoice.client.country
+        ? this.extractCountryCode(invoice.client.country)
+        : this.extractCountryCode(invoice.company.country),
+      email: invoice.client.contactEmail || undefined,
+      phone: invoice.client.contactPhone || undefined,
+      identifiers: clientIdentifiers,
+    };
+
+    // Build items
+    const items: DocumentItem[] = invoice.items.map((item: any) => ({
+      id: item.id,
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      vatRate: item.vatRate || 0,
+      vatAmount: item.quantity * item.unitPrice * ((item.vatRate || 0) / 100),
+      lineTotal: item.quantity * item.unitPrice,
+      itemType: (item.type === 'PRODUCT' ? 'goods' : 'services') as 'goods' | 'services',
+      type: item.type,
+    }));
+
+    // Build legal mentions based on compliance rules
+    const legalMentions: string[] = [];
+    if (invoice.company.exemptVat) {
+      const countryCode = this.extractCountryCode(invoice.company.country);
+      if (countryCode === 'FR') {
+        legalMentions.push('TVA non applicable, art. 293 B du CGI');
+      }
+    }
+
+    return {
+      type: 'invoice',
+      id: invoice.id,
+      number: invoice.rawNumber || invoice.number.toString(),
+      createdAt: invoice.createdAt,
+      dueDate: invoice.dueDate,
+      currency: invoice.currency || invoice.company.currency || 'EUR',
+      supplier,
+      customer,
+      items,
+      totals: {
+        totalHT: invoice.totalHT,
+        totalVAT: invoice.totalVAT,
+        totalTTC: invoice.totalTTC,
+      },
+      notes: invoice.notes || undefined,
+      paymentMethod: paymentMethodType
+        ? { type: paymentMethodType, details: paymentMethodDetails || undefined }
+        : undefined,
+      legalMentions: legalMentions.length > 0 ? legalMentions : undefined,
+    };
+  }
+
+  /**
+   * Build PDF style config from company PDFConfig
+   */
+  private buildPdfConfig(pdfConfig: any) {
+    if (!pdfConfig) return undefined;
+
+    return {
+      fontFamily: pdfConfig.fontFamily || 'Inter',
+      padding: pdfConfig.padding || 40,
+      primaryColor: pdfConfig.primaryColor || '#2563eb',
+      secondaryColor: pdfConfig.secondaryColor || '#64748b',
+      includeLogo: !!pdfConfig.logoB64,
+      logoB64: pdfConfig.logoB64 || undefined,
+      labels: {
+        invoice: pdfConfig.invoice || 'Invoice',
+        quote: pdfConfig.quote || 'Quote',
+        receipt: pdfConfig.receipt || 'Receipt',
+        creditNote: pdfConfig.creditNote || 'Credit Note',
+        proforma: pdfConfig.proforma || 'Proforma Invoice',
+        date: pdfConfig.date || 'Date:',
+        dueDate: pdfConfig.dueDate || 'Due date:',
+        validUntil: pdfConfig.validUntil || 'Valid until:',
+        paymentDate: pdfConfig.paymentDate || 'Payment date:',
+        billTo: pdfConfig.billTo || 'Bill to:',
+        quoteFor: pdfConfig.quoteFor || 'Quote for:',
+        receivedFrom: pdfConfig.receivedFrom || 'Received from:',
+        description: pdfConfig.description || 'Description',
+        quantity: pdfConfig.quantity || 'Qty',
+        unitPrice: pdfConfig.unitPrice || 'Unit price',
+        vatRate: pdfConfig.vatRate || 'VAT (%)',
+        total: pdfConfig.total || 'Total',
+        subtotal: pdfConfig.subtotal || 'Subtotal:',
+        vat: pdfConfig.vat || 'VAT:',
+        grandTotal: pdfConfig.grandTotal || 'Grand total:',
+        notes: pdfConfig.notes || 'Notes:',
+        paymentMethod: pdfConfig.paymentMethod || 'Payment method:',
+        paymentDetails: pdfConfig.paymentDetails || 'Payment details:',
+        hour: pdfConfig.hour || 'Hour',
+        day: pdfConfig.day || 'Day',
+        service: pdfConfig.service || 'Service',
+        product: pdfConfig.product || 'Product',
+        deposit: pdfConfig.deposit || 'Deposit',
+        paymentMethodBankTransfer: pdfConfig.paymentMethodBankTransfer || 'Bank transfer',
+        paymentMethodPayPal: pdfConfig.paymentMethodPayPal || 'PayPal',
+        paymentMethodCash: pdfConfig.paymentMethodCash || 'Cash',
+        paymentMethodCheck: pdfConfig.paymentMethodCheck || 'Check',
+        paymentMethodOther: pdfConfig.paymentMethodOther || 'Other',
+        originalInvoice: pdfConfig.originalInvoice || 'Original invoice:',
+        correctionReason: pdfConfig.correctionReason || 'Reason:',
+      },
+    };
+  }
+
+  /**
+   * Get invoice document data by ID
+   */
+  private async getInvoiceDocumentData(invoiceId: string): Promise<InvoiceDocumentData> {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        items: true,
+        client: true,
+        company: { include: { pdfConfig: true } },
+      },
+    });
+
+    if (!invoice) {
+      throw new BadRequestException('Invoice not found');
+    }
+
+    return this.buildInvoiceDocumentData(invoice);
+  }
+
+  /**
+   * Get invoice country code by ID
+   */
+  private async getInvoiceCountry(invoiceId: string): Promise<string> {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: { company: true },
+    });
+
+    if (!invoice) {
+      throw new BadRequestException('Invoice not found');
+    }
+
+    return this.extractCountryCode(invoice.company.country);
+  }
+
+  /**
+   * Get invoice PDF config by ID
+   */
+  private async getInvoicePdfConfig(invoiceId: string) {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: { company: { include: { pdfConfig: true } } },
+    });
+
+    if (!invoice) {
+      throw new BadRequestException('Invoice not found');
+    }
+
+    return this.buildPdfConfig(invoice.company.pdfConfig);
   }
 }

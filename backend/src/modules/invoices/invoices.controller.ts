@@ -1,4 +1,3 @@
-import type { ExportFormat } from '@fin.cx/einvoice';
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, Sse } from '@nestjs/common';
 import type { Response } from 'express';
 import { from, map, startWith, switchMap } from 'rxjs';
@@ -6,6 +5,7 @@ import { interval } from 'rxjs/internal/observable/interval';
 import type { CreateInvoiceDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
 import { InvoicesService } from '@/modules/invoices/invoices.service';
 import { PluginsService } from '@/modules/plugins/plugins.service';
+import { OutputFormat } from '../compliance/documents';
 
 @Controller('invoices')
 export class InvoicesController {
@@ -36,16 +36,13 @@ export class InvoicesController {
   @Get(':id/pdf')
   async getInvoicePdf(
     @Param('id') id: string,
-    @Query('format') format: ExportFormat | undefined,
+    @Query('format') format: OutputFormat | undefined,
     @Res() res: Response,
   ) {
     if (id === 'undefined') return res.status(400).send('Invalid invoice ID');
-    let pdfBuffer: Uint8Array | null = null;
-    if (format) {
-      pdfBuffer = await this.invoicesService.getInvoicePDFFormat(id, format);
-    } else {
-      pdfBuffer = await this.invoicesService.getInvoicePdf(id);
-    }
+
+    const pdfBuffer = await this.invoicesService.getInvoicePdf(id, format || 'pdf');
+
     if (!pdfBuffer) {
       res.status(404).send('Invoice not found or PDF generation failed');
       return;
@@ -61,27 +58,30 @@ export class InvoicesController {
   @Get(':id/download/xml')
   async downloadInvoiceXml(
     @Param('id') id: string,
-    @Query('format') format: string | ExportFormat,
+    @Query('format') format: string,
     @Res() res: Response,
   ) {
     if (id === 'undefined') return res.status(400).send('Invalid invoice ID');
-    let fileBuffer: Uint8Array | null = null;
 
-    const xmlInvoice = await this.invoicesService.getInvoiceXMLFormat(id);
-    let xmlString = '';
+    // Determine XML syntax: ubl or cii
+    const xmlFormat = ['cii', 'facturx', 'zugferd'].includes(format) ? 'cii' : 'ubl';
+
+    let xmlString: string;
+
+    // Check if plugin can handle this format
     if (this.pluginService.canGenerateXml(format)) {
-      xmlString = await this.pluginService.generateXml(format, xmlInvoice);
+      // For plugins, get invoice data and let plugin generate XML
+      const documentData = await this.invoicesService.getInvoiceDocument(id, xmlFormat as OutputFormat);
+      xmlString = Buffer.from(documentData.buffer).toString('utf-8');
     } else {
-      xmlString = await xmlInvoice.exportXml(format as ExportFormat);
+      // Use compliance document service
+      xmlString = await this.invoicesService.getInvoiceXML(id, xmlFormat);
     }
-    fileBuffer = Buffer.from(xmlString, 'utf-8');
 
-    if (!fileBuffer) {
-      res.status(404).send('Invoice not found or file generation failed');
-      return;
-    }
+    const fileBuffer = Buffer.from(xmlString, 'utf-8');
+
     res.set({
-      'Content-Type': `application/xml`,
+      'Content-Type': 'application/xml',
       'Content-Disposition': `attachment; filename="invoice-${id}-${format}.xml"`,
       'Content-Length': fileBuffer.length.toString(),
     });
@@ -91,16 +91,13 @@ export class InvoicesController {
   @Get(':id/download/pdf')
   async downloadInvoicePdf(
     @Param('id') id: string,
-    @Query('format') format: ExportFormat | undefined,
+    @Query('format') format: OutputFormat | undefined,
     @Res() res: Response,
   ) {
     if (id === 'undefined') return res.status(400).send('Invalid invoice ID');
-    let pdfBuffer: Uint8Array | null = null;
-    if (format) {
-      pdfBuffer = await this.invoicesService.getInvoicePDFFormat(id, format);
-    } else {
-      pdfBuffer = await this.invoicesService.getInvoicePdf(id);
-    }
+
+    const pdfBuffer = await this.invoicesService.getInvoicePdf(id, format || 'pdf');
+
     if (!pdfBuffer) {
       res.status(404).send('Invoice not found or PDF generation failed');
       return;

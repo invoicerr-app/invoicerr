@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
-import type { EInvoice } from '@fin.cx/einvoice';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { simpleGit } from 'simple-git';
 import { logger } from '@/logger/logger.service';
@@ -23,11 +22,6 @@ export interface IPlugin {
   config?: any;
   type?: string;
   isActive?: boolean;
-}
-
-export interface InvoicePlugin extends IPlugin {
-  pdf_format_info: () => PdfFormatInfo;
-  pdf_format: (invoice: EInvoice) => Promise<string>;
 }
 
 const PLUGIN_DIR = process.env.PLUGIN_DIR || '/root/invoicerr-plugins';

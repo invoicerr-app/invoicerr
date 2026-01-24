@@ -1,8 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  ComplianceSettingsService,
-  PDPConfig,
-} from '../../services/compliance-settings.service';
+import { ComplianceSettingsService } from '../../services/compliance-settings.service';
 import {
   TransmissionPayload,
   TransmissionResult,

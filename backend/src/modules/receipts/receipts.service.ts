@@ -54,16 +54,17 @@ export class ReceiptsService {
 
     const totalReceipts = await prisma.receipt.count();
 
-    // Attach payment method object when available so frontend can consume receipt.paymentMethod as an object
-    const receiptsWithPM = await Promise.all(
-      receipts.map(async (r: any) => {
-        if (r.paymentMethodId) {
-          const pm = await prisma.paymentMethod.findUnique({ where: { id: r.paymentMethodId } });
-          return { ...r, paymentMethod: pm ?? r.paymentMethod };
-        }
-        return r;
-      }),
-    );
+    // Batch fetch all payment methods in a single query (avoid N+1)
+    const paymentMethodIds = receipts.map((r) => r.paymentMethodId).filter(Boolean) as string[];
+    const paymentMethods = paymentMethodIds.length > 0
+      ? await prisma.paymentMethod.findMany({ where: { id: { in: paymentMethodIds } } })
+      : [];
+    const pmMap = new Map(paymentMethods.map((pm) => [pm.id, pm]));
+
+    const receiptsWithPM = receipts.map((r) => ({
+      ...r,
+      paymentMethod: r.paymentMethodId ? pmMap.get(r.paymentMethodId) ?? null : null,
+    }));
 
     return { pageCount: Math.ceil(totalReceipts / pageSize), receipts: receiptsWithPM };
   }
@@ -86,17 +87,17 @@ export class ReceiptsService {
         },
       });
 
-      const resultsWithPM = await Promise.all(
-        results.map(async (r: any) => {
-          if (r.paymentMethodId) {
-            const pm = await prisma.paymentMethod.findUnique({ where: { id: r.paymentMethodId } });
-            return { ...r, paymentMethod: pm ?? r.paymentMethod };
-          }
-          return r;
-        }),
-      );
+      // Batch fetch payment methods (avoid N+1)
+      const pmIds = results.map((r) => r.paymentMethodId).filter(Boolean) as string[];
+      const pms = pmIds.length > 0
+        ? await prisma.paymentMethod.findMany({ where: { id: { in: pmIds } } })
+        : [];
+      const pmMap = new Map(pms.map((pm) => [pm.id, pm]));
 
-      return resultsWithPM;
+      return results.map((r) => ({
+        ...r,
+        paymentMethod: r.paymentMethodId ? pmMap.get(r.paymentMethodId) ?? null : null,
+      }));
     }
 
     const results = await prisma.receipt.findMany({
@@ -121,17 +122,17 @@ export class ReceiptsService {
       },
     });
 
-    const resultsWithPM = await Promise.all(
-      results.map(async (r: any) => {
-        if (r.paymentMethodId) {
-          const pm = await prisma.paymentMethod.findUnique({ where: { id: r.paymentMethodId } });
-          return { ...r, paymentMethod: pm ?? r.paymentMethod };
-        }
-        return r;
-      }),
-    );
+    // Batch fetch payment methods (avoid N+1)
+    const pmIds = results.map((r) => r.paymentMethodId).filter(Boolean) as string[];
+    const pms = pmIds.length > 0
+      ? await prisma.paymentMethod.findMany({ where: { id: { in: pmIds } } })
+      : [];
+    const pmMap = new Map(pms.map((pm) => [pm.id, pm]));
 
-    return resultsWithPM;
+    return results.map((r) => ({
+      ...r,
+      paymentMethod: r.paymentMethodId ? pmMap.get(r.paymentMethodId) ?? null : null,
+    }));
   }
 
   private async checkInvoiceAfterReceipt(invoiceId: string) {
