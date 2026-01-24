@@ -40,6 +40,12 @@
       "nif": "Numéro d'identification fiscale (NIF)"
     }
   },
+  "customFields": {
+    "fr": {
+      "serviceCode": "Code Service",
+      "engagementNumber": "Numéro d'Engagement"
+    }
+  },
   "clients": {
     "header": {
       "subtitle": "Gérez vos clients",
@@ -80,6 +86,18 @@
       "title": {
         "create": "Ajouter un nouveau client",
         "edit": "Modifier le client"
+      },
+      "steps": {
+        "type": "Type & Pays",
+        "typeDescription": "Sélectionnez le type de client et le pays pour déterminer les informations requises",
+        "identity": "Identité",
+        "identityDescription": "Saisissez le nom ou les informations personnelles du client",
+        "address": "Adresse",
+        "addressDescription": "Saisissez l'adresse postale du client",
+        "identifiers": "Identifiants légaux",
+        "identifiersDescription": "Saisissez les numéros d'identification légaux du client",
+        "contact": "Contact",
+        "contactDescription": "Saisissez les informations de contact et préférences"
       },
       "fields": {
         "contactFirstname": {
@@ -141,7 +159,12 @@
         },
         "country": {
           "label": "Pays",
-          "placeholder": "Saisir le pays"
+          "placeholder": "Saisir le pays",
+          "description": "Le pays du client détermine les identifiants légaux requis"
+        },
+        "currency": {
+          "label": "Devise",
+          "description": "Remplacer la devise par défaut pour ce client"
         }
       },
       "validation": {
@@ -959,6 +982,10 @@
         "title": "Autres paramètres",
         "description": "Paramètres supplémentaires pour votre entreprise"
       },
+      "customFields": {
+        "title": "Champs personnalisés",
+        "description": "Champs spécifiques au pays requis pour la conformité"
+      },
       "form": {
         "company": {
           "label": "Nom de l'entreprise",
@@ -979,7 +1006,11 @@
           }
         },
         "identifier": {
-          "formatDescription": "Exemple : {{example}}"
+          "formatDescription": "Exemple : {{example}}",
+          "errors": {
+            "required": "Ce champ est obligatoire",
+            "format": "Format invalide. {{example}}"
+          }
         },
         "legalId": {
           "label": "Identifiant légal",
@@ -1661,6 +1692,7 @@
     "next": "Suivant",
     "loading": "Chargement...",
     "finish": "Terminer",
+    "optional": "Optionnel",
     "units": {
       "day": "Jour",
       "week": "Semaine",

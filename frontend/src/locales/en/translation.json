@@ -40,6 +40,12 @@
       "nif": "Tax ID (NIF)"
     }
   },
+  "customFields": {
+    "fr": {
+      "serviceCode": "Service Code",
+      "engagementNumber": "Engagement Number"
+    }
+  },
   "clients": {
     "header": {
       "subtitle": "Manage your clients",
@@ -80,6 +86,18 @@
       "title": {
         "create": "Add New Client",
         "edit": "Edit Client"
+      },
+      "steps": {
+        "type": "Type & Country",
+        "typeDescription": "Select the client type and country to determine required information",
+        "identity": "Identity",
+        "identityDescription": "Enter the client's name or personal information",
+        "address": "Address",
+        "addressDescription": "Enter the client's postal address",
+        "identifiers": "Legal Identifiers",
+        "identifiersDescription": "Enter the client's legal identification numbers",
+        "contact": "Contact",
+        "contactDescription": "Enter contact information and preferences"
       },
       "fields": {
         "contactFirstname": {
@@ -141,7 +159,12 @@
         },
         "country": {
           "label": "Country",
-          "placeholder": "Enter country"
+          "placeholder": "Enter country",
+          "description": "The client's country determines which legal identifiers are required"
+        },
+        "currency": {
+          "label": "Currency",
+          "description": "Override the default currency for this client"
         }
       },
       "validation": {
@@ -955,6 +978,10 @@
         "title": "Other Settings",
         "description": "Additional settings for your company"
       },
+      "customFields": {
+        "title": "Custom Fields",
+        "description": "Country-specific fields required for compliance"
+      },
       "form": {
         "company": {
           "label": "Company Name",
@@ -975,7 +1002,11 @@
           }
         },
         "identifier": {
-          "formatDescription": "Example: {{example}}"
+          "formatDescription": "Example: {{example}}",
+          "errors": {
+            "required": "This field is required",
+            "format": "Invalid format. {{example}}"
+          }
         },
         "legalId": {
           "label": "Legal ID",
@@ -1660,6 +1691,7 @@
     "next": "Next",
     "loading": "Loading...",
     "finish": "Finish",
+    "optional": "Optional",
     "units": {
       "day": "Day",
       "week": "Week",
