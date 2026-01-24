@@ -1,4 +1,4 @@
-import { CountryConfig } from '../interfaces';
+import { CountryConfig, DEFAULT_DOCUMENT_CONFIG } from '../interfaces';
 
 /**
  * Generic configuration for unsupported countries
@@ -100,4 +100,6 @@ export const genericConfig: Omit<CountryConfig, 'code'> = {
     mandatory: [],
     conditional: [],
   },
+
+  documents: DEFAULT_DOCUMENT_CONFIG,
 };

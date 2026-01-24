@@ -1,4 +1,4 @@
-import { CountryConfig } from '../../interfaces';
+import { CountryConfig, EU_DOCUMENT_CONFIG } from '../../interfaces';
 
 export const itConfig: CountryConfig = {
   code: 'IT',
@@ -254,4 +254,6 @@ export const itConfig: CountryConfig = {
       mappedTo: 'sdi.codiceCIG',
     },
   ],
+
+  documents: EU_DOCUMENT_CONFIG,
 };

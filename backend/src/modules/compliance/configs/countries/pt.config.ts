@@ -1,4 +1,4 @@
-import { CountryConfig } from '../../interfaces';
+import { CountryConfig, EU_DOCUMENT_CONFIG } from '../../interfaces';
 
 export const ptConfig: CountryConfig = {
   code: 'PT',
@@ -195,4 +195,6 @@ export const ptConfig: CountryConfig = {
       mappedTo: 'saft.atcud',
     },
   ],
+
+  documents: EU_DOCUMENT_CONFIG,
 };

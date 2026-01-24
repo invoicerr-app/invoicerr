@@ -1,4 +1,4 @@
-import { CountryConfig } from '../../interfaces';
+import { CountryConfig, EU_DOCUMENT_CONFIG } from '../../interfaces';
 
 export const frConfig: CountryConfig = {
   code: 'FR',
@@ -96,28 +96,99 @@ export const frConfig: CountryConfig = {
     b2b: {
       model: 'pdp',
       platform: 'superpdp',
+      platforms: [
+        {
+          id: 'superpdp',
+          labelKey: 'platform.superpdp',
+          icon: 'send',
+          isDefault: true,
+          available: true,
+          descriptionKey: 'platform.superpdp.description',
+        },
+        {
+          id: 'cegid',
+          labelKey: 'platform.cegid',
+          icon: 'building',
+          available: true,
+          descriptionKey: 'platform.cegid.description',
+        },
+        {
+          id: 'sage',
+          labelKey: 'platform.sage',
+          icon: 'calculator',
+          available: true,
+          descriptionKey: 'platform.sage.description',
+        },
+        {
+          id: 'chorus-pro-pdp',
+          labelKey: 'platform.chorusProPdp',
+          icon: 'landmark',
+          available: true,
+          descriptionKey: 'platform.chorusProPdp.description',
+        },
+        {
+          id: 'edicom',
+          labelKey: 'platform.edicom',
+          icon: 'globe',
+          available: true,
+          descriptionKey: 'platform.edicom.description',
+        },
+        {
+          id: 'generix',
+          labelKey: 'platform.generix',
+          icon: 'truck',
+          available: true,
+          descriptionKey: 'platform.generix.description',
+        },
+      ],
       labelKey: 'transmission.pdp',
       icon: 'send',
       mandatory: false,
       mandatoryFrom: '2026-09-01',
       async: true,
       deadlineDays: 7,
+      userSelectable: true,
+      emailFallback: true,
     },
     b2g: {
       model: 'clearance',
       platform: 'chorus',
+      platforms: [
+        {
+          id: 'chorus',
+          labelKey: 'platform.chorus',
+          icon: 'building-2',
+          isDefault: true,
+          available: true,
+          descriptionKey: 'platform.chorus.description',
+        },
+      ],
       labelKey: 'transmission.chorus',
       icon: 'building-2',
       mandatory: true,
       async: true,
       deadlineDays: 10,
+      userSelectable: false,
+      emailFallback: false,
     },
     b2c: {
       model: 'email',
+      platform: 'email',
+      platforms: [
+        {
+          id: 'email',
+          labelKey: 'platform.email',
+          icon: 'mail',
+          isDefault: true,
+          available: true,
+        },
+      ],
       labelKey: 'transmission.email',
       icon: 'mail',
       mandatory: false,
       async: false,
+      userSelectable: false,
+      emailFallback: false,
     },
   },
 
@@ -234,4 +305,6 @@ export const frConfig: CountryConfig = {
       mappedTo: 'chorus.numeroEngagement',
     },
   ],
+
+  documents: EU_DOCUMENT_CONFIG,
 };

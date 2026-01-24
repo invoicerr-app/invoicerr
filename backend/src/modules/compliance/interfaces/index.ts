@@ -58,6 +58,17 @@ export {
 // Peppol interfaces
 export { PeppolConfig } from './peppol.interface';
 
+// Document config interfaces
+export {
+  DocumentConfig,
+  DocumentModificationRules,
+  CorrectionMethod as DocumentCorrectionMethod,
+  RequiredElement,
+  ArchivingConfig as DocumentArchivingConfig,
+  DEFAULT_DOCUMENT_CONFIG,
+  EU_DOCUMENT_CONFIG,
+} from './document-config.interface';
+
 // Country config interfaces
 export {
   CountryIdentifier,

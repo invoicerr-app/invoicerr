@@ -1,4 +1,4 @@
-import { CountryConfig } from '../../interfaces';
+import { CountryConfig, EU_DOCUMENT_CONFIG } from '../../interfaces';
 
 export const esConfig: CountryConfig = {
   code: 'ES',
@@ -199,4 +199,6 @@ export const esConfig: CountryConfig = {
       mappedTo: 'verifactu.serie',
     },
   ],
+
+  documents: EU_DOCUMENT_CONFIG,
 };

@@ -3,6 +3,7 @@ import { MailService } from '@/mail/mail.service';
 import { ComplianceController } from './compliance.controller';
 import { ComplianceService } from './compliance.service';
 import { ConfigRegistry } from './configs';
+import { DocumentService } from './documents/document.service';
 import { FormatService } from './formats/format.service';
 import { FacturXGenerator } from './formats/generators/facturx.generator';
 import { FatturaPAGenerator } from './formats/generators/fatturapa.generator';
@@ -27,6 +28,16 @@ import { VerifactuTransmissionStrategy } from './transmission/strategies/verifac
 import { ResilientTransmissionService } from './transmission/resilient-transmission.service';
 import { TransmissionService } from './transmission/transmission.service';
 
+/**
+ * ComplianceModule - Complete compliance features for invoicing
+ *
+ * Features:
+ * - Country configurations (FR, DE, IT, ES, PT, BE)
+ * - VAT calculation and validation
+ * - E-invoice format generation (UBL, Factur-X, FatturaPa)
+ * - Transmission strategies (Chorus, SDI, Peppol, Verifactu, SAF-T, Email)
+ * - Hash chain, QR codes, numbering, corrections
+ */
 @Module({
   controllers: [ComplianceController],
   providers: [
@@ -35,6 +46,7 @@ import { TransmissionService } from './transmission/transmission.service';
     ComplianceSettingsService,
     ConfigRegistry,
     ContextBuilderService,
+    DocumentService,
     RuleResolverService,
 
     // VAT and calculation
@@ -77,6 +89,7 @@ import { TransmissionService } from './transmission/transmission.service';
     ComplianceSettingsService,
     ConfigRegistry,
     ContextBuilderService,
+    DocumentService,
     RuleResolverService,
     VATEngineService,
     VIESService,

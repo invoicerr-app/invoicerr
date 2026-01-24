@@ -1,4 +1,4 @@
-import { CountryConfig } from '../../interfaces';
+import { CountryConfig, EU_DOCUMENT_CONFIG } from '../../interfaces';
 
 export const deConfig: CountryConfig = {
   code: 'DE',
@@ -193,4 +193,6 @@ export const deConfig: CountryConfig = {
       mappedTo: 'xrechnung.orderReference',
     },
   ],
+
+  documents: EU_DOCUMENT_CONFIG,
 };

@@ -1,4 +1,4 @@
-import { CountryConfig } from '../../interfaces';
+import { CountryConfig, EU_DOCUMENT_CONFIG } from '../../interfaces';
 
 export const beConfig: CountryConfig = {
   code: 'BE',
@@ -172,4 +172,6 @@ export const beConfig: CountryConfig = {
   },
 
   customFields: [],
+
+  documents: EU_DOCUMENT_CONFIG,
 };

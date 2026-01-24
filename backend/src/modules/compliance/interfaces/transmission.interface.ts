@@ -7,7 +7,9 @@ export type TransmissionModel =
   | 'clearance' // Pre-clearance (Italy SdI, Saudi ZATCA, India IRP)
   | 'pdp' // Platform de dématérialisation partenaire (France)
   | 'rttr' // Real-time transmission reporting (Hungary NAV, Greece myDATA)
-  | 'hash_chain'; // Hash chain reporting (Spain Veri*Factu, Portugal)
+  | 'hash_chain' // Hash chain reporting (Spain Veri*Factu, Portugal)
+  | 'post_audit' // Post-audit model (US, UK) - no real-time reporting required
+  | 'self_billing'; // Self-billing allowed
 
 /**
  * Transmission status
@@ -21,13 +23,35 @@ export type TransmissionStatus =
   | 'delivered'; // Successfully delivered
 
 /**
+ * Platform option for multi-platform support
+ */
+export interface PlatformOption {
+  /** Platform identifier (e.g., 'chorus', 'sdi', 'superpdp') */
+  id: string;
+  /** i18n label key */
+  labelKey: string;
+  /** Icon name */
+  icon?: string;
+  /** Is this the default platform for the model */
+  isDefault?: boolean;
+  /** Platform-specific configuration endpoint or identifier */
+  configKey?: string;
+  /** Description or additional info (i18n key) */
+  descriptionKey?: string;
+  /** Is this platform currently available/implemented */
+  available?: boolean;
+}
+
+/**
  * Transmission configuration for a transaction type
  */
 export interface TransmissionConfig {
   /** Transmission model */
   model: TransmissionModel;
-  /** Platform identifier (e.g., 'chorus', 'sdi', 'ksef', 'superpdp', 'nav') */
+  /** Default platform identifier (e.g., 'chorus', 'sdi', 'ksef', 'superpdp', 'nav') */
   platform?: string;
+  /** Available platforms for this model (for multi-platform models like PDP) */
+  platforms?: PlatformOption[];
   /** i18n label key */
   labelKey: string;
   /** Icon name */
@@ -40,6 +64,10 @@ export interface TransmissionConfig {
   async: boolean;
   /** Deadline in days after invoice date */
   deadlineDays?: number;
+  /** Can user choose platform (if multiple available) */
+  userSelectable?: boolean;
+  /** Fallback to email if platform fails */
+  emailFallback?: boolean;
 }
 
 /**

@@ -1,6 +1,7 @@
 import { ArchivingConfig } from './archiving.interface';
 import { ClearanceConfig } from './clearance.interface';
 import { CorrectionConfig } from './correction.interface';
+import { DocumentConfig } from './document-config.interface';
 import { FormatConfig } from './format.interface';
 import { IdentifierConfig } from './identifier.interface';
 import { NumberingConfig } from './numbering.interface';
@@ -152,4 +153,7 @@ export interface CountryConfig {
 
   /** Payment reference configuration */
   paymentReference?: PaymentReferenceConfig;
+
+  /** Document generation configuration */
+  documents: DocumentConfig;
 }
