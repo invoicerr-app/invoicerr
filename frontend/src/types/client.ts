@@ -2,9 +2,8 @@ export interface Client {
   id: string;
   name: string;
   description?: string;
-  legalId?: string;
-  VAT?: string;
-  type: string;
+  identifiers: Record<string, string>;
+  type: 'COMPANY' | 'INDIVIDUAL';
   foundedAt?: Date;
   contactFirstname?: string;
   contactLastname?: string;
@@ -14,6 +13,6 @@ export interface Client {
   postalCode?: string;
   city?: string;
   country?: string;
-  currency?: string; // Assuming currency is a string, e.g., "USD", "EUR"
+  currency?: string;
   isActive?: boolean;
 }
