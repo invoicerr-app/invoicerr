@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { type Resolver, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -31,6 +31,31 @@ import { Switch } from '@/components/ui/switch';
 import { useCountryIdentifiers } from '@/hooks/use-compliance';
 import { useGet, usePost } from '@/hooks/use-fetch';
 import type { Company } from '@/types';
+
+// Define stable form values type outside component to fix react-hook-form Control type inference
+interface CompanyFormValues {
+  name: string;
+  description: string;
+  identifiers: Record<string, string>;
+  customFields?: Record<string, string | number | boolean>;
+  foundedAt: Date;
+  currency: string;
+  address: string;
+  postalCode: string;
+  city: string;
+  country: string;
+  phone: string;
+  email: string;
+  quoteStartingNumber: number;
+  quoteNumberFormat: string;
+  invoiceStartingNumber: number;
+  invoiceNumberFormat: string;
+  receiptStartingNumber: number;
+  receiptNumberFormat: string;
+  invoicePDFFormat: string;
+  dateFormat: string;
+  exemptVat?: boolean;
+}
 
 export default function CompanySettings() {
   const { t, i18n } = useTranslation();
@@ -88,7 +113,7 @@ export default function CompanySettings() {
       .min(1, t('settings.company.form.company.errors.empty'))
       .max(100, t('settings.company.form.company.errors.maxLength')),
     description: z.string().max(500, t('settings.company.form.description.errors.maxLength')),
-    identifiers: z.record(z.string()).default({}),
+    identifiers: z.record(z.string().optional()).default({}),
     foundedAt: z
       .date()
       .refine((date) => date <= new Date(), t('settings.company.form.foundedAt.errors.future')),
@@ -162,12 +187,13 @@ export default function CompanySettings() {
   const { trigger } = usePost<Company>('/api/company/info');
   const [isLoading, setIsLoading] = useState(false);
 
-  const form = useForm<z.infer<typeof companySchema>>({
-    resolver: zodResolver(companySchema),
+  const form = useForm<CompanyFormValues>({
+    resolver: zodResolver(companySchema) as Resolver<CompanyFormValues>,
     defaultValues: {
       name: '',
       description: '',
       identifiers: {},
+      customFields: {},
       exemptVat: false,
       foundedAt: new Date(),
       currency: '',
@@ -189,9 +215,12 @@ export default function CompanySettings() {
 
   // Watch country to fetch identifier config
   const selectedCountry = form.watch('country');
-  const { identifiers: countryIdentifiers, vat: vatConfig } = useCountryIdentifiers(
-    selectedCountry || undefined,
-  );
+  const {
+    identifiers: countryIdentifiers,
+    vat: vatConfig,
+    customFields: countryCustomFields,
+    isLoading: identifiersLoading,
+  } = useCountryIdentifiers(selectedCountry || undefined);
 
   useEffect(() => {
     if (data && Object.keys(data).length > 0) {
@@ -203,7 +232,54 @@ export default function CompanySettings() {
     }
   }, [data, form]);
 
-  async function onSubmit(values: z.infer<typeof companySchema>) {
+  // Validate required identifiers based on country config
+  const validateRequiredIdentifiers = (): boolean => {
+    const identifiersValues = form.getValues('identifiers') || {};
+    let isValid = true;
+
+    // Clear all identifier errors first
+    for (const identifier of countryIdentifiers) {
+      form.clearErrors(`identifiers.${identifier.id}` as any);
+    }
+    form.clearErrors('identifiers.vat' as any);
+
+    for (const identifier of countryIdentifiers) {
+      if (identifier.required) {
+        const value = identifiersValues[identifier.id];
+        if (!value || (typeof value === 'string' && value.trim() === '')) {
+          form.setError(`identifiers.${identifier.id}` as any, {
+            type: 'required',
+            message: t('settings.company.form.identifier.errors.required'),
+          });
+          isValid = false;
+        } else if (identifier.format) {
+          try {
+            const regex = new RegExp(identifier.format);
+            if (!regex.test(value)) {
+              form.setError(`identifiers.${identifier.id}` as any, {
+                type: 'pattern',
+                message: t('settings.company.form.identifier.errors.format', {
+                  example: identifier.example || '',
+                }),
+              });
+              isValid = false;
+            }
+          } catch {
+            // Invalid regex, skip format validation
+          }
+        }
+      }
+    }
+
+    return isValid;
+  };
+
+  async function onSubmit(values: CompanyFormValues) {
+    // Validate required identifiers before submitting
+    if (!validateRequiredIdentifiers()) {
+      return;
+    }
+
     setIsLoading(true);
     trigger(values)
       .then(() => {
@@ -333,42 +409,100 @@ export default function CompanySettings() {
               <CardDescription>{t('settings.company.identifiers.description')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Dynamic identifiers for supported countries */}
-                {countryIdentifiers.length > 0 ? (
-                  <>
-                    {countryIdentifiers.map((identifier) => (
-                      <FormField
-                        key={identifier.id}
-                        control={form.control}
-                        name={`identifiers.${identifier.id}`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel required={identifier.required}>
-                              {t(identifier.labelKey)}
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder={identifier.example || ''}
-                                maxLength={identifier.maxLength || undefined}
-                                {...field}
-                                value={field.value || ''}
-                                data-cy={`company-${identifier.id}-input`}
-                              />
-                            </FormControl>
-                            {identifier.example && (
-                              <FormDescription>
-                                {t('settings.company.form.identifier.formatDescription', {
-                                  example: identifier.example,
-                                })}
-                              </FormDescription>
+              {identifiersLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                </div>
+              ) : countryIdentifiers.length > 0 ? (
+                <>
+                  {/* Required identifiers */}
+                  {countryIdentifiers.filter((id) => id.required).length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {countryIdentifiers
+                        .filter((identifier) => identifier.required)
+                        .map((identifier) => (
+                          <FormField
+                            key={identifier.id}
+                            control={form.control}
+                            name={`identifiers.${identifier.id}`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel required>
+                                  {t(identifier.labelKey)}
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder={identifier.example || ''}
+                                    maxLength={identifier.maxLength || undefined}
+                                    {...field}
+                                    value={field.value || ''}
+                                    data-cy={`company-${identifier.id}-input`}
+                                  />
+                                </FormControl>
+                                {identifier.example && (
+                                  <FormDescription>
+                                    {t('settings.company.form.identifier.formatDescription', {
+                                      example: identifier.example,
+                                    })}
+                                  </FormDescription>
+                                )}
+                                <FormMessage />
+                              </FormItem>
                             )}
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    ))}
-                    {/* VAT field for supported countries */}
+                          />
+                        ))}
+                    </div>
+                  )}
+
+                  {/* Separator between required and optional */}
+                  {countryIdentifiers.filter((id) => id.required).length > 0 &&
+                    countryIdentifiers.filter((id) => !id.required).length > 0 && (
+                      <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                          <span className="w-full border-t" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                          <span className="bg-card px-2 text-muted-foreground">
+                            {t('common.optional')}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Optional identifiers */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {countryIdentifiers
+                      .filter((identifier) => !identifier.required)
+                      .map((identifier) => (
+                        <FormField
+                          key={identifier.id}
+                          control={form.control}
+                          name={`identifiers.${identifier.id}`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t(identifier.labelKey)}</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder={identifier.example || ''}
+                                  maxLength={identifier.maxLength || undefined}
+                                  {...field}
+                                  value={field.value || ''}
+                                  data-cy={`company-${identifier.id}-input`}
+                                />
+                              </FormControl>
+                              {identifier.example && (
+                                <FormDescription>
+                                  {t('settings.company.form.identifier.formatDescription', {
+                                    example: identifier.example,
+                                  })}
+                                </FormDescription>
+                              )}
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      ))}
+                    {/* VAT field - always optional */}
                     <FormField
                       control={form.control}
                       name="identifiers.vat"
@@ -394,57 +528,118 @@ export default function CompanySettings() {
                         </FormItem>
                       )}
                     />
-                  </>
-                ) : (
-                  <>
-                    {/* Generic fields for unsupported countries */}
-                    <FormField
-                      control={form.control}
-                      name="identifiers.legalId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t('settings.company.form.legalId.label')}</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder={t('settings.company.form.legalId.placeholder')}
-                              {...field}
-                              value={field.value || ''}
-                              data-cy="company-legalid-input"
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            {t('settings.company.form.legalId.description')}
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="identifiers.vat"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t('settings.company.form.vat.label')}</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder={t('settings.company.form.vat.placeholder')}
-                              {...field}
-                              value={field.value || ''}
-                              data-cy="company-vat-input"
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            {t('settings.company.form.vat.description')}
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </>
-                )}
-              </div>
+                  </div>
+                </>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Generic fields for unsupported countries */}
+                  <FormField
+                    control={form.control}
+                    name="identifiers.legalId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('settings.company.form.legalId.label')}</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder={t('settings.company.form.legalId.placeholder')}
+                            {...field}
+                            value={field.value || ''}
+                            data-cy="company-legalid-input"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          {t('settings.company.form.legalId.description')}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="identifiers.vat"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('settings.company.form.vat.label')}</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder={t('settings.company.form.vat.placeholder')}
+                            {...field}
+                            value={field.value || ''}
+                            data-cy="company-vat-input"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          {t('settings.company.form.vat.description')}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          {/* Custom Fields Card - Only shown if country has custom fields */}
+          {countryCustomFields.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('settings.company.customFields.title')}</CardTitle>
+                <CardDescription>{t('settings.company.customFields.description')}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {countryCustomFields.map((customField) => (
+                    <FormField
+                      key={customField.id}
+                      control={form.control}
+                      name={`customFields.${customField.id}` as any}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel required={customField.required}>
+                            {t(customField.labelKey)}
+                          </FormLabel>
+                          <FormControl>
+                            {customField.type === 'select' && customField.options ? (
+                              <Select
+                                value={field.value || ''}
+                                onValueChange={field.onChange}
+                              >
+                                <SelectTrigger data-cy={`company-${customField.id}-select`}>
+                                  <SelectValue placeholder={t('common.select')} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {customField.options.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {t(option.labelKey)}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : customField.type === 'boolean' ? (
+                              <Switch
+                                checked={!!field.value}
+                                onCheckedChange={field.onChange}
+                                data-cy={`company-${customField.id}-switch`}
+                              />
+                            ) : (
+                              <Input
+                                type={customField.type === 'number' ? 'number' : 'text'}
+                                {...field}
+                                value={field.value || ''}
+                                data-cy={`company-${customField.id}-input`}
+                              />
+                            )}
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
