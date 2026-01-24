@@ -14,20 +14,21 @@
 // ***********************************************************
 
 // Import commands.js using ES2015 syntax:
-import './commands'
+import './commands';
 
 Cypress.on('fail', (error) => {
-    console.error('Test failed:', error.message);
-    throw error;
+  console.error('Test failed:', error.message);
+  throw error;
 });
 
 Cypress.on('uncaught:exception', () => {
-    return false
-})
+  return false;
+});
 
+export const BACKEND_URL = Cypress.env('BACKEND_URL') || 'http://localhost:4000';
 
 // Intercept and log auth API calls for debugging
 beforeEach(() => {
-    cy.intercept('POST', '**/api/auth/**').as('authRequest');
-    cy.intercept('GET', '**/invitations/**').as('invitationsRequest');
+  cy.intercept('POST', '**/api/auth/**').as('authRequest');
+  cy.intercept('GET', '**/invitations/**').as('invitationsRequest');
 });
