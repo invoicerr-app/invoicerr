@@ -4,7 +4,7 @@ export interface Company {
   foundedAt: Date | string;
   name: string;
   currency: string;
-  VAT: string;
+  identifiers: Record<string, string>;
   exemptVat?: boolean;
   address: string;
   postalCode: string;
@@ -16,4 +16,8 @@ export interface Company {
   quoteNumberFormat: string;
   invoiceStartingNumber: number;
   invoiceNumberFormat: string;
+  receiptStartingNumber: number;
+  receiptNumberFormat: string;
+  invoicePDFFormat: string;
+  dateFormat: string;
 }

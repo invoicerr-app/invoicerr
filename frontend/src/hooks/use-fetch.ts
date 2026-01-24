@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-type UseGetResult<T> = {
+interface UseGetResult<T> {
   data: T | null;
   loading: boolean;
   error: Error | null;
   mutate: () => void;
-};
+}
 
 export async function authenticatedFetch(
   input: RequestInfo,
@@ -26,17 +26,20 @@ export async function authenticatedFetch(
       !window.location.pathname.includes('/auth')
     ) {
       window.location.href = '/auth/sign-in';
-      console.warn('Session expirée ou invalide');
+      console.warn('Session expired or invalid');
     }
   }
 
   return res;
 }
 
-export function useGetRaw<T = any>(url: string, options?: RequestInit): UseGetResult<T> {
+export function useGetRaw<T>(url: string, options?: RequestInit): UseGetResult<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [refetchIndex, setRefetchIndex] = useState(0);
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   useEffect(() => {
     let cancelled = false;
@@ -47,13 +50,14 @@ export function useGetRaw<T = any>(url: string, options?: RequestInit): UseGetRe
       : `${import.meta.env.VITE_BACKEND_URL || ''}${url}`;
 
     authenticatedFetch(fullUrl, {
-      ...options,
+      ...optionsRef.current,
       method: 'GET',
     })
       .then(async (res) => {
         if (!res.ok) throw new Error(`GET ${url} failed: ${res.statusText}`);
+        const json = await res.json();
         if (!cancelled) {
-          setData(res as unknown as T);
+          setData(json as T);
           setError(null);
         }
       })
@@ -67,16 +71,20 @@ export function useGetRaw<T = any>(url: string, options?: RequestInit): UseGetRe
     return () => {
       cancelled = true;
     };
-  }, [url, options]);
+  }, [url, refetchIndex]);
 
-  return { data, loading, error, mutate: () => {} };
+  const mutate = useCallback(() => setRefetchIndex((i) => i + 1), []);
+
+  return { data, loading, error, mutate };
 }
 
-export function useGet<T = any>(url: string | null, options?: RequestInit): UseGetResult<T> {
+export function useGet<T>(url: string | null, options?: RequestInit): UseGetResult<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [_refetchIndex, setRefetchIndex] = useState(0);
+  const [refetchIndex, setRefetchIndex] = useState(0);
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   useEffect(() => {
     let cancelled = false;
@@ -92,7 +100,7 @@ export function useGet<T = any>(url: string | null, options?: RequestInit): UseG
       : `${import.meta.env.VITE_BACKEND_URL || ''}${url}`;
 
     authenticatedFetch(fullUrl, {
-      ...options,
+      ...optionsRef.current,
       method: 'GET',
     })
       .then(async (res) => {
@@ -103,7 +111,7 @@ export function useGet<T = any>(url: string | null, options?: RequestInit): UseG
       })
       .then((json) => {
         if (!cancelled) {
-          setData(json);
+          setData(json as T);
           setError(null);
         }
       })
@@ -117,24 +125,21 @@ export function useGet<T = any>(url: string | null, options?: RequestInit): UseG
     return () => {
       cancelled = true;
     };
-  }, [url, options]);
+  }, [url, refetchIndex]);
 
-  return {
-    data,
-    loading,
-    error,
-    mutate: () => setRefetchIndex((i) => i + 1),
-  };
+  const mutate = useCallback(() => setRefetchIndex((i) => i + 1), []);
+
+  return { data, loading, error, mutate };
 }
 
-export interface useSseResult<T = any> {
+export interface UseSseResult<T> {
   data: T | null;
   loading: boolean;
   error: Error | null;
   close: () => void;
 }
 
-export function useSse<T = any>(url: string, options?: EventSourceInit): useSseResult<T> {
+export function useSse<T>(url: string, options?: EventSourceInit): UseSseResult<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -194,25 +199,25 @@ export function useSse<T = any>(url: string, options?: EventSourceInit): useSseR
   return { data, loading, error, close };
 }
 
-type UseRequestOptions = RequestInit & { body?: any };
+type UseRequestOptions<B = unknown> = Omit<RequestInit, 'body'> & { body?: B };
 
-type UsePostResult<T> = {
-  trigger: (body?: any, extraOptions?: RequestInit) => Promise<T | null>;
+interface UsePostResult<T, B = unknown> {
+  trigger: (body?: B, extraOptions?: RequestInit) => Promise<T | null>;
   data: T | null;
   loading: boolean;
   error: Error | null;
-};
+}
 
 function createMethodHook(method: string) {
-  return function useRequest<T = any>(
+  return function useRequest<T, B = unknown>(
     url: string,
-    options: UseRequestOptions = {},
-  ): UsePostResult<T> {
+    options: UseRequestOptions<B> = {},
+  ): UsePostResult<T, B> {
     const [data, setData] = useState<T | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<Error | null>(null);
 
-    const trigger = async (body?: any, extraOptions: RequestInit = {}): Promise<T | null> => {
+    const trigger = async (body?: B, extraOptions: RequestInit = {}): Promise<T | null> => {
       setLoading(true);
       setError(null);
 
@@ -220,20 +225,22 @@ function createMethodHook(method: string) {
         ? url
         : `${import.meta.env.VITE_BACKEND_URL || ''}${url}`;
 
+      // Destructure body from options to avoid type conflict when spreading
+      const { body: optionsBody, ...restOptions } = options;
+
       try {
         const res = await authenticatedFetch(fullUrl, {
           method,
           headers: {
-            ...(options.headers || {}),
+            ...(restOptions.headers || {}),
             ...(extraOptions.headers || {}),
           },
-          // Gestion intelligente du body : si c'est un objet, on JSON.stringify, sinon on passe tel quel
           body: body
             ? JSON.stringify(body)
-            : options.body
-              ? JSON.stringify(options.body)
+            : optionsBody
+              ? JSON.stringify(optionsBody)
               : undefined,
-          ...options,
+          ...restOptions,
           ...extraOptions,
         });
 
@@ -242,8 +249,8 @@ function createMethodHook(method: string) {
         const json: T = await res.json();
         setData(json);
         return json;
-      } catch (err: any) {
-        setError(err);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err : new Error(String(err)));
         return null;
       } finally {
         setLoading(false);

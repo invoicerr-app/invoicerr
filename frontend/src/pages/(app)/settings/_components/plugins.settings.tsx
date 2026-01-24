@@ -33,6 +33,31 @@ interface InAppPluginCategories {
   plugins: InAppPlugin[];
 }
 
+interface PluginWebhookInfo {
+  webhookUrl?: string;
+  webhookSecret?: string;
+  instructions?: string[];
+}
+
+interface PluginToggleResponse extends PluginWebhookInfo {
+  success?: boolean;
+  requiresConfiguration?: boolean;
+  formConfig?: FormConfig;
+  currentConfig?: Record<string, unknown>;
+}
+
+interface PluginConfigureResponse extends PluginWebhookInfo {
+  success?: boolean;
+}
+
+interface PluginValidateResponse extends PluginWebhookInfo {
+  success?: boolean;
+}
+
+interface PluginDeleteResponse {
+  success?: boolean;
+}
+
 export default function PluginsSettings() {
   const { t } = useTranslation();
 
@@ -49,7 +74,7 @@ export default function PluginsSettings() {
   const [webhookInstructions, setWebhookInstructions] = useState<{
     pluginName: string;
     webhookUrl: string;
-    webhookSecret: string;
+    webhookSecret?: string;
     instructions: string[];
   } | null>(null);
 
@@ -57,18 +82,18 @@ export default function PluginsSettings() {
   const { data: inAppPlugins, mutate: mutateInAppPlugins } =
     useGet<InAppPluginCategories[]>('/api/plugins/in-app');
 
-  const { trigger: addPlugin, loading: addLoading } = usePost('/api/plugins');
-  const { trigger: deletePlugin, loading: deleteLoading } = useDelete('/api/plugins');
-  const { trigger: togglePlugin } = usePut(`/api/plugins/in-app/toggle`);
-  const { trigger: configurePlugin } = usePost(`/api/plugins/in-app/configure`);
-  const { trigger: validatePlugin } = usePost(`/api/plugins/in-app/validate`);
+  const { trigger: addPlugin, loading: addLoading } = usePost<Plugin>('/api/plugins');
+  const { trigger: deletePlugin, loading: deleteLoading } = useDelete<PluginDeleteResponse>('/api/plugins');
+  const { trigger: togglePlugin } = usePut<PluginToggleResponse>(`/api/plugins/in-app/toggle`);
+  const { trigger: configurePlugin } = usePost<PluginConfigureResponse>(`/api/plugins/in-app/configure`);
+  const { trigger: validatePlugin } = usePost<PluginValidateResponse>(`/api/plugins/in-app/validate`);
 
   const handleDeletePlugin = async (uuid: string) => {
     setIsDeleting(uuid);
     try {
       deletePlugin({ uuid })
         .then((response) => {
-          if (!response.success) {
+          if (!response?.success) {
             throw new Error('Failed to delete plugin');
           }
           toast.success(t('settings.plugins.messages.deleteSuccess'));
@@ -129,7 +154,7 @@ export default function PluginsSettings() {
           });
           setWebhookInstructionsOpen(true);
         }
-      } else if (response.requiresConfiguration) {
+      } else if (response.requiresConfiguration && response.formConfig) {
         setConfigFormData({
           pluginId,
           formConfig: response.formConfig,

@@ -5,6 +5,7 @@ import { Slot } from '@radix-ui/react-slot';
 import * as React from 'react';
 import {
   Controller,
+  type Control,
   type ControllerProps,
   type FieldPath,
   type FieldValues,
@@ -25,15 +26,25 @@ type FormFieldContextValue<
 
 const FormFieldContext = React.createContext<FormFieldContextValue>({} as FormFieldContextValue);
 
+// Use relaxed control type to fix react-hook-form 7.58+ type inference issues
+// when schema is defined inside component with translations
+type FormFieldProps<
+  TFieldValues extends FieldValues = FieldValues,
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
+> = Omit<ControllerProps<TFieldValues, TName>, 'control'> & {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  control: Control<TFieldValues, any, any>;
+};
+
 const FormField = <
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 >({
   ...props
-}: ControllerProps<TFieldValues, TName>) => {
+}: FormFieldProps<TFieldValues, TName>) => {
   return (
     <FormFieldContext.Provider value={{ name: props.name }}>
-      <Controller {...props} />
+      <Controller {...(props as ControllerProps<TFieldValues, TName>)} />
     </FormFieldContext.Provider>
   );
 };
