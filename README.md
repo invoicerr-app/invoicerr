@@ -139,9 +139,19 @@ Make sure port 80 is available on your host machine, or change the mapping.
    npm run start
    ```
 
-4. Open in your browser:  
-   - Frontend: `http://localhost:5173`  
+4. Open in your browser:
+   - Frontend: `http://localhost:5173`
    - API: `http://localhost:3000`
+
+---
+
+## 🤖 Claude Code Users
+
+This repository includes a `CLAUDE.md` file at the root, which provides context and instructions for [Claude Code](https://claude.ai/code) (Anthropic's CLI tool for AI-assisted development).
+
+**If you're using Claude Code to contribute to this project, you don't need to create your own `CLAUDE.md` file.** The included file contains project-specific guidelines, architecture overview, and development commands that Claude Code will automatically use.
+
+> **Note:** This file is provided as a convenience for contributors using AI-assisted development tools. It does not affect the application itself and can be safely ignored if you're not using Claude Code.
 
 ---
 
