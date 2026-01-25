@@ -22,6 +22,7 @@ import {
 import { CompanySwitcher } from './company-switcher';
 import { useCompany } from '@/contexts/company';
 import type React from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router';
 import {
@@ -57,6 +58,7 @@ export function Sidebar() {
 
   const { data, isPending: userLoading } = authClient.useSession();
   const { activeCompany, isLoading: companyLoading } = useCompany();
+  const [showCreateCompanyModal, setShowCreateCompanyModal] = useState(false);
 
   const { setTheme } = useTheme();
   const navigate = useNavigate();
@@ -135,14 +137,16 @@ export function Sidebar() {
     <RootSidebar collapsible="icon">
       <OnBoarding
         isOpen={
-          !companyLoading &&
-          (!activeCompany || !activeCompany.name) &&
-          location.pathname !== '/settings/company'
+          showCreateCompanyModal ||
+          (!companyLoading &&
+            (!activeCompany || !activeCompany.name) &&
+            location.pathname !== '/settings/company')
         }
+        onClose={() => setShowCreateCompanyModal(false)}
       />
 
       <SidebarHeader className="px-2">
-        <CompanySwitcher />
+        <CompanySwitcher onCreateNew={() => setShowCreateCompanyModal(true)} />
       </SidebarHeader>
 
       <SidebarContent className="px-2">

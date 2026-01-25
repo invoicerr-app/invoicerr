@@ -17,7 +17,11 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCompany } from '@/contexts/company';
 
-export function CompanySwitcher() {
+interface CompanySwitcherProps {
+  onCreateNew?: () => void;
+}
+
+export function CompanySwitcher({ onCreateNew }: CompanySwitcherProps) {
   const { t } = useTranslation();
   const { isMobile } = useSidebar();
   const { companies, activeCompanyId, activeCompany, isLoading, switchCompany } = useCompany();
@@ -41,21 +45,19 @@ export function CompanySwitcher() {
     );
   }
 
-  // If user has only one company, show simple header without dropdown
-  if (companies.length <= 1) {
+  // If user has no companies, show prompt to create one
+  if (companies.length === 0) {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton size="lg" asChild data-cy="company-switcher">
+          <SidebarMenuButton size="lg" asChild data-cy="company-switcher-empty">
             <section className="flex items-center gap-2">
               <div className="bg-accent text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                <Building2 className="size-4" />
+                <PlusCircle className="size-4" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">
-                  {activeCompany?.name || activeCompanyData?.companyName || t('sidebar.company.noCompany')}
-                </span>
-                <span className="truncate text-xs">{t('sidebar.company.plan')}</span>
+                <span className="truncate font-medium">{t('sidebar.company.noCompany')}</span>
+                <span className="truncate text-xs">{t('sidebar.company.createNew')}</span>
               </div>
             </section>
           </SidebarMenuButton>
@@ -64,6 +66,7 @@ export function CompanySwitcher() {
     );
   }
 
+  // Always show dropdown when user has companies (allows switching and creating new)
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -112,7 +115,11 @@ export function CompanySwitcher() {
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
-            <DropdownMenuItem data-cy="company-create-new" className="cursor-pointer gap-2 p-2">
+            <DropdownMenuItem
+              data-cy="company-create-new"
+              className="cursor-pointer gap-2 p-2"
+              onClick={() => onCreateNew?.()}
+            >
               <div className="flex size-6 items-center justify-center rounded-md border bg-background">
                 <PlusCircle className="size-4" />
               </div>

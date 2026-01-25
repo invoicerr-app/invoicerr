@@ -12,12 +12,14 @@ interface CompanyContextValue {
   activeCompanyId: string | null;
   /** Currently active company details */
   activeCompany: Company | null;
-  /** Whether companies are loading */
+  /** Whether companies are loading (true until both companies list AND active company are loaded) */
   isLoading: boolean;
   /** Switch to a different company */
   switchCompany: (companyId: string) => void;
   /** Refresh the companies list */
   refreshCompanies: () => Promise<void>;
+  /** Set active company directly (used after creation to avoid refetch race) */
+  setActiveCompanyDirect: (company: Company) => void;
 }
 
 const CompanyContext = createContext<CompanyContextValue | null>(null);
@@ -35,7 +37,8 @@ export function CompanyProvider({ children }: CompanyProviderProps) {
     return null;
   });
   const [activeCompany, setActiveCompany] = useState<Company | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isCompaniesLoading, setIsCompaniesLoading] = useState(true);
+  const [isActiveCompanyLoading, setIsActiveCompanyLoading] = useState(true);
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
 
@@ -45,15 +48,24 @@ export function CompanyProvider({ children }: CompanyProviderProps) {
       if (response.ok) {
         const data = await response.json();
         setCompanies(data);
+        // If no companies exist, we're done loading
+        if (data.length === 0) {
+          setIsActiveCompanyLoading(false);
+        }
+      } else {
+        // If fetch fails, still mark as done loading
+        setIsActiveCompanyLoading(false);
       }
     } catch (error) {
       console.error('Failed to fetch companies:', error);
+      setIsActiveCompanyLoading(false);
     } finally {
-      setIsLoading(false);
+      setIsCompaniesLoading(false);
     }
   }, [backendUrl]);
 
   const fetchActiveCompany = useCallback(async (companyId: string) => {
+    setIsActiveCompanyLoading(true);
     try {
       const response = await authenticatedFetch(`${backendUrl}/api/company/info`, {
         headers: {
@@ -62,15 +74,39 @@ export function CompanyProvider({ children }: CompanyProviderProps) {
       });
       if (response.ok) {
         const data = await response.json();
-        setActiveCompany(data);
+        // Check if we got actual company data (not empty object)
+        if (data && data.id && data.name) {
+          setActiveCompany(data);
+        } else {
+          // Empty response means company not found or no access
+          console.warn('Company info returned empty, clearing activeCompany');
+          setActiveCompany(null);
+          // Clear invalid companyId from localStorage
+          localStorage.removeItem(STORAGE_KEY);
+          setActiveCompanyId(null);
+        }
+      } else {
+        console.error('Failed to fetch company info:', response.status);
+        setActiveCompany(null);
+        // Clear invalid companyId on error
+        localStorage.removeItem(STORAGE_KEY);
+        setActiveCompanyId(null);
       }
     } catch (error) {
       console.error('Failed to fetch active company:', error);
+      setActiveCompany(null);
+      // Clear invalid companyId on error
+      localStorage.removeItem(STORAGE_KEY);
+      setActiveCompanyId(null);
+    } finally {
+      setIsActiveCompanyLoading(false);
     }
   }, [backendUrl]);
 
   const switchCompany = useCallback(async (companyId: string) => {
-    setActiveCompanyId(companyId);
+    // Don't switch if already on this company
+    if (companyId === activeCompanyId) return;
+
     localStorage.setItem(STORAGE_KEY, companyId);
     // Update default company on backend
     try {
@@ -79,15 +115,24 @@ export function CompanyProvider({ children }: CompanyProviderProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId }),
       });
+      // Reload the page to refresh all data with new company context
+      window.location.reload();
     } catch (error) {
       console.error('Failed to set default company:', error);
     }
-  }, [backendUrl]);
+  }, [backendUrl, activeCompanyId]);
 
   const refreshCompanies = useCallback(async () => {
-    setIsLoading(true);
+    setIsCompaniesLoading(true);
     await fetchCompanies();
   }, [fetchCompanies]);
+
+  const setActiveCompanyDirect = useCallback((company: Company) => {
+    setActiveCompanyId(company.id);
+    setActiveCompany(company);
+    setIsActiveCompanyLoading(false);
+    localStorage.setItem(STORAGE_KEY, company.id);
+  }, []);
 
   // Fetch companies on mount
   useEffect(() => {
@@ -100,8 +145,12 @@ export function CompanyProvider({ children }: CompanyProviderProps) {
       fetchActiveCompany(activeCompanyId);
     } else {
       setActiveCompany(null);
+      // Only mark as not loading if companies are also done loading
+      if (!isCompaniesLoading) {
+        setIsActiveCompanyLoading(false);
+      }
     }
-  }, [activeCompanyId, fetchActiveCompany]);
+  }, [activeCompanyId, fetchActiveCompany, isCompaniesLoading]);
 
   // Auto-select first company if none is selected
   useEffect(() => {
@@ -109,6 +158,9 @@ export function CompanyProvider({ children }: CompanyProviderProps) {
       switchCompany(companies[0].companyId);
     }
   }, [activeCompanyId, companies, switchCompany]);
+
+  // Combined loading state: true until both companies list AND active company are loaded
+  const isLoading = isCompaniesLoading || isActiveCompanyLoading;
 
   const value = useMemo<CompanyContextValue>(
     () => ({
@@ -118,8 +170,9 @@ export function CompanyProvider({ children }: CompanyProviderProps) {
       isLoading,
       switchCompany,
       refreshCompanies,
+      setActiveCompanyDirect,
     }),
-    [companies, activeCompanyId, activeCompany, isLoading, switchCompany, refreshCompanies],
+    [companies, activeCompanyId, activeCompany, isLoading, switchCompany, refreshCompanies, setActiveCompanyDirect],
   );
 
   return <CompanyContext.Provider value={value}>{children}</CompanyContext.Provider>;

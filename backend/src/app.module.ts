@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { AuthGuard } from '@/guards/auth.guard';
+import { CompanyGuard } from '@/guards/company.guard';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { auth } from './lib/auth';
@@ -64,6 +65,10 @@ import { PrismaModule } from './prisma/prisma.module';
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: CompanyGuard,
     },
   ],
 })

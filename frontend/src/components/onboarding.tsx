@@ -37,6 +37,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { useCompany } from '@/contexts/company';
 import { useCountryIdentifiers } from '@/hooks/use-compliance';
 import { usePost } from '@/hooks/use-fetch';
 import type { Company } from '@/types';
@@ -45,6 +46,7 @@ import { StepIndicator } from './step-indicator';
 interface OnBoardingProps {
   isLoading?: boolean;
   isOpen?: boolean;
+  onClose?: () => void;
 }
 
 export interface OnBoardingData {
@@ -70,7 +72,7 @@ export interface OnBoardingData {
   exemptVat?: boolean;
 }
 
-export default function OnBoarding({ isLoading: externalLoading, isOpen = true }: OnBoardingProps) {
+export default function OnBoarding({ isLoading: externalLoading, isOpen = true, onClose }: OnBoardingProps) {
   const { t } = useTranslation();
   const STEPS = [
     { id: 'basic', label: t('onboarding.steps.basic') },
@@ -84,6 +86,7 @@ export default function OnBoarding({ isLoading: externalLoading, isOpen = true }
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
 
   const { trigger } = usePost<Company>('/api/company/create');
+  const { refreshCompanies, setActiveCompanyDirect } = useCompany();
 
   const ALLOWED_DATE_FORMATS = [
     'dd/MM/yyyy',
@@ -249,8 +252,16 @@ export default function OnBoarding({ isLoading: externalLoading, isOpen = true }
   async function onSubmit(values: OnBoardingData) {
     setIsLoading(true);
     try {
-      await trigger(values);
-      toast.success(t('settings.company.messages.updateSuccess'));
+      const newCompany = await trigger(values);
+      if (newCompany?.id) {
+        // Set the active company directly to avoid race condition with fetchActiveCompany
+        setActiveCompanyDirect(newCompany);
+        // Refresh the companies list in background
+        refreshCompanies();
+        toast.success(t('settings.company.messages.updateSuccess'));
+        // Close modal if callback provided
+        onClose?.();
+      }
     } catch (error) {
       console.error('Error during onboarding:', error);
       toast.error(t('settings.company.messages.updateError'));
