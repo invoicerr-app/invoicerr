@@ -181,7 +181,7 @@ export default function CreditNotePage() {
 
       toast.success(t('invoices.creditNote.success'));
       navigate('/invoices');
-    } catch (error) {
+    } catch (_error) {
       toast.error(t('invoices.creditNote.errors.createFailed'));
     } finally {
       setIsSubmitting(false);

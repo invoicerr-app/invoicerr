@@ -210,7 +210,7 @@ export default function CorrectiveInvoicePage() {
 
       toast.success(t('invoices.correctiveInvoice.success'));
       navigate('/invoices');
-    } catch (error) {
+    } catch (_error) {
       toast.error(t('invoices.correctiveInvoice.errors.createFailed'));
     } finally {
       setIsSubmitting(false);

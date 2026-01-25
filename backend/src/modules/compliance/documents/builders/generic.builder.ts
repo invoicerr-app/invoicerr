@@ -10,13 +10,8 @@ import {
   GenerateDocumentRequest,
   OutputFormat,
 } from '../document.types';
+import { creditNoteTemplate, invoiceTemplate, quoteTemplate, receiptTemplate } from '../templates';
 import { BaseDocumentBuilder } from './base.builder';
-import {
-  invoiceTemplate,
-  quoteTemplate,
-  receiptTemplate,
-  creditNoteTemplate,
-} from '../templates';
 
 /**
  * Generic builder for simple PDF documents

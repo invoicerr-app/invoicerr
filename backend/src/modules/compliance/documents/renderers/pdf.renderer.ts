@@ -14,11 +14,7 @@ export class PDFRenderer implements IDocumentRenderer {
   /**
    * Render HTML to PDF
    */
-  async render(
-    html: string,
-    format: OutputFormat,
-    options?: RenderOptions,
-  ): Promise<Buffer> {
+  async render(html: string, _format: OutputFormat, options?: RenderOptions): Promise<Buffer> {
     let browser: Browser | null = null;
 
     try {
@@ -72,11 +68,7 @@ export class PDFRenderer implements IDocumentRenderer {
   /**
    * Render HTML to PDF with custom page size
    */
-  async renderWithSize(
-    html: string,
-    width: string,
-    height: string,
-  ): Promise<Buffer> {
+  async renderWithSize(html: string, width: string, height: string): Promise<Buffer> {
     let browser: Browser | null = null;
 
     try {

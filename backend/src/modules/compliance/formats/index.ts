@@ -11,9 +11,4 @@ export {
 export { FormatService } from './format.service';
 
 // Generators
-export {
-  BaseFormatGenerator,
-  UBLGenerator,
-  FacturXGenerator,
-  FatturaPAGenerator,
-} from './generators';
+export { BaseFormatGenerator } from './generators';

@@ -2,13 +2,13 @@
  * Document Renderers Index
  */
 
-export { PDFRenderer } from './pdf.renderer';
 export { HybridRenderer } from './hybrid.renderer';
+export { PDFRenderer } from './pdf.renderer';
 export { XMLRenderer } from './xml.renderer';
 
 import { OutputFormat } from '../document.types';
-import { PDFRenderer } from './pdf.renderer';
 import { HybridRenderer } from './hybrid.renderer';
+import { PDFRenderer } from './pdf.renderer';
 import { XMLRenderer } from './xml.renderer';
 
 /**

@@ -4,8 +4,8 @@
 
 import {
   baseStyles,
-  notesSection,
   legalMentionsSection,
+  notesSection,
   qrCodeSection,
   qrCodeTopSection,
 } from './base.template';

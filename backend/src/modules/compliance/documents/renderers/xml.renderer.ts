@@ -16,11 +16,7 @@ export class XMLRenderer implements IDocumentRenderer {
    * Note: This renderer expects the XML to be passed in options.xml
    * The HTML parameter is ignored for pure XML output
    */
-  async render(
-    _html: string,
-    _format: OutputFormat,
-    options?: RenderOptions,
-  ): Promise<Buffer> {
+  async render(_html: string, _format: OutputFormat, options?: RenderOptions): Promise<Buffer> {
     if (!options?.xml) {
       throw new Error('XML content is required for XML output format');
     }
@@ -62,7 +58,7 @@ export class XMLRenderer implements IDocumentRenderer {
       if (node.match(/^\/\w/)) {
         pad -= 1;
       }
-      formatted += indent.repeat(pad) + '<' + node + '>\n';
+      formatted += `${indent.repeat(pad)}<${node}>\n`;
       if (node.match(/^<?\w[^>]*[^/]$/) && !node.startsWith('?')) {
         pad += 1;
       }

@@ -4,6 +4,7 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
+import { AFRelationship, PDFDocument } from 'pdf-lib';
 import { IDocumentRenderer, OutputFormat, RenderOptions } from '../document.types';
 import { PDFRenderer } from './pdf.renderer';
 
@@ -19,11 +20,7 @@ export class HybridRenderer implements IDocumentRenderer {
   /**
    * Render HTML to PDF/A-3 with embedded XML
    */
-  async render(
-    html: string,
-    format: OutputFormat,
-    options?: RenderOptions,
-  ): Promise<Buffer> {
+  async render(html: string, format: OutputFormat, options?: RenderOptions): Promise<Buffer> {
     // First, generate the base PDF
     const pdfBuffer = await this.pdfRenderer.render(html, format, {
       ...options,
@@ -39,10 +36,7 @@ export class HybridRenderer implements IDocumentRenderer {
     try {
       return await this.embedXmlInPdf(pdfBuffer, options.xml, options.xmlSyntax);
     } catch (error) {
-      this.logger.warn(
-        'Failed to embed XML in PDF, returning plain PDF',
-        error,
-      );
+      this.logger.warn('Failed to embed XML in PDF, returning plain PDF', error);
       return pdfBuffer;
     }
   }
@@ -60,7 +54,6 @@ export class HybridRenderer implements IDocumentRenderer {
     syntax?: 'ubl' | 'cii' | 'fatturapa',
   ): Promise<Buffer> {
     // Dynamic import of pdf-lib
-    const { PDFDocument, PDFName, AFRelationship } = await import('pdf-lib');
 
     // Load the PDF
     const pdfDoc = await PDFDocument.load(pdfBuffer);

@@ -247,7 +247,7 @@ export function calculateRetryDelay(
   attempt: number,
   config: RetryConfig = DEFAULT_RETRY_CONFIG,
 ): number {
-  const baseDelay = config.initialDelayMs * Math.pow(config.backoffMultiplier, attempt - 1);
+  const baseDelay = config.initialDelayMs * config.backoffMultiplier ** (attempt - 1);
   const cappedDelay = Math.min(baseDelay, config.maxDelayMs);
 
   // Add jitter (0-25% of delay) to prevent thundering herd

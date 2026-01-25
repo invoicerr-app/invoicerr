@@ -3,16 +3,16 @@
  */
 
 export * from './base.template';
+export { creditNoteTemplate } from './credit-note.template';
 export { invoiceTemplate } from './invoice.template';
 export { quoteTemplate } from './quote.template';
 export { receiptTemplate } from './receipt.template';
-export { creditNoteTemplate } from './credit-note.template';
 
 import { DocumentType } from '../document.types';
+import { creditNoteTemplate } from './credit-note.template';
 import { invoiceTemplate } from './invoice.template';
 import { quoteTemplate } from './quote.template';
 import { receiptTemplate } from './receipt.template';
-import { creditNoteTemplate } from './credit-note.template';
 
 /**
  * Get template for document type

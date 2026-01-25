@@ -1,40 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { CountryConfig } from '../interfaces';
-import { beConfig } from './countries/be.config';
-import { deConfig } from './countries/de.config';
-import { esConfig } from './countries/es.config';
-import { frConfig } from './countries/fr.config';
-import { inConfig } from './countries/in.config';
-import { itConfig } from './countries/it.config';
-import { plConfig } from './countries/pl.config';
-import { ptConfig } from './countries/pt.config';
-import { usConfig } from './countries/us.config';
 import { genericConfig } from './generic.config';
 
 /**
- * Registry of all country configurations
+ * Registry of country configurations
  *
- * Countries are categorized by compliance strictness:
- * - PERMISSIVE: US (no mandatory e-invoicing, editable invoices, flexible numbering)
- * - MODERATE: FR, DE, BE (e-invoicing with deadlines, credit notes required)
- * - STRICT: IT, ES, PT (clearance/hash chain, real-time reporting)
- * - VERY STRICT: IN (mandatory IRN, 24h deadline, QR code, no modifications)
+ * Currently only generic config is available.
+ * Country-specific configs (FR, PL, etc.) can be added manually.
  */
-const configs: Record<string, CountryConfig> = {
-  // Permissive
-  US: usConfig,
-  // Moderate (EU standard)
-  FR: frConfig,
-  DE: deConfig,
-  BE: beConfig,
-  // Strict (EU with special requirements)
-  IT: itConfig,
-  ES: esConfig,
-  PT: ptConfig,
-  // Very strict (clearance model)
-  IN: inConfig,
-  PL: plConfig,
-};
+const configs: Record<string, CountryConfig> = {};
 
 /**
  * Get configuration for a specific country
@@ -121,14 +95,5 @@ export class ConfigRegistry {
   }
 }
 
-// Re-export configs for direct access
+// Re-export generic config
 export { genericConfig };
-export { frConfig } from './countries/fr.config';
-export { deConfig } from './countries/de.config';
-export { beConfig } from './countries/be.config';
-export { itConfig } from './countries/it.config';
-export { esConfig } from './countries/es.config';
-export { ptConfig } from './countries/pt.config';
-export { plConfig } from './countries/pl.config';
-export { usConfig } from './countries/us.config';
-export { inConfig } from './countries/in.config';

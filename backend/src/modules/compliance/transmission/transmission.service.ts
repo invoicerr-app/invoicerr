@@ -1,18 +1,19 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { TransmissionStatus } from '../interfaces';
-import { ChorusTransmissionStrategy } from './strategies/chorus.strategy';
 import { EmailTransmissionStrategy } from './strategies/email.strategy';
-import { PeppolTransmissionStrategy } from './strategies/peppol.strategy';
-import { SaftTransmissionStrategy } from './strategies/saft.strategy';
-import { SdITransmissionStrategy } from './strategies/sdi.strategy';
-import { SuperPDPTransmissionStrategy } from './strategies/superpdp.strategy';
-import { VerifactuTransmissionStrategy } from './strategies/verifactu.strategy';
 import {
   TransmissionPayload,
   TransmissionResult,
   TransmissionStrategy,
 } from './transmission.interface';
 
+/**
+ * Transmission Service
+ *
+ * Orchestrates invoice transmission via different platforms.
+ * Currently only email is available.
+ * Country-specific strategies (Chorus, SdI, KSeF, etc.) can be added manually.
+ */
 @Injectable()
 export class TransmissionService {
   private readonly logger = new Logger(TransmissionService.name);
@@ -20,45 +21,17 @@ export class TransmissionService {
 
   constructor(
     private readonly emailStrategy: EmailTransmissionStrategy,
-    @Optional() private readonly superPDPStrategy: SuperPDPTransmissionStrategy,
-    @Optional() private readonly chorusStrategy: ChorusTransmissionStrategy,
-    @Optional() private readonly peppolStrategy: PeppolTransmissionStrategy,
-    @Optional() private readonly sdiStrategy: SdITransmissionStrategy,
-    @Optional() private readonly verifactuStrategy: VerifactuTransmissionStrategy,
-    @Optional() private readonly saftStrategy: SaftTransmissionStrategy,
   ) {
-    // Type guard to filter out null/undefined strategies from @Optional() injections
-    const isStrategy = (s: TransmissionStrategy | null | undefined): s is TransmissionStrategy => s != null;
-
-    // Map strategy names to instances for logging unavailable strategies
-    const optionalStrategies: Record<string, TransmissionStrategy | null | undefined> = {
-      SuperPDP: this.superPDPStrategy,
-      Chorus: this.chorusStrategy,
-      Peppol: this.peppolStrategy,
-      SdI: this.sdiStrategy,
-      Verifactu: this.verifactuStrategy,
-      SAF_T: this.saftStrategy,
-    };
-
-    // Log which optional strategies are unavailable (missing configuration)
-    const unavailable = Object.entries(optionalStrategies)
-      .filter(([, strategy]) => !strategy)
-      .map(([name]) => name);
-    if (unavailable.length > 0) {
-      this.logger.debug(`Optional strategies not loaded (missing configuration): ${unavailable.join(', ')}`);
-    }
-
-    this.strategies = [
-      this.emailStrategy,
-      this.superPDPStrategy,
-      this.chorusStrategy,
-      this.peppolStrategy,
-      this.sdiStrategy,
-      this.verifactuStrategy,
-      this.saftStrategy,
-    ].filter(isStrategy);
-
+    this.strategies = [this.emailStrategy];
     this.logger.log(`Loaded ${this.strategies.length} transmission strategies: ${this.getAvailableStrategies().join(', ')}`);
+  }
+
+  /**
+   * Register a transmission strategy
+   */
+  registerStrategy(strategy: TransmissionStrategy): void {
+    this.strategies.push(strategy);
+    this.logger.log(`Registered strategy: ${strategy.name}`);
   }
 
   /**

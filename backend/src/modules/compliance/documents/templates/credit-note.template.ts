@@ -5,11 +5,11 @@
 import {
   baseStyles,
   itemsTable,
-  totalsSection,
-  notesSection,
   legalMentionsSection,
+  notesSection,
   qrCodeSection,
   qrCodeTopSection,
+  totalsSection,
 } from './base.template';
 
 export const creditNoteTemplate = `

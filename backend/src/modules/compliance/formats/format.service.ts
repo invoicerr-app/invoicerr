@@ -1,41 +1,34 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { FormatConfig } from '../interfaces/format.interface';
 import { FormatGenerator, FormatResult, InvoiceData } from './format.interface';
-import { FacturXGenerator } from './generators/facturx.generator';
-import { FatturaPAGenerator } from './generators/fatturapa.generator';
-import { KSeFFA3Generator } from './generators/ksef-fa3.generator';
-import { UBLGenerator } from './generators/ubl.generator';
 
 /**
  * Format Service - Orchestrator for e-invoice format generation
  *
  * Selects the appropriate generator based on format configuration
  * and generates XML content for invoices.
+ *
+ * Note: Country-specific generators (Factur-X, FatturaPA, UBL, KSeF)
+ * need to be implemented and registered manually.
  */
 @Injectable()
 export class FormatService {
   private readonly logger = new Logger(FormatService.name);
-  private readonly generators: FormatGenerator[];
+  private readonly generators: FormatGenerator[] = [];
 
-  constructor(
-    @Optional() private readonly ublGenerator?: UBLGenerator,
-    @Optional() private readonly facturXGenerator?: FacturXGenerator,
-    @Optional() private readonly fatturaPAGenerator?: FatturaPAGenerator,
-    @Optional() private readonly ksefFA3Generator?: KSeFFA3Generator,
-  ) {
-    // Build list of available generators
-    const availableGenerators: FormatGenerator[] = [];
-
-    if (this.ublGenerator) availableGenerators.push(this.ublGenerator);
-    if (this.facturXGenerator) availableGenerators.push(this.facturXGenerator);
-    if (this.fatturaPAGenerator) availableGenerators.push(this.fatturaPAGenerator);
-    if (this.ksefFA3Generator) availableGenerators.push(this.ksefFA3Generator);
-
-    this.generators = availableGenerators;
-
+  constructor() {
+    // No generators by default - add country-specific generators manually
     this.logger.log(
-      `FormatService initialized with ${this.generators.length} generators: ${this.generators.map((g) => g.name).join(', ')}`,
+      `FormatService initialized with ${this.generators.length} generators`,
     );
+  }
+
+  /**
+   * Register a format generator
+   */
+  registerGenerator(generator: FormatGenerator): void {
+    this.generators.push(generator);
+    this.logger.log(`Registered generator: ${generator.name}`);
   }
 
   /**
@@ -53,7 +46,7 @@ export class FormatService {
         success: false,
         format,
         syntax: config.syntax,
-        error: `Unsupported format: ${format}. Available formats: ${this.getSupportedFormats().join(', ')}`,
+        error: `Unsupported format: ${format}. Available formats: ${this.getSupportedFormats().join(', ') || 'none'}`,
       };
     }
 

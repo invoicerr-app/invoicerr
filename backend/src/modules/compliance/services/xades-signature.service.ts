@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as crypto from 'crypto';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as crypto from 'node:crypto';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 export interface XadesSignatureInput {
   certificatePath: string;
@@ -33,7 +33,7 @@ interface CertificateInfo {
 export class XadesSignatureService {
   private readonly logger = new Logger(XadesSignatureService.name);
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(readonly _configService: ConfigService) {}
 
   /**
    * Sign XML with XAdES-BES signature (required for FatturaPA)
@@ -294,7 +294,7 @@ export class XadesSignatureService {
     signatureValue: string,
     keyInfo: string,
     signedProperties: string,
-    signedPropertiesId: string,
+    _signedPropertiesId: string,
   ): string {
     return `<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Id="${signatureId}">
 ${signedInfo}

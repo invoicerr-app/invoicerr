@@ -5,12 +5,12 @@
 import {
   baseStyles,
   itemsTable,
-  totalsSection,
-  paymentSection,
-  notesSection,
   legalMentionsSection,
+  notesSection,
+  paymentSection,
   qrCodeSection,
   qrCodeTopSection,
+  totalsSection,
 } from './base.template';
 
 export const quoteTemplate = `

@@ -26,7 +26,7 @@ export type TransmissionStatus =
  * Platform option for multi-platform support
  */
 export interface PlatformOption {
-  /** Platform identifier (e.g., 'chorus', 'sdi', 'superpdp') */
+  /** Platform identifier */
   id: string;
   /** i18n label key */
   labelKey: string;
@@ -48,9 +48,9 @@ export interface PlatformOption {
 export interface TransmissionConfig {
   /** Transmission model */
   model: TransmissionModel;
-  /** Default platform identifier (e.g., 'chorus', 'sdi', 'ksef', 'superpdp', 'nav') */
+  /** Default platform identifier */
   platform?: string;
-  /** Available platforms for this model (for multi-platform models like PDP) */
+  /** Available platforms for this model */
   platforms?: PlatformOption[];
   /** i18n label key */
   labelKey: string;
@@ -92,26 +92,25 @@ export interface TransmissionPayload {
     name: string;
     /** ISO 3166-1 alpha-2 country code */
     country?: string;
-    siret?: string;
+    /** VAT number */
     vatNumber?: string;
-    /** Peppol participant ID */
-    peppolId?: string;
-    /** Italy: Codice Destinatario or PEC */
-    codiceDestinatario?: string;
-    pec?: string;
-    /** Poland: KSeF recipient number */
-    ksefNumber?: string;
+    /** Country-specific identifiers (e.g., SIRET, NIP, Codice Fiscale) */
+    nationalId?: string;
+    /** Platform-specific recipient ID */
+    platformId?: string;
   };
   /** Sender information */
   sender: {
     email: string;
     name: string;
-    siret?: string;
+    /** VAT number */
     vatNumber?: string;
-    /** Peppol participant ID */
-    peppolId?: string;
+    /** Country-specific identifier */
+    nationalId?: string;
+    /** Platform-specific sender ID */
+    platformId?: string;
   };
-  /** Additional metadata */
+  /** Additional metadata (country-specific fields go here) */
   metadata: Record<string, unknown>;
 }
 
@@ -121,7 +120,7 @@ export interface TransmissionPayload {
 export interface TransmissionResult {
   /** Was transmission successful */
   success: boolean;
-  /** External ID assigned by platform (KSeF ID, IRN, MARK, etc.) */
+  /** External ID assigned by platform */
   externalId?: string;
   /** Status of the transmission */
   status?: TransmissionStatus;
@@ -133,7 +132,7 @@ export interface TransmissionResult {
   errorCode?: string;
   /** Human-readable message */
   message?: string;
-  /** Additional platform-specific metadata (e.g., hash chain data, signatures) */
+  /** Additional platform-specific metadata */
   metadata?: Record<string, unknown>;
 }
 

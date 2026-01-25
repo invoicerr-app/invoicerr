@@ -36,10 +36,13 @@ export class CompanyService {
 
   constructor(private readonly webhookDispatcher: WebhookDispatcherService) {}
 
-  async getCompanyInfo() {
-    const company = await prisma.company.findFirst({ include: { emailTemplates: true } });
+  async getCompanyInfo(companyId: string) {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      include: { emailTemplates: true },
+    });
     if (!company) {
-      logger.warn('No company found', { category: 'company' });
+      logger.warn('Company not found', { category: 'company', details: { companyId } });
       return null;
     }
     await prisma.$transaction([
@@ -108,16 +111,22 @@ export class CompanyService {
         details: { companyId: company.id, hash },
       });
     }
-    return await prisma.company.findFirst();
+    return await prisma.company.findUnique({
+      where: { id: companyId },
+    });
   }
 
-  async getPDFTemplateConfig(): Promise<PDFConfigDto> {
-    const existingCompany = await prisma.company.findFirst({
+  async getPDFTemplateConfig(companyId: string): Promise<PDFConfigDto> {
+    const existingCompany = await prisma.company.findUnique({
+      where: { id: companyId },
       include: { pdfConfig: true },
     });
 
     if (!existingCompany?.pdfConfig) {
-      logger.error('No PDF configuration found for the company', { category: 'company' });
+      logger.error('No PDF configuration found for the company', {
+        category: 'company',
+        details: { companyId },
+      });
       throw new BadRequestException('No PDF configuration found for the company');
     }
 
@@ -177,13 +186,17 @@ export class CompanyService {
     };
   }
 
-  async editPDFTemplateConfig(pdfConfig: PDFConfigDto) {
-    const existingCompany = await prisma.company.findFirst({
+  async editPDFTemplateConfig(companyId: string, pdfConfig: PDFConfigDto) {
+    const existingCompany = await prisma.company.findUnique({
+      where: { id: companyId },
       include: { pdfConfig: true },
     });
 
     if (!existingCompany?.pdfConfig) {
-      logger.error('No PDF configuration found for the company', { category: 'company' });
+      logger.error('No PDF configuration found for the company', {
+        category: 'company',
+        details: { companyId },
+      });
       throw new BadRequestException('No PDF configuration found for the company');
     }
 
@@ -264,87 +277,120 @@ export class CompanyService {
     return updatedConfig;
   }
 
-  async editCompanyInfo(editCompanyDto: EditCompanyDto) {
+  async editCompanyInfo(companyId: string, editCompanyDto: EditCompanyDto) {
     const data = { ...editCompanyDto };
-    const existingCompany = await prisma.company.findFirst();
+    const existingCompany = await prisma.company.findUnique({
+      where: { id: companyId },
+    });
 
-    if (existingCompany) {
-      const { pdfConfig, ...rest } = data;
-
-      const updatedCompany = await prisma.company.update({
-        where: { id: existingCompany.id },
-        data: {
-          ...rest,
-        },
-      });
-
-      logger.info('Company info updated', {
-        category: 'company',
-        details: { companyId: updatedCompany.id },
-      });
-
-      try {
-        await this.webhookDispatcher.dispatch(WebhookEvent.COMPANY_UPDATED, {
-          company: updatedCompany,
-        });
-      } catch (error) {
-        logger.error('Failed to dispatch COMPANY_UPDATED webhook', {
-          category: 'company',
-          details: { error },
-        });
-      }
-
-      return updatedCompany;
-    } else {
-      const newCompany = await prisma.company.create({
-        data: {
-          ...data,
-          pdfConfig: {
-            create: {},
-          },
-          emailTemplates: {
-            createMany: {
-              data: [
-                {
-                  type: 'SIGNATURE_REQUEST',
-                  subject: 'Please sign document #{{SIGNATURE_NUMBER}}',
-                  body: '<h2>Document Signature Required</h2><p>Hello,</p><p>You have been requested to sign the following document:</p><div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">  <strong>Document:</strong> {{SIGNATURE_NUMBER}}<br>  <strong>Signature ID:</strong> {{SIGNATURE_ID}}</div><p>Please click the button below to review and sign the document:</p><div style="text-align: center; margin: 30px 0;">  <a href="{{SIGNATURE_URL}}" style="background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Sign Document</a></div><p>If you have any questions, please don\'t hesitate to contact us.</p><p>Best regards,<br>The Invoicerr Team</p><hr><p style="font-size: 12px; color: #666;">This email was sent from {{APP_URL}}</p>',
-                },
-                {
-                  type: 'VERIFICATION_CODE',
-                  subject: 'Your verification code',
-                  body: '<p>Hello,</p><p>Here is your verification code:</p><div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">  <div style="font-size: 32px; font-weight: bold; color: #007bff; letter-spacing: 4px; font-family: monospace;">{{OTP_CODE}}</div></div><p>This code will expire in 10 minutes. Please enter it in the application to complete your verification.</p><p>If you didn\'t request this code, please ignore this email.</p><p>Best regards,<br>The Invoicerr Team</p>',
-                },
-                {
-                  type: 'INVOICE',
-                  subject: 'Invoice #{{INVOICE_NUMBER}} from {{COMPANY_NAME}}',
-                  body: '<p>Dear {{CLIENT_NAME}},</p><p>Please find attached the invoice #{{INVOICE_NUMBER}} from {{COMPANY_NAME}}.</p><p>Thank you for your business!</p><p>Best regards,<br>{{COMPANY_NAME}}</p><hr><p style="font-size: 12px; color: #666;">This email was sent from {{APP_URL}}</p>',
-                },
-              ],
-            },
-          },
-        },
-      });
-
-      try {
-        await this.webhookDispatcher.dispatch(WebhookEvent.COMPANY_CREATED, {
-          company: newCompany,
-        });
-      } catch (error) {
-        logger.error('Failed to dispatch COMPANY_CREATED webhook', error);
-      }
-
-      return newCompany;
+    if (!existingCompany) {
+      logger.error('Company not found', { category: 'company', details: { companyId } });
+      throw new BadRequestException('Company not found');
     }
+
+    const { pdfConfig, ...rest } = data;
+
+    const updatedCompany = await prisma.company.update({
+      where: { id: companyId },
+      data: {
+        ...rest,
+      },
+    });
+
+    logger.info('Company info updated', {
+      category: 'company',
+      details: { companyId: updatedCompany.id },
+    });
+
+    try {
+      await this.webhookDispatcher.dispatch(WebhookEvent.COMPANY_UPDATED, {
+        company: updatedCompany,
+      });
+    } catch (error) {
+      logger.error('Failed to dispatch COMPANY_UPDATED webhook', {
+        category: 'company',
+        details: { error },
+      });
+    }
+
+    return updatedCompany;
   }
 
-  async getEmailTemplates(): Promise<EmailTemplate[]> {
-    const existingCompany = await prisma.company.findFirst({
+  /**
+   * Create a new company (for multi-tenant setup)
+   * This should be called when a user creates a new company
+   */
+  async createCompany(userId: string, data: EditCompanyDto) {
+    const newCompany = await prisma.company.create({
+      data: {
+        ...data,
+        pdfConfig: {
+          create: {},
+        },
+        emailTemplates: {
+          createMany: {
+            data: [
+              {
+                type: 'SIGNATURE_REQUEST',
+                subject: 'Please sign document #{{SIGNATURE_NUMBER}}',
+                body: '<h2>Document Signature Required</h2><p>Hello,</p><p>You have been requested to sign the following document:</p><div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">  <strong>Document:</strong> {{SIGNATURE_NUMBER}}<br>  <strong>Signature ID:</strong> {{SIGNATURE_ID}}</div><p>Please click the button below to review and sign the document:</p><div style="text-align: center; margin: 30px 0;">  <a href="{{SIGNATURE_URL}}" style="background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Sign Document</a></div><p>If you have any questions, please don\'t hesitate to contact us.</p><p>Best regards,<br>The Invoicerr Team</p><hr><p style="font-size: 12px; color: #666;">This email was sent from {{APP_URL}}</p>',
+              },
+              {
+                type: 'VERIFICATION_CODE',
+                subject: 'Your verification code',
+                body: '<p>Hello,</p><p>Here is your verification code:</p><div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">  <div style="font-size: 32px; font-weight: bold; color: #007bff; letter-spacing: 4px; font-family: monospace;">{{OTP_CODE}}</div></div><p>This code will expire in 10 minutes. Please enter it in the application to complete your verification.</p><p>If you didn\'t request this code, please ignore this email.</p><p>Best regards,<br>The Invoicerr Team</p>',
+              },
+              {
+                type: 'INVOICE',
+                subject: 'Invoice #{{INVOICE_NUMBER}} from {{COMPANY_NAME}}',
+                body: '<p>Dear {{CLIENT_NAME}},</p><p>Please find attached the invoice #{{INVOICE_NUMBER}} from {{COMPANY_NAME}}.</p><p>Thank you for your business!</p><p>Best regards,<br>{{COMPANY_NAME}}</p><hr><p style="font-size: 12px; color: #666;">This email was sent from {{APP_URL}}</p>',
+              },
+              {
+                type: 'RECEIPT',
+                subject: 'Receipt #{{RECEIPT_NUMBER}} from {{COMPANY_NAME}}',
+                body: '<p>Dear {{CLIENT_NAME}},</p><p>Please find attached the receipt #{{RECEIPT_NUMBER}} from {{COMPANY_NAME}}.</p><p>Thank you for your business!</p><p>Best regards,<br>{{COMPANY_NAME}}</p><hr><p style="font-size: 12px; color: #666;">This email was sent from {{APP_URL}}</p>',
+              },
+            ],
+          },
+        },
+        // Add the creator as OWNER of the company
+        users: {
+          create: {
+            userId,
+            role: 'OWNER',
+            isDefault: true,
+          },
+        },
+      },
+    });
+
+    logger.info('Company created', {
+      category: 'company',
+      details: { companyId: newCompany.id, userId },
+    });
+
+    try {
+      await this.webhookDispatcher.dispatch(WebhookEvent.COMPANY_CREATED, {
+        company: newCompany,
+      });
+    } catch (error) {
+      logger.error('Failed to dispatch COMPANY_CREATED webhook', error);
+    }
+
+    return newCompany;
+  }
+
+  async getEmailTemplates(companyId: string): Promise<EmailTemplate[]> {
+    const existingCompany = await prisma.company.findUnique({
+      where: { id: companyId },
       include: { emailTemplates: true },
     });
 
     if (!existingCompany?.emailTemplates) {
-      logger.error('No email templates found for the company', { category: 'company' });
+      logger.error('No email templates found for the company', {
+        category: 'company',
+        details: { companyId },
+      });
       throw new BadRequestException('No email templates found for the company');
     }
 
@@ -384,15 +430,51 @@ export class CompanyService {
     }));
   }
 
-  async updateEmailTemplate(id: MailTemplate['id'], subject: string, body: string) {
-    let existingTemplate = await prisma.mailTemplate.findUnique({
-      where: { id },
+  /**
+   * Get all companies that a user belongs to with their roles
+   */
+  async getUserCompanies(userId: string) {
+    const userCompanies = await prisma.userCompany.findMany({
+      where: { userId },
+      include: {
+        company: {
+          select: {
+            id: true,
+            name: true,
+            country: true,
+            currency: true,
+          },
+        },
+      },
+      orderBy: [{ isDefault: 'desc' }, { joinedAt: 'asc' }],
+    });
+
+    return userCompanies.map((uc) => ({
+      companyId: uc.company.id,
+      companyName: uc.company.name,
+      country: uc.company.country,
+      currency: uc.company.currency,
+      role: uc.role,
+      joinedAt: uc.joinedAt,
+      isDefault: uc.isDefault,
+    }));
+  }
+
+  async updateEmailTemplate(
+    companyId: string,
+    id: MailTemplate['id'],
+    subject: string,
+    body: string,
+  ) {
+    // Verify the template belongs to the company (multi-tenant check)
+    let existingTemplate = await prisma.mailTemplate.findFirst({
+      where: { id, companyId },
       include: { company: true },
     });
     if (!existingTemplate) {
       logger.error(`Email template with id ${id} not found`, {
         category: 'company',
-        details: { id },
+        details: { id, companyId },
       });
       throw new BadRequestException(`Email template with id ${id} not found`);
     }
@@ -406,7 +488,10 @@ export class CompanyService {
       include: { company: true },
     });
 
-    logger.info('Email template updated', { category: 'company', details: { templateId: id } });
+    logger.info('Email template updated', {
+      category: 'company',
+      details: { templateId: id, companyId },
+    });
     try {
       await this.webhookDispatcher.dispatch(WebhookEvent.COMPANY_EMAIL_TEMPLATE_UPDATED, {
         company: existingTemplate.company,
@@ -419,5 +504,45 @@ export class CompanyService {
       });
     }
     return existingTemplate;
+  }
+
+  /**
+   * Set a company as the default for the user
+   */
+  async setDefaultCompany(userId: string, companyId: string) {
+    // Verify user has access to the company
+    const userCompany = await prisma.userCompany.findUnique({
+      where: {
+        userId_companyId: {
+          userId,
+          companyId,
+        },
+      },
+    });
+
+    if (!userCompany) {
+      throw new BadRequestException('You do not have access to this company');
+    }
+
+    // Reset all defaults for this user
+    await prisma.userCompany.updateMany({
+      where: { userId },
+      data: { isDefault: false },
+    });
+
+    // Set new default
+    await prisma.userCompany.update({
+      where: {
+        userId_companyId: {
+          userId,
+          companyId,
+        },
+      },
+      data: { isDefault: true },
+    });
+
+    logger.info('Default company set', { category: 'company', details: { userId, companyId } });
+
+    return { success: true, companyId };
   }
 }

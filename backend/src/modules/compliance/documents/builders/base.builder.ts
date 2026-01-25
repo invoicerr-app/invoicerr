@@ -4,6 +4,7 @@
  */
 
 import * as Handlebars from 'handlebars';
+import { CountryConfig } from '../../interfaces';
 import {
   BuilderType,
   BuildResult,
@@ -16,7 +17,6 @@ import {
   PDFStyleConfig,
   TemplateContext,
 } from '../document.types';
-import { CountryConfig } from '../../interfaces';
 
 /**
  * Abstract base builder with common functionality
@@ -51,7 +51,7 @@ export abstract class BaseDocumentBuilder implements IDocumentBuilder {
   protected buildTemplateContext(
     data: DocumentData,
     pdfConfig: PDFStyleConfig,
-    countryConfig?: CountryConfig,
+    _countryConfig?: CountryConfig,
   ): TemplateContext {
     const currencySymbol = this.getCurrencySymbol(data.currency);
 
@@ -77,7 +77,9 @@ export abstract class BaseDocumentBuilder implements IDocumentBuilder {
         unitPrice: this.formatMoney(item.unitPrice, data.currency),
         vatRate: item.vatRate,
         totalPrice: this.formatMoney(
-          item.totalTTC ?? item.lineTotal ?? item.quantity * item.unitPrice * (1 + item.vatRate / 100),
+          item.totalTTC ??
+            item.lineTotal ??
+            item.quantity * item.unitPrice * (1 + item.vatRate / 100),
           data.currency,
         ),
         type: this.getItemTypeLabel(item.type || item.itemType || 'service', pdfConfig.labels),
@@ -174,7 +176,7 @@ export abstract class BaseDocumentBuilder implements IDocumentBuilder {
   /**
    * Format money amount
    */
-  protected formatMoney(amount: number, currency: string): string {
+  protected formatMoney(amount: number, _currency: string): string {
     return new Intl.NumberFormat('fr-FR', {
       style: 'decimal',
       minimumFractionDigits: 2,

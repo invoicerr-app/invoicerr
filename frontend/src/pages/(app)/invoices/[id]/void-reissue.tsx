@@ -188,7 +188,7 @@ export default function VoidReissuePage() {
 
       toast.success(t('invoices.voidReissue.success'));
       navigate('/invoices');
-    } catch (error) {
+    } catch (_error) {
       toast.error(t('invoices.voidReissue.errors.createFailed'));
     } finally {
       setIsSubmitting(false);
