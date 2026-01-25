@@ -54,7 +54,7 @@ export function useGetRaw<T>(url: string, options?: RequestInit): UseGetResult<T
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [_refetchIndex, setRefetchIndex] = useState(0);
+  const [refetchIndex, setRefetchIndex] = useState(0);
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
@@ -88,7 +88,7 @@ export function useGetRaw<T>(url: string, options?: RequestInit): UseGetResult<T
     return () => {
       cancelled = true;
     };
-  }, [url]);
+  }, [url, refetchIndex]);
 
   const mutate = useCallback(() => setRefetchIndex((i) => i + 1), []);
 
@@ -99,7 +99,7 @@ export function useGet<T>(url: string | null, options?: RequestInit): UseGetResu
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [_refetchIndex, setRefetchIndex] = useState(0);
+  const [refetchIndex, setRefetchIndex] = useState(0);
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
@@ -142,7 +142,7 @@ export function useGet<T>(url: string | null, options?: RequestInit): UseGetResu
     return () => {
       cancelled = true;
     };
-  }, [url]);
+  }, [url, refetchIndex]);
 
   const mutate = useCallback(() => setRefetchIndex((i) => i + 1), []);
 

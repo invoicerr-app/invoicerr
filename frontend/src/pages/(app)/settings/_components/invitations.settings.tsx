@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useCompany } from '@/contexts/company';
 import { authenticatedFetch, useGet, usePost } from '@/hooks/use-fetch';
 
 type InvitationCode = {
@@ -35,13 +36,17 @@ type InvitationCode = {
 export default function InvitationsSettings() {
   const { t } = useTranslation();
   const [expiresInDays, setExpiresInDays] = useState<number | ''>('');
+  const { activeCompanyId } = useCompany();
 
   const { data: invitations, loading, mutate } = useGet<InvitationCode[]>('/api/invitations');
   const { trigger: createInvitationApi, loading: creating } =
     usePost<InvitationCode>('/api/invitations');
 
   const createInvitation = async () => {
-    const result = await createInvitationApi({ expiresInDays: expiresInDays || undefined });
+    const result = await createInvitationApi({
+      expiresInDays: expiresInDays || undefined,
+      companyId: activeCompanyId || undefined,
+    });
     if (result) {
       toast.success(t('settings.invitations.messages.createSuccess'));
       setExpiresInDays('');

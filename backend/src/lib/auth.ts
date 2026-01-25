@@ -111,6 +111,18 @@ const userHookFunction = async (user) => {
 };
 
 const userAfterCreateHook = async (user) => {
+  // Check if this is the first user (should become system admin)
+  const userCount = await prisma.user.count();
+
+  // If this is the first user (count is 1 after creation), make them system admin
+  if (userCount === 1) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { isSystemAdmin: true },
+    });
+    user.isSystemAdmin = true;
+  }
+
   if (user.email) {
     await markInvitationAsUsed(user.email, user.id);
   }
@@ -147,6 +159,12 @@ export const auth = betterAuth({
         type: 'string',
         required: true,
         input: true,
+      },
+      isSystemAdmin: {
+        type: 'boolean',
+        required: false,
+        input: false, // Not settable via API, only backend
+        returned: true, // Return in session
       },
     },
   },

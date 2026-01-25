@@ -115,8 +115,8 @@ export function Sidebar() {
   ];
 
   // Check if user is system admin to show admin link
-  // @ts-expect-error - role is added by backend
-  const isSystemAdmin = data?.user?.role === 'SYSTEM_ADMIN';
+  // @ts-expect-error - isSystemAdmin is added by backend
+  const isSystemAdmin = data?.user?.isSystemAdmin === true;
 
   // Add admin link for system admins
   if (isSystemAdmin) {

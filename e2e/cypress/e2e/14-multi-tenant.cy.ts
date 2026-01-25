@@ -319,9 +319,9 @@ describe('Multi-Tenant E2E', () => {
             cy.get('[data-cy="onboarding-company-city-input"]').clear().type(COMPANY1.city);
             cy.get('[data-cy="onboarding-next-btn"]').click();
 
-            // Step 3: Identifiers
-            cy.get('[data-cy="onboarding-company-siret-input"]', { timeout: 5000 }).should('be.visible');
-            cy.get('[data-cy="onboarding-company-siret-input"]').clear().type(COMPANY1.identifiers.siret);
+            // Step 3: Identifiers (generic fields for countries without specific config)
+            cy.get('[data-cy="onboarding-company-legalid-input"]', { timeout: 5000 }).should('be.visible');
+            cy.get('[data-cy="onboarding-company-legalid-input"]').clear().type(COMPANY1.identifiers.siret);
             cy.get('[data-cy="onboarding-company-vat-input"]').clear().type(COMPANY1.identifiers.vat);
             cy.get('[data-cy="onboarding-next-btn"]').click();
 
@@ -359,18 +359,17 @@ describe('Multi-Tenant E2E', () => {
             cy.visit('/settings/invitations');
             cy.wait(1000);
 
-            cy.contains('button', /generate|create/i, { timeout: 15000 }).click();
-            cy.wait(1000);
+            // Intercept the invitation creation to capture the full code
+            cy.intercept('POST', '**/api/invitations').as('createInvitation');
 
-            cy.get('table tbody tr', { timeout: 10000 })
-                .first()
-                .find('td')
-                .first()
-                .invoke('text')
-                .then((code) => {
-                    invitationCode = code.trim();
-                    expect(invitationCode).to.have.length.greaterThan(0);
-                });
+            cy.contains('button', /generate|create/i, { timeout: 15000 }).click();
+
+            // Get the full invitation code from the API response
+            cy.wait('@createInvitation').then((interception) => {
+                invitationCode = interception.response?.body?.code;
+                expect(invitationCode).to.be.a('string');
+                expect(invitationCode).to.have.length.greaterThan(8);
+            });
         });
 
         it('new user registers with invitation code', () => {

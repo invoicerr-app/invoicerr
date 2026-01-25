@@ -20,8 +20,8 @@ export default function AdminLayout() {
   }
 
   // Check if user is system admin
-  // @ts-expect-error - role is added by backend
-  const isSystemAdmin = session?.user?.role === 'SYSTEM_ADMIN';
+  // @ts-expect-error - isSystemAdmin is added by backend
+  const isSystemAdmin = session?.user?.isSystemAdmin === true;
 
   if (!isSystemAdmin) {
     return <Navigate to="/dashboard" replace />;
