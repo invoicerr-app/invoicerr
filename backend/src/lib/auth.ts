@@ -74,13 +74,38 @@ const markInvitationAsUsed = async (email: string, userId: string) => {
   const invitationCode = pendingInvitationCodes.get(email);
   if (invitationCode) {
     try {
-      await prisma.invitationCode.update({
+      // Get the invitation with company info
+      const invitation = await prisma.invitationCode.findUnique({
         where: { code: invitationCode },
-        data: {
-          usedAt: new Date(),
-          usedById: userId,
-        },
       });
+
+      if (invitation) {
+        // Mark as used
+        await prisma.invitationCode.update({
+          where: { code: invitationCode },
+          data: {
+            usedAt: new Date(),
+            usedById: userId,
+          },
+        });
+
+        // If company-specific invitation, add user to the company
+        if (invitation.companyId) {
+          // Check if user has any companies (for isDefault)
+          const userCompanyCount = await prisma.userCompany.count({
+            where: { userId },
+          });
+
+          await prisma.userCompany.create({
+            data: {
+              userId,
+              companyId: invitation.companyId,
+              role: invitation.role,
+              isDefault: userCompanyCount === 0, // First company is default
+            },
+          });
+        }
+      }
     } catch (error) {
       console.warn(`Could not mark invitation code as used: ${error}`);
     }

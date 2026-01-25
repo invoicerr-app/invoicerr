@@ -542,7 +542,8 @@ describe('Multi-Tenant E2E', () => {
 
                 cy.get('[data-cy="company-name-input"]', { timeout: 15000 })
                     .should('not.be.disabled');
-                cy.get('[data-cy="company-submit-btn"]').should('be.visible');
+                // Scroll to and check submit button (may be below the fold)
+                cy.get('[data-cy="company-submit-btn"]').scrollIntoView().should('be.visible');
             });
 
             it('owner can create invitations', () => {
@@ -592,8 +593,8 @@ describe('Multi-Tenant E2E', () => {
             cy.visit('/admin/users');
 
             cy.url().should('include', '/admin/users');
-            // Users page should be visible
-            cy.contains('h1', /users/i, { timeout: 10000 }).should('be.visible');
+            // Users page should be visible (title is "User Management")
+            cy.contains('h1', /user management/i, { timeout: 10000 }).should('be.visible');
         });
 
         it('system admin can access companies page', () => {
@@ -601,8 +602,8 @@ describe('Multi-Tenant E2E', () => {
             cy.visit('/admin/companies');
 
             cy.url().should('include', '/admin/companies');
-            // Companies page should be visible
-            cy.contains('h1', /companies/i, { timeout: 10000 }).should('be.visible');
+            // Companies page should be visible (title is "Company Management")
+            cy.contains('h1', /company management/i, { timeout: 10000 }).should('be.visible');
         });
 
         it('regular user cannot access admin panel', () => {
