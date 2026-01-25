@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import * as QRCode from 'qrcode';
 import { QRCodeConfig } from '../interfaces';
 
 export interface QRCodeInput {
@@ -36,7 +37,11 @@ export interface QRCodeInput {
 export interface QRCodeResult {
   content: string;
   format: 'qr' | 'datamatrix';
-  /** Base64 encoded image data (if generated) */
+  /** Base64 encoded PNG image data (data URL) */
+  pngDataUrl?: string;
+  /** SVG string */
+  svg?: string;
+  /** Base64 encoded image data (if generated) - deprecated, use pngDataUrl */
   imageData?: string;
 }
 
@@ -46,7 +51,7 @@ export class QRCodeService {
 
   /**
    * Generate QR code content based on country configuration
-   * @param generateImage If true, also generates SVG image data
+   * @param generateImage If true, also generates SVG image data (deprecated, use async version)
    */
   generateContent(
     input: QRCodeInput,
@@ -79,17 +84,128 @@ export class QRCodeService {
     };
 
     if (generateImage) {
-      result.imageData = this.generateSvgQRCode(content);
+      result.imageData = this.generateSvgQRCodeSync(content);
     }
 
     return result;
   }
 
   /**
-   * Generate QR code as SVG data URL
-   * Uses a simple matrix encoding (not full QR standard, but scannable for short content)
+   * Generate QR code content with PNG and SVG images
+   * Uses the qrcode library for proper QR code standard compliance
    */
-  generateSvgQRCode(content: string, size = 200): string {
+  async generateContentWithImages(
+    input: QRCodeInput,
+    config: QRCodeConfig,
+    options: { png?: boolean; svg?: boolean; size?: number } = {},
+  ): Promise<QRCodeResult> {
+    const result = this.generateContent(input, config, false);
+
+    const { png = true, svg = true, size = 200 } = options;
+
+    const [pngDataUrl, svgString] = await Promise.all([
+      png ? this.generatePngDataUrl(result.content, size) : Promise.resolve(undefined),
+      svg ? this.generateSvg(result.content, size) : Promise.resolve(undefined),
+    ]);
+
+    if (pngDataUrl) {
+      result.pngDataUrl = pngDataUrl;
+      result.imageData = pngDataUrl; // For backward compatibility
+    }
+    if (svgString) {
+      result.svg = svgString;
+    }
+
+    return result;
+  }
+
+  /**
+   * Generate QR code as PNG base64 data URL
+   * @param content The content to encode in the QR code
+   * @param size The size of the QR code in pixels (default 200)
+   * @returns Base64 data URL string (data:image/png;base64,...)
+   */
+  async generatePngDataUrl(content: string, size = 200): Promise<string> {
+    try {
+      return await QRCode.toDataURL(content, {
+        width: size,
+        margin: 2,
+        errorCorrectionLevel: 'M',
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF',
+        },
+      });
+    } catch (error) {
+      this.logger.error('Failed to generate QR code PNG:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate QR code as PNG Buffer
+   * @param content The content to encode in the QR code
+   * @param size The size of the QR code in pixels (default 200)
+   * @returns Buffer containing PNG image data
+   */
+  async generatePngBuffer(content: string, size = 200): Promise<Buffer> {
+    try {
+      return await QRCode.toBuffer(content, {
+        type: 'png',
+        width: size,
+        margin: 2,
+        errorCorrectionLevel: 'M',
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF',
+        },
+      });
+    } catch (error) {
+      this.logger.error('Failed to generate QR code PNG buffer:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate QR code as SVG string
+   * @param content The content to encode in the QR code
+   * @param size The size of the QR code in pixels (default 200)
+   * @returns SVG string
+   */
+  async generateSvg(content: string, size = 200): Promise<string> {
+    try {
+      return await QRCode.toString(content, {
+        type: 'svg',
+        width: size,
+        margin: 2,
+        errorCorrectionLevel: 'M',
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF',
+        },
+      });
+    } catch (error) {
+      this.logger.error('Failed to generate QR code SVG:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate QR code as SVG data URL
+   * @param content The content to encode in the QR code
+   * @param size The size of the QR code in pixels (default 200)
+   * @returns Base64 data URL string (data:image/svg+xml;base64,...)
+   */
+  async generateSvgDataUrl(content: string, size = 200): Promise<string> {
+    const svg = await this.generateSvg(content, size);
+    return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+  }
+
+  /**
+   * Generate QR code as SVG data URL (synchronous version using simple matrix)
+   * @deprecated Use generateSvgDataUrl for proper QR code compliance
+   */
+  generateSvgQRCodeSync(content: string, size = 200): string {
     try {
       const matrix = this.generateQRMatrix(content);
       const svg = this.matrixToSvg(matrix, size);
@@ -102,7 +218,7 @@ export class QRCodeService {
 
   /**
    * Generate a bit matrix from content
-   * This is a simplified encoding - for production use a full QR library
+   * @deprecated This is a simplified encoding - use the qrcode library methods instead
    */
   private generateQRMatrix(content: string): boolean[][] {
     // For a proper QR code, you'd need Reed-Solomon encoding

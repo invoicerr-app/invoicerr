@@ -3,6 +3,7 @@ import { FormatConfig } from '../interfaces/format.interface';
 import { FormatGenerator, FormatResult, InvoiceData } from './format.interface';
 import { FacturXGenerator } from './generators/facturx.generator';
 import { FatturaPAGenerator } from './generators/fatturapa.generator';
+import { KSeFFA3Generator } from './generators/ksef-fa3.generator';
 import { UBLGenerator } from './generators/ubl.generator';
 
 /**
@@ -20,6 +21,7 @@ export class FormatService {
     @Optional() private readonly ublGenerator?: UBLGenerator,
     @Optional() private readonly facturXGenerator?: FacturXGenerator,
     @Optional() private readonly fatturaPAGenerator?: FatturaPAGenerator,
+    @Optional() private readonly ksefFA3Generator?: KSeFFA3Generator,
   ) {
     // Build list of available generators
     const availableGenerators: FormatGenerator[] = [];
@@ -27,6 +29,7 @@ export class FormatService {
     if (this.ublGenerator) availableGenerators.push(this.ublGenerator);
     if (this.facturXGenerator) availableGenerators.push(this.facturXGenerator);
     if (this.fatturaPAGenerator) availableGenerators.push(this.fatturaPAGenerator);
+    if (this.ksefFA3Generator) availableGenerators.push(this.ksefFA3Generator);
 
     this.generators = availableGenerators;
 

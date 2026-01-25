@@ -21,7 +21,10 @@ export default function BetterPagination({ pageCount, page, setPage }: BetterPag
         <PaginationItem>
           <PaginationPrevious
             href="#"
-            onClick={() => setPage(Math.max(1, page - 1))}
+            onClick={(e) => {
+              e.preventDefault();
+              setPage(Math.max(1, page - 1));
+            }}
             disabled={page === 1}
           />
         </PaginationItem>
@@ -35,7 +38,14 @@ export default function BetterPagination({ pageCount, page, setPage }: BetterPag
             const pushPage = (i: number) => {
               items.push(
                 <PaginationItem key={i}>
-                  <PaginationLink href="#" onClick={() => setPage(i)} isActive={i === current}>
+                  <PaginationLink
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setPage(i);
+                    }}
+                    isActive={i === current}
+                  >
                     {i}
                   </PaginationLink>
                 </PaginationItem>,
@@ -84,7 +94,10 @@ export default function BetterPagination({ pageCount, page, setPage }: BetterPag
         <PaginationItem>
           <PaginationNext
             href="#"
-            onClick={() => setPage(Math.min(pageCount, page + 1))}
+            onClick={(e) => {
+              e.preventDefault();
+              setPage(Math.min(pageCount, page + 1));
+            }}
             disabled={page === pageCount}
           />
         </PaginationItem>

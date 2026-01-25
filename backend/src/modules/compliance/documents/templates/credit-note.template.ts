@@ -8,6 +8,8 @@ import {
   totalsSection,
   notesSection,
   legalMentionsSection,
+  qrCodeSection,
+  qrCodeTopSection,
 } from './base.template';
 
 export const creditNoteTemplate = `
@@ -32,6 +34,7 @@ export const creditNoteTemplate = `
   </style>
 </head>
 <body>
+  ${qrCodeTopSection}
   <div class="header">
     <div class="company-info">
       {{#if includeLogo}}
@@ -99,6 +102,8 @@ export const creditNoteTemplate = `
   ${notesSection}
 
   ${legalMentionsSection}
+
+  ${qrCodeSection}
 
 </body>
 </html>

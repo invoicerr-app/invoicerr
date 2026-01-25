@@ -6,6 +6,7 @@ import { esConfig } from './countries/es.config';
 import { frConfig } from './countries/fr.config';
 import { inConfig } from './countries/in.config';
 import { itConfig } from './countries/it.config';
+import { plConfig } from './countries/pl.config';
 import { ptConfig } from './countries/pt.config';
 import { usConfig } from './countries/us.config';
 import { genericConfig } from './generic.config';
@@ -32,6 +33,7 @@ const configs: Record<string, CountryConfig> = {
   PT: ptConfig,
   // Very strict (clearance model)
   IN: inConfig,
+  PL: plConfig,
 };
 
 /**
@@ -127,5 +129,6 @@ export { beConfig } from './countries/be.config';
 export { itConfig } from './countries/it.config';
 export { esConfig } from './countries/es.config';
 export { ptConfig } from './countries/pt.config';
+export { plConfig } from './countries/pl.config';
 export { usConfig } from './countries/us.config';
 export { inConfig } from './countries/in.config';

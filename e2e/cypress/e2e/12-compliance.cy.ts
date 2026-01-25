@@ -677,13 +677,24 @@ describe('Compliance Module E2E', () => {
         ).then((response) => {
           expect(response.status).to.eq(200);
 
-          // Should return supplier country's VAT rates
           const supplierExpectations = COUNTRY_EXPECTATIONS[supplier];
-          expect(response.body.defaultVatRate).to.eq(supplierExpectations.defaultVatRate);
-          expect(response.body.vatRates).to.be.an('array');
+          const customerExpectations = COUNTRY_EXPECTATIONS[customer];
 
-          // For intra-EU B2B, reverse charge rules may apply
-          // The config should still be valid
+          // For cross-border B2B:
+          // - Intra-EU B2B: reverse charge applies → 0% VAT
+          // - Export to non-EU: export exemption → 0% VAT
+          // - Non-EU to EU: depends on local rules
+          const isIntraEU = supplierExpectations.isEU && customerExpectations.isEU;
+          const isExport = supplierExpectations.isEU && !customerExpectations.isEU;
+
+          if (isIntraEU || isExport) {
+            // Reverse charge or export: 0% VAT
+            expect(response.body.defaultVatRate).to.eq(0);
+          } else {
+            // For non-EU suppliers, use supplier's default rate
+            expect(response.body.defaultVatRate).to.eq(supplierExpectations.defaultVatRate);
+          }
+          expect(response.body.vatRates).to.be.an('array');
         });
       });
     });

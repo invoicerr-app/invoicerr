@@ -6,6 +6,8 @@ import {
   baseStyles,
   notesSection,
   legalMentionsSection,
+  qrCodeSection,
+  qrCodeTopSection,
 } from './base.template';
 
 export const receiptTemplate = `
@@ -49,6 +51,7 @@ export const receiptTemplate = `
   </style>
 </head>
 <body>
+  ${qrCodeTopSection}
   <div class="header">
     <div class="company-info">
       {{#if includeLogo}}
@@ -140,6 +143,8 @@ export const receiptTemplate = `
   ${notesSection}
 
   ${legalMentionsSection}
+
+  ${qrCodeSection}
 
 </body>
 </html>

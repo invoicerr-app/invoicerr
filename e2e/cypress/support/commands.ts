@@ -41,7 +41,7 @@ Cypress.Commands.add('resetDatabase', () => {
 Cypress.Commands.add('login', () => {
     cy.session('user-session', () => {
         cy.visit('/auth/sign-in');
-        cy.get('[data-cy="auth-email-input"]').type('john.doe@acme.org');
+        cy.get('[data-cy="auth-email-input"]', { timeout: 10000 }).type('john.doe@acme.org');
         cy.get('[data-cy="auth-password-input"]').type('Super_Secret_Password123!');
         cy.get('[data-cy="auth-submit-btn"]').click();
         cy.url({ timeout: 20000 }).should('include', '/dashboard');

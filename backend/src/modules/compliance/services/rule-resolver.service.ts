@@ -156,6 +156,22 @@ export class RuleResolverService {
     supplierConfig: CountryConfig,
     customerConfig: CountryConfig | null,
   ): TransmissionRules {
+    const customerCountry = context.customer.countryCode;
+
+    // Check for cross-border override first
+    if (customerCountry && supplierConfig.transmission.crossBorder) {
+      const crossBorderPlatform = supplierConfig.transmission.crossBorder[customerCountry];
+      if (crossBorderPlatform) {
+        return this.buildTransmissionFromPlatform(crossBorderPlatform, supplierConfig);
+      }
+    }
+
+    // Export to non-EU: use exportDefault or email
+    if (context.transaction.isExport) {
+      const exportPlatform = supplierConfig.transmission.exportDefault || 'email';
+      return this.buildTransmissionFromPlatform(exportPlatform, supplierConfig);
+    }
+
     // B2G: customer country rules (public entity)
     if (context.transaction.type === 'B2G' && customerConfig) {
       const b2gConfig = customerConfig.transmission.b2g;
@@ -389,5 +405,86 @@ export class RuleResolverService {
         // Default to equality check
         return actual === expected;
     }
+  }
+
+  /**
+   * Build transmission rules from a platform name
+   */
+  private buildTransmissionFromPlatform(
+    platform: string,
+    supplierConfig: CountryConfig,
+  ): TransmissionRules {
+    // Map known platforms to their configurations
+    const platformConfigs: Record<string, Partial<TransmissionRules>> = {
+      email: {
+        method: 'email',
+        mandatory: false,
+        platform: 'email',
+        async: false,
+        deadlineDays: null,
+        labelKey: 'transmission.email',
+        icon: 'mail',
+      },
+      peppol: {
+        method: 'peppol',
+        mandatory: false,
+        platform: 'peppol',
+        async: true,
+        deadlineDays: null,
+        labelKey: 'transmission.peppol',
+        icon: 'globe',
+      },
+      superpdp: {
+        method: 'pdp',
+        mandatory: true,
+        platform: 'superpdp',
+        async: true,
+        deadlineDays: supplierConfig.transmission.b2b?.deadlineDays || null,
+        labelKey: 'transmission.superpdp',
+        icon: 'shield-check',
+      },
+      sdi: {
+        method: 'clearance',
+        mandatory: true,
+        platform: 'sdi',
+        async: true,
+        deadlineDays: 12,
+        labelKey: 'transmission.sdi',
+        icon: 'building-2',
+      },
+      choruspro: {
+        method: 'pdp',
+        mandatory: true,
+        platform: 'choruspro',
+        async: true,
+        deadlineDays: 30,
+        labelKey: 'transmission.choruspro',
+        icon: 'building-2',
+      },
+    };
+
+    const config = platformConfigs[platform.toLowerCase()];
+    if (config) {
+      return {
+        method: config.method || 'email',
+        mandatory: config.mandatory ?? false,
+        platform: config.platform || platform,
+        async: config.async ?? false,
+        deadlineDays: config.deadlineDays ?? null,
+        labelKey: config.labelKey || `transmission.${platform}`,
+        icon: config.icon || 'mail',
+      };
+    }
+
+    // Fallback for unknown platforms - default to email
+    return {
+      method: 'email',
+      mandatory: false,
+      platform: platform,
+      async: false,
+      deadlineDays: null,
+      labelKey: `transmission.${platform}`,
+      icon: 'mail',
+    };
   }
 }

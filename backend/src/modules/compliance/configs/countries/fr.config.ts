@@ -190,6 +190,13 @@ export const frConfig: CountryConfig = {
       userSelectable: false,
       emailFallback: false,
     },
+    // Cross-border transmission overrides (EU countries use Peppol, IT uses SDI)
+    crossBorder: {
+      IT: 'sdi', // Italy requires SDI
+      // Other EU countries use Peppol by default (handled by isIntraEU logic)
+    },
+    // Exports to non-EU use email
+    exportDefault: 'email',
   },
 
   numbering: {

@@ -9,7 +9,7 @@ export type DocumentSyntax =
   | 'FA3' // Polish KSeF format
   | 'NAV' // Hungarian NAV format
   | 'myDATA' // Greek format
-  | 'GST_JSON' // Indian GST JSON format
+  | 'GST-JSON' // Indian GST JSON format
   | 'GB_T_38636' // Chinese format
   | 'PDF' // Simple PDF (no structured e-invoice)
   | 'NONE'; // No specific format (permissive countries)

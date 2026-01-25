@@ -14,7 +14,7 @@ export class ReceiptsController {
   }
 
   @Sse('sse')
-  async getReceiptsInfoSse(@Param('page') page: string) {
+  async getReceiptsInfoSse(@Query('page') page: string) {
     return interval(1000).pipe(
       startWith(0),
       switchMap(() => from(this.receiptsService.getReceipts(page))),

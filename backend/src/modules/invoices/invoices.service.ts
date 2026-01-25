@@ -52,23 +52,26 @@ export class InvoicesService {
     const pageSize = 10;
     const skip = (pageNumber - 1) * pageSize;
 
-    const invoices = await prisma.invoice.findMany({
-      skip,
-      take: pageSize,
-      where: {
-        isActive: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      include: {
-        items: true,
-        client: true,
-        company: true,
-      },
-    });
+    const whereActive = { isActive: true };
 
-    const totalInvoices = await prisma.invoice.count();
+    // Parallel queries for better performance
+    const [invoices, totalCount, sentCount, paidCount, overdueCount] = await Promise.all([
+      prisma.invoice.findMany({
+        skip,
+        take: pageSize,
+        where: whereActive,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          items: true,
+          client: true,
+          company: true,
+        },
+      }),
+      prisma.invoice.count({ where: whereActive }),
+      prisma.invoice.count({ where: { ...whereActive, status: 'SENT' } }),
+      prisma.invoice.count({ where: { ...whereActive, status: 'PAID' } }),
+      prisma.invoice.count({ where: { ...whereActive, status: 'OVERDUE' } }),
+    ]);
 
     // Batch fetch all payment methods in a single query (avoid N+1)
     const paymentMethodIds = invoices.map((inv) => inv.paymentMethodId).filter(Boolean) as string[];
@@ -82,7 +85,16 @@ export class InvoicesService {
       paymentMethod: inv.paymentMethodId ? pmMap.get(inv.paymentMethodId) ?? null : null,
     }));
 
-    return { pageCount: Math.ceil(totalInvoices / pageSize), invoices: invoicesWithPM };
+    return {
+      pageCount: Math.ceil(totalCount / pageSize),
+      invoices: invoicesWithPM,
+      stats: {
+        total: totalCount,
+        sent: sentCount,
+        paid: paidCount,
+        overdue: overdueCount,
+      },
+    };
   }
 
   async searchInvoices(query: string) {
@@ -1062,5 +1074,325 @@ export class InvoicesService {
     }
 
     return this.buildPdfConfig(invoice.company.pdfConfig);
+  }
+
+  /**
+   * Get modification options for an invoice based on country compliance rules
+   */
+  async getModificationOptions(invoiceId: string) {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        client: true,
+        company: true,
+        items: true,
+      },
+    });
+
+    if (!invoice) {
+      throw new BadRequestException('Invoice not found');
+    }
+
+    // Build compliance context
+    const invoiceCompanyIdentifiers = invoice.company.identifiers as Record<string, string> | null;
+    const context = await this.complianceService.buildContext({
+      company: {
+        countryCode: this.extractCountryCode(invoice.company.country),
+        VAT: extractVAT(invoiceCompanyIdentifiers),
+        exemptVat: invoice.company.exemptVat,
+        identifiers: invoiceCompanyIdentifiers || {},
+      },
+      client: {
+        countryCode: invoice.client.country
+          ? this.extractCountryCode(invoice.client.country)
+          : null,
+        VAT: extractVAT(invoice.client.identifiers),
+        type: invoice.client.type as 'COMPANY' | 'INDIVIDUAL',
+        isPublicEntity: false,
+        identifiers: (invoice.client.identifiers as Record<string, string>) || {},
+      },
+    });
+
+    // Get country config for correction rules
+    const supplierCountry = context.supplier.countryCode;
+    const countryConfig = this.complianceService.getConfig(supplierCountry);
+    const correctionConfig = countryConfig?.correction;
+
+    // Determine invoice state
+    const isTransmitted = !!(invoice as any).transmittedAt || !!(invoice as any).platformId;
+    const isPaid = invoice.status === 'PAID';
+    // Note: CANCELLED and CREDITED statuses don't exist yet - using isActive as proxy
+    const isCancelled = !invoice.isActive;
+    const isCredited = false; // Would need linkedCreditNote field to track
+    const isFinalState = isPaid || isCancelled;
+
+    // Build options list with availability status
+    const options: Array<{
+      id: string;
+      labelKey: string;
+      descriptionKey: string;
+      icon: string;
+      available: boolean;
+      reason?: string;
+      route?: string;
+    }> = [];
+
+    // Option 1: Direct Edit
+    const canEditDirectly = correctionConfig?.allowDirectModification !== false
+      && !isTransmitted
+      && !isFinalState;
+
+    options.push({
+      id: 'direct_edit',
+      labelKey: 'invoices.modification.directEdit.label',
+      descriptionKey: 'invoices.modification.directEdit.description',
+      icon: 'edit',
+      available: canEditDirectly,
+      reason: !canEditDirectly
+        ? (correctionConfig?.allowDirectModification === false
+            ? 'invoices.modification.directEdit.disabledByCountry'
+            : isTransmitted
+              ? 'invoices.modification.directEdit.alreadyTransmitted'
+              : 'invoices.modification.directEdit.finalState')
+        : undefined,
+    });
+
+    // Option 2: Credit Note
+    options.push({
+      id: 'credit_note',
+      labelKey: 'invoices.modification.creditNote.label',
+      descriptionKey: 'invoices.modification.creditNote.description',
+      icon: 'file-minus',
+      available: !isCredited && !isCancelled,
+      reason: isCredited
+        ? 'invoices.modification.creditNote.alreadyCredited'
+        : isCancelled
+          ? 'invoices.modification.creditNote.cancelled'
+          : undefined,
+      route: `/invoices/${invoiceId}/credit-note`,
+    });
+
+    // Option 3: Corrective Invoice
+    options.push({
+      id: 'corrective_invoice',
+      labelKey: 'invoices.modification.correctiveInvoice.label',
+      descriptionKey: 'invoices.modification.correctiveInvoice.description',
+      icon: 'file-edit',
+      available: !isCancelled,
+      reason: isCancelled
+        ? 'invoices.modification.correctiveInvoice.cancelled'
+        : undefined,
+      route: `/invoices/${invoiceId}/corrective`,
+    });
+
+    // Option 4: Void and Reissue
+    options.push({
+      id: 'void_and_reissue',
+      labelKey: 'invoices.modification.voidAndReissue.label',
+      descriptionKey: 'invoices.modification.voidAndReissue.description',
+      icon: 'refresh-cw',
+      available: !isPaid && !isCancelled,
+      reason: isPaid
+        ? 'invoices.modification.voidAndReissue.alreadyPaid'
+        : isCancelled
+          ? 'invoices.modification.voidAndReissue.cancelled'
+          : undefined,
+      route: `/invoices/${invoiceId}/void-reissue`,
+    });
+
+    // Option 5: Cancel Invoice
+    options.push({
+      id: 'cancel',
+      labelKey: 'invoices.modification.cancel.label',
+      descriptionKey: 'invoices.modification.cancel.description',
+      icon: 'x-circle',
+      available: !isPaid && !isCancelled,
+      reason: isPaid
+        ? 'invoices.modification.cancel.alreadyPaid'
+        : isCancelled
+          ? 'invoices.modification.cancel.alreadyCancelled'
+          : undefined,
+    });
+
+    return {
+      invoiceId,
+      invoiceNumber: invoice.rawNumber || invoice.number.toString(),
+      invoiceStatus: invoice.status,
+      countryCode: supplierCountry,
+      correctionConfig: correctionConfig ? {
+        allowDirectModification: correctionConfig.allowDirectModification,
+        method: correctionConfig.method,
+        requiresOriginalReference: correctionConfig.requiresOriginalReference,
+        codes: correctionConfig.codes || [],
+        requiresPreApproval: correctionConfig.requiresPreApproval || false,
+      } : null,
+      options,
+      recommendedOption: !canEditDirectly && correctionConfig?.method
+        ? correctionConfig.method
+        : (canEditDirectly ? 'direct_edit' : 'credit_note'),
+    };
+  }
+
+  async getInvoiceById(invoiceId: string) {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        client: true,
+        company: true,
+        items: {
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    if (!invoice) {
+      throw new BadRequestException('Invoice not found');
+    }
+
+    // Get payment method if present
+    const paymentMethod = invoice.paymentMethodId
+      ? await prisma.paymentMethod.findUnique({
+          where: { id: invoice.paymentMethodId },
+        })
+      : null;
+
+    return {
+      ...invoice,
+      paymentMethod,
+    };
+  }
+
+  async createCreditNote(
+    originalInvoiceId: string,
+    data: {
+      correctionCode: string;
+      reason?: string;
+      items: Array<{ originalItemId: string; quantity: number }>;
+    },
+  ) {
+    const originalInvoice = await prisma.invoice.findUnique({
+      where: { id: originalInvoiceId },
+      include: {
+        client: true,
+        company: true,
+        items: true,
+      },
+    });
+
+    if (!originalInvoice) {
+      throw new BadRequestException('Original invoice not found');
+    }
+
+    // Map items from original invoice to credit note items
+    const creditNoteItems = data.items.map((creditItem) => {
+      const originalItem = originalInvoice.items.find((item) => item.id === creditItem.originalItemId);
+      if (!originalItem) {
+        throw new BadRequestException(`Item with id ${creditItem.originalItemId} not found in original invoice`);
+      }
+      if (creditItem.quantity > originalItem.quantity) {
+        throw new BadRequestException(`Credit quantity cannot exceed original quantity for item ${originalItem.description}`);
+      }
+      return {
+        description: originalItem.description,
+        quantity: creditItem.quantity,
+        unitPrice: originalItem.unitPrice,
+        vatRate: originalItem.vatRate,
+        type: originalItem.type,
+      };
+    });
+
+    // Calculate totals
+    let totalHT = 0;
+    let totalVAT = 0;
+    creditNoteItems.forEach((item) => {
+      const lineTotal = item.quantity * item.unitPrice;
+      const lineVAT = lineTotal * (item.vatRate / 100);
+      totalHT += lineTotal;
+      totalVAT += lineVAT;
+    });
+    const totalTTC = totalHT + totalVAT;
+
+    // Get next credit note number
+    const lastCreditNote = await prisma.invoice.findFirst({
+      where: {
+        companyId: originalInvoice.companyId,
+        rawNumber: { startsWith: 'CN-' },
+      },
+      orderBy: { number: 'desc' },
+    });
+
+    const year = new Date().getFullYear();
+    const nextNumber = lastCreditNote
+      ? lastCreditNote.number + 1
+      : await this.getNextInvoiceNumber(originalInvoice.companyId);
+
+    // Create credit note
+    const creditNote = await prisma.invoice.create({
+      data: {
+        number: nextNumber,
+        rawNumber: `CN-${year}-${String(nextNumber).padStart(4, '0')}`,
+        clientId: originalInvoice.clientId,
+        companyId: originalInvoice.companyId,
+        currency: originalInvoice.currency,
+        // Store reference to original invoice and correction info in notes
+        notes: [
+          data.reason || '',
+          `[CREDIT_NOTE]`,
+          `Original Invoice: ${originalInvoice.rawNumber || originalInvoice.number}`,
+          `Correction Code: ${data.correctionCode}`,
+          `Original Invoice ID: ${originalInvoiceId}`,
+        ].filter(Boolean).join('\n'),
+        status: 'SENT',
+        dueDate: new Date(),
+        totalHT: -totalHT,
+        totalVAT: -totalVAT,
+        totalTTC: -totalTTC,
+        isActive: true,
+        items: {
+          create: creditNoteItems.map((item, index) => ({
+            ...item,
+            order: index,
+            // Store negative values to represent credits
+            quantity: item.quantity,
+            unitPrice: -item.unitPrice, // Negative price to represent credit
+          })),
+        },
+      },
+      include: {
+        client: true,
+        company: true,
+        items: true,
+      },
+    });
+
+    // Dispatch webhook
+    this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_CREATED, {
+      id: creditNote.id,
+      number: creditNote.rawNumber || creditNote.number.toString(),
+      client: creditNote.client.name,
+      totalTTC: creditNote.totalTTC,
+      type: 'credit_note',
+      originalInvoiceId,
+    });
+
+    logger.info('Credit note created', {
+      category: 'invoice',
+      details: {
+        creditNoteId: creditNote.id,
+        creditNoteNumber: creditNote.rawNumber,
+        originalInvoiceId,
+        originalInvoiceNumber: originalInvoice.rawNumber,
+      },
+    });
+
+    return creditNote;
+  }
+
+  private async getNextInvoiceNumber(companyId: string): Promise<number> {
+    const lastInvoice = await prisma.invoice.findFirst({
+      where: { companyId },
+      orderBy: { number: 'desc' },
+    });
+    return (lastInvoice?.number || 0) + 1;
   }
 }

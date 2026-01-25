@@ -1,5 +1,5 @@
-import { useCallback, useMemo } from 'react';
-import { useGet } from './use-fetch';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { authenticatedFetch, useGet } from './use-fetch';
 
 /**
  * VAT Rate definition
@@ -162,11 +162,61 @@ export interface UseComplianceReturn {
   refetch: () => void;
 }
 
+// ============================================================================
+// In-memory cache for compliance configs (5 hour TTL, resets on page reload)
+// ============================================================================
+const CACHE_TTL_MS = 5 * 60 * 60 * 1000; // 5 hours
+
+const complianceCache = new Map<string, { data: ComplianceConfig; timestamp: number }>();
+const identifierCache = new Map<string, { data: CountryIdentifierConfig; timestamp: number }>();
+
+function getCachedCompliance(key: string): ComplianceConfig | null {
+  const cached = complianceCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
+  }
+  if (cached) {
+    complianceCache.delete(key);
+  }
+  return null;
+}
+
+function setCachedCompliance(key: string, data: ComplianceConfig): void {
+  complianceCache.set(key, { data, timestamp: Date.now() });
+}
+
+function getCachedIdentifiers(key: string): CountryIdentifierConfig | null {
+  const cached = identifierCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
+  }
+  if (cached) {
+    identifierCache.delete(key);
+  }
+  return null;
+}
+
+function setCachedIdentifiers(key: string, data: CountryIdentifierConfig): void {
+  identifierCache.set(key, { data, timestamp: Date.now() });
+}
+
 /**
  * Hook to fetch and use compliance configuration
+ * Uses in-memory cache with 5h TTL to avoid redundant API calls
  */
 export function useCompliance(params: UseComplianceParams): UseComplianceReturn {
   const { supplierCountry, customerCountry, transactionType = 'B2B', nature = 'services' } = params;
+
+  // Build cache key
+  const cacheKey = useMemo(
+    () => `${supplierCountry}|${customerCountry || ''}|${transactionType}|${nature}`,
+    [supplierCountry, customerCountry, transactionType, nature],
+  );
+
+  // State for cached/fetched data
+  const [config, setConfig] = useState<ComplianceConfig | null>(() => getCachedCompliance(cacheKey));
+  const [isLoading, setIsLoading] = useState(!config);
+  const [error, setError] = useState<Error | null>(null);
 
   // Build URL with query params
   const url = useMemo(() => {
@@ -178,15 +228,59 @@ export function useCompliance(params: UseComplianceParams): UseComplianceReturn 
     if (customerCountry) {
       searchParams.set('customerCountry', customerCountry);
     }
-    return `/compliance/config?${searchParams.toString()}`;
+    return `/api/compliance/config?${searchParams.toString()}`;
   }, [supplierCountry, customerCountry, transactionType, nature]);
 
-  const {
-    data: config,
-    loading: isLoading,
-    error,
-    mutate: refetch,
-  } = useGet<ComplianceConfig>(url);
+  // Fetch data (only if not cached)
+  useEffect(() => {
+    const cached = getCachedCompliance(cacheKey);
+    if (cached) {
+      setConfig(cached);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
+    setIsLoading(true);
+    const fullUrl = `${import.meta.env.VITE_BACKEND_URL || ''}${url}`;
+
+    authenticatedFetch(fullUrl)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`GET ${url} failed with status ${res.status}`);
+        const data = (await res.json()) as ComplianceConfig;
+        setCachedCompliance(cacheKey, data);
+        setConfig(data);
+        setError(null);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err : new Error(String(err)));
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [cacheKey, url]);
+
+  // Refetch function (bypasses cache)
+  const refetch = useCallback(() => {
+    complianceCache.delete(cacheKey);
+    setIsLoading(true);
+    const fullUrl = `${import.meta.env.VITE_BACKEND_URL || ''}${url}`;
+
+    authenticatedFetch(fullUrl)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`GET ${url} failed with status ${res.status}`);
+        const data = (await res.json()) as ComplianceConfig;
+        setCachedCompliance(cacheKey, data);
+        setConfig(data);
+        setError(null);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err : new Error(String(err)));
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [cacheKey, url]);
 
   // Convenience getters with default values
   const vatRates = config?.vatRates || [];
@@ -346,6 +440,7 @@ export interface CountryIdentifierConfig {
 
 /**
  * Hook to fetch identifier config for a country (for onboarding/client creation)
+ * Uses in-memory cache with 5h TTL to avoid redundant API calls
  * @param country - Country code (e.g., FR, DE)
  * @param entityType - Entity type: 'company' (default) or 'client'
  * Returns empty identifiers array for unsupported countries
@@ -354,22 +449,90 @@ export function useCountryIdentifiers(
   country: string | undefined,
   entityType: 'company' | 'client' = 'company',
 ) {
-  const url = useMemo(
-    () =>
-      country
-        ? `/api/compliance/identifiers?country=${country}&entityType=${entityType}`
-        : null,
+  // Build cache key
+  const cacheKey = useMemo(
+    () => (country ? `${country}|${entityType}` : null),
     [country, entityType],
   );
 
-  const { data, loading, error, mutate } = useGet<CountryIdentifierConfig>(url);
+  // State for cached/fetched data
+  const [data, setData] = useState<CountryIdentifierConfig | null>(() =>
+    cacheKey ? getCachedIdentifiers(cacheKey) : null,
+  );
+  const [isLoading, setIsLoading] = useState(!data && !!country);
+  const [error, setError] = useState<Error | null>(null);
+
+  const url = useMemo(
+    () =>
+      country ? `/api/compliance/identifiers?country=${country}&entityType=${entityType}` : null,
+    [country, entityType],
+  );
+
+  // Fetch data (only if not cached)
+  useEffect(() => {
+    if (!url || !cacheKey) {
+      setData(null);
+      setIsLoading(false);
+      return;
+    }
+
+    const cached = getCachedIdentifiers(cacheKey);
+    if (cached) {
+      setData(cached);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
+    setIsLoading(true);
+    const fullUrl = `${import.meta.env.VITE_BACKEND_URL || ''}${url}`;
+
+    authenticatedFetch(fullUrl)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`GET ${url} failed with status ${res.status}`);
+        const result = (await res.json()) as CountryIdentifierConfig;
+        setCachedIdentifiers(cacheKey, result);
+        setData(result);
+        setError(null);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err : new Error(String(err)));
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [cacheKey, url]);
+
+  // Refetch function (bypasses cache)
+  const refetch = useCallback(() => {
+    if (!cacheKey || !url) return;
+
+    identifierCache.delete(cacheKey);
+    setIsLoading(true);
+    const fullUrl = `${import.meta.env.VITE_BACKEND_URL || ''}${url}`;
+
+    authenticatedFetch(fullUrl)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`GET ${url} failed with status ${res.status}`);
+        const result = (await res.json()) as CountryIdentifierConfig;
+        setCachedIdentifiers(cacheKey, result);
+        setData(result);
+        setError(null);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err : new Error(String(err)));
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [cacheKey, url]);
 
   return {
     identifiers: data?.identifiers || [],
     vat: data?.vat || { labelKey: null, format: null, example: null },
     customFields: data?.customFields || [],
-    isLoading: loading,
+    isLoading,
     error,
-    refetch: mutate,
+    refetch,
   };
 }

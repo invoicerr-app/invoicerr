@@ -46,7 +46,7 @@ export const usConfig: CountryConfig = {
     ],
     // No standard format - EIN is for income tax, not VAT
     numberFormat: '^[0-9]{2}-[0-9]{7}$',
-    numberPrefix: '',
+    numberPrefix: 'US',
     roundingMode: 'total',
     // Not applicable for US but required by interface
     reverseChargeTexts: {

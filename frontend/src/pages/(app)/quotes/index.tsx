@@ -4,18 +4,41 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useGetRaw, useSse } from '@/hooks/use-fetch';
+import { useGetRaw, useSsePaginated } from '@/hooks/use-fetch';
 import type { QuoteListHandle } from '@/pages/(app)/quotes/_components/quote-list';
 import { QuoteList } from '@/pages/(app)/quotes/_components/quote-list';
 import type { Quote } from '@/types';
+
+interface QuoteStats {
+  total: number;
+  draft: number;
+  sent: number;
+  signed: number;
+  expired: number;
+}
+
+interface QuotesResponse {
+  pageCount: number;
+  quotes: Quote[];
+  stats: QuoteStats;
+}
 
 export default function Quotes() {
   const { t } = useTranslation();
   const quoteListRef = useRef<QuoteListHandle>(null);
   const [page, setPage] = useState(1);
-  const { data: quotes } = useSse<{ pageCount: number; quotes: Quote[] }>(
-    `/api/quotes/sse?page=${page}`,
+  const pageCountRef = useRef(1);
+  const { data: quotesData } = useSsePaginated<QuotesResponse>(
+    '/api/quotes/sse',
+    page,
+    pageCountRef.current,
   );
+
+  // Update pageCount ref when data arrives
+  if (quotesData?.pageCount && quotesData.pageCount !== pageCountRef.current) {
+    pageCountRef.current = quotesData.pageCount;
+  }
+
   const [downloadQuotePdf, setDownloadQuotePdf] = useState<Quote | null>(null);
   const { data: pdf } = useGetRaw<Response>(`/api/quotes/${downloadQuotePdf?.id}/pdf`);
 
@@ -39,11 +62,13 @@ export default function Quotes() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredQuotes =
-    quotes?.quotes.filter(
+    quotesData?.quotes.filter(
       (quote) =>
         quote.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         quote.status.toLowerCase().includes(searchTerm.toLowerCase()),
     ) || [];
+
+  const stats = quotesData?.stats || { total: 0, draft: 0, sent: 0, signed: 0, expired: 0 };
 
   const emptyState = (
     <div className="text-center py-12">
@@ -110,9 +135,7 @@ export default function Quotes() {
                 <FileText className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-semibold text-foreground">
-                  {quotes?.quotes.length || 0}
-                </p>
+                <p className="text-2xl font-semibold text-foreground">{stats.total}</p>
                 <p className="text-sm text-primary">{t('quotes.stats.total')}</p>
               </div>
             </div>
@@ -128,9 +151,7 @@ export default function Quotes() {
                 </div>
               </div>
               <div>
-                <p className="text-2xl font-semibold text-foreground">
-                  {quotes?.quotes.filter((c) => c.status === 'DRAFT').length || 0}
-                </p>
+                <p className="text-2xl font-semibold text-foreground">{stats.draft}</p>
                 <p className="text-sm text-primary">{t('quotes.stats.draft')}</p>
               </div>
             </div>
@@ -140,15 +161,13 @@ export default function Quotes() {
         <Card>
           <CardContent>
             <div className="flex items-center space-x-4">
-              <div className="p-3 bg-blue-100 rounded-lg">
+              <div className="p-3 bg-green-100 rounded-lg">
                 <div className="w-6 h-6 flex items-center justify-center">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                 </div>
               </div>
               <div>
-                <p className="text-2xl font-semibold text-foreground">
-                  {quotes?.quotes.filter((c) => c.status === 'SIGNED').length || 0}
-                </p>
+                <p className="text-2xl font-semibold text-foreground">{stats.signed}</p>
                 <p className="text-sm text-primary">{t('quotes.stats.signed')}</p>
               </div>
             </div>
@@ -163,7 +182,7 @@ export default function Quotes() {
         title={t('quotes.list.title')}
         description={t('quotes.list.description')}
         page={page}
-        pageCount={quotes?.pageCount || 1}
+        pageCount={quotesData?.pageCount || 1}
         setPage={setPage}
         emptyState={emptyState}
         showCreateButton={true}

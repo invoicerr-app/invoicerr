@@ -244,7 +244,6 @@ export default function OnBoarding({ isLoading: externalLoading, isOpen = true }
     identifiers: countryIdentifiers,
     vat: vatConfig,
     isLoading: identifiersLoading,
-    error: identifiersError,
   } = useCountryIdentifiers(selectedCountry || undefined);
 
   async function onSubmit(values: OnBoardingData) {

@@ -37,26 +37,19 @@ export const beConfig: CountryConfig = {
   identifiers: {
     company: [
       {
-        id: 'enterpriseNumber',
-        labelKey: 'identifiers.be.enterpriseNumber',
+        id: 'bce',
+        labelKey: 'identifiers.be.bce',
         format: '^[0-9]{10}$',
         example: '0123456789',
-        required: true,
+        required: false,
         maxLength: 10,
         peppolScheme: '0208',
-      },
-      {
-        id: 'kbo',
-        labelKey: 'identifiers.be.kbo',
-        format: '^[0-9]{4}\\.[0-9]{3}\\.[0-9]{3}$',
-        example: '0123.456.789',
-        required: false,
       },
     ],
     client: [
       {
-        id: 'enterpriseNumber',
-        labelKey: 'identifiers.be.enterpriseNumber',
+        id: 'bce',
+        labelKey: 'identifiers.be.bce',
         format: '^[0-9]{10}$',
         example: '0123456789',
         required: false,
@@ -99,9 +92,9 @@ export const beConfig: CountryConfig = {
   },
 
   format: {
-    preferred: 'ubl',
-    supported: ['pdf', 'ubl', 'peppol-bis'],
-    syntax: 'UBL',
+    preferred: 'facturx',
+    supported: ['pdf', 'facturx', 'ubl'],
+    syntax: 'CII',
     version: '2.1',
     profile: 'PEPPOL-BIS',
     customizationId: 'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0',
@@ -127,7 +120,7 @@ export const beConfig: CountryConfig = {
   },
 
   archiving: {
-    retentionYears: 7,
+    retentionYears: 10,
     formatRequired: 'original',
     dataResidency: 'EU',
   },

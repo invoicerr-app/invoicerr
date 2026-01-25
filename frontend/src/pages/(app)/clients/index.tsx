@@ -1,5 +1,5 @@
-import { Edit, Eye, Mail, MapPin, Phone, Plus, Search, Trash2, User, Users } from 'lucide-react';
-import { useState } from 'react';
+import { Building2, Edit, Eye, Mail, MapPin, Phone, Plus, Search, Trash2, User, Users } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BetterPagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
@@ -12,18 +12,38 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useSse } from '@/hooks/use-fetch';
+import { useSsePaginated } from '@/hooks/use-fetch';
 import type { Client } from '@/types';
 import { ClientDeleteDialog } from './_components/client-delete';
 import { ClientUpsert } from './_components/client-upsert';
 import { ClientViewDialog } from './_components/client-view';
 
+interface ClientStats {
+  total: number;
+  companies: number;
+  individuals: number;
+}
+
+interface ClientsResponse {
+  pageCount: number;
+  clients: Client[];
+  stats: ClientStats;
+}
+
 export default function Clients() {
   const { t } = useTranslation();
   const [page, setPage] = useState(1);
-  const { data: clients } = useSse<{ pageCount: number; clients: Client[] }>(
-    `/api/clients/sse?page=${page}`,
+  const pageCountRef = useRef(1);
+  const { data: clientsData } = useSsePaginated<ClientsResponse>(
+    '/api/clients/sse',
+    page,
+    pageCountRef.current,
   );
+
+  // Update pageCount ref when data arrives
+  if (clientsData?.pageCount && clientsData.pageCount !== pageCountRef.current) {
+    pageCountRef.current = clientsData.pageCount;
+  }
 
   const [createClientDialog, setCreateClientDialog] = useState<boolean>(false);
   const [editClientDialog, setEditClientDialog] = useState<Client | null>(null);
@@ -33,13 +53,15 @@ export default function Clients() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredClients =
-    clients?.clients.filter(
+    clientsData?.clients.filter(
       (client) =>
         client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         client.contactFirstname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         client.contactLastname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         client.contactEmail.toLowerCase().includes(searchTerm.toLowerCase()),
     ) || [];
+
+  const stats = clientsData?.stats || { total: 0, companies: 0, individuals: 0 };
 
   function handleAddClick() {
     setCreateClientDialog(true);
@@ -122,9 +144,7 @@ export default function Clients() {
                 <Users className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-semibold text-foreground">
-                  {clients?.clients.length || 0}
-                </p>
+                <p className="text-2xl font-semibold text-foreground">{stats.total}</p>
                 <p className="text-sm text-primary">{t('clients.stats.total')}</p>
               </div>
             </div>
@@ -134,16 +154,12 @@ export default function Clients() {
         <Card>
           <CardContent>
             <div className="flex items-center space-x-4">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <div className="w-6 h-6 flex items-center justify-center">
-                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                </div>
+              <div className="p-3 bg-yellow-100 rounded-lg">
+                <Building2 className="h-6 w-6 text-yellow-600" />
               </div>
               <div>
-                <p className="text-2xl font-semibold text-foreground">
-                  {clients?.clients.filter((c) => c.isActive).length || 0}
-                </p>
-                <p className="text-sm text-primary">{t('clients.stats.active')}</p>
+                <p className="text-2xl font-semibold text-foreground">{stats.companies}</p>
+                <p className="text-sm text-primary">{t('clients.stats.companies')}</p>
               </div>
             </div>
           </CardContent>
@@ -152,16 +168,12 @@ export default function Clients() {
         <Card>
           <CardContent>
             <div className="flex items-center space-x-4">
-              <div className="p-3 bg-gray-100 rounded-lg">
-                <div className="w-6 h-6 flex items-center justify-center">
-                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-                </div>
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <User className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-semibold text-foreground">
-                  {clients?.clients.filter((c) => !c.isActive).length || 0}
-                </p>
-                <p className="text-sm text-primary">{t('clients.stats.inactive')}</p>
+                <p className="text-2xl font-semibold text-foreground">{stats.individuals}</p>
+                <p className="text-sm text-primary">{t('clients.stats.individuals')}</p>
               </div>
             </div>
           </CardContent>
@@ -284,7 +296,7 @@ export default function Clients() {
 
         <CardFooter>
           {filteredClients.length > 0 && (
-            <BetterPagination pageCount={clients?.pageCount || 1} page={page} setPage={setPage} />
+            <BetterPagination pageCount={clientsData?.pageCount || 1} page={page} setPage={setPage} />
           )}
         </CardFooter>
       </Card>

@@ -14,17 +14,30 @@ export class ClientsService {
     const pageSize = 10;
     const skip = (pageNumber - 1) * pageSize;
 
-    const clients = await prisma.client.findMany({
-      skip,
-      take: pageSize,
-      orderBy: {
-        name: 'asc',
+    const whereActive = { isActive: true };
+
+    // Parallel queries for better performance
+    const [clients, totalCount, companyCount, individualCount] = await Promise.all([
+      prisma.client.findMany({
+        skip,
+        take: pageSize,
+        where: whereActive,
+        orderBy: { name: 'asc' },
+      }),
+      prisma.client.count({ where: whereActive }),
+      prisma.client.count({ where: { ...whereActive, type: 'COMPANY' } }),
+      prisma.client.count({ where: { ...whereActive, type: 'INDIVIDUAL' } }),
+    ]);
+
+    return {
+      pageCount: Math.ceil(totalCount / pageSize),
+      clients,
+      stats: {
+        total: totalCount,
+        companies: companyCount,
+        individuals: individualCount,
       },
-    });
-
-    const totalClients = await prisma.client.count();
-
-    return { pageCount: Math.ceil(totalClients / pageSize), clients };
+    };
   }
 
   async searchClients(query: string) {

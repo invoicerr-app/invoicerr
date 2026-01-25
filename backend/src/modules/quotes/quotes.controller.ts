@@ -14,7 +14,7 @@ export class QuotesController {
   }
 
   @Sse('sse')
-  async getQuotesInfoSse(@Param('page') page: string) {
+  async getQuotesInfoSse(@Query('page') page: string) {
     return interval(1000).pipe(
       startWith(0),
       switchMap(() => from(this.quotesService.getQuotes(page))),

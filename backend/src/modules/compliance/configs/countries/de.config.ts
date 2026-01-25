@@ -96,6 +96,8 @@ export const deConfig: CountryConfig = {
       mandatory: false,
       async: false,
     },
+    // Exports to non-EU use email
+    exportDefault: 'email',
   },
 
   numbering: {

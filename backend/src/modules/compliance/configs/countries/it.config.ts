@@ -129,6 +129,11 @@ export const itConfig: CountryConfig = {
       async: true,
       deadlineDays: 12,
     },
+    // Cross-border: EU uses Peppol, non-EU uses email
+    crossBorder: {
+      // Specific EU country overrides can be added here
+    },
+    exportDefault: 'email',
   },
 
   numbering: {

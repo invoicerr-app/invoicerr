@@ -102,7 +102,7 @@ export const inConfig: CountryConfig = {
     ],
     // GSTIN format: 2 state code + 10 PAN + 1 entity + 1 Z + 1 checksum
     numberFormat: '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$',
-    numberPrefix: '',
+    numberPrefix: 'IN',
     roundingMode: 'line', // ❌ STRICT: Line-level rounding for GST
     reverseChargeTexts: {
       services: 'compliance.in.reverseCharge.services',
@@ -251,7 +251,7 @@ export const inConfig: CountryConfig = {
   format: {
     preferred: 'json',
     supported: ['pdf', 'json'],
-    syntax: 'GST_JSON',
+    syntax: 'GST-JSON',
     version: '1.1',
     profile: 'e-Invoice',
   },

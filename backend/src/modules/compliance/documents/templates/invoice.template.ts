@@ -10,6 +10,7 @@ import {
   notesSection,
   legalMentionsSection,
   qrCodeSection,
+  qrCodeTopSection,
 } from './base.template';
 
 export const invoiceTemplate = `
@@ -21,6 +22,7 @@ export const invoiceTemplate = `
   ${baseStyles}
 </head>
 <body>
+  ${qrCodeTopSection}
   <div class="header">
     <div class="company-info">
       {{#if includeLogo}}

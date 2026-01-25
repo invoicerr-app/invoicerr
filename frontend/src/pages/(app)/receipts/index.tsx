@@ -4,17 +4,36 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useGetRaw, useSse } from '@/hooks/use-fetch';
+import { useGetRaw, useSsePaginated } from '@/hooks/use-fetch';
 import type { Receipt } from '@/types';
 import { ReceiptList, type ReceiptListHandle } from './_components/receipt-list';
+
+interface ReceiptStats {
+  total: number;
+}
+
+interface ReceiptsResponse {
+  pageCount: number;
+  receipts: Receipt[];
+  stats: ReceiptStats;
+}
 
 export default function Receipts() {
   const { t } = useTranslation();
   const receiptListRef = useRef<ReceiptListHandle>(null);
   const [page, setPage] = useState(1);
-  const { data: receipts } = useSse<{ pageCount: number; receipts: Receipt[] }>(
-    `/api/receipts/sse?page=${page}`,
+  const pageCountRef = useRef(1);
+  const { data: receiptsData } = useSsePaginated<ReceiptsResponse>(
+    '/api/receipts/sse',
+    page,
+    pageCountRef.current,
   );
+
+  // Update pageCount ref when data arrives
+  if (receiptsData?.pageCount && receiptsData.pageCount !== pageCountRef.current) {
+    pageCountRef.current = receiptsData.pageCount;
+  }
+
   const [downloadReceiptPdf, setDownloadReceiptPdf] = useState<Receipt | null>(null);
   const { data: pdf } = useGetRaw<Response>(`/api/receipts/${downloadReceiptPdf?.id}/pdf`);
 
@@ -38,7 +57,7 @@ export default function Receipts() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredReceipts =
-    receipts?.receipts.filter(
+    receiptsData?.receipts.filter(
       (receipt) =>
         receipt.invoice?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         receipt.invoice?.client?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -47,6 +66,8 @@ export default function Receipts() {
         receipt.invoice?.rawNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         receipt.invoice?.number?.toString().includes(searchTerm),
     ) || [];
+
+  const stats = receiptsData?.stats || { total: 0 };
 
   const emptyState = (
     <div className="text-center py-12">
@@ -113,9 +134,7 @@ export default function Receipts() {
                 <ReceiptIcon className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-semibold text-foreground">
-                  {receipts?.receipts.length || 0}
-                </p>
+                <p className="text-2xl font-semibold text-foreground">{stats.total}</p>
                 <p className="text-sm text-primary">{t('receipts.stats.total')}</p>
               </div>
             </div>
@@ -130,7 +149,7 @@ export default function Receipts() {
         title={t('receipts.list.title')}
         description={t('receipts.list.description')}
         page={page}
-        pageCount={receipts?.pageCount || 1}
+        pageCount={receiptsData?.pageCount || 1}
         setPage={setPage}
         emptyState={emptyState}
         showCreateButton={true}

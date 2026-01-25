@@ -470,7 +470,8 @@
         "markAsPaid": "Marquer comme payée",
         "delete": "Supprimer la facture",
         "createReceipt": "Créer un reçu à partir de cette facture",
-        "sendByEmail": "Envoyer la facture par email"
+        "sendByEmail": "Envoyer la facture par email",
+        "sendVia": "Envoyer via {{platform}}"
       },
       "actions": {
         "addNew": "Ajouter une nouvelle facture",
@@ -618,6 +619,155 @@
     },
     "pdf": {
       "title": "Facture {{number}} - PDF"
+    },
+    "fields": {
+      "number": "Numéro de facture",
+      "client": "Client",
+      "date": "Date",
+      "total": "Total",
+      "totalHT": "Total HT",
+      "totalVAT": "Montant TVA",
+      "totalTTC": "Total TTC"
+    },
+    "modification": {
+      "title": "Modifier la facture",
+      "description": "Choisissez comment modifier la facture {{invoiceNumber}}",
+      "recommended": "Recommandé",
+      "countryAllowsEdit": "La modification directe est autorisée pour cette facture.",
+      "countryRequiresCorrection": "Ce pays exige {{method}} pour les corrections de factures.",
+      "devModeNotice": "Mode développement : Toutes les options sont visibles. Les options grisées seraient masquées en production.",
+      "methods": {
+        "credit_note": "des avoirs",
+        "corrective_invoice": "des factures rectificatives",
+        "replacement": "un remplacement",
+        "void_and_reissue": "une annulation et réémission"
+      },
+      "directEdit": {
+        "label": "Modifier directement",
+        "description": "Modifier le contenu de la facture directement. Disponible uniquement pour les factures non transmises.",
+        "disabledByCountry": "La modification directe n'est pas autorisée dans ce pays après la création de la facture.",
+        "alreadyTransmitted": "Cette facture a déjà été transmise et ne peut pas être modifiée directement.",
+        "finalState": "Cette facture est dans un état final et ne peut pas être modifiée."
+      },
+      "creditNote": {
+        "label": "Créer un avoir",
+        "description": "Émettre un avoir pour annuler partiellement ou totalement cette facture.",
+        "alreadyCredited": "Un avoir a déjà été émis pour cette facture.",
+        "cancelled": "Impossible de créer un avoir pour une facture annulée."
+      },
+      "correctiveInvoice": {
+        "label": "Créer une facture rectificative",
+        "description": "Émettre une facture rectificative avec les informations correctes.",
+        "cancelled": "Impossible de créer une facture rectificative pour une facture annulée."
+      },
+      "voidAndReissue": {
+        "label": "Annuler et réémettre",
+        "description": "Annuler cette facture et en créer une nouvelle avec les informations correctes.",
+        "alreadyPaid": "Impossible d'annuler une facture payée.",
+        "cancelled": "Cette facture a déjà été annulée."
+      },
+      "cancel": {
+        "label": "Annuler la facture",
+        "description": "Marquer cette facture comme annulée sans émettre de remplacement.",
+        "alreadyPaid": "Impossible d'annuler une facture payée.",
+        "alreadyCancelled": "Cette facture a déjà été annulée."
+      }
+    },
+    "creditNote": {
+      "title": "Créer un avoir",
+      "subtitle": "Pour la facture {{invoiceNumber}}",
+      "originalInvoice": "Facture d'origine",
+      "originalInvoiceDescription": "Détails de la facture à créditer",
+      "countryRequiresReference": "Ce pays exige que les avoirs référencent la facture d'origine.",
+      "correctionType": "Type de correction",
+      "correctionCode": "Code de correction",
+      "selectCorrectionCode": "Sélectionner un code de correction",
+      "correctionCodeDescription": "Le code de correction définit le type d'avoir émis.",
+      "itemsToCredit": "Articles à créditer",
+      "itemsToCreditDescription": "Sélectionnez les articles et quantités à inclure dans l'avoir.",
+      "selectAll": "Tout sélectionner",
+      "originalQuantity": "Qté d'origine",
+      "reasonTitle": "Motif de l'avoir",
+      "reason": "Motif",
+      "reasonPlaceholder": "Décrivez le motif de l'émission de cet avoir...",
+      "reasonDescription": "Ceci sera inclus dans l'avoir pour référence.",
+      "summary": "Récapitulatif de l'avoir",
+      "totalCredit": "Montant total du crédit",
+      "create": "Créer l'avoir",
+      "success": "Avoir créé avec succès",
+      "errors": {
+        "invoiceNotFound": "Facture introuvable",
+        "noItemsSelected": "Veuillez sélectionner au moins un article à créditer",
+        "createFailed": "Échec de la création de l'avoir"
+      }
+    },
+    "correctiveInvoice": {
+      "title": "Créer une facture rectificative",
+      "subtitle": "Pour la facture {{invoiceNumber}}",
+      "originalInvoice": "Facture d'origine",
+      "originalInvoiceDescription": "Détails de la facture à rectifier",
+      "countryRequiresReference": "Ce pays exige que les factures rectificatives référencent la facture d'origine.",
+      "correctionType": "Type de correction",
+      "correctionCode": "Code de correction",
+      "selectCorrectionCode": "Sélectionner un code de correction",
+      "correctionCodeDescription": "Le code de correction définit le type de rectification effectuée.",
+      "itemsToCorrect": "Articles à rectifier",
+      "itemsToCorrectDescription": "Modifiez les quantités ou les prix unitaires pour refléter les valeurs correctes.",
+      "originalValues": "Original",
+      "quantity": "Quantité",
+      "unitPrice": "Prix unitaire",
+      "lineTotal": "Total ligne",
+      "reasonTitle": "Motif de la rectification",
+      "reason": "Motif",
+      "reasonPlaceholder": "Décrivez le motif de l'émission de cette facture rectificative...",
+      "reasonDescription": "Ceci sera inclus dans la facture rectificative pour référence.",
+      "summary": "Récapitulatif de la facture rectificative",
+      "originalTotals": "Totaux d'origine",
+      "correctedTotals": "Totaux rectifiés",
+      "difference": "Différence",
+      "totalDifference": "Différence totale",
+      "create": "Créer la facture rectificative",
+      "success": "Facture rectificative créée avec succès",
+      "errors": {
+        "invoiceNotFound": "Facture introuvable",
+        "noChanges": "Veuillez effectuer au moins une modification sur les articles de la facture",
+        "createFailed": "Échec de la création de la facture rectificative"
+      }
+    },
+    "voidReissue": {
+      "title": "Annuler et réémettre la facture",
+      "subtitle": "Pour la facture {{invoiceNumber}}",
+      "warning": "Cette action annulera la facture d'origine et créera une nouvelle facture de remplacement. La facture d'origine sera marquée comme annulée et ne pourra plus être modifiée.",
+      "originalInvoice": "Facture d'origine",
+      "originalInvoiceDescription": "Détails de la facture à annuler",
+      "countryInfo": "Ce pays exige que la nouvelle facture référence le numéro de la facture annulée.",
+      "correctionType": "Type de correction",
+      "correctionCode": "Code de correction",
+      "selectCorrectionCode": "Sélectionner un code de correction",
+      "correctionCodeDescription": "Le code de correction définit le motif de l'annulation et de la réémission.",
+      "newInvoiceItems": "Articles de la nouvelle facture",
+      "newInvoiceItemsDescription": "Modifiez les articles pour la facture de remplacement. Décochez les articles pour les supprimer.",
+      "includeAll": "Tout inclure",
+      "quantity": "Quantité",
+      "unitPrice": "Prix unitaire",
+      "vatRate": "Taux de TVA",
+      "lineTotal": "Total ligne",
+      "reasonTitle": "Motif de l'annulation et réémission",
+      "reason": "Motif",
+      "reasonPlaceholder": "Décrivez le motif de l'annulation et de la réémission de cette facture...",
+      "reasonDescription": "Ce motif sera enregistré à des fins d'audit et inclus dans la nouvelle facture.",
+      "summary": "Récapitulatif",
+      "voidedInvoice": "Facture annulée",
+      "newInvoice": "Nouvelle facture",
+      "confirmVoid": "Je confirme vouloir annuler la facture d'origine",
+      "confirmVoidDescription": "En cochant cette case, vous reconnaissez que la facture d'origine sera définitivement annulée et qu'une nouvelle facture sera émise.",
+      "submit": "Annuler et réémettre",
+      "success": "Facture annulée et nouvelle facture créée avec succès",
+      "errors": {
+        "invoiceNotFound": "Facture introuvable",
+        "noItemsIncluded": "Veuillez inclure au moins un article dans la nouvelle facture",
+        "createFailed": "Échec de l'annulation et de la réémission de la facture"
+      }
     }
   },
   "recurringInvoices": {
@@ -1693,6 +1843,10 @@
     "loading": "Chargement...",
     "finish": "Terminer",
     "optional": "Optionnel",
+    "cancel": "Annuler",
+    "creating": "Création en cours...",
+    "processing": "Traitement en cours...",
+    "vat": "TVA",
     "units": {
       "day": "Jour",
       "week": "Semaine",
@@ -1700,6 +1854,12 @@
       "year": "Année"
     },
     "valueWithCurrency": "{{amount}} {{currency}}"
+  },
+  "correction": {
+    "creditNote": "Avoir",
+    "debitNote": "Note de débit",
+    "correctiveInvoice": "Facture rectificative",
+    "cancellation": "Annulation"
   },
   "receipts": {
     "header": {
@@ -1891,5 +2051,26 @@
     "noSubdirectories": "Aucun sous-dossier trouvé",
     "loading": "Chargement des répertoires..."
   },
-  "noOptions": "Aucune option disponible. Créer un nouveau client."
+  "noOptions": "Aucune option disponible. Créer un nouveau client.",
+  "transmission": {
+    "email": "Email",
+    "peppol": "Peppol",
+    "sdi": "SDI (Sistema di Interscambio)",
+    "chorus": "Chorus Pro",
+    "verifactu": "Verifactu",
+    "saft": "SAF-T",
+    "pdp": "Plateforme PDP"
+  },
+  "platform": {
+    "email": "Email",
+    "superpdp": "SuperPDP",
+    "chorus": "Chorus Pro",
+    "peppol": "Réseau Peppol",
+    "sdi": "SDI",
+    "irp": "IRP (Portail d'Enregistrement des Factures)",
+    "verifactu": "Verifactu",
+    "saft": "Portail SAF-T",
+    "xrechnung": "Portail XRechnung",
+    "face": "FACe"
+  }
 }

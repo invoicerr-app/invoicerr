@@ -51,6 +51,17 @@ export interface SaftConfig {
   hashValidationKey: string;
 }
 
+export interface KSeFConfig {
+  apiUrl: string;
+  webUrl: string;
+  nip: string;
+  companyName?: string;
+  certificatePem: string;
+  privateKeyPem: string;
+  password?: string;
+  environment: 'test' | 'production';
+}
+
 @Injectable()
 export class ComplianceSettingsService {
   private readonly logger = new Logger(ComplianceSettingsService.name);
@@ -289,18 +300,64 @@ export class ComplianceSettingsService {
   }
 
   /**
+   * Get KSeF configuration for a company (Poland)
+   *
+   * Note: KSeF fields are stored in the generic platformConfig JSON field
+   * until dedicated schema fields are added.
+   */
+  async getKSeFConfig(companyId: string): Promise<KSeFConfig | null> {
+    const settings = await this.getSettings(companyId);
+    if (!settings) {
+      return null;
+    }
+
+    // KSeF config is stored in extended settings
+    // Check if the company has KSeF-specific configuration
+    const extendedConfig = (settings as unknown as Record<string, unknown>);
+
+    const ksefApiUrl = extendedConfig.ksefApiUrl as string | undefined;
+    const ksefCertificatePem = extendedConfig.ksefCertificatePem as string | undefined;
+    const ksefPrivateKeyPem = extendedConfig.ksefPrivateKeyPem as string | undefined;
+    const ksefNip = extendedConfig.ksefNip as string | undefined;
+
+    if (!ksefApiUrl || !ksefCertificatePem || !ksefPrivateKeyPem || !ksefNip) {
+      return null;
+    }
+
+    const environment = (extendedConfig.ksefEnvironment as string) === 'production'
+      ? 'production'
+      : 'test';
+
+    const webUrl = environment === 'production'
+      ? 'https://ksef.mf.gov.pl'
+      : 'https://ksef-test.mf.gov.pl';
+
+    return {
+      apiUrl: ksefApiUrl,
+      webUrl,
+      nip: ksefNip,
+      companyName: extendedConfig.ksefCompanyName as string | undefined,
+      certificatePem: ksefCertificatePem,
+      privateKeyPem: ksefPrivateKeyPem,
+      password: extendedConfig.ksefCertificatePassword as string | undefined,
+      environment,
+    };
+  }
+
+  /**
    * Check which platforms are configured for a company
    */
   async getConfiguredPlatforms(companyId: string): Promise<string[]> {
     const platforms: string[] = ['email']; // Email is always available
 
-    const [chorus, pdp, peppol, sdi, verifactu, saft] = await Promise.all([
+    const [chorus, pdp, peppol, sdi, verifactu, saft, ksef] = await Promise.all([
       this.getChorusConfig(companyId),
       this.getPDPConfig(companyId),
       this.getPeppolConfig(companyId),
       this.getSdIConfig(companyId),
       this.getVerifactuConfig(companyId),
       this.getSaftConfig(companyId),
+      this.getKSeFConfig(companyId),
     ]);
 
     if (chorus) platforms.push('chorus');
@@ -309,6 +366,7 @@ export class ComplianceSettingsService {
     if (sdi) platforms.push('sdi', 'fatturaPA');
     if (verifactu) platforms.push('verifactu');
     if (saft) platforms.push('saft');
+    if (ksef) platforms.push('ksef');
 
     return platforms;
   }

@@ -9,6 +9,8 @@ import {
   paymentSection,
   notesSection,
   legalMentionsSection,
+  qrCodeSection,
+  qrCodeTopSection,
 } from './base.template';
 
 export const quoteTemplate = `
@@ -20,6 +22,7 @@ export const quoteTemplate = `
   ${baseStyles}
 </head>
 <body>
+  ${qrCodeTopSection}
   <div class="header">
     <div class="company-info">
       {{#if includeLogo}}
@@ -83,6 +86,8 @@ export const quoteTemplate = `
   ${notesSection}
 
   ${legalMentionsSection}
+
+  ${qrCodeSection}
 
 </body>
 </html>

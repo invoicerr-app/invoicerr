@@ -250,13 +250,33 @@ export const baseStyles = `
   }
 
   .qr-code {
-    text-align: right;
     margin-top: 20px;
+  }
+
+  .qr-code.position-top-right {
+    position: absolute;
+    top: {{padding}}px;
+    right: {{padding}}px;
+    margin-top: 0;
+  }
+
+  .qr-code.position-bottom-right {
+    text-align: right;
+  }
+
+  .qr-code.position-bottom-left {
+    text-align: left;
   }
 
   .qr-code img {
     width: 100px;
     height: 100px;
+  }
+
+  .qr-code-label {
+    font-size: 8px;
+    color: #888;
+    margin-top: 4px;
   }
 
   .footer {
@@ -484,11 +504,33 @@ export const legalMentionsSection = `
 
 /**
  * QR Code section template
+ * Supports positioning: top-right, bottom-right (default), bottom-left
+ * Accepts qrCode as base64 data URL (PNG or SVG)
  */
 export const qrCodeSection = `
 {{#if qrCode}}
-  <div class="qr-code">
+  <div class="qr-code position-{{qrCodePosition}}">
     <img src="{{qrCode}}" alt="QR Code">
+    {{#if qrCodeLabel}}
+      <div class="qr-code-label">{{qrCodeLabel}}</div>
+    {{/if}}
   </div>
+{{/if}}
+`;
+
+/**
+ * QR Code section for top position (placed in header area)
+ * Use this when QR code needs to appear at the top of the document
+ */
+export const qrCodeTopSection = `
+{{#if qrCode}}
+  {{#if qrCodeTopPosition}}
+    <div class="qr-code position-top-right">
+      <img src="{{qrCode}}" alt="QR Code">
+      {{#if qrCodeLabel}}
+        <div class="qr-code-label">{{qrCodeLabel}}</div>
+      {{/if}}
+    </div>
+  {{/if}}
 {{/if}}
 `;

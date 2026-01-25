@@ -248,6 +248,63 @@ export function validatePDPPayload(payload: TransmissionPayload): ValidationResu
 }
 
 /**
+ * Validate Polish NIP (tax identification number)
+ * Format: 10 digits with checksum validation
+ */
+export function isValidNIP(nip: string): boolean {
+  // Remove any dashes or spaces
+  const cleanNip = nip.replace(/[-\s]/g, '');
+
+  if (!/^[0-9]{10}$/.test(cleanNip)) {
+    return false;
+  }
+
+  // NIP checksum validation
+  const weights = [6, 5, 7, 2, 3, 4, 5, 6, 7];
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(cleanNip[i], 10) * weights[i];
+  }
+
+  const checkDigit = sum % 11;
+  return checkDigit === parseInt(cleanNip[9], 10);
+}
+
+/**
+ * Validate payload for KSeF (Poland)
+ */
+export function validateKSeFPayload(payload: TransmissionPayload): ValidationResult {
+  const baseResult = validateBasePayload(payload);
+  const errors = [...baseResult.errors];
+
+  // Sender must have VAT number (NIP)
+  if (!payload.sender?.vatNumber) {
+    errors.push({ field: 'sender.vatNumber', message: 'Sender VAT number (NIP) is required for KSeF' });
+  } else {
+    // Validate NIP format (Polish VAT starts with PL)
+    const nip = payload.sender.vatNumber.replace(/^PL/i, '');
+    if (!isValidNIP(nip)) {
+      errors.push({ field: 'sender.vatNumber', message: 'Invalid Polish NIP format' });
+    }
+  }
+
+  // Recipient must have VAT number or KSeF number
+  if (!payload.recipient?.vatNumber && !payload.recipient?.ksefNumber) {
+    errors.push({
+      field: 'recipient.vatNumber',
+      message: 'Either VAT number or KSeF number is required for KSeF transmission',
+    });
+  }
+
+  // XML content is required for KSeF
+  if (!payload.xmlContent) {
+    errors.push({ field: 'xmlContent', message: 'FA XML content is required for KSeF' });
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+/**
  * Validate and throw if invalid
  */
 export function assertValid(result: ValidationResult, context: string): void {

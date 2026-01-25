@@ -5,7 +5,6 @@ import {
   Edit,
   Eye,
   FileText,
-  Mail,
   Plus,
   ReceiptText,
   Trash2,
@@ -34,7 +33,9 @@ import {
 import { useGet, useGetRaw, usePost } from '@/hooks/use-fetch';
 import type { Invoice } from '@/types';
 import BetterPagination from '../../../../components/pagination';
+import { TransmissionButton } from '../../../../components/transmission-button';
 import { InvoiceDeleteDialog } from './invoice-delete';
+import { InvoiceModificationDialog } from './invoice-modification-dialog';
 import { InvoicePdfModal } from './invoice-pdf-view';
 import { InvoiceUpsert } from './invoice-upsert';
 import { InvoiceViewDialog } from './invoice-view';
@@ -85,6 +86,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
 
     const [createInvoiceDialog, setCreateInvoiceDialog] = useState<boolean>(false);
     const [editInvoiceDialog, setEditInvoiceDialog] = useState<Invoice | null>(null);
+    const [modificationDialog, setModificationDialog] = useState<Invoice | null>(null);
     const [viewInvoiceDialog, setViewInvoiceDialog] = useState<Invoice | null>(null);
     const [viewInvoicePdfDialog, setViewInvoicePdfDialog] = useState<Invoice | null>(null);
     const [deleteInvoiceDialog, setDeleteInvoiceDialog] = useState<Invoice | null>(null);
@@ -126,6 +128,12 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
     }, [downloadTrigger, file]);
 
     function handleEdit(invoice: Invoice) {
+      // Open modification dialog to show all options based on country config
+      setModificationDialog(invoice);
+    }
+
+    function handleDirectEdit(invoice: Invoice) {
+      // Called from modification dialog when direct edit is chosen
       setEditInvoiceDialog(invoice);
     }
 
@@ -467,17 +475,11 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                         )}
 
                         {invoice.status !== 'PAID' && (
-                          <Button
-                            tooltip={t('invoices.list.tooltips.sendByEmail')}
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              handleSendInvoiceByEmail(invoice.id);
-                            }}
-                            className="text-gray-600 hover:text-purple-600"
-                          >
-                            <Mail className="h-4 w-4" />
-                          </Button>
+                          <TransmissionButton
+                            company={invoice.company}
+                            client={invoice.client}
+                            onClick={() => handleSendInvoiceByEmail(invoice.id)}
+                          />
                         )}
 
                         {invoice.status !== 'PAID' && (
@@ -567,6 +569,14 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
             if (!open) setDeleteInvoiceDialog(null);
             mutate?.();
           }}
+        />
+
+        <InvoiceModificationDialog
+          invoice={modificationDialog}
+          onOpenChange={(open: boolean) => {
+            if (!open) setModificationDialog(null);
+          }}
+          onDirectEdit={handleDirectEdit}
         />
       </>
     );

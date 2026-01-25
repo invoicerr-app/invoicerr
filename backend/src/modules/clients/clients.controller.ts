@@ -13,7 +13,7 @@ export class ClientsController {
   }
 
   @Sse('sse')
-  async getClientsInfoSse(@Param('page') page: string) {
+  async getClientsInfoSse(@Query('page') page: string) {
     return interval(1000).pipe(
       startWith(0),
       switchMap(() => from(this.clientsService.getClients(page))),

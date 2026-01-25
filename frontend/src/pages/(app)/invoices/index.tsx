@@ -4,29 +4,43 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useGetRaw, useSse } from '@/hooks/use-fetch';
+import { useGetRaw, useSsePaginated } from '@/hooks/use-fetch';
 import {
   InvoiceList,
   type InvoiceListHandle,
 } from '@/pages/(app)/invoices/_components/invoice-list';
-import type { Invoice, RecurringInvoice } from '@/types';
-import {
-  RecurringInvoiceList,
-  type RecurringInvoiceListHandle,
-} from './_components/recurring-invoices/recurring-invoices-list';
+import type { Invoice } from '@/types';
+
+interface InvoiceStats {
+  total: number;
+  sent: number;
+  paid: number;
+  overdue: number;
+}
+
+interface InvoicesResponse {
+  pageCount: number;
+  invoices: Invoice[];
+  stats: InvoiceStats;
+}
 
 export default function Invoices() {
   const { t } = useTranslation();
   const invoiceListRef = useRef<InvoiceListHandle>(null);
-  const recurringInvoiceListRef = useRef<RecurringInvoiceListHandle>(null);
 
   const [page, setPage] = useState(1);
-  const { data: invoices } = useSse<{ pageCount: number; invoices: Invoice[] }>(
-    `/api/invoices/sse?page=${page}`,
+  const pageCountRef = useRef(1);
+  const { data: invoicesData } = useSsePaginated<InvoicesResponse>(
+    '/api/invoices/sse',
+    page,
+    pageCountRef.current,
   );
-  const { data: recurringInvoices } = useSse<{ pageCount: number; data: RecurringInvoice[] }>(
-    '/api/recurring-invoices/sse',
-  );
+
+  // Update pageCount ref when data arrives
+  if (invoicesData?.pageCount && invoicesData.pageCount !== pageCountRef.current) {
+    pageCountRef.current = invoicesData.pageCount;
+  }
+
   const [downloadInvoicePdf, setDownloadInvoicePdf] = useState<Invoice | null>(null);
   const { data: pdf } = useGetRaw<Response>(`/api/invoices/${downloadInvoicePdf?.id}/pdf`);
 
@@ -50,11 +64,13 @@ export default function Invoices() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredInvoices =
-    invoices?.invoices.filter(
+    invoicesData?.invoices.filter(
       (invoice) =>
         invoice.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         invoice.status.toLowerCase().includes(searchTerm.toLowerCase()),
     ) || [];
+
+  const stats = invoicesData?.stats || { total: 0, sent: 0, paid: 0, overdue: 0 };
 
   const invoiceEmptyState = (
     <div className="text-center py-12">
@@ -75,21 +91,6 @@ export default function Invoices() {
           </Button>
         </div>
       )}
-    </div>
-  );
-  const recurringInvoiceEmptyState = (
-    <div className="text-center py-12">
-      <ReceiptText className="mx-auto h-12 w-12 text-gray-400" />
-      <h3 className="mt-2 text-sm font-medium text-foreground">
-        {t('recurringInvoices.emptyState.noInvoices')}
-      </h3>
-      <p className="mt-1 text-sm text-primary">{t('recurringInvoices.emptyState.startAdding')}</p>
-      <div className="mt-6">
-        <Button onClick={() => recurringInvoiceListRef.current?.handleAddClick()}>
-          <Plus className="h-4 w-4 mr-2" />
-          {t('recurringInvoices.actions.addNew')}
-        </Button>
-      </div>
     </div>
   );
 
@@ -136,9 +137,7 @@ export default function Invoices() {
                 <ReceiptText className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-semibold text-foreground">
-                  {invoices?.invoices.length || 0}
-                </p>
+                <p className="text-2xl font-semibold text-foreground">{stats.total}</p>
                 <p className="text-sm text-primary">{t('invoices.stats.total')}</p>
               </div>
             </div>
@@ -154,9 +153,7 @@ export default function Invoices() {
                 </div>
               </div>
               <div>
-                <p className="text-2xl font-semibold text-foreground">
-                  {invoices?.invoices.filter((c) => c.status === 'SENT').length || 0}
-                </p>
+                <p className="text-2xl font-semibold text-foreground">{stats.sent}</p>
                 <p className="text-sm text-primary">{t('invoices.stats.sent')}</p>
               </div>
             </div>
@@ -166,35 +163,19 @@ export default function Invoices() {
         <Card>
           <CardContent>
             <div className="flex items-center space-x-4">
-              <div className="p-3 bg-blue-100 rounded-lg">
+              <div className="p-3 bg-green-100 rounded-lg">
                 <div className="w-6 h-6 flex items-center justify-center">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                 </div>
               </div>
               <div>
-                <p className="text-2xl font-semibold text-foreground">
-                  {invoices?.invoices.filter((c) => c.status === 'PAID').length || 0}
-                </p>
+                <p className="text-2xl font-semibold text-foreground">{stats.paid}</p>
                 <p className="text-sm text-primary">{t('invoices.stats.paid')}</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
-
-      <RecurringInvoiceList
-        ref={recurringInvoiceListRef}
-        recurringInvoices={recurringInvoices?.data || []}
-        loading={false}
-        title={t('recurringInvoices.list.title')}
-        description={t('recurringInvoices.list.description')}
-        page={1}
-        pageCount={1}
-        setPage={() => {}}
-        mutate={() => {}}
-        emptyState={recurringInvoiceEmptyState}
-        showCreateButton={true}
-      />
 
       <InvoiceList
         ref={invoiceListRef}
@@ -203,7 +184,7 @@ export default function Invoices() {
         title={t('invoices.list.title')}
         description={t('invoices.list.description')}
         page={page}
-        pageCount={invoices?.pageCount || 1}
+        pageCount={invoicesData?.pageCount || 1}
         setPage={setPage}
         emptyState={invoiceEmptyState}
         showCreateButton={true}

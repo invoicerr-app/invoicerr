@@ -469,7 +469,8 @@
         "markAsPaid": "Mark as paid",
         "delete": "Delete invoice",
         "createReceipt": "Create a receipt from this invoice",
-        "sendByEmail": "Send invoice by email"
+        "sendByEmail": "Send invoice by email",
+        "sendVia": "Send via {{platform}}"
       },
       "actions": {
         "addNew": "Add New Invoice",
@@ -617,6 +618,155 @@
     },
     "pdf": {
       "title": "Invoice {{number}} - PDF"
+    },
+    "fields": {
+      "number": "Invoice Number",
+      "client": "Client",
+      "date": "Date",
+      "total": "Total",
+      "totalHT": "Total (excl. VAT)",
+      "totalVAT": "VAT Amount",
+      "totalTTC": "Total (incl. VAT)"
+    },
+    "modification": {
+      "title": "Modify Invoice",
+      "description": "Choose how to modify invoice {{invoiceNumber}}",
+      "recommended": "Recommended",
+      "countryAllowsEdit": "Direct editing is allowed for this invoice.",
+      "countryRequiresCorrection": "This country requires {{method}} for invoice corrections.",
+      "devModeNotice": "Development mode: All options are visible. Grayed options would be hidden in production.",
+      "methods": {
+        "credit_note": "credit notes",
+        "corrective_invoice": "corrective invoices",
+        "replacement": "replacement",
+        "void_and_reissue": "void and reissue"
+      },
+      "directEdit": {
+        "label": "Edit Directly",
+        "description": "Modify the invoice content directly. Only available for non-transmitted invoices.",
+        "disabledByCountry": "Direct editing is not allowed in this country after invoice creation.",
+        "alreadyTransmitted": "This invoice has already been transmitted and cannot be edited directly.",
+        "finalState": "This invoice is in a final state and cannot be edited."
+      },
+      "creditNote": {
+        "label": "Create Credit Note",
+        "description": "Issue a credit note to partially or fully cancel this invoice.",
+        "alreadyCredited": "A credit note has already been issued for this invoice.",
+        "cancelled": "Cannot create credit note for a cancelled invoice."
+      },
+      "correctiveInvoice": {
+        "label": "Create Corrective Invoice",
+        "description": "Issue a corrective invoice with the correct information.",
+        "cancelled": "Cannot create corrective invoice for a cancelled invoice."
+      },
+      "voidAndReissue": {
+        "label": "Void and Reissue",
+        "description": "Cancel this invoice and create a new one with the correct information.",
+        "alreadyPaid": "Cannot void a paid invoice.",
+        "cancelled": "This invoice has already been cancelled."
+      },
+      "cancel": {
+        "label": "Cancel Invoice",
+        "description": "Mark this invoice as cancelled without issuing a replacement.",
+        "alreadyPaid": "Cannot cancel a paid invoice.",
+        "alreadyCancelled": "This invoice has already been cancelled."
+      }
+    },
+    "creditNote": {
+      "title": "Create Credit Note",
+      "subtitle": "For invoice {{invoiceNumber}}",
+      "originalInvoice": "Original Invoice",
+      "originalInvoiceDescription": "Details of the invoice being credited",
+      "countryRequiresReference": "This country requires credit notes to reference the original invoice.",
+      "correctionType": "Correction Type",
+      "correctionCode": "Correction Code",
+      "selectCorrectionCode": "Select a correction code",
+      "correctionCodeDescription": "The correction code defines the type of credit note being issued.",
+      "itemsToCredit": "Items to Credit",
+      "itemsToCreditDescription": "Select which items and quantities to include in the credit note.",
+      "selectAll": "Select All",
+      "originalQuantity": "Original qty",
+      "reasonTitle": "Reason for Credit Note",
+      "reason": "Reason",
+      "reasonPlaceholder": "Describe the reason for issuing this credit note...",
+      "reasonDescription": "This will be included in the credit note for reference.",
+      "summary": "Credit Note Summary",
+      "totalCredit": "Total Credit Amount",
+      "create": "Create Credit Note",
+      "success": "Credit note created successfully",
+      "errors": {
+        "invoiceNotFound": "Invoice not found",
+        "noItemsSelected": "Please select at least one item to credit",
+        "createFailed": "Failed to create credit note"
+      }
+    },
+    "correctiveInvoice": {
+      "title": "Create Corrective Invoice",
+      "subtitle": "For invoice {{invoiceNumber}}",
+      "originalInvoice": "Original Invoice",
+      "originalInvoiceDescription": "Details of the invoice being corrected",
+      "countryRequiresReference": "This country requires corrective invoices to reference the original invoice.",
+      "correctionType": "Correction Type",
+      "correctionCode": "Correction Code",
+      "selectCorrectionCode": "Select a correction code",
+      "correctionCodeDescription": "The correction code defines the type of correction being made.",
+      "itemsToCorrect": "Items to Correct",
+      "itemsToCorrectDescription": "Modify the quantities or unit prices to reflect the correct values.",
+      "originalValues": "Original",
+      "quantity": "Quantity",
+      "unitPrice": "Unit Price",
+      "lineTotal": "Line Total",
+      "reasonTitle": "Reason for Correction",
+      "reason": "Reason",
+      "reasonPlaceholder": "Describe the reason for issuing this corrective invoice...",
+      "reasonDescription": "This will be included in the corrective invoice for reference.",
+      "summary": "Corrective Invoice Summary",
+      "originalTotals": "Original Totals",
+      "correctedTotals": "Corrected Totals",
+      "difference": "Difference",
+      "totalDifference": "Total Difference",
+      "create": "Create Corrective Invoice",
+      "success": "Corrective invoice created successfully",
+      "errors": {
+        "invoiceNotFound": "Invoice not found",
+        "noChanges": "Please make at least one change to the invoice items",
+        "createFailed": "Failed to create corrective invoice"
+      }
+    },
+    "voidReissue": {
+      "title": "Void and Reissue Invoice",
+      "subtitle": "For invoice {{invoiceNumber}}",
+      "warning": "This action will void the original invoice and create a new replacement invoice. The original invoice will be marked as cancelled and cannot be modified afterwards.",
+      "originalInvoice": "Original Invoice",
+      "originalInvoiceDescription": "Details of the invoice being voided",
+      "countryInfo": "This country requires void and reissue to reference the original invoice number.",
+      "correctionType": "Correction Type",
+      "correctionCode": "Correction Code",
+      "selectCorrectionCode": "Select a correction code",
+      "correctionCodeDescription": "The correction code defines the reason for voiding and reissuing.",
+      "newInvoiceItems": "New Invoice Items",
+      "newInvoiceItemsDescription": "Modify the items for the replacement invoice. Uncheck items to remove them.",
+      "includeAll": "Include All",
+      "quantity": "Quantity",
+      "unitPrice": "Unit Price",
+      "vatRate": "VAT Rate",
+      "lineTotal": "Line Total",
+      "reasonTitle": "Reason for Void and Reissue",
+      "reason": "Reason",
+      "reasonPlaceholder": "Describe the reason for voiding and reissuing this invoice...",
+      "reasonDescription": "This reason will be recorded for audit purposes and included in the new invoice.",
+      "summary": "Summary",
+      "voidedInvoice": "Voided Invoice",
+      "newInvoice": "New Invoice",
+      "confirmVoid": "I confirm that I want to void the original invoice",
+      "confirmVoidDescription": "By checking this box, you acknowledge that the original invoice will be permanently cancelled and a new invoice will be issued.",
+      "submit": "Void and Reissue",
+      "success": "Invoice voided and new invoice created successfully",
+      "errors": {
+        "invoiceNotFound": "Invoice not found",
+        "noItemsIncluded": "Please include at least one item in the new invoice",
+        "createFailed": "Failed to void and reissue invoice"
+      }
     }
   },
   "recurringInvoices": {
@@ -1692,6 +1842,10 @@
     "loading": "Loading...",
     "finish": "Finish",
     "optional": "Optional",
+    "cancel": "Cancel",
+    "creating": "Creating...",
+    "processing": "Processing...",
+    "vat": "VAT",
     "units": {
       "day": "Day",
       "week": "Week",
@@ -1699,6 +1853,12 @@
       "year": "Year"
     },
     "valueWithCurrency": "{{amount}}{{currency}}"
+  },
+  "correction": {
+    "creditNote": "Credit Note",
+    "debitNote": "Debit Note",
+    "correctiveInvoice": "Corrective Invoice",
+    "cancellation": "Cancellation"
   },
   "noOptions": "No options available. Create a new client.",
   "receipts": {
@@ -1890,5 +2050,26 @@
     "selectThisFolder": "Select This Folder",
     "noSubdirectories": "No subdirectories found",
     "loading": "Loading directories..."
+  },
+  "transmission": {
+    "email": "Email",
+    "peppol": "Peppol",
+    "sdi": "SDI (Sistema di Interscambio)",
+    "chorus": "Chorus Pro",
+    "verifactu": "Verifactu",
+    "saft": "SAF-T",
+    "pdp": "PDP Platform"
+  },
+  "platform": {
+    "email": "Email",
+    "superpdp": "SuperPDP",
+    "chorus": "Chorus Pro",
+    "peppol": "Peppol Network",
+    "sdi": "SDI",
+    "irp": "IRP (Invoice Registration Portal)",
+    "verifactu": "Verifactu",
+    "saft": "SAF-T Portal",
+    "xrechnung": "XRechnung Portal",
+    "face": "FACe"
   }
 }

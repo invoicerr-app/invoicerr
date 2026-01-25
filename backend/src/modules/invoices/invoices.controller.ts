@@ -20,7 +20,7 @@ export class InvoicesController {
   }
 
   @Sse('sse')
-  async getInvoicesInfoSse(@Param('page') page: string) {
+  async getInvoicesInfoSse(@Query('page') page: string) {
     return interval(1000).pipe(
       startWith(0),
       switchMap(() => from(this.invoicesService.getInvoices(page))),
@@ -31,6 +31,16 @@ export class InvoicesController {
   @Get('search')
   async searchInvoices(@Param('query') query: string) {
     return await this.invoicesService.searchInvoices(query);
+  }
+
+  @Get(':id')
+  async getInvoiceById(@Param('id') id: string) {
+    return await this.invoicesService.getInvoiceById(id);
+  }
+
+  @Get(':id/modification-options')
+  async getModificationOptions(@Param('id') id: string) {
+    return await this.invoicesService.getModificationOptions(id);
   }
 
   @Get(':id/pdf')
@@ -128,6 +138,14 @@ export class InvoicesController {
   @Post('send')
   sendInvoiceByEmail(@Body('id') id: string) {
     return this.invoicesService.sendInvoiceByEmail(id);
+  }
+
+  @Post(':id/credit-note')
+  createCreditNote(
+    @Param('id') id: string,
+    @Body() body: { correctionCode: string; reason?: string; items: Array<{ originalItemId: string; quantity: number }> },
+  ) {
+    return this.invoicesService.createCreditNote(id, body);
   }
 
   @Patch(':id')

@@ -107,6 +107,10 @@ export interface CountryConfig {
     b2b: TransmissionConfig;
     b2g: TransmissionConfig;
     b2c?: TransmissionConfig;
+    /** Cross-border transmission overrides by customer country code */
+    crossBorder?: Record<string, string>;
+    /** Default platform for exports to non-EU countries */
+    exportDefault?: string;
   };
 
   /** Invoice numbering configuration */
