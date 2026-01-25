@@ -408,65 +408,117 @@ describe('Multi-Tenant E2E', () => {
     });
 
     describe('3 - Company Switching', () => {
-        /**
-         * SETUP: Create second company and multi-company user
-         * This requires:
-         * 1. System admin creates Company 2
-         * 2. System admin invites multiCompanyUser to Company 1
-         * 3. Owner of Company 2 invites multiCompanyUser to Company 2
-         *
-         * NOTE: These tests will be skipped until the multi-company setup is implemented.
-         * For now, we test basic company switching with the accountant user who is in one company.
-         */
+        let company2Id: string;
+        let accountantUserId: string;
+        const API_URL = 'http://localhost:4000';
+
+        // Setup: Create second company and add accountant to it
+        before(() => {
+            // Login as system admin
+            cy.loginAs(USERS.systemAdmin.email, USERS.systemAdmin.password);
+
+            // Get session cookie for API calls
+            cy.getCookie('better-auth.session_token').then((cookie) => {
+                const authCookie = `better-auth.session_token=${cookie?.value}`;
+
+                // Create second company via API
+                cy.request({
+                    method: 'POST',
+                    url: `${API_URL}/api/company/create`,
+                    headers: { Cookie: authCookie },
+                    body: {
+                        name: COMPANY2.name,
+                        description: COMPANY2.description,
+                        currency: 'USD',
+                        country: 'US',
+                        address: COMPANY2.address,
+                        city: COMPANY2.city,
+                        postalCode: COMPANY2.postalCode,
+                        phone: COMPANY2.phone,
+                        email: COMPANY2.email,
+                        foundedAt: new Date().toISOString(),
+                        identifiers: { ein: '12-3456789' },
+                    },
+                }).then((response) => {
+                    expect(response.status).to.eq(201);
+                    company2Id = response.body.id;
+
+                    // Get list of users to find accountant's ID
+                    cy.request({
+                        method: 'GET',
+                        url: `${API_URL}/api/admin/users`,
+                        headers: { Cookie: authCookie },
+                    }).then((usersResponse) => {
+                        expect(usersResponse.status).to.eq(200);
+                        const accountant = usersResponse.body.find(
+                            (u: { email: string }) => u.email === USERS.accountant.email,
+                        );
+                        expect(accountant).to.exist;
+                        accountantUserId = accountant.id;
+
+                        // Add accountant to company 2 via admin API
+                        cy.request({
+                            method: 'POST',
+                            url: `${API_URL}/api/admin/companies/${company2Id}/users`,
+                            headers: { Cookie: authCookie },
+                            body: { userId: accountantUserId, role: 'ACCOUNTANT' },
+                        }).then((addResponse) => {
+                            expect(addResponse.status).to.eq(201);
+                        });
+                    });
+                });
+            });
+        });
 
         it('shows company switcher for single-company users (no dropdown toggle)', () => {
-            cy.loginAs(USERS.accountant.email, USERS.accountant.password);
+            // System admin only has 1 company (Company 1)
+            cy.loginAs(USERS.systemAdmin.email, USERS.systemAdmin.password);
             cy.visit('/dashboard');
 
             // Single company user should see company name but no dropdown toggle
             cy.get('[data-cy="company-switcher"]', { timeout: 10000 }).should('be.visible');
         });
 
-        it.skip('shows company switcher for multi-company users', () => {
-            // TODO: Requires multiCompanyUser to be created with membership in 2 companies
-            cy.loginAs(USERS.multiCompanyUser.email, USERS.multiCompanyUser.password);
+        it('shows company switcher for multi-company users', () => {
+            // Accountant now has 2 companies (Company 1 + Company 2)
+            cy.loginAs(USERS.accountant.email, USERS.accountant.password);
             cy.visit('/dashboard');
 
             cy.get('[data-cy="company-switcher"]', { timeout: 10000 }).should('be.visible');
+            // Click to open dropdown and verify multiple companies
+            cy.get('[data-cy="company-switcher"]').click();
+            cy.get('[data-cy^="company-option-"]').should('have.length', 2);
         });
 
-        it.skip('can switch between companies', () => {
-            // TODO: Requires multiCompanyUser with 2 company memberships
-            cy.loginAs(USERS.multiCompanyUser.email, USERS.multiCompanyUser.password);
+        it('can switch between companies', () => {
+            cy.loginAs(USERS.accountant.email, USERS.accountant.password);
             cy.visit('/dashboard');
 
+            // Open company switcher and switch to Company 2
             cy.get('[data-cy="company-switcher"]').click();
-            cy.get('[data-cy^="company-option-"]').should('have.length.at.least', 2);
+            cy.get('[data-cy^="company-option-"]').should('have.length', 2);
             cy.contains('[data-cy^="company-option-"]', COMPANY2.name).click();
-            cy.wait(1000);
-            cy.visit('/settings/company');
-            cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should('have.value', COMPANY2.name);
+
+            // Page reloads after switch, verify we're on Company 2
+            cy.url({ timeout: 10000 }).should('include', '/dashboard');
+            cy.get('[data-cy="company-switcher"]', { timeout: 10000 }).should('contain', COMPANY2.name);
         });
 
-        it.skip('persists company selection after reload', () => {
-            // TODO: Requires multiCompanyUser with 2 company memberships
-            cy.loginAs(USERS.multiCompanyUser.email, USERS.multiCompanyUser.password);
+        it('persists company selection after reload', () => {
+            cy.loginAs(USERS.accountant.email, USERS.accountant.password);
             cy.visit('/dashboard');
 
             // Switch to company 2
             cy.get('[data-cy="company-switcher"]').click();
             cy.contains('[data-cy^="company-option-"]', COMPANY2.name).click();
-            cy.wait(1000);
 
-            // Reload and verify company is still selected
+            // Page reloads, then reload again manually
+            cy.url({ timeout: 10000 }).should('include', '/dashboard');
             cy.reload();
             cy.wait(2000);
 
-            // Check that company 2 is still active via localStorage
-            cy.window().then((win) => {
-                const companyId = win.localStorage.getItem('invoicerr_active_company_id');
-                expect(companyId).to.exist;
-            });
+            // Check that company 2 is still active
+            cy.get('[data-cy="company-switcher"]', { timeout: 10000 }).should('contain', COMPANY2.name);
         });
 
         it('stores active company ID in localStorage', () => {
@@ -482,23 +534,43 @@ describe('Multi-Tenant E2E', () => {
             });
         });
 
-        it.skip('updates localStorage when switching company', () => {
-            // TODO: Requires multiCompanyUser with 2 company memberships
-            cy.loginAs(USERS.multiCompanyUser.email, USERS.multiCompanyUser.password);
+        it('updates localStorage when switching company', () => {
+            cy.loginAs(USERS.accountant.email, USERS.accountant.password);
             cy.visit('/dashboard');
             cy.wait(2000);
 
-            // Get initial company ID
+            // Get initial company ID and current company name from the switcher
+            let initialCompanyId: string;
+            let currentCompanyName: string;
             cy.window().then((win) => {
-                const initialCompanyId = win.localStorage.getItem('invoicerr_active_company_id');
+                initialCompanyId = win.localStorage.getItem('invoicerr_active_company_id') || '';
+                expect(initialCompanyId).to.have.length.greaterThan(0);
+            });
 
+            // Get the currently displayed company name
+            cy.get('[data-cy="company-switcher"]').invoke('text').then((text) => {
+                // Determine which company is currently active
+                if (text.includes(COMPANY1.name)) {
+                    currentCompanyName = COMPANY1.name;
+                } else {
+                    currentCompanyName = COMPANY2.name;
+                }
+
+                // Open the company switcher
                 cy.get('[data-cy="company-switcher"]').click();
-                cy.get('[data-cy^="company-option-"]').last().click();
-                cy.wait(1000);
 
-                // Verify localStorage was updated
-                cy.window().then((win2) => {
-                    const newCompanyId = win2.localStorage.getItem('invoicerr_active_company_id');
+                // Click on the OTHER company (not the current one)
+                cy.get('[data-cy^="company-option-"]')
+                    .not(`:contains("${currentCompanyName}")`)
+                    .first()
+                    .click();
+
+                // Wait for page reload and check localStorage has new company ID
+                cy.url({ timeout: 10000 }).should('include', '/dashboard');
+                cy.wait(2000); // Wait for reload to complete
+                cy.window().then((win) => {
+                    const newCompanyId = win.localStorage.getItem('invoicerr_active_company_id');
+                    expect(newCompanyId).to.exist;
                     expect(newCompanyId).to.not.equal(initialCompanyId);
                 });
             });
@@ -638,10 +710,20 @@ describe('Multi-Tenant E2E', () => {
             cy.get('[data-cy="auth-submit-btn"]').should('be.visible');
         });
 
-        it.skip('registration blocked when DISABLE_REGISTRATION=true', () => {
-            // Requires env config change
+        it('registration requires invitation code after first user', () => {
+            // After first user, registration requires an invitation code
+            // This is the default behavior (DISABLE_REGISTRATION=true is implicit)
             cy.visit('/auth/sign-up');
-            // cy.contains(/registration.*disabled/i).should('be.visible');
+
+            // Try to register without invitation code
+            cy.get('[data-cy="auth-firstname-input"]', { timeout: 10000 }).type('No');
+            cy.get('[data-cy="auth-lastname-input"]').type('Invite');
+            cy.get('[data-cy="auth-email-input"]').type('noinvite@test.com');
+            cy.get('[data-cy="auth-password-input"]').type('Test123!');
+            cy.get('[data-cy="auth-submit-btn"]').click();
+
+            // Should show error about invitation code being required
+            cy.contains(/invitation.*required|code.*required/i, { timeout: 5000 }).should('be.visible');
         });
     });
 
