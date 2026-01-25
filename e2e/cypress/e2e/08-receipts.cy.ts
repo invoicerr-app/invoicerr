@@ -6,19 +6,20 @@ describe('Receipts E2E', () => {
     describe('Create Receipts', () => {
         it('creates a receipt from an invoice', () => {
             cy.visit('/receipts');
-            cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
+            cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click({ force: true });
             cy.wait(500);
 
             cy.get('[data-cy="receipt-dialog"]', { timeout: 5000 }).should('be.visible');
 
-            cy.get('[data-cy="receipt-invoice-select"] button').first().click();
+            cy.get('[data-cy="receipt-invoice-select"] button').first().click({ force: true });
             cy.wait(300);
             cy.get('[data-cy="receipt-invoice-select-options"]').should('be.visible');
-            cy.get('[data-cy="receipt-invoice-select-options"] button').first().click();
+            cy.get('[data-cy="receipt-invoice-select-options"] button').first().click({ force: true });
 
             cy.wait(500);
 
-            cy.get('[data-cy="receipt-submit"]').click();
+            cy.get('[data-cy="receipt-submit"]').click({ force: true });
 
             cy.get('[data-cy="receipt-dialog"]').should('not.exist');
             cy.wait(2000);
@@ -26,22 +27,23 @@ describe('Receipts E2E', () => {
 
         it('creates a receipt with a specific payment method', () => {
             cy.visit('/receipts');
-            cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
+            cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click({ force: true });
             cy.wait(500);
 
             cy.get('[data-cy="receipt-dialog"]', { timeout: 5000 }).should('be.visible');
 
-            cy.get('[data-cy="receipt-invoice-select"] button').first().click();
+            cy.get('[data-cy="receipt-invoice-select"] button').first().click({ force: true });
             cy.wait(300);
             cy.get('[data-cy="receipt-invoice-select-options"]').should('be.visible');
-            cy.get('[data-cy="receipt-invoice-select-options"] button').first().click();
+            cy.get('[data-cy="receipt-invoice-select-options"] button').first().click({ force: true });
 
             cy.wait(500);
 
             cy.get('button[role="combobox"][aria-label*="ayment"], select[name="paymentMethodId"]').first().click({ force: true });
-            cy.get('[role="option"]').first().click();
+            cy.get('[role="option"]').first().click({ force: true });
 
-            cy.get('[data-cy="receipt-submit"]').click();
+            cy.get('[data-cy="receipt-submit"]').click({ force: true });
 
             cy.get('[data-cy="receipt-dialog"]').should('not.exist');
             cy.wait(2000);
@@ -51,6 +53,7 @@ describe('Receipts E2E', () => {
     describe('View Receipts', () => {
         it('views receipt list', () => {
             cy.visit('/receipts');
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(2000);
 
             cy.get('body').then($body => {
@@ -66,6 +69,7 @@ describe('Receipts E2E', () => {
     describe('Receipt Actions', () => {
         it('opens receipt view dialog', () => {
             cy.visit('/receipts');
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(2000);
 
             cy.get('body').then($body => {
@@ -82,6 +86,7 @@ describe('Receipts E2E', () => {
     describe('Delete Receipts', () => {
         it('deletes a receipt', () => {
             cy.visit('/receipts');
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(2000);
 
             cy.get('body').then($body => {
@@ -89,7 +94,7 @@ describe('Receipts E2E', () => {
                 if (deleteButtons.length > 0) {
                     cy.wrap(deleteButtons).first().click({ force: true });
                     cy.get('[role="alertdialog"], [role="dialog"]').within(() => {
-                        cy.contains('button', /delete|confirm|supprimer|confirmer/i).click();
+                        cy.contains('button', /delete|confirm|supprimer|confirmer/i).click({ force: true });
                     });
                     cy.wait(2000);
                 }

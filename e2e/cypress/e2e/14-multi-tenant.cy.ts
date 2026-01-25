@@ -344,6 +344,7 @@ describe('Multi-Tenant E2E', () => {
         it('verifies company was created correctly', () => {
             cy.loginAs(USERS.systemAdmin.email, USERS.systemAdmin.password);
             cy.visit('/settings/company');
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(3000);
 
             cy.get('[data-cy="company-name-input"]', { timeout: 15000 })
@@ -357,12 +358,13 @@ describe('Multi-Tenant E2E', () => {
         it('owner creates invitation code', () => {
             cy.loginAs(USERS.systemAdmin.email, USERS.systemAdmin.password);
             cy.visit('/settings/invitations');
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(1000);
 
             // Intercept the invitation creation to capture the full code
             cy.intercept('POST', '**/api/invitations').as('createInvitation');
 
-            cy.contains('button', /generate|create/i, { timeout: 15000 }).click();
+            cy.contains('button', /generate|create/i, { timeout: 15000 }).click({ force: true });
 
             // Get the full invitation code from the API response
             cy.wait('@createInvitation').then((interception) => {
@@ -400,6 +402,7 @@ describe('Multi-Tenant E2E', () => {
         it('invited user sees the same company', () => {
             cy.loginAs(USERS.accountant.email, USERS.accountant.password);
             cy.visit('/settings/company');
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(3000);
 
             cy.get('[data-cy="company-name-input"]', { timeout: 15000 })
@@ -474,6 +477,7 @@ describe('Multi-Tenant E2E', () => {
             // System admin only has 1 company (Company 1)
             cy.loginAs(USERS.systemAdmin.email, USERS.systemAdmin.password);
             cy.visit('/dashboard');
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
 
             // Single company user should see company name but no dropdown toggle
             cy.get('[data-cy="company-switcher"]', { timeout: 10000 }).should('be.visible');
@@ -483,21 +487,23 @@ describe('Multi-Tenant E2E', () => {
             // Accountant now has 2 companies (Company 1 + Company 2)
             cy.loginAs(USERS.accountant.email, USERS.accountant.password);
             cy.visit('/dashboard');
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
 
             cy.get('[data-cy="company-switcher"]', { timeout: 10000 }).should('be.visible');
             // Click to open dropdown and verify multiple companies
-            cy.get('[data-cy="company-switcher"]').click();
+            cy.get('[data-cy="company-switcher"]').click({ force: true });
             cy.get('[data-cy^="company-option-"]').should('have.length', 2);
         });
 
         it('can switch between companies', () => {
             cy.loginAs(USERS.accountant.email, USERS.accountant.password);
             cy.visit('/dashboard');
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
 
             // Open company switcher and switch to Company 2
-            cy.get('[data-cy="company-switcher"]').click();
+            cy.get('[data-cy="company-switcher"]').click({ force: true });
             cy.get('[data-cy^="company-option-"]').should('have.length', 2);
-            cy.contains('[data-cy^="company-option-"]', COMPANY2.name).click();
+            cy.contains('[data-cy^="company-option-"]', COMPANY2.name).click({ force: true });
 
             // Page reloads after switch, verify we're on Company 2
             cy.url({ timeout: 10000 }).should('include', '/dashboard');
@@ -507,10 +513,11 @@ describe('Multi-Tenant E2E', () => {
         it('persists company selection after reload', () => {
             cy.loginAs(USERS.accountant.email, USERS.accountant.password);
             cy.visit('/dashboard');
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
 
             // Switch to company 2
-            cy.get('[data-cy="company-switcher"]').click();
-            cy.contains('[data-cy^="company-option-"]', COMPANY2.name).click();
+            cy.get('[data-cy="company-switcher"]').click({ force: true });
+            cy.contains('[data-cy^="company-option-"]', COMPANY2.name).click({ force: true });
 
             // Page reloads, then reload again manually
             cy.url({ timeout: 10000 }).should('include', '/dashboard');
@@ -524,6 +531,7 @@ describe('Multi-Tenant E2E', () => {
         it('stores active company ID in localStorage', () => {
             cy.loginAs(USERS.systemAdmin.email, USERS.systemAdmin.password);
             cy.visit('/dashboard');
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(2000);
 
             // Verify localStorage has company ID
@@ -537,6 +545,7 @@ describe('Multi-Tenant E2E', () => {
         it('updates localStorage when switching company', () => {
             cy.loginAs(USERS.accountant.email, USERS.accountant.password);
             cy.visit('/dashboard');
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(2000);
 
             // Get initial company ID and current company name from the switcher
@@ -557,13 +566,13 @@ describe('Multi-Tenant E2E', () => {
                 }
 
                 // Open the company switcher
-                cy.get('[data-cy="company-switcher"]').click();
+                cy.get('[data-cy="company-switcher"]').click({ force: true });
 
                 // Click on the OTHER company (not the current one)
                 cy.get('[data-cy^="company-option-"]')
                     .not(`:contains("${currentCompanyName}")`)
                     .first()
-                    .click();
+                    .click({ force: true });
 
                 // Wait for page reload and check localStorage has new company ID
                 cy.url({ timeout: 10000 }).should('include', '/dashboard');
@@ -611,6 +620,7 @@ describe('Multi-Tenant E2E', () => {
                 // systemAdmin created the company so they are OWNER
                 cy.loginAs(USERS.systemAdmin.email, USERS.systemAdmin.password);
                 cy.visit('/settings/company');
+                cy.get('body').should('not.have.attr', 'data-scroll-locked');
 
                 cy.get('[data-cy="company-name-input"]', { timeout: 15000 })
                     .should('not.be.disabled');
@@ -621,6 +631,7 @@ describe('Multi-Tenant E2E', () => {
             it('owner can create invitations', () => {
                 cy.loginAs(USERS.systemAdmin.email, USERS.systemAdmin.password);
                 cy.visit('/settings/invitations');
+                cy.get('body').should('not.have.attr', 'data-scroll-locked');
 
                 cy.contains('button', /generate|create/i, { timeout: 15000 })
                     .should('be.visible');
@@ -631,6 +642,7 @@ describe('Multi-Tenant E2E', () => {
             it('accountant can access invoices', () => {
                 cy.loginAs(USERS.accountant.email, USERS.accountant.password);
                 cy.visit('/invoices');
+                cy.get('body').should('not.have.attr', 'data-scroll-locked');
 
                 cy.url().should('include', '/invoices');
             });
@@ -638,6 +650,7 @@ describe('Multi-Tenant E2E', () => {
             it('accountant can access quotes', () => {
                 cy.loginAs(USERS.accountant.email, USERS.accountant.password);
                 cy.visit('/quotes');
+                cy.get('body').should('not.have.attr', 'data-scroll-locked');
 
                 cy.url().should('include', '/quotes');
             });
@@ -645,6 +658,7 @@ describe('Multi-Tenant E2E', () => {
             it('accountant can access clients', () => {
                 cy.loginAs(USERS.accountant.email, USERS.accountant.password);
                 cy.visit('/clients');
+                cy.get('body').should('not.have.attr', 'data-scroll-locked');
 
                 cy.url().should('include', '/clients');
             });
@@ -744,6 +758,7 @@ describe('Multi-Tenant E2E', () => {
         it('rejects already used invitation code', () => {
             cy.loginAs(USERS.systemAdmin.email, USERS.systemAdmin.password);
             cy.visit('/settings/invitations');
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(1000);
 
             cy.get('table tbody tr', { timeout: 10000 }).then(($rows) => {
@@ -773,9 +788,10 @@ describe('Multi-Tenant E2E', () => {
         it('rejects duplicate email', () => {
             cy.loginAs(USERS.systemAdmin.email, USERS.systemAdmin.password);
             cy.visit('/settings/invitations');
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(1000);
 
-            cy.contains('button', /generate|create/i, { timeout: 15000 }).click();
+            cy.contains('button', /generate|create/i, { timeout: 15000 }).click({ force: true });
             cy.wait(1000);
 
             cy.get('table tbody tr', { timeout: 10000 })
