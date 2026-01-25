@@ -177,6 +177,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get client_model() {
     return this.client.client;
   }
+  // Alias for client_model (convenience accessor)
+  get clients() {
+    return this.client.client;
+  }
   get quote() {
     return this.client.quote;
   }
@@ -203,6 +207,9 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   }
   get complianceSettings() {
     return this.client.complianceSettings;
+  }
+  get userCompany() {
+    return this.client.userCompany;
   }
   // Expose $transaction for complex atomic operations
   $transaction<T>(fn: Parameters<typeof this.client.$transaction>[0]): Promise<T> {

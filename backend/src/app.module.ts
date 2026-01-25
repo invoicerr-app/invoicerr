@@ -8,6 +8,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { auth } from './lib/auth';
 import { MailService } from './mail/mail.service';
+import { AdminModule } from './modules/admin/admin.module';
 import { AuthExtendedModule } from './modules/auth-extended/auth-extended.module';
 import { ClientsModule } from './modules/clients/clients.module';
 import { CompanyModule } from './modules/company/company.module';
@@ -36,6 +37,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AuthModule.forRoot({
       auth,
     }),
+    AdminModule,
     AuthExtendedModule,
     CompanyModule,
     ClientsModule,

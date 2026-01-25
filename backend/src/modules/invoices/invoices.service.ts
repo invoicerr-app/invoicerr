@@ -2,7 +2,6 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { logger } from '@/logger/logger.service';
 import type { CreateInvoiceDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
 import prisma from '@/prisma/prisma.service';
-import { formatDate } from '@/utils/date';
 import { StorageUploadService } from '@/utils/storage-upload';
 import { WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { ComplianceService } from '../compliance/compliance.service';
@@ -47,12 +46,12 @@ export class InvoicesService {
     private readonly documentService: DocumentService,
   ) {}
 
-  async getInvoices(page: string) {
+  async getInvoices(companyId: string, page: string) {
     const pageNumber = parseInt(page, 10) || 1;
     const pageSize = 10;
     const skip = (pageNumber - 1) * pageSize;
 
-    const whereActive = { isActive: true };
+    const whereActive = { isActive: true, companyId };
 
     // Parallel queries for better performance
     const [invoices, totalCount, sentCount, paidCount, overdueCount] = await Promise.all([
@@ -76,7 +75,7 @@ export class InvoicesService {
     // Batch fetch all payment methods in a single query (avoid N+1)
     const paymentMethodIds = invoices.map((inv) => inv.paymentMethodId).filter(Boolean) as string[];
     const paymentMethods = paymentMethodIds.length > 0
-      ? await prisma.paymentMethod.findMany({ where: { id: { in: paymentMethodIds } } })
+      ? await prisma.paymentMethod.findMany({ where: { id: { in: paymentMethodIds }, companyId } })
       : [];
     const pmMap = new Map(paymentMethods.map((pm) => [pm.id, pm]));
 
@@ -97,13 +96,14 @@ export class InvoicesService {
     };
   }
 
-  async searchInvoices(query: string) {
+  async searchInvoices(companyId: string, query: string) {
     if (query === '') {
-      return this.getInvoices('1'); // Return first page if query is empty
+      return this.getInvoices(companyId, '1'); // Return first page if query is empty
     }
 
     const results = await prisma.invoice.findMany({
       where: {
+        companyId,
         OR: [
           { client: { name: { contains: query } } },
           { items: { some: { description: { contains: query } } } },
@@ -119,7 +119,7 @@ export class InvoicesService {
     // Batch fetch payment methods (avoid N+1)
     const pmIds = results.map((inv) => inv.paymentMethodId).filter(Boolean) as string[];
     const pms = pmIds.length > 0
-      ? await prisma.paymentMethod.findMany({ where: { id: { in: pmIds } } })
+      ? await prisma.paymentMethod.findMany({ where: { id: { in: pmIds }, companyId } })
       : [];
     const pmMap = new Map(pms.map((pm) => [pm.id, pm]));
 
@@ -129,17 +129,20 @@ export class InvoicesService {
     }));
   }
 
-  async createInvoice(body: CreateInvoiceDto) {
+  async createInvoice(companyId: string, body: CreateInvoiceDto) {
     const { items, ...data } = body;
 
-    const company = await prisma.company.findFirst();
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+    });
     if (!company) {
-      logger.error('No company found. Please create a company first.', { category: 'invoice' });
-      throw new BadRequestException('No company found. Please create a company first.');
+      logger.error('Company not found', { category: 'invoice' });
+      throw new BadRequestException('Company not found');
     }
 
-    const client = await prisma.client.findUnique({
-      where: { id: body.clientId },
+    // Verify client belongs to the company (multi-tenant check)
+    const client = await prisma.client.findFirst({
+      where: { id: body.clientId, companyId },
     });
     if (!client) {
       logger.error('Client not found', { category: 'invoice' });
@@ -239,7 +242,7 @@ export class InvoicesService {
     return invoice;
   }
 
-  async editInvoice(body: EditInvoicesDto) {
+  async editInvoice(companyId: string, body: EditInvoicesDto) {
     const { items, id, ...data } = body;
 
     if (!id) {
@@ -247,22 +250,26 @@ export class InvoicesService {
       throw new BadRequestException('Invoice ID is required for editing');
     }
 
-    const company = await prisma.company.findFirst();
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+    });
     if (!company) {
-      logger.error('No company found. Please create a company first.', { category: 'invoice' });
-      throw new BadRequestException('No company found. Please create a company first.');
+      logger.error('Company not found', { category: 'invoice' });
+      throw new BadRequestException('Company not found');
     }
 
-    const client = await prisma.client.findUnique({
-      where: { id: data.clientId },
+    // Verify client belongs to the company (multi-tenant check)
+    const client = await prisma.client.findFirst({
+      where: { id: data.clientId, companyId },
     });
     if (!client) {
       logger.error('Client not found', { category: 'invoice' });
       throw new BadRequestException('Client not found');
     }
 
-    const existingInvoice = await prisma.invoice.findUnique({
-      where: { id },
+    // Verify invoice belongs to the company (multi-tenant check)
+    const existingInvoice = await prisma.invoice.findFirst({
+      where: { id, companyId },
       include: { items: true },
     });
 
@@ -389,9 +396,10 @@ export class InvoicesService {
     return updateInvoice;
   }
 
-  async deleteInvoice(id: string) {
-    const existingInvoice = await prisma.invoice.findUnique({
-      where: { id },
+  async deleteInvoice(companyId: string, id: string) {
+    // Verify invoice belongs to the company (multi-tenant check)
+    const existingInvoice = await prisma.invoice.findFirst({
+      where: { id, companyId },
       include: {
         items: true,
         client: true,
@@ -409,7 +417,7 @@ export class InvoicesService {
       data: { isActive: false },
     });
 
-    logger.info('Invoice deleted', { category: 'invoice', details: { invoiceId: id } });
+    logger.info('Invoice deleted', { category: 'invoice', details: { invoiceId: id, companyId } });
 
     try {
       await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_DELETED, {
@@ -430,9 +438,10 @@ export class InvoicesService {
   /**
    * Generate invoice PDF using the compliance DocumentService
    */
-  async getInvoicePdf(id: string, format: OutputFormat = 'pdf'): Promise<Uint8Array> {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id },
+  async getInvoicePdf(companyId: string, id: string, format: OutputFormat = 'pdf'): Promise<Uint8Array> {
+    // Verify invoice belongs to the company (multi-tenant check)
+    const invoice = await prisma.invoice.findFirst({
+      where: { id, companyId },
       include: {
         items: true,
         client: true,
@@ -473,15 +482,16 @@ export class InvoicesService {
    * Supports: pdf, facturx, zugferd, xrechnung, ubl, cii, fatturapa
    */
   async getInvoiceDocument(
+    companyId: string,
     invoiceId: string,
     format: OutputFormat = 'pdf',
   ): Promise<{ buffer: Uint8Array; mimeType: string; filename: string }> {
     const result = await this.documentService.generate({
       type: 'invoice',
-      data: await this.getInvoiceDocumentData(invoiceId),
+      data: await this.getInvoiceDocumentData(companyId, invoiceId),
       format,
-      supplierCountry: await this.getInvoiceCountry(invoiceId),
-      pdfConfig: await this.getInvoicePdfConfig(invoiceId),
+      supplierCountry: await this.getInvoiceCountry(companyId, invoiceId),
+      pdfConfig: await this.getInvoicePdfConfig(companyId, invoiceId),
     });
 
     return {
@@ -494,12 +504,12 @@ export class InvoicesService {
   /**
    * Get invoice XML in UBL or CII format
    */
-  async getInvoiceXML(invoiceId: string, format: 'ubl' | 'cii' = 'ubl'): Promise<string> {
+  async getInvoiceXML(companyId: string, invoiceId: string, format: 'ubl' | 'cii' = 'ubl'): Promise<string> {
     const result = await this.documentService.generate({
       type: 'invoice',
-      data: await this.getInvoiceDocumentData(invoiceId),
+      data: await this.getInvoiceDocumentData(companyId, invoiceId),
       format,
-      supplierCountry: await this.getInvoiceCountry(invoiceId),
+      supplierCountry: await this.getInvoiceCountry(companyId, invoiceId),
     });
 
     return result.buffer.toString('utf-8');
@@ -509,14 +519,15 @@ export class InvoicesService {
    * @deprecated Use getInvoiceDocument() instead
    * Legacy method - redirects to getInvoicePdf with format support
    */
-  async getInvoicePDFFormat(invoiceId: string, format: '' | OutputFormat): Promise<Uint8Array> {
+  async getInvoicePDFFormat(companyId: string, invoiceId: string, format: '' | OutputFormat): Promise<Uint8Array> {
     const outputFormat = format === '' ? 'pdf' : format;
-    return this.getInvoicePdf(invoiceId, outputFormat);
+    return this.getInvoicePdf(companyId, invoiceId, outputFormat);
   }
 
-  async createInvoiceFromQuote(quoteId: string) {
-    const quote = await prisma.quote.findUnique({
-      where: { id: quoteId },
+  async createInvoiceFromQuote(companyId: string, quoteId: string) {
+    // Verify quote belongs to the company (multi-tenant check)
+    const quote = await prisma.quote.findFirst({
+      where: { id: quoteId, companyId },
       include: {
         items: true,
         client: true,
@@ -527,12 +538,12 @@ export class InvoicesService {
     if (!quote) {
       logger.error('Quote not found when creating invoice from quote', {
         category: 'invoice',
-        details: { quoteId },
+        details: { quoteId, companyId },
       });
       throw new BadRequestException('Quote not found');
     }
 
-    const newInvoice = await this.createInvoice({
+    const newInvoice = await this.createInvoice(companyId, {
       clientId: quote.clientId,
       dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
       items: quote.items,
@@ -565,9 +576,10 @@ export class InvoicesService {
     return newInvoice;
   }
 
-  async markInvoiceAsPaid(invoiceId: string) {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
+  async markInvoiceAsPaid(companyId: string, invoiceId: string) {
+    // Verify invoice belongs to the company (multi-tenant check)
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
       include: {
         items: true,
         client: true,
@@ -578,7 +590,7 @@ export class InvoicesService {
     if (!invoice) {
       logger.error('Invoice not found when trying to mark as paid', {
         category: 'invoice',
-        details: { invoiceId },
+        details: { invoiceId, companyId },
       });
       throw new BadRequestException('Invoice not found');
     }
@@ -608,7 +620,7 @@ export class InvoicesService {
       logger.info(`Uploading paid invoice ${invoiceId} to storage providers...`, {
         category: 'invoice',
       });
-      const pdfBuffer = await this.getInvoicePdf(invoiceId);
+      const pdfBuffer = await this.getInvoicePdf(companyId, invoiceId);
       const uploadedUrls = await StorageUploadService.uploadPaidInvoicePdf(invoiceId, pdfBuffer);
       if (uploadedUrls.length > 0) {
         logger.info(
@@ -626,9 +638,10 @@ export class InvoicesService {
     return paidInvoice;
   }
 
-  async sendInvoice(invoiceId: string) {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
+  async sendInvoice(companyId: string, invoiceId: string) {
+    // Verify invoice belongs to the company (multi-tenant check)
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
       include: {
         client: true,
         company: true,
@@ -676,6 +689,7 @@ export class InvoicesService {
     });
 
     const pdfBuffer = await this.getInvoicePdf(
+      companyId,
       invoiceId,
       (invoice.company.invoicePDFFormat as OutputFormat) || 'pdf',
     );
@@ -691,13 +705,13 @@ export class InvoicesService {
         name:
           invoice.client.name ||
           `${invoice.client.contactFirstname} ${invoice.client.contactLastname}`,
-        siret: extractLegalId(invoice.client.identifiers) || undefined,
+        nationalId: extractLegalId(invoice.client.identifiers) || undefined,
         vatNumber: extractVAT(invoice.client.identifiers) || undefined,
       },
       sender: {
         email: invoice.company.email || '',
         name: invoice.company.name,
-        siret: extractLegalId(invoice.company.identifiers) || undefined,
+        nationalId: extractLegalId(invoice.company.identifiers) || undefined,
         vatNumber: extractVAT(invoice.company.identifiers) || undefined,
       },
       metadata: {
@@ -740,17 +754,18 @@ export class InvoicesService {
   }
 
   // Backward compatibility alias
-  async sendInvoiceByEmail(invoiceId: string) {
-    return this.sendInvoice(invoiceId);
+  async sendInvoiceByEmail(companyId: string, invoiceId: string) {
+    return this.sendInvoice(companyId, invoiceId);
   }
 
   /**
    * Generate e-invoice XML using compliance format generators
    * Supports: UBL, Factur-X/ZUGFeRD, FatturaPA
    */
-  async generateInvoiceXML(invoiceId: string): Promise<FormatResult> {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
+  async generateInvoiceXML(companyId: string, invoiceId: string): Promise<FormatResult> {
+    // Verify invoice belongs to the company (multi-tenant check)
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
       include: {
         items: true,
         client: true,
@@ -1027,9 +1042,10 @@ export class InvoicesService {
   /**
    * Get invoice document data by ID
    */
-  private async getInvoiceDocumentData(invoiceId: string): Promise<InvoiceDocumentData> {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
+  private async getInvoiceDocumentData(companyId: string, invoiceId: string): Promise<InvoiceDocumentData> {
+    // Verify invoice belongs to the company (multi-tenant check)
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
       include: {
         items: true,
         client: true,
@@ -1047,9 +1063,10 @@ export class InvoicesService {
   /**
    * Get invoice country code by ID
    */
-  private async getInvoiceCountry(invoiceId: string): Promise<string> {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
+  private async getInvoiceCountry(companyId: string, invoiceId: string): Promise<string> {
+    // Verify invoice belongs to the company (multi-tenant check)
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
       include: { company: true },
     });
 
@@ -1063,9 +1080,10 @@ export class InvoicesService {
   /**
    * Get invoice PDF config by ID
    */
-  private async getInvoicePdfConfig(invoiceId: string) {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
+  private async getInvoicePdfConfig(companyId: string, invoiceId: string) {
+    // Verify invoice belongs to the company (multi-tenant check)
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
       include: { company: { include: { pdfConfig: true } } },
     });
 
@@ -1079,9 +1097,10 @@ export class InvoicesService {
   /**
    * Get modification options for an invoice based on country compliance rules
    */
-  async getModificationOptions(invoiceId: string) {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
+  async getModificationOptions(companyId: string, invoiceId: string) {
+    // Verify invoice belongs to the company (multi-tenant check)
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
       include: {
         client: true,
         company: true,
@@ -1233,9 +1252,10 @@ export class InvoicesService {
     };
   }
 
-  async getInvoiceById(invoiceId: string) {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
+  async getInvoiceById(companyId: string, invoiceId: string) {
+    // Verify invoice belongs to the company (multi-tenant check)
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
       include: {
         client: true,
         company: true,
@@ -1249,10 +1269,10 @@ export class InvoicesService {
       throw new BadRequestException('Invoice not found');
     }
 
-    // Get payment method if present
+    // Get payment method if present (also verify it belongs to the company)
     const paymentMethod = invoice.paymentMethodId
-      ? await prisma.paymentMethod.findUnique({
-          where: { id: invoice.paymentMethodId },
+      ? await prisma.paymentMethod.findFirst({
+          where: { id: invoice.paymentMethodId, companyId },
         })
       : null;
 
@@ -1263,6 +1283,7 @@ export class InvoicesService {
   }
 
   async createCreditNote(
+    companyId: string,
     originalInvoiceId: string,
     data: {
       correctionCode: string;
@@ -1270,8 +1291,9 @@ export class InvoicesService {
       items: Array<{ originalItemId: string; quantity: number }>;
     },
   ) {
-    const originalInvoice = await prisma.invoice.findUnique({
-      where: { id: originalInvoiceId },
+    // Verify original invoice belongs to the company (multi-tenant check)
+    const originalInvoice = await prisma.invoice.findFirst({
+      where: { id: originalInvoiceId, companyId },
       include: {
         client: true,
         company: true,

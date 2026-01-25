@@ -7,17 +7,34 @@ interface UseGetResult<T> {
   mutate: () => void;
 }
 
+const COMPANY_STORAGE_KEY = 'invoicerr_active_company_id';
+
+function getActiveCompanyId(): string | null {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem(COMPANY_STORAGE_KEY);
+  }
+  return null;
+}
+
 export async function authenticatedFetch(
   input: RequestInfo,
   init: RequestInit = {},
 ): Promise<Response> {
+  const activeCompanyId = getActiveCompanyId();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...(init.headers || {}),
+  };
+
+  // Add company ID header if available
+  if (activeCompanyId) {
+    (headers as Record<string, string>)['X-Company-Id'] = activeCompanyId;
+  }
+
   const res = await fetch(input, {
     ...init,
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init.headers || {}),
-    },
+    headers,
   });
 
   if (res.status === 401) {
@@ -37,7 +54,7 @@ export function useGetRaw<T>(url: string, options?: RequestInit): UseGetResult<T
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [refetchIndex, setRefetchIndex] = useState(0);
+  const [_refetchIndex, setRefetchIndex] = useState(0);
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
@@ -71,7 +88,7 @@ export function useGetRaw<T>(url: string, options?: RequestInit): UseGetResult<T
     return () => {
       cancelled = true;
     };
-  }, [url, refetchIndex]);
+  }, [url]);
 
   const mutate = useCallback(() => setRefetchIndex((i) => i + 1), []);
 
@@ -82,7 +99,7 @@ export function useGet<T>(url: string | null, options?: RequestInit): UseGetResu
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [refetchIndex, setRefetchIndex] = useState(0);
+  const [_refetchIndex, setRefetchIndex] = useState(0);
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
@@ -125,7 +142,7 @@ export function useGet<T>(url: string | null, options?: RequestInit): UseGetResu
     return () => {
       cancelled = true;
     };
-  }, [url, refetchIndex]);
+  }, [url]);
 
   const mutate = useCallback(() => setRefetchIndex((i) => i + 1), []);
 

@@ -19,12 +19,12 @@ export class QuotesService {
     private readonly documentService: DocumentService,
   ) {}
 
-  async getQuotes(page: string) {
+  async getQuotes(companyId: string, page: string) {
     const pageNumber = parseInt(page, 10) || 1;
     const pageSize = 10;
     const skip = (pageNumber - 1) * pageSize;
 
-    const whereActive = { isActive: true };
+    const whereActive = { isActive: true, companyId };
 
     // Parallel queries for better performance
     const [quotes, totalCount, draftCount, sentCount, signedCount, expiredCount] = await Promise.all([
@@ -49,7 +49,7 @@ export class QuotesService {
     // Batch fetch all payment methods in a single query (avoid N+1)
     const paymentMethodIds = quotes.map((q) => q.paymentMethodId).filter(Boolean) as string[];
     const paymentMethods = paymentMethodIds.length > 0
-      ? await prisma.paymentMethod.findMany({ where: { id: { in: paymentMethodIds } } })
+      ? await prisma.paymentMethod.findMany({ where: { id: { in: paymentMethodIds }, companyId } })
       : [];
     const pmMap = new Map(paymentMethods.map((pm) => [pm.id, pm]));
 
@@ -71,9 +71,10 @@ export class QuotesService {
     };
   }
 
-  async searchQuotes(query: string) {
+  async searchQuotes(companyId: string, query: string) {
     if (!query) {
       const results = await prisma.quote.findMany({
+        where: { companyId },
         take: 10,
         orderBy: {
           number: 'asc',
@@ -88,7 +89,7 @@ export class QuotesService {
       // Batch fetch payment methods (avoid N+1)
       const pmIds = results.map((q) => q.paymentMethodId).filter(Boolean) as string[];
       const pms = pmIds.length > 0
-        ? await prisma.paymentMethod.findMany({ where: { id: { in: pmIds } } })
+        ? await prisma.paymentMethod.findMany({ where: { id: { in: pmIds }, companyId } })
         : [];
       const pmMap = new Map(pms.map((pm) => [pm.id, pm]));
 
@@ -101,6 +102,7 @@ export class QuotesService {
     const results = await prisma.quote.findMany({
       where: {
         isActive: true,
+        companyId,
         OR: [{ title: { contains: query } }, { client: { name: { contains: query } } }],
       },
       take: 10,
@@ -117,7 +119,7 @@ export class QuotesService {
     // Batch fetch payment methods (avoid N+1)
     const pmIds = results.map((q) => q.paymentMethodId).filter(Boolean) as string[];
     const pms = pmIds.length > 0
-      ? await prisma.paymentMethod.findMany({ where: { id: { in: pmIds } } })
+      ? await prisma.paymentMethod.findMany({ where: { id: { in: pmIds }, companyId } })
       : [];
     const pmMap = new Map(pms.map((pm) => [pm.id, pm]));
 
@@ -127,22 +129,25 @@ export class QuotesService {
     }));
   }
 
-  async createQuote(body: CreateQuoteDto) {
+  async createQuote(companyId: string, body: CreateQuoteDto) {
     const { items, ...data } = body;
 
-    const company = await prisma.company.findFirst();
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+    });
 
     if (!company) {
-      logger.error('No company found. Please create a company first.', { category: 'quote' });
-      throw new BadRequestException('No company found. Please create a company first.');
+      logger.error('Company not found', { category: 'quote' });
+      throw new BadRequestException('Company not found');
     }
 
-    const client = await prisma.client.findUnique({
-      where: { id: body.clientId },
+    // Verify client belongs to the company (multi-tenant check)
+    const client = await prisma.client.findFirst({
+      where: { id: body.clientId, companyId },
     });
 
     if (!client) {
-      logger.error('Client not found', { category: 'quote', details: { clientId: body.clientId } });
+      logger.error('Client not found', { category: 'quote', details: { clientId: body.clientId, companyId } });
       throw new BadRequestException('Client not found');
     }
 
@@ -216,7 +221,7 @@ export class QuotesService {
     return quote;
   }
 
-  async editQuote(body: EditQuotesDto) {
+  async editQuote(companyId: string, body: EditQuotesDto) {
     const { items, id, ...data } = body;
 
     if (!id) {
@@ -224,13 +229,14 @@ export class QuotesService {
       throw new BadRequestException('Quote ID is required for editing');
     }
 
-    const existingQuote = await prisma.quote.findUnique({
-      where: { id },
+    // Verify quote belongs to the company (multi-tenant check)
+    const existingQuote = await prisma.quote.findFirst({
+      where: { id, companyId },
       include: { items: true },
     });
 
     if (!existingQuote) {
-      logger.error('Quote not found', { category: 'quote', details: { id } });
+      logger.error('Quote not found', { category: 'quote', details: { id, companyId } });
       throw new BadRequestException('Quote not found');
     }
 
@@ -249,7 +255,9 @@ export class QuotesService {
       0,
     );
 
-    const company = await prisma.company.findFirst();
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+    });
     const isVatExemptFrance = !!(
       company?.exemptVat && (company?.country || '').toUpperCase() === 'FRANCE'
     );
@@ -328,9 +336,10 @@ export class QuotesService {
     return updateQuote;
   }
 
-  async deleteQuote(id: string) {
-    const existingQuote = await prisma.quote.findUnique({
-      where: { id },
+  async deleteQuote(companyId: string, id: string) {
+    // Verify quote belongs to the company (multi-tenant check)
+    const existingQuote = await prisma.quote.findFirst({
+      where: { id, companyId },
       include: {
         items: true,
         client: true,
@@ -339,7 +348,7 @@ export class QuotesService {
     });
 
     if (!existingQuote) {
-      logger.error('Quote not found', { category: 'quote', details: { id } });
+      logger.error('Quote not found', { category: 'quote', details: { id, companyId } });
       throw new BadRequestException('Quote not found');
     }
 
@@ -348,7 +357,7 @@ export class QuotesService {
       data: { isActive: false },
     });
 
-    logger.info('Quote deleted', { category: 'quote', details: { quoteId: id } });
+    logger.info('Quote deleted', { category: 'quote', details: { quoteId: id, companyId } });
 
     try {
       await this.webhookDispatcher.dispatch(WebhookEvent.QUOTE_DELETED, {
@@ -366,9 +375,10 @@ export class QuotesService {
     return deletedQuote;
   }
 
-  async getQuotePdf(id: string): Promise<Uint8Array> {
-    const quote = await prisma.quote.findUnique({
-      where: { id },
+  async getQuotePdf(companyId: string, id: string): Promise<Uint8Array> {
+    // Verify quote belongs to the company (multi-tenant check)
+    const quote = await prisma.quote.findFirst({
+      where: { id, companyId },
       include: {
         items: true,
         client: true,
@@ -381,7 +391,7 @@ export class QuotesService {
     if (!quote || !quote.company || !quote.company.pdfConfig) {
       logger.error('Quote or associated PDF config not found', {
         category: 'quote',
-        details: { id: quote?.id },
+        details: { id, companyId },
       });
       throw new BadRequestException('Quote or associated PDF config not found');
     }
@@ -542,14 +552,15 @@ export class QuotesService {
     return pdfBuffer;
   }
 
-  async markQuoteAsSigned(id: string) {
+  async markQuoteAsSigned(companyId: string, id: string) {
     if (!id) {
       logger.error('Quote ID is required', { category: 'quote' });
       throw new BadRequestException('Quote ID is required');
     }
 
-    const existingQuote = await prisma.quote.findUnique({
-      where: { id },
+    // Verify quote belongs to the company (multi-tenant check)
+    const existingQuote = await prisma.quote.findFirst({
+      where: { id, companyId },
       include: {
         items: true,
         client: true,
@@ -558,7 +569,7 @@ export class QuotesService {
     });
 
     if (!existingQuote) {
-      logger.error('Quote not found', { category: 'quote', details: { id } });
+      logger.error('Quote not found', { category: 'quote', details: { id, companyId } });
       throw new BadRequestException('Quote not found');
     }
 
@@ -590,7 +601,7 @@ export class QuotesService {
 
     try {
       logger.info(`Uploading signed quote ${id} to storage providers...`, { category: 'quote' });
-      const pdfBuffer = await this.getQuotePdf(id);
+      const pdfBuffer = await this.getQuotePdf(companyId, id);
       const uploadedUrls = await StorageUploadService.uploadSignedQuotePdf(id, pdfBuffer);
       if (uploadedUrls.length > 0) {
         logger.info(

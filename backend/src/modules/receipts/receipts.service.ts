@@ -22,22 +22,20 @@ export class ReceiptsService {
     this.logger = new Logger(ReceiptsService.name);
   }
 
-  async getReceipts(page: string) {
+  async getReceipts(companyId: string, page: string) {
     const pageNumber = parseInt(page, 10) || 1;
     const pageSize = 10;
     const skip = (pageNumber - 1) * pageSize;
-    const company = await prisma.company.findFirst();
 
-    if (!company) {
-      logger.error('No company found. Please create a company first.', { category: 'receipt' });
-      throw new BadRequestException('No company found. Please create a company first.');
-    }
+    // Filter receipts by company through the invoice relation
+    const whereCompany = { invoice: { companyId } };
 
     // Parallel queries for better performance
     const [receipts, totalCount] = await Promise.all([
       prisma.receipt.findMany({
         skip,
         take: pageSize,
+        where: whereCompany,
         orderBy: { createdAt: 'desc' },
         include: {
           items: true,
@@ -50,13 +48,13 @@ export class ReceiptsService {
           },
         },
       }),
-      prisma.receipt.count(),
+      prisma.receipt.count({ where: whereCompany }),
     ]);
 
     // Batch fetch all payment methods in a single query (avoid N+1)
     const paymentMethodIds = receipts.map((r) => r.paymentMethodId).filter(Boolean) as string[];
     const paymentMethods = paymentMethodIds.length > 0
-      ? await prisma.paymentMethod.findMany({ where: { id: { in: paymentMethodIds } } })
+      ? await prisma.paymentMethod.findMany({ where: { id: { in: paymentMethodIds }, companyId } })
       : [];
     const pmMap = new Map(paymentMethods.map((pm) => [pm.id, pm]));
 
@@ -74,9 +72,10 @@ export class ReceiptsService {
     };
   }
 
-  async searchReceipts(query: string) {
+  async searchReceipts(companyId: string, query: string) {
     if (!query) {
       const results = await prisma.receipt.findMany({
+        where: { invoice: { companyId } },
         take: 10,
         orderBy: {
           number: 'asc',
@@ -95,7 +94,7 @@ export class ReceiptsService {
       // Batch fetch payment methods (avoid N+1)
       const pmIds = results.map((r) => r.paymentMethodId).filter(Boolean) as string[];
       const pms = pmIds.length > 0
-        ? await prisma.paymentMethod.findMany({ where: { id: { in: pmIds } } })
+        ? await prisma.paymentMethod.findMany({ where: { id: { in: pmIds }, companyId } })
         : [];
       const pmMap = new Map(pms.map((pm) => [pm.id, pm]));
 
@@ -107,6 +106,7 @@ export class ReceiptsService {
 
     const results = await prisma.receipt.findMany({
       where: {
+        invoice: { companyId },
         OR: [
           { invoice: { quote: { title: { contains: query } } } },
           { invoice: { client: { name: { contains: query } } } },
@@ -130,7 +130,7 @@ export class ReceiptsService {
     // Batch fetch payment methods (avoid N+1)
     const pmIds = results.map((r) => r.paymentMethodId).filter(Boolean) as string[];
     const pms = pmIds.length > 0
-      ? await prisma.paymentMethod.findMany({ where: { id: { in: pmIds } } })
+      ? await prisma.paymentMethod.findMany({ where: { id: { in: pmIds }, companyId } })
       : [];
     const pmMap = new Map(pms.map((pm) => [pm.id, pm]));
 
@@ -171,9 +171,10 @@ export class ReceiptsService {
     }
   }
 
-  async createReceipt(body: CreateReceiptDto) {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: body.invoiceId },
+  async createReceipt(companyId: string, body: CreateReceiptDto) {
+    // Verify invoice belongs to the company (multi-tenant check)
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: body.invoiceId, companyId },
       include: {
         company: true,
         client: true,
@@ -184,7 +185,7 @@ export class ReceiptsService {
     if (!invoice) {
       logger.error('Invoice not found', {
         category: 'receipt',
-        details: { invoiceId: body.invoiceId },
+        details: { invoiceId: body.invoiceId, companyId },
       });
       throw new BadRequestException('Invoice not found');
     }
@@ -229,9 +230,10 @@ export class ReceiptsService {
     return receipt;
   }
 
-  async createReceiptFromInvoice(invoiceId: string) {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
+  async createReceiptFromInvoice(companyId: string, invoiceId: string) {
+    // Verify invoice belongs to the company (multi-tenant check)
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
       include: {
         items: true,
         client: true,
@@ -239,11 +241,11 @@ export class ReceiptsService {
       },
     });
     if (!invoice) {
-      logger.error('Invoice not found', { category: 'receipt', details: { invoiceId } });
+      logger.error('Invoice not found', { category: 'receipt', details: { invoiceId, companyId } });
       throw new BadRequestException('Invoice not found');
     }
 
-    const newReceipt = await this.createReceipt({
+    const newReceipt = await this.createReceipt(companyId, {
       invoiceId: invoice.id,
       items: invoice.items.map((item) => ({
         invoiceItemId: item.id,
@@ -273,16 +275,17 @@ export class ReceiptsService {
     return newReceipt;
   }
 
-  async editReceipt(body: EditReceiptDto) {
-    const existingReceipt = await prisma.receipt.findUnique({
-      where: { id: body.id },
+  async editReceipt(companyId: string, body: EditReceiptDto) {
+    // Verify receipt belongs to the company through invoice (multi-tenant check)
+    const existingReceipt = await prisma.receipt.findFirst({
+      where: { id: body.id, invoice: { companyId } },
       include: {
         items: true,
       },
     });
 
     if (!existingReceipt) {
-      logger.error('Receipt not found', { category: 'receipt', details: { receiptId: body.id } });
+      logger.error('Receipt not found', { category: 'receipt', details: { receiptId: body.id, companyId } });
       throw new BadRequestException('Receipt not found');
     }
 
@@ -336,9 +339,10 @@ export class ReceiptsService {
     return updatedReceipt;
   }
 
-  async deleteReceipt(id: string) {
-    const existingReceipt = await prisma.receipt.findUnique({
-      where: { id },
+  async deleteReceipt(companyId: string, id: string) {
+    // Verify receipt belongs to the company through invoice (multi-tenant check)
+    const existingReceipt = await prisma.receipt.findFirst({
+      where: { id, invoice: { companyId } },
       include: {
         items: true,
         invoice: {
@@ -351,7 +355,7 @@ export class ReceiptsService {
     });
 
     if (!existingReceipt) {
-      logger.error('Receipt not found', { category: 'receipt', details: { receiptId: id } });
+      logger.error('Receipt not found', { category: 'receipt', details: { receiptId: id, companyId } });
       throw new BadRequestException('Receipt not found');
     }
 
@@ -381,9 +385,10 @@ export class ReceiptsService {
     return { message: 'Receipt deleted successfully' };
   }
 
-  async getReceiptPdf(receiptId: string): Promise<Uint8Array> {
-    const receipt = await prisma.receipt.findUnique({
-      where: { id: receiptId },
+  async getReceiptPdf(companyId: string, receiptId: string): Promise<Uint8Array> {
+    // Verify receipt belongs to the company through invoice (multi-tenant check)
+    const receipt = await prisma.receipt.findFirst({
+      where: { id: receiptId, invoice: { companyId } },
       include: {
         items: true,
         invoice: {
@@ -399,7 +404,7 @@ export class ReceiptsService {
     });
 
     if (!receipt) {
-      logger.error('Receipt not found', { category: 'receipt', details: { receiptId } });
+      logger.error('Receipt not found', { category: 'receipt', details: { receiptId, companyId } });
       throw new BadRequestException('Receipt not found');
     }
 
@@ -543,9 +548,10 @@ export class ReceiptsService {
     return pdfBuffer;
   }
 
-  async sendReceiptByEmail(id: string) {
-    const receipt = await prisma.receipt.findUnique({
-      where: { id },
+  async sendReceiptByEmail(companyId: string, id: string) {
+    // Verify receipt belongs to the company through invoice (multi-tenant check)
+    const receipt = await prisma.receipt.findFirst({
+      where: { id, invoice: { companyId } },
       include: {
         invoice: {
           include: {
@@ -559,12 +565,12 @@ export class ReceiptsService {
     if (!receipt || !receipt.invoice || !receipt.invoice.client) {
       logger.error('Receipt or associated invoice/client not found', {
         category: 'receipt',
-        details: { id },
+        details: { id, companyId },
       });
       throw new BadRequestException('Receipt or associated invoice/client not found');
     }
 
-    const pdfBuffer = await this.getReceiptPdf(id);
+    const pdfBuffer = await this.getReceiptPdf(companyId, id);
 
     const mailTemplate = await prisma.mailTemplate.findFirst({
       where: { type: 'RECEIPT' },

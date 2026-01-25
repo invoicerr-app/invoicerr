@@ -4,7 +4,6 @@ import {
   DropdownMenuSeparator,
 } from '@radix-ui/react-dropdown-menu';
 import {
-  Building2,
   ChevronsUpDown,
   CreditCard,
   FileText,
@@ -14,11 +13,14 @@ import {
   Receipt,
   ReceiptText,
   Settings,
+  Shield,
   Sun,
   TrendingUp,
   User,
   Users,
 } from 'lucide-react';
+import { CompanySwitcher } from './company-switcher';
+import { useCompany } from '@/contexts/company';
 import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router';
@@ -40,10 +42,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { useSse } from '@/hooks/use-fetch';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { authClient } from '@/lib/auth';
-import type { Company } from '@/types';
 import OnBoarding from './onboarding';
 import { useTheme } from './theme-provider';
 import { Button } from './ui/button';
@@ -56,9 +56,9 @@ export function Sidebar() {
   const location = useLocation();
 
   const { data, isPending: userLoading } = authClient.useSession();
+  const { activeCompany, isLoading: companyLoading } = useCompany();
 
   const { setTheme } = useTheme();
-  const { data: company, loading: companyLoading } = useSse<Company>('/api/company/info/sse');
   const navigate = useNavigate();
 
   const items: { title: string; icon: React.ReactNode; url: string; dataCy: string }[] = [
@@ -112,6 +112,20 @@ export function Sidebar() {
     },
   ];
 
+  // Check if user is system admin to show admin link
+  // @ts-expect-error - role is added by backend
+  const isSystemAdmin = data?.user?.role === 'SYSTEM_ADMIN';
+
+  // Add admin link for system admins
+  if (isSystemAdmin) {
+    items.push({
+      title: t('sidebar.navigation.admin'),
+      icon: <Shield className="w-4 h-4" />,
+      url: '/admin',
+      dataCy: 'sidebar-admin-link',
+    });
+  }
+
   const handleLogout = async () => {
     await authClient.signOut();
     navigate('/auth/sign-in');
@@ -122,27 +136,13 @@ export function Sidebar() {
       <OnBoarding
         isOpen={
           !companyLoading &&
-          (!company || !company.name) &&
+          (!activeCompany || !activeCompany.name) &&
           location.pathname !== '/settings/company'
         }
       />
 
       <SidebarHeader className="px-2">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <section className="flex items-center gap-2">
-                <div className="bg-accent text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                  <Building2 className="size-4" />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{company?.name}</span>
-                  <span className="truncate text-xs">{t('sidebar.company.plan')}</span>
-                </div>
-              </section>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <CompanySwitcher />
       </SidebarHeader>
 
       <SidebarContent className="px-2">

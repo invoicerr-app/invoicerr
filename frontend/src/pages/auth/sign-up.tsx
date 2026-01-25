@@ -1,8 +1,8 @@
-import { EyeClosedIcon, EyeIcon, TicketIcon } from 'lucide-react';
+import { Building2, EyeClosedIcon, EyeIcon, TicketIcon } from 'lucide-react';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,20 +18,57 @@ type SignupFormData = {
   invitationCode?: string;
 };
 
+interface InvitationInfo {
+  companyId: string;
+  companyName: string;
+  role: string;
+}
+
 export default function SignupPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [errors, setErrors] = useState<Partial<Record<keyof SignupFormData, string[]>>>({});
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [requiresInvitation, setRequiresInvitation] = useState<boolean | null>(null);
   const [checkingInvitation, setCheckingInvitation] = useState(true);
+  const [invitationCode, setInvitationCode] = useState<string>('');
+  const [invitationInfo, setInvitationInfo] = useState<InvitationInfo | null>(null);
 
   const getEnvVariable = (key: string): string | undefined => {
     return (window as any).__APP_CONFIG__?.[key] || import.meta.env[key];
   };
 
   const backendUrl = getEnvVariable('VITE_BACKEND_URL') || '';
+
+  // Read invitation code from URL query param
+  useEffect(() => {
+    const codeFromUrl = searchParams.get('invitation');
+    if (codeFromUrl) {
+      setInvitationCode(codeFromUrl);
+      // Validate and fetch invitation details
+      fetchInvitationDetails(codeFromUrl);
+    }
+  }, [searchParams]);
+
+  const fetchInvitationDetails = async (code: string) => {
+    try {
+      const response = await fetch(`${backendUrl}/api/invitations/can-register?code=${encodeURIComponent(code)}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.allowed && data.companyName) {
+          setInvitationInfo({
+            companyId: data.companyId,
+            companyName: data.companyName,
+            role: data.role,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching invitation details:', error);
+    }
+  };
 
   // Check if invitation is required on page load
   useEffect(() => {
@@ -239,11 +276,33 @@ export default function SignupPage() {
                     disabled={loading}
                     className="font-mono uppercase"
                     data-cy="auth-invitation-code-input"
+                    value={invitationCode}
+                    onChange={(e) => {
+                      setInvitationCode(e.target.value);
+                      setInvitationInfo(null);
+                    }}
+                    onBlur={(e) => {
+                      if (e.target.value && e.target.value !== invitationCode) {
+                        fetchInvitationDetails(e.target.value);
+                      }
+                    }}
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {t('auth.signup.form.invitationCode.hint')}
-                </p>
+                {invitationInfo ? (
+                  <div className="flex items-center gap-2 p-2 rounded-md bg-primary/10 text-sm">
+                    <Building2 className="h-4 w-4 text-primary" />
+                    <span>
+                      {t('auth.signup.form.invitationCode.joiningCompany', {
+                        companyName: invitationInfo.companyName,
+                        defaultValue: `You will join: ${invitationInfo.companyName}`,
+                      })}
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    {t('auth.signup.form.invitationCode.hint')}
+                  </p>
+                )}
                 {errors.invitationCode && (
                   <p className="text-sm text-red-600">{errors.invitationCode[0]}</p>
                 )}

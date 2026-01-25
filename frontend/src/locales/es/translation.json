@@ -1425,10 +1425,14 @@
       "clients": "Clientes",
       "paymentMethods": "Métodos de pago",
       "stats": "Estadísticas",
-      "settings": "Configuración"
+      "settings": "Configuración",
+      "admin": "Administración"
     },
     "company": {
-      "plan": "Empresa"
+      "plan": "Empresa",
+      "noCompany": "Sin empresa",
+      "switchCompany": "Cambiar empresa",
+      "createNew": "Crear nueva empresa"
     },
     "menu": "Menú",
     "theme": {
@@ -1500,7 +1504,8 @@
         "invitationCode": {
           "label": "Código de invitación",
           "placeholder": "Introduce tu código de invitación",
-          "hint": "Necesitas un código de invitación de un usuario existente para registrarte"
+          "hint": "Necesitas un código de invitación de un usuario existente para registrarte",
+          "joiningCompany": "Te unirás a: {{companyName}}"
         }
       },
       "hasAccount": "¿Ya tienes cuenta?",
@@ -1738,5 +1743,91 @@
     "selectThisFolder": "Seleccionar esta carpeta",
     "noSubdirectories": "No se encontraron subcarpetas",
     "loading": "Cargando directorios..."
+  },
+  "admin": {
+    "title": "Administración",
+    "navigation": {
+      "users": "Usuarios",
+      "companies": "Empresas"
+    },
+    "users": {
+      "title": "Gestión de usuarios",
+      "description": "Gestionar todos los usuarios del sistema",
+      "search": {
+        "placeholder": "Buscar usuarios..."
+      },
+      "table": {
+        "name": "Nombre",
+        "email": "Correo electrónico",
+        "role": "Rol",
+        "createdAt": "Creado el",
+        "actions": "Acciones"
+      },
+      "roles": {
+        "USER": "Usuario",
+        "COMPANY_ADMIN": "Admin de empresa",
+        "SYSTEM_ADMIN": "Admin del sistema"
+      },
+      "actions": {
+        "edit": "Editar",
+        "delete": "Eliminar",
+        "changeRole": "Cambiar rol"
+      },
+      "emptyState": {
+        "noUsers": "No se encontraron usuarios",
+        "noResults": "Ningún usuario coincide con su búsqueda"
+      }
+    },
+    "companies": {
+      "title": "Gestión de empresas",
+      "description": "Gestionar todas las empresas del sistema",
+      "search": {
+        "placeholder": "Buscar empresas..."
+      },
+      "table": {
+        "name": "Nombre de la empresa",
+        "country": "País",
+        "members": "Miembros",
+        "createdAt": "Creado el",
+        "actions": "Acciones"
+      },
+      "actions": {
+        "view": "Ver detalles",
+        "edit": "Editar",
+        "delete": "Eliminar"
+      },
+      "emptyState": {
+        "noCompanies": "No se encontraron empresas",
+        "noResults": "Ninguna empresa coincide con su búsqueda"
+      }
+    }
+  },
+  "companyInvitation": {
+    "title": "Invitación a empresa",
+    "description": "Has sido invitado a unirte a una empresa",
+    "invitedBy": "Invitado por {{name}}",
+    "companyName": "Empresa",
+    "role": "Tu rol",
+    "roles": {
+      "OWNER": "Propietario",
+      "ADMIN": "Administrador",
+      "ACCOUNTANT": "Contador"
+    },
+    "actions": {
+      "accept": "Aceptar invitación",
+      "decline": "Rechazar",
+      "accepting": "Aceptando..."
+    },
+    "messages": {
+      "accepted": "Te has unido a {{companyName}}",
+      "declined": "Invitación rechazada",
+      "expired": "Esta invitación ha expirado",
+      "invalid": "Invitación inválida",
+      "alreadyMember": "Ya eres miembro de esta empresa"
+    },
+    "signupRequired": {
+      "title": "Crear una cuenta",
+      "description": "Necesitas crear una cuenta para aceptar esta invitación"
+    }
   }
 }

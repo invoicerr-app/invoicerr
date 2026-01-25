@@ -124,9 +124,6 @@
           "label": "Numéro de TVA",
           "placeholder": "Saisir le numéro de TVA (ex: FR12345678901)"
         },
-        "currency": {
-          "label": "Devise"
-        },
         "foundedAt": {
           "label": "Date de création",
           "placeholder": "Sélectionner la date de création"
@@ -1727,10 +1724,14 @@
       "clients": "Clients",
       "paymentMethods": "Méthodes de paiement",
       "stats": "Statistiques",
-      "settings": "Paramètres"
+      "settings": "Paramètres",
+      "admin": "Administration"
     },
     "company": {
-      "plan": "Entreprise"
+      "plan": "Entreprise",
+      "noCompany": "Aucune entreprise",
+      "switchCompany": "Changer d'entreprise",
+      "createNew": "Créer une nouvelle entreprise"
     },
     "menu": "Menu",
     "theme": {
@@ -1800,7 +1801,8 @@
         "invitationCode": {
           "label": "Code d'invitation",
           "placeholder": "Entrez votre code d'invitation",
-          "hint": "Vous avez besoin d'un code d'invitation d'un utilisateur existant pour vous inscrire"
+          "hint": "Vous avez besoin d'un code d'invitation d'un utilisateur existant pour vous inscrire",
+          "joiningCompany": "Vous rejoindrez : {{companyName}}"
         },
         "creatingAccount": "Création du compte...",
         "createButton": "Créer le compte"
@@ -2072,5 +2074,91 @@
     "saft": "Portail SAF-T",
     "xrechnung": "Portail XRechnung",
     "face": "FACe"
+  },
+  "admin": {
+    "title": "Administration",
+    "navigation": {
+      "users": "Utilisateurs",
+      "companies": "Entreprises"
+    },
+    "users": {
+      "title": "Gestion des utilisateurs",
+      "description": "Gérer tous les utilisateurs du système",
+      "search": {
+        "placeholder": "Rechercher des utilisateurs..."
+      },
+      "table": {
+        "name": "Nom",
+        "email": "Email",
+        "role": "Rôle",
+        "createdAt": "Créé le",
+        "actions": "Actions"
+      },
+      "roles": {
+        "USER": "Utilisateur",
+        "COMPANY_ADMIN": "Admin Entreprise",
+        "SYSTEM_ADMIN": "Admin Système"
+      },
+      "actions": {
+        "edit": "Modifier",
+        "delete": "Supprimer",
+        "changeRole": "Changer le rôle"
+      },
+      "emptyState": {
+        "noUsers": "Aucun utilisateur trouvé",
+        "noResults": "Aucun utilisateur ne correspond à votre recherche"
+      }
+    },
+    "companies": {
+      "title": "Gestion des entreprises",
+      "description": "Gérer toutes les entreprises du système",
+      "search": {
+        "placeholder": "Rechercher des entreprises..."
+      },
+      "table": {
+        "name": "Nom de l'entreprise",
+        "country": "Pays",
+        "members": "Membres",
+        "createdAt": "Créé le",
+        "actions": "Actions"
+      },
+      "actions": {
+        "view": "Voir les détails",
+        "edit": "Modifier",
+        "delete": "Supprimer"
+      },
+      "emptyState": {
+        "noCompanies": "Aucune entreprise trouvée",
+        "noResults": "Aucune entreprise ne correspond à votre recherche"
+      }
+    }
+  },
+  "companyInvitation": {
+    "title": "Invitation à rejoindre une entreprise",
+    "description": "Vous avez été invité à rejoindre une entreprise",
+    "invitedBy": "Invité par {{name}}",
+    "companyName": "Entreprise",
+    "role": "Votre rôle",
+    "roles": {
+      "OWNER": "Propriétaire",
+      "ADMIN": "Administrateur",
+      "ACCOUNTANT": "Comptable"
+    },
+    "actions": {
+      "accept": "Accepter l'invitation",
+      "decline": "Refuser",
+      "accepting": "Acceptation..."
+    },
+    "messages": {
+      "accepted": "Vous avez rejoint {{companyName}}",
+      "declined": "Invitation refusée",
+      "expired": "Cette invitation a expiré",
+      "invalid": "Invitation invalide",
+      "alreadyMember": "Vous êtes déjà membre de cette entreprise"
+    },
+    "signupRequired": {
+      "title": "Créer un compte",
+      "description": "Vous devez créer un compte pour accepter cette invitation"
+    }
   }
 }

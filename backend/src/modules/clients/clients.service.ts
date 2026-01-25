@@ -9,12 +9,12 @@ import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service
 export class ClientsService {
   constructor(private readonly webhookDispatcher: WebhookDispatcherService) {}
 
-  async getClients(page: string) {
+  async getClients(companyId: string, page: string) {
     const pageNumber = parseInt(page, 10) || 1;
     const pageSize = 10;
     const skip = (pageNumber - 1) * pageSize;
 
-    const whereActive = { isActive: true };
+    const whereActive = { isActive: true, companyId };
 
     // Parallel queries for better performance
     const [clients, totalCount, companyCount, individualCount] = await Promise.all([
@@ -40,10 +40,10 @@ export class ClientsService {
     };
   }
 
-  async searchClients(query: string) {
+  async searchClients(companyId: string, query: string) {
     if (!query) {
       return prisma.client.findMany({
-        where: { isActive: true },
+        where: { isActive: true, companyId },
         take: 10,
         orderBy: {
           name: 'asc',
@@ -54,6 +54,7 @@ export class ClientsService {
     const results = await prisma.client.findMany({
       where: {
         isActive: true,
+        companyId,
         OR: [
           { name: { contains: query } },
           { contactFirstname: { contains: query } },
@@ -74,6 +75,7 @@ export class ClientsService {
 
     try {
       await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_SEARCHED, {
+        companyId,
         query,
         results: results.length,
       });
@@ -87,7 +89,7 @@ export class ClientsService {
     return results;
   }
 
-  async createClient(editClientsDto: EditClientsDto) {
+  async createClient(companyId: string, editClientsDto: EditClientsDto) {
     const { id, ...data } = editClientsDto;
 
     const type = (data as any).type || 'COMPANY';
@@ -112,13 +114,19 @@ export class ClientsService {
       // Note: identifiers validation is now handled dynamically based on country requirements
     }
 
-    const newClient = await prisma.client.create({ data });
+    const newClient = await prisma.client.create({
+      data: {
+        ...data,
+        companyId,
+      },
+    });
 
-    logger.info('Client created', { category: 'client', details: { clientId: newClient.id } });
+    logger.info('Client created', { category: 'client', details: { clientId: newClient.id, companyId } });
 
     try {
       await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_CREATED, {
         client: newClient,
+        companyId,
       });
     } catch (error) {
       logger.error('Failed to dispatch CLIENT_CREATED webhook', {
@@ -130,15 +138,18 @@ export class ClientsService {
     return newClient;
   }
 
-  async editClientsInfo(editClientsDto: EditClientsDto) {
+  async editClientsInfo(companyId: string, editClientsDto: EditClientsDto) {
     if (!editClientsDto.id) {
       logger.error('Client ID is required for editing', { category: 'client' });
       throw new BadRequestException('Client ID is required for editing');
     }
 
-    const existingClient = await prisma.client.findUnique({ where: { id: editClientsDto.id } });
+    // Verify client belongs to the company (multi-tenant check)
+    const existingClient = await prisma.client.findFirst({
+      where: { id: editClientsDto.id, companyId },
+    });
     if (!existingClient) {
-      logger.error('Client not found', { category: 'client', details: { id: editClientsDto.id } });
+      logger.error('Client not found', { category: 'client', details: { id: editClientsDto.id, companyId } });
       throw new BadRequestException('Client not found');
     }
 
@@ -168,11 +179,12 @@ export class ClientsService {
       data: { ...editClientsDto, isActive: true },
     });
 
-    logger.info('Client updated', { category: 'client', details: { clientId: updatedClient.id } });
+    logger.info('Client updated', { category: 'client', details: { clientId: updatedClient.id, companyId } });
 
     try {
       await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_UPDATED, {
         client: updatedClient,
+        companyId,
       });
     } catch (error) {
       logger.error('Failed to dispatch CLIENT_UPDATED webhook', {
@@ -184,11 +196,14 @@ export class ClientsService {
     return updatedClient;
   }
 
-  async deleteClient(id: string) {
-    const existingClient = await prisma.client.findUnique({ where: { id } });
+  async deleteClient(companyId: string, id: string) {
+    // Verify client belongs to the company (multi-tenant check)
+    const existingClient = await prisma.client.findFirst({
+      where: { id, companyId },
+    });
 
     if (!existingClient) {
-      logger.error('Client not found', { category: 'client', details: { id } });
+      logger.error('Client not found', { category: 'client', details: { id, companyId } });
       throw new BadRequestException('Client not found');
     }
 
@@ -197,11 +212,12 @@ export class ClientsService {
       data: { isActive: false },
     });
 
-    logger.info('Client deleted', { category: 'client', details: { clientId: id } });
+    logger.info('Client deleted', { category: 'client', details: { clientId: id, companyId } });
 
     try {
       await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_DELETED, {
         client: existingClient,
+        companyId,
       });
     } catch (error) {
       logger.error('Failed to dispatch CLIENT_DELETED webhook', {
@@ -211,5 +227,16 @@ export class ClientsService {
     }
 
     return deletedClient;
+  }
+
+  /**
+   * Verify that a client belongs to the specified company
+   * Used for multi-tenant access control
+   */
+  async verifyClientAccess(companyId: string, clientId: string): Promise<boolean> {
+    const client = await prisma.client.findFirst({
+      where: { id: clientId, companyId },
+    });
+    return !!client;
   }
 }

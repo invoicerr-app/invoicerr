@@ -83,7 +83,7 @@ export default function OnBoarding({ isLoading: externalLoading, isOpen = true }
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
 
-  const { trigger } = usePost<Company>('/api/company/info');
+  const { trigger } = usePost<Company>('/api/company/create');
 
   const ALLOWED_DATE_FORMATS = [
     'dd/MM/yyyy',
@@ -585,9 +585,7 @@ export default function OnBoarding({ isLoading: externalLoading, isOpen = true }
                                 name={`identifiers.${identifier.id}`}
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel required>
-                                      {t(identifier.labelKey)}
-                                    </FormLabel>
+                                    <FormLabel required>{t(identifier.labelKey)}</FormLabel>
                                     <FormControl>
                                       <Input
                                         placeholder={identifier.example || ''}

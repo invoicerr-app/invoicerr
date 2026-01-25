@@ -334,6 +334,11 @@ model Company {
   RecurringInvoice RecurringInvoice[]
   webhooks         Webhook[]
   complianceSettings ComplianceSettings?
+
+  // Multi-tenant: users belonging to this company
+  users            UserCompany[]
+  invitations      InvitationCode[]
+  clients          Client[]
 }
 
 // Client model
@@ -345,7 +350,7 @@ model Client {
   foundedAt        DateTime? // Date when the client company was founded
   contactFirstname String?
   contactLastname  String?
-  contactEmail     String?            @unique
+  contactEmail     String?
   contactPhone     String?
   address          String
   postalCode       String
@@ -357,9 +362,16 @@ model Client {
   sex              String             @default("other") // male, female, other (We need a default value for the invoice generation)
   title            String             @default("Doctor") // Doctor, Professor (We need a default value for the invoice generation)
   isActive         Boolean            @default(true)
+
+  // Multi-tenant: client belongs to a company
+  companyId        String
+  company          Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   Quote            Quote[]
   Invoice          Invoice[]
   RecurringInvoice RecurringInvoice[]
+
+  @@index([companyId])
 }
 
 // Email templates
@@ -791,19 +803,50 @@ model Webhook {
 // ======= INVITATION SYSTEM ======= //
 
 model InvitationCode {
-  id          String    @id @default(uuid())
-  code        String    @unique
-  createdAt   DateTime  @default(now())
+  id          String              @id @default(uuid())
+  code        String              @unique
+  createdAt   DateTime            @default(now())
   expiresAt   DateTime?
   usedAt      DateTime?
   createdById String
-  createdBy   User      @relation("CreatedInvitations", fields: [createdById], references: [id], onDelete: Cascade)
-  usedById    String?   @unique
-  usedBy      User?     @relation("UsedInvitation", fields: [usedById], references: [id], onDelete: SetNull)
+  createdBy   User                @relation("CreatedInvitations", fields: [createdById], references: [id], onDelete: Cascade)
+  usedById    String?             @unique
+  usedBy      User?               @relation("UsedInvitation", fields: [usedById], references: [id], onDelete: SetNull)
+
+  // Multi-tenant: invitation for a specific company with a role
+  companyId   String?
+  company     Company?            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role        UserCompanyRole     @default(ACCOUNTANT)
 
   @@index([code])
   @@index([createdById])
+  @@index([companyId])
   @@map("invitation_code")
+}
+
+// ======= MULTI-TENANT USER-COMPANY RELATIONSHIP ======= //
+
+enum UserCompanyRole {
+  SYSTEM_ADMIN  // Global admin (first user)
+  OWNER         // Company owner - full access
+  ADMIN         // Company admin - manage users, settings
+  ACCOUNTANT    // Can create/manage documents
+}
+
+model UserCompany {
+  id        String          @id @default(cuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role      UserCompanyRole
+  joinedAt  DateTime        @default(now())
+  isDefault Boolean         @default(false) // Default company for the user
+
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
+  @@map("user_company")
 }
 
 // ======= BETTER AUTH INTEGRATION ======= //
@@ -820,6 +863,10 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+
+  // Multi-tenant: user can belong to multiple companies
+  isSystemAdmin Boolean       @default(false) // First user becomes system admin
+  companies     UserCompany[]
 
   // Invitation relations
   createdInvitations InvitationCode[] @relation("CreatedInvitations")

@@ -1413,10 +1413,14 @@
       "clients": "Kunden",
       "paymentMethods": "Zahlungsmethoden",
       "stats": "Statistiken",
-      "settings": "Einstellungen"
+      "settings": "Einstellungen",
+      "admin": "Administration"
     },
     "company": {
-      "plan": "Unternehmen"
+      "plan": "Unternehmen",
+      "noCompany": "Kein Unternehmen",
+      "switchCompany": "Unternehmen wechseln",
+      "createNew": "Neues Unternehmen erstellen"
     },
     "menu": "Menü",
     "theme": {
@@ -1483,6 +1487,12 @@
           "placeholder": "Ein Passwort erstellen",
           "requirements": "Passwort-Anforderungen:"
         },
+        "invitationCode": {
+          "label": "Einladungscode",
+          "placeholder": "Geben Sie Ihren Einladungscode ein",
+          "hint": "Sie benötigen einen Einladungscode von einem bestehenden Benutzer, um sich zu registrieren",
+          "joiningCompany": "Sie werden beitreten: {{companyName}}"
+        },
         "creatingAccount": "Konto erstellen...",
         "createButton": "Konto erstellen"
       },
@@ -1495,7 +1505,10 @@
         "passwordMinLength": "Das Passwort muss mindestens 8 Zeichen lang sein.",
         "passwordLetter": "Das Passwort muss mindestens einen Buchstaben enthalten",
         "passwordNumber": "Das Passwort muss mindestens eine Zahl enthalten",
-        "passwordSpecial": "Das Passwort muss mindestens ein Sonderzeichen enthalten"
+        "passwordSpecial": "Das Passwort muss mindestens ein Sonderzeichen enthalten",
+        "invitationCodeRequired": "Ein Einladungscode ist erforderlich, um sich zu registrieren",
+        "invalidInvitationCode": "Ungültiger oder abgelaufener Einladungscode",
+        "genericError": "Bei der Erstellung Ihres Kontos ist ein Fehler aufgetreten"
       },
       "messages": {
         "accountCreated": "Konto erfolgreich erstellt"
@@ -1718,5 +1731,91 @@
     "selectThisFolder": "Diesen Ordner auswählen",
     "noSubdirectories": "Keine Unterordner gefunden",
     "loading": "Verzeichnisse werden geladen..."
+  },
+  "admin": {
+    "title": "Administration",
+    "navigation": {
+      "users": "Benutzer",
+      "companies": "Unternehmen"
+    },
+    "users": {
+      "title": "Benutzerverwaltung",
+      "description": "Alle Benutzer im System verwalten",
+      "search": {
+        "placeholder": "Benutzer suchen..."
+      },
+      "table": {
+        "name": "Name",
+        "email": "E-Mail",
+        "role": "Rolle",
+        "createdAt": "Erstellt am",
+        "actions": "Aktionen"
+      },
+      "roles": {
+        "USER": "Benutzer",
+        "COMPANY_ADMIN": "Unternehmensadmin",
+        "SYSTEM_ADMIN": "Systemadmin"
+      },
+      "actions": {
+        "edit": "Bearbeiten",
+        "delete": "Löschen",
+        "changeRole": "Rolle ändern"
+      },
+      "emptyState": {
+        "noUsers": "Keine Benutzer gefunden",
+        "noResults": "Keine Benutzer entsprechen Ihrer Suche"
+      }
+    },
+    "companies": {
+      "title": "Unternehmensverwaltung",
+      "description": "Alle Unternehmen im System verwalten",
+      "search": {
+        "placeholder": "Unternehmen suchen..."
+      },
+      "table": {
+        "name": "Unternehmensname",
+        "country": "Land",
+        "members": "Mitglieder",
+        "createdAt": "Erstellt am",
+        "actions": "Aktionen"
+      },
+      "actions": {
+        "view": "Details anzeigen",
+        "edit": "Bearbeiten",
+        "delete": "Löschen"
+      },
+      "emptyState": {
+        "noCompanies": "Keine Unternehmen gefunden",
+        "noResults": "Keine Unternehmen entsprechen Ihrer Suche"
+      }
+    }
+  },
+  "companyInvitation": {
+    "title": "Unternehmenseinladung",
+    "description": "Sie wurden eingeladen, einem Unternehmen beizutreten",
+    "invitedBy": "Eingeladen von {{name}}",
+    "companyName": "Unternehmen",
+    "role": "Ihre Rolle",
+    "roles": {
+      "OWNER": "Inhaber",
+      "ADMIN": "Administrator",
+      "ACCOUNTANT": "Buchhalter"
+    },
+    "actions": {
+      "accept": "Einladung annehmen",
+      "decline": "Ablehnen",
+      "accepting": "Wird angenommen..."
+    },
+    "messages": {
+      "accepted": "Sie sind {{companyName}} beigetreten",
+      "declined": "Einladung abgelehnt",
+      "expired": "Diese Einladung ist abgelaufen",
+      "invalid": "Ungültige Einladung",
+      "alreadyMember": "Sie sind bereits Mitglied dieses Unternehmens"
+    },
+    "signupRequired": {
+      "title": "Konto erstellen",
+      "description": "Sie müssen ein Konto erstellen, um diese Einladung anzunehmen"
+    }
   }
 }
