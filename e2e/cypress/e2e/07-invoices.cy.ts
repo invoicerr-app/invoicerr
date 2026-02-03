@@ -302,4 +302,101 @@ describe('Invoices E2E', () => {
             // We can't easily verify it's gone without knowing what it was, but we can assume it worked if no error.
         });
     });
+
+    describe('Fractional Units Support', () => {
+        it('creates an invoice with fractional units and displays them correctly', () => {
+            cy.visit('/invoices');
+            cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+            cy.wait(500);
+
+            cy.get('[data-cy="invoice-dialog"]', { timeout: 5000 }).should('be.visible');
+
+            // Select client
+            cy.get('[data-cy="invoice-client-select"] button').first().click();
+            cy.wait(300);
+            cy.get('[data-cy="invoice-client-select-options"]').should('be.visible');
+            cy.get('[data-cy="invoice-client-select-options"] button').first().click();
+
+            // Select currency
+            cy.get('[data-cy="invoice-currency-select"] button').first().click();
+            cy.wait(200);
+            cy.get('[data-cy="invoice-currency-select"] input').type('USD');
+            cy.wait(200);
+            cy.get('[data-cy="invoice-currency-select-option-us-dollar-($)"]').click();
+
+            // Add item with fractional quantity
+            cy.contains('button', /Add Item|Ajouter/i).click();
+            cy.get('[name="items.0.description"]').type('Consulting Hours - Fractional', { force: true });
+            cy.get('[name="items.0.quantity"]').clear({ force: true }).type('19.875', { force: true });
+            cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('100', { force: true });
+            cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('20', { force: true });
+
+            cy.get('[data-cy="invoice-submit"]').click();
+            cy.get('[data-cy="invoice-dialog"]').should('not.exist');
+
+            // Verify the invoice displays the fractional quantity
+            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[role="dialog"]').should('be.visible');
+            
+            // Check that the total is calculated correctly (19.875 * 100 * 1.2 = 2385)
+            cy.contains(/2[.,\s]?385/, { timeout: 10000 });
+            cy.get('body').type('{esc}');
+            cy.wait(500);
+
+            // Edit the invoice to verify fractional quantity is preserved
+            cy.get('button:has(svg.lucide-pencil)').first().click();
+            cy.get('[data-cy="invoice-dialog"]', { timeout: 5000 }).should('be.visible');
+            
+            // Verify the quantity field still has the fractional value
+            cy.get('[name="items.0.quantity"]').should('have.value', '19.875');
+            
+            // Change the quantity to another fractional value
+            cy.get('[name="items.0.quantity"]').clear({ force: true }).type('10.5', { force: true });
+            cy.get('[data-cy="invoice-submit"]').click();
+            cy.get('[data-cy="invoice-dialog"]').should('not.exist');
+
+            // Verify the updated total (10.5 * 100 * 1.2 = 1260)
+            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[role="dialog"]').should('be.visible');
+            cy.contains(/1[.,\s]?260/, { timeout: 10000 });
+            cy.get('body').type('{esc}');
+        });
+
+        it('creates an invoice with multiple fractional units', () => {
+            cy.visit('/invoices');
+            cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+            cy.wait(500);
+
+            cy.get('[data-cy="invoice-dialog"]', { timeout: 5000 }).should('be.visible');
+
+            // Select client
+            cy.get('[data-cy="invoice-client-select"] button').first().click();
+            cy.wait(300);
+            cy.get('[data-cy="invoice-client-select-options"]').should('be.visible');
+            cy.get('[data-cy="invoice-client-select-options"] button').first().click();
+
+            // Add first item with fractional quantity
+            cy.contains('button', /Add Item|Ajouter/i).click();
+            cy.get('[name="items.0.description"]').type('Design Work - 0.25 days', { force: true });
+            cy.get('[name="items.0.quantity"]').clear({ force: true }).type('0.25', { force: true });
+            cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('800', { force: true });
+            cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('20', { force: true });
+
+            // Add second item with fractional quantity
+            cy.contains('button', /Add Item|Ajouter/i).click();
+            cy.get('[name="items.1.description"]').type('Development - 2.75 days', { force: true });
+            cy.get('[name="items.1.quantity"]').clear({ force: true }).type('2.75', { force: true });
+            cy.get('[name="items.1.unitPrice"]').clear({ force: true }).type('1000', { force: true });
+            cy.get('[name="items.1.vatRate"]').clear({ force: true }).type('20', { force: true });
+
+            cy.get('[data-cy="invoice-submit"]').click();
+            cy.get('[data-cy="invoice-dialog"]').should('not.exist');
+
+            // Verify the total (0.25*800 + 2.75*1000 = 200 + 2750 = 2950 * 1.2 = 3540)
+            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[role="dialog"]').should('be.visible');
+            cy.contains(/3[.,\s]?540/, { timeout: 10000 });
+            cy.get('body').type('{esc}');
+        });
+    });
 });

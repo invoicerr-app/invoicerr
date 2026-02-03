@@ -63,7 +63,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                 type: z.string(),
                 quantity: z
                     .number({ invalid_type_error: t("quotes.upsert.form.items.quantity.errors.required") })
-                    .min(1, t("quotes.upsert.form.items.quantity.errors.min"))
+                    .min(0.001, t("quotes.upsert.form.items.quantity.errors.min"))
                     .refine((val) => !isNaN(val), {
                         message: t("quotes.upsert.form.items.quantity.errors.invalid"),
                     }),
@@ -376,6 +376,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                                                                             defaultValue={field.value || ""}
                                                                             postAdornment={t(`quotes.upsert.form.items.quantity.unit`)}
                                                                             type="number"
+                                                                            step="0.001"
                                                                             placeholder={t(
                                                                                 `quotes.upsert.form.items.quantity.placeholder`,
                                                                             )}
@@ -400,6 +401,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                                                                             defaultValue={field.value || ""}
                                                                             postAdornment="$"
                                                                             type="number"
+                                                                            step="0.01"
                                                                             placeholder={t(
                                                                                 `quotes.upsert.form.items.unitPrice.placeholder`,
                                                                             )}
