@@ -61,7 +61,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                     .number({
                         invalid_type_error: t("invoices.upsert.form.items.quantity.errors.required"),
                     })
-                    .min(1, t("invoices.upsert.form.items.quantity.errors.min"))
+                    .min(0.001, t("invoices.upsert.form.items.quantity.errors.min"))
                     .refine((val) => !isNaN(val), {
                         message: t("invoices.upsert.form.items.quantity.errors.invalid"),
                     }),
@@ -416,6 +416,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                                                             defaultValue={field.value || ""}
                                                                             postAdornment={t(`invoices.upsert.form.items.quantity.unit`)}
                                                                             type="number"
+                                                                            step="0.001"
                                                                             placeholder={t(
                                                                                 `invoices.upsert.form.items.quantity.placeholder`,
                                                                             )}
@@ -440,6 +441,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                                                             defaultValue={field.value || ""}
                                                                             postAdornment="$"
                                                                             type="number"
+                                                                            step="0.01"
                                                                             placeholder={t(
                                                                                 `invoices.upsert.form.items.unitPrice.placeholder`,
                                                                             )}
