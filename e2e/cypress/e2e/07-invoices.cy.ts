@@ -366,7 +366,8 @@ describe('Invoices E2E', () => {
                 cy.get('button:has(svg.lucide-eye)').click();
             });
             cy.get('[role="dialog"]').should('be.visible');
-            cy.contains(/1[.,\s]?260/, { timeout: 10000 });
+            // Check for the total amount - should contain 1260 somewhere
+            cy.contains('1260', { timeout: 10000 });
             cy.get('body').type('{esc}');
         });
 
