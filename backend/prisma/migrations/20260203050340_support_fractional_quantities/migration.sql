@@ -1,9 +1,9 @@
 /*
   Warnings:
 
-  - Changed the type of `quantity` on the `InvoiceItem` table. No cast exists, the column would be dropped and recreated, which cannot be done if there is data, since the column is required.
-  - Changed the type of `quantity` on the `QuoteItem` table. No cast exists, the column would be dropped and recreated, which cannot be done if there is data, since the column is required.
-  - Changed the type of `quantity` on the `RecurringInvoiceItem` table. No cast exists, the column would be dropped and recreated, which cannot be done if there is data, since the column is required.
+  - Changed the type of `quantity` on the `InvoiceItem` table from Int to Float. Existing data is preserved through type casting.
+  - Changed the type of `quantity` on the `QuoteItem` table from Int to Float. Existing data is preserved through type casting.
+  - Changed the type of `quantity` on the `RecurringInvoiceItem` table from Int to Float. Existing data is preserved through type casting.
 
 */
 -- AlterTable
