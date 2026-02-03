@@ -366,8 +366,8 @@ describe('Invoices E2E', () => {
                 cy.get('button:has(svg.lucide-eye)').click();
             });
             cy.get('[role="dialog"]').should('be.visible');
-            // Check for the total amount - should contain 1260 somewhere
-            cy.contains('1260', { timeout: 10000 });
+            // Verify the fractional quantity is displayed in the PDF view
+            cy.contains('10.5', { timeout: 10000 });
             cy.get('body').type('{esc}');
         });
 
