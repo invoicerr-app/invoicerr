@@ -411,7 +411,7 @@ model QuoteItem {
   quote       Quote    @relation(fields: [quoteId], references: [id])
   quoteId     String
   description String
-  quantity    Int
+  quantity    Float
   unitPrice   Float
   vatRate     Float // 20 for 20%
   type        ItemType @default(SERVICE)
@@ -454,7 +454,7 @@ model InvoiceItem {
   invoice      Invoice       @relation(fields: [invoiceId], references: [id])
   invoiceId    String
   description  String
-  quantity     Int
+  quantity     Float
   unitPrice    Float
   vatRate      Float // 20 for 20%
   type         ItemType      @default(SERVICE)
@@ -494,7 +494,7 @@ model RecurringInvoiceItem {
   recurringInvoice   RecurringInvoice @relation(fields: [recurringInvoiceId], references: [id])
   recurringInvoiceId String
   description        String
-  quantity           Int
+  quantity           Float
   unitPrice          Float
   vatRate            Float // 20 for 20%
   type               ItemType         @default(SERVICE)

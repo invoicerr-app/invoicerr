@@ -69,7 +69,7 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
                     .number({
                         invalid_type_error: t("recurringInvoices.upsert.form.items.quantity.errors.required"),
                     })
-                    .min(1, t("recurringInvoices.upsert.form.items.quantity.errors.min"))
+                    .min(0.001, t("recurringInvoices.upsert.form.items.quantity.errors.min"))
                     .refine((val) => !isNaN(val), {
                         message: t("recurringInvoices.upsert.form.items.quantity.errors.invalid"),
                     }),
@@ -494,6 +494,7 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
                                                                             defaultValue={field.value || ""}
                                                                             postAdornment={t("recurringInvoices.upsert.form.items.quantity.unit")}
                                                                             type="number"
+                                                                            step="0.001"
                                                                             placeholder={t(
                                                                                 "recurringInvoices.upsert.form.items.quantity.placeholder",
                                                                             )}
@@ -518,6 +519,7 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
                                                                             defaultValue={field.value || ""}
                                                                             postAdornment="$"
                                                                             type="number"
+                                                                            step="0.01"
                                                                             placeholder={t(
                                                                                 "recurringInvoices.upsert.form.items.unitPrice.placeholder",
                                                                             )}

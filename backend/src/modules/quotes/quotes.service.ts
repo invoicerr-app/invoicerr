@@ -400,7 +400,7 @@ export class QuotesService {
             currency: quote.currency,
             items: quote.items.map(i => ({
                 description: i.description,
-                quantity: i.quantity,
+                quantity: Number.isInteger(i.quantity) ? i.quantity.toString() : i.quantity.toFixed(3).replace(/\.?0+$/, ''),
                 unitPrice: i.unitPrice.toFixed(2),
                 vatRate: i.vatRate,
                 totalPrice: (i.quantity * i.unitPrice * (1 + (i.vatRate || 0) / 100)).toFixed(2),
