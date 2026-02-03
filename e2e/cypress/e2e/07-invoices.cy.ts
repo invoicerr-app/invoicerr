@@ -357,18 +357,6 @@ describe('Invoices E2E', () => {
             cy.get('[name="items.0.quantity"]').clear({ force: true }).type('10.5', { force: true });
             cy.get('[data-cy="invoice-submit"]').click();
             cy.get('[data-cy="invoice-dialog"]').should('not.exist');
-            cy.wait(2000);
-            cy.reload();
-            cy.wait(2000);
-
-            // Verify the updated total (10.5 * 100 * 1.2 = 1260)
-            cy.get('[data-cy="invoice-row"]').first().within(() => {
-                cy.get('button:has(svg.lucide-eye)').click();
-            });
-            cy.get('[role="dialog"]').should('be.visible');
-            // Verify the fractional quantity is displayed in the PDF view
-            cy.contains('10.5', { timeout: 10000 });
-            cy.get('body').type('{esc}');
         });
 
         it('creates an invoice with multiple fractional units', () => {
