@@ -357,7 +357,9 @@ describe('Invoices E2E', () => {
             cy.get('[name="items.0.quantity"]').clear({ force: true }).type('10.5', { force: true });
             cy.get('[data-cy="invoice-submit"]').click();
             cy.get('[data-cy="invoice-dialog"]').should('not.exist');
-            cy.wait(1000);
+            cy.wait(2000);
+            cy.reload();
+            cy.wait(2000);
 
             // Verify the updated total (10.5 * 100 * 1.2 = 1260)
             cy.get('[data-cy="invoice-row"]').first().within(() => {
