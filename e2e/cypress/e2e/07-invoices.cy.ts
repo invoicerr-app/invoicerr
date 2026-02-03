@@ -341,10 +341,13 @@ describe('Invoices E2E', () => {
             // Check that the total is calculated correctly (19.875 * 100 * 1.2 = 2385)
             cy.contains(/2[.,\s]?385/, { timeout: 10000 });
             cy.get('body').type('{esc}');
-            cy.wait(500);
+            cy.wait(1000);
 
             // Edit the invoice to verify fractional quantity is preserved
-            cy.get('button:has(svg.lucide-pencil)').first().click();
+            // Find the first invoice row and click edit within it
+            cy.get('[data-cy="invoice-row"]').first().within(() => {
+                cy.get('[data-cy="invoice-edit-button"]').click();
+            });
             cy.get('[data-cy="invoice-dialog"]', { timeout: 5000 }).should('be.visible');
             
             // Verify the quantity field still has the fractional value
