@@ -322,7 +322,7 @@ describe('Invoices E2E', () => {
             cy.wait(200);
             cy.get('[data-cy="invoice-currency-select"] input').type('USD');
             cy.wait(200);
-            cy.get('[data-cy="invoice-currency-select-option-us-dollar-($)"]').click();
+            cy.get('[data-cy="invoice-currency-select-option-united-states-dollar-($)"]').click();
 
             // Add item with fractional quantity
             cy.contains('button', /Add Item|Ajouter/i).click();
