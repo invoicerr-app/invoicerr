@@ -4,9 +4,11 @@
 
 export { BaseDocumentBuilder } from './base.builder';
 export { GenericDocumentBuilder } from './generic.builder';
+export { EUDocumentBuilder } from './eu.builder';
 
 import { BuilderType, IDocumentBuilder } from '../document.types';
 import { GenericDocumentBuilder } from './generic.builder';
+import { EUDocumentBuilder } from './eu.builder';
 
 // Builder constructor type
 type BuilderConstructor = new () => IDocumentBuilder;
@@ -17,9 +19,11 @@ type BuilderConstructor = new () => IDocumentBuilder;
  */
 const builderRegistry = new Map<BuilderType, BuilderConstructor>();
 builderRegistry.set('generic', GenericDocumentBuilder);
+builderRegistry.set('eu', EUDocumentBuilder);
 // Add country-specific builders here as they are implemented:
-// builderRegistry.set('fr', FRDocumentBuilder);
-// builderRegistry.set('pl', PLDocumentBuilder);
+// builderRegistry.set('it', ITDocumentBuilder);
+// builderRegistry.set('es', ESDocumentBuilder);
+// builderRegistry.set('pt', PTDocumentBuilder);
 
 /**
  * Get a builder instance by type
