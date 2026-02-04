@@ -437,13 +437,12 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                                     <FormItem>
                                         <FormLabel required>{t("clients.upsert.fields.country.label")}</FormLabel>
                                         <FormControl>
-                                                <Input {...field} placeholder={t("clients.upsert.fields.country.placeholder")} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
+                                            <Input {...field} placeholder={t("clients.upsert.fields.country.placeholder")} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
 
                             <div className="flex justify-end space-x-2">
                                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)} dataCy="client-cancel">
