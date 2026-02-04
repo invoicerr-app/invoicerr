@@ -7,8 +7,10 @@ export interface Company {
     VAT: string
     exemptVat?: boolean
     address: string
+    addressLine2?: string
     postalCode: string
     city: string
+    state?: string
     country: string
     phone: string
     email: string

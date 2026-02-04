@@ -12,8 +12,10 @@ export class EditClientsDto {
     contactEmail?: string;
     contactPhone?: string;
     address: string;
+    addressLine2?: string;
     postalCode: string;
     city: string;
+    state?: string;
     country: string;
     currency: Currency;
     type?: ClientType;

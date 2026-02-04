@@ -220,6 +220,97 @@ describe('Clients E2E', () => {
         });
     });
 
+    describe('Extended Address Fields', () => {
+        it('creates a client with addressLine2 and state (US address)', () => {
+            cy.visit('/clients');
+            cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+
+            cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
+
+            cy.get('[name="name"]').clear().type('Tech Innovations LLC');
+            cy.get('[name="legalId"]').clear().type('US11223344556');
+            cy.get('[name="contactEmail"]').clear().type('info@techinnovations.com');
+            cy.get('[name="address"]').clear().type('456 Innovation Drive');
+            cy.get('[name="addressLine2"]').clear().type('Suite 200');
+            cy.get('[name="postalCode"]').clear().type('94105');
+            cy.get('[name="city"]').clear().type('San Francisco');
+            cy.get('[name="state"]').clear().type('CA');
+            cy.get('[name="country"]').clear().type('USA');
+
+            cy.get('[data-cy="client-submit"]').click();
+
+            cy.get('[data-cy="client-dialog"]').should('not.exist');
+            cy.contains('Tech Innovations', { timeout: 10000 });
+        });
+
+        it('verifies addressLine2 and state are displayed in client view', () => {
+            cy.visit('/clients');
+            cy.wait(2000);
+            cy.get('[data-cy="view-client-button-info@techinnovations.com"]').click();
+            cy.contains('456 Innovation Drive');
+            cy.contains('Suite 200');
+            cy.contains('CA');
+        });
+
+        it('creates a client with addressLine2 only (European address)', () => {
+            cy.visit('/clients');
+            cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+
+            cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
+
+            cy.get('[name="name"]').clear().type('European Solutions GmbH');
+            cy.get('[name="legalId"]').clear().type('DE987654321');
+            cy.get('[name="contactEmail"]').clear().type('contact@eusolutions.de');
+            cy.get('[name="address"]').clear().type('Hauptstrasse 42');
+            cy.get('[name="addressLine2"]').clear().type('3. Etage');
+            cy.get('[name="postalCode"]').clear().type('10115');
+            cy.get('[name="city"]').clear().type('Berlin');
+            cy.get('[name="country"]').clear().type('Germany');
+
+            cy.get('[data-cy="client-submit"]').click();
+
+            cy.get('[data-cy="client-dialog"]').should('not.exist');
+            cy.contains('European Solutions', { timeout: 10000 });
+        });
+
+        it('creates a client without addressLine2 and state (backward compatibility)', () => {
+            cy.visit('/clients');
+            cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+
+            cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
+
+            cy.get('[name="name"]').clear().type('Simple Company Ltd');
+            cy.get('[name="legalId"]').clear().type('UK123456789');
+            cy.get('[name="contactEmail"]').clear().type('info@simple.co.uk');
+            cy.get('[name="address"]').clear().type('10 Downing Street');
+            cy.get('[name="postalCode"]').clear().type('SW1A 2AA');
+            cy.get('[name="city"]').clear().type('London');
+            cy.get('[name="country"]').clear().type('United Kingdom');
+
+            cy.get('[data-cy="client-submit"]').click();
+
+            cy.get('[data-cy="client-dialog"]').should('not.exist');
+            cy.contains('Simple Company', { timeout: 10000 });
+        });
+
+        it('edits a client and adds addressLine2 and state', () => {
+            cy.visit('/clients');
+            cy.wait(2000);
+
+            cy.get('[data-cy="edit-client-button-info@simple.co.uk"]').click();
+
+            cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
+            cy.get('[name="addressLine2"]').clear().type('Building B');
+            cy.get('[data-cy="client-submit"]').click();
+
+            cy.get('[data-cy="client-dialog"]').should('not.exist');
+            cy.wait(2000);
+
+            cy.get('[data-cy="view-client-button-info@simple.co.uk"]').click();
+            cy.contains('Building B');
+        });
+    });
+
     describe('Edge Cases', () => {
         it('handles special characters in name', () => {
             cy.visit('/clients');

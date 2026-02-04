@@ -28,7 +28,8 @@ export const baseTemplate = `
             <h1>{{company.name}}</h1><br>
             {{#if company.description}}<strong>{{labels.description}}</strong> {{company.description}}<br>{{/if}}
             <p>{{company.address}}<br>
-            {{company.city}}, {{company.postalCode}}<br>
+            {{#if company.addressLine2}}{{company.addressLine2}}<br>{{/if}}
+            {{company.city}}, {{#if company.state}}{{company.state}} {{/if}}{{company.postalCode}}<br>
             {{company.country}}<br>
             {{company.email}} | {{company.phone}}<br>
             {{#if company.legalId}}<strong>{{labels.legalId}}:</strong> {{company.legalId}}<br>{{/if}}
@@ -46,7 +47,8 @@ export const baseTemplate = `
         <p>{{client.name}}<br>
         {{#if client.description}}<strong>{{labels.description}}</strong> {{client.description}}<br>{{/if}}
         {{client.address}}<br>
-        {{client.city}}, {{client.postalCode}}<br>
+        {{#if client.addressLine2}}{{client.addressLine2}}<br>{{/if}}
+        {{client.city}}, {{#if client.state}}{{client.state}} {{/if}}{{client.postalCode}}<br>
         {{client.country}}<br>
         {{client.email}}</p>
         {{#if client.legalId}}<strong>{{labels.legalId}}:</strong> {{client.legalId}}<br>{{/if}}

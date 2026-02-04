@@ -60,10 +60,12 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                 return z.string().email().safeParse(val).success
             }, t("clients.upsert.validation.contactEmail.format")),
         address: z.string().min(1, t("clients.upsert.validation.address.required")),
+        addressLine2: z.string().optional(),
         postalCode: z.string().refine((val) => {
             return /^[0-9A-Z\s-]{3,10}$/.test(val)
         }, t("clients.upsert.validation.postalCode.format")),
         city: z.string().min(1, t("clients.upsert.validation.city.required")),
+        state: z.string().optional(),
         country: z.string().min(1, t("clients.upsert.validation.country.required")),
     }).superRefine((val, ctx) => {
         if (val.type === 'INDIVIDUAL') {
@@ -98,8 +100,10 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
             contactPhone: "",
             contactEmail: "",
             address: "",
+            addressLine2: "",
             postalCode: "",
             city: "",
+            state: "",
             country: "",
         },
     })
@@ -123,8 +127,10 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                 contactPhone: c.contactPhone || "",
                 contactEmail: c.contactEmail || "",
                 address: c.address || "",
+                addressLine2: c.addressLine2 || "",
                 postalCode: c.postalCode || "",
                 city: c.city || "",
+                state: c.state || "",
                 country: c.country || "",
             })
         } else if (!isEditing) {
@@ -141,8 +147,10 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                 contactPhone: "",
                 contactEmail: "",
                 address: "",
+                addressLine2: "",
                 postalCode: "",
                 city: "",
+                state: "",
                 country: "",
             })
         }
@@ -366,6 +374,20 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                                 )}
                             />
 
+                            <FormField
+                                control={form.control}
+                                name="addressLine2"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{t("clients.upsert.fields.addressLine2.label")}</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} placeholder={t("clients.upsert.fields.addressLine2.placeholder")} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <FormField
                                     control={form.control}
@@ -395,18 +417,32 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                                 />
                                 <FormField
                                     control={form.control}
-                                    name="country"
+                                    name="state"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel required>{t("clients.upsert.fields.country.label")}</FormLabel>
+                                            <FormLabel>{t("clients.upsert.fields.state.label")}</FormLabel>
                                             <FormControl>
-                                                <Input {...field} placeholder={t("clients.upsert.fields.country.placeholder")} />
+                                                <Input {...field} placeholder={t("clients.upsert.fields.state.placeholder")} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
                                 />
                             </div>
+
+                            <FormField
+                                control={form.control}
+                                name="country"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel required>{t("clients.upsert.fields.country.label")}</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} placeholder={t("clients.upsert.fields.country.placeholder")} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
 
                             <div className="flex justify-end space-x-2">
                                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)} dataCy="client-cancel">

@@ -58,12 +58,18 @@ export function ClientViewDialog({ client, onOpenChange }: ClientViewDialogProps
                         </div>
                     </div>
 
-                    {(client?.address || client?.postalCode || client?.city || client?.country) && (
+                    {(client?.address || client?.addressLine2 || client?.postalCode || client?.city || client?.state || client?.country) && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 bg-muted/50 p-4 rounded-lg w-full">
                             {client?.address && (
                                 <div>
                                     <p className="text-sm text-muted-foreground">{t("clients.view.fields.address")}</p>
                                     <p className="font-medium">{client.address}</p>
+                                </div>
+                            )}
+                            {client?.addressLine2 && (
+                                <div>
+                                    <p className="text-sm text-muted-foreground">{t("clients.view.fields.addressLine2")}</p>
+                                    <p className="font-medium">{client.addressLine2}</p>
                                 </div>
                             )}
                             {client?.postalCode && (
@@ -76,6 +82,12 @@ export function ClientViewDialog({ client, onOpenChange }: ClientViewDialogProps
                                 <div>
                                     <p className="text-sm text-muted-foreground">{t("clients.view.fields.city")}</p>
                                     <p className="font-medium">{client.city}</p>
+                                </div>
+                            )}
+                            {client?.state && (
+                                <div>
+                                    <p className="text-sm text-muted-foreground">{t("clients.view.fields.state")}</p>
+                                    <p className="font-medium">{client.state}</p>
                                 </div>
                             )}
                             {client?.country && (
