@@ -87,3 +87,26 @@ Copy `.env.example` files in both `backend/` and `frontend/` directories. Key va
 ## Docker
 
 Production deployment uses `docker-compose.yml` at root. The app runs on port 80 by default with PostgreSQL.
+
+## Commit Guidelines
+
+This project uses **gitmoji** commit conventions. See `COMMIT_GUIDELINES.md` for:
+- Full emoji to type mapping
+- Scope conventions (frontend, backend, compliance, etc.)
+- Real examples from project history
+- Body and footer formatting rules
+
+**Quick reference:**
+```
+✨ feat(scope): Add new feature
+🐛 fix(scope): Fix bug
+♻️ refactor(scope): Code refactoring
+📝 docs: Documentation changes
+✅ test(e2e): Add tests
+```
+
+When I help you commit, I will:
+1. Analyze the changes with `git diff`
+2. Suggest appropriate commit type and scope
+3. Write the message following project conventions
+4. Include `Co-Authored-By` with the AI model's own identifier when it contributes significantly (the AI should identify itself)
