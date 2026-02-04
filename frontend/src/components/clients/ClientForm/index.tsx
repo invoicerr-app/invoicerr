@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { useCompany } from '@/contexts/company';
-import { useGet, usePatch, usePost } from '@/hooks/use-fetch';
+import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Form,
@@ -22,6 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useCompany } from '@/contexts/company';
+import { useGet, usePatch, usePost } from '@/hooks/use-fetch';
 
 interface ClientFormProps {
   open: boolean;
@@ -37,7 +38,9 @@ export function ClientForm({ open, onOpenChange, client, onSuccess }: ClientForm
 
   const [country, setCountry] = useState(activeCompany?.country || 'FR');
 
-  const { data: complianceConfig } = useGet<any>(`/api/compliance/identifiers?country=${country}&entityType=client`);
+  const { data: complianceConfig } = useGet<any>(
+    `/api/compliance/identifiers?country=${country}&entityType=client`,
+  );
 
   const clientSchema = z.object({
     name: z.string().min(1, 'Company name is required'),
@@ -50,15 +53,17 @@ export function ClientForm({ open, onOpenChange, client, onSuccess }: ClientForm
     address: z.string().optional(),
     postalCode: z.string().optional(),
     city: z.string().optional(),
-    country: z.string().default('FR'),
+    country: z.string().min(2, 'Country is required'),
     currency: z.string().optional(),
     identifiers: z.record(z.string(), z.string()),
   });
 
+  type ClientFormValues = z.infer<typeof clientSchema>;
+
   const { trigger: createTrigger } = usePost('/api/clients');
   const { trigger: updateTrigger } = usePatch(`/api/clients/${client?.id}`);
 
-  const form = useForm<z.infer<typeof clientSchema>>({
+  const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientSchema),
     defaultValues: {
       name: '',
@@ -71,7 +76,7 @@ export function ClientForm({ open, onOpenChange, client, onSuccess }: ClientForm
       address: '',
       postalCode: '',
       city: '',
-      country: activeCompany?.country || 'FR',
+      country: activeCompany?.country ?? 'FR',
       currency: activeCompany?.currency,
       identifiers: {},
     },
@@ -113,7 +118,7 @@ export function ClientForm({ open, onOpenChange, client, onSuccess }: ClientForm
     }
   }, [client, form, isEdit, activeCompany?.country, activeCompany?.currency]);
 
-  const onSubmit = (data: z.infer<typeof clientSchema>) => {
+  const onSubmit = async (data: ClientFormValues) => {
     const trigger = isEdit ? updateTrigger : createTrigger;
 
     trigger(data)
@@ -148,8 +153,12 @@ export function ClientForm({ open, onOpenChange, client, onSuccess }: ClientForm
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="COMPANY">{t('clients.upsert.fields.type.company')}</SelectItem>
-                      <SelectItem value="INDIVIDUAL">{t('clients.upsert.fields.type.individual')}</SelectItem>
+                      <SelectItem value="COMPANY">
+                        {t('clients.upsert.fields.type.company')}
+                      </SelectItem>
+                      <SelectItem value="INDIVIDUAL">
+                        {t('clients.upsert.fields.type.individual')}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </FormItem>
@@ -177,7 +186,11 @@ export function ClientForm({ open, onOpenChange, client, onSuccess }: ClientForm
                 <FormItem>
                   <FormLabel>{t('clients.upsert.fields.contactEmail.label')} *</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder={t('clients.upsert.fields.contactEmail.placeholder')} type="email" />
+                    <Input
+                      {...field}
+                      placeholder={t('clients.upsert.fields.contactEmail.placeholder')}
+                      type="email"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -215,7 +228,7 @@ export function ClientForm({ open, onOpenChange, client, onSuccess }: ClientForm
               )}
             />
 
-            {complianceConfig?.identifiers && complianceConfig.identifiers.map((id: any) => (
+            {complianceConfig?.identifiers?.map((id: any) => (
               <FormField
                 key={id.id}
                 control={form.control}

@@ -1,11 +1,11 @@
-import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { useTranslation } from 'react-i18next';
 
 export interface ClientViewProps {
   client: any | null;
@@ -14,7 +14,7 @@ export interface ClientViewProps {
   onDelete?: () => void;
 }
 
-export function ClientView({ client, onOpenChange, onEdit, onDelete }: ClientViewProps) {
+export function ClientView({ client, onOpenChange, onEdit }: ClientViewProps) {
   const { t } = useTranslation();
 
   if (!client) return null;
@@ -64,7 +64,7 @@ export function ClientView({ client, onOpenChange, onEdit, onDelete }: ClientVie
               <div className="space-y-1">
                 {Object.entries(client.identifiers).map(([key, value]) => (
                   <p key={key} className="text-sm">
-                    <span className="font-medium">{key}:</span> {value}
+                    <span className="font-medium">{key}:</span> {String(value)}
                   </p>
                 ))}
               </div>
