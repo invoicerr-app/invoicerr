@@ -84,6 +84,10 @@
                     "label": "Adresse",
                     "placeholder": "Geben Sie den Straßennamen ein"
                 },
+                "addressLine2": {
+                    "label": "Adresszusatz (Optional)",
+                    "placeholder": "Wohnung, Etage, Gebäude, usw."
+                },
                 "postalCode": {
                     "label": "Postleitzahl",
                     "placeholder": "Geben Sie die Postleitzahl ein"
@@ -91,6 +95,10 @@
                 "city": {
                     "label": "Stadt",
                     "placeholder": "Geben Sie der Stadt ein"
+                },
+                "state": {
+                    "label": "Bundesland/Provinz (Optional)",
+                    "placeholder": "Geben Sie das Bundesland oder die Provinz ein"
                 },
                 "type": {
                     "label": "Kundentyp",
@@ -937,6 +945,11 @@
                         "empty": "Adresse ist erforderlich"
                     }
                 },
+                "addressLine2": {
+                    "label": "Adresszusatz (Optional)",
+                    "placeholder": "Wohnung, Etage, Gebäude, usw.",
+                    "description": "Zusätzliche Adressinformationen (optional)"
+                },
                 "postalCode": {
                     "label": "Postleitzahl",
                     "placeholder": "Postleitzahl eingeben",
@@ -950,6 +963,11 @@
                     "errors": {
                         "empty": "Stadt ist erforderlich"
                     }
+                },
+                "state": {
+                    "label": "Bundesland/Provinz (Optional)",
+                    "placeholder": "Bundesland oder Provinz eingeben",
+                    "description": "Bundesland oder Provinz (z.B. Bayern, NRW)"
                 },
                 "country": {
                     "label": "Land",

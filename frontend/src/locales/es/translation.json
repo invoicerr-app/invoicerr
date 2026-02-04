@@ -84,6 +84,10 @@
                     "label": "Dirección",
                     "placeholder": "Ingrese dirección"
                 },
+                "addressLine2": {
+                    "label": "Línea 2 de dirección (Opcional)",
+                    "placeholder": "Apartamento, piso, edificio, etc."
+                },
                 "postalCode": {
                     "label": "Código postal",
                     "placeholder": "Ingrese código postal"
@@ -91,6 +95,10 @@
                 "city": {
                     "label": "Ciudad",
                     "placeholder": "Ingrese ciudad"
+                },
+                "state": {
+                    "label": "Estado/Provincia (Opcional)",
+                    "placeholder": "Ingrese estado o provincia"
                 },
                 "type": {
                     "label": "Tipo de cliente",
@@ -937,6 +945,11 @@
                         "empty": "La dirección es obligatoria"
                     }
                 },
+                "addressLine2": {
+                    "label": "Línea 2 de dirección (Opcional)",
+                    "placeholder": "Apartamento, piso, edificio, etc.",
+                    "description": "Información adicional de dirección (opcional)"
+                },
                 "postalCode": {
                     "label": "Código postal",
                     "placeholder": "Ingrese código postal",
@@ -950,6 +963,11 @@
                     "errors": {
                         "empty": "La ciudad es obligatoria"
                     }
+                },
+                "state": {
+                    "label": "Estado/Provincia (Opcional)",
+                    "placeholder": "Ingrese estado o provincia",
+                    "description": "Estado o provincia (ej. CA, TX, Madrid)"
                 },
                 "country": {
                     "label": "País",

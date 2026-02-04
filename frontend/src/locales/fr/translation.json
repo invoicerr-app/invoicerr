@@ -84,6 +84,10 @@
                     "label": "Adresse",
                     "placeholder": "Saisir l'adresse"
                 },
+                "addressLine2": {
+                    "label": "Complément d'adresse (Optionnel)",
+                    "placeholder": "Appartement, étage, bâtiment, etc."
+                },
                 "postalCode": {
                     "label": "Code postal",
                     "placeholder": "Saisir le code postal"
@@ -91,6 +95,10 @@
                 "city": {
                     "label": "Ville",
                     "placeholder": "Saisir la ville"
+                },
+                "state": {
+                    "label": "État/Province (Optionnel)",
+                    "placeholder": "Saisir l'état ou la province"
                 },
                 "type": {
                     "label": "Type de client",
@@ -977,6 +985,11 @@
                         "empty": "L'adresse est requise"
                     }
                 },
+                "addressLine2": {
+                    "label": "Complément d'adresse (Optionnel)",
+                    "placeholder": "Appartement, étage, bâtiment, etc.",
+                    "description": "Informations d'adresse supplémentaires (optionnel)"
+                },
                 "postalCode": {
                     "label": "Code postal",
                     "placeholder": "Saisir le code postal",
@@ -990,6 +1003,11 @@
                     "errors": {
                         "empty": "La ville est requise"
                     }
+                },
+                "state": {
+                    "label": "État/Province (Optionnel)",
+                    "placeholder": "Saisir l'état ou la province",
+                    "description": "État ou province (par ex. CA, TX, Québec)"
                 },
                 "country": {
                     "label": "Pays",

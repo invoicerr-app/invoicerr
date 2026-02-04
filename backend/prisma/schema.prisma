@@ -308,12 +308,14 @@ model Company {
   foundedAt   DateTime
   VAT         String?
   exemptVat   Boolean  @default(false)
-  address     String
-  postalCode  String
-  city        String
-  country     String
-  phone       String
-  email       String
+  address      String
+  addressLine2 String? // Second line for address (apartment, suite, etc.)
+  postalCode   String
+  city         String
+  state        String? // State/Province (for US addresses, etc.)
+  country      String
+  phone        String
+  email        String
 
   quoteStartingNumber   Int    @default(1) // Starting number for quotes
   quoteNumberFormat     String @default("Q-{year}-{number:4}") // Ex: "Q-2025-0001"
@@ -349,8 +351,10 @@ model Client {
   contactEmail     String?            @unique
   contactPhone     String?
   address          String
+  addressLine2     String? // Second line for address (apartment, suite, etc.)
   postalCode       String
   city             String
+  state            String? // State/Province (for US addresses, etc.)
   country          String
   currency         Currency?
   type             ClientType         @default(COMPANY)

@@ -84,6 +84,10 @@
                     "label": "Address",
                     "placeholder": "Enter street address"
                 },
+                "addressLine2": {
+                    "label": "Address Line 2 (Optional)",
+                    "placeholder": "Apartment, suite, unit, building, floor, etc."
+                },
                 "postalCode": {
                     "label": "Postal Code",
                     "placeholder": "Enter postal code"
@@ -91,6 +95,10 @@
                 "city": {
                     "label": "City",
                     "placeholder": "Enter city"
+                },
+                "state": {
+                    "label": "State/Province (Optional)",
+                    "placeholder": "Enter state or province"
                 },
                 "type": {
                     "label": "Client Type",
@@ -973,6 +981,11 @@
                         "empty": "Address is required"
                     }
                 },
+                "addressLine2": {
+                    "label": "Address Line 2 (Optional)",
+                    "placeholder": "Apartment, suite, unit, building, floor, etc.",
+                    "description": "Additional address information (optional)"
+                },
                 "postalCode": {
                     "label": "Postal Code",
                     "placeholder": "Enter postal code",
@@ -986,6 +999,11 @@
                     "errors": {
                         "empty": "City is required"
                     }
+                },
+                "state": {
+                    "label": "State/Province (Optional)",
+                    "placeholder": "Enter state or province",
+                    "description": "State or province (e.g., CA, TX, Ontario)"
                 },
                 "country": {
                     "label": "Country",

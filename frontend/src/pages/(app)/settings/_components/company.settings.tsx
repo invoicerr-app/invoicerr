@@ -78,10 +78,12 @@ export default function CompanySettings() {
             .string({ required_error: t("settings.company.form.currency.errors.required") })
             .min(1, t("settings.company.form.currency.errors.select")),
         address: z.string().min(1, t("settings.company.form.address.errors.empty")),
+        addressLine2: z.string().optional(),
         postalCode: z.string().refine((val) => {
             return /^[0-9A-Z\s-]{3,10}$/.test(val)
         }, t("settings.company.form.postalCode.errors.format")),
         city: z.string().min(1, t("settings.company.form.city.errors.empty")),
+        state: z.string().optional(),
         country: z.string().min(1, t("settings.company.form.country.errors.empty")),
         phone: z
             .string()
@@ -151,8 +153,10 @@ export default function CompanySettings() {
             foundedAt: new Date(),
             currency: "",
             address: "",
+            addressLine2: "",
             postalCode: "",
             city: "",
+            state: "",
             country: "",
             phone: "",
             email: "",
@@ -335,6 +339,21 @@ export default function CompanySettings() {
                                 )}
                             />
 
+                            <FormField
+                                control={form.control}
+                                name="addressLine2"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{t("settings.company.form.addressLine2.label")}</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder={t("settings.company.form.addressLine2.placeholder")} {...field} data-cy="company-address-line2-input" />
+                                        </FormControl>
+                                        <FormDescription>{t("settings.company.form.addressLine2.description")}</FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <FormField
                                     control={form.control}
@@ -366,18 +385,32 @@ export default function CompanySettings() {
 
                                 <FormField
                                     control={form.control}
-                                    name="country"
+                                    name="state"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel required>{t("settings.company.form.country.label")}</FormLabel>
+                                            <FormLabel>{t("settings.company.form.state.label")}</FormLabel>
                                             <FormControl>
-                                                <Input placeholder={t("settings.company.form.country.placeholder")} {...field} data-cy="company-country-input" />
+                                                <Input placeholder={t("settings.company.form.state.placeholder")} {...field} data-cy="company-state-input" />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
                                 />
                             </div>
+
+                            <FormField
+                                control={form.control}
+                                name="country"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel required>{t("settings.company.form.country.label")}</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder={t("settings.company.form.country.placeholder")} {...field} data-cy="company-country-input" />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                         </CardContent>
                     </Card>
 
