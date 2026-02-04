@@ -17,6 +17,9 @@ import { VIESService } from './services/vies.service';
 import { XadesSignatureService } from './services/xades-signature.service';
 import { ResilientTransmissionService } from './transmission/resilient-transmission.service';
 import { EmailTransmissionStrategy } from './transmission/strategies/email.strategy';
+import { PeppolTransmissionStrategy } from './transmission/strategies/peppol.strategy';
+import { ChorusTransmissionStrategy } from './transmission/strategies/chorus.strategy';
+import { SdITransmissionStrategy } from './transmission/strategies/sdi.strategy';
 import { TransmissionService } from './transmission/transmission.service';
 
 /**
@@ -67,6 +70,9 @@ import { TransmissionService } from './transmission/transmission.service';
     TransmissionService,
     ResilientTransmissionService,
     EmailTransmissionStrategy,
+    PeppolTransmissionStrategy,
+    ChorusTransmissionStrategy,
+    SdITransmissionStrategy,
 
     // Mail
     MailService,
