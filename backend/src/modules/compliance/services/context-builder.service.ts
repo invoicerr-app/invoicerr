@@ -1,6 +1,6 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
-import { ConfigRegistry, getCountryConfig } from '../configs';
-import { CountryConfig, TransactionContext } from '../interfaces';
+import { Injectable, Logger } from '@nestjs/common';
+import { CountryComplianceFactory, GenericCountryCompliance } from '../countries';
+import { TransactionContext } from '../interfaces';
 import { VIESService } from './vies.service';
 
 export interface ContextBuildInput {
@@ -24,36 +24,42 @@ export interface ContextBuildInput {
 }
 
 export interface ExtendedTransactionContext extends TransactionContext {
-  supplierConfig: CountryConfig;
-  customerConfig: CountryConfig | null;
+  supplierCompliance: GenericCountryCompliance;
+  customerCompliance: GenericCountryCompliance | null;
 }
 
+/**
+ * Context Builder Service
+ * 
+ * Builds transaction context for compliance checks.
+ * Uses the CountryComplianceFactory to get country-specific compliance.
+ */
 @Injectable()
 export class ContextBuilderService {
   private readonly logger = new Logger(ContextBuilderService.name);
 
   constructor(
     private readonly viesService: VIESService,
-    @Optional() private readonly configRegistry?: ConfigRegistry,
+    private readonly complianceFactory: CountryComplianceFactory,
   ) {}
 
   async build(input: ContextBuildInput): Promise<TransactionContext> {
     const { company, client } = input;
 
-    const supplierConfig = this.getConfig(company.countryCode);
-    const customerConfig = client.countryCode
-      ? this.getConfig(client.countryCode)
+    const supplierCompliance = this.complianceFactory.create(company.countryCode);
+    const customerCompliance = client.countryCode
+      ? this.complianceFactory.create(client.countryCode)
       : null;
 
     // Validate customer VAT if intra-EU
     let customerVatValid = false;
-    if (client.VAT && customerConfig?.isEU && supplierConfig.isEU) {
+    if (client.VAT && customerCompliance?.isEU && supplierCompliance.isEU) {
       customerVatValid = await this.viesService.validate(client.VAT);
     }
 
     const isDomestic = company.countryCode === client.countryCode;
-    const isIntraEU = supplierConfig.isEU && !!customerConfig?.isEU && !isDomestic;
-    const isExport = supplierConfig.isEU && !!customerConfig && !customerConfig.isEU;
+    const isIntraEU = supplierCompliance.isEU && !!customerCompliance?.isEU && !isDomestic;
+    const isExport = supplierCompliance.isEU && !!customerCompliance && !customerCompliance.isEU;
 
     // Determine transaction nature (goods vs services)
     const nature = this.resolveNature(input.items);
@@ -69,8 +75,8 @@ export class ContextBuilderService {
       nature,
       type,
       deliveryPlace: input.deliveryCountry,
-      supplierConfig,
-      customerConfig,
+      supplierCompliance,
+      customerCompliance,
     });
 
     return {
@@ -103,35 +109,20 @@ export class ContextBuilderService {
   }
 
   /**
-   * Build extended context with configs included
+   * Build extended context with compliance objects included
    */
   async buildExtended(input: ContextBuildInput): Promise<ExtendedTransactionContext> {
     const context = await this.build(input);
-    const supplierConfig = this.getConfig(input.company.countryCode);
-    const customerConfig = input.client.countryCode
-      ? this.getConfig(input.client.countryCode)
+    const supplierCompliance = this.complianceFactory.create(input.company.countryCode);
+    const customerCompliance = input.client.countryCode
+      ? this.complianceFactory.create(input.client.countryCode)
       : null;
 
     return {
       ...context,
-      supplierConfig,
-      customerConfig,
+      supplierCompliance,
+      customerCompliance,
     };
-  }
-
-  private getConfig(countryCode: string): CountryConfig {
-    try {
-      if (this.configRegistry) {
-        return this.configRegistry.get(countryCode);
-      }
-      return getCountryConfig(countryCode);
-    } catch (error) {
-      this.logger.warn(
-        `Failed to get config for country ${countryCode}, using fallback: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-      // Return generic config as fallback
-      return getCountryConfig('GENERIC');
-    }
   }
 
   /**
@@ -169,8 +160,8 @@ export class ContextBuilderService {
     nature: 'goods' | 'services' | 'mixed';
     type: 'B2B' | 'B2G' | 'B2C';
     deliveryPlace: string | null | undefined;
-    supplierConfig: CountryConfig;
-    customerConfig: CountryConfig | null;
+    supplierCompliance: GenericCountryCompliance;
+    customerCompliance: GenericCountryCompliance | null;
   }): string {
     const {
       supplierCountry,
@@ -178,12 +169,12 @@ export class ContextBuilderService {
       customerVatValid,
       nature,
       type,
-      supplierConfig,
-      customerConfig,
+      supplierCompliance,
+      customerCompliance,
     } = params;
 
     // Non-EU supplier: taxation rules of supplier country
-    if (!supplierConfig.isEU) {
+    if (!supplierCompliance.isEU) {
       return supplierCountry;
     }
 
@@ -198,7 +189,7 @@ export class ContextBuilderService {
     }
 
     // Export outside EU = no VAT (exempt)
-    if (customerConfig && !customerConfig.isEU) {
+    if (customerCompliance && !customerCompliance.isEU) {
       return supplierCountry; // VAT exempt, but document issued in supplier country
     }
 

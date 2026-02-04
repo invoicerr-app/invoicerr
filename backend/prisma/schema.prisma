@@ -196,17 +196,42 @@ enum QuoteStatus {
   DRAFT
   SENT
   VIEWED
-  SIGNED
-  EXPIRED
+  ACCEPTED
   REJECTED
+  EXPIRED
+  CANCELLED
 }
 
 // Invoice status
 enum InvoiceStatus {
-  PAID
-  UNPAID
-  OVERDUE
+  DRAFT
   SENT
+  VIEWED
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+// Transmission status
+enum TransmissionStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  ACCEPTED
+  REJECTED
+}
+
+// Correction codes (credit notes)
+enum CorrectionCode {
+  FULL_REDUCTION
+  PARTIAL_REDUCTION
+  REFUND
+  PRICE_ADJUSTMENT
+  QUANTITY_ADJUSTMENT
+  ERROR_CORRECTION
+  VOID
+  REISSUE
 }
 
 // Recurrence frequency
@@ -325,28 +350,28 @@ model Company {
 
   dateFormat String @default("dd/MM/yyyy") // Date format for quotes and invoices
 
-  pDFConfigId      String             @unique
-  pdfConfig        PDFConfig          @relation(fields: [pDFConfigId], references: [id])
-  Quote            Quote[]
-  Invoice          Invoice[]
-  PaymentMethod    PaymentMethod[]
-  emailTemplates   MailTemplate[]
-  RecurringInvoice RecurringInvoice[]
-  webhooks         Webhook[]
+  pDFConfigId        String              @unique
+  pdfConfig          PDFConfig           @relation(fields: [pDFConfigId], references: [id])
+  Quote              Quote[]
+  Invoice            Invoice[]
+  PaymentMethod      PaymentMethod[]
+  emailTemplates     MailTemplate[]
+  RecurringInvoice   RecurringInvoice[]
+  webhooks           Webhook[]
   complianceSettings ComplianceSettings?
 
   // Multi-tenant: users belonging to this company
-  users            UserCompany[]
-  invitations      InvitationCode[]
-  clients          Client[]
+  users       UserCompany[]
+  invitations InvitationCode[]
+  clients     Client[]
 }
 
 // Client model
 model Client {
-  id               String             @id @default(cuid())
+  id               String     @id @default(cuid())
   name             String
   description      String?
-  identifiers      Json               @default("{}") // Dynamic identifiers based on country (e.g., { siret: "...", vat: "..." })
+  identifiers      Json       @default("{}") // Dynamic identifiers based on country (e.g., { siret: "...", vat: "..." })
   foundedAt        DateTime? // Date when the client company was founded
   contactFirstname String?
   contactLastname  String?
@@ -357,15 +382,15 @@ model Client {
   city             String
   country          String
   currency         Currency?
-  type             ClientType         @default(COMPANY)
-  salutation       String             @default("Mr") // Mr, Ms, Mrs (We need a default value for the invoice generation)
-  sex              String             @default("other") // male, female, other (We need a default value for the invoice generation)
-  title            String             @default("Doctor") // Doctor, Professor (We need a default value for the invoice generation)
-  isActive         Boolean            @default(true)
+  type             ClientType @default(COMPANY)
+  salutation       String     @default("Mr") // Mr, Ms, Mrs (We need a default value for the invoice generation)
+  sex              String     @default("other") // male, female, other (We need a default value for the invoice generation)
+  title            String     @default("Doctor") // Doctor, Professor (We need a default value for the invoice generation)
+  isActive         Boolean    @default(true)
 
   // Multi-tenant: client belongs to a company
-  companyId        String
-  company          Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   Quote            Quote[]
   Invoice          Invoice[]
@@ -401,9 +426,11 @@ model Quote {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   validUntil      DateTime?
-  signedAt        DateTime?
   viewedAt        DateTime?
-  signedBy        String?
+  acceptedAt      DateTime?
+  acceptedBy      String?
+  rejectedAt      DateTime?
+  rejectedBy      String?
   totalHT         Float
   totalVAT        Float
   totalTTC        Float
@@ -431,33 +458,66 @@ model QuoteItem {
 
 // Invoice model
 model Invoice {
-  id                 String            @id @default(uuid())
-  number             Int               @default(autoincrement())
+  id                 String                @id @default(uuid())
+  number             Int                   @default(autoincrement())
   rawNumber          String? // Raw number for custom formats
-  quote              Quote?            @relation(fields: [quoteId], references: [id])
+  quote              Quote?                @relation(fields: [quoteId], references: [id])
   quoteId            String?
-  recurringInvoice   RecurringInvoice? @relation(fields: [recurringInvoiceId], references: [id])
+  recurringInvoice   RecurringInvoice?     @relation(fields: [recurringInvoiceId], references: [id])
   recurringInvoiceId String?
-  client             Client            @relation(fields: [clientId], references: [id]) // Client receiving the invoice
+  originalInvoice    Invoice?              @relation("InvoiceCorrections", fields: [originalInvoiceId], references: [id])
+  originalInvoiceId  String?
+  creditNotes        Invoice[]             @relation("InvoiceCorrections")
+  client             Client                @relation(fields: [clientId], references: [id]) // Client receiving the invoice
   clientId           String
-  company            Company           @relation(fields: [companyId], references: [id]) // Company issuing the invoice
+  company            Company               @relation(fields: [companyId], references: [id]) // Company issuing the invoice
   companyId          String
   items              InvoiceItem[]
-  status             InvoiceStatus     @default(UNPAID)
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  status             InvoiceStatus         @default(DRAFT)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
   dueDate            DateTime
   paidAt             DateTime?
   paymentMethod      String? // Ex: "Bank Transfer", "PayPal", "Cash"
   paymentDetails     String? // Details for the payment method (e.g., bank account number)
   paymentMethodId    String?
-  notes              String?           @default("")
+  notes              String?               @default("")
   totalHT            Float
   totalVAT           Float
   totalTTC           Float
   currency           Currency
-  isActive           Boolean           @default(true)
+  isActive           Boolean               @default(true)
   receipts           Receipt[]
+  transmissions      InvoiceTransmission[]
+
+  // Compliance fields
+  correctionCode         CorrectionCode?
+  correctionReason       String?
+  externalTransmissionId String? // ID from Peppol, Chorus, SDI, etc.
+  transmissionPlatform   String? // email, peppol, chorus, sdi, verifactu, saft
+  transmissionStatus     TransmissionStatus?
+  transmittedAt          DateTime?
+  validationUrl          String?
+}
+
+// Invoice transmission history
+model InvoiceTransmission {
+  id             String             @id @default(cuid())
+  invoice        Invoice            @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId      String
+  platform       String // email, peppol, chorus, sdi, verifactu, saft
+  externalId     String? // ID from the platform
+  status         TransmissionStatus @default(PENDING)
+  statusMessage  String?
+  validationUrl  String?
+  sentAt         DateTime           @default(now())
+  deliveredAt    DateTime?
+  acknowledgedAt DateTime?
+  response       Json? // Raw response from platform
+
+  @@index([invoiceId])
+  @@index([platform])
+  @@map("invoice_transmission")
 }
 
 model InvoiceItem {
@@ -533,6 +593,9 @@ model Receipt {
   paymentMethod   String        @default("") // Ex: "Bank Transfer", "PayPal", "Cash"
   paymentDetails  String        @default("") // Details for the payment method (e.g., bank account number)
   paymentMethodId String?
+  sentAt          DateTime? // When receipt was sent to client
+  notes           String?       @default("")
+  isActive        Boolean       @default(true)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 }
@@ -803,20 +866,20 @@ model Webhook {
 // ======= INVITATION SYSTEM ======= //
 
 model InvitationCode {
-  id          String              @id @default(uuid())
-  code        String              @unique
-  createdAt   DateTime            @default(now())
+  id          String    @id @default(uuid())
+  code        String    @unique
+  createdAt   DateTime  @default(now())
   expiresAt   DateTime?
   usedAt      DateTime?
   createdById String
-  createdBy   User                @relation("CreatedInvitations", fields: [createdById], references: [id], onDelete: Cascade)
-  usedById    String?             @unique
-  usedBy      User?               @relation("UsedInvitation", fields: [usedById], references: [id], onDelete: SetNull)
+  createdBy   User      @relation("CreatedInvitations", fields: [createdById], references: [id], onDelete: Cascade)
+  usedById    String?   @unique
+  usedBy      User?     @relation("UsedInvitation", fields: [usedById], references: [id], onDelete: SetNull)
 
   // Multi-tenant: invitation for a specific company with a role
-  companyId   String?
-  company     Company?            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  role        UserCompanyRole     @default(ACCOUNTANT)
+  companyId String?
+  company   Company?        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role      UserCompanyRole @default(ACCOUNTANT)
 
   @@index([code])
   @@index([createdById])
@@ -827,10 +890,10 @@ model InvitationCode {
 // ======= MULTI-TENANT USER-COMPANY RELATIONSHIP ======= //
 
 enum UserCompanyRole {
-  SYSTEM_ADMIN  // Global admin (first user)
-  OWNER         // Company owner - full access
-  ADMIN         // Company admin - manage users, settings
-  ACCOUNTANT    // Can create/manage documents
+  SYSTEM_ADMIN // Global admin (first user)
+  OWNER // Company owner - full access
+  ADMIN // Company admin - manage users, settings
+  ACCOUNTANT // Can create/manage documents
 }
 
 model UserCompany {
@@ -980,16 +1043,16 @@ model ComplianceSettings {
   peppolEnvironment    String? @default("test") // test, production
 
   // ===== SdI - Sistema di Interscambio (Italy) =====
-  sdiApiUrl            String?
-  sdiCertificatePem    String? @db.Text
-  sdiPrivateKeyPem     String? @db.Text
+  sdiApiUrl              String?
+  sdiCertificatePem      String? @db.Text
+  sdiPrivateKeyPem       String? @db.Text
   sdiCertificatePassword String?
 
   // ===== Verifactu (Spain) =====
-  verifactuApiUrl      String?
+  verifactuApiUrl         String?
   verifactuCertificatePem String? @db.Text
   verifactuPrivateKeyPem  String? @db.Text
-  verifactuNif         String? // NIF of the company
+  verifactuNif            String? // NIF of the company
 
   // ===== SAF-T (Portugal) =====
   saftSoftwareCertificateNumber String?

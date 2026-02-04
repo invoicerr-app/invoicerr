@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { MailService } from '@/mail/mail.service';
 import { ComplianceController } from './compliance.controller';
 import { ComplianceService } from './compliance.service';
-import { ConfigRegistry } from './configs';
+import { CountryComplianceFactory } from './countries';
 import { DocumentService } from './documents/document.service';
 import { FormatService } from './formats/format.service';
 import { ComplianceSettingsService } from './services/compliance-settings.service';
@@ -22,11 +22,16 @@ import { TransmissionService } from './transmission/transmission.service';
 /**
  * ComplianceModule - Complete compliance features for invoicing
  *
+ * Architecture:
+ * - Object-oriented country compliance classes (FR, DE)
+ * - GenericCountryCompliance as fallback
+ * - CountryComplianceFactory for instantiation
+ *
  * Features:
- * - Country configurations (FR, DE, IT, ES, PT, BE)
+ * - Country-specific compliance implementations
  * - VAT calculation and validation
- * - E-invoice format generation (UBL, Factur-X, FatturaPa)
- * - Transmission strategies (Chorus, SDI, Peppol, Verifactu, SAF-T, Email)
+ * - E-invoice format generation (UBL, Factur-X, ZUGFeRD, XRechnung)
+ * - Transmission strategies (Chorus, Peppol, Email)
  * - Hash chain, QR codes, numbering, corrections
  */
 @Module({
@@ -35,7 +40,7 @@ import { TransmissionService } from './transmission/transmission.service';
     // Core services
     ComplianceService,
     ComplianceSettingsService,
-    ConfigRegistry,
+    CountryComplianceFactory,
     ContextBuilderService,
     DocumentService,
     RuleResolverService,
@@ -69,7 +74,7 @@ import { TransmissionService } from './transmission/transmission.service';
   exports: [
     ComplianceService,
     ComplianceSettingsService,
-    ConfigRegistry,
+    CountryComplianceFactory,
     ContextBuilderService,
     DocumentService,
     RuleResolverService,
