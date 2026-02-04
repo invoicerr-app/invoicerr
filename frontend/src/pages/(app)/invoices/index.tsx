@@ -1,14 +1,14 @@
 import { Plus, ReceiptText, Search } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useGetRaw, useSsePaginated } from '@/hooks/use-fetch';
-import {
-  InvoiceList,
-  type InvoiceListHandle,
-} from '@/pages/(app)/invoices/_components/invoice-list';
+import { useSsePaginated } from '@/hooks/use-fetch';
+import { InvoiceList } from '@/components/documents/invoice/InvoiceList';
+import { InvoiceForm } from '@/components/documents/invoice/InvoiceForm';
+import { InvoiceView } from '@/components/documents/invoice/InvoiceView';
+import { InvoicePDF } from '@/components/documents/invoice/InvoicePDF';
 import type { Invoice } from '@/types';
 
 interface InvoiceStats {
@@ -26,42 +26,23 @@ interface InvoicesResponse {
 
 export default function Invoices() {
   const { t } = useTranslation();
-  const invoiceListRef = useRef<InvoiceListHandle>(null);
 
   const [page, setPage] = useState(1);
   const pageCountRef = useRef(1);
-  const { data: invoicesData } = useSsePaginated<InvoicesResponse>(
+  const { data: invoicesData, loading } = useSsePaginated<InvoicesResponse>(
     '/api/invoices/sse',
     page,
     pageCountRef.current,
   );
 
-  // Update pageCount ref when data arrives
   if (invoicesData?.pageCount && invoicesData.pageCount !== pageCountRef.current) {
     pageCountRef.current = invoicesData.pageCount;
   }
 
-  const [downloadInvoicePdf, setDownloadInvoicePdf] = useState<Invoice | null>(null);
-  const { data: pdf } = useGetRaw<Response>(`/api/invoices/${downloadInvoicePdf?.id}/pdf`);
-
-  useEffect(() => {
-    if (downloadInvoicePdf && pdf) {
-      pdf.arrayBuffer().then((buffer) => {
-        const blob = new Blob([buffer], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `invoice-${downloadInvoicePdf.number}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        setDownloadInvoicePdf(null); // Reset after download
-      });
-    }
-  }, [downloadInvoicePdf, pdf]);
-
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [viewInvoice, setViewInvoice] = useState<Invoice | null>(null);
+  const [viewPdfInvoice, setViewPdfInvoice] = useState<Invoice | null>(null);
 
   const filteredInvoices =
     invoicesData?.invoices.filter(
@@ -85,7 +66,7 @@ export default function Invoices() {
       </p>
       {!searchTerm && (
         <div className="mt-6">
-          <Button onClick={() => invoiceListRef.current?.handleAddClick()}>
+          <Button onClick={() => setSelectedInvoice({} as Invoice)}>
             <Plus className="h-4 w-4 mr-2" />
             {t('invoices.actions.addNew')}
           </Button>
@@ -122,7 +103,7 @@ export default function Invoices() {
               className="pl-10 w-full"
             />
           </div>
-          <Button onClick={() => invoiceListRef.current?.handleAddClick()}>
+          <Button onClick={() => setSelectedInvoice({} as Invoice)}>
             <Plus className="h-4 w-4 mr-0 md:mr-2" />
             <span className="hidden md:inline-flex">{t('invoices.actions.addNew')}</span>
           </Button>
@@ -149,7 +130,7 @@ export default function Invoices() {
             <div className="flex items-center space-x-4">
               <div className="p-3 bg-yellow-100 rounded-lg">
                 <div className="w-6 h-6 flex items-center justify-center">
-                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                  <div className="w-3 h-3 bg-yellow-500 rounded-full" />
                 </div>
               </div>
               <div>
@@ -165,7 +146,7 @@ export default function Invoices() {
             <div className="flex items-center space-x-4">
               <div className="p-3 bg-green-100 rounded-lg">
                 <div className="w-6 h-6 flex items-center justify-center">
-                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <div className="w-3 h-3 bg-green-500 rounded-full" />
                 </div>
               </div>
               <div>
@@ -178,16 +159,53 @@ export default function Invoices() {
       </div>
 
       <InvoiceList
-        ref={invoiceListRef}
-        invoices={filteredInvoices}
-        loading={false}
+        documents={filteredInvoices}
+        loading={loading}
         title={t('invoices.list.title')}
         description={t('invoices.list.description')}
         page={page}
         pageCount={invoicesData?.pageCount || 1}
         setPage={setPage}
         emptyState={invoiceEmptyState}
-        showCreateButton={true}
+        showCreateButton={false}
+      />
+
+      <InvoiceForm
+        open={!!selectedInvoice}
+        onOpenChange={(open) => {
+          if (!open) setSelectedInvoice(null);
+        }}
+        invoice={selectedInvoice}
+        onSuccess={() => window.location.reload()}
+      />
+
+      <InvoiceView
+        invoice={viewInvoice}
+        onOpenChange={(open) => {
+          if (!open) setViewInvoice(null);
+        }}
+        onEdit={() => {
+          setViewInvoice(null);
+          setSelectedInvoice(viewInvoice);
+        }}
+        onDelete={() => window.location.reload()}
+        onMarkAsPaid={() => window.location.reload()}
+        onDownload={(format, fileFormat) => {
+          const url = `${import.meta.env.VITE_BACKEND_URL || ''}/api/invoices/${viewInvoice?.id}/download/${fileFormat}?format=${format}`;
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `invoice-${viewInvoice?.number}-${format}.${fileFormat}`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }}
+      />
+
+      <InvoicePDF
+        invoice={viewPdfInvoice}
+        onOpenChange={(open) => {
+          if (!open) setViewPdfInvoice(null);
+        }}
       />
     </div>
   );
