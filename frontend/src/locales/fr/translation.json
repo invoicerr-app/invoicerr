@@ -175,8 +175,10 @@
                 "email": "Email",
                 "phone": "Téléphone",
                 "address": "Adresse",
+                "addressLine2": "Complément d'adresse",
                 "postalCode": "Code postal",
                 "city": "Ville",
+                "state": "État/Province",
                 "country": "Pays"
             }
         },
