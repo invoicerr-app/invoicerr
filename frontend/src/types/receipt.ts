@@ -3,7 +3,7 @@ import type { PaymentMethod } from './payment-method';
 
 interface ReceiptItem {
   id: string;
-  invoiceItemId: string; // ID of the invoice item this receipt item corresponds to
+  invoiceItemId: string;
   invoiceId: string;
   invoice?: Invoice;
   amountPaid: number;
@@ -14,13 +14,21 @@ interface ReceiptItem {
 export interface Receipt {
   id: string;
   number: number;
-  rawNumber?: string; // Optional raw number for custom formats
+  rawNumber?: string;
   invoiceId: string;
   invoice?: Invoice;
   items: ReceiptItem[];
   totalPaid: number;
-  createdAt: string; // ISO date string
-  updatedAt: string; // ISO date string
+  createdAt: string;
+  updatedAt: string;
   paymentMethodId?: string;
   paymentMethod?: PaymentMethod;
+  title?: string;
+  currency: string;
+  totalHT: number;
+  totalVAT: number;
+  totalTTC: number;
+  notes?: string;
+  companyId: string;
+  isActive?: boolean;
 }

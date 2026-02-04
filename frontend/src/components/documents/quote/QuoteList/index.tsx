@@ -1,10 +1,21 @@
 import { useTranslation } from 'react-i18next';
 import { DocumentList } from '../../DocumentList';
-import type { DocumentListProps } from '../../DocumentList';
 import { usePost } from '@/hooks/use-fetch';
 import type { Quote } from '@/types';
 
-export function QuoteList({ documents, loading, title, description, page, pageCount, setPage, mutate, emptyState, showCreateButton = false }: DocumentListProps<Quote>) {
+export interface QuoteListProps {
+  documents: Quote[];
+  loading: boolean;
+  title: string;
+  description: string;
+  page?: number;
+  pageCount?: number;
+  setPage?: (page: number) => void;
+  emptyState: React.ReactNode;
+  showCreateButton?: boolean;
+}
+
+export function QuoteList({ documents, loading, title, description, page, pageCount, setPage, emptyState, showCreateButton = false }: QuoteListProps) {
   const { t } = useTranslation();
   const { trigger: triggerConvertToInvoice } = usePost(`/api/quotes/convert-to-invoice`);
 
@@ -41,14 +52,13 @@ export function QuoteList({ documents, loading, title, description, page, pageCo
 
   return (
     <DocumentList
-      documents={documents}
+      documents={documents as any}
       loading={loading}
       title={title}
       description={description}
       page={page}
       pageCount={pageCount}
       setPage={setPage}
-      mutate={mutate}
       emptyState={emptyState}
       showCreateButton={showCreateButton}
       documentType="quote"

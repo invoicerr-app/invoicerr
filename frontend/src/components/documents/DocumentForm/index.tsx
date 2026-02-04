@@ -38,7 +38,6 @@ import { Textarea } from '@/components/ui/textarea';
 export interface DocumentFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  documentType: 'invoice' | 'quote' | 'receipt';
   title: string;
   submitLabel: string;
   children?: React.ReactNode;
@@ -49,7 +48,6 @@ export interface DocumentFormProps {
 export function DocumentForm({
   open,
   onOpenChange,
-  documentType,
   title,
   submitLabel,
   children,
@@ -256,9 +254,9 @@ export function DocumentForm({
                 onClick={() =>
                   append({
                     description: '',
-                    quantity: Number.NaN,
-                    unitPrice: Number.NaN,
-                    vatRate: Number.NaN,
+                    quantity: NaN,
+                    unitPrice: NaN,
+                    vatRate: NaN,
                     type: 'SERVICE',
                     order: fields.length,
                   })

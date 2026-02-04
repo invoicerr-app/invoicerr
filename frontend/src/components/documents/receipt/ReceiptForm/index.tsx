@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { useCompany } from '@/contexts/company';
-import { useGet, usePost } from '@/hooks/use-fetch';
+import { useGet, usePatch, usePost } from '@/hooks/use-fetch';
 import { DocumentForm } from '../../DocumentForm';
 import SearchSelect from '@/components/search-input';
+import type { PaymentMethod } from '@/types';
 
 interface ReceiptFormProps {
   open: boolean;
@@ -18,11 +18,9 @@ interface ReceiptFormProps {
 
 export function ReceiptForm({ open, onOpenChange, receipt, invoiceId, onSuccess }: ReceiptFormProps) {
   const { t } = useTranslation();
-  const { activeCompany } = useCompany();
   const isEdit = !!receipt;
 
   const [invoiceSearchTerm, setInvoiceSearchTerm] = useState('');
-  const [paymentMethodId, setPaymentMethodId] = useState('');
 
   const { data: invoices } = useGet<any[]>(`/api/invoices/search?query=${invoiceSearchTerm}`);
   const { data: paymentMethods } = useGet<PaymentMethod[]>(`/api/payment-methods`);
@@ -85,7 +83,6 @@ export function ReceiptForm({ open, onOpenChange, receipt, invoiceId, onSuccess 
     <DocumentForm
       open={open}
       onOpenChange={onOpenChange}
-      documentType="receipt"
       title={t(`receipts.upsert.title.${isEdit ? 'edit' : 'create'}`)}
       submitLabel={t(`receipts.upsert.actions.${isEdit ? 'save' : 'create'}`)}
       defaultValues={form.getValues()}
@@ -93,17 +90,17 @@ export function ReceiptForm({ open, onOpenChange, receipt, invoiceId, onSuccess 
     >
       <div className="space-y-4">
         <div>
-          <label className="text-sm font-medium">{t('receipts.upsert.form.invoice.label')} *</label>
-          <SearchSelect
-            options={(invoices || []).map((inv) => ({
-              label: `${inv.rawNumber || inv.number}${inv.title ? ` (${inv.title})` : ''}`,
-              value: inv.id,
-            }))}
-            value={form.watch('invoiceId') ?? ''}
-            onValueChange={(val) => form.setValue('invoiceId', val || null)}
-            onSearchChange={setInvoiceSearchTerm}
-            placeholder={t('receipts.upsert.form.invoice.placeholder')}
-          />
+           <label className="text-sm font-medium">{t('receipts.upsert.form.invoice.label')} *</label>
+           <SearchSelect
+             options={(invoices || []).map((inv) => ({
+               label: `${inv.rawNumber || inv.number}${inv.title ? ` (${inv.title})` : ''}`,
+               value: inv.id,
+             }))}
+             value={form.watch('invoiceId') ?? ''}
+             onValueChange={(val) => form.setValue('invoiceId', (val as string) || '')}
+             onSearchChange={setInvoiceSearchTerm}
+             placeholder={t('receipts.upsert.form.invoice.placeholder')}
+           />
         </div>
 
         <div>

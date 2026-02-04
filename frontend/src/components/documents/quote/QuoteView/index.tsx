@@ -11,7 +11,7 @@ export interface QuoteViewProps {
   onDownload?: (format: string, fileFormat: 'pdf' | 'xml') => void;
 }
 
-export function QuoteView({ quote, onOpenChange, onEdit, onDelete, onConvertToInvoice, onDownload }: QuoteViewProps) {
+export function QuoteView({ quote, onOpenChange, onEdit, onDelete, onDownload }: QuoteViewProps) {
   const { t } = useTranslation();
 
   const getStatusColor = (status: string) => {
@@ -37,7 +37,7 @@ export function QuoteView({ quote, onOpenChange, onEdit, onDelete, onConvertToIn
 
   return (
     <DocumentView
-      document={quote}
+      document={quote as any}
       onOpenChange={onOpenChange}
       documentType="quote"
       getStatusColor={getStatusColor}

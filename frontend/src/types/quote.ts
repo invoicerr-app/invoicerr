@@ -12,8 +12,8 @@ export enum QuoteStatus {
 
 export interface Quote {
   id: string;
-  number: number; // Ex: "Q-2025-0001"
-  rawNumber?: string; // Optional raw number for custom formats
+  number: number;
+  rawNumber?: string;
   title?: string;
   clientId: string;
   client: Client;
@@ -21,16 +21,16 @@ export interface Quote {
   company: Company;
   items: QuoteItem[];
   status: QuoteStatus;
-  createdAt: Date;
-  updatedAt: Date;
-  validUntil?: Date;
-  signedAt?: Date;
+  createdAt: string;
+  updatedAt: string;
+  validUntil?: string;
+  signedAt?: string;
   signatureSvg?: string;
-  notes?: string; // Additional notes for the quote
+  notes?: string;
   totalHT: number;
   totalVAT: number;
   totalTTC: number;
-  currency: string; // Currency code, e.g., "EUR", "USD"
+  currency: string;
   paymentMethodId?: string;
   paymentMethod?: PaymentMethod;
   isActive: boolean;

@@ -140,9 +140,10 @@ export function InvoiceForm({ open, onOpenChange, invoice, onSuccess }: InvoiceF
       .catch((err) => console.error(err));
   };
 
-  const handleQuoteSelect = (val: string) => {
-    if (val) {
-      const selectedQuote = quotes?.find((q) => q.id === val);
+  const handleQuoteSelect = (val: string | string[]) => {
+    const quoteId = typeof val === 'string' ? val : val[0];
+    if (quoteId) {
+      const selectedQuote = quotes?.find((q) => q.id === quoteId);
       if (selectedQuote) {
         form.setValue('clientId', selectedQuote.clientId || '');
         form.setValue('notes', selectedQuote.notes || '');
@@ -168,7 +169,6 @@ export function InvoiceForm({ open, onOpenChange, invoice, onSuccess }: InvoiceF
     <DocumentForm
       open={open}
       onOpenChange={onOpenChange}
-      documentType="invoice"
       title={t(`invoices.upsert.title.${isEdit ? 'edit' : 'create'}`)}
       submitLabel={t(`invoices.upsert.actions.${isEdit ? 'save' : 'create'}`)}
       defaultValues={form.getValues()}
@@ -187,42 +187,42 @@ export function InvoiceForm({ open, onOpenChange, invoice, onSuccess }: InvoiceF
             onSearchChange={setQuoteSearchTerm}
             placeholder={t('invoices.upsert.form.quote.placeholder')}
           />
-        </div>
+         </div>
 
-        <div>
-          <label className="text-sm font-medium">{t('invoices.upsert.form.client.label')} *</label>
-          <SearchSelect
-            options={(clients || []).map((c) => ({
-              label: c.name || `${c.contactFirstname} ${c.contactLastname}`,
-              value: c.id,
-            }))}
-            value={form.watch('clientId') ?? ''}
-            onValueChange={(val) => form.setValue('clientId', val || null)}
-            onSearchChange={setClientSearchTerm}
-            placeholder={t('invoices.upsert.form.client.placeholder')}
-          />
-        </div>
+          <div>
+            <label className="text-sm font-medium">{t('invoices.upsert.form.client.label')} *</label>
+            <SearchSelect
+              options={(clients || []).map((c) => ({
+                label: c.name || `${c.contactFirstname} ${c.contactLastname}`,
+                value: c.id,
+              }))}
+              value={form.watch('clientId') ?? ''}
+              onValueChange={(val) => form.setValue('clientId', (typeof val === 'string' ? val : '') as string)}
+              onSearchChange={setClientSearchTerm}
+              placeholder={t('invoices.upsert.form.client.placeholder')}
+            />
+          </div>
 
-        <div>
-          <label className="text-sm font-medium">{t('invoices.upsert.form.currency.label')}</label>
-          <CurrencySelect
-            value={form.watch('currency')}
-            onChange={(value) => form.setValue('currency', value)}
-          />
-        </div>
+          <div>
+            <label className="text-sm font-medium">{t('invoices.upsert.form.currency.label')}</label>
+            <CurrencySelect
+              value={form.watch('currency')}
+              onChange={(value) => form.setValue('currency', (value as string) || '')}
+            />
+          </div>
 
-        <div>
-          <label className="text-sm font-medium">{t('invoices.upsert.form.dueDate.label')}</label>
-          <DatePicker
-            className="w-full"
-            value={form.watch('dueDate') || null}
-            onChange={(val) => form.setValue('dueDate', val)}
-            placeholder={t('invoices.upsert.form.dueDate.placeholder')}
-          />
-        </div>
+          <div>
+            <label className="text-sm font-medium">{t('invoices.upsert.form.dueDate.label')}</label>
+            <DatePicker
+              className="w-full"
+              value={form.watch('dueDate') || null}
+              onChange={(val) => form.setValue('dueDate', val as Date | undefined)}
+              placeholder={t('invoices.upsert.form.dueDate.placeholder')}
+            />
+          </div>
 
-        <div>
-          <label className="text-sm font-medium">{t('invoices.upsert.form.paymentMethod.label')}</label>
+         <div>
+            <label className="text-sm font-medium">{t('invoices.upsert.form.paymentMethod.label')}</label>
           <select
             value={form.watch('paymentMethodId') ?? ''}
             onChange={(e) => form.setValue('paymentMethodId', e.target.value)}

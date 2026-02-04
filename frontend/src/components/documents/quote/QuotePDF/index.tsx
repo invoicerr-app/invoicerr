@@ -1,4 +1,3 @@
-import { useTranslation } from 'react-i18next';
 import { DocumentPDF } from '../../DocumentPDF';
 import type { Quote } from '@/types';
 import { useGet } from '@/hooks/use-fetch';
@@ -14,7 +13,6 @@ interface PluginPdfFormat {
 }
 
 export function QuotePDF({ quote, onOpenChange }: QuotePDFProps) {
-  const { t } = useTranslation();
   const { data: pdf_formats } = useGet<PluginPdfFormat[]>('/api/plugins/formats');
 
   if (!quote) return null;

@@ -138,7 +138,6 @@ export function QuoteForm({ open, onOpenChange, quote, onSuccess }: QuoteFormPro
     <DocumentForm
       open={open}
       onOpenChange={onOpenChange}
-      documentType="quote"
       title={t(`quotes.upsert.title.${isEdit ? 'edit' : 'create'}`)}
       submitLabel={t(`quotes.upsert.actions.${isEdit ? 'save' : 'create'}`)}
       defaultValues={form.getValues()}
@@ -146,35 +145,35 @@ export function QuoteForm({ open, onOpenChange, quote, onSuccess }: QuoteFormPro
     >
       <div className="space-y-4">
         <div>
-          <label className="text-sm font-medium">{t('quotes.upsert.form.client.label')} *</label>
-          <SearchSelect
-            options={(clients || []).map((c) => ({
-              label: c.name || `${c.contactFirstname} ${c.contactLastname}`,
-              value: c.id,
-            }))}
-            value={form.watch('clientId') ?? ''}
-            onValueChange={(val) => form.setValue('clientId', val || null)}
-            onSearchChange={setClientSearchTerm}
-            placeholder={t('quotes.upsert.form.client.placeholder')}
-          />
+           <label className="text-sm font-medium">{t('quotes.upsert.form.client.label')} *</label>
+           <SearchSelect
+             options={(clients || []).map((c) => ({
+               label: c.name || `${c.contactFirstname} ${c.contactLastname}`,
+               value: c.id,
+             }))}
+             value={form.watch('clientId') ?? ''}
+             onValueChange={(val) => form.setValue('clientId', (typeof val === 'string' ? val : '') as string)}
+             onSearchChange={setClientSearchTerm}
+             placeholder={t('quotes.upsert.form.client.placeholder')}
+           />
         </div>
 
         <div>
-          <label className="text-sm font-medium">{t('quotes.upsert.form.currency.label')}</label>
-          <CurrencySelect
-            value={form.watch('currency')}
-            onChange={(value) => form.setValue('currency', value)}
-          />
+           <label className="text-sm font-medium">{t('quotes.upsert.form.currency.label')}</label>
+           <CurrencySelect
+             value={form.watch('currency')}
+             onChange={(value) => form.setValue('currency', (value as string) || '')}
+           />
         </div>
 
         <div>
-          <label className="text-sm font-medium">{t('quotes.upsert.form.validUntil.label')}</label>
-          <DatePicker
-            className="w-full"
-            value={form.watch('validUntil') || null}
-            onChange={(val) => form.setValue('validUntil', val)}
-            placeholder={t('quotes.upsert.form.validUntil.placeholder')}
-          />
+           <label className="text-sm font-medium">{t('quotes.upsert.form.validUntil.label')}</label>
+           <DatePicker
+             className="w-full"
+             value={form.watch('validUntil') || null}
+             onChange={(val) => form.setValue('validUntil', val as Date | undefined)}
+             placeholder={t('quotes.upsert.form.validUntil.placeholder')}
+           />
         </div>
 
         <div>

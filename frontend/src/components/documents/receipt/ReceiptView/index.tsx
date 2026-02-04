@@ -17,7 +17,7 @@ export function ReceiptView({ receipt, onOpenChange, onDelete, onDownload }: Rec
 
   return (
     <DocumentView
-      document={receipt}
+      document={receipt as any}
       onOpenChange={onOpenChange}
       documentType="receipt"
       getStatusColor={getStatusColor}

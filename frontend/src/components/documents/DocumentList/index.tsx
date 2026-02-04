@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/card';
 import type { BaseDocument, DocumentType } from '../types';
 import { DocumentRow } from './DocumentRow';
-import BetterPagination from '../../../../components/pagination';
+import BetterPagination from '@/components/pagination';
 
 export interface DocumentListProps<T extends BaseDocument> {
   documents: T[];
@@ -19,21 +19,20 @@ export interface DocumentListProps<T extends BaseDocument> {
   page?: number;
   pageCount?: number;
   setPage?: (page: number) => void;
-  mutate?: () => void;
   emptyState: React.ReactNode;
   showCreateButton?: boolean;
   documentType: DocumentType;
   onCreate?: () => void;
   onEdit?: (document: T) => void;
   onView?: (document: T) => void;
+  onViewPdf?: (document: T) => void;
+  onDownload?: (document: T) => void;
   onDelete?: (document: T) => void;
   onMarkAsPaid?: (id: string) => void;
   onCreateReceipt?: (id: string) => void;
   onConvertToInvoice?: (id: string) => void;
   getStatusColor: (status: string) => string;
   getStatusLabel: (status: string) => string;
-  onDownload?: (document: T, format: string, fileFormat: 'pdf' | 'xml') => void;
-  onViewPdf?: (document: T) => void;
 }
 
 export function DocumentList<T extends BaseDocument>({
@@ -44,22 +43,20 @@ export function DocumentList<T extends BaseDocument>({
   page,
   pageCount,
   setPage,
-  mutate,
   emptyState,
   showCreateButton = false,
   documentType,
   onCreate,
   onEdit,
   onView,
+  onViewPdf,
+  onDownload,
   onDelete,
   onMarkAsPaid,
   onCreateReceipt,
   onConvertToInvoice,
   getStatusColor,
   getStatusLabel,
-  onDownload,
-  onViewPdf,
-  onSendByEmail,
 }: DocumentListProps<T>) {
   return (
     <Card className="gap-0">
@@ -91,6 +88,8 @@ export function DocumentList<T extends BaseDocument>({
                 documentType={documentType}
                 onEdit={onEdit}
                 onView={onView}
+                onViewPdf={onViewPdf}
+                onDownload={onDownload}
                 onDelete={onDelete}
                 onMarkAsPaid={onMarkAsPaid}
                 onCreateReceipt={onCreateReceipt}

@@ -1,26 +1,30 @@
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { DocumentList } from '../../DocumentList';
-import type { DocumentListProps } from '../../DocumentList';
-import { useGet, usePost } from '@/hooks/use-fetch';
+import { usePost } from '@/hooks/use-fetch';
 import type { Invoice } from '@/types';
+
+export interface InvoiceListProps {
+  documents: Invoice[];
+  loading: boolean;
+  title: string;
+  description: string;
+  page?: number;
+  pageCount?: number;
+  setPage?: (page: number) => void;
+  emptyState: React.ReactNode;
+  showCreateButton?: boolean;
+  mutate?: () => void;
+}
 
 export interface InvoiceListHandle {
   handleAddClick: () => void;
 }
 
-interface PluginPdfFormat {
-  format_name: string;
-  format_key: string;
-}
-
-export function InvoiceList({ documents, loading, title, description, page, pageCount, setPage, mutate, emptyState, showCreateButton = false }: DocumentListProps<Invoice>) {
+export function InvoiceList({ documents, loading, title, description, page, pageCount, setPage, emptyState, showCreateButton = false, mutate }: InvoiceListProps) {
   const { t } = useTranslation();
-  const { activeCompany } = useCompany();
 
-  const { data: pdf_formats } = useGet<PluginPdfFormat[]>('/api/plugins/formats');
   const { trigger: triggerMarkAsPaid } = usePost(`/api/invoices/mark-as-paid`);
-  const { trigger: triggerSendInvoiceByEmail } = usePost(`/api/invoices/send`);
   const { trigger: triggerCreateReceipt } = usePost(`/api/receipts/create-from-invoice`);
 
   const handleMarkAsPaid = (invoiceId: string) => {
@@ -45,21 +49,11 @@ export function InvoiceList({ documents, loading, title, description, page, page
       });
   };
 
-  const handleSendInvoiceByEmail = (invoiceId: string) => {
-    triggerSendInvoiceByEmail({ id: invoiceId })
-      .then(() => {
-        toast.success(t('invoices.list.messages.sendByEmailSuccess'));
-      })
-      .catch(() => {
-        toast.error(t('invoices.list.messages.sendByEmailError'));
-      });
-  };
-
-  const handleDownload = (invoice: Invoice, format: string, fileFormat: 'pdf' | 'xml') => {
-    const url = `${import.meta.env.VITE_BACKEND_URL || ''}/api/invoices/${invoice.id}/download/${fileFormat}?format=${format}`;
+  const handleDownload = (invoice: Invoice) => {
+    const url = `${import.meta.env.VITE_BACKEND_URL || ''}/api/invoices/${invoice.id}/download/pdf?format=standard`;
     const link = document.createElement('a');
     link.href = url;
-    link.download = `invoice-${invoice.number}-${format}.${fileFormat}`;
+    link.download = `invoice-${invoice.number}-standard.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -93,7 +87,6 @@ export function InvoiceList({ documents, loading, title, description, page, page
       page={page}
       pageCount={pageCount}
       setPage={setPage}
-      mutate={mutate}
       emptyState={emptyState}
       showCreateButton={showCreateButton}
       documentType="invoice"
