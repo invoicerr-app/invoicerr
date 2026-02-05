@@ -1,7 +1,7 @@
-import { Module } from '@nestjs/common';
 import { AuthExtendedController } from './auth-extended.controller';
+import { Module } from '@nestjs/common';
 
 @Module({
-  controllers: [AuthExtendedController],
+    controllers: [AuthExtendedController],
 })
-export class AuthExtendedModule {}
+export class AuthExtendedModule { }

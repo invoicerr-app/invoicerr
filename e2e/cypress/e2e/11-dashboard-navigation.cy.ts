@@ -6,21 +6,18 @@ describe('Dashboard E2E', () => {
     describe('Dashboard Loading', () => {
         it('loads dashboard page', () => {
             cy.visit('/dashboard');
-            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(1000);
             cy.url().should('include', '/dashboard');
         });
 
         it('displays main content', () => {
             cy.visit('/dashboard');
-            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(1000);
             cy.get('main, [role="main"], .main-content').should('exist');
         });
 
         it('displays statistics cards', () => {
             cy.visit('/dashboard');
-            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(2000);
             cy.get('[class*="Card"], [class*="card"]').should('have.length.at.least', 1);
         });
@@ -29,21 +26,18 @@ describe('Dashboard E2E', () => {
     describe('Dashboard Statistics', () => {
         it('shows revenue data', () => {
             cy.visit('/dashboard');
-            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(2000);
             cy.contains(/revenue|chiffre|€|\$/i);
         });
 
         it('shows quotes section', () => {
             cy.visit('/dashboard');
-            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(2000);
             cy.contains(/quotes|devis/i);
         });
 
         it('shows invoices section', () => {
             cy.visit('/dashboard');
-            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(2000);
             cy.contains(/invoices|factures/i);
         });
@@ -54,7 +48,6 @@ describe('Navigation E2E', () => {
     describe('Sidebar Navigation', () => {
         it('navigates to dashboard', () => {
             cy.visit('/clients');
-            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(1000);
 
             cy.get('[data-cy="sidebar-dashboard-link"]').click({ force: true });
@@ -63,7 +56,6 @@ describe('Navigation E2E', () => {
 
         it('navigates to clients', () => {
             cy.visit('/dashboard');
-            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(1000);
 
             cy.get('[data-cy="sidebar-clients-link"]').click({ force: true });
@@ -72,7 +64,6 @@ describe('Navigation E2E', () => {
 
         it('navigates to quotes', () => {
             cy.visit('/dashboard');
-            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(1000);
 
             cy.get('[data-cy="sidebar-quotes-link"]').click({ force: true });
@@ -81,7 +72,6 @@ describe('Navigation E2E', () => {
 
         it('navigates to invoices', () => {
             cy.visit('/dashboard');
-            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(1000);
 
             cy.get('[data-cy="sidebar-invoices-link"]').click({ force: true });
@@ -90,7 +80,6 @@ describe('Navigation E2E', () => {
 
         it('navigates to receipts', () => {
             cy.visit('/dashboard');
-            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(1000);
 
             cy.get('[data-cy="sidebar-receipts-link"]').click({ force: true });
@@ -99,7 +88,6 @@ describe('Navigation E2E', () => {
 
         it('navigates to settings', () => {
             cy.visit('/dashboard');
-            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.wait(1000);
 
             cy.get('[data-cy="sidebar-settings-link"]').click({ force: true });

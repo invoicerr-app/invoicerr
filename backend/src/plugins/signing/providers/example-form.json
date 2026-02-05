@@ -1,59 +1,59 @@
 {
-  "form": {
-    "fields": [
-      {
-        "type": "text",
-        "name": "baseUrl",
-        "label": "Base URL",
-        "placeholder": "Enter the base URL",
-        "required": true
-      },
-      {
-        "type": "text",
-        "name": "apiKey",
-        "label": "API Key",
-        "placeholder": "Enter your API key",
-        "minLength": 24,
-        "maxLength": 24,
-        "required": true
-      },
-      {
-        "type": "number",
-        "name": "port",
-        "label": "Port Number",
-        "placeholder": "Enter the port number",
-        "min": 1,
-        "max": 65535,
-        "required": false
-      },
-      {
-        "type": "switch",
-        "name": "enableTls",
-        "label": "Enable TLS",
-        "default": false
-      },
-      {
-        "type": "select",
-        "name": "encriptionAlgorithm",
-        "label": "Encryption Algorithm",
-        "placeholder": "Choose an encryption algorithm",
-        "multiple": false,
-        "options": [
-          {
-            "label": "AES",
-            "value": "aes"
-          },
-          {
-            "label": "RSA",
-            "value": "rsa"
-          },
-          {
-            "label": "ChaCha20",
-            "value": "chacha20"
-          }
-        ],
-        "required": true
-      }
-    ]
-  }
+    "form": {
+        "fields": [
+            {
+                "type": "text",
+                "name": "baseUrl",
+                "label": "Base URL",
+                "placeholder": "Enter the base URL",
+                "required": true
+            },
+            {
+                "type": "text",
+                "name": "apiKey",
+                "label": "API Key",
+                "placeholder": "Enter your API key",
+                "minLength": 24,
+                "maxLength": 24,
+                "required": true
+            },
+            {
+                "type": "number",
+                "name": "port",
+                "label": "Port Number",
+                "placeholder": "Enter the port number",
+                "min": 1,
+                "max": 65535,
+                "required": false
+            },
+            {
+                "type": "switch",
+                "name": "enableTls",
+                "label": "Enable TLS",
+                "default": false
+            },
+            {
+                "type": "select",
+                "name": "encriptionAlgorithm",
+                "label": "Encryption Algorithm",
+                "placeholder": "Choose an encryption algorithm",
+                "multiple": false,
+                "options": [
+                    {
+                        "label": "AES",
+                        "value": "aes"
+                    },
+                    {
+                        "label": "RSA",
+                        "value": "rsa"
+                    },
+                    {
+                        "label": "ChaCha20",
+                        "value": "chacha20"
+                    }
+                ],
+                "required": true
+            }
+        ]
+    }
 }

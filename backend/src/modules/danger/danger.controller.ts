@@ -1,7 +1,15 @@
-import { BadRequestException, Controller, Post, Query } from '@nestjs/common';
 import { User } from '@/decorators/user.decorator';
 import { DangerService } from '@/modules/danger/danger.service';
-import type { CurrentUser } from '@/types/user';
+import { CurrentUser } from '@/types/user';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 
 @Controller('danger')
 export class DangerController {

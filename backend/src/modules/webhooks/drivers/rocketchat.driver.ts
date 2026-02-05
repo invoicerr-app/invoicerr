@@ -1,7 +1,7 @@
-import { type WebhookEvent, WebhookType } from '../../../../prisma/generated/prisma/client';
-import { EVENT_STYLES, formatPayloadForEvent } from './event-formatters';
+import { EVENT_STYLES, formatPayloadForEvent } from "./event-formatters";
+import { WebhookEvent, WebhookType } from "../../../../prisma/generated/prisma/client";
 
-import type { WebhookDriver } from './webhook-driver.interface';
+import { WebhookDriver } from "./webhook-driver.interface";
 
 export interface RocketChatField {
   title: string;
@@ -94,7 +94,7 @@ export class RocketChatWebhook {
   async send(): Promise<Response> {
     const payload: any = {
       text: this.text,
-      attachments: this.attachments.map((att) => att.build()),
+      attachments: this.attachments.map(att => att.build())
     };
 
     if (this.username) payload.username = this.username;
@@ -103,7 +103,7 @@ export class RocketChatWebhook {
     const response = await fetch(this.webhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(payload)
     });
 
     this.text = '';
@@ -125,9 +125,9 @@ export class RocketChatDriver implements WebhookDriver {
 
     const eventType = payload.event as WebhookEvent;
     const eventStyle = EVENT_STYLES[eventType] || {
-      color: '#F3F4F6',
-      emoji: '📢',
-      title: 'Event',
+      color: "#F3F4F6",
+      emoji: "📢",
+      title: "Event"
     };
 
     const description = formatPayloadForEvent(eventType, payload);
@@ -138,8 +138,8 @@ export class RocketChatDriver implements WebhookDriver {
       .setColor(eventStyle.color)
       .setFooter(
         `Invoicerr Webhooks • ${new Date().toLocaleString()}`,
-        'https://invoicerr.app/favicon.png',
-      );
+        'https://invoicerr.app/favicon.png'
+      )
 
     if (payload.company?.name) {
       attachment.addField({ title: 'Entreprise', value: payload.company.name, short: true });

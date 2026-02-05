@@ -1,13 +1,14 @@
-import { Popover, PopoverContent, PopoverTrigger } from '@radix-ui/react-popover';
-import { format } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
-import type React from 'react';
-import { useTranslation } from 'react-i18next';
-import { languageToLocale } from '@/lib/i18n';
-import { cn } from '@/lib/utils';
-import { Button } from './ui/button';
-import { Calendar } from './ui/calendar';
-import { FormControl } from './ui/form';
+import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover";
+
+import { Button } from "./ui/button";
+import { Calendar } from "./ui/calendar";
+import { CalendarIcon } from "lucide-react";
+import { FormControl } from "./ui/form";
+import React from "react";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { languageToLocale } from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 
 interface DatePickerProps {
   value: Date | null;
@@ -19,27 +20,27 @@ interface DatePickerProps {
 }
 
 const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
-  const { i18n } = useTranslation();
+  const { i18n } = useTranslation()
 
   return (
     <Popover>
       <PopoverTrigger asChild>
         <FormControl className="w-full">
           <Button
-            variant={'outline'}
+            variant={"outline"}
             className={cn(
-              'w-[240px] pl-3 text-left font-normal',
-              !field.value && 'text-muted-foreground',
-              field.className,
+              "w-[240px] pl-3 text-left font-normal",
+              !field.value && "text-muted-foreground",
+              field.className
             )}
             data-cy={field['data-cy']}
           >
             {field.value ? (
-              format(field.value, 'PPP', {
-                locale: languageToLocale(i18n.language),
+              format(field.value, "PPP", {
+                locale: languageToLocale(i18n.language)
               })
             ) : (
-              <span>{field.placeholder || 'Pick a date'}</span>
+              <span>{field.placeholder || "Pick a date"}</span>
             )}
             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
           </Button>

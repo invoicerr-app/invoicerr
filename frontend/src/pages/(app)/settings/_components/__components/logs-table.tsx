@@ -1,56 +1,49 @@
-'use client';
+"use client"
 
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import type { Log, LogLevel } from '../logs.settings';
+import { useState } from "react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
+import type { Log, LogLevel } from "../logs.settings"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 
 type LogsTableProps = {
-  logs: Log[];
-  onSelectLog: (log: Log) => void;
-};
+  logs: Log[]
+  onSelectLog: (log: Log) => void
+}
 
 const levelColors: Record<LogLevel, string> = {
-  DEBUG: 'bg-muted text-muted-foreground',
-  INFO: 'bg-blue-500/10 text-blue-500',
-  WARN: 'bg-yellow-500/10 text-yellow-500',
-  ERROR: 'bg-red-500/10 text-red-500',
-  FATAL: 'bg-purple-500/10 text-purple-500',
-};
+  DEBUG: "bg-muted text-muted-foreground",
+  INFO: "bg-blue-500/10 text-blue-500",
+  WARN: "bg-yellow-500/10 text-yellow-500",
+  ERROR: "bg-red-500/10 text-red-500",
+  FATAL: "bg-purple-500/10 text-purple-500",
+}
 
-const ITEMS_PER_PAGE = 50;
+const ITEMS_PER_PAGE = 50
 
 export function LogsTable({ logs, onSelectLog }: LogsTableProps) {
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1)
 
-  const totalPages = Math.ceil(logs.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-  const currentLogs = logs.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(logs.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const endIndex = startIndex + ITEMS_PER_PAGE
+  const currentLogs = logs.slice(startIndex, endIndex)
 
   function formatTime(date: Date) {
-    return new Intl.DateTimeFormat('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
+    return new Intl.DateTimeFormat("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
       hour12: false,
-    }).format(date);
+    }).format(date)
   }
 
   function formatDate(date: Date) {
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-    }).format(date);
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+    }).format(date)
   }
 
   return (
@@ -76,17 +69,11 @@ export function LogsTable({ logs, onSelectLog }: LogsTableProps) {
               </TableRow>
             ) : (
               currentLogs.map((log) => (
-                <TableRow
-                  key={log.id}
-                  className="cursor-pointer hover:bg-accent"
-                  onClick={() => onSelectLog(log)}
-                >
+                <TableRow key={log.id} className="cursor-pointer hover:bg-accent" onClick={() => onSelectLog(log)}>
                   <TableCell className="font-mono text-sm">
                     <div className="flex flex-col">
                       <span className="text-foreground">{formatTime(log.timestamp)}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDate(log.timestamp)}
-                      </span>
+                      <span className="text-xs text-muted-foreground">{formatDate(log.timestamp)}</span>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -95,15 +82,9 @@ export function LogsTable({ logs, onSelectLog }: LogsTableProps) {
                     </Badge>
                   </TableCell>
                   <TableCell className="font-medium text-foreground">{log.category}</TableCell>
-                  <TableCell className="max-w-[400px] truncate text-foreground">
-                    {log.message}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm text-muted-foreground">
-                    {log.userId || '-'}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm text-muted-foreground truncate">
-                    {log.path || '-'}
-                  </TableCell>
+                  <TableCell className="max-w-[400px] truncate text-foreground">{log.message}</TableCell>
+                  <TableCell className="font-mono text-sm text-muted-foreground">{log.userId || "-"}</TableCell>
+                  <TableCell className="font-mono text-sm text-muted-foreground truncate">{log.path || "-"}</TableCell>
                 </TableRow>
               ))
             )}
@@ -139,5 +120,5 @@ export function LogsTable({ logs, onSelectLog }: LogsTableProps) {
         </div>
       )}
     </div>
-  );
+  )
 }

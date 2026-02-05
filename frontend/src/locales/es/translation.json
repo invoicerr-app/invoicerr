@@ -1,5 +1,4 @@
 {
-<<<<<<< HEAD
     "clients": {
         "header": {
             "subtitle": "Administra tus clientes",
@@ -191,18 +190,182 @@
                 "delete": "Eliminar cliente"
             }
         }
-=======
-  "clients": {
-    "header": {
-      "subtitle": "Administra tus clientes",
-      "count": "{{count}} clientes {{found}}",
-      "found": "encontrados"
->>>>>>> feat/multi-tenant-invoicing
     },
-    "search": {
-      "placeholder": "Buscar clientes..."
+    "quotes": {
+        "header": {
+            "subtitle": "Administra tus cotizaciones",
+            "count": "{{count}} cotizaciones {{found}}",
+            "found": "encontradas"
+        },
+        "search": {
+            "placeholder": "Buscar cotizaciones..."
+        },
+        "actions": {
+            "addNew": "Agregar nueva cotización"
+        },
+        "stats": {
+            "total": "Total de cotizaciones",
+            "draft": "Borrador",
+            "signed": "Firmada"
+        },
+        "emptyState": {
+            "noQuotes": "Aún no hay cotizaciones",
+            "noResults": "No se encontraron cotizaciones",
+            "startAdding": "Comienza creando tu primera cotización.",
+            "tryDifferentSearch": "Prueba ajustando tus términos de búsqueda."
+        },
+        "list": {
+            "title": "Todas las cotizaciones",
+            "description": "Administra y visualiza todas tus cotizaciones en un solo lugar.",
+            "status": {
+                "draft": "Borrador",
+                "sent": "Enviada",
+                "expired": "Vencida",
+                "signed": "Firmada"
+            },
+            "item": {
+                "title": "Cotización {{number}} {{title}}",
+                "client": "Cliente",
+                "issued": "Emitida",
+                "validUntil": "Válida hasta",
+                "totalHT": "Total (sin IVA)",
+                "totalTTC": "Total (con IVA)"
+            },
+            "tooltips": {
+                "view": "Ver detalles de la cotización",
+                "viewPdf": "Ver PDF",
+                "downloadPdf": "Descargar PDF",
+                "edit": "Editar cotización",
+                "sendSignature": "Enviar para firma",
+                "resendSignature": "Reenviar para firma",
+                "createInvoice": "Crear factura desde la cotización",
+                "delete": "Eliminar cotización"
+            },
+            "actions": {
+                "addNew": "Agregar nueva cotización"
+            },
+            "messages": {
+                "sendSignatureError": "Error al enviar la cotización para firma",
+                "sendSignatureSuccess": "Cotización enviada para firma con éxito",
+                "invoiceCreated": "Factura creada exitosamente desde la cotización",
+                "invoiceCreateError": "Error al crear la factura desde la cotización"
+            }
+        },
+        "upsert": {
+            "title": {
+                "create": "Crear nueva cotización",
+                "edit": "Editar cotización"
+            },
+            "form": {
+                "title": {
+                    "label": "Título",
+                    "placeholder": "Ingrese el título de la cotización"
+                },
+                "client": {
+                    "label": "Cliente",
+                    "placeholder": "Seleccionar un cliente",
+                    "errors": {
+                        "required": "Por favor seleccione un cliente"
+                    },
+                    "noOptions": "No hay clientes disponibles. Por favor cree un cliente primero."
+                },
+                "currency": {
+                    "label": "Moneda"
+                },
+                "validUntil": {
+                    "label": "Válida hasta",
+                    "placeholder": "Seleccionar fecha de vencimiento"
+                },
+                "items": {
+                    "label": "Ítems de la cotización",
+                    "addItem": "Agregar ítem",
+                    "description": {
+                        "placeholder": "Descripción del ítem",
+                        "errors": {
+                            "required": "La descripción es obligatoria"
+                        }
+                    },
+                    "quantity": {
+                        "placeholder": "Cantidad",
+                        "unit": "uds",
+                        "errors": {
+                            "required": "La cantidad es obligatoria",
+                            "min": "La cantidad debe ser al menos 1",
+                            "invalid": "Cantidad inválida"
+                        }
+                    },
+                    "unitPrice": {
+                        "placeholder": "Precio unitario",
+                        "errors": {
+                            "required": "El precio unitario es obligatorio",
+                            "min": "El precio unitario debe ser positivo",
+                            "invalid": "Precio unitario inválido"
+                        }
+                    },
+                    "vatRate": {
+                        "placeholder": "IVA %",
+                        "errors": {
+                            "required": "La tasa de IVA es obligatoria",
+                            "min": "La tasa de IVA debe ser positiva"
+                        }
+                    }
+                },
+                "notes": {
+                    "label": "Notas",
+                    "placeholder": "Notas o términos adicionales"
+                },
+                "paymentMethod": {
+                    "label": "Método de pago",
+                    "placeholder": "Seleccionar método de pago",
+                    "description": "Método de pago preferido para esta cotización (ej.: transferencia bancaria, cheque, etc.)"
+                },
+                "paymentDetails": {
+                    "label": "Detalles de pago",
+                    "placeholder": "Ingresar detalles de pago",
+                    "description": "Información adicional de pago (ej.: IBAN, instrucciones, etc.)"
+                }
+            },
+            "actions": {
+                "cancel": "Cancelar",
+                "create": "Crear cotización",
+                "save": "Guardar cambios"
+            }
+        },
+        "view": {
+            "title": "Cotización {{number}}",
+            "description": "Ver todos los detalles de esta cotización.",
+            "status": {
+                "draft": "Borrador",
+                "sent": "Enviada",
+                "expired": "Vencida",
+                "signed": "Firmada"
+            },
+            "fields": {
+                "title": "Título",
+                "status": "Estado",
+                "createdAt": "Creada",
+                "validUntil": "Válida hasta",
+                "signedAt": "Firmada el",
+                "client": "Cliente",
+                "signedBy": "Firmado por",
+                "totalHT": "Total (sin IVA)",
+                "totalVAT": "Importe IVA",
+                "totalTTC": "Total (con IVA)",
+                "signature": "Firma"
+            }
+        },
+        "delete": {
+            "title": "Eliminar cotización",
+            "description": "¿Seguro que desea eliminar esta cotización? Esta acción no puede deshacerse.",
+            "actions": {
+                "cancel": "Cancelar",
+                "delete": "Eliminar cotización"
+            }
+        },
+        "pdf": {
+            "title": "Cotización {{number}} - PDF"
+        }
     },
-<<<<<<< HEAD
     "invoices": {
         "header": {
             "subtitle": "Administra tus facturas",
@@ -1542,1828 +1705,58 @@
         "pdf": {
             "title": "Recibo {{number}} - PDF"
         }
-=======
-    "actions": {
-      "addNew": "Agregar nuevo cliente"
->>>>>>> feat/multi-tenant-invoicing
     },
     "stats": {
-      "total": "Total de clientes",
-      "active": "Activo",
-      "inactive": "Inactivo"
+        "title": "Estadísticas",
+        "description": "Ver montos facturados, ingresos y anticipos por mes y año.",
+        "noData": "No hay datos disponibles para el periodo seleccionado.",
+        "controls": {
+            "year": "Año",
+            "range": "Rango de años"
+        },
+        "monthly": {
+            "title": "Estadísticas mensuales"
+        },
+        "yearly": {
+            "title": "Estadísticas anuales"
+        },
+        "month": "Mes",
+        "year": "Año",
+        "invoiced": "Facturado (con IVA)",
+        "revenue": "Ingresos (sin IVA)",
+        "deposits": "Anticipos (factura pagada)"
     },
-    "emptyState": {
-      "noClients": "Aún no hay clientes",
-      "noResults": "No se encontraron clientes",
-      "startAdding": "Comienza creando tu primer cliente.",
-      "tryDifferentSearch": "Prueba ajustando tus términos de búsqueda."
-    },
-    "list": {
-      "title": "Todos los clientes",
-      "description": "Administra y visualiza todos tus clientes en un solo lugar.",
-      "status": {
-        "active": "Activo",
-        "inactive": "Inactivo"
-      },
-      "tooltips": {
-        "view": "Ver detalles del cliente",
-        "edit": "Editar cliente",
-        "delete": "Eliminar cliente"
-      }
-    },
-    "upsert": {
-      "title": {
-        "create": "Agregar nuevo cliente",
-        "edit": "Editar cliente"
-      },
-      "fields": {
-        "contactFirstname": {
-          "label": "Nombre",
-          "placeholder": "Ingrese nombre"
+    "webhook": {
+        "instructions": {
+            "documenso": {
+                "title": "Instrucciones para la configuración del webhook de Documenso:",
+                "step1": "1. Accede a tu panel de administración de Documenso",
+                "step2": "2. Configura la URL del webhook",
+                "step3": "3. Configura el secreto del webhook",
+                "step4": "4. Activa los siguientes eventos: document.signed, document.completed (mínimo requerido)",
+                "step5": "5. Eventos adicionales que puedes activar: document.pending, document.completed, document.rejected"
+            }
         },
-        "contactLastname": {
-          "label": "Apellido",
-          "placeholder": "Ingrese apellido"
-        },
-        "name": {
-          "label": "Nombre de la empresa",
-          "placeholder": "Ingrese el nombre de la empresa"
-        },
-        "description": {
-          "label": "Descripción",
-          "placeholder": "Ingrese la descripción de la empresa"
-        },
-        "legalId": {
-          "label": "Identificación legal",
-          "placeholder": "Ingrese identificador legal"
-        },
-        "vat": {
-          "label": "Número de IVA",
-          "placeholder": "Ingrese número de IVA (ej.: FR12345678901)"
-        },
-        "currency": {
-          "label": "Moneda"
-        },
-        "foundedAt": {
-          "label": "Fecha de fundación",
-          "placeholder": "Seleccionar fecha de fundación"
-        },
-        "contactEmail": {
-          "label": "Correo electrónico",
-          "placeholder": "Ingrese dirección de correo"
-        },
-        "contactPhone": {
-          "label": "Teléfono",
-          "placeholder": "Ingrese número de teléfono"
-        },
-        "address": {
-          "label": "Dirección",
-          "placeholder": "Ingrese dirección"
-        },
-        "postalCode": {
-          "label": "Código postal",
-          "placeholder": "Ingrese código postal"
-        },
-        "city": {
-          "label": "Ciudad",
-          "placeholder": "Ingrese ciudad"
-        },
-        "type": {
-          "label": "Tipo de cliente",
-          "company": "Empresa",
-          "individual": "Persona física",
-          "description": "Selecciona si el cliente es una persona física o empresa"
-        },
-        "country": {
-          "label": "País",
-          "placeholder": "Ingrese país"
+        "modal": {
+            "title": "Configuración de webhook para {{pluginName}}",
+            "url": "URL del webhook",
+            "secret": "Secreto del webhook",
+            "secretDescription": "Mantén este secreto seguro. Se utilizará para verificar la autenticidad del webhook.",
+            "instructions": "Instrucciones de configuración",
+            "warning": "Configura tanto la URL como el secreto del webhook en la configuración de {{pluginName}} para recibir actualizaciones autenticadas en tiempo real. Almacena el secreto de forma segura - no se mostrará de nuevo.",
+            "gotIt": "¡Entendido!"
         }
-      },
-      "validation": {
-        "name": {
-          "required": "El nombre de la empresa es obligatorio"
-        },
-        "description": {
-          "required": "La descripción es obligatoria",
-          "maxLength": "La descripción debe tener menos de 500 caracteres"
-        },
-        "legalId": {
-          "required": "La identificación legal es obligatoria",
-          "empty": "La identificación legal no puede estar vacía",
-          "maxLength": "La identificación legal debe tener menos de 50 caracteres"
-        },
-        "vat": {
-          "required": "El número de IVA es obligatorio",
-          "empty": "El número de IVA no puede estar vacío",
-          "maxLength": "El número de IVA debe tener menos de 15 caracteres",
-          "format": "El formato del número de IVA es inválido (ej.: FR12345678901)"
-        },
-        "foundedAt": {
-          "future": "La fecha de fundación no puede ser en el futuro"
-        },
-        "contactFirstname": {
-          "required": "El nombre es obligatorio"
-        },
-        "contactLastname": {
-          "required": "El apellido es obligatorio"
-        },
-        "contactPhone": {
-          "minLength": "El número de teléfono debe tener al menos 8 caracteres",
-          "format": "El formato del número de teléfono es inválido"
-        },
-        "contactEmail": {
-          "required": "El correo electrónico es obligatorio",
-          "format": "El formato de correo electrónico es inválido"
-        },
-        "address": {
-          "required": "La dirección es obligatoria"
-        },
-        "postalCode": {
-          "format": "El formato del código postal es inválido"
-        },
-        "city": {
-          "required": "La ciudad es obligatoria"
-        },
-        "country": {
-          "required": "El país es obligatorio"
-        }
-      },
-      "actions": {
+    },
+    "folderSelect": {
+        "placeholder": "Seleccionar una carpeta...",
+        "browse": "Examinar",
+        "title": "Seleccionar una carpeta",
+        "newFolder": "Nueva carpeta",
+        "folderName": "Nombre de la carpeta...",
+        "create": "Crear",
         "cancel": "Cancelar",
-        "create": "Crear cliente",
-        "save": "Guardar cambios"
-      }
-    },
-    "view": {
-      "title": "Detalles del cliente",
-      "description": "Ver toda la información relevante de este cliente.",
-      "fields": {
-        "companyName": "Nombre de la empresa",
-        "contactPerson": "Persona de contacto",
-        "email": "Correo electrónico",
-        "phone": "Teléfono",
-        "address": "Dirección",
-        "postalCode": "Código postal",
-        "city": "Ciudad",
-        "country": "País"
-      }
-    },
-    "delete": {
-      "title": "Eliminar cliente",
-      "description": "¿Seguro que desea eliminar este cliente? Esta acción no puede deshacerse.",
-      "actions": {
-        "cancel": "Cancelar",
-        "delete": "Eliminar cliente"
-      }
+        "selectThisFolder": "Seleccionar esta carpeta",
+        "noSubdirectories": "No se encontraron subcarpetas",
+        "loading": "Cargando directorios..."
     }
-  },
-  "quotes": {
-    "header": {
-      "subtitle": "Administra tus cotizaciones",
-      "count": "{{count}} cotizaciones {{found}}",
-      "found": "encontradas"
-    },
-    "search": {
-      "placeholder": "Buscar cotizaciones..."
-    },
-    "actions": {
-      "addNew": "Agregar nueva cotización"
-    },
-    "stats": {
-      "total": "Total de cotizaciones",
-      "draft": "Borrador",
-      "signed": "Firmada"
-    },
-    "emptyState": {
-      "noQuotes": "Aún no hay cotizaciones",
-      "noResults": "No se encontraron cotizaciones",
-      "startAdding": "Comienza creando tu primera cotización.",
-      "tryDifferentSearch": "Prueba ajustando tus términos de búsqueda."
-    },
-    "list": {
-      "title": "Todas las cotizaciones",
-      "description": "Administra y visualiza todas tus cotizaciones en un solo lugar.",
-      "status": {
-        "draft": "Borrador",
-        "sent": "Enviada",
-        "expired": "Vencida",
-        "signed": "Firmada"
-      },
-      "item": {
-        "title": "Cotización {{number}} {{title}}",
-        "client": "Cliente",
-        "issued": "Emitida",
-        "validUntil": "Válida hasta",
-        "totalHT": "Total (sin IVA)",
-        "totalTTC": "Total (con IVA)"
-      },
-      "tooltips": {
-        "view": "Ver detalles de la cotización",
-        "viewPdf": "Ver PDF",
-        "downloadPdf": "Descargar PDF",
-        "edit": "Editar cotización",
-        "sendSignature": "Enviar para firma",
-        "resendSignature": "Reenviar para firma",
-        "createInvoice": "Crear factura desde la cotización",
-        "delete": "Eliminar cotización"
-      },
-      "actions": {
-        "addNew": "Agregar nueva cotización"
-      },
-      "messages": {
-        "sendSignatureError": "Error al enviar la cotización para firma",
-        "sendSignatureSuccess": "Cotización enviada para firma con éxito",
-        "invoiceCreated": "Factura creada exitosamente desde la cotización",
-        "invoiceCreateError": "Error al crear la factura desde la cotización"
-      }
-    },
-    "upsert": {
-      "title": {
-        "create": "Crear nueva cotización",
-        "edit": "Editar cotización"
-      },
-      "form": {
-        "title": {
-          "label": "Título",
-          "placeholder": "Ingrese el título de la cotización"
-        },
-        "client": {
-          "label": "Cliente",
-          "placeholder": "Seleccionar un cliente",
-          "errors": {
-            "required": "Por favor seleccione un cliente"
-          },
-          "noOptions": "No hay clientes disponibles. Por favor cree un cliente primero."
-        },
-        "currency": {
-          "label": "Moneda"
-        },
-        "validUntil": {
-          "label": "Válida hasta",
-          "placeholder": "Seleccionar fecha de vencimiento"
-        },
-        "items": {
-          "label": "Ítems de la cotización",
-          "addItem": "Agregar ítem",
-          "description": {
-            "placeholder": "Descripción del ítem",
-            "errors": {
-              "required": "La descripción es obligatoria"
-            }
-          },
-          "quantity": {
-            "placeholder": "Cantidad",
-            "unit": "uds",
-            "errors": {
-              "required": "La cantidad es obligatoria",
-              "min": "La cantidad debe ser al menos 1",
-              "invalid": "Cantidad inválida"
-            }
-          },
-          "unitPrice": {
-            "placeholder": "Precio unitario",
-            "errors": {
-              "required": "El precio unitario es obligatorio",
-              "min": "El precio unitario debe ser positivo",
-              "invalid": "Precio unitario inválido"
-            }
-          },
-          "vatRate": {
-            "placeholder": "IVA %",
-            "errors": {
-              "required": "La tasa de IVA es obligatoria",
-              "min": "La tasa de IVA debe ser positiva"
-            }
-          }
-        },
-        "notes": {
-          "label": "Notas",
-          "placeholder": "Notas o términos adicionales"
-        },
-        "paymentMethod": {
-          "label": "Método de pago",
-          "placeholder": "Seleccionar método de pago",
-          "description": "Método de pago preferido para esta cotización (ej.: transferencia bancaria, cheque, etc.)"
-        },
-        "paymentDetails": {
-          "label": "Detalles de pago",
-          "placeholder": "Ingresar detalles de pago",
-          "description": "Información adicional de pago (ej.: IBAN, instrucciones, etc.)"
-        }
-      },
-      "actions": {
-        "cancel": "Cancelar",
-        "create": "Crear cotización",
-        "save": "Guardar cambios"
-      }
-    },
-    "view": {
-      "title": "Cotización {{number}}",
-      "description": "Ver todos los detalles de esta cotización.",
-      "status": {
-        "draft": "Borrador",
-        "sent": "Enviada",
-        "expired": "Vencida",
-        "signed": "Firmada"
-      },
-      "fields": {
-        "title": "Título",
-        "status": "Estado",
-        "createdAt": "Creada",
-        "validUntil": "Válida hasta",
-        "signedAt": "Firmada el",
-        "client": "Cliente",
-        "signedBy": "Firmado por",
-        "totalHT": "Total (sin IVA)",
-        "totalVAT": "Importe IVA",
-        "totalTTC": "Total (con IVA)",
-        "signature": "Firma"
-      }
-    },
-    "delete": {
-      "title": "Eliminar cotización",
-      "description": "¿Seguro que desea eliminar esta cotización? Esta acción no puede deshacerse.",
-      "actions": {
-        "cancel": "Cancelar",
-        "delete": "Eliminar cotización"
-      }
-    },
-    "pdf": {
-      "title": "Cotización {{number}} - PDF"
-    }
-  },
-  "invoices": {
-    "header": {
-      "subtitle": "Administra tus facturas",
-      "count": "{{count}} facturas {{found}}",
-      "found": "encontradas"
-    },
-    "search": {
-      "placeholder": "Buscar facturas..."
-    },
-    "actions": {
-      "addNew": "Agregar nueva factura"
-    },
-    "stats": {
-      "total": "Total de facturas",
-      "sent": "Enviada",
-      "paid": "Pagada"
-    },
-    "emptyState": {
-      "noInvoices": "Aún no hay facturas",
-      "noResults": "No se encontraron facturas",
-      "startAdding": "Comienza creando tu primera factura.",
-      "tryDifferentSearch": "Prueba ajustando tus términos de búsqueda."
-    },
-    "list": {
-      "title": "Todas las facturas",
-      "description": "Administra y visualiza todas tus facturas en un solo lugar.",
-      "status": {
-        "sent": "Enviada",
-        "unpaid": "No pagada",
-        "overdue": "Vencida",
-        "paid": "Pagada"
-      },
-      "item": {
-        "title": "Factura {{number}} {{title}}",
-        "client": "Cliente",
-        "issued": "Emitida",
-        "due": "Vence",
-        "payment": "Pago",
-        "totalHT": "Total (sin IVA)",
-        "totalTTC": "Total (con IVA)"
-      },
-      "tooltips": {
-        "view": "Ver detalles de la factura",
-        "viewPdf": "Ver PDF",
-        "downloadPdf": "Descargar PDF",
-        "edit": "Editar factura",
-        "markAsPaid": "Marcar como pagada",
-        "delete": "Eliminar factura",
-        "createReceipt": "Crear recibo desde esta factura",
-        "sendByEmail": "Enviar factura por correo"
-      },
-      "actions": {
-        "addNew": "Agregar nueva factura",
-        "downloadPdf": "Descargar PDF",
-        "downloadXml": "Descargar XML"
-      },
-      "downloadFormats": {
-        "pdf": "PDF estándar",
-        "facturx": "Factur-X",
-        "zugferd": "ZUGFeRD",
-        "xrechnung": "XRechnung",
-        "ubl": "UBL",
-        "cii": "CII"
-      },
-      "messages": {
-        "markAsPaidSuccess": "Factura marcada como pagada con éxito",
-        "markAsPaidError": "Error al marcar la factura como pagada",
-        "createReceiptSuccess": "Recibo creado correctamente desde la factura",
-        "sendByEmailSuccess": "La factura fue enviada al cliente"
-      }
-    },
-    "upsert": {
-      "title": {
-        "create": "Crear nueva factura",
-        "edit": "Editar factura"
-      },
-      "form": {
-        "quote": {
-          "label": "Desde cotización",
-          "placeholder": "Seleccionar una cotización",
-          "errors": {
-            "required": "Por favor seleccione una cotización"
-          }
-        },
-        "client": {
-          "label": "Cliente",
-          "placeholder": "Seleccionar un cliente",
-          "errors": {
-            "required": "Por favor seleccione un cliente"
-          },
-          "noOptions": "No hay clientes disponibles. Por favor cree un cliente primero."
-        },
-        "dueDate": {
-          "label": "Fecha de vencimiento",
-          "placeholder": "Seleccionar fecha de vencimiento"
-        },
-        "items": {
-          "label": "Ítems de la factura",
-          "addItem": "Agregar ítem",
-          "description": {
-            "placeholder": "Descripción del ítem",
-            "errors": {
-              "required": "La descripción es obligatoria"
-            }
-          },
-          "quantity": {
-            "placeholder": "Cantidad",
-            "unit": "uds",
-            "errors": {
-              "required": "La cantidad es obligatoria",
-              "min": "La cantidad debe ser al menos 1",
-              "invalid": "Cantidad inválida"
-            }
-          },
-          "unitPrice": {
-            "placeholder": "Precio unitario",
-            "errors": {
-              "required": "El precio unitario es obligatorio",
-              "min": "El precio unitario debe ser positivo",
-              "invalid": "Precio unitario inválido"
-            }
-          },
-          "vatRate": {
-            "placeholder": "IVA %",
-            "errors": {
-              "required": "La tasa de IVA es obligatoria",
-              "min": "La tasa de IVA debe ser positiva"
-            }
-          },
-          "type": {
-            "label": "Tipo",
-            "hour": "Hora",
-            "day": "Día",
-            "deposit": "Anticipo/Depósito",
-            "service": "Servicio",
-            "product": "Producto"
-          }
-        },
-        "notes": {
-          "label": "Notas",
-          "placeholder": "Notas o términos adicionales"
-        },
-        "paymentMethod": {
-          "label": "Método de pago",
-          "placeholder": "Seleccionar método de pago",
-          "description": "Método de pago preferido para esta cotización (ej.: transferencia bancaria, cheque, etc.)"
-        },
-        "paymentDetails": {
-          "label": "Detalles de pago",
-          "placeholder": "Ingresar detalles de pago",
-          "description": "Información adicional de pago (ej.: IBAN, instrucciones, etc.)"
-        },
-        "currency": {
-          "label": "Moneda"
-        }
-      },
-      "actions": {
-        "cancel": "Cancelar",
-        "create": "Crear factura",
-        "save": "Guardar cambios"
-      }
-    },
-    "view": {
-      "title": "Factura {{number}}",
-      "description": "Ver todos los detalles de esta factura.",
-      "status": {
-        "sent": "Enviada",
-        "unpaid": "No pagada",
-        "overdue": "Vencida",
-        "paid": "Pagada"
-      },
-      "fields": {
-        "number": "Número de factura",
-        "title": "Título",
-        "status": "Estado",
-        "createdAt": "Creada",
-        "dueDate": "Fecha de vencimiento",
-        "paidAt": "Pagada el",
-        "updatedAt": "Actualizado",
-        "client": "Cliente",
-        "paymentMethod": "Método de pago",
-        "totalHT": "Total (sin IVA)",
-        "totalVAT": "Importe IVA",
-        "totalTTC": "Total (con IVA)",
-        "notes": "Notas"
-      }
-    },
-    "delete": {
-      "title": "Eliminar factura",
-      "description": "¿Seguro que desea eliminar esta factura? Esta acción no puede deshacerse.",
-      "actions": {
-        "cancel": "Cancelar",
-        "delete": "Eliminar factura"
-      }
-    },
-    "pdf": {
-      "title": "Factura {{number}} - PDF"
-    }
-  },
-  "recurringInvoices": {
-    "frequency": {
-      "weekly": "Cada semana",
-      "biweekly": "Cada 2 semanas",
-      "monthly": "Cada mes",
-      "bimonthly": "Cada 2 meses",
-      "quarterly": "Cada 3 meses",
-      "quadmonthly": "Cada 4 meses",
-      "semiannually": "Cada 6 meses",
-      "annually": "Cada año"
-    },
-    "list": {
-      "title": "Facturas recurrentes",
-      "description": "Gestiona tus facturas recurrentes y automatiza la facturación.",
-      "actions": {
-        "addNew": "Agregar nueva factura recurrente"
-      },
-      "item": {
-        "client": "Cliente",
-        "payment": "Método de pago",
-        "totalHT": "Total (sin IVA)",
-        "totalTTC": "Total (con IVA)"
-      },
-      "tooltips": {
-        "view": "Ver detalles",
-        "edit": "Editar",
-        "delete": "Eliminar"
-      },
-      "messages": {
-        "manual_process_success": "Proceso manual ejecutado con éxito",
-        "manual_process_error": "Error al ejecutar el proceso manual"
-      }
-    },
-    "emptyState": {
-      "noInvoices": "Aún no hay facturas recurrentes",
-      "startAdding": "Comienza creando tu primera factura recurrente."
-    },
-    "actions": {
-      "addNew": "Agregar nueva factura recurrente"
-    },
-    "upsert": {
-      "title": {
-        "create": "Crear nueva factura recurrente",
-        "edit": "Editar factura recurrente"
-      },
-      "form": {
-        "quote": {
-          "label": "Desde cotización",
-          "placeholder": "Seleccionar una cotización"
-        },
-        "client": {
-          "label": "Cliente",
-          "placeholder": "Seleccionar un cliente",
-          "errors": {
-            "required": "Por favor seleccione un cliente"
-          },
-          "noOptions": "No hay clientes disponibles. Por favor cree un cliente primero."
-        },
-        "currency": {
-          "label": "Moneda"
-        },
-        "notes": {
-          "label": "Notas",
-          "placeholder": "Notas o términos adicionales"
-        },
-        "paymentMethod": {
-          "label": "Método de pago",
-          "placeholder": "Seleccionar método de pago",
-          "description": "Método de pago preferido para esta factura recurrente (ej.: transferencia bancaria, cheque, etc.)"
-        },
-        "paymentDetails": {
-          "label": "Detalles de pago",
-          "placeholder": "Ingresar detalles de pago",
-          "description": "Información adicional de pago (ej.: IBAN, instrucciones, etc.)"
-        },
-        "frequency": {
-          "label": "Frecuencia",
-          "placeholder": "Seleccionar frecuencia",
-          "description": "Cada cuánto se generarán las facturas",
-          "errors": {
-            "required": "La frecuencia es obligatoria"
-          }
-        },
-        "count": {
-          "label": "Ocurrencias",
-          "placeholder": "Ingrese el número de ocurrencias",
-          "description": "Número total de veces que se generará la factura (dejar vacío para recurrencia infinita)"
-        },
-        "until": {
-          "label": "Fecha de finalización",
-          "placeholder": "Seleccionar fecha final",
-          "description": "Fecha cuando la factura recurrente dejará de generarse (dejar vacío para recurrencia infinita)"
-        },
-        "autoSend": {
-          "label": "Envío automático",
-          "description": "Enviar automáticamente la factura recurrente al cliente al generarse"
-        },
-        "items": {
-          "label": "Ítems de factura recurrente",
-          "addItem": "Agregar ítem",
-          "description": {
-            "placeholder": "Descripción del ítem",
-            "errors": {
-              "required": "La descripción es obligatoria"
-            }
-          },
-          "quantity": {
-            "placeholder": "Cantidad",
-            "unit": "uds",
-            "errors": {
-              "required": "La cantidad es obligatoria",
-              "min": "La cantidad debe ser al menos 1",
-              "invalid": "Cantidad inválida"
-            }
-          },
-          "unitPrice": {
-            "placeholder": "Precio unitario",
-            "errors": {
-              "required": "El precio unitario es obligatorio",
-              "min": "El precio unitario debe ser positivo",
-              "invalid": "Precio unitario inválido"
-            }
-          },
-          "vatRate": {
-            "placeholder": "IVA %",
-            "errors": {
-              "required": "La tasa de IVA es obligatoria",
-              "min": "La tasa de IVA debe ser positiva"
-            }
-          },
-          "type": {
-            "label": "Tipo",
-            "hour": "Hora",
-            "day": "Día",
-            "deposit": "Anticipo/Depósito",
-            "service": "Servicio",
-            "product": "Producto"
-          }
-        }
-      },
-      "actions": {
-        "cancel": "Cancelar",
-        "create": "Crear factura recurrente",
-        "save": "Guardar cambios"
-      }
-    }
-  },
-  "dashboard": {
-    "title": "Panel de control",
-    "welcomeMessage": "¡Bienvenido de nuevo, {{firstname}}!",
-    "revenue": {
-      "title": "Resumen de ingresos",
-      "description": "Sigue tu desempeño financiero a lo largo del tiempo",
-      "thisMonth": "Este mes",
-      "thisYear": "Este año",
-      "chartLabel": "Ingresos"
-    },
-    "quotes": {
-      "title": "Resumen de cotizaciones",
-      "description": "Monitorea tu flujo y tasa de conversión de cotizaciones",
-      "stats": {
-        "total": "Total de cotizaciones",
-        "draft": "Borrador",
-        "sent": "Enviadas",
-        "signed": "Firmadas",
-        "expired": "Vencidas"
-      },
-      "latestTitle": "Cotizaciones recientes",
-      "noRecent": "No hay cotizaciones recientes"
-    },
-    "invoices": {
-      "title": "Resumen de facturas",
-      "description": "Lleva el control de tu facturación y pagos",
-      "stats": {
-        "total": "Total de facturas",
-        "unpaid": "No pagadas",
-        "sent": "Enviadas",
-        "paid": "Pagadas",
-        "overdue": "Vencidas"
-      },
-      "latestTitle": "Facturas recientes",
-      "noRecent": "No hay facturas recientes"
-    },
-    "clients": {
-      "title": "Resumen de clientes",
-      "stats": {
-        "total": "Total de clientes"
-      }
-    }
-  },
-  "paymentMethods": {
-    "title": "Métodos de pago",
-    "description": "Gestiona métodos de pago reutilizables.",
-    "empty": "Aún no hay métodos de pago.",
-    "actions": {
-      "cancel": "Cancelar",
-      "add": "Agregar",
-      "save": "Guardar",
-      "edit": "Editar",
-      "delete": "Eliminar",
-      "deleting": "Eliminando..."
-    },
-    "search": {
-      "placeholder": "Buscar métodos de pago..."
-    },
-    "list": {
-      "add": "Agregar método de pago",
-      "empty": "No se encontraron métodos de pago"
-    },
-    "stats": {
-      "total": "Total de métodos de pago",
-      "active": "Activo",
-      "inactive": "Inactivo"
-    },
-    "fields": {
-      "name": {
-        "label": "Nombre",
-        "placeholder": "ej. Transferencia bancaria (empresarial)"
-      },
-      "details": {
-        "label": "Detalles",
-        "placeholder": "IBAN / detalles"
-      },
-      "type": {
-        "label": "Tipo",
-        "bank_transfer": "Transferencia bancaria",
-        "paypal": "PayPal",
-        "check": "Cheque",
-        "cash": "Efectivo",
-        "other": "Otro"
-      },
-      "status": {
-        "label": "Estado"
-      }
-    },
-    "upsert": {
-      "title": {
-        "create": "Agregar método de pago",
-        "edit": "Editar método de pago"
-      },
-      "form": {
-        "name": {
-          "label": "Nombre",
-          "placeholder": "ej. Transferencia bancaria (empresarial)"
-        },
-        "details": {
-          "label": "Detalles",
-          "placeholder": "IBAN / detalles"
-        },
-        "type": {
-          "label": "Tipo",
-          "bank_transfer": "Transferencia bancaria",
-          "paypal": "PayPal",
-          "check": "Cheque",
-          "cash": "Efectivo",
-          "other": "Otro"
-        }
-      },
-      "messages": {
-        "nameRequired": "El nombre es obligatorio",
-        "addSuccess": "Método de pago agregado",
-        "addError": "No se pudo agregar el método de pago",
-        "updateSuccess": "Método de pago actualizado",
-        "updateError": "No se pudo actualizar el método de pago",
-        "deleteSuccess": "Método de pago eliminado",
-        "deleteError": "No se pudo eliminar el método de pago"
-      },
-      "actions": {
-        "cancel": "Cancelar",
-        "add": "Agregar",
-        "save": "Guardar",
-        "edit": "Editar",
-        "delete": "Eliminar",
-        "deleting": "Eliminando..."
-      }
-    },
-    "tooltips": {
-      "view": "Ver",
-      "edit": "Editar",
-      "delete": "Eliminar"
-    },
-    "delete": {
-      "description": "¿Seguro que desea eliminar \"{{name}}\"? Esta acción no puede deshacerse."
-    }
-  },
-  "settings": {
-    "tabs": {
-      "company": "Empresa",
-      "pdfTemplates": "Plantillas PDF",
-      "emailTemplates": "Plantillas de correo",
-      "account": "Cuenta",
-      "logs": "Registros",
-      "dangerZone": "Zona de peligro",
-      "plugins": "Plugins",
-      "webhooks": "Webhooks",
-      "invitations": "Invitaciones"
-    },
-    "company": {
-      "title": "Configuración de la empresa",
-      "description": "Administra la información y datos de tu empresa",
-      "basicInfo": "Información básica",
-      "basicInfoDescription": "Detalles esenciales de tu empresa",
-      "address": {
-        "title": "Información de dirección",
-        "description": "Ubicación física de tu empresa"
-      },
-      "contact": {
-        "title": "Información de contacto",
-        "description": "Cómo los clientes pueden contactar a tu empresa"
-      },
-      "numberFormats": {
-        "title": "Formatos de numeración",
-        "description": "Personaliza los formatos de numeración para cotizaciones y facturas"
-      },
-      "other": {
-        "title": "Otras configuraciones",
-        "description": "Configuraciones adicionales de tu empresa"
-      },
-      "form": {
-        "company": {
-          "label": "Nombre de la empresa",
-          "placeholder": "Ingrese el nombre de su empresa",
-          "description": "Nombre legal de tu negocio",
-          "errors": {
-            "required": "El nombre de la empresa es obligatorio",
-            "empty": "El nombre de la empresa no puede estar vacía",
-            "maxLength": "El nombre de la empresa debe tener menos de 100 caracteres"
-          }
-        },
-        "description": {
-          "label": "Descripción",
-          "placeholder": "Breve descripción de la empresa",
-          "description": "Breve descripción de la actividad de tu negocio",
-          "errors": {
-            "maxLength": "La descripción debe tener menos de 500 caracteres"
-          }
-        },
-        "legalId": {
-          "label": "Identificación legal",
-          "placeholder": "Ingrese identificador legal",
-          "description": "Número legal de registro de tu empresa",
-          "errors": {
-            "required": "La identificación legal es obligatoria",
-            "empty": "La identificación legal no puede estar vacía",
-            "maxLength": "La identificación legal debe tener menos de 50 caracteres"
-          }
-        },
-        "vat": {
-          "label": "Número de IVA",
-          "placeholder": "Ingrese número de IVA (ej.: FR12345678901)",
-          "description": "Número de identificación de IVA de tu empresa",
-          "errors": {
-            "required": "El número de IVA es obligatorio",
-            "empty": "El número de IVA no puede estar vacío",
-            "maxLength": "El número de IVA debe tener menos de 15 caracteres",
-            "format": "El formato del número de IVA es inválido (ej.: FR12345678901)"
-          }
-        },
-        "foundedAt": {
-          "label": "Fecha de fundación",
-          "placeholder": "Seleccionar fecha de fundación",
-          "description": "Fecha de creación de tu empresa",
-          "errors": {
-            "future": "La fecha de fundación no puede ser en el futuro"
-          }
-        },
-        "currency": {
-          "label": "Moneda",
-          "description": "Moneda predeterminada para facturas y cotizaciones",
-          "errors": {
-            "required": "La moneda es obligatoria",
-            "select": "Por favor seleccione una moneda"
-          }
-        },
-        "address": {
-          "label": "Dirección",
-          "placeholder": "Ingrese dirección",
-          "description": "Dirección física de tu empresa",
-          "errors": {
-            "empty": "La dirección es obligatoria"
-          }
-        },
-        "postalCode": {
-          "label": "Código postal",
-          "placeholder": "Ingrese código postal",
-          "errors": {
-            "format": "El formato del código postal es inválido"
-          }
-        },
-        "city": {
-          "label": "Ciudad",
-          "placeholder": "Ingrese ciudad",
-          "errors": {
-            "empty": "La ciudad es obligatoria"
-          }
-        },
-        "country": {
-          "label": "País",
-          "placeholder": "Ingrese país",
-          "errors": {
-            "empty": "El país es obligatorio"
-          }
-        },
-        "phone": {
-          "label": "Teléfono",
-          "placeholder": "Ingrese número de teléfono",
-          "description": "Número de teléfono principal de la empresa",
-          "errors": {
-            "minLength": "El número de teléfono debe tener al menos 8 caracteres",
-            "format": "El formato del número de teléfono es inválido"
-          }
-        },
-        "email": {
-          "label": "Correo electrónico",
-          "placeholder": "Ingrese dirección de correo",
-          "description": "Correo principal de la empresa",
-          "errors": {
-            "required": "El correo electrónico es obligatorio",
-            "format": "El formato de correo electrónico es inválido"
-          }
-        },
-        "quoteStartingNumber": {
-          "label": "Número inicial de cotización",
-          "placeholder": "Ingrese número inicial para cotizaciones",
-          "description": "Número inicial para la numeración de cotizaciones",
-          "errors": {
-            "min": "El número inicial de cotización debe ser al menos 1"
-          }
-        },
-        "quoteNumberFormat": {
-          "label": "Formato de número de cotización",
-          "placeholder": "Ingrese el formato de número de cotización (ej. C-{year}-{number})",
-          "description": "Formato para los números de cotizaciones",
-          "errors": {
-            "required": "El formato de número de cotización es obligatorio",
-            "maxLength": "El formato de número de cotización debe ser menor a 100 caracteres",
-            "format": "El formato de número de cotización es inválido. Use {year}, {month}, {day}, {number} con relleno opcional (ej. {number:4})"
-          }
-        },
-        "invoiceStartingNumber": {
-          "label": "Número inicial de factura",
-          "placeholder": "Ingrese número inicial para facturas",
-          "description": "Número inicial para la numeración de facturas",
-          "errors": {
-            "min": "El número inicial de factura debe ser al menos 1"
-          }
-        },
-        "invoiceNumberFormat": {
-          "label": "Formato de número de factura",
-          "placeholder": "Ingrese el formato de número de factura (ej. FAC-{year}-{number})",
-          "description": "Formato para los números de facturas",
-          "errors": {
-            "required": "El formato de número de factura es obligatorio",
-            "maxLength": "El formato de número de factura debe ser menor a 100 caracteres",
-            "format": "El formato de número de factura es inválido. Use {year}, {month}, {day}, {number} con relleno opcional (ej. {number:4})"
-          }
-        },
-        "receiptStartingNumber": {
-          "label": "Número inicial de recibo",
-          "placeholder": "Ingrese número inicial para recibos",
-          "description": "Número inicial para la numeración de recibos",
-          "errors": {
-            "min": "El número inicial de recibo debe ser al menos 1"
-          }
-        },
-        "receiptNumberFormat": {
-          "label": "Formato de número de recibo",
-          "placeholder": "Ingrese el formato de número de recibo (ej. REC-{year}-{number})",
-          "description": "Formato para los números de recibo",
-          "errors": {
-            "required": "El formato de número de recibo es obligatorio",
-            "maxLength": "El formato de número de recibo debe ser menor a 100 caracteres",
-            "format": "El formato de número de recibo es inválido. Use {year}, {month}, {day}, {number} con relleno opcional (ej. {number:4})"
-          }
-        },
-        "invoicePDFFormat": {
-          "label": "Formato de PDF de factura",
-          "placeholder": "Seleccionar formato PDF de factura",
-          "description": "Elija el formato de los PDFs de factura que se enviarán a los clientes",
-          "options": {
-            "pdf": "PDF estándar",
-            "facturx": "Factur-X",
-            "zugferd": "ZUGFeRD",
-            "xrechnung": "XRechnung",
-            "ubl": "UBL",
-            "cii": "CII"
-          },
-          "errors": {
-            "required": "El formato PDF de factura es obligatorio"
-          }
-        },
-        "dateFormat": {
-          "label": "Formato de fecha",
-          "placeholder": "Seleccionar formato de fecha",
-          "description": "Elija cómo se mostrarán las fechas en cotizaciones y facturas.",
-          "errors": {
-            "required": "El formato de fecha es obligatorio"
-          }
-        },
-        "exemptVat": {
-          "label": "TVA inaplicable",
-          "description": "Mostrar el aviso legal 'IVA no aplicable, art. 293 B del CGI' en los próximos documentos cuando esté activado y si el país de la empresa es Francia."
-        },
-        "saving": "Guardando...",
-        "saveSettings": "Guardar configuración"
-      },
-      "messages": {
-        "updateSuccess": "Los datos de la empresa fueron actualizados correctamente",
-        "updateError": "Error al actualizar los datos de la empresa"
-      }
-    },
-    "account": {
-      "title": "Configuración de cuenta",
-      "description": "Administra la información y seguridad de tu cuenta personal",
-      "profile": {
-        "title": "Información de perfil",
-        "description": "Actualiza tus datos personales"
-      },
-      "password": {
-        "title": "Contraseña y seguridad",
-        "description": "Cambiar contraseña y configuración de seguridad",
-        "loading": "Cargando...",
-        "noPasswordSet": "Ha iniciado sesión con un proveedor externo (OIDC). Puede establecer una contraseña para iniciar sesión también con su correo electrónico y contraseña."
-      },
-      "form": {
-        "firstname": {
-          "label": "Nombre",
-          "placeholder": "Ingrese su nombre",
-          "errors": {
-            "required": "El nombre es obligatorio"
-          }
-        },
-        "lastname": {
-          "label": "Apellido",
-          "placeholder": "Ingrese su apellido",
-          "errors": {
-            "required": "El apellido es obligatorio"
-          }
-        },
-        "email": {
-          "label": "Correo",
-          "placeholder": "Ingrese su correo",
-          "errors": {
-            "invalid": "El formato de correo es inválido"
-          }
-        },
-        "currentPassword": {
-          "label": "Contraseña actual",
-          "placeholder": "Ingrese la contraseña actual",
-          "errors": {
-            "required": "La contraseña actual es obligatoria"
-          }
-        },
-        "password": {
-          "label": "Nueva contraseña",
-          "placeholder": "Ingrese la nueva contraseña",
-          "errors": {
-            "minLength": "La contraseña debe tener al menos 8 caracteres",
-            "letter": "La contraseña debe tener al menos una letra",
-            "number": "La contraseña debe tener al menos un número",
-            "special": "La contraseña debe tener al menos un caracter especial"
-          },
-          "labelNew": "Contraseña"
-        },
-        "confirmPassword": {
-          "label": "Confirmar contraseña",
-          "placeholder": "Confirme la nueva contraseña",
-          "errors": {
-            "match": "Las contraseñas no coinciden"
-          }
-        },
-        "errors": {
-          "fieldsEmpty": "Todos los campos son obligatorios"
-        },
-        "updatingProfile": "Actualizando...",
-        "updateProfile": "Actualizar perfil",
-        "updatingPassword": "Actualizando...",
-        "updatePassword": "Actualizar contraseña",
-        "setPassword": "Establecer contraseña"
-      },
-      "messages": {
-        "profileUpdateSuccess": "Perfil actualizado exitosamente",
-        "profileUpdateError": "No se pudo actualizar el perfil",
-        "passwordUpdateSuccess": "Contraseña actualizada exitosamente",
-        "passwordUpdateError": "No se pudo actualizar la contraseña"
-      }
-    },
-    "dangerZone": {
-      "title": "Zona de peligro",
-      "description": "Acciones irreversibles y destructivas",
-      "resetApp": {
-        "title": "Restablecer datos de la aplicación",
-        "description": "Eliminar todas las cotizaciones, facturas y clientes, pero conservar su cuenta",
-        "button": "Restablecer datos de la app"
-      },
-      "resetDatabase": {
-        "title": "Restablecer todo",
-        "description": "Eliminar permanentemente su cuenta y todos los datos asociados",
-        "button": "Restablecer base de datos"
-      },
-      "modal": {
-        "title": "Confirmar acción peligrosa",
-        "description": "Por favor, ingrese el código de verificación enviado a su correo para confirmar esta acción.",
-        "otpLabel": "Código de verificación",
-        "otpPlaceholder": "0000-0000",
-        "warningApp": "Esto restablecerá todos los datos de su aplicación",
-        "warningAppDescription": "Todas las cotizaciones, facturas y clientes serán eliminados permanentemente",
-        "warningDatabase": "Esto eliminará toda su cuenta",
-        "warningDatabaseDescription": "Su cuenta y todos los datos serán eliminados permanentemente",
-        "cancel": "Cancelar",
-        "confirm": "Confirmar acción"
-      },
-      "messages": {
-        "otpSentSuccess": "Código de verificación enviado a su correo",
-        "otpSentError": "No se pudo enviar el código de verificación",
-        "actionSuccess": "Acción completada con éxito",
-        "actionError": "No se pudo completar la acción",
-        "actionFailed": "Acción fallida",
-        "unexpectedError": "Ocurrió un error inesperado"
-      }
-    },
-    "plugins": {
-      "title": "Plugins ({{count}})",
-      "description": "Instale y administre plugins para ampliar la funcionalidad de la aplicación",
-      "add": {
-        "title": "Agregar plugin",
-        "description": "Instalar un plugin desde un repositorio Git",
-        "gitUrl": {
-          "label": "URL del repositorio Git",
-          "placeholder": "https://github.com/username/repo"
-        }
-      },
-      "actions": {
-        "add": "Agregar",
-        "addLoading": "Agregando...",
-        "delete": "Eliminar",
-        "deleting": "Eliminando..."
-      },
-      "emptyState": {
-        "noPlugins": "No hay plugins instalados. Agregue un plugin para ampliar la funcionalidad."
-      },
-      "messages": {
-        "addSuccess": "Plugin agregado correctamente",
-        "addError": "No se pudo agregar el plugin",
-        "deleteSuccess": "Plugin eliminado correctamente",
-        "deleteError": "No se pudo eliminar el plugin",
-        "toggleSuccess": "Plugin alternado correctamente",
-        "toggleError": "No se pudo alternar el plugin",
-        "configureSuccess": "Plugin configurado correctamente",
-        "configureError": "No se pudo configurar el plugin"
-      },
-      "webhook": {
-        "secretPlaceholder": "Valide esta ventana emergente para generar un secreto seguro"
-      }
-    },
-    "pdfTemplates": {
-      "title": "Plantillas PDF",
-      "description": "Personaliza la apariencia de tus facturas y cotizaciones",
-      "templateType": {
-        "title": "Tipo de plantilla",
-        "description": "Elije qué plantilla personalizar",
-        "label": "Tipo de plantilla",
-        "options": {
-          "invoice": "Plantilla de factura",
-          "quote": "Plantilla de cotización",
-          "receipt": "Plantilla de recibo"
-        }
-      },
-      "typography": {
-        "title": "Tipografía",
-        "description": "Opciones de fuente y estilo de texto",
-        "fontFamily": "Familia tipográfica"
-      },
-      "colors": {
-        "title": "Colores",
-        "description": "Colores y tema de la marca",
-        "primaryColor": "Color primario",
-        "secondaryColor": "Color secundario"
-      },
-      "logo": {
-        "title": "Logo",
-        "description": "Configuración del logotipo de la empresa",
-        "includeLogo": "Incluir logo",
-        "logoPreview": "Vista previa del logo",
-        "uploadText": "Haz clic para subir logo"
-      },
-      "spacing": {
-        "title": "Espaciado y disposición",
-        "description": "Controla los espacios y márgenes",
-        "padding": "Relleno"
-      },
-      "labels": {
-        "title": "Etiquetas y textos",
-        "invoice": "Factura",
-        "quote": "Cotización",
-        "receipt": "Recibo",
-        "billTo": "Facturar a",
-        "quoteFor": "Cotización para",
-        "validUntil": "Válida hasta",
-        "dueDate": "Fecha de vencimiento",
-        "paymentDate": "Fecha de pago",
-        "date": "Fecha",
-        "description": "Descripción",
-        "receivedFrom": "Recibido de",
-        "invoiceRefer": "Referencia de factura",
-        "quantity": "Cantidad",
-        "unitPrice": "Precio unitario",
-        "total": "Total",
-        "subtotal": "Subtotal",
-        "vat": "IVA",
-        "grandTotal": "Gran total",
-        "vatRate": "Tasa de IVA",
-        "paymentMethod": "Método de pago",
-        "paymentDetails": "Detalles de pago",
-        "paymentMethodVariants": "Nombres que se muestran para métodos de pago",
-        "paymentMethodBankTransfer": "Transferencia bancaria",
-        "paymentMethodPayPal": "PayPal",
-        "paymentMethodCash": "Efectivo",
-        "paymentMethodCheck": "Cheque",
-        "paymentMethodOther": "Otro",
-        "notes": "Notas",
-        "totalReceived": "Total recibido",
-        "hour": "Hora",
-        "day": "Día",
-        "deposit": "Depósito",
-        "service": "Servicio",
-        "product": "Producto",
-        "type": "Tipo",
-        "legalId": "ID legal",
-        "vatId": "ID IVA"
-      },
-      "defaultLabels": {
-        "invoice": "Factura",
-        "quote": "Cotización",
-        "receipt": "Recibo",
-        "billTo": "Facturar a",
-        "quoteFor": "Cotización para",
-        "validUntil": "Válida hasta",
-        "date": "Fecha",
-        "dueDate": "Fecha de vencimiento",
-        "paymentDate": "Fecha de pago",
-        "description": "Descripción",
-        "receivedFrom": "Recibido de",
-        "invoiceRefer": "Referencia de factura",
-        "quantity": "Cantidad",
-        "unitPrice": "Precio unitario",
-        "total": "Total",
-        "subtotal": "Subtotal",
-        "vat": "IVA",
-        "grandTotal": "Gran total",
-        "vatRate": "Tasa de IVA",
-        "paymentMethod": "Método de pago",
-        "paymentDetails": "Detalles de pago",
-        "paymentMethodBankTransfer": "Transferencia bancaria",
-        "paymentMethodPayPal": "PayPal",
-        "paymentMethodCash": "Efectivo",
-        "paymentMethodCheck": "Cheque",
-        "paymentMethodOther": "Otro",
-        "notes": "Notas",
-        "totalReceived": "Total recibido",
-        "hour": "Hora",
-        "day": "Día",
-        "deposit": "Depósito",
-        "service": "Servicio",
-        "product": "Producto",
-        "type": "Tipo",
-        "legalId": "ID legal",
-        "vatId": "ID IVA"
-      },
-      "preview": {
-        "title": "Vista previa",
-        "description": "Vista previa en vivo de tu plantilla {{templateType}}",
-        "iframeTitle": "Vista previa de plantilla"
-      },
-      "saveButton": "Guardar configuración de plantilla",
-      "messages": {
-        "updateSuccess": "Configuración de plantilla guardada correctamente",
-        "updateError": "No se pudo guardar la configuración de la plantilla"
-      }
-    },
-    "emailTemplates": {
-      "title": "Plantillas de correo",
-      "description": "Personaliza plantillas de correo para facturas y cotizaciones",
-      "editor": {
-        "subject": "Asunto",
-        "subjectPlaceholder": "Ingrese el asunto del correo",
-        "body": "Cuerpo del correo",
-        "htmlPlaceholder": "Ingrese contenido HTML...",
-        "htmlTip": "Puedes usar etiquetas HTML para el formato",
-        "availableVariables": "Variables disponibles",
-        "variablesTip": "Utiliza estas variables en la plantilla envolviéndolas en doble llaves"
-      },
-      "preview": {
-        "from": "De",
-        "to": "Para",
-        "subject": "Asunto",
-        "reply": "Responder",
-        "forward": "Reenviar",
-        "archive": "Archivar"
-      },
-      "saveButton": "Guardar plantilla",
-      "messages": {
-        "saveSuccess": "Plantilla {{name}} guardada correctamente",
-        "saveError": "No se pudo guardar la plantilla"
-      }
-    },
-    "webhooks": {
-      "title": "Webhook Settings",
-      "description": "Manage outgoing webhooks for events",
-      "create": {
-        "title": "Create Webhook",
-        "description": "Create a new webhook",
-        "url": "Webhook URL",
-        "type": "Type",
-        "events": "Events",
-        "button": "Create Webhook"
-      },
-      "card": {
-        "events": "Escuchando eventos: {{events}}",
-        "edit": "Editar",
-        "delete": "Eliminar",
-        "editPrompt": "Introduce la nueva URL del webhook"
-      }
-    },
-    "title": "Ajustes",
-    "invitations": {
-      "create": {
-        "title": "Crear código de invitación",
-        "description": "Genera un nuevo código de invitación para invitar a alguien a crear una cuenta",
-        "expiresIn": "Expira en (días)",
-        "expiresPlaceholder": "Dejar vacío para que no caduque",
-        "button": "Generar código",
-        "creating": "Generando..."
-      },
-      "list": {
-        "title": "Tus códigos de invitación",
-        "description": "Administra los códigos de invitación que has creado",
-        "code": "Código",
-        "status": "Estado",
-        "createdAt": "Creado",
-        "expiresAt": "Expira",
-        "usedBy": "Usado por",
-        "actions": "Acciones",
-        "empty": "Aún no has creado ningún código de invitación",
-        "noExpiry": "Nunca"
-      },
-      "status": {
-        "active": "Activo",
-        "used": "Usado",
-        "expired": "Expirado"
-      },
-      "messages": {
-        "fetchError": "Error al cargar los códigos de invitación",
-        "createSuccess": "Código de invitación creado con éxito",
-        "createError": "Error al crear el código de invitación",
-        "deleteSuccess": "Código de invitación eliminado",
-        "deleteError": "Error al eliminar el código de invitación",
-        "codeCopied": "Código copiado al portapapeles"
-      }
-    }
-  },
-  "sidebar": {
-    "navigation": {
-      "dashboard": "Panel de control",
-      "quotes": "Cotizaciones",
-      "invoices": "Facturas",
-      "receipts": "Recibos",
-      "clients": "Clientes",
-      "paymentMethods": "Métodos de pago",
-      "stats": "Estadísticas",
-      "settings": "Configuración",
-      "admin": "Administración"
-    },
-    "company": {
-      "plan": "Empresa",
-      "noCompany": "Sin empresa",
-      "switchCompany": "Cambiar empresa",
-      "createNew": "Crear nueva empresa"
-    },
-    "menu": "Menú",
-    "theme": {
-      "toggleTheme": "Cambiar tema",
-      "light": "Claro",
-      "dark": "Oscuro",
-      "system": "Sistema"
-    },
-    "userMenu": {
-      "account": "Cuenta",
-      "logout": "Cerrar sesión"
-    },
-    "companyDialog": {
-      "title": "Completar configuración de empresa",
-      "description": "Completa la información de tu empresa para continuar usando la aplicación.",
-      "goButton": "Ir a configuración de la empresa"
-    }
-  },
-  "auth": {
-    "login": {
-      "title": "Iniciar sesión",
-      "description": "Ingrese sus datos para acceder a su cuenta",
-      "form": {
-        "email": {
-          "label": "Correo"
-        },
-        "password": {
-          "label": "Contraseña"
-        },
-        "loggingIn": "Iniciando sesión...",
-        "loginButton": "Iniciar sesión"
-      },
-      "noAccount": "¿No tienes cuenta?",
-      "signUpLink": "Registrarse",
-      "errors": {
-        "invalidEmail": "Por favor, ingrese una dirección de correo válida",
-        "passwordRequired": "La contraseña es obligatoria"
-      },
-      "messages": {
-        "loginSuccess": "Sesión iniciada correctamente",
-        "loginError": "Credenciales inválidas"
-      },
-      "oidc": "Inicie sesión con OIDC.",
-      "oidcLink": "Iniciar sesión con OIDC"
-    },
-    "signup": {
-      "title": "Crear cuenta",
-      "description": "Crea una cuenta para empezar",
-      "form": {
-        "firstname": {
-          "label": "Nombre",
-          "placeholder": "Ingrese su nombre"
-        },
-        "lastname": {
-          "label": "Apellido",
-          "placeholder": "Ingrese su apellido"
-        },
-        "email": {
-          "label": "Correo",
-          "placeholder": "Ingrese su correo"
-        },
-        "password": {
-          "label": "Contraseña",
-          "placeholder": "Crea una contraseña",
-          "requirements": "Requisitos de contraseña:"
-        },
-        "creatingAccount": "Creando cuenta...",
-        "createButton": "Crear cuenta",
-        "invitationCode": {
-          "label": "Código de invitación",
-          "placeholder": "Introduce tu código de invitación",
-          "hint": "Necesitas un código de invitación de un usuario existente para registrarte",
-          "joiningCompany": "Te unirás a: {{companyName}}"
-        }
-      },
-      "hasAccount": "¿Ya tienes cuenta?",
-      "signInLink": "Iniciar sesión",
-      "errors": {
-        "firstnameMinLength": "El nombre debe tener al menos 2 caracteres",
-        "lastnameMinLength": "El apellido debe tener al menos 2 caracteres",
-        "invalidEmail": "Por favor, ingrese una dirección de correo válida",
-        "passwordMinLength": "La contraseña debe tener al menos 8 caracteres",
-        "passwordLetter": "La contraseña debe tener al menos una letra",
-        "passwordNumber": "La contraseña debe tener al menos un número",
-        "passwordSpecial": "La contraseña debe tener al menos un caracter especial",
-        "invitationCodeRequired": "Se requiere un código de invitación para registrarse",
-        "invalidInvitationCode": "Código de invitación inválido o expirado",
-        "genericError": "Ha ocurrido un error mientras se creaba tu cuenta"
-      },
-      "messages": {
-        "accountCreated": "Cuenta creada correctamente"
-      },
-      "oidc": "Registrarse con OIDC.",
-      "oidcLink": "Registrarse con OIDC"
-    }
-  },
-  "unavailable": {
-    "title": "No disponible en Móvil/Tablet",
-    "description": "Esta función solo está disponible en computadoras para mejor experiencia."
-  },
-  "component": {
-    "currency-select": {
-      "placeholder": "Selecciona tu moneda",
-      "searchPlaceholder": "Buscar monedas...",
-      "noResults": "No se encontraron monedas"
-    }
-  },
-  "common": {
-    "previous": "Anterior",
-    "next": "Siguiente",
-    "loading": "Cargando...",
-    "finish": "Terminar",
-    "units": {
-      "day": "Día",
-      "week": "Semana",
-      "month": "Mes",
-      "year": "Año"
-    },
-    "valueWithCurrency": "{{amount}}{{currency}}"
-  },
-  "noOptions": "No hay opciones disponibles. Cree un nuevo cliente.",
-  "receipts": {
-    "header": {
-      "subtitle": "Administra tus recibos",
-      "count": "{{count}} recibos {{found}}",
-      "found": "encontrados"
-    },
-    "search": {
-      "placeholder": "Buscar recibos..."
-    },
-    "actions": {
-      "addNew": "Agregar nuevo recibo"
-    },
-    "stats": {
-      "total": "Total de recibos",
-      "draft": "Borrador",
-      "sent": "Enviada",
-      "signed": "Firmada"
-    },
-    "emptyState": {
-      "noReceipts": "Aún no hay recibos",
-      "noResults": "No se encontraron recibos",
-      "startAdding": "Comienza creando tu primer recibo.",
-      "tryDifferentSearch": "Prueba ajustando tus términos de búsqueda."
-    },
-    "list": {
-      "title": "Todos los recibos",
-      "description": "Administra y visualiza todos tus recibos en un solo lugar.",
-      "status": {
-        "draft": "Borrador",
-        "sent": "Enviada",
-        "signed": "Firmada"
-      },
-      "item": {
-        "title": "Recibo {{number}}",
-        "client": "Cliente",
-        "issued": "Emitido",
-        "validUntil": "Válido hasta",
-        "totalHT": "Total (sin IVA)",
-        "totalTTC": "Total (con IVA)",
-        "invoice": "Factura",
-        "totalItemCount": "Total de ítems",
-        "totalPaid": "Total pagado"
-      },
-      "tooltips": {
-        "view": "Ver recibo",
-        "viewPdf": "Ver PDF",
-        "downloadPdf": "Descargar PDF",
-        "edit": "Editar recibo",
-        "sendToClient": "Enviar al cliente",
-        "delete": "Eliminar recibo"
-      },
-      "messages": {
-        "emailSent": "Recibo enviado al cliente correctamente.",
-        "emailError": "No se pudo enviar el recibo al cliente."
-      },
-      "actions": {
-        "addNew": "Agregar nuevo recibo"
-      }
-    },
-    "upsert": {
-      "title": {
-        "edit": "Editar recibo",
-        "create": "Crear recibo"
-      },
-      "form": {
-        "client": {
-          "label": "Cliente",
-          "errors": {
-            "required": "El cliente es obligatorio."
-          }
-        },
-        "items": {
-          "label": "Ítems",
-          "placeholder": "Agregue ítems al recibo",
-          "noResults": "No se encontraron ítems",
-          "addButton": "Agregar ítem",
-          "description": {
-            "errors": {
-              "required": "La descripción es obligatoria."
-            }
-          },
-          "quantity": {
-            "errors": {
-              "required": "La cantidad es obligatoria.",
-              "min": "La cantidad debe ser al menos 1.",
-              "invalid": "Cantidad inválida."
-            }
-          },
-          "unitPrice": {
-            "errors": {
-              "required": "El precio unitario es obligatorio.",
-              "min": "El precio unitario debe ser al menos 0.",
-              "invalid": "Precio unitario inválido."
-            }
-          },
-          "vatRate": {
-            "errors": {
-              "required": "La tasa de IVA es obligatoria.",
-              "min": "La tasa de IVA debe ser al menos 0."
-            }
-          }
-        },
-        "invoice": {
-          "label": "Factura",
-          "placeholder": "Seleccionar factura",
-          "noResults": "No se encontraron facturas"
-        },
-        "paymentMethod": {
-          "label": "Método de pago",
-          "placeholder": "Ingrese el método de pago",
-          "description": "Método usado para realizar el pago"
-        },
-        "paymentDetails": {
-          "label": "Detalles de pago",
-          "placeholder": "Ingrese detalles del pago",
-          "description": "Información adicional sobre el pago"
-        }
-      },
-      "actions": {
-        "cancel": "Cancelar",
-        "save": "Guardar cambios",
-        "create": "Crear recibo",
-        "edit": "Editar recibo"
-      }
-    },
-    "delete": {
-      "title": "Eliminar recibo",
-      "description": "¿Seguro que desea eliminar este recibo? Esta acción no puede deshacerse.",
-      "actions": {
-        "cancel": "Cancelar",
-        "delete": "Eliminar"
-      }
-    },
-    "pdf": {
-      "title": "Recibo {{number}} - PDF"
-    }
-  },
-  "stats": {
-    "title": "Estadísticas",
-    "description": "Ver montos facturados, ingresos y anticipos por mes y año.",
-    "noData": "No hay datos disponibles para el periodo seleccionado.",
-    "controls": {
-      "year": "Año",
-      "range": "Rango de años"
-    },
-    "monthly": {
-      "title": "Estadísticas mensuales"
-    },
-    "yearly": {
-      "title": "Estadísticas anuales"
-    },
-    "month": "Mes",
-    "year": "Año",
-    "invoiced": "Facturado (con IVA)",
-    "revenue": "Ingresos (sin IVA)",
-    "deposits": "Anticipos (factura pagada)"
-  },
-  "webhook": {
-    "instructions": {
-      "documenso": {
-        "title": "Instrucciones para la configuración del webhook de Documenso:",
-        "step1": "1. Accede a tu panel de administración de Documenso",
-        "step2": "2. Configura la URL del webhook",
-        "step3": "3. Configura el secreto del webhook",
-        "step4": "4. Activa los siguientes eventos: document.signed, document.completed (mínimo requerido)",
-        "step5": "5. Eventos adicionales que puedes activar: document.pending, document.completed, document.rejected"
-      }
-    },
-    "modal": {
-      "title": "Configuración de webhook para {{pluginName}}",
-      "url": "URL del webhook",
-      "secret": "Secreto del webhook",
-      "secretDescription": "Mantén este secreto seguro. Se utilizará para verificar la autenticidad del webhook.",
-      "instructions": "Instrucciones de configuración",
-      "warning": "Configura tanto la URL como el secreto del webhook en la configuración de {{pluginName}} para recibir actualizaciones autenticadas en tiempo real. Almacena el secreto de forma segura - no se mostrará de nuevo.",
-      "gotIt": "¡Entendido!"
-    }
-  },
-  "folderSelect": {
-    "placeholder": "Seleccionar una carpeta...",
-    "browse": "Examinar",
-    "title": "Seleccionar una carpeta",
-    "newFolder": "Nueva carpeta",
-    "folderName": "Nombre de la carpeta...",
-    "create": "Crear",
-    "cancel": "Cancelar",
-    "selectThisFolder": "Seleccionar esta carpeta",
-    "noSubdirectories": "No se encontraron subcarpetas",
-    "loading": "Cargando directorios..."
-  },
-  "admin": {
-    "title": "Administración",
-    "navigation": {
-      "users": "Usuarios",
-      "companies": "Empresas"
-    },
-    "users": {
-      "title": "Gestión de usuarios",
-      "description": "Gestionar todos los usuarios del sistema",
-      "search": {
-        "placeholder": "Buscar usuarios..."
-      },
-      "table": {
-        "name": "Nombre",
-        "email": "Correo electrónico",
-        "role": "Rol",
-        "createdAt": "Creado el",
-        "actions": "Acciones"
-      },
-      "roles": {
-        "USER": "Usuario",
-        "COMPANY_ADMIN": "Admin de empresa",
-        "SYSTEM_ADMIN": "Admin del sistema"
-      },
-      "actions": {
-        "edit": "Editar",
-        "delete": "Eliminar",
-        "changeRole": "Cambiar rol"
-      },
-      "emptyState": {
-        "noUsers": "No se encontraron usuarios",
-        "noResults": "Ningún usuario coincide con su búsqueda"
-      }
-    },
-    "companies": {
-      "title": "Gestión de empresas",
-      "description": "Gestionar todas las empresas del sistema",
-      "search": {
-        "placeholder": "Buscar empresas..."
-      },
-      "table": {
-        "name": "Nombre de la empresa",
-        "country": "País",
-        "members": "Miembros",
-        "createdAt": "Creado el",
-        "actions": "Acciones"
-      },
-      "actions": {
-        "view": "Ver detalles",
-        "edit": "Editar",
-        "delete": "Eliminar"
-      },
-      "emptyState": {
-        "noCompanies": "No se encontraron empresas",
-        "noResults": "Ninguna empresa coincide con su búsqueda"
-      }
-    }
-  },
-  "companyInvitation": {
-    "title": "Invitación a empresa",
-    "description": "Has sido invitado a unirte a una empresa",
-    "invitedBy": "Invitado por {{name}}",
-    "companyName": "Empresa",
-    "role": "Tu rol",
-    "roles": {
-      "OWNER": "Propietario",
-      "ADMIN": "Administrador",
-      "ACCOUNTANT": "Contador"
-    },
-    "actions": {
-      "accept": "Aceptar invitación",
-      "decline": "Rechazar",
-      "accepting": "Aceptando..."
-    },
-    "messages": {
-      "accepted": "Te has unido a {{companyName}}",
-      "declined": "Invitación rechazada",
-      "expired": "Esta invitación ha expirado",
-      "invalid": "Invitación inválida",
-      "alreadyMember": "Ya eres miembro de esta empresa"
-    },
-    "signupRequired": {
-      "title": "Crear una cuenta",
-      "description": "Necesitas crear una cuenta para aceptar esta invitación"
-    }
-  }
 }

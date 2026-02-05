@@ -1,7 +1,7 @@
-import { type WebhookEvent, WebhookType } from '../../../../prisma/generated/prisma/client';
-import { EVENT_STYLES, formatPayloadForEvent } from './event-formatters';
+import { EVENT_STYLES, formatPayloadForEvent } from "./event-formatters";
+import { WebhookEvent, WebhookType } from "../../../../prisma/generated/prisma/client";
 
-import type { WebhookDriver } from './webhook-driver.interface';
+import { WebhookDriver } from "./webhook-driver.interface";
 
 export interface TeamsField {
   name: string;
@@ -10,57 +10,57 @@ export interface TeamsField {
 
 export class TeamsAdaptiveCard {
   private data: Record<string, any> = {
-    $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
-    type: 'AdaptiveCard',
-    version: '1.2',
-    body: [],
+    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+    type: "AdaptiveCard",
+    version: "1.2",
+    body: []
   };
 
   addTextBlock(text: string, weight?: 'default' | 'lighter' | 'normal' | 'bolder'): this {
     this.data.body.push({
-      type: 'TextBlock',
+      type: "TextBlock",
       text,
-      weight: weight || 'default',
+      weight: weight || 'default'
     });
     return this;
   }
 
   setTitle(title: string, color?: string): this {
     this.data.body.unshift({
-      type: 'TextBlock',
+      type: "TextBlock",
       text: title,
-      weight: 'bolder',
-      size: 'large',
-      color: color || 'accent', // 'accent', 'good', 'warning', 'attention'
+      weight: "bolder",
+      size: "large",
+      color: color || 'accent'  // 'accent', 'good', 'warning', 'attention'
     });
     return this;
   }
 
   addFactSet(facts: Array<{ name: string; value: string }>): this {
     this.data.body.push({
-      type: 'FactSet',
-      facts: facts.map((f) => ({ name: `${f.name}:`, value: f.value })),
+      type: "FactSet",
+      facts: facts.map(f => ({ name: f.name + ':', value: f.value }))
     });
     return this;
   }
 
   setFooter(text: string): this {
     this.data.body.push({
-      type: 'TextBlock',
+      type: "TextBlock",
       text,
-      size: 'small',
-      weight: 'lighter',
-      color: 'light',
-      spacing: 'large',
+      size: "small",
+      weight: "lighter",
+      color: "light",
+      spacing: "large"
     });
     return this;
   }
 
   setAccentColor(color: 'accent' | 'good' | 'warning' | 'attention'): this {
     this.data.body.unshift({
-      type: 'Container',
+      type: "Container",
       style: color,
-      items: [],
+      items: []
     });
     return this;
   }
@@ -91,36 +91,36 @@ export class TeamsWebhook {
 
   async send(): Promise<Response> {
     const payload: any = {
-      type: 'message',
-      attachments: [],
+      type: "message",
+      attachments: []
     };
 
     if (this.card) {
       payload.attachments.push({
-        contentType: 'application/vnd.microsoft.card.adaptive',
-        content: this.card.build(),
+        contentType: "application/vnd.microsoft.card.adaptive",
+        content: this.card.build()
       });
     } else if (this.text) {
       payload.attachments.push({
-        contentType: 'application/vnd.microsoft.card.adaptive',
+        contentType: "application/vnd.microsoft.card.adaptive",
         content: {
-          $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
-          type: 'AdaptiveCard',
-          version: '1.2',
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          type: "AdaptiveCard",
+          version: "1.2",
           body: [
             {
-              type: 'TextBlock',
-              text: this.text,
-            },
-          ],
-        },
+              type: "TextBlock",
+              text: this.text
+            }
+          ]
+        }
       });
     }
 
     const response = await fetch(this.webhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(payload)
     });
 
     this.text = '';
@@ -140,9 +140,9 @@ export class TeamsDriver implements WebhookDriver {
 
     const eventType = payload.event as WebhookEvent;
     const eventStyle = EVENT_STYLES[eventType] || {
-      color: 'accent',
-      emoji: '📢',
-      title: 'Event',
+      color: "accent",
+      emoji: "📢",
+      title: "Event"
     };
 
     const description = formatPayloadForEvent(eventType, payload);
@@ -150,14 +150,21 @@ export class TeamsDriver implements WebhookDriver {
     const card = new TeamsAdaptiveCard()
       .setTitle(`${eventStyle.emoji} ${eventStyle.title}`, eventStyle.color)
       .addTextBlock(description)
-      .setFooter(`Invoicerr Webhooks • ${new Date().toLocaleString()}`);
+      .setFooter(
+        `Invoicerr Webhooks • ${new Date().toLocaleString()}`
+      );
 
     if (payload.company?.name) {
-      card.addFactSet([{ name: 'Entreprise', value: payload.company.name }]);
+      card.addFactSet([
+        { name: 'Entreprise', value: payload.company.name }
+      ]);
     }
 
-    const res = await hook.setCard(card).send();
+    const res = await hook
+      .setCard(card)
+      .send();
 
     return res.ok;
   }
+
 }
