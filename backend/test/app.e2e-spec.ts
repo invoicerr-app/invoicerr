@@ -1,10 +1,9 @@
+import type { INestApplication } from '@nestjs/common';
+
+import { Test, type TestingModule } from '@nestjs/testing';
 import * as request from 'supertest';
-
-import { Test, TestingModule } from '@nestjs/testing';
-
-import { App } from 'supertest/types';
+import type { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
-import { INestApplication } from '@nestjs/common';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -19,9 +18,6 @@ describe('AppController (e2e)', () => {
   });
 
   it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
+    return request(app.getHttpServer()).get('/').expect(200).expect('Hello World!');
   });
 });

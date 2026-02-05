@@ -1,9 +1,12 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { PaymentMethod, PaymentMethodType, WebhookEvent } from '../../../prisma/generated/prisma/client';
-
-import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
+import {
+  type PaymentMethod,
+  PaymentMethodType,
+  WebhookEvent,
+} from '../../../prisma/generated/prisma/client';
+import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 
 export interface CreatePaymentMethodDto {
   name: string;
@@ -25,16 +28,19 @@ export class PaymentMethodsService {
   constructor(private readonly webhookDispatcher: WebhookDispatcherService) {
     this.logger = new Logger(PaymentMethodsService.name);
   }
-  async create(dto: CreatePaymentMethodDto): Promise<PaymentMethod> {
-    const company = await prisma.company.findFirst();
+
+  async create(companyId: string, dto: CreatePaymentMethodDto): Promise<PaymentMethod> {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+    });
     if (!company) {
-      logger.error('No company found. Please create a company first.', { category: 'payment-method' });
-      throw new BadRequestException('No company found. Please create a company first.');
+      logger.error('Company not found', { category: 'payment-method' });
+      throw new BadRequestException('Company not found');
     }
 
     const pm = await prisma.paymentMethod.create({
       data: {
-        companyId: company.id,
+        companyId,
         name: dto.name,
         details: dto.details ?? '',
         type: dto.type ?? PaymentMethodType.BANK_TRANSFER,
@@ -46,50 +52,49 @@ export class PaymentMethodsService {
         paymentMethod: pm,
         company,
       });
-      logger.info('Payment method created', { category: 'payment-method', details: { paymentMethodId: pm.id, companyId: company.id } });
+      logger.info('Payment method created', {
+        category: 'payment-method',
+        details: { paymentMethodId: pm.id, companyId },
+      });
     } catch (error) {
       this.logger.error('Failed to dispatch PAYMENT_METHOD_CREATED webhook', error);
-      logger.error('Failed to dispatch PAYMENT_METHOD_CREATED webhook', { category: 'payment-method', details: { error, paymentMethodId: pm.id, companyId: company.id } });
+      logger.error('Failed to dispatch PAYMENT_METHOD_CREATED webhook', {
+        category: 'payment-method',
+        details: { error, paymentMethodId: pm.id, companyId },
+      });
     }
 
     return pm;
   }
 
-  async findAll(): Promise<PaymentMethod[]> {
-    const company = await prisma.company.findFirst();
-    if (!company) {
-      logger.error('No company found. Please create a company first.', { category: 'payment-method' });
-      throw new BadRequestException('No company found. Please create a company first.');
-    }
-
+  async findAll(companyId: string): Promise<PaymentMethod[]> {
     return prisma.paymentMethod.findMany({
-      where: { companyId: company.id, isActive: true },
+      where: { companyId, isActive: true },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findOne(id: string): Promise<PaymentMethod | null> {
-    const pm = await prisma.paymentMethod.findUnique({ where: { id } });
-    if (!pm) return null;
-    const company = await prisma.company.findFirst();
-    if (!company || pm.companyId !== company.id) {
-      return null;
-    }
+  async findOne(companyId: string, id: string): Promise<PaymentMethod | null> {
+    // Multi-tenant check: verify payment method belongs to the company
+    const pm = await prisma.paymentMethod.findFirst({
+      where: { id, companyId },
+    });
     return pm;
   }
 
-  async update(id: string, dto: EditPaymentMethodDto): Promise<PaymentMethod> {
-    const existing = await prisma.paymentMethod.findUnique({ where: { id } });
+  async update(companyId: string, id: string, dto: EditPaymentMethodDto): Promise<PaymentMethod> {
+    // Multi-tenant check: verify payment method belongs to the company
+    const existing = await prisma.paymentMethod.findFirst({
+      where: { id, companyId },
+    });
     if (!existing) {
-      logger.error('Payment method not found', { category: 'payment-method', details: { id } });
+      logger.error('Payment method not found', { category: 'payment-method', details: { id, companyId } });
       throw new BadRequestException('Payment method not found');
     }
 
-    const company = await prisma.company.findFirst();
-    if (!company || existing.companyId !== company.id) {
-      logger.error('Payment method not found', { category: 'payment-method', details: { id } });
-      throw new BadRequestException('Payment method not found');
-    }
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+    });
 
     const updatedPm = await prisma.paymentMethod.update({
       where: { id },
@@ -106,36 +111,48 @@ export class PaymentMethodsService {
         paymentMethod: updatedPm,
         company,
       });
-      logger.info('Payment method updated', { category: 'payment-method', details: { paymentMethodId: updatedPm.id, companyId: company.id } });
+      logger.info('Payment method updated', {
+        category: 'payment-method',
+        details: { paymentMethodId: updatedPm.id, companyId },
+      });
 
       if (dto.isActive !== undefined && dto.isActive !== existing.isActive) {
-        const event = dto.isActive ? WebhookEvent.PAYMENT_METHOD_ACTIVATED : WebhookEvent.PAYMENT_METHOD_DEACTIVATED;
+        const event = dto.isActive
+          ? WebhookEvent.PAYMENT_METHOD_ACTIVATED
+          : WebhookEvent.PAYMENT_METHOD_DEACTIVATED;
         await this.webhookDispatcher.dispatch(event, {
           paymentMethod: updatedPm,
           company,
         });
-        logger.info('Payment method activation status changed', { category: 'payment-method', details: { paymentMethodId: updatedPm.id, companyId: company.id, isActive: dto.isActive } });
+        logger.info('Payment method activation status changed', {
+          category: 'payment-method',
+          details: { paymentMethodId: updatedPm.id, companyId, isActive: dto.isActive },
+        });
       }
     } catch (error) {
       this.logger.error('Failed to dispatch PAYMENT_METHOD webhook', error);
-      logger.error('Failed to dispatch PAYMENT_METHOD webhook', { category: 'payment-method', details: { error, paymentMethodId: updatedPm.id, companyId: company.id } });
+      logger.error('Failed to dispatch PAYMENT_METHOD webhook', {
+        category: 'payment-method',
+        details: { error, paymentMethodId: updatedPm.id, companyId },
+      });
     }
 
     return updatedPm;
   }
 
-  async softDelete(id: string): Promise<PaymentMethod> {
-    const existing = await prisma.paymentMethod.findUnique({ where: { id } });
+  async softDelete(companyId: string, id: string): Promise<PaymentMethod> {
+    // Multi-tenant check: verify payment method belongs to the company
+    const existing = await prisma.paymentMethod.findFirst({
+      where: { id, companyId },
+    });
     if (!existing) {
-      logger.error('Payment method not found', { category: 'payment-method', details: { id } });
+      logger.error('Payment method not found', { category: 'payment-method', details: { id, companyId } });
       throw new BadRequestException('Payment method not found');
     }
 
-    const company = await prisma.company.findFirst();
-    if (!company || existing.companyId !== company.id) {
-      logger.error('Payment method not found', { category: 'payment-method', details: { id } });
-      throw new BadRequestException('Payment method not found');
-    }
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+    });
 
     const deletedPm = await prisma.paymentMethod.update({
       where: { id },
@@ -147,10 +164,16 @@ export class PaymentMethodsService {
         paymentMethod: existing,
         company,
       });
-      logger.info('Payment method deactivated', { category: 'payment-method', details: { paymentMethodId: existing.id, companyId: company.id } });
+      logger.info('Payment method deactivated', {
+        category: 'payment-method',
+        details: { paymentMethodId: existing.id, companyId },
+      });
     } catch (error) {
       this.logger.error('Failed to dispatch PAYMENT_METHOD_DELETED webhook', error);
-      logger.error('Failed to dispatch PAYMENT_METHOD_DELETED webhook', { category: 'payment-method', details: { error, paymentMethodId: existing.id, companyId: company.id } });
+      logger.error('Failed to dispatch PAYMENT_METHOD_DELETED webhook', {
+        category: 'payment-method',
+        details: { error, paymentMethodId: existing.id, companyId },
+      });
     }
 
     return deletedPm;

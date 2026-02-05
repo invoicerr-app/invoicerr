@@ -1,4 +1,4 @@
-import { Request } from 'express';
+import type { Request } from 'express';
 
 export interface IPlugin {
   id: string;
@@ -39,4 +39,4 @@ export interface IPdfPreviewProvider {
    * @param document The PDF document to preview
    */
   generatePdfPreview(quoteId: string): Promise<Uint8Array<ArrayBufferLike>>;
-} 
+}

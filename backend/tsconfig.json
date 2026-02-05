@@ -18,13 +18,9 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
-      "@/*": [
-        "src/*"
-      ],
+      "@/*": ["src/*"]
     },
     "moduleResolution": "nodenext"
   },
-  "include": [
-    "src/**/*"
-  ],
+  "include": ["src/**/*"]
 }

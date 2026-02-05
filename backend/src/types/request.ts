@@ -1,8 +1,10 @@
-import { CurrentUser } from '@/types/user';
-import { Request } from 'express';
+import type { Request } from 'express';
+import type { CurrentUser } from '@/types/user';
+import type { CompanyContext } from '@/types/company-context';
 
 interface RequestWithUser extends Request {
-    user: CurrentUser
+  user: CurrentUser;
+  companyContext?: CompanyContext;
 }
 
-export { RequestWithUser };
+export type { RequestWithUser };

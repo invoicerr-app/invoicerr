@@ -79,8 +79,9 @@ describe('Authentication E2E', () => {
         it('creates an invitation code and copies it', () => {
             cy.login();
             cy.visit('/settings/invitations');
-            cy.wait(1000);
-            cy.contains('button', /generate|create/i, { timeout: 15000 }).click();
+            // Wait for page to load and any modals to close
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
+            cy.contains('button', /generate|create/i, { timeout: 15000 }).click({ force: true });
             cy.wait(1000);
             cy.get('table tbody tr', { timeout: 10000 }).should('have.length.at.least', 1);
             cy.get('table tbody tr').first().find('td').first().invoke('text').as('invitationCode');
@@ -89,8 +90,9 @@ describe('Authentication E2E', () => {
         it('allows signup with valid invitation code from UI', () => {
             cy.login();
             cy.visit('/settings/invitations');
-            cy.wait(1000);
-            cy.contains('button', /generate|create/i, { timeout: 15000 }).click();
+            // Wait for page to load and any modals to close
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
+            cy.contains('button', /generate|create/i, { timeout: 15000 }).click({ force: true });
             cy.wait(1000);
             cy.get('table tbody tr', { timeout: 10000 }).first().find('td').first().invoke('text').then((code) => {
                 const invitationCode = code.trim();
@@ -109,7 +111,8 @@ describe('Authentication E2E', () => {
         it('blocks signup with already used invitation code', () => {
             cy.login();
             cy.visit('/settings/invitations');
-            cy.wait(1000);
+            // Wait for page to load and any modals to close
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
             cy.get('table tbody tr', { timeout: 10000 }).then(($rows) => {
                 const usedRow = $rows.toArray().find(row => {
                     const text = Cypress.$(row).text().toLowerCase();
@@ -135,8 +138,9 @@ describe('Authentication E2E', () => {
         it('handles special characters in name fields', () => {
             cy.login();
             cy.visit('/settings/invitations');
-            cy.wait(1000);
-            cy.contains('button', /generate|create/i, { timeout: 15000 }).click();
+            // Wait for page to load and any modals to close
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
+            cy.contains('button', /generate|create/i, { timeout: 15000 }).click({ force: true });
             cy.wait(1000);
             cy.get('table tbody tr', { timeout: 10000 }).first().find('td').first().invoke('text').then((code) => {
                 const invitationCode = code.trim();
@@ -155,8 +159,9 @@ describe('Authentication E2E', () => {
         it('handles unicode characters in name fields', () => {
             cy.login();
             cy.visit('/settings/invitations');
-            cy.wait(1000);
-            cy.contains('button', /generate|create/i, { timeout: 15000 }).click();
+            // Wait for page to load and any modals to close
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
+            cy.contains('button', /generate|create/i, { timeout: 15000 }).click({ force: true });
             cy.wait(1000);
             cy.get('table tbody tr', { timeout: 10000 }).first().find('td').first().invoke('text').then((code) => {
                 const invitationCode = code.trim();
@@ -175,8 +180,9 @@ describe('Authentication E2E', () => {
         it('blocks signup with already used email', () => {
             cy.login();
             cy.visit('/settings/invitations');
-            cy.wait(1000);
-            cy.contains('button', /generate|create/i, { timeout: 15000 }).click();
+            // Wait for page to load and any modals to close
+            cy.get('body').should('not.have.attr', 'data-scroll-locked');
+            cy.contains('button', /generate|create/i, { timeout: 15000 }).click({ force: true });
             cy.wait(1000);
             cy.get('table tbody tr', { timeout: 10000 }).first().find('td').first().invoke('text').then((code) => {
                 const invitationCode = code.trim();

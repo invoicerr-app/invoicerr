@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
     "clients": {
         "header": {
             "subtitle": "Manage your clients",
@@ -190,666 +191,62 @@
                 "delete": "Delete Client"
             }
         }
+=======
+  "onboarding": {
+    "steps": {
+      "basic": "Company Info",
+      "address": "Address",
+      "identifiers": "Legal Identifiers",
+      "contact": "Contact",
+      "settings": "Settings"
+    }
+  },
+  "identifiers": {
+    "vat": "VAT Number",
+    "fr": {
+      "siret": "SIRET",
+      "siren": "SIREN",
+      "rcs": "RCS",
+      "naf": "NAF Code"
+>>>>>>> feat/multi-tenant-invoicing
     },
-    "quotes": {
-        "header": {
-            "subtitle": "Manage your quotes",
-            "count": "{{count}} quotes {{found}}",
-            "found": "found"
-        },
-        "search": {
-            "placeholder": "Search quotes..."
-        },
-        "actions": {
-            "addNew": "Add New Quote"
-        },
-        "stats": {
-            "total": "Total Quotes",
-            "draft": "Draft",
-            "signed": "Signed"
-        },
-        "emptyState": {
-            "noQuotes": "No quotes yet",
-            "noResults": "No quotes found",
-            "startAdding": "Get started by creating your first quote.",
-            "tryDifferentSearch": "Try adjusting your search terms."
-        },
-        "list": {
-            "title": "All Quotes",
-            "description": "Manage and view all your quotes in one place.",
-            "status": {
-                "draft": "Draft",
-                "sent": "Sent",
-                "expired": "Expired",
-                "signed": "Signed"
-            },
-            "item": {
-                "title": "Quote {{number}} {{title}}",
-                "client": "Client",
-                "issued": "Issued",
-                "validUntil": "Valid Until",
-                "totalHT": "Total (excl. VAT)",
-                "totalTTC": "Total (incl. VAT)"
-            },
-            "tooltips": {
-                "view": "View quote details",
-                "viewPdf": "View PDF",
-                "downloadPdf": "Download PDF",
-                "edit": "Edit quote",
-                "sendSignature": "Send for signature",
-                "resendSignature": "Resend for signature",
-                "createInvoice": "Create invoice from quote",
-                "delete": "Delete quote"
-            },
-            "actions": {
-                "addNew": "Add New Quote"
-            },
-            "messages": {
-                "sendSignatureError": "Failed to send quote for signature",
-                "sendSignatureSuccess": "Quote sent for signature successfully",
-                "invoiceCreated": "Invoice created successfully from quote",
-                "invoiceCreateError": "Failed to create invoice from quote"
-            }
-        },
-        "upsert": {
-            "title": {
-                "create": "Create New Quote",
-                "edit": "Edit Quote"
-            },
-            "form": {
-                "title": {
-                    "label": "Title",
-                    "placeholder": "Enter quote title"
-                },
-                "client": {
-                    "label": "Client",
-                    "placeholder": "Select a client",
-                    "errors": {
-                        "required": "Please select a client"
-                    },
-                    "noOptions": "No clients available. Please create a client first."
-                },
-                "currency": {
-                    "label": "Currency"
-                },
-                "validUntil": {
-                    "label": "Valid Until",
-                    "placeholder": "Select expiration date"
-                },
-                "items": {
-                    "label": "Quote Items",
-                    "addItem": "Add Item",
-                    "description": {
-                        "placeholder": "Item description",
-                        "errors": {
-                            "required": "Description is required"
-                        }
-                    },
-                    "quantity": {
-                        "placeholder": "Qty",
-                        "unit": "pcs",
-                        "errors": {
-                            "required": "Quantity is required",
-                            "min": "Quantity must be at least 1",
-                            "invalid": "Invalid quantity"
-                        }
-                    },
-                    "unitPrice": {
-                        "placeholder": "Unit price",
-                        "errors": {
-                            "required": "Unit price is required",
-                            "min": "Unit price must be positive",
-                            "invalid": "Invalid unit price"
-                        }
-                    },
-                    "vatRate": {
-                        "placeholder": "VAT %",
-                        "errors": {
-                            "required": "VAT rate is required",
-                            "min": "VAT rate must be positive"
-                        }
-                    }
-                },
-                "notes": {
-                    "label": "Notes",
-                    "placeholder": "Additional notes or terms"
-                },
-                "paymentMethod": {
-                    "label": "Payment Method",
-                    "placeholder": "Select payment method",
-                    "description": "Preferred payment method for this quote (e.g., Bank Transfer, Check, etc.)"
-                },
-                "paymentDetails": {
-                    "label": "Payment Details",
-                    "placeholder": "Enter payment details",
-                    "description": "Additional information for payment (e.g., IBAN, instructions, etc.)"
-                }
-            },
-            "actions": {
-                "cancel": "Cancel",
-                "create": "Create Quote",
-                "save": "Save Changes"
-            }
-        },
-        "view": {
-            "title": "Quote {{number}}",
-            "description": "View all details of this quote.",
-            "status": {
-                "draft": "Draft",
-                "sent": "Sent",
-                "expired": "Expired",
-                "signed": "Signed"
-            },
-            "fields": {
-                "title": "Title",
-                "status": "Status",
-                "createdAt": "Created",
-                "validUntil": "Valid Until",
-                "signedAt": "Signed At",
-                "client": "Client",
-                "signedBy": "Signed By",
-                "totalHT": "Total (excl. VAT)",
-                "totalVAT": "VAT Amount",
-                "totalTTC": "Total (incl. VAT)",
-                "signature": "Signature"
-            }
-        },
-        "delete": {
-            "title": "Delete Quote",
-            "description": "Are you sure you want to delete this quote? This action cannot be undone.",
-            "actions": {
-                "cancel": "Cancel",
-                "delete": "Delete Quote"
-            }
-        },
-        "pdf": {
-            "title": "Quote {{number}} - PDF"
-        }
+    "de": {
+      "steuernummer": "Tax Number (Steuernummer)",
+      "handelsregister": "Commercial Register (Handelsregister)",
+      "leitwegId": "Leitweg-ID"
     },
-    "invoices": {
-        "header": {
-            "subtitle": "Manage your invoices",
-            "count": "{{count}} invoices {{found}}",
-            "found": "found"
-        },
-        "search": {
-            "placeholder": "Search invoices..."
-        },
-        "actions": {
-            "addNew": "Add New Invoice"
-        },
-        "stats": {
-            "total": "Total Invoices",
-            "sent": "Sent",
-            "paid": "Paid"
-        },
-        "emptyState": {
-            "noInvoices": "No invoices yet",
-            "noResults": "No invoices found",
-            "startAdding": "Get started by creating your first invoice.",
-            "tryDifferentSearch": "Try adjusting your search terms."
-        },
-        "list": {
-            "title": "All Invoices",
-            "description": "Manage and view all your invoices in one place.",
-            "status": {
-                "sent": "Sent",
-                "unpaid": "Unpaid",
-                "overdue": "Overdue",
-                "paid": "Paid"
-            },
-            "item": {
-                "title": "Invoice {{number}} {{title}}",
-                "client": "Client",
-                "issued": "Issued",
-                "due": "Due",
-                "payment": "Payment",
-                "totalHT": "Total (excl. VAT)",
-                "totalTTC": "Total (incl. VAT)"
-            },
-            "tooltips": {
-                "view": "View invoice details",
-                "viewPdf": "View PDF",
-                "downloadPdf": "Download PDF",
-                "edit": "Edit invoice",
-                "markAsPaid": "Mark as paid",
-                "delete": "Delete invoice",
-                "createReceipt": "Create a receipt from this invoice",
-                "sendByEmail": "Send invoice by email"
-            },
-            "actions": {
-                "addNew": "Add New Invoice",
-                "downloadPdf": "Download PDF",
-                "downloadXml": "Download XML"
-            },
-            "downloadFormats": {
-                "pdf": "Standard PDF",
-                "facturx": "Factur-X",
-                "zugferd": "ZUGFeRD",
-                "xrechnung": "XRechnung",
-                "ubl": "UBL",
-                "cii": "CII"
-            },
-            "messages": {
-                "markAsPaidSuccess": "Invoice marked as paid successfully",
-                "markAsPaidError": "Failed to mark invoice as paid",
-                "createReceiptSuccess": "Receipt created successfully from invoice",
-                "sendByEmailSuccess": "Invoice has been sent to customer"
-            }
-        },
-        "upsert": {
-            "title": {
-                "create": "Create New Invoice",
-                "edit": "Edit Invoice"
-            },
-            "form": {
-                "quote": {
-                    "label": "From Quote",
-                    "placeholder": "Select a quote",
-                    "errors": {
-                        "required": "Please select a quote"
-                    }
-                },
-                "client": {
-                    "label": "Client",
-                    "placeholder": "Select a client",
-                    "errors": {
-                        "required": "Please select a client"
-                    },
-                    "noOptions": "No clients available. Please create a client first."
-                },
-                "dueDate": {
-                    "label": "Due Date",
-                    "placeholder": "Select due date"
-                },
-                "items": {
-                    "label": "Invoice Items",
-                    "addItem": "Add Item",
-                    "description": {
-                        "placeholder": "Item description",
-                        "errors": {
-                            "required": "Description is required"
-                        }
-                    },
-                    "quantity": {
-                        "placeholder": "Qty",
-                        "unit": "pcs",
-                        "errors": {
-                            "required": "Quantity is required",
-                            "min": "Quantity must be at least 1",
-                            "invalid": "Invalid quantity"
-                        }
-                    },
-                    "unitPrice": {
-                        "placeholder": "Unit price",
-                        "errors": {
-                            "required": "Unit price is required",
-                            "min": "Unit price must be positive",
-                            "invalid": "Invalid unit price"
-                        }
-                    },
-                    "vatRate": {
-                        "placeholder": "VAT %",
-                        "errors": {
-                            "required": "VAT rate is required",
-                            "min": "VAT rate must be positive"
-                        }
-                    },
-                    "type": {
-                        "label": "Type",
-                        "hour": "Hour",
-                        "day": "Day",
-                        "deposit": "Deposit/Down payment",
-                        "service": "Service",
-                        "product": "Product"
-                    }
-                },
-                "notes": {
-                    "label": "Notes",
-                    "placeholder": "Additional notes or terms"
-                },
-                "paymentMethod": {
-                    "label": "Payment Method",
-                    "placeholder": "Select payment method",
-                    "description": "Preferred payment method for this quote (e.g., Bank Transfer, Check, etc.)"
-                },
-                "paymentDetails": {
-                    "label": "Payment Details",
-                    "placeholder": "Enter payment details",
-                    "description": "Additional information for payment (e.g., IBAN, instructions, etc.)"
-                },
-                "currency": {
-                    "label": "Currency"
-                }
-            },
-            "actions": {
-                "cancel": "Cancel",
-                "create": "Create Invoice",
-                "save": "Save Changes"
-            }
-        },
-        "view": {
-            "title": "Invoice {{number}}",
-            "description": "View all details of this invoice.",
-            "status": {
-                "sent": "Sent",
-                "unpaid": "Unpaid",
-                "overdue": "Overdue",
-                "paid": "Paid"
-            },
-            "fields": {
-                "number": "Invoice Number",
-                "title": "Title",
-                "status": "Status",
-                "createdAt": "Created",
-                "dueDate": "Due Date",
-                "paidAt": "Paid At",
-                "updatedAt": "Updated",
-                "client": "Client",
-                "paymentMethod": "Payment Method",
-                "totalHT": "Total (excl. VAT)",
-                "totalVAT": "VAT Amount",
-                "totalTTC": "Total (incl. VAT)",
-                "notes": "Notes"
-            }
-        },
-        "delete": {
-            "title": "Delete Invoice",
-            "description": "Are you sure you want to delete this invoice? This action cannot be undone.",
-            "actions": {
-                "cancel": "Cancel",
-                "delete": "Delete Invoice"
-            }
-        },
-        "pdf": {
-            "title": "Invoice {{number}} - PDF"
-        }
+    "be": {
+      "enterpriseNumber": "Enterprise Number (BCE/KBO)",
+      "kbo": "KBO Number"
     },
-    "recurringInvoices": {
-        "frequency": {
-            "weekly": "Every week",
-            "biweekly": "Every 2 weeks",
-            "monthly": "Every month",
-            "bimonthly": "Every 2 months",
-            "quarterly": "Every 3 months",
-            "quadmonthly": "Every 4 months",
-            "semiannually": "Every 6 months",
-            "annually": "Every year"
-        },
-        "list": {
-            "title": "Recurring Invoices",
-            "description": "Manage your recurring invoices and automate billing.",
-            "actions": {
-                "addNew": "Add New Recurring Invoice"
-            },
-            "item": {
-                "client": "Client",
-                "payment": "Payment Method",
-                "totalHT": "Total (excl. VAT)",
-                "totalTTC": "Total (incl. VAT)"
-            },
-            "tooltips": {
-                "view": "View Details",
-                "edit": "Edit",
-                "delete": "Delete"
-            },
-            "messages": {
-                "manual_process_success": "Manual process triggered successfully",
-                "manual_process_error": "Error triggering manual process"
-            }
-        },
-        "emptyState": {
-            "noInvoices": "No recurring invoices yet",
-            "startAdding": "Get started by creating your first recurring invoice."
-        },
-        "actions": {
-            "addNew": "Add New Recurring Invoice"
-        },
-        "upsert": {
-            "title": {
-                "create": "Create New Recurring Invoice",
-                "edit": "Edit Recurring Invoice"
-            },
-            "form": {
-                "quote": {
-                    "label": "From Quote",
-                    "placeholder": "Select a quote"
-                },
-                "client": {
-                    "label": "Client",
-                    "placeholder": "Select a client",
-                    "errors": {
-                        "required": "Please select a client"
-                    },
-                    "noOptions": "No clients available. Please create a client first."
-                },
-                "currency": {
-                    "label": "Currency"
-                },
-                "notes": {
-                    "label": "Notes",
-                    "placeholder": "Additional notes or terms"
-                },
-                "paymentMethod": {
-                    "label": "Payment Method",
-                    "placeholder": "Select payment method",
-                    "description": "Preferred payment method for this recurring invoice (e.g., Bank Transfer, Check, etc.)"
-                },
-                "paymentDetails": {
-                    "label": "Payment Details",
-                    "placeholder": "Enter payment details",
-                    "description": "Additional information for payment (e.g., IBAN, instructions, etc.)"
-                },
-                "frequency": {
-                    "label": "Frequency",
-                    "placeholder": "Select frequency",
-                    "description": "How often invoices will be generated",
-                    "errors": {
-                        "required": "Frequency is required"
-                    }
-                },
-                "count": {
-                    "label": "Occurrences",
-                    "placeholder": "Enter number of occurrences",
-                    "description": "Total number of times the invoice will be generated (empty for infinite recurrence)"
-                },
-                "until": {
-                    "label": "End Date",
-                    "placeholder": "Select end date",
-                    "description": "Date when the recurring invoice will stop being generated (leave empty for infinite recurrence)"
-                },
-                "autoSend": {
-                    "label": "Auto Send",
-                    "description": "Automatically send the recurring invoice to the client when generated"
-                },
-                "items": {
-                    "label": "Recurring Invoice Items",
-                    "addItem": "Add Item",
-                    "description": {
-                        "placeholder": "Item description",
-                        "errors": {
-                            "required": "Description is required"
-                        }
-                    },
-                    "quantity": {
-                        "placeholder": "Qty",
-                        "unit": "pcs",
-                        "errors": {
-                            "required": "Quantity is required",
-                            "min": "Quantity must be at least 1",
-                            "invalid": "Invalid quantity"
-                        }
-                    },
-                    "unitPrice": {
-                        "placeholder": "Unit price",
-                        "errors": {
-                            "required": "Unit price is required",
-                            "min": "Unit price must be positive",
-                            "invalid": "Invalid unit price"
-                        }
-                    },
-                    "vatRate": {
-                        "placeholder": "VAT %",
-                        "errors": {
-                            "required": "VAT rate is required",
-                            "min": "VAT rate must be positive"
-                        }
-                    },
-                    "type": {
-                        "label": "Type",
-                        "hour": "Hour",
-                        "day": "Day",
-                        "deposit": "Deposit/Down payment",
-                        "service": "Service",
-                        "product": "Product"
-                    }
-                }
-            },
-            "actions": {
-                "cancel": "Cancel",
-                "create": "Create Recurring Invoice",
-                "save": "Save Changes"
-            }
-        }
+    "it": {
+      "partitaIva": "VAT Number (Partita IVA)",
+      "codiceFiscale": "Fiscal Code (Codice Fiscale)",
+      "rea": "REA Number",
+      "codiceDestinatario": "Recipient Code (Codice Destinatario)",
+      "pec": "Certified Email (PEC)"
     },
-    "dashboard": {
-        "title": "Dashboard",
-        "welcomeMessage": "Welcome back, {{firstname}}!",
-        "revenue": {
-            "title": "Revenue Overview",
-            "description": "Track your financial performance over time",
-            "thisMonth": "This Month",
-            "thisYear": "This Year",
-            "chartLabel": "Revenue"
-        },
-        "quotes": {
-            "title": "Quotes Overview",
-            "description": "Monitor your quote pipeline and conversion rates",
-            "stats": {
-                "total": "Total Quotes",
-                "draft": "Draft",
-                "sent": "Sent",
-                "signed": "Signed",
-                "expired": "Expired"
-            },
-            "latestTitle": "Recent Quotes",
-            "noRecent": "No recent quotes"
-        },
-        "invoices": {
-            "title": "Invoices Overview",
-            "description": "Keep track of your billing and payments",
-            "stats": {
-                "total": "Total Invoices",
-                "unpaid": "Unpaid",
-                "sent": "Sent",
-                "paid": "Paid",
-                "overdue": "Overdue"
-            },
-            "latestTitle": "Recent Invoices",
-            "noRecent": "No recent invoices"
-        },
-        "clients": {
-            "title": "Clients Overview",
-            "stats": {
-                "total": "Total Clients"
-            }
-        }
+    "es": {
+      "nif": "Tax ID (NIF)",
+      "cif": "Company ID (CIF)"
     },
-    "paymentMethods": {
-        "title": "Payment Methods",
-        "description": "Manage reusable payment methods.",
-        "empty": "No payment methods yet.",
-        "actions": {
-            "cancel": "Cancel",
-            "add": "Add",
-            "save": "Save",
-            "edit": "Edit",
-            "delete": "Delete",
-            "deleting": "Deleting..."
-        },
-        "search": {
-            "placeholder": "Search payment methods..."
-        },
-        "list": {
-            "add": "Add payment method",
-            "empty": "No payment methods found"
-        },
-        "stats": {
-            "total": "Total Payment Methods",
-            "active": "Active",
-            "inactive": "Inactive"
-        },
-        "fields": {
-            "name": {
-                "label": "Name",
-                "placeholder": "e.g. Bank transfer (business)"
-            },
-            "details": {
-                "label": "Details",
-                "placeholder": "IBAN / details"
-            },
-            "type": {
-                "label": "Type",
-                "bank_transfer": "Bank transfer",
-                "paypal": "PayPal",
-                "check": "Check",
-                "cash": "Cash",
-                "other": "Other"
-            },
-            "status": {
-                "label": "Status"
-            }
-        },
-        "upsert": {
-            "title": {
-                "create": "Add payment method",
-                "edit": "Edit payment method"
-            },
-            "form": {
-                "name": {
-                    "label": "Name",
-                    "placeholder": "e.g. Bank transfer (business)"
-                },
-                "details": {
-                    "label": "Details",
-                    "placeholder": "IBAN / details"
-                },
-                "type": {
-                    "label": "Type",
-                    "bank_transfer": "Bank transfer",
-                    "paypal": "PayPal",
-                    "check": "Check",
-                    "cash": "Cash",
-                    "other": "Other"
-                }
-            },
-            "messages": {
-                "nameRequired": "Name is required",
-                "addSuccess": "Payment method added",
-                "addError": "Failed to add payment method",
-                "updateSuccess": "Payment method updated",
-                "updateError": "Failed to update payment method",
-                "deleteSuccess": "Payment method deleted",
-                "deleteError": "Failed to delete payment method"
-            },
-            "actions": {
-                "cancel": "Cancel",
-                "add": "Add",
-                "save": "Save",
-                "edit": "Edit",
-                "delete": "Delete",
-                "deleting": "Deleting..."
-            }
-        },
-        "tooltips": {
-            "view": "View",
-            "edit": "Edit",
-            "delete": "Delete"
-        },
-        "delete": {
-            "description": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone."
-        }
+    "pt": {
+      "nif": "Tax ID (NIF)"
+    }
+  },
+  "customFields": {
+    "fr": {
+      "serviceCode": "Service Code",
+      "engagementNumber": "Engagement Number"
+    }
+  },
+  "clients": {
+    "header": {
+      "subtitle": "Manage your clients",
+      "count": "{{count}} clients {{found}}",
+      "found": "found"
     },
+<<<<<<< HEAD
     "settings": {
         "title": "Settings",
         "tabs": {
@@ -1435,328 +832,2127 @@
                 "editPrompt": "Enter new webhook URL"
             }
         }
+=======
+    "search": {
+      "placeholder": "Search clients..."
+>>>>>>> feat/multi-tenant-invoicing
     },
-    "sidebar": {
-        "navigation": {
-            "dashboard": "Dashboard",
-            "quotes": "Quotes",
-            "invoices": "Invoices",
-            "receipts": "Receipts",
-            "clients": "Clients",
-            "paymentMethods": "Payment Methods",
-            "stats": "Statistics",
-            "settings": "Settings"
-        },
-        "company": {
-            "plan": "Entreprise"
-        },
-        "menu": "Menu",
-        "theme": {
-            "toggleTheme": "Toggle theme",
-            "light": "Light",
-            "dark": "Dark",
-            "system": "System"
-        },
-        "userMenu": {
-            "account": "Account",
-            "logout": "Log out"
-        },
-        "companyDialog": {
-            "title": "Complete Company Setup",
-            "description": "Please complete your company information to continue using the application.",
-            "goButton": "Go to Company Settings"
-        }
-    },
-    "auth": {
-        "login": {
-            "title": "Sign In",
-            "description": "Enter your credentials to access your account",
-            "form": {
-                "email": {
-                    "label": "Email"
-                },
-                "password": {
-                    "label": "Password"
-                },
-                "loggingIn": "Signing in...",
-                "loginButton": "Sign In"
-            },
-            "noAccount": "Don't have an account?",
-            "signUpLink": "Sign up",
-            "errors": {
-                "invalidEmail": "Please enter a valid email address",
-                "passwordRequired": "Password is required"
-            },
-            "messages": {
-                "loginSuccess": "Successfully signed in",
-                "loginError": "Invalid credentials"
-            },
-            "oidc": "Sign in with OIDC.",
-            "oidcLink": "OIDC Login"
-        },
-        "signup": {
-            "title": "Create Account",
-            "description": "Create a new account to get started",
-            "form": {
-                "firstname": {
-                    "label": "First Name",
-                    "placeholder": "Enter your first name"
-                },
-                "lastname": {
-                    "label": "Last Name",
-                    "placeholder": "Enter your last name"
-                },
-                "email": {
-                    "label": "Email",
-                    "placeholder": "Enter your email"
-                },
-                "password": {
-                    "label": "Password",
-                    "placeholder": "Create a password",
-                    "requirements": "Password requirements:"
-                },
-                "invitationCode": {
-                    "label": "Invitation Code",
-                    "placeholder": "Enter your invitation code",
-                    "hint": "You need an invitation code from an existing user to register"
-                },
-                "creatingAccount": "Creating account...",
-                "createButton": "Create Account"
-            },
-            "hasAccount": "Already have an account?",
-            "signInLink": "Sign in",
-            "errors": {
-                "firstnameMinLength": "First name must be at least 2 characters",
-                "lastnameMinLength": "Last name must be at least 2 characters",
-                "invalidEmail": "Please enter a valid email address",
-                "passwordMinLength": "Password must be at least 8 characters",
-                "passwordLetter": "Password must contain at least one letter",
-                "passwordNumber": "Password must contain at least one number",
-                "passwordSpecial": "Password must contain at least one special character",
-                "invitationCodeRequired": "An invitation code is required to register",
-                "invalidInvitationCode": "Invalid or expired invitation code",
-                "genericError": "An error occurred while creating your account"
-            },
-            "messages": {
-                "accountCreated": "Account created successfully"
-            },
-            "oidc": "Sign up with OIDC.",
-            "oidcLink": "OIDC Signup"
-        }
-    },
-    "unavailable": {
-        "title": "Unavailable on Mobile/Tablet",
-        "description": "This feature is only available on desktop devices for optimal experience."
-    },
-    "component": {
-        "currency-select": {
-            "placeholder": "Select your currency",
-            "searchPlaceholder": "Search currencies...",
-            "noResults": "No currencies found"
-        }
-    },
-    "common": {
-        "previous": "Previous",
-        "next": "Next",
-        "loading": "Loading...",
-        "finish": "Finish",
-        "units": {
-            "day": "Day",
-            "week": "Week",
-            "month": "Month",
-            "year": "Year"
-        },
-        "valueWithCurrency": "{{amount}}{{currency}}"
-    },
-    "noOptions": "No options available. Create a new client.",
-    "receipts": {
-        "header": {
-            "subtitle": "Manage your receipts",
-            "count": "{{count}} receipts {{found}}",
-            "found": "found"
-        },
-        "search": {
-            "placeholder": "Search receipts..."
-        },
-        "actions": {
-            "addNew": "Add New Receipt"
-        },
-        "stats": {
-            "total": "Total Receipts",
-            "draft": "Draft",
-            "sent": "Sent",
-            "signed": "Signed"
-        },
-        "emptyState": {
-            "noReceipts": "No receipts yet",
-            "noResults": "No receipts found",
-            "startAdding": "Get started by creating your first receipt.",
-            "tryDifferentSearch": "Try adjusting your search terms."
-        },
-        "list": {
-            "title": "All Receipts",
-            "description": "Manage and view all your receipts in one place.",
-            "status": {
-                "draft": "Draft",
-                "sent": "Sent",
-                "signed": "Signed"
-            },
-            "item": {
-                "title": "Receipt {{number}}",
-                "client": "Client",
-                "issued": "Issued",
-                "validUntil": "Valid Until",
-                "totalHT": "Total (excl. VAT)",
-                "totalTTC": "Total (incl. VAT)",
-                "invoice": "Invoice",
-                "totalItemCount": "Total Item Count",
-                "totalPaid": "Total Paid"
-            },
-            "tooltips": {
-                "view": "View receipt",
-                "viewPdf": "View PDF",
-                "downloadPdf": "Download PDF",
-                "edit": "Edit receipt",
-                "sendToClient": "Send to client",
-                "delete": "Delete receipt"
-            },
-            "messages": {
-                "emailSent": "Receipt sent to client successfully.",
-                "emailError": "Failed to send receipt to client."
-            },
-            "actions": {
-                "addNew": "Add New Receipt"
-            }
-        },
-        "upsert": {
-            "title": {
-                "edit": "Edit Receipt",
-                "create": "Create Receipt"
-            },
-            "form": {
-                "client": {
-                    "label": "Client",
-                    "errors": {
-                        "required": "Client is required."
-                    }
-                },
-                "items": {
-                    "label": "Items",
-                    "placeholder": "Add items to the receipt",
-                    "noResults": "No items found",
-                    "addButton": "Add Item",
-                    "description": {
-                        "errors": {
-                            "required": "Description is required."
-                        }
-                    },
-                    "quantity": {
-                        "errors": {
-                            "required": "Quantity is required.",
-                            "min": "Quantity must be at least 1.",
-                            "invalid": "Invalid quantity."
-                        }
-                    },
-                    "unitPrice": {
-                        "errors": {
-                            "required": "Unit price is required.",
-                            "min": "Unit price must be at least 0.",
-                            "invalid": "Invalid unit price."
-                        }
-                    },
-                    "vatRate": {
-                        "errors": {
-                            "required": "VAT rate is required.",
-                            "min": "VAT rate must be at least 0."
-                        }
-                    }
-                },
-                "invoice": {
-                    "label": "Invoice",
-                    "placeholder": "Select an invoice",
-                    "noResults": "No invoices found"
-                },
-                "paymentMethod": {
-                    "label": "Payment Method",
-                    "placeholder": "Enter the payment method",
-                    "description": "The method used to make the payment"
-                },
-                "paymentDetails": {
-                    "label": "Payment Details",
-                    "placeholder": "Enter payment details",
-                    "description": "Additional information about the payment"
-                }
-            },
-            "actions": {
-                "cancel": "Cancel",
-                "save": "Save Changes",
-                "create": "Create Receipt",
-                "edit": "Edit Receipt"
-            }
-        },
-        "delete": {
-            "title": "Delete Receipt",
-            "description": "Are you sure you want to delete this receipt? This action cannot be undone.",
-            "actions": {
-                "cancel": "Cancel",
-                "delete": "Delete"
-            }
-        },
-        "pdf": {
-            "title": "Receipt {{number}} - PDF"
-        }
+    "actions": {
+      "addNew": "Add New Client"
     },
     "stats": {
-        "title": "Statistics",
-        "description": "View invoiced amounts, revenue and deposits by month and year.",
-        "noData": "No data available for the selected period.",
-        "controls": {
-            "year": "Year",
-            "range": "Year range"
-        },
-        "monthly": {
-            "title": "Monthly statistics"
-        },
-        "yearly": {
-            "title": "Yearly statistics"
-        },
-        "month": "Month",
-        "year": "Year",
-        "invoiced": "Invoiced (incl. VAT)",
-        "revenue": "Revenue (excl. VAT)",
-        "deposits": "Deposits (invoice paid)"
+      "total": "Total Clients",
+      "active": "Active",
+      "inactive": "Inactive"
     },
-    "webhook": {
-        "instructions": {
-            "documenso": {
-                "title": "Instructions for Documenso webhook configuration:",
-                "step1": "1. Go to your Documenso admin panel",
-                "step2": "2. Configure webhook URL",
-                "step3": "3. Configure webhook secret",
-                "step4": "4. Enable the following events: document.signed, document.completed (minimum required)",
-                "step5": "5. Additional events you may want to enable: document.pending, document.completed, document.rejected"
-            }
+    "emptyState": {
+      "noClients": "No clients yet",
+      "noResults": "No clients found",
+      "startAdding": "Get started by creating your first client.",
+      "tryDifferentSearch": "Try adjusting your search terms."
+    },
+    "list": {
+      "title": "All Clients",
+      "description": "Manage and view all your clients in one place.",
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "tooltips": {
+        "view": "View client details",
+        "edit": "Edit client",
+        "delete": "Delete client"
+      }
+    },
+    "upsert": {
+      "title": {
+        "create": "Add New Client",
+        "edit": "Edit Client"
+      },
+      "steps": {
+        "type": "Type & Country",
+        "typeDescription": "Select the client type and country to determine required information",
+        "identity": "Identity",
+        "identityDescription": "Enter the client's name or personal information",
+        "address": "Address",
+        "addressDescription": "Enter the client's postal address",
+        "identifiers": "Legal Identifiers",
+        "identifiersDescription": "Enter the client's legal identification numbers",
+        "contact": "Contact",
+        "contactDescription": "Enter contact information and preferences"
+      },
+      "fields": {
+        "contactFirstname": {
+          "label": "First Name",
+          "placeholder": "Enter first name"
         },
-        "modal": {
-            "title": "Webhook Configuration for {{pluginName}}",
-            "url": "Webhook URL",
-            "secret": "Webhook Secret",
-            "secretDescription": "Keep this secret secure. It will be used to verify webhook authenticity.",
-            "instructions": "Configuration Instructions",
-            "warning": "Configure both the webhook URL and secret in your {{pluginName}} settings to receive authenticated real-time updates. Store the secret securely - it won't be shown again.",
-            "gotIt": "Got it!"
+        "contactLastname": {
+          "label": "Last Name",
+          "placeholder": "Enter last name"
+        },
+        "name": {
+          "label": "Company Name",
+          "placeholder": "Enter company name"
+        },
+        "description": {
+          "label": "Description",
+          "placeholder": "Enter company description"
+        },
+        "legalId": {
+          "label": "Legal ID",
+          "placeholder": "Enter legal identifier"
+        },
+        "vat": {
+          "label": "VAT Number",
+          "placeholder": "Enter VAT number (e.g., FR12345678901)"
+        },
+        "foundedAt": {
+          "label": "Founded Date",
+          "placeholder": "Select founding date"
+        },
+        "contactEmail": {
+          "label": "Email",
+          "placeholder": "Enter email address"
+        },
+        "contactPhone": {
+          "label": "Phone",
+          "placeholder": "Enter phone number"
+        },
+        "address": {
+          "label": "Address",
+          "placeholder": "Enter street address"
+        },
+        "postalCode": {
+          "label": "Postal Code",
+          "placeholder": "Enter postal code"
+        },
+        "city": {
+          "label": "City",
+          "placeholder": "Enter city"
+        },
+        "type": {
+          "label": "Client Type",
+          "company": "Company",
+          "individual": "Individual",
+          "description": "Select whether the client is an individual or a company"
+        },
+        "country": {
+          "label": "Country",
+          "placeholder": "Enter country",
+          "description": "The client's country determines which legal identifiers are required"
+        },
+        "currency": {
+          "label": "Currency",
+          "description": "Override the default currency for this client"
         }
-    },
-    "folderSelect": {
-        "placeholder": "Select a folder...",
-        "browse": "Browse",
-        "title": "Select a Folder",
-        "newFolder": "New Folder",
-        "folderName": "Folder name...",
-        "create": "Create",
+      },
+      "validation": {
+        "name": {
+          "required": "Company name is required"
+        },
+        "description": {
+          "required": "Description is required",
+          "maxLength": "Description must be less than 500 characters"
+        },
+        "legalId": {
+          "required": "Legal ID is required",
+          "empty": "Legal ID cannot be empty",
+          "maxLength": "Legal ID must be less than 50 characters"
+        },
+        "vat": {
+          "required": "VAT number is required",
+          "empty": "VAT number cannot be empty",
+          "maxLength": "VAT number must be less than 15 characters",
+          "format": "VAT number format is invalid (e.g., FR12345678901)"
+        },
+        "foundedAt": {
+          "future": "Founded date cannot be in the future"
+        },
+        "contactFirstname": {
+          "required": "First name is required"
+        },
+        "contactLastname": {
+          "required": "Last name is required"
+        },
+        "contactPhone": {
+          "minLength": "Phone number must be at least 8 characters",
+          "format": "Phone number format is invalid"
+        },
+        "contactEmail": {
+          "required": "Email is required",
+          "format": "Email format is invalid"
+        },
+        "address": {
+          "required": "Address is required"
+        },
+        "postalCode": {
+          "format": "Postal code format is invalid"
+        },
+        "city": {
+          "required": "City is required"
+        },
+        "country": {
+          "required": "Country is required"
+        }
+      },
+      "actions": {
         "cancel": "Cancel",
-        "selectThisFolder": "Select This Folder",
-        "noSubdirectories": "No subdirectories found",
-        "loading": "Loading directories..."
+        "create": "Create Client",
+        "save": "Save Changes"
+      }
+    },
+    "view": {
+      "title": "Client Details",
+      "description": "View all relevant information about this client.",
+      "fields": {
+        "companyName": "Company Name",
+        "contactPerson": "Contact Person",
+        "email": "Email",
+        "phone": "Phone",
+        "address": "Address",
+        "postalCode": "Postal Code",
+        "city": "City",
+        "country": "Country"
+      }
+    },
+    "delete": {
+      "title": "Delete Client",
+      "description": "Are you sure you want to delete this client? This action cannot be undone.",
+      "actions": {
+        "cancel": "Cancel",
+        "delete": "Delete Client"
+      }
     }
+  },
+  "quotes": {
+    "header": {
+      "subtitle": "Manage your quotes",
+      "count": "{{count}} quotes {{found}}",
+      "found": "found"
+    },
+    "search": {
+      "placeholder": "Search quotes..."
+    },
+    "actions": {
+      "addNew": "Add New Quote"
+    },
+    "stats": {
+      "total": "Total Quotes",
+      "draft": "Draft",
+      "signed": "Signed"
+    },
+    "emptyState": {
+      "noQuotes": "No quotes yet",
+      "noResults": "No quotes found",
+      "startAdding": "Get started by creating your first quote.",
+      "tryDifferentSearch": "Try adjusting your search terms."
+    },
+    "list": {
+      "title": "All Quotes",
+      "description": "Manage and view all your quotes in one place.",
+      "status": {
+        "draft": "Draft",
+        "sent": "Sent",
+        "expired": "Expired",
+        "signed": "Signed"
+      },
+      "item": {
+        "title": "Quote {{number}} {{title}}",
+        "client": "Client",
+        "issued": "Issued",
+        "validUntil": "Valid Until",
+        "totalHT": "Total (excl. VAT)",
+        "totalTTC": "Total (incl. VAT)"
+      },
+      "tooltips": {
+        "view": "View quote details",
+        "viewPdf": "View PDF",
+        "downloadPdf": "Download PDF",
+        "edit": "Edit quote",
+        "sendSignature": "Send for signature",
+        "resendSignature": "Resend for signature",
+        "createInvoice": "Create invoice from quote",
+        "delete": "Delete quote"
+      },
+      "actions": {
+        "addNew": "Add New Quote"
+      },
+      "messages": {
+        "sendSignatureError": "Failed to send quote for signature",
+        "sendSignatureSuccess": "Quote sent for signature successfully",
+        "invoiceCreated": "Invoice created successfully from quote",
+        "invoiceCreateError": "Failed to create invoice from quote"
+      }
+    },
+    "upsert": {
+      "title": {
+        "create": "Create New Quote",
+        "edit": "Edit Quote"
+      },
+      "form": {
+        "title": {
+          "label": "Title",
+          "placeholder": "Enter quote title"
+        },
+        "client": {
+          "label": "Client",
+          "placeholder": "Select a client",
+          "errors": {
+            "required": "Please select a client"
+          },
+          "noOptions": "No clients available. Please create a client first."
+        },
+        "currency": {
+          "label": "Currency"
+        },
+        "validUntil": {
+          "label": "Valid Until",
+          "placeholder": "Select expiration date"
+        },
+        "items": {
+          "label": "Quote Items",
+          "addItem": "Add Item",
+          "description": {
+            "placeholder": "Item description",
+            "errors": {
+              "required": "Description is required"
+            }
+          },
+          "quantity": {
+            "placeholder": "Qty",
+            "unit": "pcs",
+            "errors": {
+              "required": "Quantity is required",
+              "min": "Quantity must be at least 1",
+              "invalid": "Invalid quantity"
+            }
+          },
+          "unitPrice": {
+            "placeholder": "Unit price",
+            "errors": {
+              "required": "Unit price is required",
+              "min": "Unit price must be positive",
+              "invalid": "Invalid unit price"
+            }
+          },
+          "vatRate": {
+            "placeholder": "VAT %",
+            "errors": {
+              "required": "VAT rate is required",
+              "min": "VAT rate must be positive"
+            }
+          }
+        },
+        "notes": {
+          "label": "Notes",
+          "placeholder": "Additional notes or terms"
+        },
+        "paymentMethod": {
+          "label": "Payment Method",
+          "placeholder": "Select payment method",
+          "description": "Preferred payment method for this quote (e.g., Bank Transfer, Check, etc.)"
+        },
+        "paymentDetails": {
+          "label": "Payment Details",
+          "placeholder": "Enter payment details",
+          "description": "Additional information for payment (e.g., IBAN, instructions, etc.)"
+        }
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "create": "Create Quote",
+        "save": "Save Changes"
+      }
+    },
+    "view": {
+      "title": "Quote {{number}}",
+      "description": "View all details of this quote.",
+      "status": {
+        "draft": "Draft",
+        "sent": "Sent",
+        "expired": "Expired",
+        "signed": "Signed"
+      },
+      "fields": {
+        "title": "Title",
+        "status": "Status",
+        "createdAt": "Created",
+        "validUntil": "Valid Until",
+        "signedAt": "Signed At",
+        "client": "Client",
+        "signedBy": "Signed By",
+        "totalHT": "Total (excl. VAT)",
+        "totalVAT": "VAT Amount",
+        "totalTTC": "Total (incl. VAT)",
+        "signature": "Signature"
+      }
+    },
+    "delete": {
+      "title": "Delete Quote",
+      "description": "Are you sure you want to delete this quote? This action cannot be undone.",
+      "actions": {
+        "cancel": "Cancel",
+        "delete": "Delete Quote"
+      }
+    },
+    "pdf": {
+      "title": "Quote {{number}} - PDF"
+    }
+  },
+  "invoices": {
+    "header": {
+      "subtitle": "Manage your invoices",
+      "count": "{{count}} invoices {{found}}",
+      "found": "found"
+    },
+    "search": {
+      "placeholder": "Search invoices..."
+    },
+    "actions": {
+      "addNew": "Add New Invoice"
+    },
+    "stats": {
+      "total": "Total Invoices",
+      "sent": "Sent",
+      "paid": "Paid"
+    },
+    "emptyState": {
+      "noInvoices": "No invoices yet",
+      "noResults": "No invoices found",
+      "startAdding": "Get started by creating your first invoice.",
+      "tryDifferentSearch": "Try adjusting your search terms."
+    },
+    "list": {
+      "title": "All Invoices",
+      "description": "Manage and view all your invoices in one place.",
+      "status": {
+        "sent": "Sent",
+        "unpaid": "Unpaid",
+        "overdue": "Overdue",
+        "paid": "Paid"
+      },
+      "item": {
+        "title": "Invoice {{number}} {{title}}",
+        "client": "Client",
+        "issued": "Issued",
+        "due": "Due",
+        "payment": "Payment",
+        "totalHT": "Total (excl. VAT)",
+        "totalTTC": "Total (incl. VAT)"
+      },
+      "tooltips": {
+        "view": "View invoice details",
+        "viewPdf": "View PDF",
+        "downloadPdf": "Download PDF",
+        "edit": "Edit invoice",
+        "markAsPaid": "Mark as paid",
+        "delete": "Delete invoice",
+        "createReceipt": "Create a receipt from this invoice",
+        "sendByEmail": "Send invoice by email",
+        "sendVia": "Send via {{platform}}"
+      },
+      "actions": {
+        "addNew": "Add New Invoice",
+        "downloadPdf": "Download PDF",
+        "downloadXml": "Download XML"
+      },
+      "downloadFormats": {
+        "pdf": "Standard PDF",
+        "facturx": "Factur-X",
+        "zugferd": "ZUGFeRD",
+        "xrechnung": "XRechnung",
+        "ubl": "UBL",
+        "cii": "CII"
+      },
+      "messages": {
+        "markAsPaidSuccess": "Invoice marked as paid successfully",
+        "markAsPaidError": "Failed to mark invoice as paid",
+        "createReceiptSuccess": "Receipt created successfully from invoice",
+        "sendByEmailSuccess": "Invoice has been sent to customer"
+      }
+    },
+    "upsert": {
+      "title": {
+        "create": "Create New Invoice",
+        "edit": "Edit Invoice"
+      },
+      "form": {
+        "quote": {
+          "label": "From Quote",
+          "placeholder": "Select a quote",
+          "errors": {
+            "required": "Please select a quote"
+          }
+        },
+        "client": {
+          "label": "Client",
+          "placeholder": "Select a client",
+          "errors": {
+            "required": "Please select a client"
+          },
+          "noOptions": "No clients available. Please create a client first."
+        },
+        "dueDate": {
+          "label": "Due Date",
+          "placeholder": "Select due date"
+        },
+        "items": {
+          "label": "Invoice Items",
+          "addItem": "Add Item",
+          "description": {
+            "placeholder": "Item description",
+            "errors": {
+              "required": "Description is required"
+            }
+          },
+          "quantity": {
+            "placeholder": "Qty",
+            "unit": "pcs",
+            "errors": {
+              "required": "Quantity is required",
+              "min": "Quantity must be at least 1",
+              "invalid": "Invalid quantity"
+            }
+          },
+          "unitPrice": {
+            "placeholder": "Unit price",
+            "errors": {
+              "required": "Unit price is required",
+              "min": "Unit price must be positive",
+              "invalid": "Invalid unit price"
+            }
+          },
+          "vatRate": {
+            "placeholder": "VAT %",
+            "errors": {
+              "required": "VAT rate is required",
+              "min": "VAT rate must be positive"
+            }
+          },
+          "type": {
+            "label": "Type",
+            "hour": "Hour",
+            "day": "Day",
+            "deposit": "Deposit/Down payment",
+            "service": "Service",
+            "product": "Product"
+          }
+        },
+        "notes": {
+          "label": "Notes",
+          "placeholder": "Additional notes or terms"
+        },
+        "paymentMethod": {
+          "label": "Payment Method",
+          "placeholder": "Select payment method",
+          "description": "Preferred payment method for this quote (e.g., Bank Transfer, Check, etc.)"
+        },
+        "paymentDetails": {
+          "label": "Payment Details",
+          "placeholder": "Enter payment details",
+          "description": "Additional information for payment (e.g., IBAN, instructions, etc.)"
+        },
+        "currency": {
+          "label": "Currency"
+        }
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "create": "Create Invoice",
+        "save": "Save Changes"
+      }
+    },
+    "view": {
+      "title": "Invoice {{number}}",
+      "description": "View all details of this invoice.",
+      "status": {
+        "sent": "Sent",
+        "unpaid": "Unpaid",
+        "overdue": "Overdue",
+        "paid": "Paid"
+      },
+      "fields": {
+        "number": "Invoice Number",
+        "title": "Title",
+        "status": "Status",
+        "createdAt": "Created",
+        "dueDate": "Due Date",
+        "paidAt": "Paid At",
+        "updatedAt": "Updated",
+        "client": "Client",
+        "paymentMethod": "Payment Method",
+        "totalHT": "Total (excl. VAT)",
+        "totalVAT": "VAT Amount",
+        "totalTTC": "Total (incl. VAT)",
+        "notes": "Notes"
+      }
+    },
+    "delete": {
+      "title": "Delete Invoice",
+      "description": "Are you sure you want to delete this invoice? This action cannot be undone.",
+      "actions": {
+        "cancel": "Cancel",
+        "delete": "Delete Invoice"
+      }
+    },
+    "pdf": {
+      "title": "Invoice {{number}} - PDF"
+    },
+    "fields": {
+      "number": "Invoice Number",
+      "client": "Client",
+      "date": "Date",
+      "total": "Total",
+      "totalHT": "Total (excl. VAT)",
+      "totalVAT": "VAT Amount",
+      "totalTTC": "Total (incl. VAT)"
+    },
+    "modification": {
+      "title": "Modify Invoice",
+      "description": "Choose how to modify invoice {{invoiceNumber}}",
+      "recommended": "Recommended",
+      "countryAllowsEdit": "Direct editing is allowed for this invoice.",
+      "countryRequiresCorrection": "This country requires {{method}} for invoice corrections.",
+      "devModeNotice": "Development mode: All options are visible. Grayed options would be hidden in production.",
+      "methods": {
+        "credit_note": "credit notes",
+        "corrective_invoice": "corrective invoices",
+        "replacement": "replacement",
+        "void_and_reissue": "void and reissue"
+      },
+      "directEdit": {
+        "label": "Edit Directly",
+        "description": "Modify the invoice content directly. Only available for non-transmitted invoices.",
+        "disabledByCountry": "Direct editing is not allowed in this country after invoice creation.",
+        "alreadyTransmitted": "This invoice has already been transmitted and cannot be edited directly.",
+        "finalState": "This invoice is in a final state and cannot be edited."
+      },
+      "creditNote": {
+        "label": "Create Credit Note",
+        "description": "Issue a credit note to partially or fully cancel this invoice.",
+        "alreadyCredited": "A credit note has already been issued for this invoice.",
+        "cancelled": "Cannot create credit note for a cancelled invoice."
+      },
+      "correctiveInvoice": {
+        "label": "Create Corrective Invoice",
+        "description": "Issue a corrective invoice with the correct information.",
+        "cancelled": "Cannot create corrective invoice for a cancelled invoice."
+      },
+      "voidAndReissue": {
+        "label": "Void and Reissue",
+        "description": "Cancel this invoice and create a new one with the correct information.",
+        "alreadyPaid": "Cannot void a paid invoice.",
+        "cancelled": "This invoice has already been cancelled."
+      },
+      "cancel": {
+        "label": "Cancel Invoice",
+        "description": "Mark this invoice as cancelled without issuing a replacement.",
+        "alreadyPaid": "Cannot cancel a paid invoice.",
+        "alreadyCancelled": "This invoice has already been cancelled."
+      }
+    },
+    "creditNote": {
+      "title": "Create Credit Note",
+      "subtitle": "For invoice {{invoiceNumber}}",
+      "originalInvoice": "Original Invoice",
+      "originalInvoiceDescription": "Details of the invoice being credited",
+      "countryRequiresReference": "This country requires credit notes to reference the original invoice.",
+      "correctionType": "Correction Type",
+      "correctionCode": "Correction Code",
+      "selectCorrectionCode": "Select a correction code",
+      "correctionCodeDescription": "The correction code defines the type of credit note being issued.",
+      "itemsToCredit": "Items to Credit",
+      "itemsToCreditDescription": "Select which items and quantities to include in the credit note.",
+      "selectAll": "Select All",
+      "originalQuantity": "Original qty",
+      "reasonTitle": "Reason for Credit Note",
+      "reason": "Reason",
+      "reasonPlaceholder": "Describe the reason for issuing this credit note...",
+      "reasonDescription": "This will be included in the credit note for reference.",
+      "summary": "Credit Note Summary",
+      "totalCredit": "Total Credit Amount",
+      "create": "Create Credit Note",
+      "success": "Credit note created successfully",
+      "errors": {
+        "invoiceNotFound": "Invoice not found",
+        "noItemsSelected": "Please select at least one item to credit",
+        "createFailed": "Failed to create credit note"
+      }
+    },
+    "correctiveInvoice": {
+      "title": "Create Corrective Invoice",
+      "subtitle": "For invoice {{invoiceNumber}}",
+      "originalInvoice": "Original Invoice",
+      "originalInvoiceDescription": "Details of the invoice being corrected",
+      "countryRequiresReference": "This country requires corrective invoices to reference the original invoice.",
+      "correctionType": "Correction Type",
+      "correctionCode": "Correction Code",
+      "selectCorrectionCode": "Select a correction code",
+      "correctionCodeDescription": "The correction code defines the type of correction being made.",
+      "itemsToCorrect": "Items to Correct",
+      "itemsToCorrectDescription": "Modify the quantities or unit prices to reflect the correct values.",
+      "originalValues": "Original",
+      "quantity": "Quantity",
+      "unitPrice": "Unit Price",
+      "lineTotal": "Line Total",
+      "reasonTitle": "Reason for Correction",
+      "reason": "Reason",
+      "reasonPlaceholder": "Describe the reason for issuing this corrective invoice...",
+      "reasonDescription": "This will be included in the corrective invoice for reference.",
+      "summary": "Corrective Invoice Summary",
+      "originalTotals": "Original Totals",
+      "correctedTotals": "Corrected Totals",
+      "difference": "Difference",
+      "totalDifference": "Total Difference",
+      "create": "Create Corrective Invoice",
+      "success": "Corrective invoice created successfully",
+      "errors": {
+        "invoiceNotFound": "Invoice not found",
+        "noChanges": "Please make at least one change to the invoice items",
+        "createFailed": "Failed to create corrective invoice"
+      }
+    },
+    "voidReissue": {
+      "title": "Void and Reissue Invoice",
+      "subtitle": "For invoice {{invoiceNumber}}",
+      "warning": "This action will void the original invoice and create a new replacement invoice. The original invoice will be marked as cancelled and cannot be modified afterwards.",
+      "originalInvoice": "Original Invoice",
+      "originalInvoiceDescription": "Details of the invoice being voided",
+      "countryInfo": "This country requires void and reissue to reference the original invoice number.",
+      "correctionType": "Correction Type",
+      "correctionCode": "Correction Code",
+      "selectCorrectionCode": "Select a correction code",
+      "correctionCodeDescription": "The correction code defines the reason for voiding and reissuing.",
+      "newInvoiceItems": "New Invoice Items",
+      "newInvoiceItemsDescription": "Modify the items for the replacement invoice. Uncheck items to remove them.",
+      "includeAll": "Include All",
+      "quantity": "Quantity",
+      "unitPrice": "Unit Price",
+      "vatRate": "VAT Rate",
+      "lineTotal": "Line Total",
+      "reasonTitle": "Reason for Void and Reissue",
+      "reason": "Reason",
+      "reasonPlaceholder": "Describe the reason for voiding and reissuing this invoice...",
+      "reasonDescription": "This reason will be recorded for audit purposes and included in the new invoice.",
+      "summary": "Summary",
+      "voidedInvoice": "Voided Invoice",
+      "newInvoice": "New Invoice",
+      "confirmVoid": "I confirm that I want to void the original invoice",
+      "confirmVoidDescription": "By checking this box, you acknowledge that the original invoice will be permanently cancelled and a new invoice will be issued.",
+      "submit": "Void and Reissue",
+      "success": "Invoice voided and new invoice created successfully",
+      "errors": {
+        "invoiceNotFound": "Invoice not found",
+        "noItemsIncluded": "Please include at least one item in the new invoice",
+        "createFailed": "Failed to void and reissue invoice"
+      }
+    }
+  },
+  "recurringInvoices": {
+    "frequency": {
+      "weekly": "Every week",
+      "biweekly": "Every 2 weeks",
+      "monthly": "Every month",
+      "bimonthly": "Every 2 months",
+      "quarterly": "Every 3 months",
+      "quadmonthly": "Every 4 months",
+      "semiannually": "Every 6 months",
+      "annually": "Every year"
+    },
+    "list": {
+      "title": "Recurring Invoices",
+      "description": "Manage your recurring invoices and automate billing.",
+      "actions": {
+        "addNew": "Add New Recurring Invoice"
+      },
+      "item": {
+        "client": "Client",
+        "payment": "Payment Method",
+        "totalHT": "Total (excl. VAT)",
+        "totalTTC": "Total (incl. VAT)"
+      },
+      "tooltips": {
+        "view": "View Details",
+        "edit": "Edit",
+        "delete": "Delete"
+      },
+      "messages": {
+        "manual_process_success": "Manual process triggered successfully",
+        "manual_process_error": "Error triggering manual process"
+      }
+    },
+    "emptyState": {
+      "noInvoices": "No recurring invoices yet",
+      "startAdding": "Get started by creating your first recurring invoice."
+    },
+    "actions": {
+      "addNew": "Add New Recurring Invoice"
+    },
+    "upsert": {
+      "title": {
+        "create": "Create New Recurring Invoice",
+        "edit": "Edit Recurring Invoice"
+      },
+      "form": {
+        "quote": {
+          "label": "From Quote",
+          "placeholder": "Select a quote"
+        },
+        "client": {
+          "label": "Client",
+          "placeholder": "Select a client",
+          "errors": {
+            "required": "Please select a client"
+          },
+          "noOptions": "No clients available. Please create a client first."
+        },
+        "currency": {
+          "label": "Currency"
+        },
+        "notes": {
+          "label": "Notes",
+          "placeholder": "Additional notes or terms"
+        },
+        "paymentMethod": {
+          "label": "Payment Method",
+          "placeholder": "Select payment method",
+          "description": "Preferred payment method for this recurring invoice (e.g., Bank Transfer, Check, etc.)"
+        },
+        "paymentDetails": {
+          "label": "Payment Details",
+          "placeholder": "Enter payment details",
+          "description": "Additional information for payment (e.g., IBAN, instructions, etc.)"
+        },
+        "frequency": {
+          "label": "Frequency",
+          "placeholder": "Select frequency",
+          "description": "How often invoices will be generated",
+          "errors": {
+            "required": "Frequency is required"
+          }
+        },
+        "count": {
+          "label": "Occurrences",
+          "placeholder": "Enter number of occurrences",
+          "description": "Total number of times the invoice will be generated (empty for infinite recurrence)"
+        },
+        "until": {
+          "label": "End Date",
+          "placeholder": "Select end date",
+          "description": "Date when the recurring invoice will stop being generated (leave empty for infinite recurrence)"
+        },
+        "autoSend": {
+          "label": "Auto Send",
+          "description": "Automatically send the recurring invoice to the client when generated"
+        },
+        "items": {
+          "label": "Recurring Invoice Items",
+          "addItem": "Add Item",
+          "description": {
+            "placeholder": "Item description",
+            "errors": {
+              "required": "Description is required"
+            }
+          },
+          "quantity": {
+            "placeholder": "Qty",
+            "unit": "pcs",
+            "errors": {
+              "required": "Quantity is required",
+              "min": "Quantity must be at least 1",
+              "invalid": "Invalid quantity"
+            }
+          },
+          "unitPrice": {
+            "placeholder": "Unit price",
+            "errors": {
+              "required": "Unit price is required",
+              "min": "Unit price must be positive",
+              "invalid": "Invalid unit price"
+            }
+          },
+          "vatRate": {
+            "placeholder": "VAT %",
+            "errors": {
+              "required": "VAT rate is required",
+              "min": "VAT rate must be positive"
+            }
+          },
+          "type": {
+            "label": "Type",
+            "hour": "Hour",
+            "day": "Day",
+            "deposit": "Deposit/Down payment",
+            "service": "Service",
+            "product": "Product"
+          }
+        }
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "create": "Create Recurring Invoice",
+        "save": "Save Changes"
+      }
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcomeMessage": "Welcome back, {{firstname}}!",
+    "revenue": {
+      "title": "Revenue Overview",
+      "description": "Track your financial performance over time",
+      "thisMonth": "This Month",
+      "thisYear": "This Year",
+      "chartLabel": "Revenue"
+    },
+    "quotes": {
+      "title": "Quotes Overview",
+      "description": "Monitor your quote pipeline and conversion rates",
+      "stats": {
+        "total": "Total Quotes",
+        "draft": "Draft",
+        "sent": "Sent",
+        "signed": "Signed",
+        "expired": "Expired"
+      },
+      "latestTitle": "Recent Quotes",
+      "noRecent": "No recent quotes"
+    },
+    "invoices": {
+      "title": "Invoices Overview",
+      "description": "Keep track of your billing and payments",
+      "stats": {
+        "total": "Total Invoices",
+        "unpaid": "Unpaid",
+        "sent": "Sent",
+        "paid": "Paid",
+        "overdue": "Overdue"
+      },
+      "latestTitle": "Recent Invoices",
+      "noRecent": "No recent invoices"
+    },
+    "clients": {
+      "title": "Clients Overview",
+      "stats": {
+        "total": "Total Clients"
+      }
+    }
+  },
+  "paymentMethods": {
+    "title": "Payment Methods",
+    "description": "Manage reusable payment methods.",
+    "empty": "No payment methods yet.",
+    "actions": {
+      "cancel": "Cancel",
+      "add": "Add",
+      "save": "Save",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleting": "Deleting..."
+    },
+    "search": {
+      "placeholder": "Search payment methods..."
+    },
+    "list": {
+      "add": "Add payment method",
+      "empty": "No payment methods found"
+    },
+    "stats": {
+      "total": "Total Payment Methods",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "fields": {
+      "name": {
+        "label": "Name",
+        "placeholder": "e.g. Bank transfer (business)"
+      },
+      "details": {
+        "label": "Details",
+        "placeholder": "IBAN / details"
+      },
+      "type": {
+        "label": "Type",
+        "bank_transfer": "Bank transfer",
+        "paypal": "PayPal",
+        "check": "Check",
+        "cash": "Cash",
+        "other": "Other"
+      },
+      "status": {
+        "label": "Status"
+      }
+    },
+    "upsert": {
+      "title": {
+        "create": "Add payment method",
+        "edit": "Edit payment method"
+      },
+      "form": {
+        "name": {
+          "label": "Name",
+          "placeholder": "e.g. Bank transfer (business)"
+        },
+        "details": {
+          "label": "Details",
+          "placeholder": "IBAN / details"
+        },
+        "type": {
+          "label": "Type",
+          "bank_transfer": "Bank transfer",
+          "paypal": "PayPal",
+          "check": "Check",
+          "cash": "Cash",
+          "other": "Other"
+        }
+      },
+      "messages": {
+        "nameRequired": "Name is required",
+        "addSuccess": "Payment method added",
+        "addError": "Failed to add payment method",
+        "updateSuccess": "Payment method updated",
+        "updateError": "Failed to update payment method",
+        "deleteSuccess": "Payment method deleted",
+        "deleteError": "Failed to delete payment method"
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "add": "Add",
+        "save": "Save",
+        "edit": "Edit",
+        "delete": "Delete",
+        "deleting": "Deleting..."
+      }
+    },
+    "tooltips": {
+      "view": "View",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "delete": {
+      "description": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone."
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "tabs": {
+      "company": "Company",
+      "pdfTemplates": "PDF Templates",
+      "emailTemplates": "Email Templates",
+      "account": "Account",
+      "logs": "Logs",
+      "invitations": "Invitations",
+      "dangerZone": "Danger Zone",
+      "plugins": "Plugins",
+      "webhooks": "Webhooks",
+      "compliance": "Compliance"
+    },
+    "invitations": {
+      "create": {
+        "title": "Create Invitation Code",
+        "description": "Generate a new invitation code to invite someone to create an account",
+        "expiresIn": "Expires in (days)",
+        "expiresPlaceholder": "Leave empty for no expiration",
+        "button": "Generate Code",
+        "creating": "Generating..."
+      },
+      "list": {
+        "title": "Your Invitation Codes",
+        "description": "Manage the invitation codes you have created",
+        "code": "Code",
+        "status": "Status",
+        "createdAt": "Created",
+        "expiresAt": "Expires",
+        "usedBy": "Used By",
+        "actions": "Actions",
+        "empty": "You haven't created any invitation codes yet",
+        "noExpiry": "Never"
+      },
+      "status": {
+        "active": "Active",
+        "used": "Used",
+        "expired": "Expired"
+      },
+      "messages": {
+        "fetchError": "Failed to load invitation codes",
+        "createSuccess": "Invitation code created successfully",
+        "createError": "Failed to create invitation code",
+        "deleteSuccess": "Invitation code deleted",
+        "deleteError": "Failed to delete invitation code",
+        "codeCopied": "Code copied to clipboard"
+      }
+    },
+    "company": {
+      "title": "Company Settings",
+      "description": "Manage your company information and business details",
+      "basicInfo": "Basic Information",
+      "basicInfoDescription": "Essential details about your company",
+      "address": {
+        "title": "Address Information",
+        "description": "Your company's physical location"
+      },
+      "identifiers": {
+        "title": "Legal Identifiers",
+        "description": "Your company's legal identification numbers (format depends on your country)"
+      },
+      "contact": {
+        "title": "Contact Information",
+        "description": "How clients can reach your company"
+      },
+      "numberFormats": {
+        "title": "Number Formats",
+        "description": "Customize the number formats for quotes and invoices"
+      },
+      "other": {
+        "title": "Other Settings",
+        "description": "Additional settings for your company"
+      },
+      "customFields": {
+        "title": "Custom Fields",
+        "description": "Country-specific fields required for compliance"
+      },
+      "form": {
+        "company": {
+          "label": "Company Name",
+          "placeholder": "Enter your company name",
+          "description": "The legal name of your business",
+          "errors": {
+            "required": "Company name is required",
+            "empty": "Company name cannot be empty",
+            "maxLength": "Company name must be less than 100 characters"
+          }
+        },
+        "description": {
+          "label": "Description",
+          "placeholder": "Brief description of your company",
+          "description": "A short description of your business activities",
+          "errors": {
+            "maxLength": "Description must be less than 500 characters"
+          }
+        },
+        "identifier": {
+          "formatDescription": "Example: {{example}}",
+          "errors": {
+            "required": "This field is required",
+            "format": "Invalid format. {{example}}"
+          }
+        },
+        "legalId": {
+          "label": "Legal ID",
+          "placeholder": "Enter legal identifier",
+          "description": "Your company's legal registration number",
+          "errors": {
+            "required": "Legal ID is required",
+            "empty": "Legal ID cannot be empty",
+            "maxLength": "Legal ID must be less than 50 characters"
+          }
+        },
+        "vat": {
+          "label": "VAT Number",
+          "placeholder": "Enter VAT number (e.g., FR12345678901)",
+          "description": "Your company's VAT identification number",
+          "errors": {
+            "required": "VAT number is required",
+            "empty": "VAT number cannot be empty",
+            "maxLength": "VAT number must be less than 15 characters",
+            "format": "VAT number format is invalid (e.g., FR12345678901)"
+          }
+        },
+        "foundedAt": {
+          "label": "Founded Date",
+          "placeholder": "Select founding date",
+          "description": "When your company was established",
+          "errors": {
+            "future": "Founded date cannot be in the future"
+          }
+        },
+        "currency": {
+          "label": "Currency",
+          "description": "Default currency for invoices and quotes",
+          "errors": {
+            "required": "Currency is required",
+            "select": "Please select a currency"
+          }
+        },
+        "address": {
+          "label": "Address",
+          "placeholder": "Enter street address",
+          "description": "Your company's street address",
+          "errors": {
+            "empty": "Address is required"
+          }
+        },
+        "postalCode": {
+          "label": "Postal Code",
+          "placeholder": "Enter postal code",
+          "errors": {
+            "format": "Postal code format is invalid"
+          }
+        },
+        "city": {
+          "label": "City",
+          "placeholder": "Enter city",
+          "errors": {
+            "empty": "City is required"
+          }
+        },
+        "country": {
+          "label": "Country",
+          "placeholder": "Select a country",
+          "readOnlyDescription": "Country cannot be changed after company creation",
+          "errors": {
+            "empty": "Country is required"
+          }
+        },
+        "phone": {
+          "label": "Phone",
+          "placeholder": "Enter phone number",
+          "description": "Your company's main phone number",
+          "errors": {
+            "minLength": "Phone number must be at least 8 characters",
+            "format": "Phone number format is invalid"
+          }
+        },
+        "email": {
+          "label": "Email",
+          "placeholder": "Enter email address",
+          "description": "Your company's main email address",
+          "errors": {
+            "required": "Email is required",
+            "format": "Email format is invalid"
+          }
+        },
+        "quoteStartingNumber": {
+          "label": "Quote Starting Number",
+          "placeholder": "Enter starting number for quotes",
+          "description": "Initial number for quote numbering",
+          "errors": {
+            "min": "Quote starting number must be at least 1"
+          }
+        },
+        "quoteNumberFormat": {
+          "label": "Quote Number Format",
+          "placeholder": "Enter quote number format (e.g., Q-{year}-{number})",
+          "description": "Format for quote numbers",
+          "errors": {
+            "required": "Quote number format is required",
+            "maxLength": "Quote number format must be less than 100 characters",
+            "format": "Quote number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
+          }
+        },
+        "invoiceStartingNumber": {
+          "label": "Invoice Starting Number",
+          "placeholder": "Enter starting number for invoices",
+          "description": "Initial number for invoice numbering",
+          "errors": {
+            "min": "Invoice starting number must be at least 1"
+          }
+        },
+        "invoiceNumberFormat": {
+          "label": "Invoice Number Format",
+          "placeholder": "Enter invoice number format (e.g., INV-{year}-{number})",
+          "description": "Format for invoice numbers",
+          "errors": {
+            "required": "Invoice number format is required",
+            "maxLength": "Invoice number format must be less than 100 characters",
+            "format": "Invoice number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
+          }
+        },
+        "receiptStartingNumber": {
+          "label": "Receipt Starting Number",
+          "placeholder": "Enter starting number for receipts",
+          "description": "Initial number for receipt numbering",
+          "errors": {
+            "min": "Receipt starting number must be at least 1"
+          }
+        },
+        "receiptNumberFormat": {
+          "label": "Receipt Number Format",
+          "placeholder": "Enter receipt number format (e.g., REC-{year}-{number})",
+          "description": "Format for receipt numbers",
+          "errors": {
+            "required": "Receipt number format is required",
+            "maxLength": "Receipt number format must be less than 100 characters",
+            "format": "Receipt number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
+          }
+        },
+        "invoicePDFFormat": {
+          "label": "Invoice PDF Format",
+          "placeholder": "Select invoice PDF format",
+          "description": "Choose the format for invoice PDFs that will be sent to clients",
+          "options": {
+            "pdf": "Standard PDF",
+            "facturx": "Factur-X",
+            "zugferd": "ZUGFeRD",
+            "xrechnung": "XRechnung",
+            "ubl": "UBL",
+            "cii": "CII"
+          },
+          "errors": {
+            "required": "Invoice PDF format is required"
+          }
+        },
+        "dateFormat": {
+          "label": "Date Format",
+          "placeholder": "Select date format",
+          "description": "Choose how dates will be displayed in quotes and invoices",
+          "errors": {
+            "required": "Date format is required"
+          }
+        },
+        "exemptVat": {
+          "label": "TVA unapplicable",
+          "description": "Display the legal notice 'VAT not applicable, art. 293 B of the CGI' on future documents when enabled and if the company's country is France."
+        },
+        "saving": "Saving...",
+        "saveSettings": "Save Settings"
+      },
+      "messages": {
+        "updateSuccess": "Company settings updated successfully",
+        "updateError": "Failed to update company settings"
+      }
+    },
+    "account": {
+      "title": "Account Settings",
+      "description": "Manage your personal account information and security",
+      "profile": {
+        "title": "Profile Information",
+        "description": "Update your personal details"
+      },
+      "password": {
+        "title": "Password & Security",
+        "description": "Change your password and security settings",
+        "loading": "Loading...",
+        "noPasswordSet": "You signed in with an external provider (OIDC). You can set a password to also sign in with email and password."
+      },
+      "form": {
+        "firstname": {
+          "label": "First Name",
+          "placeholder": "Enter your first name",
+          "errors": {
+            "required": "First name is required"
+          }
+        },
+        "lastname": {
+          "label": "Last Name",
+          "placeholder": "Enter your last name",
+          "errors": {
+            "required": "Last name is required"
+          }
+        },
+        "email": {
+          "label": "Email",
+          "placeholder": "Enter your email",
+          "errors": {
+            "invalid": "Email format is invalid"
+          }
+        },
+        "currentPassword": {
+          "label": "Current Password",
+          "placeholder": "Enter current password",
+          "errors": {
+            "required": "Current password is required"
+          }
+        },
+        "password": {
+          "label": "New Password",
+          "labelNew": "Password",
+          "placeholder": "Enter new password",
+          "errors": {
+            "minLength": "Password must be at least 8 characters",
+            "letter": "Password must contain at least one letter",
+            "number": "Password must contain at least one number",
+            "special": "Password must contain at least one special character"
+          }
+        },
+        "confirmPassword": {
+          "label": "Confirm Password",
+          "placeholder": "Confirm new password",
+          "errors": {
+            "match": "Passwords do not match"
+          }
+        },
+        "errors": {
+          "fieldsEmpty": "All fields are required"
+        },
+        "updatingProfile": "Updating...",
+        "updateProfile": "Update Profile",
+        "updatingPassword": "Updating...",
+        "updatePassword": "Update Password",
+        "setPassword": "Set Password"
+      },
+      "messages": {
+        "profileUpdateSuccess": "Profile updated successfully",
+        "profileUpdateError": "Failed to update profile",
+        "passwordUpdateSuccess": "Password updated successfully",
+        "passwordUpdateError": "Failed to update password"
+      }
+    },
+    "dangerZone": {
+      "title": "Danger Zone",
+      "description": "Irreversible and destructive actions",
+      "resetApp": {
+        "title": "Reset Application Data",
+        "description": "Remove all quotes, invoices, and clients but keep your account",
+        "button": "Reset App Data"
+      },
+      "resetDatabase": {
+        "title": "Reset Everything",
+        "description": "Permanently delete your account and all associated data",
+        "button": "Reset Database"
+      },
+      "modal": {
+        "title": "Confirm Dangerous Action",
+        "description": "Please enter the verification code sent to your email to confirm this action.",
+        "otpLabel": "Verification Code",
+        "otpPlaceholder": "0000-0000",
+        "warningApp": "This will reset all your application data",
+        "warningAppDescription": "All quotes, invoices, and clients will be permanently deleted",
+        "warningDatabase": "This will delete your entire account",
+        "warningDatabaseDescription": "Your account and all data will be permanently deleted",
+        "cancel": "Cancel",
+        "confirm": "Confirm Action"
+      },
+      "messages": {
+        "otpSentSuccess": "Verification code sent to your email",
+        "otpSentError": "Failed to send verification code",
+        "actionSuccess": "Action completed successfully",
+        "actionError": "Failed to complete action",
+        "actionFailed": "Action failed",
+        "unexpectedError": "An unexpected error occurred"
+      }
+    },
+    "plugins": {
+      "title": "Plugins ({{count}})",
+      "description": "Install and manage plugins to extend the application's functionality",
+      "add": {
+        "title": "Add Plugin",
+        "description": "Install a plugin from a Git repository",
+        "gitUrl": {
+          "label": "Git Repository URL",
+          "placeholder": "https://github.com/username/repo"
+        }
+      },
+      "actions": {
+        "add": "Add",
+        "addLoading": "Adding...",
+        "delete": "Delete",
+        "deleting": "Deleting..."
+      },
+      "emptyState": {
+        "noPlugins": "No plugins are installed. Add a plugin to extend functionality."
+      },
+      "messages": {
+        "addSuccess": "Plugin added successfully",
+        "addError": "Failed to add plugin",
+        "deleteSuccess": "Plugin deleted successfully",
+        "deleteError": "Failed to delete plugin",
+        "toggleSuccess": "Plugin toggled successfully",
+        "toggleError": "Failed to toggle plugin",
+        "configureSuccess": "Plugin configured successfully",
+        "configureError": "Failed to configure plugin"
+      },
+      "webhook": {
+        "secretPlaceholder": "Validate that popup to generate secure secret"
+      }
+    },
+    "pdfTemplates": {
+      "title": "PDF Templates",
+      "description": "Customize the appearance of your invoices and quotes",
+      "templateType": {
+        "title": "Template Type",
+        "description": "Choose which template to customize",
+        "label": "Template Type",
+        "options": {
+          "invoice": "Invoice Template",
+          "quote": "Quote Template",
+          "receipt": "Receipt Template"
+        }
+      },
+      "typography": {
+        "title": "Typography",
+        "description": "Font and text styling options",
+        "fontFamily": "Font Family"
+      },
+      "colors": {
+        "title": "Colors",
+        "description": "Brand colors and theme",
+        "primaryColor": "Primary Color",
+        "secondaryColor": "Secondary Color"
+      },
+      "logo": {
+        "title": "Logo",
+        "description": "Company logo settings",
+        "includeLogo": "Include Logo",
+        "logoPreview": "Logo Preview",
+        "uploadText": "Click to upload logo"
+      },
+      "spacing": {
+        "title": "Spacing & Layout",
+        "description": "Control spacing and margins",
+        "padding": "Padding"
+      },
+      "labels": {
+        "title": "Labels & Text",
+        "invoice": "Invoice",
+        "quote": "Quote",
+        "receipt": "Receipt",
+        "billTo": "Bill To",
+        "quoteFor": "Quote For",
+        "validUntil": "Valid Until",
+        "dueDate": "Due Date",
+        "paymentDate": "Payment Date",
+        "date": "Date",
+        "description": "Description",
+        "receivedFrom": "Received from",
+        "invoiceRefer": "Invoice reference",
+        "quantity": "Quantity",
+        "unitPrice": "Unit Price",
+        "total": "Total",
+        "subtotal": "Subtotal",
+        "vat": "VAT",
+        "grandTotal": "Grand Total",
+        "vatRate": "VAT Rate",
+        "paymentMethod": "Payment Method",
+        "paymentDetails": "Payment Details",
+        "paymentMethodVariants": "Payment method display names",
+        "paymentMethodBankTransfer": "Bank transfer",
+        "paymentMethodPayPal": "PayPal",
+        "paymentMethodCash": "Cash",
+        "paymentMethodCheck": "Check",
+        "paymentMethodOther": "Other",
+        "notes": "Notes",
+        "totalReceived": "Total received",
+        "hour": "Hour",
+        "day": "Day",
+        "deposit": "Deposit",
+        "service": "Service",
+        "product": "Product",
+        "type": "Type",
+        "legalId": "Legal ID",
+        "vatId": "VAT ID"
+      },
+      "defaultLabels": {
+        "invoice": "Invoice",
+        "quote": "Quote",
+        "receipt": "Receipt",
+        "billTo": "Bill To",
+        "quoteFor": "Quote For",
+        "validUntil": "Valid Until",
+        "date": "Date",
+        "dueDate": "Due Date",
+        "paymentDate": "Payment Date",
+        "description": "Description",
+        "receivedFrom": "Received from",
+        "invoiceRefer": "Invoice reference",
+        "quantity": "Quantity",
+        "unitPrice": "Unit Price",
+        "total": "Total",
+        "subtotal": "Subtotal",
+        "vat": "VAT",
+        "grandTotal": "Grand Total",
+        "vatRate": "VAT Rate",
+        "paymentMethod": "Payment Method",
+        "paymentDetails": "Payment Details",
+        "paymentMethodBankTransfer": "Bank transfer",
+        "paymentMethodPayPal": "PayPal",
+        "paymentMethodCash": "Cash",
+        "paymentMethodCheck": "Check",
+        "paymentMethodOther": "Other",
+        "notes": "Notes",
+        "totalReceived": "Total received",
+        "hour": "Hour",
+        "day": "Day",
+        "deposit": "Deposit",
+        "service": "Service",
+        "product": "Product",
+        "type": "Type",
+        "legalId": "Legal ID",
+        "vatId": "VAT ID"
+      },
+      "preview": {
+        "title": "Preview",
+        "description": "Live preview of your {{templateType}} template",
+        "iframeTitle": "Template Preview"
+      },
+      "saveButton": "Save Template Settings",
+      "messages": {
+        "updateSuccess": "Template settings updated successfully",
+        "updateError": "Failed to update template settings"
+      }
+    },
+    "emailTemplates": {
+      "title": "Email Templates",
+      "description": "Customize email templates for invoices and quotes",
+      "editor": {
+        "subject": "Subject",
+        "subjectPlaceholder": "Enter email subject",
+        "body": "Email Body",
+        "htmlPlaceholder": "Enter HTML content...",
+        "htmlTip": "You can use HTML tags for formatting",
+        "availableVariables": "Available Variables",
+        "variablesTip": "Use these variables in your template by wrapping them in double curly braces"
+      },
+      "preview": {
+        "from": "From",
+        "to": "To",
+        "subject": "Subject",
+        "reply": "Reply",
+        "forward": "Forward",
+        "archive": "Archive"
+      },
+      "saveButton": "Save Template",
+      "messages": {
+        "saveSuccess": "{{name}} template saved successfully",
+        "saveError": "Failed to save template"
+      }
+    },
+    "webhooks": {
+      "title": "Webhook Settings",
+      "description": "Manage outgoing webhooks for events in your application",
+      "create": {
+        "title": "Create Webhook",
+        "description": "Create a new webhook to receive events",
+        "url": "Webhook URL",
+        "type": "Type",
+        "events": "Events",
+        "button": "Create Webhook"
+      },
+      "card": {
+        "events": "Listening to events: {{events}}",
+        "edit": "Edit",
+        "delete": "Delete",
+        "editPrompt": "Enter new webhook URL"
+      }
+    },
+    "compliance": {
+      "title": "Compliance Settings",
+      "description": "Configure e-invoicing platforms and regulatory compliance",
+      "configuredPlatforms": "Configured Platforms",
+      "secretSet": "configured",
+      "leaveBlankToKeep": "Leave blank to keep the current value",
+      "saveButton": "Save Settings",
+      "messages": {
+        "saveSuccess": "Compliance settings saved successfully",
+        "saveError": "Failed to save compliance settings"
+      },
+      "general": {
+        "title": "General Settings",
+        "description": "Default transmission and automation settings",
+        "defaultPlatform": "Default Transmission Platform",
+        "autoTransmission": "Automatic Transmission",
+        "autoTransmissionDescription": "Automatically transmit invoices to the configured platform when finalized"
+      },
+      "chorus": {
+        "title": "Chorus Pro (France B2G)",
+        "description": "French government e-invoicing platform for B2G transactions",
+        "apiUrl": "API URL",
+        "clientId": "Client ID",
+        "clientSecret": "Client Secret",
+        "technicalAccountId": "Technical Account ID"
+      },
+      "pdp": {
+        "title": "PDP / SuperPDP (France B2B)",
+        "description": "French private invoicing platform for B2B transactions",
+        "apiUrl": "API URL",
+        "clientId": "Client ID",
+        "apiKey": "API Key",
+        "provider": "Provider Name"
+      },
+      "peppol": {
+        "title": "Peppol",
+        "description": "Pan-European e-invoicing network",
+        "accessPointUrl": "Access Point URL",
+        "senderId": "Sender ID",
+        "senderIdDescription": "Your Peppol participant ID (e.g., 0088:1234567890123)",
+        "environment": "Environment",
+        "certificate": "Certificate (PEM)",
+        "privateKey": "Private Key (PEM)"
+      },
+      "sdi": {
+        "title": "SdI - Sistema di Interscambio (Italy)",
+        "description": "Italian e-invoicing system for FatturaPA",
+        "apiUrl": "API URL",
+        "certificate": "Certificate (PEM)",
+        "privateKey": "Private Key (PEM)",
+        "certificatePassword": "Certificate Password",
+        "certificatePasswordDescription": "Password for the certificate (if encrypted)"
+      },
+      "verifactu": {
+        "title": "Verifactu (Spain)",
+        "description": "Spanish tax agency e-invoicing system",
+        "apiUrl": "API URL",
+        "nif": "NIF (Tax ID)",
+        "nifDescription": "Spanish tax identification number",
+        "certificate": "Certificate (PEM)",
+        "privateKey": "Private Key (PEM)"
+      },
+      "saft": {
+        "title": "SAF-T (Portugal)",
+        "description": "Portuguese Standard Audit File for Tax",
+        "softwareCertificateNumber": "Software Certificate Number",
+        "softwareCertificateDescription": "Certificate number issued by the Portuguese tax authority",
+        "hashValidationKey": "Hash Validation Key"
+      }
+    }
+  },
+  "sidebar": {
+    "navigation": {
+      "dashboard": "Dashboard",
+      "quotes": "Quotes",
+      "invoices": "Invoices",
+      "receipts": "Receipts",
+      "clients": "Clients",
+      "paymentMethods": "Payment Methods",
+      "stats": "Statistics",
+      "settings": "Settings",
+      "admin": "Administration"
+    },
+    "company": {
+      "plan": "Enterprise",
+      "noCompany": "No Company",
+      "switchCompany": "Switch Company",
+      "createNew": "Create New Company"
+    },
+    "menu": "Menu",
+    "theme": {
+      "toggleTheme": "Toggle theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "userMenu": {
+      "account": "Account",
+      "logout": "Log out"
+    },
+    "companyDialog": {
+      "title": "Complete Company Setup",
+      "description": "Please complete your company information to continue using the application.",
+      "goButton": "Go to Company Settings"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Sign In",
+      "description": "Enter your credentials to access your account",
+      "form": {
+        "email": {
+          "label": "Email"
+        },
+        "password": {
+          "label": "Password"
+        },
+        "loggingIn": "Signing in...",
+        "loginButton": "Sign In"
+      },
+      "noAccount": "Don't have an account?",
+      "signUpLink": "Sign up",
+      "errors": {
+        "invalidEmail": "Please enter a valid email address",
+        "passwordRequired": "Password is required"
+      },
+      "messages": {
+        "loginSuccess": "Successfully signed in",
+        "loginError": "Invalid credentials"
+      },
+      "oidc": "Sign in with OIDC.",
+      "oidcLink": "OIDC Login"
+    },
+    "signup": {
+      "title": "Create Account",
+      "description": "Create a new account to get started",
+      "form": {
+        "firstname": {
+          "label": "First Name",
+          "placeholder": "Enter your first name"
+        },
+        "lastname": {
+          "label": "Last Name",
+          "placeholder": "Enter your last name"
+        },
+        "email": {
+          "label": "Email",
+          "placeholder": "Enter your email"
+        },
+        "password": {
+          "label": "Password",
+          "placeholder": "Create a password",
+          "requirements": "Password requirements:"
+        },
+        "invitationCode": {
+          "label": "Invitation Code",
+          "placeholder": "Enter your invitation code",
+          "hint": "You need an invitation code from an existing user to register",
+          "joiningCompany": "You will join: {{companyName}}"
+        },
+        "creatingAccount": "Creating account...",
+        "createButton": "Create Account"
+      },
+      "hasAccount": "Already have an account?",
+      "signInLink": "Sign in",
+      "errors": {
+        "firstnameMinLength": "First name must be at least 2 characters",
+        "lastnameMinLength": "Last name must be at least 2 characters",
+        "invalidEmail": "Please enter a valid email address",
+        "passwordMinLength": "Password must be at least 8 characters",
+        "passwordLetter": "Password must contain at least one letter",
+        "passwordNumber": "Password must contain at least one number",
+        "passwordSpecial": "Password must contain at least one special character",
+        "invitationCodeRequired": "An invitation code is required to register",
+        "invalidInvitationCode": "Invalid or expired invitation code",
+        "genericError": "An error occurred while creating your account"
+      },
+      "messages": {
+        "accountCreated": "Account created successfully"
+      },
+      "oidc": "Sign up with OIDC.",
+      "oidcLink": "OIDC Signup"
+    }
+  },
+  "unavailable": {
+    "title": "Unavailable on Mobile/Tablet",
+    "description": "This feature is only available on desktop devices for optimal experience."
+  },
+  "component": {
+    "currency-select": {
+      "placeholder": "Select your currency",
+      "searchPlaceholder": "Search currencies...",
+      "noResults": "No currencies found"
+    }
+  },
+  "common": {
+    "previous": "Previous",
+    "next": "Next",
+    "loading": "Loading...",
+    "finish": "Finish",
+    "optional": "Optional",
+    "cancel": "Cancel",
+    "creating": "Creating...",
+    "processing": "Processing...",
+    "vat": "VAT",
+    "units": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "year": "Year"
+    },
+    "valueWithCurrency": "{{amount}}{{currency}}"
+  },
+  "correction": {
+    "creditNote": "Credit Note",
+    "debitNote": "Debit Note",
+    "correctiveInvoice": "Corrective Invoice",
+    "cancellation": "Cancellation"
+  },
+  "noOptions": "No options available. Create a new client.",
+  "receipts": {
+    "header": {
+      "subtitle": "Manage your receipts",
+      "count": "{{count}} receipts {{found}}",
+      "found": "found"
+    },
+    "search": {
+      "placeholder": "Search receipts..."
+    },
+    "actions": {
+      "addNew": "Add New Receipt"
+    },
+    "stats": {
+      "total": "Total Receipts",
+      "draft": "Draft",
+      "sent": "Sent",
+      "signed": "Signed"
+    },
+    "emptyState": {
+      "noReceipts": "No receipts yet",
+      "noResults": "No receipts found",
+      "startAdding": "Get started by creating your first receipt.",
+      "tryDifferentSearch": "Try adjusting your search terms."
+    },
+    "list": {
+      "title": "All Receipts",
+      "description": "Manage and view all your receipts in one place.",
+      "status": {
+        "draft": "Draft",
+        "sent": "Sent",
+        "signed": "Signed"
+      },
+      "item": {
+        "title": "Receipt {{number}}",
+        "client": "Client",
+        "issued": "Issued",
+        "validUntil": "Valid Until",
+        "totalHT": "Total (excl. VAT)",
+        "totalTTC": "Total (incl. VAT)",
+        "invoice": "Invoice",
+        "totalItemCount": "Total Item Count",
+        "totalPaid": "Total Paid"
+      },
+      "tooltips": {
+        "view": "View receipt",
+        "viewPdf": "View PDF",
+        "downloadPdf": "Download PDF",
+        "edit": "Edit receipt",
+        "sendToClient": "Send to client",
+        "delete": "Delete receipt"
+      },
+      "messages": {
+        "emailSent": "Receipt sent to client successfully.",
+        "emailError": "Failed to send receipt to client."
+      },
+      "actions": {
+        "addNew": "Add New Receipt"
+      }
+    },
+    "upsert": {
+      "title": {
+        "edit": "Edit Receipt",
+        "create": "Create Receipt"
+      },
+      "form": {
+        "client": {
+          "label": "Client",
+          "errors": {
+            "required": "Client is required."
+          }
+        },
+        "items": {
+          "label": "Items",
+          "placeholder": "Add items to the receipt",
+          "noResults": "No items found",
+          "addButton": "Add Item",
+          "description": {
+            "errors": {
+              "required": "Description is required."
+            }
+          },
+          "quantity": {
+            "errors": {
+              "required": "Quantity is required.",
+              "min": "Quantity must be at least 1.",
+              "invalid": "Invalid quantity."
+            }
+          },
+          "unitPrice": {
+            "errors": {
+              "required": "Unit price is required.",
+              "min": "Unit price must be at least 0.",
+              "invalid": "Invalid unit price."
+            }
+          },
+          "vatRate": {
+            "errors": {
+              "required": "VAT rate is required.",
+              "min": "VAT rate must be at least 0."
+            }
+          }
+        },
+        "invoice": {
+          "label": "Invoice",
+          "placeholder": "Select an invoice",
+          "noResults": "No invoices found"
+        },
+        "paymentMethod": {
+          "label": "Payment Method",
+          "placeholder": "Enter the payment method",
+          "description": "The method used to make the payment"
+        },
+        "paymentDetails": {
+          "label": "Payment Details",
+          "placeholder": "Enter payment details",
+          "description": "Additional information about the payment"
+        }
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "save": "Save Changes",
+        "create": "Create Receipt",
+        "edit": "Edit Receipt"
+      }
+    },
+    "delete": {
+      "title": "Delete Receipt",
+      "description": "Are you sure you want to delete this receipt? This action cannot be undone.",
+      "actions": {
+        "cancel": "Cancel",
+        "delete": "Delete"
+      }
+    },
+    "pdf": {
+      "title": "Receipt {{number}} - PDF"
+    }
+  },
+  "stats": {
+    "title": "Statistics",
+    "description": "View invoiced amounts, revenue and deposits by month and year.",
+    "noData": "No data available for the selected period.",
+    "controls": {
+      "year": "Year",
+      "range": "Year range"
+    },
+    "monthly": {
+      "title": "Monthly statistics"
+    },
+    "yearly": {
+      "title": "Yearly statistics"
+    },
+    "month": "Month",
+    "year": "Year",
+    "invoiced": "Invoiced (incl. VAT)",
+    "revenue": "Revenue (excl. VAT)",
+    "deposits": "Deposits (invoice paid)"
+  },
+  "webhook": {
+    "instructions": {
+      "documenso": {
+        "title": "Instructions for Documenso webhook configuration:",
+        "step1": "1. Go to your Documenso admin panel",
+        "step2": "2. Configure webhook URL",
+        "step3": "3. Configure webhook secret",
+        "step4": "4. Enable the following events: document.signed, document.completed (minimum required)",
+        "step5": "5. Additional events you may want to enable: document.pending, document.completed, document.rejected"
+      }
+    },
+    "modal": {
+      "title": "Webhook Configuration for {{pluginName}}",
+      "url": "Webhook URL",
+      "secret": "Webhook Secret",
+      "secretDescription": "Keep this secret secure. It will be used to verify webhook authenticity.",
+      "instructions": "Configuration Instructions",
+      "warning": "Configure both the webhook URL and secret in your {{pluginName}} settings to receive authenticated real-time updates. Store the secret securely - it won't be shown again.",
+      "gotIt": "Got it!"
+    }
+  },
+  "folderSelect": {
+    "placeholder": "Select a folder...",
+    "browse": "Browse",
+    "title": "Select a Folder",
+    "newFolder": "New Folder",
+    "folderName": "Folder name...",
+    "create": "Create",
+    "cancel": "Cancel",
+    "selectThisFolder": "Select This Folder",
+    "noSubdirectories": "No subdirectories found",
+    "loading": "Loading directories..."
+  },
+  "transmission": {
+    "email": "Email",
+    "peppol": "Peppol",
+    "sdi": "SDI (Sistema di Interscambio)",
+    "chorus": "Chorus Pro",
+    "verifactu": "Verifactu",
+    "saft": "SAF-T",
+    "pdp": "PDP Platform"
+  },
+  "platform": {
+    "email": "Email",
+    "superpdp": "SuperPDP",
+    "chorus": "Chorus Pro",
+    "peppol": "Peppol Network",
+    "sdi": "SDI",
+    "irp": "IRP (Invoice Registration Portal)",
+    "verifactu": "Verifactu",
+    "saft": "SAF-T Portal",
+    "xrechnung": "XRechnung Portal",
+    "face": "FACe"
+  },
+  "admin": {
+    "title": "Administration",
+    "navigation": {
+      "users": "Users",
+      "companies": "Companies"
+    },
+    "users": {
+      "title": "User Management",
+      "description": "Manage all users in the system",
+      "search": {
+        "placeholder": "Search users..."
+      },
+      "table": {
+        "name": "Name",
+        "email": "Email",
+        "role": "Role",
+        "createdAt": "Created",
+        "actions": "Actions"
+      },
+      "roles": {
+        "USER": "User",
+        "COMPANY_ADMIN": "Company Admin",
+        "SYSTEM_ADMIN": "System Admin"
+      },
+      "actions": {
+        "edit": "Edit User",
+        "delete": "Delete User",
+        "changeRole": "Change Role",
+        "grantAdmin": "Grant Admin",
+        "revokeAdmin": "Revoke Admin"
+      },
+      "messages": {
+        "adminGranted": "System admin privileges granted",
+        "adminRevoked": "System admin privileges revoked"
+      },
+      "emptyState": {
+        "noUsers": "No users found",
+        "noResults": "No users match your search"
+      }
+    },
+    "companies": {
+      "title": "Company Management",
+      "description": "Manage all companies in the system",
+      "search": {
+        "placeholder": "Search companies..."
+      },
+      "table": {
+        "name": "Company Name",
+        "country": "Country",
+        "members": "Members",
+        "createdAt": "Created",
+        "actions": "Actions"
+      },
+      "actions": {
+        "view": "View Details",
+        "edit": "Edit Company",
+        "delete": "Delete Company"
+      },
+      "messages": {
+        "deleted": "Company deleted successfully"
+      },
+      "delete": {
+        "title": "Delete Company",
+        "description": "Are you sure you want to delete this company? This action cannot be undone and will permanently delete all data associated with this company."
+      },
+      "emptyState": {
+        "noCompanies": "No companies found",
+        "noResults": "No companies match your search"
+      }
+    }
+  },
+  "companyInvitation": {
+    "title": "Company Invitation",
+    "description": "You have been invited to join a company",
+    "invitedBy": "Invited by {{name}}",
+    "companyName": "Company",
+    "role": "Your Role",
+    "roles": {
+      "OWNER": "Owner",
+      "ADMIN": "Admin",
+      "ACCOUNTANT": "Accountant"
+    },
+    "actions": {
+      "accept": "Accept Invitation",
+      "decline": "Decline",
+      "accepting": "Accepting..."
+    },
+    "messages": {
+      "accepted": "You have joined {{companyName}}",
+      "declined": "Invitation declined",
+      "expired": "This invitation has expired",
+      "invalid": "Invalid invitation",
+      "alreadyMember": "You are already a member of this company"
+    },
+    "signupRequired": {
+      "title": "Create an Account",
+      "description": "You need to create an account to accept this invitation"
+    }
+  }
 }

@@ -139,31 +139,41 @@ Make sure port 80 is available on your host machine, or change the mapping.
    npm run start
    ```
 
-4. Open in your browser:  
-   - Frontend: `http://localhost:5173`  
+4. Open in your browser:
+   - Frontend: `http://localhost:5173`
    - API: `http://localhost:3000`
 
 ---
 
-## 🧪 Lancer les tests end-to-end (Cypress)
+## 🤖 Claude Code Users
 
-Pour lancer les tests e2e localement ou en CI :
+This repository includes a `CLAUDE.md` file at the root, which provides context and instructions for [Claude Code](https://claude.ai/code) (Anthropic's CLI tool for AI-assisted development).
 
-1. Démarrer le backend et le frontend avec les variables de test :
+**If you're using Claude Code to contribute to this project, you don't need to create your own `CLAUDE.md` file.** The included file contains project-specific guidelines, architecture overview, and development commands that Claude Code will automatically use.
+
+> **Note:** This file is provided as a convenience for contributors using AI-assisted development tools. It does not affect the application itself and can be safely ignored if you're not using Claude Code.
+
+---
+
+## 🧪 Running End-to-End Tests (Cypress)
+
+To run e2e tests locally or in CI:
+
+1. Start the backend and frontend with test environment variables:
    ```bash
    cd backend && npm run start:test &
    cd frontend && npm run start:test &
    ```
-   (Assurez-vous d'avoir un .env.test dans chaque dossier)
+   (Make sure you have a `.env.test` file in each folder)
 
-2. Dans un autre terminal, lancer Cypress :
+2. In another terminal, run Cypress:
    ```bash
    cd e2e
    npm install
-   npm run e2e:open # ou npm run e2e:run
+   npm run e2e:open # or npm run e2e:run
    ```
 
-En CI, le workflow GitHub Actions fait ces étapes automatiquement.
+In CI, the GitHub Actions workflow handles these steps automatically.
 
 ---
 

@@ -1,10 +1,9 @@
-import { PluginsService } from '@/modules/plugins/plugins.service';
 import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
-
+import { PluginsService } from '@/modules/plugins/plugins.service';
 
 @Controller('plugins')
 export class PluginsController {
-  constructor(private readonly pluginsService: PluginsService) { }
+  constructor(private readonly pluginsService: PluginsService) {}
 
   @Get()
   async getPlugins() {
@@ -56,9 +55,7 @@ export class PluginsController {
   }
 
   @Post('in-app/configure')
-  async configureInAppPlugin(
-    @Body() body: { pluginId: string; config: Record<string, any> }
-  ) {
+  async configureInAppPlugin(@Body() body: { pluginId: string; config: Record<string, any> }) {
     return this.pluginsService.configureInAppPlugin(body.pluginId, body.config);
   }
 
@@ -71,12 +68,12 @@ export class PluginsController {
         message: 'Plugin validated and webhook configured successfully',
         webhookUrl: validation.webhookUrl,
         webhookSecret: validation.webhookSecret,
-        instructions: validation.instructions
+        instructions: validation.instructions,
       };
     } catch (error) {
       return {
         success: false,
-        message: error.message || 'Plugin validation failed'
+        message: error.message || 'Plugin validation failed',
       };
     }
   }
@@ -91,7 +88,7 @@ export class PluginsController {
       id: provider.__uuid,
       name: provider.name,
       type: provider.type,
-      hasProvider: true
+      hasProvider: true,
     };
   }
 }

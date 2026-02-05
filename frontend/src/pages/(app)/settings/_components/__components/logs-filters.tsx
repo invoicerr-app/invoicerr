@@ -1,38 +1,44 @@
-"use client"
+'use client';
 
-import { Search, RefreshCw, Calendar } from "lucide-react"
-import type { LogLevel } from "../logs.settings"
-import { Input } from "@/components/ui/input"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Button } from "@/components/ui/button"
-import { Calendar as CalendarComponent } from "@/components/ui/calendar"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectItem, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Calendar, RefreshCw, Search } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import type { LogLevel } from '../logs.settings';
 
 type LogsFiltersProps = {
-  levelFilter: LogLevel[]
-  setLevelFilter: (levels: LogLevel[]) => void
-  categoryFilter: string[]
-  setCategoryFilter: (categories: string[]) => void
-  searchQuery: string
-  setSearchQuery: (query: string) => void
-  dateRange: { from: Date | null; to: Date | null }
-  setDateRange: (range: { from: Date | null; to: Date | null }) => void
-  categories: string[]
-  totalLogs: number
-  filteredCount: number
-  onRefresh: () => void
-}
+  levelFilter: LogLevel[];
+  setLevelFilter: (levels: LogLevel[]) => void;
+  categoryFilter: string[];
+  setCategoryFilter: (categories: string[]) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  dateRange: { from: Date | null; to: Date | null };
+  setDateRange: (range: { from: Date | null; to: Date | null }) => void;
+  categories: string[];
+  totalLogs: number;
+  filteredCount: number;
+  onRefresh: () => void;
+};
 
-const LOG_LEVELS: LogLevel[] = ["DEBUG", "INFO", "WARN", "ERROR", "FATAL"]
+const LOG_LEVELS: LogLevel[] = ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'];
 
 const levelColors: Record<LogLevel, string> = {
-  DEBUG: "bg-muted text-muted-foreground",
-  INFO: "bg-blue-500/10 text-blue-500",
-  WARN: "bg-yellow-500/10 text-yellow-500",
-  ERROR: "bg-red-500/10 text-red-500",
-  FATAL: "bg-purple-500/10 text-purple-500",
-}
+  DEBUG: 'bg-muted text-muted-foreground',
+  INFO: 'bg-blue-500/10 text-blue-500',
+  WARN: 'bg-yellow-500/10 text-yellow-500',
+  ERROR: 'bg-red-500/10 text-red-500',
+  FATAL: 'bg-purple-500/10 text-purple-500',
+};
 
 export function LogsFilters({
   levelFilter,
@@ -50,34 +56,38 @@ export function LogsFilters({
 }: LogsFiltersProps) {
   function toggleLevel(level: LogLevel) {
     if (levelFilter.includes(level)) {
-      setLevelFilter(levelFilter.filter((l) => l !== level))
+      setLevelFilter(levelFilter.filter((l) => l !== level));
     } else {
-      setLevelFilter([...levelFilter, level])
+      setLevelFilter([...levelFilter, level]);
     }
   }
 
   function toggleCategory(category: string) {
     if (categoryFilter.includes(category)) {
-      setCategoryFilter(categoryFilter.filter((c) => c !== category))
+      setCategoryFilter(categoryFilter.filter((c) => c !== category));
     } else {
-      setCategoryFilter([...categoryFilter, category])
+      setCategoryFilter([...categoryFilter, category]);
     }
   }
 
   function clearFilters() {
-    setLevelFilter([])
-    setCategoryFilter([])
-    setSearchQuery("")
-    setDateRange({ from: null, to: null })
+    setLevelFilter([]);
+    setCategoryFilter([]);
+    setSearchQuery('');
+    setDateRange({ from: null, to: null });
   }
 
   const hasActiveFilters =
-    levelFilter.length > 0 || categoryFilter.length > 0 || searchQuery || dateRange.from || dateRange.to
+    levelFilter.length > 0 ||
+    categoryFilter.length > 0 ||
+    searchQuery ||
+    dateRange.from ||
+    dateRange.to;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[240px]">
+        <div className="relative flex-1 min-w-60">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search logs..."
@@ -100,7 +110,7 @@ export function LogsFilters({
                   dateRange.from.toLocaleDateString()
                 )
               ) : (
-                "Date Range"
+                'Date Range'
               )}
             </Button>
           </PopoverTrigger>
@@ -144,8 +154,8 @@ export function LogsFilters({
             {LOG_LEVELS.map((level) => (
               <Badge
                 key={level}
-                variant={levelFilter.includes(level) ? "default" : "outline"}
-                className={`cursor-pointer ${levelFilter.includes(level) ? levelColors[level] : ""}`}
+                variant={levelFilter.includes(level) ? 'default' : 'outline'}
+                className={`cursor-pointer ${levelFilter.includes(level) ? levelColors[level] : ''}`}
                 onClick={() => toggleLevel(level)}
               >
                 {level}
@@ -158,16 +168,16 @@ export function LogsFilters({
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-muted-foreground">Category:</span>
             <Select
-              value={categoryFilter[0] || "all"}
+              value={categoryFilter[0] || 'all'}
               onValueChange={(value) => {
-                if (value === "all") {
-                  setCategoryFilter([])
+                if (value === 'all') {
+                  setCategoryFilter([]);
                 } else {
-                  toggleCategory(value)
+                  toggleCategory(value);
                 }
               }}
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-45">
                 <SelectValue placeholder="All categories" />
               </SelectTrigger>
               <SelectContent>
@@ -187,5 +197,5 @@ export function LogsFilters({
         </div>
       </div>
     </div>
-  )
+  );
 }
