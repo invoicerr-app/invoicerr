@@ -196,42 +196,17 @@ enum QuoteStatus {
   DRAFT
   SENT
   VIEWED
-  ACCEPTED
-  REJECTED
+  SIGNED
   EXPIRED
-  CANCELLED
+  REJECTED
 }
 
 // Invoice status
 enum InvoiceStatus {
-  DRAFT
-  SENT
-  VIEWED
   PAID
+  UNPAID
   OVERDUE
-  CANCELLED
-}
-
-// Transmission status
-enum TransmissionStatus {
-  PENDING
   SENT
-  DELIVERED
-  FAILED
-  ACCEPTED
-  REJECTED
-}
-
-// Correction codes (credit notes)
-enum CorrectionCode {
-  FULL_REDUCTION
-  PARTIAL_REDUCTION
-  REFUND
-  PRICE_ADJUSTMENT
-  QUANTITY_ADJUSTMENT
-  ERROR_CORRECTION
-  VOID
-  REISSUE
 }
 
 // Recurrence frequency
@@ -329,8 +304,9 @@ model Company {
   name        String
   description String?
   currency    Currency @default(EUR)
-  identifiers Json     @default("{}") // Dynamic identifiers based on country (e.g., { siret: "...", vat: "..." })
+  legalId     String?
   foundedAt   DateTime
+  VAT         String?
   exemptVat   Boolean  @default(false)
   address      String
   addressLine2 String? // Second line for address (apartment, suite, etc.)
@@ -352,32 +328,27 @@ model Company {
 
   dateFormat String @default("dd/MM/yyyy") // Date format for quotes and invoices
 
-  pDFConfigId        String              @unique
-  pdfConfig          PDFConfig           @relation(fields: [pDFConfigId], references: [id])
-  Quote              Quote[]
-  Invoice            Invoice[]
-  PaymentMethod      PaymentMethod[]
-  emailTemplates     MailTemplate[]
-  RecurringInvoice   RecurringInvoice[]
-  webhooks           Webhook[]
-  complianceSettings ComplianceSettings?
-
-  // Multi-tenant: users belonging to this company
-  users       UserCompany[]
-  invitations InvitationCode[]
-  clients     Client[]
+  pDFConfigId      String             @unique
+  pdfConfig        PDFConfig          @relation(fields: [pDFConfigId], references: [id])
+  Quote            Quote[]
+  Invoice          Invoice[]
+  PaymentMethod    PaymentMethod[]
+  emailTemplates   MailTemplate[]
+  RecurringInvoice RecurringInvoice[]
+  webhooks         Webhook[]
 }
 
 // Client model
 model Client {
-  id               String     @id @default(cuid())
+  id               String             @id @default(cuid())
   name             String
   description      String?
-  identifiers      Json       @default("{}") // Dynamic identifiers based on country (e.g., { siret: "...", vat: "..." })
+  legalId          String? // Legal identification number (SIRET, EIN, etc.)
+  VAT              String? // VAT number
   foundedAt        DateTime? // Date when the client company was founded
   contactFirstname String?
   contactLastname  String?
-  contactEmail     String?
+  contactEmail     String?            @unique
   contactPhone     String?
   address          String
   addressLine2     String? // Second line for address (apartment, suite, etc.)
@@ -386,21 +357,14 @@ model Client {
   state            String? // State/Province (for US addresses, etc.)
   country          String
   currency         Currency?
-  type             ClientType @default(COMPANY)
-  salutation       String     @default("Mr") // Mr, Ms, Mrs (We need a default value for the invoice generation)
-  sex              String     @default("other") // male, female, other (We need a default value for the invoice generation)
-  title            String     @default("Doctor") // Doctor, Professor (We need a default value for the invoice generation)
-  isActive         Boolean    @default(true)
-
-  // Multi-tenant: client belongs to a company
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
+  type             ClientType         @default(COMPANY)
+  salutation       String             @default("Mr") // Mr, Ms, Mrs (We need a default value for the invoice generation)
+  sex              String             @default("other") // male, female, other (We need a default value for the invoice generation)
+  title            String             @default("Doctor") // Doctor, Professor (We need a default value for the invoice generation)
+  isActive         Boolean            @default(true)
   Quote            Quote[]
   Invoice          Invoice[]
   RecurringInvoice RecurringInvoice[]
-
-  @@index([companyId])
 }
 
 // Email templates
@@ -430,11 +394,9 @@ model Quote {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   validUntil      DateTime?
+  signedAt        DateTime?
   viewedAt        DateTime?
-  acceptedAt      DateTime?
-  acceptedBy      String?
-  rejectedAt      DateTime?
-  rejectedBy      String?
+  signedBy        String?
   totalHT         Float
   totalVAT        Float
   totalTTC        Float
@@ -462,66 +424,33 @@ model QuoteItem {
 
 // Invoice model
 model Invoice {
-  id                 String                @id @default(uuid())
-  number             Int                   @default(autoincrement())
+  id                 String            @id @default(uuid())
+  number             Int               @default(autoincrement())
   rawNumber          String? // Raw number for custom formats
-  quote              Quote?                @relation(fields: [quoteId], references: [id])
+  quote              Quote?            @relation(fields: [quoteId], references: [id])
   quoteId            String?
-  recurringInvoice   RecurringInvoice?     @relation(fields: [recurringInvoiceId], references: [id])
+  recurringInvoice   RecurringInvoice? @relation(fields: [recurringInvoiceId], references: [id])
   recurringInvoiceId String?
-  originalInvoice    Invoice?              @relation("InvoiceCorrections", fields: [originalInvoiceId], references: [id])
-  originalInvoiceId  String?
-  creditNotes        Invoice[]             @relation("InvoiceCorrections")
-  client             Client                @relation(fields: [clientId], references: [id]) // Client receiving the invoice
+  client             Client            @relation(fields: [clientId], references: [id]) // Client receiving the invoice
   clientId           String
-  company            Company               @relation(fields: [companyId], references: [id]) // Company issuing the invoice
+  company            Company           @relation(fields: [companyId], references: [id]) // Company issuing the invoice
   companyId          String
   items              InvoiceItem[]
-  status             InvoiceStatus         @default(DRAFT)
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @updatedAt
+  status             InvoiceStatus     @default(UNPAID)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
   dueDate            DateTime
   paidAt             DateTime?
   paymentMethod      String? // Ex: "Bank Transfer", "PayPal", "Cash"
   paymentDetails     String? // Details for the payment method (e.g., bank account number)
   paymentMethodId    String?
-  notes              String?               @default("")
+  notes              String?           @default("")
   totalHT            Float
   totalVAT           Float
   totalTTC           Float
   currency           Currency
-  isActive           Boolean               @default(true)
+  isActive           Boolean           @default(true)
   receipts           Receipt[]
-  transmissions      InvoiceTransmission[]
-
-  // Compliance fields
-  correctionCode         CorrectionCode?
-  correctionReason       String?
-  externalTransmissionId String? // ID from Peppol, Chorus, SDI, etc.
-  transmissionPlatform   String? // email, peppol, chorus, sdi, verifactu, saft
-  transmissionStatus     TransmissionStatus?
-  transmittedAt          DateTime?
-  validationUrl          String?
-}
-
-// Invoice transmission history
-model InvoiceTransmission {
-  id             String             @id @default(cuid())
-  invoice        Invoice            @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  invoiceId      String
-  platform       String // email, peppol, chorus, sdi, verifactu, saft
-  externalId     String? // ID from the platform
-  status         TransmissionStatus @default(PENDING)
-  statusMessage  String?
-  validationUrl  String?
-  sentAt         DateTime           @default(now())
-  deliveredAt    DateTime?
-  acknowledgedAt DateTime?
-  response       Json? // Raw response from platform
-
-  @@index([invoiceId])
-  @@index([platform])
-  @@map("invoice_transmission")
 }
 
 model InvoiceItem {
@@ -597,9 +526,6 @@ model Receipt {
   paymentMethod   String        @default("") // Ex: "Bank Transfer", "PayPal", "Cash"
   paymentDetails  String        @default("") // Details for the payment method (e.g., bank account number)
   paymentMethodId String?
-  sentAt          DateTime? // When receipt was sent to client
-  notes           String?       @default("")
-  isActive        Boolean       @default(true)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 }
@@ -880,40 +806,9 @@ model InvitationCode {
   usedById    String?   @unique
   usedBy      User?     @relation("UsedInvitation", fields: [usedById], references: [id], onDelete: SetNull)
 
-  // Multi-tenant: invitation for a specific company with a role
-  companyId String?
-  company   Company?        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  role      UserCompanyRole @default(ACCOUNTANT)
-
   @@index([code])
   @@index([createdById])
-  @@index([companyId])
   @@map("invitation_code")
-}
-
-// ======= MULTI-TENANT USER-COMPANY RELATIONSHIP ======= //
-
-enum UserCompanyRole {
-  SYSTEM_ADMIN // Global admin (first user)
-  OWNER // Company owner - full access
-  ADMIN // Company admin - manage users, settings
-  ACCOUNTANT // Can create/manage documents
-}
-
-model UserCompany {
-  id        String          @id @default(cuid())
-  userId    String
-  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  companyId String
-  company   Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  role      UserCompanyRole
-  joinedAt  DateTime        @default(now())
-  isDefault Boolean         @default(false) // Default company for the user
-
-  @@unique([userId, companyId])
-  @@index([userId])
-  @@index([companyId])
-  @@map("user_company")
 }
 
 // ======= BETTER AUTH INTEGRATION ======= //
@@ -930,10 +825,6 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
-
-  // Multi-tenant: user can belong to multiple companies
-  isSystemAdmin Boolean       @default(false) // First user becomes system admin
-  companies     UserCompany[]
 
   // Invitation relations
   createdInvitations InvitationCode[] @relation("CreatedInvitations")
@@ -1019,77 +910,3 @@ model Log {
 }
 
 // ======= END OF LOGGING SYSTEM ======= //
-
-// ======= COMPLIANCE SETTINGS ======= //
-
-model ComplianceSettings {
-  id        String  @id @default(cuid())
-  companyId String  @unique
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  // ===== Chorus Pro (France B2G) =====
-  chorusApiUrl             String?
-  chorusClientId           String?
-  chorusClientSecret       String?
-  chorusTechnicalAccountId String?
-
-  // ===== SuperPDP / PDP (France B2B) =====
-  pdpApiUrl   String?
-  pdpApiKey   String?
-  pdpClientId String?
-  pdpProvider String? // superpdp, other PDP providers
-
-  // ===== Peppol =====
-  peppolAccessPointUrl String?
-  peppolSenderId       String?
-  peppolCertificatePem String? @db.Text
-  peppolPrivateKeyPem  String? @db.Text
-  peppolEnvironment    String? @default("test") // test, production
-
-  // ===== SdI - Sistema di Interscambio (Italy) =====
-  sdiApiUrl              String?
-  sdiCertificatePem      String? @db.Text
-  sdiPrivateKeyPem       String? @db.Text
-  sdiCertificatePassword String?
-
-  // ===== Verifactu (Spain) =====
-  verifactuApiUrl         String?
-  verifactuCertificatePem String? @db.Text
-  verifactuPrivateKeyPem  String? @db.Text
-  verifactuNif            String? // NIF of the company
-
-  // ===== SAF-T (Portugal) =====
-  saftSoftwareCertificateNumber String?
-  saftHashValidationKey         String?
-
-  // ===== General settings =====
-  defaultTransmissionPlatform String? // email, chorus, peppol, sdi, etc.
-  enableAutoTransmission      Boolean @default(false)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([companyId])
-  @@map("compliance_settings")
-}
-
-// ======= COMPLIANCE NUMBERING SEQUENCES ======= //
-
-model NumberingSequence {
-  id           String   @id @default(cuid())
-  companyId    String
-  series       String?
-  documentType String   @default("invoice") // invoice, quote, receipt
-  lastSequence Int      @default(0)
-  lastHash     String?
-  year         Int
-  month        Int
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@unique([companyId, series, documentType])
-  @@index([companyId])
-  @@map("numbering_sequence")
-}
-
-// ======= END OF COMPLIANCE ======= //

@@ -5,6 +5,8 @@
   "compilerOptions": {
     "builder": "tsc",
     "deleteOutDir": true,
-    "assets": ["**/*.json"]
+    "assets": [
+      "**/*.json"
+    ]
   }
 }

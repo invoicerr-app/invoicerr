@@ -1,13 +1,13 @@
 {
-  "form": {
-    "fields": [
-      {
-        "type": "folder",
-        "name": "storagePath",
-        "label": "Storage Path",
-        "required": true,
-        "placeholder": "Select a folder for storing files"
-      }
-    ]
-  }
+    "form": {
+        "fields": [
+            {
+                "type": "folder",
+                "name": "storagePath",
+                "label": "Storage Path",
+                "required": true,
+                "placeholder": "Select a folder for storing files"
+            }
+        ]
+    }
 }

@@ -1,37 +1,37 @@
 {
-  "form": {
-    "fields": [
-      {
-        "type": "text",
-        "name": "accessKey",
-        "label": "Access Key",
-        "required": true
-      },
-      {
-        "type": "text",
-        "name": "secretKey",
-        "label": "Secret Key",
-        "required": true
-      },
-      {
-        "type": "text",
-        "name": "region",
-        "label": "Region",
-        "required": true,
-        "placeholder": "eu-west-3"
-      },
-      {
-        "type": "text",
-        "name": "bucket",
-        "label": "Bucket Name",
-        "required": true
-      },
-      {
-        "type": "text",
-        "name": "endpoint",
-        "label": "Endpoint (optional)",
-        "placeholder": "https: //s3.amazonaws.com"
-      }
-    ]
-  }
+    "form": {
+        "fields": [
+            {
+                "type": "text",
+                "name": "accessKey",
+                "label": "Access Key",
+                "required": true
+            },
+            {
+                "type": "text",
+                "name": "secretKey",
+                "label": "Secret Key",
+                "required": true
+            },
+            {
+                "type": "text",
+                "name": "region",
+                "label": "Region",
+                "required": true,
+                "placeholder": "eu-west-3"
+            },
+            {
+                "type": "text",
+                "name": "bucket",
+                "label": "Bucket Name",
+                "required": true
+            },
+            {
+                "type": "text",
+                "name": "endpoint",
+                "label": "Endpoint (optional)",
+                "placeholder": "https: //s3.amazonaws.com"
+            }
+        ]
+    }
 }

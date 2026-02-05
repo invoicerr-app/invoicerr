@@ -1,22 +1,22 @@
 {
-  "form": {
-    "fields": [
-      {
-        "type": "text",
-        "name": "baseUrl",
-        "label": "Base URL",
-        "placeholder": "Enter the base URL",
-        "required": true,
-        "pattern": "^https?://[a-zA-Z0-9.-]+(?:/[a-zA-Z0-9&%=+-]*)?$"
-      },
-      {
-        "type": "text",
-        "name": "apiKey",
-        "label": "API Key",
-        "placeholder": "Enter your API key",
-        "required": true,
-        "pattern": "^api_[0-9a-z]{16}$"
-      }
-    ]
-  }
+    "form": {
+        "fields": [
+            {
+                "type": "text",
+                "name": "baseUrl",
+                "label": "Base URL",
+                "placeholder": "Enter the base URL",
+                "required": true,
+                "pattern": "^https?://[a-zA-Z0-9.-]+(?:/[a-zA-Z0-9&%=+-]*)?$"
+            },
+            {
+                "type": "text",
+                "name": "apiKey",
+                "label": "API Key",
+                "placeholder": "Enter your API key",
+                "required": true,
+                "pattern": "^api_[0-9a-z]{16}$"
+            }
+        ]
+    }
 }

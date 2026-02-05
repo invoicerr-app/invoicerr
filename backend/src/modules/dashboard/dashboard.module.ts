@@ -1,10 +1,10 @@
-import { Module } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { DashboardController } from '@/modules/dashboard/dashboard.controller';
+import { Module } from '@nestjs/common';
 import { DashboardService } from '@/modules/dashboard/dashboard.service';
+import { DashboardController } from '@/modules/dashboard/dashboard.controller';
 
 @Module({
   controllers: [DashboardController],
-  providers: [DashboardService, JwtService],
+  providers: [DashboardService, JwtService]
 })
-export class DashboardModule {}
+export class DashboardModule { }

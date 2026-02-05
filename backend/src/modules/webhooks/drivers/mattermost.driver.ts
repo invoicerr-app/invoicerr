@@ -1,7 +1,7 @@
-import { type WebhookEvent, WebhookType } from '../../../../prisma/generated/prisma/client';
-import { EVENT_STYLES, formatPayloadForEvent } from './event-formatters';
+import { EVENT_STYLES, formatPayloadForEvent } from "./event-formatters";
+import { WebhookEvent, WebhookType } from "../../../../prisma/generated/prisma/client";
 
-import type { WebhookDriver } from './webhook-driver.interface';
+import { WebhookDriver } from "./webhook-driver.interface";
 
 export interface CardField {
   title: string;
@@ -99,7 +99,7 @@ export class MattermostWebhook {
   async send(): Promise<Response> {
     const payload: any = {
       text: this.text,
-      attachments: this.cards.map((card) => card.build()),
+      attachments: this.cards.map(card => card.build())
     };
 
     if (this.username) payload.username = this.username;
@@ -108,7 +108,7 @@ export class MattermostWebhook {
     const response = await fetch(this.webhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(payload)
     });
 
     this.text = '';
@@ -120,6 +120,7 @@ export class MattermostWebhook {
   }
 }
 
+
 export class MattermostDriver implements WebhookDriver {
   supports(type: WebhookType) {
     return type === WebhookType.MATTERMOST;
@@ -130,9 +131,9 @@ export class MattermostDriver implements WebhookDriver {
 
     const eventType = payload.event as WebhookEvent;
     const eventStyle = EVENT_STYLES[eventType] || {
-      color: '#5865F2',
-      emoji: '📢',
-      title: 'Event',
+      color: "#5865F2",
+      emoji: "📢",
+      title: "Event"
     };
 
     const description = formatPayloadForEvent(eventType, payload);
@@ -143,8 +144,8 @@ export class MattermostDriver implements WebhookDriver {
       .setColor(eventStyle.color)
       .setFooter(
         `Invoicerr Webhooks • ${new Date().toLocaleString()}`,
-        'https://invoicerr.app/favicon.png',
-      );
+        'https://invoicerr.app/favicon.png'
+      )
 
     if (payload.company?.name) {
       card.addField({ title: 'Entreprise', value: payload.company.name, short: true });

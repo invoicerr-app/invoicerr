@@ -1,12 +1,15 @@
-import { randomUUID } from 'node:crypto';
-import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
-import { extname, join } from 'node:path';
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { simpleGit } from 'simple-git';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { existsSync, readdirSync, rmSync, statSync } from 'fs';
+import { extname, join } from 'path';
+
+import { EInvoice } from '@fin.cx/einvoice';
+import { PluginRegistry } from '../../plugins';
+import { PluginType } from '../../../prisma/generated/prisma/client';
+import { generateWebhookSecret } from '@/utils/webhook-security';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
-import { generateWebhookSecret } from '@/utils/webhook-security';
-import { PluginRegistry } from '../../plugins';
+import { randomUUID } from 'crypto';
+import { simpleGit } from 'simple-git';
 
 export interface PdfFormatInfo {
   format_name: string;
@@ -24,6 +27,11 @@ export interface IPlugin {
   isActive?: boolean;
 }
 
+export interface InvoicePlugin extends IPlugin {
+  pdf_format_info: () => PdfFormatInfo;
+  pdf_format: (invoice: EInvoice) => Promise<string>;
+}
+
 const PLUGIN_DIR = process.env.PLUGIN_DIR || '/root/invoicerr-plugins';
 const PLUGIN_DIRS = [PLUGIN_DIR, join(process.cwd(), 'src', 'in-app-plugins')];
 
@@ -38,11 +46,8 @@ export class PluginsService {
       logger.info('Loading plugins...', { category: 'plugin' });
       this.loadExistingPlugins();
 
-      this.pluginRegistry.initializeIfNeeded().catch((err) => {
-        logger.error('Failed to initialize plugin registry', {
-          category: 'plugin',
-          details: { error: err },
-        });
+      this.pluginRegistry.initializeIfNeeded().catch(err => {
+        logger.error('Failed to initialize plugin registry', { category: 'plugin', details: { error: err } });
       });
       PluginsService.isInitialized = true;
     }
@@ -67,16 +72,15 @@ export class PluginsService {
         return;
       }
 
-      const dirs = readdirSync(pluginDir).filter((f) => statSync(join(pluginDir, f)).isDirectory());
+      const dirs = readdirSync(pluginDir).filter((f) =>
+        statSync(join(pluginDir, f)).isDirectory()
+      );
 
       for (const dir of dirs) {
         try {
           await this.loadPluginFromPath(join(pluginDir, dir));
         } catch (err) {
-          logger.error(`Failed to load plugin "${dir}"`, {
-            category: 'plugin',
-            details: { error: err.message },
-          });
+          logger.error(`Failed to load plugin "${dir}"`, { category: 'plugin', details: { error: err.message } });
         }
       }
     }
@@ -84,18 +88,12 @@ export class PluginsService {
 
   async loadPluginFromPath(pluginPath: string): Promise<IPlugin> {
     if (pluginPath.startsWith('http')) {
-      pluginPath = await this.cloneRepo(
-        pluginPath,
-        pluginPath.split('/').pop() || `unknown-plugin-${Date.now()}`,
-      );
+      pluginPath = await this.cloneRepo(pluginPath, pluginPath.split('/').pop() || `unknown-plugin-${Date.now()}`);
     }
     const files = readdirSync(pluginPath);
     const jsFile = files.find((f) => extname(f) === '.js');
     if (!jsFile) {
-      logger.error(`No .js file found in plugin directory: ${pluginPath}`, {
-        category: 'plugin',
-        details: { pluginPath },
-      });
+      logger.error(`No .js file found in plugin directory: ${pluginPath}`, { category: 'plugin', details: { pluginPath } });
       throw new Error(`No .js file found in plugin directory: ${pluginPath}`);
     }
     const pluginFile = join(pluginPath, jsFile);
@@ -110,10 +108,7 @@ export class PluginsService {
     plugin.__uuid = uuid;
     plugin.__filepath = pluginFile;
     this.plugins.push(plugin);
-    logger.info(`Plugin "${plugin.name}" loaded.`, {
-      category: 'plugin',
-      details: { pluginName: plugin.name },
-    });
+    logger.info(`Plugin "${plugin.name}" loaded.`, { category: 'plugin', details: { pluginName: plugin.name } });
     return plugin;
   }
 
@@ -123,10 +118,7 @@ export class PluginsService {
         const path = await this.cloneRepo(config.git, config.name);
         await this.loadPluginFromPath(path);
       } catch (err) {
-        logger.error(`Failed to load plugin "${config.name}"`, {
-          category: 'plugin',
-          details: { error: err.message },
-        });
+        logger.error(`Failed to load plugin "${config.name}"`, { category: 'plugin', details: { error: err.message } });
       }
     }
   }
@@ -135,37 +127,29 @@ export class PluginsService {
     return this.plugins;
   }
 
-  async getInAppPlugins(): Promise<
-    {
-      category: string;
-      plugins: { name: string; isActive: boolean; id: string; hasWebhook: boolean }[];
-    }[]
-  > {
+  async getInAppPlugins(): Promise<{ category: string, plugins: { name: string, isActive: boolean, id: string, hasWebhook: boolean }[] }[]> {
     const categories = await prisma.plugin.findMany({
       select: { type: true },
       distinct: ['type'],
     });
 
-    const result: {
-      category: string;
-      plugins: { id: string; name: string; isActive: boolean; hasWebhook: boolean }[];
-    }[] = [];
+    const result: { category: string, plugins: { id: string, name: string, isActive: boolean, hasWebhook: boolean }[] }[] = [];
 
     for (const category of categories) {
       const pluginsInCategory = await prisma.plugin.findMany({
         where: { type: category.type },
-        select: { id: true, name: true, isActive: true, webhookUrl: true },
+        select: { id: true, name: true, isActive: true, webhookUrl: true }
       });
 
-      const title = category.type.toLowerCase();
+      const title = category.type.toLowerCase()
 
       result.push({
         category: title.charAt(0).toUpperCase() + title.slice(1),
-        plugins: pluginsInCategory.map((p) => ({
+        plugins: pluginsInCategory.map(p => ({
           id: p.id,
           name: p.name,
           isActive: p.isActive,
-          hasWebhook: p.webhookUrl !== null,
+          hasWebhook: p.webhookUrl !== null
         })),
       });
     }
@@ -186,12 +170,9 @@ export class PluginsService {
     if (plugin.isActive) {
       await prisma.plugin.update({
         where: { id },
-        data: { isActive: false, webhookUrl: null, webhookSecret: null },
+        data: { isActive: false, webhookUrl: null, webhookSecret: null }
       });
-      logger.info(`Plugin "${plugin.name}" is now inactive.`, {
-        category: 'plugin',
-        details: { pluginName: plugin.name },
-      });
+      logger.info(`Plugin "${plugin.name}" is now inactive.`, { category: 'plugin', details: { pluginName: plugin.name } });
       return { success: true };
     }
 
@@ -199,18 +180,13 @@ export class PluginsService {
       where: {
         type: plugin.type,
         isActive: true,
-        id: { not: plugin.id },
+        id: { not: plugin.id }
       },
     });
 
     if (existingActivePlugin && !PluginRegistry.multiInstancePluginTypes.has(plugin.type)) {
-      logger.error(
-        `Another plugin "${existingActivePlugin.name}" is already active for category "${plugin.type}". Please disable it first.`,
-        { category: 'plugin', details: { pluginType: plugin.type } },
-      );
-      throw new BadRequestException(
-        `Another plugin "${existingActivePlugin.name}" is already active for category "${plugin.type}". Please disable it first.`,
-      );
+      logger.error(`Another plugin "${existingActivePlugin.name}" is already active for category "${plugin.type}". Please disable it first.`, { category: 'plugin', details: { pluginType: plugin.type } });
+      throw new BadRequestException(`Another plugin "${existingActivePlugin.name}" is already active for category "${plugin.type}". Please disable it first.`);
     }
 
     const formConfig = await this.pluginRegistry.getProviderForm(plugin.id);
@@ -219,18 +195,15 @@ export class PluginsService {
       return {
         requiresConfiguration: true,
         formConfig: formConfig,
-        currentConfig: plugin.config || {},
+        currentConfig: plugin.config || {}
       };
     }
 
     await prisma.plugin.update({
       where: { id },
-      data: { isActive: true },
+      data: { isActive: true }
     });
-    logger.info(`Plugin "${plugin.name}" is now active.`, {
-      category: 'plugin',
-      details: { pluginName: plugin.name },
-    });
+    logger.info(`Plugin "${plugin.name}" is now active.`, { category: 'plugin', details: { pluginName: plugin.name } });
 
     const validation = await this.pluginValidation(id);
 
@@ -238,7 +211,7 @@ export class PluginsService {
       success: true,
       ...(validation.webhookUrl && { webhookUrl: validation.webhookUrl }),
       ...(validation.webhookSecret && { webhookSecret: validation.webhookSecret }),
-      instructions: validation.instructions,
+      instructions: validation.instructions
     };
   }
 
@@ -256,18 +229,13 @@ export class PluginsService {
       where: {
         type: plugin.type,
         isActive: true,
-        id: { not: plugin.id },
+        id: { not: plugin.id }
       },
     });
 
     if (existingActivePlugin) {
-      logger.error(
-        `Another plugin "${existingActivePlugin.name}" is already active for category "${plugin.type}". Please disable it first.`,
-        { category: 'plugin', details: { pluginType: plugin.type } },
-      );
-      throw new BadRequestException(
-        `Another plugin "${existingActivePlugin.name}" is already active for category "${plugin.type}". Please disable it first.`,
-      );
+      logger.error(`Another plugin "${existingActivePlugin.name}" is already active for category "${plugin.type}". Please disable it first.`, { category: 'plugin', details: { pluginType: plugin.type } });
+      throw new BadRequestException(`Another plugin "${existingActivePlugin.name}" is already active for category "${plugin.type}". Please disable it first.`);
     }
 
     await prisma.plugin.update({
@@ -275,12 +243,9 @@ export class PluginsService {
       data: {
         config: config,
         isActive: true,
-      },
+      }
     });
-    logger.info(`Plugin "${plugin.name}" configured and activated.`, {
-      category: 'plugin',
-      details: { pluginName: plugin.name },
-    });
+    logger.info(`Plugin "${plugin.name}" configured and activated.`, { category: 'plugin', details: { pluginName: plugin.name } });
 
     const validation = await this.pluginValidation(id);
 
@@ -288,7 +253,7 @@ export class PluginsService {
       success: true,
       ...(validation.webhookUrl && { webhookUrl: validation.webhookUrl }),
       ...(validation.webhookSecret && { webhookSecret: validation.webhookSecret }),
-      instructions: validation.instructions,
+      instructions: validation.instructions
     };
   }
 
@@ -296,8 +261,8 @@ export class PluginsService {
     const dbProvider = await prisma.plugin.findFirst({
       where: {
         id,
-        isActive: true,
-      },
+        isActive: true
+      }
     });
 
     if (!dbProvider) {
@@ -329,7 +294,7 @@ export class PluginsService {
       config: activePlugin.config,
       type: activePlugin.type,
       isActive: activePlugin.isActive,
-      ...provider,
+      ...provider
     };
 
     return inAppPlugin;
@@ -378,19 +343,16 @@ export class PluginsService {
     }
   }
 
-  canGenerateXml(_format: string): boolean {
-    // Check if a_formatgin can generate the requested XML format
+  canGenerateXml(format: string): boolean {
+    // Check if any plugin can generate the requested XML format
     // For now, return false
     return false;
   }
 
-  async generateXml(format: string, _xmlInvoice: any): Promise<string> {
-    // Return XML using a plugin_xmlInvoice
+  async generateXml(format: string, xmlInvoice: any): Promise<string> {
+    // Return XML using a plugin
     // For now, throw an error as this feature is not yet implemented
-    logger.error(`XML generation for format "${format}" not implemented yet`, {
-      category: 'plugin',
-      details: { format },
-    });
+    logger.error(`XML generation for format "${format}" not implemented yet`, { category: 'plugin', details: { format } });
     throw new Error(`XML generation for format "${format}" not implemented yet`);
   }
 
@@ -403,10 +365,7 @@ export class PluginsService {
   async deletePlugin(uuid: string): Promise<boolean> {
     const index = this.plugins.findIndex((p) => p.__uuid === uuid);
     if (index === -1) {
-      logger.error(`Plugin with UUID "${uuid}" not found`, {
-        category: 'plugin',
-        details: { uuid },
-      });
+      logger.error(`Plugin with UUID "${uuid}" not found`, { category: 'plugin', details: { uuid } });
       throw new Error(`Plugin with UUID "${uuid}" not found`);
     }
     const plugin = this.plugins[index];
@@ -414,18 +373,12 @@ export class PluginsService {
     if (existsSync(plugin.__filepath)) {
       let pluginDir = plugin.__filepath;
       pluginDir = join(pluginDir, '..');
-      logger.info(`Deleting plugin files at ${pluginDir}`, {
-        category: 'plugin',
-        details: { pluginName: plugin.name },
-      });
+      logger.info(`Deleting plugin files at ${pluginDir}`, { category: 'plugin', details: { pluginName: plugin.name } });
       rmSync(pluginDir, { recursive: true, force: true });
     }
-    logger.info(`Plugin "${plugin.name}" deleted.`, {
-      category: 'plugin',
-      details: { pluginName: plugin.name },
-    });
+    logger.info(`Plugin "${plugin.name}" deleted.`, { category: 'plugin', details: { pluginName: plugin.name } });
 
-    return true;
+    return true
   }
 
   /**
@@ -433,37 +386,26 @@ export class PluginsService {
    * @param pluginId The ID of the plugin to validate
    * @returns Instructions for configuring the webhook with the secret (only if webhook is supported)
    */
-  async pluginValidation(
-    pluginId: string,
-  ): Promise<{ webhookUrl?: string; webhookSecret?: string; instructions: string[] }> {
+  async pluginValidation(pluginId: string): Promise<{ webhookUrl?: string; webhookSecret?: string; instructions: string[] }> {
     const plugin = await prisma.plugin.findFirst({
       where: { id: pluginId, isActive: true },
     });
 
     if (!plugin) {
-      logger.error(`Active plugin with id "${pluginId}" not found`, {
-        category: 'plugin',
-        details: { pluginId },
-      });
+      logger.error(`Active plugin with id "${pluginId}" not found`, { category: 'plugin', details: { pluginId } });
       throw new BadRequestException(`Active plugin with id "${pluginId}" not found`);
     }
-    logger.info(`Validating plugin: ${plugin.name} (${plugin.type})`, {
-      category: 'plugin',
-      details: { pluginName: plugin.name, pluginType: plugin.type },
-    });
+    logger.info(`Validating plugin: ${plugin.name} (${plugin.type})`, { category: 'plugin', details: { pluginName: plugin.name, pluginType: plugin.type } });
 
     // Get the provider to check if it implements handleWebhook
     const provider = await this.pluginRegistry.getProvider<any>(plugin.type.toLowerCase());
 
-    let webhookUrl: string | undefined;
-    let webhookSecret: string | undefined;
+    let webhookUrl: string | undefined = undefined;
+    let webhookSecret: string | undefined = undefined;
 
     // Only configure webhook if the provider implements handleWebhook
     if (provider && typeof provider.handleWebhook === 'function') {
-      logger.info(`Plugin ${plugin.name} supports webhooks (handleWebhook method found)`, {
-        category: 'plugin',
-        details: { pluginName: plugin.name },
-      });
+      logger.info(`Plugin ${plugin.name} supports webhooks (handleWebhook method found)`, { category: 'plugin', details: { pluginName: plugin.name } });
 
       const baseUrl = process.env.APP_URL || 'http://localhost:3000';
       webhookUrl = `${baseUrl}/api/webhooks/${plugin.id}`;
@@ -473,29 +415,20 @@ export class PluginsService {
         where: { id: plugin.id },
         data: {
           webhookUrl,
-          webhookSecret,
-        },
+          webhookSecret
+        }
       });
-      logger.info(`Generated webhook URL for plugin ${plugin.name}: ${webhookUrl}`, {
-        category: 'plugin',
-        details: { pluginName: plugin.name, webhookUrl },
-      });
-      logger.info(`Generated webhook secret for plugin ${plugin.name}`, {
-        category: 'plugin',
-        details: { pluginName: plugin.name },
-      });
+      logger.info(`Generated webhook URL for plugin ${plugin.name}: ${webhookUrl}`, { category: 'plugin', details: { pluginName: plugin.name, webhookUrl } });
+      logger.info(`Generated webhook secret for plugin ${plugin.name}`, { category: 'plugin', details: { pluginName: plugin.name } });
     } else {
-      logger.info(
-        `Plugin ${plugin.name} does not support webhooks (handleWebhook method not found)`,
-        { category: 'plugin', details: { pluginName: plugin.name } },
-      );
+      logger.info(`Plugin ${plugin.name} does not support webhooks (handleWebhook method not found)`, { category: 'plugin', details: { pluginName: plugin.name } });
       // Clear webhook configuration if provider doesn't support it
       await prisma.plugin.update({
         where: { id: plugin.id },
         data: {
           webhookUrl: null,
-          webhookSecret: null,
-        },
+          webhookSecret: null
+        }
       });
     }
 
@@ -503,45 +436,28 @@ export class PluginsService {
     if (provider && typeof provider.validatePlugin === 'function') {
       try {
         await provider.validatePlugin(plugin.config);
-        logger.info(`Plugin ${plugin.name} validated successfully by provider`, {
-          category: 'plugin',
-          details: { pluginName: plugin.name },
-        });
+        logger.info(`Plugin ${plugin.name} validated successfully by provider`, { category: 'plugin', details: { pluginName: plugin.name } });
       } catch (error) {
-        logger.error(`Provider validation failed for plugin ${plugin.name}`, {
-          category: 'plugin',
-          details: { pluginName: plugin.name, error },
-        });
+        logger.error(`Provider validation failed for plugin ${plugin.name}`, { category: 'plugin', details: { pluginName: plugin.name, error } });
         throw new BadRequestException(`Plugin validation failed: ${error.message}`);
       }
     }
 
     const instructions = this.generatePluginInstructions(plugin, webhookUrl, webhookSecret);
 
-    return {
-      ...(webhookUrl && { webhookUrl }),
-      ...(webhookSecret && { webhookSecret }),
-      instructions,
-    };
+    return { ...(webhookUrl && { webhookUrl }), ...(webhookSecret && { webhookSecret }), instructions };
   }
 
   /**
    * Generate specific instructions to configure webhooks based on plugin type
    * @returns Instructions as an array of strings
    */
-  private generatePluginInstructions(
-    plugin: any,
-    webhookUrl?: string,
-    webhookSecret?: string,
-  ): string[] {
+  private generatePluginInstructions(plugin: any, webhookUrl?: string, webhookSecret?: string): string[] {
     const instructions: string[] = [];
 
     // Only generate webhook-related instructions if webhooks are supported
     if (!webhookUrl || !webhookSecret) {
-      logger.info(`No webhook configuration for plugin ${plugin.name}`, {
-        category: 'plugin',
-        details: { pluginName: plugin.name },
-      });
+      logger.info(`No webhook configuration for plugin ${plugin.name}`, { category: 'plugin', details: { pluginName: plugin.name } });
       return instructions;
     }
 
@@ -563,9 +479,7 @@ export class PluginsService {
         break;
     }
 
-    instructions.forEach((instruction) => {
-      logger.info(instruction, { category: 'plugin' });
-    });
+    instructions.forEach(instruction => logger.info(instruction, { category: 'plugin' }));
 
     return instructions;
   }

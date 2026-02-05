@@ -1,11 +1,9 @@
-import type { User, UserCompany } from '../../prisma/generated/prisma/client';
+import { User } from "../../prisma/generated/prisma/client";
 
 export interface CurrentUser extends Omit<User, 'password'> {
-  id: string;
-  firstname: string;
-  lastname: string;
-  email: string;
-  isSystemAdmin: boolean;
-  accessToken: string;
-  companies?: UserCompany[];
+    id: string;
+    firstname: string;
+    lastname: string;
+    email: string;
+    accessToken: string;
 }

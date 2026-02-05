@@ -1,36 +1,33 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Sse, UseGuards } from '@nestjs/common';
-import { from, interval, map, startWith } from 'rxjs';
-import { switchMap } from 'rxjs/internal/operators/switchMap';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Sse } from '@nestjs/common';
 import {
-  type CreatePaymentMethodDto,
-  type EditPaymentMethodDto,
   PaymentMethodsService,
+  CreatePaymentMethodDto,
+  EditPaymentMethodDto,
 } from './payment-methods.service';
-import { CompanyGuard } from '@/guards/company.guard';
-import { CompanyId } from '@/decorators/company.decorator';
+import { switchMap } from 'rxjs/internal/operators/switchMap';
+import { from, interval, map, startWith } from 'rxjs';
 
 @Controller('payment-methods')
-@UseGuards(CompanyGuard)
 export class PaymentMethodsController {
-  constructor(private readonly paymentMethodService: PaymentMethodsService) {}
+  constructor(private readonly paymentMethodService: PaymentMethodsService) { }
 
   @Get()
-  async findAll(@CompanyId() companyId: string) {
-    return this.paymentMethodService.findAll(companyId);
+  async findAll() {
+    return this.paymentMethodService.findAll();
   }
 
   @Sse('sse')
-  async getReceiptsInfoSse(@CompanyId() companyId: string) {
+  async getReceiptsInfoSse() {
     return interval(1000).pipe(
       startWith(0),
-      switchMap(() => from(this.paymentMethodService.findAll(companyId))),
+      switchMap(() => from(this.paymentMethodService.findAll())),
       map((data) => ({ data: JSON.stringify(data) })),
     );
   }
 
   @Get(':id')
-  async findOne(@CompanyId() companyId: string, @Param('id') id: string) {
-    const pm = await this.paymentMethodService.findOne(companyId, id);
+  async findOne(@Param('id') id: string) {
+    const pm = await this.paymentMethodService.findOne(id);
     if (!pm) {
       return { message: 'Not found' };
     }
@@ -38,17 +35,17 @@ export class PaymentMethodsController {
   }
 
   @Post()
-  async create(@CompanyId() companyId: string, @Body() dto: CreatePaymentMethodDto) {
-    return this.paymentMethodService.create(companyId, dto);
+  async create(@Body() dto: CreatePaymentMethodDto) {
+    return this.paymentMethodService.create(dto);
   }
 
   @Patch(':id')
-  async update(@CompanyId() companyId: string, @Param('id') id: string, @Body() dto: EditPaymentMethodDto) {
-    return this.paymentMethodService.update(companyId, id, dto);
+  async update(@Param('id') id: string, @Body() dto: EditPaymentMethodDto) {
+    return this.paymentMethodService.update(id, dto);
   }
 
   @Delete(':id')
-  async remove(@CompanyId() companyId: string, @Param('id') id: string) {
-    return this.paymentMethodService.softDelete(companyId, id);
+  async remove(@Param('id') id: string) {
+    return this.paymentMethodService.softDelete(id);
   }
 }

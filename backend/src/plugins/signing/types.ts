@@ -1,10 +1,6 @@
-import type { Request } from 'express';
-import type {
-  IPdfPreviewProvider,
-  IPlugin,
-  IValidatableProvider,
-  IWebhookProvider,
-} from '../types';
+import { IPdfPreviewProvider, IPlugin, IValidatableProvider, IWebhookProvider } from "../types";
+
+import { Request } from 'express';
 
 export interface RequestSignatureProps {
   id: string;
@@ -13,16 +9,13 @@ export interface RequestSignatureProps {
   signers: string[];
 }
 
-export interface ISigningProvider
-  extends IPlugin,
-    IValidatableProvider,
-    IWebhookProvider,
-    IPdfPreviewProvider {
+export interface ISigningProvider extends IPlugin, IValidatableProvider, IWebhookProvider, IPdfPreviewProvider {
   formatServerUrl: (url: string) => string;
   requestSignature: (doc: RequestSignatureProps) => Promise<string>;
   handleWebhook: (req: Request, body: any) => Promise<any>;
   generatePdfPreview: (quoteId: string) => Promise<Uint8Array<ArrayBufferLike>>;
 }
+
 
 export interface IPluginForm {
   form: IPluginFormConfig;
