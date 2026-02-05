@@ -1,1 +1,37 @@
-{}
+{
+    "clients": {
+        "header": {
+            "subtitle": "ادارة العملاء",
+            "count": "{{count}} العملاء {{found}}",
+            "found": "وجد"
+        },
+        "search": {
+            "placeholder": "بحث العملاء ..."
+        },
+        "actions": {
+            "addNew": "اضافة عميل"
+        },
+        "stats": {
+            "total": "عدد العملاء",
+            "active": "تفعيل",
+            "inactive": "تعطيل"
+        },
+        "emptyState": {
+            "noClients": "لا يوجدعملاء",
+            "noResults": "لا يوجد عملاء",
+            "startAdding": "ابداء باضافة عميلك الاول .",
+            "tryDifferentSearch": "حاول تعديل بنود البحث."
+        },
+        "list": {
+            "title": "جميع العملاء",
+            "description": "اعرض وقم بادارة جميع العملاء من مكان واحد.",
+            "status": {
+                "active": "فعال",
+                "inactive": "معطل"
+            },
+            "tooltips": {
+                "view": "عرض تفاصيل العملاء"
+            }
+        }
+    }
+}
