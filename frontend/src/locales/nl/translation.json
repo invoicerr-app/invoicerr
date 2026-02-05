@@ -1,1 +1,214 @@
-{}
+{
+    "clients": {
+        "header": {
+            "subtitle": "Onderhoud klantenbestand",
+            "found": "gevonden",
+            "count": "{{count}} klanten {{found}}"
+        },
+        "search": {
+            "placeholder": "Zoek klanten..."
+        },
+        "actions": {
+            "addNew": "Nieuwe klant toevoegen"
+        },
+        "stats": {
+            "active": "Actief",
+            "inactive": "Inactief",
+            "total": "Aantal Klanten"
+        },
+        "emptyState": {
+            "noClients": "Nog geen klanten",
+            "noResults": "Geen klanten gevonden",
+            "startAdding": "Begin met uw eerste klant aan te maken.",
+            "tryDifferentSearch": "Probeer uw zoekopdracht aan te passen."
+        },
+        "list": {
+            "title": "Alle Klanten",
+            "description": "Onderhoud en bekijk al uw klanten in één plaats.",
+            "status": {
+                "active": "Actief",
+                "inactive": "Inactief"
+            },
+            "tooltips": {
+                "view": "Bekijk klantgegevens",
+                "edit": "Bewerk klant",
+                "delete": "Verwijder klant"
+            }
+        },
+        "upsert": {
+            "title": {
+                "create": "Voeg Nieuwe Klant Toe",
+                "edit": "Bewerk Klant"
+            },
+            "fields": {
+                "contactFirstname": {
+                    "label": "Voornaam",
+                    "placeholder": "Vul voornaam in"
+                },
+                "contactLastname": {
+                    "label": "Familienaam",
+                    "placeholder": "Vul familienaam in"
+                },
+                "name": {
+                    "label": "Bedrijfsnaam",
+                    "placeholder": "Vul bedrijfsnaam in"
+                },
+                "description": {
+                    "label": "Omschrijving",
+                    "placeholder": "Vul bedrijfsomschrijving in"
+                },
+                "vat": {
+                    "label": "BTW-nummer",
+                    "placeholder": "Vul BTW-nummer in (bvb. FR12345678901)"
+                },
+                "currency": {
+                    "label": "Valuta"
+                },
+                "foundedAt": {
+                    "label": "Oprichtingsdatum",
+                    "placeholder": "Selecteer datum van oprichting"
+                },
+                "contactEmail": {
+                    "label": "Email",
+                    "placeholder": "Vul emailadres in"
+                },
+                "contactPhone": {
+                    "label": "Telefoon",
+                    "placeholder": "Vul telefoonnummer in"
+                },
+                "address": {
+                    "label": "Adres",
+                    "placeholder": "Vul adres in"
+                },
+                "postalCode": {
+                    "label": "Postcode",
+                    "placeholder": "Vul postcode in"
+                },
+                "city": {
+                    "label": "Stad",
+                    "placeholder": "Vul stad in"
+                },
+                "type": {
+                    "label": "Type Klant",
+                    "company": "Bedrijf",
+                    "individual": "Individu",
+                    "description": "Selecteer of de klant een individu of bedrijf is"
+                },
+                "country": {
+                    "label": "Land",
+                    "placeholder": "Vul land in"
+                }
+            },
+            "validation": {
+                "name": {
+                    "required": "Bedrijfsnaam is verplicht"
+                },
+                "description": {
+                    "required": "Omschrijving is verplicht",
+                    "maxLength": "Omschrijving moet minder dan 500 karakters tellen"
+                },
+                "vat": {
+                    "required": "BTW-nummer is verplicht",
+                    "empty": "BTW-nummer kan niet leeg zijn",
+                    "maxLength": "BTW-nummer moet minder dan 15 karakters bevatten",
+                    "format": "BTW-nummer is ongeldig (vb. FR12345678901)"
+                },
+                "foundedAt": {
+                    "future": "Opstartdatum kan niet in de toekomst zijn"
+                },
+                "contactFirstname": {
+                    "required": "Voornaam is verplicht"
+                },
+                "contactLastname": {
+                    "required": "Familienaam is verplicht"
+                },
+                "contactPhone": {
+                    "minLength": "Telefoonnummer moet op zijn minst 8 karakters bevatten",
+                    "format": "Ongeldig telefoonnummer"
+                },
+                "contactEmail": {
+                    "required": "Emailadres is verplicht",
+                    "format": "Ongeldig emailadres"
+                },
+                "address": {
+                    "required": "Adres is verplicht"
+                },
+                "postalCode": {
+                    "format": "Postcode is ongeldig"
+                },
+                "city": {
+                    "required": "Stad is verplicht"
+                },
+                "country": {
+                    "required": "Land is verplicht"
+                }
+            },
+            "actions": {
+                "cancel": "Annuleren",
+                "create": "Maak een klant aan",
+                "save": "Wijzigingen opslaan"
+            }
+        },
+        "view": {
+            "title": "Klantgegevens",
+            "description": "Bekijk alle informatie van deze klant.",
+            "fields": {
+                "companyName": "Bedrijfsnaam",
+                "contactPerson": "Contactpersoon",
+                "email": "Email",
+                "phone": "Telefoon",
+                "address": "Adres",
+                "postalCode": "Postcode",
+                "city": "Stad",
+                "country": "Land"
+            }
+        },
+        "delete": {
+            "title": "Verwijder Klant",
+            "description": "Bent u het zeker dat u deze klant wil verwijderen? Dit kan niet ongedaan worden.",
+            "actions": {
+                "cancel": "Annuleren",
+                "delete": "Verwijder Klant"
+            }
+        }
+    },
+    "quotes": {
+        "header": {
+            "subtitle": "Beheer uw offertes",
+            "count": "{{count}} offertes {{found}}",
+            "found": "gevonden"
+        },
+        "search": {
+            "placeholder": "Zoek offertes..."
+        },
+        "actions": {
+            "addNew": "Voeg een nieuwe Offerte toe"
+        },
+        "stats": {
+            "total": "Aantal Offertes",
+            "draft": "Ontwerp",
+            "signed": "Getekend"
+        },
+        "emptyState": {
+            "noQuotes": "Nog geen offertes",
+            "noResults": "Geen offertes gevonden",
+            "startAdding": "Begin met uw eerste offerte te maken.",
+            "tryDifferentSearch": "Pas uw zoekopdracht aan."
+        },
+        "list": {
+            "title": "Alle offertes",
+            "description": "Beheer en bekijk al uw offertes in één plaats.",
+            "status": {
+                "draft": "Ontwerp",
+                "sent": "Verzonden",
+                "expired": "Verlopen",
+                "signed": "Getekend"
+            },
+            "item": {
+                "title": "Offerte {{number}} {{title}}",
+                "client": "Klant",
+                "issued": "Afgegeven"
+            }
+        }
+    }
+}
