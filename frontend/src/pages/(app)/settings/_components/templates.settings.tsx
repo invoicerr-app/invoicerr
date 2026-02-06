@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { UnavailablePlatform } from "@/components/unavailable-platform"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
+import DOMPurify from "dompurify"
 
 interface EmailTemplate {
     id: string
@@ -64,6 +65,7 @@ function EmailPreview({ template }: { template: EmailTemplate }) {
 
     const previewSubject = replaceVariables(template.subject, template.variables)
     const previewBody = replaceVariables(template.body, template.variables)
+    const safePreviewBody = DOMPurify.sanitize(previewBody)
 
     return (
         <div className="bg-gray-100 p-4 rounded-lg h-full w-full">
@@ -93,7 +95,7 @@ function EmailPreview({ template }: { template: EmailTemplate }) {
                     <div
                         className="prose prose-sm max-w-none [*]:text-black"
                         style={{ fontFamily: "Arial, sans-serif" }}
-                        dangerouslySetInnerHTML={{ __html: previewBody }}
+                        dangerouslySetInnerHTML={{ __html: safePreviewBody }}
                     />
                 </div>
                 <div className="border-t p-4 flex gap-2">
