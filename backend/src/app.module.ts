@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, Scope } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
 import { ScheduleModule } from "@nestjs/schedule";
@@ -21,11 +21,14 @@ import { PaymentMethodsModule } from "./modules/payment-methods/payment-methods.
 import { PluginsModule } from "./modules/plugins/plugins.module";
 import { QuotesModule } from "./modules/quotes/quotes.module";
 import { ReceiptsModule } from "./modules/receipts/receipts.module";
-import { RecurringInvoicesModule } from "./modules/recurring-invoices/recurring-invoices.module";
 import { SignaturesModule } from "./modules/signatures/signatures.module";
 import { StatsModule } from "./modules/stats/stats.module";
 import { WebhooksModule } from "./modules/webhooks/webhooks.module";
 import { PrismaModule } from "./prisma/prisma.module";
+import { AdminModule } from "./modules/admin/admin.module";
+import { TenantModule } from "./modules/tenant/tenant.module";
+import { CompanyMembershipModule } from "./modules/company-membership/company-membership.module";
+import { TenantContext } from "./modules/tenant/tenant.service";
 
 @Module({
 	imports: [
@@ -48,13 +51,15 @@ import { PrismaModule } from "./prisma/prisma.module";
 		DangerModule,
 		DirectoryModule,
 		PluginsModule,
-		RecurringInvoicesModule,
 		PaymentMethodsModule,
 		StatsModule,
 		WebhooksModule,
 		InvitationsModule,
 		PrismaModule,
 		LoggerModule,
+		AdminModule,
+		TenantModule,
+		CompanyMembershipModule,
 	],
 	controllers: [AppController],
 	providers: [
@@ -62,6 +67,11 @@ import { PrismaModule } from "./prisma/prisma.module";
 		{
 			provide: APP_GUARD,
 			useClass: AuthGuard,
+		},
+		{
+			provide: TenantContext,
+			useClass: TenantContext,
+			scope: Scope.REQUEST,
 		},
 	],
 })

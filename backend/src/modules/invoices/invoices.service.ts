@@ -150,7 +150,6 @@ export class InvoicesService {
 		const invoice = await prisma.invoice.create({
 			data: {
 				...data,
-				recurringInvoiceId: body.recurringInvoiceId,
 				paymentMethod: body.paymentMethod,
 				paymentDetails: body.paymentDetails,
 				paymentMethodId: body.paymentMethodId,
@@ -274,7 +273,6 @@ export class InvoicesService {
 		const updateInvoice = await prisma.invoice.update({
 			where: { id },
 			data: {
-				recurringInvoiceId: data.recurringInvoiceId,
 				paymentMethod: data.paymentMethod || existingInvoice.paymentMethod,
 				paymentMethodId:
 					(data as any).paymentMethodId || existingInvoice.paymentMethodId,

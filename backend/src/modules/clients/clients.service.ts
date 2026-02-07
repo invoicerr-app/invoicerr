@@ -4,10 +4,14 @@ import { EditClientsDto } from "@/modules/clients/dto/clients.dto";
 import prisma from "@/prisma/prisma.service";
 import { WebhookEvent } from "../../../prisma/generated/prisma/client";
 import { WebhookDispatcherService } from "../webhooks/webhook-dispatcher.service";
+import { TenantContext } from "../tenant/tenant.service";
 
 @Injectable()
 export class ClientsService {
-	constructor(private readonly webhookDispatcher: WebhookDispatcherService) {}
+	constructor(
+		private readonly webhookDispatcher: WebhookDispatcherService,
+		private readonly tenantContext: TenantContext,
+	) {}
 
 	async getClients(page: string) {
 		const pageNumber = parseInt(page, 10) || 1;
@@ -124,7 +128,19 @@ export class ClientsService {
 			}
 		}
 
-		const newClient = await prisma.client.create({ data });
+		if (!this.tenantContext.companyId) {
+			logger.error("Company context is required to create a client", {
+				category: "client",
+			});
+			throw new BadRequestException("Company context is required");
+		}
+
+		const newClient = await prisma.client.create({
+			data: {
+				...data,
+				companyId: this.tenantContext.companyId,
+			},
+		});
 
 		logger.info("Client created", {
 			category: "client",

@@ -6,7 +6,6 @@ import {
 export class CreateInvoiceDto {
 	clientId: string;
 	quoteId?: string;
-	recurringInvoiceId?: string; // Ajout du champ pour la relation
 	dueDate?: Date;
 	currency?: Currency;
 	notes: string;
@@ -26,7 +25,6 @@ export class CreateInvoiceDto {
 export class EditInvoicesDto {
 	id: string;
 	quoteId?: string;
-	recurringInvoiceId?: string;
 	clientId: string;
 	dueDate?: Date;
 	currency?: Currency;

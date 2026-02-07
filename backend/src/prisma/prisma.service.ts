@@ -201,9 +201,6 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 	get receipt() {
 		return this.client.receipt;
 	}
-	get recurringInvoice() {
-		return this.client.recurringInvoice;
-	}
 	get paymentMethod() {
 		return this.client.paymentMethod;
 	}
@@ -212,5 +209,11 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 	}
 	get plugin() {
 		return this.client.plugin;
+	}
+	get userCompany() {
+		return this.client.userCompany;
+	}
+	get pDFConfig() {
+		return this.client.pDFConfig;
 	}
 }

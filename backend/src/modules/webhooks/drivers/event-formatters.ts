@@ -299,42 +299,6 @@ export const EVENT_STYLES: Record<WebhookEvent, EventStyle> = {
 		title: "Company Info Viewed",
 	},
 
-	// Recurring Invoice events - Cyan
-	[WebhookEvent.RECURRING_INVOICE_CREATED]: {
-		color: "#06b6d4",
-		emoji: "🔁",
-		title: "Recurring Invoice Created",
-	},
-	[WebhookEvent.RECURRING_INVOICE_UPDATED]: {
-		color: "#06b6d4",
-		emoji: "✏️",
-		title: "Recurring Invoice Updated",
-	},
-	[WebhookEvent.RECURRING_INVOICE_DELETED]: {
-		color: "#ef4444",
-		emoji: "🗑️",
-		title: "Recurring Invoice Deleted",
-	},
-	[WebhookEvent.RECURRING_INVOICE_GENERATED]: {
-		color: "#10b981",
-		emoji: "🔄",
-		title: "Recurring Invoice Generated",
-	},
-	[WebhookEvent.RECURRING_INVOICE_AUTO_SENT]: {
-		color: "#10b981",
-		emoji: "📧",
-		title: "Recurring Invoice Auto-Sent",
-	},
-	[WebhookEvent.RECURRING_INVOICE_PROCESSED]: {
-		color: "#06b6d4",
-		emoji: "⚙️",
-		title: "Recurring Invoice Processed",
-	},
-	[WebhookEvent.RECURRING_INVOICE_NEXT_DATE_CALCULATED]: {
-		color: "#06b6d4",
-		emoji: "📅",
-		title: "Next Date Calculated",
-	},
 
 	// Plugin events - Indigo
 	[WebhookEvent.PLUGIN_ACTIVATED]: {
@@ -588,21 +552,6 @@ export const EVENT_STYLES: Record<WebhookEvent, EventStyle> = {
 		emoji: "➖",
 		title: "Receipt Item Deleted",
 	},
-	[WebhookEvent.RECURRING_INVOICE_ITEM_CREATED]: {
-		color: "#06b6d4",
-		emoji: "➕",
-		title: "Recurring Invoice Item Created",
-	},
-	[WebhookEvent.RECURRING_INVOICE_ITEM_UPDATED]: {
-		color: "#06b6d4",
-		emoji: "✏️",
-		title: "Recurring Invoice Item Updated",
-	},
-	[WebhookEvent.RECURRING_INVOICE_ITEM_DELETED]: {
-		color: "#ef4444",
-		emoji: "➖",
-		title: "Recurring Invoice Item Deleted",
-	},
 
 	// Config events
 	[WebhookEvent.PDF_CONFIG_CREATED]: {
@@ -823,22 +772,6 @@ export function formatPayloadForEvent(
 			`**${p.company?.name || "N/A"}**\nEmail template updated`,
 		[WebhookEvent.COMPANY_INFO_VIEWED]: (_p) => null,
 
-		// Recurring Invoice events
-		[WebhookEvent.RECURRING_INVOICE_CREATED]: (p) =>
-			`Client: ${(p.client.type === "COMPANY" ? p.client?.name : `${p.client?.contactFirstname} ${p.client?.contactLastname}`) || "N/A"}\nFrequency: ${p.recurringInvoice?.frequency || "N/A"}\nAmount: ${p.recurringInvoice?.totalTTC || 0}${p.recurringInvoice?.currency || "€"}`,
-		[WebhookEvent.RECURRING_INVOICE_UPDATED]: (p) =>
-			`Client: ${(p.client.type === "COMPANY" ? p.client?.name : `${p.client?.contactFirstname} ${p.client?.contactLastname}`) || "N/A"}\nFrequency: ${p.recurringInvoice?.frequency || "N/A"}`,
-		[WebhookEvent.RECURRING_INVOICE_DELETED]: (p) =>
-			`Client: ${(p.client.type === "COMPANY" ? p.client?.name : `${p.client?.contactFirstname} ${p.client?.contactLastname}`) || "N/A"}`,
-		[WebhookEvent.RECURRING_INVOICE_GENERATED]: (p) =>
-			`Recurring invoice generated\nClient: ${(p.client.type === "COMPANY" ? p.client?.name : `${p.client?.contactFirstname} ${p.client?.contactLastname}`) || "N/A"}`,
-		[WebhookEvent.RECURRING_INVOICE_AUTO_SENT]: (p) =>
-			`Recurring invoice auto-sent\nClient: ${(p.client.type === "COMPANY" ? p.client?.name : `${p.client?.contactFirstname} ${p.client?.contactLastname}`) || "N/A"}`,
-		[WebhookEvent.RECURRING_INVOICE_PROCESSED]: (p) =>
-			`Recurring invoice processed\nClient: ${(p.client.type === "COMPANY" ? p.client?.name : `${p.client?.contactFirstname} ${p.client?.contactLastname}`) || "N/A"}`,
-		[WebhookEvent.RECURRING_INVOICE_NEXT_DATE_CALCULATED]: (p) =>
-			`Next date: ${p.nextDate ? new Date(p.nextDate).toLocaleDateString("en-US") : "N/A"}`,
-
 		// Plugin events
 		[WebhookEvent.PLUGIN_ACTIVATED]: (p) =>
 			`**${p.plugin?.name || "N/A"}**\nType: ${p.plugin?.type || "N/A"}`,
@@ -929,11 +862,6 @@ export function formatPayloadForEvent(
 			`Receipt: #${p.receipt?.number || "N/A"}\nItem: ${p.item?.description || "N/A"}`,
 		[WebhookEvent.RECEIPT_ITEM_DELETED]: (p) =>
 			`Receipt: #${p.receipt?.number || "N/A"}`,
-		[WebhookEvent.RECURRING_INVOICE_ITEM_CREATED]: (p) =>
-			`Recurring Invoice\nItem: ${p.item?.description || "N/A"}`,
-		[WebhookEvent.RECURRING_INVOICE_ITEM_UPDATED]: (p) =>
-			`Recurring Invoice\nItem: ${p.item?.description || "N/A"}`,
-		[WebhookEvent.RECURRING_INVOICE_ITEM_DELETED]: (_p) => `Recurring Invoice`,
 
 		// Config events
 		[WebhookEvent.PDF_CONFIG_CREATED]: (p) =>

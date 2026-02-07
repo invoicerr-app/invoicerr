@@ -68,13 +68,18 @@ export class InvitationsService {
 		return userCount === 0;
 	}
 
-	async createInvitation(createdById: string, expiresInDays?: number) {
+	async createInvitation(
+		createdById: string,
+		companyId?: string,
+		expiresInDays?: number,
+	) {
 		const code = this.generateCode();
 
 		const invitation = await this.prisma.invitationCode.create({
 			data: {
 				code,
 				createdById,
+				companyId: companyId || null,
 				expiresAt: expiresInDays
 					? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000)
 					: null,
@@ -83,7 +88,12 @@ export class InvitationsService {
 
 		logger.info("Invitation created", {
 			category: "invitation",
-			details: { id: invitation.id, code: invitation.code, createdById },
+			details: {
+				id: invitation.id,
+				code: invitation.code,
+				createdById,
+				companyId,
+			},
 		});
 
 		return {
@@ -91,6 +101,7 @@ export class InvitationsService {
 			code: invitation.code,
 			createdAt: invitation.createdAt,
 			expiresAt: invitation.expiresAt,
+			companyId: invitation.companyId,
 		};
 	}
 
@@ -149,6 +160,13 @@ export class InvitationsService {
 				createdAt: true,
 				expiresAt: true,
 				usedAt: true,
+				companyId: true,
+				company: {
+					select: {
+						id: true,
+						name: true,
+					},
+				},
 				usedBy: {
 					select: {
 						id: true,
