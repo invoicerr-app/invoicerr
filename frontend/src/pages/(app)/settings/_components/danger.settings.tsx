@@ -24,7 +24,7 @@ export default function DangerZoneSettings() {
     const [currentAction, setCurrentAction] = useState<"app" | "all" | null>(null)
     const [otp, setOtp] = useState("")
     const { trigger: sendOTP, loading: isLoadingOtp } = usePost("/api/danger/otp")
-    const { trigger: sendAction } = usePost(`/api/danger/reset/${currentAction}?otp=${otp}`)
+    const { trigger: sendAction } = usePost(`/api/danger/reset/${currentAction}`)
     const [otpModalOpen, setOtpModalOpen] = useState(false)
 
     const navigate = useNavigate()

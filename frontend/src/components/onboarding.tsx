@@ -144,6 +144,7 @@ export default function OnBoarding({
       .string({ required_error: t("settings.company.form.currency.errors.required") })
       .min(1, t("settings.company.form.currency.errors.select")),
     address: z.string().min(1, t("settings.company.form.address.errors.empty")),
+    addressLine2: z.string().optional(),
     postalCode: z.string().refine((val) => {
       return /^[0-9A-Z\s-]{3,10}$/.test(val)
     }, t("settings.company.form.postalCode.errors.format")),
@@ -215,6 +216,7 @@ export default function OnBoarding({
       foundedAt: new Date(),
       currency: "",
       address: "",
+      addressLine2: "",
       postalCode: "",
       city: "",
       country: "",
@@ -265,7 +267,7 @@ export default function OnBoarding({
       case 0:
         return ["name", "description", "foundedAt", "currency", "legalId", "VAT"]
       case 1:
-        return ["address", "postalCode", "city", "country"]
+        return ["address", "addressLine2", "postalCode", "city", "country"]
       case 2:
         return ["phone", "email"]
       case 3:
@@ -425,6 +427,21 @@ export default function OnBoarding({
                           <Input placeholder={t("settings.company.form.address.placeholder")} {...field} data-cy="onboarding-company-address-input" />
                         </FormControl>
                         <FormDescription>{t("settings.company.form.address.description")}</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="addressLine2"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("settings.company.form.addressLine2.label")}</FormLabel>
+                        <FormControl>
+                          <Input placeholder={t("settings.company.form.addressLine2.placeholder")} {...field} data-cy="onboarding-company-addressline2-input" />
+                        </FormControl>
+                        <FormDescription>{t("settings.company.form.addressLine2.description")}</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
