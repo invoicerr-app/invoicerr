@@ -11,11 +11,13 @@ export async function authenticatedFetch(
 	input: RequestInfo,
 	init: RequestInit = {},
 ): Promise<Response> {
+	const companyId = localStorage.getItem('companyId');
 	const res = await fetch(input, {
 		...init,
 		credentials: "include",
 		headers: {
 			"Content-Type": "application/json",
+			"X-Company-Id": companyId || "",
 			...(init.headers || {}),
 		},
 	});
@@ -141,7 +143,7 @@ export interface useSseResult<T = unknown> {
 }
 
 export function useSse<T = unknown>(
-	url: string,
+	url: string | null,
 	options?: EventSourceInit,
 ): useSseResult<T> {
 	const [data, setData] = useState<T | null>(null);
@@ -149,8 +151,15 @@ export function useSse<T = unknown>(
 	const [error, setError] = useState<Error | null>(null);
 	const eventSourceRef = useRef<EventSource | null>(null);
 
+	const shouldConnect = url !== null;
+
 	useEffect(() => {
-		const fullUrl = url.startsWith("http")
+		if (!shouldConnect) {
+			setLoading(false);
+			return;
+		}
+
+		const fullUrl = url!.startsWith("http")
 			? url
 			: `${import.meta.env.VITE_BACKEND_URL || ""}${url}`;
 

@@ -4,7 +4,6 @@ import {
 	DropdownMenuSeparator,
 } from "@radix-ui/react-dropdown-menu";
 import {
-	Building2,
 	ChevronsUpDown,
 	CreditCard,
 	FileText,
@@ -48,6 +47,10 @@ import OnBoarding from "./onboarding";
 import { useTheme } from "./theme-provider";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
+import { CompanySwitcher } from "./company-switcher";
+import { useCompany, useCurrentCompanyId } from "@/contexts/company-context";
+import { RoleGate } from "./role-gate";
+import { Shield } from "lucide-react";
 
 export function Sidebar() {
 	const { t } = useTranslation();
@@ -58,9 +61,11 @@ export function Sidebar() {
 	const { data, isPending: userLoading } = authClient.useSession();
 
 	const { setTheme } = useTheme();
+	const currentCompanyId = useCurrentCompanyId();
 	const { data: company, loading: companyLoading } = useSse<Company>(
-		"/api/company/info/sse",
+		currentCompanyId ? `/api/company/info/sse?companyId=${currentCompanyId}` : null,
 	);
+	const { userCompanies, switchCompany, isLoading: companiesLoading } = useCompany();
 	const navigate = useNavigate();
 
 	const items: {
@@ -128,6 +133,7 @@ export function Sidebar() {
 		<RootSidebar collapsible="icon">
 			<OnBoarding
 				isOpen={
+					!companiesLoading &&
 					!companyLoading &&
 					(!company || !company.name) &&
 					location.pathname !== "/settings/company"
@@ -137,19 +143,12 @@ export function Sidebar() {
 			<SidebarHeader className="px-2">
 				<SidebarMenu>
 					<SidebarMenuItem>
-						<SidebarMenuButton size="lg" asChild>
-							<section className="flex items-center gap-2">
-								<div className="bg-accent text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-									<Building2 className="size-4" />
-								</div>
-								<div className="grid flex-1 text-left text-sm leading-tight">
-									<span className="truncate font-medium">{company?.name}</span>
-									<span className="truncate text-xs">
-										{t("sidebar.company.plan")}
-									</span>
-								</div>
-							</section>
-						</SidebarMenuButton>
+						<CompanySwitcher
+							currentCompany={company}
+							userCompanies={userCompanies}
+							onSwitch={switchCompany}
+							isLoading={companiesLoading || companyLoading}
+						/>
 					</SidebarMenuItem>
 				</SidebarMenu>
 			</SidebarHeader>
@@ -158,25 +157,42 @@ export function Sidebar() {
 				<SidebarGroup className="px-0">
 					<SidebarGroupLabel>{t("sidebar.menu")}</SidebarGroupLabel>
 					<SidebarMenu>
-						{items.map((item, index) => (
-							<SidebarMenuItem key={index}>
-								<SidebarMenuButton asChild>
-									<Link
-										data-cy={item.dataCy}
-										to={item.url}
-										className={`flex items-center gap-2 py-6 ${
-											location.pathname.startsWith(item.url)
-												? "text-sidebar-accent-foreground bg-sidebar-accent"
-												: ""
-										}`}
-									>
-										{item.icon}
-										<span>{item.title}</span>
-									</Link>
-								</SidebarMenuButton>
-							</SidebarMenuItem>
-						))}
-					</SidebarMenu>
+				{items.map((item) => (
+					<SidebarMenuItem key={item.url}>
+						<SidebarMenuButton asChild>
+							<Link
+								data-cy={item.dataCy}
+								to={item.url}
+								className={`flex items-center gap-2 py-6 ${
+									location.pathname.startsWith(item.url)
+										? "text-sidebar-accent-foreground bg-sidebar-accent"
+										: ""
+								}`}
+							>
+								{item.icon}
+								<span>{item.title}</span>
+							</Link>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+				))}
+				<RoleGate allowedRoles={['SUPERADMIN']}>
+					<SidebarMenuItem>
+						<SidebarMenuButton asChild>
+							<Link
+								to="/admin/dashboard"
+								className={`flex items-center gap-2 py-6 ${
+									location.pathname.startsWith('/admin')
+										? "text-sidebar-accent-foreground bg-sidebar-accent"
+										: ""
+								}`}
+							>
+								<Shield className="w-4 h-4" />
+								<span>{t("sidebar.navigation.admin")}</span>
+							</Link>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+				</RoleGate>
+			</SidebarMenu>
 				</SidebarGroup>
 			</SidebarContent>
 

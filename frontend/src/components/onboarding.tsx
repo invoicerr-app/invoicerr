@@ -16,7 +16,7 @@ import { format } from "date-fns"
 import { toast } from "sonner"
 import { useForm } from "react-hook-form"
 import { usePost } from "@/hooks/use-fetch"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -53,7 +53,7 @@ export interface OnBoardingData {
 
 export default function OnBoarding({
   isLoading: externalLoading,
-  isOpen = true,
+  isOpen: isOpenProp = true,
 }: OnBoardingProps) {
   const { t } = useTranslation()
   const STEPS = [
@@ -65,8 +65,17 @@ export default function OnBoarding({
   const [isLoading, setIsLoading] = useState(false)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [completedSteps, setCompletedSteps] = useState<number[]>([])
+  const [isOpen, setIsOpen] = useState(isOpenProp ?? true)
 
-  const { trigger } = usePost<Company>("/api/company/info")
+  // Synchroniser l'état local avec la prop
+  useEffect(() => {
+    setIsOpen(isOpenProp ?? true)
+  }, [isOpenProp])
+
+  // First create/update company endpoint
+  const { trigger: createCompany } = usePost<Company>("/api/company");
+  // Update company info endpoint
+  const { trigger: updateCompanyInfo } = usePost<Company>("/api/company/info");
 
   const ALLOWED_DATE_FORMATS = [
     "dd/MM/yyyy",
@@ -83,11 +92,12 @@ export default function OnBoarding({
     const validKeys = ["year", "month", "day", "number"]
     const requiredKeys = ["number"]
 
-    let match
-    const matches = []
+    const matches: RegExpExecArray[] = []
+    let match = patternRegex.exec(pattern)
 
-    while ((match = patternRegex.exec(pattern)) !== null) {
+    while (match !== null) {
       matches.push(match)
+      match = patternRegex.exec(pattern)
     }
 
     for (const key of requiredKeys) {
@@ -222,10 +232,22 @@ export default function OnBoarding({
   })
 
   async function onSubmit(values: z.infer<typeof companySchema>) {
+    // Ne soumettre que si on est à la dernière étape
+    if (currentStepIndex !== STEPS.length - 1) {
+      return
+    }
+    
     setIsLoading(true)
     try {
-      await trigger(values)
+      // First create the company with basic info
+      const company = await createCompany({ name: values.name });
+      
+      // Then update all company info
+      await updateCompanyInfo(values);
+      
       toast.success(t("settings.company.messages.updateSuccess"))
+      // Fermer la modal après succès
+      setIsOpen(false)
     } catch (error) {
       console.error("Error during onboarding:", error)
       toast.error(t("settings.company.messages.updateError"))
@@ -738,7 +760,8 @@ export default function OnBoarding({
               {currentStepIndex < STEPS.length - 1 ? (
                 <Button
                   type="button"
-                  onClick={async () => {
+                  onClick={async (e) => {
+                    e.preventDefault()
                     const stepFields = getStepFields(currentStepIndex)
                     const isValid = await form.trigger(stepFields)
                     if (isValid) {
