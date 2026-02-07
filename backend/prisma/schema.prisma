@@ -227,7 +227,7 @@ enum ClientType {
   COMPANY
 }
 
-// Item type (used for quote/invoice/recurring items)
+// Item type (used for quote/invoice items)
 enum ItemType {
   HOUR
   DAY
@@ -334,8 +334,12 @@ model Company {
   Invoice          Invoice[]
   PaymentMethod    PaymentMethod[]
   emailTemplates   MailTemplate[]
-  RecurringInvoice RecurringInvoice[]
   webhooks         Webhook[]
+  
+  // Multi-tenant relations
+  members          UserCompany[]      @relation("CompanyMembers")
+  invitations      InvitationCode[]
+  clients          Client[]
 }
 
 // Client model
@@ -362,9 +366,15 @@ model Client {
   sex              String             @default("other") // male, female, other (We need a default value for the invoice generation)
   title            String             @default("Doctor") // Doctor, Professor (We need a default value for the invoice generation)
   isActive         Boolean            @default(true)
+  
+  // Multi-tenant: Clients belong to a company
+  companyId        String
+  company          Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
   Quote            Quote[]
   Invoice          Invoice[]
-  RecurringInvoice RecurringInvoice[]
+  
+  @@index([companyId])
 }
 
 // Email templates
@@ -429,8 +439,6 @@ model Invoice {
   rawNumber          String? // Raw number for custom formats
   quote              Quote?            @relation(fields: [quoteId], references: [id])
   quoteId            String?
-  recurringInvoice   RecurringInvoice? @relation(fields: [recurringInvoiceId], references: [id])
-  recurringInvoiceId String?
   client             Client            @relation(fields: [clientId], references: [id]) // Client receiving the invoice
   clientId           String
   company            Company           @relation(fields: [companyId], references: [id]) // Company issuing the invoice
@@ -464,45 +472,6 @@ model InvoiceItem {
   type         ItemType      @default(SERVICE)
   order        Int
   receiptItems ReceiptItem[]
-}
-
-// Recurring invoice model
-model RecurringInvoice {
-  id                String                 @id @default(uuid())
-  client            Client                 @relation(fields: [clientId], references: [id])
-  clientId          String
-  company           Company                @relation(fields: [companyId], references: [id])
-  companyId         String
-  items             RecurringInvoiceItem[]
-  generatedInvoices Invoice[] // Relation inverse pour les factures générées
-  paymentMethod     String? // Ex: "Bank Transfer", "PayPal", "Cash"
-  paymentDetails    String? // Details for the payment method (e.g., bank account number)
-  paymentMethodId   String?
-  notes             String?                @default("")
-  totalHT           Float
-  totalVAT          Float
-  totalTTC          Float
-  currency          Currency
-  frequency         RecurrenceFrequency // Simplified recurrence frequency
-  count             Int? // Number of occurrences, null for infinite
-  until             DateTime? // End date for the recurrence
-  autoSend          Boolean                @default(false) // Auto-send generated invoices
-  nextInvoiceDate   DateTime? // Date for the next invoice generation
-  lastInvoiceDate   DateTime? // Date of the last generated invoice
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-}
-
-model RecurringInvoiceItem {
-  id                 String           @id @default(uuid())
-  recurringInvoice   RecurringInvoice @relation(fields: [recurringInvoiceId], references: [id])
-  recurringInvoiceId String
-  description        String
-  quantity           Float
-  unitPrice          Float
-  vatRate            Float // 20 for 20%
-  type               ItemType         @default(SERVICE)
-  order              Int
 }
 
 // Receipt models
@@ -654,15 +623,6 @@ enum WebhookEvent {
   COMPANY_EMAIL_TEMPLATE_UPDATED
   COMPANY_INFO_VIEWED
 
-  // Recurring Invoice events
-  RECURRING_INVOICE_CREATED
-  RECURRING_INVOICE_UPDATED
-  RECURRING_INVOICE_DELETED
-  RECURRING_INVOICE_GENERATED
-  RECURRING_INVOICE_AUTO_SENT
-  RECURRING_INVOICE_PROCESSED
-  RECURRING_INVOICE_NEXT_DATE_CALCULATED
-
   // Plugin events
   PLUGIN_ACTIVATED
   PLUGIN_DEACTIVATED
@@ -732,10 +692,6 @@ enum WebhookEvent {
   RECEIPT_ITEM_UPDATED
   RECEIPT_ITEM_DELETED
 
-  // Recurring Invoice Item events
-  RECURRING_INVOICE_ITEM_CREATED
-  RECURRING_INVOICE_ITEM_UPDATED
-  RECURRING_INVOICE_ITEM_DELETED
 
   // Configuration events
   PDF_CONFIG_CREATED
@@ -793,6 +749,31 @@ model Webhook {
   @@index([companyId])
 }
 
+// ======= MULTI-TENANT ROLES ======= //
+
+enum UserRole {
+  SUPERADMIN
+  ADMIN
+  USER
+}
+
+model UserCompany {
+  id        String   @id @default(cuid())
+  userId    String
+  companyId String
+  role      UserRole @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user    User    @relation("UserCompanies", fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation("CompanyMembers", fields: [companyId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
+  @@map("user_company")
+}
+
 // ======= INVITATION SYSTEM ======= //
 
 model InvitationCode {
@@ -804,10 +785,13 @@ model InvitationCode {
   createdById String
   createdBy   User      @relation("CreatedInvitations", fields: [createdById], references: [id], onDelete: Cascade)
   usedById    String?   @unique
-  usedBy      User?     @relation("UsedInvitation", fields: [usedById], references: [id], onDelete: SetNull)
+  usedBy      User?     @relation("UsedInvitations", fields: [usedById], references: [id], onDelete: SetNull)
+  companyId   String?
+  company     Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
 
   @@index([code])
   @@index([createdById])
+  @@index([companyId])
   @@map("invitation_code")
 }
 
@@ -826,9 +810,12 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
+  // Multi-tenant relations
+  companies          UserCompany[]    @relation("UserCompanies")
+  
   // Invitation relations
   createdInvitations InvitationCode[] @relation("CreatedInvitations")
-  usedInvitation     InvitationCode?  @relation("UsedInvitation")
+  usedInvitations     InvitationCode[]  @relation("UsedInvitations")
 
   @@unique([email])
   @@map("user")
