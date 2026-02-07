@@ -5,7 +5,7 @@ import { useGetRaw, useSse } from "@/hooks/use-fetch"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import type { Receipt } from "@/types"
+import { Receipt } from "@/types"
 import { useTranslation } from "react-i18next"
 import { ReceiptList, type ReceiptListHandle } from "./_components/receipt-list"
 

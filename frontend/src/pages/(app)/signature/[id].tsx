@@ -7,8 +7,8 @@ import { useGet, useGetRaw, usePost } from "@/hooks/use-fetch"
 
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import type { Quote } from "@/types"
-import type React from "react"
+import { Quote } from "@/types"
+import React from "react"
 import { toast } from "sonner"
 import { useParams } from "react-router"
 

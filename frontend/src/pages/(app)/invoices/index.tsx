@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react"
 import { useGetRaw, useSse } from "@/hooks/use-fetch"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import type { Invoice, RecurringInvoice } from "@/types"
+import { Invoice, RecurringInvoice } from "@/types"
 import { useTranslation } from "react-i18next"
 import { RecurringInvoiceList, type RecurringInvoiceListHandle } from "./_components/recurring-invoices/recurring-invoices-list"
 

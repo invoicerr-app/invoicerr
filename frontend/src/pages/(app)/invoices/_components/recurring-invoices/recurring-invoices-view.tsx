@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
-import type { RecurringInvoice } from "@/types"
+import { RecurringInvoice } from "@/types"
 import { useTranslation } from "react-i18next"
 
 interface RecurringInvoiceViewDialogProps {

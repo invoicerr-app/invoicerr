@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog"
 
 import { Button } from "@/components/ui/button"
-import type { RecurringInvoice } from "@/types"
+import { RecurringInvoice } from "@/types"
 import { useDelete } from "@/hooks/use-fetch"
 import { useTranslation } from "react-i18next"
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import type { Log, LogLevel } from "../logs.settings"
+import { Log, LogLevel } from "../logs.settings"
 import { Badge } from "@/components/ui/badge"
 
 type LogDetailsDialogProps = {

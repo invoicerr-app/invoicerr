@@ -1,33 +1,34 @@
-import './index.css'
-import './lib/i18n'
+import "./index.css";
+import "./lib/i18n";
 
-import { Routes } from '@generouted/react-router'
-import { ThemeProvider } from './components/theme-provider'
-import { Toaster } from '@/components/ui/sonner'
-import { createRoot } from 'react-dom/client'
+import { Routes } from "@generouted/react-router";
+import { createRoot } from "react-dom/client";
+import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "./components/theme-provider";
 
 async function loadRuntimeConfig() {
-    try {
-        const res = await fetch('/config.json', { cache: 'no-store' })
-        if (res.ok) {
-            ; (window as any).__APP_CONFIG__ = await res.json()
-            return
-        }
-    } catch (e) {
-        // ignore, fallback to empty config
-    }
-    ; (window as any).__APP_CONFIG__ = {}
+	try {
+		const res = await fetch("/config.json", { cache: "no-store" });
+		if (res.ok) {
+			(window as unknown as Record<string, unknown>).__APP_CONFIG__ =
+				await res.json();
+			return;
+		}
+	} catch {
+		// ignore, fallback to empty config
+	}
+	(window as unknown as Record<string, unknown>).__APP_CONFIG__ = {};
 }
 
 async function bootstrap() {
-    await loadRuntimeConfig()
+	await loadRuntimeConfig();
 
-    createRoot(document.getElementById('root')!).render(
-        <ThemeProvider defaultTheme='system' storageKey='vite-ui-theme'>
-            <Routes />
-            <Toaster richColors position='top-right' />
-        </ThemeProvider>
-    )
+	createRoot(document.getElementById("root")!).render(
+		<ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+			<Routes />
+			<Toaster richColors position="top-right" />
+		</ThemeProvider>,
+	);
 }
 
-bootstrap()
+bootstrap();

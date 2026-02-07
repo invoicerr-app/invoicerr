@@ -1,7 +1,7 @@
 "use client"
 
 import { Search, RefreshCw, Calendar } from "lucide-react"
-import type { LogLevel } from "../logs.settings"
+import { LogLevel } from "../logs.settings"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"

@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useEffect, useState } from "react"
 
-import type { Receipt } from "@/types"
+import { Receipt } from "@/types"
 import { useGetRaw } from "@/hooks/use-fetch"
 import { useTranslation } from "react-i18next"
 

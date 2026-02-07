@@ -3,7 +3,7 @@ import { Edit, Eye, Mail, MapPin, Phone, Plus, Search, Trash2, User, Users } fro
 
 import BetterPagination from "@/components/pagination"
 import { Button } from "@/components/ui/button"
-import type { Client } from "@/types"
+import { Client } from "@/types"
 import { ClientDeleteDialog } from "./_components/client-delete"
 import { ClientUpsert } from "./_components/client-upsert"
 import { ClientViewDialog } from "./_components/client-view"

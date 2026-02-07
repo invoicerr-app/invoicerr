@@ -1,12 +1,13 @@
-import { JwtService } from '@nestjs/jwt';
-import { MailService } from '@/mail/mail.service';
-import { Module } from '@nestjs/common';
-import { PluginsController } from '@/modules/plugins/plugins.controller';
-import { PluginsService } from '@/modules/plugins/plugins.service';
+import { Module } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { MailModule } from "@/mail/mail.module";
+import { PluginsController } from "@/modules/plugins/plugins.controller";
+import { PluginsService } from "@/modules/plugins/plugins.service";
 
 @Module({
-  controllers: [PluginsController],
-  providers: [PluginsService, MailService, JwtService],
-  exports: [PluginsService]
+	controllers: [PluginsController],
+	providers: [PluginsService, JwtService],
+	imports: [MailModule],
+	exports: [PluginsService],
 })
-export class PluginsModule { }
+export class PluginsModule {}

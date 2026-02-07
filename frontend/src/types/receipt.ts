@@ -1,5 +1,5 @@
-import type { Invoice } from "./invoice";
-import type { PaymentMethod } from "./payment-method";
+import { Invoice } from "./invoice";
+import { PaymentMethod } from "./payment-method";
 
 interface ReceiptItem {
     id: string;

@@ -6,7 +6,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 
-import type { Client } from "@/types";
+import { Client } from "@/types";
 import { useTranslation } from "react-i18next";
 
 interface ClientViewDialogProps {

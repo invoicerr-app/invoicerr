@@ -5,9 +5,9 @@ import { useGetRaw, useSse } from "@/hooks/use-fetch"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import type { Quote } from "@/types"
+import { Quote } from "@/types"
 import { QuoteList } from "@/pages/(app)/quotes/_components/quote-list"
-import type { QuoteListHandle } from "@/pages/(app)/quotes/_components/quote-list"
+import { QuoteListHandle } from "@/pages/(app)/quotes/_components/quote-list"
 import { useTranslation } from "react-i18next"
 
 export default function Quotes() {

@@ -1,6 +1,6 @@
-import type { Client } from "./client";
-import type { Company } from "./company";
-import type { PaymentMethod } from "./payment-method";
+import { Client } from "./client";
+import { Company } from "./company";
+import { PaymentMethod } from "./payment-method";
 
 export enum RecurrenceFrequency {
     WEEKLY = 'WEEKLY',

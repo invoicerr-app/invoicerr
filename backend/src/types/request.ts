@@ -1,8 +1,8 @@
-import { CurrentUser } from '@/types/user';
-import { Request } from 'express';
+import { Request } from "express";
+import { CurrentUser } from "@/types/user";
 
 interface RequestWithUser extends Request {
-    user: CurrentUser
+	user: CurrentUser;
 }
 
-export { RequestWithUser };
+export type { RequestWithUser };

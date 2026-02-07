@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import { useGet, usePost } from "@/hooks/use-fetch"
 
 import { Button } from "@/components/ui/button"
-import type { Company } from "@/types"
+import { Company } from "@/types"
 import CurrencySelect from "@/components/currency-select"
 import { DatePicker } from "@/components/date-picker"
 import { Input } from "@/components/ui/input"

@@ -1,42 +1,49 @@
-import { IPdfPreviewProvider, IPlugin, IValidatableProvider, IWebhookProvider } from "../types";
-
-import { Request } from 'express';
+import { Request } from "express";
+import {
+	IPdfPreviewProvider,
+	IPlugin,
+	IValidatableProvider,
+	IWebhookProvider,
+} from "../types";
 
 export interface RequestSignatureProps {
-  id: string;
-  title: string;
-  fileUrl: string;
-  signers: string[];
+	id: string;
+	title: string;
+	fileUrl: string;
+	signers: string[];
 }
 
-export interface ISigningProvider extends IPlugin, IValidatableProvider, IWebhookProvider, IPdfPreviewProvider {
-  formatServerUrl: (url: string) => string;
-  requestSignature: (doc: RequestSignatureProps) => Promise<string>;
-  handleWebhook: (req: Request, body: any) => Promise<any>;
-  generatePdfPreview: (quoteId: string) => Promise<Uint8Array<ArrayBufferLike>>;
+export interface ISigningProvider
+	extends IPlugin,
+		IValidatableProvider,
+		IWebhookProvider,
+		IPdfPreviewProvider {
+	formatServerUrl: (url: string) => string;
+	requestSignature: (doc: RequestSignatureProps) => Promise<string>;
+	handleWebhook: (req: Request, body: unknown) => Promise<unknown>;
+	generatePdfPreview: (quoteId: string) => Promise<Uint8Array<ArrayBufferLike>>;
 }
-
 
 export interface IPluginForm {
-  form: IPluginFormConfig;
+	form: IPluginFormConfig;
 }
 
 export interface IPluginFormConfig {
-  fields: IPluginFormField[];
+	fields: IPluginFormField[];
 }
 
 export interface IPluginFormField {
-  type: 'text' | 'number' | 'switch' | 'select';
-  name: string;
-  label: string;
-  placeholder?: string;
-  required?: boolean;
-  minLength?: number;
-  maxLength?: number;
-  min?: number;
-  max?: number;
-  default?: boolean;
-  multiple?: boolean;
-  pattern?: string;
-  options?: { label: string; value: string }[];
+	type: "text" | "number" | "switch" | "select";
+	name: string;
+	label: string;
+	placeholder?: string;
+	required?: boolean;
+	minLength?: number;
+	maxLength?: number;
+	min?: number;
+	max?: number;
+	default?: boolean;
+	multiple?: boolean;
+	pattern?: string;
+	options?: { label: string; value: string }[];
 }
