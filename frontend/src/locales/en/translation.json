@@ -1,4 +1,12 @@
 {
+    "onboarding": {
+        "steps": {
+            "basic": "Basic Info",
+            "address": "Address",
+            "contact": "Contact",
+            "settings": "Settings"
+        }
+    },
     "clients": {
         "header": {
             "subtitle": "Manage your clients",
@@ -563,153 +571,6 @@
         },
         "pdf": {
             "title": "Invoice {{number}} - PDF"
-        }
-    },
-    "recurringInvoices": {
-        "frequency": {
-            "weekly": "Every week",
-            "biweekly": "Every 2 weeks",
-            "monthly": "Every month",
-            "bimonthly": "Every 2 months",
-            "quarterly": "Every 3 months",
-            "quadmonthly": "Every 4 months",
-            "semiannually": "Every 6 months",
-            "annually": "Every year"
-        },
-        "list": {
-            "title": "Recurring Invoices",
-            "description": "Manage your recurring invoices and automate billing.",
-            "actions": {
-                "addNew": "Add New Recurring Invoice"
-            },
-            "item": {
-                "client": "Client",
-                "payment": "Payment Method",
-                "totalHT": "Total (excl. VAT)",
-                "totalTTC": "Total (incl. VAT)"
-            },
-            "tooltips": {
-                "view": "View Details",
-                "edit": "Edit",
-                "delete": "Delete"
-            },
-            "messages": {
-                "manual_process_success": "Manual process triggered successfully",
-                "manual_process_error": "Error triggering manual process"
-            }
-        },
-        "emptyState": {
-            "noInvoices": "No recurring invoices yet",
-            "startAdding": "Get started by creating your first recurring invoice."
-        },
-        "actions": {
-            "addNew": "Add New Recurring Invoice"
-        },
-        "upsert": {
-            "title": {
-                "create": "Create New Recurring Invoice",
-                "edit": "Edit Recurring Invoice"
-            },
-            "form": {
-                "quote": {
-                    "label": "From Quote",
-                    "placeholder": "Select a quote"
-                },
-                "client": {
-                    "label": "Client",
-                    "placeholder": "Select a client",
-                    "errors": {
-                        "required": "Please select a client"
-                    },
-                    "noOptions": "No clients available. Please create a client first."
-                },
-                "currency": {
-                    "label": "Currency"
-                },
-                "notes": {
-                    "label": "Notes",
-                    "placeholder": "Additional notes or terms"
-                },
-                "paymentMethod": {
-                    "label": "Payment Method",
-                    "placeholder": "Select payment method",
-                    "description": "Preferred payment method for this recurring invoice (e.g., Bank Transfer, Check, etc.)"
-                },
-                "paymentDetails": {
-                    "label": "Payment Details",
-                    "placeholder": "Enter payment details",
-                    "description": "Additional information for payment (e.g., IBAN, instructions, etc.)"
-                },
-                "frequency": {
-                    "label": "Frequency",
-                    "placeholder": "Select frequency",
-                    "description": "How often invoices will be generated",
-                    "errors": {
-                        "required": "Frequency is required"
-                    }
-                },
-                "count": {
-                    "label": "Occurrences",
-                    "placeholder": "Enter number of occurrences",
-                    "description": "Total number of times the invoice will be generated (empty for infinite recurrence)"
-                },
-                "until": {
-                    "label": "End Date",
-                    "placeholder": "Select end date",
-                    "description": "Date when the recurring invoice will stop being generated (leave empty for infinite recurrence)"
-                },
-                "autoSend": {
-                    "label": "Auto Send",
-                    "description": "Automatically send the recurring invoice to the client when generated"
-                },
-                "items": {
-                    "label": "Recurring Invoice Items",
-                    "addItem": "Add Item",
-                    "description": {
-                        "placeholder": "Item description",
-                        "errors": {
-                            "required": "Description is required"
-                        }
-                    },
-                    "quantity": {
-                        "placeholder": "Qty",
-                        "unit": "pcs",
-                        "errors": {
-                            "required": "Quantity is required",
-                            "min": "Quantity must be at least 1",
-                            "invalid": "Invalid quantity"
-                        }
-                    },
-                    "unitPrice": {
-                        "placeholder": "Unit price",
-                        "errors": {
-                            "required": "Unit price is required",
-                            "min": "Unit price must be positive",
-                            "invalid": "Invalid unit price"
-                        }
-                    },
-                    "vatRate": {
-                        "placeholder": "VAT %",
-                        "errors": {
-                            "required": "VAT rate is required",
-                            "min": "VAT rate must be positive"
-                        }
-                    },
-                    "type": {
-                        "label": "Type",
-                        "hour": "Hour",
-                        "day": "Day",
-                        "deposit": "Deposit/Down payment",
-                        "service": "Service",
-                        "product": "Product"
-                    }
-                }
-            },
-            "actions": {
-                "cancel": "Cancel",
-                "create": "Create Recurring Invoice",
-                "save": "Save Changes"
-            }
         }
     },
     "dashboard": {
@@ -1445,10 +1306,15 @@
             "clients": "Clients",
             "paymentMethods": "Payment Methods",
             "stats": "Statistics",
-            "settings": "Settings"
+            "settings": "Settings",
+            "admin": "Admin"
         },
         "company": {
-            "plan": "Entreprise"
+            "plan": "Entreprise",
+            "noCompany": "No Company",
+            "createNew": "Create New Company",
+            "createDescription": "Enter a name for your new company. You can edit the details later in the settings.",
+            "namePlaceholder": "Company name"
         },
         "menu": "Menu",
         "theme": {
@@ -1560,6 +1426,9 @@
         "next": "Next",
         "loading": "Loading...",
         "finish": "Finish",
+        "cancel": "Cancel",
+        "create": "Create",
+        "creating": "Creating...",
         "units": {
             "day": "Day",
             "week": "Week",
@@ -1758,5 +1627,137 @@
         "selectThisFolder": "Select This Folder",
         "noSubdirectories": "No subdirectories found",
         "loading": "Loading directories..."
+    },
+    "company": {
+        "switcher": {
+            "title": "Switch Company",
+            "current": "Current",
+            "switchTo": "Switch to..."
+        },
+        "roles": {
+            "SUPERADMIN": "Super Admin",
+            "ADMIN": "Administrator",
+            "USER": "User"
+        },
+        "invite": {
+            "title": "Invite User",
+            "button": "Invite User",
+            "description": "Generate an invitation code to invite someone to join your company",
+            "codeGenerated": "Invitation code generated",
+            "roleLabel": "Role",
+            "selectRole": "Select a role",
+            "roleHelp": "Choose the role for the invited user",
+            "expiresLabel": "Expires in",
+            "selectExpiry": "Select expiry",
+            "expiry": {
+                "1day": "1 day",
+                "7days": "7 days",
+                "30days": "30 days",
+                "never": "Never"
+            },
+            "generating": "Generating...",
+            "generate": "Generate Code",
+            "generateAnother": "Generate Another",
+            "shareCode": "Share this code with the person you want to invite",
+            "instructions": {
+                "title": "How to use",
+                "step1": "Share the invitation code with the person you want to invite",
+                "step2": "They should go to Settings → Company and click 'Join Company'",
+                "step3": "They enter the code and will be added to your company"
+            },
+            "createError": "Failed to create invitation",
+            "deleted": "Invitation deleted",
+            "deleteError": "Failed to delete invitation"
+        },
+        "join": {
+            "success": "Successfully joined the company"
+        },
+        "members": {
+            "title": "Company Members",
+            "roleUpdated": "Member role updated",
+            "roleUpdateError": "Failed to update member role",
+            "removed": "Member removed",
+            "removeError": "Failed to remove member"
+        }
+    },
+    "admin": {
+        "title": "Admin",
+        "subtitle": "Super Admin Dashboard",
+        "tabs": {
+            "dashboard": "Dashboard",
+            "companies": "Companies",
+            "users": "Users",
+            "settings": "Settings"
+        },
+        "dashboard": {
+            "title": "Admin Dashboard",
+            "description": "Overview of all companies and users",
+            "totalCompanies": "Total Companies",
+            "totalUsers": "Total Users",
+            "activeCompanies": "Active Companies",
+            "recentActivity": "Recent Activity",
+            "fromLastMonth": "from last month",
+            "withActivity": "with activity in the last 30 days",
+            "last24Hours": "events in the last 24 hours"
+        },
+        "companies": {
+            "title": "All Companies",
+            "description": "Manage all companies in the system",
+            "list": "Companies List",
+            "searchPlaceholder": "Search companies...",
+            "table": {
+                "name": "Name",
+                "createdAt": "Created At",
+                "members": "Members",
+                "documents": "Documents",
+                "status": "Status",
+                "actions": "Actions"
+            },
+            "members": "members",
+            "invoices": "invoices",
+            "quotes": "quotes",
+            "status": {
+                "active": "Active",
+                "inactive": "Inactive"
+            },
+            "actions": {
+                "view": "View Details",
+                "delete": "Delete"
+            },
+            "createdAt": "Created {{date}}",
+            "deleteConfirm": "Are you sure you want to delete this company? This action cannot be undone.",
+            "deleteSuccess": "Company deleted successfully",
+            "deleteError": "Failed to delete company",
+            "empty": "No companies found",
+            "noResults": "No companies match your search"
+        },
+        "users": {
+            "title": "All Users",
+            "description": "Manage all users in the system",
+            "list": "Users List",
+            "searchPlaceholder": "Search users...",
+            "table": {
+                "user": "User",
+                "joined": "Joined",
+                "companies": "Companies",
+                "roles": "Roles",
+                "status": "Status",
+                "actions": "Actions"
+            },
+            "status": {
+                "active": "Active",
+                "inactive": "Inactive"
+            },
+            "actions": {
+                "email": "Send Email",
+                "delete": "Delete"
+            },
+            "empty": "No users found",
+            "noResults": "No users match your search"
+        },
+        "activity": {
+            "title": "Recent Activity",
+            "empty": "No recent activity"
+        }
     }
 }

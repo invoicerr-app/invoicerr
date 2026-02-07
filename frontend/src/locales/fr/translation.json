@@ -1,4 +1,12 @@
 {
+    "onboarding": {
+        "steps": {
+            "basic": "Informations de base",
+            "address": "Adresse",
+            "contact": "Contact",
+            "settings": "Paramètres"
+        }
+    },
     "clients": {
         "header": {
             "subtitle": "Gérez vos clients",
@@ -564,155 +572,6 @@
         },
         "pdf": {
             "title": "Facture {{number}} - PDF"
-        }
-    },
-    "recurringInvoices": {
-        "frequency": {
-            "weekly": "Chaque semaine",
-            "biweekly": "Toutes les 2 semaines",
-            "monthly": "Chaque mois",
-            "bimonthly": "Tous les 2 mois",
-            "quarterly": "Tous les 3 mois",
-            "quadmonthly": "Tous les 4 mois",
-            "semiannually": "Tous les 6 mois",
-            "annually": "Chaque année"
-        },
-        "list": {
-            "title": "Factures récurrentes",
-            "description": "Gérez vos factures récurrentes pour automatiser la facturation",
-            "actions": {
-                "addNew": "Ajouter une nouvelle facture récurrente",
-                "triggerManual": "Déclencher génération"
-            },
-            "item": {
-                "client": "Client",
-                "payment": "Paiement",
-                "totalHT": "Total HT",
-                "totalTTC": "Total TTC"
-            },
-            "tooltips": {
-                "view": "Voir les détails",
-                "edit": "Modifier",
-                "delete": "Supprimer"
-            },
-            "messages": {
-                "manual_process_success": "Processus de génération déclenché avec succès",
-                "manual_process_error": "Erreur lors du déclenchement du processus"
-            }
-        },
-        "emptyState": {
-            "noInvoices": "Aucune facture récurrente pour le moment",
-            "noResults": "Aucune facture récurrente trouvée",
-            "startAdding": "Commencez par créer votre première facture récurrente."
-        },
-        "actions": {
-            "addNew": "Ajouter une nouvelle facture récurrente"
-        },
-        "upsert": {
-            "title": {
-                "create": "Créer une facture récurrente",
-                "edit": "Modifier la facture récurrente"
-            },
-            "form": {
-                "quote": {
-                    "label": "À partir d'un devis",
-                    "placeholder": "Sélectionner un devis"
-                },
-                "client": {
-                    "label": "Client",
-                    "placeholder": "Sélectionner un client",
-                    "errors": {
-                        "required": "Veuillez sélectionner un client"
-                    },
-                    "noOptions": "Aucun client disponible. Veuillez d'abord créer un client."
-                },
-                "currency": {
-                    "label": "Devise"
-                },
-                "notes": {
-                    "label": "Notes",
-                    "placeholder": "Saisir des notes ou conditions supplémentaires"
-                },
-                "paymentMethod": {
-                    "label": "Méthode de paiement",
-                    "placeholder": "Sélectionner la méthode de paiement",
-                    "description": "La méthode de paiement préférée pour cette facture récurrente (Ex: Virement bancaire, Chèque, etc.)"
-                },
-                "paymentDetails": {
-                    "label": "Détails de paiement",
-                    "placeholder": "Saisir les détails de paiement",
-                    "description": "Informations supplémentaires pour le paiement (Ex: IBAN, instructions, etc.)"
-                },
-                "frequency": {
-                    "label": "Fréquence",
-                    "placeholder": "Sélectionner la fréquence",
-                    "description": "Fréquence de génération des factures",
-                    "errors": {
-                        "required": "La fréquence est requise"
-                    }
-                },
-                "count": {
-                    "label": "Nombre d'occurrences",
-                    "placeholder": "Saisir le nombre d'occurrences",
-                    "description": "Nombre total de factures à générer (vide pour illimité)"
-                },
-                "until": {
-                    "label": "Jusqu'à",
-                    "placeholder": "Sélectionner la date de fin",
-                    "description": "Date jusqu'à laquelle les factures seront générées (vide pour illimité)"
-                },
-                "autoSend": {
-                    "label": "Envoi automatique",
-                    "description": "Envoyer automatiquement les factures par email aux clients après leur création"
-                },
-                "items": {
-                    "label": "Articles de la facture",
-                    "addItem": "Ajouter un article",
-                    "description": {
-                        "placeholder": "Description de l'article",
-                        "errors": {
-                            "required": "La description est requise"
-                        }
-                    },
-                    "quantity": {
-                        "placeholder": "Qté",
-                        "unit": "pcs",
-                        "errors": {
-                            "required": "La quantité est requise",
-                            "min": "La quantité doit être d'au moins 1",
-                            "invalid": "Quantité invalide"
-                        }
-                    },
-                    "unitPrice": {
-                        "placeholder": "Prix unitaire",
-                        "errors": {
-                            "required": "Le prix unitaire est requis",
-                            "min": "Le prix unitaire doit être positif",
-                            "invalid": "Prix unitaire invalide"
-                        }
-                    },
-                    "vatRate": {
-                        "placeholder": "TVA %",
-                        "errors": {
-                            "required": "Le taux de TVA est requis",
-                            "min": "Le taux de TVA doit être positif"
-                        }
-                    },
-                    "type": {
-                        "label": "Type",
-                        "hour": "Heure",
-                        "day": "Jour",
-                        "deposit": "Acompte / Arrhes",
-                        "service": "Service",
-                        "product": "Produit"
-                    }
-                }
-            },
-            "actions": {
-                "cancel": "Annuler",
-                "create": "Créer la facture récurrente",
-                "save": "Enregistrer les modifications"
-            }
         }
     },
     "dashboard": {
