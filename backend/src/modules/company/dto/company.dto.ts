@@ -79,3 +79,7 @@ export class EditCompanyDto {
 	receiptStartingNumber: number;
 	receiptNumberFormat: string;
 }
+
+export class CreateCompanyDto {
+	name: string;
+}
