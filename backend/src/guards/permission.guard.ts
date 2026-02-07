@@ -7,6 +7,7 @@ import {
 import { Reflector } from "@nestjs/core";
 import { logger } from "@/logger/logger.service";
 import { UserRole } from "../../prisma/generated/prisma/client";
+import { PrismaService } from "@/prisma/prisma.service";
 
 /**
  * Decorator to specify required roles for a route
@@ -24,7 +25,10 @@ export const RequiredRoles = (...roles: UserRole[]) =>
  */
 @Injectable()
 export class PermissionGuard implements CanActivate {
-	constructor(private reflector: Reflector) {}
+	constructor(
+		private reflector: Reflector,
+		private prisma: PrismaService,
+	) {}
 
 	async canActivate(context: ExecutionContext): Promise<boolean> {
 		const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
@@ -49,7 +53,7 @@ export class PermissionGuard implements CanActivate {
 
 		// Get user's role for the current company context
 		const companyId = request.companyId;
-		const userRole = this.getUserRoleInCompany(user, companyId);
+		const userRole = await this.getUserRoleInCompany(user.id, companyId);
 
 		// Check if user has any of the required roles
 		const hasPermission = requiredRoles.some((role) =>
@@ -75,27 +79,25 @@ export class PermissionGuard implements CanActivate {
 	/**
 	 * Get the user's role in a specific company
 	 */
-	private getUserRoleInCompany(
-		user: any,
+	private async getUserRoleInCompany(
+		userId: string,
 		companyId: string | null,
-	): UserRole {
+	): Promise<UserRole> {
 		// SUPERADMIN has global access
-		if (user.role === "SUPERADMIN" || user.isSuperAdmin) {
-			return UserRole.SUPERADMIN;
-		}
-
-		// If no company context, check user's default role
 		if (!companyId) {
-			return user.role || UserRole.USER;
+			return UserRole.USER;
 		}
 
-		// Find role in user's companies
-		const userCompanies = user.userCompanies || [];
-		const userCompany = userCompanies.find(
-			(uc: { companyId: string }) => uc.companyId === companyId,
-		);
+		const userCompany = await this.prisma.userCompany.findUnique({
+			where: {
+				userId_companyId: {
+					userId,
+					companyId,
+				},
+			},
+		});
 
-		return userCompany?.role || user.role || UserRole.USER;
+		return userCompany?.role || UserRole.USER;
 	}
 
 	/**

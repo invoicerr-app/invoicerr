@@ -8,12 +8,16 @@ import {
 	Post,
 	Query,
 	Sse,
+	UseGuards,
 } from "@nestjs/common";
 import { from, interval, map, startWith, switchMap } from "rxjs";
 import { ClientsService } from "@/modules/clients/clients.service";
 import { EditClientsDto } from "@/modules/clients/dto/clients.dto";
+import { AuthGuard } from "@/guards/auth.guard";
+import { TenantGuard } from "@/guards/tenant.guard";
 
 @Controller("clients")
+@UseGuards(AuthGuard, TenantGuard)
 export class ClientsController {
 	constructor(private readonly clientsService: ClientsService) {}
 
