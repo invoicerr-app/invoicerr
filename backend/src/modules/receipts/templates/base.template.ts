@@ -65,6 +65,18 @@ export const baseTemplate = `
         <td>{{currency}} {{amount}}</td>
       </tr>
     {{/each}}
+    <tr>
+      <td><strong>{{labels.total}}</strong></td>
+      <td></td>
+      <td><strong>{{currency}} {{totalBeforeDiscount}}</strong></td>
+    </tr>
+    {{#if hasDiscount}}
+    <tr>
+      <td><strong>{{labels.discount}} ({{discountRate}}%)</strong></td>
+      <td></td>
+      <td><strong>-{{currency}} {{discountAmount}}</strong></td>
+    </tr>
+    {{/if}}
     <tr class="total-row">
       <td><strong>{{labels.totalReceived}}</strong></td>
       <td></td>

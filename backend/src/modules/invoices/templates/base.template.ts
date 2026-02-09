@@ -80,6 +80,16 @@ export const baseTemplate = `
         <tfoot>
             <tr>
                 <td colspan="5"><strong>{{labels.subtotal}}</strong></td>
+                <td><strong>{{currency}} {{subtotalBeforeDiscount}}</strong></td>
+            </tr>
+            {{#if hasDiscount}}
+            <tr>
+                <td colspan="5"><strong>{{labels.discount}} ({{discountRate}}%)</strong></td>
+                <td><strong>-{{currency}} {{discountAmount}}</strong></td>
+            </tr>
+            {{/if}}
+            <tr>
+                <td colspan="5"><strong>{{labels.total}}</strong></td>
                 <td><strong>{{currency}} {{totalHT}}</strong></td>
             </tr>
             <tr>

@@ -48,6 +48,10 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                 message: t("quotes.upsert.form.client.errors.required"),
             }),
         currency: z.string().optional(),
+        discountRate: z
+            .number({ invalid_type_error: t("quotes.upsert.form.discountRate.errors.required") })
+            .min(0, t("quotes.upsert.form.discountRate.errors.min"))
+            .max(100, t("quotes.upsert.form.discountRate.errors.max")),
         validUntil: z.date().optional(),
         notes: z.string().optional(),
         paymentMethodId: z.string().optional(),
@@ -96,6 +100,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
             title: "",
             clientId: "",
             validUntil: undefined,
+             discountRate: 0,
             notes: "",
             items: [],
         },
@@ -108,6 +113,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                 clientId: quote.clientId || "",
                 validUntil: quote.validUntil ? new Date(quote.validUntil) : undefined,
                 currency: quote.currency,
+                discountRate: quote.discountRate ?? 0,
                 notes: quote.notes || "",
                 paymentMethodId: (quote as any).paymentMethodId || "",
                 items: quote.items
@@ -127,6 +133,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                 title: "",
                 clientId: "",
                 validUntil: undefined,
+                discountRate: 0,
                 notes: "",
                 items: [],
             })
@@ -245,6 +252,37 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                                         <FormControl>
                                             <CurrencySelect value={field.value} onChange={(value) => field.onChange(value)} data-cy="quote-currency-select" />
                                         </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={control}
+                                name="discountRate"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{t("quotes.upsert.form.discountRate.label")}</FormLabel>
+                                        <FormControl>
+                                            <BetterInput
+                                                {...field}
+                                                defaultValue={field.value ?? 0}
+                                                postAdornment="%"
+                                                type="number"
+                                                step="0.01"
+                                                placeholder={t("quotes.upsert.form.discountRate.placeholder")}
+                                                onChange={(e) =>
+                                                    field.onChange(
+                                                        e.target.value === ""
+                                                            ? 0
+                                                            : Number.parseFloat(e.target.value.replace(",", ".")),
+                                                    )
+                                                }
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            {t("quotes.upsert.form.discountRate.description")}
+                                        </FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}

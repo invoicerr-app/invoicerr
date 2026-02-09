@@ -47,6 +47,7 @@ export interface Invoice {
     paymentMethodId?: string; // Reference to saved payment method
     paymentMethod?: PaymentMethod; // Linked PaymentMethod object
     notes?: string;
+    discountRate?: number;
     totalHT: number;
     totalVAT: number;
     totalTTC: number;
