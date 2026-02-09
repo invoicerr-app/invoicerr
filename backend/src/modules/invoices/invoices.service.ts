@@ -16,6 +16,7 @@ import { formatDate } from '@/utils/date';
 import { logger } from '@/logger/logger.service';
 import { parseAddress } from '@/utils/adress';
 import prisma from '@/prisma/prisma.service';
+import { calculateDiscountedTotals, clampDiscountRate } from '@/utils/financial';
 
 @Injectable()
 export class InvoicesService {
@@ -109,15 +110,9 @@ export class InvoicesService {
             throw new BadRequestException('Client not found');
         }
 
-        const totalHT = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-        let totalVAT = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice * (item.vatRate || 0) / 100), 0);
-        let totalTTC = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice * (1 + (item.vatRate || 0) / 100)), 0);
-
         const isVatExemptFrance = !!(company.exemptVat && (company.country || '').toUpperCase() === 'FRANCE');
-        if (isVatExemptFrance) {
-            totalVAT = 0;
-            totalTTC = totalHT;
-        }
+        const discountRate = clampDiscountRate(body.discountRate);
+        const totals = calculateDiscountedTotals(items, discountRate, { isVatExempt: isVatExemptFrance });
 
         const invoice = await prisma.invoice.create({
             data: {
@@ -128,9 +123,10 @@ export class InvoicesService {
                 paymentMethodId: body.paymentMethodId,
                 currency: body.currency || client.currency || company.currency,
                 companyId: company.id, // reuse the already fetched company object
-                totalHT,
-                totalVAT,
-                totalTTC,
+                discountRate: totals.discountRate,
+                totalHT: totals.totalHT,
+                totalVAT: totals.totalVAT,
+                totalTTC: totals.totalTTC,
                 items: {
                     create: items.map(item => ({
                         description: item.description,
@@ -166,7 +162,7 @@ export class InvoicesService {
     }
 
     async editInvoice(body: EditInvoicesDto) {
-        const { items, id, ...data } = body;
+        const { items, id, discountRate, ...data } = body;
 
         if (!id) {
             logger.error('Invoice ID is required for editing', { category: 'invoice' });
@@ -202,15 +198,9 @@ export class InvoicesService {
 
         const itemIdsToDelete = existingItemIds.filter(id => !incomingItemIds.includes(id));
 
-        const totalHT = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-        let totalVAT = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice * (item.vatRate || 0) / 100), 0);
-        let totalTTC = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice * (1 + (item.vatRate || 0) / 100)), 0);
-
         const isVatExemptFrance = !!(company.exemptVat && (company.country || '').toUpperCase() === 'FRANCE');
-        if (isVatExemptFrance) {
-            totalVAT = 0;
-            totalTTC = totalHT;
-        }
+        const normalizedDiscountRate = clampDiscountRate(discountRate ?? existingInvoice.discountRate);
+        const totals = calculateDiscountedTotals(items, normalizedDiscountRate, { isVatExempt: isVatExemptFrance });
 
         const updateInvoice = await prisma.invoice.update({
             where: { id },
@@ -224,9 +214,10 @@ export class InvoicesService {
                 notes: data.notes,
                 currency: body.currency || client.currency || company.currency,
                 dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-                totalHT,
-                totalVAT,
-                totalTTC,
+                discountRate: totals.discountRate,
+                totalHT: totals.totalHT,
+                totalVAT: totals.totalVAT,
+                totalTTC: totals.totalTTC,
                 items: {
                     deleteMany: {
                         id: { in: itemIdsToDelete },
@@ -375,6 +366,11 @@ export class InvoicesService {
             PRODUCT: pdfConfig.product,
         };
 
+        const subtotalBeforeDiscount = invoice.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+        const normalizedDiscountRate = clampDiscountRate(invoice.discountRate);
+        const discountAmountValue = Math.max(0, subtotalBeforeDiscount - invoice.totalHT);
+        const hasDiscount = normalizedDiscountRate > 0 && discountAmountValue > 0;
+
         const html = template({
             number: invoice.rawNumber || invoice.number.toString(),
             date: formatDate(invoice.company, invoice.createdAt),
@@ -393,6 +389,10 @@ export class InvoicesService {
             totalHT: invoice.totalHT.toFixed(2),
             totalVAT: invoice.totalVAT.toFixed(2),
             totalTTC: invoice.totalTTC.toFixed(2),
+            subtotalBeforeDiscount: subtotalBeforeDiscount.toFixed(2),
+            discountAmount: discountAmountValue.toFixed(2),
+            discountRate: Number(normalizedDiscountRate.toFixed(2)),
+            hasDiscount,
             vatExemptText: invoice.company.exemptVat && (invoice.company.country || '').toUpperCase() === 'FRANCE' ? 'TVA non applicable, art. 293 B du CGI' : null,
 
             paymentMethod: paymentMethodName,
@@ -420,6 +420,7 @@ export class InvoicesService {
                 unitPrice: pdfConfig.unitPrice,
                 vatRate: pdfConfig.vatRate,
                 subtotal: pdfConfig.subtotal,
+                discount: pdfConfig.discount,
                 total: pdfConfig.total,
                 vat: pdfConfig.vat,
                 grandTotal: pdfConfig.grandTotal,

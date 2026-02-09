@@ -274,6 +274,7 @@ model PDFConfig {
   vatRate        String @default("VAT (%)")
   unitPrice      String @default("Unit price")
   subtotal       String @default("Subtotal:")
+  discount       String @default("Discount:")
   total          String @default("Total:")
   vat            String @default("VAT:")
   grandTotal     String @default("Grand total:")
@@ -397,6 +398,7 @@ model Quote {
   signedAt        DateTime?
   viewedAt        DateTime?
   signedBy        String?
+  discountRate    Float      @default(0)
   totalHT         Float
   totalVAT        Float
   totalTTC        Float
@@ -445,6 +447,7 @@ model Invoice {
   paymentDetails     String? // Details for the payment method (e.g., bank account number)
   paymentMethodId    String?
   notes              String?           @default("")
+  discountRate       Float             @default(0)
   totalHT            Float
   totalVAT           Float
   totalTTC           Float

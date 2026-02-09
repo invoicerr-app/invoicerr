@@ -16,6 +16,9 @@ export function QuoteViewDialog({ quote, onOpenChange }: QuoteViewDialogProps) {
     if (!quote) return null
 
     const formatDate = (date?: Date) => (date ? format(new Date(date), "PPP", { locale: languageToLocale(i18n.language) }) : "—")
+    const discountRateValue = Number(quote.discountRate ?? 0)
+    const subtotalBeforeDiscount = quote.items?.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) ?? 0
+    const discountAmount = Math.max(0, subtotalBeforeDiscount - quote.totalHT)
 
     const getStatusLabel = (status: string) => {
         return t(`quotes.view.status.${status.toLowerCase()}`)
@@ -108,6 +111,22 @@ export function QuoteViewDialog({ quote, onOpenChange }: QuoteViewDialogProps) {
                             <p className="font-medium">{t("common.valueWithCurrency", {
                                 currency: quote.currency,
                                 amount: quote.totalTTC.toFixed(2)
+                            })}</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-muted/50 p-4 rounded-lg">
+                        <div>
+                            <p className="text-sm text-muted-foreground">{t("quotes.view.fields.discountRate")}</p>
+                            <p className="font-medium">
+                                {discountRateValue.toFixed(2).replace(/\.00$/, "")}%
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground">{t("quotes.view.fields.discountAmount")}</p>
+                            <p className="font-medium">{t("common.valueWithCurrency", {
+                                currency: quote.currency,
+                                amount: discountAmount.toFixed(2)
                             })}</p>
                         </div>
                     </div>

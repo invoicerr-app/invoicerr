@@ -96,6 +96,16 @@ const defaultInvoiceTemplate = `
         <tfoot>
             <tr>
                 <td colspan="5"><strong>{{labels.subtotal}}</strong></td>
+                <td><strong>{{currency}} {{subtotalBeforeDiscount}}</strong></td>
+            </tr>
+            {{#if hasDiscount}}
+            <tr>
+                <td colspan="5"><strong>{{labels.discount}} ({{discountRate}}%)</strong></td>
+                <td><strong>-{{currency}} {{discountAmount}}</strong></td>
+            </tr>
+            {{/if}}
+            <tr>
+                <td colspan="5"><strong>{{labels.total}}</strong></td>
                 <td><strong>{{currency}} {{totalHT}}</strong></td>
             </tr>
             <tr>
@@ -207,6 +217,16 @@ const defaultQuoteTemplate = `
         <tfoot>
             <tr>
                 <td colspan="5"><strong>{{labels.subtotal}}</strong></td>
+                <td><strong>{{currency}} {{subtotalBeforeDiscount}}</strong></td>
+            </tr>
+            {{#if hasDiscount}}
+            <tr>
+                <td colspan="5"><strong>{{labels.discount}} ({{discountRate}}%)</strong></td>
+                <td><strong>-{{currency}} {{discountAmount}}</strong></td>
+            </tr>
+            {{/if}}
+            <tr>
+                <td colspan="5"><strong>{{labels.total}}</strong></td>
                 <td><strong>{{currency}} {{totalHT}}</strong></td>
             </tr>
             <tr>
@@ -308,6 +328,16 @@ const defaultReceiptTemplate = `
             {{/each}}
         </tbody>
         <tfoot>
+            <tr>
+                <td colspan="2"><strong>{{labels.total}}</strong></td>
+                <td><strong>{{currency}} {{totalBeforeDiscount}}</strong></td>
+            </tr>
+            {{#if hasDiscount}}
+            <tr>
+                <td colspan="2"><strong>{{labels.discount}} ({{discountRate}}%)</strong></td>
+                <td><strong>-{{currency}} {{discountAmount}}</strong></td>
+            </tr>
+            {{/if}}
             <tr class="total-row">
                 <td colspan="2"><strong>{{labels.totalReceived}}</strong></td>
                 <td><strong>{{currency}} {{totalAmount}}</strong></td>
@@ -353,6 +383,7 @@ interface TemplateSettings {
         unitPrice: string
         total: string
         subtotal: string
+        discount: string
         vat: string
         grandTotal: string
         vatRate: string
@@ -426,6 +457,7 @@ export default function PDFTemplatesSettings() {
             unitPrice: t("settings.pdfTemplates.defaultLabels.unitPrice"),
             total: t("settings.pdfTemplates.defaultLabels.total"),
             subtotal: t("settings.pdfTemplates.defaultLabels.subtotal"),
+            discount: t("settings.pdfTemplates.defaultLabels.discount"),
             vat: t("settings.pdfTemplates.defaultLabels.vat"),
             grandTotal: t("settings.pdfTemplates.defaultLabels.grandTotal"),
             vatRate: t("settings.pdfTemplates.defaultLabels.vatRate"),
@@ -556,9 +588,14 @@ export default function PDFTemplatesSettings() {
                     totalPrice: "1200.00",
                 },
             ],
-            totalHT: "4000.00",
-            totalVAT: "800.00",
-            totalTTC: "4800.00",
+            subtotalBeforeDiscount: "4000.00",
+            discountRate: 10,
+            discountAmount: "400.00",
+            totalHT: "3600.00",
+            totalVAT: "720.00",
+            totalTTC: "4320.00",
+            totalBeforeDiscount: "4800.00",
+            hasDiscount: true,
             currency: "EUR",
             fontFamily: settings.fontFamily,
             primaryColor: settings.primaryColor,
@@ -909,6 +946,14 @@ export default function PDFTemplatesSettings() {
                                                         id="label-subtotal"
                                                         value={settings.labels.subtotal}
                                                         onChange={(e) => updateLabel("subtotal", e.target.value)}
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="label-discount">{t("settings.pdfTemplates.labels.discount")}</Label>
+                                                    <Input
+                                                        id="label-discount"
+                                                        value={settings.labels.discount}
+                                                        onChange={(e) => updateLabel("discount", e.target.value)}
                                                     />
                                                 </div>
                                                 <div className="space-y-2">

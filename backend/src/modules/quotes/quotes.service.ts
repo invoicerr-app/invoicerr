@@ -13,6 +13,7 @@ import { baseTemplate } from '@/modules/quotes/templates/base.template';
 import { formatDate } from '@/utils/date';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
+import { calculateDiscountedTotals, clampDiscountRate } from '@/utils/financial';
 
 @Injectable()
 export class QuotesService {
@@ -131,15 +132,9 @@ export class QuotesService {
             throw new BadRequestException('Client not found');
         }
 
-        const totalHT = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-        let totalVAT = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice * (item.vatRate || 0) / 100), 0);
-        let totalTTC = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice * (1 + (item.vatRate || 0) / 100)), 0);
-
         const isVatExemptFrance = !!(company.exemptVat && (company.country || '').toUpperCase() === 'FRANCE');
-        if (isVatExemptFrance) {
-            totalVAT = 0;
-            totalTTC = totalHT;
-        }
+        const discountRate = clampDiscountRate(body.discountRate);
+        const totals = calculateDiscountedTotals(items, discountRate, { isVatExempt: isVatExemptFrance });
 
         const quote = await prisma.quote.create({
             data: {
@@ -150,9 +145,10 @@ export class QuotesService {
                 paymentMethod: body.paymentMethod,
                 paymentDetails: body.paymentDetails,
                 paymentMethodId: body.paymentMethodId,
-                totalHT,
-                totalVAT,
-                totalTTC,
+                discountRate: totals.discountRate,
+                totalHT: totals.totalHT,
+                totalVAT: totals.totalVAT,
+                totalTTC: totals.totalTTC,
                 items: {
                     create: items.map(item => ({
                         description: item.description,
@@ -188,7 +184,7 @@ export class QuotesService {
     }
 
     async editQuote(body: EditQuotesDto) {
-        const { items, id, ...data } = body;
+        const { items, id, discountRate, ...data } = body;
 
         if (!id) {
             logger.error('Quote ID is required for editing', { category: 'quote' });
@@ -210,16 +206,10 @@ export class QuotesService {
 
         const itemIdsToDelete = existingItemIds.filter(id => !incomingItemIds.includes(id));
 
-        const totalHT = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-        let totalVAT = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice * (item.vatRate || 0) / 100), 0);
-        let totalTTC = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice * (1 + (item.vatRate || 0) / 100)), 0);
-
         const company = await prisma.company.findFirst();
         const isVatExemptFrance = !!(company?.exemptVat && (company?.country || '').toUpperCase() === 'FRANCE');
-        if (isVatExemptFrance) {
-            totalVAT = 0;
-            totalTTC = totalHT;
-        }
+        const normalizedDiscountRate = clampDiscountRate(discountRate ?? existingQuote.discountRate);
+        const totals = calculateDiscountedTotals(items, normalizedDiscountRate, { isVatExempt: isVatExemptFrance });
 
         const updateQuote = await prisma.quote.update({
             where: { id },
@@ -229,9 +219,10 @@ export class QuotesService {
                 paymentMethod: data.paymentMethod || existingQuote.paymentMethod,
                 paymentDetails: data.paymentDetails || existingQuote.paymentDetails,
                 paymentMethodId: (data as any).paymentMethodId || existingQuote.paymentMethodId,
-                totalHT,
-                totalVAT,
-                totalTTC,
+                discountRate: totals.discountRate,
+                totalHT: totals.totalHT,
+                totalVAT: totals.totalVAT,
+                totalTTC: totals.totalTTC,
                 items: {
                     deleteMany: {
                         id: { in: itemIdsToDelete },
@@ -391,6 +382,11 @@ export class QuotesService {
             PRODUCT: config.product,
         };
 
+        const subtotalBeforeDiscount = quote.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+        const normalizedDiscountRate = clampDiscountRate(quote.discountRate);
+        const discountAmountValue = Math.max(0, subtotalBeforeDiscount - quote.totalHT);
+        const hasDiscount = normalizedDiscountRate > 0 && discountAmountValue > 0;
+
         const html = template({
             number: quote.rawNumber || quote.number.toString(),
             date: formatDate(quote.company, quote.createdAt),
@@ -409,6 +405,10 @@ export class QuotesService {
             totalHT: quote.totalHT.toFixed(2),
             totalVAT: quote.totalVAT.toFixed(2),
             totalTTC: quote.totalTTC.toFixed(2),
+            subtotalBeforeDiscount: subtotalBeforeDiscount.toFixed(2),
+            discountAmount: discountAmountValue.toFixed(2),
+            discountRate: Number(normalizedDiscountRate.toFixed(2)),
+            hasDiscount,
             vatExemptText: quote.company.exemptVat && (quote.company.country || '').toUpperCase() === 'FRANCE' ? 'TVA non applicable, art. 293 B du CGI' : null,
 
             paymentMethod: paymentMethodType,
@@ -433,6 +433,7 @@ export class QuotesService {
                 unitPrice: config.unitPrice,
                 vatRate: config.vatRate,
                 subtotal: config.subtotal,
+                discount: config.discount,
                 total: config.total,
                 vat: config.vat,
                 grandTotal: config.grandTotal,
@@ -517,4 +518,3 @@ export class QuotesService {
     }
 
 }
-

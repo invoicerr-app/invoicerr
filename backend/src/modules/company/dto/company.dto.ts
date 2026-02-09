@@ -26,6 +26,7 @@ export interface PDFConfigDto {
         quote: string
         quoteFor: string
         subtotal: string
+        discount: string
         total: string
         unitPrice: string
         validUntil: string

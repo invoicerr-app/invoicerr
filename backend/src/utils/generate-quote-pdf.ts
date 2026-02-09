@@ -6,6 +6,7 @@ import { BadRequestException } from '@nestjs/common';
 import { baseTemplate } from '@/modules/quotes/templates/base.template';
 import { formatDate } from '@/utils/date';
 import prisma from '@/prisma/prisma.service';
+import { clampDiscountRate } from '@/utils/financial';
 
 /**
  * Generate PDF for a quote without requiring QuotesService
@@ -64,6 +65,11 @@ export async function generateQuotePdf(quoteId: string): Promise<Uint8Array> {
         PRODUCT: config.product,
     };
 
+    const subtotalBeforeDiscount = quote.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+    const normalizedDiscountRate = clampDiscountRate(quote.discountRate);
+    const discountAmountValue = Math.max(0, subtotalBeforeDiscount - quote.totalHT);
+    const hasDiscount = normalizedDiscountRate > 0 && discountAmountValue > 0;
+
     const html = template({
         number: quote.rawNumber || quote.number.toString(),
         date: formatDate(quote.company, quote.createdAt),
@@ -82,6 +88,10 @@ export async function generateQuotePdf(quoteId: string): Promise<Uint8Array> {
         totalHT: quote.totalHT.toFixed(2),
         totalVAT: quote.totalVAT.toFixed(2),
         totalTTC: quote.totalTTC.toFixed(2),
+        subtotalBeforeDiscount: subtotalBeforeDiscount.toFixed(2),
+        discountAmount: discountAmountValue.toFixed(2),
+        discountRate: Number(normalizedDiscountRate.toFixed(2)),
+        hasDiscount,
         vatExemptText: quote.company.exemptVat && (quote.company.country || '').toUpperCase() === 'FRANCE' ? 'TVA non applicable, art. 293 B du CGI' : null,
 
         paymentMethod: paymentMethodType,
@@ -106,6 +116,7 @@ export async function generateQuotePdf(quoteId: string): Promise<Uint8Array> {
             unitPrice: config.unitPrice,
             vatRate: config.vatRate,
             subtotal: config.subtotal,
+            discount: config.discount,
             total: config.total,
             vat: config.vat,
             grandTotal: config.grandTotal,
