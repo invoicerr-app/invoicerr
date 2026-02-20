@@ -17,6 +17,9 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
     if (!invoice) return null
 
     const formatDate = (date?: string) => (date ? format(new Date(date), "PPP", { locale: languageToLocale(i18n.language) }) : "—")
+    const discountRateValue = Number(invoice.discountRate ?? 0)
+    const subtotalBeforeDiscount = invoice.items?.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) ?? 0
+    const discountAmount = Math.max(0, subtotalBeforeDiscount - invoice.totalHT)
 
     const getStatusLabel = (status: string) => {
         return t(`invoices.view.status.${status.toLowerCase()}`)
@@ -113,6 +116,22 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
                             <p className="font-medium">{t("common.valueWithCurrency", {
                                 currency: invoice.currency,
                                 amount: invoice.totalTTC.toFixed(2)
+                            })}</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-muted/50 p-4 rounded-lg">
+                        <div>
+                            <p className="text-sm text-muted-foreground">{t("invoices.view.fields.discountRate")}</p>
+                            <p className="font-medium">
+                                {discountRateValue.toFixed(2).replace(/\.00$/, "")}%
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground">{t("invoices.view.fields.discountAmount")}</p>
+                            <p className="font-medium">{t("common.valueWithCurrency", {
+                                currency: invoice.currency,
+                                amount: discountAmount.toFixed(2)
                             })}</p>
                         </div>
                     </div>

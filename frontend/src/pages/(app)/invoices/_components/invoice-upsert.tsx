@@ -48,6 +48,10 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
         notes: z.string().optional(),
         paymentMethodId: z.string().optional(),
         currency: z.string().optional(),
+        discountRate: z
+            .number({ invalid_type_error: t("invoices.upsert.form.discountRate.errors.required") })
+            .min(0, t("invoices.upsert.form.discountRate.errors.min"))
+            .max(100, t("invoices.upsert.form.discountRate.errors.max")),
         items: z.array(
             z.object({
                 id: z.string().optional(),
@@ -102,6 +106,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
             dueDate: undefined,
             paymentMethodId: "",
             currency: undefined,
+            discountRate: 0,
             items: [],
             notes: "",
         },
@@ -117,6 +122,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                 notes: inv.notes || "",
                 paymentMethodId: inv.paymentMethodId || "",
                 currency: inv.currency || "",
+                discountRate: inv.discountRate ?? 0,
                 items: (inv.items || [])
                     .sort((a: any, b: any) => a.order - b.order)
                     .map((item: any) => ({
@@ -137,6 +143,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                 notes: "",
                 paymentMethodId: "",
                 currency: undefined,
+                discountRate: 0,
                 items: [],
             })
         }
@@ -223,6 +230,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                                         form.setValue("notes", selectedQuote?.notes || "")
                                                         form.setValue("paymentMethodId", (selectedQuote as any)?.paymentMethodId || "")
                                                         form.setValue("currency", selectedQuote?.currency || "")
+                                                        form.setValue("discountRate", selectedQuote?.discountRate ?? 0)
                                                         form.setValue('items', (selectedQuote?.items || []).map((item: any, index) => ({
                                                             id: item.id,
                                                             description: item.description || "",
@@ -281,6 +289,37 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                         <FormControl>
                                             <CurrencySelect value={field.value} onChange={(value) => field.onChange(value)} data-cy="invoice-currency-select" />
                                         </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={control}
+                                name="discountRate"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{t("invoices.upsert.form.discountRate.label")}</FormLabel>
+                                        <FormControl>
+                                            <BetterInput
+                                                {...field}
+                                                defaultValue={field.value ?? 0}
+                                                postAdornment="%"
+                                                type="number"
+                                                step="0.01"
+                                                placeholder={t("invoices.upsert.form.discountRate.placeholder")}
+                                                onChange={(e) =>
+                                                    field.onChange(
+                                                        e.target.value === ""
+                                                            ? 0
+                                                            : Number.parseFloat(e.target.value.replace(",", ".")),
+                                                    )
+                                                }
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            {t("invoices.upsert.form.discountRate.description")}
+                                        </FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}

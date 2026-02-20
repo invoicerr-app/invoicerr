@@ -12,6 +12,7 @@ import { formatDate } from '@/utils/date';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 import { randomUUID } from 'crypto';
+import { clampDiscountRate } from '@/utils/financial';
 
 @Injectable()
 export class ReceiptsService {
@@ -226,12 +227,18 @@ export class ReceiptsService {
             throw new BadRequestException('Invoice not found');
         }
 
+        const discountFactor = 1 - clampDiscountRate(invoice.discountRate) / 100;
         const newReceipt = await this.createReceipt({
             invoiceId: invoice.id,
-            items: invoice.items.map(item => ({
-                invoiceItemId: item.id,
-                amountPaid: (item.quantity * item.unitPrice * (1 + item.vatRate / 100)).toFixed(2),
-            })),
+            items: invoice.items.map(item => {
+                const vatMultiplier = 1 + (item.vatRate || 0) / 100;
+                const discountedBase = item.quantity * item.unitPrice * discountFactor;
+                const amountPaid = discountedBase * vatMultiplier;
+                return {
+                    invoiceItemId: item.id,
+                    amountPaid: amountPaid.toFixed(2),
+                };
+            }),
             paymentMethodId: invoice.paymentMethodId || undefined,
             paymentMethod: invoice.paymentMethod || '',
             paymentDetails: invoice.paymentDetails || '',
@@ -424,6 +431,15 @@ export class ReceiptsService {
             PRODUCT: pdfConfig.product,
         };
 
+        const normalizedDiscountRate = clampDiscountRate(receipt.invoice.discountRate);
+        const discountFactor = 1 - normalizedDiscountRate / 100;
+        let totalBeforeDiscount = receipt.totalPaid;
+        if (discountFactor > 0 && discountFactor < 1 && receipt.items.length > 0) {
+            totalBeforeDiscount = receipt.items.reduce((sum, item) => sum + (item.amountPaid / discountFactor), 0);
+        }
+        const discountAmountValue = Math.max(0, totalBeforeDiscount - receipt.totalPaid);
+        const hasDiscount = normalizedDiscountRate > 0 && discountAmountValue > 0;
+
         const html = template({
             number: receipt.rawNumber || receipt.number.toString(),
             paymentDate: formatDate(receipt.invoice.company, new Date()), // TODO: Add a payment date
@@ -433,6 +449,10 @@ export class ReceiptsService {
             currency: receipt.invoice.currency,
             paymentMethod: paymentMethodName,
             totalAmount: receipt.totalPaid.toFixed(2),
+            totalBeforeDiscount: totalBeforeDiscount.toFixed(2),
+            discountAmount: discountAmountValue.toFixed(2),
+            discountRate: Number(normalizedDiscountRate.toFixed(2)),
+            hasDiscount,
 
             items: receipt.items.map(item => {
                 const invoiceItem = receipt.invoice.items.find(i => i.id === item.invoiceItemId);
@@ -458,6 +478,7 @@ export class ReceiptsService {
                 invoiceRefer: pdfConfig.invoiceRefer,
                 description: pdfConfig.description,
                 type: pdfConfig.type,
+                discount: pdfConfig.discount,
                 totalReceived: pdfConfig.totalReceived,
                 paymentMethod: pdfConfig.paymentMethod,
                 paymentDetails: pdfConfig.paymentDetails,

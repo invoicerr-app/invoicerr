@@ -27,6 +27,7 @@ export interface Quote {
     signedAt?: Date;
     signatureSvg?: string;
     notes?: string; // Additional notes for the quote
+    discountRate?: number;
     totalHT: number;
     totalVAT: number;
     totalTTC: number;
