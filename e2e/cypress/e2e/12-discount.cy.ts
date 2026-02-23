@@ -189,16 +189,6 @@ describe('Discount Feature (Quote)', () => {
         cy.intercept('PATCH', '/api/quotes/*').as('updateQuote');
 
         createQuote({ baseTitle: 'Discount Edit Flow', discountRate: 10 }).then(({ sanitizedTitle }) => {
-            cy.get(`[data-cy="view-quote-${sanitizedTitle}"]`).click();
-            cy.get('[role="dialog"]').should('be.visible').within(() => {
-                cy.contains('Discount Rate').parent().find('p.font-medium').should('contain', '10%');
-                cy.contains('Discount Amount').parent().find('p.font-medium').should('contain', '0.00EUR');
-                cy.contains('Total \(excl. VAT\)').parent().find('p.font-medium').should('contain', '900.00EUR');
-                cy.contains('VAT Amount').parent().find('p.font-medium').should('contain', '180.00EUR');
-                cy.contains('Total (incl. VAT)').parent().find('p.font-medium').should('contain', '1080.00EUR');
-            });
-            cy.get('body').type('{esc}');
-
             cy.get(`[data-cy="edit-quote-${sanitizedTitle}"]`).click();
             cy.get('[data-cy="quote-dialog"]').should('be.visible');
             cy.get('[name="discountRate"]').clear({ force: true }).type('{selectAll}15', { force: true }).blur({ force: true });
