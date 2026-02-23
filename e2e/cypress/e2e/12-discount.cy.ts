@@ -47,7 +47,7 @@ function createQuote({ baseTitle = 'Discount Flow Test', discountRate = 10, item
     cy.wait(200);
     cy.get('[data-cy="quote-currency-select-option-euro-(€)"]').click();
 
-    cy.get('[name="discountRate"]').clear({ force: true }).type(`{selectAll}${discountRate}`, { force: true });
+    cy.get('[name="discountRate"]').clear({ force: true }).type(`{selectAll}${discountRate}`, { force: true }).blur({ force: true });
 
     cy.contains('button', /Add Item|Ajouter/i).click();
     cy.get('[name="items.0.description"]').type(item.description, { force: true });
@@ -84,7 +84,7 @@ function createInvoice({ discountRate = 10, item = defaultQuoteItem }: CreateInv
     cy.wait(200);
     cy.get('[data-cy="invoice-currency-select-option-euro-(€)"]').click();
 
-    cy.get('[name="discountRate"]').clear({ force: true }).type(`{selectAll}${discountRate}`, { force: true });
+    cy.get('[name="discountRate"]').clear({ force: true }).type(`{selectAll}${discountRate}`, { force: true }).blur({ force: true });
 
     cy.contains('button', /Add Item|Ajouter/i).click();
     cy.get('[name="items.0.description"]').type(item.description, { force: true });
@@ -133,7 +133,7 @@ describe('Discount Feature (Quote)', () => {
         createQuote({ discountRate: 10 }).then(({ sanitizedTitle }) => {
             cy.get(`[data-cy="view-quote-${sanitizedTitle}"]`).click();
             cy.get('[role="dialog"]').should('be.visible').within(() => {
-                cy.contains('Discount Rate').parent().find('p.font-medium').should('contain', '10%');
+                cy.contains('Discount Rate').parent().find('p.font-medium', { timeout: 10000 }).should('contain', '10%');
                 cy.contains('Discount Amount').parent().find('p.font-medium').should('contain', '100.00EUR');
                 cy.contains('Total \(excl. VAT\)').parent().find('p.font-medium').should('contain', '900.00EUR');
                 cy.contains('VAT Amount').parent().find('p.font-medium').should('contain', '180.00EUR');
@@ -186,6 +186,8 @@ describe('Discount Feature (Quote)', () => {
     });
 
     it('allows updating the discount rate on an existing quote', () => {
+        cy.intercept('PATCH', '/api/quotes/*').as('updateQuote');
+
         createQuote({ baseTitle: 'Discount Edit Flow', discountRate: 10 }).then(({ sanitizedTitle }) => {
             cy.get(`[data-cy="view-quote-${sanitizedTitle}"]`).click();
             cy.get('[role="dialog"]').should('be.visible').within(() => {
@@ -199,14 +201,14 @@ describe('Discount Feature (Quote)', () => {
 
             cy.get(`[data-cy="edit-quote-${sanitizedTitle}"]`).click();
             cy.get('[data-cy="quote-dialog"]').should('be.visible');
-            cy.get('[name="discountRate"]').clear({ force: true }).type('{selectAll}15', { force: true });
-            cy.wait(150);
+            cy.get('[name="discountRate"]').clear({ force: true }).type('{selectAll}15', { force: true }).blur({ force: true });
             cy.get('[data-cy="quote-submit"]').click();
+            cy.wait('@updateQuote').its('response.statusCode').should('be.oneOf', [200, 201]);
             cy.get('[data-cy="quote-dialog"]').should('not.exist');
-            cy.wait(150);
+            cy.reload();
             cy.get(`[data-cy="view-quote-${sanitizedTitle}"]`, { timeout: 15000 }).should('exist').click();
             cy.get('[role="dialog"]').should('be.visible').within(() => {
-                cy.contains('Discount Rate').parent().find('p.font-medium').should('contain', '15%');
+                cy.contains('Discount Rate').parent().find('p.font-medium', { timeout: 10000 }).should('contain', '15%');
                 cy.contains('Discount Amount').parent().find('p.font-medium').should('contain', '150.00EUR');
                 cy.contains('Total \(excl. VAT\)').parent().find('p.font-medium').should('contain', '850.00EUR');
                 cy.contains('VAT Amount').parent().find('p.font-medium').should('contain', '170.00EUR');
@@ -221,6 +223,7 @@ describe('Discount Feature (Quote)', () => {
 describe('Discount Feature (Invoice)', () => {
     it('applies the configured discount rate to invoice totals', () => {
         createInvoice({ discountRate: 10 }).then(({ invoiceLabel }) => {
+            cy.reload();
             cy.contains('[data-cy="invoice-row"]', invoiceLabel, { timeout: 20000 })
                 .should('exist')
                 .closest('[data-cy="invoice-row"]')
@@ -228,7 +231,7 @@ describe('Discount Feature (Invoice)', () => {
 
             cy.get('@invoiceRow').find('button:has(svg.lucide-eye)').first().click();
             cy.get('[role="dialog"]').should('be.visible').within(() => {
-                cy.contains('Discount Rate').parent().find('p.font-medium').should('contain', '10%');
+                cy.contains('Discount Rate').parent().find('p.font-medium', { timeout: 10000 }).should('contain', '10%');
                 cy.contains('Discount Amount').parent().find('p.font-medium').should('contain', '100.00EUR');
                 cy.contains('Total \(excl. VAT\)').parent().find('p.font-medium').should('contain', '900.00EUR');
                 cy.contains('VAT Amount').parent().find('p.font-medium').should('contain', '180.00EUR');
