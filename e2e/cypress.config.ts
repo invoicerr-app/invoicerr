@@ -6,7 +6,7 @@ export default defineConfig({
   e2e: {
     video: true,
     experimentalStudio: true,
-    baseUrl: process.env.FRONTEND_URL || "http://localhost:6284",
+    baseUrl: process.env.FRONTEND_URL || "http://localhost:80",
     specPattern: "cypress/e2e/**/*.cy.{js,ts}",
     supportFile: "cypress/support/e2e.ts",
     setupNodeEvents(on) {
