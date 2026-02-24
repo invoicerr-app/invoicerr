@@ -273,6 +273,16 @@
                 "currency": {
                     "label": "Devise"
                 },
+                "discountRate": {
+                    "label": "Remise (%)",
+                    "placeholder": "Saisir le pourcentage de remise",
+                    "description": "Appliquée avant le calcul de la TVA.",
+                    "errors": {
+                        "required": "La remise est requise",
+                        "min": "La remise ne peut pas être négative",
+                        "max": "La remise ne peut pas dépasser 100 %"
+                    }
+                },
                 "validUntil": {
                     "label": "Valide jusqu'au",
                     "placeholder": "Sélectionner la date d'expiration"
@@ -349,6 +359,8 @@
                 "signedAt": "Signé le",
                 "client": "Client",
                 "signedBy": "Signé par",
+                "discountRate": "Taux de remise",
+                "discountAmount": "Montant de la remise",
                 "totalHT": "Total HT",
                 "totalVAT": "Montant TVA",
                 "totalTTC": "Total TTC",
@@ -521,6 +533,16 @@
                 },
                 "currency": {
                     "label": "Devise"
+                },
+                "discountRate": {
+                    "label": "Remise (%)",
+                    "placeholder": "Saisir le pourcentage de remise",
+                    "description": "Appliquée avant le calcul de la TVA.",
+                    "errors": {
+                        "required": "La remise est requise",
+                        "min": "La remise ne peut pas être négative",
+                        "max": "La remise ne peut pas dépasser 100 %"
+                    }
                 }
             },
             "actions": {
@@ -548,6 +570,8 @@
                 "updatedAt": "Mise à jour le",
                 "client": "Client",
                 "paymentMethod": "Mode de paiement",
+                "discountRate": "Taux de remise",
+                "discountAmount": "Montant de la remise",
                 "totalHT": "Total HT",
                 "totalVAT": "Montant TVA",
                 "totalTTC": "Total TTC",
@@ -1324,6 +1348,7 @@
                 "unitPrice": "Prix unitaire",
                 "total": "Total",
                 "subtotal": "Sous-total",
+                "discount": "Remise",
                 "vat": "TVA",
                 "grandTotal": "Total général",
                 "vatRate": "Taux de TVA",
@@ -1368,6 +1393,7 @@
                 "paymentMethodOther": "Autre",
                 "total": "Total",
                 "subtotal": "Sous-total",
+                "discount": "Remise",
                 "vat": "TVA",
                 "grandTotal": "Total général",
                 "vatRate": "Taux de TVA",

@@ -272,6 +272,16 @@
                 "currency": {
                     "label": "Currency"
                 },
+                "discountRate": {
+                    "label": "Discount (%)",
+                    "placeholder": "Enter discount percentage",
+                    "description": "Applied before VAT is calculated.",
+                    "errors": {
+                        "required": "Discount rate is required",
+                        "min": "Discount cannot be negative",
+                        "max": "Discount cannot exceed 100%"
+                    }
+                },
                 "validUntil": {
                     "label": "Valid Until",
                     "placeholder": "Select expiration date"
@@ -348,6 +358,8 @@
                 "signedAt": "Signed At",
                 "client": "Client",
                 "signedBy": "Signed By",
+                "discountRate": "Discount Rate",
+                "discountAmount": "Discount Amount",
                 "totalHT": "Total (excl. VAT)",
                 "totalVAT": "VAT Amount",
                 "totalTTC": "Total (incl. VAT)",
@@ -458,6 +470,19 @@
                     },
                     "noOptions": "No clients available. Please create a client first."
                 },
+                "currency": {
+                    "label": "Currency"
+                },
+                "discountRate": {
+                    "label": "Discount (%)",
+                    "placeholder": "Enter discount percentage",
+                    "description": "Applied before VAT is calculated.",
+                    "errors": {
+                        "required": "Discount rate is required",
+                        "min": "Discount cannot be negative",
+                        "max": "Discount cannot exceed 100%"
+                    }
+                },
                 "dueDate": {
                     "label": "Due Date",
                     "placeholder": "Select due date"
@@ -517,9 +542,6 @@
                     "label": "Payment Details",
                     "placeholder": "Enter payment details",
                     "description": "Additional information for payment (e.g., IBAN, instructions, etc.)"
-                },
-                "currency": {
-                    "label": "Currency"
                 }
             },
             "actions": {
@@ -547,6 +569,8 @@
                 "updatedAt": "Updated",
                 "client": "Client",
                 "paymentMethod": "Payment Method",
+                "discountRate": "Discount Rate",
+                "discountAmount": "Discount Amount",
                 "totalHT": "Total (excl. VAT)",
                 "totalVAT": "VAT Amount",
                 "totalTTC": "Total (incl. VAT)",
@@ -1320,6 +1344,7 @@
                 "unitPrice": "Unit Price",
                 "total": "Total",
                 "subtotal": "Subtotal",
+                "discount": "Discount",
                 "vat": "VAT",
                 "grandTotal": "Grand Total",
                 "vatRate": "VAT Rate",
@@ -1359,6 +1384,7 @@
                 "unitPrice": "Unit Price",
                 "total": "Total",
                 "subtotal": "Subtotal",
+                "discount": "Discount",
                 "vat": "VAT",
                 "grandTotal": "Grand Total",
                 "vatRate": "VAT Rate",

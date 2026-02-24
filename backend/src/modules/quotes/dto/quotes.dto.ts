@@ -6,6 +6,7 @@ export class CreateQuoteDto {
     clientId: string;
     validUntil?: Date;
     currency?: Currency;
+    discountRate?: number;
     paymentMethod?: string;
     paymentDetails?: string;
     paymentMethodId?: string;
@@ -26,6 +27,7 @@ export class EditQuotesDto {
     clientId: string;
     validUntil?: Date;
     currency?: Currency;
+    discountRate?: number;
     paymentMethod?: string;
     paymentDetails?: string;
     paymentMethodId?: string;
