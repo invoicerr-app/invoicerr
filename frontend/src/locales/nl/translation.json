@@ -24,7 +24,7 @@
         },
         "list": {
             "title": "Alle Klanten",
-            "description": "Onderhoud en bekijk al uw klanten in één plaats.",
+            "description": "Bekijk en onderhoud en al uw klanten in één plaats.",
             "status": {
                 "active": "Actief",
                 "inactive": "Inactief"
@@ -46,8 +46,8 @@
                     "placeholder": "Vul voornaam in"
                 },
                 "contactLastname": {
-                    "label": "Familienaam",
-                    "placeholder": "Vul familienaam in"
+                    "label": "Achternaam",
+                    "placeholder": "Vul achternaam in"
                 },
                 "name": {
                     "label": "Bedrijfsnaam",
@@ -59,7 +59,7 @@
                 },
                 "vat": {
                     "label": "BTW-nummer",
-                    "placeholder": "Vul BTW-nummer in (bvb. FR12345678901)"
+                    "placeholder": "Vul BTW-nummer in (bvb. NL123456789B01)"
                 },
                 "currency": {
                     "label": "Valuta"
@@ -97,6 +97,17 @@
                 "country": {
                     "label": "Land",
                     "placeholder": "Vul land in"
+                },
+                "addressLine2": {
+                    "label": "Adresregel 2 (Optioneel)"
+                },
+                "state": {
+                    "label": "Staat/Provincie (Optioneel)",
+                    "placeholder": "Voer staat of provincie in"
+                },
+                "legalId": {
+                    "label": "KVK-nummer",
+                    "placeholder": "Voer KVK-nummer in"
                 }
             },
             "validation": {
@@ -141,6 +152,11 @@
                 },
                 "country": {
                     "required": "Land is verplicht"
+                },
+                "legalId": {
+                    "required": "BSN nummer is vereist",
+                    "empty": "BSN nummer mag niet leeg zijn",
+                    "maxLength": "BSN moet minimaal 50 karakters lang zijn"
                 }
             },
             "actions": {
@@ -160,7 +176,9 @@
                 "address": "Adres",
                 "postalCode": "Postcode",
                 "city": "Stad",
-                "country": "Land"
+                "country": "Land",
+                "state": "Staat/Provincie",
+                "addressLine2": "Adres Regel 2"
             }
         },
         "delete": {
@@ -207,7 +225,242 @@
             "item": {
                 "title": "Offerte {{number}} {{title}}",
                 "client": "Klant",
-                "issued": "Afgegeven"
+                "issued": "Afgegeven",
+                "validUntil": "Geldig tot",
+                "totalHT": "Totaal (excl. BTW)",
+                "totalTTC": "Totaal (incl. BTW)"
+            },
+            "tooltips": {
+                "view": "Bekijk offerte details",
+                "viewPdf": "Bekijk PDF",
+                "downloadPdf": "Download PDF",
+                "edit": "Offerte bewerken",
+                "sendSignature": "Verzenden ter ondertekening",
+                "resendSignature": "Opnieuw verzenden ter ondertekening",
+                "createInvoice": "Factuur maken van offerte",
+                "delete": "Verwijder offerte"
+            },
+            "actions": {
+                "addNew": "Voeg nieuwe offerte toe"
+            },
+            "messages": {
+                "sendSignatureError": "Offerte voor ondertekening kon niet worden verzonden",
+                "sendSignatureSuccess": "Offerte voor ondertekening succesvol verzonden",
+                "invoiceCreated": "Factuur succesvol aangemaakt op basis van offerte",
+                "invoiceCreateError": "Fout bij het maken van een factuur op basis van de offerte"
+            }
+        },
+        "upsert": {
+            "title": {
+                "create": "Maak nieuwe offerte",
+                "edit": "Pas offerte aan"
+            },
+            "form": {
+                "title": {
+                    "label": "Titel",
+                    "placeholder": "Voer offerte titel in"
+                },
+                "client": {
+                    "label": "Cliënt",
+                    "placeholder": "Selecteer een cliënt",
+                    "errors": {
+                        "required": "Selecteer a.u.b. een cliënt"
+                    },
+                    "noOptions": "Geen cliënten beschikbaar. Maak eerst een cliënt aan."
+                },
+                "currency": {
+                    "label": "Valuta"
+                },
+                "discountRate": {
+                    "label": "Korting (%)",
+                    "errors": {
+                        "min": "Korting kan niet negatief zijn",
+                        "max": "Korting kan niet hoger zijn dan 100%"
+                    }
+                },
+                "validUntil": {
+                    "label": "Geldig tot",
+                    "placeholder": "Selecteer vervaldatum"
+                },
+                "items": {
+                    "description": {
+                        "errors": {
+                            "required": "Omschrijving is vereist"
+                        }
+                    },
+                    "quantity": {
+                        "placeholder": "Hoeveelheid",
+                        "unit": "stuks",
+                        "errors": {
+                            "required": "Aantal is vereist",
+                            "min": "Aantal moet minstens 1 zijn",
+                            "invalid": "Ongeldige hoeveelheid"
+                        }
+                    },
+                    "unitPrice": {
+                        "placeholder": "Eenheid prijs",
+                        "errors": {
+                            "required": "Eenheidsprijs is vereist",
+                            "min": "Eenheidsprijs moet positief zijn",
+                            "invalid": "Ongeldige eenheidsprijs"
+                        }
+                    },
+                    "vatRate": {
+                        "placeholder": "BTW %",
+                        "errors": {
+                            "required": "BTW percentage is vereist",
+                            "min": "BTW percentage moet positief zijn"
+                        }
+                    }
+                },
+                "notes": {
+                    "label": "Notities",
+                    "placeholder": "Additionele notities of termen"
+                },
+                "paymentMethod": {
+                    "label": "Betaalmethode",
+                    "placeholder": "Selecteer betaalmethode",
+                    "description": "Voorkeur betaalmethode voor deze offerte (bijv. bankoverschrijving, cheque, etc.)"
+                },
+                "paymentDetails": {
+                    "label": "Betaalgegevens",
+                    "placeholder": "Voer betaalgegevens in",
+                    "description": "Additionele informatie voor betaling ( zoals IBAN, instructies, etc.)"
+                }
+            },
+            "actions": {
+                "cancel": "Annuleer",
+                "create": "Nieuwe offerte",
+                "save": "Wijzigingen opslaan"
+            }
+        },
+        "view": {
+            "title": "Offerte {{number}}",
+            "description": "Bekijk alle details van deze offerte.",
+            "status": {
+                "draft": "Concept",
+                "sent": "Verstuurd",
+                "expired": "Verlopen",
+                "signed": "Ondertekend"
+            },
+            "fields": {
+                "title": "Titel",
+                "status": "Status",
+                "createdAt": "Gemaakt",
+                "validUntil": "Geldig tot",
+                "signedAt": "Ondertekend bij",
+                "client": "Klant",
+                "signedBy": "Ondertekend door",
+                "discountRate": "Kortingspercentage",
+                "discountAmount": "Kortingsbedrag",
+                "totalHT": "Totaal (excl. BTW)",
+                "totalVAT": "BTW bedrag",
+                "totalTTC": "Totaal (incl. BTW)"
+            }
+        }
+    },
+    "auth": {
+        "signup": {
+            "oidc": "Registreet met OIDC.",
+            "oidcLink": "OIDC Registratie"
+        }
+    },
+    "unavailable": {
+        "title": "Niet beschikbaar op Mobiel/Tablet",
+        "description": "Deze functie is alleen beschikbaar op desktop apparaten voor een optimale gebruikerservaring."
+    },
+    "common": {
+        "finish": "Klaar",
+        "loading": "Laden...",
+        "next": "Volgende",
+        "previous": "Vorige",
+        "units": {
+            "day": "Dag",
+            "month": "Maand",
+            "year": "Jaar",
+            "week": "Week"
+        },
+        "valueWithCurrency": "{{amount}}{{currency}}"
+    },
+    "component": {
+        "currency-select": {
+            "placeholder": "Selecteer je valuta",
+            "searchPlaceholder": "Zoek valuta...",
+            "noResults": "Geen valuta gevonden"
+        }
+    },
+    "noOptions": "Geen opties beschikbaar. Maak een nieuwe klant aan.",
+    "receipts": {
+        "header": {
+            "subtitle": "Beheer je bonnen",
+            "count": "{{count}} bonnen {{found}}",
+            "found": "Gevonden"
+        },
+        "search": {
+            "placeholder": "Zoek bonnen..."
+        },
+        "actions": {
+            "addNew": "Voeg Nieuwe Bon Toe"
+        },
+        "stats": {
+            "total": "Totale Bonnen",
+            "draft": "Concept",
+            "sent": "Verzonden",
+            "signed": "Ondertekend"
+        },
+        "emptyState": {
+            "noReceipts": "Nog geen bonnen",
+            "noResults": "Geen bonnen gevonden",
+            "startAdding": "Begin met het maken van je eerste bon.",
+            "tryDifferentSearch": "Pas uw zoekopdracht aan."
+        },
+        "list": {
+            "title": "Alle bonnen",
+            "description": "Beheers alle bonnen op één plek.",
+            "status": {
+                "draft": "Concept",
+                "sent": "Verzonden",
+                "signed": "Ondertekend"
+            },
+            "item": {
+                "title": "Bonnummer {{number}}",
+                "client": "Klant",
+                "issued": "Uitgegeven",
+                "validUntil": "Geldig Tot",
+                "totalHT": "Totaal (excl. BTW)",
+                "totalTTC": "Totaal (incl. BTW)",
+                "invoice": "Factuur",
+                "totalItemCount": "Totaal aantal items",
+                "totalPaid": "Totaal betaald"
+            },
+            "tooltips": {
+                "view": "Bekijk bon",
+                "viewPdf": "Bekijk PDF",
+                "downloadPdf": "Download PDF",
+                "edit": "Pas bon aan",
+                "sendToClient": "Verstuur naar klant",
+                "delete": "Verwijder bon"
+            },
+            "messages": {
+                "emailSent": "Bon succesvol naar klant verstuurd.",
+                "emailError": "Fout bij versturen bon naar klant."
+            },
+            "actions": {
+                "addNew": "Voeg nieuwe bon toe"
+            }
+        },
+        "upsert": {
+            "title": {
+                "edit": "Pas bonnetje aan",
+                "create": "Maak bon"
+            },
+            "form": {
+                "client": {
+                    "label": "Klant",
+                    "errors": {
+                        "required": "Klant is vereist."
+                    }
+                }
             }
         }
     }
