@@ -50,7 +50,7 @@ This commercial license is **non-exclusive** unless otherwise agreed in writing 
 
 4.1 Any product, service, or derivative work using the Software under this Commercial License must include clear and visible attribution as follows:
 
-> “This product is based on *Invoicerr*, available at [https://github.com/Impre-visible/invoicerr](https://github.com/Impre-visible/invoicerr), licensed for commercial use.”
+> “This product is based on *Invoicerr*, available at [https://github.com/invoicerr-app/invoicerr](https://github.com/invoicerr-app/invoicerr), licensed for commercial use.”
 
 4.2 Attribution must appear in user-facing materials such as “About” sections, documentation, or marketing pages, unless otherwise agreed in writing.
 

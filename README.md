@@ -1,7 +1,7 @@
 # Invoicerr
 
 
-![Invoicerr Banner](https://github.com/Impre-visible/invoicerr/blob/ac4ea3fb8293b63e0b58bd33ea38b6b7018f673a/Invoicerr_banner.webp)
+![Invoicerr Banner](https://github.com/invoicerr-app/invoicerr/blob/ac4ea3fb8293b63e0b58bd33ea38b6b7018f673a/Invoicerr_banner.webp)
 
 Invoicerr is a simple, open-source invoicing application designed to help freelancers manage their quotes and invoices efficiently. It provides a clean interface for creating, sending, and tracking quotes and invoices — so you get paid faster, with less hassle.
 
@@ -11,8 +11,8 @@ Invoicerr is a simple, open-source invoicing application designed to help freela
 
 <section>
 <img src="https://wakatime.com/badge/user/4cf4132a-4ced-411d-b714-67bdbdc84527/project/2f27011d-6794-4fbe-97c9-9fdef2550fc7.svg?style=flat">
-<img src="https://m3-markdown-badges.vercel.app/stars/12/1/Impre-visible/invoicerr">
-<img src="https://m3-markdown-badges.vercel.app/issues/12/1/Impre-visible/invoicerr">
+<img src="https://m3-markdown-badges.vercel.app/stars/12/1/invoicerr-app/invoicerr">
+<img src="https://m3-markdown-badges.vercel.app/issues/12/1/invoicerr-app/invoicerr">
 </section>
 
 ## ✨ Features
@@ -58,13 +58,13 @@ The images are built for the following architectures:
 
 The `linux/arm/v7` architecture is not supported due to the use of prisma, which does not provide prebuilt binaries for this architecture. This means that the application will not run on 32-bit ARM devices.
 
-The fastest way to run Invoicerr is using Docker Compose. A prebuilt image is available at [ghcr.io/impre-visible/invoicerr](https://ghcr.io/impre-visible/invoicerr).
+The fastest way to run Invoicerr is using Docker Compose. A prebuilt image is available at [ghcr.io/invoicerr-app/invoicerr](https://ghcr.io/invoicerr-app/invoicerr).
 
 ### 🚀 Quick Start
 
 1. Clone the repository:  
    ```bash
-   git clone https://github.com/Impre-visible/invoicerr.git
+   git clone https://github.com/invoicerr-app/invoicerr.git
    cd invoicerr
    ```
 
@@ -120,7 +120,7 @@ Make sure port 80 is available on your host machine, or change the mapping.
 
 1. Clone the project:  
    ```bash
-   git clone https://github.com/Impre-visible/invoicerr.git
+   git clone https://github.com/invoicerr-app/invoicerr.git
    cd invoicerr
    ```
 
