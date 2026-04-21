@@ -7,6 +7,14 @@ Invoicerr is a simple, open-source invoicing application designed to help freela
 
 ---
 
+## 📢 Maintainer availability
+
+I no longer have enough personal time to work on Invoicerr full-time (studies + job).
+
+The project is still open, and I can continue to review and manage community pull requests, but development speed from my side will be slower.
+
+---
+
 ![Dashboard Page](https://github.com/user-attachments/assets/18e8af88-cf02-4e35-975a-d57f58d062c6)
 
 <section>
