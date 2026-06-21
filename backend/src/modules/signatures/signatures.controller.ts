@@ -1,6 +1,7 @@
 import { SignaturesService } from '@/modules/signatures/signatures.service';
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
+import { Response } from 'express';
 
 @Controller('signatures')
 export class SignaturesController {
@@ -10,6 +11,22 @@ export class SignaturesController {
   @AllowAnonymous()
   async getSignature(@Param('id') signatureId: string) {
     return (await this.signaturesService.getSignature(signatureId)) || {};
+  }
+
+  @Get('/:id/pdf')
+  @AllowAnonymous()
+  async getSignaturePdf(@Param('id') signatureId: string, @Res() res: Response) {
+    const pdfBuffer = await this.signaturesService.getSignaturePdf(signatureId);
+    if (!pdfBuffer) {
+      res.status(404).send('Signature not found or PDF generation failed');
+      return;
+    }
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename="signature-${signatureId}.pdf"`,
+      'Content-Length': pdfBuffer.length.toString(),
+    });
+    res.send(Buffer.from(pdfBuffer));
   }
 
   @Post('/')

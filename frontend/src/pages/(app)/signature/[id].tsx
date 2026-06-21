@@ -25,7 +25,7 @@ type SignatureState = "loading" | "ready" | "otp-sent" | "signing" | "signed" | 
 export default function Signature() {
     const { id } = useParams()
     const { data: signature, mutate } = useGet<Signature>(`/api/signatures/${id}`)
-    const { data: pdfResponse } = useGetRaw<Response>(`/api/quotes/${signature?.quote.id}/pdf`)
+    const { data: pdfResponse } = useGetRaw<Response>(`/api/signatures/${id}/pdf`)
 
     const { trigger: sendOtp, loading: optCodeloading } = usePost(`/api/signatures/${id}/otp`)
     const { trigger: sign, loading: signingLoading } = usePost(`/api/signatures/${id}/sign`)
