@@ -124,9 +124,9 @@ export default function Invoices() {
 
             <Tabs value={filter} onValueChange={(value) => setFilter(value as InvoiceFilter)}>
                 <TabsList>
-                    <TabsTrigger value="all">{t("invoices.filters.all")}</TabsTrigger>
-                    <TabsTrigger value="oneTime">{t("invoices.filters.oneTime")}</TabsTrigger>
-                    <TabsTrigger value="recurring">{t("invoices.filters.recurring")}</TabsTrigger>
+                    <TabsTrigger value="all" data-cy="invoice-filter-all">{t("invoices.filters.all")}</TabsTrigger>
+                    <TabsTrigger value="oneTime" data-cy="invoice-filter-oneTime">{t("invoices.filters.oneTime")}</TabsTrigger>
+                    <TabsTrigger value="recurring" data-cy="invoice-filter-recurring">{t("invoices.filters.recurring")}</TabsTrigger>
                 </TabsList>
             </Tabs>
 

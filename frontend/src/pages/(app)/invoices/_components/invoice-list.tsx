@@ -235,7 +235,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                 </div>
                             )}
                             {showCreateButton && (
-                                <Button onClick={() => (onAddClick ? onAddClick() : setCreateInvoiceDialog(true))}>
+                                <Button onClick={() => (onAddClick ? onAddClick() : setCreateInvoiceDialog(true))} dataCy="invoice-add-button">
                                     <Plus className="h-4 w-4 mr-0 md:mr-2" />
                                     <span className="hidden md:inline-flex">{t("invoices.list.actions.addNew")}</span>
                                 </Button>
@@ -453,6 +453,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                         size="icon"
                                                         onClick={() => handleDelete(invoice)}
                                                         className="text-gray-600 hover:text-red-600"
+                                                        dataCy="invoice-delete-button"
                                                     >
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
