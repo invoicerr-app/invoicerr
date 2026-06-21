@@ -23,12 +23,23 @@ export class BrevoMailProvider implements IMailProvider {
     }
 
     async sendMail(options: MailOptions): Promise<void> {
+        const to = options.to?.trim();
+        if (!to) {
+            throw new Error('Missing recipient email address (options.to).');
+        }
+
         const fromRaw =
             options.from || process.env.MAIL_FROM || process.env.SMTP_FROM || process.env.SMTP_USER;
+        const sender = this.parseSender(fromRaw);
+        if (!sender.email) {
+            throw new Error(
+                'Missing sender email address. Set MAIL_FROM (or SMTP_FROM/SMTP_USER) or pass options.from.',
+            );
+        }
 
         await this.client.transactionalEmails.sendTransacEmail({
-            sender: this.parseSender(fromRaw),
-            to: options.to ? [{ email: options.to }] : [],
+            sender,
+            to: [{ email: to }],
             subject: options.subject,
             htmlContent: options.html,
             textContent: options.text,
