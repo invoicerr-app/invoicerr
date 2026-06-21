@@ -35,7 +35,7 @@ export function ReceiptPdfModal({ receipt, onOpenChange }: ReceiptPdfModalProps)
         onOpenChange(open)
       }}
     >
-      <DialogContent className="!max-w-none w-fit min-w-[90vw] md:min-w-128 h-[90dvh] overflow-hidden flex flex-col">
+      <DialogContent className="!max-w-6xl w-[95vw] h-[90dvh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>{t("receipts.pdf.title", { number: receipt.rawNumber || receipt.number })}</DialogTitle>
         </DialogHeader>
