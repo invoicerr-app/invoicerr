@@ -136,7 +136,7 @@ export function Sidebar() {
                         <SidebarMenuButton
                             size="lg"
                             className="cursor-pointer"
-                            onClick={() => setOnboardingOpen(true)}
+                            onClick={() => navigate("/settings/company")}
                             data-cy="sidebar-company-button"
                         >
                             <div className="bg-accent text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-lg">

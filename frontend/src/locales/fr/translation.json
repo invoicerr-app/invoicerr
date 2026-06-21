@@ -217,6 +217,7 @@
         "filters": {
             "all": "Tous",
             "draft": "Brouillon",
+            "sent": "Envoyé",
             "signed": "Signés"
         },
         "emptyState": {
@@ -414,7 +415,8 @@
         "statusFilters": {
             "all": "Toutes",
             "sent": "Envoyées",
-            "paid": "Payées"
+            "paid": "Payées",
+            "unpaid": "Impayées"
         },
         "emptyState": {
             "noInvoices": "Aucune facture pour le moment",
@@ -477,6 +479,10 @@
             "title": {
                 "create": "Créer une nouvelle facture",
                 "edit": "Modifier la facture"
+            },
+            "tabs": {
+                "invoice": "Facture",
+                "recurring": "Facture récurrente"
             },
             "form": {
                 "quote": {
@@ -903,6 +909,7 @@
         "empty": "Aucun moyen de paiement disponible pour le moment."
     },
     "settings": {
+        "title": "Paramètres",
         "tabs": {
             "company": "Entreprise",
             "pdfTemplates": "Modèles PDF",
@@ -1761,7 +1768,11 @@
         "noData": "Aucune donnée disponible pour la période sélectionnée.",
         "controls": {
             "year": "Année",
-            "range": "Plage d'années"
+            "range": "Plage d'années",
+            "tabs": {
+                "monthly": "Par mois",
+                "yearly": "Par années"
+            }
         },
         "monthly": {
             "title": "Statistiques mensuelles"

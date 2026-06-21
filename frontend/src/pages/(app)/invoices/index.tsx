@@ -7,15 +7,13 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { InvoiceStatus, type Invoice, type RecurringInvoice } from "@/types"
 import { usePageHeader } from "@/hooks/use-page-header"
 import { useTranslation } from "react-i18next"
-import { RecurringInvoiceUpsert } from "./_components/recurring-invoices/recurring-invoices-upsert"
 
 type InvoiceFilter = "all" | "oneTime" | "recurring"
-type InvoiceStatusFilter = "all" | "sent" | "paid"
+type InvoiceStatusFilter = "sent" | "paid" | "unpaid" | undefined
 
 export default function Invoices() {
     const { t } = useTranslation()
     const invoiceListRef = useRef<InvoiceListHandle>(null)
-    const [createRecurringInvoiceDialog, setCreateRecurringInvoiceDialog] = useState<boolean>(false)
 
     const [page, setPage] = useState(1)
     const {
@@ -44,17 +42,19 @@ export default function Invoices() {
 
     const [searchTerm, setSearchTerm] = useState("")
     const [filter, setFilter] = useState<InvoiceFilter>("all")
-    const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilter>("all")
+    const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilter>(undefined)
 
     const matchesSearch = (invoice: Invoice) =>
         invoice.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.rawNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.number?.toString().includes(searchTerm) ||
         invoice.client?.name?.toLowerCase().includes(searchTerm.toLowerCase())
 
     const matchesStatus = (invoice: Invoice) =>
-        statusFilter === "all" ||
+        !statusFilter ||
         (statusFilter === "sent" && invoice.status === InvoiceStatus.SENT) ||
-        (statusFilter === "paid" && invoice.status === InvoiceStatus.PAID)
+        (statusFilter === "paid" && invoice.status === InvoiceStatus.PAID) ||
+        (statusFilter === "unpaid" && (invoice.status === InvoiceStatus.UNPAID || invoice.status === InvoiceStatus.OVERDUE))
 
     const upcomingInvoices: Invoice[] = (recurringInvoices?.data || [])
         .filter((recurringInvoice) => !!recurringInvoice.nextInvoiceDate)
@@ -82,20 +82,20 @@ export default function Invoices() {
             isActive: true,
         }))
 
-    const filteredInvoices =
-        filter === "recurring"
-            ? [
-                ...upcomingInvoices.filter((invoice) => matchesSearch(invoice) && matchesStatus(invoice)),
-                ...(invoices?.invoices.filter((invoice) => !!invoice.recurringInvoiceId).filter((invoice) => matchesSearch(invoice) && matchesStatus(invoice)) || []),
-            ]
-            : (invoices?.invoices.filter(
-                (invoice) => matchesSearch(invoice) && matchesStatus(invoice) && (filter === "all" || !invoice.recurringInvoiceId),
-            ) || [])
+    const filteredInvoices = [
+        ...(invoices?.invoices.filter(
+            (invoice) =>
+                matchesSearch(invoice) &&
+                matchesStatus(invoice) &&
+                (filter === "all" || (filter === "recurring" ? !!invoice.recurringInvoiceId : !invoice.recurringInvoiceId)),
+        ) || []),
+        ...(filter !== "oneTime" ? upcomingInvoices.filter((invoice) => matchesSearch(invoice) && matchesStatus(invoice)) : []),
+    ]
 
     const invoiceStatusCounts = {
-        all: invoices?.invoices.length || 0,
         sent: invoices?.invoices.filter((i) => i.status === InvoiceStatus.SENT).length || 0,
         paid: invoices?.invoices.filter((i) => i.status === InvoiceStatus.PAID).length || 0,
+        unpaid: invoices?.invoices.filter((i) => i.status === InvoiceStatus.UNPAID || i.status === InvoiceStatus.OVERDUE).length || 0,
     }
 
     usePageHeader(t("sidebar.navigation.invoices"))
@@ -144,12 +144,6 @@ export default function Invoices() {
                 setPage={setPage}
                 emptyState={invoiceEmptyState}
                 showCreateButton={true}
-                onAddClick={() => (filter === "recurring" ? setCreateRecurringInvoiceDialog(true) : invoiceListRef.current?.handleAddClick())}
-            />
-
-            <RecurringInvoiceUpsert
-                open={createRecurringInvoiceDialog}
-                onOpenChange={setCreateRecurringInvoiceDialog}
             />
         </div>
     )

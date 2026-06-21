@@ -7,17 +7,28 @@ import { usePageHeader } from "@/hooks/use-page-header"
 import { useTranslation } from "react-i18next"
 
 
+type ActiveFilter = "active" | "inactive" | undefined
+
 export default function PaymentMethodsPage() {
   const { t } = useTranslation()
   const pmListRef = useRef<PaymentMethodsListHandle>(null)
   const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState<ActiveFilter>(undefined)
   const { data: paymentMethods = [] } = useSse<any[]>("/api/payment-methods/sse")
 
   const filtered = (paymentMethods || []).filter((pm) =>
-    (pm.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (pm.details || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (pm.type || "").toLowerCase().includes(searchTerm.toLowerCase()),
+    ((pm.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (pm.details || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (pm.type || "").toLowerCase().includes(searchTerm.toLowerCase())) &&
+    (!statusFilter ||
+      (statusFilter === "active" && pm.isActive) ||
+      (statusFilter === "inactive" && !pm.isActive)),
   )
+
+  const statusCounts = {
+    active: paymentMethods?.filter((pm) => pm.isActive).length || 0,
+    inactive: paymentMethods?.filter((pm) => !pm.isActive).length || 0,
+  }
 
   usePageHeader(t("sidebar.navigation.paymentMethods"))
 
@@ -46,6 +57,9 @@ export default function PaymentMethodsPage() {
         loading={false}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        statusCounts={statusCounts}
         emptyState={emptyState}
         showCreateButton={true}
       />

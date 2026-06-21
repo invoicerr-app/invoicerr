@@ -216,6 +216,7 @@
         "filters": {
             "all": "All",
             "draft": "Draft",
+            "sent": "Sent",
             "signed": "Signed"
         },
         "emptyState": {
@@ -413,7 +414,8 @@
         "statusFilters": {
             "all": "All",
             "sent": "Sent",
-            "paid": "Paid"
+            "paid": "Paid",
+            "unpaid": "Unpaid"
         },
         "emptyState": {
             "noInvoices": "No invoices yet",
@@ -476,6 +478,10 @@
             "title": {
                 "create": "Create New Invoice",
                 "edit": "Edit Invoice"
+            },
+            "tabs": {
+                "invoice": "Invoice",
+                "recurring": "Recurring Invoice"
             },
             "form": {
                 "quote": {
@@ -1761,7 +1767,11 @@
         "noData": "No data available for the selected period.",
         "controls": {
             "year": "Year",
-            "range": "Year range"
+            "range": "Year range",
+            "tabs": {
+                "monthly": "By month",
+                "yearly": "By year"
+            }
         },
         "monthly": {
             "title": "Monthly statistics"

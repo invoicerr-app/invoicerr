@@ -9,7 +9,7 @@ import type { QuoteListHandle } from "@/pages/(app)/quotes/_components/quote-lis
 import { usePageHeader } from "@/hooks/use-page-header"
 import { useTranslation } from "react-i18next"
 
-type QuoteStatusFilter = "all" | "draft" | "signed"
+type QuoteStatusFilter = "draft" | "sent" | "signed" | undefined
 
 export default function Quotes() {
     const { t } = useTranslation()
@@ -37,21 +37,24 @@ export default function Quotes() {
     }, [downloadQuotePdf, pdf])
 
     const [searchTerm, setSearchTerm] = useState("")
-    const [statusFilter, setStatusFilter] = useState<QuoteStatusFilter>("all")
+    const [statusFilter, setStatusFilter] = useState<QuoteStatusFilter>(undefined)
 
     const filteredQuotes =
         quotes?.quotes.filter(
             (quote) =>
                 (quote.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    quote.status.toLowerCase().includes(searchTerm.toLowerCase())) &&
-                (statusFilter === "all" ||
+                    quote.rawNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    quote.number?.toString().includes(searchTerm) ||
+                    quote.client?.name?.toLowerCase().includes(searchTerm.toLowerCase())) &&
+                (!statusFilter ||
                     (statusFilter === "draft" && quote.status === "DRAFT") ||
+                    (statusFilter === "sent" && quote.status === "SENT") ||
                     (statusFilter === "signed" && quote.status === "SIGNED")),
         ) || []
 
     const quoteStatusCounts = {
-        all: quotes?.quotes.length || 0,
         draft: quotes?.quotes.filter((q) => q.status === "DRAFT").length || 0,
+        sent: quotes?.quotes.filter((q) => q.status === "SENT").length || 0,
         signed: quotes?.quotes.filter((q) => q.status === "SIGNED").length || 0,
     }
 

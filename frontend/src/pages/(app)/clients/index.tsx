@@ -2,6 +2,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Edit, Eye, Mail, MapPin, Phone, Plus, Search, Trash2, User, Users } from "lucide-react"
 
 import BetterPagination from "@/components/pagination"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { Client } from "@/types"
 import { ClientDeleteDialog } from "./_components/client-delete"
@@ -12,6 +13,8 @@ import { usePageHeader } from "@/hooks/use-page-header"
 import { useSse } from "@/hooks/use-fetch"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
+
+type ActiveFilter = "active" | "inactive" | undefined
 
 export default function Clients() {
     const { t } = useTranslation()
@@ -26,15 +29,24 @@ export default function Clients() {
     const [deleteClientDialog, setDeleteClientDialog] = useState<Client | null>(null)
 
     const [searchTerm, setSearchTerm] = useState("")
+    const [activeFilter, setActiveFilter] = useState<ActiveFilter>(undefined)
 
     const filteredClients =
         clients?.clients.filter(
             (client) =>
-                client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                client.contactFirstname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                client.contactLastname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                client.contactEmail.toLowerCase().includes(searchTerm.toLowerCase()),
+                (client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    client.contactFirstname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    client.contactLastname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    client.contactEmail.toLowerCase().includes(searchTerm.toLowerCase())) &&
+                (!activeFilter ||
+                    (activeFilter === "active" && client.isActive) ||
+                    (activeFilter === "inactive" && !client.isActive)),
         ) || []
+
+    const activeCounts = {
+        active: clients?.clients.filter((c) => c.isActive).length || 0,
+        inactive: clients?.clients.filter((c) => !c.isActive).length || 0,
+    }
 
     function handleAddClick() {
         setCreateClientDialog(true)
@@ -88,10 +100,34 @@ export default function Clients() {
                             className="pl-10 w-full"
                         />
                     </div>
-                    <Button onClick={handleAddClick}>
-                        <Plus className="h-4 w-4 mr-0 md:mr-2" />
-                        <span className="hidden md:inline-flex">{t("clients.actions.addNew")}</span>
-                    </Button>
+                    <div className="flex items-center gap-2 sm:ml-auto">
+                        <div className="flex items-center gap-2">
+                            <Badge
+                                onClick={() => setActiveFilter(activeFilter === "active" ? undefined : "active")}
+                                variant="outline"
+                                className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${activeFilter === "active"
+                                    ? "bg-green-600 text-white font-semibold shadow-sm scale-105"
+                                    : "bg-green-50 text-green-700/70 hover:bg-green-100"
+                                    }`}
+                            >
+                                {t("clients.stats.active")} ({activeCounts.active})
+                            </Badge>
+                            <Badge
+                                onClick={() => setActiveFilter(activeFilter === "inactive" ? undefined : "inactive")}
+                                variant="outline"
+                                className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${activeFilter === "inactive"
+                                    ? "bg-gray-500 text-white font-semibold shadow-sm scale-105"
+                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                    }`}
+                            >
+                                {t("clients.stats.inactive")} ({activeCounts.inactive})
+                            </Badge>
+                        </div>
+                        <Button onClick={handleAddClick}>
+                            <Plus className="h-4 w-4 mr-0 md:mr-2" />
+                            <span className="hidden md:inline-flex">{t("clients.actions.addNew")}</span>
+                        </Button>
+                    </div>
                 </CardHeader>
 
                 <CardContent className="p-0">

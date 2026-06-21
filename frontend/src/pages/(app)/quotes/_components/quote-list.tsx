@@ -24,9 +24,9 @@ interface QuoteListProps {
     description?: string
     searchTerm?: string
     onSearchChange?: (value: string) => void
-    statusFilter?: "all" | "draft" | "signed"
-    onStatusFilterChange?: (value: "all" | "draft" | "signed") => void
-    statusCounts?: { all: number; draft: number; signed: number }
+    statusFilter?: "draft" | "sent" | "signed"
+    onStatusFilterChange?: (value: "draft" | "sent" | "signed" | undefined) => void
+    statusCounts?: { draft: number; sent: number; signed: number }
     page?: number
     pageCount?: number
     setPage?: (page: number) => void
@@ -182,17 +182,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                             {onStatusFilterChange && (
                                 <div className="flex items-center gap-2">
                                     <Badge
-                                        onClick={() => onStatusFilterChange("all")}
-                                        variant="outline"
-                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all ${statusFilter === "all"
-                                            ? "border-transparent bg-gray-800 text-white font-semibold shadow-sm scale-105"
-                                            : "text-gray-500 hover:bg-gray-100"
-                                            }`}
-                                    >
-                                        {t("quotes.filters.all")} ({statusCounts?.all ?? 0})
-                                    </Badge>
-                                    <Badge
-                                        onClick={() => onStatusFilterChange("draft")}
+                                        onClick={() => onStatusFilterChange(statusFilter === "draft" ? undefined : "draft")}
                                         variant="outline"
                                         className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter === "draft"
                                             ? "bg-yellow-500 text-white font-semibold shadow-sm scale-105"
@@ -202,7 +192,17 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                                         {t("quotes.filters.draft")} ({statusCounts?.draft ?? 0})
                                     </Badge>
                                     <Badge
-                                        onClick={() => onStatusFilterChange("signed")}
+                                        onClick={() => onStatusFilterChange(statusFilter === "sent" ? undefined : "sent")}
+                                        variant="outline"
+                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter === "sent"
+                                            ? "bg-blue-600 text-white font-semibold shadow-sm scale-105"
+                                            : "bg-blue-50 text-blue-700/70 hover:bg-blue-100"
+                                            }`}
+                                    >
+                                        {t("quotes.filters.sent")} ({statusCounts?.sent ?? 0})
+                                    </Badge>
+                                    <Badge
+                                        onClick={() => onStatusFilterChange(statusFilter === "signed" ? undefined : "signed")}
                                         variant="outline"
                                         className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter === "signed"
                                             ? "bg-green-600 text-white font-semibold shadow-sm scale-105"

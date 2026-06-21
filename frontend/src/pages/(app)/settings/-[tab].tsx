@@ -77,10 +77,7 @@ export default function Settings() {
 
     const currentMenuItem = menuItems.find((item) => item.value === currentTab)
 
-    usePageHeader(
-        currentMenuItem?.label ?? t("settings.title"),
-        currentMenuItem?.icon ? <currentMenuItem.icon className="h-5 w-5 text-blue-600" /> : null,
-    )
+    usePageHeader(t("settings.title"))
 
     const renderContent = () => {
         switch (currentTab) {

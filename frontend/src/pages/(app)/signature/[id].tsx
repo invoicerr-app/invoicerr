@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label"
 import type { Quote } from "@/types"
 import type React from "react"
 import { toast } from "sonner"
-import { usePageHeader } from "@/hooks/use-page-header"
 import { useParams } from "react-router"
 
 interface Signature {
@@ -25,7 +24,6 @@ type SignatureState = "loading" | "ready" | "otp-sent" | "signing" | "signed" | 
 
 export default function Signature() {
     const { id } = useParams()
-    usePageHeader("Quote Signature", <FileText className="h-5 w-5 text-blue-600" />)
     const { data: signature, mutate } = useGet<Signature>(`/api/signatures/${id}`)
     const { data: pdfResponse } = useGetRaw<Response>(`/api/signatures/${id}/pdf`)
 
@@ -299,9 +297,12 @@ export default function Signature() {
 
     return (
         <div className="max-w-7xl mx-auto space-y-6 px-6 py-8">
-            <p className="text-muted-foreground">
-                Quote #{signature.quote.number} • Expires on {new Date(signature.expiresAt).toLocaleDateString()}
-            </p>
+            <div className="space-y-2">
+                <h1 className="text-3xl font-bold">Quote Signature</h1>
+                <p className="text-muted-foreground">
+                    Quote #{signature.quote.number} • Expires on {new Date(signature.expiresAt).toLocaleDateString()}
+                </p>
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
