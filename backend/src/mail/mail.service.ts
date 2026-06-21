@@ -1,43 +1,41 @@
-import * as nodemailer from 'nodemailer';
+import { IMailProvider, MailOptions } from '@/mail/types';
 
+import { BrevoMailProvider } from '@/mail/providers/brevo.provider';
 import { Injectable } from '@nestjs/common';
+import { SmtpMailProvider } from '@/mail/providers/smtp.provider';
 import { logger } from '@/logger/logger.service';
 
-interface MailOptions {
-    to?: string;
-    subject: string;
-    text?: string;
-    html?: string;
-    attachments?: nodemailer.Attachment[];
-}
+export type { MailOptions, MailAttachment } from '@/mail/types';
 
 @Injectable()
 export class MailService {
-    private transporter: nodemailer.Transporter;
+    private readonly provider: IMailProvider;
 
     constructor() {
-        this.transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: parseInt(process.env.SMTP_PORT || '587', 10),
-            secure: process.env.SMTP_SECURE === 'true', // true if port is 465
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASSWORD,
-            },
-        });
+        const selected = (process.env.MAIL_PROVIDER || 'smtp').toLowerCase();
+        switch (selected) {
+            case 'brevo':
+                this.provider = new BrevoMailProvider();
+                break;
+            case 'smtp':
+                this.provider = new SmtpMailProvider();
+                break;
+            default:
+                throw new Error(
+                    `Unknown MAIL_PROVIDER "${selected}". Supported values: "smtp", "brevo".`,
+                );
+        }
     }
 
     async sendMail(options: MailOptions) {
-        const mailOptions = {
-            from: process.env.SMTP_FROM || process.env.SMTP_USER,
-            ...options,
-        };
-
         try {
-            await this.transporter.sendMail(mailOptions);
+            await this.provider.sendMail(options);
         } catch (error) {
-            logger.error('Failed to send email. Please check your SMTP configuration.', { category: 'mail', details: { error } });
-            throw new Error('Failed to send email. Please check your SMTP configuration.');
+            logger.error('Failed to send email. Please check your mail provider configuration.', {
+                category: 'mail',
+                details: { provider: this.provider.id, error },
+            });
+            throw new Error('Failed to send email. Please check your mail provider configuration.');
         }
 
         return { message: 'Email sent successfully' };
