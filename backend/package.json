@@ -34,6 +34,7 @@
 		"@nestjs/passport": "^11.0.5",
 		"@nestjs/platform-express": "^11.1.16",
 		"@nestjs/schedule": "^6.0.0",
+		"@nestjs/swagger": "^11.4.4",
 		"@teever/ez-hook": "npm:@jsr/teever__ez-hook@^0.3.5",
 		"@thallesp/nestjs-better-auth": "^2.2.0",
 		"@types/pdfkit": "^0.14.0",
