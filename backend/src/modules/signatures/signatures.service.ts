@@ -4,6 +4,7 @@ import { PluginType, WebhookEvent } from '../../../prisma/generated/prisma/clien
 import { ISigningProvider } from '@/plugins/signing/types';
 import { MailService } from '@/mail/mail.service';
 import { PluginsService } from '../plugins/plugins.service';
+import { QuotesService } from '@/modules/quotes/quotes.service';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
@@ -13,8 +14,25 @@ export class SignaturesService {
     constructor(
         private readonly mailService: MailService,
         private readonly pluginsService: PluginsService,
-        private readonly webhookDispatcher: WebhookDispatcherService
+        private readonly webhookDispatcher: WebhookDispatcherService,
+        private readonly quotesService: QuotesService
     ) {
+    }
+
+    /**
+     * Returns the PDF of the quote attached to a signature. Resolved through the
+     * signature id so the public (anonymous) signing page can display the quote
+     * without exposing the generic /quotes/:id/pdf endpoint to unauthenticated users.
+     */
+    async getSignaturePdf(signatureId: string): Promise<Uint8Array | null> {
+        const signature = await prisma.signature.findUnique({
+            where: { id: signatureId },
+            select: { quoteId: true },
+        });
+        if (!signature) {
+            return null;
+        }
+        return this.quotesService.getQuotePdf(signature.quoteId);
     }
 
     async getSignature(signatureId: string) {
