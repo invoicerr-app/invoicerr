@@ -89,9 +89,13 @@ export const ReceiptList = forwardRef<ReceiptListHandle, ReceiptListProps>(
 
         function handleSendToClient(receipt: Receipt) {
             triggerSendToClient({ id: receipt.id })
-                .then(() => {
-                    toast.success(t("receipts.list.messages.emailSent"))
-                    mutate && mutate()
+                .then((result) => {
+                    if (result) {
+                        toast.success(t("receipts.list.messages.emailSent"))
+                        mutate && mutate()
+                    } else {
+                        toast.error(t("receipts.list.messages.emailError"))
+                    }
                 })
                 .catch((error) => {
                     console.error("Error sending receipt to client:", error)

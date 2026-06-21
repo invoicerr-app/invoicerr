@@ -153,8 +153,12 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
 
         const handleSendInvoiceByEmail = (invoiceId: string) => {
             triggerSendInvoiceByEmail({ id: invoiceId })
-                .then(() => {
-                    toast.success(t("invoices.list.messages.sendByEmailSuccess"))
+                .then((result) => {
+                    if (result) {
+                        toast.success(t("invoices.list.messages.sendByEmailSuccess"))
+                    } else {
+                        toast.error(t("invoices.list.messages.sendByEmailError"))
+                    }
                 })
                 .catch((error) => {
                     console.error("Error sending invoice by email:", error)
