@@ -1,10 +1,9 @@
-import { Banknote, Plus, Search } from "lucide-react"
-import { Card, CardContent } from "@/components/ui/card"
+import { Banknote, Plus } from "lucide-react"
 import { PaymentMethodsList, type PaymentMethodsListHandle } from "@/pages/(app)/payment-methods/_components/payment-method-list"
 import { useRef, useState } from "react"
 import { useSse } from "@/hooks/use-fetch"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { usePageHeader } from "@/hooks/use-page-header"
 import { useTranslation } from "react-i18next"
 
 
@@ -19,6 +18,8 @@ export default function PaymentMethodsPage() {
     (pm.details || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
     (pm.type || "").toLowerCase().includes(searchTerm.toLowerCase()),
   )
+
+  usePageHeader(t("sidebar.navigation.paymentMethods"))
 
   const emptyState = (
     <div className="text-center py-12">
@@ -38,51 +39,13 @@ export default function PaymentMethodsPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 p-6">
-      <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-0 lg:justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <Banknote className="h-5 w-5 text-blue-600" />
-          </div>
-          <div>
-            <div className="text-sm text-primary">{t("paymentMethods.description") || t("paymentMethods.title")}</div>
-            <div className="font-medium text-foreground">{`${filtered.length} ${t("paymentMethods.title")}`}</div>
-          </div>
-        </div>
-
-        <div className="flex flex-row items-center gap-4 w-full lg:w-fit lg:gap-6 lg:justify-between">
-          <div className="relative w-full lg:w-fit">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input placeholder={t("paymentMethods.search.placeholder") || ""} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 w-full" />
-          </div>
-          <Button onClick={() => pmListRef.current?.handleAddClick()}>
-            <Plus className="h-4 w-4 mr-0 md:mr-2" />
-            <span className="hidden md:inline-flex">{t("paymentMethods.list.add") || t("paymentMethods.add.title") || t("actions.add")}</span>
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card>
-          <CardContent>
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Banknote className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-semibold text-foreground">{paymentMethods?.length || 0}</p>
-                <p className="text-sm text-primary">{t("paymentMethods.stats.total") || t("paymentMethods.title")}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       <PaymentMethodsList
         ref={pmListRef}
         paymentMethods={filtered}
         loading={false}
-        title={t("paymentMethods.title")}
-        description={t("paymentMethods.description")}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
         emptyState={emptyState}
         showCreateButton={true}
       />

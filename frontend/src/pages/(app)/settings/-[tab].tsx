@@ -11,6 +11,7 @@ import PDFTemplatesSettings from "./_components/pdf.settings"
 import PluginsSettings from "./_components/plugins.settings"
 import WebhooksSettings from "./_components/webhooks.settings"
 import { cn } from "@/lib/utils"
+import { usePageHeader } from "@/hooks/use-page-header"
 import { useTranslation } from "react-i18next"
 import { LogsSettings } from "./_components/logs.settings"
 
@@ -76,6 +77,11 @@ export default function Settings() {
 
     const currentMenuItem = menuItems.find((item) => item.value === currentTab)
 
+    usePageHeader(
+        currentMenuItem?.label ?? t("settings.title"),
+        currentMenuItem?.icon ? <currentMenuItem.icon className="h-5 w-5 text-blue-600" /> : null,
+    )
+
     const renderContent = () => {
         switch (currentTab) {
             case "company":
@@ -127,10 +133,7 @@ export default function Settings() {
             </div>
 
             <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r bg-muted/30">
-                <div className="p-6">
-                    <h2 className="text-lg font-semibold">{t("settings.title") || "Settings"}</h2>
-                </div>
-                <nav className="flex-1 px-3 pb-6">
+                <nav className="flex-1 px-3 pb-6 pt-6">
                     <ul className="space-y-1">
                         {menuItems.map((item) => (
                             <li key={item.value}>

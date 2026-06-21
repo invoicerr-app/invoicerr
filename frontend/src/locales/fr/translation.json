@@ -1,4 +1,9 @@
 {
+    "errorBoundary": {
+        "title": "Une erreur est survenue",
+        "description": "Une erreur inattendue s'est produite lors de l'affichage de cette page. Vous pouvez essayer de recharger la page.",
+        "reload": "Recharger la page"
+    },
     "clients": {
         "header": {
             "subtitle": "Gérez vos clients",
@@ -209,6 +214,11 @@
             "draft": "Brouillon",
             "signed": "Signés"
         },
+        "filters": {
+            "all": "Tous",
+            "draft": "Brouillon",
+            "signed": "Signés"
+        },
         "emptyState": {
             "noQuotes": "Aucun devis pour le moment",
             "noResults": "Aucun devis trouvé",
@@ -391,8 +401,18 @@
         "actions": {
             "addNew": "Ajouter une nouvelle facture"
         },
+        "filters": {
+            "all": "Toutes",
+            "oneTime": "Ponctuelles",
+            "recurring": "Récurrentes"
+        },
         "stats": {
             "total": "Total des factures",
+            "sent": "Envoyées",
+            "paid": "Payées"
+        },
+        "statusFilters": {
+            "all": "Toutes",
             "sent": "Envoyées",
             "paid": "Payées"
         },
@@ -409,13 +429,16 @@
                 "sent": "Envoyée",
                 "unpaid": "Impayée",
                 "overdue": "En retard",
-                "paid": "Payée"
+                "paid": "Payée",
+                "upcoming": "À venir"
             },
             "item": {
                 "title": "Facture {{number}} {{title}}",
+                "upcomingTitle": "Prochaine facture - {{client}}",
                 "client": "Client",
                 "issued": "Émise le",
                 "due": "Échéance",
+                "nextInvoiceDate": "Prochaine facture le",
                 "payment": "Paiement",
                 "totalHT": "Total HT",
                 "totalTTC": "Total TTC"

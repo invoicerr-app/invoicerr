@@ -1,4 +1,4 @@
-import { PDFDocument } from "@fin.cx/einvoice/dist_ts/plugins";
+import { PDFDocument } from "pdf-lib";
 
 export async function uploadQuoteFileToUrl(fileBuffer: Uint8Array, uploadUrl: string) {
     fileBuffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer)

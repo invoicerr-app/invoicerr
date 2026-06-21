@@ -24,6 +24,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 interface OnBoardingProps {
   isLoading?: boolean
   isOpen?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 export interface OnBoardingData {
@@ -54,6 +55,7 @@ export interface OnBoardingData {
 export default function OnBoarding({
   isLoading: externalLoading,
   isOpen = true,
+  onOpenChange,
 }: OnBoardingProps) {
   const { t } = useTranslation()
   const STEPS = [
@@ -226,6 +228,7 @@ export default function OnBoarding({
     try {
       await trigger(values)
       toast.success(t("settings.company.messages.updateSuccess"))
+      onOpenChange?.(false)
     } catch (error) {
       console.error("Error during onboarding:", error)
       toast.error(t("settings.company.messages.updateError"))
@@ -265,8 +268,8 @@ export default function OnBoarding({
   const loading = isLoading || externalLoading
 
   return (
-    <Dialog open={isOpen}>
-      <DialogContent className="!max-w-[50vw] max-h-[90vh] overflow-y-auto p-8" showCloseButton={false} data-cy="onboarding-dialog">
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="!max-w-[50vw] max-h-[90vh] overflow-y-auto p-8" showCloseButton data-cy="onboarding-dialog">
         <DialogHeader>
           <DialogTitle>{t("settings.company.title")}</DialogTitle>
           <DialogDescription>{t("settings.company.description")}</DialogDescription>

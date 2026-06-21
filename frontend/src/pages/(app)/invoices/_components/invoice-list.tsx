@@ -1,12 +1,14 @@
-import { Banknote, Code, Download, Edit, Eye, FileText, Mail, Plus, ReceiptText, Trash2 } from "lucide-react"
+import { Banknote, Code, Download, Edit, Eye, FileText, Mail, Plus, ReceiptText, Search, Trash2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react"
 import { useGet, useGetRaw, usePost } from "@/hooks/use-fetch"
 
 import BetterPagination from "../../../../components/pagination"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import type { Invoice } from "@/types"
+import { Input } from "@/components/ui/input"
+import { InvoiceStatus, type Invoice } from "@/types"
 import { InvoiceDeleteDialog } from "./invoice-delete"
 import { InvoicePdfModal } from "./invoice-pdf-view"
 import { InvoiceUpsert } from "./invoice-upsert"
@@ -18,14 +20,20 @@ import { useTranslation } from "react-i18next"
 interface InvoiceListProps {
     invoices: Invoice[]
     loading: boolean
-    title: string
-    description: string
+    title?: string
+    description?: string
+    searchTerm?: string
+    onSearchChange?: (value: string) => void
+    statusFilter?: "all" | "sent" | "paid"
+    onStatusFilterChange?: (value: "all" | "sent" | "paid") => void
+    statusCounts?: { all: number; sent: number; paid: number }
     page?: number
     pageCount?: number
     setPage?: (page: number) => void
     mutate?: () => void
     emptyState: React.ReactNode
     showCreateButton?: boolean
+    onAddClick?: () => void
 }
 
 export interface InvoiceListHandle {
@@ -39,7 +47,7 @@ interface PluginPdfFormat {
 
 export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
     (
-        { invoices, loading, title, description, page, pageCount, setPage, mutate, emptyState, showCreateButton = false },
+        { invoices, loading, title, description, searchTerm, onSearchChange, statusFilter, onStatusFilterChange, statusCounts, page, pageCount, setPage, mutate, emptyState, showCreateButton = false, onAddClick },
         ref,
     ) => {
         const { t } = useTranslation()
@@ -142,6 +150,8 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                     return "bg-red-100 text-red-800"
                 case "PAID":
                     return "bg-green-100 text-green-800"
+                case "UPCOMING":
+                    return "bg-purple-100 text-purple-800"
                 default:
                     return "bg-gray-100 text-gray-800"
             }
@@ -169,20 +179,68 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         return (
             <>
                 <Card className="gap-0">
-                    <CardHeader className="border-b flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle className="flex items-center space-x-2">
-                                <ReceiptText className="h-5 w-5 " />
-                                <span>{title}</span>
-                            </CardTitle>
-                            <CardDescription>{description}</CardDescription>
+                    <CardHeader className="border-b flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:justify-between">
+                        {title ? (
+                            <div>
+                                <CardTitle className="flex items-center space-x-2">
+                                    <ReceiptText className="h-5 w-5 " />
+                                    <span>{title}</span>
+                                </CardTitle>
+                                {description && <CardDescription>{description}</CardDescription>}
+                            </div>
+                        ) : onSearchChange ? (
+                            <div className="relative w-full sm:w-fit sm:flex-1 sm:max-w-sm">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <Input
+                                    placeholder={t("invoices.search.placeholder")}
+                                    value={searchTerm}
+                                    onChange={(e) => onSearchChange(e.target.value)}
+                                    className="pl-10 w-full"
+                                />
+                            </div>
+                        ) : null}
+                        <div className="flex items-center gap-2 sm:ml-auto">
+                            {onStatusFilterChange && (
+                                <div className="flex items-center gap-2">
+                                    <Badge
+                                        onClick={() => onStatusFilterChange("all")}
+                                        variant="outline"
+                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all ${statusFilter === "all"
+                                            ? "border-transparent bg-gray-800 text-white font-semibold shadow-sm scale-105"
+                                            : "text-gray-500 hover:bg-gray-100"
+                                            }`}
+                                    >
+                                        {t("invoices.statusFilters.all")} ({statusCounts?.all ?? 0})
+                                    </Badge>
+                                    <Badge
+                                        onClick={() => onStatusFilterChange("sent")}
+                                        variant="outline"
+                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter === "sent"
+                                            ? "bg-yellow-500 text-white font-semibold shadow-sm scale-105"
+                                            : "bg-yellow-50 text-yellow-700/70 hover:bg-yellow-100"
+                                            }`}
+                                    >
+                                        {t("invoices.statusFilters.sent")} ({statusCounts?.sent ?? 0})
+                                    </Badge>
+                                    <Badge
+                                        onClick={() => onStatusFilterChange("paid")}
+                                        variant="outline"
+                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter === "paid"
+                                            ? "bg-green-600 text-white font-semibold shadow-sm scale-105"
+                                            : "bg-green-50 text-green-700/70 hover:bg-green-100"
+                                            }`}
+                                    >
+                                        {t("invoices.statusFilters.paid")} ({statusCounts?.paid ?? 0})
+                                    </Badge>
+                                </div>
+                            )}
+                            {showCreateButton && (
+                                <Button onClick={() => (onAddClick ? onAddClick() : setCreateInvoiceDialog(true))}>
+                                    <Plus className="h-4 w-4 mr-0 md:mr-2" />
+                                    <span className="hidden md:inline-flex">{t("invoices.list.actions.addNew")}</span>
+                                </Button>
+                            )}
                         </div>
-                        {showCreateButton && (
-                            <Button onClick={() => setCreateInvoiceDialog(true)}>
-                                <Plus className="h-4 w-4 mr-0 md:mr-2" />
-                                <span className="hidden md:inline-flex">{t("invoices.list.actions.addNew")}</span>
-                            </Button>
-                        )}
                     </CardHeader>
 
                     <CardContent className="p-0">
@@ -204,10 +262,14 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                 <div className="flex-1">
                                                     <div className="flex flex-wrap items-center gap-2">
                                                         <h3 className="font-medium text-foreground break-words">
-                                                            {t("invoices.list.item.title", {
-                                                                number: invoice.rawNumber || invoice.number,
-                                                                title: invoice.title,
-                                                            })}
+                                                            {invoice.status === InvoiceStatus.UPCOMING
+                                                                ? t("invoices.list.item.upcomingTitle", {
+                                                                    client: invoice.client.name || `${invoice.client.contactFirstname} ${invoice.client.contactLastname}`,
+                                                                })
+                                                                : t("invoices.list.item.title", {
+                                                                    number: invoice.rawNumber || invoice.number,
+                                                                    title: invoice.title,
+                                                                })}
                                                         </h3>
                                                         <span
                                                             data-cy="invoice-status"
@@ -222,14 +284,23 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                                 <span className="font-medium text-foreground">{t("invoices.list.item.client")}:</span>{" "}
                                                                 {invoice.client.name || invoice.client.contactFirstname + " " + invoice.client.contactLastname}
                                                             </span>
-                                                            <span>
-                                                                <span className="font-medium text-foreground">{t("invoices.list.item.issued")}:</span>{" "}
-                                                                {new Date(invoice.createdAt).toLocaleDateString()}
-                                                            </span>
-                                                            <span>
-                                                                <span className="font-medium text-foreground">{t("invoices.list.item.due")}:</span>{" "}
-                                                                {new Date(invoice.dueDate).toLocaleDateString()}
-                                                            </span>
+                                                            {invoice.status === InvoiceStatus.UPCOMING ? (
+                                                                <span>
+                                                                    <span className="font-medium text-foreground">{t("invoices.list.item.nextInvoiceDate")}:</span>{" "}
+                                                                    {new Date(invoice.dueDate).toLocaleDateString()}
+                                                                </span>
+                                                            ) : (
+                                                                <>
+                                                                    <span>
+                                                                        <span className="font-medium text-foreground">{t("invoices.list.item.issued")}:</span>{" "}
+                                                                        {new Date(invoice.createdAt).toLocaleDateString()}
+                                                                    </span>
+                                                                    <span>
+                                                                        <span className="font-medium text-foreground">{t("invoices.list.item.due")}:</span>{" "}
+                                                                        {new Date(invoice.dueDate).toLocaleDateString()}
+                                                                    </span>
+                                                                </>
+                                                            )}
                                                             {invoice.paymentMethod && (
                                                                 <span>
                                                                     <span className="font-medium text-foreground">
@@ -257,6 +328,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                 </div>
                                             </div>
 
+                                            {invoice.status !== InvoiceStatus.UPCOMING && (
                                             <div className="grid grid-cols-2 lg:flex justify-start sm:justify-end gap-1 md:gap-2">
                                                 <Button
                                                     tooltip={t("invoices.list.tooltips.view")}
@@ -396,6 +468,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                     <Plus className="h-4 w-4" />
                                                 </Button>
                                             </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
