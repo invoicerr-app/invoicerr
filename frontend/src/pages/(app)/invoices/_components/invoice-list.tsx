@@ -11,6 +11,7 @@ import { InvoiceDeleteDialog } from "./invoice-delete"
 import { InvoicePdfModal } from "./invoice-pdf-view"
 import { InvoiceUpsert } from "./invoice-upsert"
 import { InvoiceViewDialog } from "./invoice-view"
+import { SendConfirmationDialog } from "@/components/send-confirmation-dialog"
 import type React from "react"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
@@ -45,7 +46,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         const { t } = useTranslation()
         const { data: pdf_formats } = useGet<PluginPdfFormat[]>('/api/plugins/formats')
         const { trigger: triggerMarkAsPaid } = usePost(`/api/invoices/mark-as-paid`)
-        const { trigger: triggerSendInvoiceByEmail } = usePost(`/api/invoices/send`)
+        const { trigger: triggerSendInvoiceByEmail, loading: sendInvoiceByEmailLoading } = usePost(`/api/invoices/send`)
         const { trigger: triggerCreateReceipt } = usePost(`/api/receipts/create-from-invoice`)
 
         const [createInvoiceDialog, setCreateInvoiceDialog] = useState<boolean>(false)
@@ -53,6 +54,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         const [viewInvoiceDialog, setViewInvoiceDialog] = useState<Invoice | null>(null)
         const [viewInvoicePdfDialog, setViewInvoicePdfDialog] = useState<Invoice | null>(null)
         const [deleteInvoiceDialog, setDeleteInvoiceDialog] = useState<Invoice | null>(null)
+        const [sendInvoiceDialog, setSendInvoiceDialog] = useState<Invoice | null>(null)
         const [downloadTrigger, setDownloadTrigger] = useState<{
             invoice: Invoice
             format: string
@@ -151,9 +153,16 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
             return t(`invoices.list.status.${status.toLowerCase()}`)
         }
 
-        const handleSendInvoiceByEmail = (invoiceId: string) => {
-            triggerSendInvoiceByEmail({ id: invoiceId })
+        const handleSendInvoiceByEmail = (invoice: Invoice) => {
+            setSendInvoiceDialog(invoice)
+        }
+
+        const confirmSendInvoiceByEmail = () => {
+            if (!sendInvoiceDialog) return
+
+            triggerSendInvoiceByEmail({ id: sendInvoiceDialog.id })
                 .then((result) => {
+                    setSendInvoiceDialog(null)
                     if (result) {
                         toast.success(t("invoices.list.messages.sendByEmailSuccess"))
                     } else {
@@ -355,7 +364,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                         tooltip={t("invoices.list.tooltips.sendByEmail")}
                                                         variant="ghost"
                                                         size="icon"
-                                                        onClick={() => { handleSendInvoiceByEmail(invoice.id) }}
+                                                        onClick={() => { handleSendInvoiceByEmail(invoice) }}
                                                         className="text-gray-600 hover:text-purple-600"
                                                     >
                                                         <Mail className="h-4 w-4" />
@@ -449,6 +458,21 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                         if (!open) setDeleteInvoiceDialog(null)
                         mutate && mutate()
                     }}
+                />
+
+                <SendConfirmationDialog
+                    open={sendInvoiceDialog != null}
+                    onOpenChange={(open: boolean) => {
+                        if (!open) setSendInvoiceDialog(null)
+                    }}
+                    title={t("invoices.sendConfirmation.title")}
+                    description={t("invoices.sendConfirmation.description")}
+                    email={sendInvoiceDialog?.client.contactEmail ?? ""}
+                    emailLabel={t("invoices.sendConfirmation.emailLabel")}
+                    confirmLabel={t("invoices.sendConfirmation.confirm")}
+                    cancelLabel={t("invoices.sendConfirmation.cancel")}
+                    onConfirm={confirmSendInvoiceByEmail}
+                    loading={sendInvoiceByEmailLoading}
                 />
             </>
         )
