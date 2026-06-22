@@ -899,7 +899,8 @@
             "invitations": "Invitations",
             "dangerZone": "Danger Zone",
             "plugins": "Plugins",
-            "webhooks": "Webhooks"
+            "webhooks": "Webhooks",
+            "apiKeys": "API Keys"
         },
         "invitations": {
             "create": {
@@ -1473,6 +1474,24 @@
                 "edit": "Edit",
                 "delete": "Delete",
                 "editPrompt": "Enter new webhook URL"
+            }
+        },
+        "apiKeys": {
+            "title": "API Keys",
+            "description": "Manage API keys to authenticate CLI or third-party clients against the API",
+            "createdKeyTitle": "API key created",
+            "createdKeyNotice": "This key will be shown only once. Store it securely.",
+            "create": {
+                "title": "Create API Key",
+                "description": "Generate a new API key",
+                "name": "Name",
+                "namePlaceholder": "e.g. CLI on my laptop",
+                "button": "Create API Key"
+            },
+            "card": {
+                "lastUsed": "Last used: {{date}}",
+                "neverUsed": "Never used",
+                "revoke": "Revoke"
             }
         }
     },
