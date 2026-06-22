@@ -367,6 +367,13 @@
                 "signature": "Signature"
             }
         },
+        "sendConfirmation": {
+            "title": "Envoyer le devis pour signature",
+            "description": "Ce devis sera envoyé pour signature à l'adresse email du client.",
+            "emailLabel": "Destinataire :",
+            "confirm": "Envoyer",
+            "cancel": "Annuler"
+        },
         "delete": {
             "title": "Supprimer le devis",
             "description": "Êtes-vous sûr de vouloir supprimer ce devis ? Cette action ne peut pas être annulée.",
@@ -577,6 +584,13 @@
                 "totalTTC": "Total TTC",
                 "notes": "Notes"
             }
+        },
+        "sendConfirmation": {
+            "title": "Envoyer la facture par email",
+            "description": "Cette facture sera envoyée à l'adresse email du client.",
+            "emailLabel": "Destinataire :",
+            "confirm": "Envoyer",
+            "cancel": "Annuler"
         },
         "delete": {
             "title": "Supprimer la facture",
@@ -1719,6 +1733,13 @@
                 "create": "Créer un reçu",
                 "edit": "Modifier le reçu"
             }
+        },
+        "sendConfirmation": {
+            "title": "Envoyer le reçu au client",
+            "description": "Ce reçu sera envoyé à l'adresse email du client.",
+            "emailLabel": "Destinataire :",
+            "confirm": "Envoyer",
+            "cancel": "Annuler"
         },
         "delete": {
             "title": "Supprimer le reçu",

@@ -366,6 +366,13 @@
                 "signature": "Signature"
             }
         },
+        "sendConfirmation": {
+            "title": "Send Quote for Signature",
+            "description": "This quote will be sent for signature to the client's email address.",
+            "emailLabel": "Recipient:",
+            "confirm": "Send",
+            "cancel": "Cancel"
+        },
         "delete": {
             "title": "Delete Quote",
             "description": "Are you sure you want to delete this quote? This action cannot be undone.",
@@ -576,6 +583,13 @@
                 "totalTTC": "Total (incl. VAT)",
                 "notes": "Notes"
             }
+        },
+        "sendConfirmation": {
+            "title": "Send Invoice by Email",
+            "description": "This invoice will be sent to the client's email address.",
+            "emailLabel": "Recipient:",
+            "confirm": "Send",
+            "cancel": "Cancel"
         },
         "delete": {
             "title": "Delete Invoice",
@@ -1719,6 +1733,13 @@
                 "create": "Create Receipt",
                 "edit": "Edit Receipt"
             }
+        },
+        "sendConfirmation": {
+            "title": "Send Receipt to Client",
+            "description": "This receipt will be sent to the client's email address.",
+            "emailLabel": "Recipient:",
+            "confirm": "Send",
+            "cancel": "Cancel"
         },
         "delete": {
             "title": "Delete Receipt",
