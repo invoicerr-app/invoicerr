@@ -1,4 +1,4 @@
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 
 import { ApiKeysService } from './api-keys.service';
@@ -29,6 +29,7 @@ export class ApiKeysController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Revoke an API key' })
+  @ApiParam({ name: 'id', type: String, description: 'API key ID' })
   @ApiResponse({ status: 200, description: 'API key revoked' })
   async revoke(@User() user: CurrentUser, @Param('id') id: string) {
     await this.apiKeysService.revoke(user.id, id);
