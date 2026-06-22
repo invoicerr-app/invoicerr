@@ -10,6 +10,8 @@ import {
 import { Button } from "@/components/ui/button"
 import type { Client } from "@/types"
 import { useDelete } from "@/hooks/use-fetch"
+import { queryKeys } from "@/lib/query-keys"
+import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 
 interface ClientDeleteDialogProps {
@@ -19,6 +21,7 @@ interface ClientDeleteDialogProps {
 
 export function ClientDeleteDialog({ client, onOpenChange }: ClientDeleteDialogProps) {
     const { t } = useTranslation()
+    const queryClient = useQueryClient()
     const { trigger } = useDelete(`/api/clients/${client?.id}`)
 
     const handleDelete = () => {
@@ -26,6 +29,7 @@ export function ClientDeleteDialog({ client, onOpenChange }: ClientDeleteDialogP
 
         trigger()
             .then(() => {
+                queryClient.invalidateQueries({ queryKey: queryKeys.clients.listsAll() })
                 onOpenChange(false);
             })
             .catch((error) => {

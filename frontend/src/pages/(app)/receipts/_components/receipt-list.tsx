@@ -49,7 +49,7 @@ export const ReceiptList = forwardRef<ReceiptListHandle, ReceiptListProps>(
         const [deleteReceiptDialog, setDeleteReceiptDialog] = useState<Receipt | null>(null)
         const [downloadReceiptPdf, setDownloadReceiptPdf] = useState<Receipt | null>(null)
 
-        const { data: pdf } = useGetRaw<Response>(`/api/receipts/${downloadReceiptPdf?.id}/pdf`)
+        const { data: pdf } = useGetRaw<Response>(downloadReceiptPdf ? `/api/receipts/${downloadReceiptPdf.id}/pdf` : null)
 
         useImperativeHandle(ref, () => ({
             handleAddClick() {

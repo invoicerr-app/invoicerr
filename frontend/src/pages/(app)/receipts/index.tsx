@@ -1,6 +1,7 @@
 import { Plus, Receipt as ReceiptIcon } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-import { useGetRaw, useSse } from "@/hooks/use-fetch"
+import { useGetRaw } from "@/hooks/use-fetch"
+import { useReceipts } from "@/hooks/queries"
 
 import { Button } from "@/components/ui/button"
 import type { Receipt } from "@/types"
@@ -12,9 +13,9 @@ export default function Receipts() {
     const { t } = useTranslation()
     const receiptListRef = useRef<ReceiptListHandle>(null)
     const [page, setPage] = useState(1)
-    const { data: receipts } = useSse<{ pageCount: number; receipts: Receipt[] }>(`/api/receipts/sse?page=${page}`)
+    const { data: receipts } = useReceipts(page)
     const [downloadReceiptPdf, setDownloadReceiptPdf] = useState<Receipt | null>(null)
-    const { data: pdf } = useGetRaw<Response>(`/api/receipts/${downloadReceiptPdf?.id}/pdf`)
+    const { data: pdf } = useGetRaw<Response>(downloadReceiptPdf ? `/api/receipts/${downloadReceiptPdf.id}/pdf` : null)
 
     useEffect(() => {
         if (downloadReceiptPdf && pdf) {

@@ -2,6 +2,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { usePatch, usePost } from "@/hooks/use-fetch"
+import { queryKeys } from "@/lib/query-keys"
+import { useQueryClient } from "@tanstack/react-query"
 
 import { Button } from "@/components/ui/button"
 import type { Client } from "@/types"
@@ -24,6 +26,7 @@ interface ClientUpsertProps {
 export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUpsertProps) {
     const { t } = useTranslation()
     const isEditing = !!client
+    const queryClient = useQueryClient()
 
     const { trigger: createClient } = usePost("/api/clients")
     const { trigger: updateClient } = usePatch(`/api/clients/${client?.id}`)
@@ -161,6 +164,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
 
         trigger(data)
             .then((createdClient) => {
+                queryClient.invalidateQueries({ queryKey: queryKeys.clients.listsAll() })
                 if (!isEditing && onCreate) {
                     onCreate(createdClient)
                 }

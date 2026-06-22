@@ -2,6 +2,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Download, Edit, Eye, FileText, Plus, Search, Signature, Trash2 } from "lucide-react"
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react"
 import { useGetRaw, usePost } from "@/hooks/use-fetch"
+import { queryKeys } from "@/lib/query-keys"
+import { useQueryClient } from "@tanstack/react-query"
 
 import BetterPagination from "../../../../components/pagination"
 import { Badge } from "@/components/ui/badge"
@@ -45,6 +47,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
         ref,
     ) => {
         const { t } = useTranslation()
+        const queryClient = useQueryClient()
         const { trigger: triggerSendForSignature, loading: signatureLoading } = usePost<{ message: string; signature: { id: string } }>(
             `/api/signatures`,
         )
@@ -58,7 +61,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
         const [deleteQuoteDialog, setDeleteQuoteDialog] = useState<Quote | null>(null)
         const [downloadQuotePdf, setDownloadQuotePdf] = useState<Quote | null>(null)
 
-        const { data: pdf } = useGetRaw<Response>(`/api/quotes/${downloadQuotePdf?.id}/pdf`)
+        const { data: pdf } = useGetRaw<Response>(downloadQuotePdf ? `/api/quotes/${downloadQuotePdf.id}/pdf` : null)
 
         useImperativeHandle(ref, () => ({
             handleAddClick() {
@@ -118,7 +121,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                     }
 
                     toast.success(t("quotes.list.messages.sendSignatureSuccess"))
-                    mutate && mutate()
+                    queryClient.invalidateQueries({ queryKey: queryKeys.quotes.listsAll() })
                 })
                 .catch((error) => {
                     console.error("Error sending quote for signature:", error)
@@ -129,7 +132,8 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
             triggerCreateInvoice({ quoteId })
                 .then(() => {
                     toast.success(t("quotes.list.messages.invoiceCreated"))
-                    mutate && mutate()
+                    queryClient.invalidateQueries({ queryKey: queryKeys.quotes.listsAll() })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 })
                 .catch((error) => {
                     console.error("Error creating invoice from quote:", error)

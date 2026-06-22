@@ -1,7 +1,7 @@
 import { Banknote, Plus } from "lucide-react"
 import { PaymentMethodsList, type PaymentMethodsListHandle } from "@/pages/(app)/payment-methods/_components/payment-method-list"
+import { usePaymentMethods } from "@/hooks/queries"
 import { useRef, useState } from "react"
-import { useSse } from "@/hooks/use-fetch"
 import { Button } from "@/components/ui/button"
 import { usePageHeader } from "@/hooks/use-page-header"
 import { useTranslation } from "react-i18next"
@@ -14,7 +14,7 @@ export default function PaymentMethodsPage() {
   const pmListRef = useRef<PaymentMethodsListHandle>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<ActiveFilter>(undefined)
-  const { data: paymentMethods = [] } = useSse<any[]>("/api/payment-methods/sse")
+  const { data: paymentMethods = [] } = usePaymentMethods()
 
   const filtered = (paymentMethods || []).filter((pm) =>
     ((pm.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||

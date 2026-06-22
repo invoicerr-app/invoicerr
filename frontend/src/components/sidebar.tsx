@@ -31,15 +31,14 @@ import {
 } from "@/components/ui/sidebar"
 
 import { Button } from "./ui/button"
-import type { Company } from "@/types"
 import OnBoarding from "./onboarding"
 import type React from "react"
 import { Skeleton } from "./ui/skeleton"
 import { authClient } from "@/lib/auth"
 import { useEffect, useRef, useState } from "react"
 
+import { useCompany } from "@/hooks/queries"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { useSse } from "@/hooks/use-fetch"
 import { useTheme } from "./theme-provider"
 import { useTranslation } from "react-i18next"
 
@@ -52,7 +51,7 @@ export function Sidebar() {
     const { data, isPending: userLoading } = authClient.useSession()
 
     const { setTheme } = useTheme()
-    const { data: company, loading: companyLoading } = useSse<Company>("/api/company/info/sse")
+    const { data: company, isLoading: companyLoading } = useCompany()
     const navigate = useNavigate()
 
     const [onboardingOpen, setOnboardingOpen] = useState(false)

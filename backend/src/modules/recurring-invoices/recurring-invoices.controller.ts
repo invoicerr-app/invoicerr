@@ -9,10 +9,8 @@ import {
   Patch,
   Post,
   Query,
-  Sse,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { from, interval, map, startWith, switchMap } from 'rxjs';
 
 @ApiTags('recurring-invoices')
 @Controller('recurring-invoices')
@@ -21,15 +19,12 @@ export class RecurringInvoicesController {
     private readonly recurringInvoicesService: RecurringInvoicesService,
   ) { }
 
-  @Sse('sse')
-  @ApiOperation({ summary: 'Subscribe to recurring invoice list updates', description: 'Server-sent event stream that pushes the list of recurring invoices every second.' })
+  @Get()
+  @ApiOperation({ summary: 'List recurring invoices', description: 'Returns a paginated list of recurring invoices.' })
   @ApiQuery({ name: 'page', required: false, type: String, description: 'Page number (1-indexed) of the paginated recurring invoice list. Defaults to 1.' })
-  async getRecurringInvoicesSse(@Query('page') page: string) {
-    return interval(1000).pipe(
-      startWith(0),
-      switchMap(() => from(this.recurringInvoicesService.getRecurringInvoices(page))),
-      map((data) => ({ data: JSON.stringify(data) })),
-    );
+  @ApiResponse({ status: 200, description: 'Recurring invoices retrieved' })
+  async getRecurringInvoices(@Query('page') page: string) {
+    return this.recurringInvoicesService.getRecurringInvoices(page);
   }
 
   @Get(':id')

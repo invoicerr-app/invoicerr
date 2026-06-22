@@ -10,27 +10,22 @@ import {
   Post,
   Query,
   Res,
-  Sse,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { Response } from 'express';
-import { from, interval, map, startWith, switchMap } from 'rxjs';
 
 @ApiTags('quotes')
 @Controller('quotes')
 export class QuotesController {
   constructor(private readonly quotesService: QuotesService) { }
 
-  @Sse('sse')
-  @ApiOperation({ summary: 'Subscribe to quote list updates', description: 'Server-sent event stream that pushes the list of quotes every second.' })
+  @Get()
+  @ApiOperation({ summary: 'List quotes', description: 'Returns a paginated list of quotes.' })
   @ApiQuery({ name: 'page', required: false, type: String, description: 'Page number (1-indexed) of the paginated quote list. Defaults to 1.' })
-  async getQuotesInfoSse(@Query('page') page: string) {
-    return interval(1000).pipe(
-      startWith(0),
-      switchMap(() => from(this.quotesService.getQuotes(page))),
-      map((data) => ({ data: JSON.stringify(data) })),
-    );
+  @ApiResponse({ status: 200, description: 'Quotes retrieved' })
+  async getQuotes(@Query('page') page: string) {
+    return this.quotesService.getQuotes(page);
   }
 
   @Get('search')
