@@ -11,6 +11,7 @@ import type { Receipt } from "@/types"
 import { ReceiptDeleteDialog } from "@/pages/(app)/receipts/_components/receipt-delete"
 import { ReceiptPdfModal } from "@/pages/(app)/receipts/_components/receipt-pdf-view"
 import { ReceiptUpsert } from "@/pages/(app)/receipts/_components/receipt-upsert"
+import { SendConfirmationDialog } from "@/components/send-confirmation-dialog"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 
@@ -39,7 +40,7 @@ export const ReceiptList = forwardRef<ReceiptListHandle, ReceiptListProps>(
         ref,
     ) => {
         const { t } = useTranslation()
-        const { trigger: triggerSendToClient } = usePost<{ message: string; }>(
+        const { trigger: triggerSendToClient, loading: sendToClientLoading } = usePost<{ message: string; }>(
             `/api/receipts/send`,
         )
 
@@ -47,6 +48,7 @@ export const ReceiptList = forwardRef<ReceiptListHandle, ReceiptListProps>(
         const [editReceiptDialog, setEditReceiptDialog] = useState<Receipt | null>(null)
         const [viewReceiptPdfDialog, setViewReceiptPdfDialog] = useState<Receipt | null>(null)
         const [deleteReceiptDialog, setDeleteReceiptDialog] = useState<Receipt | null>(null)
+        const [sendReceiptDialog, setSendReceiptDialog] = useState<Receipt | null>(null)
         const [downloadReceiptPdf, setDownloadReceiptPdf] = useState<Receipt | null>(null)
 
         const { data: pdf } = useGetRaw<Response>(downloadReceiptPdf ? `/api/receipts/${downloadReceiptPdf.id}/pdf` : null)
@@ -91,8 +93,15 @@ export const ReceiptList = forwardRef<ReceiptListHandle, ReceiptListProps>(
         }
 
         function handleSendToClient(receipt: Receipt) {
-            triggerSendToClient({ id: receipt.id })
+            setSendReceiptDialog(receipt)
+        }
+
+        function confirmSendToClient() {
+            if (!sendReceiptDialog) return
+
+            triggerSendToClient({ id: sendReceiptDialog.id })
                 .then((result) => {
+                    setSendReceiptDialog(null)
                     if (result) {
                         toast.success(t("receipts.list.messages.emailSent"))
                         mutate && mutate()
@@ -222,6 +231,7 @@ export const ReceiptList = forwardRef<ReceiptListHandle, ReceiptListProps>(
                                                     size="icon"
                                                     onClick={() => handleSendToClient(receipt)}
                                                     className="text-gray-600 hover:text-blue-600"
+                                                    disabled={sendToClientLoading}
                                                 >
                                                     <Mail className="h-4 w-4" />
                                                 </Button>
@@ -283,6 +293,21 @@ export const ReceiptList = forwardRef<ReceiptListHandle, ReceiptListProps>(
                         if (!open) setDeleteReceiptDialog(null)
                         mutate && mutate()
                     }}
+                />
+
+                <SendConfirmationDialog
+                    open={sendReceiptDialog != null}
+                    onOpenChange={(open: boolean) => {
+                        if (!open) setSendReceiptDialog(null)
+                    }}
+                    title={t("receipts.sendConfirmation.title")}
+                    description={t("receipts.sendConfirmation.description")}
+                    email={sendReceiptDialog?.invoice?.client.contactEmail ?? ""}
+                    emailLabel={t("receipts.sendConfirmation.emailLabel")}
+                    confirmLabel={t("receipts.sendConfirmation.confirm")}
+                    cancelLabel={t("receipts.sendConfirmation.cancel")}
+                    onConfirm={confirmSendToClient}
+                    loading={sendToClientLoading}
                 />
             </>
         )

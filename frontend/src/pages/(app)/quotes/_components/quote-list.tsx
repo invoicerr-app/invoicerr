@@ -14,6 +14,7 @@ import { QuoteDeleteDialog } from "@/pages/(app)/quotes/_components/quote-delete
 import { QuotePdfModal } from "@/pages/(app)/quotes/_components/quote-pdf-view"
 import { QuoteUpsert } from "@/pages/(app)/quotes/_components/quote-upsert"
 import { QuoteViewDialog } from "@/pages/(app)/quotes/_components/quote-view"
+import { SendConfirmationDialog } from "@/components/send-confirmation-dialog"
 import type React from "react"
 import { Spinner } from "@/components/ui/spinner"
 import { toast } from "sonner"
@@ -59,6 +60,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
         const [viewQuoteDialog, setViewQuoteDialog] = useState<Quote | null>(null)
         const [viewQuotePdfDialog, setViewQuotePdfDialog] = useState<Quote | null>(null)
         const [deleteQuoteDialog, setDeleteQuoteDialog] = useState<Quote | null>(null)
+        const [sendQuoteDialog, setSendQuoteDialog] = useState<Quote | null>(null)
         const [downloadQuotePdf, setDownloadQuotePdf] = useState<Quote | null>(null)
 
         const { data: pdf } = useGetRaw<Response>(downloadQuotePdf ? `/api/quotes/${downloadQuotePdf.id}/pdf` : null)
@@ -110,11 +112,18 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
             setDeleteQuoteDialog(quote)
         }
 
-        function handleSendForSignature(quoteId: string) {
-            setQuoteIdForSignature(quoteId)
-            triggerSendForSignature({ quoteId: quoteId })
+        function handleSendForSignature(quote: Quote) {
+            setSendQuoteDialog(quote)
+        }
+
+        function confirmSendForSignature() {
+            if (!sendQuoteDialog) return
+
+            setQuoteIdForSignature(sendQuoteDialog.id)
+            triggerSendForSignature({ quoteId: sendQuoteDialog.id })
                 .then((data) => {
                     setQuoteIdForSignature(null)
+                    setSendQuoteDialog(null)
                     if (!data || !data.signature) {
                         toast.error(t("quotes.list.messages.sendSignatureError"))
                         return
@@ -124,6 +133,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                     queryClient.invalidateQueries({ queryKey: queryKeys.quotes.listsAll() })
                 })
                 .catch((error) => {
+                    setQuoteIdForSignature(null)
                     console.error("Error sending quote for signature:", error)
                 })
         }
@@ -345,7 +355,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                                                         }
                                                         variant="ghost"
                                                         size="icon"
-                                                        onClick={() => (!signatureLoading || quoteIdForSignature !== quote.id) && handleSendForSignature(quote.id)}
+                                                        onClick={() => (!signatureLoading || quoteIdForSignature !== quote.id) && handleSendForSignature(quote)}
                                                         className="text-gray-600 hover:text-blue-600"
                                                         disabled={signatureLoading && quoteIdForSignature === quote.id}
                                                     >
@@ -432,6 +442,21 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                         if (!open) setDeleteQuoteDialog(null)
                         mutate && mutate()
                     }}
+                />
+
+                <SendConfirmationDialog
+                    open={sendQuoteDialog != null}
+                    onOpenChange={(open: boolean) => {
+                        if (!open) setSendQuoteDialog(null)
+                    }}
+                    title={t("quotes.sendConfirmation.title")}
+                    description={t("quotes.sendConfirmation.description")}
+                    email={sendQuoteDialog?.client.contactEmail ?? ""}
+                    emailLabel={t("quotes.sendConfirmation.emailLabel")}
+                    confirmLabel={t("quotes.sendConfirmation.confirm")}
+                    cancelLabel={t("quotes.sendConfirmation.cancel")}
+                    onConfirm={confirmSendForSignature}
+                    loading={signatureLoading && quoteIdForSignature === sendQuoteDialog?.id}
                 />
             </>
         )
