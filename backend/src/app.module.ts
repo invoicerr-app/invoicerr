@@ -1,7 +1,5 @@
 import { APP_GUARD } from '@nestjs/core';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { AuthExtendedModule } from './modules/auth-extended/auth-extended.module';
 import { AuthGuard } from '@/guards/auth.guard';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
@@ -62,9 +60,8 @@ import { auth } from "./lib/auth"
     PrismaModule,
     LoggerModule,
   ],
-  controllers: [AppController],
+  controllers: [],
   providers: [
-    AppService,
     MailService,
     {
       provide: APP_GUARD,
