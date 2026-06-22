@@ -828,6 +828,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  apiKeys       ApiKey[]
 
   // Invitation relations
   createdInvitations InvitationCode[] @relation("CreatedInvitations")
@@ -835,6 +836,20 @@ model User {
 
   @@unique([email])
   @@map("user")
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  name       String
+  keyPrefix  String
+  keyHash    String    @unique
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@map("api_key")
 }
 
 model Session {

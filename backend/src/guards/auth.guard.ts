@@ -1,8 +1,10 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { extractApiKey, hashApiKey } from '@/utils/api-key';
 
 import { Reflector } from '@nestjs/core';
 import { auth } from '@/lib/auth';
 import { fromNodeHeaders } from 'better-auth/node';
+import prisma from '@/prisma/prisma.service';
 
 // Use the same metadata key as @thallesp/nestjs-better-auth
 const IS_PUBLIC_KEY = 'PUBLIC';
@@ -28,13 +30,30 @@ export class AuthGuard implements CanActivate {
       headers,
     });
 
-    if (!session) {
-      throw new UnauthorizedException();
+    if (session) {
+      request.user = session.user;
+      request.session = session.session;
+      return true;
     }
 
-    request.user = session.user;
-    request.session = session.session;
+    const rawKey = extractApiKey(request.headers);
+    if (rawKey) {
+      const apiKey = await prisma.apiKey.findUnique({
+        where: { keyHash: hashApiKey(rawKey) },
+        include: { user: true },
+      });
 
-    return true;
+      if (apiKey) {
+        prisma.apiKey.update({
+          where: { id: apiKey.id },
+          data: { lastUsedAt: new Date() },
+        }).catch(() => undefined);
+
+        request.user = apiKey.user;
+        return true;
+      }
+    }
+
+    throw new UnauthorizedException();
   }
 }

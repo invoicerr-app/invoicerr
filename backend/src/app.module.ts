@@ -1,6 +1,5 @@
 import { APP_GUARD } from '@nestjs/core';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { AuthExtendedModule } from './modules/auth-extended/auth-extended.module';
 import { AuthGuard } from '@/guards/auth.guard';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
@@ -34,9 +33,15 @@ import { auth } from "./lib/auth"
     }),
     ScheduleModule.forRoot(),
     AuthModule.forRoot({
-      auth
+      auth,
+      // We register our own global AuthGuard (src/guards/auth.guard.ts) which already replicates
+      // this library's session check (and the @Public() bypass) plus an API key fallback. Without
+      // this flag, the library's own guard runs in parallel and rejects API-key requests since it
+      // has no knowledge of API keys.
+      disableGlobalAuthGuard: true,
     }),
     AuthExtendedModule,
+    ApiKeysModule,
     CompanyModule,
     ClientsModule,
     QuotesModule,
@@ -55,9 +60,8 @@ import { auth } from "./lib/auth"
     PrismaModule,
     LoggerModule,
   ],
-  controllers: [AppController],
+  controllers: [],
   providers: [
-    AppService,
     MailService,
     {
       provide: APP_GUARD,

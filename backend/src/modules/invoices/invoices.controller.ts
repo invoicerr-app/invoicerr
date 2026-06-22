@@ -10,6 +10,7 @@ import {
   Res,
   Sse,
 } from '@nestjs/common';
+import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { Response } from 'express';
 import { ExportFormat } from '@fin.cx/einvoice';
@@ -19,6 +20,7 @@ import { PluginsService } from '@/modules/plugins/plugins.service';
 import { interval } from 'rxjs/internal/observable/interval';
 import { from, map, startWith, switchMap } from 'rxjs';
 
+@ApiTags('invoices')
 @Controller('invoices')
 export class InvoicesController {
   constructor(
@@ -26,13 +28,10 @@ export class InvoicesController {
     private readonly pluginService: PluginsService,
   ) { }
 
-  @Get()
-  async getInvoicesInfo(@Param('page') page: string) {
-    return await this.invoicesService.getInvoices(page);
-  }
-
   @Sse('sse')
-  async getInvoicesInfoSse(@Param('page') page: string) {
+  @ApiOperation({ summary: 'Subscribe to invoice list updates', description: 'Server-sent event stream that pushes the list of invoices every second.' })
+  @ApiQuery({ name: 'page', required: false, type: String, description: 'Page number (1-indexed) of the paginated invoice list. Defaults to 1.' })
+  async getInvoicesInfoSse(@Query('page') page: string) {
     return interval(1000).pipe(
       startWith(0),
       switchMap(() => from(this.invoicesService.getInvoices(page))),
@@ -41,11 +40,19 @@ export class InvoicesController {
   }
 
   @Get('search')
-  async searchInvoices(@Param('query') query: string) {
+  @ApiOperation({ summary: 'Search invoices', description: 'Searches invoices by query string (client name, invoice number, etc.).' })
+  @ApiQuery({ name: 'query', required: true, type: String, description: 'Free-text search term matched against client name and item descriptions.' })
+  @ApiResponse({ status: 200, description: 'Search results retrieved' })
+  async searchInvoices(@Query('query') query: string) {
     return await this.invoicesService.searchInvoices(query);
   }
 
   @Get(':id/pdf')
+  @ApiOperation({ summary: 'Get invoice PDF', description: 'Downloads the PDF version of a specific invoice, optionally in a different format (e.g. ZUGFeRD).' })
+  @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
+  @ApiQuery({ name: 'format', required: false, enum: ['facturx', 'zugferd', 'xrechnung', 'ubl', 'cii'], description: 'E-invoicing format to render the PDF in. Defaults to the invoice/company configured format.' })
+  @ApiResponse({ status: 200, description: 'PDF retrieved' })
+  @ApiResponse({ status: 404, description: 'Invoice not found' })
   async getInvoicePdf(
     @Param('id') id: string,
     @Query('format') format: ExportFormat | undefined,
@@ -71,6 +78,11 @@ export class InvoicesController {
   }
 
   @Get(':id/download/xml')
+  @ApiOperation({ summary: 'Download invoice as XML', description: 'Downloads an invoice in an XML e-invoicing format (e.g. XRechnung, Factur-X).' })
+  @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
+  @ApiQuery({ name: 'format', required: true, enum: ['facturx', 'zugferd', 'xrechnung', 'ubl', 'cii'], description: 'E-invoicing XML format to export.' })
+  @ApiResponse({ status: 200, description: 'XML retrieved' })
+  @ApiResponse({ status: 404, description: 'Invoice not found' })
   async downloadInvoiceXml(
     @Param('id') id: string,
     @Query('format') format: string | ExportFormat,
@@ -101,6 +113,11 @@ export class InvoicesController {
   }
 
   @Get(':id/download/pdf')
+  @ApiOperation({ summary: 'Download invoice PDF', description: 'Downloads an invoice PDF, optionally in a specific format. Similar to GET :id/pdf but with a download-friendly Content-Disposition.' })
+  @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
+  @ApiQuery({ name: 'format', required: false, enum: ['facturx', 'zugferd', 'xrechnung', 'ubl', 'cii'], description: 'E-invoicing format to render the PDF in. Defaults to the invoice/company configured format.' })
+  @ApiResponse({ status: 200, description: 'PDF retrieved' })
+  @ApiResponse({ status: 404, description: 'Invoice not found' })
   async downloadInvoicePdf(
     @Param('id') id: string,
     @Query('format') format: ExportFormat | undefined,
@@ -126,31 +143,48 @@ export class InvoicesController {
   }
 
   @Post('create-from-quote')
+  @ApiOperation({ summary: 'Create invoice from quote', description: 'Generates a new invoice based on an existing quote.' })
+  @ApiResponse({ status: 201, description: 'Invoice created from quote' })
+  @ApiBody({ schema: { type: 'object', properties: { quoteId: { type: 'string', description: 'ID of the quote to convert to an invoice' } } } })
   createInvoiceFromQuote(@Body('quoteId') quoteId: string) {
     return this.invoicesService.createInvoiceFromQuote(quoteId);
   }
 
   @Post('mark-as-paid')
+  @ApiOperation({ summary: 'Mark invoice as paid', description: 'Marks an invoice as paid with the current date.' })
+  @ApiResponse({ status: 201, description: 'Invoice marked as paid' })
+  @ApiBody({ schema: { type: 'object', properties: { invoiceId: { type: 'string', description: 'ID of the invoice to mark as paid' } } } })
   markInvoiceAsPaid(@Body('invoiceId') invoiceId: string) {
     return this.invoicesService.markInvoiceAsPaid(invoiceId);
   }
 
   @Post()
+  @ApiOperation({ summary: 'Create an invoice', description: 'Creates a new invoice with items, client, and pricing information.' })
+  @ApiResponse({ status: 201, description: 'Invoice created' })
   postInvoicesInfo(@Body() body: CreateInvoiceDto) {
     return this.invoicesService.createInvoice(body);
   }
 
   @Post('send')
+  @ApiOperation({ summary: 'Send invoice by email', description: 'Sends an invoice as a PDF attachment via email to the client.' })
+  @ApiResponse({ status: 201, description: 'Invoice sent' })
+  @ApiBody({ schema: { type: 'object', properties: { id: { type: 'string', description: 'ID of the invoice to send' } } } })
   sendInvoiceByEmail(@Body('id') id: string) {
     return this.invoicesService.sendInvoiceByEmail(id);
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Update an invoice', description: 'Updates an existing invoice by ID.' })
+  @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
+  @ApiResponse({ status: 200, description: 'Invoice updated' })
   editInvoicesInfo(@Param('id') id: string, @Body() body: EditInvoicesDto) {
     return this.invoicesService.editInvoice({ ...body, id });
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Delete an invoice', description: 'Permanently removes an invoice by ID.' })
+  @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
+  @ApiResponse({ status: 200, description: 'Invoice deleted' })
   deleteInvoice(@Param('id') id: string) {
     return this.invoicesService.deleteInvoice(id);
   }
