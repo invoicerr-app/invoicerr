@@ -337,6 +337,7 @@ model Company {
   emailTemplates   MailTemplate[]
   RecurringInvoice RecurringInvoice[]
   webhooks         Webhook[]
+  Article          Article[]
 }
 
 // Client model
@@ -543,6 +544,20 @@ model PaymentMethod {
   isActive  Boolean           @default(true)
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
+}
+
+model Article {
+  id          String   @id @default(cuid())
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId   String
+  name        String // label shown in the picker
+  description String? // text injected into the line item
+  type        ItemType @default(SERVICE)
+  unitPrice   Float    @default(0)
+  vatRate     Float    @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // Signature model

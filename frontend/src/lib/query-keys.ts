@@ -26,6 +26,9 @@ export const queryKeys = {
     paymentMethods: {
         list: () => ["paymentMethods", "list"] as const,
     },
+    articles: {
+        list: () => ["articles", "list"] as const,
+    },
     dashboard: {
         summary: () => ["dashboard", "summary"] as const,
     },

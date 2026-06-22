@@ -6,6 +6,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { useEffect } from "react"
 import { useFieldArray, useFormContext } from "react-hook-form"
 
+import { ArticlePicker } from "@/components/article-picker"
 import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
 import { CSS } from "@dnd-kit/utilities"
@@ -193,23 +194,39 @@ export function InvoiceLineItemsEditor({ translationPrefix, defaultItemType }: I
                 </SortableContext>
             </DndContext>
 
-            <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                    append({
-                        description: "",
-                        type: defaultItemType,
-                        quantity: Number.NaN,
-                        unitPrice: Number.NaN,
-                        vatRate: Number.NaN,
-                        order: fields.length,
-                    })
-                }
-            >
-                <Plus className="mr-2 h-4 w-4" />
-                {t(`${translationPrefix}.upsert.form.items.addItem`)}
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                        append({
+                            description: "",
+                            type: defaultItemType,
+                            quantity: Number.NaN,
+                            unitPrice: Number.NaN,
+                            vatRate: Number.NaN,
+                            order: fields.length,
+                        })
+                    }
+                >
+                    <Plus className="mr-2 h-4 w-4" />
+                    {t(`${translationPrefix}.upsert.form.items.addItem`)}
+                </Button>
+
+                <ArticlePicker
+                    className="sm:max-w-xs"
+                    onPick={(article) =>
+                        append({
+                            description: article.description || article.name,
+                            type: article.type,
+                            quantity: 1,
+                            unitPrice: article.unitPrice,
+                            vatRate: article.vatRate,
+                            order: fields.length,
+                        })
+                    }
+                />
+            </div>
         </FormItem>
     )
 }

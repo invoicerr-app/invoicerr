@@ -17,6 +17,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
 import { CSS } from "@dnd-kit/utilities"
+import { ArticlePicker } from "@/components/article-picker"
 import { ClientUpsert } from "../../clients/_components/client-upsert"
 import CurrencySelect from "@/components/currency-select"
 import { DatePicker } from "@/components/date-picker"
@@ -501,23 +502,39 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                                     </SortableContext>
                                 </DndContext>
 
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() =>
-                                        append({
-                                            description: "",
-                                            type: "HOUR",
-                                            quantity: Number.NaN,
-                                            unitPrice: Number.NaN,
-                                            vatRate: Number.NaN,
-                                            order: fields.length,
-                                        })
-                                    }
-                                >
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    {t("quotes.upsert.form.items.addItem")}
-                                </Button>
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() =>
+                                            append({
+                                                description: "",
+                                                type: "HOUR",
+                                                quantity: Number.NaN,
+                                                unitPrice: Number.NaN,
+                                                vatRate: Number.NaN,
+                                                order: fields.length,
+                                            })
+                                        }
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        {t("quotes.upsert.form.items.addItem")}
+                                    </Button>
+
+                                    <ArticlePicker
+                                        className="sm:max-w-xs"
+                                        onPick={(article) =>
+                                            append({
+                                                description: article.description || article.name,
+                                                type: article.type,
+                                                quantity: 1,
+                                                unitPrice: article.unitPrice,
+                                                vatRate: article.vatRate,
+                                                order: fields.length,
+                                            })
+                                        }
+                                    />
+                                </div>
                             </FormItem>
                         </form>
                     </Form>
