@@ -52,3 +52,11 @@ export * from './lifecycle/state-machine';
 export * from './lifecycle/numbering';
 export * from './lifecycle/corrections';
 export * from './lifecycle/response';
+
+// --- Inbound reception ---
+export * from './reception/reception-service';
+
+// --- Operations facade (one method per lifecycle operation) ---
+export * from './operations/types';
+export * from './operations/document-store';
+export * from './operations/compliance-service';
