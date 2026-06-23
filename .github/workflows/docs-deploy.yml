@@ -10,7 +10,7 @@ on:
     paths:
       - "documentation/**"
   workflow_dispatch:
-
+ 
 permissions:
   contents: read
   pages: write
