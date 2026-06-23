@@ -1,7 +1,6 @@
 services:
   invoicerr:
-    #image: ghcr.io/invoicerr-app/invoicerr:latest
-    build: .
+    image: ghcr.io/invoicerr-app/invoicerr:latest
     ports:
       - "80:80"
     environment:
