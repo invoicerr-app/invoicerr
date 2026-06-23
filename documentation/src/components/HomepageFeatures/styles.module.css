@@ -1,0 +1,53 @@
+.features {
+  display: flex;
+  align-items: center;
+  padding: 4rem 0;
+  width: 100%;
+}
+
+.featureCard {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1.75rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-card-border-radius, 12px);
+  background: var(--ifm-card-background-color, var(--ifm-background-surface-color));
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.featureCardLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.featureCardLink:hover {
+  text-decoration: none;
+  transform: translateY(-4px);
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+}
+
+.featureEmoji {
+  font-size: 2.25rem;
+  line-height: 1;
+  margin-bottom: 1rem;
+}
+
+.featureTitle {
+  margin-bottom: 0.5rem;
+  font-size: 1.2rem;
+}
+
+.featureDescription {
+  margin-bottom: 0;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* Add vertical spacing when cards wrap on smaller screens */
+.features :global(.col) {
+  margin-bottom: 2rem;
+}
