@@ -5,7 +5,10 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import type { Invoice, InvoiceItem, PaymentMethod, Receipt } from "@/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useEffect, useState } from "react"
-import { useGet, usePatch, usePost } from "@/hooks/use-fetch"
+import { usePatch, usePost } from "@/hooks/use-fetch"
+import { useInvoiceSearch, usePaymentMethods } from "@/hooks/queries"
+import { queryKeys } from "@/lib/query-keys"
+import { useQueryClient } from "@tanstack/react-query"
 
 import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
@@ -33,6 +36,7 @@ interface Item {
 export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDialogProps) {
     const { t } = useTranslation()
     const isEdit = !!receipt
+    const queryClient = useQueryClient()
 
     const [clientDialogOpen, setClientDialogOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState("")
@@ -49,11 +53,9 @@ export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDial
         paymentMethodId: z.string().optional(),
     })
 
-    // /api/invoices/search returns an Invoice[] for a non-empty query, but the
-    // paginated { invoices } object when the query is empty — normalize to an array.
-    const { data: invoices } = useGet<Invoice[] | { invoices: Invoice[] }>(`/api/invoices/search?query=${searchTerm}`)
-    const invoiceList = Array.isArray(invoices) ? invoices : (invoices?.invoices ?? [])
-    const { data: paymentMethods } = useGet<PaymentMethod[]>(`/api/payment-methods`)
+    const { data: invoices } = useInvoiceSearch(searchTerm)
+    const invoiceList = Array.isArray(invoices) ? invoices : []
+    const { data: paymentMethods } = usePaymentMethods()
     const { trigger: createTrigger, loading: createLoading } = usePost("/api/receipts")
     const { trigger: updateTrigger, loading: updateLoading } = usePatch(`/api/receipts/${receipt?.id}`)
 
@@ -109,6 +111,7 @@ export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDial
             }))
         })
             .then(() => {
+                queryClient.invalidateQueries({ queryKey: queryKeys.receipts.listsAll() })
                 onOpenChange(false)
                 form.reset()
             })

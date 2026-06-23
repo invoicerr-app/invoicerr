@@ -9,25 +9,20 @@ import {
   Patch,
   Post,
   Query,
-  Sse,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { from, interval, map, startWith, switchMap } from 'rxjs';
 
 @ApiTags('clients')
 @Controller('clients')
 export class ClientsController {
   constructor(private readonly clientsService: ClientsService) { }
 
-  @Sse('sse')
-  @ApiOperation({ summary: 'Subscribe to client list updates', description: 'Server-sent event stream that pushes the client list every second.' })
+  @Get()
+  @ApiOperation({ summary: 'List clients', description: 'Returns a paginated list of clients.' })
   @ApiQuery({ name: 'page', required: false, type: String, description: 'Page number (1-indexed) of the paginated client list. Defaults to 1.' })
-  async getClientsInfoSse(@Query('page') page: string) {
-    return interval(1000).pipe(
-      startWith(0),
-      switchMap(() => from(this.clientsService.getClients(page))),
-      map((clients) => ({ data: JSON.stringify(clients) })),
-    );
+  @ApiResponse({ status: 200, description: 'Clients retrieved' })
+  async getClients(@Query('page') page: string) {
+    return this.clientsService.getClients(page);
   }
 
   @Get('search')

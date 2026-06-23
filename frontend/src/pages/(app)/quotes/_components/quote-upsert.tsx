@@ -9,7 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { useEffect, useState } from "react"
 import { useFieldArray, useForm } from "react-hook-form"
-import { useGet, usePatch, usePost } from "@/hooks/use-fetch"
+import { usePatch, usePost } from "@/hooks/use-fetch"
+import { useClientSearch, usePaymentMethods } from "@/hooks/queries"
+import { queryKeys } from "@/lib/query-keys"
+import { useQueryClient } from "@tanstack/react-query"
 
 import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
@@ -35,6 +38,7 @@ interface QuoteUpsertDialogProps {
 export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProps) {
     const { t } = useTranslation()
     const isEdit = !!quote
+    const queryClient = useQueryClient()
 
     const [clientDialogOpen, setClientDialogOpen] = useState(false)
 
@@ -88,8 +92,8 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
     })
 
     const [searchTerm, setSearchTerm] = useState("")
-    const { data: clients } = useGet<Client[]>(`/api/clients/search?query=${searchTerm}`)
-    const { data: paymentMethods } = useGet<PaymentMethod[]>(`/api/payment-methods`)
+    const { data: clients } = useClientSearch(searchTerm)
+    const { data: paymentMethods } = usePaymentMethods()
 
     const { trigger: createTrigger } = usePost("/api/quotes")
     const { trigger: updateTrigger } = usePatch(`/api/quotes/${quote?.id}`)
@@ -178,6 +182,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
 
         trigger(data)
             .then(() => {
+                queryClient.invalidateQueries({ queryKey: queryKeys.quotes.listsAll() })
                 onOpenChange(false)
                 form.reset()
             })

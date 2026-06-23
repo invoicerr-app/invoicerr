@@ -9,8 +9,8 @@ import { ClientDeleteDialog } from "./_components/client-delete"
 import { ClientUpsert } from "./_components/client-upsert"
 import { ClientViewDialog } from "./_components/client-view"
 import { Input } from "@/components/ui/input"
+import { useClients } from "@/hooks/queries"
 import { usePageHeader } from "@/hooks/use-page-header"
-import { useSse } from "@/hooks/use-fetch"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -19,9 +19,7 @@ type ActiveFilter = "active" | "inactive" | undefined
 export default function Clients() {
     const { t } = useTranslation()
     const [page, setPage] = useState(1)
-    const {
-        data: clients
-    } = useSse<{ pageCount: number; clients: Client[] }>(`/api/clients/sse?page=${page}`)
+    const { data: clients } = useClients(page)
 
     const [createClientDialog, setCreateClientDialog] = useState<boolean>(false)
     const [editClientDialog, setEditClientDialog] = useState<Client | null>(null)

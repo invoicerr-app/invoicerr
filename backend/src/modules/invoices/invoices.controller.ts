@@ -8,7 +8,6 @@ import {
   Post,
   Query,
   Res,
-  Sse,
 } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
@@ -17,8 +16,6 @@ import { ExportFormat } from '@fin.cx/einvoice';
 import { CreateInvoiceDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
 import { InvoicesService } from '@/modules/invoices/invoices.service';
 import { PluginsService } from '@/modules/plugins/plugins.service';
-import { interval } from 'rxjs/internal/observable/interval';
-import { from, map, startWith, switchMap } from 'rxjs';
 
 @ApiTags('invoices')
 @Controller('invoices')
@@ -28,15 +25,12 @@ export class InvoicesController {
     private readonly pluginService: PluginsService,
   ) { }
 
-  @Sse('sse')
-  @ApiOperation({ summary: 'Subscribe to invoice list updates', description: 'Server-sent event stream that pushes the list of invoices every second.' })
+  @Get()
+  @ApiOperation({ summary: 'List invoices', description: 'Returns a paginated list of invoices.' })
   @ApiQuery({ name: 'page', required: false, type: String, description: 'Page number (1-indexed) of the paginated invoice list. Defaults to 1.' })
-  async getInvoicesInfoSse(@Query('page') page: string) {
-    return interval(1000).pipe(
-      startWith(0),
-      switchMap(() => from(this.invoicesService.getInvoices(page))),
-      map((data) => ({ data: JSON.stringify(data) })),
-    );
+  @ApiResponse({ status: 200, description: 'Invoices retrieved' })
+  async getInvoices(@Query('page') page: string) {
+    return this.invoicesService.getInvoices(page);
   }
 
   @Get('search')

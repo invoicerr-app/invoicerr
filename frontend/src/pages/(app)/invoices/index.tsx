@@ -1,10 +1,11 @@
 import { ReceiptText, Plus } from "lucide-react"
 import { InvoiceList, type InvoiceListHandle } from "@/pages/(app)/invoices/_components/invoice-list"
 import { useEffect, useRef, useState } from "react"
-import { useGetRaw, useSse } from "@/hooks/use-fetch"
+import { useGetRaw } from "@/hooks/use-fetch"
+import { useInvoices, useRecurringInvoices } from "@/hooks/queries"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { InvoiceStatus, type Invoice, type RecurringInvoice } from "@/types"
+import { InvoiceStatus, type Invoice } from "@/types"
 import { usePageHeader } from "@/hooks/use-page-header"
 import { useTranslation } from "react-i18next"
 
@@ -16,12 +17,10 @@ export default function Invoices() {
     const invoiceListRef = useRef<InvoiceListHandle>(null)
 
     const [page, setPage] = useState(1)
-    const {
-        data: invoices
-    } = useSse<{ pageCount: number; invoices: Invoice[] }>(`/api/invoices/sse?page=${page}`)
-    const { data: recurringInvoices } = useSse<{ pageCount: number; data: RecurringInvoice[] }>("/api/recurring-invoices/sse")
+    const { data: invoices } = useInvoices(page)
+    const { data: recurringInvoices } = useRecurringInvoices()
     const [downloadInvoicePdf, setDownloadInvoicePdf] = useState<Invoice | null>(null)
-    const { data: pdf } = useGetRaw<Response>(`/api/invoices/${downloadInvoicePdf?.id}/pdf`)
+    const { data: pdf } = useGetRaw<Response>(downloadInvoicePdf ? `/api/invoices/${downloadInvoicePdf.id}/pdf` : null)
 
     useEffect(() => {
         if (downloadInvoicePdf && pdf) {
@@ -56,7 +55,7 @@ export default function Invoices() {
         (statusFilter === "paid" && invoice.status === InvoiceStatus.PAID) ||
         (statusFilter === "unpaid" && (invoice.status === InvoiceStatus.UNPAID || invoice.status === InvoiceStatus.OVERDUE))
 
-    const upcomingInvoices: Invoice[] = (recurringInvoices?.data || [])
+    const upcomingInvoices: Invoice[] = (recurringInvoices?.recurringInvoices || [])
         .filter((recurringInvoice) => !!recurringInvoice.nextInvoiceDate)
         .map((recurringInvoice) => ({
             id: `upcoming-${recurringInvoice.id}`,

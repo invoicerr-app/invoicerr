@@ -1,11 +1,14 @@
-import type { Client, Invoice, PaymentMethod, Quote } from "@/types"
+import type { Client, Invoice, PaymentMethod } from "@/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
-import { useGet, usePatch, usePost } from "@/hooks/use-fetch"
+import { usePatch, usePost } from "@/hooks/use-fetch"
+import { useClientSearch, usePaymentMethods, useQuoteSearch } from "@/hooks/queries"
+import { queryKeys } from "@/lib/query-keys"
+import { useQueryClient } from "@tanstack/react-query"
 
 import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
@@ -69,6 +72,15 @@ function createItemSchema(t: (key: string) => string, translationPrefix: "invoic
 export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDialogProps) {
     const { t } = useTranslation()
     const isEdit = !!invoice
+    const queryClient = useQueryClient()
+
+    const [mode, setMode] = useState<CreationMode>("invoice")
+
+    useEffect(() => {
+        if (open) {
+            setMode("invoice")
+        }
+    }, [open])
 
     const [mode, setMode] = useState<CreationMode>("invoice")
 
@@ -128,9 +140,9 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
     const [clientSearchTerm, setClientsSearchTerm] = useState("")
     const [quoteSearchTerm, setQuoteSearchTerm] = useState("")
     const [clientDialogOpen, setClientDialogOpen] = useState(false)
-    const { data: clients } = useGet<Client[]>(`/api/clients/search?query=${clientSearchTerm}`)
-    const { data: quotes } = useGet<Quote[]>(`/api/quotes/search?query=${quoteSearchTerm}`)
-    const { data: paymentMethods } = useGet<PaymentMethod[]>(`/api/payment-methods`)
+    const { data: clients } = useClientSearch(clientSearchTerm)
+    const { data: quotes } = useQuoteSearch(quoteSearchTerm)
+    const { data: paymentMethods } = usePaymentMethods()
 
     const { trigger: createTrigger } = usePost("/api/invoices")
     const { trigger: updateTrigger } = usePatch(`/api/invoices/${invoice?.id}`)
@@ -215,6 +227,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
 
         trigger(data)
             .then(() => {
+                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 onOpenChange(false)
                 form.reset()
             })
@@ -224,6 +237,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
     const onSubmitRecurring = (data: z.infer<typeof recurringInvoiceSchema>) => {
         createRecurringTrigger(data)
             .then(() => {
+                queryClient.invalidateQueries({ queryKey: queryKeys.recurringInvoices.listsAll() })
                 onOpenChange(false)
                 recurringForm.reset()
             })

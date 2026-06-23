@@ -1,8 +1,7 @@
 import { CompanyService } from '@/modules/company/company.service';
 import { EditCompanyDto, PDFConfigDto } from '@/modules/company/dto/company.dto';
-import { Body, Controller, Get, Post, Put, Sse } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { from, interval, map, startWith, switchMap } from 'rxjs';
 
 
 @ApiTags('company')
@@ -16,16 +15,6 @@ export class CompanyController {
   async getCompanyInfo() {
     const data = await this.companyService.getCompanyInfo();
     return data || {};
-  }
-
-  @Sse('info/sse')
-  @ApiOperation({ summary: 'Subscribe to company info updates', description: 'Server-sent event stream that pushes company info every second.' })
-  async getCompanyInfoSse() {
-    return interval(1000).pipe(
-      startWith(0),
-      switchMap(() => from(this.companyService.getCompanyInfo())),
-      map((company) => ({ data: JSON.stringify(company) })),
-    );
   }
 
   @Post('info')

@@ -3,6 +3,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react"
 import { useGet, useGetRaw, usePost } from "@/hooks/use-fetch"
+import { queryKeys } from "@/lib/query-keys"
+import { useQueryClient } from "@tanstack/react-query"
 
 import BetterPagination from "../../../../components/pagination"
 import { Badge } from "@/components/ui/badge"
@@ -52,6 +54,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         ref,
     ) => {
         const { t } = useTranslation()
+        const queryClient = useQueryClient()
         const { data: pdf_formats } = useGet<PluginPdfFormat[]>('/api/plugins/formats')
         const { trigger: triggerMarkAsPaid } = usePost(`/api/invoices/mark-as-paid`)
         const { trigger: triggerSendInvoiceByEmail, loading: sendInvoiceByEmailLoading } = usePost(`/api/invoices/send`)
@@ -71,7 +74,9 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         } | null>(null)
 
         const { data: file } = useGetRaw<Response>(
-            `/api/invoices/${downloadTrigger?.invoice?.id}/download/${downloadTrigger?.file_format}?format=${downloadTrigger?.format}`,
+            downloadTrigger
+                ? `/api/invoices/${downloadTrigger.invoice.id}/download/${downloadTrigger.file_format}?format=${downloadTrigger.format}`
+                : null,
         )
 
         useImperativeHandle(ref, () => ({
@@ -118,7 +123,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
             triggerMarkAsPaid({ invoiceId })
                 .then(() => {
                     toast.success(t("invoices.list.messages.markAsPaidSuccess"))
-                    mutate && mutate()
+                    queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 })
                 .catch((error) => {
                     console.error("Error marking invoice as paid:", error)
@@ -134,7 +139,8 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
             triggerCreateReceipt({ id: invoiceId })
                 .then(() => {
                     toast.success(t("invoices.list.messages.createReceiptSuccess"))
-                    mutate && mutate()
+                    queryClient.invalidateQueries({ queryKey: queryKeys.receipts.listsAll() })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 })
                 .catch((error) => {
                     console.error("Error creating receipt from invoice:", error)

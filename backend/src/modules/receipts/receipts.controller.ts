@@ -10,27 +10,22 @@ import {
   Post,
   Query,
   Res,
-  Sse,
 } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { Response } from 'express';
-import { interval, from, map, startWith, switchMap } from 'rxjs';
 
 @ApiTags('receipts')
 @Controller('receipts')
 export class ReceiptsController {
   constructor(private readonly receiptsService: ReceiptsService) { }
 
-  @Sse('sse')
-  @ApiOperation({ summary: 'Subscribe to receipt list updates', description: 'Server-sent event stream that pushes the list of receipts every second.' })
+  @Get()
+  @ApiOperation({ summary: 'List receipts', description: 'Returns a paginated list of receipts.' })
   @ApiQuery({ name: 'page', required: false, type: String, description: 'Page number (1-indexed) of the paginated receipt list. Defaults to 1.' })
-  async getReceiptsInfoSse(@Query('page') page: string) {
-    return interval(1000).pipe(
-      startWith(0),
-      switchMap(() => from(this.receiptsService.getReceipts(page))),
-      map((data) => ({ data: JSON.stringify(data) })),
-    );
+  @ApiResponse({ status: 200, description: 'Receipts retrieved' })
+  async getReceipts(@Query('page') page: string) {
+    return this.receiptsService.getReceipts(page);
   }
 
   @Get('search')
