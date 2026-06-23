@@ -36,6 +36,8 @@ import OnBoarding from "./onboarding"
 import type React from "react"
 import { Skeleton } from "./ui/skeleton"
 import { authClient } from "@/lib/auth"
+import { useEffect, useRef, useState } from "react"
+
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useSse } from "@/hooks/use-fetch"
 import { useTheme } from "./theme-provider"
@@ -52,6 +54,21 @@ export function Sidebar() {
     const { setTheme } = useTheme()
     const { data: company, loading: companyLoading } = useSse<Company>("/api/company/info/sse")
     const navigate = useNavigate()
+
+    const [onboardingOpen, setOnboardingOpen] = useState(false)
+    const hasAutoOpenedOnboarding = useRef(false)
+
+    useEffect(() => {
+        if (
+            !hasAutoOpenedOnboarding.current &&
+            !companyLoading &&
+            (!company || !company.name) &&
+            location.pathname !== "/settings/company"
+        ) {
+            hasAutoOpenedOnboarding.current = true
+            setOnboardingOpen(true)
+        }
+    }, [companyLoading, company, location.pathname])
 
     const items: { title: string; icon: React.ReactNode; url: string, dataCy: string }[] = [
         {
@@ -111,21 +128,24 @@ export function Sidebar() {
 
     return (
         <RootSidebar collapsible="icon">
-            <OnBoarding isOpen={!companyLoading && (!company || !company.name) && location.pathname !== "/settings/company"} />
+            <OnBoarding isOpen={onboardingOpen} onOpenChange={setOnboardingOpen} />
 
             <SidebarHeader className="px-2">
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
-                            <section className="flex items-center gap-2">
-                                <div className="bg-accent text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                                    <Building2 className="size-4" />
-                                </div>
-                                <div className="grid flex-1 text-left text-sm leading-tight">
-                                    <span className="truncate font-medium">{company?.name}</span>
-                                    <span className="truncate text-xs">{t("sidebar.company.plan")}</span>
-                                </div>
-                            </section>
+                        <SidebarMenuButton
+                            size="lg"
+                            className="cursor-pointer"
+                            onClick={() => navigate("/settings/company")}
+                            data-cy="sidebar-company-button"
+                        >
+                            <div className="bg-accent text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+                                <Building2 className="size-4" />
+                            </div>
+                            <div className="grid flex-1 text-left text-sm leading-tight">
+                                <span className="truncate font-medium">{company?.name}</span>
+                                <span className="truncate text-xs">{t("sidebar.company.plan")}</span>
+                            </div>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>

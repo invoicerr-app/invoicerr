@@ -194,12 +194,16 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="max-w-sm lg:max-w-4xl" dataCy="quote-dialog">
-                    <DialogHeader>
+                <DialogContent
+                    className="max-w-sm lg:max-w-4xl h-[85dvh] max-h-[85dvh] p-0 gap-0 flex flex-col overflow-hidden"
+                    dataCy="quote-dialog"
+                >
+                    <DialogHeader className="shrink-0 border-b px-6 py-4">
                         <DialogTitle>{t(`quotes.upsert.title.${isEdit ? "edit" : "create"}`)}</DialogTitle>
                     </DialogHeader>
+                    <div className="flex-1 overflow-y-auto px-6 py-4">
                     <Form {...form}>
-                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" data-cy="quote-form">
+                        <form id="quote-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4" data-cy="quote-form">
                             <FormField
                                 control={control}
                                 name="title"
@@ -510,17 +514,18 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                                     {t("quotes.upsert.form.items.addItem")}
                                 </Button>
                             </FormItem>
-
-                            <div className="flex justify-end space-x-2">
-                                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                                    {t("quotes.upsert.actions.cancel")}
-                                </Button>
-                                <Button type="submit" dataCy="quote-submit">
-                                    {t(`quotes.upsert.actions.${isEdit ? "save" : "create"}`)}
-                                </Button>
-                            </div>
                         </form>
                     </Form>
+                    </div>
+
+                    <div className="shrink-0 border-t px-6 py-4 flex justify-end space-x-2">
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                            {t("quotes.upsert.actions.cancel")}
+                        </Button>
+                        <Button type="submit" form="quote-form" dataCy="quote-submit">
+                            {t(`quotes.upsert.actions.${isEdit ? "save" : "create"}`)}
+                        </Button>
+                    </div>
                 </DialogContent>
             </Dialog>
 

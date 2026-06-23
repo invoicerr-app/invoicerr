@@ -1,10 +1,12 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Download, Edit, Eye, FileText, Plus, Signature, Trash2 } from "lucide-react"
+import { Download, Edit, Eye, FileText, Plus, Search, Signature, Trash2 } from "lucide-react"
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react"
 import { useGetRaw, usePost } from "@/hooks/use-fetch"
 
 import BetterPagination from "../../../../components/pagination"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "../../../../components/ui/button"
+import { Input } from "@/components/ui/input"
 import type { Quote } from "@/types"
 import { QuoteDeleteDialog } from "@/pages/(app)/quotes/_components/quote-delete"
 import { QuotePdfModal } from "@/pages/(app)/quotes/_components/quote-pdf-view"
@@ -19,8 +21,13 @@ import { useTranslation } from "react-i18next"
 interface QuoteListProps {
     quotes: Quote[]
     loading: boolean
-    title: string
-    description: string
+    title?: string
+    description?: string
+    searchTerm?: string
+    onSearchChange?: (value: string) => void
+    statusFilter?: "draft" | "sent" | "signed"
+    onStatusFilterChange?: (value: "draft" | "sent" | "signed" | undefined) => void
+    statusCounts?: { draft: number; sent: number; signed: number }
     page?: number
     pageCount?: number
     setPage?: (page: number) => void
@@ -35,7 +42,7 @@ export interface QuoteListHandle {
 
 export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
     (
-        { quotes, loading, title, description, page, pageCount, setPage, mutate, emptyState, showCreateButton = false },
+        { quotes, loading, title, description, searchTerm, onSearchChange, statusFilter, onStatusFilterChange, statusCounts, page, pageCount, setPage, mutate, emptyState, showCreateButton = false },
         ref,
     ) => {
         const { t } = useTranslation()
@@ -162,20 +169,67 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
         return (
             <>
                 <Card className="gap-0">
-                    <CardHeader className="border-b flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle className="flex items-center space-x-2">
-                                <FileText className="h-5 w-5 " />
-                                <span>{title}</span>
-                            </CardTitle>
-                            <CardDescription>{description}</CardDescription>
+                    <CardHeader className="border-b flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:justify-between">
+                        {title ? (
+                            <div>
+                                <CardTitle className="flex items-center space-x-2">
+                                    <span>{title}</span>
+                                </CardTitle>
+                                {description && <CardDescription>{description}</CardDescription>}
+                            </div>
+                        ) : onSearchChange ? (
+                            <div className="relative w-full sm:w-fit sm:flex-1 sm:max-w-sm">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <Input
+                                    placeholder={t("quotes.search.placeholder")}
+                                    value={searchTerm}
+                                    onChange={(e) => onSearchChange(e.target.value)}
+                                    className="pl-10 w-full"
+                                />
+                            </div>
+                        ) : null}
+                        <div className="flex items-center gap-2 sm:ml-auto">
+                            {onStatusFilterChange && (
+                                <div className="flex items-center gap-2">
+                                    <Badge
+                                        onClick={() => onStatusFilterChange(statusFilter === "draft" ? undefined : "draft")}
+                                        variant="outline"
+                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter === "draft"
+                                            ? "bg-yellow-500 text-white font-semibold shadow-sm scale-105"
+                                            : "bg-yellow-50 text-yellow-700/70 hover:bg-yellow-100"
+                                            }`}
+                                    >
+                                        {t("quotes.filters.draft")} ({statusCounts?.draft ?? 0})
+                                    </Badge>
+                                    <Badge
+                                        onClick={() => onStatusFilterChange(statusFilter === "sent" ? undefined : "sent")}
+                                        variant="outline"
+                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter === "sent"
+                                            ? "bg-blue-600 text-white font-semibold shadow-sm scale-105"
+                                            : "bg-blue-50 text-blue-700/70 hover:bg-blue-100"
+                                            }`}
+                                    >
+                                        {t("quotes.filters.sent")} ({statusCounts?.sent ?? 0})
+                                    </Badge>
+                                    <Badge
+                                        onClick={() => onStatusFilterChange(statusFilter === "signed" ? undefined : "signed")}
+                                        variant="outline"
+                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter === "signed"
+                                            ? "bg-green-600 text-white font-semibold shadow-sm scale-105"
+                                            : "bg-green-50 text-green-700/70 hover:bg-green-100"
+                                            }`}
+                                    >
+                                        {t("quotes.filters.signed")} ({statusCounts?.signed ?? 0})
+                                    </Badge>
+                                </div>
+                            )}
+                            {showCreateButton && (
+                                <Button onClick={handleAddClick}>
+                                    <Plus className="h-4 w-4 mr-0 md:mr-2" />
+                                    <span className="hidden md:inline-flex">{t("quotes.list.actions.addNew")}</span>
+                                </Button>
+                            )}
                         </div>
-                        {showCreateButton && (
-                            <Button onClick={handleAddClick}>
-                                <Plus className="h-4 w-4 mr-0 md:mr-2" />
-                                <span className="hidden md:inline-flex">{t("quotes.list.actions.addNew")}</span>
-                            </Button>
-                        )}
                     </CardHeader>
 
                     <CardContent className="p-0">

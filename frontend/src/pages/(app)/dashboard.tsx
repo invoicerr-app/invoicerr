@@ -20,6 +20,7 @@ import { InvoiceList } from "@/pages/(app)/invoices/_components/invoice-list"
 import { QuoteList } from "@/pages/(app)/quotes/_components/quote-list"
 import type React from "react"
 import { authClient } from "@/lib/auth"
+import { usePageHeader } from "@/hooks/use-page-header"
 import { useSse } from "@/hooks/use-fetch"
 import { useTranslation } from "react-i18next"
 
@@ -65,6 +66,8 @@ export default function Dashboard() {
 
     const { data: dashboardData } = useSse<DashboardData>("/api/dashboard/sse")
 
+    usePageHeader(t("dashboard.title"), <LayoutDashboard className="h-5 w-5 text-blue-600" />)
+
     const formatCurrency = (amount: number | null | undefined) => {
         return new Intl.NumberFormat("en-US", {
             style: "currency",
@@ -86,16 +89,8 @@ export default function Dashboard() {
 
     return (
         <div className="max-w-7xl mx-auto space-y-6 p-6">
-            <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                    <LayoutDashboard className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground">{t("dashboard.title")}</h1>
-                    {/* @ts-ignore */}
-                    <p className="text-muted-foreground">{t("dashboard.welcomeMessage", { firstname: user?.user.firstname })}</p>
-                </div>
-            </div>
+            {/* @ts-ignore */}
+            <p className="text-muted-foreground">{t("dashboard.welcomeMessage", { firstname: user?.user?.firstname })}</p>
 
             <section className="space-y-6">
                 <div className="flex items-center space-x-3">

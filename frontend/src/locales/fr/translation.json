@@ -1,4 +1,9 @@
 {
+    "errorBoundary": {
+        "title": "Une erreur est survenue",
+        "description": "Une erreur inattendue s'est produite lors de l'affichage de cette page. Vous pouvez essayer de recharger la page.",
+        "reload": "Recharger la page"
+    },
     "clients": {
         "header": {
             "subtitle": "Gérez vos clients",
@@ -209,6 +214,12 @@
             "draft": "Brouillon",
             "signed": "Signés"
         },
+        "filters": {
+            "all": "Tous",
+            "draft": "Brouillon",
+            "sent": "Envoyé",
+            "signed": "Signés"
+        },
         "emptyState": {
             "noQuotes": "Aucun devis pour le moment",
             "noResults": "Aucun devis trouvé",
@@ -398,10 +409,21 @@
         "actions": {
             "addNew": "Ajouter une nouvelle facture"
         },
+        "filters": {
+            "all": "Toutes",
+            "oneTime": "Ponctuelles",
+            "recurring": "Récurrentes"
+        },
         "stats": {
             "total": "Total des factures",
             "sent": "Envoyées",
             "paid": "Payées"
+        },
+        "statusFilters": {
+            "all": "Toutes",
+            "sent": "Envoyées",
+            "paid": "Payées",
+            "unpaid": "Impayées"
         },
         "emptyState": {
             "noInvoices": "Aucune facture pour le moment",
@@ -416,13 +438,16 @@
                 "sent": "Envoyée",
                 "unpaid": "Impayée",
                 "overdue": "En retard",
-                "paid": "Payée"
+                "paid": "Payée",
+                "upcoming": "À venir"
             },
             "item": {
                 "title": "Facture {{number}} {{title}}",
+                "upcomingTitle": "Prochaine facture - {{client}}",
                 "client": "Client",
                 "issued": "Émise le",
                 "due": "Échéance",
+                "nextInvoiceDate": "Prochaine facture le",
                 "payment": "Paiement",
                 "totalHT": "Total HT",
                 "totalTTC": "Total TTC"
@@ -461,6 +486,10 @@
             "title": {
                 "create": "Créer une nouvelle facture",
                 "edit": "Modifier la facture"
+            },
+            "tabs": {
+                "invoice": "Facture",
+                "recurring": "Facture récurrente"
             },
             "form": {
                 "quote": {
@@ -894,6 +923,7 @@
         "empty": "Aucun moyen de paiement disponible pour le moment."
     },
     "settings": {
+        "title": "Paramètres",
         "tabs": {
             "company": "Entreprise",
             "pdfTemplates": "Modèles PDF",
@@ -1759,7 +1789,11 @@
         "noData": "Aucune donnée disponible pour la période sélectionnée.",
         "controls": {
             "year": "Année",
-            "range": "Plage d'années"
+            "range": "Plage d'années",
+            "tabs": {
+                "monthly": "Par mois",
+                "yearly": "Par années"
+            }
         },
         "monthly": {
             "title": "Statistiques mensuelles"

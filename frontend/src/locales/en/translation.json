@@ -1,4 +1,9 @@
 {
+    "errorBoundary": {
+        "title": "Something went wrong",
+        "description": "An unexpected error occurred while rendering this page. You can try reloading the page.",
+        "reload": "Reload page"
+    },
     "clients": {
         "header": {
             "subtitle": "Manage your clients",
@@ -208,6 +213,12 @@
             "draft": "Draft",
             "signed": "Signed"
         },
+        "filters": {
+            "all": "All",
+            "draft": "Draft",
+            "sent": "Sent",
+            "signed": "Signed"
+        },
         "emptyState": {
             "noQuotes": "No quotes yet",
             "noResults": "No quotes found",
@@ -397,10 +408,21 @@
         "actions": {
             "addNew": "Add New Invoice"
         },
+        "filters": {
+            "all": "All",
+            "oneTime": "One-time",
+            "recurring": "Recurring"
+        },
         "stats": {
             "total": "Total Invoices",
             "sent": "Sent",
             "paid": "Paid"
+        },
+        "statusFilters": {
+            "all": "All",
+            "sent": "Sent",
+            "paid": "Paid",
+            "unpaid": "Unpaid"
         },
         "emptyState": {
             "noInvoices": "No invoices yet",
@@ -415,13 +437,16 @@
                 "sent": "Sent",
                 "unpaid": "Unpaid",
                 "overdue": "Overdue",
-                "paid": "Paid"
+                "paid": "Paid",
+                "upcoming": "Upcoming"
             },
             "item": {
                 "title": "Invoice {{number}} {{title}}",
+                "upcomingTitle": "Next invoice - {{client}}",
                 "client": "Client",
                 "issued": "Issued",
                 "due": "Due",
+                "nextInvoiceDate": "Next invoice on",
                 "payment": "Payment",
                 "totalHT": "Total (excl. VAT)",
                 "totalTTC": "Total (incl. VAT)"
@@ -460,6 +485,10 @@
             "title": {
                 "create": "Create New Invoice",
                 "edit": "Edit Invoice"
+            },
+            "tabs": {
+                "invoice": "Invoice",
+                "recurring": "Recurring Invoice"
             },
             "form": {
                 "quote": {
@@ -1778,7 +1807,11 @@
         "noData": "No data available for the selected period.",
         "controls": {
             "year": "Year",
-            "range": "Year range"
+            "range": "Year range",
+            "tabs": {
+                "monthly": "By month",
+                "yearly": "By year"
+            }
         },
         "monthly": {
             "title": "Monthly statistics"

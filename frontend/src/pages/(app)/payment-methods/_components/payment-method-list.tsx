@@ -1,8 +1,10 @@
-import { Banknote, Edit, Eye, Plus, Trash2 } from "lucide-react"
+import { Banknote, Edit, Eye, Plus, Search, Trash2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { forwardRef, useImperativeHandle, useState } from "react"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { PaymentMethodDeleteDialog } from "./payment-method-delete"
 import { PaymentMethodUpsert } from "./payment-method-upsert"
 import { PaymentMethodViewDialog } from "./payment-method-view"
@@ -20,8 +22,13 @@ interface PaymentMethod {
 interface PaymentMethodsListProps {
   paymentMethods: PaymentMethod[]
   loading: boolean
-  title: string
-  description: string
+  title?: string
+  description?: string
+  searchTerm?: string
+  onSearchChange?: (value: string) => void
+  statusFilter?: "active" | "inactive"
+  onStatusFilterChange?: (value: "active" | "inactive" | undefined) => void
+  statusCounts?: { active: number; inactive: number }
   page?: number
   pageCount?: number
   setPage?: (page: number) => void
@@ -35,7 +42,7 @@ export interface PaymentMethodsListHandle {
 }
 
 export const PaymentMethodsList = forwardRef<PaymentMethodsListHandle, PaymentMethodsListProps>(
-  ({ paymentMethods = [], loading, title, description, mutate, emptyState, showCreateButton = false }, ref) => {
+  ({ paymentMethods = [], loading, title, description, searchTerm, onSearchChange, statusFilter, onStatusFilterChange, statusCounts, mutate, emptyState, showCreateButton = false }, ref) => {
     const { t } = useTranslation()
     const [createDialog, setCreateDialog] = useState<boolean>(false)
     const [editDialog, setEditDialog] = useState<PaymentMethod | null>(null)
@@ -63,20 +70,57 @@ export const PaymentMethodsList = forwardRef<PaymentMethodsListHandle, PaymentMe
     return (
       <>
         <Card className="gap-0">
-          <CardHeader className="border-b flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center space-x-2">
-                <Banknote className="h-5 w-5 " />
-                <span>{title}</span>
-              </CardTitle>
-              <CardDescription>{description}</CardDescription>
+          <CardHeader className="border-b flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:justify-between">
+            {title ? (
+              <div>
+                <CardTitle className="flex items-center space-x-2">
+                  <span>{title}</span>
+                </CardTitle>
+                {description && <CardDescription>{description}</CardDescription>}
+              </div>
+            ) : onSearchChange ? (
+              <div className="relative w-full sm:w-fit sm:flex-1 sm:max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder={t("paymentMethods.search.placeholder") || ""}
+                  value={searchTerm}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                  className="pl-10 w-full"
+                />
+              </div>
+            ) : null}
+            <div className="flex items-center gap-2 sm:ml-auto">
+              {onStatusFilterChange && (
+                <div className="flex items-center gap-2">
+                  <Badge
+                    onClick={() => onStatusFilterChange(statusFilter === "active" ? undefined : "active")}
+                    variant="outline"
+                    className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter === "active"
+                      ? "bg-green-600 text-white font-semibold shadow-sm scale-105"
+                      : "bg-green-50 text-green-700/70 hover:bg-green-100"
+                      }`}
+                  >
+                    {t("clients.stats.active")} ({statusCounts?.active ?? 0})
+                  </Badge>
+                  <Badge
+                    onClick={() => onStatusFilterChange(statusFilter === "inactive" ? undefined : "inactive")}
+                    variant="outline"
+                    className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter === "inactive"
+                      ? "bg-gray-500 text-white font-semibold shadow-sm scale-105"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                  >
+                    {t("clients.stats.inactive")} ({statusCounts?.inactive ?? 0})
+                  </Badge>
+                </div>
+              )}
+              {showCreateButton && (
+                <Button onClick={() => setCreateDialog(true)}>
+                  <Plus className="h-4 w-4 mr-0 md:mr-2" />
+                  <span className="hidden md:inline-flex">{t("paymentMethods.list.add")}</span>
+                </Button>
+              )}
             </div>
-            {showCreateButton && (
-              <Button onClick={() => setCreateDialog(true)}>
-                <Plus className="h-4 w-4 mr-0 md:mr-2" />
-                <span className="hidden md:inline-flex">{t("paymentMethods.list.add")}</span>
-              </Button>
-            )}
           </CardHeader>
 
           <CardContent className="p-0">
