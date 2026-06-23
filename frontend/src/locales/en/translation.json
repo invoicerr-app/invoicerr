@@ -168,7 +168,14 @@
             "actions": {
                 "cancel": "Cancel",
                 "create": "Create Client",
-                "save": "Save Changes"
+                "save": "Save Changes",
+                "lookupSiret": "Look up"
+            },
+            "messages": {
+                "siretSuccess": "Company information retrieved successfully.",
+                "siretNotFound": "Company not found. You can enter the information manually.",
+                "siretInvalid": "The SIRET number looks invalid.",
+                "siretError": "Could not reach the company directory."
             }
         },
         "view": {
@@ -1641,6 +1648,11 @@
             "placeholder": "Select your currency",
             "searchPlaceholder": "Search currencies...",
             "noResults": "No currencies found"
+        },
+        "country-select": {
+            "placeholder": "Select a country",
+            "searchPlaceholder": "Search countries...",
+            "noResults": "No countries found"
         }
     },
     "common": {

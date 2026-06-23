@@ -21,6 +21,7 @@ import { ReceiptsModule } from './modules/receipts/receipts.module';
 import { RecurringInvoicesModule } from './modules/recurring-invoices/recurring-invoices.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { SignaturesModule } from './modules/signatures/signatures.module';
+import { SireneModule } from './modules/sirene/sirene.module';
 import { StatsModule } from './modules/stats/stats.module'
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { LoggerModule } from './modules/logger/logger.module';
@@ -49,6 +50,7 @@ import { auth } from "./lib/auth"
     ReceiptsModule,
     DashboardModule,
     SignaturesModule,
+    SireneModule,
     DangerModule,
     DirectoryModule,
     PluginsModule,
