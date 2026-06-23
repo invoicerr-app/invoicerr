@@ -5,8 +5,6 @@ name: Deploy Documentation
 # `main` once the feature is merged and ready to go live (see issue #321).
 on:
   push:
-    branches:
-      - feat/documentation-321
     paths:
       - "documentation/**"
   workflow_dispatch:
