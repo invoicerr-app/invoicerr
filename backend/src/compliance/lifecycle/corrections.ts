@@ -6,7 +6,7 @@ import { TransactionContext } from '../canonical/canonical-document';
 import { ComplianceLogger } from '../execution/logger';
 import { CorrectionModel, DocumentKind } from '../types';
 
-export interface CorrectionResult {
+export interface CorrectionOutcome {
   newKind: DocumentKind;
   correctsRef: string;
   notes: string[];
@@ -14,13 +14,13 @@ export interface CorrectionResult {
 
 export interface CorrectionStrategy {
   readonly model: CorrectionModel;
-  correct(originalRef: string, ctx: TransactionContext, log: ComplianceLogger): CorrectionResult;
+  correct(originalRef: string, ctx: TransactionContext, log: ComplianceLogger): CorrectionOutcome;
 }
 
 /** EU style: issue a credit note (avoir) referencing the original, optionally + a fresh invoice. */
 export class CreditNoteStrategy implements CorrectionStrategy {
   readonly model: CorrectionModel = 'CREDIT_NOTE';
-  correct(originalRef: string, _ctx: TransactionContext, log: ComplianceLogger): CorrectionResult {
+  correct(originalRef: string, _ctx: TransactionContext, log: ComplianceLogger): CorrectionOutcome {
     log.todo('lifecycle/corrections/credit-note', `create CREDIT_NOTE referencing ${originalRef}`);
     return { newKind: 'CREDIT_NOTE', correctsRef: originalRef, notes: ['credit note issued'] };
   }
@@ -29,7 +29,7 @@ export class CreditNoteStrategy implements CorrectionStrategy {
 /** Some LATAM: a corrective invoice that supersedes the original's amounts. */
 export class CorrectiveInvoiceStrategy implements CorrectionStrategy {
   readonly model: CorrectionModel = 'CORRECTIVE_INVOICE';
-  correct(originalRef: string, _ctx: TransactionContext, log: ComplianceLogger): CorrectionResult {
+  correct(originalRef: string, _ctx: TransactionContext, log: ComplianceLogger): CorrectionOutcome {
     log.todo('lifecycle/corrections/corrective-invoice', `create CORRECTIVE_INVOICE for ${originalRef}`);
     return { newKind: 'CORRECTIVE_INVOICE', correctsRef: originalRef, notes: ['corrective invoice issued'] };
   }
@@ -38,7 +38,7 @@ export class CorrectiveInvoiceStrategy implements CorrectionStrategy {
 /** Clearance systems with substitution: cancel the original and replace it. */
 export class CancelAndReplaceStrategy implements CorrectionStrategy {
   readonly model: CorrectionModel = 'CANCEL_AND_REPLACE';
-  correct(originalRef: string, _ctx: TransactionContext, log: ComplianceLogger): CorrectionResult {
+  correct(originalRef: string, _ctx: TransactionContext, log: ComplianceLogger): CorrectionOutcome {
     log.todo('lifecycle/corrections/cancel-replace', `cancel ${originalRef} with the authority and issue a replacement`);
     return { newKind: 'INVOICE', correctsRef: originalRef, notes: ['original cancelled, replacement issued'] };
   }
