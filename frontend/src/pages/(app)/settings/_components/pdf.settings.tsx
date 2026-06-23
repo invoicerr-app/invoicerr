@@ -259,17 +259,17 @@ const defaultQuoteTemplate = `
 </html>
 `
 
-const defaultReceiptTemplate = `
+const defaultPaymentTemplate = `
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
-    <title>{{labels.receipt}} {{number}}</title>
+    <title>{{labels.payment}} {{number}}</title>
     <style>
         body { font-family: {{fontFamily}}, sans-serif; margin: {{padding}}px; color: #333; }
         .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
         .company-info h1 { margin: 0; color: {{primaryColor}}; }
-        .receipt-info { text-align: right; }
+        .payment-info { text-align: right; }
         .client-info { margin-bottom: 30px; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
@@ -294,9 +294,9 @@ const defaultReceiptTemplate = `
             {{#if company.legalId}}<strong>{{labels.legalId}}:</strong> {{company.legalId}}<br>{{/if}}
             {{#if company.VAT}}<strong>{{labels.VATId}}:</strong> {{company.VAT}}{{/if}}</p>
         </div>
-        <div class="receipt-info">
-            <h2>{{labels.receipt}}</h2>
-            <p><strong>{{labels.receipt}}:</strong> #{{number}}<br>
+        <div class="payment-info">
+            <h2>{{labels.payment}}</h2>
+            <p><strong>{{labels.payment}}:</strong> #{{number}}<br>
             <strong>{{labels.paymentDate}}</strong> {{paymentDate}}<br>
             <strong>{{labels.invoiceRefer}}</strong> {{invoiceNumber}}</p>
         </div>
@@ -399,8 +399,8 @@ interface TemplateSettings {
         product: string
         type: string
 
-        // Receipt-specific labels
-        receipt: string
+        // Payment-specific labels
+        payment: string
         receivedFrom: string
         invoiceRefer: string
         paymentDate: string
@@ -480,8 +480,8 @@ export default function PDFTemplatesSettings() {
             product: t("settings.pdfTemplates.defaultLabels.product"),
             type: t("settings.pdfTemplates.defaultLabels.type"),
 
-            // Receipt defaults
-            receipt: t("settings.pdfTemplates.defaultLabels.receipt"),
+            // Payment defaults
+            payment: t("settings.pdfTemplates.defaultLabels.payment"),
             receivedFrom: t("settings.pdfTemplates.defaultLabels.receivedFrom"),
             invoiceRefer: t("settings.pdfTemplates.defaultLabels.invoiceRefer"),
             paymentDate: t("settings.pdfTemplates.defaultLabels.paymentDate"),
@@ -560,7 +560,7 @@ export default function PDFTemplatesSettings() {
                 legalId: "987654321",
                 VAT: "US987654321",
             },
-            number: settings.templateType === "invoice" ? "INV-2024-001" : settings.templateType === "quote" ? "QUO-2024-001" : "REC-2024-001",
+            number: settings.templateType === "invoice" ? "INV-2024-001" : settings.templateType === "quote" ? "QUO-2024-001" : "PAY-2024-001",
             date: new Date().toLocaleDateString("en-US"),
             dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString("en-US"),
             validUntil: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString("en-US"),
@@ -615,7 +615,7 @@ export default function PDFTemplatesSettings() {
                 ? defaultInvoiceTemplate
                 : settings.templateType === "quote"
                     ? defaultQuoteTemplate
-                    : defaultReceiptTemplate
+                    : defaultPaymentTemplate
         const compiledTemplate = Handlebars.compile(template)
         return compiledTemplate(sampleData)
     }, [settings, sampleData])
@@ -1054,11 +1054,11 @@ export default function PDFTemplatesSettings() {
                                                 </div>
 
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="label-receipt">{t("settings.pdfTemplates.labels.receipt")}</Label>
+                                                    <Label htmlFor="label-payment">{t("settings.pdfTemplates.labels.payment")}</Label>
                                                     <Input
-                                                        id="label-receipt"
-                                                        value={settings.labels.receipt}
-                                                        onChange={(e) => updateLabel("receipt", e.target.value)}
+                                                        id="label-payment"
+                                                        value={settings.labels.payment}
+                                                        onChange={(e) => updateLabel("payment", e.target.value)}
                                                     />
                                                 </div>
                                                 <div className="space-y-2">

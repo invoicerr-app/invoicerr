@@ -1032,18 +1032,18 @@
                         "format": "El formato de número de factura es inválido. Use {year}, {month}, {day}, {number} con relleno opcional (ej. {number:4})"
                     }
                 },
-                "receiptStartingNumber": {
-                    "label": "Número inicial de recibo",
-                    "placeholder": "Ingrese número inicial para recibos",
-                    "description": "Número inicial para la numeración de recibos",
+                "paymentStartingNumber": {
+                    "label": "Número inicial de pago",
+                    "placeholder": "Ingrese número inicial para pagos",
+                    "description": "Número inicial para la numeración de pagos",
                     "errors": {
-                        "min": "El número inicial de recibo debe ser al menos 1"
+                        "min": "El número inicial de pago debe ser al menos 1"
                     }
                 },
-                "receiptNumberFormat": {
-                    "label": "Formato de número de recibo",
-                    "placeholder": "Ingrese el formato de número de recibo (ej. REC-{year}-{number})",
-                    "description": "Formato para los números de recibo",
+                "paymentNumberFormat": {
+                    "label": "Formato de número de pago",
+                    "placeholder": "Ingrese el formato de número de pago (ej. PAY-{year}-{number})",
+                    "description": "Formato para los números de pago",
                     "errors": {
                         "required": "El formato de número de recibo es obligatorio",
                         "maxLength": "El formato de número de recibo debe ser menor a 100 caracteres",
@@ -1240,7 +1240,7 @@
                 "options": {
                     "invoice": "Plantilla de factura",
                     "quote": "Plantilla de cotización",
-                    "receipt": "Plantilla de recibo"
+                    "payment": "Plantilla de pago"
                 }
             },
             "typography": {
@@ -1270,7 +1270,7 @@
                 "title": "Etiquetas y textos",
                 "invoice": "Factura",
                 "quote": "Cotización",
-                "receipt": "Recibo",
+                "payment": "Pago",
                 "billTo": "Facturar a",
                 "quoteFor": "Cotización para",
                 "validUntil": "Válida hasta",
@@ -1309,7 +1309,7 @@
             "defaultLabels": {
                 "invoice": "Factura",
                 "quote": "Cotización",
-                "receipt": "Recibo",
+                "payment": "Pago",
                 "billTo": "Facturar a",
                 "quoteFor": "Cotización para",
                 "validUntil": "Válida hasta",
@@ -1441,7 +1441,7 @@
             "dashboard": "Panel de control",
             "quotes": "Cotizaciones",
             "invoices": "Facturas",
-            "receipts": "Recibos",
+            "payments": "Pagos",
             "clients": "Clientes",
             "paymentMethods": "Métodos de pago",
             "stats": "Estadísticas",
@@ -1569,7 +1569,7 @@
         "valueWithCurrency": "{{amount}}{{currency}}"
     },
     "noOptions": "No hay opciones disponibles. Cree un nuevo cliente.",
-    "receipts": {
+    "payments": {
         "header": {
             "subtitle": "Administra tus recibos",
             "count": "{{count}} recibos {{found}}",

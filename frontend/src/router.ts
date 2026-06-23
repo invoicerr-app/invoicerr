@@ -12,8 +12,8 @@ export type Path =
   | `/dashboard`
   | `/invoices`
   | `/payment-methods`
+  | `/payments`
   | `/quotes`
-  | `/receipts`
   | `/settings/:tab?`
   | `/signature/:id`
   | `/stats`

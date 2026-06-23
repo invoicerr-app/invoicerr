@@ -44,8 +44,8 @@ export interface OnBoardingData {
   quoteNumberFormat: string
   invoiceStartingNumber: number
   invoiceNumberFormat: string
-  receiptStartingNumber: number
-  receiptNumberFormat: string
+  paymentStartingNumber: number
+  paymentNumberFormat: string
   invoicePDFFormat: string
   dateFormat: string
   exemptVat?: boolean
@@ -170,14 +170,14 @@ export default function OnBoarding({
       .refine((val) => {
         return validateNumberFormat(val)
       }, t("settings.company.form.invoiceNumberFormat.errors.format")),
-    receiptStartingNumber: z.number().min(1, t("settings.company.form.receiptStartingNumber.errors.min")),
-    receiptNumberFormat: z
+    paymentStartingNumber: z.number().min(1, t("settings.company.form.paymentStartingNumber.errors.min")),
+    paymentNumberFormat: z
       .string()
-      .min(1, t("settings.company.form.receiptNumberFormat.errors.required"))
-      .max(100, t("settings.company.form.receiptNumberFormat.errors.maxLength"))
+      .min(1, t("settings.company.form.paymentNumberFormat.errors.required"))
+      .max(100, t("settings.company.form.paymentNumberFormat.errors.maxLength"))
       .refine((val) => {
         return validateNumberFormat(val)
-      }, t("settings.company.form.receiptNumberFormat.errors.format")),
+      }, t("settings.company.form.paymentNumberFormat.errors.format")),
     invoicePDFFormat: z
       .string()
       .min(3, t("settings.company.form.invoicePDFFormat.errors.minLength"))
@@ -218,8 +218,8 @@ export default function OnBoarding({
       quoteNumberFormat: "Q-{year}-{number}",
       invoiceStartingNumber: 1,
       invoiceNumberFormat: "INV-{year}-{number}",
-      receiptStartingNumber: 1,
-      receiptNumberFormat: "REC-{year}-{number}",
+      paymentStartingNumber: 1,
+      paymentNumberFormat: "PAY-{year}-{number}",
     },
   })
 
@@ -255,8 +255,8 @@ export default function OnBoarding({
           "quoteNumberFormat",
           "invoiceStartingNumber",
           "invoiceNumberFormat",
-          "receiptStartingNumber",
-          "receiptNumberFormat",
+          "paymentStartingNumber",
+          "paymentNumberFormat",
           "invoicePDFFormat",
           "dateFormat",
         ]
@@ -591,21 +591,21 @@ export default function OnBoarding({
                       />
                       <FormField
                         control={form.control}
-                        name="receiptStartingNumber"
+                        name="paymentStartingNumber"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel required>{t("settings.company.form.receiptStartingNumber.label")}</FormLabel>
+                            <FormLabel required>{t("settings.company.form.paymentStartingNumber.label")}</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
-                                placeholder={t("settings.company.form.receiptStartingNumber.placeholder")}
+                                placeholder={t("settings.company.form.paymentStartingNumber.placeholder")}
                                 {...field}
                                 onChange={(e) => field.onChange(Number(e.target.value))}
-                                data-cy="onboarding-company-receipt-starting-number-input"
+                                data-cy="onboarding-company-payment-starting-number-input"
                               />
                             </FormControl>
                             <FormDescription>
-                              {t("settings.company.form.receiptStartingNumber.description")}
+                              {t("settings.company.form.paymentStartingNumber.description")}
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
@@ -613,19 +613,19 @@ export default function OnBoarding({
                       />
                       <FormField
                         control={form.control}
-                        name="receiptNumberFormat"
+                        name="paymentNumberFormat"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel required>{t("settings.company.form.receiptNumberFormat.label")}</FormLabel>
+                            <FormLabel required>{t("settings.company.form.paymentNumberFormat.label")}</FormLabel>
                             <FormControl>
                               <Input
-                                placeholder={t("settings.company.form.receiptNumberFormat.placeholder")}
+                                placeholder={t("settings.company.form.paymentNumberFormat.placeholder")}
                                 {...field}
-                                data-cy="onboarding-company-receipt-number-format-input"
+                                data-cy="onboarding-company-payment-number-format-input"
                               />
                             </FormControl>
                             <FormDescription>
-                              {t("settings.company.form.receiptNumberFormat.description")}
+                              {t("settings.company.form.paymentNumberFormat.description")}
                             </FormDescription>
                             <FormMessage />
                           </FormItem>

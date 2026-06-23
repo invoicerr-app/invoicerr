@@ -458,7 +458,7 @@
                 "edit": "Edit invoice",
                 "markAsPaid": "Mark as paid",
                 "delete": "Delete invoice",
-                "createReceipt": "Create a receipt from this invoice",
+                "createPayment": "Create a payment from this invoice",
                 "sendByEmail": "Send invoice by email"
             },
             "actions": {
@@ -477,7 +477,7 @@
             "messages": {
                 "markAsPaidSuccess": "Invoice marked as paid successfully",
                 "markAsPaidError": "Failed to mark invoice as paid",
-                "createReceiptSuccess": "Receipt created successfully from invoice",
+                "createPaymentSuccess": "Payment created successfully from invoice",
                 "sendByEmailSuccess": "Invoice has been sent to customer"
             }
         },
@@ -1136,22 +1136,22 @@
                         "format": "Invoice number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
                     }
                 },
-                "receiptStartingNumber": {
-                    "label": "Receipt Starting Number",
-                    "placeholder": "Enter starting number for receipts",
-                    "description": "Initial number for receipt numbering",
+                "paymentStartingNumber": {
+                    "label": "Payment Starting Number",
+                    "placeholder": "Enter starting number for payments",
+                    "description": "Initial number for payment numbering",
                     "errors": {
-                        "min": "Receipt starting number must be at least 1"
+                        "min": "Payment starting number must be at least 1"
                     }
                 },
-                "receiptNumberFormat": {
-                    "label": "Receipt Number Format",
-                    "placeholder": "Enter receipt number format (e.g., REC-{year}-{number})",
-                    "description": "Format for receipt numbers",
+                "paymentNumberFormat": {
+                    "label": "Payment Number Format",
+                    "placeholder": "Enter payment number format (e.g., PAY-{year}-{number})",
+                    "description": "Format for payment numbers",
                     "errors": {
-                        "required": "Receipt number format is required",
-                        "maxLength": "Receipt number format must be less than 100 characters",
-                        "format": "Receipt number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
+                        "required": "Payment number format is required",
+                        "maxLength": "Payment number format must be less than 100 characters",
+                        "format": "Payment number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
                     }
                 },
                 "invoicePDFFormat": {
@@ -1344,7 +1344,7 @@
                 "options": {
                     "invoice": "Invoice Template",
                     "quote": "Quote Template",
-                    "receipt": "Receipt Template"
+                    "payment": "Payment Template"
                 }
             },
             "typography": {
@@ -1374,7 +1374,7 @@
                 "title": "Labels & Text",
                 "invoice": "Invoice",
                 "quote": "Quote",
-                "receipt": "Receipt",
+                "payment": "Payment",
                 "billTo": "Bill To",
                 "quoteFor": "Quote For",
                 "validUntil": "Valid Until",
@@ -1414,7 +1414,7 @@
             "defaultLabels": {
                 "invoice": "Invoice",
                 "quote": "Quote",
-                "receipt": "Receipt",
+                "payment": "Payment",
                 "billTo": "Bill To",
                 "quoteFor": "Quote For",
                 "validUntil": "Valid Until",
@@ -1529,7 +1529,7 @@
             "dashboard": "Dashboard",
             "quotes": "Quotes",
             "invoices": "Invoices",
-            "receipts": "Receipts",
+            "payments": "Payments",
             "clients": "Clients",
             "paymentMethods": "Payment Methods",
             "stats": "Statistics",
@@ -1657,40 +1657,40 @@
         "valueWithCurrency": "{{amount}}{{currency}}"
     },
     "noOptions": "No options available. Create a new client.",
-    "receipts": {
+    "payments": {
         "header": {
-            "subtitle": "Manage your receipts",
-            "count": "{{count}} receipts {{found}}",
+            "subtitle": "Manage your payments",
+            "count": "{{count}} payments {{found}}",
             "found": "found"
         },
         "search": {
-            "placeholder": "Search receipts..."
+            "placeholder": "Search payments..."
         },
         "actions": {
-            "addNew": "Add New Receipt"
+            "addNew": "Add New Payment"
         },
         "stats": {
-            "total": "Total Receipts",
+            "total": "Total Payments",
             "draft": "Draft",
             "sent": "Sent",
             "signed": "Signed"
         },
         "emptyState": {
-            "noReceipts": "No receipts yet",
-            "noResults": "No receipts found",
-            "startAdding": "Get started by creating your first receipt.",
+            "noPayments": "No payments yet",
+            "noResults": "No payments found",
+            "startAdding": "Get started by creating your first payment.",
             "tryDifferentSearch": "Try adjusting your search terms."
         },
         "list": {
-            "title": "All Receipts",
-            "description": "Manage and view all your receipts in one place.",
+            "title": "All Payments",
+            "description": "Manage and view all your payments in one place.",
             "status": {
                 "draft": "Draft",
                 "sent": "Sent",
                 "signed": "Signed"
             },
             "item": {
-                "title": "Receipt {{number}}",
+                "title": "Payment {{number}}",
                 "client": "Client",
                 "issued": "Issued",
                 "validUntil": "Valid Until",
@@ -1701,25 +1701,25 @@
                 "totalPaid": "Total Paid"
             },
             "tooltips": {
-                "view": "View receipt",
+                "view": "View payment",
                 "viewPdf": "View PDF",
                 "downloadPdf": "Download PDF",
-                "edit": "Edit receipt",
+                "edit": "Edit payment",
                 "sendToClient": "Send to client",
-                "delete": "Delete receipt"
+                "delete": "Delete payment"
             },
             "messages": {
-                "emailSent": "Receipt sent to client successfully.",
-                "emailError": "Failed to send receipt to client."
+                "emailSent": "Payment sent to client successfully.",
+                "emailError": "Failed to send payment to client."
             },
             "actions": {
-                "addNew": "Add New Receipt"
+                "addNew": "Add New Payment"
             }
         },
         "upsert": {
             "title": {
-                "edit": "Edit Receipt",
-                "create": "Create Receipt"
+                "edit": "Edit Payment",
+                "create": "Create Payment"
             },
             "form": {
                 "client": {
@@ -1730,7 +1730,7 @@
                 },
                 "items": {
                     "label": "Items",
-                    "placeholder": "Add items to the receipt",
+                    "placeholder": "Add items to the payment",
                     "noResults": "No items found",
                     "addButton": "Add Item",
                     "description": {
@@ -1778,27 +1778,27 @@
             "actions": {
                 "cancel": "Cancel",
                 "save": "Save Changes",
-                "create": "Create Receipt",
-                "edit": "Edit Receipt"
+                "create": "Create Payment",
+                "edit": "Edit Payment"
             }
         },
         "sendConfirmation": {
-            "title": "Send Receipt to Client",
-            "description": "This receipt will be sent to the client's email address.",
+            "title": "Send Payment to Client",
+            "description": "This payment will be sent to the client's email address.",
             "emailLabel": "Recipient:",
             "confirm": "Send",
             "cancel": "Cancel"
         },
         "delete": {
-            "title": "Delete Receipt",
-            "description": "Are you sure you want to delete this receipt? This action cannot be undone.",
+            "title": "Delete Payment",
+            "description": "Are you sure you want to delete this payment? This action cannot be undone.",
             "actions": {
                 "cancel": "Cancel",
                 "delete": "Delete"
             }
         },
         "pdf": {
-            "title": "Receipt {{number}} - PDF"
+            "title": "Payment {{number}} - PDF"
         }
     },
     "stats": {

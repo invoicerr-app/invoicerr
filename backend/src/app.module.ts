@@ -17,7 +17,7 @@ import { PaymentMethodsModule } from './modules/payment-methods/payment-methods.
 import { PluginsModule } from './modules/plugins/plugins.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { QuotesModule } from './modules/quotes/quotes.module';
-import { ReceiptsModule } from './modules/receipts/receipts.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 import { RecurringInvoicesModule } from './modules/recurring-invoices/recurring-invoices.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { SignaturesModule } from './modules/signatures/signatures.module';
@@ -46,7 +46,7 @@ import { auth } from "./lib/auth"
     ClientsModule,
     QuotesModule,
     InvoicesModule,
-    ReceiptsModule,
+    PaymentsModule,
     DashboardModule,
     SignaturesModule,
     DangerModule,

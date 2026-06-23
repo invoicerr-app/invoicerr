@@ -1032,7 +1032,7 @@
                         "format": "Das Format der Rechnungsnummer ist ungültig. Verwenden Sie {Jahr}, {Monat}, {Tag}, {Zahl} mit optionaler Auffüllung (z. B. {Zahl:4})"
                     }
                 },
-                "receiptStartingNumber": {
+                "paymentStartingNumber": {
                     "label": "Beleg Startnummer",
                     "placeholder": "Startnummer für Beleg eingeben",
                     "description": "Initiale Nummer für die Belegnummerierung",
@@ -1040,9 +1040,9 @@
                         "min": "Die Ausgangsnummer des Belegs muss mindestens 1 sein."
                     }
                 },
-                "receiptNumberFormat": {
+                "paymentNumberFormat": {
                     "label": "Format der Belegnummer",
-                    "placeholder": "Geben Sie das Format der Belegnummer ein (z. B. BEL-{year}-{number})",
+                    "placeholder": "Geben Sie das Format der Belegnummer ein (z. B. PAY-{year}-{number})",
                     "description": "Format für Belegnummern",
                     "errors": {
                         "required": "Format der Belegnummer ist erforderlich",
@@ -1240,7 +1240,7 @@
                 "options": {
                     "invoice": "Rechnungsvorlage",
                     "quote": "Angebotsvorlage",
-                    "receipt": "Belegvorlage"
+                    "payment": "Belegvorlage"
                 }
             },
             "typography": {
@@ -1270,7 +1270,7 @@
                 "title": "Etiketten & Text",
                 "invoice": "Rechnung",
                 "quote": "Angebot",
-                "receipt": "Beleg",
+                "payment": "Beleg",
                 "billTo": "Rechnung an",
                 "quoteFor": "Angebot für",
                 "validUntil": "Gültig bis",
@@ -1309,7 +1309,7 @@
             "defaultLabels": {
                 "invoice": "Rechnung",
                 "quote": "Angebot",
-                "receipt": "Beleg",
+                "payment": "Beleg",
                 "billTo": "Rechnung an",
                 "quoteFor": "Angebot für",
                 "validUntil": "Gültig bis",
@@ -1441,7 +1441,7 @@
             "dashboard": "Dashboard",
             "quotes": "Angebote",
             "invoices": "Rechnungen",
-            "receipts": "Belege",
+            "payments": "Belege",
             "clients": "Kunden",
             "paymentMethods": "Zahlungsmethoden",
             "stats": "Statistiken",
@@ -1569,7 +1569,7 @@
         "valueWithCurrency": "{{amount}}{{currency}}"
     },
     "noOptions": "Keine Optionen vorhanden. Erstellen Sie einen neuen Kunden.",
-    "receipts": {
+    "payments": {
         "header": {
             "subtitle": "Verwalten Sie Ihre Belege",
             "count": "{{count}} Belege {{found}}",

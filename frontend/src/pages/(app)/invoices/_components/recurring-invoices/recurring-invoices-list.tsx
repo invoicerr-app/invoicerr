@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Edit, Eye, Plus, ReceiptText, Trash2 } from "lucide-react"
+import { Edit, Eye, Plus, ReceiptText as PaymentText, Trash2 } from "lucide-react"
 import { forwardRef, useImperativeHandle, useState } from "react"
 
 import BetterPagination from "@/components/pagination"
@@ -64,7 +64,7 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
                     <CardHeader className="border-b flex flex-row items-center justify-between">
                         <div>
                             <CardTitle className="flex items-center space-x-2">
-                                <ReceiptText className="h-5 w-5 " />
+                                <PaymentText className="h-5 w-5 " />
                                 <span>{title}</span>
                             </CardTitle>
                             <CardDescription>{description}</CardDescription>
@@ -93,7 +93,7 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
                                         <div className="flex flex-row sm:items-center sm:justify-between gap-4">
                                             <div className="flex flex-row items-center gap-4 w-full">
                                                 <div className="p-2 bg-blue-100 rounded-lg mb-4 md:mb-0 w-fit h-fit">
-                                                    <ReceiptText className="h-5 w-5 text-blue-600" />
+                                                    <PaymentText className="h-5 w-5 text-blue-600" />
                                                 </div>
                                                 <div className="flex-1">
                                                     <div className="mt-2 flex flex-col gap-2 text-sm text-muted-foreground">

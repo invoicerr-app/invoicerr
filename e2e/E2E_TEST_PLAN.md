@@ -75,7 +75,7 @@ Invoicerr est une application de gestion de facturation comprenant:
 | PATCH | `/:id` | Modifier une facture |
 | DELETE | `/:id` | Supprimer une facture |
 
-### 7. Receipts (`/receipts`)
+### 7. Payments (`/payments`)
 | Méthode | Route | Description |
 |---------|-------|-------------|
 | GET | `/` | Liste des reçus (paginée) |
@@ -180,8 +180,8 @@ Invoicerr est une application de gestion de facturation comprenant:
 | `quoteNumberFormat` | text | min(1), max(100), format spécial | vide, sans `{number}` |
 | `invoiceStartingNumber` | number | min(1) | 0, négatif |
 | `invoiceNumberFormat` | text | min(1), max(100), format spécial | format invalide |
-| `receiptStartingNumber` | number | min(1) | 0, négatif |
-| `receiptNumberFormat` | text | min(1), max(100), format spécial | format invalide |
+| `paymentStartingNumber` | number | min(1) | 0, négatif |
+| `paymentNumberFormat` | text | min(1), max(100), format spécial | format invalide |
 | `invoicePDFFormat` | select | valeurs: pdf, facturx, zugferd, xrechnung, ubl, cii | valeur invalide |
 | `dateFormat` | select | formats prédéfinis | valeur invalide |
 
@@ -246,7 +246,7 @@ Invoicerr est une application de gestion de facturation comprenant:
 | `paymentMethodId` | select | optionnel | - |
 | `items` | array | au moins 1 item | 0 items |
 
-### 7. Receipts
+### 7. Payments
 
 | Champ | Type | Validations | Cas de test |
 |-------|------|-------------|-------------|
@@ -398,7 +398,7 @@ Les tests doivent s'exécuter dans cet ordre car ils ont des dépendances:
 4. **4-clients.cy.ts** - Clients (requis pour devis/factures)
 5. **5-quotes.cy.ts** - Devis
 6. **6-invoices.cy.ts** - Factures
-7. **7-receipts.cy.ts** - Reçus
+7. **7-payments.cy.ts** - Paiements
 8. **8-recurring-invoices.cy.ts** - Factures récurrentes
 9. **9-signatures.cy.ts** - Signatures de devis
 10. **10-stats.cy.ts** - Statistiques
@@ -502,7 +502,7 @@ Exemples:
 - [ ] Sans client (erreur)
 - [ ] Sans items (erreur)
 
-### Receipts
+### Payments
 - [ ] Créer reçu depuis facture
 - [ ] Créer reçu manuel
 - [ ] Modifier reçu
@@ -566,7 +566,7 @@ Exemples:
 | `4-clients.cy.ts` | Clients CRUD avec validation | ~15 tests |
 | `5-quotes.cy.ts` | Devis CRUD avec validation | ~12 tests |
 | `6-invoices.cy.ts` | Factures CRUD avec validation | ~12 tests |
-| `7-receipts.cy.ts` | Reçus CRUD avec validation | ~15 tests |
+| `7-payments.cy.ts` | Paiements CRUD avec validation | ~15 tests |
 | `8-settings.cy.ts` | Paramètres (compte, invitations, danger) | ~20 tests |
 | `9-recurring-invoices.cy.ts` | Factures récurrentes CRUD | ~12 tests |
 | `10-dashboard-navigation.cy.ts` | Dashboard et navigation | ~18 tests |

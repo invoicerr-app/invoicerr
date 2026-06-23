@@ -1,23 +1,23 @@
 import type { Invoice } from "./invoice";
 import type { PaymentMethod } from "./payment-method";
 
-interface ReceiptItem {
+export interface PaymentItem {
     id: string;
-    invoiceItemId: string; // ID of the invoice item this receipt item corresponds to
+    invoiceItemId: string;
     invoiceId: string;
     invoice?: Invoice;
     amountPaid: number;
-    receiptId: string;
-    receipt?: Receipt;
+    paymentId: string;
+    payment?: Payment;
 }
 
-export interface Receipt {
+export interface Payment {
     id: string;
     number: number;
     rawNumber?: string; // Optional raw number for custom formats
     invoiceId: string;
     invoice?: Invoice;
-    items: ReceiptItem[];
+    items: PaymentItem[];
     totalPaid: number;
     createdAt: string; // ISO date string
     updatedAt: string; // ISO date string
