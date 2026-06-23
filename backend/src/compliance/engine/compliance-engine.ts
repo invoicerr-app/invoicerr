@@ -11,6 +11,7 @@ import {
   CountryComplianceProfile,
   FormatRule,
   LifecyclePolicy,
+  NumberingRule,
   RegimeRule,
   Temporal,
 } from '../profiles/schema';
@@ -18,7 +19,7 @@ import { ProfileRegistry, defaultRegistry } from '../profiles/registry';
 import { allByDate, pickByDate } from '../profiles/temporal';
 import { TrustFlagVatValidator, VatValidator, selectorMatches } from './classification';
 import { DocumentTaxResult, determineTax } from './tax-engine';
-import { ArtifactRole, Confidence, PartyRole, ReportingKind, SupplyType } from '../types';
+import { ArtifactRole, Confidence, PartyRole, ReportingKind, SupplyType, TaxSystemKind } from '../types';
 
 export interface PlannedArtifact {
   role: ArtifactRole;
@@ -31,9 +32,11 @@ export interface CompliancePlan {
   buyer: { country: string; confidence: Confidence };
   classification: { buyerRole: string; crossBorder: boolean; supplyTypes: SupplyType[] };
   tax: DocumentTaxResult;
+  taxSystemKind: TaxSystemKind;
   regime: RegimeRule;
   artifacts: PlannedArtifact[];
   channels: ChannelSpec[];
+  numbering: NumberingRule;
   lifecycle: LifecyclePolicy;
   archival: ArchivalPolicy;
   reporting: ReportingKind[];
@@ -110,9 +113,10 @@ export function resolve(ctx: TransactionContext, deps: ResolveDeps = {}): Compli
   const transmission = pickByDate(sp.transmission, ctx.issueDate);
   const channels: ChannelSpec[] = transmission?.channels ?? [{ type: 'EMAIL' }];
 
-  // Lifecycle & archival.
+  // Lifecycle, archival & numbering.
   const lifecycle = pickByDate(sp.lifecycle, ctx.issueDate) ?? DEFAULT_LIFECYCLE;
   const archival = pickByDate(sp.archival, ctx.issueDate) ?? DEFAULT_ARCHIVAL;
+  const numbering = pickByDate(sp.numbering, ctx.issueDate) ?? { model: 'GAPLESS_SELF' as const };
 
   // Reporting = supplier obligations (by date+class) ∪ tax-driven flags.
   const repObl = pickWithSelector(sp.reporting, ctx.issueDate, buyerRole, supplyTypes);
@@ -128,9 +132,11 @@ export function resolve(ctx: TransactionContext, deps: ResolveDeps = {}): Compli
     buyer: { country: bp.countryCode, confidence: bp.confidence },
     classification: { buyerRole, crossBorder, supplyTypes },
     tax,
+    taxSystemKind: sp.taxSystem.kind,
     regime,
     artifacts,
     channels,
+    numbering,
     lifecycle,
     archival,
     reporting,
