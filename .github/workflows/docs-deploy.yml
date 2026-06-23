@@ -1,12 +1,15 @@
 name: Build and Deploy Documentation
 
-# TODO: this currently deploys from the feature branch so the workflow can be
-# exercised before the documentation feature merges. Switch this trigger to
-# `main` once the feature is merged and ready to go live (see issue #321).
+# The github-pages environment's protection rules only allow deployments from
+# the `main` branch, so pull requests can build/verify the site but cannot
+# deploy (deploying from a PR merge ref is rejected by GitHub).
 on:
-  pull_request:
+  push:
+    branches:
+      - dev
     paths:
       - "documentation/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -41,15 +44,18 @@ jobs:
           npm run build
 
       - name: Setup Pages
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
 
       - name: Upload artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: documentation/build
 
   deploy:
     needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
