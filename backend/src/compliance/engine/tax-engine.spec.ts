@@ -160,3 +160,19 @@ describe('TaxEngine — document-level aggregation', () => {
     expect(result.mentions.filter((m) => m.code === 'REVERSE_CHARGE')).toHaveLength(1);
   });
 });
+
+describe('TaxEngine — intra-EU B2C distance sales (OSS)', () => {
+  it('FR→DE B2C goods: destination VAT via OSS (DE has no full profile yet)', () => {
+    const t = determineLineTax(party('FR', 'B2C'), party('DE', 'B2C'), line('GOODS'), FR, vat);
+    expect(t.components[0].category).toBe('S');
+    expect(t.components[0].jurisdiction).toBe('DE');
+    expect(t.reportingFlags).toContain('OSS');
+    expect(t.buyerSelfAssess).toBe(false);
+  });
+
+  it('FR→DE B2C digital services: destination VAT via OSS', () => {
+    const t = determineLineTax(party('FR', 'B2C'), party('DE', 'B2C'), line('DIGITAL'), FR, vat);
+    expect(t.components[0].jurisdiction).toBe('DE');
+    expect(t.reportingFlags).toContain('OSS');
+  });
+});

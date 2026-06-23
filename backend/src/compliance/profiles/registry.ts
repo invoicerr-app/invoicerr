@@ -2,9 +2,10 @@ import { CountryComplianceProfile } from './schema';
 import { FALLBACK } from './data/fallback';
 import { FR } from './data/fr';
 import { MC } from './data/monaco';
+import { MX } from './data/mx';
 import { US } from './data/us';
 
-const BUILT_IN: Record<string, CountryComplianceProfile> = { FR, US, MC };
+const BUILT_IN: Record<string, CountryComplianceProfile> = { FR, US, MX, MC };
 
 export interface ResolvedProfile {
   profile: CountryComplianceProfile;
