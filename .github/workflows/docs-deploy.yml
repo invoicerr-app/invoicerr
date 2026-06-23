@@ -6,7 +6,7 @@ name: Build and Deploy Documentation
 on:
   push:
     branches:
-      - main
+      - dev
     paths:
       - "documentation/**"
   workflow_dispatch:
