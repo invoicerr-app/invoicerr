@@ -10,6 +10,8 @@ import {
 import { Button } from "@/components/ui/button"
 import type { Quote } from "@/types"
 import { useDelete } from "@/hooks/use-fetch"
+import { queryKeys } from "@/lib/query-keys"
+import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 
 interface QuoteDeleteDialogProps {
@@ -19,6 +21,7 @@ interface QuoteDeleteDialogProps {
 
 export function QuoteDeleteDialog({ quote, onOpenChange }: QuoteDeleteDialogProps) {
     const { t } = useTranslation()
+    const queryClient = useQueryClient()
     const { trigger } = useDelete(`/api/quotes/${quote?.id}`)
 
     const handleDelete = () => {
@@ -26,6 +29,7 @@ export function QuoteDeleteDialog({ quote, onOpenChange }: QuoteDeleteDialogProp
 
         trigger()
             .then(() => {
+                queryClient.invalidateQueries({ queryKey: queryKeys.quotes.listsAll() })
                 onOpenChange(false)
             })
             .catch((error) => {

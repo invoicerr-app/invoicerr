@@ -1,6 +1,7 @@
 import { FileText, Plus } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-import { useGetRaw, useSse } from "@/hooks/use-fetch"
+import { useGetRaw } from "@/hooks/use-fetch"
+import { useQuotes } from "@/hooks/queries"
 
 import { Button } from "@/components/ui/button"
 import type { Quote } from "@/types"
@@ -15,9 +16,9 @@ export default function Quotes() {
     const { t } = useTranslation()
     const quoteListRef = useRef<QuoteListHandle>(null)
     const [page, setPage] = useState(1)
-    const { data: quotes } = useSse<{ pageCount: number; quotes: Quote[] }>(`/api/quotes/sse?page=${page}`)
+    const { data: quotes } = useQuotes(page)
     const [downloadQuotePdf, setDownloadQuotePdf] = useState<Quote | null>(null)
-    const { data: pdf } = useGetRaw<Response>(`/api/quotes/${downloadQuotePdf?.id}/pdf`)
+    const { data: pdf } = useGetRaw<Response>(downloadQuotePdf ? `/api/quotes/${downloadQuotePdf.id}/pdf` : null)
 
     useEffect(() => {
         if (downloadQuotePdf && pdf) {

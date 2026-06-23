@@ -10,6 +10,8 @@ import {
 import { Button } from "@/components/ui/button"
 import type { Receipt } from "@/types"
 import { useDelete } from "@/hooks/use-fetch"
+import { queryKeys } from "@/lib/query-keys"
+import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 
 interface ReceiptDeleteDialogProps {
@@ -19,6 +21,7 @@ interface ReceiptDeleteDialogProps {
 
 export function ReceiptDeleteDialog({ receipt, onOpenChange }: ReceiptDeleteDialogProps) {
     const { t } = useTranslation()
+    const queryClient = useQueryClient()
     const { trigger } = useDelete(`/api/receipts/${receipt?.id}`)
 
     const handleDelete = () => {
@@ -26,6 +29,7 @@ export function ReceiptDeleteDialog({ receipt, onOpenChange }: ReceiptDeleteDial
 
         trigger()
             .then(() => {
+                queryClient.invalidateQueries({ queryKey: queryKeys.receipts.listsAll() })
                 onOpenChange(false)
             })
             .catch((error) => {

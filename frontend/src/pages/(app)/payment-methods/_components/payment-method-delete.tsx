@@ -4,17 +4,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 
 import { Button } from "@/components/ui/button";
 import { authenticatedFetch } from "@/hooks/use-fetch";
+import { queryKeys } from "@/lib/query-keys";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-
-interface PaymentMethod {
-  id: string;
-  name: string;
-  details?: string;
-  type?: "BANK_TRANSFER" | "PAYPAL" | "CASH" | "OTHER";
-  isActive?: boolean;
-}
+import type { PaymentMethod } from "@/types";
 
 export function PaymentMethodDeleteDialog({
   paymentMethod,
@@ -24,6 +19,7 @@ export function PaymentMethodDeleteDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const open = !!paymentMethod;
 
@@ -35,6 +31,7 @@ export function PaymentMethodDeleteDialog({
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Delete failed");
+      queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.list() });
       toast.success(t("paymentMethods.upsert.messages.deleteSuccess") || "Payment method deleted");
       onOpenChange(false);
     } catch (err) {

@@ -4,6 +4,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { authenticatedFetch, usePatch, usePost } from "@/hooks/use-fetch";
+import { queryKeys } from "@/lib/query-keys";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +15,7 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { PaymentMethod } from "@/types";
 
 const paymentMethodSchema = z.object({
   name: z.string().min(1, { message: "Name is required" }),
@@ -21,14 +24,6 @@ const paymentMethodSchema = z.object({
 });
 
 type PaymentMethodForm = z.infer<typeof paymentMethodSchema>;
-
-interface PaymentMethod {
-  id: string;
-  name: string;
-  details?: string;
-  type?: "BANK_TRANSFER" | "PAYPAL" | "CASH" | "CHECK" | "OTHER";
-  isActive?: boolean;
-}
 
 interface PaymentMethodUpsertProps {
   paymentMethod?: PaymentMethod | null;
@@ -39,6 +34,7 @@ interface PaymentMethodUpsertProps {
 export function PaymentMethodUpsert({ paymentMethod, open, onOpenChange }: PaymentMethodUpsertProps) {
   const { t } = useTranslation();
   const isEdit = !!paymentMethod;
+  const queryClient = useQueryClient();
 
   const { trigger: createTrigger, loading: creating } = usePost("/api/payment-methods");
   const { trigger: updateTrigger, loading: updating } = usePatch(`/api/payment-methods/${paymentMethod?.id || ""}`);
@@ -77,9 +73,11 @@ export function PaymentMethodUpsert({ paymentMethod, open, onOpenChange }: Payme
           });
           if (!res.ok) throw new Error("Update failed");
         }
+        queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.list() });
         toast.success(t("paymentMethods.upsert.messages.updateSuccess") || "Payment method updated");
       } else {
         await createTrigger(data);
+        queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.list() });
         toast.success(t("paymentMethods.upsert.messages.addSuccess") || "Payment method added");
       }
       onOpenChange(false);

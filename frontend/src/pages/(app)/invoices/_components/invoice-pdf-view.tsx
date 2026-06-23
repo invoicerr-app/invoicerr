@@ -12,7 +12,7 @@ type InvoicePdfModalProps = {
 
 export function InvoicePdfModal({ invoice, onOpenChange }: InvoicePdfModalProps) {
   const { t } = useTranslation()
-  const { data } = useGetRaw<Response>(`/api/invoices/${invoice?.id}/pdf`)
+  const { data } = useGetRaw<Response>(invoice ? `/api/invoices/${invoice.id}/pdf` : null)
   const [pdfData, setPdfData] = useState<Uint8Array | null>(null)
 
   useEffect(() => {

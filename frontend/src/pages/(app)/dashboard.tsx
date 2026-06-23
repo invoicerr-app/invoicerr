@@ -14,57 +14,22 @@ import {
 import { Card, CardContent } from "@/components/ui/card"
 import { CartesianGrid, Line, LineChart, XAxis } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import type { Company, Invoice, Quote } from "@/types"
-
 import { InvoiceList } from "@/pages/(app)/invoices/_components/invoice-list"
 import { QuoteList } from "@/pages/(app)/quotes/_components/quote-list"
 import type React from "react"
 import { authClient } from "@/lib/auth"
 import { usePageHeader } from "@/hooks/use-page-header"
-import { useSse } from "@/hooks/use-fetch"
+import { useDashboard } from "@/hooks/queries"
 import { useTranslation } from "react-i18next"
-
-interface DashboardData {
-    company: Company | null
-    quotes: {
-        total: number
-        draft: number
-        sent: number
-        signed: number
-        expired: number
-        latests: Quote[]
-    }
-    invoices: {
-        total: number
-        unpaid: number
-        sent: number
-        paid: number
-        overdue: number
-        latests: Invoice[]
-    }
-    clients: {
-        total: number
-    }
-    revenue: {
-        last6Months: { createdAt: Date; total: number }[]
-        currentMonth: number
-        previousMonth: number
-        monthlyChange: number
-        monthlyChangePercent: number
-        last6Years: { createdAt: Date; total: number }[]
-        currentYear: number
-        previousYear: number
-        yearlyChange: number
-        yearlyChangePercent: number
-    }
-}
 
 export default function Dashboard() {
     const { t } = useTranslation()
 
     const { data: user } = authClient.useSession()
 
-    const { data: dashboardData } = useSse<DashboardData>("/api/dashboard/sse")
+    const { data: dashboardData } = useDashboard()
+
+    usePageHeader(t("dashboard.title"), <LayoutDashboard className="h-5 w-5 text-blue-600" />)
 
     usePageHeader(t("dashboard.title"), <LayoutDashboard className="h-5 w-5 text-blue-600" />)
 
