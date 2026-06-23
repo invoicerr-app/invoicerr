@@ -10,6 +10,8 @@ export * from './types';
 export * from './canonical/canonical-document';
 export * from './profiles/schema';
 export * from './profiles/temporal';
+export * from './profiles/archetypes';
+export * from './profiles/data/all';
 export * from './profiles/registry';
 export * from './engine/classification';
 export * from './engine/tax-engine';
