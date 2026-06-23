@@ -1,14 +1,13 @@
-name: Deploy Documentation
+name: Build and Deploy Documentation
 
 # TODO: this currently deploys from the feature branch so the workflow can be
 # exercised before the documentation feature merges. Switch this trigger to
 # `main` once the feature is merged and ready to go live (see issue #321).
 on:
-  push:
+  pull_request:
     paths:
       - "documentation/**"
-  workflow_dispatch:
- 
+
 permissions:
   contents: read
   pages: write
