@@ -150,6 +150,8 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
 
         const getStatusColor = (status: string) => {
             switch (status) {
+                case "DRAFT":
+                    return "bg-gray-200 text-gray-700"
                 case "SENT":
                     return "bg-yellow-100 text-yellow-800"
                 case "UNPAID":

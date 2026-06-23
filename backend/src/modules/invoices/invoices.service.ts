@@ -117,6 +117,7 @@ export class InvoicesService {
         const invoice = await prisma.invoice.create({
             data: {
                 ...data,
+                status: 'DRAFT',
                 recurringInvoiceId: body.recurringInvoiceId,
                 paymentMethod: body.paymentMethod,
                 paymentDetails: body.paymentDetails,
@@ -743,6 +744,15 @@ export class InvoicesService {
         }
 
         logger.info('Invoice sent by email', { category: 'invoice', details: { invoiceId, email: invoice.client.contactEmail } });
+
+        try {
+            await prisma.invoice.update({
+                where: { id: invoiceId },
+                data: { status: 'SENT' },
+            });
+        } catch (error) {
+            logger.error('Failed to update invoice status after sending', { category: 'invoice', details: { error } });
+        }
 
         try {
             await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_SENT, {

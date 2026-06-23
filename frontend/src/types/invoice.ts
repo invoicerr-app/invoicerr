@@ -3,6 +3,7 @@ import type { Company } from "./company";
 import type { PaymentMethod } from "./payment-method";
 
 export enum InvoiceStatus {
+    DRAFT = 'DRAFT',
     PAID = 'PAID',
     UNPAID = 'UNPAID',
     OVERDUE = 'OVERDUE',

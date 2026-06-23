@@ -414,6 +414,44 @@
             "oneTime": "Ponctuelles",
             "recurring": "Récurrentes"
         },
+        "progression": {
+            "title": "Progression",
+            "emptyState": "Aucune facture à afficher dans la progression.",
+            "steps": {
+                "draft": "Brouillon",
+                "sent": "Envoyée",
+                "paid": "Payée",
+                "archived": "Archivée"
+            },
+            "actions": {
+                "send": "Envoyer",
+                "resend": "Renvoyer",
+                "paymentReceived": "Paiement reçu",
+                "archive": "Archiver"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Envoyer la facture",
+                    "description": "Êtes-vous sûr de vouloir envoyer la facture {{number}} à {{client}} ?"
+                },
+                "resend": {
+                    "title": "Renvoyer la facture",
+                    "description": "Êtes-vous sûr de vouloir renvoyer la facture {{number}} à {{client}} ?"
+                },
+                "paymentReceived": {
+                    "title": "Paiement reçu",
+                    "description": "Confirmez-vous avoir reçu le paiement de la facture {{number}} ?"
+                },
+                "archive": {
+                    "title": "Archiver la facture",
+                    "description": "Êtes-vous sûr de vouloir archiver la facture {{number}} ?"
+                },
+                "confirm": "Confirmer",
+                "cancel": "Annuler"
+            },
+            "noAction": "Aucune action",
+            "archiveNotImplemented": "L'archivage n'est pas encore implémenté."
+        },
         "stats": {
             "total": "Total des factures",
             "sent": "Envoyées",
@@ -435,6 +473,7 @@
             "title": "Toutes les factures",
             "description": "Gérez et consultez toutes vos factures en un seul endroit.",
             "status": {
+                "draft": "Brouillon",
                 "sent": "Envoyée",
                 "unpaid": "Impayée",
                 "overdue": "En retard",
@@ -591,6 +630,7 @@
             "title": "Facture {{number}}",
             "description": "Consultez tous les détails de cette facture.",
             "status": {
+                "draft": "Brouillon",
                 "sent": "Envoyée",
                 "unpaid": "Impayée",
                 "overdue": "En retard",
