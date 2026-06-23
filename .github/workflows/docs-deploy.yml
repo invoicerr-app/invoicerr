@@ -1,0 +1,60 @@
+name: Build and Deploy Documentation
+
+# TODO: this currently deploys from the feature branch so the workflow can be
+# exercised before the documentation feature merges. Switch this trigger to
+# `main` once the feature is merged and ready to go live (see issue #321).
+on:
+  pull_request:
+    paths:
+      - "documentation/**"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: documentation/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd documentation
+          npm ci
+
+      - name: Build documentation site
+        run: |
+          cd documentation
+          npm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: documentation/build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
