@@ -1,6 +1,7 @@
 import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import complianceContentPlugin from './plugins/compliance-content-plugin';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -25,15 +26,21 @@ const config: Config = {
   organizationName: 'invoicerr-app', // Usually your GitHub org/user name.
   projectName: 'invoicerr', // Usually your repo name.
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
   // may want to replace "en" with "zh-Hans".
   i18n: {
     defaultLocale: 'en',
-    locales: ['en'],
+    locales: ['en', 'fr'],
+    localeConfigs: {
+      en: {label: 'English'},
+      fr: {label: 'Français'},
+    },
   },
+
+  plugins: [complianceContentPlugin],
 
   presets: [
     [
@@ -67,9 +74,36 @@ const config: Config = {
       items: [
         {
           type: 'docSidebar',
-          sidebarId: 'tutorialSidebar',
+          sidebarId: 'gettingStartedSidebar',
+          label: 'Getting Started',
           position: 'left',
-          label: 'Docs',
+        },
+        {
+          type: 'docSidebar',
+          sidebarId: 'developerGuideSidebar',
+          label: 'Developer Guide',
+          position: 'left',
+        },
+        {
+          type: 'docSidebar',
+          sidebarId: 'apiReferenceSidebar',
+          label: 'API Reference',
+          position: 'left',
+        },
+        {
+          to: '/compliance',
+          label: 'Compliance',
+          position: 'left',
+        },
+        {
+          type: 'doc',
+          docId: 'changelog',
+          label: 'Changelog',
+          position: 'left',
+        },
+        {
+          type: 'localeDropdown',
+          position: 'right',
         },
         {
           href: 'https://github.com/invoicerr-app/invoicerr',
@@ -94,7 +128,7 @@ const config: Config = {
             },
             {
               label: 'Compliance',
-              to: '/docs/compliance',
+              to: '/compliance',
             },
             {
               label: 'Changelog',

@@ -4,27 +4,28 @@
  * work well for content-centric websites.
  */
 
-/* You can override the default Infima variables here. */
+/* Invoicerr brand palette — a refined indigo that reads well in both modes. */
 :root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
+  --ifm-color-primary: #4f46e5;
+  --ifm-color-primary-dark: #3f37cc;
+  --ifm-color-primary-darker: #3b34c1;
+  --ifm-color-primary-darkest: #312b9f;
+  --ifm-color-primary-light: #635bea;
+  --ifm-color-primary-lighter: #6d65eb;
+  --ifm-color-primary-lightest: #8b85ef;
   --ifm-code-font-size: 95%;
+  --ifm-card-border-radius: 12px;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
 }
 
 /* For readability concerns, you should choose a lighter palette in dark mode. */
 [data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
+  --ifm-color-primary: #a5a0fb;
+  --ifm-color-primary-dark: #837cf9;
+  --ifm-color-primary-darker: #726af8;
+  --ifm-color-primary-darkest: #3e33f5;
+  --ifm-color-primary-light: #c7c4fd;
+  --ifm-color-primary-lighter: #d8d6fe;
+  --ifm-color-primary-lightest: #ffffff;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
