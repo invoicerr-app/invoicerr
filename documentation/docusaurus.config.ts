@@ -7,7 +7,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'Invoicerr',
   tagline: 'Open-source invoicing for freelancers',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.png',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -62,7 +62,7 @@ const config: Config = {
       title: 'Invoicerr',
       logo: {
         alt: 'Invoicerr Logo',
-        src: 'img/logo.svg',
+        src: 'img/logo.png',
       },
       items: [
         {
@@ -95,6 +95,10 @@ const config: Config = {
             {
               label: 'Compliance',
               to: '/docs/compliance',
+            },
+            {
+              label: 'Changelog',
+              to: '/docs/changelog',
             },
           ],
         },
