@@ -6,6 +6,8 @@ import { ChannelType } from '../../types';
 
 /** Delivers the artifact over one channel (email, Peppol, a clearance API, a portal, print…) (§10). */
 export interface TransmissionProvider {
+  /** Stable provider id (e.g. 'email', 'sdi', 'ksef'); used for exact selection via ChannelSpec.providerId. */
+  readonly id: string;
   readonly channel: ChannelType;
   transmit(
     artifacts: SignedArtifact[],

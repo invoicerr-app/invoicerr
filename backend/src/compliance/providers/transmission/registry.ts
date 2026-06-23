@@ -2,11 +2,13 @@ import { TransactionContext } from '../../canonical/canonical-document';
 import { CompliancePlan } from '../../engine/compliance-engine';
 import { ComplianceLogger, defaultLogger } from '../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../execution/types';
+import { ChannelSpec } from '../../profiles/schema';
 import { ChannelType } from '../../types';
 import { TransmissionProvider } from './transmission-provider';
 import {
   EmailTransmissionProvider,
   GovPortalTransmissionProvider,
+  KsefTransmissionProvider,
   OseTransmissionProvider,
   PacTransmissionProvider,
   PdpTransmissionProvider,
@@ -17,6 +19,7 @@ import {
 
 export class TransmissionProviderRegistry {
   private readonly byChannel = new Map<ChannelType, TransmissionProvider>();
+  private readonly byId = new Map<string, TransmissionProvider>();
 
   constructor(providers?: TransmissionProvider[]) {
     const list = providers ?? [
@@ -26,17 +29,34 @@ export class TransmissionProviderRegistry {
       new PacTransmissionProvider(),
       new SdiTransmissionProvider(),
       new GovPortalTransmissionProvider(),
+      new KsefTransmissionProvider(),
       new OseTransmissionProvider(),
       new PrintTransmissionProvider(),
     ];
-    for (const p of list) this.byChannel.set(p.channel, p);
+    for (const p of list) {
+      this.byId.set(p.id, p);
+      // First registered for a channel becomes the generic default for that channel.
+      if (!this.byChannel.has(p.channel)) this.byChannel.set(p.channel, p);
+    }
   }
 
   get(channel: ChannelType): TransmissionProvider | null {
     return this.byChannel.get(channel) ?? null;
   }
 
-  /** Transmit over every channel in the plan (ordered; each is attempted with an idempotency key). */
+  getById(id: string): TransmissionProvider | null {
+    return this.byId.get(id) ?? null;
+  }
+
+  /** Exact provider id wins over the generic channel default (e.g. 'ksef' vs GOV_PORTAL_API). */
+  resolve(spec: ChannelSpec): TransmissionProvider | null {
+    if (spec.providerId) {
+      const byId = this.byId.get(spec.providerId);
+      if (byId) return byId;
+    }
+    return this.byChannel.get(spec.type) ?? null;
+  }
+
   transmitAll(
     artifacts: SignedArtifact[],
     ctx: TransactionContext,
@@ -44,13 +64,13 @@ export class TransmissionProviderRegistry {
     idempotencyKeyBase: string,
     log: ComplianceLogger = defaultLogger,
   ): TransmissionResult[] {
-    return plan.channels.map((c, i) => {
-      const provider = this.get(c.type);
+    return plan.channels.map((spec, i) => {
+      const provider = this.resolve(spec);
       if (!provider) {
-        log.warn('transmission', `no provider for channel ${c.type}`);
-        return { channel: c.type, status: 'SKIPPED' as const, notes: ['no provider'] };
+        log.warn('transmission', `no provider for channel ${spec.type}${spec.providerId ? `/${spec.providerId}` : ''}`);
+        return { channel: spec.type, status: 'SKIPPED' as const, notes: ['no provider'] };
       }
-      return provider.transmit(artifacts, ctx, plan, `${idempotencyKeyBase}:${c.type}:${i}`, log);
+      return provider.transmit(artifacts, ctx, plan, `${idempotencyKeyBase}:${provider.id}:${i}`, log);
     });
   }
 }

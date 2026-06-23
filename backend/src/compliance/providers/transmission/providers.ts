@@ -7,6 +7,7 @@ import { TransmissionProvider } from './transmission-provider';
 
 /** Email is the only channel with a real implementation today (MailService). */
 export class EmailTransmissionProvider implements TransmissionProvider {
+  readonly id = 'email';
   readonly channel: ChannelType = 'EMAIL';
   transmit(artifacts: SignedArtifact[], ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): TransmissionResult {
     log.todo('transmission/email', `send ${artifacts.length} artifact(s) to ${ctx.buyer.legalName} via MailService (key ${key})`);
@@ -15,6 +16,7 @@ export class EmailTransmissionProvider implements TransmissionProvider {
 }
 
 export class PeppolTransmissionProvider implements TransmissionProvider {
+  readonly id = 'peppol';
   readonly channel: ChannelType = 'PEPPOL';
   transmit(_artifacts: SignedArtifact[], ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): TransmissionResult {
     log.todo('transmission/peppol', `SMP lookup for ${ctx.buyer.peppolId ?? '(no peppolId)'} + AS4 send (key ${key})`);
@@ -24,6 +26,7 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
 
 /** France — Plateforme de Dématérialisation Partenaire (+ PPF annuaire routing). */
 export class PdpTransmissionProvider implements TransmissionProvider {
+  readonly id = 'pdp';
   readonly channel: ChannelType = 'PDP';
   transmit(_artifacts: SignedArtifact[], _ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): TransmissionResult {
     log.todo('transmission/pdp', `annuaire lookup + deliver to recipient PDP + push e-reporting (key ${key})`);
@@ -37,6 +40,7 @@ export class PdpTransmissionProvider implements TransmissionProvider {
 
 /** Mexico — Proveedor Autorizado de Certificación (blocking clearance → returns folio/UUID). */
 export class PacTransmissionProvider implements TransmissionProvider {
+  readonly id = 'pac';
   readonly channel: ChannelType = 'PAC';
   transmit(_artifacts: SignedArtifact[], _ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): TransmissionResult {
     log.todo('transmission/pac', `submit to PAC for SAT clearance, await UUID/folio fiscal (key ${key})`);
@@ -50,6 +54,7 @@ export class PacTransmissionProvider implements TransmissionProvider {
 
 /** Italy — Sistema di Interscambio. */
 export class SdiTransmissionProvider implements TransmissionProvider {
+  readonly id = 'sdi';
   readonly channel: ChannelType = 'SDI';
   transmit(_artifacts: SignedArtifact[], _ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): TransmissionResult {
     log.todo('transmission/sdi', `submit FatturaPA to SdI, await receipt/notifica (key ${key})`);
@@ -61,8 +66,9 @@ export class SdiTransmissionProvider implements TransmissionProvider {
   }
 }
 
-/** Generic government portal/API (ZATCA, DIAN, KSeF, SEFAZ, etc.). */
+/** Generic government portal/API. Use a dedicated provider (below) when the system has specifics. */
 export class GovPortalTransmissionProvider implements TransmissionProvider {
+  readonly id = 'gov-portal';
   readonly channel: ChannelType = 'GOV_PORTAL_API';
   transmit(_artifacts: SignedArtifact[], _ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): TransmissionResult {
     log.todo('transmission/gov-portal', `submit to government clearance/reporting API (key ${key})`);
@@ -70,8 +76,23 @@ export class GovPortalTransmissionProvider implements TransmissionProvider {
   }
 }
 
+/** Poland — Krajowy System e-Faktur. A GOV_PORTAL_API system selected via ChannelSpec.providerId='ksef'. */
+export class KsefTransmissionProvider implements TransmissionProvider {
+  readonly id = 'ksef';
+  readonly channel: ChannelType = 'GOV_PORTAL_API';
+  transmit(_artifacts: SignedArtifact[], _ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): TransmissionResult {
+    log.todo('transmission/ksef', `authenticate (token/seal) + submit FA_VAT to KSeF, await KSeF reference number (key ${key})`);
+    return { channel: 'GOV_PORTAL_API', status: 'PENDING', notes: ['stub: integrate KSeF'] };
+  }
+  poll(ref: string, log: ComplianceLogger): TransmissionResult {
+    log.todo('transmission/ksef', `poll KSeF UPO/status for ${ref}`);
+    return { channel: 'GOV_PORTAL_API', status: 'PENDING', ref, notes: [] };
+  }
+}
+
 /** Peru / generic — Operador de Servicios Electrónicos. */
 export class OseTransmissionProvider implements TransmissionProvider {
+  readonly id = 'ose';
   readonly channel: ChannelType = 'OSE';
   transmit(_artifacts: SignedArtifact[], _ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): TransmissionResult {
     log.todo('transmission/ose', `submit to OSE, await CDR (key ${key})`);
@@ -81,6 +102,7 @@ export class OseTransmissionProvider implements TransmissionProvider {
 
 /** Physical print (B2C mandates: CL, many LATAM, SA simplified). */
 export class PrintTransmissionProvider implements TransmissionProvider {
+  readonly id = 'print';
   readonly channel: ChannelType = 'PRINT';
   transmit(_artifacts: SignedArtifact[], _ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): TransmissionResult {
     log.todo('transmission/print', `produce printable representation with QR (key ${key})`);

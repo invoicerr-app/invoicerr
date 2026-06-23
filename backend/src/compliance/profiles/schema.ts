@@ -50,6 +50,12 @@ export interface FormatRule {
 
 export interface ChannelSpec {
   type: ChannelType;
+  /**
+   * Optional exact provider id (e.g. 'ksef', 'sdi', 'zatca'). Lets a profile pick a specific
+   * national-portal provider when several share the same generic ChannelType (GOV_PORTAL_API).
+   * When omitted, the registry resolves by ChannelType.
+   */
+  providerId?: string;
 }
 
 export interface TransmissionRule {
