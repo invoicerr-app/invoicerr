@@ -31,6 +31,8 @@ export default function Dashboard() {
 
     usePageHeader(t("dashboard.title"), <LayoutDashboard className="h-5 w-5 text-blue-600" />)
 
+    usePageHeader(t("dashboard.title"), <LayoutDashboard className="h-5 w-5 text-blue-600" />)
+
     const formatCurrency = (amount: number | null | undefined) => {
         return new Intl.NumberFormat("en-US", {
             style: "currency",
