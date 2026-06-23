@@ -1,11 +1,12 @@
 import { CountryComplianceProfile } from './schema';
 import { FALLBACK } from './data/fallback';
-import { FR } from './data/fr';
-import { MC } from './data/monaco';
-import { MX } from './data/mx';
-import { US } from './data/us';
+import { ALL_PROFILES } from './data/all';
 
-const BUILT_IN: Record<string, CountryComplianceProfile> = { FR, US, MX, MC };
+function buildIndex(profiles: CountryComplianceProfile[]): Record<string, CountryComplianceProfile> {
+  const index: Record<string, CountryComplianceProfile> = {};
+  for (const p of profiles) index[p.countryCode.toUpperCase()] = p; // later entries win
+  return index;
+}
 
 export interface ResolvedProfile {
   profile: CountryComplianceProfile;
@@ -16,17 +17,22 @@ export interface ResolvedProfile {
 
 /**
  * Loads a country profile, following delegation, with a safe fallback for unknown countries.
- * Adding the 78th country = adding a data file here, never an engine change.
+ * Adding a country = adding a data entry consumed by ALL_PROFILES, never an engine change.
  */
 export class ProfileRegistry {
   private readonly profiles: Record<string, CountryComplianceProfile>;
 
   constructor(extra?: Record<string, CountryComplianceProfile>) {
-    this.profiles = { ...BUILT_IN, ...(extra ?? {}) };
+    this.profiles = { ...buildIndex(ALL_PROFILES), ...(extra ?? {}) };
   }
 
   has(country: string): boolean {
     return !!this.profiles[(country ?? '').toUpperCase()];
+  }
+
+  /** Country codes that have a real (non-fallback) profile. */
+  countries(): string[] {
+    return Object.keys(this.profiles).sort();
   }
 
   resolve(country: string): ResolvedProfile {

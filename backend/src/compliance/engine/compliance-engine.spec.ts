@@ -85,12 +85,12 @@ describe('ComplianceEngine — cross-border composition', () => {
     expect(plan.confidence).toBe('OFFICIAL');
   });
 
-  it('FR→IT (IT has no profile yet): reverse charge still resolves, confidence degrades to FALLBACK', () => {
+  it('FR→IT B2B services: reverse charge; both profiles implemented → OFFICIAL confidence', () => {
     const plan = resolve(tx('FR', 'IT', 'B2B', 'SERVICES', '2027-01-15'));
     expect(plan.reporting).toContain('EC_SALES_LIST');
     expect(plan.tax.mentions.map((m) => m.code)).toContain('REVERSE_CHARGE');
-    expect(plan.confidence).toBe('FALLBACK');
-    expect(plan.warnings.join(' ')).toMatch(/buyer country "IT"/);
+    expect(plan.confidence).toBe('OFFICIAL');
+    expect(plan.warnings.join(' ')).not.toMatch(/buyer country "IT"/);
   });
 });
 
