@@ -45,7 +45,9 @@ export type DocumentSyntax =
   | 'PEPPOL_BIS'
   | 'FATTURAPA'
   | 'CFDI'
-  | 'KSA_UBL';
+  | 'FA_VAT'
+  | 'KSA_UBL'
+  | 'NATIONAL_XML'; // generic placeholder for a national clearance XML without a dedicated provider yet
 
 export type ChannelType =
   | 'EMAIL'

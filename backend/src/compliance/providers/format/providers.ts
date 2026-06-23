@@ -102,3 +102,36 @@ export class KsaUblFormatProvider implements FormatProvider {
     return okValidation('KSA UBL validation not implemented (stub)');
   }
 }
+
+/** Generic national-XML catch-all for clearance countries without a dedicated provider yet
+ *  (CL DTE, BR NF-e, AR, EC, TN TEIF…). Keeps every profile wired; replace per country over time. */
+export class NationalXmlFormatProvider implements FormatProvider {
+  readonly id = 'national-xml';
+  supports(syntax: DocumentSyntax): boolean {
+    return syntax === 'NATIONAL_XML';
+  }
+  build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): RenderedArtifact {
+    log.todo('format/national-xml', `build the national clearance XML for ${ctx.supplier.countryCode} (dedicated provider TODO)`);
+    return { ...rendered(artifact), mime: 'application/xml' };
+  }
+  validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
+    log.todo('format/national-xml', 'validate against the national schema');
+    return okValidation('national XML validation not implemented (stub)');
+  }
+}
+
+/** Poland — FA_VAT (FA(2)/FA(3)) national XML schema submitted to KSeF. */
+export class FaVatFormatProvider implements FormatProvider {
+  readonly id = 'fa-vat';
+  supports(syntax: DocumentSyntax): boolean {
+    return syntax === 'FA_VAT';
+  }
+  build(artifact: PlannedArtifact, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): RenderedArtifact {
+    log.todo('format/fa-vat', 'build Polish FA_VAT (FA(2)/FA(3)) XML for KSeF');
+    return { ...rendered(artifact), mime: 'application/xml' };
+  }
+  validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
+    log.todo('format/fa-vat', 'validate against the Ministry of Finance XSD');
+    return okValidation('FA_VAT validation not implemented (stub)');
+  }
+}

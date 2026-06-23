@@ -7,8 +7,10 @@ import { FormatProvider } from './format-provider';
 import {
   CfdiFormatProvider,
   En16931FormatProvider,
+  FaVatFormatProvider,
   FatturaPaFormatProvider,
   KsaUblFormatProvider,
+  NationalXmlFormatProvider,
   PlainPdfFormatProvider,
 } from './providers';
 
@@ -22,6 +24,8 @@ export class FormatProviderRegistry {
       new CfdiFormatProvider(),
       new FatturaPaFormatProvider(),
       new KsaUblFormatProvider(),
+      new FaVatFormatProvider(),
+      new NationalXmlFormatProvider(),
     ];
   }
 
