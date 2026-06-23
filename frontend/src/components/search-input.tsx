@@ -145,6 +145,7 @@ export default function SearchSelect({
                         sideOffset={4}
                         className="z-50 w-[var(--radix-popover-trigger-width)] bg-popover border rounded-md shadow-md outline-hidden"
                         onOpenAutoFocus={(e) => e.preventDefault()}
+                        {...(dataCyValue ? dataCy(dataCyValue) : {})}
                     >
                     <div className="p-2 border-b">
                         <Input
