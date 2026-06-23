@@ -1,3 +1,4 @@
+import * as PopoverPrimitive from "@radix-ui/react-popover"
 import { Check, ChevronDown, X } from "lucide-react"
 import { cn, dataCy } from "@/lib/utils"
 import { useRef, useState } from "react"
@@ -5,7 +6,6 @@ import { useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 interface Option {
     label: string
@@ -92,7 +92,7 @@ export default function SearchSelect({
     }
 
     return (
-        <Popover
+        <PopoverPrimitive.Root
             open={isOpen}
             onOpenChange={(open) => {
                 if (disabled) return
@@ -101,7 +101,7 @@ export default function SearchSelect({
             }}
         >
             <div className={cn("relative w-full", className)} {...(dataCyValue ? dataCy(dataCyValue) : {})}>
-                <PopoverTrigger asChild>
+                <PopoverPrimitive.Trigger asChild>
                     <Button
                         type="button"
                         variant="outline"
@@ -137,13 +137,15 @@ export default function SearchSelect({
                         </div>
                         <ChevronDown className={cn("h-4 w-4 opacity-50 transition-transform", isOpen && "rotate-180")} />
                     </Button>
-                </PopoverTrigger>
+                </PopoverPrimitive.Trigger>
 
-                <PopoverContent
-                    align="start"
-                    className="w-[var(--radix-popover-trigger-width)] p-0"
-                    onOpenAutoFocus={(e) => e.preventDefault()}
-                >
+                <PopoverPrimitive.Portal>
+                    <PopoverPrimitive.Content
+                        align="start"
+                        sideOffset={4}
+                        className="z-50 w-[var(--radix-popover-trigger-width)] bg-popover border rounded-md shadow-md outline-hidden"
+                        onOpenAutoFocus={(e) => e.preventDefault()}
+                    >
                     <div className="p-2 border-b">
                         <Input
                             ref={inputRef}
@@ -173,8 +175,9 @@ export default function SearchSelect({
                             </button>
                         ))}
                     </div>
-                </PopoverContent>
+                    </PopoverPrimitive.Content>
+                </PopoverPrimitive.Portal>
             </div>
-        </Popover>
+        </PopoverPrimitive.Root>
     )
 }
