@@ -91,6 +91,12 @@ const config: Config = {
           position: 'left',
         },
         {
+          type: 'docSidebar',
+          sidebarId: 'userGuideSidebar',
+          label: 'User Guide',
+          position: 'left',
+        },
+        {
           to: '/compliance',
           label: 'Compliance',
           position: 'left',
