@@ -263,7 +263,7 @@ describe('Invoices E2E', () => {
             // Find the row for the created invoice
             cy.contains('[data-cy="invoice-row"]', 'Jane Doe').within(() => {
                 // Check status
-                cy.get('[data-cy="invoice-status"]').invoke('text').should('match', /Unpaid|Impayée/i);
+                cy.get('[data-cy="invoice-status"]').invoke('text').should('match', /Draft|Brouillon/i);
 
                 // Click Edit button
                 cy.get('[data-cy="invoice-edit-button"]').click();
