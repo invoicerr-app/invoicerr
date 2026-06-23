@@ -1,0 +1,38 @@
+{
+  "title": {
+    "message": "Invoicerr",
+    "description": "The title in the navbar"
+  },
+  "logo.alt": {
+    "message": "Logo Invoicerr",
+    "description": "The alt text of navbar logo"
+  },
+  "item.label.Getting Started": {
+    "message": "Prise en main",
+    "description": "Navbar item with label Getting Started"
+  },
+  "item.label.Developer Guide": {
+    "message": "Guide développeur",
+    "description": "Navbar item with label Developer Guide"
+  },
+  "item.label.API Reference": {
+    "message": "Référence API",
+    "description": "Navbar item with label API Reference"
+  },
+  "item.label.Compliance": {
+    "message": "Conformité",
+    "description": "Navbar item with label Compliance"
+  },
+  "item.label.Changelog": {
+    "message": "Changelog",
+    "description": "Navbar item with label Changelog"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Navbar item with label GitHub"
+  },
+  "item.label.User Guide": {
+    "message": "Guide d'utilisation",
+    "description": "Navbar item with label User Guide"
+  }
+}

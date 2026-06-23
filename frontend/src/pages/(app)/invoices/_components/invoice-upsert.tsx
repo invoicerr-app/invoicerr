@@ -82,6 +82,14 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
         }
     }, [open])
 
+    const [mode, setMode] = useState<CreationMode>("invoice")
+
+    useEffect(() => {
+        if (open) {
+            setMode("invoice")
+        }
+    }, [open])
+
     const invoiceSchema = z.object({
         quoteId: z
             .string()
