@@ -1,0 +1,66 @@
+name: Build and Deploy Documentation
+
+# The github-pages environment's protection rules only allow deployments from
+# the `main` branch, so pull requests can build/verify the site but cannot
+# deploy (deploying from a PR merge ref is rejected by GitHub).
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "documentation/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: documentation/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd documentation
+          npm ci
+
+      - name: Build documentation site
+        run: |
+          cd documentation
+          npm run build
+
+      - name: Setup Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: documentation/build
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
