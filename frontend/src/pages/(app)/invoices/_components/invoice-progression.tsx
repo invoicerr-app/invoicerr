@@ -208,10 +208,17 @@ export function InvoiceProgression({
                                                 <div
                                                     key={step.key}
                                                     className={cn(
-                                                        "h-1.5 flex-1 rounded-full transition-colors",
+                                                        "h-1.5 flex-1 rounded-full transition-colors overflow-hidden relative",
                                                         index < filledSteps ? colors.bar : "bg-muted",
                                                     )}
-                                                />
+                                                >
+                                                    {isPartiallyPaid && step.key === "paid" && (
+                                                        <div
+                                                            className={cn("absolute inset-y-0 left-0 rounded-full", partiallyPaidColors.bar)}
+                                                            style={{ width: `${percentPaid}%` }}
+                                                        />
+                                                    )}
+                                                </div>
                                             ))}
                                         </div>
                                     </div>
