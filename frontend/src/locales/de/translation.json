@@ -1659,6 +1659,13 @@
                         "required": "Kunde ist erforderlich."
                     }
                 },
+                "amount": {
+                    "label": "Gesamtbetrag",
+                    "placeholder": "Geben Sie den Zahlungsbetrag ein"
+                },
+                "breakdown": {
+                    "label": "Aufteilung auf die Artikel"
+                },
                 "items": {
                     "label": "Artikel",
                     "placeholder": "Posten zum Beleg hinzufügen",

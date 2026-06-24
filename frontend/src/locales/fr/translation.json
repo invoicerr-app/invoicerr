@@ -1853,6 +1853,13 @@
                         "required": "Le client est requis."
                     }
                 },
+                "amount": {
+                    "label": "Montant total",
+                    "placeholder": "Saisissez le montant du paiement"
+                },
+                "breakdown": {
+                    "label": "Répartition par article"
+                },
                 "items": {
                     "label": "Articles",
                     "placeholder": "Ajoutez un article",

@@ -1871,6 +1871,13 @@
                         "required": "Client is required."
                     }
                 },
+                "amount": {
+                    "label": "Total amount",
+                    "placeholder": "Enter the payment amount"
+                },
+                "breakdown": {
+                    "label": "Distribution across items"
+                },
                 "items": {
                     "label": "Items",
                     "placeholder": "Add items to the payment",

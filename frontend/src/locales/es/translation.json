@@ -1659,6 +1659,13 @@
                         "required": "El cliente es obligatorio."
                     }
                 },
+                "amount": {
+                    "label": "Importe total",
+                    "placeholder": "Introduce el importe del pago"
+                },
+                "breakdown": {
+                    "label": "Distribución por ítem"
+                },
                 "items": {
                     "label": "Ítems",
                     "placeholder": "Agregue ítems al recibo",

@@ -2,9 +2,9 @@
 
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import type { Invoice, InvoiceItem, PaymentMethod, Payment } from "@/types"
+import type { Invoice, PaymentMethod, Payment } from "@/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { usePatch, usePost } from "@/hooks/use-fetch"
 import { useInvoiceSearch, usePaymentMethods } from "@/hooks/queries"
 import { queryKeys } from "@/lib/query-keys"
@@ -16,11 +16,25 @@ import { ClientUpsert } from "../../clients/_components/client-upsert"
 import { DatePicker } from "@/components/date-picker"
 import { PaymentMethodType } from "@/types"
 import SearchSelect from "@/components/search-input"
-import { Trash2 } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
+
+const clampDiscount = (r?: number) => Math.min(Math.max(r ?? 0, 0), 100)
+
+function distribute(invoice: Invoice, total: number): Item[] {
+    const discountFactor = 1 - clampDiscount(invoice.discountRate) / 100
+    const ratio = invoice.totalTTC > 0 ? total / invoice.totalTTC : 0
+    const list = (invoice.items ?? []).map(it => {
+        const fullTTC = it.quantity * it.unitPrice * discountFactor * (1 + (it.vatRate || 0) / 100)
+        return { invoiceItemId: it.id, description: it.description, amountPaid: Math.round(fullTTC * ratio * 100) / 100 }
+    })
+    // adjust the last item by the rounding remainder so the breakdown sums exactly to the entered total
+    const diff = Math.round((total - list.reduce((s, i) => s + i.amountPaid, 0)) * 100) / 100
+    if (list.length && diff !== 0) list[list.length - 1].amountPaid += diff
+    return list
+}
 
 interface PaymentUpsertDialogProps {
     payment?: Payment | null
@@ -42,17 +56,14 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
     const [clientDialogOpen, setClientDialogOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState("")
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
-    const [selectedItem, setSelectedItem] = useState<InvoiceItem | null>(null)
-    const [items, setItems] = useState<Item[]>(payment?.items.map(item => ({
-        invoiceItemId: item.invoiceItemId,
-        description: payment.invoice?.items.find(invItem => invItem.id === item.invoiceItemId)?.description || "",
-        amountPaid: item.amountPaid
-    })) || [])
+
+    const initialAmount = payment?.items.reduce((sum, item) => sum + item.amountPaid, 0) ?? 0
 
     const paymentSchema = z.object({
         invoiceId: z.string().optional(),
         paymentMethodId: z.string().optional(),
         paidAt: z.date().optional(),
+        amount: z.coerce.number(),
     })
 
     const { data: invoices } = useInvoiceSearch(searchTerm)
@@ -67,6 +78,7 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
             invoiceId: payment?.invoiceId || "",
             paymentMethodId: payment?.paymentMethodId || "",
             paidAt: payment?.paidAt ? new Date(payment.paidAt) : new Date(),
+            amount: initialAmount,
         },
     })
 
@@ -76,37 +88,37 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                 invoiceId: payment.invoiceId || "",
                 paymentMethodId: (payment as any).paymentMethodId || "",
                 paidAt: payment.paidAt ? new Date(payment.paidAt) : new Date(),
+                amount: payment.items.reduce((sum, item) => sum + item.amountPaid, 0),
             })
-            setItems(payment.items.map(item => ({
-                invoiceItemId: item.invoiceItemId,
-                description: payment.invoice?.items.find(invItem => invItem.id === item.invoiceItemId)?.description || "",
-                amountPaid: item.amountPaid
-            })))
             setSelectedInvoice(payment.invoice || null)
-            setSelectedItem(null)
         } else {
             form.reset({
                 invoiceId: "",
                 paymentMethodId: "",
                 paidAt: new Date(),
+                amount: 0,
             })
-            setItems([])
+            setSelectedInvoice(null)
         }
     }, [payment, form, isEdit])
 
     const handleOpenChange = (open: boolean) => {
         if (!open) {
             setSelectedInvoice(null)
-            setSelectedItem(null)
-            setItems([])
             form.reset()
         }
         onOpenChange(open)
     }
 
+    const amount = form.watch("amount")
+    const items = useMemo(
+        () => (selectedInvoice ? distribute(selectedInvoice, Number(amount) || 0) : []),
+        [selectedInvoice, amount],
+    )
+
     const onSubmit = (data: z.infer<typeof paymentSchema>) => {
         const trigger = isEdit ? updateTrigger : createTrigger
-        const { paidAt, ...rest } = data
+        const { paidAt, amount: _amount, ...rest } = data
         trigger({
             ...rest,
             paidAt: paidAt ? paidAt.toISOString() : undefined,
@@ -131,29 +143,10 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
         }
     }, [form, selectedInvoice])
 
-    const onAddItem = () => {
-        if (selectedItem) {
-            setItems([...items, {
-                invoiceItemId: selectedItem.id,
-                description: selectedItem.description,
-                amountPaid: selectedItem.unitPrice * selectedItem.quantity
-            }])
-        }
-    }
-
-    const onRemoveItem = (index: number) => {
-        setItems(items.filter((_, i) => i !== index))
-    }
-
-    const onEditItem = (index: number, field: keyof Item) => (value: string | number) => {
-        setItems(items.map((item, i) => i === index ? { ...item, [field]: value } : item))
-    }
-
     const otherPaymentsTotal = (selectedInvoice?.payments ?? [])
         .filter(p => p.id !== payment?.id)
         .reduce((sum, p) => sum + p.totalPaid, 0)
-    const itemsTotal = items.reduce((sum, item) => sum + (item.amountPaid || 0), 0)
-    const hasNegativeTotalError = otherPaymentsTotal + itemsTotal < 0
+    const hasNegativeTotalError = otherPaymentsTotal + (Number(amount) || 0) < 0
 
     return (
         <>
@@ -174,7 +167,7 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                                             <SearchSelect
                                                 options={invoiceList.map((invoice) => ({ label: invoice.rawNumber || invoice.number.toString(), value: invoice.id }))}
                                                 value={field.value ?? ""}
-                                                onValueChange={(val) => { field.onChange(val || null); setSelectedInvoice(invoiceList.find(inv => inv.id === val) || null); setSelectedItem(null); }}
+                                                onValueChange={(val) => { field.onChange(val || null); setSelectedInvoice(invoiceList.find(inv => inv.id === val) || null); }}
                                                 onSearchChange={setSearchTerm}
                                                 placeholder={t("payments.upsert.form.invoice.placeholder")}
                                                 noResultsText={t("payments.upsert.form.invoice.noResults")}
@@ -232,84 +225,67 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                                 )}
                             />
 
-                            <FormItem className="flex flex-col gap-2 mt-2">
-                                <FormLabel className="mb-0">{t("payments.upsert.form.items.label")}</FormLabel>
-
-                                <section className="grid grid-cols-1 md:grid-cols-4 gap-2 !m-0">
-                                    <FormItem className="col-span-3">
+                            <FormField
+                                control={form.control}
+                                name="amount"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel required>{t("payments.upsert.form.amount.label")}</FormLabel>
                                         <FormControl>
-                                            <SearchSelect
-                                                options={(selectedInvoice?.items || [])
-                                                    .filter(item => !items.some(i => i.invoiceItemId === item.id))
-                                                    .map(item => ({ label: item.description, value: item.id }))}
-                                                value={selectedItem?.id || undefined}
-                                                onValueChange={(val) => {
-                                                    setSelectedItem((selectedInvoice?.items || []).find(item => item.id === val) || null);
-                                                }}
-                                                onSearchChange={setSearchTerm}
-                                                placeholder={t("payments.upsert.form.items.placeholder")}
-                                                noResultsText={t("payments.upsert.form.items.noResults")}
+                                            <BetterInput
+                                                {...field}
+                                                type="number"
+                                                step="0.01"
+                                                postAdornment={selectedInvoice?.currency || ""}
+                                                placeholder={t("payments.upsert.form.amount.placeholder")}
+                                                disabled={!selectedInvoice}
+                                                onChange={(e) => field.onChange(e.target.value === "" ? "" : Number.parseFloat(e.target.value))}
                                             />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        disabled={!selectedItem}
-                                        onClick={onAddItem}
-                                    >
-                                        {t("payments.upsert.form.items.addButton")}
-                                    </Button>
-                                </section>
-                                <div className="flex flex-col gap-2">
-                                    {items.map((item, index) => (
-                                        <div className="flex gap-2 items-center">
-                                            <FormItem className="flex-1">
-                                                <FormControl>
-                                                    <BetterInput
-                                                        defaultValue={item.description || ""}
-                                                        placeholder={t("payments.upsert.form.items.description.placeholder")}
-                                                        onChange={(e) => onEditItem(index, "description")(e.target.value)}
-                                                        disabled
-                                                    />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                            <FormItem>
-                                                <FormControl>
-                                                    <BetterInput
-                                                        defaultValue={item.amountPaid || ""}
-                                                        placeholder={t("payments.upsert.form.items.amountPaid.placeholder")}
-                                                        onChange={(e) => onEditItem(index, "amountPaid")(parseFloat(e.target.value))}
-                                                        type="number"
-                                                        step="0.01"
-                                                        postAdornment={selectedInvoice?.currency || ""}
-                                                        disabled={!selectedInvoice}
-                                                    />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-
-                                            <Button variant={"outline"} onClick={() => onRemoveItem(index)} type="reset" className="h-8">
-                                                <Trash2 className="h-4 w-4 text-red-700" />
-                                            </Button>
-                                        </div>
-                                    ))}
-                                </div>
-                                {hasNegativeTotalError && (
-                                    <p className="text-sm text-destructive">
-                                        {t("payments.upsert.form.items.errors.negativeTotal")}
-                                    </p>
                                 )}
-                            </FormItem>
+                            />
+
+                            {selectedInvoice && items.length > 0 && (
+                                <FormItem className="flex flex-col gap-2 mt-2">
+                                    <FormLabel className="mb-0">{t("payments.upsert.form.breakdown.label")}</FormLabel>
+                                    <div className="flex flex-col gap-2">
+                                        {items.map((item) => (
+                                            <div className="flex gap-2 items-center" key={item.invoiceItemId}>
+                                                <FormItem className="flex-1">
+                                                    <FormControl>
+                                                        <BetterInput value={item.description || ""} disabled />
+                                                    </FormControl>
+                                                </FormItem>
+                                                <FormItem>
+                                                    <FormControl>
+                                                        <BetterInput
+                                                            value={item.amountPaid}
+                                                            type="number"
+                                                            postAdornment={selectedInvoice?.currency || ""}
+                                                            disabled
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </FormItem>
+                            )}
+
+                            {hasNegativeTotalError && (
+                                <p className="text-sm text-destructive mt-2">
+                                    {t("payments.upsert.form.items.errors.negativeTotal")}
+                                </p>
+                            )}
                         </form>
                     </Form>
                     <DialogFooter className="flex justify-end space-x-2">
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                             {t("payments.upsert.actions.cancel")}
                         </Button>
-                        <Button type="button" onClick={form.handleSubmit(onSubmit)} loading={createLoading || updateLoading} disabled={hasNegativeTotalError} dataCy="payment-submit">
+                        <Button type="button" onClick={form.handleSubmit(onSubmit)} loading={createLoading || updateLoading} disabled={hasNegativeTotalError || !selectedInvoice} dataCy="payment-submit">
                             {t(`payments.upsert.actions.${isEdit ? "save" : "create"}`)}
                         </Button>
                     </DialogFooter>
