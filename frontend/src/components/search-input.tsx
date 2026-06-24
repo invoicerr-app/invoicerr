@@ -1,6 +1,7 @@
+import * as PopoverPrimitive from "@radix-ui/react-popover"
 import { Check, ChevronDown, X } from "lucide-react"
 import { cn, dataCy } from "@/lib/utils"
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -44,18 +45,7 @@ export default function SearchSelect({
 }: SearchSelectProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [searchValue, setSearchValue] = useState("")
-    const containerRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-                setIsOpen(false)
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside)
-        return () => document.removeEventListener("mousedown", handleClickOutside)
-    }, [])
 
     const handleSearchChange = (search: string) => {
         setSearchValue(search)
@@ -96,59 +86,67 @@ export default function SearchSelect({
         }
     }
 
-    const toggleDropdown = () => {
-        if (!disabled) {
-            setIsOpen(!isOpen)
-            if (!isOpen) setTimeout(() => inputRef.current?.focus(), 0)
-        }
-    }
-
     const renderNoResults = () => {
         if (noResultsComponent) return noResultsComponent
         return <p className="text-muted-foreground text-center">{noResultsText}</p>
     }
 
     return (
-        <div ref={containerRef} className={cn("relative w-full", className)} {...(dataCyValue ? dataCy(dataCyValue) : {})}>
-            <Button
-                type="button"
-                variant="outline"
-                onClick={toggleDropdown}
-                disabled={disabled}
-                className={cn(
-                    "w-full justify-between text-left font-normal h-9 min-h-8 p-3",
-                    (!multiple && !value) || (multiple && !(value as string[]).length) ? "text-muted-foreground" : "",
-                )}
-            >
-                <div className="flex flex-wrap gap-1 flex-1 items-center">
-                    {multiple ? (
-                        !(value as string[]).length ? (
-                            <span>{placeholder}</span>
-                        ) : (
-                            (value as string[]).map((optionValue) => (
-                                <Badge key={optionValue} variant="secondary" className="text-xs">
-                                    {getOptionLabel(optionValue)}
-                                    <button
-                                        type="button"
-                                        onClick={(e) => handleRemoveOption(optionValue, e)}
-                                        className="ml-1 hover:bg-muted rounded-full p-0.5"
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </button>
-                                </Badge>
-                            ))
-                        )
-                    ) : getOptionLabel(value as string) ? (
-                        <span>{getOptionLabel(value as string)}</span>
-                    ) : (
-                        <span>{placeholder}</span>
-                    )}
-                </div>
-                <ChevronDown className={cn("h-4 w-4 opacity-50 transition-transform", isOpen && "rotate-180")} />
-            </Button>
+        <PopoverPrimitive.Root
+            open={isOpen}
+            onOpenChange={(open) => {
+                if (disabled) return
+                setIsOpen(open)
+                if (open) setTimeout(() => inputRef.current?.focus(), 0)
+            }}
+        >
+            <div className={cn("relative w-full", className)} {...(dataCyValue ? dataCy(dataCyValue) : {})}>
+                <PopoverPrimitive.Trigger asChild>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={disabled}
+                        className={cn(
+                            "w-full justify-between text-left font-normal h-9 min-h-8 p-3",
+                            (!multiple && !value) || (multiple && !(value as string[]).length) ? "text-muted-foreground" : "",
+                        )}
+                    >
+                        <div className="flex flex-wrap gap-1 flex-1 items-center">
+                            {multiple ? (
+                                !(value as string[]).length ? (
+                                    <span>{placeholder}</span>
+                                ) : (
+                                    (value as string[]).map((optionValue) => (
+                                        <Badge key={optionValue} variant="secondary" className="text-xs">
+                                            {getOptionLabel(optionValue)}
+                                            <button
+                                                type="button"
+                                                onClick={(e) => handleRemoveOption(optionValue, e)}
+                                                className="ml-1 hover:bg-muted rounded-full p-0.5"
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </Badge>
+                                    ))
+                                )
+                            ) : getOptionLabel(value as string) ? (
+                                <span>{getOptionLabel(value as string)}</span>
+                            ) : (
+                                <span>{placeholder}</span>
+                            )}
+                        </div>
+                        <ChevronDown className={cn("h-4 w-4 opacity-50 transition-transform", isOpen && "rotate-180")} />
+                    </Button>
+                </PopoverPrimitive.Trigger>
 
-            {isOpen && (
-                <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-popover border rounded-md shadow-md">
+                <PopoverPrimitive.Portal>
+                    <PopoverPrimitive.Content
+                        align="start"
+                        sideOffset={4}
+                        className="z-50 w-[var(--radix-popover-trigger-width)] bg-popover border rounded-md shadow-md outline-hidden"
+                        onOpenAutoFocus={(e) => e.preventDefault()}
+                        {...(dataCyValue ? dataCy(dataCyValue) : {})}
+                    >
                     <div className="p-2 border-b">
                         <Input
                             ref={inputRef}
@@ -178,8 +176,9 @@ export default function SearchSelect({
                             </button>
                         ))}
                     </div>
-                </div>
-            )}
-        </div>
+                    </PopoverPrimitive.Content>
+                </PopoverPrimitive.Portal>
+            </div>
+        </PopoverPrimitive.Root>
     )
 }

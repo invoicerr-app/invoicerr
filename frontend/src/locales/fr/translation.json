@@ -825,6 +825,70 @@
             }
         }
     },
+    "articles": {
+        "title": "Articles",
+        "description": "Gérez un catalogue réutilisable de produits et services.",
+        "empty": "Aucun article pour le moment",
+        "actions": {
+            "cancel": "Annuler",
+            "add": "Ajouter",
+            "save": "Enregistrer",
+            "edit": "Modifier",
+            "delete": "Supprimer",
+            "deleting": "Suppression..."
+        },
+        "search": {
+            "placeholder": "Rechercher des articles..."
+        },
+        "list": {
+            "add": "Ajouter un article"
+        },
+        "picker": {
+            "placeholder": "Ajouter depuis le catalogue...",
+            "noResults": "Aucun article trouvé"
+        },
+        "fields": {
+            "name": {
+                "label": "Nom",
+                "placeholder": "ex. Heure de développement web"
+            },
+            "description": {
+                "label": "Description",
+                "placeholder": "Texte inséré dans la ligne"
+            },
+            "type": {
+                "label": "Type",
+                "hour": "Heure",
+                "day": "Jour",
+                "deposit": "Acompte",
+                "service": "Service",
+                "product": "Produit"
+            },
+            "unitPrice": {
+                "label": "Prix unitaire"
+            },
+            "vatRate": {
+                "label": "TVA (%)"
+            }
+        },
+        "upsert": {
+            "title": {
+                "create": "Ajouter un article",
+                "edit": "Modifier l'article"
+            },
+            "messages": {
+                "addSuccess": "Article ajouté",
+                "addError": "Échec de l'ajout de l'article",
+                "updateSuccess": "Article mis à jour",
+                "updateError": "Échec de la mise à jour de l'article",
+                "deleteSuccess": "Article supprimé",
+                "deleteError": "Échec de la suppression de l'article"
+            }
+        },
+        "delete": {
+            "description": "Êtes-vous sûr de vouloir supprimer \"{{name}}\" ? Cette action est irréversible."
+        }
+    },
     "paymentMethods": {
         "title": "Méthodes de paiement",
         "description": "Gérez des méthodes de paiement réutilisables (IBAN, PayPal, Espèces...)",
@@ -1514,6 +1578,7 @@
             "invoices": "Factures",
             "receipts": "Reçus",
             "clients": "Clients",
+            "articles": "Articles",
             "paymentMethods": "Méthodes de paiement",
             "stats": "Statistiques",
             "settings": "Paramètres"

@@ -1,5 +1,6 @@
 import { APP_GUARD } from '@nestjs/core';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
+import { ArticlesModule } from './modules/articles/articles.module';
 import { AuthExtendedModule } from './modules/auth-extended/auth-extended.module';
 import { AuthGuard } from '@/guards/auth.guard';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
@@ -42,6 +43,7 @@ import { auth } from "./lib/auth"
     }),
     AuthExtendedModule,
     ApiKeysModule,
+    ArticlesModule,
     CompanyModule,
     ClientsModule,
     QuotesModule,
