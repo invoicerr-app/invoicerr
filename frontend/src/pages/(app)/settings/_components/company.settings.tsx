@@ -178,6 +178,11 @@ export default function CompanySettings() {
         if (data && Object.keys(data).length > 0) {
             form.reset({
                 ...data,
+                description: data.description ?? "",
+                legalId: data.legalId ?? "",
+                VAT: data.VAT ?? "",
+                addressLine2: data.addressLine2 ?? "",
+                state: data.state ?? "",
                 foundedAt: new Date(data.foundedAt),
                 exemptVat: !!data.exemptVat,
             })
