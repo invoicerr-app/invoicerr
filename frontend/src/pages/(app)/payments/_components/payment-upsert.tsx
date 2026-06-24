@@ -138,6 +138,8 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
         })
             .then(() => {
                 queryClient.invalidateQueries({ queryKey: queryKeys.payments.listsAll() })
+                // A payment change can update the invoice's paid amount/status, so refetch invoices.
+                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 onOpenChange(false)
                 form.reset()
             })
