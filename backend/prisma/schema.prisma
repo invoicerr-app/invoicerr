@@ -454,6 +454,7 @@ model Invoice {
   currency           Currency
   isActive           Boolean           @default(true)
   receipts           Receipt[]
+  complianceDocuments ComplianceDocument[]
 }
 
 model InvoiceItem {
@@ -928,3 +929,167 @@ model Log {
 }
 
 // ======= END OF LOGGING SYSTEM ======= //
+
+// ======= START OF COMPLIANCE LIFECYCLE PERSISTENCE ======= //
+// See COMPLIANCE_ARCHITECTURE.md §13 + TODO_PRISMA.md §4. Additive only.
+
+enum ComplianceStatus {
+  DRAFT
+  ISSUED
+  PENDING_CLEARANCE
+  CLEARED
+  REJECTED
+  CONTINGENCY
+  DELIVERED
+  AWAITING_RESPONSE
+  ACCEPTED
+  REFUSED
+  DISPUTED
+  REPORTED
+  CANCELLED
+  CORRECTED
+  LEGACY
+}
+
+enum ComplianceDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum ComplianceDocumentKind {
+  INVOICE
+  CREDIT_NOTE
+  DEBIT_NOTE
+  CORRECTIVE_INVOICE
+  PREPAYMENT
+  SELF_BILLED
+  EXPORT_INVOICE
+  CASH_RECEIPT
+  WITHHOLDING_RECEIPT
+  PAYMENT_RECEIPT
+}
+
+enum ScheduledJobKind {
+  POLL
+  TIMER
+}
+
+enum ScheduledJobStatus {
+  PENDING
+  ARMED
+  DONE
+  FIRED
+  EXPIRED
+  CANCELLED
+}
+
+enum CallbackRegStatus {
+  WAITING
+  RESOLVED
+  CANCELLED
+}
+
+model ComplianceDocument {
+  id             String                 @id
+  invoiceId      String?
+  invoice        Invoice?               @relation(fields: [invoiceId], references: [id])
+  kind           ComplianceDocumentKind @default(INVOICE)
+  direction      ComplianceDirection    @default(OUTBOUND)
+  status         ComplianceStatus       @default(DRAFT)
+  ctx            Json                   // TransactionContext snapshot (issueDate is an ISO string in JSON)
+  plan           Json?                  // CompliancePlan
+  lifecycleGraph Json?                  // frozen LifecycleGraph (assembler output)
+  profileVersion String?
+  number         String?
+  immutableHash  String?
+  previousHash   String?
+  correctsId     String?                // self-reference id for credit/corrective docs (not a FK)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  events         ComplianceEvent[]
+  authorityIds   ComplianceAuthorityId[]
+  scheduledJobs  ScheduledJob[]
+  callbacks      ComplianceCallbackRegistration[]
+
+  @@index([status])
+  @@index([invoiceId])
+}
+
+model ComplianceEvent {
+  id         String             @id @default(uuid())
+  documentId String
+  document   ComplianceDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  type       String             // ISSUE | CLEAR | REFUSE | an inbound status string …
+  at         DateTime           @default(now())
+  actor      String?            // user | authority | system
+  detail     String?
+  payload    Json?
+
+  @@index([documentId])
+}
+
+model ComplianceAuthorityId {
+  id         String             @id @default(uuid())
+  documentId String
+  document   ComplianceDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  scheme     String             // UUID | IRN | SDI | CHNFE | CUFE | CDR | PROTOCOL | FOLIO …
+  value      String
+  issuedAt   DateTime           @default(now())
+
+  @@index([documentId])
+}
+
+// One row backs BOTH PollJob (kind=POLL) and TimerJob (kind=TIMER). Nullable columns per kind.
+model ScheduledJob {
+  id         String             @id
+  documentId String
+  document   ComplianceDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  kind       ScheduledJobKind
+  status     ScheduledJobStatus @default(PENDING)
+  awaiting   String             // the ComplianceStatus the job guards
+  // poll
+  providerId String?
+  channel    String?
+  ref        String?
+  attempts   Int                @default(0)
+  nextRunAt  DateTime?
+  expiresAt  DateTime?
+  policy     Json?              // PollPolicy
+  // timer
+  onElapse   String?            // ComplianceEvent to fire on elapse
+  fireAt     DateTime?
+  createdAt  DateTime           @default(now())
+
+  @@index([kind, status, nextRunAt])
+  @@index([kind, status, fireAt])
+  @@index([documentId])
+}
+
+model ComplianceCallbackRegistration {
+  id             String             @id
+  documentId     String
+  document       ComplianceDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  channel        String
+  correlationKey String
+  awaiting       String
+  status         CallbackRegStatus  @default(WAITING)
+  createdAt      DateTime           @default(now())
+
+  @@index([channel, correlationKey, status])
+  @@index([documentId])
+}
+
+model ComplianceInboundMessage {
+  id             String   @id
+  channel        String
+  correlationKey String
+  status         String
+  rawRef         String?
+  receivedAt     DateTime @default(now())
+
+  @@index([channel, correlationKey])
+  // dedup is enforced in the store (check by channel+rawRef before insert); a partial unique index
+  // on (channel, rawRef) WHERE rawRef IS NOT NULL is a nice-to-have via raw SQL in the migration.
+}
+
+// ======= END OF COMPLIANCE LIFECYCLE PERSISTENCE ======= //
