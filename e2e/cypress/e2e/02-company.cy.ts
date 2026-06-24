@@ -14,6 +14,9 @@ describe('Company Settings E2E', () => {
             cy.get('[data-cy="onboarding-company-legalid-input"]').clear().type('LEGAL123456');
             cy.get('[data-cy="onboarding-company-vat-input"]').clear().type('FR12345678901');
 
+            // Selecting the country auto-fills the currency (EUR for France)
+            cy.selectCountry('onboarding-company-country-input', 'France');
+
             cy.get('[data-cy="onboarding-company-currency-select"]').click();
             cy.get('[data-cy="onboarding-company-currency-select-option-euro-(€)"]').click();
 
@@ -22,7 +25,6 @@ describe('Company Settings E2E', () => {
             cy.get('[data-cy="onboarding-company-address-input"]').clear().type('123 Main Street');
             cy.get('[data-cy="onboarding-company-postalcode-input"]').clear().type('75001');
             cy.get('[data-cy="onboarding-company-city-input"]').clear().type('Paris');
-            cy.get('[data-cy="onboarding-company-country-input"]').clear().type('France');
 
             cy.get('[data-cy="onboarding-next-btn"]').click();
 
@@ -68,13 +70,6 @@ describe('Company Settings E2E', () => {
             cy.get('[data-cy="company-city-input"]', { timeout: 10000 }).clear();
             cy.get('[data-cy="company-submit-btn"]').click();
             cy.contains(/required|empty|city/i);
-        });
-
-        it('shows error for empty country', () => {
-            cy.visit('/settings/company');
-            cy.get('[data-cy="company-country-input"]', { timeout: 10000 }).clear();
-            cy.get('[data-cy="company-submit-btn"]').click();
-            cy.contains(/required|empty|country/i);
         });
 
         it('shows error for invalid postal code format', () => {
@@ -127,7 +122,7 @@ describe('Company Settings E2E', () => {
             cy.get('[data-cy="company-city-input"]').clear().type('Austin');
             cy.get('[data-cy="company-state-input"]').clear().type('TX');
             cy.get('[data-cy="company-postalcode-input"]').clear().type('78701');
-            cy.get('[data-cy="company-country-input"]').clear().type('USA');
+            cy.selectCountry('company-country-input', 'United States');
 
             cy.get('[data-cy="company-submit-btn"]').click();
             cy.wait(2000);
@@ -206,7 +201,7 @@ describe('Company Settings E2E', () => {
             cy.get('[data-cy="company-city-input"]').clear().type('Paris');
             cy.get('[data-cy="company-state-input"]').clear();
             cy.get('[data-cy="company-postalcode-input"]').clear().type('75001');
-            cy.get('[data-cy="company-country-input"]').clear().type('France');
+            cy.selectCountry('company-country-input', 'France');
 
             cy.get('[data-cy="company-currency-select"]').click();
             cy.get('[data-cy="company-currency-select-option-euro-(€)"]').click();
