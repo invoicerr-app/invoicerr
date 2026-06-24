@@ -14,10 +14,10 @@ export const ASIA_PROFILES: CountryComplianceProfile[] = [
   planned('LK', 'Sri Lanka', { tax: vat(18) }),
 
   // --- Majors added with the dev docs merge (catch-all format/channel until dedicated stubs) ---
-  clearance('CN', 'China', { tax: vat(13, [9, 6]) }), // fully digitalized e-fapiao
-  clearance('IN', 'India', { tax: gst(18, [28, 12, 5]) }), // IRN / IRP clearance + e-way
-  clearance('VN', 'Vietnam', { tax: vat(10, [8, 5]) }), // GDT clearance
-  clearance('MY', 'Malaysia', { from: '2024-08-01', tax: vat(8) }), // MyInvois (SST — placeholder rate)
+  clearance('CN', 'China', { syntax: 'CN_EFAPIAO', providerId: 'cn-sta', tax: vat(13, [9, 6]) }), // fully digitalized e-fapiao
+  clearance('IN', 'India', { syntax: 'IN_IRP', providerId: 'in-irp', tax: gst(18, [28, 12, 5]) }), // IRN / IRP clearance + e-way
+  clearance('VN', 'Vietnam', { syntax: 'VN_TT78', providerId: 'vn-gdt', tax: vat(10, [8, 5]) }), // GDT clearance
+  clearance('MY', 'Malaysia', { from: '2024-08-01', syntax: 'EN16931_UBL', providerId: 'myinvois', tax: vat(8) }), // MyInvois UBL (SST — placeholder rate)
   peppolCtc('SG', 'Singapore', { ctcFrom: '2025-11-01', tax: gst(9) }), // InvoiceNow (Peppol 5-corner)
   postAudit('JP', 'Japan', { tax: vat(10, [8]) }), // qualified invoice; Peppol JP PINT (consumption tax)
 ];

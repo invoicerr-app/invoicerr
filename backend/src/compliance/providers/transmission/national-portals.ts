@@ -101,4 +101,13 @@ export const NATIONAL_PORTAL_PROVIDERS: TransmissionProvider[] = [
   nationalPortal({ id: 'al-cis', channel: GP, label: 'Albania CIS', hint: 'fiscalize via the Central Information System, await NIVF/NSLF', async: true }),
   nationalPortal({ id: 'lv-vid', channel: GP, label: 'Latvia VID', hint: 'submit to VID / eAddress (mandate from 2026)' }),
   nationalPortal({ id: 'sk-financnasprava', channel: GP, label: 'Slovakia Finančná správa', hint: 'submit to the Financial Administration e-invoice system' }),
+  // --- Added with the dev docs merge (new clearance majors) ---
+  nationalPortal({ id: 'cn-sta', channel: GP, label: 'China STA (Golden Tax IV)', hint: 'submit e-Fapiao to the STA platform, await authorization', async: true }),
+  nationalPortal({ id: 'in-irp', channel: GP, label: 'India IRP (GSTN/NIC)', hint: 'submit INV-01 to the Invoice Registration Portal, await IRN + signed QR', async: true }),
+  nationalPortal({ id: 'vn-gdt', channel: GP, label: 'Vietnam GDT', hint: 'submit to the GDT, await the invoice code (mã CQT)', async: true }),
+  nationalPortal({ id: 'myinvois', channel: GP, label: 'Malaysia MyInvois (LHDNM)', hint: 'submit to MyInvois for validation before sharing, await the validation UIN', async: true }),
+  nationalPortal({ id: 'anaf', channel: GP, label: 'Romania ANAF (SPV / RO e-Factura)', hint: 'upload UBL/RO_CIUS to the SPV, await the ministry signature/index', async: true }),
+  nationalPortal({ id: 'rs-sef', channel: GP, label: 'Serbia SEF', hint: 'submit UBL/SRBEFN to the SEF, await acceptance', async: true }),
+  nationalPortal({ id: 'gib', channel: GP, label: 'Turkey GİB', hint: 'submit UBL-TR e-Fatura/e-Arşiv via GİB or a private integrator, await the envelope status', async: true }),
+  nationalPortal({ id: 'eg-eta', channel: GP, label: 'Egypt ETA', hint: 'submit the signed document to the ETA, await UUID/validation', async: true }),
 ];

@@ -65,6 +65,8 @@ export type DocumentSyntax =
   // MENA
   | 'JO_JOFOTARA' // Jordan — JoFotara national e-invoice (ISTD)
   | 'TN_TEIF' // Tunisia — TEIF via TTN / El Fatoura
+  | 'TR_EFATURA' // Turkey — UBL-TR e-Fatura / e-Arşiv (GİB)
+  | 'EG_ETA' // Egypt — ETA e-invoice (signed JSON/XML)
   // Sub-Saharan Africa (mostly fiscal-device real-time)
   | 'NG_FIRS' // Nigeria — FIRS e-invoice (MBS)
   | 'KE_ETIMS' // Kenya — eTIMS (KRA)
@@ -85,6 +87,9 @@ export type DocumentSyntax =
   | 'NP_CBMS' // Nepal — CBMS (IRD)
   | 'BD_NBR' // Bangladesh — NBR e-invoice
   | 'PK_FBR' // Pakistan — FBR XIR
+  | 'CN_EFAPIAO' // China — fully digitalized e-Fapiao (Golden Tax System IV, STA)
+  | 'IN_IRP' // India — GST e-invoice JSON (INV-01) via IRP + IRN/QR
+  | 'VN_TT78' // Vietnam — TT78 / Decree 123 e-invoice XML (GDT)
   // Europe (national, non-EN/Peppol)
   | 'ES_FACTURAE' // Spain — Facturae / SII / Verifactu (AEAT)
   | 'UA_TAXINVOICE' // Ukraine — tax-invoice XML (ЄРПН, DPS)

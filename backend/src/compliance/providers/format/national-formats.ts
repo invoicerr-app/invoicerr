@@ -93,4 +93,10 @@ export const NATIONAL_FORMAT_PROVIDERS: FormatProvider[] = [
   nationalFormat({ id: 'me-fiscal', syntax: 'ME_FISCAL', label: 'Montenegro fiscalization', buildHint: 'build fiscalization XML (IKOF/JIKR) + QR' }),
   nationalFormat({ id: 'hr-eracun', syntax: 'HR_ERACUN', label: 'Croatia e-Račun', buildHint: 'build Fiscalization 2.0 e-Račun (EN 16931 / CIUS-HR) for the CIS' }),
   nationalFormat({ id: 'al-fiscalization', syntax: 'AL_FISCALIZATION', label: 'Albania fiscalization', buildHint: 'build CIS fiscalization XML (UBL-based) + NIVF/NSLF + QR' }),
+  // --- Added with the dev docs merge (new clearance majors with a national schema) ---
+  nationalFormat({ id: 'cn-efapiao', syntax: 'CN_EFAPIAO', label: 'China e-Fapiao', buildHint: 'build the fully-digitalized e-Fapiao XML (Golden Tax System IV) — the XML is the legal invoice' }),
+  nationalFormat({ id: 'in-irp', syntax: 'IN_IRP', label: 'India GST e-invoice', buildHint: 'build the GST INV-01 JSON for the IRP; receive IRN + signed QR' }),
+  nationalFormat({ id: 'vn-tt78', syntax: 'VN_TT78', label: 'Vietnam TT78 e-invoice', buildHint: 'build the TT78/Decree-123 e-invoice XML; apply the mandatory digital signature (token/HSM)' }),
+  nationalFormat({ id: 'tr-efatura', syntax: 'TR_EFATURA', label: 'Turkey UBL-TR', buildHint: 'build UBL-TR e-Fatura (registered buyer) or e-Arşiv (unregistered); sign' }),
+  nationalFormat({ id: 'eg-eta', syntax: 'EG_ETA', label: 'Egypt ETA e-invoice', buildHint: 'build the ETA e-invoice document (signed JSON/XML) + UUID' }),
 ];

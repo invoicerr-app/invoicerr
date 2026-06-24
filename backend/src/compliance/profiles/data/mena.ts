@@ -15,6 +15,6 @@ export const MENA_PROFILES: CountryComplianceProfile[] = [
   planned('MA', 'Morocco', { tax: vat(20, [14, 10, 7]) }),
 
   // --- Added with the dev docs merge ---
-  clearance('TR', 'Turkey', { tax: vat(20, [10, 1]) }), // GİB e-Fatura / e-Arşiv
-  clearance('EG', 'Egypt', { from: '2020-11-01', tax: vat(14) }), // ETA e-invoice + e-receipt
+  clearance('TR', 'Turkey', { syntax: 'TR_EFATURA', providerId: 'gib', tax: vat(20, [10, 1]) }), // GİB e-Fatura / e-Arşiv
+  clearance('EG', 'Egypt', { from: '2020-11-01', syntax: 'EG_ETA', providerId: 'eg-eta', tax: vat(14) }), // ETA e-invoice + e-receipt
 ];
