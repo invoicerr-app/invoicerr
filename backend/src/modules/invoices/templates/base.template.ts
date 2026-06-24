@@ -17,9 +17,25 @@ export const baseTemplate = `
         .notes { margin-top: 30px; padding: 20px; background-color: {{secondaryColor}}; border-radius: 4px; color: {{tableTextColor}}; }
         .payment-info { margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-left: 4px solid {{primaryColor}}; color: #333; }
         .logo { max-height: 80px; margin-bottom: 10px; }
+        .watermark {
+            position: fixed;
+            top: 45%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 96px;
+            font-weight: bold;
+            color: #ff0000;
+            opacity: 0.15;
+            z-index: 1000;
+            pointer-events: none;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
+    {{#if isDraft}}
+    <div class="watermark">{{draftLabel}}</div>
+    {{/if}}
     <div class="header">
         <div class="company-info">
             {{#if includeLogo}}
