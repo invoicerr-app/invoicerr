@@ -23,6 +23,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { SignaturesModule } from './modules/signatures/signatures.module';
 import { StatsModule } from './modules/stats/stats.module'
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { ComplianceModule } from './compliance/nest/compliance.module';
 import { LoggerModule } from './modules/logger/logger.module';
 import { auth } from "./lib/auth"
 
@@ -57,6 +58,7 @@ import { auth } from "./lib/auth"
     StatsModule,
     WebhooksModule,
     InvitationsModule,
+    ComplianceModule,
     PrismaModule,
     LoggerModule,
   ],
