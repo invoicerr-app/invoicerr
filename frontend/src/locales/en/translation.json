@@ -413,6 +413,44 @@
             "oneTime": "One-time",
             "recurring": "Recurring"
         },
+        "progression": {
+            "title": "Progression",
+            "emptyState": "No invoices to display in progression.",
+            "steps": {
+                "draft": "Draft",
+                "sent": "Sent",
+                "paid": "Paid",
+                "archived": "Archived"
+            },
+            "stepLabel": "Step {{current}} / {{total}}",
+            "actions": {
+                "send": "Send",
+                "resend": "Resend",
+                "paymentReceived": "Payment received",
+                "archive": "Archive"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Send invoice",
+                    "description": "Are you sure you want to send invoice {{number}} to {{client}}?"
+                },
+                "resend": {
+                    "title": "Resend invoice",
+                    "description": "Are you sure you want to resend invoice {{number}} to {{client}}?"
+                },
+                "paymentReceived": {
+                    "title": "Payment received",
+                    "description": "Are you sure you received payment for invoice {{number}}?"
+                },
+                "archive": {
+                    "title": "Archive invoice",
+                    "description": "Are you sure you want to archive invoice {{number}}? This action is irreversible, you won't be able to undo it."
+                },
+                "confirm": "Confirm",
+                "cancel": "Cancel"
+            },
+            "noAction": "No action"
+        },
         "stats": {
             "total": "Total Invoices",
             "sent": "Sent",
@@ -434,11 +472,13 @@
             "title": "All Invoices",
             "description": "Manage and view all your invoices in one place.",
             "status": {
+                "draft": "Draft",
                 "sent": "Sent",
                 "unpaid": "Unpaid",
                 "overdue": "Overdue",
                 "paid": "Paid",
-                "upcoming": "Upcoming"
+                "upcoming": "Upcoming",
+                "archived": "Archived"
             },
             "item": {
                 "title": "Invoice {{number}} {{title}}",
@@ -477,8 +517,10 @@
             "messages": {
                 "markAsPaidSuccess": "Invoice marked as paid successfully",
                 "markAsPaidError": "Failed to mark invoice as paid",
-                "createPaymentSuccess": "Payment created successfully from invoice",
-                "sendByEmailSuccess": "Invoice has been sent to customer"
+                "createReceiptSuccess": "Receipt created successfully from invoice",
+                "sendByEmailSuccess": "Invoice has been sent to customer",
+                "archiveSuccess": "Invoice archived successfully",
+                "archiveError": "Failed to archive invoice"
             }
         },
         "upsert": {
@@ -590,10 +632,12 @@
             "title": "Invoice {{number}}",
             "description": "View all details of this invoice.",
             "status": {
+                "draft": "Draft",
                 "sent": "Sent",
                 "unpaid": "Unpaid",
                 "overdue": "Overdue",
-                "paid": "Paid"
+                "paid": "Paid",
+                "archived": "Archived"
             },
             "fields": {
                 "number": "Invoice Number",

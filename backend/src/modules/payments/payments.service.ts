@@ -139,7 +139,7 @@ export class PaymentsService {
             throw new BadRequestException('Invoice not found');
         }
 
-        if (invoice.status === 'UNPAID') {
+        if (invoice.status !== 'PAID') {
             const receipts = await prisma.receipt.findMany({
                 where: { invoiceId },
                 select: { totalPaid: true },
