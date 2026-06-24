@@ -428,8 +428,10 @@
                 "draft": "Brouillon",
                 "sent": "Envoyée",
                 "paid": "Payée",
-                "archived": "Archivée"
+                "archived": "Archivée",
+                "partiallyPaid": "Payée partiellement"
             },
+            "percentPaid": "{{percent}} % payé",
             "stepLabel": "Étape {{current}} / {{total}}",
             "actions": {
                 "send": "Envoyer",
@@ -671,6 +673,25 @@
             "emailLabel": "Destinataire :",
             "confirm": "Envoyer",
             "cancel": "Annuler"
+        },
+        "paymentReceived": {
+            "title": "Paiement reçu",
+            "description": "Saisissez le montant reçu pour cette facture.",
+            "percentLabel": "{{percent}} % de la facture seront payés",
+            "fields": {
+                "amount": {
+                    "label": "Montant reçu",
+                    "placeholder": "Saisissez le montant reçu",
+                    "errors": {
+                        "required": "Le montant doit être supérieur à 0",
+                        "tooHigh": "Le montant ne peut pas dépasser le solde restant"
+                    }
+                }
+            },
+            "actions": {
+                "confirm": "Confirmer",
+                "cancel": "Annuler"
+            }
         },
         "delete": {
             "title": "Supprimer la facture",

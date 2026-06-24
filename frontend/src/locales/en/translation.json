@@ -427,8 +427,10 @@
                 "draft": "Draft",
                 "sent": "Sent",
                 "paid": "Paid",
-                "archived": "Archived"
+                "archived": "Archived",
+                "partiallyPaid": "Partially paid"
             },
+            "percentPaid": "{{percent}}% paid",
             "stepLabel": "Step {{current}} / {{total}}",
             "actions": {
                 "send": "Send",
@@ -670,6 +672,25 @@
             "emailLabel": "Recipient:",
             "confirm": "Send",
             "cancel": "Cancel"
+        },
+        "paymentReceived": {
+            "title": "Payment received",
+            "description": "Enter the amount received for this invoice.",
+            "percentLabel": "{{percent}}% of the invoice will be paid",
+            "fields": {
+                "amount": {
+                    "label": "Amount received",
+                    "placeholder": "Enter the amount received",
+                    "errors": {
+                        "required": "Amount must be greater than 0",
+                        "tooHigh": "Amount cannot exceed the remaining balance"
+                    }
+                }
+            },
+            "actions": {
+                "confirm": "Confirm",
+                "cancel": "Cancel"
+            }
         },
         "delete": {
             "title": "Delete Invoice",

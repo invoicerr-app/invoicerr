@@ -389,6 +389,25 @@
             "startAdding": "Beginnen Sie mit der Erstellung Ihrer ersten Rechnung.",
             "tryDifferentSearch": "Versuchen Sie, Ihre Suchbegriffe anzupassen."
         },
+        "paymentReceived": {
+            "title": "Zahlung erhalten",
+            "description": "Geben Sie den für diese Rechnung erhaltenen Betrag ein.",
+            "percentLabel": "{{percent}} % der Rechnung werden bezahlt",
+            "fields": {
+                "amount": {
+                    "label": "Erhaltener Betrag",
+                    "placeholder": "Geben Sie den erhaltenen Betrag ein",
+                    "errors": {
+                        "required": "Der Betrag muss größer als 0 sein",
+                        "tooHigh": "Der Betrag darf den verbleibenden Saldo nicht überschreiten"
+                    }
+                }
+            },
+            "actions": {
+                "confirm": "Bestätigen",
+                "cancel": "Abbrechen"
+            }
+        },
         "list": {
             "title": "Alle Rechnungen",
             "description": "Verwalten und betrachten Sie alle Ihre Rechnungen an einem Ort.",

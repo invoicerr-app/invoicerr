@@ -389,6 +389,25 @@
             "startAdding": "Comienza creando tu primera factura.",
             "tryDifferentSearch": "Prueba ajustando tus términos de búsqueda."
         },
+        "paymentReceived": {
+            "title": "Pago recibido",
+            "description": "Introduce el importe recibido para esta factura.",
+            "percentLabel": "Se pagará el {{percent}} % de la factura",
+            "fields": {
+                "amount": {
+                    "label": "Importe recibido",
+                    "placeholder": "Introduce el importe recibido",
+                    "errors": {
+                        "required": "El importe debe ser mayor que 0",
+                        "tooHigh": "El importe no puede superar el saldo restante"
+                    }
+                }
+            },
+            "actions": {
+                "confirm": "Confirmar",
+                "cancel": "Cancelar"
+            }
+        },
         "list": {
             "title": "Todas las facturas",
             "description": "Administra y visualiza todas tus facturas en un solo lugar.",

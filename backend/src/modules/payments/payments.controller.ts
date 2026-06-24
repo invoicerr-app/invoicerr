@@ -37,14 +37,14 @@ export class PaymentsController {
   }
 
   @Post('create-from-invoice')
-  @ApiOperation({ summary: 'Create payment from invoice', description: 'Generates a payment for a paid invoice.' })
+  @ApiOperation({ summary: 'Create payment from invoice', description: 'Generates a payment for an invoice, for its full amount or a partial amount.' })
   @ApiResponse({ status: 201, description: 'Payment created from invoice' })
-  @ApiBody({ schema: { type: 'object', properties: { id: { type: 'string', description: 'ID of the invoice to create a payment for' } } } })
-  async createPaymentFromInvoice(@Body('id') invoiceId: string) {
+  @ApiBody({ schema: { type: 'object', properties: { id: { type: 'string', description: 'ID of the invoice to create a payment for' }, amount: { type: 'number', description: 'Amount received. Defaults to the invoice total (full payment) when omitted.' } } } })
+  async createPaymentFromInvoice(@Body('id') invoiceId: string, @Body('amount') amount?: number) {
     if (!invoiceId) {
       throw new Error('Invoice ID is required');
     }
-    return await this.paymentsService.createPaymentFromInvoice(invoiceId);
+    return await this.paymentsService.createPaymentFromInvoice(invoiceId, amount !== undefined ? +amount : undefined);
   }
 
   @Get(':id/pdf')
