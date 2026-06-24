@@ -164,4 +164,17 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     get paymentMethod() { return this.client.paymentMethod; }
     get webhook() { return this.client.webhook; }
     get plugin() { return this.client.plugin; }
+
+    // Compliance lifecycle (TODO_PRISMA.md §4)
+    get complianceDocument() { return this.client.complianceDocument; }
+    get complianceEvent() { return this.client.complianceEvent; }
+    get complianceAuthorityId() { return this.client.complianceAuthorityId; }
+    get scheduledJob() { return this.client.scheduledJob; }
+    get complianceCallbackRegistration() { return this.client.complianceCallbackRegistration; }
+    get complianceInboundMessage() { return this.client.complianceInboundMessage; }
+
+    /** Run an interactive transaction; `tx` exposes the same per-model delegates. */
+    transaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
+        return (this.client as any).$transaction(fn) as Promise<T>;
+    }
 }
