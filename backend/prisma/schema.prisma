@@ -324,8 +324,8 @@ model Company {
   quoteNumberFormat     String @default("Q-{year}-{number:4}") // Ex: "Q-2025-0001"
   invoiceStartingNumber Int    @default(1) // Starting number for invoices
   invoiceNumberFormat   String @default("INV-{year}-{number:4}") // Ex: "INV-2025-0001"
-  receiptStartingNumber Int    @default(1) // Starting number for receipts
-  receiptNumberFormat   String @default("REC-{year}-{number:4}") // Ex: "REC-2025-0001"
+  paymentStartingNumber Int    @default(1) // Starting number for payments
+  paymentNumberFormat   String @default("PAY-{year}-{number:4}") // Ex: "PAY-2025-0001"
 
   invoicePDFFormat String @default("facturx") // Ex: 'pdf' | 'facturx' | 'zugferd' | 'xrechnung' | 'ubl' | 'cii'
 
