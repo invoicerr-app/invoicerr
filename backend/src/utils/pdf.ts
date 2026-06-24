@@ -20,8 +20,8 @@ export async function formatPattern(type: PatternType, number: number, date: Dat
     let startingNumber = 1;
     switch (type) {
         case "receipt":
-            pattern = company.receiptNumberFormat;
-            startingNumber = company.receiptStartingNumber;
+            pattern = company.paymentNumberFormat;
+            startingNumber = company.paymentStartingNumber;
             break;
         case "invoice":
             pattern = company.invoiceNumberFormat;

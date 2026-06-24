@@ -3,11 +3,21 @@ import type { Company } from "./company";
 import type { PaymentMethod } from "./payment-method";
 
 export enum InvoiceStatus {
+    DRAFT = 'DRAFT',
     PAID = 'PAID',
     UNPAID = 'UNPAID',
     OVERDUE = 'OVERDUE',
     SENT = 'SENT',
-    UPCOMING = 'UPCOMING'
+    UPCOMING = 'UPCOMING',
+    ARCHIVED = 'ARCHIVED'
+}
+
+/**
+ * Display-only mapping: UNPAID invoices are shown as SENT in the UI without
+ * touching the underlying status stored in the database.
+ */
+export function getDisplayInvoiceStatus(status: InvoiceStatus | string): InvoiceStatus {
+    return status === InvoiceStatus.UNPAID ? InvoiceStatus.SENT : (status as InvoiceStatus)
 }
 
 export enum InvoiceItemType {

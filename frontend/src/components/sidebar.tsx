@@ -6,6 +6,7 @@ import {
     LayoutDashboard,
     LogOut,
     Moon,
+    Package,
     Receipt,
     ReceiptText,
     Settings,
@@ -89,16 +90,22 @@ export function Sidebar() {
             dataCy: "sidebar-invoices-link",
         },
         {
-            title: t("sidebar.navigation.receipts"),
+            title: t("sidebar.navigation.payments"),
             icon: <Receipt className="w-4 h-4" />,
-            url: "/receipts",
-            dataCy: "sidebar-receipts-link",
+            url: "/payments",
+            dataCy: "sidebar-payments-link",
         },
         {
             title: t("sidebar.navigation.clients"),
             icon: <Users className="w-4 h-4" />,
             url: "/clients",
             dataCy: "sidebar-clients-link",
+        },
+        {
+            title: t("sidebar.navigation.articles"),
+            icon: <Package className="w-4 h-4" />,
+            url: "/articles",
+            dataCy: "sidebar-articles-link",
         },
         {
             title: t("sidebar.navigation.paymentMethods"),

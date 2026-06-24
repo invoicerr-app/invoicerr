@@ -1,5 +1,6 @@
 import { APP_GUARD } from '@nestjs/core';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
+import { ArticlesModule } from './modules/articles/articles.module';
 import { AuthExtendedModule } from './modules/auth-extended/auth-extended.module';
 import { AuthGuard } from '@/guards/auth.guard';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
@@ -17,7 +18,7 @@ import { PaymentMethodsModule } from './modules/payment-methods/payment-methods.
 import { PluginsModule } from './modules/plugins/plugins.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { QuotesModule } from './modules/quotes/quotes.module';
-import { ReceiptsModule } from './modules/receipts/receipts.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 import { RecurringInvoicesModule } from './modules/recurring-invoices/recurring-invoices.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { SignaturesModule } from './modules/signatures/signatures.module';
@@ -43,11 +44,12 @@ import { auth } from "./lib/auth"
     }),
     AuthExtendedModule,
     ApiKeysModule,
+    ArticlesModule,
     CompanyModule,
     ClientsModule,
     QuotesModule,
     InvoicesModule,
-    ReceiptsModule,
+    PaymentsModule,
     DashboardModule,
     SignaturesModule,
     DangerModule,

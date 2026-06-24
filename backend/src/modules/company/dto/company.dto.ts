@@ -77,6 +77,6 @@ export class EditCompanyDto {
     quoteNumberFormat: string
     invoiceStartingNumber: number
     invoiceNumberFormat: string
-    receiptStartingNumber: number
-    receiptNumberFormat: string
+    paymentStartingNumber: number
+    paymentNumberFormat: string
 }

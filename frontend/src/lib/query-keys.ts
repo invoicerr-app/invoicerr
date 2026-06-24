@@ -18,13 +18,16 @@ export const queryKeys = {
         listsAll: () => ["quotes", "list"] as const,
         search: (query: string) => ["quotes", "search", query] as const,
     },
-    receipts: {
-        list: (page: number) => ["receipts", "list", page] as const,
-        listsAll: () => ["receipts", "list"] as const,
-        search: (query: string) => ["receipts", "search", query] as const,
+    payments: {
+        list: (page: number) => ["payments", "list", page] as const,
+        listsAll: () => ["payments", "list"] as const,
+        search: (query: string) => ["payments", "search", query] as const,
     },
     paymentMethods: {
         list: () => ["paymentMethods", "list"] as const,
+    },
+    articles: {
+        list: () => ["articles", "list"] as const,
     },
     dashboard: {
         summary: () => ["dashboard", "summary"] as const,

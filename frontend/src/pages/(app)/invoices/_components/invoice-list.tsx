@@ -1,4 +1,4 @@
-import { Banknote, Code, Download, Edit, Eye, FileText, Mail, Plus, ReceiptText, Search, Trash2 } from "lucide-react"
+import { Banknote, Code, Download, Edit, Eye, FileText, Mail, Plus, ReceiptText as PaymentText, Search, Trash2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react"
@@ -10,7 +10,7 @@ import BetterPagination from "../../../../components/pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { InvoiceStatus, type Invoice } from "@/types"
+import { InvoiceStatus, getDisplayInvoiceStatus, type Invoice } from "@/types"
 import { InvoiceDeleteDialog } from "./invoice-delete"
 import { InvoicePdfModal } from "./invoice-pdf-view"
 import { InvoiceUpsert } from "./invoice-upsert"
@@ -58,7 +58,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         const { data: pdf_formats } = useGet<PluginPdfFormat[]>('/api/plugins/formats')
         const { trigger: triggerMarkAsPaid } = usePost(`/api/invoices/mark-as-paid`)
         const { trigger: triggerSendInvoiceByEmail, loading: sendInvoiceByEmailLoading } = usePost(`/api/invoices/send`)
-        const { trigger: triggerCreateReceipt } = usePost(`/api/receipts/create-from-invoice`)
+        const { trigger: triggerCreatePayment } = usePost(`/api/payments/create-from-invoice`)
 
         const [createInvoiceDialog, setCreateInvoiceDialog] = useState<boolean>(false)
         const [editInvoiceDialog, setEditInvoiceDialog] = useState<Invoice | null>(null)
@@ -135,38 +135,40 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
             setDownloadTrigger({ invoice, format, file_format, id: Date.now() })
         }
 
-        function handleCreateReceiptFromInvoice(invoiceId: string) {
-            triggerCreateReceipt({ id: invoiceId })
+        function handleCreatePaymentFromInvoice(invoiceId: string) {
+            triggerCreatePayment({ id: invoiceId })
                 .then(() => {
                     toast.success(t("invoices.list.messages.createReceiptSuccess"))
-                    queryClient.invalidateQueries({ queryKey: queryKeys.receipts.listsAll() })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.payments.listsAll() })
                     queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 })
                 .catch((error) => {
-                    console.error("Error creating receipt from invoice:", error)
-                    toast.error(t("invoices.list.messages.createReceiptError"))
+                    console.error("Error creating payment from invoice:", error)
+                    toast.error(t("invoices.list.messages.createPaymentError"))
                 })
         }
 
         const getStatusColor = (status: string) => {
-            switch (status) {
+            switch (getDisplayInvoiceStatus(status)) {
+                case "DRAFT":
+                    return "bg-gray-200 text-gray-700"
                 case "SENT":
                     return "bg-yellow-100 text-yellow-800"
-                case "UNPAID":
-                    return "bg-blue-100 text-blue-800"
                 case "OVERDUE":
                     return "bg-red-100 text-red-800"
                 case "PAID":
                     return "bg-green-100 text-green-800"
                 case "UPCOMING":
                     return "bg-purple-100 text-purple-800"
+                case "ARCHIVED":
+                    return "bg-slate-100 text-slate-600"
                 default:
                     return "bg-gray-100 text-gray-800"
             }
         }
 
         const getStatusLabel = (status: string) => {
-            return t(`invoices.list.status.${status.toLowerCase()}`)
+            return t(`invoices.list.status.${getDisplayInvoiceStatus(status).toLowerCase()}`)
         }
 
         const handleSendInvoiceByEmail = (invoice: Invoice) => {
@@ -198,7 +200,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                         {title ? (
                             <div>
                                 <CardTitle className="flex items-center space-x-2">
-                                    <ReceiptText className="h-5 w-5 " />
+                                    <PaymentText className="h-5 w-5 " />
                                     <span>{title}</span>
                                 </CardTitle>
                                 {description && <CardDescription>{description}</CardDescription>}
@@ -272,7 +274,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                         <div className="flex flex-row sm:items-center sm:justify-between gap-4">
                                             <div className="flex flex-row items-center gap-4 w-full">
                                                 <div className="p-2 bg-blue-100 rounded-lg mb-4 md:mb-0 w-fit h-fit">
-                                                    <ReceiptText className="h-5 w-5 text-blue-600" />
+                                                    <PaymentText className="h-5 w-5 text-blue-600" />
                                                 </div>
                                                 <div className="flex-1">
                                                     <div className="flex flex-wrap items-center gap-2">
@@ -362,7 +364,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                     onClick={() => handleViewPdf(invoice)}
                                                     className="text-gray-600 hover:text-pink-600"
                                                 >
-                                                    <ReceiptText className="h-4 w-4" />
+                                                    <PaymentText className="h-4 w-4" />
                                                 </Button>
 
                                                 <DropdownMenu>
@@ -475,10 +477,10 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                 )}
 
                                                 <Button
-                                                    tooltip={t("invoices.list.tooltips.createReceipt")}
+                                                    tooltip={t("invoices.list.tooltips.createPayment")}
                                                     variant="ghost"
                                                     size="icon"
-                                                    onClick={() => handleCreateReceiptFromInvoice(invoice.id)}
+                                                    onClick={() => handleCreatePaymentFromInvoice(invoice.id)}
                                                     className="text-gray-600 hover:text-green-600"
                                                 >
                                                     <Plus className="h-4 w-4" />

@@ -117,6 +117,7 @@ export class InvoicesService {
         const invoice = await prisma.invoice.create({
             data: {
                 ...data,
+                status: 'DRAFT',
                 recurringInvoiceId: body.recurringInvoiceId,
                 paymentMethod: body.paymentMethod,
                 paymentDetails: body.paymentDetails,
@@ -684,6 +685,44 @@ export class InvoicesService {
         return paidInvoice;
     }
 
+    async archiveInvoice(invoiceId: string) {
+        const invoice = await prisma.invoice.findUnique({
+            where: { id: invoiceId },
+            include: { client: true, company: true },
+        });
+
+        if (!invoice) {
+            logger.error('Invoice not found when trying to archive', { category: 'invoice', details: { invoiceId } });
+            throw new BadRequestException('Invoice not found');
+        }
+
+        if (invoice.status !== 'PAID') {
+            logger.error('Only paid invoices can be archived', { category: 'invoice', details: { invoiceId, status: invoice.status } });
+            throw new BadRequestException('Only paid invoices can be archived');
+        }
+
+        const archivedInvoice = await prisma.invoice.update({
+            where: { id: invoiceId },
+            data: { status: 'ARCHIVED' },
+        });
+
+        logger.info('Invoice archived', { category: 'invoice', details: { invoiceId } });
+
+        try {
+            await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_STATUS_CHANGED, {
+                invoice: archivedInvoice,
+                client: invoice.client,
+                company: invoice.company,
+                previousStatus: invoice.status,
+                newStatus: archivedInvoice.status,
+            });
+        } catch (error) {
+            logger.error('Failed to dispatch INVOICE_STATUS_CHANGED webhook', { category: 'invoice', details: { error } });
+        }
+
+        return archivedInvoice;
+    }
+
     async sendInvoiceByEmail(invoiceId: string) {
         const invoice = await prisma.invoice.findUnique({
             where: { id: invoiceId },
@@ -743,6 +782,15 @@ export class InvoicesService {
         }
 
         logger.info('Invoice sent by email', { category: 'invoice', details: { invoiceId, email: invoice.client.contactEmail } });
+
+        try {
+            await prisma.invoice.update({
+                where: { id: invoiceId },
+                data: { status: 'SENT' },
+            });
+        } catch (error) {
+            logger.error('Failed to update invoice status after sending', { category: 'invoice', details: { error } });
+        }
 
         try {
             await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_SENT, {

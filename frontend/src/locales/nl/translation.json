@@ -390,7 +390,7 @@
         }
     },
     "noOptions": "Geen opties beschikbaar. Maak een nieuwe klant aan.",
-    "receipts": {
+    "payments": {
         "header": {
             "subtitle": "Beheer je bonnen",
             "count": "{{count}} bonnen {{found}}",

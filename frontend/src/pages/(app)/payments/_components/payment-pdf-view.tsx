@@ -1,18 +1,18 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useEffect, useState } from "react"
 
-import type { Receipt } from "@/types"
+import type { Payment } from "@/types"
 import { useGetRaw } from "@/hooks/use-fetch"
 import { useTranslation } from "react-i18next"
 
-type ReceiptPdfModalProps = {
-  receipt: Receipt | null
+type PaymentPdfModalProps = {
+  payment: Payment | null
   onOpenChange: (open: boolean) => void
 }
 
-export function ReceiptPdfModal({ receipt, onOpenChange }: ReceiptPdfModalProps) {
+export function PaymentPdfModal({ payment, onOpenChange }: PaymentPdfModalProps) {
   const { t } = useTranslation()
-  const { data } = useGetRaw<Response>(receipt ? `/api/receipts/${receipt.id}/pdf` : null)
+  const { data } = useGetRaw<Response>(payment ? `/api/payments/${payment.id}/pdf` : null)
   const [pdfData, setPdfData] = useState<Uint8Array | null>(null)
 
   useEffect(() => {
@@ -23,11 +23,11 @@ export function ReceiptPdfModal({ receipt, onOpenChange }: ReceiptPdfModalProps)
     }
   }, [data])
 
-  if (!receipt) return null
+  if (!payment) return null
 
   return (
     <Dialog
-      open={!!receipt}
+      open={!!payment}
       onOpenChange={(open) => {
         if (!open) {
           setPdfData(null)
@@ -37,7 +37,7 @@ export function ReceiptPdfModal({ receipt, onOpenChange }: ReceiptPdfModalProps)
     >
       <DialogContent className="!max-w-6xl w-[95vw] h-[90dvh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>{t("receipts.pdf.title", { number: receipt.rawNumber || receipt.number })}</DialogTitle>
+          <DialogTitle>{t("payments.pdf.title", { number: payment.rawNumber || payment.number })}</DialogTitle>
         </DialogHeader>
 
         <section className="h-full overflow-auto">
@@ -46,7 +46,7 @@ export function ReceiptPdfModal({ receipt, onOpenChange }: ReceiptPdfModalProps)
               <iframe
                 className="w-full h-full"
                 src={`data:application/pdf;base64,${btoa(String.fromCharCode(...pdfData))}`}
-                title={t("receipts.pdf.title", { number: receipt.rawNumber || receipt.number })}
+                title={t("payments.pdf.title", { number: payment.rawNumber || payment.number })}
               />
             </div>
           ) : (

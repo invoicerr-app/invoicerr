@@ -103,8 +103,8 @@ function createInvoice({ discountRate = 10, item = defaultQuoteItem }: CreateInv
     });
 }
 
-function createReceiptForInvoice(invoiceLabel: string) {
-    cy.intercept('POST', '/api/receipts/create-from-invoice').as('createReceipt');
+function createPaymentForInvoice(invoiceLabel: string) {
+    cy.intercept('POST', '/api/payments/create-from-invoice').as('createPayment');
 
     cy.contains('[data-cy="invoice-row"]', invoiceLabel, { timeout: 20000 })
         .should('exist')
@@ -118,9 +118,9 @@ function createReceiptForInvoice(invoiceLabel: string) {
             .click({ force: true });
     });
 
-    return cy.wait('@createReceipt').then(({ response }) => {
+    return cy.wait('@createPayment').then(({ response }) => {
         expect(response?.statusCode).to.be.oneOf([200, 201]);
-        return cy.wrap({ receipt: response?.body });
+        return cy.wrap({ payment: response?.body });
     });
 }
 
@@ -233,17 +233,17 @@ describe('Discount Feature (Invoice)', () => {
     });
 });
 
-describe('Discount Feature (Receipts)', () => {
-    it('applies the configured discount rate to receipt totals', () => {
+describe('Discount Feature (Payments)', () => {
+    it('applies the configured discount rate to payment totals', () => {
         createInvoice({ discountRate: 10 }).then(({ invoiceLabel }) => {
-            createReceiptForInvoice(invoiceLabel).then(() => {
-                cy.visit('/receipts');
+            createPaymentForInvoice(invoiceLabel).then(() => {
+                cy.visit('/payments');
                 cy.contains('span', invoiceLabel, { timeout: 20000 })
                     .should('exist')
                     .closest('div.p-4')
-                    .as('receiptRow');
+                    .as('paymentRow');
 
-                cy.get('@receiptRow').contains('span', '1080.00EUR').should('exist');
+                cy.get('@paymentRow').contains('span', '1080.00EUR').should('exist');
             });
         });
     });

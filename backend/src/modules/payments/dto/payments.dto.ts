@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-class ReceiptItem {
+export class PaymentItem {
     @ApiProperty({ description: 'ID of the invoice item this payment applies to' })
     invoiceItemId: string;
 
@@ -8,12 +8,12 @@ class ReceiptItem {
     amountPaid: number | string;
 }
 
-export class CreateReceiptDto {
-    @ApiProperty({ description: 'ID of the invoice this receipt is for' })
+export class CreatePaymentDto {
+    @ApiProperty({ description: 'ID of the invoice this payment is for' })
     invoiceId: string;
 
-    @ApiProperty({ description: 'List of items being paid, with amounts allocated', type: [ReceiptItem] })
-    items: ReceiptItem[];
+    @ApiProperty({ description: 'List of items being paid, with amounts allocated', type: [PaymentItem] })
+    items: PaymentItem[];
 
     @ApiProperty({ description: 'ID of the payment method used', required: false })
     paymentMethodId?: string;
@@ -25,7 +25,7 @@ export class CreateReceiptDto {
     paymentDetails?: string;
 }
 
-export class EditReceiptDto extends CreateReceiptDto {
-    @ApiProperty({ description: 'ID of the receipt to update' })
+export class EditPaymentDto extends CreatePaymentDto {
+    @ApiProperty({ description: 'ID of the payment to update' })
     id: string;
 }
