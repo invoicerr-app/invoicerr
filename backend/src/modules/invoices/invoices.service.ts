@@ -723,44 +723,6 @@ export class InvoicesService {
         return archivedInvoice;
     }
 
-    async unarchiveInvoice(invoiceId: string) {
-        const invoice = await prisma.invoice.findUnique({
-            where: { id: invoiceId },
-            include: { client: true, company: true },
-        });
-
-        if (!invoice) {
-            logger.error('Invoice not found when trying to unarchive', { category: 'invoice', details: { invoiceId } });
-            throw new BadRequestException('Invoice not found');
-        }
-
-        if (invoice.status !== 'ARCHIVED') {
-            logger.error('Only archived invoices can be unarchived', { category: 'invoice', details: { invoiceId, status: invoice.status } });
-            throw new BadRequestException('Only archived invoices can be unarchived');
-        }
-
-        const unarchivedInvoice = await prisma.invoice.update({
-            where: { id: invoiceId },
-            data: { status: 'PAID' },
-        });
-
-        logger.info('Invoice unarchived', { category: 'invoice', details: { invoiceId } });
-
-        try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_STATUS_CHANGED, {
-                invoice: unarchivedInvoice,
-                client: invoice.client,
-                company: invoice.company,
-                previousStatus: invoice.status,
-                newStatus: unarchivedInvoice.status,
-            });
-        } catch (error) {
-            logger.error('Failed to dispatch INVOICE_STATUS_CHANGED webhook', { category: 'invoice', details: { error } });
-        }
-
-        return unarchivedInvoice;
-    }
-
     async sendInvoiceByEmail(invoiceId: string) {
         const invoice = await prisma.invoice.findUnique({
             where: { id: invoiceId },

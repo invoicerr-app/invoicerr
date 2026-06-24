@@ -22,7 +22,6 @@ interface InvoiceProgressionProps {
     onResend?: (invoice: Invoice) => void
     onPaymentReceived?: (invoice: Invoice) => void
     onArchive?: (invoice: Invoice) => void
-    onUnarchive?: (invoice: Invoice) => void
     onViewInvoice?: (invoice: Invoice) => void
 }
 
@@ -33,7 +32,7 @@ interface PipelineStep {
     status?: InvoiceStatus
 }
 
-type ProgressionAction = "send" | "resend" | "paymentReceived" | "archive" | "unarchive"
+type ProgressionAction = "send" | "resend" | "paymentReceived" | "archive"
 
 const pipeline: PipelineStep[] = [
     { key: "draft", labelKey: "draft", exists: true, status: InvoiceStatus.DRAFT },
@@ -64,7 +63,7 @@ function getCurrentStepIndex(invoice: Invoice): number {
 
 function getInvoiceActions(
     invoice: Invoice,
-    handlers: Pick<InvoiceProgressionProps, "onSend" | "onResend" | "onPaymentReceived" | "onArchive" | "onUnarchive">,
+    handlers: Pick<InvoiceProgressionProps, "onSend" | "onResend" | "onPaymentReceived" | "onArchive">,
 ): { action: ProgressionAction; label: string }[] {
     const currentStep = pipeline[getCurrentStepIndex(invoice)]
     if (!currentStep?.exists) return []
@@ -87,10 +86,6 @@ function getInvoiceActions(
             return handlers.onArchive
                 ? [{ action: "archive", label: "invoices.progression.actions.archive" }]
                 : []
-        case "archived":
-            return handlers.onUnarchive
-                ? [{ action: "unarchive", label: "invoices.progression.actions.unarchive" }]
-                : []
         default:
             return []
     }
@@ -102,11 +97,10 @@ export function InvoiceProgression({
     onResend,
     onPaymentReceived,
     onArchive,
-    onUnarchive,
     onViewInvoice,
 }: InvoiceProgressionProps) {
     const { t } = useTranslation()
-    const handlers = { onSend, onResend, onPaymentReceived, onArchive, onUnarchive }
+    const handlers = { onSend, onResend, onPaymentReceived, onArchive }
 
     const [confirmDialog, setConfirmDialog] = useState<{
         invoice: Invoice
@@ -129,9 +123,6 @@ export function InvoiceProgression({
                 break
             case "archive":
                 onArchive?.(invoice)
-                break
-            case "unarchive":
-                onUnarchive?.(invoice)
                 break
         }
         setConfirmDialog(null)

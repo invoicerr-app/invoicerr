@@ -427,8 +427,7 @@
                 "send": "Send",
                 "resend": "Resend",
                 "paymentReceived": "Payment received",
-                "archive": "Archive",
-                "unarchive": "Unarchive"
+                "archive": "Archive"
             },
             "confirmations": {
                 "send": {
@@ -445,11 +444,7 @@
                 },
                 "archive": {
                     "title": "Archive invoice",
-                    "description": "Are you sure you want to archive invoice {{number}}?"
-                },
-                "unarchive": {
-                    "title": "Unarchive invoice",
-                    "description": "Are you sure you want to unarchive invoice {{number}}?"
+                    "description": "Are you sure you want to archive invoice {{number}}? This action is irreversible, you won't be able to undo it."
                 },
                 "confirm": "Confirm",
                 "cancel": "Cancel"
@@ -525,9 +520,7 @@
                 "createReceiptSuccess": "Receipt created successfully from invoice",
                 "sendByEmailSuccess": "Invoice has been sent to customer",
                 "archiveSuccess": "Invoice archived successfully",
-                "archiveError": "Failed to archive invoice",
-                "unarchiveSuccess": "Invoice unarchived successfully",
-                "unarchiveError": "Failed to unarchive invoice"
+                "archiveError": "Failed to archive invoice"
             }
         },
         "upsert": {

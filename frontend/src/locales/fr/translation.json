@@ -428,8 +428,7 @@
                 "send": "Envoyer",
                 "resend": "Renvoyer",
                 "paymentReceived": "Paiement reçu",
-                "archive": "Archiver",
-                "unarchive": "Désarchiver"
+                "archive": "Archiver"
             },
             "confirmations": {
                 "send": {
@@ -446,11 +445,7 @@
                 },
                 "archive": {
                     "title": "Archiver la facture",
-                    "description": "Êtes-vous sûr de vouloir archiver la facture {{number}} ?"
-                },
-                "unarchive": {
-                    "title": "Désarchiver la facture",
-                    "description": "Êtes-vous sûr de vouloir désarchiver la facture {{number}} ?"
+                    "description": "Êtes-vous sûr de vouloir archiver la facture {{number}} ? Cette action est irréversible, il ne sera plus possible de revenir en arrière."
                 },
                 "confirm": "Confirmer",
                 "cancel": "Annuler"
@@ -526,9 +521,7 @@
                 "createReceiptSuccess": "Reçu créé avec succès à partir de la facture",
                 "sendByEmailSuccess": "La facture a été envoyée au client",
                 "archiveSuccess": "Facture archivée avec succès",
-                "archiveError": "Échec de l'archivage de la facture",
-                "unarchiveSuccess": "Facture désarchivée avec succès",
-                "unarchiveError": "Échec du désarchivage de la facture"
+                "archiveError": "Échec de l'archivage de la facture"
             }
         },
         "upsert": {
