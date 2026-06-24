@@ -1,13 +1,13 @@
 import * as Handlebars from 'handlebars';
 
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { CreateReceiptDto, EditReceiptDto } from '@/modules/receipts/dto/receipts.dto';
+import { CreatePaymentDto, EditPaymentDto } from '@/modules/payments/dto/payments.dto';
 import { getInvertColor, getPDF } from '@/utils/pdf';
 
 import { MailService } from '@/mail/mail.service';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { WebhookEvent } from '../../../prisma/generated/prisma/client';
-import { baseTemplate } from '@/modules/receipts/templates/base.template';
+import { baseTemplate } from '@/modules/payments/templates/base.template';
 import { formatDate } from '@/utils/date';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
@@ -15,24 +15,24 @@ import { randomUUID } from 'crypto';
 import { clampDiscountRate } from '@/utils/financial';
 
 @Injectable()
-export class ReceiptsService {
+export class PaymentsService {
     private readonly logger: Logger;
 
     constructor(
         private readonly mailService: MailService,
         private readonly webhookDispatcher: WebhookDispatcherService
     ) {
-        this.logger = new Logger(ReceiptsService.name);
+        this.logger = new Logger(PaymentsService.name);
     }
 
-    async getReceipts(page: string) {
+    async getPayments(page: string) {
         const pageNumber = parseInt(page, 10) || 1;
         const pageSize = 10;
         const skip = (pageNumber - 1) * pageSize;
         const company = await prisma.company.findFirst();
 
         if (!company) {
-            logger.error('No company found. Please create a company first.', { category: 'receipt' });
+            logger.error('No company found. Please create a company first.', { category: 'payment' });
             throw new BadRequestException('No company found. Please create a company first.');
         }
 
@@ -56,7 +56,6 @@ export class ReceiptsService {
 
         const totalReceipts = await prisma.receipt.count();
 
-        // Attach payment method object when available so frontend can consume receipt.paymentMethod as an object
         const receiptsWithPM = await Promise.all(receipts.map(async (r: any) => {
             if (r.paymentMethodId) {
                 const pm = await prisma.paymentMethod.findUnique({ where: { id: r.paymentMethodId } });
@@ -65,10 +64,10 @@ export class ReceiptsService {
             return r;
         }));
 
-        return { pageCount: Math.ceil(totalReceipts / pageSize), receipts: receiptsWithPM };
+        return { pageCount: Math.ceil(totalReceipts / pageSize), payments: receiptsWithPM };
     }
 
-    async searchReceipts(query: string) {
+    async searchPayments(query: string) {
         if (!query) {
             const results = await prisma.receipt.findMany({
                 take: 10,
@@ -136,7 +135,7 @@ export class ReceiptsService {
         });
 
         if (!invoice) {
-            logger.error('Invoice not found', { category: 'receipt', details: { invoiceId } });
+            logger.error('Invoice not found', { category: 'payment', details: { invoiceId } });
             throw new BadRequestException('Invoice not found');
         }
 
@@ -161,7 +160,7 @@ export class ReceiptsService {
         }
     }
 
-    async createReceipt(body: CreateReceiptDto) {
+    async createPayment(body: CreatePaymentDto) {
         const invoice = await prisma.invoice.findUnique({
             where: { id: body.invoiceId },
             include: {
@@ -172,7 +171,7 @@ export class ReceiptsService {
         });
 
         if (!invoice) {
-            logger.error('Invoice not found', { category: 'receipt', details: { invoiceId: body.invoiceId } });
+            logger.error('Invoice not found', { category: 'payment', details: { invoiceId: body.invoiceId } });
             throw new BadRequestException('Invoice not found');
         }
 
@@ -208,12 +207,12 @@ export class ReceiptsService {
             this.logger.error('Failed to dispatch RECEIPT_CREATED webhook', error);
         }
 
-        logger.info('Receipt created', { category: 'receipt', details: { receiptId: receipt.id, companyId: invoice.company?.id } });
+        logger.info('Payment created', { category: 'payment', details: { receiptId: receipt.id, companyId: invoice.company?.id } });
 
         return receipt;
     }
 
-    async createReceiptFromInvoice(invoiceId: string) {
+    async createPaymentFromInvoice(invoiceId: string) {
         const invoice = await prisma.invoice.findUnique({
             where: { id: invoiceId },
             include: {
@@ -223,12 +222,12 @@ export class ReceiptsService {
             },
         });
         if (!invoice) {
-            logger.error('Invoice not found', { category: 'receipt', details: { invoiceId } });
+            logger.error('Invoice not found', { category: 'payment', details: { invoiceId } });
             throw new BadRequestException('Invoice not found');
         }
 
         const discountFactor = 1 - clampDiscountRate(invoice.discountRate) / 100;
-        const newReceipt = await this.createReceipt({
+        const newReceipt = await this.createPayment({
             invoiceId: invoice.id,
             items: invoice.items.map(item => {
                 const vatMultiplier = 1 + (item.vatRate || 0) / 100;
@@ -255,12 +254,12 @@ export class ReceiptsService {
             this.logger.error('Failed to dispatch RECEIPT_CREATED_FROM_INVOICE webhook', error);
         }
 
-        logger.info('Receipt created from invoice', { category: 'receipt', details: { receiptId: newReceipt.id, invoiceId } });
+        logger.info('Payment created from invoice', { category: 'payment', details: { receiptId: newReceipt.id, invoiceId } });
 
         return newReceipt;
     }
 
-    async editReceipt(body: EditReceiptDto) {
+    async editPayment(body: EditPaymentDto) {
         const existingReceipt = await prisma.receipt.findUnique({
             where: { id: body.id },
             include: {
@@ -269,8 +268,8 @@ export class ReceiptsService {
         });
 
         if (!existingReceipt) {
-            logger.error('Receipt not found', { category: 'receipt', details: { receiptId: body.id } });
-            throw new BadRequestException('Receipt not found');
+            logger.error('Payment not found', { category: 'payment', details: { receiptId: body.id } });
+            throw new BadRequestException('Payment not found');
         }
 
         const updatedReceipt = await prisma.receipt.update({
@@ -315,12 +314,12 @@ export class ReceiptsService {
             this.logger.error('Failed to dispatch RECEIPT_UPDATED webhook', error);
         }
 
-        logger.info('Receipt updated', { category: 'receipt', details: { receiptId: updatedReceipt.id } });
+        logger.info('Payment updated', { category: 'payment', details: { receiptId: updatedReceipt.id } });
 
         return updatedReceipt;
     }
 
-    async deleteReceipt(id: string) {
+    async deletePayment(id: string) {
         const existingReceipt = await prisma.receipt.findUnique({
             where: { id },
             include: {
@@ -335,8 +334,8 @@ export class ReceiptsService {
         });
 
         if (!existingReceipt) {
-            logger.error('Receipt not found', { category: 'receipt', details: { receiptId: id } });
-            throw new BadRequestException('Receipt not found');
+            logger.error('Payment not found', { category: 'payment', details: { receiptId: id } });
+            throw new BadRequestException('Payment not found');
         }
 
         await prisma.receiptItem.deleteMany({
@@ -360,14 +359,14 @@ export class ReceiptsService {
             this.logger.error('Failed to dispatch RECEIPT_DELETED webhook', error);
         }
 
-        logger.info('Receipt deleted', { category: 'receipt', details: { receiptId: id } });
+        logger.info('Payment deleted', { category: 'payment', details: { receiptId: id } });
 
-        return { message: 'Receipt deleted successfully' };
+        return { message: 'Payment deleted successfully' };
     }
 
-    async getReceiptPdf(receiptId: string): Promise<Uint8Array> {
+    async getPaymentPdf(paymentId: string): Promise<Uint8Array> {
         const receipt = await prisma.receipt.findUnique({
-            where: { id: receiptId },
+            where: { id: paymentId },
             include: {
                 items: true,
                 invoice: {
@@ -383,18 +382,17 @@ export class ReceiptsService {
         });
 
         if (!receipt) {
-            logger.error('Receipt not found', { category: 'receipt', details: { receiptId } });
-            throw new BadRequestException('Receipt not found');
+            logger.error('Payment not found', { category: 'payment', details: { paymentId } });
+            throw new BadRequestException('Payment not found');
         }
 
         const { pdfConfig } = receipt.invoice.company;
-        const template = Handlebars.compile(baseTemplate); // ton template reçu ici
+        const template = Handlebars.compile(baseTemplate);
 
         if (receipt.invoice.client.name.length == 0) {
             receipt.invoice.client.name = receipt.invoice.client.contactFirstname + " " + receipt.invoice.client.contactLastname
         }
 
-        // Map payment method enum -> PDFConfig label
         const paymentMethodLabels: Record<string, string> = {
             BANK_TRANSFER: pdfConfig.paymentMethodBankTransfer,
             PAYPAL: pdfConfig.paymentMethodPayPal,
@@ -403,26 +401,21 @@ export class ReceiptsService {
             OTHER: pdfConfig.paymentMethodOther,
         };
 
-        // Default payment display values
         let paymentMethodName = receipt.paymentMethod;
         let paymentDetails = receipt.paymentDetails;
 
-        // Prefer the saved payment method record if referenced
         if (receipt.paymentMethodId) {
             const pm = await prisma.paymentMethod.findUnique({ where: { id: receipt.paymentMethodId } });
             if (pm) {
-                // Use configured label for the payment method type when available
                 paymentMethodName = paymentMethodLabels[pm.type as string] || pm.type;
                 paymentDetails = pm.details || paymentDetails;
             }
         } else {
-            // If stored paymentMethod matches an enum, map it to configured label
             if (paymentMethodName && paymentMethodLabels[paymentMethodName.toUpperCase()]) {
                 paymentMethodName = paymentMethodLabels[paymentMethodName.toUpperCase()];
             }
         }
 
-        // Map item type enums to PDF label text (from pdfConfig)
         const itemTypeLabels: Record<string, string> = {
             HOUR: pdfConfig.hour,
             DAY: pdfConfig.day,
@@ -442,7 +435,7 @@ export class ReceiptsService {
 
         const html = template({
             number: receipt.rawNumber || receipt.number.toString(),
-            paymentDate: formatDate(receipt.invoice.company, new Date()), // TODO: Add a payment date
+            paymentDate: formatDate(receipt.invoice.company, new Date()),
             invoiceNumber: receipt.invoice?.rawNumber || receipt.invoice?.number?.toString() || '',
             client: receipt.invoice.client,
             company: receipt.invoice.company,
@@ -499,7 +492,7 @@ export class ReceiptsService {
     }
 
 
-    async sendReceiptByEmail(id: string) {
+    async sendPaymentByEmail(id: string) {
         const receipt = await prisma.receipt.findUnique({
             where: { id },
             include: {
@@ -513,11 +506,11 @@ export class ReceiptsService {
         });
 
         if (!receipt || !receipt.invoice || !receipt.invoice.client) {
-            logger.error('Receipt or associated invoice/client not found', { category: 'receipt', details: { id } });
-            throw new BadRequestException('Receipt or associated invoice/client not found');
+            logger.error('Payment or associated invoice/client not found', { category: 'payment', details: { id } });
+            throw new BadRequestException('Payment or associated invoice/client not found');
         }
 
-        const pdfBuffer = await this.getReceiptPdf(id);
+        const pdfBuffer = await this.getPaymentPdf(id);
 
         const mailTemplate = await prisma.mailTemplate.findFirst({
             where: { type: 'RECEIPT' },
@@ -525,8 +518,8 @@ export class ReceiptsService {
         });
 
         if (!mailTemplate) {
-            logger.error('Email template for receipt not found.', { category: 'receipt' });
-            throw new BadRequestException('Email template for receipt not found.');
+            logger.error('Email template for payment not found.', { category: 'payment' });
+            throw new BadRequestException('Email template for payment not found.');
         }
 
         const envVariables = {
@@ -537,8 +530,8 @@ export class ReceiptsService {
         };
 
         if (!receipt.invoice.client.contactEmail) {
-            logger.error('Client has no email configured; receipt not sent', { category: 'receipt', details: { id } });
-            throw new BadRequestException('Client has no email configured; receipt not sent');
+            logger.error('Client has no email configured; payment not sent', { category: 'payment', details: { id } });
+            throw new BadRequestException('Client has no email configured; payment not sent');
         }
 
         const mailOptions = {
@@ -546,7 +539,7 @@ export class ReceiptsService {
             subject: mailTemplate.subject.replace(/{{(\w+)}}/g, (_, key) => envVariables[key] || ''),
             html: mailTemplate.body.replace(/{{(\w+)}}/g, (_, key) => envVariables[key] || ''),
             attachments: [{
-                filename: `receipt-${receipt.rawNumber || receipt.number}.pdf`,
+                filename: `payment-${receipt.rawNumber || receipt.number}.pdf`,
                 content: pdfBuffer,
                 contentType: 'application/pdf',
             }],
@@ -555,10 +548,10 @@ export class ReceiptsService {
         try {
             await this.mailService.sendMail(mailOptions);
         } catch (error) {
-            logger.error('Failed to send receipt email', { category: 'receipt', details: { error } });
-            throw new BadRequestException('Failed to send receipt email. Please check your SMTP configuration.');
+            logger.error('Failed to send payment email', { category: 'payment', details: { error } });
+            throw new BadRequestException('Failed to send payment email. Please check your SMTP configuration.');
         }
 
-        return { message: 'Receipt sent successfully' };
+        return { message: 'Payment sent successfully' };
     }
 }

@@ -8,48 +8,48 @@ import {
 } from "@/components/ui/dialog"
 
 import { Button } from "@/components/ui/button"
-import type { Receipt } from "@/types"
+import type { Payment } from "@/types"
 import { useDelete } from "@/hooks/use-fetch"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 
-interface ReceiptDeleteDialogProps {
-    receipt: Receipt | null
+interface PaymentDeleteDialogProps {
+    payment: Payment | null
     onOpenChange: (open: boolean) => void
 }
 
-export function ReceiptDeleteDialog({ receipt, onOpenChange }: ReceiptDeleteDialogProps) {
+export function PaymentDeleteDialog({ payment, onOpenChange }: PaymentDeleteDialogProps) {
     const { t } = useTranslation()
     const queryClient = useQueryClient()
-    const { trigger } = useDelete(`/api/receipts/${receipt?.id}`)
+    const { trigger } = useDelete(`/api/payments/${payment?.id}`)
 
     const handleDelete = () => {
-        if (!receipt) return
+        if (!payment) return
 
         trigger()
             .then(() => {
-                queryClient.invalidateQueries({ queryKey: queryKeys.receipts.listsAll() })
+                queryClient.invalidateQueries({ queryKey: queryKeys.payments.listsAll() })
                 onOpenChange(false)
             })
             .catch((error) => {
-                console.error("Failed to delete receipt:", error)
+                console.error("Failed to delete payment:", error)
             })
     }
 
     return (
-        <Dialog open={receipt != null} onOpenChange={onOpenChange}>
+        <Dialog open={payment != null} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>{t("receipts.delete.title")}</DialogTitle>
-                    <DialogDescription>{t("receipts.delete.description")}</DialogDescription>
+                    <DialogTitle>{t("payments.delete.title")}</DialogTitle>
+                    <DialogDescription>{t("payments.delete.description")}</DialogDescription>
                 </DialogHeader>
                 <DialogFooter className="flex !flex-col-reverse gap-2 justify-end">
                     <Button variant="outline" className="w-full bg-transparent" onClick={() => onOpenChange(false)}>
-                        {t("receipts.delete.actions.cancel")}
+                        {t("payments.delete.actions.cancel")}
                     </Button>
                     <Button variant="destructive" className="w-full" onClick={handleDelete}>
-                        {t("receipts.delete.actions.delete")}
+                        {t("payments.delete.actions.delete")}
                     </Button>
                 </DialogFooter>
             </DialogContent>

@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Download, Edit, Mail, Plus, Receipt as ReceiptIcon, Search, Trash2 } from "lucide-react"
+import { Download, Edit, Mail, Plus, Receipt as PaymentIcon, Search, Trash2 } from "lucide-react"
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react"
 import { useGetRaw, usePost } from "@/hooks/use-fetch"
 
@@ -7,16 +7,16 @@ import BetterPagination from "../../../../components/pagination"
 import { Button } from "../../../../components/ui/button"
 import { Input } from "@/components/ui/input"
 import type React from "react"
-import type { Receipt } from "@/types"
-import { ReceiptDeleteDialog } from "@/pages/(app)/receipts/_components/receipt-delete"
-import { ReceiptPdfModal } from "@/pages/(app)/receipts/_components/receipt-pdf-view"
-import { ReceiptUpsert } from "@/pages/(app)/receipts/_components/receipt-upsert"
+import type { Payment } from "@/types"
+import { PaymentDeleteDialog } from "@/pages/(app)/payments/_components/payment-delete"
+import { PaymentPdfModal } from "@/pages/(app)/payments/_components/payment-pdf-view"
+import { PaymentUpsert } from "@/pages/(app)/payments/_components/payment-upsert"
 import { SendConfirmationDialog } from "@/components/send-confirmation-dialog"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 
-interface ReceiptListProps {
-    receipts: Receipt[]
+interface PaymentListProps {
+    payments: Payment[]
     loading: boolean
     title?: string
     description?: string
@@ -30,93 +30,93 @@ interface ReceiptListProps {
     showCreateButton?: boolean
 }
 
-export interface ReceiptListHandle {
+export interface PaymentListHandle {
     handleAddClick: () => void
 }
 
-export const ReceiptList = forwardRef<ReceiptListHandle, ReceiptListProps>(
+export const PaymentList = forwardRef<PaymentListHandle, PaymentListProps>(
     (
-        { receipts, loading, title, description, searchTerm, onSearchChange, page, pageCount, setPage, mutate, emptyState, showCreateButton = false },
+        { payments, loading, title, description, searchTerm, onSearchChange, page, pageCount, setPage, mutate, emptyState, showCreateButton = false },
         ref,
     ) => {
         const { t } = useTranslation()
         const { trigger: triggerSendToClient, loading: sendToClientLoading } = usePost<{ message: string; }>(
-            `/api/receipts/send`,
+            `/api/payments/send`,
         )
 
-        const [createReceiptDialog, setCreateReceiptDialog] = useState<boolean>(false)
-        const [editReceiptDialog, setEditReceiptDialog] = useState<Receipt | null>(null)
-        const [viewReceiptPdfDialog, setViewReceiptPdfDialog] = useState<Receipt | null>(null)
-        const [deleteReceiptDialog, setDeleteReceiptDialog] = useState<Receipt | null>(null)
-        const [sendReceiptDialog, setSendReceiptDialog] = useState<Receipt | null>(null)
-        const [downloadReceiptPdf, setDownloadReceiptPdf] = useState<Receipt | null>(null)
+        const [createPaymentDialog, setCreatePaymentDialog] = useState<boolean>(false)
+        const [editPaymentDialog, setEditPaymentDialog] = useState<Payment | null>(null)
+        const [viewPaymentPdfDialog, setViewPaymentPdfDialog] = useState<Payment | null>(null)
+        const [deletePaymentDialog, setDeletePaymentDialog] = useState<Payment | null>(null)
+        const [sendPaymentDialog, setSendPaymentDialog] = useState<Payment | null>(null)
+        const [downloadPaymentPdf, setDownloadPaymentPdf] = useState<Payment | null>(null)
 
-        const { data: pdf } = useGetRaw<Response>(downloadReceiptPdf ? `/api/receipts/${downloadReceiptPdf.id}/pdf` : null)
+        const { data: pdf } = useGetRaw<Response>(downloadPaymentPdf ? `/api/payments/${downloadPaymentPdf.id}/pdf` : null)
 
         useImperativeHandle(ref, () => ({
             handleAddClick() {
-                setCreateReceiptDialog(true)
+                setCreatePaymentDialog(true)
             },
         }))
 
         useEffect(() => {
-            if (downloadReceiptPdf && pdf) {
+            if (downloadPaymentPdf && pdf) {
                 pdf.arrayBuffer().then((buffer) => {
                     const blob = new Blob([buffer], { type: "application/pdf" })
                     const url = URL.createObjectURL(blob)
                     const link = document.createElement("a")
                     link.href = url
-                    link.download = `receipt-${downloadReceiptPdf.number}.pdf`
+                    link.download = `payment-${downloadPaymentPdf.number}.pdf`
                     document.body.appendChild(link)
                     link.click()
                     document.body.removeChild(link)
                     URL.revokeObjectURL(url)
-                    setDownloadReceiptPdf(null) // Reset after download
+                    setDownloadPaymentPdf(null) // Reset after download
                 })
             }
-        }, [downloadReceiptPdf, pdf])
+        }, [downloadPaymentPdf, pdf])
 
         function handleAddClick() {
-            setCreateReceiptDialog(true)
+            setCreatePaymentDialog(true)
         }
 
-        function handleEdit(receipt: Receipt) {
-            setEditReceiptDialog(receipt)
+        function handleEdit(payment: Payment) {
+            setEditPaymentDialog(payment)
         }
 
-        function handleViewPdf(receipt: Receipt) {
-            setViewReceiptPdfDialog(receipt)
+        function handleViewPdf(payment: Payment) {
+            setViewPaymentPdfDialog(payment)
         }
 
-        function handleDownloadPdf(receipt: Receipt) {
-            setDownloadReceiptPdf(receipt)
+        function handleDownloadPdf(payment: Payment) {
+            setDownloadPaymentPdf(payment)
         }
 
-        function handleSendToClient(receipt: Receipt) {
-            setSendReceiptDialog(receipt)
+        function handleSendToClient(payment: Payment) {
+            setSendPaymentDialog(payment)
         }
 
         function confirmSendToClient() {
-            if (!sendReceiptDialog) return
+            if (!sendPaymentDialog) return
 
-            triggerSendToClient({ id: sendReceiptDialog.id })
+            triggerSendToClient({ id: sendPaymentDialog.id })
                 .then((result) => {
-                    setSendReceiptDialog(null)
+                    setSendPaymentDialog(null)
                     if (result) {
-                        toast.success(t("receipts.list.messages.emailSent"))
+                        toast.success(t("payments.list.messages.emailSent"))
                         mutate && mutate()
                     } else {
-                        toast.error(t("receipts.list.messages.emailError"))
+                        toast.error(t("payments.list.messages.emailError"))
                     }
                 })
                 .catch((error) => {
-                    console.error("Error sending receipt to client:", error)
-                    toast.error(t("receipts.list.messages.emailError"))
+                    console.error("Error sending payment to client:", error)
+                    toast.error(t("payments.list.messages.emailError"))
                 })
         }
 
-        function handleDelete(receipt: Receipt) {
-            setDeleteReceiptDialog(receipt)
+        function handleDelete(payment: Payment) {
+            setDeletePaymentDialog(payment)
         }
 
 
@@ -135,7 +135,7 @@ export const ReceiptList = forwardRef<ReceiptListHandle, ReceiptListProps>(
                             <div className="relative w-full sm:w-fit sm:flex-1 sm:max-w-sm">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                                 <Input
-                                    placeholder={t("receipts.search.placeholder")}
+                                    placeholder={t("payments.search.placeholder")}
                                     value={searchTerm}
                                     onChange={(e) => onSearchChange(e.target.value)}
                                     className="pl-10 w-full"
@@ -145,7 +145,7 @@ export const ReceiptList = forwardRef<ReceiptListHandle, ReceiptListProps>(
                         {showCreateButton && (
                             <Button onClick={handleAddClick}>
                                 <Plus className="h-4 w-4 mr-0 md:mr-2" />
-                                <span className="hidden md:inline-flex">{t("receipts.list.actions.addNew")}</span>
+                                <span className="hidden md:inline-flex">{t("payments.list.actions.addNew")}</span>
                             </Button>
                         )}
                     </CardHeader>
@@ -155,38 +155,38 @@ export const ReceiptList = forwardRef<ReceiptListHandle, ReceiptListProps>(
                             <div className="flex items-center justify-center py-12">
                                 <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div>
                             </div>
-                        ) : receipts.length === 0 ? (
+                        ) : payments.length === 0 ? (
                             emptyState
                         ) : (
                             <div className="divide-y">
-                                {receipts.map((receipt, index) => (
+                                {payments.map((payment, index) => (
                                     <div key={index} className="p-4 sm:p-6">
                                         <div className="flex flex-row sm:items-center sm:justify-between gap-4">
                                             <div className="flex flex-row items-center gap-4 w-full">
                                                 <div className="p-2 bg-blue-100 rounded-lg mb-4 md:mb-0 w-fit h-fit">
-                                                    <ReceiptIcon className="h-5 w-5 text-blue-600" />
+                                                    <PaymentIcon className="h-5 w-5 text-blue-600" />
                                                 </div>
                                                 <div className="flex-1">
                                                     <div className="flex flex-wrap items-center gap-2">
                                                         <h3 className="font-medium text-foreground break-words">
-                                                            {t("receipts.list.item.title", { number: receipt.rawNumber || receipt.number })}
+                                                            {t("payments.list.item.title", { number: payment.rawNumber || payment.number })}
                                                         </h3>
                                                     </div>
                                                     <div className="mt-2 flex flex-col gap-2 text-sm text-muted-foreground">
                                                         <div className="hidden sm:grid sm:grid-cols-1 lg:grid-cols-2 gap-1">
                                                             <span>
-                                                                <span className="font-medium text-foreground">{t("receipts.list.item.invoice")}:</span>{" "}
-                                                                {receipt.invoice?.rawNumber || receipt.invoice?.number || t("receipts.list.item.noInvoice")}
+                                                                <span className="font-medium text-foreground">{t("payments.list.item.invoice")}:</span>{" "}
+                                                                {payment.invoice?.rawNumber || payment.invoice?.number || t("payments.list.item.noInvoice")}
                                                             </span>
                                                             <span>
-                                                                <span className="font-medium text-foreground">{t("receipts.list.item.totalItemCount")}:</span>{" "}
-                                                                {receipt.items.length}
+                                                                <span className="font-medium text-foreground">{t("payments.list.item.totalItemCount")}:</span>{" "}
+                                                                {payment.items.length}
                                                             </span>
                                                             <span>
-                                                                <span className="font-medium text-foreground">{t("receipts.list.item.totalPaid")}:</span>{" "}
+                                                                <span className="font-medium text-foreground">{t("payments.list.item.totalPaid")}:</span>{" "}
                                                                 {t("common.valueWithCurrency", {
-                                                                    currency: receipt.invoice?.currency || "USD",
-                                                                    amount: receipt.totalPaid.toFixed(2),
+                                                                    currency: payment.invoice?.currency || "USD",
+                                                                    amount: payment.totalPaid.toFixed(2),
                                                                 })}
                                                             </span>
                                                         </div>
@@ -196,40 +196,40 @@ export const ReceiptList = forwardRef<ReceiptListHandle, ReceiptListProps>(
 
                                             <div className="grid grid-cols-2 lg:flex justify-start sm:justify-end gap-1 md:gap-2">
                                                 <Button
-                                                    tooltip={t("receipts.list.tooltips.viewPdf")}
+                                                    tooltip={t("payments.list.tooltips.viewPdf")}
                                                     variant="ghost"
                                                     size="icon"
-                                                    onClick={() => handleViewPdf(receipt)}
+                                                    onClick={() => handleViewPdf(payment)}
                                                     className="text-gray-600 hover:text-pink-600"
                                                 >
-                                                    <ReceiptIcon className="h-4 w-4" />
+                                                    <PaymentIcon className="h-4 w-4" />
                                                 </Button>
 
                                                 <Button
-                                                    tooltip={t("receipts.list.tooltips.downloadPdf")}
+                                                    tooltip={t("payments.list.tooltips.downloadPdf")}
                                                     variant="ghost"
                                                     size="icon"
-                                                    onClick={() => handleDownloadPdf(receipt)}
+                                                    onClick={() => handleDownloadPdf(payment)}
                                                     className="text-gray-600 hover:text-amber-600"
                                                 >
                                                     <Download className="h-4 w-4" />
                                                 </Button>
 
                                                 <Button
-                                                    tooltip={t("receipts.list.tooltips.edit")}
+                                                    tooltip={t("payments.list.tooltips.edit")}
                                                     variant="ghost"
                                                     size="icon"
-                                                    onClick={() => handleEdit(receipt)}
+                                                    onClick={() => handleEdit(payment)}
                                                     className="text-gray-600 hover:text-green-600"
                                                 >
                                                     <Edit className="h-4 w-4" />
                                                 </Button>
 
                                                 <Button
-                                                    tooltip={t("receipts.list.tooltips.sendToClient")}
+                                                    tooltip={t("payments.list.tooltips.sendToClient")}
                                                     variant="ghost"
                                                     size="icon"
-                                                    onClick={() => handleSendToClient(receipt)}
+                                                    onClick={() => handleSendToClient(payment)}
                                                     className="text-gray-600 hover:text-blue-600"
                                                     disabled={sendToClientLoading}
                                                 >
@@ -237,10 +237,10 @@ export const ReceiptList = forwardRef<ReceiptListHandle, ReceiptListProps>(
                                                 </Button>
 
                                                 <Button
-                                                    tooltip={t("receipts.list.tooltips.delete")}
+                                                    tooltip={t("payments.list.tooltips.delete")}
                                                     variant="ghost"
                                                     size="icon"
-                                                    onClick={() => handleDelete(receipt)}
+                                                    onClick={() => handleDelete(payment)}
                                                     className="text-gray-600 hover:text-red-600"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
@@ -255,57 +255,57 @@ export const ReceiptList = forwardRef<ReceiptListHandle, ReceiptListProps>(
 
                     {page && pageCount && setPage && (
                         <CardFooter>
-                            {!loading && receipts.length > 0 && (
+                            {!loading && payments.length > 0 && (
                                 <BetterPagination pageCount={pageCount} page={page} setPage={setPage} />
                             )}
                         </CardFooter>
                     )}
                 </Card>
 
-                <ReceiptUpsert
-                    open={createReceiptDialog}
+                <PaymentUpsert
+                    open={createPaymentDialog}
                     onOpenChange={(open) => {
-                        setCreateReceiptDialog(open)
+                        setCreatePaymentDialog(open)
                         if (!open) mutate && mutate()
                     }}
                 />
 
-                <ReceiptUpsert
-                    open={!!editReceiptDialog}
-                    receipt={editReceiptDialog}
+                <PaymentUpsert
+                    open={!!editPaymentDialog}
+                    payment={editPaymentDialog}
                     onOpenChange={(open) => {
-                        if (!open) setEditReceiptDialog(null)
+                        if (!open) setEditPaymentDialog(null)
                         mutate && mutate()
                     }}
                 />
 
 
-                <ReceiptPdfModal
-                    receipt={viewReceiptPdfDialog}
+                <PaymentPdfModal
+                    payment={viewPaymentPdfDialog}
                     onOpenChange={(open) => {
-                        if (!open) setViewReceiptPdfDialog(null)
+                        if (!open) setViewPaymentPdfDialog(null)
                     }}
                 />
 
-                <ReceiptDeleteDialog
-                    receipt={deleteReceiptDialog}
+                <PaymentDeleteDialog
+                    payment={deletePaymentDialog}
                     onOpenChange={(open: boolean) => {
-                        if (!open) setDeleteReceiptDialog(null)
+                        if (!open) setDeletePaymentDialog(null)
                         mutate && mutate()
                     }}
                 />
 
                 <SendConfirmationDialog
-                    open={sendReceiptDialog != null}
+                    open={sendPaymentDialog != null}
                     onOpenChange={(open: boolean) => {
-                        if (!open) setSendReceiptDialog(null)
+                        if (!open) setSendPaymentDialog(null)
                     }}
-                    title={t("receipts.sendConfirmation.title")}
-                    description={t("receipts.sendConfirmation.description")}
-                    email={sendReceiptDialog?.invoice?.client.contactEmail ?? ""}
-                    emailLabel={t("receipts.sendConfirmation.emailLabel")}
-                    confirmLabel={t("receipts.sendConfirmation.confirm")}
-                    cancelLabel={t("receipts.sendConfirmation.cancel")}
+                    title={t("payments.sendConfirmation.title")}
+                    description={t("payments.sendConfirmation.description")}
+                    email={sendPaymentDialog?.invoice?.client.contactEmail ?? ""}
+                    emailLabel={t("payments.sendConfirmation.emailLabel")}
+                    confirmLabel={t("payments.sendConfirmation.confirm")}
+                    cancelLabel={t("payments.sendConfirmation.cancel")}
                     onConfirm={confirmSendToClient}
                     loading={sendToClientLoading}
                 />

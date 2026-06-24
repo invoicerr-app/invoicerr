@@ -499,7 +499,7 @@
                 "edit": "Modifier la facture",
                 "markAsPaid": "Marquer comme payée",
                 "delete": "Supprimer la facture",
-                "createReceipt": "Créer un reçu à partir de cette facture",
+                "createPayment": "Créer un paiement à partir de cette facture",
                 "sendByEmail": "Envoyer la facture par email"
             },
             "actions": {
@@ -1248,21 +1248,21 @@
                         "format": "Format invalide. Utilisez {year}, {month}, {day}, {number} avec un padding optionnel (ex: {number:4})"
                     }
                 },
-                "receiptStartingNumber": {
-                    "label": "Numéro de départ des reçus",
-                    "placeholder": "Saisir le numéro de départ des reçus",
-                    "description": "Le numéro à partir duquel les reçus commenceront",
+                "paymentStartingNumber": {
+                    "label": "Numéro de départ des paiements",
+                    "placeholder": "Saisir le numéro de départ des paiements",
+                    "description": "Le numéro à partir duquel les paiements commenceront",
                     "errors": {
                         "min": "Le numéro de départ doit être au moins 1."
                     }
                 },
-                "receiptNumberFormat": {
-                    "label": "Format du numéro de reçu",
-                    "placeholder": "Entrez le format du numéro de reçu (ex: RECEIPT-{year}-{number})",
-                    "description": "Format pour les numéros de reçu",
+                "paymentNumberFormat": {
+                    "label": "Format du numéro de paiement",
+                    "placeholder": "Entrez le format du numéro de paiement (ex: PAY-{year}-{number})",
+                    "description": "Format pour les numéros de paiement",
                     "errors": {
-                        "required": "Le format du numéro de reçu est requis",
-                        "maxLength": "Le format du numéro de reçu doit faire moins de 100 caractères",
+                        "required": "Le format du numéro de paiement est requis",
+                        "maxLength": "Le format du numéro de paiement doit faire moins de 100 caractères",
                         "format": "Format invalide. Utilisez {year}, {month}, {day}, {number} avec un padding optionnel (ex: {number:4})"
                     }
                 },
@@ -1456,7 +1456,7 @@
                 "options": {
                     "invoice": "Modèle de facture",
                     "quote": "Modèle de devis",
-                    "receipt": "Modèle de reçu"
+                    "payment": "Modèle de paiement"
                 }
             },
             "typography": {
@@ -1486,7 +1486,7 @@
                 "title": "Libellés et texte",
                 "invoice": "Facture",
                 "quote": "Devis",
-                "receipt": "Reçu",
+                "payment": "Paiement",
                 "billTo": "Facturer à",
                 "quoteFor": "Devis pour",
                 "validUntil": "Valide jusqu'au",
@@ -1526,7 +1526,7 @@
             "defaultLabels": {
                 "invoice": "Facture",
                 "quote": "Devis",
-                "receipt": "Reçu",
+                "payment": "Paiement",
                 "billTo": "Facturer à",
                 "quoteFor": "Devis pour",
                 "validUntil": "Valide jusqu'au",
@@ -1620,7 +1620,7 @@
             "dashboard": "Tableau de bord",
             "quotes": "Devis",
             "invoices": "Factures",
-            "receipts": "Reçus",
+            "payments": "Paiements",
             "clients": "Clients",
             "articles": "Articles",
             "paymentMethods": "Méthodes de paiement",
@@ -1748,40 +1748,40 @@
         },
         "valueWithCurrency": "{{amount}} {{currency}}"
     },
-    "receipts": {
+    "payments": {
         "header": {
-            "subtitle": "Gérez vos reçus",
-            "count": "{{count}} reçus {{found}}",
+            "subtitle": "Gérez vos paiements",
+            "count": "{{count}} paiements {{found}}",
             "found": "trouvés"
         },
         "search": {
-            "placeholder": "Rechercher des reçus..."
+            "placeholder": "Rechercher des paiements..."
         },
         "actions": {
-            "addNew": "Ajouter un nouveau reçu"
+            "addNew": "Ajouter un nouveau paiement"
         },
         "stats": {
-            "total": "Total des reçus",
+            "total": "Total des paiements",
             "draft": "Brouillon",
             "sent": "Envoyé",
             "signed": "Signé"
         },
         "emptyState": {
-            "noReceipts": "Aucun reçu pour le moment",
-            "noResults": "Aucun reçu trouvé",
-            "startAdding": "Commencez par créer votre premier reçu.",
+            "noReceipts": "Aucun paiement pour le moment",
+            "noResults": "Aucun paiement trouvé",
+            "startAdding": "Commencez par créer votre premier paiement.",
             "tryDifferentSearch": "Essayez d'ajuster vos termes de recherche."
         },
         "list": {
-            "title": "Tous les reçus",
-            "description": "Gérez et consultez tous vos reçus en un seul endroit.",
+            "title": "Tous les paiements",
+            "description": "Gérez et consultez tous vos paiements en un seul endroit.",
             "status": {
                 "draft": "Brouillon",
                 "sent": "Envoyé",
                 "signed": "Signé"
             },
             "item": {
-                "title": "Reçu {{number}}",
+                "title": "Paiement {{number}}",
                 "client": "Client",
                 "issued": "Émis",
                 "validUntil": "Valide jusqu'à",
@@ -1792,16 +1792,16 @@
                 "totalPaid": "Total payé"
             },
             "tooltips": {
-                "view": "Voir le reçu",
+                "view": "Voir le paiement",
                 "viewPdf": "Voir le PDF",
                 "downloadPdf": "Télécharger le PDF",
-                "edit": "Modifier le reçu",
+                "edit": "Modifier le paiement",
                 "sendToClient": "Envoyer au client",
-                "delete": "Supprimer le reçu"
+                "delete": "Supprimer le paiement"
             },
             "messages": {
-                "emailSent": "Reçu envoyé au client avec succès.",
-                "emailError": "Échec de l'envoi du reçu au client."
+                "emailSent": "Paiement envoyé au client avec succès.",
+                "emailError": "Échec de l'envoi du paiement au client."
             },
             "actions": {
                 "addNew": "Ajouter un nouveau reçu"
@@ -1809,8 +1809,8 @@
         },
         "upsert": {
             "title": {
-                "edit": "Modifier le reçu",
-                "create": "Créer un reçu"
+                "edit": "Modifier le paiement",
+                "create": "Créer un paiement"
             },
             "form": {
                 "client": {
@@ -1869,27 +1869,27 @@
             "actions": {
                 "cancel": "Annuler",
                 "save": "Enregistrer les modifications",
-                "create": "Créer un reçu",
-                "edit": "Modifier le reçu"
+                "create": "Créer un paiement",
+                "edit": "Modifier le paiement"
             }
         },
         "sendConfirmation": {
-            "title": "Envoyer le reçu au client",
-            "description": "Ce reçu sera envoyé à l'adresse email du client.",
+            "title": "Envoyer le paiement au client",
+            "description": "Ce paiement sera envoyé à l'adresse email du client.",
             "emailLabel": "Destinataire :",
             "confirm": "Envoyer",
             "cancel": "Annuler"
         },
         "delete": {
-            "title": "Supprimer le reçu",
-            "description": "Êtes-vous sûr de vouloir supprimer ce reçu ? Cette action ne peut pas être annulée.",
+            "title": "Supprimer le paiement",
+            "description": "Êtes-vous sûr de vouloir supprimer ce paiement ? Cette action ne peut pas être annulée.",
             "actions": {
                 "cancel": "Annuler",
                 "delete": "Supprimer"
             }
         },
         "pdf": {
-            "title": "Reçu {{number}} - PDF"
+            "title": "Paiement {{number}} - PDF"
         }
     },
     "stats": {

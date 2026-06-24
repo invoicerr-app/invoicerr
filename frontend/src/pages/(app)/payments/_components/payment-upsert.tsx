@@ -2,7 +2,7 @@
 
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import type { Invoice, InvoiceItem, PaymentMethod, Receipt } from "@/types"
+import type { Invoice, InvoiceItem, PaymentMethod, Payment } from "@/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useEffect, useState } from "react"
 import { usePatch, usePost } from "@/hooks/use-fetch"
@@ -21,8 +21,8 @@ import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 
-interface ReceiptUpsertDialogProps {
-    receipt?: Receipt | null
+interface PaymentUpsertDialogProps {
+    payment?: Payment | null
     open: boolean
     onOpenChange: (open: boolean) => void
 }
@@ -33,22 +33,22 @@ interface Item {
     amountPaid: number
 }
 
-export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDialogProps) {
+export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDialogProps) {
     const { t } = useTranslation()
-    const isEdit = !!receipt
+    const isEdit = !!payment
     const queryClient = useQueryClient()
 
     const [clientDialogOpen, setClientDialogOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState("")
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
     const [selectedItem, setSelectedItem] = useState<InvoiceItem | null>(null)
-    const [items, setItems] = useState<Item[]>(receipt?.items.map(item => ({
+    const [items, setItems] = useState<Item[]>(payment?.items.map(item => ({
         invoiceItemId: item.invoiceItemId,
-        description: receipt.invoice?.items.find(invItem => invItem.id === item.invoiceItemId)?.description || "",
+        description: payment.invoice?.items.find(invItem => invItem.id === item.invoiceItemId)?.description || "",
         amountPaid: item.amountPaid
     })) || [])
 
-    const receiptSchema = z.object({
+    const paymentSchema = z.object({
         invoiceId: z.string().optional(),
         paymentMethodId: z.string().optional(),
     })
@@ -56,29 +56,29 @@ export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDial
     const { data: invoices } = useInvoiceSearch(searchTerm)
     const invoiceList = Array.isArray(invoices) ? invoices : []
     const { data: paymentMethods } = usePaymentMethods()
-    const { trigger: createTrigger, loading: createLoading } = usePost("/api/receipts")
-    const { trigger: updateTrigger, loading: updateLoading } = usePatch(`/api/receipts/${receipt?.id}`)
+    const { trigger: createTrigger, loading: createLoading } = usePost("/api/payments")
+    const { trigger: updateTrigger, loading: updateLoading } = usePatch(`/api/payments/${payment?.id}`)
 
-    const form = useForm<z.infer<typeof receiptSchema>>({
-        resolver: zodResolver(receiptSchema),
+    const form = useForm<z.infer<typeof paymentSchema>>({
+        resolver: zodResolver(paymentSchema),
         defaultValues: {
-            invoiceId: receipt?.invoiceId || "",
-            paymentMethodId: receipt?.paymentMethodId || ""
+            invoiceId: payment?.invoiceId || "",
+            paymentMethodId: payment?.paymentMethodId || ""
         },
     })
 
     useEffect(() => {
-        if (isEdit && receipt) {
+        if (isEdit && payment) {
             form.reset({
-                invoiceId: receipt.invoiceId || "",
-                paymentMethodId: (receipt as any).paymentMethodId || ""
+                invoiceId: payment.invoiceId || "",
+                paymentMethodId: (payment as any).paymentMethodId || ""
             })
-            setItems(receipt.items.map(item => ({
+            setItems(payment.items.map(item => ({
                 invoiceItemId: item.invoiceItemId,
-                description: receipt.invoice?.items.find(invItem => invItem.id === item.invoiceItemId)?.description || "",
+                description: payment.invoice?.items.find(invItem => invItem.id === item.invoiceItemId)?.description || "",
                 amountPaid: item.amountPaid
             })))
-            setSelectedInvoice(receipt.invoice || null)
+            setSelectedInvoice(payment.invoice || null)
             setSelectedItem(null)
         } else {
             form.reset({
@@ -87,7 +87,7 @@ export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDial
             })
             setItems([])
         }
-    }, [receipt, form, isEdit])
+    }, [payment, form, isEdit])
 
     const handleOpenChange = (open: boolean) => {
         if (!open) {
@@ -99,7 +99,7 @@ export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDial
         onOpenChange(open)
     }
 
-    const onSubmit = (data: z.infer<typeof receiptSchema>) => {
+    const onSubmit = (data: z.infer<typeof paymentSchema>) => {
         const trigger = isEdit ? updateTrigger : createTrigger
         trigger({
             ...data,
@@ -107,11 +107,11 @@ export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDial
                 invoiceItemId: item.invoiceItemId,
                 invoiceId: selectedInvoice?.id || "",
                 amountPaid: item.amountPaid,
-                receiptId: receipt?.id || ""
+                paymentId: payment?.id || ""
             }))
         })
             .then(() => {
-                queryClient.invalidateQueries({ queryKey: queryKeys.receipts.listsAll() })
+                queryClient.invalidateQueries({ queryKey: queryKeys.payments.listsAll() })
                 onOpenChange(false)
                 form.reset()
             })
@@ -145,27 +145,27 @@ export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDial
     return (
         <>
             <Dialog open={open} onOpenChange={handleOpenChange}>
-                <DialogContent className="max-w-sm lg:max-w-4xl min-w-fit max-h-[90vh] overflow-y-auto overflow-visible" dataCy="receipt-dialog">
+                <DialogContent className="max-w-sm lg:max-w-4xl min-w-fit max-h-[90vh] overflow-y-auto overflow-visible" dataCy="payment-dialog">
                     <DialogHeader className="h-fit">
-                        <DialogTitle>{t(`receipts.upsert.title.${isEdit ? "edit" : "create"}`)}</DialogTitle>
+                        <DialogTitle>{t(`payments.upsert.title.${isEdit ? "edit" : "create"}`)}</DialogTitle>
                     </DialogHeader>
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} data-cy="receipt-form">
+                        <form onSubmit={form.handleSubmit(onSubmit)} data-cy="payment-form">
                             <FormField
                                 control={form.control}
                                 name="invoiceId"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel required>{t("receipts.upsert.form.invoice.label")}</FormLabel>
+                                        <FormLabel required>{t("payments.upsert.form.invoice.label")}</FormLabel>
                                         <FormControl>
                                             <SearchSelect
                                                 options={invoiceList.map((invoice) => ({ label: invoice.rawNumber || invoice.number.toString(), value: invoice.id }))}
                                                 value={field.value ?? ""}
                                                 onValueChange={(val) => { field.onChange(val || null); setSelectedInvoice(invoiceList.find(inv => inv.id === val) || null); setSelectedItem(null); }}
                                                 onSearchChange={setSearchTerm}
-                                                placeholder={t("receipts.upsert.form.invoice.placeholder")}
-                                                noResultsText={t("receipts.upsert.form.invoice.noResults")}
-                                                data-cy="receipt-invoice-select"
+                                                placeholder={t("payments.upsert.form.invoice.placeholder")}
+                                                noResultsText={t("payments.upsert.form.invoice.noResults")}
+                                                data-cy="payment-invoice-select"
                                             />
                                         </FormControl>
                                         <FormMessage />
@@ -178,11 +178,11 @@ export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDial
                                 name="paymentMethodId"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>{t("receipts.upsert.form.paymentMethod.label")}</FormLabel>
+                                        <FormLabel>{t("payments.upsert.form.paymentMethod.label")}</FormLabel>
                                         <FormControl>
                                             <Select value={field.value ?? ""} onValueChange={(val) => field.onChange(val || "")}>
-                                                <SelectTrigger className="w-full" aria-label={t("receipts.upsert.form.paymentMethod.label") as string}>
-                                                    <SelectValue placeholder={t("receipts.upsert.form.paymentMethod.placeholder")} />
+                                                <SelectTrigger className="w-full" aria-label={t("payments.upsert.form.paymentMethod.label") as string}>
+                                                    <SelectValue placeholder={t("payments.upsert.form.paymentMethod.placeholder")} />
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     {(paymentMethods || []).map((pm: PaymentMethod) => (
@@ -194,7 +194,7 @@ export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDial
                                             </Select>
                                         </FormControl>
                                         <FormDescription>
-                                            {t("receipts.upsert.form.paymentMethod.description")}
+                                            {t("payments.upsert.form.paymentMethod.description")}
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>
@@ -202,7 +202,7 @@ export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDial
                             />
 
                             <FormItem className="flex flex-col gap-2 mt-2">
-                                <FormLabel className="mb-0">{t("receipts.upsert.form.items.label")}</FormLabel>
+                                <FormLabel className="mb-0">{t("payments.upsert.form.items.label")}</FormLabel>
 
                                 <section className="grid grid-cols-1 md:grid-cols-4 gap-2 !m-0">
                                     <FormItem className="col-span-3">
@@ -216,8 +216,8 @@ export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDial
                                                     setSelectedItem((selectedInvoice?.items || []).find(item => item.id === val) || null);
                                                 }}
                                                 onSearchChange={setSearchTerm}
-                                                placeholder={t("receipts.upsert.form.items.placeholder")}
-                                                noResultsText={t("receipts.upsert.form.items.noResults")}
+                                                placeholder={t("payments.upsert.form.items.placeholder")}
+                                                noResultsText={t("payments.upsert.form.items.noResults")}
                                             />
                                         </FormControl>
                                         <FormMessage />
@@ -228,7 +228,7 @@ export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDial
                                         disabled={!selectedItem}
                                         onClick={onAddItem}
                                     >
-                                        {t("receipts.upsert.form.items.addButton")}
+                                        {t("payments.upsert.form.items.addButton")}
                                     </Button>
                                 </section>
                                 <div className="flex flex-col gap-2">
@@ -238,7 +238,7 @@ export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDial
                                                 <FormControl>
                                                     <BetterInput
                                                         defaultValue={item.description || ""}
-                                                        placeholder={t("receipts.upsert.form.items.description.placeholder")}
+                                                        placeholder={t("payments.upsert.form.items.description.placeholder")}
                                                         onChange={(e) => onEditItem(index, "description")(e.target.value)}
                                                         disabled
                                                     />
@@ -249,7 +249,7 @@ export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDial
                                                 <FormControl>
                                                     <BetterInput
                                                         defaultValue={item.amountPaid || ""}
-                                                        placeholder={t("receipts.upsert.form.items.amountPaid.placeholder")}
+                                                        placeholder={t("payments.upsert.form.items.amountPaid.placeholder")}
                                                         onChange={(e) => onEditItem(index, "amountPaid")(parseFloat(e.target.value))}
                                                         type="number"
                                                         min={0}
@@ -272,10 +272,10 @@ export function ReceiptUpsert({ receipt, open, onOpenChange }: ReceiptUpsertDial
                     </Form>
                     <DialogFooter className="flex justify-end space-x-2">
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                            {t("receipts.upsert.actions.cancel")}
+                            {t("payments.upsert.actions.cancel")}
                         </Button>
-                        <Button type="button" onClick={form.handleSubmit(onSubmit)} loading={createLoading || updateLoading} dataCy="receipt-submit">
-                            {t(`receipts.upsert.actions.${isEdit ? "save" : "create"}`)}
+                        <Button type="button" onClick={form.handleSubmit(onSubmit)} loading={createLoading || updateLoading} dataCy="payment-submit">
+                            {t(`payments.upsert.actions.${isEdit ? "save" : "create"}`)}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
