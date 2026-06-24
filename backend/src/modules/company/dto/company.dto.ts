@@ -59,19 +59,21 @@ export interface PDFConfigDto {
 export class EditCompanyDto {
     description?: string
     legalId?: string
-    foundedAt: Date
+    // Optional: the simplified onboarding only sends name + country; the rest is
+    // filled in later via Settings. The backend supplies blank defaults on creation.
+    foundedAt?: Date
     name: string
     currency: finance.TCurrency
     VAT?: string
     exemptVat?: boolean
-    address: string
+    address?: string
     addressLine2?: string
-    postalCode: string
-    city: string
+    postalCode?: string
+    city?: string
     state?: string
     country: string
-    phone: string
-    email: string
+    phone?: string
+    email?: string
     pdfConfig: PDFConfigDto
     quoteStartingNumber: number
     quoteNumberFormat: string
