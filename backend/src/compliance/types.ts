@@ -47,6 +47,50 @@ export type DocumentSyntax =
   | 'CFDI'
   | 'FA_VAT'
   | 'KSA_UBL'
+  // --- National clearance/reporting syntaxes with a dedicated (stubbed) provider ---
+  // LATAM
+  | 'AR_FE' // Argentina — Factura Electrónica (WSFE/CAE), ARCA/AFIP
+  | 'BO_FE' // Bolivia — Facturación Electrónica (SIN), CUF
+  | 'NFE' // Brazil — NF-e / NFC-e / NFS-e / NFCom / CT-e (SEFAZ)
+  | 'CL_DTE' // Chile — Documento Tributario Electrónico (SII), CAF folios
+  | 'CR_FE' // Costa Rica — Factura Electrónica v4.4 (Hacienda)
+  | 'DO_ECF' // Dominican Republic — e-CF (DGII)
+  | 'EC_FE' // Ecuador — Comprobantes electrónicos (SRI), clave de acceso
+  | 'GT_FEL' // Guatemala — Factura Electrónica en Línea (SAT)
+  | 'PA_FE' // Panama — Factura Electrónica FE/CF (DGI)
+  | 'PY_DE' // Paraguay — Documento Electrónico / e-Kuatia (SIFEN)
+  | 'SV_DTE' // El Salvador — DTE (JSON) (MH)
+  | 'UY_CFE' // Uruguay — Comprobante Fiscal Electrónico / DFE (DGI)
+  | 'VE_FE' // Venezuela — Factura Electrónica (SENIAT)
+  // MENA
+  | 'JO_JOFOTARA' // Jordan — JoFotara national e-invoice (ISTD)
+  | 'TN_TEIF' // Tunisia — TEIF via TTN / El Fatoura
+  // Sub-Saharan Africa (mostly fiscal-device real-time)
+  | 'NG_FIRS' // Nigeria — FIRS e-invoice (MBS)
+  | 'KE_ETIMS' // Kenya — eTIMS (KRA)
+  | 'GH_EVAT' // Ghana — E-VAT (GRA)
+  | 'RW_EBM' // Rwanda — EBM (RRA)
+  | 'TZ_VFD' // Tanzania — VFD (TRA)
+  | 'UG_EFRIS' // Uganda — EFRIS (URA)
+  | 'ZM_SMARTINVOICE' // Zambia — Smart Invoice (ZRA)
+  | 'ZW_FDMS' // Zimbabwe — FDMS (ZIMRA)
+  | 'CI_FNE' // Ivory Coast — FNE / SIGF (DGI)
+  | 'BJ_MECEF' // Benin — e-MECeF (DGI)
+  // Asia
+  | 'ID_EFAKTUR' // Indonesia — e-Faktur / Coretax (DGT)
+  | 'TW_EGUI' // Taiwan — eGUI / MIG unified invoice (NRA)
+  | 'KZ_ESF' // Kazakhstan — ESF / IS ESF
+  | 'PH_EIS' // Philippines — EIS JSON (BIR)
+  | 'TH_ETAX' // Thailand — e-Tax Invoice & e-Receipt (RD)
+  | 'NP_CBMS' // Nepal — CBMS (IRD)
+  | 'BD_NBR' // Bangladesh — NBR e-invoice
+  | 'PK_FBR' // Pakistan — FBR XIR
+  // Europe (national, non-EN/Peppol)
+  | 'ES_FACTURAE' // Spain — Facturae / SII / Verifactu (AEAT)
+  | 'UA_TAXINVOICE' // Ukraine — tax-invoice XML (ЄРПН, DPS)
+  | 'ME_FISCAL' // Montenegro — fiscalization XML
+  | 'HR_ERACUN' // Croatia — e-Račun / Fiscalization 2.0
+  | 'AL_FISCALIZATION' // Albania — fiscalization (CIS)
   | 'NATIONAL_XML'; // generic placeholder for a national clearance XML without a dedicated provider yet
 
 export type ChannelType =

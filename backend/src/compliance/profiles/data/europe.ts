@@ -8,7 +8,7 @@ import { clearance, noMandate, peppolCtc, planned, postAudit, realTime, vat } fr
 export const EUROPE_PROFILES: CountryComplianceProfile[] = [
   // --- Majors (not in docs/compliance but traded with heavily) ---
   postAudit('DE', 'Germany', { tax: vat(19, [7]), primary: 'XRECHNUNG', receiveSyntax: 'XRECHNUNG' }),
-  realTime('ES', 'Spain', { from: '2017-07-01', tax: vat(21, [10, 4]), channel: 'GOV_PORTAL_API' }),
+  realTime('ES', 'Spain', { from: '2017-07-01', syntax: 'ES_FACTURAE', providerId: 'es-aeat', tax: vat(21, [10, 4]), channel: 'GOV_PORTAL_API' }), // Facturae + SII/Verifactu
   noMandate('GB', 'United Kingdom', { tax: vat(20, [5]) }),
 
   // --- EU member states (post-audit today; several phasing into CTC/RTR) ---
@@ -21,19 +21,19 @@ export const EUROPE_PROFILES: CountryComplianceProfile[] = [
   postAudit('FI', 'Finland', { tax: vat(25.5, [14, 10]) }),
   postAudit('LT', 'Lithuania', { tax: vat(21, [9, 5]) }),
   postAudit('LU', 'Luxembourg', { tax: vat(17, [14, 8, 3]) }),
-  realTime('LV', 'Latvia', { from: '2026-01-01', tax: vat(21, [12, 5]) }),
+  realTime('LV', 'Latvia', { from: '2026-01-01', syntax: 'EN16931_UBL', providerId: 'lv-vid', tax: vat(21, [12, 5]) }),
   postAudit('MT', 'Malta', { tax: vat(18, [7, 5]) }),
-  realTime('SK', 'Slovakia', { from: '2027-01-01', tax: vat(23, [19, 5]) }),
+  realTime('SK', 'Slovakia', { from: '2027-01-01', syntax: 'EN16931_UBL', providerId: 'sk-financnasprava', tax: vat(23, [19, 5]) }),
   peppolCtc('SI', 'Slovenia', { ctcFrom: '2027-06-01', tax: vat(22, [9.5, 5]) }),
-  clearance('HR', 'Croatia', { from: '2026-01-01', tax: vat(25, [13, 5]) }),
+  clearance('HR', 'Croatia', { from: '2026-01-01', syntax: 'HR_ERACUN', providerId: 'hr-fiskalizacija', tax: vat(25, [13, 5]) }), // Fiscalization 2.0 / e-Račun
 
   // --- EEA / EFTA / Balkans / accession ---
-  clearance('AL', 'Albania', { from: '2021-01-01', tax: vat(20) }),
+  clearance('AL', 'Albania', { from: '2021-01-01', syntax: 'AL_FISCALIZATION', providerId: 'al-cis', tax: vat(20) }), // CIS fiscalization
   planned('BA', 'Bosnia and Herzegovina', { tax: vat(17) }),
-  realTime('ME', 'Montenegro', { from: '2021-01-01', tax: vat(21, [7]) }),
+  realTime('ME', 'Montenegro', { from: '2021-01-01', syntax: 'ME_FISCAL', providerId: 'me-fiscal', tax: vat(21, [7]) }),
   planned('MK', 'North Macedonia', { tax: vat(18, [5]) }),
   postAudit('MD', 'Moldova', { tax: vat(20, [8]) }),
-  clearance('UA', 'Ukraine', { tax: vat(20, [7]) }), // VAT invoice registration (ЄРПН) blocks
+  clearance('UA', 'Ukraine', { syntax: 'UA_TAXINVOICE', providerId: 'ua-dps', tax: vat(20, [7]) }), // VAT invoice registration (ЄРПН) blocks
   postAudit('LI', 'Liechtenstein', { tax: vat(8.1, [3.8, 2.6]) }), // Swiss VAT system
 
   // --- Microstates with special channels ---

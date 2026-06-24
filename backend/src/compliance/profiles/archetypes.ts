@@ -14,6 +14,7 @@ import {
   NumberingRule,
   RegimeRule,
   ReportingObligation,
+  ResponsePolicy,
   Temporal,
   TransmissionRule,
   TaxSystemSpec,
@@ -58,7 +59,10 @@ function archival(years: number, residency: string | undefined, integrity: Archi
 function numbering(model: NumberingModel): Temporal<NumberingRule>[] {
   return [{ validFrom: OPEN, value: { model } }];
 }
-function lifecycle(immutableAfter: LifecyclePolicy['immutableAfter']): Temporal<LifecyclePolicy>[] {
+function lifecycle(
+  immutableAfter: LifecyclePolicy['immutableAfter'],
+  response?: ResponsePolicy,
+): Temporal<LifecyclePolicy>[] {
   return [
     {
       validFrom: OPEN,
@@ -66,6 +70,7 @@ function lifecycle(immutableAfter: LifecyclePolicy['immutableAfter']): Temporal<
         immutableAfter,
         correctionModel: 'CREDIT_NOTE',
         cancellation: { allowed: true, requiresAuthorityAck: immutableAfter === 'CLEARANCE' },
+        ...(response ? { response } : {}),
       },
     },
   ];
@@ -153,6 +158,7 @@ export function clearance(
     providerId?: string;
     numbering?: NumberingModel;
     signed?: boolean;
+    response?: ResponsePolicy;
   } = {},
 ): CountryComplianceProfile {
   const from = o.from ?? OPEN;
@@ -187,7 +193,7 @@ export function clearance(
     formats,
     transmission,
     taxSystem: o.tax ?? vat(20),
-    lifecycle: lifecycle('CLEARANCE'),
+    lifecycle: lifecycle('CLEARANCE', o.response),
     archival: archival(o.retentionYears ?? 10, o.residency, signed ? 'SIGNED' : 'NONE'),
     reporting: [],
     numbering: numbering(o.numbering ?? 'GAPLESS_SELF'),
@@ -199,7 +205,7 @@ export function clearance(
 export function realTime(
   cc: string,
   name: string,
-  o: CommonOpts & { from?: string; channel?: ChannelType; syntax?: DocumentSyntax } = {},
+  o: CommonOpts & { from?: string; channel?: ChannelType; syntax?: DocumentSyntax; providerId?: string } = {},
 ): CountryComplianceProfile {
   const from = o.from ?? OPEN;
   const channel: ChannelType = o.channel ?? 'GOV_PORTAL_API';
@@ -215,7 +221,7 @@ export function realTime(
     ...meta(cc, name, o.confidence ?? 'BEST_EFFORT'),
     regime,
     formats: [{ validFrom: OPEN, value: { primary: { syntax }, human: { syntax: 'PLAIN_PDF' }, buyerNegotiable: false } }],
-    transmission: [{ validFrom: OPEN, value: { channels: [{ type: channel }] } }],
+    transmission: [{ validFrom: OPEN, value: { channels: [{ type: channel, providerId: o.providerId }] } }],
     taxSystem: o.tax ?? vat(20),
     lifecycle: lifecycle('ISSUE'),
     archival: archival(o.retentionYears ?? 7, o.residency, 'NONE'),

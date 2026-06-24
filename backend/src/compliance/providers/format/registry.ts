@@ -13,6 +13,7 @@ import {
   NationalXmlFormatProvider,
   PlainPdfFormatProvider,
 } from './providers';
+import { NATIONAL_FORMAT_PROVIDERS } from './national-formats';
 
 export class FormatProviderRegistry {
   private readonly providers: FormatProvider[];
@@ -25,7 +26,8 @@ export class FormatProviderRegistry {
       new FatturaPaFormatProvider(),
       new KsaUblFormatProvider(),
       new FaVatFormatProvider(),
-      new NationalXmlFormatProvider(),
+      ...NATIONAL_FORMAT_PROVIDERS, // dedicated national-XML providers (selected by syntax)
+      new NationalXmlFormatProvider(), // generic catch-all stays last as the safety net
     ];
   }
 

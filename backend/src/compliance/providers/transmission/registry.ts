@@ -16,6 +16,7 @@ import {
   PrintTransmissionProvider,
   SdiTransmissionProvider,
 } from './providers';
+import { NATIONAL_PORTAL_PROVIDERS } from './national-portals';
 
 export class TransmissionProviderRegistry {
   private readonly byChannel = new Map<ChannelType, TransmissionProvider>();
@@ -32,6 +33,9 @@ export class TransmissionProviderRegistry {
       new KsefTransmissionProvider(),
       new OseTransmissionProvider(),
       new PrintTransmissionProvider(),
+      // Dedicated national portals — selected by ChannelSpec.providerId. Registered AFTER the
+      // generics so 'gov-portal' stays the default for a bare GOV_PORTAL_API channel.
+      ...NATIONAL_PORTAL_PROVIDERS,
     ];
     for (const p of list) {
       this.byId.set(p.id, p);
