@@ -168,7 +168,14 @@
             "actions": {
                 "cancel": "Annuler",
                 "create": "Créer le client",
-                "save": "Enregistrer les modifications"
+                "save": "Enregistrer les modifications",
+                "lookupSiret": "Rechercher"
+            },
+            "messages": {
+                "siretSuccess": "Informations récupérées avec succès.",
+                "siretNotFound": "Entreprise non trouvée. Vous pouvez saisir les informations manuellement.",
+                "siretInvalid": "Le numéro de SIRET semble invalide.",
+                "siretError": "Impossible de contacter l'annuaire des entreprises."
             }
         },
         "view": {
@@ -1190,6 +1197,7 @@
                 "country": {
                     "label": "Pays",
                     "placeholder": "Saisir le pays",
+                    "description": "Utilisé pour déterminer la recherche d'entreprise disponible (ex. SIRET pour la France)",
                     "errors": {
                         "empty": "Le pays est requis"
                     }
@@ -1733,6 +1741,11 @@
             "placeholder": "Sélectionner une devise",
             "searchPlaceholder": "Rechercher des devises...",
             "noResults": "Aucune devise trouvée"
+        },
+        "country-select": {
+            "placeholder": "Sélectionner un pays",
+            "searchPlaceholder": "Rechercher un pays...",
+            "noResults": "Aucun pays trouvé"
         }
     },
     "common": {

@@ -24,5 +24,11 @@ declare namespace Cypress {
          * @example cy.clearEmails()
          */
         clearEmails(): Chainable<any>
+
+        /**
+         * Custom command to pick a country from a CountrySelect component
+         * @example cy.selectCountry('client-country-select', 'France')
+         */
+        selectCountry(dataCy: string, countryName: string): Chainable<void>
     }
 }
