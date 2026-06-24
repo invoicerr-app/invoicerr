@@ -41,94 +41,94 @@ const US = () => ctx('US', 'US', 'B2B', 'GOODS', '2027-01-15');
 const MX = () => ctx('MX', 'MX', 'B2B', 'GOODS', '2024-06-01');
 
 describe('ComplianceService — issuance & immutability', () => {
-  it('creates a draft, issues it (number + ISSUED), and freezes editing', () => {
+  it('creates a draft, issues it (number + ISSUED), and freezes editing', async () => {
     const { service } = svc();
-    const draft = service.createDraft(FR());
+    const draft = await service.createDraft(FR());
     expect(draft.status).toBe('DRAFT');
-    service.editDraft(draft.id, FR()); // allowed in DRAFT
+    await service.editDraft(draft.id, FR()); // allowed in DRAFT
 
-    const { document } = service.issue(draft.id);
+    const { document } = await service.issue(draft.id);
     expect(document.status).toBe('ISSUED');
     expect(document.number).toBeDefined(); // gapless self-numbering
     expect(document.immutableHash).toBeDefined();
 
-    expect(() => service.editDraft(draft.id, FR())).toThrow(/Cannot edit/);
+    await expect(service.editDraft(draft.id, FR())).rejects.toThrow(/Cannot edit/);
   });
 });
 
 describe('ComplianceService — sending by regime', () => {
-  it('FR (non-blocking CTC) issueAndSend → DELIVERED then AWAITING_RESPONSE (mandatory statuses)', () => {
+  it('FR (non-blocking CTC) issueAndSend → DELIVERED then AWAITING_RESPONSE (mandatory statuses)', async () => {
     const { service } = svc();
-    const { document, execution } = service.issueAndSend(FR());
+    const { document, execution } = await service.issueAndSend(FR());
     expect(document.status).toBe('AWAITING_RESPONSE');
     expect(execution.transmissions.some((t) => t.channel === 'PDP')).toBe(true);
   });
 
-  it('US (post-audit) issueAndSend → DELIVERED', () => {
+  it('US (post-audit) issueAndSend → DELIVERED', async () => {
     const { service } = svc();
-    expect(service.issueAndSend(US()).document.status).toBe('DELIVERED');
+    expect((await service.issueAndSend(US())).document.status).toBe('DELIVERED');
   });
 
-  it('MX (blocking clearance) send → PENDING_CLEARANCE, then markCleared → CLEARED', () => {
+  it('MX (blocking clearance) send → PENDING_CLEARANCE, then markCleared → CLEARED', async () => {
     const { service } = svc();
-    const draft = service.createDraft(MX());
-    service.issue(draft.id);
-    expect(service.send(draft.id).document.status).toBe('PENDING_CLEARANCE');
-    expect(service.markCleared(draft.id).document.status).toBe('CLEARED');
+    const draft = await service.createDraft(MX());
+    await service.issue(draft.id);
+    expect((await service.send(draft.id)).document.status).toBe('PENDING_CLEARANCE');
+    expect((await service.markCleared(draft.id)).document.status).toBe('CLEARED');
   });
 
-  it('can force a single channel (e.g. PRINT a B2C receipt)', () => {
+  it('can force a single channel (e.g. PRINT a B2C receipt)', async () => {
     const { service } = svc();
-    const d = service.createDraft(FR());
-    service.issue(d.id);
-    const r = service.sendViaChannel(d.id, 'PRINT');
+    const d = await service.createDraft(FR());
+    await service.issue(d.id);
+    const r = await service.sendViaChannel(d.id, 'PRINT');
     expect(r.transmissions[0].channel).toBe('PRINT');
   });
 });
 
 describe('ComplianceService — modification & corrections', () => {
-  it('issues a credit note that references the original (original stays immutable)', () => {
+  it('issues a credit note that references the original (original stays immutable)', async () => {
     const { service } = svc();
-    const { document } = service.issueAndSend(FR());
-    const { original, correction } = service.correct(document.id);
+    const { document } = await service.issueAndSend(FR());
+    const { original, correction } = await service.correct(document.id);
     expect(correction.kind).toBe('CREDIT_NOTE');
     expect(correction.correctsId).toBe(document.id);
     expect(original.events.some((e) => e.type === 'CORRECTION_INITIATED')).toBe(true);
   });
 
-  it('supports debit notes and corrective invoices', () => {
+  it('supports debit notes and corrective invoices', async () => {
     const { service } = svc();
-    const a = service.issueAndSend(FR()).document;
-    expect(service.issueDebitNote(a.id).correction.kind).toBe('DEBIT_NOTE');
-    const b = service.issueAndSend(FR()).document;
-    expect(service.issueCorrectiveInvoice(b.id).correction.kind).toBe('CORRECTIVE_INVOICE');
+    const a = (await service.issueAndSend(FR())).document;
+    expect((await service.issueDebitNote(a.id)).correction.kind).toBe('DEBIT_NOTE');
+    const b = (await service.issueAndSend(FR())).document;
+    expect((await service.issueCorrectiveInvoice(b.id)).correction.kind).toBe('CORRECTIVE_INVOICE');
   });
 
-  it('cancellation is policy-gated: MX needs buyer consent', () => {
+  it('cancellation is policy-gated: MX needs buyer consent', async () => {
     const { service } = svc();
-    const d = service.createDraft(MX());
-    service.issue(d.id);
-    service.send(d.id);
-    service.markCleared(d.id);
+    const d = await service.createDraft(MX());
+    await service.issue(d.id);
+    await service.send(d.id);
+    await service.markCleared(d.id);
 
-    expect(service.cancel(d.id).accepted).toBe(false); // no consent
-    const ok = service.cancel(d.id, { buyerConsent: true });
+    expect((await service.cancel(d.id)).accepted).toBe(false); // no consent
+    const ok = await service.cancel(d.id, { buyerConsent: true });
     expect(ok.accepted).toBe(true);
     expect(ok.document.status).toBe('CANCELLED');
   });
 });
 
 describe('ComplianceService — bidirectional response & inbound', () => {
-  it('records a buyer refusal', () => {
+  it('records a buyer refusal', async () => {
     const { service } = svc();
-    const { document } = service.issueAndSend(FR());
-    const refused = service.applyResponse(document.id, { status: 'REFUSE', source: 'BUYER' });
+    const { document } = await service.issueAndSend(FR());
+    const refused = await service.applyResponse(document.id, { status: 'REFUSE', source: 'BUYER' });
     expect(refused.status).toBe('REFUSED');
   });
 
-  it('receives an inbound e-invoice (we are the buyer)', () => {
+  it('receives an inbound e-invoice (we are the buyer)', async () => {
     const { service } = svc();
-    const r = service.receive({ channel: 'SDI', ctx: ctx('IT', 'FR', 'B2B', 'GOODS', '2027-01-15') });
+    const r = await service.receive({ channel: 'SDI', ctx: ctx('IT', 'FR', 'B2B', 'GOODS', '2027-01-15') });
     expect(r.document.direction).toBe('INBOUND');
     expect(r.document.status).toBe('DELIVERED');
     expect(r.validation).toBeDefined();
@@ -136,32 +136,32 @@ describe('ComplianceService — bidirectional response & inbound', () => {
 });
 
 describe('ComplianceService — reporting, payment, archive', () => {
-  it('emits reporting side-effects (FR→IT queues the EC Sales List)', () => {
+  it('emits reporting side-effects (FR→IT queues the EC Sales List)', async () => {
     const { service } = svc();
-    const { document } = service.issueAndSend(ctx('FR', 'IT', 'B2B', 'SERVICES', '2027-01-15'));
-    const { results } = service.report(document.id);
+    const { document } = await service.issueAndSend(ctx('FR', 'IT', 'B2B', 'SERVICES', '2027-01-15'));
+    const { results } = await service.report(document.id);
     expect(results.map((r) => r.kind)).toContain('EC_SALES_LIST');
   });
 
-  it('markPaid triggers the cashed status for France (encaissée)', () => {
+  it('markPaid triggers the cashed status for France (encaissée)', async () => {
     const { service, log } = svc();
-    const { document } = service.issueAndSend(FR());
-    const paid = service.markPaid(document.id, { paidAt: '2027-02-01T00:00:00.000Z' });
+    const { document } = await service.issueAndSend(FR());
+    const paid = await service.markPaid(document.id, { paidAt: '2027-02-01T00:00:00.000Z' });
     expect(paid.events.some((e) => e.type === 'PAID')).toBe(true);
     expect(log.hasScope('operations/markPaid')).toBe(true);
   });
 
-  it('archives the document and reports a receipt', () => {
+  it('archives the document and reports a receipt', async () => {
     const { service } = svc();
-    const d = service.createDraft(MX());
-    service.issue(d.id);
-    expect(service.archiveDocument(d.id).receipt.region).toBe('MX');
+    const d = await service.createDraft(MX());
+    await service.issue(d.id);
+    expect((await service.archiveDocument(d.id)).receipt.region).toBe('MX');
   });
 
-  it('validates a document', () => {
+  it('validates a document', async () => {
     const { service } = svc();
-    const d = service.createDraft(FR());
-    service.issue(d.id);
-    expect(service.validate(d.id).valid).toBe(true);
+    const d = await service.createDraft(FR());
+    await service.issue(d.id);
+    expect((await service.validate(d.id)).valid).toBe(true);
   });
 });

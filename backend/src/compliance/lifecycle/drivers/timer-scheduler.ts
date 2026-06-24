@@ -14,7 +14,7 @@ import { createTimerJob, InMemoryTimerJobStore, TimerJob, TimerJobStore } from '
 
 export type ArmTimerEffect = Extract<Effect, { kind: 'ARM_TIMER' }>;
 
-export type ApplySignal = (documentId: string, signal: LifecycleSignal, log: ComplianceLogger) => void;
+export type ApplySignal = (documentId: string, signal: LifecycleSignal, log: ComplianceLogger) => void | Promise<void>;
 
 export interface TimerSchedulerDeps {
   applySignal: ApplySignal;
@@ -47,7 +47,7 @@ export class TimerScheduler {
   }
 
   /** Arm a timer from a runtime ARM_TIMER effect. Returns null for an open-ended window (no deadline). */
-  arm(documentId: string, effect: ArmTimerEffect): TimerJob | null {
+  async arm(documentId: string, effect: ArmTimerEffect): Promise<TimerJob | null> {
     if (effect.deadlineHours == null) {
       this.log.info('lifecycle/timer-scheduler', `response window for ${documentId} has no deadline — no silence timer`);
       return null;
@@ -60,18 +60,18 @@ export class TimerScheduler {
   }
 
   /** Cancel armed timers for a document (call when it leaves the guarded state — optional, the fire is a safe no-op otherwise). */
-  cancelForDocument(documentId: string): void {
-    this.store.cancelForDocument(documentId);
+  async cancelForDocument(documentId: string): Promise<void> {
+    await this.store.cancelForDocument(documentId);
   }
 
   /** Fire every elapsed timer once. */
-  tick(): TickReport {
+  async tick(): Promise<TickReport> {
     const now = this.now();
     const report: TickReport = { due: 0, fired: 0 };
-    for (const job of this.store.due(now)) {
+    for (const job of await this.store.due(now)) {
       report.due++;
-      this.store.save({ ...job, status: 'FIRED' });
-      this.applySignal(job.documentId, { type: 'TIMER_ELAPSED' }, this.log);
+      await this.store.save({ ...job, status: 'FIRED' });
+      await this.applySignal(job.documentId, { type: 'TIMER_ELAPSED' }, this.log);
       report.fired++;
     }
     return report;

@@ -27,7 +27,7 @@ import {
 export type SchedulePollEffect = Extract<Effect, { kind: 'SCHEDULE_POLL' }>;
 
 /** Feeds a signal back into the document's runtime (load → dispatch → persist → re-arm). */
-export type ApplySignal = (documentId: string, signal: LifecycleSignal, log: ComplianceLogger) => void;
+export type ApplySignal = (documentId: string, signal: LifecycleSignal, log: ComplianceLogger) => void | Promise<void>;
 
 export interface PollSchedulerDeps {
   applySignal: ApplySignal;
@@ -73,7 +73,7 @@ export class PollScheduler {
   }
 
   /** Enqueue a poll job from a runtime SCHEDULE_POLL effect. `ref` is the transmit() authority ref. */
-  schedule(documentId: string, effect: SchedulePollEffect, ref?: string): PollJob {
+  async schedule(documentId: string, effect: SchedulePollEffect, ref?: string): Promise<PollJob> {
     const provider = effect.channelProviderId ? this.txRegistry.getById(effect.channelProviderId) : null;
     if (!provider) {
       this.log.warn('lifecycle/poll-scheduler', `scheduling poll with unknown provider "${effect.channelProviderId}"`);
@@ -94,27 +94,27 @@ export class PollScheduler {
   }
 
   /** Process every job currently due. Returns a small report (handy for tests / metrics). */
-  tick(): TickReport {
+  async tick(): Promise<TickReport> {
     const now = this.now();
     const report: TickReport = { due: 0, polled: 0, resolved: 0, rescheduled: 0, expired: 0 };
 
-    for (const job of this.store.due(now)) {
+    for (const job of await this.store.due(now)) {
       report.due++;
       const provider = this.txRegistry.getById(job.providerId);
       if (!provider?.poll) {
         this.log.warn('lifecycle/poll-scheduler', `provider "${job.providerId}" cannot poll; cancelling job ${job.id}`);
-        this.store.save({ ...job, status: 'CANCELLED' });
+        await this.store.save({ ...job, status: 'CANCELLED' });
         continue;
       }
 
       const result = provider.poll(job.ref ?? job.documentId, this.log);
       report.polled++;
       const decision = decidePoll(job, outcomeFromTransmission(result.status), now);
-      this.store.save(decision.job);
+      await this.store.save(decision.job);
 
       switch (decision.kind) {
         case 'RESOLVE':
-          this.applySignal(job.documentId, { type: 'POLL_RESULT', status: decision.outcome }, this.log);
+          await this.applySignal(job.documentId, { type: 'POLL_RESULT', status: decision.outcome }, this.log);
           report.resolved++;
           break;
         case 'RESCHEDULE':

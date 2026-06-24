@@ -10,40 +10,40 @@ import { AwaitCallbackEffect, InboundRouter } from './inbound-router';
 const AWAIT: AwaitCallbackEffect = { kind: 'AWAIT_CALLBACK', awaiting: 'PENDING_CLEARANCE' };
 
 describe('InboundRouter — register / receive / dedup / correlate', () => {
-  it('register() records a WAITING registration', () => {
+  it('register() records a WAITING registration', async () => {
     const store = new InMemoryCallbackStore();
     const router = new InboundRouter({ applySignal: () => {}, store });
-    const reg = router.register('doc1', AWAIT, { channel: 'SDI', correlationKey: 'ref1' });
+    const reg = await router.register('doc1', AWAIT, { channel: 'SDI', correlationKey: 'ref1' });
     expect(reg).toMatchObject({ documentId: 'doc1', channel: 'SDI', correlationKey: 'ref1', status: 'WAITING' });
   });
 
-  it('routes a matching inbound message into the document runtime as INBOUND_STATUS', () => {
+  it('routes a matching inbound message into the document runtime as INBOUND_STATUS', async () => {
     const store = new InMemoryCallbackStore();
     const calls: Array<[string, LifecycleSignal]> = [];
-    const router = new InboundRouter({ applySignal: (id, s) => calls.push([id, s]), store });
-    router.register('doc1', AWAIT, { channel: 'SDI', correlationKey: 'ref1' });
+    const router = new InboundRouter({ applySignal: (id, s) => { calls.push([id, s]); }, store });
+    await router.register('doc1', AWAIT, { channel: 'SDI', correlationKey: 'ref1' });
 
-    const res = router.receive({ channel: 'SDI', correlationKey: 'ref1', status: 'consegnata', rawRef: 'm1' });
+    const res = await router.receive({ channel: 'SDI', correlationKey: 'ref1', status: 'consegnata', rawRef: 'm1' });
     expect(res).toEqual({ kind: 'ROUTED', documentId: 'doc1', signal: { type: 'INBOUND_STATUS', status: 'consegnata' } });
     expect(calls).toEqual([['doc1', { type: 'INBOUND_STATUS', status: 'consegnata' }]]);
   });
 
-  it('drops a duplicate (same provider ref) without re-applying', () => {
+  it('drops a duplicate (same provider ref) without re-applying', async () => {
     const store = new InMemoryCallbackStore();
     const calls: Array<[string, LifecycleSignal]> = [];
-    const router = new InboundRouter({ applySignal: (id, s) => calls.push([id, s]), store });
-    router.register('doc1', AWAIT, { channel: 'SDI', correlationKey: 'ref1' });
+    const router = new InboundRouter({ applySignal: (id, s) => { calls.push([id, s]); }, store });
+    await router.register('doc1', AWAIT, { channel: 'SDI', correlationKey: 'ref1' });
 
-    router.receive({ channel: 'SDI', correlationKey: 'ref1', status: 'consegnata', rawRef: 'm1' });
-    const dup = router.receive({ channel: 'SDI', correlationKey: 'ref1', status: 'consegnata', rawRef: 'm1' });
+    await router.receive({ channel: 'SDI', correlationKey: 'ref1', status: 'consegnata', rawRef: 'm1' });
+    const dup = await router.receive({ channel: 'SDI', correlationKey: 'ref1', status: 'consegnata', rawRef: 'm1' });
     expect(dup).toEqual({ kind: 'DUPLICATE' });
     expect(calls).toHaveLength(1);
   });
 
-  it('reports UNMATCHED when no registration correlates', () => {
+  it('reports UNMATCHED when no registration correlates', async () => {
     const router = new InboundRouter({ applySignal: () => {}, store: new InMemoryCallbackStore() });
-    router.register('doc1', AWAIT, { channel: 'SDI', correlationKey: 'ref1' });
-    const res = router.receive({ channel: 'SDI', correlationKey: 'other', status: 'consegnata', rawRef: 'm9' });
+    await router.register('doc1', AWAIT, { channel: 'SDI', correlationKey: 'ref1' });
+    const res = await router.receive({ channel: 'SDI', correlationKey: 'other', status: 'consegnata', rawRef: 'm9' });
     expect(res).toEqual({ kind: 'UNMATCHED', correlationKey: 'other' });
   });
 });
@@ -57,39 +57,39 @@ describe('InboundRouter × LifecycleRuntime — pushed statuses drive the lifecy
   }
   const graphOf = (s: string, b: string, sup: SupplyType, d: string) => assembleFromPlan(resolve(tx(s, b, 'B2B', sup, d)));
 
-  it('IT (SdI, callback): an authority "consegnata" push drives PENDING_CLEARANCE → CLEARED', () => {
+  it('IT (SdI, callback): an authority "consegnata" push drives PENDING_CLEARANCE → CLEARED', async () => {
     const runtime = new LifecycleRuntime(graphOf('IT', 'IT', 'GOODS', '2027-01-15'), 'ISSUED', new RecordingComplianceLogger());
     const effects = runtime.dispatch({ type: 'COMMAND', event: 'SUBMIT_CLEARANCE' });
     expect(runtime.status).toBe('PENDING_CLEARANCE');
     const awaitCb = effects.find((e) => e.kind === 'AWAIT_CALLBACK');
     if (awaitCb?.kind !== 'AWAIT_CALLBACK') throw new Error('expected AWAIT_CALLBACK');
 
-    const router = new InboundRouter({ applySignal: (_id, s) => runtime.dispatch(s) });
-    router.register('it-doc', awaitCb, { channel: 'SDI', correlationKey: 'sdi-1' });
-    router.receive({ channel: 'SDI', correlationKey: 'sdi-1', status: 'notifica - consegnata', rawRef: 'sdi-msg-1' });
+    const router = new InboundRouter({ applySignal: (_id, s) => { runtime.dispatch(s); } });
+    await router.register('it-doc', awaitCb, { channel: 'SDI', correlationKey: 'sdi-1' });
+    await router.receive({ channel: 'SDI', correlationKey: 'sdi-1', status: 'notifica - consegnata', rawRef: 'sdi-msg-1' });
 
     expect(runtime.status).toBe('CLEARED');
   });
 
-  it('FR (PDP, callback): an "approuvée" push drives AWAITING_RESPONSE → ACCEPTED', () => {
+  it('FR (PDP, callback): an "approuvée" push drives AWAITING_RESPONSE → ACCEPTED', async () => {
     const runtime = new LifecycleRuntime(graphOf('FR', 'FR', 'SERVICES', '2027-01-15'), 'DELIVERED', new RecordingComplianceLogger());
     const effects = runtime.dispatch({ type: 'COMMAND', event: 'OPEN_RESPONSE' });
     expect(runtime.status).toBe('AWAITING_RESPONSE');
     const awaitCb = effects.find((e) => e.kind === 'AWAIT_CALLBACK');
     if (awaitCb?.kind !== 'AWAIT_CALLBACK') throw new Error('expected AWAIT_CALLBACK');
 
-    const router = new InboundRouter({ applySignal: (_id, s) => runtime.dispatch(s) });
-    router.register('fr-doc', awaitCb, { channel: 'PDP', correlationKey: 'pdp-1' });
-    router.receive({ channel: 'PDP', correlationKey: 'pdp-1', status: 'approuvée', rawRef: 'pdp-msg-1' });
+    const router = new InboundRouter({ applySignal: (_id, s) => { runtime.dispatch(s); } });
+    await router.register('fr-doc', awaitCb, { channel: 'PDP', correlationKey: 'pdp-1' });
+    await router.receive({ channel: 'PDP', correlationKey: 'pdp-1', status: 'approuvée', rawRef: 'pdp-msg-1' });
 
     expect(runtime.status).toBe('ACCEPTED');
   });
 
-  it('FR (PDP, callback): a "refusée" push drives AWAITING_RESPONSE → REFUSED', () => {
+  it('FR (PDP, callback): a "refusée" push drives AWAITING_RESPONSE → REFUSED', async () => {
     const runtime = new LifecycleRuntime(graphOf('FR', 'FR', 'SERVICES', '2027-01-15'), 'AWAITING_RESPONSE', new RecordingComplianceLogger());
-    const router = new InboundRouter({ applySignal: (_id, s) => runtime.dispatch(s) });
-    router.register('fr-doc', { kind: 'AWAIT_CALLBACK', awaiting: 'AWAITING_RESPONSE' }, { channel: 'PDP', correlationKey: 'pdp-2' });
-    router.receive({ channel: 'PDP', correlationKey: 'pdp-2', status: 'refusée', rawRef: 'pdp-msg-2' });
+    const router = new InboundRouter({ applySignal: (_id, s) => { runtime.dispatch(s); } });
+    await router.register('fr-doc', { kind: 'AWAIT_CALLBACK', awaiting: 'AWAITING_RESPONSE' }, { channel: 'PDP', correlationKey: 'pdp-2' });
+    await router.receive({ channel: 'PDP', correlationKey: 'pdp-2', status: 'refusée', rawRef: 'pdp-msg-2' });
     expect(runtime.status).toBe('REFUSED');
   });
 });

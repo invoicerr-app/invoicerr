@@ -52,14 +52,14 @@ export function messageKey(msg: InboundMessage): string {
 }
 
 export interface CallbackStore {
-  register(reg: CallbackRegistration): CallbackRegistration;
-  save(reg: CallbackRegistration): CallbackRegistration;
+  register(reg: CallbackRegistration): Promise<CallbackRegistration>;
+  save(reg: CallbackRegistration): Promise<CallbackRegistration>;
   /** The WAITING registration for this channel+key, if any. */
-  findByCorrelation(channel: ChannelType, correlationKey: string): CallbackRegistration | null;
-  forDocument(documentId: string): CallbackRegistration[];
-  cancelForDocument(documentId: string): void;
+  findByCorrelation(channel: ChannelType, correlationKey: string): Promise<CallbackRegistration | null>;
+  forDocument(documentId: string): Promise<CallbackRegistration[]>;
+  cancelForDocument(documentId: string): Promise<void>;
   /** Record an inbound message (audit). Returns whether it was already seen (at-least-once delivery). */
-  recordMessage(msg: InboundMessage): { duplicate: boolean };
+  recordMessage(msg: InboundMessage): Promise<{ duplicate: boolean }>;
 }
 
 export class InMemoryCallbackStore implements CallbackStore {
@@ -67,35 +67,37 @@ export class InMemoryCallbackStore implements CallbackStore {
   private readonly messages = new Map<string, InboundMessage>();
   private readonly seen = new Set<string>();
 
-  register(reg: CallbackRegistration): CallbackRegistration {
+  register(reg: CallbackRegistration): Promise<CallbackRegistration> {
     this.regs.set(reg.id, reg);
-    return reg;
+    return Promise.resolve(reg);
   }
-  save(reg: CallbackRegistration): CallbackRegistration {
+  save(reg: CallbackRegistration): Promise<CallbackRegistration> {
     this.regs.set(reg.id, reg);
-    return reg;
+    return Promise.resolve(reg);
   }
-  findByCorrelation(channel: ChannelType, correlationKey: string): CallbackRegistration | null {
+  findByCorrelation(channel: ChannelType, correlationKey: string): Promise<CallbackRegistration | null> {
     for (const r of this.regs.values()) {
-      if (r.status === 'WAITING' && r.channel === channel && r.correlationKey === correlationKey) return r;
+      if (r.status === 'WAITING' && r.channel === channel && r.correlationKey === correlationKey) {
+        return Promise.resolve(r);
+      }
     }
-    return null;
+    return Promise.resolve(null);
   }
-  forDocument(documentId: string): CallbackRegistration[] {
-    return [...this.regs.values()].filter((r) => r.documentId === documentId);
+  forDocument(documentId: string): Promise<CallbackRegistration[]> {
+    return Promise.resolve([...this.regs.values()].filter((r) => r.documentId === documentId));
   }
-  cancelForDocument(documentId: string): void {
+  async cancelForDocument(documentId: string): Promise<void> {
     for (const r of this.regs.values()) {
       if (r.documentId === documentId && r.status === 'WAITING') {
         this.regs.set(r.id, { ...r, status: 'CANCELLED' });
       }
     }
   }
-  recordMessage(msg: InboundMessage): { duplicate: boolean } {
+  recordMessage(msg: InboundMessage): Promise<{ duplicate: boolean }> {
     const key = messageKey(msg);
-    if (this.seen.has(key)) return { duplicate: true };
+    if (this.seen.has(key)) return Promise.resolve({ duplicate: true });
     this.seen.add(key);
     this.messages.set(msg.id, msg);
-    return { duplicate: false };
+    return Promise.resolve({ duplicate: false });
   }
 }

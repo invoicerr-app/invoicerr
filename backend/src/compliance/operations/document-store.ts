@@ -6,25 +6,25 @@ import { ComplianceDocumentRecord } from './types';
  * ComplianceDocument/ComplianceEvent tables from COMPLIANCE_ARCHITECTURE.md §13).
  */
 export interface ComplianceDocumentStore {
-  save(record: ComplianceDocumentRecord): ComplianceDocumentRecord;
-  get(id: string): ComplianceDocumentRecord | null;
-  update(id: string, patch: Partial<ComplianceDocumentRecord>): ComplianceDocumentRecord;
-  list(): ComplianceDocumentRecord[];
+  save(record: ComplianceDocumentRecord): Promise<ComplianceDocumentRecord>;
+  get(id: string): Promise<ComplianceDocumentRecord | null>;
+  update(id: string, patch: Partial<ComplianceDocumentRecord>): Promise<ComplianceDocumentRecord>;
+  list(): Promise<ComplianceDocumentRecord[]>;
 }
 
 export class InMemoryComplianceDocumentStore implements ComplianceDocumentStore {
   private readonly docs = new Map<string, ComplianceDocumentRecord>();
 
-  save(record: ComplianceDocumentRecord): ComplianceDocumentRecord {
+  save(record: ComplianceDocumentRecord): Promise<ComplianceDocumentRecord> {
     this.docs.set(record.id, record);
-    return record;
+    return Promise.resolve(record);
   }
 
-  get(id: string): ComplianceDocumentRecord | null {
-    return this.docs.get(id) ?? null;
+  get(id: string): Promise<ComplianceDocumentRecord | null> {
+    return Promise.resolve(this.docs.get(id) ?? null);
   }
 
-  update(id: string, patch: Partial<ComplianceDocumentRecord>): ComplianceDocumentRecord {
+  async update(id: string, patch: Partial<ComplianceDocumentRecord>): Promise<ComplianceDocumentRecord> {
     const current = this.docs.get(id);
     if (!current) throw new Error(`ComplianceDocument "${id}" not found`);
     const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
@@ -32,7 +32,7 @@ export class InMemoryComplianceDocumentStore implements ComplianceDocumentStore 
     return next;
   }
 
-  list(): ComplianceDocumentRecord[] {
-    return [...this.docs.values()];
+  list(): Promise<ComplianceDocumentRecord[]> {
+    return Promise.resolve([...this.docs.values()]);
   }
 }

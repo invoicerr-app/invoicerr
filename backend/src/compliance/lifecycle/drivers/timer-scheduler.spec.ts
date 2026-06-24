@@ -27,26 +27,26 @@ describe('timer-job — pure', () => {
 describe('TimerScheduler', () => {
   const ARM: ArmTimerEffect = { kind: 'ARM_TIMER', deadlineHours: 192, onElapse: 'ACCEPT', awaiting: 'AWAITING_RESPONSE' };
 
-  it('arm() returns null for an open-ended window (no deadline)', () => {
+  it('arm() returns null for an open-ended window (no deadline)', async () => {
     const scheduler = new TimerScheduler({ applySignal: () => {}, store: new InMemoryTimerJobStore() });
     const openEnded: ArmTimerEffect = { kind: 'ARM_TIMER', onElapse: 'ACCEPT', awaiting: 'AWAITING_RESPONSE' };
-    expect(scheduler.arm('doc1', openEnded)).toBeNull();
+    expect(await scheduler.arm('doc1', openEnded)).toBeNull();
   });
 
-  it('tick() fires only once the deadline elapses, emitting TIMER_ELAPSED', () => {
+  it('tick() fires only once the deadline elapses, emitting TIMER_ELAPSED', async () => {
     const clock = clockFrom('2027-01-15T00:00:00Z');
     const store = new InMemoryTimerJobStore();
     const signals: Array<[string, LifecycleSignal]> = [];
-    const scheduler = new TimerScheduler({ applySignal: (id, s) => signals.push([id, s]), store, now: clock.now });
+    const scheduler = new TimerScheduler({ applySignal: (id, s) => { signals.push([id, s]); }, store, now: clock.now });
 
-    scheduler.arm('doc1', ARM);
-    expect(scheduler.tick()).toMatchObject({ due: 0, fired: 0 }); // not yet
+    await scheduler.arm('doc1', ARM);
+    expect(await scheduler.tick()).toMatchObject({ due: 0, fired: 0 }); // not yet
     expect(signals).toHaveLength(0);
 
     clock.advance(192 * HOURS + 1000); // past the 8-day deadline
-    expect(scheduler.tick()).toMatchObject({ due: 1, fired: 1 });
+    expect(await scheduler.tick()).toMatchObject({ due: 1, fired: 1 });
     expect(signals).toEqual([['doc1', { type: 'TIMER_ELAPSED' }]]);
-    expect(store.forDocument('doc1')[0].status).toBe('FIRED');
+    expect((await store.forDocument('doc1'))[0].status).toBe('FIRED');
   });
 });
 
@@ -59,7 +59,7 @@ describe('TimerScheduler × LifecycleRuntime — Chile silence = acceptance (8 d
   }
   const clGraph = () => assembleFromPlan(resolve(tx('CL', 'CL', 'B2B', 'GOODS', '2027-01-15')));
 
-  it('opening the response window arms an 8-day timer whose elapse drives AWAITING_RESPONSE → ACCEPTED', () => {
+  it('opening the response window arms an 8-day timer whose elapse drives AWAITING_RESPONSE → ACCEPTED', async () => {
     const runtime = new LifecycleRuntime(clGraph(), 'DELIVERED', new RecordingComplianceLogger());
 
     const effects = runtime.dispatch({ type: 'COMMAND', event: 'OPEN_RESPONSE' });
@@ -70,11 +70,11 @@ describe('TimerScheduler × LifecycleRuntime — Chile silence = acceptance (8 d
     expect(arm.onElapse).toBe('ACCEPT');
 
     const clock = clockFrom('2027-01-15T00:00:00Z');
-    const scheduler = new TimerScheduler({ applySignal: (_id, s) => runtime.dispatch(s), store: new InMemoryTimerJobStore(), now: clock.now });
-    scheduler.arm('cl-doc', arm);
+    const scheduler = new TimerScheduler({ applySignal: (_id, s) => { runtime.dispatch(s); }, store: new InMemoryTimerJobStore(), now: clock.now });
+    await scheduler.arm('cl-doc', arm);
 
     clock.advance(192 * HOURS + 1); // 8 days of silence
-    scheduler.tick();
+    await scheduler.tick();
     expect(runtime.status).toBe('ACCEPTED');
   });
 

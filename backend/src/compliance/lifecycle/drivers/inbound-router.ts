@@ -21,7 +21,7 @@ import {
 
 export type AwaitCallbackEffect = Extract<Effect, { kind: 'AWAIT_CALLBACK' }>;
 
-export type ApplySignal = (documentId: string, signal: LifecycleSignal, log: ComplianceLogger) => void;
+export type ApplySignal = (documentId: string, signal: LifecycleSignal, log: ComplianceLogger) => void | Promise<void>;
 
 export interface InboundRouterDeps {
   applySignal: ApplySignal;
@@ -61,7 +61,7 @@ export class InboundRouter {
   }
 
   /** Register that a document awaits callbacks. `correlationKey` is the transmit/authority ref. */
-  register(documentId: string, effect: AwaitCallbackEffect, opts: { channel: ChannelType; correlationKey: string }): CallbackRegistration {
+  async register(documentId: string, effect: AwaitCallbackEffect, opts: { channel: ChannelType; correlationKey: string }): Promise<CallbackRegistration> {
     const reg = createRegistration(
       { id: this.idgen(), documentId, channel: opts.channel, correlationKey: opts.correlationKey, awaiting: effect.awaiting },
       this.now(),
@@ -70,12 +70,12 @@ export class InboundRouter {
   }
 
   /** Cancel a document's registrations (optional cleanup; a stale callback is a safe runtime no-op). */
-  cancelForDocument(documentId: string): void {
-    this.store.cancelForDocument(documentId);
+  async cancelForDocument(documentId: string): Promise<void> {
+    await this.store.cancelForDocument(documentId);
   }
 
   /** An inbound status arrived: dedup → correlate → feed INBOUND_STATUS into the document's runtime. */
-  receive(input: InboundInput): ReceiveResult {
+  async receive(input: InboundInput): Promise<ReceiveResult> {
     const msg: InboundMessage = {
       id: this.idgen(),
       channel: input.channel,
@@ -85,20 +85,20 @@ export class InboundRouter {
       receivedAt: this.now().toISOString(),
     };
 
-    const { duplicate } = this.store.recordMessage(msg);
+    const { duplicate } = await this.store.recordMessage(msg);
     if (duplicate) {
       this.log.info('lifecycle/inbound-router', `duplicate inbound "${input.rawRef ?? msg.id}" dropped`);
       return { kind: 'DUPLICATE' };
     }
 
-    const reg = this.store.findByCorrelation(input.channel, input.correlationKey);
+    const reg = await this.store.findByCorrelation(input.channel, input.correlationKey);
     if (!reg) {
       this.log.warn('lifecycle/inbound-router', `unmatched inbound ${input.channel}:${input.correlationKey} ("${input.status}")`);
       return { kind: 'UNMATCHED', correlationKey: input.correlationKey };
     }
 
     const signal: LifecycleSignal = { type: 'INBOUND_STATUS', status: input.status };
-    this.applySignal(reg.documentId, signal, this.log);
+    await this.applySignal(reg.documentId, signal, this.log);
     return { kind: 'ROUTED', documentId: reg.documentId, signal };
   }
 }

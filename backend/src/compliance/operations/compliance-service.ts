@@ -94,12 +94,12 @@ export class ComplianceService {
 
   // ─────────────────────────── helpers ───────────────────────────
 
-  private createRecord(
+  private async createRecord(
     ctx: TransactionContext,
     kind: DocumentKind,
     direction: Direction,
     correctsId?: string,
-  ): ComplianceDocumentRecord {
+  ): Promise<ComplianceDocumentRecord> {
     const ts = now();
     return this.store.save({
       id: genId(),
@@ -115,13 +115,13 @@ export class ComplianceService {
     });
   }
 
-  private require(id: string): ComplianceDocumentRecord {
-    const rec = this.store.get(id);
+  private async require(id: string): Promise<ComplianceDocumentRecord> {
+    const rec = await this.store.get(id);
     if (!rec) throw new Error(`ComplianceDocument "${id}" not found`);
     return rec;
   }
 
-  private transition(rec: ComplianceDocumentRecord, event: ComplianceEvent, detail?: string): ComplianceDocumentRecord {
+  private async transition(rec: ComplianceDocumentRecord, event: ComplianceEvent, detail?: string): Promise<ComplianceDocumentRecord> {
     const sm = new ComplianceStateMachine(rec.status);
     sm.apply(event); // throws on illegal transition
     return this.store.update(rec.id, {
@@ -138,13 +138,13 @@ export class ComplianceService {
   // ─────────────────────────── issuance ───────────────────────────
 
   /** Create an editable draft (no compliance obligations attached yet). */
-  createDraft(ctx: TransactionContext, kind: DocumentKind = 'INVOICE'): ComplianceDocumentRecord {
+  async createDraft(ctx: TransactionContext, kind: DocumentKind = 'INVOICE'): Promise<ComplianceDocumentRecord> {
     return this.createRecord(ctx, kind, 'OUTBOUND');
   }
 
   /** Free edit — allowed ONLY in DRAFT (immutability after issuance is enforced here). */
-  editDraft(id: string, ctx: TransactionContext): ComplianceDocumentRecord {
-    const rec = this.require(id);
+  async editDraft(id: string, ctx: TransactionContext): Promise<ComplianceDocumentRecord> {
+    const rec = await this.require(id);
     if (!new ComplianceStateMachine(rec.status).canEdit()) {
       throw new Error(`Cannot edit document "${id}" in status ${rec.status}; issue a correction instead.`);
     }
@@ -152,8 +152,8 @@ export class ComplianceService {
   }
 
   /** Freeze the draft: resolve the plan, assign the number, hash-chain, transition DRAFT → ISSUED. */
-  issue(id: string): IssueResult {
-    const rec = this.require(id);
+  async issue(id: string): Promise<IssueResult> {
+    const rec = await this.require(id);
     if (rec.status !== 'DRAFT') throw new Error(`Only DRAFT documents can be issued (was ${rec.status}).`);
     const plan = resolve(rec.ctx);
 
@@ -165,52 +165,52 @@ export class ComplianceService {
       this.log.warn('operations/issue', `numbering blocked: ${(e as Error).message}`);
     }
 
-    this.store.update(id, { plan, number, immutableHash: this.hash(rec.ctx) });
-    const issued = this.transition(this.require(id), 'ISSUE');
+    await this.store.update(id, { plan, number, immutableHash: this.hash(rec.ctx) });
+    const issued = await this.transition(await this.require(id), 'ISSUE');
     return { document: issued };
   }
 
   // ─────────────────────────── sending ───────────────────────────
 
   /** Run the full pipeline (build → sign → regime → transmit → archive → report) and move state. */
-  send(id: string, opts: IssueOptions = {}): SendResult {
-    const rec = this.require(id);
+  async send(id: string, opts: IssueOptions = {}): Promise<SendResult> {
+    const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
     const execution = this.executor.execute(rec.ctx, plan, { idempotencyKey: opts.idempotencyKey });
 
-    let current = this.store.update(id, {
+    let current = await this.store.update(id, {
       plan,
       authorityIds: [...rec.authorityIds, ...execution.regime.authorityIds],
     });
 
     if (plan.regime.blocking) {
-      current = this.transition(current, 'SUBMIT_CLEARANCE', 'awaiting clearance');
+      current = await this.transition(current, 'SUBMIT_CLEARANCE', 'awaiting clearance');
     } else {
-      current = this.transition(current, 'DELIVER');
+      current = await this.transition(current, 'DELIVER');
       if (plan.lifecycle.response) {
         this.response.open(plan.lifecycle.response, rec.ctx.issueDate, this.log);
-        current = this.transition(current, 'OPEN_RESPONSE');
+        current = await this.transition(current, 'OPEN_RESPONSE');
       }
     }
     return { document: current, execution };
   }
 
   /** Convenience: create + issue + send in one call. */
-  issueAndSend(ctx: TransactionContext, opts: IssueOptions = {}): SendResult {
-    const draft = this.createDraft(ctx, opts.kind ?? 'INVOICE');
-    this.issue(draft.id);
+  async issueAndSend(ctx: TransactionContext, opts: IssueOptions = {}): Promise<SendResult> {
+    const draft = await this.createDraft(ctx, opts.kind ?? 'INVOICE');
+    await this.issue(draft.id);
     return this.send(draft.id, opts);
   }
 
   /** Re-transmit an already-issued document (idempotent at the transport layer). */
-  resend(id: string, opts: IssueOptions = {}): SendResult {
+  async resend(id: string, opts: IssueOptions = {}): Promise<SendResult> {
     this.log.info('operations/resend', `re-transmitting ${id}`);
     return this.send(id, opts);
   }
 
   /** Force delivery over a single channel (e.g. PRINT a B2C receipt, email a copy). */
-  sendViaChannel(id: string, channel: ChannelType): TransmitResult {
-    const rec = this.require(id);
+  async sendViaChannel(id: string, channel: ChannelType): Promise<TransmitResult> {
+    const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
     const artifacts = this.formats.buildAll(rec.ctx, plan, this.log) as SignedArtifact[];
     const provider = this.transmission.get(channel);
@@ -224,71 +224,71 @@ export class ComplianceService {
 
   // ─────────────────────────── clearance (blocking regimes) ───────────────────────────
 
-  submitForClearance(id: string): ComplianceDocumentRecord {
+  async submitForClearance(id: string): Promise<ComplianceDocumentRecord> {
     this.log.todo('operations/clearance', `enqueue ${id} to the clearance outbox`);
-    return this.transition(this.require(id), 'SUBMIT_CLEARANCE');
+    return this.transition(await this.require(id), 'SUBMIT_CLEARANCE');
   }
 
-  pollClearance(id: string): ClearanceResult {
-    const rec = this.require(id);
+  async pollClearance(id: string): Promise<ClearanceResult> {
+    const rec = await this.require(id);
     this.log.todo('operations/clearance', `poll authority for ${id} clearance result`);
     return { document: rec, authorityIds: rec.authorityIds };
   }
 
   /** Authority authorised the document (UUID/folio/protocol/IRN returned). */
-  markCleared(id: string, authorityIds: AuthorityIdentifier[] = []): ClearanceResult {
-    const rec = this.require(id);
+  async markCleared(id: string, authorityIds: AuthorityIdentifier[] = []): Promise<ClearanceResult> {
+    const rec = await this.require(id);
     const merged = [...rec.authorityIds, ...authorityIds];
-    this.store.update(id, { authorityIds: merged });
-    const cleared = this.transition(this.require(id), 'CLEAR');
+    await this.store.update(id, { authorityIds: merged });
+    const cleared = await this.transition(await this.require(id), 'CLEAR');
     return { document: cleared, authorityIds: merged };
   }
 
-  markRejected(id: string, reason: string): ComplianceDocumentRecord {
-    return this.transition(this.require(id), 'REJECT', reason);
+  async markRejected(id: string, reason: string): Promise<ComplianceDocumentRecord> {
+    return this.transition(await this.require(id), 'REJECT', reason);
   }
 
-  enterContingency(id: string): ComplianceDocumentRecord {
+  async enterContingency(id: string): Promise<ComplianceDocumentRecord> {
     this.log.todo('operations/contingency', `issue offline (e.g. BR EPEC) and queue late submission for ${id}`);
-    return this.transition(this.require(id), 'ENTER_CONTINGENCY');
+    return this.transition(await this.require(id), 'ENTER_CONTINGENCY');
   }
 
-  resubmitFromContingency(id: string): ClearanceResult {
+  async resubmitFromContingency(id: string): Promise<ClearanceResult> {
     this.log.todo('operations/contingency', `submit the contingency document ${id} now the authority is back`);
-    const cleared = this.transition(this.require(id), 'CLEAR');
+    const cleared = await this.transition(await this.require(id), 'CLEAR');
     return { document: cleared, authorityIds: cleared.authorityIds };
   }
 
   // ─────────────────────────── modification / corrections ───────────────────────────
 
   /** Correct an issued document via the profile's correction model (credit note / corrective / replace). */
-  correct(id: string, req: CorrectionRequest = {}): CorrectionResult {
-    const original = this.require(id);
+  async correct(id: string, req: CorrectionRequest = {}): Promise<CorrectionResult> {
+    const original = await this.require(id);
     const plan = original.plan ?? resolve(original.ctx);
     const strategy = this.corrections.get(plan.lifecycle.correctionModel);
     const outcome = strategy.correct(original.id, original.ctx, this.log);
-    const correction = this.createRecord(original.ctx, req.kind ?? outcome.newKind, 'OUTBOUND', original.id);
-    const updatedOriginal = this.store.update(original.id, {
+    const correction = await this.createRecord(original.ctx, req.kind ?? outcome.newKind, 'OUTBOUND', original.id);
+    const updatedOriginal = await this.store.update(original.id, {
       events: [...original.events, { type: 'CORRECTION_INITIATED', at: now(), detail: correction.id }],
     });
     return { original: updatedOriginal, correction };
   }
 
-  issueCreditNote(id: string, req: CorrectionRequest = {}): CorrectionResult {
+  async issueCreditNote(id: string, req: CorrectionRequest = {}): Promise<CorrectionResult> {
     return this.correct(id, { ...req, kind: 'CREDIT_NOTE' });
   }
 
-  issueDebitNote(id: string, req: CorrectionRequest = {}): CorrectionResult {
+  async issueDebitNote(id: string, req: CorrectionRequest = {}): Promise<CorrectionResult> {
     return this.correct(id, { ...req, kind: 'DEBIT_NOTE' });
   }
 
-  issueCorrectiveInvoice(id: string, req: CorrectionRequest = {}): CorrectionResult {
+  async issueCorrectiveInvoice(id: string, req: CorrectionRequest = {}): Promise<CorrectionResult> {
     return this.correct(id, { ...req, kind: 'CORRECTIVE_INVOICE' });
   }
 
   /** Cancel an issued document, gated by the profile's cancellation policy (window/ack/consent). */
-  cancel(id: string, req: CancellationRequest = {}): CancellationResult {
-    const rec = this.require(id);
+  async cancel(id: string, req: CancellationRequest = {}): Promise<CancellationResult> {
+    const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
     const pol = plan.lifecycle.cancellation;
     if (!pol.allowed) {
@@ -300,42 +300,42 @@ export class ComplianceService {
     if (pol.requiresAuthorityAck) {
       this.log.todo('operations/cancel', `request authority cancellation acknowledgement for ${id}`);
     }
-    const cancelled = this.transition(rec, 'CANCEL', req.reason);
+    const cancelled = await this.transition(rec, 'CANCEL', req.reason);
     return { document: cancelled, accepted: true };
   }
 
   /** Cancel the original and issue a replacement (clearance systems with substitution). */
-  cancelAndReplace(id: string, req: CancellationRequest = {}): CorrectionResult {
-    const cancelled = this.cancel(id, { ...req, buyerConsent: true });
-    const replacement = this.createRecord(cancelled.document.ctx, cancelled.document.kind, 'OUTBOUND', id);
+  async cancelAndReplace(id: string, req: CancellationRequest = {}): Promise<CorrectionResult> {
+    const cancelled = await this.cancel(id, { ...req, buyerConsent: true });
+    const replacement = await this.createRecord(cancelled.document.ctx, cancelled.document.kind, 'OUTBOUND', id);
     return { original: cancelled.document, correction: replacement };
   }
 
   // ─────────────────────────── bidirectional response ───────────────────────────
 
-  openResponseWindow(id: string): ComplianceDocumentRecord {
-    const rec = this.require(id);
+  async openResponseWindow(id: string): Promise<ComplianceDocumentRecord> {
+    const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
     this.response.open(plan.lifecycle.response, rec.ctx.issueDate, this.log);
     return this.transition(rec, 'OPEN_RESPONSE');
   }
 
   /** Record an inbound buyer/authority status (accept / refuse / dispute / national status). */
-  applyResponse(id: string, event: ResponseEvent): ComplianceDocumentRecord {
+  async applyResponse(id: string, event: ResponseEvent): Promise<ComplianceDocumentRecord> {
     this.response.applyStatus(event.status, this.log);
     const map: Record<string, ComplianceEvent> = { ACCEPT: 'ACCEPT', REFUSE: 'REFUSE', DISPUTE: 'DISPUTE' };
     const transition = map[event.status.toUpperCase()];
     if (!transition) {
       // National status with no state change (e.g. FR "encaissée") — record it only.
-      const rec = this.require(id);
+      const rec = await this.require(id);
       return this.store.update(id, { events: [...rec.events, { type: `STATUS:${event.status}`, at: now() }] });
     }
-    return this.transition(this.require(id), transition, event.status);
+    return this.transition(await this.require(id), transition, event.status);
   }
 
   /** Fired by the scheduler when the response deadline elapses (silence = acceptance in CL/CO/FR). */
-  handleResponseTimeout(id: string): ComplianceDocumentRecord {
-    const rec = this.require(id);
+  async handleResponseTimeout(id: string): Promise<ComplianceDocumentRecord> {
+    const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
     const window = this.response.open(plan.lifecycle.response, rec.ctx.issueDate, this.log);
     if (this.response.onSilence(window, this.log) === 'ACCEPTED') {
@@ -347,10 +347,10 @@ export class ComplianceService {
   // ─────────────────────────── inbound reception ───────────────────────────
 
   /** Receive an e-invoice addressed to us (we are the buyer). */
-  receive(inbound: InboundDocument): ReceptionResult {
+  async receive(inbound: InboundDocument): Promise<ReceptionResult> {
     const ingest = this.reception.ingest(inbound, this.log);
     const ts = now();
-    const record = this.store.save({
+    const record = await this.store.save({
       id: genId('in'),
       kind: 'INVOICE',
       direction: 'INBOUND',
@@ -365,8 +365,8 @@ export class ComplianceService {
   }
 
   /** Emit the mandated buyer-side acknowledgement for a received document. */
-  acknowledgeInbound(id: string, status: string): ComplianceDocumentRecord {
-    const rec = this.require(id);
+  async acknowledgeInbound(id: string, status: string): Promise<ComplianceDocumentRecord> {
+    const rec = await this.require(id);
     this.reception.emitBuyerStatus(status, this.log);
     return this.store.update(id, { events: [...rec.events, { type: `ACK:${status}`, at: now() }] });
   }
@@ -374,17 +374,17 @@ export class ComplianceService {
   // ─────────────────────────── reporting / payment / archive ───────────────────────────
 
   /** Emit the reporting side-effects for a document (EC Sales List, OSS, e-reporting, SAF-T…). */
-  report(id: string): ReportResult {
-    const rec = this.require(id);
+  async report(id: string): Promise<ReportResult> {
+    const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
     const results = this.reporting.reportAll(rec.ctx, plan, this.log);
-    const next = new ComplianceStateMachine(rec.status).can('REPORT') ? this.transition(rec, 'REPORT') : rec;
+    const next = new ComplianceStateMachine(rec.status).can('REPORT') ? await this.transition(rec, 'REPORT') : rec;
     return { document: next, results };
   }
 
   /** Mark paid — triggers payment reporting and the "cashed" status where mandated (FR "encaissée"). */
-  markPaid(id: string, info: PaymentInfo = {}): ComplianceDocumentRecord {
-    const rec = this.require(id);
+  async markPaid(id: string, info: PaymentInfo = {}): Promise<ComplianceDocumentRecord> {
+    const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
     if (plan.lifecycle.response?.statuses?.includes('encaissée')) {
       this.log.todo('operations/markPaid', `emit "encaissée" status + payment e-reporting for ${id}`);
@@ -395,8 +395,8 @@ export class ComplianceService {
   }
 
   /** Archive the authoritative artifact (retention + residency routing). */
-  archiveDocument(id: string): ArchiveResult {
-    const rec = this.require(id);
+  async archiveDocument(id: string): Promise<ArchiveResult> {
+    const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
     const artifacts = this.formats.buildAll(rec.ctx, plan, this.log) as SignedArtifact[];
     const receipt = this.archive.store(artifacts, plan.archival, this.log);
@@ -404,8 +404,8 @@ export class ComplianceService {
   }
 
   /** Pre-flight validation of the document against its format rules. */
-  validate(id: string): { valid: boolean; errors: string[]; warnings: string[] } {
-    const rec = this.require(id);
+  async validate(id: string): Promise<{ valid: boolean; errors: string[]; warnings: string[] }> {
+    const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
     this.formats.buildAll(rec.ctx, plan, this.log); // each provider runs its own validate()
     this.log.todo('operations/validate', 'aggregate per-artifact ValidationReports');
@@ -414,15 +414,15 @@ export class ComplianceService {
 
   // ─────────────────────────── queries ───────────────────────────
 
-  getDocument(id: string): ComplianceDocumentRecord | null {
+  getDocument(id: string): Promise<ComplianceDocumentRecord | null> {
     return this.store.get(id);
   }
 
-  getStatus(id: string): ComplianceStatus {
-    return this.require(id).status;
+  async getStatus(id: string): Promise<ComplianceStatus> {
+    return (await this.require(id)).status;
   }
 
-  list(): ComplianceDocumentRecord[] {
+  list(): Promise<ComplianceDocumentRecord[]> {
     return this.store.list();
   }
 }

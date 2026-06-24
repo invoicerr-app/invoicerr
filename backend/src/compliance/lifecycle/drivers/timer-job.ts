@@ -45,37 +45,39 @@ export function createTimerJob(input: NewTimerJob, now: Date): TimerJob {
 
 /** Persistence port. In-memory now; the Prisma `ScheduledJob` table (shared with polls) replaces it. */
 export interface TimerJobStore {
-  arm(job: TimerJob): TimerJob;
-  save(job: TimerJob): TimerJob;
-  get(id: string): TimerJob | null;
+  arm(job: TimerJob): Promise<TimerJob>;
+  save(job: TimerJob): Promise<TimerJob>;
+  get(id: string): Promise<TimerJob | null>;
   /** ARMED timers whose fireAt is at/before `now`. */
-  due(now: Date): TimerJob[];
-  forDocument(documentId: string): TimerJob[];
-  cancelForDocument(documentId: string): void;
+  due(now: Date): Promise<TimerJob[]>;
+  forDocument(documentId: string): Promise<TimerJob[]>;
+  cancelForDocument(documentId: string): Promise<void>;
 }
 
 export class InMemoryTimerJobStore implements TimerJobStore {
   private readonly jobs = new Map<string, TimerJob>();
 
-  arm(job: TimerJob): TimerJob {
+  arm(job: TimerJob): Promise<TimerJob> {
     this.jobs.set(job.id, job);
-    return job;
+    return Promise.resolve(job);
   }
-  save(job: TimerJob): TimerJob {
+  save(job: TimerJob): Promise<TimerJob> {
     this.jobs.set(job.id, job);
-    return job;
+    return Promise.resolve(job);
   }
-  get(id: string): TimerJob | null {
-    return this.jobs.get(id) ?? null;
+  get(id: string): Promise<TimerJob | null> {
+    return Promise.resolve(this.jobs.get(id) ?? null);
   }
-  due(now: Date): TimerJob[] {
+  due(now: Date): Promise<TimerJob[]> {
     const t = now.getTime();
-    return [...this.jobs.values()].filter((j) => j.status === 'ARMED' && new Date(j.fireAt).getTime() <= t);
+    return Promise.resolve(
+      [...this.jobs.values()].filter((j) => j.status === 'ARMED' && new Date(j.fireAt).getTime() <= t),
+    );
   }
-  forDocument(documentId: string): TimerJob[] {
-    return [...this.jobs.values()].filter((j) => j.documentId === documentId);
+  forDocument(documentId: string): Promise<TimerJob[]> {
+    return Promise.resolve([...this.jobs.values()].filter((j) => j.documentId === documentId));
   }
-  cancelForDocument(documentId: string): void {
+  async cancelForDocument(documentId: string): Promise<void> {
     for (const j of this.jobs.values()) {
       if (j.documentId === documentId && j.status === 'ARMED') {
         this.jobs.set(j.id, { ...j, status: 'CANCELLED' });

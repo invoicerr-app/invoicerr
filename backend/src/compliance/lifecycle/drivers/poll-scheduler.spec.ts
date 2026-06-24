@@ -58,52 +58,52 @@ describe('poll-job — pure decision/backoff logic', () => {
 });
 
 describe('PollScheduler', () => {
-  it('schedule() enqueues a PENDING job due after everySeconds, with provider/ref captured', () => {
+  it('schedule() enqueues a PENDING job due after everySeconds, with provider/ref captured', async () => {
     const { reg } = fakeRegistry();
     const clock = clockFrom('2027-01-15T00:00:00Z');
     const store = new InMemoryPollJobStore();
     const scheduler = new PollScheduler({ applySignal: () => {}, store, txRegistry: reg, now: clock.now });
 
-    const job = scheduler.schedule('doc1', EFFECT, 'UUID-1');
+    const job = await scheduler.schedule('doc1', EFFECT, 'UUID-1');
     expect(job).toMatchObject({ status: 'PENDING', providerId: 'pac', channel: 'PAC', ref: 'UUID-1' });
     expect(new Date(job.nextRunAt).getTime()).toBe(clock.now().getTime() + 30_000);
   });
 
-  it('tick(): a PENDING poll reschedules with backoff and emits no signal', () => {
+  it('tick(): a PENDING poll reschedules with backoff and emits no signal', async () => {
     const { reg, setStatus } = fakeRegistry();
     setStatus('PENDING');
     const clock = clockFrom('2027-01-15T00:00:00Z');
     const store = new InMemoryPollJobStore();
     const signals: Array<[string, LifecycleSignal]> = [];
-    const scheduler = new PollScheduler({ applySignal: (id, s) => signals.push([id, s]), store, txRegistry: reg, now: clock.now });
+    const scheduler = new PollScheduler({ applySignal: (id, s) => { signals.push([id, s]); }, store, txRegistry: reg, now: clock.now });
 
-    scheduler.schedule('doc1', EFFECT);
+    await scheduler.schedule('doc1', EFFECT);
     clock.advance(31_000); // job becomes due
-    const report = scheduler.tick();
+    const report = await scheduler.tick();
 
     expect(report).toMatchObject({ due: 1, polled: 1, rescheduled: 1, resolved: 0 });
     expect(signals).toHaveLength(0);
-    expect(store.forDocument('doc1')[0].attempts).toBe(1);
+    expect((await store.forDocument('doc1'))[0].attempts).toBe(1);
   });
 
-  it('tick(): a CLEARED poll marks the job DONE and feeds POLL_RESULT back to the runtime', () => {
+  it('tick(): a CLEARED poll marks the job DONE and feeds POLL_RESULT back to the runtime', async () => {
     const { reg, setStatus } = fakeRegistry();
     setStatus('CLEARED');
     const clock = clockFrom('2027-01-15T00:00:00Z');
     const store = new InMemoryPollJobStore();
     const signals: Array<[string, LifecycleSignal]> = [];
-    const scheduler = new PollScheduler({ applySignal: (id, s) => signals.push([id, s]), store, txRegistry: reg, now: clock.now });
+    const scheduler = new PollScheduler({ applySignal: (id, s) => { signals.push([id, s]); }, store, txRegistry: reg, now: clock.now });
 
-    scheduler.schedule('doc1', EFFECT);
+    await scheduler.schedule('doc1', EFFECT);
     clock.advance(31_000);
-    const report = scheduler.tick();
+    const report = await scheduler.tick();
 
     expect(report).toMatchObject({ resolved: 1, rescheduled: 0 });
     expect(signals).toEqual([['doc1', { type: 'POLL_RESULT', status: 'CLEARED' }]]);
-    expect(store.forDocument('doc1')[0].status).toBe('DONE');
+    expect((await store.forDocument('doc1'))[0].status).toBe('DONE');
   });
 
-  it('tick(): a job past its timeout expires and calls onExpire', () => {
+  it('tick(): a job past its timeout expires and calls onExpire', async () => {
     const { reg, setStatus } = fakeRegistry();
     setStatus('PENDING');
     const clock = clockFrom('2027-01-15T00:00:00Z');
@@ -111,13 +111,13 @@ describe('PollScheduler', () => {
     const expired: PollJob[] = [];
     const scheduler = new PollScheduler({ applySignal: () => {}, store, txRegistry: reg, now: clock.now, onExpire: (j) => expired.push(j) });
 
-    scheduler.schedule('doc1', EFFECT); // expiresAt = +24h
+    await scheduler.schedule('doc1', EFFECT); // expiresAt = +24h
     clock.advance(25 * 3_600_000); // past timeout (and due)
-    const report = scheduler.tick();
+    const report = await scheduler.tick();
 
     expect(report.expired).toBe(1);
     expect(expired).toHaveLength(1);
-    expect(store.forDocument('doc1')[0].status).toBe('EXPIRED');
+    expect((await store.forDocument('doc1'))[0].status).toBe('EXPIRED');
   });
 });
 
@@ -129,7 +129,7 @@ describe('PollScheduler × LifecycleRuntime — end-to-end clearance (MX)', () =
     return { supplier: party(s, 'B2B'), buyer: party(b, role), lines: [{ id: 'l1', description: 'x', quantity: 1, unitNetMinor: 10000, supplyType: supply }], issueDate: new Date(date), currency: 'EUR' };
   }
 
-  it('SUBMIT_CLEARANCE arms a poll; a polled CLEARED drives PENDING_CLEARANCE → CLEARED', () => {
+  it('SUBMIT_CLEARANCE arms a poll; a polled CLEARED drives PENDING_CLEARANCE → CLEARED', async () => {
     const graph = assembleFromPlan(resolve(tx('MX', 'MX', 'B2B', 'GOODS', '2027-01-15')));
     const runtime = new LifecycleRuntime(graph, 'ISSUED', new RecordingComplianceLogger());
 
@@ -146,15 +146,15 @@ describe('PollScheduler × LifecycleRuntime — end-to-end clearance (MX)', () =
     setStatus('CLEARED');
     const clock = clockFrom('2027-01-15T00:00:00Z');
     const scheduler = new PollScheduler({
-      applySignal: (_id, signal) => runtime.dispatch(signal), // feed the outcome back into the runtime
+      applySignal: (_id, signal) => { runtime.dispatch(signal); }, // feed the outcome back into the runtime
       store: new InMemoryPollJobStore(),
       txRegistry: reg,
       now: clock.now,
     });
 
-    scheduler.schedule('mx-doc', sp, 'UUID-123');
+    await scheduler.schedule('mx-doc', sp, 'UUID-123');
     clock.advance(60_000); // make the job due
-    scheduler.tick();
+    await scheduler.tick();
 
     expect(runtime.status).toBe('CLEARED');
   });
