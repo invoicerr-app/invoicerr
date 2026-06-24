@@ -1806,6 +1806,9 @@
             "count": "{{count}} payments {{found}}",
             "found": "found"
         },
+        "breakdown": {
+            "label": "Distribution across items"
+        },
         "search": {
             "placeholder": "Search payments..."
         },
@@ -1874,9 +1877,6 @@
                 "amount": {
                     "label": "Total amount",
                     "placeholder": "Enter the payment amount"
-                },
-                "breakdown": {
-                    "label": "Distribution across items"
                 },
                 "items": {
                     "label": "Items",

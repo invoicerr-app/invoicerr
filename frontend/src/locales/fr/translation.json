@@ -1788,6 +1788,9 @@
             "count": "{{count}} paiements {{found}}",
             "found": "trouvés"
         },
+        "breakdown": {
+            "label": "Répartition par article"
+        },
         "search": {
             "placeholder": "Rechercher des paiements..."
         },
@@ -1856,9 +1859,6 @@
                 "amount": {
                     "label": "Montant total",
                     "placeholder": "Saisissez le montant du paiement"
-                },
-                "breakdown": {
-                    "label": "Répartition par article"
                 },
                 "items": {
                     "label": "Articles",

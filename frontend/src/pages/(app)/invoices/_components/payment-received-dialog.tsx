@@ -9,7 +9,9 @@ import { useQueryClient } from "@tanstack/react-query"
 
 import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
+import { PaymentBreakdown } from "@/components/payment-breakdown"
 import type { Invoice } from "@/types"
+import { distributePayment } from "@/lib/payment-distribution"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -51,6 +53,7 @@ export function PaymentReceivedDialog({ invoice, onOpenChange }: PaymentReceived
     const percent = invoice && invoice.totalTTC > 0
         ? Math.min(100, Math.round(((alreadyPaid + amount) / invoice.totalTTC) * 100))
         : 0
+    const breakdownItems = invoice ? distributePayment(invoice, Number(amount) || 0) : []
 
     const handleOpenChange = (open: boolean) => {
         if (!open) form.reset()
@@ -104,6 +107,7 @@ export function PaymentReceivedDialog({ invoice, onOpenChange }: PaymentReceived
                         <p className="text-sm text-muted-foreground mt-2">
                             {t("invoices.paymentReceived.percentLabel", { percent })}
                         </p>
+                        <PaymentBreakdown items={breakdownItems} currency={invoice?.currency} />
                     </form>
                 </Form>
                 <DialogFooter className="flex justify-end space-x-2">

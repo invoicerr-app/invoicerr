@@ -1594,6 +1594,9 @@
             "count": "{{count}} Belege {{found}}",
             "found": "gefunden"
         },
+        "breakdown": {
+            "label": "Aufteilung auf die Artikel"
+        },
         "search": {
             "placeholder": "Belege suchen..."
         },
@@ -1662,9 +1665,6 @@
                 "amount": {
                     "label": "Gesamtbetrag",
                     "placeholder": "Geben Sie den Zahlungsbetrag ein"
-                },
-                "breakdown": {
-                    "label": "Aufteilung auf die Artikel"
                 },
                 "items": {
                     "label": "Artikel",

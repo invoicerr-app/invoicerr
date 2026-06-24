@@ -1594,6 +1594,9 @@
             "count": "{{count}} recibos {{found}}",
             "found": "encontrados"
         },
+        "breakdown": {
+            "label": "Distribución por ítem"
+        },
         "search": {
             "placeholder": "Buscar recibos..."
         },
@@ -1662,9 +1665,6 @@
                 "amount": {
                     "label": "Importe total",
                     "placeholder": "Introduce el importe del pago"
-                },
-                "breakdown": {
-                    "label": "Distribución por ítem"
                 },
                 "items": {
                     "label": "Ítems",

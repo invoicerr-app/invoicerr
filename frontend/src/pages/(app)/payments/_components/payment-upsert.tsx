@@ -15,37 +15,18 @@ import { Button } from "@/components/ui/button"
 import { ClientUpsert } from "../../clients/_components/client-upsert"
 import { DatePicker } from "@/components/date-picker"
 import { InvoiceStatus, PaymentMethodType } from "@/types"
+import { PaymentBreakdown } from "@/components/payment-breakdown"
 import SearchSelect from "@/components/search-input"
+import { distributePayment } from "@/lib/payment-distribution"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 
-const clampDiscount = (r?: number) => Math.min(Math.max(r ?? 0, 0), 100)
-
-function distribute(invoice: Invoice, total: number): Item[] {
-    const discountFactor = 1 - clampDiscount(invoice.discountRate) / 100
-    const ratio = invoice.totalTTC > 0 ? total / invoice.totalTTC : 0
-    const list = (invoice.items ?? []).map(it => {
-        const fullTTC = it.quantity * it.unitPrice * discountFactor * (1 + (it.vatRate || 0) / 100)
-        return { invoiceItemId: it.id, description: it.description, amountPaid: Math.round(fullTTC * ratio * 100) / 100 }
-    })
-    // adjust the last item by the rounding remainder so the breakdown sums exactly to the entered total
-    const diff = Math.round((total - list.reduce((s, i) => s + i.amountPaid, 0)) * 100) / 100
-    if (list.length && diff !== 0) list[list.length - 1].amountPaid += diff
-    return list
-}
-
 interface PaymentUpsertDialogProps {
     payment?: Payment | null
     open: boolean
     onOpenChange: (open: boolean) => void
-}
-
-interface Item {
-    invoiceItemId: string
-    description: string
-    amountPaid: number
 }
 
 export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDialogProps) {
@@ -114,7 +95,7 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
 
     const amount = form.watch("amount")
     const items = useMemo(
-        () => (selectedInvoice ? distribute(selectedInvoice, Number(amount) || 0) : []),
+        () => (selectedInvoice ? distributePayment(selectedInvoice, Number(amount) || 0) : []),
         [selectedInvoice, amount],
     )
 
@@ -246,32 +227,7 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                                 )}
                             />
 
-                            {selectedInvoice && items.length > 0 && (
-                                <FormItem className="flex flex-col gap-2 mt-2">
-                                    <FormLabel className="mb-0">{t("payments.upsert.form.breakdown.label")}</FormLabel>
-                                    <div className="flex flex-col gap-2">
-                                        {items.map((item) => (
-                                            <div className="flex gap-2 items-center" key={item.invoiceItemId}>
-                                                <FormItem className="flex-1">
-                                                    <FormControl>
-                                                        <BetterInput value={item.description || ""} disabled />
-                                                    </FormControl>
-                                                </FormItem>
-                                                <FormItem>
-                                                    <FormControl>
-                                                        <BetterInput
-                                                            value={item.amountPaid}
-                                                            type="number"
-                                                            postAdornment={selectedInvoice?.currency || ""}
-                                                            disabled
-                                                        />
-                                                    </FormControl>
-                                                </FormItem>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </FormItem>
-                            )}
+                            <PaymentBreakdown items={items} currency={selectedInvoice?.currency} />
 
                             {hasNegativeTotalError && (
                                 <p className="text-sm text-destructive mt-2">
