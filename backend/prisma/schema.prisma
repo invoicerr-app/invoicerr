@@ -203,10 +203,12 @@ enum QuoteStatus {
 
 // Invoice status
 enum InvoiceStatus {
+  DRAFT
   PAID
   UNPAID
   OVERDUE
   SENT
+  ARCHIVED
 }
 
 // Recurrence frequency
@@ -439,7 +441,7 @@ model Invoice {
   company            Company           @relation(fields: [companyId], references: [id]) // Company issuing the invoice
   companyId          String
   items              InvoiceItem[]
-  status             InvoiceStatus     @default(UNPAID)
+  status             InvoiceStatus     @default(DRAFT)
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   dueDate            DateTime

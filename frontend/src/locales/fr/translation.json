@@ -414,6 +414,44 @@
             "oneTime": "Ponctuelles",
             "recurring": "Récurrentes"
         },
+        "progression": {
+            "title": "Progression",
+            "emptyState": "Aucune facture à afficher dans la progression.",
+            "steps": {
+                "draft": "Brouillon",
+                "sent": "Envoyée",
+                "paid": "Payée",
+                "archived": "Archivée"
+            },
+            "stepLabel": "Étape {{current}} / {{total}}",
+            "actions": {
+                "send": "Envoyer",
+                "resend": "Renvoyer",
+                "paymentReceived": "Paiement reçu",
+                "archive": "Archiver"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Envoyer la facture",
+                    "description": "Êtes-vous sûr de vouloir envoyer la facture {{number}} à {{client}} ?"
+                },
+                "resend": {
+                    "title": "Renvoyer la facture",
+                    "description": "Êtes-vous sûr de vouloir renvoyer la facture {{number}} à {{client}} ?"
+                },
+                "paymentReceived": {
+                    "title": "Paiement reçu",
+                    "description": "Confirmez-vous avoir reçu le paiement de la facture {{number}} ?"
+                },
+                "archive": {
+                    "title": "Archiver la facture",
+                    "description": "Êtes-vous sûr de vouloir archiver la facture {{number}} ? Cette action est irréversible, il ne sera plus possible de revenir en arrière."
+                },
+                "confirm": "Confirmer",
+                "cancel": "Annuler"
+            },
+            "noAction": "Aucune action"
+        },
         "stats": {
             "total": "Total des factures",
             "sent": "Envoyées",
@@ -435,11 +473,13 @@
             "title": "Toutes les factures",
             "description": "Gérez et consultez toutes vos factures en un seul endroit.",
             "status": {
+                "draft": "Brouillon",
                 "sent": "Envoyée",
                 "unpaid": "Impayée",
                 "overdue": "En retard",
                 "paid": "Payée",
-                "upcoming": "À venir"
+                "upcoming": "À venir",
+                "archived": "Archivée"
             },
             "item": {
                 "title": "Facture {{number}} {{title}}",
@@ -479,7 +519,9 @@
                 "markAsPaidSuccess": "Facture marquée comme payée avec succès",
                 "markAsPaidError": "Échec du marquage de la facture comme payée",
                 "createReceiptSuccess": "Reçu créé avec succès à partir de la facture",
-                "sendByEmailSuccess": "La facture a été envoyée au client"
+                "sendByEmailSuccess": "La facture a été envoyée au client",
+                "archiveSuccess": "Facture archivée avec succès",
+                "archiveError": "Échec de l'archivage de la facture"
             }
         },
         "upsert": {
@@ -591,10 +633,12 @@
             "title": "Facture {{number}}",
             "description": "Consultez tous les détails de cette facture.",
             "status": {
+                "draft": "Brouillon",
                 "sent": "Envoyée",
                 "unpaid": "Impayée",
                 "overdue": "En retard",
-                "paid": "Payée"
+                "paid": "Payée",
+                "archived": "Archivée"
             },
             "fields": {
                 "number": "Numéro de facture",

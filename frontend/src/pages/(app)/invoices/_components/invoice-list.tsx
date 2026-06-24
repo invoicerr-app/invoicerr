@@ -10,7 +10,7 @@ import BetterPagination from "../../../../components/pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { InvoiceStatus, type Invoice } from "@/types"
+import { InvoiceStatus, getDisplayInvoiceStatus, type Invoice } from "@/types"
 import { InvoiceDeleteDialog } from "./invoice-delete"
 import { InvoicePdfModal } from "./invoice-pdf-view"
 import { InvoiceUpsert } from "./invoice-upsert"
@@ -149,24 +149,26 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         }
 
         const getStatusColor = (status: string) => {
-            switch (status) {
+            switch (getDisplayInvoiceStatus(status)) {
+                case "DRAFT":
+                    return "bg-gray-200 text-gray-700"
                 case "SENT":
                     return "bg-yellow-100 text-yellow-800"
-                case "UNPAID":
-                    return "bg-blue-100 text-blue-800"
                 case "OVERDUE":
                     return "bg-red-100 text-red-800"
                 case "PAID":
                     return "bg-green-100 text-green-800"
                 case "UPCOMING":
                     return "bg-purple-100 text-purple-800"
+                case "ARCHIVED":
+                    return "bg-slate-100 text-slate-600"
                 default:
                     return "bg-gray-100 text-gray-800"
             }
         }
 
         const getStatusLabel = (status: string) => {
-            return t(`invoices.list.status.${status.toLowerCase()}`)
+            return t(`invoices.list.status.${getDisplayInvoiceStatus(status).toLowerCase()}`)
         }
 
         const handleSendInvoiceByEmail = (invoice: Invoice) => {
