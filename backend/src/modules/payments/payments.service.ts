@@ -160,7 +160,7 @@ export class PaymentsService {
             throw new BadRequestException('Invoice not found');
         }
 
-        if (invoice.status !== 'PAID') {
+        if (invoice.status !== 'ARCHIVED') {
             const payments = await prisma.payment.findMany({
                 where: { invoiceId },
                 select: { totalPaid: true },
