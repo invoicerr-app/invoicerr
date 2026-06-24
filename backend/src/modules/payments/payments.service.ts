@@ -212,6 +212,7 @@ export class PaymentsService {
                 paymentMethodId: body.paymentMethodId,
                 paymentMethod: body.paymentMethod,
                 paymentDetails: body.paymentDetails,
+                paidAt: body.paidAt ? new Date(body.paidAt) : undefined,
             },
             include: {
                 items: true,
@@ -307,6 +308,7 @@ export class PaymentsService {
                 paymentMethodId: body.paymentMethodId,
                 paymentMethod: body.paymentMethod,
                 paymentDetails: body.paymentDetails,
+                paidAt: body.paidAt ? new Date(body.paidAt) : undefined,
             },
             include: {
                 items: true,
@@ -445,7 +447,7 @@ export class PaymentsService {
 
         const html = template({
             number: payment.rawNumber || payment.number.toString(),
-            paymentDate: formatDate(payment.invoice.company, new Date()),
+            paymentDate: formatDate(payment.invoice.company, payment.paidAt ?? payment.createdAt),
             invoiceNumber: payment.invoice?.rawNumber || payment.invoice?.number?.toString() || '',
             client: payment.invoice.client,
             company: payment.invoice.company,

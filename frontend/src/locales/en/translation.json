@@ -1919,6 +1919,10 @@
                     "label": "Payment Details",
                     "placeholder": "Enter payment details",
                     "description": "Additional information about the payment"
+                },
+                "paidAt": {
+                    "label": "Payment Date",
+                    "placeholder": "Pick the payment date"
                 }
             },
             "actions": {

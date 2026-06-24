@@ -13,6 +13,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
 import { ClientUpsert } from "../../clients/_components/client-upsert"
+import { DatePicker } from "@/components/date-picker"
 import { PaymentMethodType } from "@/types"
 import SearchSelect from "@/components/search-input"
 import { Trash2 } from "lucide-react"
@@ -51,6 +52,7 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
     const paymentSchema = z.object({
         invoiceId: z.string().optional(),
         paymentMethodId: z.string().optional(),
+        paidAt: z.date().optional(),
     })
 
     const { data: invoices } = useInvoiceSearch(searchTerm)
@@ -63,7 +65,8 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
         resolver: zodResolver(paymentSchema),
         defaultValues: {
             invoiceId: payment?.invoiceId || "",
-            paymentMethodId: payment?.paymentMethodId || ""
+            paymentMethodId: payment?.paymentMethodId || "",
+            paidAt: payment?.paidAt ? new Date(payment.paidAt) : new Date(),
         },
     })
 
@@ -71,7 +74,8 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
         if (isEdit && payment) {
             form.reset({
                 invoiceId: payment.invoiceId || "",
-                paymentMethodId: (payment as any).paymentMethodId || ""
+                paymentMethodId: (payment as any).paymentMethodId || "",
+                paidAt: payment.paidAt ? new Date(payment.paidAt) : new Date(),
             })
             setItems(payment.items.map(item => ({
                 invoiceItemId: item.invoiceItemId,
@@ -83,7 +87,8 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
         } else {
             form.reset({
                 invoiceId: "",
-                paymentMethodId: ""
+                paymentMethodId: "",
+                paidAt: new Date(),
             })
             setItems([])
         }
@@ -101,8 +106,10 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
 
     const onSubmit = (data: z.infer<typeof paymentSchema>) => {
         const trigger = isEdit ? updateTrigger : createTrigger
+        const { paidAt, ...rest } = data
         trigger({
-            ...data,
+            ...rest,
+            paidAt: paidAt ? paidAt.toISOString() : undefined,
             items: items.map(item => ({
                 invoiceItemId: item.invoiceItemId,
                 invoiceId: selectedInvoice?.id || "",
@@ -202,6 +209,24 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                                         <FormDescription>
                                             {t("payments.upsert.form.paymentMethod.description")}
                                         </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="paidAt"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-col">
+                                        <FormLabel>{t("payments.upsert.form.paidAt.label")}</FormLabel>
+                                        <DatePicker
+                                            className="w-full"
+                                            value={field.value || null}
+                                            onChange={field.onChange}
+                                            placeholder={t("payments.upsert.form.paidAt.placeholder")}
+                                            data-cy="payment-paidAt-picker"
+                                        />
                                         <FormMessage />
                                     </FormItem>
                                 )}

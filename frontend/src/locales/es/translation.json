@@ -1707,6 +1707,10 @@
                     "label": "Detalles de pago",
                     "placeholder": "Ingrese detalles del pago",
                     "description": "Información adicional sobre el pago"
+                },
+                "paidAt": {
+                    "label": "Fecha de pago",
+                    "placeholder": "Elige la fecha de pago"
                 }
             },
             "actions": {
