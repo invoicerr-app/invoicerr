@@ -1688,6 +1688,9 @@
                             "required": "La tasa de IVA es obligatoria.",
                             "min": "La tasa de IVA debe ser al menos 0."
                         }
+                    },
+                    "errors": {
+                        "negativeTotal": "El total de pagos de esta factura no puede ser negativo"
                     }
                 },
                 "invoice": {

@@ -1688,6 +1688,9 @@
                             "required": "Der Mehrwertsteuersatz ist erforderlich.",
                             "min": "Der Mehrwertsteuersatz muss mindestens 0 betragen."
                         }
+                    },
+                    "errors": {
+                        "negativeTotal": "Die Gesamtzahlungen für diese Rechnung dürfen nicht negativ sein"
                     }
                 },
                 "invoice": {

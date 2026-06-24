@@ -1900,6 +1900,9 @@
                             "required": "VAT rate is required.",
                             "min": "VAT rate must be at least 0."
                         }
+                    },
+                    "errors": {
+                        "negativeTotal": "The total payments for this invoice cannot be negative"
                     }
                 },
                 "invoice": {

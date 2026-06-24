@@ -70,6 +70,7 @@ export class PaymentsService {
                         items: true,
                         client: true,
                         quote: true,
+                        payments: { select: { id: true, totalPaid: true } },
                     }
                 }
             },
@@ -101,6 +102,7 @@ export class PaymentsService {
                         include: {
                             client: true,
                             quote: true,
+                            payments: { select: { id: true, totalPaid: true } },
                         }
                     }
                 },
@@ -134,6 +136,7 @@ export class PaymentsService {
                     include: {
                         client: true,
                         quote: true,
+                        payments: { select: { id: true, totalPaid: true } },
                     }
                 }
             },

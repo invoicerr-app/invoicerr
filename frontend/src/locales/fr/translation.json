@@ -1882,6 +1882,9 @@
                             "required": "Le taux de TVA est requis.",
                             "min": "Le taux de TVA doit être d'au moins 0."
                         }
+                    },
+                    "errors": {
+                        "negativeTotal": "Le total des paiements de cette facture ne peut pas être négatif"
                     }
                 },
                 "invoice": {

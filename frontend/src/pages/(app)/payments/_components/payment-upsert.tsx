@@ -142,6 +142,12 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
         setItems(items.map((item, i) => i === index ? { ...item, [field]: value } : item))
     }
 
+    const otherPaymentsTotal = (selectedInvoice?.payments ?? [])
+        .filter(p => p.id !== payment?.id)
+        .reduce((sum, p) => sum + p.totalPaid, 0)
+    const itemsTotal = items.reduce((sum, item) => sum + (item.amountPaid || 0), 0)
+    const hasNegativeTotalError = otherPaymentsTotal + itemsTotal < 0
+
     return (
         <>
             <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -252,7 +258,6 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                                                         placeholder={t("payments.upsert.form.items.amountPaid.placeholder")}
                                                         onChange={(e) => onEditItem(index, "amountPaid")(parseFloat(e.target.value))}
                                                         type="number"
-                                                        min={0}
                                                         step="0.01"
                                                         postAdornment={selectedInvoice?.currency || ""}
                                                         disabled={!selectedInvoice}
@@ -267,6 +272,11 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                                         </div>
                                     ))}
                                 </div>
+                                {hasNegativeTotalError && (
+                                    <p className="text-sm text-destructive">
+                                        {t("payments.upsert.form.items.errors.negativeTotal")}
+                                    </p>
+                                )}
                             </FormItem>
                         </form>
                     </Form>
@@ -274,7 +284,7 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                             {t("payments.upsert.actions.cancel")}
                         </Button>
-                        <Button type="button" onClick={form.handleSubmit(onSubmit)} loading={createLoading || updateLoading} dataCy="payment-submit">
+                        <Button type="button" onClick={form.handleSubmit(onSubmit)} loading={createLoading || updateLoading} disabled={hasNegativeTotalError} dataCy="payment-submit">
                             {t(`payments.upsert.actions.${isEdit ? "save" : "create"}`)}
                         </Button>
                     </DialogFooter>
