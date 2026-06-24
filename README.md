@@ -31,7 +31,7 @@ The project is still open, and I can continue to review and manage community pul
 - Track status of quotes and invoices (signed, paid, unread, etc.)  
 - Built-in quote signing system with secure tokens  
 - Generate and send quote/invoice emails directly from the app
-- Generate clean PDF documents (quotes, invoices, receipts, and more)  
+- Generate clean PDF documents (quotes, invoices, payments, and more)  
 - Custom brand identity: logo, company name, VAT, and more  
 - Authentication via JWT or OIDC (stored in cookies)
 - International-friendly: Default English UI, customizable currencies  

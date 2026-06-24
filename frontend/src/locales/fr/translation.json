@@ -525,7 +525,7 @@
             "messages": {
                 "markAsPaidSuccess": "Facture marquée comme payée avec succès",
                 "markAsPaidError": "Échec du marquage de la facture comme payée",
-                "createReceiptSuccess": "Reçu créé avec succès à partir de la facture",
+                "createPaymentSuccess": "Paiement créé avec succès à partir de la facture",
                 "sendByEmailSuccess": "La facture a été envoyée au client",
                 "archiveSuccess": "Facture archivée avec succès",
                 "archiveError": "Échec de l'archivage de la facture"
@@ -1780,7 +1780,7 @@
             "signed": "Signé"
         },
         "emptyState": {
-            "noReceipts": "Aucun paiement pour le moment",
+            "noPayments": "Aucun paiement pour le moment",
             "noResults": "Aucun paiement trouvé",
             "startAdding": "Commencez par créer votre premier paiement.",
             "tryDifferentSearch": "Essayez d'ajuster vos termes de recherche."
@@ -1817,7 +1817,7 @@
                 "emailError": "Échec de l'envoi du paiement au client."
             },
             "actions": {
-                "addNew": "Ajouter un nouveau reçu"
+                "addNew": "Ajouter un nouveau paiement"
             }
         },
         "upsert": {
