@@ -409,7 +409,7 @@
             "signed": "Ondertekend"
         },
         "emptyState": {
-            "noReceipts": "Nog geen bonnen",
+            "noPayments": "Nog geen betalingen",
             "noResults": "Geen bonnen gevonden",
             "startAdding": "Begin met het maken van je eerste bon.",
             "tryDifferentSearch": "Pas uw zoekopdracht aan."

@@ -138,7 +138,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         function handleCreatePaymentFromInvoice(invoiceId: string) {
             triggerCreatePayment({ id: invoiceId })
                 .then(() => {
-                    toast.success(t("invoices.list.messages.createReceiptSuccess"))
+                    toast.success(t("invoices.list.messages.createPaymentSuccess"))
                     queryClient.invalidateQueries({ queryKey: queryKeys.payments.listsAll() })
                     queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 })

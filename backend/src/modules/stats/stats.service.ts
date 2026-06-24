@@ -26,10 +26,10 @@ export class StatsService {
                     lte: endOfYear,
                 },
             },
-            include: { receipts: true },
+            include: { payments: true },
         });
 
-        const receiptsInYear = await prisma.receipt.findMany({
+        const paymentsInYear = await prisma.payment.findMany({
             where: {
                 createdAt: {
                     gte: startOfYear,
@@ -42,16 +42,16 @@ export class StatsService {
             },
         });
 
-        const invoicesWithReceipts = await prisma.invoice.findMany({
-            where: { isActive: true, receipts: { some: {} } },
-            include: { receipts: { orderBy: { createdAt: 'asc' } } },
+        const invoicesWithPayments = await prisma.invoice.findMany({
+            where: { isActive: true, payments: { some: {} } },
+            include: { payments: { orderBy: { createdAt: 'asc' } } },
         });
 
         // Determine the payment moment for invoices that became fully paid
         const paidInvoices: { invoice: any; paidDate: Date }[] = [];
-        for (const inv of invoicesWithReceipts) {
+        for (const inv of invoicesWithPayments) {
             let cumulative = 0;
-            for (const r of inv.receipts) {
+            for (const r of inv.payments) {
                 cumulative += r.totalPaid;
                 if (cumulative >= inv.totalTTC) {
                     paidInvoices.push({ invoice: inv, paidDate: r.createdAt });
@@ -84,9 +84,9 @@ export class StatsService {
             m.invoiced += inv.totalTTC;
         }
 
-        // Revenue (without VAT) - calculated from receipts created in the period.
-        // For each receipt item, compute net = amountPaid / (1 + vatRate/100)
-        for (const r of receiptsInYear) {
+        // Revenue (without VAT) - calculated from payments created in the period.
+        // For each payment item, compute net = amountPaid / (1 + vatRate/100)
+        for (const r of paymentsInYear) {
             const currency = r.invoice?.currency;
             if (!currency) continue;
             ensureCurrency(currency);
@@ -101,7 +101,7 @@ export class StatsService {
             m.revenue += net;
         }
 
-        // Deposits (invoice paid) - attribute invoice.totalTTC to the month when cumulative receipts reached the invoice total
+        // Deposits (invoice paid) - attribute invoice.totalTTC to the month when cumulative payments reached the invoice total
         for (const p of paidInvoices) {
             const paidDate = new Date(p.paidDate);
             if (paidDate.getFullYear() !== year) continue;
@@ -145,7 +145,7 @@ export class StatsService {
             },
         });
 
-        const receiptsInRange = await prisma.receipt.findMany({
+        const paymentsInRange = await prisma.payment.findMany({
             where: {
                 createdAt: {
                     gte: startDate,
@@ -158,15 +158,15 @@ export class StatsService {
             },
         });
 
-        const invoicesWithReceipts = await prisma.invoice.findMany({
-            where: { isActive: true, receipts: { some: {} } },
-            include: { receipts: { orderBy: { createdAt: 'asc' } } },
+        const invoicesWithPayments = await prisma.invoice.findMany({
+            where: { isActive: true, payments: { some: {} } },
+            include: { payments: { orderBy: { createdAt: 'asc' } } },
         });
 
         const paidInvoices: { invoice: any; paidDate: Date }[] = [];
-        for (const inv of invoicesWithReceipts) {
+        for (const inv of invoicesWithPayments) {
             let cumulative = 0;
-            for (const r of inv.receipts) {
+            for (const r of inv.payments) {
                 cumulative += r.totalPaid;
                 if (cumulative >= inv.totalTTC) {
                     paidInvoices.push({ invoice: inv, paidDate: r.createdAt });
@@ -197,7 +197,7 @@ export class StatsService {
         }
 
         // Revenue
-        for (const r of receiptsInRange) {
+        for (const r of paymentsInRange) {
             const currency = r.invoice?.currency;
             if (!currency) continue;
             ensureCurrencyYears(currency);

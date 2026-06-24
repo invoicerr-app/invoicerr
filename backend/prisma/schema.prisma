@@ -188,6 +188,8 @@ enum MailTemplateType {
   SIGNATURE_REQUEST
   VERIFICATION_CODE
   INVOICE
+  PAYMENT
+  /// @deprecated use PAYMENT instead
   RECEIPT
 }
 
@@ -262,7 +264,7 @@ model PDFConfig {
 
   invoice        String @default("Invoice")
   quote          String @default("Quote")
-  receipt        String @default("Receipt")
+  payment        String @default("Payment")
   description    String @default("Description:")
   date           String @default("Date:")
   dueDate        String @default("Due date:")
@@ -456,7 +458,7 @@ model Invoice {
   totalTTC           Float
   currency           Currency
   isActive           Boolean           @default(true)
-  receipts           Receipt[]
+  payments           Payment[]
 }
 
 model InvoiceItem {
@@ -469,7 +471,7 @@ model InvoiceItem {
   vatRate      Float // 20 for 20%
   type         ItemType      @default(SERVICE)
   order        Int
-  receiptItems ReceiptItem[]
+  paymentItems PaymentItem[]
 }
 
 // Recurring invoice model
@@ -511,23 +513,23 @@ model RecurringInvoiceItem {
   order              Int
 }
 
-// Receipt models
-model ReceiptItem {
+// Payment models
+model PaymentItem {
   id            String      @id @default(uuid())
   invoiceItem   InvoiceItem @relation(fields: [invoiceItemId], references: [id])
   invoiceItemId String
   amountPaid    Float // Amount paid for this item
-  Receipt       Receipt     @relation(fields: [receiptId], references: [id])
-  receiptId     String
+  Payment       Payment     @relation(fields: [paymentId], references: [id])
+  paymentId     String
 }
 
-model Receipt {
+model Payment {
   id              String        @id @default(cuid())
   number          Int           @default(autoincrement())
   rawNumber       String? // Raw number for custom formats
   invoiceId       String
   invoice         Invoice       @relation(fields: [invoiceId], references: [id])
-  items           ReceiptItem[]
+  items           PaymentItem[]
   totalPaid       Float
   paymentMethod   String        @default("") // Ex: "Bank Transfer", "PayPal", "Cash"
   paymentDetails  String        @default("") // Details for the payment method (e.g., bank account number)
@@ -633,7 +635,16 @@ enum WebhookEvent {
   INVOICE_SEARCHED
   INVOICE_STATUS_CHANGED
 
-  // Receipt events
+  // Payment document events
+  PAYMENT_CREATED
+  PAYMENT_UPDATED
+  PAYMENT_DELETED
+  PAYMENT_SENT
+  PAYMENT_PDF_GENERATED
+  PAYMENT_CREATED_FROM_INVOICE
+  PAYMENT_SEARCHED
+
+  // Receipt events (deprecated, use PAYMENT_* instead)
   RECEIPT_CREATED
   RECEIPT_UPDATED
   RECEIPT_DELETED
@@ -642,7 +653,7 @@ enum WebhookEvent {
   RECEIPT_CREATED_FROM_INVOICE
   RECEIPT_SEARCHED
 
-  // Payment events
+  // Payment method events
   PAYMENT_RECEIVED
   PAYMENT_METHOD_CREATED
   PAYMENT_METHOD_UPDATED
@@ -747,7 +758,12 @@ enum WebhookEvent {
   INVOICE_ITEM_UPDATED
   INVOICE_ITEM_DELETED
 
-  // Receipt Item events
+  // Payment Item events
+  PAYMENT_ITEM_CREATED
+  PAYMENT_ITEM_UPDATED
+  PAYMENT_ITEM_DELETED
+
+  // Receipt Item events (deprecated, use PAYMENT_ITEM_* instead)
   RECEIPT_ITEM_CREATED
   RECEIPT_ITEM_UPDATED
   RECEIPT_ITEM_DELETED
@@ -765,6 +781,8 @@ enum WebhookEvent {
   // Number formatting events
   QUOTE_NUMBER_GENERATED
   INVOICE_NUMBER_GENERATED
+  PAYMENT_NUMBER_GENERATED
+  /// @deprecated use PAYMENT_NUMBER_GENERATED instead
   RECEIPT_NUMBER_GENERATED
 
   // Background process events

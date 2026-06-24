@@ -9,7 +9,7 @@ export interface PDFConfigDto {
     secondaryColor: string
     labels: {
         // Generic labels
-        receipt: string
+        payment: string
         billTo: string
         receivedFrom: string
         invoiceRefer: string

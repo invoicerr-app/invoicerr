@@ -433,7 +433,7 @@
             "messages": {
                 "markAsPaidSuccess": "Factura marcada como pagada con éxito",
                 "markAsPaidError": "Error al marcar la factura como pagada",
-                "createReceiptSuccess": "Recibo creado correctamente desde la factura",
+                "createPaymentSuccess": "Pago creado correctamente desde la factura",
                 "sendByEmailSuccess": "La factura fue enviada al cliente"
             }
         },
@@ -1588,7 +1588,7 @@
             "signed": "Firmada"
         },
         "emptyState": {
-            "noReceipts": "Aún no hay recibos",
+            "noPayments": "Aún no hay pagos",
             "noResults": "No se encontraron recibos",
             "startAdding": "Comienza creando tu primer recibo.",
             "tryDifferentSearch": "Prueba ajustando tus términos de búsqueda."

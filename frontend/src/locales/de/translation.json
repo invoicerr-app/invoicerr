@@ -433,7 +433,7 @@
             "messages": {
                 "markAsPaidSuccess": "Rechnung als erfolgreich bezahlt markiert",
                 "markAsPaidError": "Rechnung konnte nicht als bezahlt markiert werden",
-                "createReceiptSuccess": "Beleg erfolgreich aus Rechnung erstellt",
+                "createPaymentSuccess": "Zahlung erfolgreich aus Rechnung erstellt",
                 "sendByEmailSuccess": "Rechnung wurde versandt"
             }
         },
@@ -1588,7 +1588,7 @@
             "signed": "Unterzeichnet"
         },
         "emptyState": {
-            "noReceipts": "Noch keine Belege",
+            "noPayments": "Noch keine Zahlungen",
             "noResults": "Keine Belege gefunden",
             "startAdding": "Beginnen Sie mit der Erstellung Ihres ersten Belegs.",
             "tryDifferentSearch": "Versuchen Sie, Ihre Suchbegriffe anzupassen."

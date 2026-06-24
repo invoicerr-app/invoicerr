@@ -364,7 +364,7 @@ const defaultPaymentTemplate = `
 </html>
 `
 interface TemplateSettings {
-    templateType: "invoice" | "quote" | "receipt"
+    templateType: "invoice" | "quote" | "payment"
     fontFamily: string
     primaryColor: string
     secondaryColor: string
@@ -658,7 +658,7 @@ export default function PDFTemplatesSettings() {
                                                 <Label htmlFor="template-type">{t("settings.pdfTemplates.templateType.label")}</Label>
                                                 <Select
                                                     value={settings.templateType}
-                                                    onValueChange={(value: "invoice" | "quote" | "receipt") =>
+                                                    onValueChange={(value: "invoice" | "quote" | "payment") =>
                                                         setSettings((prev) => ({ ...prev, templateType: value }))
                                                     }
                                                 >
@@ -672,8 +672,8 @@ export default function PDFTemplatesSettings() {
                                                         <SelectItem value="quote">
                                                             {t("settings.pdfTemplates.templateType.options.quote")}
                                                         </SelectItem>
-                                                        <SelectItem value="receipt">
-                                                            {t("settings.pdfTemplates.templateType.options.receipt")}
+                                                        <SelectItem value="payment">
+                                                            {t("settings.pdfTemplates.templateType.options.payment")}
                                                         </SelectItem>
                                                     </SelectContent>
                                                 </Select>

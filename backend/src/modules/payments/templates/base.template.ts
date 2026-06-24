@@ -3,12 +3,12 @@ export const baseTemplate = `
 <html>
 <head>
   <meta charset="utf-8">
-  <title>{{labels.receipt}} {{number}}</title>
+  <title>{{labels.payment}} {{number}}</title>
   <style>
         body { font-family: {{fontFamily}}, sans-serif; margin: {{padding}}px; color: #333; }
         .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
         .company-info h1 { margin: 0; color: {{primaryColor}}; }
-        .receipt-info { text-align: right; }
+        .payment-info { text-align: right; }
         .client-info { margin-bottom: 30px; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
@@ -33,9 +33,9 @@ export const baseTemplate = `
             {{#if company.legalId}}<strong>{{labels.legalId}}:</strong> {{company.legalId}}<br>{{/if}}
             {{#if company.VAT}}<strong>{{labels.VATId}}:</strong> {{company.VAT}}{{/if}}</p>
         </div>
-        <div class="receipt-info">
-            <h2>{{labels.receipt}}</h2>
-            <p><strong>{{labels.receipt}}:</strong> #{{number}}<br>
+        <div class="payment-info">
+            <h2>{{labels.payment}}</h2>
+            <p><strong>{{labels.payment}}:</strong> #{{number}}<br>
             <strong>{{labels.paymentDate}}</strong> {{paymentDate}}<br>
             <strong>{{labels.invoiceRefer}}</strong> #{{invoiceNumber}}</p>
         </div>

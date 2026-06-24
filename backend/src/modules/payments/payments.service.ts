@@ -25,6 +25,27 @@ export class PaymentsService {
         this.logger = new Logger(PaymentsService.name);
     }
 
+    /**
+     * Dispatches a payment webhook event. The new PAYMENT_* event is emitted first,
+     * then the deprecated RECEIPT_* alias is emitted for backward compatibility with
+     * existing webhook subscriptions. The payload exposes both `payment` and the
+     * deprecated `receipt` key so old and new formatters keep working.
+     */
+    private async dispatchPaymentEvent(
+        current: WebhookEvent,
+        deprecated: WebhookEvent,
+        payload: { payment: any; invoice: any; client: any; company: any },
+    ) {
+        const fullPayload = { ...payload, receipt: payload.payment };
+        for (const event of [current, deprecated]) {
+            try {
+                await this.webhookDispatcher.dispatch(event, fullPayload);
+            } catch (error) {
+                this.logger.error(`Failed to dispatch ${event} webhook`, error);
+            }
+        }
+    }
+
     async getPayments(page: string) {
         const pageNumber = parseInt(page, 10) || 1;
         const pageSize = 10;
@@ -36,7 +57,7 @@ export class PaymentsService {
             throw new BadRequestException('No company found. Please create a company first.');
         }
 
-        const receipts = await prisma.receipt.findMany({
+        const payments = await prisma.payment.findMany({
             skip,
             take: pageSize,
             orderBy: {
@@ -54,9 +75,9 @@ export class PaymentsService {
             },
         });
 
-        const totalReceipts = await prisma.receipt.count();
+        const totalPayments = await prisma.payment.count();
 
-        const receiptsWithPM = await Promise.all(receipts.map(async (r: any) => {
+        const paymentsWithPM = await Promise.all(payments.map(async (r: any) => {
             if (r.paymentMethodId) {
                 const pm = await prisma.paymentMethod.findUnique({ where: { id: r.paymentMethodId } });
                 return { ...r, paymentMethod: pm ?? r.paymentMethod };
@@ -64,12 +85,12 @@ export class PaymentsService {
             return r;
         }));
 
-        return { pageCount: Math.ceil(totalReceipts / pageSize), payments: receiptsWithPM };
+        return { pageCount: Math.ceil(totalPayments / pageSize), payments: paymentsWithPM };
     }
 
     async searchPayments(query: string) {
         if (!query) {
-            const results = await prisma.receipt.findMany({
+            const results = await prisma.payment.findMany({
                 take: 10,
                 orderBy: {
                     number: 'asc',
@@ -96,7 +117,7 @@ export class PaymentsService {
             return resultsWithPM;
         }
 
-        const results = await prisma.receipt.findMany({
+        const results = await prisma.payment.findMany({
             where: {
                 OR: [
                     { invoice: { quote: { title: { contains: query } } } },
@@ -129,7 +150,7 @@ export class PaymentsService {
         return resultsWithPM;
     }
 
-    private async checkInvoiceAfterReceipt(invoiceId: string) {
+    private async checkInvoiceAfterPayment(invoiceId: string) {
         const invoice = await prisma.invoice.findUnique({
             where: { id: invoiceId }
         });
@@ -140,12 +161,12 @@ export class PaymentsService {
         }
 
         if (invoice.status !== 'PAID') {
-            const receipts = await prisma.receipt.findMany({
+            const payments = await prisma.payment.findMany({
                 where: { invoiceId },
                 select: { totalPaid: true },
             });
 
-            const totalPaid = receipts.reduce((sum, receipt) => sum + receipt.totalPaid, 0);
+            const totalPaid = payments.reduce((sum, payment) => sum + payment.totalPaid, 0);
             if (totalPaid >= invoice.totalTTC) {
                 await prisma.invoice.update({
                     where: { id: invoiceId },
@@ -175,7 +196,7 @@ export class PaymentsService {
             throw new BadRequestException('Invoice not found');
         }
 
-        const receipt = await prisma.receipt.create({
+        const payment = await prisma.payment.create({
             data: {
                 invoiceId: body.invoiceId,
                 items: {
@@ -194,22 +215,18 @@ export class PaymentsService {
             },
         });
 
-        await this.checkInvoiceAfterReceipt(invoice.id);
+        await this.checkInvoiceAfterPayment(invoice.id);
 
-        try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.RECEIPT_CREATED, {
-                receipt,
-                invoice,
-                client: invoice.client,
-                company: invoice.company,
-            });
-        } catch (error) {
-            this.logger.error('Failed to dispatch RECEIPT_CREATED webhook', error);
-        }
+        await this.dispatchPaymentEvent(WebhookEvent.PAYMENT_CREATED, WebhookEvent.RECEIPT_CREATED, {
+            payment,
+            invoice,
+            client: invoice.client,
+            company: invoice.company,
+        });
 
-        logger.info('Payment created', { category: 'payment', details: { receiptId: receipt.id, companyId: invoice.company?.id } });
+        logger.info('Payment created', { category: 'payment', details: { paymentId: payment.id, companyId: invoice.company?.id } });
 
-        return receipt;
+        return payment;
     }
 
     async createPaymentFromInvoice(invoiceId: string) {
@@ -227,7 +244,7 @@ export class PaymentsService {
         }
 
         const discountFactor = 1 - clampDiscountRate(invoice.discountRate) / 100;
-        const newReceipt = await this.createPayment({
+        const newPayment = await this.createPayment({
             invoiceId: invoice.id,
             items: invoice.items.map(item => {
                 const vatMultiplier = 1 + (item.vatRate || 0) / 100;
@@ -243,40 +260,36 @@ export class PaymentsService {
             paymentDetails: invoice.paymentDetails || '',
         });
 
-        try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.RECEIPT_CREATED_FROM_INVOICE, {
-                receipt: newReceipt,
-                invoice,
-                client: invoice.client,
-                company: invoice.company,
-            });
-        } catch (error) {
-            this.logger.error('Failed to dispatch RECEIPT_CREATED_FROM_INVOICE webhook', error);
-        }
+        await this.dispatchPaymentEvent(WebhookEvent.PAYMENT_CREATED_FROM_INVOICE, WebhookEvent.RECEIPT_CREATED_FROM_INVOICE, {
+            payment: newPayment,
+            invoice,
+            client: invoice.client,
+            company: invoice.company,
+        });
 
-        logger.info('Payment created from invoice', { category: 'payment', details: { receiptId: newReceipt.id, invoiceId } });
+        logger.info('Payment created from invoice', { category: 'payment', details: { paymentId: newPayment.id, invoiceId } });
 
-        return newReceipt;
+        return newPayment;
     }
 
     async editPayment(body: EditPaymentDto) {
-        const existingReceipt = await prisma.receipt.findUnique({
+        const existingPayment = await prisma.payment.findUnique({
             where: { id: body.id },
             include: {
                 items: true,
             },
         });
 
-        if (!existingReceipt) {
-            logger.error('Payment not found', { category: 'payment', details: { receiptId: body.id } });
+        if (!existingPayment) {
+            logger.error('Payment not found', { category: 'payment', details: { paymentId: body.id } });
             throw new BadRequestException('Payment not found');
         }
 
-        const updatedReceipt = await prisma.receipt.update({
-            where: { id: existingReceipt.id },
+        const updatedPayment = await prisma.payment.update({
+            where: { id: existingPayment.id },
             data: {
                 items: {
-                    deleteMany: { receiptId: existingReceipt.id },
+                    deleteMany: { paymentId: existingPayment.id },
                     createMany: {
                         data: body.items.map(item => ({
                             id: randomUUID(),
@@ -301,26 +314,22 @@ export class PaymentsService {
             },
         });
 
-        await this.checkInvoiceAfterReceipt(existingReceipt.invoiceId);
+        await this.checkInvoiceAfterPayment(existingPayment.invoiceId);
 
-        try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.RECEIPT_UPDATED, {
-                receipt: updatedReceipt,
-                invoice: updatedReceipt.invoice,
-                client: updatedReceipt.invoice.client,
-                company: updatedReceipt.invoice.company,
-            });
-        } catch (error) {
-            this.logger.error('Failed to dispatch RECEIPT_UPDATED webhook', error);
-        }
+        await this.dispatchPaymentEvent(WebhookEvent.PAYMENT_UPDATED, WebhookEvent.RECEIPT_UPDATED, {
+            payment: updatedPayment,
+            invoice: updatedPayment.invoice,
+            client: updatedPayment.invoice.client,
+            company: updatedPayment.invoice.company,
+        });
 
-        logger.info('Payment updated', { category: 'payment', details: { receiptId: updatedReceipt.id } });
+        logger.info('Payment updated', { category: 'payment', details: { paymentId: updatedPayment.id } });
 
-        return updatedReceipt;
+        return updatedPayment;
     }
 
     async deletePayment(id: string) {
-        const existingReceipt = await prisma.receipt.findUnique({
+        const existingPayment = await prisma.payment.findUnique({
             where: { id },
             include: {
                 items: true,
@@ -333,39 +342,35 @@ export class PaymentsService {
             }
         });
 
-        if (!existingReceipt) {
-            logger.error('Payment not found', { category: 'payment', details: { receiptId: id } });
+        if (!existingPayment) {
+            logger.error('Payment not found', { category: 'payment', details: { paymentId: id } });
             throw new BadRequestException('Payment not found');
         }
 
-        await prisma.receiptItem.deleteMany({
-            where: { receiptId: id },
+        await prisma.paymentItem.deleteMany({
+            where: { paymentId: id },
         });
 
-        await prisma.receipt.delete({
+        await prisma.payment.delete({
             where: { id },
         });
 
-        await this.checkInvoiceAfterReceipt(existingReceipt.invoiceId);
+        await this.checkInvoiceAfterPayment(existingPayment.invoiceId);
 
-        try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.RECEIPT_DELETED, {
-                receipt: existingReceipt,
-                invoice: existingReceipt.invoice,
-                client: existingReceipt.invoice.client,
-                company: existingReceipt.invoice.company,
-            });
-        } catch (error) {
-            this.logger.error('Failed to dispatch RECEIPT_DELETED webhook', error);
-        }
+        await this.dispatchPaymentEvent(WebhookEvent.PAYMENT_DELETED, WebhookEvent.RECEIPT_DELETED, {
+            payment: existingPayment,
+            invoice: existingPayment.invoice,
+            client: existingPayment.invoice.client,
+            company: existingPayment.invoice.company,
+        });
 
-        logger.info('Payment deleted', { category: 'payment', details: { receiptId: id } });
+        logger.info('Payment deleted', { category: 'payment', details: { paymentId: id } });
 
         return { message: 'Payment deleted successfully' };
     }
 
     async getPaymentPdf(paymentId: string): Promise<Uint8Array> {
-        const receipt = await prisma.receipt.findUnique({
+        const payment = await prisma.payment.findUnique({
             where: { id: paymentId },
             include: {
                 items: true,
@@ -381,16 +386,16 @@ export class PaymentsService {
             },
         });
 
-        if (!receipt) {
+        if (!payment) {
             logger.error('Payment not found', { category: 'payment', details: { paymentId } });
             throw new BadRequestException('Payment not found');
         }
 
-        const { pdfConfig } = receipt.invoice.company;
+        const { pdfConfig } = payment.invoice.company;
         const template = Handlebars.compile(baseTemplate);
 
-        if (receipt.invoice.client.name.length == 0) {
-            receipt.invoice.client.name = receipt.invoice.client.contactFirstname + " " + receipt.invoice.client.contactLastname
+        if (payment.invoice.client.name.length == 0) {
+            payment.invoice.client.name = payment.invoice.client.contactFirstname + " " + payment.invoice.client.contactLastname
         }
 
         const paymentMethodLabels: Record<string, string> = {
@@ -401,11 +406,11 @@ export class PaymentsService {
             OTHER: pdfConfig.paymentMethodOther,
         };
 
-        let paymentMethodName = receipt.paymentMethod;
-        let paymentDetails = receipt.paymentDetails;
+        let paymentMethodName = payment.paymentMethod;
+        let paymentDetails = payment.paymentDetails;
 
-        if (receipt.paymentMethodId) {
-            const pm = await prisma.paymentMethod.findUnique({ where: { id: receipt.paymentMethodId } });
+        if (payment.paymentMethodId) {
+            const pm = await prisma.paymentMethod.findUnique({ where: { id: payment.paymentMethodId } });
             if (pm) {
                 paymentMethodName = paymentMethodLabels[pm.type as string] || pm.type;
                 paymentDetails = pm.details || paymentDetails;
@@ -424,31 +429,31 @@ export class PaymentsService {
             PRODUCT: pdfConfig.product,
         };
 
-        const normalizedDiscountRate = clampDiscountRate(receipt.invoice.discountRate);
+        const normalizedDiscountRate = clampDiscountRate(payment.invoice.discountRate);
         const discountFactor = 1 - normalizedDiscountRate / 100;
-        let totalBeforeDiscount = receipt.totalPaid;
-        if (discountFactor > 0 && discountFactor < 1 && receipt.items.length > 0) {
-            totalBeforeDiscount = receipt.items.reduce((sum, item) => sum + (item.amountPaid / discountFactor), 0);
+        let totalBeforeDiscount = payment.totalPaid;
+        if (discountFactor > 0 && discountFactor < 1 && payment.items.length > 0) {
+            totalBeforeDiscount = payment.items.reduce((sum, item) => sum + (item.amountPaid / discountFactor), 0);
         }
-        const discountAmountValue = Math.max(0, totalBeforeDiscount - receipt.totalPaid);
+        const discountAmountValue = Math.max(0, totalBeforeDiscount - payment.totalPaid);
         const hasDiscount = normalizedDiscountRate > 0 && discountAmountValue > 0;
 
         const html = template({
-            number: receipt.rawNumber || receipt.number.toString(),
-            paymentDate: formatDate(receipt.invoice.company, new Date()),
-            invoiceNumber: receipt.invoice?.rawNumber || receipt.invoice?.number?.toString() || '',
-            client: receipt.invoice.client,
-            company: receipt.invoice.company,
-            currency: receipt.invoice.currency,
+            number: payment.rawNumber || payment.number.toString(),
+            paymentDate: formatDate(payment.invoice.company, new Date()),
+            invoiceNumber: payment.invoice?.rawNumber || payment.invoice?.number?.toString() || '',
+            client: payment.invoice.client,
+            company: payment.invoice.company,
+            currency: payment.invoice.currency,
             paymentMethod: paymentMethodName,
-            totalAmount: receipt.totalPaid.toFixed(2),
+            totalAmount: payment.totalPaid.toFixed(2),
             totalBeforeDiscount: totalBeforeDiscount.toFixed(2),
             discountAmount: discountAmountValue.toFixed(2),
             discountRate: Number(normalizedDiscountRate.toFixed(2)),
             hasDiscount,
 
-            items: receipt.items.map(item => {
-                const invoiceItem = receipt.invoice.items.find(i => i.id === item.invoiceItemId);
+            items: payment.items.map(item => {
+                const invoiceItem = payment.invoice.items.find(i => i.id === item.invoiceItemId);
                 return {
                     description: invoiceItem?.description || 'N/A',
                     type: itemTypeLabels[invoiceItem?.type as string] || invoiceItem?.type || '',
@@ -465,7 +470,7 @@ export class PaymentsService {
             padding: pdfConfig.padding ?? 40,
 
             labels: {
-                receipt: pdfConfig.receipt,
+                payment: pdfConfig.payment,
                 paymentDate: pdfConfig.paymentDate,
                 receivedFrom: pdfConfig.receivedFrom,
                 invoiceRefer: pdfConfig.invoiceRefer,
@@ -484,7 +489,7 @@ export class PaymentsService {
                 product: pdfConfig.product
             },
 
-            vatExemptText: receipt.invoice.company.exemptVat && (receipt.invoice.company.country || '').toUpperCase() === 'FRANCE' ? 'TVA non applicable, art. 293 B du CGI' : null,
+            vatExemptText: payment.invoice.company.exemptVat && (payment.invoice.company.country || '').toUpperCase() === 'FRANCE' ? 'TVA non applicable, art. 293 B du CGI' : null,
         });
 
         const pdfBuffer = await getPDF(html);
@@ -493,7 +498,7 @@ export class PaymentsService {
 
 
     async sendPaymentByEmail(id: string) {
-        const receipt = await prisma.receipt.findUnique({
+        const payment = await prisma.payment.findUnique({
             where: { id },
             include: {
                 invoice: {
@@ -505,7 +510,7 @@ export class PaymentsService {
             },
         });
 
-        if (!receipt || !receipt.invoice || !receipt.invoice.client) {
+        if (!payment || !payment.invoice || !payment.invoice.client) {
             logger.error('Payment or associated invoice/client not found', { category: 'payment', details: { id } });
             throw new BadRequestException('Payment or associated invoice/client not found');
         }
@@ -513,7 +518,7 @@ export class PaymentsService {
         const pdfBuffer = await this.getPaymentPdf(id);
 
         const mailTemplate = await prisma.mailTemplate.findFirst({
-            where: { type: 'RECEIPT' },
+            where: { type: 'PAYMENT' },
             select: { subject: true, body: true }
         });
 
@@ -522,24 +527,27 @@ export class PaymentsService {
             throw new BadRequestException('Email template for payment not found.');
         }
 
+        const paymentNumber = payment.rawNumber || payment.number.toString();
         const envVariables = {
             APP_URL: process.env.APP_URL,
-            RECEIPT_NUMBER: receipt.rawNumber || receipt.number.toString(),
-            COMPANY_NAME: receipt.invoice.company.name,
-            CLIENT_NAME: receipt.invoice.client.name,
+            PAYMENT_NUMBER: paymentNumber,
+            // Deprecated alias kept so legacy templates using {{RECEIPT_NUMBER}} keep working
+            RECEIPT_NUMBER: paymentNumber,
+            COMPANY_NAME: payment.invoice.company.name,
+            CLIENT_NAME: payment.invoice.client.name,
         };
 
-        if (!receipt.invoice.client.contactEmail) {
+        if (!payment.invoice.client.contactEmail) {
             logger.error('Client has no email configured; payment not sent', { category: 'payment', details: { id } });
             throw new BadRequestException('Client has no email configured; payment not sent');
         }
 
         const mailOptions = {
-            to: receipt.invoice.client.contactEmail,
+            to: payment.invoice.client.contactEmail,
             subject: mailTemplate.subject.replace(/{{(\w+)}}/g, (_, key) => envVariables[key] || ''),
             html: mailTemplate.body.replace(/{{(\w+)}}/g, (_, key) => envVariables[key] || ''),
             attachments: [{
-                filename: `payment-${receipt.rawNumber || receipt.number}.pdf`,
+                filename: `payment-${payment.rawNumber || payment.number}.pdf`,
                 content: pdfBuffer,
                 contentType: 'application/pdf',
             }],

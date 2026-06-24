@@ -517,7 +517,7 @@
             "messages": {
                 "markAsPaidSuccess": "Invoice marked as paid successfully",
                 "markAsPaidError": "Failed to mark invoice as paid",
-                "createReceiptSuccess": "Receipt created successfully from invoice",
+                "createPaymentSuccess": "Payment created successfully from invoice",
                 "sendByEmailSuccess": "Invoice has been sent to customer",
                 "archiveSuccess": "Invoice archived successfully",
                 "archiveError": "Failed to archive invoice"
