@@ -352,7 +352,7 @@ model Client {
   foundedAt        DateTime? // Date when the client company was founded
   contactFirstname String?
   contactLastname  String?
-  contactEmail     String?            @unique
+  contactEmail     String?
   contactPhone     String?
   address          String
   addressLine2     String? // Second line for address (apartment, suite, etc.)
