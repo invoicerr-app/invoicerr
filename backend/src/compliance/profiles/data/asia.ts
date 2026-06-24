@@ -1,5 +1,5 @@
 import { CountryComplianceProfile } from '../schema';
-import { clearance, planned, realTime, vat } from '../archetypes';
+import { clearance, gst, peppolCtc, planned, postAudit, realTime, vat } from '../archetypes';
 
 /** Asia / South Asia. Mix of national clearance and real-time reporting. */
 export const ASIA_PROFILES: CountryComplianceProfile[] = [
@@ -12,4 +12,12 @@ export const ASIA_PROFILES: CountryComplianceProfile[] = [
   realTime('BD', 'Bangladesh', { syntax: 'BD_NBR', providerId: 'bd-nbr', tax: vat(15) }), // NBR
   realTime('PK', 'Pakistan', { syntax: 'PK_FBR', providerId: 'pk-fbr', tax: vat(18) }), // FBR XIR
   planned('LK', 'Sri Lanka', { tax: vat(18) }),
+
+  // --- Majors added with the dev docs merge (catch-all format/channel until dedicated stubs) ---
+  clearance('CN', 'China', { tax: vat(13, [9, 6]) }), // fully digitalized e-fapiao
+  clearance('IN', 'India', { tax: gst(18, [28, 12, 5]) }), // IRN / IRP clearance + e-way
+  clearance('VN', 'Vietnam', { tax: vat(10, [8, 5]) }), // GDT clearance
+  clearance('MY', 'Malaysia', { from: '2024-08-01', tax: vat(8) }), // MyInvois (SST — placeholder rate)
+  peppolCtc('SG', 'Singapore', { ctcFrom: '2025-11-01', tax: gst(9) }), // InvoiceNow (Peppol 5-corner)
+  postAudit('JP', 'Japan', { tax: vat(10, [8]) }), // qualified invoice; Peppol JP PINT (consumption tax)
 ];

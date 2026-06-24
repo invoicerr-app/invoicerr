@@ -10,6 +10,7 @@ import { LATAM_PROFILES } from './latam';
 import { MENA_PROFILES } from './mena';
 import { AFRICA_PROFILES } from './africa';
 import { ASIA_PROFILES } from './asia';
+import { REST_PROFILES } from './rest';
 
 /** Hand-written profiles with richer, verified specifics (OFFICIAL confidence). */
 export const BESPOKE_PROFILES: CountryComplianceProfile[] = [FR, US, MX, IT, PL, MC];
@@ -25,5 +26,6 @@ export const ALL_PROFILES: CountryComplianceProfile[] = [
   ...MENA_PROFILES,
   ...AFRICA_PROFILES,
   ...ASIA_PROFILES,
+  ...REST_PROFILES,
   ...BESPOKE_PROFILES, // last so they override archetype-built duplicates
 ];

@@ -9,7 +9,7 @@ import { defaultRegistry } from './registry';
  */
 const docsDir = resolvePath(__dirname, '../../../../docs/compliance');
 const codes = readdirSync(docsDir)
-  .filter((f) => f.endsWith('.md'))
+  .filter((f) => /^[A-Za-z]{2}-/.test(f)) // country files like "FR-France.md"; skips README.md etc.
   .map((f) => f.split('-')[0].toUpperCase());
 
 describe('Country coverage', () => {

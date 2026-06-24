@@ -13,4 +13,8 @@ export const MENA_PROFILES: CountryComplianceProfile[] = [
   planned('KW', 'Kuwait', { tax: noTax() }), // no VAT yet
   planned('DZ', 'Algeria', { tax: vat(19, [9]) }),
   planned('MA', 'Morocco', { tax: vat(20, [14, 10, 7]) }),
+
+  // --- Added with the dev docs merge ---
+  clearance('TR', 'Turkey', { tax: vat(20, [10, 1]) }), // GİB e-Fatura / e-Arşiv
+  clearance('EG', 'Egypt', { from: '2020-11-01', tax: vat(14) }), // ETA e-invoice + e-receipt
 ];

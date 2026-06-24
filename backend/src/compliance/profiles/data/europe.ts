@@ -1,5 +1,5 @@
 import { CountryComplianceProfile } from '../schema';
-import { clearance, noMandate, peppolCtc, planned, postAudit, realTime, vat } from '../archetypes';
+import { clearance, noMandate, peppolCtc, periodic, planned, postAudit, realTime, vat } from '../archetypes';
 
 /**
  * Europe (EU + EEA + Balkans + microstates), excluding the bespoke FR/IT/PL/MC profiles.
@@ -39,4 +39,17 @@ export const EUROPE_PROFILES: CountryComplianceProfile[] = [
   // --- Microstates with special channels ---
   clearance('SM', 'San Marino', { syntax: 'FATTURAPA', channel: 'SDI', tax: vat(0), signed: false }), // monofase via SdI
   noMandate('VA', 'Vatican City', { tax: vat(0) }),
+
+  // --- Majors/EEA added with the dev docs merge (78→106 country specs) ---
+  postAudit('AT', 'Austria', { tax: vat(20, [13, 10]) }), // B2G mandatory, B2B voluntary
+  peppolCtc('BE', 'Belgium', { ctcFrom: '2026-01-01', tax: vat(21, [12, 6]) }), // B2B mandate Jan 2026 (Peppol)
+  postAudit('NL', 'Netherlands', { tax: vat(21, [9]) }), // Peppol, voluntary B2B
+  postAudit('SE', 'Sweden', { tax: vat(25, [12, 6]) }), // Peppol/SFTI, B2G mandatory
+  postAudit('NO', 'Norway', { tax: vat(25, [15, 12]) }), // EEA; EHF/Peppol + SAF-T
+  noMandate('CH', 'Switzerland', { tax: vat(8.1, [3.8, 2.6]) }), // no e-invoicing mandate (QR-bill domestic)
+  periodic('PT', 'Portugal', { tax: vat(23, [13, 6]) }), // SAF-T PT + ATCUD/QR ("smart invoice")
+  realTime('GR', 'Greece', { from: '2021-01-01', tax: vat(24, [13, 6]) }), // myDATA
+  realTime('HU', 'Hungary', { from: '2018-07-01', tax: vat(27, [18, 5]) }), // Online Számla (RTIR)
+  clearance('RO', 'Romania', { from: '2024-01-01', tax: vat(19, [9, 5]) }), // RO e-Factura (SPV)
+  clearance('RS', 'Serbia', { tax: vat(20, [10]) }), // SEF clearance
 ];
