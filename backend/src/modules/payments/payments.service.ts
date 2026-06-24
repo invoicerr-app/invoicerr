@@ -233,7 +233,7 @@ export class PaymentsService {
         return payment;
     }
 
-    async createPaymentFromInvoice(invoiceId: string, amount?: number) {
+    async createPaymentFromInvoice(invoiceId: string, amount?: number, items?: { invoiceItemId: string; amountPaid: number | string }[]) {
         const invoice = await prisma.invoice.findUnique({
             where: { id: invoiceId },
             include: {
@@ -247,12 +247,16 @@ export class PaymentsService {
             throw new BadRequestException('Invoice not found');
         }
 
-        const discountFactor = 1 - clampDiscountRate(invoice.discountRate) / 100;
-        const targetAmount = amount ?? invoice.totalTTC;
-        const ratio = invoice.totalTTC > 0 ? targetAmount / invoice.totalTTC : 0;
-        const newPayment = await this.createPayment({
-            invoiceId: invoice.id,
-            items: invoice.items.map(item => {
+        // Use explicit per-item amounts when provided (e.g. edited in the dialog),
+        // otherwise distribute the target amount proportionally across the items.
+        let paymentItems: { invoiceItemId: string; amountPaid: number | string }[];
+        if (items && items.length > 0) {
+            paymentItems = items.map(item => ({ invoiceItemId: item.invoiceItemId, amountPaid: (+item.amountPaid).toFixed(2) }));
+        } else {
+            const discountFactor = 1 - clampDiscountRate(invoice.discountRate) / 100;
+            const targetAmount = amount ?? invoice.totalTTC;
+            const ratio = invoice.totalTTC > 0 ? targetAmount / invoice.totalTTC : 0;
+            paymentItems = invoice.items.map(item => {
                 const vatMultiplier = 1 + (item.vatRate || 0) / 100;
                 const discountedBase = item.quantity * item.unitPrice * discountFactor;
                 const amountPaid = discountedBase * vatMultiplier * ratio;
@@ -260,7 +264,12 @@ export class PaymentsService {
                     invoiceItemId: item.id,
                     amountPaid: amountPaid.toFixed(2),
                 };
-            }),
+            });
+        }
+
+        const newPayment = await this.createPayment({
+            invoiceId: invoice.id,
+            items: paymentItems,
             paymentMethodId: invoice.paymentMethodId || undefined,
             paymentMethod: invoice.paymentMethod || '',
             paymentDetails: invoice.paymentDetails || '',

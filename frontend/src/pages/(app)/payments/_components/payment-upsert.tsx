@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import type { Invoice, PaymentMethod, Payment } from "@/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { usePatch, usePost } from "@/hooks/use-fetch"
 import { useInvoiceSearch, usePaymentMethods } from "@/hooks/queries"
 import { queryKeys } from "@/lib/query-keys"
@@ -17,6 +17,7 @@ import { DatePicker } from "@/components/date-picker"
 import { InvoiceStatus, PaymentMethodType } from "@/types"
 import { PaymentBreakdown } from "@/components/payment-breakdown"
 import SearchSelect from "@/components/search-input"
+import type { DistributedItem } from "@/lib/payment-distribution"
 import { distributePayment } from "@/lib/payment-distribution"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -37,6 +38,9 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
     const [clientDialogOpen, setClientDialogOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState("")
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
+    const [items, setItems] = useState<DistributedItem[]>([])
+    // Bumped whenever items are recomputed from the total, to remount the editable inputs.
+    const [redistributeKey, setRedistributeKey] = useState(0)
 
     const initialAmount = payment?.items.reduce((sum, item) => sum + item.amountPaid, 0) ?? 0
 
@@ -74,6 +78,12 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                 amount: payment.items.reduce((sum, item) => sum + item.amountPaid, 0),
             })
             setSelectedInvoice(payment.invoice || null)
+            setItems(payment.items.map(item => ({
+                invoiceItemId: item.invoiceItemId,
+                description: payment.invoice?.items.find(invItem => invItem.id === item.invoiceItemId)?.description || "",
+                amountPaid: item.amountPaid,
+            })))
+            setRedistributeKey(k => k + 1)
         } else {
             form.reset({
                 invoiceId: "",
@@ -82,22 +92,36 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                 amount: 0,
             })
             setSelectedInvoice(null)
+            setItems([])
         }
     }, [payment, form, isEdit])
 
     const handleOpenChange = (open: boolean) => {
         if (!open) {
             setSelectedInvoice(null)
+            setItems([])
             form.reset()
         }
         onOpenChange(open)
     }
 
     const amount = form.watch("amount")
-    const items = useMemo(
-        () => (selectedInvoice ? distributePayment(selectedInvoice, Number(amount) || 0) : []),
-        [selectedInvoice, amount],
-    )
+
+    // Typing in the total redistributes proportionally across the invoice items.
+    const redistribute = (invoice: Invoice | null, total: number) => {
+        setItems(invoice ? distributePayment(invoice, total) : [])
+        setRedistributeKey(k => k + 1)
+    }
+
+    // Editing one item's amount makes the total the sum of all items.
+    const handleItemChange = (index: number, value: number) => {
+        setItems(prev => {
+            const next = prev.map((it, i) => (i === index ? { ...it, amountPaid: value } : it))
+            const sum = Math.round(next.reduce((s, it) => s + it.amountPaid, 0) * 100) / 100
+            form.setValue("amount", sum)
+            return next
+        })
+    }
 
     const onSubmit = (data: z.infer<typeof paymentSchema>) => {
         const trigger = isEdit ? updateTrigger : createTrigger
@@ -150,7 +174,7 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                                             <SearchSelect
                                                 options={invoiceList.map((invoice) => ({ label: invoice.rawNumber || invoice.number.toString(), value: invoice.id }))}
                                                 value={field.value ?? ""}
-                                                onValueChange={(val) => { field.onChange(val || null); setSelectedInvoice(invoiceList.find(inv => inv.id === val) || null); }}
+                                                onValueChange={(val) => { field.onChange(val || null); const inv = invoiceList.find(inv => inv.id === val) || null; setSelectedInvoice(inv); redistribute(inv, Number(form.getValues("amount")) || 0); }}
                                                 onSearchChange={setSearchTerm}
                                                 placeholder={t("payments.upsert.form.invoice.placeholder")}
                                                 noResultsText={t("payments.upsert.form.invoice.noResults")}
@@ -219,7 +243,11 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                                                 postAdornment={selectedInvoice?.currency || ""}
                                                 placeholder={t("payments.upsert.form.amount.placeholder")}
                                                 disabled={!selectedInvoice}
-                                                onChange={(e) => field.onChange(e.target.value === "" ? "" : Number.parseFloat(e.target.value))}
+                                                onChange={(e) => {
+                                                    const value = e.target.value === "" ? "" : Number.parseFloat(e.target.value)
+                                                    field.onChange(value)
+                                                    redistribute(selectedInvoice, Number(value) || 0)
+                                                }}
                                             />
                                         </FormControl>
                                         <FormMessage />
@@ -227,7 +255,13 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                                 )}
                             />
 
-                            <PaymentBreakdown items={items} currency={selectedInvoice?.currency} />
+                            <PaymentBreakdown
+                                items={items}
+                                currency={selectedInvoice?.currency}
+                                editable
+                                redistributeKey={redistributeKey}
+                                onItemChange={handleItemChange}
+                            />
 
                             {hasNegativeTotalError && (
                                 <p className="text-sm text-destructive mt-2">
