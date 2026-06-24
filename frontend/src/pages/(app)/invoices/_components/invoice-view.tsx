@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 import type { Invoice, PaymentMethod } from "@/types"
-import { PaymentMethodType } from "@/types"
+import { PaymentMethodType, getDisplayInvoiceStatus } from "@/types"
 import { format } from "date-fns"
 import { languageToLocale } from "@/lib/i18n"
 import { useTranslation } from "react-i18next"
@@ -22,7 +22,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
     const discountAmount = Math.max(0, subtotalBeforeDiscount - invoice.totalHT)
 
     const getStatusLabel = (status: string) => {
-        return t(`invoices.view.status.${status.toLowerCase()}`)
+        return t(`invoices.view.status.${getDisplayInvoiceStatus(status).toLowerCase()}`)
     }
 
     return (

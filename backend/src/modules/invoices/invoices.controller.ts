@@ -159,6 +159,22 @@ export class InvoicesController {
     return this.invoicesService.createInvoice(body);
   }
 
+  @Post('archive')
+  @ApiOperation({ summary: 'Archive invoice', description: 'Archives a paid invoice.' })
+  @ApiResponse({ status: 201, description: 'Invoice archived' })
+  @ApiBody({ schema: { type: 'object', properties: { invoiceId: { type: 'string', description: 'ID of the invoice to archive' } } } })
+  archiveInvoice(@Body('invoiceId') invoiceId: string) {
+    return this.invoicesService.archiveInvoice(invoiceId);
+  }
+
+  @Post('unarchive')
+  @ApiOperation({ summary: 'Unarchive invoice', description: 'Restores an archived invoice back to paid status.' })
+  @ApiResponse({ status: 201, description: 'Invoice unarchived' })
+  @ApiBody({ schema: { type: 'object', properties: { invoiceId: { type: 'string', description: 'ID of the invoice to unarchive' } } } })
+  unarchiveInvoice(@Body('invoiceId') invoiceId: string) {
+    return this.invoicesService.unarchiveInvoice(invoiceId);
+  }
+
   @Post('send')
   @ApiOperation({ summary: 'Send invoice by email', description: 'Sends an invoice as a PDF attachment via email to the client.' })
   @ApiResponse({ status: 201, description: 'Invoice sent' })

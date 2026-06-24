@@ -208,6 +208,7 @@ enum InvoiceStatus {
   UNPAID
   OVERDUE
   SENT
+  ARCHIVED
 }
 
 // Recurrence frequency

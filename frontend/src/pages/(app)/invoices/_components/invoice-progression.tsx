@@ -1,6 +1,6 @@
 import { FileText, Repeat } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { InvoiceStatus, type Invoice } from "@/types"
+import { InvoiceStatus, getDisplayInvoiceStatus, type Invoice } from "@/types"
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,7 @@ interface InvoiceProgressionProps {
     onResend?: (invoice: Invoice) => void
     onPaymentReceived?: (invoice: Invoice) => void
     onArchive?: (invoice: Invoice) => void
+    onUnarchive?: (invoice: Invoice) => void
     onViewInvoice?: (invoice: Invoice) => void
 }
 
@@ -32,19 +33,29 @@ interface PipelineStep {
     status?: InvoiceStatus
 }
 
-type ProgressionAction = "send" | "resend" | "paymentReceived" | "archive"
+type ProgressionAction = "send" | "resend" | "paymentReceived" | "archive" | "unarchive"
 
 const pipeline: PipelineStep[] = [
     { key: "draft", labelKey: "draft", exists: true, status: InvoiceStatus.DRAFT },
     { key: "sent", labelKey: "sent", exists: true, status: InvoiceStatus.SENT },
     { key: "paid", labelKey: "paid", exists: true, status: InvoiceStatus.PAID },
-    { key: "archived", labelKey: "archived", exists: false },
+    { key: "archived", labelKey: "archived", exists: true, status: InvoiceStatus.ARCHIVED },
 ]
 
+const stepColors: Record<string, { dot: string; text: string; bar: string }> = {
+    draft: { dot: "bg-slate-400", text: "text-slate-400", bar: "bg-slate-400" },
+    sent: { dot: "bg-blue-500", text: "text-blue-500", bar: "bg-blue-500" },
+    paid: { dot: "bg-emerald-500", text: "text-emerald-500", bar: "bg-emerald-500" },
+    archived: { dot: "bg-slate-400", text: "text-slate-400", bar: "bg-slate-400" },
+}
+
+const neutralColors = { dot: "bg-slate-400", text: "text-slate-400", bar: "bg-slate-400" }
+
 function getCurrentStepIndex(invoice: Invoice): number {
+    const displayStatus = getDisplayInvoiceStatus(invoice.status)
     for (let i = pipeline.length - 1; i >= 0; i--) {
         const step = pipeline[i]
-        if (step.exists && step.status === invoice.status) {
+        if (step.exists && step.status === displayStatus) {
             return i
         }
     }
@@ -53,7 +64,7 @@ function getCurrentStepIndex(invoice: Invoice): number {
 
 function getInvoiceActions(
     invoice: Invoice,
-    handlers: Pick<InvoiceProgressionProps, "onSend" | "onResend" | "onPaymentReceived" | "onArchive">,
+    handlers: Pick<InvoiceProgressionProps, "onSend" | "onResend" | "onPaymentReceived" | "onArchive" | "onUnarchive">,
 ): { action: ProgressionAction; label: string }[] {
     const currentStep = pipeline[getCurrentStepIndex(invoice)]
     if (!currentStep?.exists) return []
@@ -76,6 +87,10 @@ function getInvoiceActions(
             return handlers.onArchive
                 ? [{ action: "archive", label: "invoices.progression.actions.archive" }]
                 : []
+        case "archived":
+            return handlers.onUnarchive
+                ? [{ action: "unarchive", label: "invoices.progression.actions.unarchive" }]
+                : []
         default:
             return []
     }
@@ -87,10 +102,11 @@ export function InvoiceProgression({
     onResend,
     onPaymentReceived,
     onArchive,
+    onUnarchive,
     onViewInvoice,
 }: InvoiceProgressionProps) {
     const { t } = useTranslation()
-    const handlers = { onSend, onResend, onPaymentReceived, onArchive }
+    const handlers = { onSend, onResend, onPaymentReceived, onArchive, onUnarchive }
 
     const [confirmDialog, setConfirmDialog] = useState<{
         invoice: Invoice
@@ -113,6 +129,9 @@ export function InvoiceProgression({
                 break
             case "archive":
                 onArchive?.(invoice)
+                break
+            case "unarchive":
+                onUnarchive?.(invoice)
                 break
         }
         setConfirmDialog(null)
@@ -146,13 +165,19 @@ export function InvoiceProgression({
                         {invoices.map((invoice) => {
                             const currentIndex = getCurrentStepIndex(invoice)
                             const actions = getInvoiceActions(invoice, handlers)
+                            const currentStep = currentIndex >= 0 ? pipeline[currentIndex] : undefined
+                            const colors = currentStep ? stepColors[currentStep.key] ?? neutralColors : neutralColors
+                            const statusLabel = currentStep
+                                ? t(`invoices.progression.steps.${currentStep.labelKey}`)
+                                : t(`invoices.list.status.${invoice.status.toLowerCase()}`)
+                            const filledSteps = currentIndex >= 0 ? currentIndex + 1 : 0
 
                             return (
                                 <div
                                     key={invoice.id}
-                                    className="py-4 sm:py-6 px-4 sm:px-8 lg:px-12 grid grid-cols-1 lg:grid-cols-[200px_1fr_200px] items-center gap-3"
+                                    className="py-4 sm:py-5 px-4 sm:px-8 lg:px-12 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
                                 >
-                                    <div className="min-w-0">
+                                    <div className="min-w-0 sm:w-44 sm:flex-shrink-0">
                                         <button
                                             type="button"
                                             onClick={() => onViewInvoice?.(invoice)}
@@ -166,71 +191,44 @@ export function InvoiceProgression({
                                         </p>
                                     </div>
 
-                                    <div className="overflow-x-auto">
-                                        <div className="flex items-center justify-center min-w-max">
-                                            {pipeline.map((step, index) => {
-                                                const isPast = currentIndex > index
-                                                const isCurrent = currentIndex === index
-                                                const isFuture = currentIndex < index
-
-                                                return (
-                                                    <div key={step.key} className="flex items-center">
-                                                        <div
-                                                            className={cn(
-                                                                "relative flex items-center justify-center px-2.5 py-2 rounded-lg text-xs font-bold min-w-[84px] text-center uppercase tracking-wide transition-all",
-                                                                isPast &&
-                                                                    step.exists &&
-                                                                    "bg-emerald-500 text-white shadow-sm",
-                                                                isCurrent &&
-                                                                    step.exists &&
-                                                                    "bg-blue-600 text-white shadow-md ring-2 ring-blue-300 ring-offset-1",
-                                                                isFuture &&
-                                                                    step.exists &&
-                                                                    "bg-slate-200 text-slate-500",
-                                                                !step.exists &&
-                                                                    "text-slate-400 border border-dashed border-slate-300",
-                                                                !step.exists &&
-                                                                    isCurrent &&
-                                                                    "ring-2 ring-blue-300 ring-offset-1",
-                                                            )}
-                                                            style={
-                                                                !step.exists
-                                                                    ? {
-                                                                          background:
-                                                                              "repeating-linear-gradient(45deg, #cbd5e1, #cbd5e1 6px, #f1f5f9 6px, #f1f5f9 12px)",
-                                                                      }
-                                                                    : undefined
-                                                            }
-                                                        >
-                                                            {t(
-                                                                `invoices.progression.steps.${step.labelKey}`,
-                                                            )}
-                                                        </div>
-
-                                                        {index < pipeline.length - 1 && (
-                                                            <div
-                                                                className={cn(
-                                                                    "w-3 h-1 flex-shrink-0 rounded-full",
-                                                                    isPast || isCurrent
-                                                                        ? "bg-emerald-400"
-                                                                        : "bg-slate-200",
-                                                                )}
-                                                            />
-                                                        )}
-                                                    </div>
-                                                )
-                                            })}
+                                    <div className="flex-1 min-w-0 sm:max-w-md">
+                                        <div className="flex items-center justify-between gap-3 mb-2">
+                                            <span className={cn("inline-flex items-center gap-2 text-sm font-semibold", colors.text)}>
+                                                <span className={cn("h-2 w-2 rounded-full flex-shrink-0", colors.dot)} />
+                                                {statusLabel}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                                {t("invoices.progression.stepLabel", {
+                                                    current: filledSteps,
+                                                    total: pipeline.length,
+                                                })}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            {pipeline.map((step, index) => (
+                                                <div
+                                                    key={step.key}
+                                                    className={cn(
+                                                        "h-1.5 flex-1 rounded-full transition-colors",
+                                                        index < filledSteps ? colors.bar : "bg-muted",
+                                                    )}
+                                                />
+                                            ))}
                                         </div>
                                     </div>
 
-                                    <div className="flex justify-start lg:justify-end items-center gap-2 flex-wrap">
+                                    <div className="flex justify-start sm:justify-end items-center gap-2 flex-wrap sm:w-[210px] sm:flex-shrink-0">
                                         {actions.length > 0 ? (
-                                            actions.map((action) => (
+                                            actions.map((action, index) => (
                                                 <Button
                                                     key={action.action}
-                                                    variant="outline"
+                                                    variant={index === actions.length - 1 ? "default" : "outline"}
                                                     size="sm"
-                                                    className="h-8 text-xs px-3 whitespace-nowrap"
+                                                    className={cn(
+                                                        "h-8 text-xs px-3 whitespace-nowrap",
+                                                        index === actions.length - 1 &&
+                                                            "bg-blue-600 text-white hover:bg-blue-700",
+                                                    )}
                                                     onClick={() =>
                                                         setConfirmDialog({ invoice, action: action.action })
                                                     }

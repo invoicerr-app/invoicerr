@@ -33,6 +33,8 @@ export default function Invoices() {
 
     const { trigger: triggerSendInvoiceByEmail } = usePost(`/api/invoices/send`)
     const { trigger: triggerCreateReceipt } = usePost(`/api/receipts/create-from-invoice`)
+    const { trigger: triggerArchiveInvoice } = usePost(`/api/invoices/archive`)
+    const { trigger: triggerUnarchiveInvoice } = usePost(`/api/invoices/unarchive`)
 
     useEffect(() => {
         if (downloadInvoicePdf && pdf) {
@@ -140,9 +142,25 @@ export default function Invoices() {
     }
 
     const handleArchiveInvoice = (invoice: Invoice) => {
-        // TODO: implement archive endpoint
-        console.log("Archive invoice", invoice.id)
-        toast.info(t("invoices.progression.archiveNotImplemented"))
+        triggerArchiveInvoice({ invoiceId: invoice.id })
+            .then(() => {
+                toast.success(t("invoices.list.messages.archiveSuccess"))
+                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
+            })
+            .catch(() => {
+                toast.error(t("invoices.list.messages.archiveError"))
+            })
+    }
+
+    const handleUnarchiveInvoice = (invoice: Invoice) => {
+        triggerUnarchiveInvoice({ invoiceId: invoice.id })
+            .then(() => {
+                toast.success(t("invoices.list.messages.unarchiveSuccess"))
+                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
+            })
+            .catch(() => {
+                toast.error(t("invoices.list.messages.unarchiveError"))
+            })
     }
 
     const invoiceEmptyState = (
@@ -204,6 +222,7 @@ export default function Invoices() {
                     onResend={handleSendInvoice}
                     onPaymentReceived={handlePaymentReceived}
                     onArchive={handleArchiveInvoice}
+                    onUnarchive={handleUnarchiveInvoice}
                     onViewInvoice={setViewInvoiceDialog}
                     />
                     <InvoiceViewDialog
