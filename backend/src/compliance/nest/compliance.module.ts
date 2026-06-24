@@ -36,8 +36,12 @@ import { ComplianceController } from './compliance.controller';
       useFactory: (prisma: PrismaService) => new PrismaCallbackStore(prisma),
       inject: [PrismaService],
     },
-    // ApplySignalService (bridge)
-    ApplySignalService,
+    // ApplySignalService (bridge) — owns its own transaction-scoped Prisma stores internally.
+    {
+      provide: ApplySignalService,
+      useFactory: (prisma: PrismaService) => new ApplySignalService(prisma),
+      inject: [PrismaService],
+    },
     // Schedulers & Router
     {
       provide: PollScheduler,
