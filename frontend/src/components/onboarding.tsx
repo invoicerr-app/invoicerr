@@ -7,14 +7,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { Button } from "@/components/ui/button"
 import type { Company } from "@/types"
+import CountrySelect from "@/components/country-select"
 import CurrencySelect from "@/components/currency-select"
 import { DatePicker } from "@/components/date-picker"
 import { Input } from "@/components/ui/input"
+import { Loader2, Search } from "lucide-react"
 import { StepIndicator } from "./step-indicator"
 import { Switch } from "@/components/ui/switch"
 import { format } from "date-fns"
 import { toast } from "sonner"
 import { useForm } from "react-hook-form"
+import { useLookupSiret } from "@/hooks/use-lookup-siret"
+import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
 import { usePost } from "@/hooks/use-fetch"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -223,6 +227,21 @@ export default function OnBoarding({
     },
   })
 
+  const legalIdValue = form.watch("legalId")
+  const countryValue = form.watch("country")
+  const isFranceOrUnset = !countryValue || /^fr(ance)?$/i.test(countryValue.trim())
+
+  const { lookup: onLookupSiret, isLoading: siretLookupLoading } = useLookupSiret(form, {
+    messages: {
+      invalid: t("clients.upsert.messages.siretInvalid"),
+      notFound: t("clients.upsert.messages.siretNotFound"),
+      success: t("clients.upsert.messages.siretSuccess"),
+      error: t("clients.upsert.messages.siretError"),
+    },
+  })
+  useCountryToCurrency(form)
+  const isSiretLookupDisabled = siretLookupLoading || !legalIdValue || legalIdValue.replace(/\D/g, '').length !== 14
+
   async function onSubmit(values: z.infer<typeof companySchema>) {
     setIsLoading(true)
     try {
@@ -244,9 +263,9 @@ export default function OnBoarding({
   const getStepFields = (stepIndex: number): (keyof z.infer<typeof companySchema>)[] => {
     switch (stepIndex) {
       case 0:
-        return ["name", "description", "foundedAt", "currency", "legalId", "VAT"]
+        return ["name", "description", "foundedAt", "currency", "country", "legalId", "VAT"]
       case 1:
-        return ["address", "postalCode", "city", "country"]
+        return ["address", "postalCode", "city"]
       case 2:
         return ["phone", "email"]
       case 3:
@@ -339,20 +358,37 @@ export default function OnBoarding({
                       )}
                     />
 
-                    <FormField
-                      control={form.control}
-                      name="currency"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel required>{t("settings.company.form.currency.label")}</FormLabel>
-                          <FormControl>
-                            <CurrencySelect value={field.value} onChange={(value) => field.onChange(value)} data-cy="onboarding-company-currency-select" />
-                          </FormControl>
-                          <FormDescription>{t("settings.company.form.currency.description")}</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="country"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel required>{t("settings.company.form.country.label")}</FormLabel>
+                            <FormControl>
+                              <CountrySelect value={field.value} onChange={(value) => field.onChange(value)} data-cy="onboarding-company-country-input" />
+                            </FormControl>
+                            <FormDescription>{t("settings.company.form.country.description")}</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="currency"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel required>{t("settings.company.form.currency.label")}</FormLabel>
+                            <FormControl>
+                              <CurrencySelect value={field.value} onChange={(value) => field.onChange(value)} data-cy="onboarding-company-currency-select" />
+                            </FormControl>
+                            <FormDescription>{t("settings.company.form.currency.description")}</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
                     <FormField
                       control={form.control}
@@ -361,7 +397,22 @@ export default function OnBoarding({
                         <FormItem>
                           <FormLabel>{t("settings.company.form.legalId.label")}</FormLabel>
                           <FormControl>
-                            <Input placeholder={t("settings.company.form.legalId.placeholder")} {...field} data-cy="onboarding-company-legalid-input" />
+                            <div className="flex gap-2">
+                              <Input placeholder={t("settings.company.form.legalId.placeholder")} {...field} data-cy="onboarding-company-legalid-input" />
+                              {isFranceOrUnset && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  disabled={isSiretLookupDisabled}
+                                  onClick={() => onLookupSiret(legalIdValue)}
+                                  title={t("clients.upsert.actions.lookupSiret")}
+                                  data-cy="onboarding-company-siret-lookup"
+                                >
+                                  {siretLookupLoading ? <Loader2 className="animate-spin" /> : <Search />}
+                                </Button>
+                              )}
+                            </div>
                           </FormControl>
                           <FormDescription>{t("settings.company.form.legalId.description")}</FormDescription>
                           <FormMessage />
@@ -411,7 +462,7 @@ export default function OnBoarding({
                     )}
                   />
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
                       name="postalCode"
@@ -434,20 +485,6 @@ export default function OnBoarding({
                           <FormLabel required>{t("settings.company.form.city.label")}</FormLabel>
                           <FormControl>
                             <Input placeholder={t("settings.company.form.city.placeholder")} {...field} data-cy="onboarding-company-city-input" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="country"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel required>{t("settings.company.form.country.label")}</FormLabel>
-                          <FormControl>
-                            <Input placeholder={t("settings.company.form.country.placeholder")} {...field} data-cy="onboarding-company-country-input" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

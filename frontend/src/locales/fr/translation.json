@@ -1089,6 +1089,7 @@
                 "country": {
                     "label": "Pays",
                     "placeholder": "Saisir le pays",
+                    "description": "Utilisé pour déterminer la recherche d'entreprise disponible (ex. SIRET pour la France)",
                     "errors": {
                         "empty": "Le pays est requis"
                     }

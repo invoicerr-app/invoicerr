@@ -1085,6 +1085,7 @@
                 "country": {
                     "label": "Country",
                     "placeholder": "Enter country",
+                    "description": "Used to determine which company lookup is available (e.g. SIRET for France)",
                     "errors": {
                         "empty": "Country is required"
                     }

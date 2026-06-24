@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { authenticatedFetch, usePatch, usePost } from "@/hooks/use-fetch"
+import { usePatch, usePost } from "@/hooks/use-fetch"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 
@@ -12,10 +12,11 @@ import CurrencySelect from "@/components/currency-select"
 import { DatePicker } from "@/components/date-picker"
 import { Input } from "@/components/ui/input"
 import { Loader2, Search } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useForm } from "react-hook-form"
+import { useLookupSiret } from "@/hooks/use-lookup-siret"
+import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
 import { useTranslation } from "react-i18next"
-import { toast } from "sonner"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 
@@ -33,7 +34,6 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
 
     const { trigger: createClient } = usePost("/api/clients")
     const { trigger: updateClient } = usePatch(`/api/clients/${client?.id}`)
-    const [siretLookupLoading, setSiretLookupLoading] = useState(false)
 
     const clientSchema = z.object({
         type: z.enum(['INDIVIDUAL', 'COMPANY']),
@@ -166,45 +166,17 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
     const legalIdValue = form.watch("legalId")
     const countryValue = form.watch("country")
     const isFranceOrUnset = !countryValue || /^fr(ance)?$/i.test(countryValue.trim())
+
+    const { lookup: onLookupSiret, isLoading: siretLookupLoading } = useLookupSiret(form, {
+        messages: {
+            invalid: t("clients.upsert.messages.siretInvalid"),
+            notFound: t("clients.upsert.messages.siretNotFound"),
+            success: t("clients.upsert.messages.siretSuccess"),
+            error: t("clients.upsert.messages.siretError"),
+        },
+    })
+    useCountryToCurrency(form)
     const isSiretLookupDisabled = siretLookupLoading || !legalIdValue || legalIdValue.replace(/\D/g, '').length !== 14
-
-    const onLookupSiret = async () => {
-        const siret = (legalIdValue || '').replace(/\D/g, '')
-        if (siret.length !== 14) {
-            toast.error(t("clients.upsert.messages.siretInvalid"))
-            return
-        }
-
-        setSiretLookupLoading(true)
-        try {
-            const backendUrl = import.meta.env.VITE_BACKEND_URL || ''
-            const res = await authenticatedFetch(`${backendUrl}/api/sirene/siret/${siret}`)
-            if (!res.ok) throw new Error(`Sirene lookup failed with status ${res.status}`)
-
-            const { found, company } = await res.json()
-            if (!found || !company) {
-                toast.error(t("clients.upsert.messages.siretNotFound"))
-                return
-            }
-
-            if (company.name) form.setValue("name", company.name)
-            if (company.VAT) form.setValue("VAT", company.VAT)
-            if (company.address) form.setValue("address", company.address)
-            if (company.postalCode) form.setValue("postalCode", company.postalCode)
-            if (company.city) form.setValue("city", company.city)
-            if (company.state) form.setValue("state", company.state)
-            if (company.country) form.setValue("country", company.country)
-            if (company.foundedAt) form.setValue("foundedAt", new Date(company.foundedAt))
-            form.setValue("legalId", company.legalId || siret)
-
-            toast.success(t("clients.upsert.messages.siretSuccess"))
-        } catch (err) {
-            console.error(err)
-            toast.error(t("clients.upsert.messages.siretError"))
-        } finally {
-            setSiretLookupLoading(false)
-        }
-    }
 
     const onSubmit = (data: z.infer<typeof clientSchema>) => {
         const trigger = isEditing ? updateClient : createClient
@@ -348,7 +320,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                                                                 variant="outline"
                                                                 size="icon"
                                                                 disabled={isSiretLookupDisabled}
-                                                                onClick={onLookupSiret}
+                                                                onClick={() => onLookupSiret(legalIdValue)}
                                                                 title={t("clients.upsert.actions.lookupSiret")}
                                                                 dataCy="client-siret-lookup"
                                                             >
