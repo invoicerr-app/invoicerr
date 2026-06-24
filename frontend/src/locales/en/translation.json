@@ -822,6 +822,70 @@
             }
         }
     },
+    "articles": {
+        "title": "Articles",
+        "description": "Manage a reusable catalog of products and services.",
+        "empty": "No articles yet",
+        "actions": {
+            "cancel": "Cancel",
+            "add": "Add",
+            "save": "Save Changes",
+            "edit": "Edit",
+            "delete": "Delete",
+            "deleting": "Deleting..."
+        },
+        "search": {
+            "placeholder": "Search articles..."
+        },
+        "list": {
+            "add": "Add Article"
+        },
+        "picker": {
+            "placeholder": "Add from catalog...",
+            "noResults": "No articles found"
+        },
+        "fields": {
+            "name": {
+                "label": "Name",
+                "placeholder": "e.g. Web development hour"
+            },
+            "description": {
+                "label": "Description",
+                "placeholder": "Text inserted into the line item"
+            },
+            "type": {
+                "label": "Type",
+                "hour": "Hour",
+                "day": "Day",
+                "deposit": "Deposit",
+                "service": "Service",
+                "product": "Product"
+            },
+            "unitPrice": {
+                "label": "Unit price"
+            },
+            "vatRate": {
+                "label": "VAT (%)"
+            }
+        },
+        "upsert": {
+            "title": {
+                "create": "Add Article",
+                "edit": "Edit Article"
+            },
+            "messages": {
+                "addSuccess": "Article added",
+                "addError": "Failed to add article",
+                "updateSuccess": "Article updated",
+                "updateError": "Failed to update article",
+                "deleteSuccess": "Article deleted",
+                "deleteError": "Failed to delete article"
+            }
+        },
+        "delete": {
+            "description": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone."
+        }
+    },
     "paymentMethods": {
         "title": "Payment Methods",
         "description": "Manage reusable payment methods.",
@@ -1531,6 +1595,7 @@
             "invoices": "Invoices",
             "payments": "Payments",
             "clients": "Clients",
+            "articles": "Articles",
             "paymentMethods": "Payment Methods",
             "stats": "Statistics",
             "settings": "Settings"
