@@ -1,6 +1,5 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 
@@ -80,43 +79,35 @@ export default function OnBoarding({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t("settings.company.basicInfoDescription")}</CardTitle>
-                <CardDescription>{t("settings.company.description")}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel required>{t("settings.company.form.company.label")}</FormLabel>
-                      <FormControl>
-                        <Input placeholder={t("settings.company.form.company.placeholder")} {...field} data-cy="onboarding-company-name-input" />
-                      </FormControl>
-                      <FormDescription>{t("settings.company.form.company.description")}</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel required>{t("settings.company.form.company.label")}</FormLabel>
+                  <FormControl>
+                    <Input placeholder={t("settings.company.form.company.placeholder")} {...field} data-cy="onboarding-company-name-input" />
+                  </FormControl>
+                  <FormDescription>{t("settings.company.form.company.description")}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-                <FormField
-                  control={form.control}
-                  name="country"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel required>{t("settings.company.form.country.label")}</FormLabel>
-                      <FormControl>
-                        <CountrySelect value={field.value} onChange={(value) => field.onChange(value)} data-cy="onboarding-company-country-input" />
-                      </FormControl>
-                      <FormDescription>{t("settings.company.form.country.description")}</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
+            <FormField
+              control={form.control}
+              name="country"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel required>{t("settings.company.form.country.label")}</FormLabel>
+                  <FormControl>
+                    <CountrySelect value={field.value} onChange={(value) => field.onChange(value)} data-cy="onboarding-company-country-input" />
+                  </FormControl>
+                  <FormDescription>{t("settings.company.form.country.description")}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="flex justify-end pt-4">
               <Button type="submit" disabled={loading} data-cy="onboarding-submit-btn">
