@@ -2,11 +2,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEffect, useMemo, useState } from "react";
 
+import { TrendingUp } from "lucide-react";
 import YearPicker from "@/components/year-picker";
 import { useGet } from "@/hooks/use-fetch";
+import { usePageHeader } from "@/hooks/use-page-header";
 import { useTranslation } from "react-i18next";
+
+type StatsTab = "monthly" | "yearly";
 
 type MonthStat = { month: number; invoiced: number; revenue: number; deposits: number };
 type YearStat = { year: number; invoiced: number; revenue: number; deposits: number };
@@ -19,6 +24,9 @@ export default function StatsPage() {
   const [year, setYear] = useState<number>(currentYear);
   const [startYear, setStartYear] = useState<number>(currentYear - 5);
   const [endYear, setEndYear] = useState<number>(currentYear);
+  const [activeTab, setActiveTab] = useState<StatsTab>("monthly");
+
+  usePageHeader(t("stats.title"), <TrendingUp className="h-5 w-5 text-blue-600" />);
 
   const { data: monthlyData } = useGet<MonthlyResponse>(`/api/stats/monthly?year=${year}`);
   const { data: yearlyData } = useGet<YearlyResponse>(`/api/stats/yearly?start=${startYear}&end=${endYear}`);
@@ -83,13 +91,16 @@ export default function StatsPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 p-6">
-      <div className="flex items-center space-x-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t("stats.title")}</h1>
-          <p className="text-muted-foreground">{t("stats.description")}</p>
-        </div>
-      </div>
+      <p className="text-muted-foreground">{t("stats.description")}</p>
 
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as StatsTab)}>
+        <TabsList>
+          <TabsTrigger value="monthly">{t("stats.controls.tabs.monthly")}</TabsTrigger>
+          <TabsTrigger value="yearly">{t("stats.controls.tabs.yearly")}</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {activeTab === "monthly" && (
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -179,7 +190,9 @@ export default function StatsPage() {
           </CardContent>
         </Card>
       </section>
+      )}
 
+      {activeTab === "yearly" && (
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -274,6 +287,7 @@ export default function StatsPage() {
           </CardContent>
         </Card>
       </section>
+      )}
     </div>
   );
 }

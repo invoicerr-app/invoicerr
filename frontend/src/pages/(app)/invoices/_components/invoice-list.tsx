@@ -1,16 +1,21 @@
-import { Banknote, Code, Download, Edit, Eye, FileText, Mail, Plus, ReceiptText, Trash2 } from "lucide-react"
+import { Banknote, Code, Download, Edit, Eye, FileText, Mail, Plus, ReceiptText, Search, Trash2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react"
 import { useGet, useGetRaw, usePost } from "@/hooks/use-fetch"
+import { queryKeys } from "@/lib/query-keys"
+import { useQueryClient } from "@tanstack/react-query"
 
 import BetterPagination from "../../../../components/pagination"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import type { Invoice } from "@/types"
+import { Input } from "@/components/ui/input"
+import { InvoiceStatus, type Invoice } from "@/types"
 import { InvoiceDeleteDialog } from "./invoice-delete"
 import { InvoicePdfModal } from "./invoice-pdf-view"
 import { InvoiceUpsert } from "./invoice-upsert"
 import { InvoiceViewDialog } from "./invoice-view"
+import { SendConfirmationDialog } from "@/components/send-confirmation-dialog"
 import type React from "react"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
@@ -18,14 +23,20 @@ import { useTranslation } from "react-i18next"
 interface InvoiceListProps {
     invoices: Invoice[]
     loading: boolean
-    title: string
-    description: string
+    title?: string
+    description?: string
+    searchTerm?: string
+    onSearchChange?: (value: string) => void
+    statusFilter?: "sent" | "paid" | "unpaid"
+    onStatusFilterChange?: (value: "sent" | "paid" | "unpaid" | undefined) => void
+    statusCounts?: { sent: number; paid: number; unpaid: number }
     page?: number
     pageCount?: number
     setPage?: (page: number) => void
     mutate?: () => void
     emptyState: React.ReactNode
     showCreateButton?: boolean
+    onAddClick?: () => void
 }
 
 export interface InvoiceListHandle {
@@ -39,13 +50,14 @@ interface PluginPdfFormat {
 
 export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
     (
-        { invoices, loading, title, description, page, pageCount, setPage, mutate, emptyState, showCreateButton = false },
+        { invoices, loading, title, description, searchTerm, onSearchChange, statusFilter, onStatusFilterChange, statusCounts, page, pageCount, setPage, mutate, emptyState, showCreateButton = false, onAddClick },
         ref,
     ) => {
         const { t } = useTranslation()
+        const queryClient = useQueryClient()
         const { data: pdf_formats } = useGet<PluginPdfFormat[]>('/api/plugins/formats')
         const { trigger: triggerMarkAsPaid } = usePost(`/api/invoices/mark-as-paid`)
-        const { trigger: triggerSendInvoiceByEmail } = usePost(`/api/invoices/send`)
+        const { trigger: triggerSendInvoiceByEmail, loading: sendInvoiceByEmailLoading } = usePost(`/api/invoices/send`)
         const { trigger: triggerCreateReceipt } = usePost(`/api/receipts/create-from-invoice`)
 
         const [createInvoiceDialog, setCreateInvoiceDialog] = useState<boolean>(false)
@@ -53,6 +65,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         const [viewInvoiceDialog, setViewInvoiceDialog] = useState<Invoice | null>(null)
         const [viewInvoicePdfDialog, setViewInvoicePdfDialog] = useState<Invoice | null>(null)
         const [deleteInvoiceDialog, setDeleteInvoiceDialog] = useState<Invoice | null>(null)
+        const [sendInvoiceDialog, setSendInvoiceDialog] = useState<Invoice | null>(null)
         const [downloadTrigger, setDownloadTrigger] = useState<{
             invoice: Invoice
             format: string
@@ -61,7 +74,9 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         } | null>(null)
 
         const { data: file } = useGetRaw<Response>(
-            `/api/invoices/${downloadTrigger?.invoice?.id}/download/${downloadTrigger?.file_format}?format=${downloadTrigger?.format}`,
+            downloadTrigger
+                ? `/api/invoices/${downloadTrigger.invoice.id}/download/${downloadTrigger.file_format}?format=${downloadTrigger.format}`
+                : null,
         )
 
         useImperativeHandle(ref, () => ({
@@ -108,7 +123,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
             triggerMarkAsPaid({ invoiceId })
                 .then(() => {
                     toast.success(t("invoices.list.messages.markAsPaidSuccess"))
-                    mutate && mutate()
+                    queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 })
                 .catch((error) => {
                     console.error("Error marking invoice as paid:", error)
@@ -124,7 +139,8 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
             triggerCreateReceipt({ id: invoiceId })
                 .then(() => {
                     toast.success(t("invoices.list.messages.createReceiptSuccess"))
-                    mutate && mutate()
+                    queryClient.invalidateQueries({ queryKey: queryKeys.receipts.listsAll() })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 })
                 .catch((error) => {
                     console.error("Error creating receipt from invoice:", error)
@@ -142,6 +158,8 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                     return "bg-red-100 text-red-800"
                 case "PAID":
                     return "bg-green-100 text-green-800"
+                case "UPCOMING":
+                    return "bg-purple-100 text-purple-800"
                 default:
                     return "bg-gray-100 text-gray-800"
             }
@@ -151,9 +169,16 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
             return t(`invoices.list.status.${status.toLowerCase()}`)
         }
 
-        const handleSendInvoiceByEmail = (invoiceId: string) => {
-            triggerSendInvoiceByEmail({ id: invoiceId })
+        const handleSendInvoiceByEmail = (invoice: Invoice) => {
+            setSendInvoiceDialog(invoice)
+        }
+
+        const confirmSendInvoiceByEmail = () => {
+            if (!sendInvoiceDialog) return
+
+            triggerSendInvoiceByEmail({ id: sendInvoiceDialog.id })
                 .then((result) => {
+                    setSendInvoiceDialog(null)
                     if (result) {
                         toast.success(t("invoices.list.messages.sendByEmailSuccess"))
                     } else {
@@ -169,20 +194,68 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         return (
             <>
                 <Card className="gap-0">
-                    <CardHeader className="border-b flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle className="flex items-center space-x-2">
-                                <ReceiptText className="h-5 w-5 " />
-                                <span>{title}</span>
-                            </CardTitle>
-                            <CardDescription>{description}</CardDescription>
+                    <CardHeader className="border-b flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:justify-between">
+                        {title ? (
+                            <div>
+                                <CardTitle className="flex items-center space-x-2">
+                                    <ReceiptText className="h-5 w-5 " />
+                                    <span>{title}</span>
+                                </CardTitle>
+                                {description && <CardDescription>{description}</CardDescription>}
+                            </div>
+                        ) : onSearchChange ? (
+                            <div className="relative w-full sm:w-fit sm:flex-1 sm:max-w-sm">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <Input
+                                    placeholder={t("invoices.search.placeholder")}
+                                    value={searchTerm}
+                                    onChange={(e) => onSearchChange(e.target.value)}
+                                    className="pl-10 w-full"
+                                />
+                            </div>
+                        ) : null}
+                        <div className="flex items-center gap-2 sm:ml-auto">
+                            {onStatusFilterChange && (
+                                <div className="flex items-center gap-2">
+                                    <Badge
+                                        onClick={() => onStatusFilterChange(statusFilter === "sent" ? undefined : "sent")}
+                                        variant="outline"
+                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter === "sent"
+                                            ? "bg-yellow-500 text-white font-semibold shadow-sm scale-105"
+                                            : "bg-yellow-50 text-yellow-700/70 hover:bg-yellow-100"
+                                            }`}
+                                    >
+                                        {t("invoices.statusFilters.sent")} ({statusCounts?.sent ?? 0})
+                                    </Badge>
+                                    <Badge
+                                        onClick={() => onStatusFilterChange(statusFilter === "unpaid" ? undefined : "unpaid")}
+                                        variant="outline"
+                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter === "unpaid"
+                                            ? "bg-blue-600 text-white font-semibold shadow-sm scale-105"
+                                            : "bg-blue-50 text-blue-700/70 hover:bg-blue-100"
+                                            }`}
+                                    >
+                                        {t("invoices.statusFilters.unpaid")} ({statusCounts?.unpaid ?? 0})
+                                    </Badge>
+                                    <Badge
+                                        onClick={() => onStatusFilterChange(statusFilter === "paid" ? undefined : "paid")}
+                                        variant="outline"
+                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter === "paid"
+                                            ? "bg-green-600 text-white font-semibold shadow-sm scale-105"
+                                            : "bg-green-50 text-green-700/70 hover:bg-green-100"
+                                            }`}
+                                    >
+                                        {t("invoices.statusFilters.paid")} ({statusCounts?.paid ?? 0})
+                                    </Badge>
+                                </div>
+                            )}
+                            {showCreateButton && (
+                                <Button onClick={() => (onAddClick ? onAddClick() : setCreateInvoiceDialog(true))} dataCy="invoice-add-button">
+                                    <Plus className="h-4 w-4 mr-0 md:mr-2" />
+                                    <span className="hidden md:inline-flex">{t("invoices.list.actions.addNew")}</span>
+                                </Button>
+                            )}
                         </div>
-                        {showCreateButton && (
-                            <Button onClick={() => setCreateInvoiceDialog(true)}>
-                                <Plus className="h-4 w-4 mr-0 md:mr-2" />
-                                <span className="hidden md:inline-flex">{t("invoices.list.actions.addNew")}</span>
-                            </Button>
-                        )}
                     </CardHeader>
 
                     <CardContent className="p-0">
@@ -204,10 +277,14 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                 <div className="flex-1">
                                                     <div className="flex flex-wrap items-center gap-2">
                                                         <h3 className="font-medium text-foreground break-words">
-                                                            {t("invoices.list.item.title", {
-                                                                number: invoice.rawNumber || invoice.number,
-                                                                title: invoice.title,
-                                                            })}
+                                                            {invoice.status === InvoiceStatus.UPCOMING
+                                                                ? t("invoices.list.item.upcomingTitle", {
+                                                                    client: invoice.client.name || `${invoice.client.contactFirstname} ${invoice.client.contactLastname}`,
+                                                                })
+                                                                : t("invoices.list.item.title", {
+                                                                    number: invoice.rawNumber || invoice.number,
+                                                                    title: invoice.title,
+                                                                })}
                                                         </h3>
                                                         <span
                                                             data-cy="invoice-status"
@@ -222,14 +299,23 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                                 <span className="font-medium text-foreground">{t("invoices.list.item.client")}:</span>{" "}
                                                                 {invoice.client.name || invoice.client.contactFirstname + " " + invoice.client.contactLastname}
                                                             </span>
-                                                            <span>
-                                                                <span className="font-medium text-foreground">{t("invoices.list.item.issued")}:</span>{" "}
-                                                                {new Date(invoice.createdAt).toLocaleDateString()}
-                                                            </span>
-                                                            <span>
-                                                                <span className="font-medium text-foreground">{t("invoices.list.item.due")}:</span>{" "}
-                                                                {new Date(invoice.dueDate).toLocaleDateString()}
-                                                            </span>
+                                                            {invoice.status === InvoiceStatus.UPCOMING ? (
+                                                                <span>
+                                                                    <span className="font-medium text-foreground">{t("invoices.list.item.nextInvoiceDate")}:</span>{" "}
+                                                                    {new Date(invoice.dueDate).toLocaleDateString()}
+                                                                </span>
+                                                            ) : (
+                                                                <>
+                                                                    <span>
+                                                                        <span className="font-medium text-foreground">{t("invoices.list.item.issued")}:</span>{" "}
+                                                                        {new Date(invoice.createdAt).toLocaleDateString()}
+                                                                    </span>
+                                                                    <span>
+                                                                        <span className="font-medium text-foreground">{t("invoices.list.item.due")}:</span>{" "}
+                                                                        {new Date(invoice.dueDate).toLocaleDateString()}
+                                                                    </span>
+                                                                </>
+                                                            )}
                                                             {invoice.paymentMethod && (
                                                                 <span>
                                                                     <span className="font-medium text-foreground">
@@ -257,6 +343,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                 </div>
                                             </div>
 
+                                            {invoice.status !== InvoiceStatus.UPCOMING && (
                                             <div className="grid grid-cols-2 lg:flex justify-start sm:justify-end gap-1 md:gap-2">
                                                 <Button
                                                     tooltip={t("invoices.list.tooltips.view")}
@@ -355,7 +442,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                         tooltip={t("invoices.list.tooltips.sendByEmail")}
                                                         variant="ghost"
                                                         size="icon"
-                                                        onClick={() => { handleSendInvoiceByEmail(invoice.id) }}
+                                                        onClick={() => { handleSendInvoiceByEmail(invoice) }}
                                                         className="text-gray-600 hover:text-purple-600"
                                                     >
                                                         <Mail className="h-4 w-4" />
@@ -381,6 +468,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                         size="icon"
                                                         onClick={() => handleDelete(invoice)}
                                                         className="text-gray-600 hover:text-red-600"
+                                                        dataCy="invoice-delete-button"
                                                     >
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
@@ -396,6 +484,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                     <Plus className="h-4 w-4" />
                                                 </Button>
                                             </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -449,6 +538,21 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                         if (!open) setDeleteInvoiceDialog(null)
                         mutate && mutate()
                     }}
+                />
+
+                <SendConfirmationDialog
+                    open={sendInvoiceDialog != null}
+                    onOpenChange={(open: boolean) => {
+                        if (!open) setSendInvoiceDialog(null)
+                    }}
+                    title={t("invoices.sendConfirmation.title")}
+                    description={t("invoices.sendConfirmation.description")}
+                    email={sendInvoiceDialog?.client.contactEmail ?? ""}
+                    emailLabel={t("invoices.sendConfirmation.emailLabel")}
+                    confirmLabel={t("invoices.sendConfirmation.confirm")}
+                    cancelLabel={t("invoices.sendConfirmation.cancel")}
+                    onConfirm={confirmSendInvoiceByEmail}
+                    loading={sendInvoiceByEmailLoading}
                 />
             </>
         )

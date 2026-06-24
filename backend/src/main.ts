@@ -1,4 +1,8 @@
 import * as bodyParser from 'body-parser';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
 import { NestFactory } from '@nestjs/core';
@@ -17,6 +21,18 @@ async function bootstrap() {
     res.header('Access-Control-Expose-Headers', 'WWW-Authenticate');
     next();
   });
+
+  const { version } = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf-8'));
+
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Invoicerr API')
+    .setDescription('Authenticate with an API key (Settings > API Keys) via the Authorization: Bearer header or the X-Api-Key header.')
+    .setVersion(version)
+    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'API key' }, 'apiKey')
+    .build();
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, swaggerDocument);
+
   await app.listen(process.env.PORT || 3000);
 }
 bootstrap();

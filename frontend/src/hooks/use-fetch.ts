@@ -27,13 +27,19 @@ export async function authenticatedFetch(input: RequestInfo, init: RequestInit =
     return res;
 }
 
-export function useGetRaw<T = any>(url: string, options?: RequestInit): UseGetResult<T> {
+export function useGetRaw<T = any>(url: string | null, options?: RequestInit): UseGetResult<T> {
     const [data, setData] = useState<T | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
 
     useEffect(() => {
         let cancelled = false;
+        if (!url) {
+            setData(null);
+            setLoading(false);
+            setError(null);
+            return;
+        }
         setLoading(true);
 
         const fullUrl = url.startsWith("http") ? url : `${import.meta.env.VITE_BACKEND_URL || ''}${url}`;

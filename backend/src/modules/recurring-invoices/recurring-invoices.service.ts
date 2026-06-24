@@ -41,10 +41,8 @@ export class RecurringInvoicesService {
         }));
 
         return {
-            data: recurringInvoicesWithPM,
-            totalCount,
-            currentPage: page,
-            totalPages: Math.ceil(totalCount / pageSize),
+            pageCount: Math.ceil(totalCount / pageSize),
+            recurringInvoices: recurringInvoicesWithPM,
         };
     }
 

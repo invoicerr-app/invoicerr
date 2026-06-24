@@ -318,15 +318,6 @@ export class PluginsService {
     return await this.pluginRegistry.getProvidersByType<T>(type);
   }
 
-  /**
-   * Get the active provider by its ID
-   * @param id The plugin ID
-   * @returns The active provider or null
-   */
-  async getProviderById<T = IPlugin>(id: string): Promise<T | null> {
-    return await this.pluginRegistry.getProvider<T>(id);
-  }
-
   private getPluginTypeEnum(type: string): string {
     switch (type.toLowerCase()) {
       case 'signing':

@@ -4,14 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useTranslation } from "react-i18next";
-
-interface PaymentMethod {
-  id: string;
-  name: string;
-  details?: string;
-  type?: "BANK_TRANSFER" | "PAYPAL" | "CASH" | "OTHER";
-  isActive?: boolean;
-}
+import type { PaymentMethod } from "@/types";
 
 export function PaymentMethodViewDialog({
   paymentMethod,

@@ -1,23 +1,17 @@
-import { Controller, Get, Sse } from "@nestjs/common";
-import { from, interval, map, startWith, switchMap } from "rxjs";
+import { Controller, Get } from "@nestjs/common";
+import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 
 import { DashboardService } from "@/modules/dashboard/dashboard.service";
 
+@ApiTags('dashboard')
 @Controller('dashboard')
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) { }
 
   @Get()
-  async getDashboardInfo(): Promise<any> {
-    return await this.dashboardService.getDashboardData();
-  }
-
-  @Sse('sse')
-  async getDashboardInfoSse() {
-    return interval(5000).pipe(
-      startWith(0),
-      switchMap(() => from(this.dashboardService.getDashboardData())),
-      map((data) => ({ data: JSON.stringify(data) })),
-    );
+  @ApiOperation({ summary: 'Get dashboard summary', description: 'Returns aggregated dashboard data (counts, revenue, etc.).' })
+  @ApiResponse({ status: 200, description: 'Dashboard data retrieved' })
+  async getDashboardInfo() {
+    return this.dashboardService.getDashboardData();
   }
 }

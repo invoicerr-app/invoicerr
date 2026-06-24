@@ -10,6 +10,8 @@ import {
 import { Button } from "@/components/ui/button"
 import type { Invoice } from "@/types"
 import { useDelete } from "@/hooks/use-fetch"
+import { queryKeys } from "@/lib/query-keys"
+import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 
 interface InvoiceDeleteDialogProps {
@@ -19,6 +21,7 @@ interface InvoiceDeleteDialogProps {
 
 export function InvoiceDeleteDialog({ invoice, onOpenChange }: InvoiceDeleteDialogProps) {
     const { t } = useTranslation()
+    const queryClient = useQueryClient()
     const { trigger } = useDelete(`/api/invoices/${invoice?.id}`)
 
     const handleDelete = () => {
@@ -26,6 +29,7 @@ export function InvoiceDeleteDialog({ invoice, onOpenChange }: InvoiceDeleteDial
 
         trigger()
             .then(() => {
+                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 onOpenChange(false)
             })
             .catch((error) => {

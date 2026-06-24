@@ -12,7 +12,7 @@ type QuotePdfModalProps = {
 
 export function QuotePdfModal({ quote, onOpenChange }: QuotePdfModalProps) {
   const { t } = useTranslation()
-  const { data } = useGetRaw<Response>(`/api/quotes/${quote?.id}/pdf`)
+  const { data } = useGetRaw<Response>(quote ? `/api/quotes/${quote.id}/pdf` : null)
   const [pdfData, setPdfData] = useState<Uint8Array | null>(null)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
 

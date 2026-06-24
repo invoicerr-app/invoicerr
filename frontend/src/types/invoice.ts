@@ -6,7 +6,8 @@ export enum InvoiceStatus {
     PAID = 'PAID',
     UNPAID = 'UNPAID',
     OVERDUE = 'OVERDUE',
-    SENT = 'SENT'
+    SENT = 'SENT',
+    UPCOMING = 'UPCOMING'
 }
 
 export enum InvoiceItemType {
@@ -34,6 +35,7 @@ export interface Invoice {
     rawNumber?: string; // Optional raw number for custom formats
     title?: string; // Optional title from DTOs
     quoteId?: string;
+    recurringInvoiceId?: string;
     clientId: string;
     companyId: string;
     client: Client
