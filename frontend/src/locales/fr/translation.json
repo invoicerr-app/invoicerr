@@ -466,9 +466,10 @@
         },
         "statusFilters": {
             "all": "Toutes",
-            "sent": "Envoyées",
-            "paid": "Payées",
-            "unpaid": "Impayées"
+            "draft": "Brouillon",
+            "sent": "Envoyé",
+            "paid": "Payé",
+            "archived": "Archivé"
         },
         "emptyState": {
             "noInvoices": "Aucune facture pour le moment",

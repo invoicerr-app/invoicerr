@@ -10,7 +10,7 @@ import BetterPagination from "../../../../components/pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { InvoiceStatus, getDisplayInvoiceStatus, type Invoice } from "@/types"
+import { InvoiceStatus, getDisplayInvoiceStatus, type Invoice, type InvoiceStatusFilterKey } from "@/types"
 import { InvoiceDeleteDialog } from "./invoice-delete"
 import { InvoicePdfModal } from "./invoice-pdf-view"
 import { InvoiceUpsert } from "./invoice-upsert"
@@ -27,9 +27,9 @@ interface InvoiceListProps {
     description?: string
     searchTerm?: string
     onSearchChange?: (value: string) => void
-    statusFilter?: "sent" | "paid" | "unpaid"
-    onStatusFilterChange?: (value: "sent" | "paid" | "unpaid" | undefined) => void
-    statusCounts?: { sent: number; paid: number; unpaid: number }
+    statusFilter?: InvoiceStatusFilterKey[]
+    onStatusFilterChange?: (key: InvoiceStatusFilterKey) => void
+    statusCounts?: { draft: number; sent: number; paid: number; archived: number }
     page?: number
     pageCount?: number
     setPage?: (page: number) => void
@@ -220,9 +220,19 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                             {onStatusFilterChange && (
                                 <div className="flex items-center gap-2">
                                     <Badge
-                                        onClick={() => onStatusFilterChange(statusFilter === "sent" ? undefined : "sent")}
+                                        onClick={() => onStatusFilterChange("draft")}
                                         variant="outline"
-                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter === "sent"
+                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter?.includes("draft")
+                                            ? "bg-gray-500 text-white font-semibold shadow-sm scale-105"
+                                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                            }`}
+                                    >
+                                        {t("invoices.statusFilters.draft")} ({statusCounts?.draft ?? 0})
+                                    </Badge>
+                                    <Badge
+                                        onClick={() => onStatusFilterChange("sent")}
+                                        variant="outline"
+                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter?.includes("sent")
                                             ? "bg-yellow-500 text-white font-semibold shadow-sm scale-105"
                                             : "bg-yellow-50 text-yellow-700/70 hover:bg-yellow-100"
                                             }`}
@@ -230,24 +240,24 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                         {t("invoices.statusFilters.sent")} ({statusCounts?.sent ?? 0})
                                     </Badge>
                                     <Badge
-                                        onClick={() => onStatusFilterChange(statusFilter === "unpaid" ? undefined : "unpaid")}
+                                        onClick={() => onStatusFilterChange("paid")}
                                         variant="outline"
-                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter === "unpaid"
-                                            ? "bg-blue-600 text-white font-semibold shadow-sm scale-105"
-                                            : "bg-blue-50 text-blue-700/70 hover:bg-blue-100"
-                                            }`}
-                                    >
-                                        {t("invoices.statusFilters.unpaid")} ({statusCounts?.unpaid ?? 0})
-                                    </Badge>
-                                    <Badge
-                                        onClick={() => onStatusFilterChange(statusFilter === "paid" ? undefined : "paid")}
-                                        variant="outline"
-                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter === "paid"
+                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter?.includes("paid")
                                             ? "bg-green-600 text-white font-semibold shadow-sm scale-105"
                                             : "bg-green-50 text-green-700/70 hover:bg-green-100"
                                             }`}
                                     >
                                         {t("invoices.statusFilters.paid")} ({statusCounts?.paid ?? 0})
+                                    </Badge>
+                                    <Badge
+                                        onClick={() => onStatusFilterChange("archived")}
+                                        variant="outline"
+                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter?.includes("archived")
+                                            ? "bg-slate-600 text-white font-semibold shadow-sm scale-105"
+                                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                            }`}
+                                    >
+                                        {t("invoices.statusFilters.archived")} ({statusCounts?.archived ?? 0})
                                     </Badge>
                                 </div>
                             )}
