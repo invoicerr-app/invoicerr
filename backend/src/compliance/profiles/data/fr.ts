@@ -1,7 +1,7 @@
 import { CountryComplianceProfile } from '../schema';
 
 /**
- * France — see docs/compliance/FR-France.md and COMPLIANCE_ARCHITECTURE.md §16.0.
+ * France — see documentation/compliance/FR-France.md and COMPLIANCE_ARCHITECTURE.md §16.0.
  * Decentralized CTC (Y-model) via PDP + PPF annuaire from 2026-09-01; VAT with the
  * franchise-en-base (art. 293 B) scheme; gapless hash-chained numbering; e-invoicing
  * (domestic B2B) + e-reporting (B2C / cross-border) running together; mandatory statuses.

@@ -4,7 +4,7 @@
  * Each entry replaces a country's reliance on the generic `gov-portal` catch-all with a *named*
  * provider, selected from a profile via `ChannelSpec.providerId` (the registry already prefers an
  * exact providerId over the channel default — see registry.resolve). Names verified against
- * docs/compliance/*.md (Authority / Platform fields).
+ * documentation/compliance/*.md (Authority / Platform fields).
  *
  * `async: true` ⇒ blocking/clearance-style portals that return PENDING and expose `poll()`
  * (authorization is asynchronous). Real-time/reporting portals return SENT.

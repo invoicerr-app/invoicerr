@@ -1,9 +1,11 @@
 # Compliance — Implementation Status
 
+*English · [Français](COMPLIANCE_STATUS.fr.md)*
+
 > Branch: `feat/compliance-architecture` · Module: `backend/src/compliance/`
 > Companion docs: [`COMPLIANCE_ARCHITECTURE.md`](COMPLIANCE_ARCHITECTURE.md) (design, §1-§18) ·
 > [`COMPLIANCE_LIFECYCLE.md`](COMPLIANCE_LIFECYCLE.md) (per-jurisdiction lifecycle: composed phases ×
-> channel-driven triggers × event-sourced runtime) · [`docs/compliance/`](docs/compliance) (per-country specs)
+> channel-driven triggers × event-sourced runtime) · [`documentation/compliance/`](.) (per-country specs)
 >
 > **TL;DR** — Resolution core, execution-layer stubs, the lifecycle runtime + its 3 durable drivers,
 > and Prisma/NestJS persistence are all built, wired together, and tested
@@ -21,7 +23,7 @@
 - [x] `COMPLIANCE_LIFECYCLE.md` — companion RFC: the lifecycle as **phases** (composed from the plan,
   issuer ⊕ recipient) × **drivers** (bound from the channel's feedback model — poll/callback/timer/
   immediate/manual) × a durable **event-sourced runtime**.
-- [x] `docs/compliance/FR-France.md` — the home-market spec (was missing from the original 77).
+- [x] `documentation/compliance/FR-France.md` — the home-market spec (was missing from the original 77).
 
 ### Resolution core (pure, no I/O — fully implemented)
 - [x] **Canonical model** (`canonical/`) — format-agnostic document, money in integer minor units.
@@ -34,11 +36,11 @@
   (regime, formats, channels, numbering, lifecycle, archival, reporting, confidence, warnings).
 
 ### Country coverage — **106 jurisdictions wired**
-- [x] All **106** `docs/compliance/*` country specs (the original 77 + ~29 added when `dev` was
+- [x] All **106** `documentation/compliance/*` country specs (the original 77 + ~29 added when `dev` was
   merged in) + bespoke majors (FR, US, MX, IT, PL; DE/ES/GB/CA/AU/NZ/JP/… via archetypes).
 - [x] Typed **archetype builders** (`profiles/archetypes.ts`) → most countries are a one-line
   declaration; **5 bespoke** profiles carry verified, hand-written specifics.
-- [x] **Coverage test** (`profiles/coverage.spec.ts`) reads `docs/compliance/` and fails CI if any
+- [x] **Coverage test** (`profiles/coverage.spec.ts`) reads `documentation/compliance/` and fails CI if any
   documented country is not wired to a non-fallback profile.
 - [x] **`data-integrity.spec.ts`** — CI-enforced invariants: every profile well-formed and temporally
   ordered, every VAT/GST rate sane, and — crucially — **every referenced `DocumentSyntax` and channel
@@ -162,7 +164,7 @@ markers** as of this writing, each naming the exact schema/API/cert to implement
 
 ### 4. Data accuracy
 - [ ] Profiles built by archetype carry `BEST_EFFORT`/`PLANNED` rates and dates inferred from
-  `docs/compliance/` — graduate them to verified `OFFICIAL` bespoke profiles per country as needed.
+  `documentation/compliance/` — graduate them to verified `OFFICIAL` bespoke profiles per country as needed.
 
 ---
 

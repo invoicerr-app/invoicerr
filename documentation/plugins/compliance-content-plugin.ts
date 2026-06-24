@@ -9,7 +9,7 @@ interface CountryContent {
 }
 
 /**
- * Scans compliance markdown files from docs/compliance/ at build time.
+ * Scans compliance markdown files from documentation/compliance/ at build time.
  * Extracts country code from filename (FI-Finland.md → FI).
  * Generates routes /compliance/<country> dynamically.
  * Exposes content via global data for backward compatibility.
@@ -18,7 +18,7 @@ export default function complianceContentPlugin(): Plugin<Record<string, string>
   return {
     name: 'compliance-content-plugin',
     async loadContent() {
-      const baseDir = path.join(__dirname, '..', '..', 'docs', 'compliance');
+      const baseDir = path.join(__dirname, '..', 'compliance');
       const content: Record<string, string> = {};
       const countries: CountryContent[] = [];
 

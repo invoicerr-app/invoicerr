@@ -1,5 +1,7 @@
 # Invoicerr — Per-Jurisdiction Invoice Lifecycle Architecture
 
+*English · [Français](COMPLIANCE_LIFECYCLE.fr.md)*
+
 > **Status:** Design / RFC — companion to [`COMPLIANCE_ARCHITECTURE.md`](COMPLIANCE_ARCHITECTURE.md) (extends §11 / §11.1).
 > **Problem it solves:** the *life* of an invoice differs by **issuer country**, **recipient country**, and
 > **transmission channel**. A country cleared via a French *PDP* does not live like one sent by email,

@@ -3,7 +3,7 @@
  *
  * Each entry replaces a country's reliance on the generic `NATIONAL_XML` catch-all with a *named*
  * provider whose `log.todo(...)` points at the exact national schema to implement (names verified
- * against docs/compliance/*.md). The catch-all `NationalXmlFormatProvider` stays registered as the
+ * against documentation/compliance/*.md). The catch-all `NationalXmlFormatProvider` stays registered as the
  * safety net for any country not yet graduated to a dedicated provider.
  *
  * Adding the real bytes = filling one `build()`/`validate()` body; nothing else in the pipeline

@@ -1,7 +1,7 @@
 import { CountryComplianceProfile } from '../schema';
 
 /**
- * Mexico — see docs/compliance/MX-Mexico.md and COMPLIANCE_ARCHITECTURE.md §16.4.
+ * Mexico — see documentation/compliance/MX-Mexico.md and COMPLIANCE_ARCHITECTURE.md §16.4.
  * The canonical CLEARANCE case and the maximal contrast to the FR/US pair: every invoice is
  * validated by a PAC before it is legally valid (blocking), numbered from authority-allocated
  * folios, signed (CSD), reported in the local tax currency (MXN), archived in-country for 5 years,

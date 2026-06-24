@@ -1,6 +1,6 @@
 /**
  * Archetype builders — typed factories that turn a few parameters into a full, well-typed
- * CountryComplianceProfile (COMPLIANCE_ARCHITECTURE.md §15). Every country in docs/compliance maps to
+ * CountryComplianceProfile (COMPLIANCE_ARCHITECTURE.md §15). Every country in documentation/compliance maps to
  * one of these archetypes, so wiring a country is a one-line declaration, not a bespoke file. Bespoke
  * profiles (FR, US, MX, IT, PL) stay hand-written for their richer specifics.
  */

@@ -155,7 +155,7 @@ The reform mandates exchange of invoice statuses between platforms:
 - **External specifications:** Spécifications externes de la facturation électronique (DGFiP)
 - **Chorus Pro (B2G):** [Chorus Pro](https://chorus-pro.gouv.fr)
 - **Factur-X / FNFE-MPE:** [fnfe-mpe.org](https://fnfe-mpe.org)
-- **Architecture mapping:** see [`COMPLIANCE_ARCHITECTURE.md` §16.0](../../COMPLIANCE_ARCHITECTURE.md) — France is the home-market reference flow
+- **Architecture mapping:** see [`COMPLIANCE_ARCHITECTURE.md` §16.0](COMPLIANCE_ARCHITECTURE.md) — France is the home-market reference flow
 
 ---
 

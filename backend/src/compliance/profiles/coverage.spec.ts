@@ -3,11 +3,11 @@ import { resolve as resolvePath } from 'path';
 import { defaultRegistry } from './registry';
 
 /**
- * Dynamic coverage test: reads docs/compliance/*.md and asserts EVERY documented jurisdiction is
- * wired to a real (non-fallback) profile. This fails automatically if a new country spec is added
- * without a matching profile — "tous les pays câblés", enforced by CI.
+ * Dynamic coverage test: reads documentation/compliance/*.md and asserts EVERY documented
+ * jurisdiction is wired to a real (non-fallback) profile. This fails automatically if a new
+ * country spec is added without a matching profile — "tous les pays câblés", enforced by CI.
  */
-const docsDir = resolvePath(__dirname, '../../../../docs/compliance');
+const docsDir = resolvePath(__dirname, '../../../../documentation/compliance');
 const codes = readdirSync(docsDir)
   .filter((f) => /^[A-Za-z]{2}-/.test(f)) // country files like "FR-France.md"; skips README.md etc.
   .map((f) => f.split('-')[0].toUpperCase());

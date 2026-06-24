@@ -4,7 +4,7 @@
 > **Scope:** A single architecture that makes every invoice issued by Invoicerr legally
 > correct for the **issuer's country**, the **recipient's country**, and the **interaction
 > between the two**, across the **whole document lifecycle** (issue, send, modify, correct,
-> cancel, archive), for **every jurisdiction** documented under [`docs/compliance/`](docs/compliance)
+> cancel, archive), for **every jurisdiction** documented under [`documentation/compliance/`](.)
 > and the major economies (FR, IT, DE, ES, GB, US, …) that the long tail interacts with.
 >
 > This document is the canonical reference for *how* the system is built and a *proof of
@@ -20,7 +20,7 @@
 > does not claim to; what it claims — and §16 demonstrates — is that the model is **closed under
 > "add a country" and "change a rule on a date"**, so new cases are absorbed as *data*, with the
 > handful that need new *mechanisms* (buyer-response, folio ranges, multi-tax, withholding) now
-> first-class. **France — the home market — was missing from `docs/compliance/` entirely**; it is the
+> first-class. **France — the home market — was missing from `documentation/compliance/` entirely**; it is the
 > reference flow in [§16.0](#160-france--the-home-market-reference-flow-the-hardest-eu-case).
 
 ---
@@ -205,7 +205,7 @@ group per axis. This taxonomy is the backbone of the whole design.
 | O | **Money & precision** *(v1.1)* | currency minor-units/decimals (JPY 0, KWD/BHD 3); rounding policy (line vs total vs per-tax); structured **allowances & charges** (line + document level) | EN16931 rounding amount; per-currency decimals |
 | P | **Tax point & deadlines** *(v1.1)* | supply date ≠ issue date; **issuance deadline** (EU intra-EU: 15th of following month); delivery window; buyer download-access retention | MX/CL ≤72h delivery; PE 1-year download link |
 
-> **Claim:** these axes are *complete* — every rule in all 77 `docs/compliance/*` files, plus the
+> **Claim:** these axes are *complete* — every rule in all 77 `documentation/compliance/*` files, plus the
 > majors, is an assignment of values to these axes (or a small strategy keyed by axis B/E). Axes A–J
 > were in v1; K–P were added after a second review pass (see the per-axis source examples). §15 proves
 > coverage by mapping every country; §16 proves the *interactions* compose correctly.
@@ -951,7 +951,7 @@ CTC/Peppol-5-corner · `RTR` real-time reporting · `PER` periodic reporting/SAF
 | 🇱🇰 Sri Lanka | PLAN/NONE | VAT | PDF/TBD | email | |
 | 🇺🇸 United States* | PA/NONE | **SALES_TAX** | PDF (+DBNAlliance opt-in) | email/Peppol-US | nexus + economic nexus per state |
 
-`*` = major economy added beyond `docs/compliance/` because the long tail trades with them.
+`*` = major economy added beyond `documentation/compliance/` because the long tail trades with them.
 *Additional majors trivially expressible the same way:* 🇵🇱 Poland `CL` (KSeF), 🇷🇴 Romania `CL`
 (e-Factura), 🇮🇳 India `CL` (IRN+QR), 🇸🇬 `PA` (InvoiceNow/Peppol), 🇦🇺/🇳🇿 `PA` (Peppol),
 🇯🇵 `PA` (qualified invoice), 🇨🇳 `CL` (fully-digitized e-fapiao).
@@ -970,9 +970,9 @@ acceptance scenarios for the implementation.
 
 ### 16.0 France — the home-market reference flow (the hardest EU case)
 
-> **France is absent from `docs/compliance/`** even though it is Invoicerr's home market and the
+> **France is absent from `documentation/compliance/`** even though it is Invoicerr's home market and the
 > codebase already hardcodes French rules (293B at `invoices.service.ts:113`). It must get its own
-> `docs/compliance/FR-France.md` *and* a `profiles/data/fr.ts`. France is also the **best stress test**:
+> `documentation/compliance/FR-France.md` *and* a `profiles/data/fr.ts`. France is also the **best stress test**:
 > it exercises almost every axis at once — decentralized CTC, certified-platform transmission, central
 > directory routing, **mandatory bidirectional status messages**, simultaneous e-invoicing **and**
 > e-reporting, hybrid Factur-X, the 293B franchise scheme, and hash-chained inalterability.
@@ -1248,7 +1248,7 @@ change risk; the hard integrations are isolated behind providers.
 | **2. Lifecycle & immutability** | `ComplianceStatus` state machine; `issue()`/freeze/hash; **`GAPLESS_SELF` numbering (v1.1)**; restrict `editInvoice` to DRAFT; credit-note model | schema, service, controller |
 | **3. Format layer** | Realize `FormatProvider` registry (wrap `@fin.cx/einvoice` as `en16931`); kill the stubbed `generateXml` | `plugins.service.ts`, providers |
 | **4. Transmission + outbox** | `TransmissionProvider` type; Email + Peppol; outbox + dispatcher + async SSE/webhooks | new providers, cron |
-| **4b. France go-live (v1.1)** | `fr.ts` profile + `docs/compliance/FR-France.md`; **PDP transmission + annuaire lookup; mandatory status track + silence timers (§11.1)**; e-reporting | profiles, lifecycle, reporting |
+| **4b. France go-live (v1.1)** | `fr.ts` profile + `documentation/compliance/FR-France.md`; **PDP transmission + annuaire lookup; mandatory status track + silence timers (§11.1)**; e-reporting | profiles, lifecycle, reporting |
 | **5. Clearance archetype** | CLEARANCE state path + 1 reference integration (e.g. MX PAC or IT SdI) end-to-end incl. cancel/contingency; **`FolioPool`/`AUTHORITY_RANGE` (v1.1)** | providers, state machine |
 | **5b. Inbound reception (v1.1)** | `RECEPTION` provider type + `ReceptionService`; ingest/validate/persist + emit buyer status (IE/DK/FI/DE/FR must-receive) | new module |
 | **6. Archive + residency** | `ArchiveProvider` (WORM, retention, region routing) extending STORAGE | `plugins/storage` |
@@ -1260,7 +1260,7 @@ change risk; the hard integrations are isolated behind providers.
 
 - **Legal data freshness.** Profiles encode law; law changes. Mitigation: profiles are versioned,
   temporal, and confidence-tagged; a profile is data a non-engineer can review against
-  `docs/compliance/`. Consider a periodic review job per country.
+  `documentation/compliance/`. Consider a periodic review job per country.
 - **Certified intermediaries.** PDP (FR), Peppol AP, PAC (MX), OSE (PE), SdI access — most require
   accreditation/contracts. The provider interface lets operators bring their own; we ship reference
   adapters, not our own accreditation (v1).
@@ -1274,7 +1274,7 @@ change risk; the hard integrations are isolated behind providers.
   (KSA, Peppol PINT) or we generate those syntaxes directly.
 - **Migration of legacy invoices.** Existing rows become `LEGACY/UNVERIFIED`; they are never
   retroactively "cleared." New issuance uses the engine. This boundary must be explicit in the UI.
-- **France doc gap (v1.1).** The home market has *no* `docs/compliance/FR-France.md` despite 77 others
+- **France doc gap (v1.1).** The home market has *no* `documentation/compliance/FR-France.md` despite 77 others
   existing and FR rules being hardcoded today. It must be authored (it is the data source for `fr.ts`).
 - **Inbound is in scope (v1.1).** Most mandates require *receiving* e-invoices, not just sending. The
   app is issuer-centric today; `RECEPTION` is a real workstream (Phase 5b), not optional polish.
@@ -1289,4 +1289,4 @@ change risk; the hard integrations are isolated behind providers.
 ---
 
 *End of document. This is a design RFC; §17 is the build order. The companion per-country specs live
-under [`docs/compliance/`](docs/compliance) and are the data source for `compliance/profiles/data/`.*
+under [`documentation/compliance/`](.) and are the data source for `compliance/profiles/data/`.*
