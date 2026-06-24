@@ -245,6 +245,7 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                                                 postAdornment={selectedInvoice?.currency || ""}
                                                 placeholder={t("payments.upsert.form.amount.placeholder")}
                                                 disabled={!selectedInvoice}
+                                                data-cy="payment-amount-input"
                                                 onChange={(e) => {
                                                     const value = e.target.value === "" ? "" : Number.parseFloat(e.target.value)
                                                     field.onChange(value)
