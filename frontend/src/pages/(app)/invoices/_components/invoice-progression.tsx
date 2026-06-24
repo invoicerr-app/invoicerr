@@ -136,6 +136,9 @@ export function InvoiceProgression({
         ? confirmDialog.invoice.client.name ||
           `${confirmDialog.invoice.client.contactFirstname} ${confirmDialog.invoice.client.contactLastname}`
         : ""
+    const clientEmail = confirmDialog?.invoice.client.contactEmail || ""
+    const showRecipient =
+        !!confirmDialog && (confirmDialog.action === "send" || confirmDialog.action === "resend") && !!clientEmail
 
     return (
         <>
@@ -275,6 +278,12 @@ export function InvoiceProgression({
                                     },
                                 )}
                         </AlertDialogDescription>
+                        {showRecipient && (
+                            <p className="text-sm mt-2">
+                                <span className="text-muted-foreground">{t("invoices.sendConfirmation.emailLabel")}</span>{" "}
+                                {clientEmail}
+                            </p>
+                        )}
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel onClick={() => setConfirmDialog(null)}>

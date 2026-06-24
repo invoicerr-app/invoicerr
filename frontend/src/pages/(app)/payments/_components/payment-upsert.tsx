@@ -1,7 +1,7 @@
 "use client"
 
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import type { Invoice, PaymentMethod, Payment } from "@/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useEffect, useMemo, useState } from "react"
@@ -14,7 +14,7 @@ import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
 import { ClientUpsert } from "../../clients/_components/client-upsert"
 import { DatePicker } from "@/components/date-picker"
-import { PaymentMethodType } from "@/types"
+import { InvoiceStatus, PaymentMethodType } from "@/types"
 import SearchSelect from "@/components/search-input"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -67,7 +67,9 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
     })
 
     const { data: invoices } = useInvoiceSearch(searchTerm)
-    const invoiceList = Array.isArray(invoices) ? invoices : []
+    // Draft and archived invoices can't receive a payment, so they aren't selectable.
+    const invoiceList = (Array.isArray(invoices) ? invoices : [])
+        .filter(inv => inv.status !== InvoiceStatus.DRAFT && inv.status !== InvoiceStatus.ARCHIVED)
     const { data: paymentMethods } = usePaymentMethods()
     const { trigger: createTrigger, loading: createLoading } = usePost("/api/payments")
     const { trigger: updateTrigger, loading: updateLoading } = usePatch(`/api/payments/${payment?.id}`)
@@ -199,9 +201,6 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                                                 </SelectContent>
                                             </Select>
                                         </FormControl>
-                                        <FormDescription>
-                                            {t("payments.upsert.form.paymentMethod.description")}
-                                        </FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}
