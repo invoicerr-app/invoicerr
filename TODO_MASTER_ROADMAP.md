@@ -41,7 +41,10 @@ This is an **executable, living roadmap** — work it; do **not** delete it (unl
 6. **Verify before ticking a box** — don't trust, verify: `npx tsc --noEmit` (backend **and**
    frontend) + `npx jest` (backend) + **actually run the relevant Cypress e2e** (not just tsc/jest) +
    a disposable-DB `prisma migrate deploy` when a migration is involved. A box is `[x]` only when it
-   passed.
+   passed. **When you add/move/rename a module, provider, or `@Injectable()`, also boot the app
+   (`nest start`) and confirm "Nest application successfully started" with no DI resolution error** —
+   tsc and jest do NOT exercise the Nest DI graph (a missing provider registration went undetected for
+   3 sections this way). For `tsc -b`, read the real exit code — `| tail`/`| grep` masks it.
 7. **On completion of a section**: tick its boxes here **and** add one line to
    `documentation/compliance/COMPLIANCE_STATUS.md`.
 8. **When a legal specific is ambiguous**, flag it / leave the item `[~]` with a note — do **not**
