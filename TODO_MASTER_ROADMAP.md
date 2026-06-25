@@ -47,6 +47,28 @@ This is an **executable, living roadmap** — work it; do **not** delete it (unl
 8. **When a legal specific is ambiguous**, flag it / leave the item `[~]` with a note — do **not**
    guess at a legal rule.
 
+## Traceability — GitHub issue ↔ section
+Open issues this roadmap answers (keep in sync when issues are opened/closed):
+
+| Issue | Title | Section(s) |
+|-------|-------|-----------|
+| #189 ⚖️P1 | E-invoicing compliance (Factur-X, **PDP/PA via plugins**, audit trail) | PART X.1, II.4, IX |
+| #264 ⚖️P1 | **PL: KSeF** (legal XML, gateway upload, UPO/KSeF ID) | PART X.1 (named target) |
+| #186 ⚖️P1 | Functional video review (draft/lock/credit-note/catalog/deposit/AP…) | I.1, II.3✅, II.5, III.3, III.4, IV, VI.10, VII |
+| #191 P2 | Invoice workflow rework (draft✅, lock✅, credit notes, no-dup, partial✅) | I.1, II.3✅, III.1, IV |
+| #322 ⚖️P2 | Warn user the invoice will be **locked** before issue | VI.4 (issue confirm = lock warning) |
+| #134 P1 | Credit notes (avoir) | PART IV |
+| #203 | Deposit invoices (factures d'acompte) | III.4 |
+| #202 P2 | Recurring invoices (fix + generate real invoices) | III.3 |
+| #326 P1 | Partial invoicing | III.5 (✅ partial payments) / III.1 |
+| #300 P2 / #181 P2 | Discounts / fractional units | II.5 (line model), VI.3 |
+| #251 P2 | No due date in 2027 | VI.3 (payment terms / due-date rule) |
+| #258 P2 | Client-scoped doc id instead of INV | II.3 `seriesScope`, II.5 |
+| #340 P3 | Import back-dated invoice for history migration | II.5 (`issuedAt` set on import; no gap in live series) |
+| #192 P2 | Revenue calculation | V.4 |
+| #198 P2 / #254 P1 | Quote/Invoice interface rework / line-item transfer | VI.3, VI.6 |
+| #253 ⚖️P3 | DE: expense tracking + EÜR (GoBD) | **PART VII (scope decision — see VII)** |
+
 ---
 
 # PART I — Principles & the legal model
@@ -117,21 +139,27 @@ Phases 1–3 done (additive `*Minor`, backfill, dual-write, stats in minor units
   them, rename `*Minor`→base, switch reads off `fromMinor`. `quantity`/`vatRate`/`discountRate` stay
   Float (not money).
 
-## II.3 Numbering overhaul ⚖️🔒🧨
-Today `prisma.service.ts` (`$extends`) numbers **every** Quote/Invoice/Payment on create, update, **and
+## II.3 Numbering overhaul ⚖️🔒🧨 — ✅ DONE & verified (commits `7fcbed2` + numbering fixes; **unit tests still owed**)
+~~Today `prisma.service.ts` (`$extends`) numbers **every** Quote/Invoice/Payment on create, update, **and
 on every `findMany`** — so drafts get legal numbers merely by being listed; `number` is
-`autoincrement()` consumed at creation with gaps on draft deletion; `formatPattern` uses `createdAt`.
-- [ ] ⚖️ Remove the auto-numbering `$extends` entirely.
-- [ ] ⚖️ Make `number` nullable (drop `autoincrement()`), add `issuedAt DateTime?`. Draft = all null.
+`autoincrement()` consumed at creation with gaps on draft deletion; `formatPattern` uses `createdAt`.~~
+(Fixed: `$extends` removed; `NumberingService` + `NumberSeries`; gapless, atomic, starting-number-aware,
+`seriesScope`-driven; reviewed in `TODO_REVIEW_NUMBERING.md` and corrected.)
+- [x] ⚖️ Remove the auto-numbering `$extends` entirely.
+- [x] ⚖️ Make `number` nullable (drop `autoincrement()`), add `issuedAt DateTime?`. Draft = all null.
   Backfill existing issued rows (`issuedAt = createdAt`, keep numbers).
-- [ ] ⚖️ Gapless per-series counter assigned transactionally at issue (a `NumberSeries` table keyed by
-  `(companyId, docType, scopeKey)` bumped in the issue transaction, or advisory-lock + max+1).
-  Race-safe. Year token from `issuedAt`.
-- [ ] ⚖️ Issued documents never hard-deleted (`deleteInvoice`/`deleteQuote` → DRAFT only).
-- [ ] Drive off `plan.numbering`: `GAPLESS_SELF` → local counter; `AUTHORITY_RANGE` → provisional
-  number flagged non-authoritative, real one set at clearance (PART X).
+- [x] ⚖️ Gapless per-series counter assigned transactionally at issue (`NumberSeries` keyed by
+  `(companyId, docType, scopeKey)`, bumped via `INSERT…ON CONFLICT…RETURNING` **inside the caller's
+  `$transaction`** so counter+row are atomic). Race-safe. `scopeKey` from `seriesScope`; year from
+  `issuedAt`. First number = company `*StartingNumber`.
+- [x] ⚖️ Issued documents never hard-deleted (`deleteInvoice`/`deleteQuote`/`editInvoice` → DRAFT only;
+  `editQuote` blocked once SIGNED).
+- [~] Drive off `plan.numbering`: `GAPLESS_SELF` → local counter (done; resolved from the country
+  profile); `AUTHORITY_RANGE` → **currently refuses self-assignment (throws)** — the provisional
+  number / real-at-clearance path is deferred to PART X.1.
 - [ ] Tests: issue assigns next gapless number; deleting a draft leaves no gap; concurrent issues
-  don't collide; listing drafts assigns nothing.
+  don't collide; listing drafts assigns nothing. **Not yet written** — `utils/numbering.ts` has no
+  dedicated unit test (the 352 green are pre-existing engine tests). ⚠️ owed.
 
 ## II.4 Inalterability & audit trail (ISCA / anti-fraud) 🏛️⚖️🔒
 The keystone legal constraint (I.5). Much aligns with existing pieces (`ComplianceEvent` append-only
@@ -171,6 +199,13 @@ tables lack (additive). These touch Invoice + Quote + line items:
   model — decide now (the minor-units work is the right time).
 - [ ] **Line model**: line-level discounts/allowances + charges (shipping/handling) and a real
   **unit of measure** code (EN 16931) beyond the current `ItemType`. (Couples with multi-tax, PART X.)
+- [~] 🏛️ **Client party type B2B/B2C + email not a primary key** (#186) — **SCOPE DECISION PENDING.**
+  Why it's here: the **B2B/B2C** flag drives the TTC/HT default (B2C entered VAT-inclusive — couples
+  with the tax-inclusive flag above), the per-country **required identifiers** (B2B needs VAT/SIREN;
+  B2C does not), and the FR-2026 **buyer SIREN** mention. Today email is effectively the client key
+  and is mandatory — wrong for B2C and a known structural bug. Decision needed: fold the `partyType`
+  field + email-non-mandatory into this compliance work, or treat the email-PK refactor as a separate
+  non-compliance DB ticket. **Do not start until decided** (flag, don't guess).
 
 ---
 
@@ -341,8 +376,9 @@ Files: `invoices/_components/invoice-upsert.tsx`, `quotes/_components/quote-upse
 Files: `invoices/_components/invoice-progression.tsx`, `invoice-view.tsx`, `invoice-list.tsx`,
 `invoices/index.tsx`.
 - [ ] **Issue/finalize step**: progression view gains an explicit **Issue** step *before* Send
-  (calls `POST /invoices/:id/issue`), with a confirm dialog. A DRAFT shows a **"no number yet"** state
-  (the draft watermark exists); the legal number appears only after issue.
+  (calls `POST /invoices/:id/issue`), with a confirm dialog. ⚖️ The dialog **must warn the document
+  will be locked / non-editable for regulatory compliance** before confirming (#322). A DRAFT shows a
+  **"no number yet"** state (the draft watermark exists); the legal number appears only after issue.
 - [ ] **Edit gating**: "Edit" is enabled only while DRAFT; once issued it is replaced by the
   country-correct actions (VI.5).
 - [ ] **Status model**: list filters + badges for the reconciled statuses (DRAFT/ISSUED/SENT/
@@ -426,6 +462,12 @@ models inbound (`ReceptionService`, inbound-router, `ComplianceInboundMessage`, 
   emission where mandated (FR statuses), and a UI to view/acknowledge received invoices.
 - [ ] This is a whole new document direction — anticipate the data model now (II.5 `direction`
   already exists on `ComplianceDocument`).
+- [~] 🏛️ **Expense tracking / purchase accounting / EÜR (DE, GoBD)** (#253, #186 item 5) — **SCOPE
+  DECISION PENDING.** This is *distinct* from legal e-invoice reception above: it's bookkeeping
+  (expense records, receipt upload, categories, income-vs-expense report, EÜR/SAF-T-style export). It
+  shares the inbound `ReceivedDocument` model (a received invoice can become an expense) but is a much
+  larger accounting module. Decision needed: (a) in-scope as a PART VII.AP extension, (b) a separate
+  product epic outside this compliance roadmap, or (c) out of scope. **Do not start until decided.**
 
 ---
 
@@ -451,8 +493,19 @@ Inbound is durable; outbound (transmit, submit-for-clearance, recurring auto-sen
 ---
 
 # PART X — Deferred breadth (gated on the above)
-- [ ] Drive the lifecycle end-to-end for one clearance country (FR PDP **or** MX PAC) — real
-  transmission; unblocks real `AUTHORITY_RANGE` numbering (II.3) + payment clearance (III.5).
+
+## X.1 First real clearance country, end-to-end ⚖️ (issues #189, #264, #186)
+- [ ] ⚖️ **Plugin model for PDP/PA / clearance gateways** (#189): a transmission-provider plugin
+  interface (authenticate → build legal payload → submit → poll/ack → store authority id + receipt),
+  registered per country in the engine's `providers/transmission/`, mirroring the signing-plugin
+  pattern. Each country binds its provider declaratively in the profile — never a per-country `if`.
+- [ ] Drive the lifecycle end-to-end for **one** clearance country as the reference implementation —
+  pick from: **FR PDP** (Factur-X + PDP), **PL KSeF** (#264: legal XML → MF gateway → UPO/KSeF ID;
+  refs: CIRFMF/ksef-docs, ksef-client-ts), or **MX PAC** (CFDI/folios). Real transmission; unblocks
+  real `AUTHORITY_RANGE` numbering (II.3 — replaces the current throw) + payment clearance (III.5).
+- [ ] Generalise from that one to the other named targets (FR / PL / MX) once the seam is proven.
+
+## X.2 Other deferred breadth
 - [ ] Multi-tax / withholding line items (engine models `TaxComponent[]`/`Withholding`; live line +
   column don't) — couples with the line model (II.5).
 - [ ] QR & signing on the PDF (after signing providers are real).
