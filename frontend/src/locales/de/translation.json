@@ -283,6 +283,8 @@
             "title": "Rechnung aus Angebot erstellen",
             "description": "Wählen Sie die Artikel aus, die aus dem Angebot {{number}} abgerechnet werden sollen.",
             "percentageLabel": "Abzurechnender Prozentsatz",
+            "amountLabel": "Abzurechnender Betrag",
+            "maxPercentageHint": "Es können noch bis zu {{percent}} % des Angebots abgerechnet werden.",
             "fields": {
                 "quantity": {
                     "label": "Menge"
@@ -290,6 +292,7 @@
             },
             "alreadyInvoicedBadge": "Bereits abgerechnet",
             "remainingLabel": "Verbleibend: {{remaining}}",
+            "remainingTotalLabel": "{{amount}} {{currency}} verbleibend",
             "totalSelectedLabel": "Gesamt: {{amount}} {{currency}}",
             "percentOfQuoteLabel": "{{percent}}% des Angebots",
             "itemAmountLabel": "{{amount}} {{currency}}",

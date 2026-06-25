@@ -9,10 +9,10 @@ import { Input } from "@/components/ui/input"
 import type React from "react"
 import type { Payment } from "@/types"
 import { PaymentDeleteDialog } from "@/pages/(app)/payments/_components/payment-delete"
-import { PaymentPdfModal } from "@/pages/(app)/payments/_components/payment-pdf-view"
 import { PaymentUpsert } from "@/pages/(app)/payments/_components/payment-upsert"
 import { SendConfirmationDialog } from "@/components/send-confirmation-dialog"
 import { toast } from "sonner"
+import { useNavigate } from "react-router"
 import { useTranslation } from "react-i18next"
 
 interface PaymentListProps {
@@ -40,13 +40,13 @@ export const PaymentList = forwardRef<PaymentListHandle, PaymentListProps>(
         ref,
     ) => {
         const { t } = useTranslation()
+        const navigate = useNavigate()
         const { trigger: triggerSendToClient, loading: sendToClientLoading } = usePost<{ message: string; }>(
             `/api/payments/send`,
         )
 
         const [createPaymentDialog, setCreatePaymentDialog] = useState<boolean>(false)
         const [editPaymentDialog, setEditPaymentDialog] = useState<Payment | null>(null)
-        const [viewPaymentPdfDialog, setViewPaymentPdfDialog] = useState<Payment | null>(null)
         const [deletePaymentDialog, setDeletePaymentDialog] = useState<Payment | null>(null)
         const [sendPaymentDialog, setSendPaymentDialog] = useState<Payment | null>(null)
         const [downloadPaymentPdf, setDownloadPaymentPdf] = useState<Payment | null>(null)
@@ -85,7 +85,7 @@ export const PaymentList = forwardRef<PaymentListHandle, PaymentListProps>(
         }
 
         function handleViewPdf(payment: Payment) {
-            setViewPaymentPdfDialog(payment)
+            navigate(`/payments/pdf/${payment.id}`, { state: { payment } })
         }
 
         function handleDownloadPdf(payment: Payment) {
@@ -279,13 +279,6 @@ export const PaymentList = forwardRef<PaymentListHandle, PaymentListProps>(
                     }}
                 />
 
-
-                <PaymentPdfModal
-                    payment={viewPaymentPdfDialog}
-                    onOpenChange={(open) => {
-                        if (!open) setViewPaymentPdfDialog(null)
-                    }}
-                />
 
                 <PaymentDeleteDialog
                     payment={deletePaymentDialog}

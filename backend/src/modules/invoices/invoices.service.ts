@@ -699,7 +699,14 @@ export class InvoicesService {
         const quote = await prisma.quote.findUnique({
             where: { id: quoteId },
             include: {
-                items: { include: { invoiceItems: { select: { quantity: true } } } },
+                items: {
+                    include: {
+                        // Soft-deleted invoices (isActive: false) must not count towards
+                        // the invoiced quantity, otherwise deleting an invoice never
+                        // frees up the quote items it was created from.
+                        invoiceItems: { where: { invoice: { isActive: true } }, select: { quantity: true } },
+                    },
+                },
             },
         });
 

@@ -301,6 +301,8 @@
             "title": "Create invoice from quote",
             "description": "Select the items to invoice from quote {{number}}.",
             "percentageLabel": "Percentage to invoice",
+            "amountLabel": "Amount to invoice",
+            "maxPercentageHint": "Up to {{percent}}% of the quote can still be invoiced.",
             "fields": {
                 "quantity": {
                     "label": "Quantity"
@@ -308,6 +310,7 @@
             },
             "alreadyInvoicedBadge": "Already invoiced",
             "remainingLabel": "Remaining: {{remaining}}",
+            "remainingTotalLabel": "{{amount}} {{currency}} remaining",
             "totalSelectedLabel": "Total: {{amount}} {{currency}}",
             "percentOfQuoteLabel": "{{percent}}% of quote",
             "itemAmountLabel": "{{amount}} {{currency}}",

@@ -302,6 +302,8 @@
             "title": "Créer une facture à partir du devis",
             "description": "Sélectionnez les articles à facturer depuis le devis {{number}}.",
             "percentageLabel": "Pourcentage à facturer",
+            "amountLabel": "Montant à facturer",
+            "maxPercentageHint": "Il reste {{percent}} % du devis facturable.",
             "fields": {
                 "quantity": {
                     "label": "Quantité"
@@ -309,6 +311,7 @@
             },
             "alreadyInvoicedBadge": "Déjà facturé",
             "remainingLabel": "Reste à facturer : {{remaining}}",
+            "remainingTotalLabel": "{{amount}} {{currency}} restants",
             "totalSelectedLabel": "Total : {{amount}} {{currency}}",
             "percentOfQuoteLabel": "{{percent}} % du devis",
             "itemAmountLabel": "{{amount}} {{currency}}",

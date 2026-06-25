@@ -283,6 +283,8 @@
             "title": "Crear factura desde la cotización",
             "description": "Seleccione los artículos a facturar desde la cotización {{number}}.",
             "percentageLabel": "Porcentaje a facturar",
+            "amountLabel": "Importe a facturar",
+            "maxPercentageHint": "Todavía se puede facturar hasta el {{percent}} % de la cotización.",
             "fields": {
                 "quantity": {
                     "label": "Cantidad"
@@ -290,6 +292,7 @@
             },
             "alreadyInvoicedBadge": "Ya facturado",
             "remainingLabel": "Restante: {{remaining}}",
+            "remainingTotalLabel": "{{amount}} {{currency}} restantes",
             "totalSelectedLabel": "Total: {{amount}} {{currency}}",
             "percentOfQuoteLabel": "{{percent}}% de la cotización",
             "itemAmountLabel": "{{amount}} {{currency}}",

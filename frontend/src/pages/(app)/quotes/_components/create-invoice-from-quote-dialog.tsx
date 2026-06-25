@@ -15,7 +15,8 @@ import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import type { Quote } from "@/types"
+import type { Invoice, Quote } from "@/types"
+import { useNavigate } from "react-router"
 import { useTranslation } from "react-i18next"
 
 interface QuoteInvoicingStatusItem {
@@ -42,20 +43,23 @@ interface CreateInvoiceFromQuoteDialogProps {
 export function CreateInvoiceFromQuoteDialog({ quote, onOpenChange }: CreateInvoiceFromQuoteDialogProps) {
     const { t } = useTranslation()
     const queryClient = useQueryClient()
+    const navigate = useNavigate()
 
     const { data: invoicingStatus, loading } = useGet<QuoteInvoicingStatus>(
         quote ? `/api/quotes/${quote.id}/invoicing-status` : null,
     )
 
-    const { trigger: triggerCreateInvoice, loading: creating } = usePost(`/api/invoices/create-from-quote`)
+    const { trigger: triggerCreateInvoice, loading: creating } = usePost<Invoice>(`/api/invoices/create-from-quote`)
 
     const [quantities, setQuantities] = useState<Record<string, number>>({})
     const [percentInput, setPercentInput] = useState<string>("")
+    const [amountInput, setAmountInput] = useState<string>("")
     const [redistributeKey, setRedistributeKey] = useState(0)
 
     useEffect(() => {
         setQuantities({})
         setPercentInput("")
+        setAmountInput("")
         setRedistributeKey(k => k + 1)
     }, [quote?.id, invoicingStatus])
 
@@ -83,28 +87,49 @@ export function CreateInvoiceFromQuoteDialog({ quote, onOpenChange }: CreateInvo
 
     const selectedPercent = totalTTC > 0 ? (selectedTTC / totalTTC) * 100 : 0
 
-    const distributeFromPercent = (percent: number) => {
+    /** Distributes a raw TTC target proportionally across remaining item quantities,
+     * clamped to what's actually invoicable, and syncs both the percent and amount
+     * inputs to the value that was actually applied (never silently diverging). */
+    const distributeFromTargetTTC = (targetTTC: number) => {
         if (!status || remainingTTC <= 0) return
-        const clamped = Math.min(Math.max(percent, 0), remainingPercent)
-        const targetTTC = (clamped / 100) * totalTTC
+        const clampedTTC = Math.min(Math.max(targetTTC, 0), remainingTTC)
         const next: Record<string, number> = {}
         status.items.forEach(item => {
             if (item.remainingQuantity <= 0) {
                 next[item.quoteItemId] = 0
                 return
             }
-            const q = (targetTTC * item.remainingQuantity) / remainingTTC
+            const q = (clampedTTC * item.remainingQuantity) / remainingTTC
             next[item.quoteItemId] = Math.min(Math.round(q * 1000) / 1000, item.remainingQuantity)
         })
         setQuantities(next)
         setRedistributeKey(k => k + 1)
+        const appliedPercent = totalTTC > 0 ? (clampedTTC / totalTTC) * 100 : 0
+        setPercentInput(String(Math.round(appliedPercent * 100) / 100))
+        setAmountInput(clampedTTC.toFixed(2))
+    }
+
+    const distributeFromPercent = (percent: number) => {
+        const clampedPercent = Math.min(Math.max(percent, 0), remainingPercent)
+        distributeFromTargetTTC((clampedPercent / 100) * totalTTC)
     }
 
     const handlePercentChange = (value: string) => {
-        setPercentInput(value)
         const parsed = value === "" ? 0 : Number.parseFloat(value)
-        if (Number.isNaN(parsed)) return
+        if (Number.isNaN(parsed)) {
+            setPercentInput(value)
+            return
+        }
         distributeFromPercent(parsed)
+    }
+
+    const handleAmountChange = (value: string) => {
+        const parsed = value === "" ? 0 : Number.parseFloat(value)
+        if (Number.isNaN(parsed)) {
+            setAmountInput(value)
+            return
+        }
+        distributeFromTargetTTC(parsed)
     }
 
     const handleQuantityChange = (quoteItemId: string, value: number, max: number) => {
@@ -120,6 +145,7 @@ export function CreateInvoiceFromQuoteDialog({ quote, onOpenChange }: CreateInvo
                 : 0
             const newPercent = totalTTC > 0 ? (newSelectedTTC / totalTTC) * 100 : 0
             setPercentInput(newPercent.toFixed(2).replace(/\.?0+$/, ""))
+            setAmountInput(newSelectedTTC.toFixed(2))
             return next
         })
     }
@@ -136,11 +162,14 @@ export function CreateInvoiceFromQuoteDialog({ quote, onOpenChange }: CreateInvo
         if (items.length === 0) return
 
         triggerCreateInvoice({ quoteId: quote.id, items })
-            .then(() => {
+            .then((newInvoice) => {
                 toast.success(t("quotes.list.messages.invoiceCreated"))
                 queryClient.invalidateQueries({ queryKey: queryKeys.quotes.listsAll() })
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 onOpenChange(false)
+                if (newInvoice) {
+                    navigate(`/invoices/pdf/${newInvoice.id}`, { state: { invoice: newInvoice } })
+                }
             })
             .catch(() => {
                 toast.error(t("quotes.list.messages.invoiceCreateError"))
@@ -172,22 +201,45 @@ export function CreateInvoiceFromQuoteDialog({ quote, onOpenChange }: CreateInvo
                     </p>
                 ) : (
                     <div className="flex flex-col gap-4">
-                        <div className="flex flex-col gap-2">
-                            <label className="text-sm font-medium" htmlFor="quote-invoice-percent">
-                                {t("quotes.createInvoiceDialog.percentageLabel")}
-                            </label>
-                            <BetterInput
-                                id="quote-invoice-percent"
-                                type="number"
-                                min={0}
-                                max={Math.round(remainingPercent * 100) / 100}
-                                step="0.01"
-                                postAdornment="%"
-                                value={percentInput}
-                                onChange={e => handlePercentChange(e.target.value)}
-                                data-cy="quote-invoice-percent-input"
-                            />
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            <div className="flex flex-col gap-2 flex-1">
+                                <label className="text-sm font-medium" htmlFor="quote-invoice-percent">
+                                    {t("quotes.createInvoiceDialog.percentageLabel")}
+                                </label>
+                                <BetterInput
+                                    id="quote-invoice-percent"
+                                    type="number"
+                                    min={0}
+                                    max={Math.round(remainingPercent * 100) / 100}
+                                    step="0.01"
+                                    postAdornment="%"
+                                    value={percentInput}
+                                    onChange={e => handlePercentChange(e.target.value)}
+                                    data-cy="quote-invoice-percent-input"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2 flex-1">
+                                <label className="text-sm font-medium" htmlFor="quote-invoice-amount">
+                                    {t("quotes.createInvoiceDialog.amountLabel")}
+                                </label>
+                                <BetterInput
+                                    id="quote-invoice-amount"
+                                    type="number"
+                                    min={0}
+                                    max={Math.round(remainingTTC * 100) / 100}
+                                    step="0.01"
+                                    postAdornment={quote?.currency || ""}
+                                    value={amountInput}
+                                    onChange={e => handleAmountChange(e.target.value)}
+                                    data-cy="quote-invoice-amount-input"
+                                />
+                            </div>
                         </div>
+                        <p className="text-xs text-muted-foreground -mt-2">
+                            {t("quotes.createInvoiceDialog.maxPercentageHint", {
+                                percent: Math.round(remainingPercent * 100) / 100,
+                            })}
+                        </p>
 
                         <div className="flex flex-col gap-2">
                             {status.items.map(item => {
@@ -195,7 +247,6 @@ export function CreateInvoiceFromQuoteDialog({ quote, onOpenChange }: CreateInvo
                                 const fullyInvoiced = remaining <= 0
                                 const currentQty = quantities[item.quoteItemId] ?? 0
                                 const itemTTC = currentQty * (itemTTCPerUnit[item.quoteItemId] ?? 0)
-                                const itemPercent = totalTTC > 0 ? (itemTTC / totalTTC) * 100 : 0
 
                                 return (
                                     <div
@@ -208,6 +259,11 @@ export function CreateInvoiceFromQuoteDialog({ quote, onOpenChange }: CreateInvo
                                                 {t("quotes.createInvoiceDialog.remainingLabel", {
                                                     remaining: remaining,
                                                 })}
+                                                {" — "}
+                                                {t("quotes.createInvoiceDialog.remainingTotalLabel", {
+                                                    amount: item.remainingTTC.toFixed(2),
+                                                    currency: quote?.currency || "",
+                                                })}
                                             </p>
                                         </div>
                                         {fullyInvoiced ? (
@@ -216,10 +272,6 @@ export function CreateInvoiceFromQuoteDialog({ quote, onOpenChange }: CreateInvo
                                             </Badge>
                                         ) : (
                                             <>
-                                                <span className="text-xs text-muted-foreground w-12 text-right shrink-0">
-                                                    {Math.round(itemPercent * 100) / 100}%
-                                                </span>
-
                                                 <BetterInput
                                                     key={`${item.quoteItemId}-${redistributeKey}`}
                                                     defaultValue={currentQty}

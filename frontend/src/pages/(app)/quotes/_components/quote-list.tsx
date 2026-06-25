@@ -12,13 +12,13 @@ import { Input } from "@/components/ui/input"
 import type { Quote } from "@/types"
 import { CreateInvoiceFromQuoteDialog } from "@/pages/(app)/quotes/_components/create-invoice-from-quote-dialog"
 import { QuoteDeleteDialog } from "@/pages/(app)/quotes/_components/quote-delete"
-import { QuotePdfModal } from "@/pages/(app)/quotes/_components/quote-pdf-view"
 import { QuoteUpsert } from "@/pages/(app)/quotes/_components/quote-upsert"
 import { QuoteViewDialog } from "@/pages/(app)/quotes/_components/quote-view"
 import { SendConfirmationDialog } from "@/components/send-confirmation-dialog"
 import type React from "react"
 import { Spinner } from "@/components/ui/spinner"
 import { toast } from "sonner"
+import { useNavigate } from "react-router"
 import { useTranslation } from "react-i18next"
 
 interface QuoteListProps {
@@ -50,6 +50,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
         ref,
     ) => {
         const { t } = useTranslation()
+        const navigate = useNavigate()
         const queryClient = useQueryClient()
         const { trigger: triggerSendForSignature, loading: signatureLoading } = usePost<{ message: string; signature: { id: string } }>(
             `/api/signatures`,
@@ -59,7 +60,6 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
         const [quoteIdForSignature, setQuoteIdForSignature] = useState<string | null>(null)
         const [editQuoteDialog, setEditQuoteDialog] = useState<Quote | null>(null)
         const [viewQuoteDialog, setViewQuoteDialog] = useState<Quote | null>(null)
-        const [viewQuotePdfDialog, setViewQuotePdfDialog] = useState<Quote | null>(null)
         const [deleteQuoteDialog, setDeleteQuoteDialog] = useState<Quote | null>(null)
         const [sendQuoteDialog, setSendQuoteDialog] = useState<Quote | null>(null)
         const [downloadQuotePdf, setDownloadQuotePdf] = useState<Quote | null>(null)
@@ -103,7 +103,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
         }
 
         function handleViewPdf(quote: Quote) {
-            setViewQuotePdfDialog(quote)
+            navigate(`/quotes/pdf/${quote.id}`, { state: { quote } })
         }
 
         function handleDownloadPdf(quote: Quote) {
@@ -424,13 +424,6 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                     quote={viewQuoteDialog}
                     onOpenChange={(open) => {
                         if (!open) setViewQuoteDialog(null)
-                    }}
-                />
-
-                <QuotePdfModal
-                    quote={viewQuotePdfDialog}
-                    onOpenChange={(open) => {
-                        if (!open) setViewQuotePdfDialog(null)
                     }}
                 />
 
