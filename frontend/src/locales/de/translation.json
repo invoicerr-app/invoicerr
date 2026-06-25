@@ -1494,6 +1494,10 @@
         }
     },
     "auth": {
+        "serverUnavailable": {
+            "title": "Dienst vorübergehend nicht verfügbar",
+            "description": "Der Server ist nicht erreichbar (Datenbankverbindung fehlgeschlagen). Bitte versuchen Sie es in einigen Augenblicken erneut."
+        },
         "login": {
             "title": "Anmelden",
             "description": "Geben Sie Ihre Anmeldedaten ein, um auf Ihr Konto zuzugreifen",

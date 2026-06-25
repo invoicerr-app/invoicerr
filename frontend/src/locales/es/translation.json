@@ -1494,6 +1494,10 @@
         }
     },
     "auth": {
+        "serverUnavailable": {
+            "title": "Servicio temporalmente no disponible",
+            "description": "No se puede contactar con el servidor (fallo de conexión con la base de datos). Vuelve a intentarlo en unos momentos."
+        },
         "login": {
             "title": "Iniciar sesión",
             "description": "Ingrese sus datos para acceder a su cuenta",

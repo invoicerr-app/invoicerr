@@ -1695,6 +1695,10 @@
         }
     },
     "auth": {
+        "serverUnavailable": {
+            "title": "Service temporarily unavailable",
+            "description": "The server can't be reached (database connection failed). Please try again in a few moments."
+        },
         "login": {
             "title": "Sign In",
             "description": "Enter your credentials to access your account",
