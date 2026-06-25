@@ -8,10 +8,12 @@
 > channel-driven triggers × event-sourced runtime) · [`documentation/compliance/`](.) (per-country specs)
 >
 > **TL;DR** — Resolution core, execution-layer stubs, the lifecycle runtime + its 3 durable drivers,
-> and Prisma/NestJS persistence are all built, wired together, and tested
-> (**317 tests — 314 unit + 3 opt-in live-DB integration — 0 type errors, zero impact on the existing
-> invoice flow**). What remains is (1) replacing the named `TODO` stubs with real external
-> integrations, and (2) wiring the module into the **live** invoice flow (`invoices.service.ts`).
+> Prisma/NestJS persistence, and **real tax determination in the live invoice/quote/recurring-invoice
+> flow** are all built, wired together, and tested (**334 tests — 331 unit + 3 opt-in live-DB
+> integration — 0 type errors**). What remains is (1) replacing the named `TODO` stubs with real
+> external integrations, and (2) driving the lifecycle runtime itself (clearance, transmission,
+> `ComplianceDocument` creation) from that same live flow — today only tax *determination* is wired,
+> not clearance/transmission/persistence of the resulting document.
 
 ---
 
@@ -113,10 +115,38 @@
 - [x] Misc: `report`, `markPaid`, `archiveDocument`, `validate`, queries.
 - [x] `ComplianceDocumentStore` port — **in-memory and Prisma implementations both available**.
 
+### Live wiring — tax determination (the first slice of "into the live invoice flow")
+- [x] **`compliance/integration/invoice-tax.ts`** — pure adapter: builds a `TransactionContext` from a
+  company/client/items, calls `resolve()` + `accumulateTotals()`, converts back to the Float
+  `totalHT`/`totalVAT`/`totalTTC`/`vatRate` shape the live schema still uses. Consumed by
+  `invoices.service.ts`, `quotes.service.ts`, and `recurring-invoices.service.ts` — the old
+  France-only `isVatExemptFrance` shortcut is gone from all three.
+- [x] **`Company.countryCode`/`Client.countryCode`** (additive, nullable) + `guessCountryCode()`
+  (`utils/country-name-to-iso.ts`) — a conservative, exact-match-only normalizer used as a fallback
+  when the explicit field is empty. `country` stays free-text; this is *not* the full ISO-3166
+  migration below, just enough signal for the engine to resolve a jurisdiction.
+- [x] Small-business exemption (`Company.exemptVat`) now works for **any** country via
+  `taxScheme: 'FRANCHISE_BASE'`, not just `country === 'FRANCE'` — the first concrete bug this fixed.
+- [x] Cross-border export (non-union destination) now correctly resolves to 0% instead of the flat
+  domestic rate — proven end-to-end against the e2e suite (FR→US client, `07-invoices.cy.ts` /
+  `12-discount.cy.ts`, with the legal reason recorded in each updated assertion).
+- [ ] **EU/GCC B2B reverse charge does not fire yet in practice** — `Company.VAT`/`Client.VAT` are
+  free-text, never validated, so `resolveInvoiceTax` deliberately never claims `validated: true` for
+  them (the engine's `TrustFlagVatValidator` is conservative by design: an unverified VAT id must
+  *not* unlock 0%-rating, or anyone could type a fake number and under-charge). Until a real validator
+  is wired in (see "VIES / registry validation" below), an intra-union B2B sale safely falls back to
+  the supplier's domestic rate — correct-but-conservative, not yet the full fix.
+- [ ] The resulting totals are **not** reflected anywhere else that mentions VAT treatment in text —
+  e.g. the invoice PDF's `vatExemptText` is still the old France-only string; a 0%-rated export or
+  reverse-charge invoice now has the right *numbers* but no legal mention explaining why (the engine
+  already computes one per line — `TaxTreatment.mentions` — it's just not surfaced into the PDF yet).
+- [ ] None of this drives the lifecycle runtime — no `ComplianceDocument` is created, no clearance is
+  submitted, nothing is transmitted. That's the next slice (see "Suggested order" below).
+
 ### Tests
-- [x] **317 tests** across **30 spec files**: 314 always-on unit tests (pure engine/profiles/
-  providers/lifecycle, no I/O) + 3 opt-in live-DB integration tests. `tsc --noEmit` clean; `nest
-  build` succeeds; `prisma validate` passes; a fresh `prisma migrate deploy` applies cleanly.
+- [x] **334 tests** across **32 spec files**: 331 always-on unit tests (pure engine/profiles/
+  providers/lifecycle/integration, no I/O) + 3 opt-in live-DB integration tests. `tsc --noEmit` clean;
+  `nest build` succeeds; `prisma validate` passes; a fresh `prisma migrate deploy` applies cleanly.
 
 ---
 
@@ -140,11 +170,18 @@ markers** as of this writing, each naming the exact schema/API/cert to implement
 
 ### 2. Platform wiring — what's left after persistence
 - [x] ~~NestJS module + Prisma persistence~~ — **done** (see above).
-- [ ] **Wire into `invoices.service.ts`** — build the `TransactionContext`, call the engine, drive the
-  runtime; restrict the current free `editInvoice` to DRAFT; route create/send/correct through the
-  facade. Replace the hardcoded 293B logic with the tax engine. *(This is the next concrete step —
-  the facade + persistence it needs now both exist.)*
-- [ ] **ISO-3166 migration** — `Company.country`/`Client.country` free-text → 2-letter codes.
+- [x] ~~Replace the hardcoded 293B logic with the tax engine~~ — **done**, see "Live wiring — tax
+  determination" above. What's *not* done yet: actually **driving the runtime** (call the facade,
+  create a `ComplianceDocument`, submit for clearance, transmit) — `invoices.service.ts` still only
+  asks the engine for the right numbers, it doesn't drive the lifecycle that was built for it.
+- [ ] **Drive the lifecycle from `invoices.service.ts`** — build on top of the tax-determination
+  wiring above: route create/send/correct through the `ComplianceService` facade, create the
+  `ComplianceDocument`, restrict the current free `editInvoice` to `DRAFT` (now that `DRAFT` is a real
+  status — added by the unrelated `feat/invoice-status-progression` work — nothing gates *editing* on
+  it yet).
+- [ ] **Full ISO-3166 migration** — `Company.country`/`Client.country` free-text → 2-letter codes as
+  the primary field (today: an additive `countryCode` override + a best-effort guess from the
+  free-text name, good enough for tax determination, not a real migration).
 - [ ] **Money migration** — `Invoice` `Float` columns → integer minor units.
 - [ ] **Outbox + dispatcher** — durable at-least-once *outbound* authority/buyer I/O with idempotency
   (the lifecycle's *inbound* side — poll/timer/callback — is already durable; this is the outbound
@@ -157,7 +194,10 @@ markers** as of this writing, each naming the exact schema/API/cert to implement
 - [ ] **Withholding & multi-tax population** — engine currently emits one component for most countries.
 - [ ] **Multi-entity / non-established supplier** — app assumes a single `company.findFirst()`.
 - [ ] **Certificate lifecycle** — expiry/renewal/HSM monitoring.
-- [ ] **VIES / registry validation** — wire a real validator behind `VatValidator`.
+- [ ] **VIES / registry validation** — wire a real validator behind `VatValidator`. Not cosmetic
+  anymore: this is now the blocker for EU/GCC B2B reverse charge actually firing in the live flow
+  (see "Live wiring" above) — `resolveInvoiceTax` already passes the VAT identifiers through, a real
+  validator is the only missing piece.
 - [ ] **§13 models not yet built**: `FolioPool`, `Withholding`, `TaxComponent`, `LegalArchiveEntry`,
   `ReceivedDocument`, `DocumentResponse` — deliberately out of scope of the lifecycle-persistence
   phase that was just completed; add when their corresponding stub area is implemented for real.
@@ -169,13 +209,17 @@ markers** as of this writing, each naming the exact schema/API/cert to implement
 ---
 
 ## Suggested order
-1. **Tax engine into `invoices.service.ts`** (replaces hardcoded 293B) — immediate correctness win,
-   low risk, and the facade/persistence it needs already exist.
-2. **One reference transmission end to end** (e.g. FR PDP **or** MX PAC) — replace one provider stub
+1. ~~**Tax engine into `invoices.service.ts`** (replaces hardcoded 293B)~~ — **done**.
+2. **Drive the lifecycle from the live flow** — `ComplianceService.createDraft`/`issue`, persist a
+   `ComplianceDocument`, restrict `editInvoice` to `DRAFT`. The facade/persistence it needs already
+   exist; this is now the next concrete step.
+3. **A real `VatValidator` (VIES)** — unlocks EU/GCC B2B reverse charge in the live flow (currently
+   conservatively inert, see above) — small, isolated, high value.
+4. **One reference transmission end to end** (e.g. FR PDP **or** MX PAC) — replace one provider stub
    with a real integration; the lifecycle drivers that make it *live* (poll/callback) are already built.
-3. **Outbox** for the outbound side, mirroring the durability already built for inbound (poll/timer/callback).
-4. **Frontend** — surface compliance status + available actions from the runtime's projections.
-5. Reporting + breadth; fill remaining national formats/channels incrementally behind the registries.
+5. **Outbox** for the outbound side, mirroring the durability already built for inbound (poll/timer/callback).
+6. **Frontend** — surface compliance status + available actions from the runtime's projections.
+7. Reporting + breadth; fill remaining national formats/channels incrementally behind the registries.
 
 ---
 

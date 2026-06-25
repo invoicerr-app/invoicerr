@@ -3,6 +3,9 @@ import { Currency, WebhookEvent } from '../../../prisma/generated/prisma/client'
 
 import { UpsertInvoicesDto } from '@/modules/recurring-invoices/dto/invoices.dto';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
+import { guessCountryCode } from '@/utils/country-name-to-iso';
+import { resolveInvoiceTax } from '@/compliance/integration/invoice-tax';
+import type { SupplyType } from '@/compliance/types';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
@@ -48,21 +51,36 @@ export class RecurringInvoicesService {
 
     async createRecurringInvoice(data: UpsertInvoicesDto) {
         const company = await prisma.company.findFirst();
-        const isVatExemptFrance = !!(company?.exemptVat && (company?.country || '').toUpperCase() === 'FRANCE');
 
-        // Calculate totals
-        let totalHT = 0;
-        let totalVAT = 0;
-        let totalTTC = 0;
-
-        for (const item of data.items) {
-            const itemHT = item.quantity * item.unitPrice;
-            const vatRate = isVatExemptFrance ? 0 : (item.vatRate || 0);
-            const itemVAT = itemHT * (vatRate / 100);
-            totalHT += itemHT;
-            totalVAT += itemVAT;
+        const client = await prisma.client.findUnique({
+            where: { id: data.clientId },
+        });
+        if (!client) {
+            logger.error('Client not found', { category: 'recurring-invoice' });
+            throw new BadRequestException('Client not found');
         }
-        totalTTC = isVatExemptFrance ? totalHT : (totalHT + totalVAT);
+
+        const taxResult = resolveInvoiceTax({
+            supplierCountryCode: company?.countryCode ?? guessCountryCode(company?.country),
+            supplierExemptVat: !!company?.exemptVat,
+            supplierVatNumber: company?.VAT,
+            buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
+            buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+            buyerVatNumber: client.VAT,
+            currency: (data.currency as string) || client.currency || company?.currency || 'EUR',
+            issueDate: new Date(),
+            discountRate: 0,
+            items: data.items.map(item => ({
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                vatRate: item.vatRate,
+                supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
+            })),
+        });
+
+        if (taxResult.warnings.length > 0) {
+            logger.warn('Tax resolution warnings', { category: 'recurring-invoice', details: { warnings: taxResult.warnings } });
+        }
 
         const today = new Date();
         const nextMonday = new Date(today);
@@ -86,15 +104,15 @@ export class RecurringInvoicesService {
                 autoSend: data.autoSend || false,
                 nextInvoiceDate,
                 currency: (data.currency as Currency) || Currency.USD,
-                totalHT,
-                totalVAT,
-                totalTTC,
+                totalHT: taxResult.totalHT,
+                totalVAT: taxResult.totalVAT,
+                totalTTC: taxResult.totalTTC,
                 items: {
                     create: data.items.map((item, index) => ({
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
-                        vatRate: isVatExemptFrance ? 0 : item.vatRate,
+                        vatRate: taxResult.itemVatRates[index],
                         type: item.type,
                         order: item.order || index,
                     })),
@@ -124,21 +142,36 @@ export class RecurringInvoicesService {
 
     async updateRecurringInvoice(id: string, data: UpsertInvoicesDto) {
         const company = await prisma.company.findFirst();
-        const isVatExemptFrance = !!(company?.exemptVat && (company?.country || '').toUpperCase() === 'FRANCE');
 
-        // Calculate totals
-        let totalHT = 0;
-        let totalVAT = 0;
-        let totalTTC = 0;
-
-        for (const item of data.items) {
-            const itemHT = item.quantity * item.unitPrice;
-            const vatRate = isVatExemptFrance ? 0 : (item.vatRate || 0);
-            const itemVAT = itemHT * (vatRate / 100);
-            totalHT += itemHT;
-            totalVAT += itemVAT;
+        const client = await prisma.client.findUnique({
+            where: { id: data.clientId },
+        });
+        if (!client) {
+            logger.error('Client not found', { category: 'recurring-invoice' });
+            throw new BadRequestException('Client not found');
         }
-        totalTTC = isVatExemptFrance ? totalHT : (totalHT + totalVAT);
+
+        const taxResult = resolveInvoiceTax({
+            supplierCountryCode: company?.countryCode ?? guessCountryCode(company?.country),
+            supplierExemptVat: !!company?.exemptVat,
+            supplierVatNumber: company?.VAT,
+            buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
+            buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+            buyerVatNumber: client.VAT,
+            currency: (data.currency as string) || client.currency || company?.currency || 'EUR',
+            issueDate: new Date(),
+            discountRate: 0,
+            items: data.items.map(item => ({
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                vatRate: item.vatRate,
+                supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
+            })),
+        });
+
+        if (taxResult.warnings.length > 0) {
+            logger.warn('Tax resolution warnings', { category: 'recurring-invoice', details: { warnings: taxResult.warnings } });
+        }
 
         // Update recurring invoice
         const recurringInvoice = await prisma.recurringInvoice.update({
@@ -154,16 +187,16 @@ export class RecurringInvoicesService {
                 until: data.until,
                 autoSend: data.autoSend || false,
                 currency: (data.currency as Currency) || Currency.USD,
-                totalHT,
-                totalVAT,
-                totalTTC,
+                totalHT: taxResult.totalHT,
+                totalVAT: taxResult.totalVAT,
+                totalTTC: taxResult.totalTTC,
                 items: {
                     deleteMany: {},
                     create: data.items.map((item, index) => ({
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
-                        vatRate: isVatExemptFrance ? 0 : item.vatRate,
+                        vatRate: taxResult.itemVatRates[index],
                         type: item.type,
                         order: item.order || index,
                     })),

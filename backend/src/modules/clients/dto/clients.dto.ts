@@ -17,6 +17,7 @@ export class EditClientsDto {
     city: string;
     state?: string;
     country: string;
+    countryCode?: string;
     currency: Currency;
     type?: ClientType;
     isActive: boolean;

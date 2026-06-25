@@ -70,6 +70,7 @@ export class EditCompanyDto {
     city: string
     state?: string
     country: string
+    countryCode?: string
     phone: string
     email: string
     pdfConfig: PDFConfigDto

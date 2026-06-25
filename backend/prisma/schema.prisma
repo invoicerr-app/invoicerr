@@ -317,6 +317,7 @@ model Company {
   city         String
   state        String? // State/Province (for US addresses, etc.)
   country      String
+  countryCode  String?  // ISO 3166-1 alpha-2, explicit override; falls back to guessCountryCode(country)
   phone        String
   email        String
 
@@ -360,6 +361,7 @@ model Client {
   city             String
   state            String? // State/Province (for US addresses, etc.)
   country          String
+  countryCode      String?  // ISO 3166-1 alpha-2, explicit override; falls back to guessCountryCode(country)
   currency         Currency?
   type             ClientType         @default(COMPANY)
   salutation       String             @default("Mr") // Mr, Ms, Mrs (We need a default value for the invoice generation)

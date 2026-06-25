@@ -8,10 +8,13 @@
 > déclencheurs pilotés par canal × moteur événementiel) · [`documentation/compliance/`](.) (fiches par pays)
 >
 > **TL;DR** — Le cœur de résolution, les stubs de la couche d'exécution, le moteur du cycle de vie avec
-> ses 3 drivers durables, et la persistance Prisma/NestJS sont tous construits, reliés entre eux et testés
-> (**317 tests — 314 unitaires + 3 d'intégration live-DB optionnels — 0 erreur de typage, aucun impact sur
-> le flux de facturation existant**). Il reste (1) à remplacer les stubs `TODO` nommés par de vraies
-> intégrations externes, et (2) à brancher le module dans le flux de facturation **réel** (`invoices.service.ts`).
+> ses 3 drivers durables, la persistance Prisma/NestJS, et **la vraie détermination fiscale dans le
+> flux réel de factures/devis/factures récurrentes** sont tous construits, reliés entre eux et testés
+> (**334 tests — 331 unitaires + 3 d'intégration live-DB optionnels — 0 erreur de typage**). Il reste
+> (1) à remplacer les stubs `TODO` nommés par de vraies intégrations externes, et (2) à piloter le
+> runtime du cycle de vie lui-même (*clearance*, transmission, création du `ComplianceDocument`)
+> depuis ce même flux réel — aujourd'hui seule la *détermination* fiscale est branchée, pas la
+> *clearance*/transmission/persistance du document qui en résulte.
 
 ---
 
@@ -120,11 +123,44 @@
 - [x] Divers : `report`, `markPaid`, `archiveDocument`, `validate`, requêtes.
 - [x] Port `ComplianceDocumentStore` — **implémentations en mémoire et Prisma disponibles toutes les deux**.
 
+### Branchement réel — détermination fiscale (premier morceau du « flux de facturation réel »)
+- [x] **`compliance/integration/invoice-tax.ts`** — adaptateur pur : construit un `TransactionContext`
+  à partir d'une société/client/lignes, appelle `resolve()` + `accumulateTotals()`, puis reconvertit
+  vers le format `Float` (`totalHT`/`totalVAT`/`totalTTC`/`vatRate`) que le schéma réel utilise encore.
+  Consommé par `invoices.service.ts`, `quotes.service.ts` et `recurring-invoices.service.ts` —
+  l'ancien raccourci France uniquement `isVatExemptFrance` a disparu des trois.
+- [x] **`Company.countryCode`/`Client.countryCode`** (additif, nullable) + `guessCountryCode()`
+  (`utils/country-name-to-iso.ts`) — un normalisateur conservateur, à correspondance exacte
+  uniquement, utilisé en repli quand le champ explicite est vide. `country` reste en texte libre ;
+  ce n'est *pas* la migration ISO-3166 complète ci-dessous, juste assez de signal pour que le moteur
+  résolve une juridiction.
+- [x] L'exonération petite entreprise (`Company.exemptVat`) fonctionne désormais pour **n'importe
+  quel** pays via `taxScheme: 'FRANCHISE_BASE'`, pas seulement `country === 'FRANCE'` — le premier
+  bug concret corrigé par ce chantier.
+- [x] L'export cross-border (destination hors union) résout désormais correctement à 0% au lieu du
+  taux domestique plat — prouvé de bout en bout sur la suite e2e (client FR→US, `07-invoices.cy.ts` /
+  `12-discount.cy.ts`, avec la justification légale consignée dans chaque assertion mise à jour).
+- [ ] **L'autoliquidation UE/CCG B2B ne se déclenche pas encore en pratique** — `Company.VAT`/
+  `Client.VAT` sont du texte libre, jamais validé, donc `resolveInvoiceTax` ne déclare délibérément
+  jamais `validated: true` pour eux (le `TrustFlagVatValidator` du moteur est conservateur par
+  conception : un n° de TVA non vérifié ne doit *pas* débloquer une taxation à 0%, sinon n'importe qui
+  pourrait taper un faux numéro et sous-facturer la taxe). Tant qu'un vrai validateur n'est pas câblé
+  (voir « Validation VIES / registre » plus bas), une vente B2B intra-union retombe sans risque sur
+  le taux domestique du fournisseur — correct mais conservateur, pas encore le correctif complet.
+- [ ] Le résultat n'est répercuté **nulle part ailleurs** où le traitement TVA est mentionné en texte
+  — ex. le `vatExemptText` du PDF de facture est toujours l'ancienne chaîne France uniquement ; une
+  facture export ou autoliquidation à 0% a désormais les bons *montants* mais aucune mention légale
+  expliquant pourquoi (le moteur calcule déjà une mention par ligne — `TaxTreatment.mentions` — elle
+  n'est simplement pas encore remontée jusqu'au PDF).
+- [ ] Rien de tout cela ne pilote le runtime du cycle de vie — aucun `ComplianceDocument` n'est créé,
+  aucune *clearance* n'est soumise, rien n'est transmis. C'est le prochain morceau (voir « Ordre
+  suggéré » plus bas).
+
 ### Tests
-- [x] **317 tests** répartis sur **30 fichiers de specs** : 314 tests unitaires toujours actifs
-  (engine/profiles/providers/lifecycle purs, sans I/O) + 3 tests d'intégration live-DB optionnels.
-  `tsc --noEmit` propre ; `nest build` réussit ; `prisma validate` passe ; un `prisma migrate deploy`
-  à froid s'applique sans erreur.
+- [x] **334 tests** répartis sur **32 fichiers de specs** : 331 tests unitaires toujours actifs
+  (engine/profiles/providers/lifecycle/integration purs, sans I/O) + 3 tests d'intégration live-DB
+  optionnels. `tsc --noEmit` propre ; `nest build` réussit ; `prisma validate` passe ; un
+  `prisma migrate deploy` à froid s'applique sans erreur.
 
 ---
 
@@ -148,12 +184,20 @@ Chaque stub loggue un `TODO` à l'endroit exact à remplir (grep `\.todo(` dans 
 
 ### 2. Câblage plateforme — ce qu'il reste après la persistance
 - [x] ~~Module NestJS + persistance Prisma~~ — **fait** (voir ci-dessus).
-- [ ] **Brancher dans `invoices.service.ts`** — construire le `TransactionContext`, appeler le moteur,
-  piloter le runtime ; restreindre l'`editInvoice` actuellement libre au DRAFT uniquement ; faire
-  passer create/send/correct par la façade. Remplacer la logique 293B codée en dur par le moteur
-  fiscal. *(C'est la prochaine étape concrète — la façade et la persistance dont elle a besoin
-  existent désormais toutes les deux.)*
-- [ ] **Migration ISO-3166** — `Company.country`/`Client.country` texte libre → codes à 2 lettres.
+- [x] ~~Remplacer la logique 293B codée en dur par le moteur fiscal~~ — **fait**, voir « Branchement
+  réel — détermination fiscale » plus haut. Ce qui n'est *pas* fait : **piloter réellement le
+  runtime** (appeler la façade, créer un `ComplianceDocument`, soumettre en *clearance*, transmettre)
+  — `invoices.service.ts` ne fait encore que demander les bons chiffres au moteur, il ne pilote pas
+  le cycle de vie construit pour lui.
+- [ ] **Piloter le cycle de vie depuis `invoices.service.ts`** — construire sur le branchement de
+  détermination fiscale ci-dessus : faire passer create/send/correct par la façade
+  `ComplianceService`, créer le `ComplianceDocument`, restreindre l'`editInvoice` actuellement libre
+  au `DRAFT` uniquement (maintenant que `DRAFT` est un vrai statut — ajouté par le chantier sans
+  rapport `feat/invoice-status-progression` — rien ne conditionne encore l'édition à ce statut).
+- [ ] **Migration ISO-3166 complète** — `Company.country`/`Client.country` texte libre → codes à 2
+  lettres comme champ principal (aujourd'hui : une surcharge additive `countryCode` + une déduction
+  best-effort depuis le nom en texte libre, suffisant pour la détermination fiscale, pas une vraie
+  migration).
 - [ ] **Migration monétaire** — colonnes `Float` d'`Invoice` → unités mineures entières.
 - [ ] **Outbox + dispatcher** — I/O *sortant* durable at-least-once vers l'administration/l'acheteur
   avec idempotence (le côté *entrant* du cycle de vie — poll/timer/callback — est déjà durable ; ceci
@@ -168,7 +212,10 @@ Chaque stub loggue un `TODO` à l'endroit exact à remplir (grep `\.todo(` dans 
   composante pour la plupart des pays.
 - [ ] **Multi-entité / fournisseur non établi** — l'app suppose un unique `company.findFirst()`.
 - [ ] **Cycle de vie des certificats** — expiration/renouvellement/supervision HSM.
-- [ ] **Validation VIES / registre** — câbler un vrai validateur derrière `VatValidator`.
+- [ ] **Validation VIES / registre** — câbler un vrai validateur derrière `VatValidator`. Ce n'est
+  plus cosmétique : c'est désormais le bloqueur pour que l'autoliquidation UE/CCG B2B se déclenche
+  réellement dans le flux réel (voir « Branchement réel » plus haut) — `resolveInvoiceTax` fait déjà
+  passer les identifiants de TVA, seul un vrai validateur manque.
 - [ ] **Modèles du §13 pas encore construits** : `FolioPool`, `Withholding`, `TaxComponent`,
   `LegalArchiveEntry`, `ReceivedDocument`, `DocumentResponse` — délibérément hors périmètre de la
   phase cycle de vie/persistance qui vient d'être terminée ; à ajouter quand la zone de stub
@@ -182,16 +229,20 @@ Chaque stub loggue un `TODO` à l'endroit exact à remplir (grep `\.todo(` dans 
 ---
 
 ## Ordre suggéré
-1. **Moteur fiscal dans `invoices.service.ts`** (remplace le 293B codé en dur) — gain de correction
-   immédiat, faible risque, et la façade/persistance dont il a besoin existent déjà.
-2. **Une transmission de référence de bout en bout** (ex. FR PDP **ou** MX PAC) — remplacer un stub
+1. ~~**Moteur fiscal dans `invoices.service.ts`** (remplace le 293B codé en dur)~~ — **fait**.
+2. **Piloter le cycle de vie depuis le flux réel** — `ComplianceService.createDraft`/`issue`,
+   persister un `ComplianceDocument`, restreindre `editInvoice` au `DRAFT`. La façade/persistance
+   dont elle a besoin existent déjà ; c'est désormais la prochaine étape concrète.
+3. **Un vrai `VatValidator` (VIES)** — débloque l'autoliquidation UE/CCG B2B dans le flux réel
+   (aujourd'hui sans effet par conservatisme, voir plus haut) — petit, isolé, à forte valeur.
+4. **Une transmission de référence de bout en bout** (ex. FR PDP **ou** MX PAC) — remplacer un stub
    de provider par une vraie intégration ; les drivers du cycle de vie qui la rendent *vivante*
    (poll/callback) sont déjà construits.
-3. **Outbox** pour le côté sortant, à l'image de la durabilité déjà construite pour l'entrant
+5. **Outbox** pour le côté sortant, à l'image de la durabilité déjà construite pour l'entrant
    (poll/timer/callback).
-4. **Frontend** — exposer le statut de compliance + les actions disponibles à partir des projections
+6. **Frontend** — exposer le statut de compliance + les actions disponibles à partir des projections
    du runtime.
-5. Reporting + largeur de couverture ; remplir progressivement les formats/canaux nationaux restants
+7. Reporting + largeur de couverture ; remplir progressivement les formats/canaux nationaux restants
    derrière les registres.
 
 ---

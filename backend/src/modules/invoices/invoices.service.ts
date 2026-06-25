@@ -16,7 +16,10 @@ import { formatDate } from '@/utils/date';
 import { logger } from '@/logger/logger.service';
 import { parseAddress } from '@/utils/adress';
 import prisma from '@/prisma/prisma.service';
-import { calculateDiscountedTotals, clampDiscountRate } from '@/utils/financial';
+import { guessCountryCode } from '@/utils/country-name-to-iso';
+import { resolveInvoiceTax } from '@/compliance/integration/invoice-tax';
+import { clampDiscountRate } from '@/utils/financial';
+import type { SupplyType } from '@/compliance/types';
 
 @Injectable()
 export class InvoicesService {
@@ -110,9 +113,28 @@ export class InvoicesService {
             throw new BadRequestException('Client not found');
         }
 
-        const isVatExemptFrance = !!(company.exemptVat && (company.country || '').toUpperCase() === 'FRANCE');
         const discountRate = clampDiscountRate(body.discountRate);
-        const totals = calculateDiscountedTotals(items, discountRate, { isVatExempt: isVatExemptFrance });
+        const taxResult = resolveInvoiceTax({
+            supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
+            supplierExemptVat: !!company.exemptVat,
+            supplierVatNumber: company.VAT,
+            buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
+            buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+            buyerVatNumber: client.VAT,
+            currency: body.currency || client.currency || company.currency,
+            issueDate: new Date(),
+            discountRate,
+            items: items.map(item => ({
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                vatRate: item.vatRate,
+                supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
+            })),
+        });
+
+        if (taxResult.warnings.length > 0) {
+            logger.warn('Tax resolution warnings', { category: 'invoice', details: { warnings: taxResult.warnings } });
+        }
 
         const invoice = await prisma.invoice.create({
             data: {
@@ -123,17 +145,17 @@ export class InvoicesService {
                 paymentDetails: body.paymentDetails,
                 paymentMethodId: body.paymentMethodId,
                 currency: body.currency || client.currency || company.currency,
-                companyId: company.id, // reuse the already fetched company object
-                discountRate: totals.discountRate,
-                totalHT: totals.totalHT,
-                totalVAT: totals.totalVAT,
-                totalTTC: totals.totalTTC,
+                companyId: company.id,
+                discountRate,
+                totalHT: taxResult.totalHT,
+                totalVAT: taxResult.totalVAT,
+                totalTTC: taxResult.totalTTC,
                 items: {
-                    create: items.map(item => ({
+                    create: items.map((item, i) => ({
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
-                        vatRate: isVatExemptFrance ? 0 : (item.vatRate || 0),
+                        vatRate: taxResult.itemVatRates[i],
                         type: item.type,
                         order: item.order || 0,
                     })),
@@ -199,9 +221,28 @@ export class InvoicesService {
 
         const itemIdsToDelete = existingItemIds.filter(id => !incomingItemIds.includes(id));
 
-        const isVatExemptFrance = !!(company.exemptVat && (company.country || '').toUpperCase() === 'FRANCE');
         const normalizedDiscountRate = clampDiscountRate(discountRate ?? existingInvoice.discountRate);
-        const totals = calculateDiscountedTotals(items, normalizedDiscountRate, { isVatExempt: isVatExemptFrance });
+        const taxResult = resolveInvoiceTax({
+            supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
+            supplierExemptVat: !!company.exemptVat,
+            supplierVatNumber: company.VAT,
+            buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
+            buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+            buyerVatNumber: client.VAT,
+            currency: body.currency || client.currency || company.currency,
+            issueDate: new Date(),
+            discountRate: normalizedDiscountRate,
+            items: items.map(item => ({
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                vatRate: item.vatRate,
+                supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
+            })),
+        });
+
+        if (taxResult.warnings.length > 0) {
+            logger.warn('Tax resolution warnings', { category: 'invoice', details: { warnings: taxResult.warnings } });
+        }
 
         const updateInvoice = await prisma.invoice.update({
             where: { id },
@@ -215,34 +256,36 @@ export class InvoicesService {
                 notes: data.notes,
                 currency: body.currency || client.currency || company.currency,
                 dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-                discountRate: totals.discountRate,
-                totalHT: totals.totalHT,
-                totalVAT: totals.totalVAT,
-                totalTTC: totals.totalTTC,
+                discountRate: normalizedDiscountRate,
+                totalHT: taxResult.totalHT,
+                totalVAT: taxResult.totalVAT,
+                totalTTC: taxResult.totalTTC,
                 items: {
                     deleteMany: {
                         id: { in: itemIdsToDelete },
                     },
                     updateMany: items
-                        .filter(i => i.id)
-                        .map(i => ({
+                        .map((i, originalIdx) => ({ i, originalIdx }))
+                        .filter(({ i }) => i.id)
+                        .map(({ i, originalIdx }) => ({
                             where: { id: i.id! },
                             data: {
                                 description: i.description,
                                 quantity: i.quantity,
                                 unitPrice: i.unitPrice,
-                                vatRate: isVatExemptFrance ? 0 : (i.vatRate || 0),
+                                vatRate: taxResult.itemVatRates[originalIdx],
                                 type: i.type,
                                 order: i.order || 0,
                             },
                         })),
                     create: items
-                        .filter(i => !i.id)
-                        .map(i => ({
+                        .map((i, originalIdx) => ({ i, originalIdx }))
+                        .filter(({ i }) => !i.id)
+                        .map(({ i, originalIdx }) => ({
                             description: i.description,
                             quantity: i.quantity,
                             unitPrice: i.unitPrice,
-                            vatRate: isVatExemptFrance ? 0 : (i.vatRate || 0),
+                            vatRate: taxResult.itemVatRates[originalIdx],
                             type: i.type,
                             order: i.order || 0,
                         })),

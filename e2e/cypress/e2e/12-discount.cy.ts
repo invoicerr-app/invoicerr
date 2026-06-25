@@ -136,8 +136,8 @@ describe('Discount Feature (Quote)', () => {
                 cy.contains('Discount Rate').parent().find('p.font-medium', { timeout: 10000 }).should('contain', '10%');
                 cy.contains('Discount Amount').parent().find('p.font-medium').should('contain', '100.00EUR');
                 cy.contains('Total \(excl. VAT\)').parent().find('p.font-medium').should('contain', '900.00EUR');
-                cy.contains('VAT Amount').parent().find('p.font-medium').should('contain', '180.00EUR');
-                cy.contains('Total (incl. VAT)').parent().find('p.font-medium').should('contain', '1080.00EUR');
+                cy.contains('VAT Amount').parent().find('p.font-medium').should('contain', '0.00EUR'); // FR→US export: 0% VAT (EU VAT Directive Art. 59)
+                cy.contains('Total (incl. VAT)').parent().find('p.font-medium').should('contain', '900.00EUR');
             });
         });
 
@@ -201,8 +201,8 @@ describe('Discount Feature (Quote)', () => {
                 cy.contains('Discount Rate').parent().find('p.font-medium', { timeout: 10000 }).should('contain', '15%');
                 cy.contains('Discount Amount').parent().find('p.font-medium').should('contain', '150.00EUR');
                 cy.contains('Total \(excl. VAT\)').parent().find('p.font-medium').should('contain', '850.00EUR');
-                cy.contains('VAT Amount').parent().find('p.font-medium').should('contain', '170.00EUR');
-                cy.contains('Total (incl. VAT)').parent().find('p.font-medium').should('contain', '1020.00EUR');
+                cy.contains('VAT Amount').parent().find('p.font-medium').should('contain', '0.00EUR'); // FR→US export: 0% VAT (EU VAT Directive Art. 59)
+                cy.contains('Total (incl. VAT)').parent().find('p.font-medium').should('contain', '850.00EUR');
             });
         });
 
@@ -224,8 +224,8 @@ describe('Discount Feature (Invoice)', () => {
                 cy.contains('Discount Rate').parent().find('p.font-medium', { timeout: 10000 }).should('contain', '10%');
                 cy.contains('Discount Amount').parent().find('p.font-medium').should('contain', '100.00EUR');
                 cy.contains('Total \(excl. VAT\)').parent().find('p.font-medium').should('contain', '900.00EUR');
-                cy.contains('VAT Amount').parent().find('p.font-medium').should('contain', '180.00EUR');
-                cy.contains('Total (incl. VAT)').parent().find('p.font-medium').should('contain', '1080.00EUR');
+                cy.contains('VAT Amount').parent().find('p.font-medium').should('contain', '0.00EUR'); // FR→US export: 0% VAT (EU VAT Directive Art. 59)
+                cy.contains('Total (incl. VAT)').parent().find('p.font-medium').should('contain', '900.00EUR');
             });
         });
 
@@ -243,7 +243,7 @@ describe('Discount Feature (Payments)', () => {
                     .closest('div.p-4')
                     .as('paymentRow');
 
-                cy.get('@paymentRow').contains('span', '1080.00EUR').should('exist');
+                cy.get('@paymentRow').contains('span', '900.00EUR').should('exist'); // FR→US export: 0% VAT, TTC = net 900 EUR
             });
         });
     });
