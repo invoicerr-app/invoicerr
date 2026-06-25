@@ -3,8 +3,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react"
 import { useGet, useGetRaw, usePost } from "@/hooks/use-fetch"
-import { queryKeys } from "@/lib/query-keys"
-import { useQueryClient } from "@tanstack/react-query"
 
 import BetterPagination from "../../../../components/pagination"
 import { Badge } from "@/components/ui/badge"
@@ -54,10 +52,8 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         ref,
     ) => {
         const { t } = useTranslation()
-        const queryClient = useQueryClient()
         const { data: pdf_formats } = useGet<PluginPdfFormat[]>('/api/plugins/formats')
         const { trigger: triggerSendInvoiceByEmail, loading: sendInvoiceByEmailLoading } = usePost(`/api/invoices/send`)
-        const { trigger: triggerCreatePayment } = usePost(`/api/payments/create-from-invoice`)
 
         const [createInvoiceDialog, setCreateInvoiceDialog] = useState<boolean>(false)
         const [editInvoiceDialog, setEditInvoiceDialog] = useState<Invoice | null>(null)
@@ -120,19 +116,6 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
 
         function handleDownload({ invoice, format, file_format }: { invoice: Invoice; format: string; file_format: 'pdf' | 'xml' }) {
             setDownloadTrigger({ invoice, format, file_format, id: Date.now() })
-        }
-
-        function handleCreatePaymentFromInvoice(invoiceId: string) {
-            triggerCreatePayment({ id: invoiceId })
-                .then(() => {
-                    toast.success(t("invoices.list.messages.createPaymentSuccess"))
-                    queryClient.invalidateQueries({ queryKey: queryKeys.payments.listsAll() })
-                    queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
-                })
-                .catch((error) => {
-                    console.error("Error creating payment from invoice:", error)
-                    toast.error(t("invoices.list.messages.createPaymentError"))
-                })
         }
 
         const getStatusColor = (status: string) => {
@@ -461,15 +444,6 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                     </Button>
                                                 )}
 
-                                                <Button
-                                                    tooltip={t("invoices.list.tooltips.createPayment")}
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleCreatePaymentFromInvoice(invoice.id)}
-                                                    className="text-gray-600 hover:text-green-600"
-                                                >
-                                                    <Plus className="h-4 w-4" />
-                                                </Button>
                                             </div>
                                             )}
                                         </div>

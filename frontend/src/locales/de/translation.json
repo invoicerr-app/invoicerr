@@ -439,7 +439,6 @@
                 "downloadPdf": "PDF herunterladen",
                 "edit": "Rechnung bearbeiten",
                 "delete": "Rechnung löschen",
-                "createReceipt": "Erstelle ein Beleg von dieser Rechnung",
                 "sendByEmail": "Sende Rechnung per Email"
             },
             "actions": {
@@ -458,7 +457,6 @@
             "messages": {
                 "markAsPaidSuccess": "Rechnung als erfolgreich bezahlt markiert",
                 "markAsPaidError": "Rechnung konnte nicht als bezahlt markiert werden",
-                "createPaymentSuccess": "Zahlung erfolgreich aus Rechnung erstellt",
                 "sendByEmailSuccess": "Rechnung wurde versandt"
             }
         },
