@@ -34,6 +34,16 @@ export enum InvoiceItemType {
     PRODUCT = "PRODUCT"
 }
 
+export enum DocumentKind {
+    INVOICE = "INVOICE",
+    CREDIT_NOTE = "CREDIT_NOTE",
+    DEBIT_NOTE = "DEBIT_NOTE",
+    CORRECTIVE_INVOICE = "CORRECTIVE_INVOICE",
+    PROFORMA = "PROFORMA",
+    DEPOSIT = "DEPOSIT",
+    FINAL = "FINAL",
+}
+
 export interface InvoiceItem {
     id: string;
     invoiceId: string;
@@ -43,12 +53,35 @@ export interface InvoiceItem {
     vatRate: number; // 20 for 20%
     type: InvoiceItemType;
     order: number;
+    discountRate?: number;
+    discountAmount?: number;
+    chargeAmount?: number;
+    chargeDescription?: string;
+    unitOfMeasure?: string;
 }
 
 export interface Invoice {
     id: string;
     number?: number; // Assigned at issue (null for DRAFT)
     rawNumber?: string; // Optional raw number for custom formats
+    kind?: DocumentKind;
+    correctsInvoiceId?: string;
+    depositOfInvoiceId?: string;
+    buyerReference?: string;
+    purchaseOrder?: string;
+    contractRef?: string;
+    deliveryDate?: string;
+    deliveryAddress?: string;
+    deliveryAddressLine2?: string;
+    deliveryPostalCode?: string;
+    deliveryCity?: string;
+    deliveryState?: string;
+    deliveryCountry?: string;
+    paymentTerms?: string;
+    paymentMeansCode?: string;
+    fxRate?: number;
+    fxTaxAmount?: number;
+    ttcPricing?: boolean;
     title?: string; // Optional title from DTOs
     quoteId?: string;
     recurringInvoiceId?: string;
@@ -73,6 +106,8 @@ export interface Invoice {
     currency: string; // Currency code, e.g., "EUR", "USD"
     isActive: boolean;
     payments?: { id: string; totalPaid: number }[];
+    correctedBy?: Invoice[];
+    depositInvoices?: Invoice[];
 }
 
 export enum RecurrenceFrequency {

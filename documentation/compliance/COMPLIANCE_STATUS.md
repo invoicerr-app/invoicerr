@@ -168,6 +168,19 @@
   `tsc --noEmit` clean;
   `nest build` succeeds; `prisma validate` passes; a fresh `prisma migrate deploy` applies cleanly.
 
+### Shared document data-model fields (PART II.5)
+- [x] **`DocumentKind` enum** — INVOICE/CREDIT_NOTE/DEBIT_NOTE/CORRECTIVE_INVOICE/PROFORMA/DEPOSIT/FINAL
+  on Invoice.
+- [x] **Self-relations** — `correctsInvoiceId` (correction chain) + `depositOfInvoiceId` (acompte→final)
+  with ON DELETE SET NULL FK constraints.
+- [x] **Buyer reference / PO / contract ref** (EN 16931 BT-13) on Invoice + Quote.
+- [x] **Delivery info** — delivery date + full address block on Invoice + Quote.
+- [x] **Payment terms** — free-text `paymentTerms` + UN/ECE 4461 `paymentMeansCode`.
+- [x] **FX** — `fxRate`, `fxTaxAmount`, `fxTaxAmountMinor` to capture exchange at issue.
+- [x] **TTC pricing flag** — `ttcPricing` boolean on Invoice + Quote.
+- [x] **Line model** — line-level `discountRate`/`discountAmount`, `chargeAmount`/`chargeDescription`,
+  `unitOfMeasure` (UN/ECE Rec 20) on InvoiceItem + QuoteItem.
+
 ### Numbering overhaul (PART II.3)
 - [x] **NumberSeries table** (`NumberSeries`) — gapless per-series (companyId, docType, scopeKey) counter
   with race-safe `UPDATE … RETURNING` via raw SQL.

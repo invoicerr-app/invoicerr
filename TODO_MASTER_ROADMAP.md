@@ -197,21 +197,21 @@ Invoice/Quote/Payment flow isn't covered.
 ## II.5 Shared document data-model fields 🏛️
 Add the legally/functionally required fields the canonical model already anticipates but the live
 tables lack (additive). These touch Invoice + Quote + line items:
-- [ ] `kind` (INVOICE/CREDIT_NOTE/DEBIT_NOTE/CORRECTIVE_INVOICE/PROFORMA/DEPOSIT/FINAL) + `issuedAt`
-  + `correctsInvoiceId` (self-relation) + `depositInvoiceIds` link (III.4).
-- [ ] **Buyer reference / PO / contract ref** (EN 16931 BT-13; mandatory for B2G Chorus Pro: service
+- [x] `kind` (INVOICE/CREDIT_NOTE/DEBIT_NOTE/CORRECTIVE_INVOICE/PROFORMA/DEPOSIT/FINAL) + `issuedAt`
+  + `correctsInvoiceId` (self-relation) + `depositOfInvoiceId` (self-FK, linking logic in III.4).
+- [x] **Buyer reference / PO / contract ref** (EN 16931 BT-13; mandatory for B2G Chorus Pro: service
   code / engagement number). Free-text + optional structured.
-- [ ] **Delivery info**: delivery date + delivery address (EN 16931 BG-13; FR 2026 new mandatory
+- [x] **Delivery info**: delivery date + delivery address (EN 16931 BG-13; FR 2026 new mandatory
   "adresse de livraison" when ≠ billing).
-- [ ] **Payment terms**: explicit due-date rule, payment means code (EN 16931 BG-16), and the
+- [x] **Payment terms**: explicit due-date rule, payment means code (EN 16931 BG-16), and the
   country-mandated penalty/indemnity mentions (PART V.1).
-- [ ] **FX**: when invoice currency ≠ company base/tax currency, capture the exchange rate + tax
+- [x] **FX**: when invoice currency ≠ company base/tax currency, capture the exchange rate + tax
   amount in the tax currency at issue (engine `requiresTaxCurrency`). 🏛️ — retrofitting FX later is
   painful.
-- [ ] **Tax-inclusive (TTC) pricing flag** 🏛️: B2C/retail enters prices VAT-inclusive. Store whether a
+- [x] **Tax-inclusive (TTC) pricing flag** 🏛️: B2C/retail enters prices VAT-inclusive. Store whether a
   line/document is entered inclusive or exclusive and round per the country's rule. Affects the money
   model — decide now (the minor-units work is the right time).
-- [ ] **Line model**: line-level discounts/allowances + charges (shipping/handling) and a real
+- [x] **Line model**: line-level discounts/allowances + charges (shipping/handling) and a real
   **unit of measure** code (EN 16931) beyond the current `ItemType`. (Couples with multi-tax, PART X.)
 > **Already done — no work here** (verified 2026-06-25): client **B2B/B2C** (`ClientType
 > {INDIVIDUAL,COMPANY}`, default COMPANY) is modeled and wired front+back (`client-upsert.tsx` toggle,

@@ -231,6 +231,17 @@ enum ClientType {
   COMPANY
 }
 
+// Document kind for Invoice (EN 16931 document taxonomy)
+enum DocumentKind {
+  INVOICE
+  CREDIT_NOTE
+  DEBIT_NOTE
+  CORRECTIVE_INVOICE
+  PROFORMA
+  DEPOSIT
+  FINAL
+}
+
 // Item type (used for quote/invoice/recurring items)
 enum ItemType {
   HOUR
@@ -418,51 +429,73 @@ model NumberSeries {
 
 // Quote model
 model Quote {
-  id              String      @id @default(uuid())
-  number          Int? // assigned at issue (gapless per series)
-  rawNumber       String? // Raw number for custom formats
-  title           String?
-  client          Client      @relation(fields: [clientId], references: [id])
-  clientId        String
-  company         Company     @relation(fields: [companyId], references: [id])
-  companyId       String
-  items           QuoteItem[]
-  status          QuoteStatus @default(DRAFT)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  issuedAt        DateTime? // date of issue/DRAFT→SIGNED transition
-  validUntil      DateTime?
-  signedAt        DateTime?
-  viewedAt        DateTime?
-  signedBy        String?
-  discountRate    Float      @default(0)
-  totalHT         Float
-  totalHTMinor    Int?
-  totalVAT        Float
-  totalVATMinor   Int?
-  totalTTC        Float
-  totalTTCMinor   Int?
-  currency        Currency
-  paymentMethod   String? // Ex: "Bank Transfer", "PayPal", "Cash"
-  paymentDetails  String? // Details for the payment method (e.g., bank account number)
-  paymentMethodId String?
-  notes           String?     @default("")
-  isActive        Boolean     @default(true)
-  Invoice         Invoice[]
-  signatures      Signature[]
+  id                 String      @id @default(uuid())
+  number             Int? // assigned at issue (gapless per series)
+  rawNumber          String? // Raw number for custom formats
+  title              String?
+  buyerReference     String? // PO / contract reference
+  purchaseOrder      String?
+  deliveryDate       DateTime?
+  deliveryAddress    String?
+  deliveryAddressLine2 String?
+  deliveryPostalCode String?
+  deliveryCity       String?
+  deliveryState      String?
+  deliveryCountry    String?
+  paymentTerms       String?
+  paymentMeansCode   String?
+  fxRate             Float?
+  fxTaxAmount        Float?
+  fxTaxAmountMinor   Int?
+  ttcPricing         Boolean         @default(false)
+  client             Client          @relation(fields: [clientId], references: [id])
+  clientId           String
+  company            Company         @relation(fields: [companyId], references: [id])
+  companyId          String
+  items              QuoteItem[]
+  status             QuoteStatus     @default(DRAFT)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  issuedAt           DateTime? // date of issue/DRAFT→SIGNED transition
+  validUntil         DateTime?
+  signedAt           DateTime?
+  viewedAt           DateTime?
+  signedBy           String?
+  discountRate       Float           @default(0)
+  totalHT            Float
+  totalHTMinor       Int?
+  totalVAT           Float
+  totalVATMinor      Int?
+  totalTTC           Float
+  totalTTCMinor      Int?
+  currency           Currency
+  paymentMethod      String? // Ex: "Bank Transfer", "PayPal", "Cash"
+  paymentDetails     String? // Details for the payment method (e.g., bank account number)
+  paymentMethodId    String?
+  notes              String?         @default("")
+  isActive           Boolean         @default(true)
+  Invoice            Invoice[]
+  signatures         Signature[]
 }
 
 model QuoteItem {
-  id          String   @id @default(uuid())
-  quote       Quote    @relation(fields: [quoteId], references: [id])
-  quoteId     String
-  description String
-  quantity        Float
-  unitPrice       Float
-  unitPriceMinor  Int?
-  vatRate         Float // 20 for 20%
-  type            ItemType @default(SERVICE)
-  order           Int // For sorting items in the quote pdf
+  id                 String   @id @default(uuid())
+  quote              Quote    @relation(fields: [quoteId], references: [id])
+  quoteId            String
+  description        String
+  quantity           Float
+  unitPrice          Float
+  unitPriceMinor     Int?
+  vatRate            Float // 20 for 20%
+  type               ItemType @default(SERVICE)
+  order              Int // For sorting items in the quote pdf
+  discountRate       Float    @default(0)
+  discountAmount     Float?
+  discountAmountMinor Int?
+  chargeAmount       Float?
+  chargeAmountMinor  Int?
+  chargeDescription  String?
+  unitOfMeasure      String   @default("C62")
 }
 
 // Invoice model
@@ -470,6 +503,29 @@ model Invoice {
   id                 String            @id @default(uuid())
   number             Int? // assigned at issue (gapless per series)
   rawNumber          String? // Raw number for custom formats
+  kind               DocumentKind      @default(INVOICE)
+  correctsInvoiceId  String?
+  correctsInvoice    Invoice?          @relation("Correction", fields: [correctsInvoiceId], references: [id])
+  correctedBy        Invoice[]         @relation("Correction")
+  depositOfInvoiceId String?
+  depositOfInvoice   Invoice?          @relation("Deposit", fields: [depositOfInvoiceId], references: [id])
+  depositInvoices    Invoice[]         @relation("Deposit")
+  buyerReference     String? // PO / contract reference (EN 16931 BT-13)
+  purchaseOrder      String? // structured PO number
+  contractRef        String? // structured contract reference
+  deliveryDate       DateTime?
+  deliveryAddress    String?
+  deliveryAddressLine2 String?
+  deliveryPostalCode String?
+  deliveryCity       String?
+  deliveryState      String?
+  deliveryCountry    String?
+  paymentTerms       String? // free-text payment terms
+  paymentMeansCode   String? // UN/ECE 4461 code
+  fxRate             Float? // exchange rate at issue when invoice currency ≠ company currency
+  fxTaxAmount        Float? // tax amount in company base currency
+  fxTaxAmountMinor   Int?
+  ttcPricing         Boolean           @default(false) // prices entered tax-inclusive
   quote              Quote?            @relation(fields: [quoteId], references: [id])
   quoteId            String?
   recurringInvoice   RecurringInvoice? @relation(fields: [recurringInvoiceId], references: [id])
@@ -503,17 +559,24 @@ model Invoice {
 }
 
 model InvoiceItem {
-  id           String        @id @default(uuid())
-  invoice      Invoice       @relation(fields: [invoiceId], references: [id])
-  invoiceId    String
-  description  String
-  quantity        Float
-  unitPrice       Float
-  unitPriceMinor  Int?
-  vatRate         Float // 20 for 20%
-  type            ItemType      @default(SERVICE)
-  order           Int
-  paymentItems    PaymentItem[]
+  id                 String        @id @default(uuid())
+  invoice            Invoice       @relation(fields: [invoiceId], references: [id])
+  invoiceId          String
+  description        String
+  quantity           Float
+  unitPrice          Float
+  unitPriceMinor     Int?
+  vatRate            Float // 20 for 20%
+  type               ItemType      @default(SERVICE)
+  order              Int
+  discountRate       Float         @default(0) // line-level discount percentage
+  discountAmount     Float?
+  discountAmountMinor Int?
+  chargeAmount       Float? // line-level surcharge (shipping, handling)
+  chargeAmountMinor  Int?
+  chargeDescription  String?
+  unitOfMeasure      String        @default("C62") // UN/ECE Rec 20 code (C62 = piece/one)
+  paymentItems       PaymentItem[]
 }
 
 // Recurring invoice model
