@@ -37,6 +37,7 @@ export default function OnBoarding({
       .min(1, t("settings.company.form.company.errors.empty"))
       .max(100, t("settings.company.form.company.errors.maxLength")),
     country: z.string().min(1, t("settings.company.form.country.errors.empty")),
+    countryCode: z.string().optional(),
   })
 
   const form = useForm<z.infer<typeof companySchema>>({
@@ -44,6 +45,7 @@ export default function OnBoarding({
     defaultValues: {
       name: "",
       country: "",
+      countryCode: "",
     },
   })
 
@@ -101,7 +103,7 @@ export default function OnBoarding({
                 <FormItem>
                   <FormLabel required>{t("settings.company.form.country.label")}</FormLabel>
                   <FormControl>
-                    <CountrySelect value={field.value} onChange={(value) => field.onChange(value)} data-cy="onboarding-company-country-input" />
+                    <CountrySelect value={field.value} onChange={(value) => field.onChange(value)} onCountryCodeChange={(code) => form.setValue('countryCode', code)} data-cy="onboarding-company-country-input" />
                   </FormControl>
                   <FormDescription>{t("settings.company.form.country.description")}</FormDescription>
                   <FormMessage />

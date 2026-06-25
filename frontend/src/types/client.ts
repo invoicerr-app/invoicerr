@@ -16,6 +16,7 @@ export interface Client {
     city?: string;
     state?: string;
     country?: string;
+    countryCode?: string | null;
     currency?: string; // Assuming currency is a string, e.g., "USD", "EUR"
     isActive?: boolean;
 }

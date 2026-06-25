@@ -74,6 +74,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         city: z.string().min(1, t("clients.upsert.validation.city.required")),
         state: z.string().optional(),
         country: z.string().min(1, t("clients.upsert.validation.country.required")),
+        countryCode: z.string().optional(),
     }).superRefine((val, ctx) => {
         if (val.type === 'INDIVIDUAL') {
             if (!val.contactFirstname || val.contactFirstname.trim() === '') {
@@ -112,6 +113,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
             city: "",
             state: "",
             country: "",
+            countryCode: "",
         },
     })
 
@@ -139,6 +141,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                 city: c.city || "",
                 state: c.state || "",
                 country: c.country || "",
+                countryCode: c.countryCode || "",
             })
         } else if (!isEditing) {
             form.reset({
@@ -159,6 +162,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                 city: "",
                 state: "",
                 country: "",
+                countryCode: "",
             })
         }
     }, [client, isEditing, form])
@@ -210,7 +214,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                                     <FormItem>
                                         <FormLabel required>{t("clients.upsert.fields.country.label")}</FormLabel>
                                         <FormControl>
-                                            <CountrySelect value={field.value} onChange={(value) => field.onChange(value)} data-cy="client-country-select" />
+                                            <CountrySelect value={field.value} onChange={(value) => field.onChange(value)} onCountryCodeChange={(code) => form.setValue('countryCode', code)} data-cy="client-country-select" />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

@@ -13,6 +13,7 @@ export interface Company {
     city: string
     state?: string | null
     country: string
+    countryCode?: string | null
     phone: string
     email: string
     quoteStartingNumber: number

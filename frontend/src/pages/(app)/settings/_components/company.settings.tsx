@@ -89,6 +89,7 @@ export default function CompanySettings() {
         city: z.string().min(1, t("settings.company.form.city.errors.empty")),
         state: z.string().optional(),
         country: z.string().min(1, t("settings.company.form.country.errors.empty")),
+        countryCode: z.string().optional(),
         phone: z
             .string()
             .min(8, t("settings.company.form.phone.errors.minLength"))
@@ -162,6 +163,7 @@ export default function CompanySettings() {
             city: "",
             state: "",
             country: "",
+            countryCode: "",
             phone: "",
             email: "",
             invoicePDFFormat: "",
@@ -299,7 +301,7 @@ export default function CompanySettings() {
                                         <FormItem>
                                             <FormLabel required>{t("settings.company.form.country.label")}</FormLabel>
                                             <FormControl>
-                                                <CountrySelect value={field.value} onChange={(value) => field.onChange(value)} data-cy="company-country-input" />
+                                                <CountrySelect value={field.value} onChange={(value) => field.onChange(value)} onCountryCodeChange={(code) => form.setValue('countryCode', code)} data-cy="company-country-input" />
                                             </FormControl>
                                             <FormDescription>{t("settings.company.form.country.description")}</FormDescription>
                                             <FormMessage />
