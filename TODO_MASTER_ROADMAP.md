@@ -67,7 +67,7 @@ Open issues this roadmap answers (keep in sync when issues are opened/closed):
 | #340 P3 | Import back-dated invoice for history migration | II.5 (`issuedAt` set on import; no gap in live series) |
 | #192 P2 | Revenue calculation | V.4 |
 | #198 P2 / #254 P1 | Quote/Invoice interface rework / line-item transfer | VI.3, VI.6 |
-| #253 ⚖️P3 | DE: expense tracking + EÜR (GoBD) | **PART VII (scope decision — see VII)** |
+| #253 ⚖️P3 | DE: expense tracking + EÜR (GoBD) | **OUT OF SCOPE** (invoicing only — see VII note) |
 
 ---
 
@@ -199,13 +199,12 @@ tables lack (additive). These touch Invoice + Quote + line items:
   model — decide now (the minor-units work is the right time).
 - [ ] **Line model**: line-level discounts/allowances + charges (shipping/handling) and a real
   **unit of measure** code (EN 16931) beyond the current `ItemType`. (Couples with multi-tax, PART X.)
-- [~] 🏛️ **Client party type B2B/B2C + email not a primary key** (#186) — **SCOPE DECISION PENDING.**
-  Why it's here: the **B2B/B2C** flag drives the TTC/HT default (B2C entered VAT-inclusive — couples
-  with the tax-inclusive flag above), the per-country **required identifiers** (B2B needs VAT/SIREN;
-  B2C does not), and the FR-2026 **buyer SIREN** mention. Today email is effectively the client key
-  and is mandatory — wrong for B2C and a known structural bug. Decision needed: fold the `partyType`
-  field + email-non-mandatory into this compliance work, or treat the email-PK refactor as a separate
-  non-compliance DB ticket. **Do not start until decided** (flag, don't guess).
+> **Already done — no work here** (verified 2026-06-25): client **B2B/B2C** (`ClientType
+> {INDIVIDUAL,COMPANY}`, default COMPANY) is modeled and wired front+back (`client-upsert.tsx` toggle,
+> `required-fields` filters identifiers by `partyType`). Email is **not** a primary key (`id` is a
+> cuid) and `contactEmail` is already optional — #186's "email = PK" is stale. Residue lives in
+> existing items: the B2C **TTC default** = the tax-inclusive flag above; the **buyer SIREN** mention
+> = V.1.
 
 ---
 
@@ -462,12 +461,10 @@ models inbound (`ReceptionService`, inbound-router, `ComplianceInboundMessage`, 
   emission where mandated (FR statuses), and a UI to view/acknowledge received invoices.
 - [ ] This is a whole new document direction — anticipate the data model now (II.5 `direction`
   already exists on `ComplianceDocument`).
-- [~] 🏛️ **Expense tracking / purchase accounting / EÜR (DE, GoBD)** (#253, #186 item 5) — **SCOPE
-  DECISION PENDING.** This is *distinct* from legal e-invoice reception above: it's bookkeeping
-  (expense records, receipt upload, categories, income-vs-expense report, EÜR/SAF-T-style export). It
-  shares the inbound `ReceivedDocument` model (a received invoice can become an expense) but is a much
-  larger accounting module. Decision needed: (a) in-scope as a PART VII.AP extension, (b) a separate
-  product epic outside this compliance roadmap, or (c) out of scope. **Do not start until decided.**
+
+> **Out of scope (decided 2026-06-25):** expense tracking / purchase accounting / EÜR (#253, #186
+> item 5). This product does **invoicing only** — no bookkeeping of supplier expenses. The inbound
+> `ReceivedDocument` model (above) stays minimal (legal e-invoice reception), not an AP/expense ledger.
 
 ---
 
