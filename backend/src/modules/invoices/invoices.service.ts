@@ -6,7 +6,6 @@ import { EInvoice, ExportFormat } from '@fin.cx/einvoice';
 import { getInvertColor, getPDF } from '@/utils/pdf';
 
 import { MailService } from '@/mail/mail.service';
-import { StorageUploadService } from '@/utils/storage-upload';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { baseTemplate } from '@/modules/invoices/templates/base.template';
@@ -197,6 +196,11 @@ export class InvoicesService {
             throw new BadRequestException('Invoice not found');
         }
 
+        if (existingInvoice.status !== 'DRAFT') {
+            logger.error('Only draft invoices can be edited', { category: 'invoice', details: { invoiceId: id, status: existingInvoice.status } });
+            throw new BadRequestException('Only draft invoices can be edited');
+        }
+
         const existingItemIds = existingInvoice.items.map(i => i.id);
         const incomingItemIds = items.filter(i => i.id).map(i => i.id!);
 
@@ -286,6 +290,11 @@ export class InvoicesService {
         if (!existingInvoice) {
             logger.error('Invoice not found', { category: 'invoice' });
             throw new BadRequestException('Invoice not found');
+        }
+
+        if (existingInvoice.status !== 'DRAFT') {
+            logger.error('Only draft invoices can be deleted', { category: 'invoice', details: { invoiceId: id, status: existingInvoice.status } });
+            throw new BadRequestException('Only draft invoices can be deleted');
         }
 
         const deletedInvoice = await prisma.invoice.update({
@@ -638,56 +647,6 @@ export class InvoicesService {
         }
 
         return newInvoice;
-    }
-
-    async markInvoiceAsPaid(invoiceId: string) {
-        const invoice = await prisma.invoice.findUnique({
-            where: { id: invoiceId },
-            include: {
-                items: true,
-                client: true,
-                company: true,
-            }
-        });
-
-        if (!invoice) {
-            logger.error('Invoice not found when trying to mark as paid', { category: 'invoice', details: { invoiceId } });
-            throw new BadRequestException('Invoice not found');
-        }
-
-        const paidInvoice = await prisma.invoice.update({
-            where: { id: invoiceId },
-            data: { status: 'PAID', paidAt: new Date() }
-        });
-
-        logger.info('Invoice marked as paid', { category: 'invoice', details: { invoiceId } });
-
-        try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_MARKED_AS_PAID, {
-                invoice: paidInvoice,
-                client: invoice.client,
-                company: invoice.company,
-                paidAt: paidInvoice.paidAt,
-            });
-        } catch (error) {
-            logger.error('Failed to dispatch INVOICE_MARKED_AS_PAID webhook', { category: 'invoice', details: { error } });
-        }
-
-        try {
-            logger.info(`Uploading paid invoice ${invoiceId} to storage providers...`, { category: 'invoice' });
-            const pdfBuffer = await this.getInvoicePdf(invoiceId);
-            const uploadedUrls = await StorageUploadService.uploadPaidInvoicePdf(invoiceId, pdfBuffer);
-            if (uploadedUrls.length > 0) {
-                logger.info(`Invoice ${invoiceId} successfully uploaded to ${uploadedUrls.length} storage provider(s)`, { category: 'invoice', details: { uploadedUrls } });
-            }
-        } catch (error) {
-            logger.error(
-                `Failed to upload paid invoice ${invoiceId} to storage providers`,
-                { category: 'invoice', details: { error: error instanceof Error ? error.message : String(error) } }
-            );
-        }
-
-        return paidInvoice;
     }
 
     async archiveInvoice(invoiceId: string) {

@@ -177,6 +177,7 @@ export function InvoiceProgression({
                             return (
                                 <div
                                     key={invoice.id}
+                                    data-cy="invoice-progression-row"
                                     className="py-4 sm:py-5 px-4 sm:px-8 lg:px-12 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
                                 >
                                     <div className="min-w-0 sm:w-44 sm:flex-shrink-0">
@@ -233,6 +234,7 @@ export function InvoiceProgression({
                                                     key={action.action}
                                                     variant={index === actions.length - 1 ? "default" : "outline"}
                                                     size="sm"
+                                                    dataCy={`invoice-progression-${action.action}`}
                                                     className={cn(
                                                         "h-8 text-xs px-3 whitespace-nowrap",
                                                         index === actions.length - 1 &&
@@ -289,7 +291,7 @@ export function InvoiceProgression({
                         <AlertDialogCancel onClick={() => setConfirmDialog(null)}>
                             {t("invoices.progression.confirmations.cancel")}
                         </AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirm}>
+                        <AlertDialogAction data-cy="invoice-progression-confirm-action" onClick={handleConfirm}>
                             {t("invoices.progression.confirmations.confirm")}
                         </AlertDialogAction>
                     </AlertDialogFooter>

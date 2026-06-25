@@ -1,10 +1,7 @@
-import { Banknote, Code, Download, Edit, Eye, FileText, Mail, Plus, ReceiptText as PaymentText, Search, Trash2 } from "lucide-react"
+import { Edit, Mail, Plus, ReceiptText as PaymentText, Search, Trash2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react"
-import { useGet, useGetRaw, usePost } from "@/hooks/use-fetch"
-import { queryKeys } from "@/lib/query-keys"
-import { useQueryClient } from "@tanstack/react-query"
+import { forwardRef, useImperativeHandle, useState } from "react"
+import { usePost } from "@/hooks/use-fetch"
 
 import BetterPagination from "../../../../components/pagination"
 import { Badge } from "@/components/ui/badge"
@@ -43,22 +40,13 @@ export interface InvoiceListHandle {
     handleAddClick: () => void
 }
 
-interface PluginPdfFormat {
-    format_name: string
-    format_key: string
-}
-
 export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
     (
         { invoices, loading, title, description, searchTerm, onSearchChange, statusFilter, onStatusFilterChange, statusCounts, page, pageCount, setPage, mutate, emptyState, showCreateButton = false, onAddClick },
         ref,
     ) => {
         const { t } = useTranslation()
-        const queryClient = useQueryClient()
-        const { data: pdf_formats } = useGet<PluginPdfFormat[]>('/api/plugins/formats')
-        const { trigger: triggerMarkAsPaid } = usePost(`/api/invoices/mark-as-paid`)
         const { trigger: triggerSendInvoiceByEmail, loading: sendInvoiceByEmailLoading } = usePost(`/api/invoices/send`)
-        const { trigger: triggerCreatePayment } = usePost(`/api/payments/create-from-invoice`)
 
         const [createInvoiceDialog, setCreateInvoiceDialog] = useState<boolean>(false)
         const [editInvoiceDialog, setEditInvoiceDialog] = useState<Invoice | null>(null)
@@ -66,42 +54,12 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         const [viewInvoicePdfDialog, setViewInvoicePdfDialog] = useState<Invoice | null>(null)
         const [deleteInvoiceDialog, setDeleteInvoiceDialog] = useState<Invoice | null>(null)
         const [sendInvoiceDialog, setSendInvoiceDialog] = useState<Invoice | null>(null)
-        const [downloadTrigger, setDownloadTrigger] = useState<{
-            invoice: Invoice
-            format: string
-            file_format: 'pdf' | 'xml'
-            id: number
-        } | null>(null)
-
-        const { data: file } = useGetRaw<Response>(
-            downloadTrigger
-                ? `/api/invoices/${downloadTrigger.invoice.id}/download/${downloadTrigger.file_format}?format=${downloadTrigger.format}`
-                : null,
-        )
 
         useImperativeHandle(ref, () => ({
             handleAddClick() {
                 setCreateInvoiceDialog(true)
             },
         }))
-
-        useEffect(() => {
-            if (downloadTrigger && file) {
-                file.arrayBuffer().then((buffer) => {
-                    const blob = new Blob([buffer], { type: `application/${downloadTrigger.file_format}` })
-                    const url = URL.createObjectURL(blob)
-                    const link = document.createElement("a")
-                    link.href = url
-                    link.download = `invoice-${downloadTrigger.invoice.number}-${downloadTrigger.format}.${downloadTrigger.file_format}`
-                    document.body.appendChild(link)
-                    link.click()
-                    document.body.removeChild(link)
-                    URL.revokeObjectURL(url)
-                    setDownloadTrigger(null) // Reset
-                }).catch(() => {
-                })
-            }
-        }, [downloadTrigger, file])
 
         function handleEdit(invoice: Invoice) {
             setEditInvoiceDialog(invoice)
@@ -117,35 +75,6 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
 
         function handleDelete(invoice: Invoice) {
             setDeleteInvoiceDialog(invoice)
-        }
-
-        function handleMarkAsPaid(invoiceId: string) {
-            triggerMarkAsPaid({ invoiceId })
-                .then(() => {
-                    toast.success(t("invoices.list.messages.markAsPaidSuccess"))
-                    queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
-                })
-                .catch((error) => {
-                    console.error("Error marking invoice as paid:", error)
-                    toast.error(t("invoices.list.messages.markAsPaidError"))
-                })
-        }
-
-        function handleDownload({ invoice, format, file_format }: { invoice: Invoice; format: string; file_format: 'pdf' | 'xml' }) {
-            setDownloadTrigger({ invoice, format, file_format, id: Date.now() })
-        }
-
-        function handleCreatePaymentFromInvoice(invoiceId: string) {
-            triggerCreatePayment({ id: invoiceId })
-                .then(() => {
-                    toast.success(t("invoices.list.messages.createPaymentSuccess"))
-                    queryClient.invalidateQueries({ queryKey: queryKeys.payments.listsAll() })
-                    queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
-                })
-                .catch((error) => {
-                    console.error("Error creating payment from invoice:", error)
-                    toast.error(t("invoices.list.messages.createPaymentError"))
-                })
         }
 
         const getStatusColor = (status: string) => {
@@ -289,14 +218,23 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                 <div className="flex-1">
                                                     <div className="flex flex-wrap items-center gap-2">
                                                         <h3 className="font-medium text-foreground break-words">
-                                                            {invoice.status === InvoiceStatus.UPCOMING
-                                                                ? t("invoices.list.item.upcomingTitle", {
+                                                            {invoice.status === InvoiceStatus.UPCOMING ? (
+                                                                t("invoices.list.item.upcomingTitle", {
                                                                     client: invoice.client.name || `${invoice.client.contactFirstname} ${invoice.client.contactLastname}`,
                                                                 })
-                                                                : t("invoices.list.item.title", {
-                                                                    number: invoice.rawNumber || invoice.number,
-                                                                    title: invoice.title,
-                                                                })}
+                                                            ) : (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleView(invoice)}
+                                                                    className="underline hover:text-primary text-left"
+                                                                    data-cy="invoice-name"
+                                                                >
+                                                                    {t("invoices.list.item.title", {
+                                                                        number: invoice.rawNumber || invoice.number,
+                                                                        title: invoice.title,
+                                                                    })}
+                                                                </button>
+                                                            )}
                                                         </h3>
                                                         <span
                                                             data-cy="invoice-status"
@@ -358,17 +296,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                             {invoice.status !== InvoiceStatus.UPCOMING && (
                                             <div className="grid grid-cols-2 lg:flex justify-start sm:justify-end gap-1 md:gap-2">
                                                 <Button
-                                                    tooltip={t("invoices.list.tooltips.view")}
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleView(invoice)}
-                                                    className="text-gray-600 hover:text-blue-600"
-                                                >
-                                                    <Eye className="h-4 w-4" />
-                                                </Button>
-
-                                                <Button
-                                                    tooltip={t("invoices.list.tooltips.viewPdf")}
+                                                    tooltip={t("invoices.list.tooltips.exportPdf")}
                                                     variant="ghost"
                                                     size="icon"
                                                     onClick={() => handleViewPdf(invoice)}
@@ -377,66 +305,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                     <PaymentText className="h-4 w-4" />
                                                 </Button>
 
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            tooltip={t("invoices.list.tooltips.downloadPdf")}
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="text-gray-600 hover:text-amber-600"
-                                                        >
-                                                            <Download className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="center" className="[&>*]:cursor-pointer w-48">
-                                                        <DropdownMenuLabel className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                                                            <FileText className="h-3 w-3" />
-                                                            {t("invoices.list.actions.downloadPdf")}
-                                                        </DropdownMenuLabel>
-
-                                                        <DropdownMenuItem onClick={() => handleDownload({ invoice, format: "", file_format: "pdf" })}>Standard</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleDownload({ invoice, format: "facturx", file_format: "pdf" })}>Factur-X</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleDownload({ invoice, format: "zugferd", file_format: "pdf" })}>ZUGFeRD</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleDownload({ invoice, format: "xrechnung", file_format: "pdf" })}>
-                                                            XRechnung
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleDownload({ invoice, format: "ubl", file_format: "pdf" })}>UBL</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleDownload({ invoice, format: "cii", file_format: "pdf" })}>CII</DropdownMenuItem>
-
-                                                        <DropdownMenuSeparator />
-
-                                                        <DropdownMenuLabel className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                                                            <Code className="h-3 w-3" />
-                                                            {t("invoices.list.actions.downloadXml")}
-                                                        </DropdownMenuLabel>
-
-                                                        <DropdownMenuItem onClick={() => handleDownload({ invoice, format: "facturx", file_format: "xml" })}>
-                                                            Factur-X
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleDownload({ invoice, format: "zugferd", file_format: "xml" })}>
-                                                            ZUGFeRD
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleDownload({ invoice, format: "xrechnung", file_format: "xml" })}>
-                                                            XRechnung
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleDownload({ invoice, format: "ubl", file_format: "xml" })}>
-                                                            UBL
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleDownload({ invoice, format: "cii", file_format: "xml" })}>
-                                                            CII
-                                                        </DropdownMenuItem>
-                                                        {pdf_formats?.map((format) => (
-                                                            <DropdownMenuItem
-                                                                key={format.format_key}
-                                                                onClick={() => handleDownload({ invoice, format: format.format_key, file_format: "xml" })}
-                                                            >
-                                                                {format.format_name}
-                                                            </DropdownMenuItem>
-                                                        ))}
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-
-                                                {invoice.status !== "PAID" && (
+                                                {invoice.status === InvoiceStatus.DRAFT && (
                                                     <Button
                                                         data-cy="invoice-edit-button"
                                                         tooltip={t("invoices.list.tooltips.edit")}
@@ -461,19 +330,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                     </Button>
                                                 )}
 
-                                                {invoice.status !== "PAID" && (
-                                                    <Button
-                                                        tooltip={t("invoices.list.tooltips.markAsPaid")}
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => handleMarkAsPaid(invoice.id)}
-                                                        className="text-gray-600 hover:text-blue-600"
-                                                    >
-                                                        <Banknote className="h-4 w-4" />
-                                                    </Button>
-                                                )}
-
-                                                {invoice.status !== "PAID" && invoice.status !== "OVERDUE" && (
+                                                {invoice.status === InvoiceStatus.DRAFT && (
                                                     <Button
                                                         tooltip={t("invoices.list.tooltips.delete")}
                                                         variant="ghost"
@@ -486,15 +343,6 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                     </Button>
                                                 )}
 
-                                                <Button
-                                                    tooltip={t("invoices.list.tooltips.createPayment")}
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleCreatePaymentFromInvoice(invoice.id)}
-                                                    className="text-gray-600 hover:text-green-600"
-                                                >
-                                                    <Plus className="h-4 w-4" />
-                                                </Button>
                                             </div>
                                             )}
                                         </div>

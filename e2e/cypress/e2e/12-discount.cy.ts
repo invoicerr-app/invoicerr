@@ -106,17 +106,31 @@ function createInvoice({ discountRate = 10, item = defaultQuoteItem }: CreateInv
 function createPaymentForInvoice(invoiceLabel: string) {
     cy.intercept('POST', '/api/payments/create-from-invoice').as('createPayment');
 
-    cy.contains('[data-cy="invoice-row"]', invoiceLabel, { timeout: 20000 })
-        .should('exist')
-        .closest('[data-cy="invoice-row"]')
-        .as('invoiceRow');
+    // The invoice is created as DRAFT; switch to the progression view, send it so it
+    // becomes SENT, then use the "Payment received" action to create the payment.
+    cy.visit('/invoices');
+    cy.get('[data-cy="invoice-view-progression"]').click();
 
-    cy.get('@invoiceRow').within(() => {
-        cy.get('button')
-            .filter((_, el) => Cypress.$(el).find('svg.lucide-plus').length > 0)
-            .first()
-            .click({ force: true });
+    cy.contains('[data-cy="invoice-progression-row"]', invoiceLabel, { timeout: 20000 })
+        .should('exist')
+        .within(() => {
+            cy.get('[data-cy="invoice-progression-send"]').click();
+        });
+
+    cy.get('[role="alertdialog"]').should('be.visible').within(() => {
+        cy.get('[data-cy="invoice-progression-confirm-action"]').click();
     });
+
+    // Wait until the row exposes the "Payment received" action (invoice is now SENT).
+    // Re-select by label to avoid a detached DOM node after the list re-renders.
+    cy.contains('[data-cy="invoice-progression-row"]', invoiceLabel, { timeout: 15000 })
+        .should('exist')
+        .within(() => {
+            cy.get('[data-cy="invoice-progression-paymentReceived"]').should('exist').click();
+        });
+
+    cy.get('[data-cy="payment-received-dialog"]', { timeout: 5000 }).should('be.visible');
+    cy.get('[data-cy="payment-received-submit"]').click();
 
     return cy.wait('@createPayment').then(({ response }) => {
         expect(response?.statusCode).to.be.oneOf([200, 201]);
@@ -219,7 +233,7 @@ describe('Discount Feature (Invoice)', () => {
                 .closest('[data-cy="invoice-row"]')
                 .as('invoiceRow');
 
-            cy.get('@invoiceRow').find('button:has(svg.lucide-eye)').first().click();
+            cy.get('@invoiceRow').find('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible').within(() => {
                 cy.contains('Discount Rate').parent().find('p.font-medium', { timeout: 10000 }).should('contain', '10%');
                 cy.contains('Discount Amount').parent().find('p.font-medium').should('contain', '100.00EUR');

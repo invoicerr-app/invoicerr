@@ -434,13 +434,10 @@
                 "totalTTC": "Gesamt (inkl. MwSt.)"
             },
             "tooltips": {
-                "view": "Rechnungsdetails anzeigen",
-                "viewPdf": "PDF anzeigen",
+                "exportPdf": "PDF exportieren",
                 "downloadPdf": "PDF herunterladen",
                 "edit": "Rechnung bearbeiten",
-                "markAsPaid": "Als bezahlt markieren",
                 "delete": "Rechnung löschen",
-                "createReceipt": "Erstelle ein Beleg von dieser Rechnung",
                 "sendByEmail": "Sende Rechnung per Email"
             },
             "actions": {
@@ -459,7 +456,6 @@
             "messages": {
                 "markAsPaidSuccess": "Rechnung als erfolgreich bezahlt markiert",
                 "markAsPaidError": "Rechnung konnte nicht als bezahlt markiert werden",
-                "createPaymentSuccess": "Zahlung erfolgreich aus Rechnung erstellt",
                 "sendByEmailSuccess": "Rechnung wurde versandt"
             }
         },

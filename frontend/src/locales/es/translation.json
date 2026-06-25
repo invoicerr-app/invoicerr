@@ -434,13 +434,10 @@
                 "totalTTC": "Total (con IVA)"
             },
             "tooltips": {
-                "view": "Ver detalles de la factura",
-                "viewPdf": "Ver PDF",
+                "exportPdf": "Exportar PDF",
                 "downloadPdf": "Descargar PDF",
                 "edit": "Editar factura",
-                "markAsPaid": "Marcar como pagada",
                 "delete": "Eliminar factura",
-                "createReceipt": "Crear recibo desde esta factura",
                 "sendByEmail": "Enviar factura por correo"
             },
             "actions": {
@@ -459,7 +456,6 @@
             "messages": {
                 "markAsPaidSuccess": "Factura marcada como pagada con éxito",
                 "markAsPaidError": "Error al marcar la factura como pagada",
-                "createPaymentSuccess": "Pago creado correctamente desde la factura",
                 "sendByEmailSuccess": "La factura fue enviada al cliente"
             }
         },
