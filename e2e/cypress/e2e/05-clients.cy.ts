@@ -12,7 +12,8 @@ describe('Clients E2E', () => {
 
             cy.get('[name="name"]').clear().type('ACME Corporation');
             cy.get('[name="description"]').clear().type('A leading technology company');
-            cy.get('[name="legalId"]').clear().type('US12345678901');
+            cy.selectCountry('client-country-select', 'United States');
+            cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type('US12345678901');
 
             cy.get('[data-cy="client-currency-select"] button').click();
             cy.get('[data-cy="client-currency-select-options"]').should('be.visible');
@@ -24,7 +25,6 @@ describe('Clients E2E', () => {
             cy.get('[name="address"]').clear().type('123 Tech Boulevard');
             cy.get('[name="postalCode"]').clear().type('12345');
             cy.get('[name="city"]').clear().type('San Francisco');
-            cy.selectCountry('client-country-select', 'United States');
 
             cy.get('[data-cy="client-submit"]').click();
 
@@ -73,12 +73,12 @@ describe('Clients E2E', () => {
             cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
 
             cy.get('[name="name"]').clear();
-            cy.get('[name="legalId"]').clear().type('12345');
+            cy.selectCountry('client-country-select', 'France');
+            cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type('12345');
             cy.get('[name="contactEmail"]').clear().type('test@test.com');
             cy.get('[name="address"]').clear().type('123 Test St');
             cy.get('[name="postalCode"]').clear().type('12345');
             cy.get('[name="city"]').clear().type('Test City');
-            cy.selectCountry('client-country-select', 'France');
 
             cy.get('[data-cy="client-submit"]').click();
             cy.get('[data-cy="client-dialog"]').should('be.visible');
@@ -92,12 +92,12 @@ describe('Clients E2E', () => {
             cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
 
             cy.get('[name="name"]').clear().type('Test Company');
-            cy.get('[name="legalId"]').clear();
+            cy.selectCountry('client-country-select', 'France');
+            cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear();
             cy.get('[name="contactEmail"]').clear().type('test@test.com');
             cy.get('[name="address"]').clear().type('123 Test St');
             cy.get('[name="postalCode"]').clear().type('12345');
             cy.get('[name="city"]').clear().type('Test City');
-            cy.selectCountry('client-country-select', 'France');
 
             cy.get('[data-cy="client-submit"]').click();
             cy.get('[data-cy="client-dialog"]').should('be.visible');
@@ -159,12 +159,12 @@ describe('Clients E2E', () => {
             cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
 
             cy.get('[name="name"]').clear().type('Test Company');
-            cy.get('[name="legalId"]').clear().type('12345');
+            cy.selectCountry('client-country-select', 'France');
+            cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type('12345');
             cy.get('[name="contactEmail"]').clear();
             cy.get('[name="address"]').clear().type('123 Test St');
             cy.get('[name="postalCode"]').clear().type('12345');
             cy.get('[name="city"]').clear().type('Test City');
-            cy.selectCountry('client-country-select', 'France');
 
             cy.get('[data-cy="client-submit"]').click();
             cy.get('[data-cy="client-dialog"]').should('be.visible');
@@ -188,12 +188,12 @@ describe('Clients E2E', () => {
 
             cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
             cy.get('[name="name"]').clear().type('Test Company');
-            cy.get('[name="legalId"]').clear().type('12345');
+            cy.selectCountry('client-country-select', 'France');
+            cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type('12345');
             cy.get('[name="contactEmail"]').clear().type('test@test.com');
             cy.get('[name="address"]').clear().type('123 Test St');
             cy.get('[name="postalCode"]').clear().type('AB');
             cy.get('[name="city"]').clear().type('Test City');
-            cy.selectCountry('client-country-select', 'France');
 
             cy.get('[data-cy="client-submit"]').click();
             cy.get('[data-cy="client-dialog"]').should('be.visible');
@@ -206,13 +206,13 @@ describe('Clients E2E', () => {
 
             cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
             cy.get('[name="name"]').clear().type('Test Company');
-            cy.get('[name="legalId"]').clear().type('12345');
-            cy.get('[name="VAT"]').clear().type('123456');
+            cy.selectCountry('client-country-select', 'France');
+            cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type('12345');
+            cy.get('[data-cy="client-identifier-VAT"]').clear().type('123456');
             cy.get('[name="contactEmail"]').clear().type('test@test.com');
             cy.get('[name="address"]').clear().type('123 Test St');
             cy.get('[name="postalCode"]').clear().type('12345');
             cy.get('[name="city"]').clear().type('Test City');
-            cy.selectCountry('client-country-select', 'France');
 
             cy.get('[data-cy="client-submit"]').click();
             cy.get('[data-cy="client-dialog"]').should('be.visible');
@@ -228,14 +228,14 @@ describe('Clients E2E', () => {
             cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
 
             cy.get('[name="name"]').clear().type('Tech Innovations LLC');
-            cy.get('[name="legalId"]').clear().type('US11223344556');
+            cy.selectCountry('client-country-select', 'United States');
+            cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type('US11223344556');
             cy.get('[name="contactEmail"]').clear().type('info@techinnovations.com');
             cy.get('[name="address"]').clear().type('456 Innovation Drive');
             cy.get('[name="addressLine2"]').clear().type('Suite 200');
             cy.get('[name="postalCode"]').clear().type('94105');
             cy.get('[name="city"]').clear().type('San Francisco');
             cy.get('[name="state"]').clear().type('CA');
-            cy.selectCountry('client-country-select', 'United States');
 
             cy.get('[data-cy="client-submit"]').click();
 
@@ -259,13 +259,13 @@ describe('Clients E2E', () => {
             cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
 
             cy.get('[name="name"]').clear().type('European Solutions GmbH');
-            cy.get('[name="legalId"]').clear().type('DE987654321');
+            cy.selectCountry('client-country-select', 'Germany');
+            cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type('DE987654321');
             cy.get('[name="contactEmail"]').clear().type('contact@eusolutions.de');
             cy.get('[name="address"]').clear().type('Hauptstrasse 42');
             cy.get('[name="addressLine2"]').clear().type('3. Etage');
             cy.get('[name="postalCode"]').clear().type('10115');
             cy.get('[name="city"]').clear().type('Berlin');
-            cy.selectCountry('client-country-select', 'Germany');
 
             cy.get('[data-cy="client-submit"]').click();
 
@@ -280,12 +280,12 @@ describe('Clients E2E', () => {
             cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
 
             cy.get('[name="name"]').clear().type('Simple Company Ltd');
-            cy.get('[name="legalId"]').clear().type('UK123456789');
+            cy.selectCountry('client-country-select', 'United Kingdom');
+            cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type('UK123456789');
             cy.get('[name="contactEmail"]').clear().type('info@simple.co.uk');
             cy.get('[name="address"]').clear().type('10 Downing Street');
             cy.get('[name="postalCode"]').clear().type('SW1A 2AA');
             cy.get('[name="city"]').clear().type('London');
-            cy.selectCountry('client-country-select', 'United Kingdom');
 
             cy.get('[data-cy="client-submit"]').click();
 
@@ -319,12 +319,12 @@ describe('Clients E2E', () => {
             cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
 
             cy.get('[name="name"]').clear().type("O'Reilly & Associates, Inc.");
-            cy.get('[name="legalId"]').clear().type('US98765432101');
+            cy.selectCountry('client-country-select', 'United States');
+            cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type('US98765432101');
             cy.get('[name="contactEmail"]').clear().type('info@oreilly.com');
             cy.get('[name="address"]').clear().type('789 Publishing Way');
             cy.get('[name="postalCode"]').clear().type('11111');
             cy.get('[name="city"]').clear().type('New York');
-            cy.selectCountry('client-country-select', 'United States');
 
             cy.get('[data-cy="client-submit"]').click();
 
@@ -339,13 +339,13 @@ describe('Clients E2E', () => {
             cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
 
             cy.get('[name="name"]').clear().type('Société Française SAS');
-            cy.get('[name="legalId"]').clear().type('FR12345678901');
-            cy.get('[name="VAT"]').clear().type('FR12345678901');
+            cy.selectCountry('client-country-select', 'France');
+            cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type('FR12345678901');
+            cy.get('[data-cy="client-identifier-VAT"]').clear().type('FR12345678901');
             cy.get('[name="contactEmail"]').clear().type('contact@societe.fr');
             cy.get('[name="address"]').clear().type('1 Rue de la Paix');
             cy.get('[name="postalCode"]').clear().type('75001');
             cy.get('[name="city"]').clear().type('Paris');
-            cy.selectCountry('client-country-select', 'France');
 
             cy.get('[data-cy="client-submit"]').click();
 
@@ -360,13 +360,13 @@ describe('Clients E2E', () => {
             cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
 
             cy.get('[name="name"]').clear().type('German Company GmbH');
-            cy.get('[name="legalId"]').clear().type('DE123456789');
-            cy.get('[name="VAT"]').clear().type('DE123456789');
+            cy.selectCountry('client-country-select', 'Germany');
+            cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type('DE123456789');
+            cy.get('[data-cy="client-identifier-VAT"]').clear().type('DE123456789');
             cy.get('[name="contactEmail"]').clear().type('contact@german.de');
             cy.get('[name="address"]').clear().type('Hauptstrasse 1');
             cy.get('[name="postalCode"]').clear().type('10115');
             cy.get('[name="city"]').clear().type('Berlin');
-            cy.selectCountry('client-country-select', 'Germany');
 
             cy.get('[data-cy="client-submit"]').click();
 

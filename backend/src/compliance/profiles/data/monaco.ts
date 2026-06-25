@@ -16,6 +16,7 @@ export const MC: CountryComplianceProfile = {
   transmission: [],
   taxSystem: { kind: 'VAT', standardRate: 20 },
   lifecycle: [],
+  requiredIdentifiers: [],
   archival: [],
   reporting: [],
   numbering: [],

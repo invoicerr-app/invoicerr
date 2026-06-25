@@ -68,5 +68,24 @@ export const MX: CountryComplianceProfile = {
     { validFrom: '2014-01-01', value: { model: 'AUTHORITY_RANGE', seriesScope: 'ENTITY' } },
   ],
 
+  requiredIdentifiers: [
+    {
+      scheme: 'RFC',
+      label: 'RFC',
+      appliesTo: 'BOTH',
+      required: true,
+      pattern: '^[A-ZÑ&]{3,4}\\d{6}[A-Z0-9]{3}$',
+      helpText: '12-13 characters: 3-4 letters + 6 digits + 3 alphanumerics',
+    },
+    {
+      scheme: 'CURP',
+      label: 'CURP',
+      appliesTo: 'INDIVIDUAL',
+      required: true,
+      pattern: '^[A-Z]{4}\\d{6}[HM][A-Z]{2}\\d{3}$',
+      helpText: '18 characters: letters + digits for individual identification',
+    },
+  ],
+
   mandatoryReceiveSyntax: 'CFDI',
 };

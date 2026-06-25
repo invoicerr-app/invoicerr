@@ -60,4 +60,14 @@ export const US: CountryComplianceProfile = {
   reporting: [],
 
   numbering: [{ validFrom: '1900-01-01', value: { model: 'GAPLESS_SELF' } }],
+
+  requiredIdentifiers: [
+    {
+      scheme: 'LEGAL_ID',
+      label: 'EIN',
+      appliesTo: 'COMPANY',
+      required: false,
+      helpText: 'Employer Identification Number (optional for sole proprietors)',
+    },
+  ],
 };

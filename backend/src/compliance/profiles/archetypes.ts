@@ -9,6 +9,7 @@ import {
   ArchivalPolicy,
   CountryComplianceProfile,
   FormatRule,
+  IdentifierRequirement,
   LifecyclePolicy,
   NoTaxSystemSpec,
   NumberingRule,
@@ -79,6 +80,14 @@ function meta(cc: string, name: string, confidence: Confidence) {
   return { countryCode: cc, displayName: name, schemaVersion: '1.0', confidence };
 }
 
+/** Generic default for archetype-built profiles — conservative, best-effort. */
+function defaultIdentifiers(): IdentifierRequirement[] {
+  return [
+    { scheme: 'LEGAL_ID', label: 'Company registration number', appliesTo: 'BOTH', required: false },
+    { scheme: 'VAT', label: 'Tax / VAT number', appliesTo: 'BOTH', required: false },
+  ];
+}
+
 /** Post-audit: EN 16931 + Peppol/email, B2B voluntary, no clearance. Most EU today. */
 export function postAudit(
   cc: string,
@@ -95,6 +104,7 @@ export function postAudit(
     archival: archival(o.retentionYears ?? 10, o.residency, 'NONE'),
     reporting: [],
     numbering: numbering('GAPLESS_SELF'),
+    requiredIdentifiers: defaultIdentifiers(),
     mandatoryReceiveSyntax: o.receiveSyntax,
   };
 }
@@ -111,6 +121,7 @@ export function noMandate(cc: string, name: string, o: CommonOpts = {}): Country
     archival: archival(o.retentionYears ?? 7, o.residency, 'NONE'),
     reporting: [],
     numbering: numbering('GAPLESS_SELF'),
+    requiredIdentifiers: defaultIdentifiers(),
   };
 }
 
@@ -143,6 +154,7 @@ export function peppolCtc(
     archival: archival(o.retentionYears ?? 10, o.residency, 'NONE'),
     reporting,
     numbering: numbering('GAPLESS_SELF'),
+    requiredIdentifiers: defaultIdentifiers(),
     mandatoryReceiveSyntax: 'PEPPOL_BIS',
   };
 }
@@ -197,6 +209,7 @@ export function clearance(
     archival: archival(o.retentionYears ?? 10, o.residency, signed ? 'SIGNED' : 'NONE'),
     reporting: [],
     numbering: numbering(o.numbering ?? 'GAPLESS_SELF'),
+    requiredIdentifiers: defaultIdentifiers(),
     mandatoryReceiveSyntax: syntax,
   };
 }
@@ -227,6 +240,7 @@ export function realTime(
     archival: archival(o.retentionYears ?? 7, o.residency, 'NONE'),
     reporting: [{ validFrom: from, value: { kinds: ['SALES_PURCHASE_LEDGER'] as ReportingKind[] } }],
     numbering: numbering('GAPLESS_SELF'),
+    requiredIdentifiers: defaultIdentifiers(),
   };
 }
 
@@ -242,6 +256,7 @@ export function periodic(cc: string, name: string, o: CommonOpts = {}): CountryC
     archival: archival(o.retentionYears ?? 10, o.residency, 'NONE'),
     reporting: [{ validFrom: OPEN, value: { kinds: ['SAFT'] as ReportingKind[] } }],
     numbering: numbering('GAPLESS_SELF'),
+    requiredIdentifiers: defaultIdentifiers(),
   };
 }
 
@@ -258,5 +273,6 @@ export function delegate(cc: string, name: string, target: string): CountryCompl
     archival: [],
     reporting: [],
     numbering: [],
+    requiredIdentifiers: [],
   };
 }

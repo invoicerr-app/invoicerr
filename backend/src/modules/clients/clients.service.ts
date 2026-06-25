@@ -1,10 +1,12 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 
-import { EditClientsDto } from '@/modules/clients/dto/clients.dto';
+import { EditClientsDto, IdentifierEntry } from '@/modules/clients/dto/clients.dto';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
+
+
 
 @Injectable()
 export class ClientsService {
@@ -23,6 +25,7 @@ export class ClientsService {
             orderBy: {
                 name: 'asc',
             },
+            include: { partyIdentifiers: true },
         });
 
         const totalClients = await prisma.client.count();
@@ -38,6 +41,7 @@ export class ClientsService {
                 orderBy: {
                     name: 'asc',
                 },
+                include: { partyIdentifiers: true },
             });
         }
 
@@ -60,6 +64,7 @@ export class ClientsService {
             orderBy: {
                 name: 'asc',
             },
+            include: { partyIdentifiers: true },
         });
 
         try {
@@ -74,8 +79,35 @@ export class ClientsService {
         return results;
     }
 
+    private async upsertPartyIdentifiers(
+        clientId: string,
+        identifiers: IdentifierEntry[] | undefined,
+    ) {
+        if (!identifiers) return;
+
+        const existing = await prisma.partyIdentifier.findMany({
+            where: { clientId },
+        });
+
+        const incomingSchemes = new Set(identifiers.map((i) => i.scheme));
+
+        for (const row of existing) {
+            if (!incomingSchemes.has(row.scheme)) {
+                await prisma.partyIdentifier.delete({ where: { id: row.id } });
+            }
+        }
+
+        for (const entry of identifiers) {
+            await prisma.partyIdentifier.upsert({
+                where: { clientId_scheme: { clientId, scheme: entry.scheme } },
+                create: { clientId, scheme: entry.scheme, value: entry.value },
+                update: { value: entry.value },
+            });
+        }
+    }
+
     async createClient(editClientsDto: EditClientsDto) {
-        const { id, ...data } = editClientsDto;
+        const { id, identifiers, ...data } = editClientsDto;
 
         const type = (data as any).type || 'COMPANY';
 
@@ -96,13 +128,11 @@ export class ClientsService {
                 logger.error('Company name is required for company clients', { category: 'client' });
                 throw new BadRequestException('Company name is required for company clients');
             }
-            if (!data.legalId || (data.legalId as string).trim() === '') {
-                logger.error('SIRET/SIREN (legalId) is required for company clients', { category: 'client' });
-                throw new BadRequestException('SIRET/SIREN (legalId) is required for company clients');
-            }
         }
 
         const newClient = await prisma.client.create({ data });
+
+        await this.upsertPartyIdentifiers(newClient.id, identifiers);
 
         logger.info('Client created', { category: 'client', details: { clientId: newClient.id } });
 
@@ -129,7 +159,8 @@ export class ClientsService {
             throw new BadRequestException('Client not found');
         }
 
-        const data = { ...editClientsDto } as any;
+        const { identifiers, ...dataFields } = editClientsDto;
+        const data = { ...dataFields } as any;
         // Prefer explicit type in payload, otherwise fall back to existing client's type
         const type = data.type || existingClient.type || 'COMPANY';
 
@@ -147,16 +178,14 @@ export class ClientsService {
                 logger.error('Company name is required for company clients', { category: 'client' });
                 throw new BadRequestException('Company name is required for company clients');
             }
-            if (!data.legalId || (data.legalId as string).trim() === '') {
-                logger.error('SIRET/SIREN (legalId) is required for company clients', { category: 'client' });
-                throw new BadRequestException('SIRET/SIREN (legalId) is required for company clients');
-            }
         }
 
         const updatedClient = await prisma.client.update({
             where: { id: editClientsDto.id },
-            data: { ...editClientsDto, isActive: true },
+            data: { ...dataFields, isActive: true },
         });
+
+        await this.upsertPartyIdentifiers(updatedClient.id, identifiers);
 
         logger.info('Client updated', { category: 'client', details: { clientId: updatedClient.id } });
 

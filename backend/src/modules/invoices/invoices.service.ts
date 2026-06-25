@@ -21,13 +21,14 @@ import { resolveInvoiceTax } from '@/compliance/integration/invoice-tax';
 import { clampDiscountRate, toMinor } from '@/utils/financial';
 import type { SupplyType } from '@/compliance/types';
 import { getDraftWatermarkLabel } from '@/utils/watermark';
+import { augmentWithIdentifiers, getIdentifier } from '@/utils/entity-identifiers';
 
 @Injectable()
 export class InvoicesService {
 
     constructor(
         private readonly mailService: MailService,
-        private readonly webhookDispatcher: WebhookDispatcherService
+        private readonly webhookDispatcher: WebhookDispatcherService,
     ) {
     }
 
@@ -48,8 +49,8 @@ export class InvoicesService {
             },
             include: {
                 items: true,
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
                 payments: { select: { totalPaid: true } },
             },
         });
@@ -82,8 +83,8 @@ export class InvoicesService {
             },
             include: {
                 items: true,
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
                 payments: { select: { id: true, totalPaid: true } },
             },
         });
@@ -102,7 +103,9 @@ export class InvoicesService {
     async createInvoice(body: CreateInvoiceDto) {
         const { items, ...data } = body;
 
-        const company = await prisma.company.findFirst();
+        const company = await prisma.company.findFirst({
+            include: { partyIdentifiers: true },
+        });
         if (!company) {
             logger.error('No company found. Please create a company first.', { category: 'invoice' });
             throw new BadRequestException('No company found. Please create a company first.');
@@ -110,6 +113,7 @@ export class InvoicesService {
 
         const client = await prisma.client.findUnique({
             where: { id: body.clientId },
+            include: { partyIdentifiers: true },
         });
         if (!client) {
             logger.error('Client not found', { category: 'invoice' });
@@ -120,10 +124,10 @@ export class InvoicesService {
         const taxResult = resolveInvoiceTax({
             supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
             supplierExemptVat: !!company.exemptVat,
-            supplierVatNumber: company.VAT,
+            supplierVatNumber: getIdentifier(company, 'VAT'),
             buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
             buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
-            buyerVatNumber: client.VAT,
+            buyerVatNumber: getIdentifier(client, 'VAT'),
             currency: body.currency || client.currency || company.currency,
             issueDate: new Date(),
             discountRate,
@@ -171,8 +175,8 @@ export class InvoicesService {
             },
             include: {
                 items: true,
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
             },
         });
 
@@ -199,7 +203,9 @@ export class InvoicesService {
             throw new BadRequestException('Invoice ID is required for editing');
         }
 
-        const company = await prisma.company.findFirst();
+        const company = await prisma.company.findFirst({
+            include: { partyIdentifiers: true },
+        });
         if (!company) {
             logger.error('No company found. Please create a company first.', { category: 'invoice' });
             throw new BadRequestException('No company found. Please create a company first.');
@@ -207,6 +213,7 @@ export class InvoicesService {
 
         const client = await prisma.client.findUnique({
             where: { id: data.clientId },
+            include: { partyIdentifiers: true },
         });
         if (!client) {
             logger.error('Client not found', { category: 'invoice' });
@@ -232,10 +239,10 @@ export class InvoicesService {
         const taxResult = resolveInvoiceTax({
             supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
             supplierExemptVat: !!company.exemptVat,
-            supplierVatNumber: company.VAT,
+            supplierVatNumber: getIdentifier(company, 'VAT'),
             buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
             buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
-            buyerVatNumber: client.VAT,
+            buyerVatNumber: getIdentifier(client, 'VAT'),
             currency: body.currency || client.currency || company.currency,
             issueDate: new Date(),
             discountRate: normalizedDiscountRate,
@@ -305,8 +312,8 @@ export class InvoicesService {
             },
             include: {
                 items: true,
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
             },
         });
 
@@ -330,8 +337,8 @@ export class InvoicesService {
             where: { id },
             include: {
                 items: true,
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
             }
         });
 
@@ -365,9 +372,9 @@ export class InvoicesService {
             where: { id },
             include: {
                 items: true,
-                client: true,
+                client: { include: { partyIdentifiers: true } },
                 company: {
-                    include: { pdfConfig: true },
+                    include: { pdfConfig: true, partyIdentifiers: true },
                 },
             },
         });
@@ -387,7 +394,9 @@ export class InvoicesService {
             invoice.client.name = invoice.client.contactFirstname + " " + invoice.client.contactLastname
         }
 
-        const { pdfConfig } = invoice.company;
+        const companyAugmented = augmentWithIdentifiers(invoice.company);
+        const clientAugmented = augmentWithIdentifiers(invoice.client);
+        const { pdfConfig } = companyAugmented;
 
         // Map payment method enum -> PDFConfig label
         const paymentMethodLabels: Record<string, string> = {
@@ -433,8 +442,8 @@ export class InvoicesService {
             number: invoice.rawNumber || invoice.number.toString(),
             date: formatDate(invoice.company, invoice.createdAt),
             dueDate: formatDate(invoice.company, invoice.dueDate),
-            company: invoice.company,
-            client: invoice.client,
+            company: companyAugmented,
+            client: clientAugmented,
             currency: invoice.currency,
             items: invoice.items.map(i => ({
                 description: i.description,
@@ -506,9 +515,9 @@ export class InvoicesService {
             where: { id },
             include: {
                 items: true,
-                client: true,
+                client: { include: { partyIdentifiers: true } },
                 company: {
-                    include: { pdfConfig: true },
+                    include: { pdfConfig: true, partyIdentifiers: true },
                 },
             },
         });
@@ -551,7 +560,7 @@ export class InvoicesService {
                 country: invRec.company.country,
                 countryCode: invRec.company.country
             },
-            registrationDetails: { vatId: invRec.company.VAT || "N/A", registrationId: invRec.company.legalId || "N/A", registrationName: invRec.company.name }
+            registrationDetails: { vatId: getIdentifier(invRec.company, 'VAT') || "N/A", registrationId: getIdentifier(invRec.company, 'LEGAL_ID') || "N/A", registrationName: invRec.company.name }
         };
 
         let toAdress;
@@ -579,7 +588,7 @@ export class InvoicesService {
                     country: invRec.client.country || 'FR',
                     countryCode: invRec.client.country.slice(0, 2).toUpperCase() || 'FR' // TODO: Refactor the app to store country codes instead of custom country names
                 },
-                registrationDetails: { vatId: invRec.client.VAT || 'N/A', registrationId: invRec.client.legalId || 'N/A', registrationName: invRec.client.name }
+                registrationDetails: { vatId: getIdentifier(invRec.client, 'VAT') || 'N/A', registrationId: getIdentifier(invRec.client, 'LEGAL_ID') || 'N/A', registrationName: invRec.client.name }
             };
 
             inv.to = companyContact;
@@ -633,7 +642,7 @@ export class InvoicesService {
     }
 
     async getInvoicePDFFormat(invoiceId: string, format: '' | 'pdf' | ExportFormat): Promise<Uint8Array> {
-        const invRec = await prisma.invoice.findUnique({ where: { id: invoiceId }, include: { items: true, client: true, company: true, quote: true } });
+        const invRec = await prisma.invoice.findUnique({ where: { id: invoiceId }, include: { items: true, client: { include: { partyIdentifiers: true } }, company: { include: { partyIdentifiers: true } }, quote: true } });
         if (!invRec) {
             logger.error('Invoice not found', { category: 'invoice' });
             throw new BadRequestException('Invoice not found');
@@ -655,8 +664,8 @@ export class InvoicesService {
             where: { id: quoteId },
             include: {
                 items: true,
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
             }
         });
 
@@ -697,8 +706,8 @@ export class InvoicesService {
             where: { id: invoiceId },
             include: {
                 items: true,
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
             }
         });
 
@@ -745,7 +754,7 @@ export class InvoicesService {
     async archiveInvoice(invoiceId: string) {
         const invoice = await prisma.invoice.findUnique({
             where: { id: invoiceId },
-            include: { client: true, company: true },
+            include: { client: { include: { partyIdentifiers: true } }, company: { include: { partyIdentifiers: true } } },
         });
 
         if (!invoice) {
@@ -781,11 +790,11 @@ export class InvoicesService {
     }
 
     async sendInvoiceByEmail(invoiceId: string) {
-        const invoice = await prisma.invoice.findUnique({
+        let invoice = await prisma.invoice.findUnique({
             where: { id: invoiceId },
             include: {
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
                 items: true,
             },
         });

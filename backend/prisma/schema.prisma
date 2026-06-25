@@ -309,9 +309,7 @@ model Company {
   name        String
   description String?
   currency    Currency @default(EUR)
-  legalId     String?
   foundedAt   DateTime
-  VAT         String?
   exemptVat   Boolean  @default(false)
   address      String
   addressLine2 String? // Second line for address (apartment, suite, etc.)
@@ -343,6 +341,7 @@ model Company {
   RecurringInvoice RecurringInvoice[]
   webhooks         Webhook[]
   Article          Article[]
+  partyIdentifiers PartyIdentifier[]
 }
 
 // Client model
@@ -350,8 +349,6 @@ model Client {
   id               String             @id @default(cuid())
   name             String
   description      String?
-  legalId          String? // Legal identification number (SIRET, EIN, etc.)
-  VAT              String? // VAT number
   foundedAt        DateTime? // Date when the client company was founded
   contactFirstname String?
   contactLastname  String?
@@ -373,6 +370,23 @@ model Client {
   Quote            Quote[]
   Invoice          Invoice[]
   RecurringInvoice RecurringInvoice[]
+  partyIdentifiers PartyIdentifier[]
+}
+
+// Per-country required identifiers (LEGAL_ID, VAT, RFC, CURP, REGON, …)
+model PartyIdentifier {
+  id        String   @id @default(cuid())
+  scheme    String
+  value     String
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, scheme])
+  @@unique([clientId, scheme])
 }
 
 // Email templates

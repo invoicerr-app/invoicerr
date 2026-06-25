@@ -43,6 +43,7 @@ export const FALLBACK: CountryComplianceProfile = {
   ],
 
   reporting: [],
+  requiredIdentifiers: [],
 
   numbering: [{ validFrom: '1900-01-01', value: { model: 'GAPLESS_SELF' } }],
 };

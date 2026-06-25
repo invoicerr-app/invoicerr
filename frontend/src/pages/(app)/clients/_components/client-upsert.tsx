@@ -16,6 +16,7 @@ import { useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { useLookupSiret } from "@/hooks/use-lookup-siret"
 import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
+import { useRequiredIdentifiers, type IdentifierRequirement } from "@/hooks/use-required-identifiers"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -39,15 +40,6 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         type: z.enum(['INDIVIDUAL', 'COMPANY']),
         name: z.string().optional(),
         description: z.string().max(500, t("clients.upsert.validation.description.maxLength")).optional(),
-        legalId: z.string().max(50, t("clients.upsert.validation.legalId.maxLength")).optional(),
-        VAT: z
-            .string()
-            .max(15, t("clients.upsert.validation.vat.maxLength"))
-            .optional()
-            .refine((val) => {
-                if (!val) return true // Skip validation if VAT is not provided
-                return /^[A-Z]{2}[0-9A-Z]{8,12}$/.test(val)
-            }, t("clients.upsert.validation.vat.format")),
         currency: z.string().nullable().optional(),
         foundedAt: z.date().optional().refine((date) => !date || date <= new Date(), t("clients.upsert.validation.foundedAt.future")),
         contactFirstname: z.string().optional(),
@@ -75,6 +67,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         state: z.string().optional(),
         country: z.string().min(1, t("clients.upsert.validation.country.required")),
         countryCode: z.string().optional(),
+        identifiers: z.array(z.object({ scheme: z.string(), value: z.string() })).optional(),
     }).superRefine((val, ctx) => {
         if (val.type === 'INDIVIDUAL') {
             if (!val.contactFirstname || val.contactFirstname.trim() === '') {
@@ -87,9 +80,6 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
             if (!val.name || val.name.trim() === '') {
                 ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['name'], message: t("clients.upsert.validation.name.required") })
             }
-            if (!val.legalId || val.legalId.trim() === '') {
-                ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['legalId'], message: t("clients.upsert.validation.legalId.required") || "SIRET is required for companies" })
-            }
         }
     })
 
@@ -99,8 +89,6 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
             type: 'COMPANY',
             name: "",
             description: "",
-            legalId: "",
-            VAT: "",
             currency: null,
             foundedAt: new Date(),
             contactFirstname: "",
@@ -114,6 +102,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
             state: "",
             country: "",
             countryCode: "",
+            identifiers: [],
         },
     })
 
@@ -127,8 +116,6 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                 type: c.type || 'COMPANY',
                 name: c.name || "",
                 description: c.description || "",
-                legalId: c.legalId || "",
-                VAT: c.VAT || "",
                 currency: c.currency || null,
                 foundedAt: c.foundedAt ? new Date(c.foundedAt) : undefined,
                 contactFirstname: c.contactFirstname || "",
@@ -142,14 +129,13 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                 state: c.state || "",
                 country: c.country || "",
                 countryCode: c.countryCode || "",
+                identifiers: (c.partyIdentifiers || []).map((pi: any) => ({ scheme: pi.scheme, value: pi.value })),
             })
         } else if (!isEditing) {
             form.reset({
                 type: 'COMPANY',
                 name: "",
                 description: "",
-                legalId: "",
-                VAT: "",
                 currency: null,
                 foundedAt: undefined,
                 contactFirstname: "",
@@ -163,11 +149,14 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                 state: "",
                 country: "",
                 countryCode: "",
+                identifiers: [],
             })
         }
     }, [client, isEditing, form])
 
-    const legalIdValue = form.watch("legalId")
+    const identifiers = form.watch("identifiers") || []
+    const legalIdEntry = identifiers.find((i: any) => i.scheme === "LEGAL_ID")
+    const legalIdValue = legalIdEntry?.value || ""
     const countryValue = form.watch("country")
     const isFranceOrUnset = !countryValue || /^fr(ance)?$/i.test(countryValue.trim())
 
@@ -180,12 +169,64 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         },
     })
     useCountryToCurrency(form)
+
+    const countryCodeValue = form.watch("countryCode")
+    const clientTypeWatch = form.watch("type")
+    const { data: requiredIdentifiers } = useRequiredIdentifiers(
+        countryCodeValue || undefined,
+        clientTypeWatch === "INDIVIDUAL" ? "INDIVIDUAL" : "COMPANY",
+    )
+
+    // Sync identifier fields with what the country requires
+    useEffect(() => {
+        if (!requiredIdentifiers) return
+        const requiredSchemes = new Set(requiredIdentifiers.map((r) => r.scheme))
+        const current: { scheme: string; value: string }[] = form.getValues("identifiers") || []
+        const formSchemes = new Set(current.map((i) => i.scheme))
+        const next = [...current]
+        let changed = false
+        for (const scheme of requiredSchemes) {
+            if (!formSchemes.has(scheme)) {
+                next.push({ scheme, value: "" })
+                changed = true
+            }
+        }
+        for (let i = next.length - 1; i >= 0; i--) {
+            if (next[i].scheme && !requiredSchemes.has(next[i].scheme)) {
+                next.splice(i, 1)
+                changed = true
+            }
+        }
+        if (changed) {
+            form.setValue("identifiers", next)
+        }
+    }, [requiredIdentifiers, form])
+
     const isSiretLookupDisabled = siretLookupLoading || !legalIdValue || legalIdValue.replace(/\D/g, '').length !== 14
 
     const onSubmit = (data: z.infer<typeof clientSchema>) => {
+        if (requiredIdentifiers) {
+            for (const req of requiredIdentifiers) {
+                if (req.required) {
+                    const val = (data.identifiers || []).find((i) => i.scheme === req.scheme)?.value
+                    if (!val || val.trim() === '') {
+                        const idx = (data.identifiers || []).findIndex((i) => i.scheme === req.scheme)
+                        form.setError(`identifiers.${idx}.value` as any, { message: `${req.label} is required` })
+                        return
+                    }
+                }
+            }
+        }
+
         const trigger = isEditing ? updateClient : createClient
 
-        trigger(data)
+        // Filter out empty identifiers so we don't send {scheme, value: ""}
+        const payload = {
+            ...data,
+            identifiers: (data.identifiers || []).filter((i) => i.value.trim() !== ""),
+        }
+
+        trigger(payload)
             .then((createdClient) => {
                 queryClient.invalidateQueries({ queryKey: queryKeys.clients.listsAll() })
                 if (!isEditing && onCreate) {
@@ -307,51 +348,53 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                                 )}
                             />
 
-                            {clientType === 'COMPANY' && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="legalId"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel required>{t("clients.upsert.fields.legalId.label")}</FormLabel>
-                                                <FormControl>
-                                                    <div className="flex gap-2">
-                                                        <Input {...field} placeholder={t("clients.upsert.fields.legalId.placeholder")} />
-                                                        {isFranceOrUnset && (
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                size="icon"
-                                                                disabled={isSiretLookupDisabled}
-                                                                onClick={() => onLookupSiret(legalIdValue)}
-                                                                title={t("clients.upsert.actions.lookupSiret")}
-                                                                dataCy="client-siret-lookup"
-                                                            >
-                                                                {siretLookupLoading ? <Loader2 className="animate-spin" /> : <Search />}
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="VAT"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>{t("clients.upsert.fields.vat.label")}</FormLabel>
-                                                <FormControl>
-                                                    <Input {...field} placeholder={t("clients.upsert.fields.vat.placeholder")} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                            {requiredIdentifiers?.length ? (
+                                <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
+                                    <p className="text-sm font-medium text-muted-foreground">{t("clients.upsert.fields.identifiers.label") || "Country-specific identifiers"}</p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {requiredIdentifiers.map((req) => {
+                                            const current = form.watch("identifiers") || []
+                                            const formIndex = current.findIndex((i: any) => i.scheme === req.scheme)
+                                            if (formIndex < 0) return null
+                                            const isLegalId = req.scheme === "LEGAL_ID"
+                                            return (
+                                                <FormField
+                                                    key={req.scheme}
+                                                    control={form.control}
+                                                    name={`identifiers.${formIndex}.value`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel required={req.required}>{req.label}</FormLabel>
+                                                            <FormControl>
+                                                                <div className="flex gap-2">
+                                                                    <Input {...field} placeholder={req.label} data-cy={`client-identifier-${req.scheme}`} />
+                                                                    {isLegalId && isFranceOrUnset && (
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="outline"
+                                                                            size="icon"
+                                                                            disabled={isSiretLookupDisabled}
+                                                                            onClick={() => onLookupSiret(legalIdValue)}
+                                                                            title={t("clients.upsert.actions.lookupSiret")}
+                                                                            dataCy="client-siret-lookup"
+                                                                        >
+                                                                            {siretLookupLoading ? <Loader2 className="animate-spin" /> : <Search />}
+                                                                        </Button>
+                                                                    )}
+                                                                </div>
+                                                            </FormControl>
+                                                            {req.helpText && (
+                                                                <p className="text-xs text-muted-foreground">{req.helpText}</p>
+                                                            )}
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            )
+                                        })}
+                                    </div>
                                 </div>
-                            )}
+                            ) : null}
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField

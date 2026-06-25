@@ -11,9 +11,10 @@ import { defaultTransmissionRegistry } from '../providers/transmission/registry'
 import { ApplySignalService } from './apply-signal';
 import { ComplianceCron } from './compliance.cron';
 import { ComplianceController } from './compliance.controller';
+import { RequiredFieldsController } from './required-fields.controller';
 
 @Module({
-  controllers: [ComplianceController],
+  controllers: [ComplianceController, RequiredFieldsController],
   providers: [
     // Stores
     {

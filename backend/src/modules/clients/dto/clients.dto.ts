@@ -1,9 +1,12 @@
 import { ClientType, Currency } from "../../../../prisma/generated/prisma/client";
 
+export interface IdentifierEntry {
+    scheme: string;
+    value: string;
+}
+
 export class EditClientsDto {
     description?: string
-    legalId?: string
-    VAT?: string
     foundedAt?: Date;
     id: string;
     name: string;
@@ -21,4 +24,5 @@ export class EditClientsDto {
     currency: Currency;
     type?: ClientType;
     isActive: boolean;
+    identifiers?: IdentifierEntry[]
 }

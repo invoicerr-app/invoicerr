@@ -7,6 +7,7 @@ import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { resolveInvoiceTax } from '@/compliance/integration/invoice-tax';
 import { toMinor } from '@/utils/financial';
 import type { SupplyType } from '@/compliance/types';
+import { getIdentifier } from '@/utils/entity-identifiers';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
@@ -27,8 +28,8 @@ export class RecurringInvoicesService {
             skip,
             take: pageSize,
             include: {
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
                 items: true,
             },
         });
@@ -51,10 +52,13 @@ export class RecurringInvoicesService {
     }
 
     async createRecurringInvoice(data: UpsertInvoicesDto) {
-        const company = await prisma.company.findFirst();
+        const company = await prisma.company.findFirst({
+            include: { partyIdentifiers: true },
+        });
 
         const client = await prisma.client.findUnique({
             where: { id: data.clientId },
+            include: { partyIdentifiers: true },
         });
         if (!client) {
             logger.error('Client not found', { category: 'recurring-invoice' });
@@ -64,10 +68,10 @@ export class RecurringInvoicesService {
         const taxResult = resolveInvoiceTax({
             supplierCountryCode: company?.countryCode ?? guessCountryCode(company?.country),
             supplierExemptVat: !!company?.exemptVat,
-            supplierVatNumber: company?.VAT,
+            supplierVatNumber: getIdentifier(company, 'VAT'),
             buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
             buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
-            buyerVatNumber: client.VAT,
+            buyerVatNumber: getIdentifier(client, 'VAT'),
             currency: (data.currency as string) || client.currency || company?.currency || 'EUR',
             issueDate: new Date(),
             discountRate: 0,
@@ -124,8 +128,8 @@ export class RecurringInvoicesService {
                 },
             },
             include: {
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
                 items: true,
             },
         });
@@ -146,10 +150,13 @@ export class RecurringInvoicesService {
     }
 
     async updateRecurringInvoice(id: string, data: UpsertInvoicesDto) {
-        const company = await prisma.company.findFirst();
+        const company = await prisma.company.findFirst({
+            include: { partyIdentifiers: true },
+        });
 
         const client = await prisma.client.findUnique({
             where: { id: data.clientId },
+            include: { partyIdentifiers: true },
         });
         if (!client) {
             logger.error('Client not found', { category: 'recurring-invoice' });
@@ -159,10 +166,10 @@ export class RecurringInvoicesService {
         const taxResult = resolveInvoiceTax({
             supplierCountryCode: company?.countryCode ?? guessCountryCode(company?.country),
             supplierExemptVat: !!company?.exemptVat,
-            supplierVatNumber: company?.VAT,
+            supplierVatNumber: getIdentifier(company, 'VAT'),
             buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
             buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
-            buyerVatNumber: client.VAT,
+            buyerVatNumber: getIdentifier(client, 'VAT'),
             currency: (data.currency as string) || client.currency || company?.currency || 'EUR',
             issueDate: new Date(),
             discountRate: 0,
@@ -212,8 +219,8 @@ export class RecurringInvoicesService {
                 },
             },
             include: {
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
                 items: true,
             },
         });
@@ -237,8 +244,8 @@ export class RecurringInvoicesService {
         const recurringInvoice = await prisma.recurringInvoice.findUnique({
             where: { id },
             include: {
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
                 items: true,
             },
         });
@@ -262,8 +269,8 @@ export class RecurringInvoicesService {
         const existingRecurringInvoice = await prisma.recurringInvoice.findUnique({
             where: { id },
             include: {
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
                 items: true,
             }
         });

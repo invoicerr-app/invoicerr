@@ -51,5 +51,24 @@ export const IT: CountryComplianceProfile = {
 
   numbering: [{ validFrom: '1900-01-01', value: { model: 'GAPLESS_SELF', seriesScope: 'ENTITY' } }],
 
+  requiredIdentifiers: [
+    {
+      scheme: 'LEGAL_ID',
+      label: 'Codice Fiscale',
+      appliesTo: 'INDIVIDUAL',
+      required: true,
+      pattern: '^[A-Z]{6}\\d{2}[A-Z]\\d{2}[A-Z]\\d{3}[A-Z]$',
+      helpText: '16-character fiscal code',
+    },
+    {
+      scheme: 'VAT',
+      label: 'Partita IVA',
+      appliesTo: 'COMPANY',
+      required: true,
+      pattern: '^\\d{11}$',
+      helpText: '11-digit VAT number',
+    },
+  ],
+
   mandatoryReceiveSyntax: 'FATTURAPA',
 };

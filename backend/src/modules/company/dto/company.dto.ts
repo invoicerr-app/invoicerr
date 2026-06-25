@@ -56,15 +56,16 @@ export interface PDFConfigDto {
     }
 }
 
+export interface IdentifierEntry {
+    scheme: string;
+    value: string;
+}
+
 export class EditCompanyDto {
     description?: string
-    legalId?: string
-    // Optional: the simplified onboarding only sends name + country; the rest is
-    // filled in later via Settings. The backend supplies blank defaults on creation.
     foundedAt?: Date
     name: string
     currency: finance.TCurrency
-    VAT?: string
     exemptVat?: boolean
     address?: string
     addressLine2?: string
@@ -82,4 +83,5 @@ export class EditCompanyDto {
     invoiceNumberFormat: string
     paymentStartingNumber: number
     paymentNumberFormat: string
+    identifiers?: IdentifierEntry[]
 }

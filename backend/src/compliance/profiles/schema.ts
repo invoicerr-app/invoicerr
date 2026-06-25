@@ -138,6 +138,18 @@ export interface CountryComplianceProfile {
   reporting: Temporal<ReportingObligation>[];
   numbering: Temporal<NumberingRule>[];
 
+  /** Per-country required identifiers for companies/individuals. */
+  requiredIdentifiers: IdentifierRequirement[];
+
   /** What this country's buyers are mandated to *receive* (drives buyer-format negotiation). */
   mandatoryReceiveSyntax?: DocumentSyntax;
+}
+
+export interface IdentifierRequirement {
+  scheme: string;
+  label: string;
+  appliesTo: 'COMPANY' | 'INDIVIDUAL' | 'BOTH';
+  required: boolean;
+  pattern?: string;
+  helpText?: string;
 }

@@ -17,12 +17,15 @@ import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { resolveInvoiceTax } from '@/compliance/integration/invoice-tax';
 import { clampDiscountRate, toMinor } from '@/utils/financial';
 import type { SupplyType } from '@/compliance/types';
+import { augmentWithIdentifiers, getIdentifier } from '@/utils/entity-identifiers';
 
 @Injectable()
 export class QuotesService {
     private readonly pluginsService: PluginsService
 
-    constructor(private readonly webhookDispatcher: WebhookDispatcherService) {
+    constructor(
+        private readonly webhookDispatcher: WebhookDispatcherService,
+    ) {
         this.pluginsService = new PluginsService();
     }
 
@@ -42,8 +45,8 @@ export class QuotesService {
             },
             include: {
                 items: true,
-                client: true,
-                company: true
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
             },
         });
 
@@ -66,12 +69,12 @@ export class QuotesService {
             const results = await prisma.quote.findMany({
                 take: 10,
                 orderBy: {
-                    number: 'asc',
+                    createdAt: 'desc',
                 },
                 include: {
                     items: true,
-                    company: true,
-                    client: true,
+                    company: { include: { partyIdentifiers: true } },
+                    client: { include: { partyIdentifiers: true } },
                 },
             });
 
@@ -96,12 +99,12 @@ export class QuotesService {
             },
             take: 10,
             orderBy: {
-                number: 'asc',
+                createdAt: 'desc',
             },
             include: {
                 items: true,
-                company: true,
-                client: true,
+                company: { include: { partyIdentifiers: true } },
+                client: { include: { partyIdentifiers: true } },
             },
         });
 
@@ -119,7 +122,9 @@ export class QuotesService {
     async createQuote(body: CreateQuoteDto) {
         const { items, ...data } = body;
 
-        const company = await prisma.company.findFirst();
+        const company = await prisma.company.findFirst({
+            include: { partyIdentifiers: true },
+        });
 
         if (!company) {
             logger.error('No company found. Please create a company first.', { category: 'quote' });
@@ -128,6 +133,7 @@ export class QuotesService {
 
         const client = await prisma.client.findUnique({
             where: { id: body.clientId },
+            include: { partyIdentifiers: true },
         });
 
         if (!client) {
@@ -139,10 +145,10 @@ export class QuotesService {
         const taxResult = resolveInvoiceTax({
             supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
             supplierExemptVat: !!company.exemptVat,
-            supplierVatNumber: company.VAT,
+            supplierVatNumber: getIdentifier(company, 'VAT'),
             buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
             buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
-            buyerVatNumber: client.VAT,
+            buyerVatNumber: getIdentifier(client, 'VAT'),
             currency: body.currency || client.currency || company.currency,
             issueDate: new Date(),
             discountRate,
@@ -189,8 +195,8 @@ export class QuotesService {
             },
             include: {
                 items: true,
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
             },
         });
 
@@ -232,9 +238,12 @@ export class QuotesService {
 
         const itemIdsToDelete = existingItemIds.filter(id => !incomingItemIds.includes(id));
 
-        const company = await prisma.company.findFirst();
+        const company = await prisma.company.findFirst({
+            include: { partyIdentifiers: true },
+        });
         const client = await prisma.client.findUnique({
             where: { id: data.clientId },
+            include: { partyIdentifiers: true },
         });
         if (!client) {
             logger.error('Client not found', { category: 'quote' });
@@ -245,10 +254,10 @@ export class QuotesService {
         const taxResult = resolveInvoiceTax({
             supplierCountryCode: company?.countryCode ?? guessCountryCode(company?.country),
             supplierExemptVat: !!company?.exemptVat,
-            supplierVatNumber: company?.VAT,
+            supplierVatNumber: getIdentifier(company, 'VAT'),
             buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
             buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
-            buyerVatNumber: client.VAT,
+            buyerVatNumber: getIdentifier(client, 'VAT'),
             currency: body.currency || client.currency || company?.currency || 'EUR',
             issueDate: new Date(),
             discountRate: normalizedDiscountRate,
@@ -314,8 +323,8 @@ export class QuotesService {
             },
             include: {
                 items: true,
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
             },
         });
 
@@ -344,8 +353,8 @@ export class QuotesService {
             where: { id },
             include: {
                 items: true,
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
             },
         });
 
@@ -380,9 +389,9 @@ export class QuotesService {
             where: { id },
             include: {
                 items: true,
-                client: true,
+                client: { include: { partyIdentifiers: true } },
                 company: {
-                    include: { pdfConfig: true },
+                    include: { pdfConfig: true, partyIdentifiers: true },
                 },
             },
         });
@@ -404,6 +413,9 @@ export class QuotesService {
                 logger.error(`Error generating PDF via signing provider, falling back to built-in PDF generation`, { category: 'quote', details: { error } });
             }
         }
+
+        const companyAugmented = augmentWithIdentifiers(quote.company);
+        const clientAugmented = augmentWithIdentifiers(quote.client);
 
         const config = quote.company.pdfConfig;
         const templateHtml = baseTemplate;
@@ -449,10 +461,10 @@ export class QuotesService {
 
         const html = template({
             number: quote.rawNumber || quote.number.toString(),
-            date: formatDate(quote.company, quote.createdAt),
-            validUntil: formatDate(quote.company, quote.validUntil),
-            company: quote.company,
-            client: quote.client,
+            date: formatDate(companyAugmented, quote.createdAt),
+            validUntil: formatDate(companyAugmented, quote.validUntil),
+            company: companyAugmented,
+            client: clientAugmented,
             currency: quote.currency,
             items: quote.items.map(i => ({
                 description: i.description,
@@ -527,8 +539,8 @@ export class QuotesService {
             where: { id },
             include: {
                 items: true,
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
             },
         });
 
@@ -542,8 +554,8 @@ export class QuotesService {
             data: { signedAt: new Date(), status: "SIGNED" },
             include: {
                 items: true,
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
             },
         });
 

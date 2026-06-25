@@ -42,6 +42,7 @@ describe('ProfileRegistry', () => {
         transmission: [],
         taxSystem: { kind: 'VAT', standardRate: 19 },
         lifecycle: [],
+        requiredIdentifiers: [],
         archival: [],
         reporting: [],
         numbering: [],

@@ -1,11 +1,11 @@
+import type { PartyIdentifier } from './client'
+
 export interface Company {
     id: string
     description?: string | null
-    legalId?: string | null
     foundedAt: Date | string
     name: string
     currency: string
-    VAT?: string | null
     exemptVat?: boolean
     address: string
     addressLine2?: string | null
@@ -20,4 +20,5 @@ export interface Company {
     quoteNumberFormat: string
     invoiceStartingNumber: number
     invoiceNumberFormat: string
+    partyIdentifiers?: PartyIdentifier[]
 }

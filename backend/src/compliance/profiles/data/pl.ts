@@ -52,5 +52,24 @@ export const PL: CountryComplianceProfile = {
 
   numbering: [{ validFrom: '1900-01-01', value: { model: 'GAPLESS_SELF', seriesScope: 'ENTITY' } }],
 
+  requiredIdentifiers: [
+    {
+      scheme: 'LEGAL_ID',
+      label: 'REGON',
+      appliesTo: 'COMPANY',
+      required: false,
+      pattern: '^\\d{9}(\\d{5})?$',
+      helpText: '9-digit (or 14-digit for larger entities) statistical number',
+    },
+    {
+      scheme: 'VAT',
+      label: 'NIP',
+      appliesTo: 'COMPANY',
+      required: true,
+      pattern: '^\\d{10}$',
+      helpText: '10-digit tax identification number',
+    },
+  ],
+
   mandatoryReceiveSyntax: 'FA_VAT',
 };

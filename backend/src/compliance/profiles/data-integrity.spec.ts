@@ -5,6 +5,7 @@
  * would otherwise fall back to a catch-all and ship silently-wrong behaviour).
  */
 import { ALL_PROFILES } from './data/all';
+import { FALLBACK } from './data/fallback';
 import { defaultRegistry } from './registry';
 import { Temporal } from './schema';
 import { defaultFormatRegistry } from '../providers/format/registry';
@@ -105,5 +106,43 @@ describe('profile data integrity', () => {
     for (const cc of ['FR', 'US', 'MX', 'IT', 'PL']) {
       expect(defaultRegistry.resolve(cc).profile.confidence).toBe('OFFICIAL');
     }
+  });
+
+  describe('requiredIdentifiers', () => {
+    it('every profile has a defined requiredIdentifiers array', () => {
+      for (const p of ALL_PROFILES) {
+        expect(Array.isArray(p.requiredIdentifiers)).toBe(true);
+      }
+    });
+
+    it('every IdentifierRequirement is well-formed', () => {
+      const validAppliesTo = ['COMPANY', 'INDIVIDUAL', 'BOTH'];
+      for (const p of concrete) {
+        for (const ri of p.requiredIdentifiers) {
+          expect(ri.scheme).toMatch(/^[A-Z_]{2,20}$/);
+          expect(typeof ri.label).toBe('string');
+          expect(ri.label.length).toBeGreaterThan(0);
+          expect(validAppliesTo).toContain(ri.appliesTo);
+          expect(typeof ri.required).toBe('boolean');
+        }
+      }
+    });
+
+    it('bespoke OFFICIAL profiles (FR/MX/US/IT/PL) have non-empty requiredIdentifiers', () => {
+      for (const cc of ['FR', 'MX', 'US', 'IT', 'PL']) {
+        const p = defaultRegistry.resolve(cc).profile;
+        expect(p.requiredIdentifiers.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('FALLBACK profile has empty requiredIdentifiers', () => {
+      expect(FALLBACK.requiredIdentifiers).toEqual([]);
+    });
+
+    it('delegating profiles (e.g. MC) have empty requiredIdentifiers (their delegate owns them)', () => {
+      for (const p of delegating) {
+        expect(p.requiredIdentifiers).toEqual([]);
+      }
+    });
   });
 });
