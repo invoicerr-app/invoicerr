@@ -72,13 +72,13 @@ GROUP BY "companyId", EXTRACT(YEAR FROM COALESCE("issuedAt", "createdAt"))::text
 INSERT INTO "NumberSeries" ("id", "companyId", "docType", "scopeKey", "counter", "createdAt", "updatedAt")
 SELECT
     gen_random_uuid()::text,
-    "invoice"."companyId",
+    "Invoice"."companyId",
     'payment',
-    EXTRACT(YEAR FROM "payment"."createdAt")::text,
-    MAX("payment"."number"),
+    EXTRACT(YEAR FROM "Payment"."createdAt")::text,
+    MAX("Payment"."number"),
     now(),
     now()
 FROM "Payment"
 INNER JOIN "Invoice" ON "Payment"."invoiceId" = "Invoice"."id"
 WHERE "Payment"."number" IS NOT NULL
-GROUP BY "invoice"."companyId", EXTRACT(YEAR FROM "payment"."createdAt")::text;
+GROUP BY "Invoice"."companyId", EXTRACT(YEAR FROM "Payment"."createdAt")::text;
