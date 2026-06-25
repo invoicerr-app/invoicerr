@@ -268,12 +268,12 @@ the next **Monday**).
   failed cycles needing attention.
 
 ## III.4 Deposit (acompte) & proforma documents 🏛️⚖️
-- [ ] **Proforma**: a non-legal pre-invoice (no number, not in the gapless series); convertible to a
+- [x] **Proforma**: a non-legal pre-invoice (no number, not in the gapless series); convertible to a
   real invoice. New `kind = PROFORMA`.
-- [ ] **Deposit/advance invoice (facture d'acompte)** ⚖️: in FR a deposit payment **requires** a
+- [x] **Deposit/advance invoice (facture d'acompte)** ⚖️: in FR a deposit payment **requires** a
   deposit invoice; the **final invoice deducts** the deposited amount and references the deposit
   invoice(s). Model the deposit→final link and the deduction line; both are numbered legal documents.
-- [ ] Frontend: "Request deposit" / "Issue deposit invoice", and final-invoice UI that shows/deducts
+- [x] Frontend: "Request deposit" / "Issue deposit invoice", and final-invoice UI that shows/deducts
   prior deposits.
 
 ## III.5 Payments (receipts → payments) ⚖️
@@ -429,7 +429,7 @@ Files: `invoices/_components/recurring-invoices/{recurring-invoices-upsert,recur
 
 ## VI.8 Deposit & proforma UI ⚖️
 Files: invoice create flow + `invoice-view.tsx`.
-- [ ] "Request deposit / Issue deposit invoice (acompte)" action; **proforma** create + "Convert to
+- [x] "Request deposit / Issue deposit invoice (acompte)" action; **proforma** create + "Convert to
   invoice"; final-invoice UI that **shows and deducts** prior deposit invoices; `kind` badges (VI.5).
 
 ## VI.9 Payments UI ⚖️
