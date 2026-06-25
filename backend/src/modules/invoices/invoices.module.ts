@@ -6,10 +6,11 @@ import { Module } from "@nestjs/common";
 import { PluginsService } from "@/modules/plugins/plugins.service";
 import { WebhooksModule } from "../webhooks/webhooks.module";
 import { ComplianceModule } from "@/compliance/nest/compliance.module";
+import { NumberingService } from "@/utils/numbering";
 
 @Module({
   imports: [WebhooksModule, ComplianceModule],
   controllers: [InvoicesController],
-  providers: [InvoicesService, MailService, JwtService, PluginsService]
+  providers: [InvoicesService, MailService, JwtService, PluginsService, NumberingService]
 })
 export class InvoicesModule { }
