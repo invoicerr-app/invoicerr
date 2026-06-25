@@ -7,7 +7,6 @@ export const baseTemplate = `
   <style>
         body { font-family: {{fontFamily}}, sans-serif; margin: {{padding}}px; color: #333; }
         .header { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; row-gap: 10px; margin-bottom: 30px; }
-        .company-name h1 { margin: 0; color: {{primaryColor}}; }
         .payment-info { text-align: right; }
         .header p { margin: 0; line-height: 1.4; }
         .client-info { text-align: left; }
@@ -18,7 +17,7 @@ export const baseTemplate = `
         th, td { padding: 12px; text-align: left; vertical-align: top; border-bottom: 1px solid #ddd; }
         th { background-color: {{secondaryColor}}; font-weight: bold; color: {{tableTextColor}}; }
         .total-row { font-weight: bold; background-color: {{secondaryColor}}; color: {{tableTextColor}}; }
-        .logo { max-height: 80px; margin-bottom: 10px; }
+        .logo { max-height: 140px; margin-bottom: 10px; }
   </style>
 </head>
 <body>
@@ -27,7 +26,6 @@ export const baseTemplate = `
             {{#if includeLogo}}
             <img src="{{logoB64}}" alt="Logo" class="logo">
             {{/if}}
-            <h1>{{company.name}}</h1>
         </div>
         <div class="payment-info">
             <h2>{{labels.payment}}</h2>

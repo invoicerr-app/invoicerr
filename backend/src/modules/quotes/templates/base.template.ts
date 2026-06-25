@@ -7,7 +7,6 @@ export const baseTemplate = `
     <style>
         body { font-family: {{fontFamily}}, sans-serif; margin: {{padding}}px; color: #333; }
         .header { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; row-gap: 10px; margin-bottom: 30px; }
-        .company-name h1 { margin: 0; color: {{primaryColor}}; }
         .quote-info { text-align: right; }
         .header p { margin: 0; line-height: 1.4; }
         .client-info { text-align: left; }
@@ -22,7 +21,7 @@ export const baseTemplate = `
         .notes { margin-top: 20px; padding: 20px; background-color: {{secondaryColor}}; border-radius: 4px; color: {{tableTextColor}}; }
         .payment-info { margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-left: 4px solid {{primaryColor}}; color: #333; }
         .validity { color: #dc2626; font-weight: bold; }
-        .logo { max-height: 80px; margin-bottom: 10px; }
+        .logo { max-height: 140px; margin-bottom: 10px; }
         .made-with {
             position: fixed;
             bottom: 10px;
@@ -39,7 +38,6 @@ export const baseTemplate = `
             {{#if includeLogo}}
                 <img src="{{logoB64}}" alt="Logo" class="logo">
             {{/if}}
-            <h1>{{company.name}}</h1>
         </div>
         <div class="quote-info">
             <h2>{{labels.quote}}</h2>
@@ -105,10 +103,6 @@ export const baseTemplate = `
                 <td><strong>-{{currency}} {{discountAmount}}</strong></td>
             </tr>
             {{/if}}
-            <tr>
-                <td colspan="5"><strong>{{labels.total}}</strong></td>
-                <td><strong>{{currency}} {{totalHT}}</strong></td>
-            </tr>
             <tr>
                 <td colspan="5"><strong>{{labels.vat}}</strong></td>
                 <td><strong>{{currency}} {{totalVAT}}</strong></td>

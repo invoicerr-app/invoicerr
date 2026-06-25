@@ -1613,15 +1613,10 @@
                 "description": "Options de police et de style de texte",
                 "fontFamily": "Famille de police"
             },
-            "colors": {
-                "title": "Couleurs",
-                "description": "Couleurs de marque et thème",
-                "primaryColor": "Couleur principale",
-                "secondaryColor": "Couleur secondaire"
-            },
             "logo": {
-                "title": "Logo",
+                "title": "Logo et couleur",
                 "description": "Paramètres du logo de l'entreprise",
+                "color": "Couleur",
                 "includeLogo": "Inclure le logo",
                 "logoPreview": "Aperçu du logo",
                 "uploadText": "Cliquer pour télécharger le logo"

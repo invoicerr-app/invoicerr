@@ -44,8 +44,7 @@ const defaultInvoiceTemplate = `
     <style>
         body { font-family: {{fontFamily}}, sans-serif; margin: {{padding}}px; color: #333; }
         .header { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; row-gap: 10px; margin-bottom: 30px; }
-        .company-name h1 { margin: 0; color: {{primaryColor}}; }
-        .invoice-info { text-align: right; }
+                .invoice-info { text-align: right; }
         .header p { margin: 0; line-height: 1.4; }
         .client-info { text-align: left; }
         .client-info h3 { margin: 0 0 4px; }
@@ -58,7 +57,7 @@ const defaultInvoiceTemplate = `
         .total-row { font-weight: bold; background-color: {{secondaryColor}}; color: {{tableTextColor}}; }
         .notes { margin-top: 30px; padding: 20px; background-color: {{secondaryColor}}; border-radius: 4px; color: {{tableTextColor}}; }
         .payment-info { margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-left: 4px solid {{primaryColor}}; color: #333; }
-        .logo { max-height: 80px; margin-bottom: 10px; }
+        .logo { max-height: 140px; margin-bottom: 10px; }
         .made-with {
             position: fixed;
             bottom: 10px;
@@ -75,7 +74,6 @@ const defaultInvoiceTemplate = `
             {{#if includeLogo}}
             <img src="{{logoB64}}" alt="Logo" class="logo">
             {{/if}}
-            <h1>{{company.name}}</h1>
         </div>
         <div class="invoice-info">
             <h2>{{labels.invoice}}</h2>
@@ -138,10 +136,6 @@ const defaultInvoiceTemplate = `
             </tr>
             {{/if}}
             <tr>
-                <td colspan="5"><strong>{{labels.total}}</strong></td>
-                <td><strong>{{currency}} {{totalHT}}</strong></td>
-            </tr>
-            <tr>
                 <td colspan="5"><strong>{{labels.vat}}</strong></td>
                 <td><strong>{{currency}} {{totalVAT}}</strong></td>
             </tr>
@@ -180,8 +174,7 @@ const defaultQuoteTemplate = `
     <style>
         body { font-family: {{fontFamily}}, sans-serif; margin: {{padding}}px; color: #333; }
         .header { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; row-gap: 10px; margin-bottom: 30px; }
-        .company-name h1 { margin: 0; color: {{primaryColor}}; }
-        .quote-info { text-align: right; }
+                .quote-info { text-align: right; }
         .header p { margin: 0; line-height: 1.4; }
         .client-info { text-align: left; }
         .client-info h3 { margin: 0 0 4px; }
@@ -195,7 +188,7 @@ const defaultQuoteTemplate = `
         .notes { margin-top: 20px; padding: 20px; background-color: {{secondaryColor}}; border-radius: 4px; color: {{tableTextColor}}; }
         .payment-info { margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-left: 4px solid {{primaryColor}}; color: #333; }
         .validity { color: #dc2626; font-weight: bold; }
-        .logo { max-height: 80px; margin-bottom: 10px; }
+        .logo { max-height: 140px; margin-bottom: 10px; }
         .made-with {
             position: fixed;
             bottom: 10px;
@@ -212,7 +205,6 @@ const defaultQuoteTemplate = `
             {{#if includeLogo}}
             <img src="{{logoB64}}" alt="Logo" class="logo">
             {{/if}}
-            <h1>{{company.name}}</h1>
         </div>
         <div class="quote-info">
             <h2>{{labels.quote}}</h2>
@@ -275,10 +267,6 @@ const defaultQuoteTemplate = `
             </tr>
             {{/if}}
             <tr>
-                <td colspan="5"><strong>{{labels.total}}</strong></td>
-                <td><strong>{{currency}} {{totalHT}}</strong></td>
-            </tr>
-            <tr>
                 <td colspan="5"><strong>{{labels.vat}}</strong></td>
                 <td><strong>{{currency}} {{totalVAT}}</strong></td>
             </tr>
@@ -317,8 +305,7 @@ const defaultPaymentTemplate = `
     <style>
         body { font-family: {{fontFamily}}, sans-serif; margin: {{padding}}px; color: #333; }
         .header { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; row-gap: 10px; margin-bottom: 30px; }
-        .company-name h1 { margin: 0; color: {{primaryColor}}; }
-        .payment-info { text-align: right; }
+                .payment-info { text-align: right; }
         .header p { margin: 0; line-height: 1.4; }
         .client-info { text-align: left; }
         .client-info h3 { margin: 0 0 4px; }
@@ -330,7 +317,7 @@ const defaultPaymentTemplate = `
         .total-row { font-weight: bold; background-color: {{secondaryColor}}; color: {{tableTextColor}}; }
         .notes { margin-top: 20px; padding: 20px; background-color: {{secondaryColor}}; border-radius: 4px; color: {{tableTextColor}}; }
         .payment-info { margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-left: 4px solid {{primaryColor}}; color: #333; }
-        .logo { max-height: 80px; margin-bottom: 10px; }
+        .logo { max-height: 140px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -339,7 +326,6 @@ const defaultPaymentTemplate = `
             {{#if includeLogo}}
             <img src="{{logoB64}}" alt="Logo" class="logo">
             {{/if}}
-            <h1>{{company.name}}</h1>
         </div>
         <div class="payment-info">
             <h2>{{labels.payment}}</h2>
@@ -769,53 +755,27 @@ export default function PDFTemplatesSettings() {
 
                                     <Card>
                                         <CardHeader>
-                                            <CardTitle>{t("settings.pdfTemplates.colors.title")}</CardTitle>
-                                            <CardDescription>{t("settings.pdfTemplates.colors.description")}</CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="space-y-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="primary-color">{t("settings.pdfTemplates.colors.primaryColor")}</Label>
-                                                <div className="flex items-center space-x-2">
-                                                    <input
-                                                        type="color"
-                                                        id="primary-color"
-                                                        value={settings.primaryColor}
-                                                        onChange={(e) => setSettings((prev) => ({ ...prev, primaryColor: e.target.value }))}
-                                                        className="w-12 h-10 rounded border border-input"
-                                                    />
-                                                    <Input
-                                                        value={settings.primaryColor}
-                                                        onChange={(e) => setSettings((prev) => ({ ...prev, primaryColor: e.target.value }))}
-                                                        className="flex-1"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="primary-color">{t("settings.pdfTemplates.colors.secondaryColor")}</Label>
-                                                <div className="flex items-center space-x-2">
-                                                    <input
-                                                        type="color"
-                                                        id="primary-color"
-                                                        value={settings.secondaryColor}
-                                                        onChange={(e) => setSettings((prev) => ({ ...prev, secondaryColor: e.target.value }))}
-                                                        className="w-12 h-10 rounded border border-input"
-                                                    />
-                                                    <Input
-                                                        value={settings.secondaryColor}
-                                                        onChange={(e) => setSettings((prev) => ({ ...prev, secondaryColor: e.target.value }))}
-                                                        className="flex-1"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card>
-                                        <CardHeader>
                                             <CardTitle>{t("settings.pdfTemplates.logo.title")}</CardTitle>
                                             <CardDescription>{t("settings.pdfTemplates.logo.description")}</CardDescription>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="secondary-color">{t("settings.pdfTemplates.logo.color")}</Label>
+                                                <div className="flex items-center space-x-2">
+                                                    <input
+                                                        type="color"
+                                                        id="secondary-color"
+                                                        value={settings.secondaryColor}
+                                                        onChange={(e) => setSettings((prev) => ({ ...prev, secondaryColor: e.target.value }))}
+                                                        className="w-12 h-10 rounded border border-input"
+                                                    />
+                                                    <Input
+                                                        value={settings.secondaryColor}
+                                                        onChange={(e) => setSettings((prev) => ({ ...prev, secondaryColor: e.target.value }))}
+                                                        className="flex-1"
+                                                    />
+                                                </div>
+                                            </div>
                                             <div className="flex items-center space-x-2">
                                                 <Switch
                                                     id="include-logo"

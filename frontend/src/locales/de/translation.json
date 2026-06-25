@@ -1393,15 +1393,10 @@
                 "description": "Schrift- und Textgestaltungsoptionen",
                 "fontFamily": "Schriftfamilie"
             },
-            "colors": {
-                "title": "Farben",
-                "description": "Markenfarben und Farbgebung",
-                "primaryColor": "Primärfarbe",
-                "secondaryColor": "Sekundärfarbe"
-            },
             "logo": {
-                "title": "Logo",
+                "title": "Logo & Farbe",
                 "description": "Einstellungen für das Firmenlogo",
+                "color": "Farbe",
                 "includeLogo": "Logo anzeigen",
                 "logoPreview": "Logo-Vorschau",
                 "uploadText": "Zum Hochladen des Logos klicken"

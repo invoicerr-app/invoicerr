@@ -1609,15 +1609,10 @@
                 "description": "Font and text styling options",
                 "fontFamily": "Font Family"
             },
-            "colors": {
-                "title": "Colors",
-                "description": "Brand colors and theme",
-                "primaryColor": "Primary Color",
-                "secondaryColor": "Secondary Color"
-            },
             "logo": {
-                "title": "Logo",
+                "title": "Logo & Color",
                 "description": "Company logo settings",
+                "color": "Color",
                 "includeLogo": "Include Logo",
                 "logoPreview": "Logo Preview",
                 "uploadText": "Click to upload logo"
