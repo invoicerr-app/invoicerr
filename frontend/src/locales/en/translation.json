@@ -1636,6 +1636,7 @@
         "apiKeys": {
             "title": "API Keys",
             "description": "Manage API keys to authenticate CLI or third-party clients against the API",
+            "swaggerLink": "API documentation",
             "createdKeyTitle": "API key created",
             "createdKeyNotice": "This key will be shown only once. Store it securely.",
             "create": {

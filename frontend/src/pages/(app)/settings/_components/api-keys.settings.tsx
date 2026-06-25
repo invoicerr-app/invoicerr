@@ -4,7 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { authenticatedFetch, useGet, usePost } from "@/hooks/use-fetch"
 
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { ExternalLink } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { useForm } from "react-hook-form"
 import { useState } from "react"
@@ -54,9 +56,20 @@ export default function ApiKeysSettings() {
 
     return (
         <div className="h-full">
-            <div className="mb-4">
-                <h1 className="text-3xl font-bold">{t("settings.apiKeys.title")}</h1>
-                <p className="text-muted-foreground">{t("settings.apiKeys.description")}</p>
+            <div className="mb-4 flex items-start justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold">{t("settings.apiKeys.title")}</h1>
+                    <p className="text-muted-foreground">{t("settings.apiKeys.description")}</p>
+                </div>
+                <a
+                    href={`${import.meta.env.VITE_BACKEND_URL || ""}/api/docs`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    {t("settings.apiKeys.swaggerLink")}
+                </a>
             </div>
 
             {createdKey && (
