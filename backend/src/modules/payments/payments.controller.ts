@@ -36,6 +36,24 @@ export class PaymentsController {
     return await this.paymentsService.searchPayments(query);
   }
 
+  @Get('table')
+  @ApiOperation({ summary: 'List payments for table view', description: 'Returns the full (unpaginated) list of payments matching the given filters, sorted by payment date. Used by the payments table view and its export.' })
+  @ApiQuery({ name: 'invoiceId', required: false, type: String, description: 'Filter payments by invoice ID.' })
+  @ApiQuery({ name: 'clientId', required: false, type: String, description: 'Filter payments by the client of their invoice.' })
+  @ApiQuery({ name: 'year', required: false, type: String, description: 'Filter payments paid during this year.' })
+  @ApiQuery({ name: 'month', required: false, type: String, description: 'Filter payments paid during this month (1-12). Ignored unless "year" is also provided.' })
+  @ApiQuery({ name: 'sort', required: false, enum: ['asc', 'desc'], description: 'Sort order on payment date. Defaults to "desc".' })
+  @ApiResponse({ status: 200, description: 'Payments retrieved' })
+  async getPaymentsTable(
+    @Query('invoiceId') invoiceId?: string,
+    @Query('clientId') clientId?: string,
+    @Query('year') year?: string,
+    @Query('month') month?: string,
+    @Query('sort') sort?: 'asc' | 'desc',
+  ) {
+    return await this.paymentsService.getPaymentsTable({ invoiceId, clientId, year, month, sort });
+  }
+
   @Post('create-from-invoice')
   @ApiOperation({ summary: 'Create payment from invoice', description: 'Generates a payment for an invoice, for its full amount or a partial amount.' })
   @ApiResponse({ status: 201, description: 'Payment created from invoice' })

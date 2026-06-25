@@ -279,6 +279,33 @@
                 "confirm": "Bestätigen"
             }
         },
+        "views": {
+            "list": "Liste",
+            "table": "Tabelle"
+        },
+        "table": {
+            "columns": {
+                "number": "Nummer",
+                "client": "Kunde",
+                "status": "Status",
+                "totalTTC": "Gesamt (inkl. MwSt.)",
+                "createdAt": "Erstellt am",
+                "validUntil": "Gültig bis"
+            },
+            "filters": {
+                "client": "Kunde",
+                "clientPlaceholder": "Alle Kunden",
+                "clientNoResults": "Kein Kunde gefunden",
+                "year": "Jahr",
+                "month": "Monat",
+                "allYears": "Alle Jahre",
+                "allMonths": "Alle Monate"
+            },
+            "actions": {
+                "export": "Exportieren"
+            },
+            "emptyState": "Keine Angebote entsprechen diesen Filtern."
+        },
         "createInvoiceDialog": {
             "title": "Rechnung aus Angebot erstellen",
             "description": "Wählen Sie die Artikel aus, die aus dem Angebot {{number}} abgerechnet werden sollen.",
@@ -436,6 +463,33 @@
             "total": "Total Rechnungen",
             "sent": "Gesendet",
             "paid": "Bezahlt"
+        },
+        "views": {
+            "list": "Liste",
+            "table": "Tabelle"
+        },
+        "table": {
+            "columns": {
+                "number": "Nummer",
+                "client": "Kunde",
+                "status": "Status",
+                "totalTTC": "Gesamt (inkl. MwSt.)",
+                "createdAt": "Erstellt am",
+                "dueDate": "Fälligkeitsdatum"
+            },
+            "filters": {
+                "client": "Kunde",
+                "clientPlaceholder": "Alle Kunden",
+                "clientNoResults": "Kein Kunde gefunden",
+                "year": "Jahr",
+                "month": "Monat",
+                "allYears": "Alle Jahre",
+                "allMonths": "Alle Monate"
+            },
+            "actions": {
+                "export": "Exportieren"
+            },
+            "emptyState": "Keine Rechnungen entsprechen diesen Filtern."
         },
         "statusFilters": {
             "all": "Alle",
@@ -1792,6 +1846,36 @@
         },
         "pdf": {
             "title": "Beleg {{number}} - PDF"
+        },
+        "tabs": {
+            "list": "Liste",
+            "table": "Tabelle"
+        },
+        "table": {
+            "columns": {
+                "number": "Nummer",
+                "invoice": "Rechnung",
+                "client": "Kunde",
+                "totalPaid": "Bezahlter Betrag",
+                "paidAt": "Zahlungsdatum",
+                "paymentMethod": "Zahlungsmethode"
+            },
+            "filters": {
+                "invoice": "Rechnung",
+                "invoicePlaceholder": "Alle Rechnungen",
+                "invoiceNoResults": "Keine Rechnung gefunden",
+                "client": "Kunde",
+                "clientPlaceholder": "Alle Kunden",
+                "clientNoResults": "Kein Kunde gefunden",
+                "year": "Jahr",
+                "month": "Monat",
+                "allYears": "Alle Jahre",
+                "allMonths": "Alle Monate"
+            },
+            "actions": {
+                "export": "Exportieren"
+            },
+            "emptyState": "Keine Zahlungen entsprechen diesen Filtern."
         }
     },
     "stats": {

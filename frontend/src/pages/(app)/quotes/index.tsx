@@ -1,4 +1,4 @@
-import { FileText, GitBranch, Plus } from "lucide-react"
+import { FileText, GitBranch, List, Plus, Table2 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { authenticatedFetch, useGetRaw, usePost } from "@/hooks/use-fetch"
 import { useQuotes } from "@/hooks/queries"
@@ -6,19 +6,24 @@ import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { Quote } from "@/types"
 import { CreateInvoiceFromQuoteDialog } from "@/pages/(app)/quotes/_components/create-invoice-from-quote-dialog"
 import { QuoteList } from "@/pages/(app)/quotes/_components/quote-list"
 import type { QuoteListHandle } from "@/pages/(app)/quotes/_components/quote-list"
 import { QuoteProgression } from "@/pages/(app)/quotes/_components/quote-progression"
+import { QuoteTable } from "@/pages/(app)/quotes/_components/quote-table"
 import { QuoteViewDialog } from "@/pages/(app)/quotes/_components/quote-view"
 import { usePageHeader } from "@/hooks/use-page-header"
+import { useSearchParams } from "react-router"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
 type QuoteStatusFilter = "draft" | "sent" | "signed" | undefined
-type QuoteView = "list" | "progression"
+type QuoteView = "list" | "progression" | "table"
+
+const QUOTE_VIEWS: QuoteView[] = ["list", "progression", "table"]
 
 interface QuoteInvoicingStatus {
     remainingPercent: number
@@ -81,7 +86,17 @@ export default function Quotes() {
 
     const [searchTerm, setSearchTerm] = useState("")
     const [statusFilter, setStatusFilter] = useState<QuoteStatusFilter>(undefined)
-    const [view, setView] = useState<QuoteView>("list")
+    const [searchParams, setSearchParams] = useSearchParams()
+    const viewParam = searchParams.get("view")
+    const view: QuoteView = QUOTE_VIEWS.includes(viewParam as QuoteView) ? (viewParam as QuoteView) : "list"
+    const setView = (next: QuoteView) => {
+        setSearchParams((params) => {
+            const updated = new URLSearchParams(params)
+            if (next === "list") updated.delete("view")
+            else updated.set("view", next)
+            return updated
+        })
+    }
 
     const filteredQuotes =
         quotes?.quotes.filter(
@@ -144,17 +159,24 @@ export default function Quotes() {
     )
 
     return (
-        <div className={cn("mx-auto space-y-6 p-6", view === "progression" ? "max-w-screen-2xl" : "max-w-7xl")}>
+        <div className={cn("mx-auto space-y-6 p-6", view === "progression" || view === "table" ? "max-w-screen-2xl" : "max-w-7xl")}>
             <div className="flex justify-end">
-                <Button
-                    variant={view === "progression" ? "default" : "outline"}
-                    size="default"
-                    onClick={() => setView(view === "progression" ? "list" : "progression")}
-                    data-cy="quote-view-progression"
-                >
-                    <GitBranch className="h-4 w-4 mr-2" />
-                    {t("quotes.progression.title")}
-                </Button>
+                <Tabs value={view} onValueChange={(value) => setView(value as QuoteView)}>
+                    <TabsList>
+                        <TabsTrigger value="list" data-cy="quote-view-list">
+                            <List className="h-4 w-4 mr-2" />
+                            {t("quotes.views.list")}
+                        </TabsTrigger>
+                        <TabsTrigger value="progression" data-cy="quote-view-progression">
+                            <GitBranch className="h-4 w-4 mr-2" />
+                            {t("quotes.progression.title")}
+                        </TabsTrigger>
+                        <TabsTrigger value="table" data-cy="quote-view-table">
+                            <Table2 className="h-4 w-4 mr-2" />
+                            {t("quotes.views.table")}
+                        </TabsTrigger>
+                    </TabsList>
+                </Tabs>
             </div>
 
             {view === "progression" ? (
@@ -174,6 +196,8 @@ export default function Quotes() {
                         }}
                     />
                 </>
+            ) : view === "table" ? (
+                <QuoteTable />
             ) : (
                 <QuoteList
                     ref={quoteListRef}

@@ -41,6 +41,22 @@ export class InvoicesController {
     return await this.invoicesService.searchInvoices(query);
   }
 
+  @Get('table')
+  @ApiOperation({ summary: 'List invoices for table view', description: 'Returns the full (unpaginated) list of invoices matching the given filters, sorted by creation date. Used by the invoices table view and its export.' })
+  @ApiQuery({ name: 'clientId', required: false, type: String, description: 'Filter invoices by client ID.' })
+  @ApiQuery({ name: 'year', required: false, type: String, description: 'Filter invoices created during this year.' })
+  @ApiQuery({ name: 'month', required: false, type: String, description: 'Filter invoices created during this month (1-12). Ignored unless "year" is also provided.' })
+  @ApiQuery({ name: 'sort', required: false, enum: ['asc', 'desc'], description: 'Sort order on creation date. Defaults to "desc".' })
+  @ApiResponse({ status: 200, description: 'Invoices retrieved' })
+  async getInvoicesTable(
+    @Query('clientId') clientId?: string,
+    @Query('year') year?: string,
+    @Query('month') month?: string,
+    @Query('sort') sort?: 'asc' | 'desc',
+  ) {
+    return await this.invoicesService.getInvoicesTable({ clientId, year, month, sort });
+  }
+
   @Get(':id/pdf')
   @ApiOperation({ summary: 'Get invoice PDF', description: 'Downloads the PDF version of a specific invoice, optionally in a different format (e.g. ZUGFeRD).' })
   @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
