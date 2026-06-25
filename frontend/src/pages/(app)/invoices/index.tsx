@@ -31,7 +31,6 @@ export default function Invoices() {
     const { data: pdf } = useGetRaw<Response>(downloadInvoicePdf ? `/api/invoices/${downloadInvoicePdf.id}/pdf` : null)
 
     const { trigger: triggerSendInvoiceByEmail } = usePost(`/api/invoices/send`)
-    const { trigger: triggerCreatePayment } = usePost(`/api/payments/create-from-invoice`)
     const { trigger: triggerArchiveInvoice } = usePost(`/api/invoices/archive`)
 
     useEffect(() => {
@@ -134,18 +133,6 @@ export default function Invoices() {
             })
     }
 
-    const handlePaymentReceived = (invoice: Invoice) => {
-        triggerCreatePayment({ id: invoice.id })
-            .then(() => {
-                toast.success(t("invoices.list.messages.markAsPaidSuccess"))
-                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
-                queryClient.invalidateQueries({ queryKey: queryKeys.payments.listsAll() })
-            })
-            .catch(() => {
-                toast.error(t("invoices.list.messages.markAsPaidError"))
-            })
-    }
-
     const handleArchiveInvoice = (invoice: Invoice) => {
         triggerArchiveInvoice({ invoiceId: invoice.id })
             .then(() => {
@@ -214,7 +201,6 @@ export default function Invoices() {
                         invoices={filteredInvoices.filter((invoice) => invoice.status !== InvoiceStatus.UPCOMING)}
                     onSend={handleSendInvoice}
                     onResend={handleSendInvoice}
-                    onPaymentReceived={handlePaymentReceived}
                     onArchive={handleArchiveInvoice}
                     onViewInvoice={setViewInvoiceDialog}
                     />

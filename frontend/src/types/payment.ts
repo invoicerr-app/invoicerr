@@ -19,6 +19,7 @@ export interface Payment {
     invoice?: Invoice;
     items: PaymentItem[];
     totalPaid: number;
+    paidAt?: string; // ISO date string — when the payment was received
     createdAt: string; // ISO date string
     updatedAt: string; // ISO date string
     paymentMethodId?: string;

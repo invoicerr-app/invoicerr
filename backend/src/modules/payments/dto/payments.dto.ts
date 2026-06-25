@@ -23,6 +23,9 @@ export class CreatePaymentDto {
 
     @ApiProperty({ description: 'Additional payment details or reference', required: false })
     paymentDetails?: string;
+
+    @ApiProperty({ description: 'Date the payment was received (ISO 8601). Defaults to now when omitted.', required: false })
+    paidAt?: string;
 }
 
 export class EditPaymentDto extends CreatePaymentDto {

@@ -71,6 +71,7 @@ export interface Invoice {
     totalTTC: number;
     currency: string; // Currency code, e.g., "EUR", "USD"
     isActive: boolean;
+    payments?: { id: string; totalPaid: number }[];
 }
 
 export enum RecurrenceFrequency {

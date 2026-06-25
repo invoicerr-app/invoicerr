@@ -396,6 +396,25 @@
             "startAdding": "Comienza creando tu primera factura.",
             "tryDifferentSearch": "Prueba ajustando tus términos de búsqueda."
         },
+        "paymentReceived": {
+            "title": "Pago recibido",
+            "description": "Introduce el importe recibido para esta factura.",
+            "percentLabel": "Se pagará el {{percent}} % de la factura",
+            "fields": {
+                "amount": {
+                    "label": "Importe recibido",
+                    "placeholder": "Introduce el importe recibido",
+                    "errors": {
+                        "required": "El importe debe ser mayor que 0",
+                        "tooHigh": "El importe no puede superar el saldo restante"
+                    }
+                }
+            },
+            "actions": {
+                "confirm": "Confirmar",
+                "cancel": "Cancelar"
+            }
+        },
         "list": {
             "title": "Todas las facturas",
             "description": "Administra y visualiza todas tus facturas en un solo lugar.",
@@ -1582,6 +1601,9 @@
             "count": "{{count}} recibos {{found}}",
             "found": "encontrados"
         },
+        "breakdown": {
+            "label": "Distribución por ítem"
+        },
         "search": {
             "placeholder": "Buscar recibos..."
         },
@@ -1647,6 +1669,10 @@
                         "required": "El cliente es obligatorio."
                     }
                 },
+                "amount": {
+                    "label": "Importe total",
+                    "placeholder": "Introduce el importe del pago"
+                },
                 "items": {
                     "label": "Ítems",
                     "placeholder": "Agregue ítems al recibo",
@@ -1676,6 +1702,9 @@
                             "required": "La tasa de IVA es obligatoria.",
                             "min": "La tasa de IVA debe ser al menos 0."
                         }
+                    },
+                    "errors": {
+                        "negativeTotal": "El total de pagos de esta factura no puede ser negativo"
                     }
                 },
                 "invoice": {
@@ -1692,6 +1721,10 @@
                     "label": "Detalles de pago",
                     "placeholder": "Ingrese detalles del pago",
                     "description": "Información adicional sobre el pago"
+                },
+                "paidAt": {
+                    "label": "Fecha de pago",
+                    "placeholder": "Elige la fecha de pago"
                 }
             },
             "actions": {

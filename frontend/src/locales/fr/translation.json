@@ -428,8 +428,10 @@
                 "draft": "Brouillon",
                 "sent": "Envoyée",
                 "paid": "Payée",
-                "archived": "Archivée"
+                "archived": "Archivée",
+                "partiallyPaid": "Payée partiellement"
             },
+            "percentPaid": "{{percent}} % payé",
             "stepLabel": "Étape {{current}} / {{total}}",
             "actions": {
                 "send": "Envoyer",
@@ -672,6 +674,25 @@
             "emailLabel": "Destinataire :",
             "confirm": "Envoyer",
             "cancel": "Annuler"
+        },
+        "paymentReceived": {
+            "title": "Paiement reçu",
+            "description": "Saisissez le montant reçu pour cette facture.",
+            "percentLabel": "{{percent}} % de la facture seront payés",
+            "fields": {
+                "amount": {
+                    "label": "Montant reçu",
+                    "placeholder": "Saisissez le montant reçu",
+                    "errors": {
+                        "required": "Le montant doit être supérieur à 0",
+                        "tooHigh": "Le montant ne peut pas dépasser le solde restant"
+                    }
+                }
+            },
+            "actions": {
+                "confirm": "Confirmer",
+                "cancel": "Annuler"
+            }
         },
         "delete": {
             "title": "Supprimer la facture",
@@ -1768,6 +1789,9 @@
             "count": "{{count}} paiements {{found}}",
             "found": "trouvés"
         },
+        "breakdown": {
+            "label": "Répartition par article"
+        },
         "search": {
             "placeholder": "Rechercher des paiements..."
         },
@@ -1833,6 +1857,10 @@
                         "required": "Le client est requis."
                     }
                 },
+                "amount": {
+                    "label": "Montant total",
+                    "placeholder": "Saisissez le montant du paiement"
+                },
                 "items": {
                     "label": "Articles",
                     "placeholder": "Ajoutez un article",
@@ -1862,6 +1890,9 @@
                             "required": "Le taux de TVA est requis.",
                             "min": "Le taux de TVA doit être d'au moins 0."
                         }
+                    },
+                    "errors": {
+                        "negativeTotal": "Le total des paiements de cette facture ne peut pas être négatif"
                     }
                 },
                 "invoice": {
@@ -1878,6 +1909,10 @@
                     "label": "Détails du paiement",
                     "placeholder": "Entrez les détails du paiement",
                     "description": "Informations supplémentaires sur le paiement"
+                },
+                "paidAt": {
+                    "label": "Date du paiement",
+                    "placeholder": "Choisissez la date du paiement"
                 }
             },
             "actions": {

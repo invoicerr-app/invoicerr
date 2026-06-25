@@ -46,7 +46,8 @@ export class InvoicesService {
             include: {
                 items: true,
                 client: true,
-                company: true
+                company: true,
+                payments: { select: { totalPaid: true } },
             },
         });
 
@@ -79,7 +80,8 @@ export class InvoicesService {
             include: {
                 items: true,
                 client: true,
-                company: true
+                company: true,
+                payments: { select: { id: true, totalPaid: true } },
             },
         });
 

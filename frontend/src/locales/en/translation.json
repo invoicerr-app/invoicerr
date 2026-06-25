@@ -427,8 +427,10 @@
                 "draft": "Draft",
                 "sent": "Sent",
                 "paid": "Paid",
-                "archived": "Archived"
+                "archived": "Archived",
+                "partiallyPaid": "Partially paid"
             },
+            "percentPaid": "{{percent}}% paid",
             "stepLabel": "Step {{current}} / {{total}}",
             "actions": {
                 "send": "Send",
@@ -671,6 +673,25 @@
             "emailLabel": "Recipient:",
             "confirm": "Send",
             "cancel": "Cancel"
+        },
+        "paymentReceived": {
+            "title": "Payment received",
+            "description": "Enter the amount received for this invoice.",
+            "percentLabel": "{{percent}}% of the invoice will be paid",
+            "fields": {
+                "amount": {
+                    "label": "Amount received",
+                    "placeholder": "Enter the amount received",
+                    "errors": {
+                        "required": "Amount must be greater than 0",
+                        "tooHigh": "Amount cannot exceed the remaining balance"
+                    }
+                }
+            },
+            "actions": {
+                "confirm": "Confirm",
+                "cancel": "Cancel"
+            }
         },
         "delete": {
             "title": "Delete Invoice",
@@ -1786,6 +1807,9 @@
             "count": "{{count}} payments {{found}}",
             "found": "found"
         },
+        "breakdown": {
+            "label": "Distribution across items"
+        },
         "search": {
             "placeholder": "Search payments..."
         },
@@ -1851,6 +1875,10 @@
                         "required": "Client is required."
                     }
                 },
+                "amount": {
+                    "label": "Total amount",
+                    "placeholder": "Enter the payment amount"
+                },
                 "items": {
                     "label": "Items",
                     "placeholder": "Add items to the payment",
@@ -1880,6 +1908,9 @@
                             "required": "VAT rate is required.",
                             "min": "VAT rate must be at least 0."
                         }
+                    },
+                    "errors": {
+                        "negativeTotal": "The total payments for this invoice cannot be negative"
                     }
                 },
                 "invoice": {
@@ -1896,6 +1927,10 @@
                     "label": "Payment Details",
                     "placeholder": "Enter payment details",
                     "description": "Additional information about the payment"
+                },
+                "paidAt": {
+                    "label": "Payment Date",
+                    "placeholder": "Pick the payment date"
                 }
             },
             "actions": {

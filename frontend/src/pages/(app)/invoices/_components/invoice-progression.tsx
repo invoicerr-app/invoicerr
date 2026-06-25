@@ -15,12 +15,12 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { PaymentReceivedDialog } from "./payment-received-dialog"
 
 interface InvoiceProgressionProps {
     invoices: Invoice[]
     onSend?: (invoice: Invoice) => void
     onResend?: (invoice: Invoice) => void
-    onPaymentReceived?: (invoice: Invoice) => void
     onArchive?: (invoice: Invoice) => void
     onViewInvoice?: (invoice: Invoice) => void
 }
@@ -50,6 +50,12 @@ const stepColors: Record<string, { dot: string; text: string; bar: string }> = {
 
 const neutralColors = { dot: "bg-slate-400", text: "text-slate-400", bar: "bg-slate-400" }
 
+const partiallyPaidColors = { dot: "bg-amber-500", text: "text-amber-500", bar: "bg-amber-500" }
+
+function getAlreadyPaid(invoice: Invoice): number {
+    return invoice.payments?.reduce((sum, p) => sum + p.totalPaid, 0) ?? 0
+}
+
 function getCurrentStepIndex(invoice: Invoice): number {
     const displayStatus = getDisplayInvoiceStatus(invoice.status)
     for (let i = pipeline.length - 1; i >= 0; i--) {
@@ -63,7 +69,7 @@ function getCurrentStepIndex(invoice: Invoice): number {
 
 function getInvoiceActions(
     invoice: Invoice,
-    handlers: Pick<InvoiceProgressionProps, "onSend" | "onResend" | "onPaymentReceived" | "onArchive">,
+    handlers: Pick<InvoiceProgressionProps, "onSend" | "onResend" | "onArchive">,
 ): { action: ProgressionAction; label: string }[] {
     const currentStep = pipeline[getCurrentStepIndex(invoice)]
     if (!currentStep?.exists) return []
@@ -78,9 +84,7 @@ function getInvoiceActions(
                 ...(handlers.onResend
                     ? [{ action: "resend" as const, label: "invoices.progression.actions.resend" }]
                     : []),
-                ...(handlers.onPaymentReceived
-                    ? [{ action: "paymentReceived" as const, label: "invoices.progression.actions.paymentReceived" }]
-                    : []),
+                { action: "paymentReceived" as const, label: "invoices.progression.actions.paymentReceived" },
             ]
         case "paid":
             return handlers.onArchive
@@ -95,17 +99,17 @@ export function InvoiceProgression({
     invoices,
     onSend,
     onResend,
-    onPaymentReceived,
     onArchive,
     onViewInvoice,
 }: InvoiceProgressionProps) {
     const { t } = useTranslation()
-    const handlers = { onSend, onResend, onPaymentReceived, onArchive }
+    const handlers = { onSend, onResend, onArchive }
 
     const [confirmDialog, setConfirmDialog] = useState<{
         invoice: Invoice
         action: ProgressionAction
     } | null>(null)
+    const [paymentDialogInvoice, setPaymentDialogInvoice] = useState<Invoice | null>(null)
 
     const handleConfirm = () => {
         if (!confirmDialog) return
@@ -117,9 +121,6 @@ export function InvoiceProgression({
                 break
             case "resend":
                 onResend?.(invoice)
-                break
-            case "paymentReceived":
-                onPaymentReceived?.(invoice)
                 break
             case "archive":
                 onArchive?.(invoice)
@@ -135,6 +136,9 @@ export function InvoiceProgression({
         ? confirmDialog.invoice.client.name ||
           `${confirmDialog.invoice.client.contactFirstname} ${confirmDialog.invoice.client.contactLastname}`
         : ""
+    const clientEmail = confirmDialog?.invoice.client.contactEmail || ""
+    const showRecipient =
+        !!confirmDialog && (confirmDialog.action === "send" || confirmDialog.action === "resend") && !!clientEmail
 
     return (
         <>
@@ -157,8 +161,15 @@ export function InvoiceProgression({
                             const currentIndex = getCurrentStepIndex(invoice)
                             const actions = getInvoiceActions(invoice, handlers)
                             const currentStep = currentIndex >= 0 ? pipeline[currentIndex] : undefined
-                            const colors = currentStep ? stepColors[currentStep.key] ?? neutralColors : neutralColors
-                            const statusLabel = currentStep
+                            const alreadyPaid = getAlreadyPaid(invoice)
+                            const isPartiallyPaid = currentStep?.key === "sent" && alreadyPaid > 0
+                            const percentPaid = invoice.totalTTC > 0 ? Math.min(100, Math.round((alreadyPaid / invoice.totalTTC) * 100)) : 0
+                            const colors = isPartiallyPaid
+                                ? partiallyPaidColors
+                                : currentStep ? stepColors[currentStep.key] ?? neutralColors : neutralColors
+                            const statusLabel = isPartiallyPaid
+                                ? `${t("invoices.progression.steps.partiallyPaid")} (${t("invoices.progression.percentPaid", { percent: percentPaid })})`
+                                : currentStep
                                 ? t(`invoices.progression.steps.${currentStep.labelKey}`)
                                 : t(`invoices.list.status.${invoice.status.toLowerCase()}`)
                             const filledSteps = currentIndex >= 0 ? currentIndex + 1 : 0
@@ -200,10 +211,17 @@ export function InvoiceProgression({
                                                 <div
                                                     key={step.key}
                                                     className={cn(
-                                                        "h-1.5 flex-1 rounded-full transition-colors",
+                                                        "h-1.5 flex-1 rounded-full transition-colors overflow-hidden relative",
                                                         index < filledSteps ? colors.bar : "bg-muted",
                                                     )}
-                                                />
+                                                >
+                                                    {isPartiallyPaid && step.key === "paid" && (
+                                                        <div
+                                                            className={cn("absolute inset-y-0 left-0 rounded-full", partiallyPaidColors.bar)}
+                                                            style={{ width: `${percentPaid}%` }}
+                                                        />
+                                                    )}
+                                                </div>
                                             ))}
                                         </div>
                                     </div>
@@ -221,7 +239,9 @@ export function InvoiceProgression({
                                                             "bg-blue-600 text-white hover:bg-blue-700",
                                                     )}
                                                     onClick={() =>
-                                                        setConfirmDialog({ invoice, action: action.action })
+                                                        action.action === "paymentReceived"
+                                                            ? setPaymentDialogInvoice(invoice)
+                                                            : setConfirmDialog({ invoice, action: action.action })
                                                     }
                                                 >
                                                     {t(action.label)}
@@ -258,6 +278,12 @@ export function InvoiceProgression({
                                     },
                                 )}
                         </AlertDialogDescription>
+                        {showRecipient && (
+                            <p className="text-sm mt-2">
+                                <span className="text-muted-foreground">{t("invoices.sendConfirmation.emailLabel")}</span>{" "}
+                                {clientEmail}
+                            </p>
+                        )}
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel onClick={() => setConfirmDialog(null)}>
@@ -269,6 +295,13 @@ export function InvoiceProgression({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <PaymentReceivedDialog
+                invoice={paymentDialogInvoice}
+                onOpenChange={(open) => {
+                    if (!open) setPaymentDialogInvoice(null)
+                }}
+            />
         </>
     )
 }
