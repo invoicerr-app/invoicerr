@@ -3,17 +3,35 @@ beforeEach(() => {
 });
 
 // Draft and archived invoices can't receive a payment, so they aren't selectable in
-// the payment form. Mark an invoice as paid first to make at least one selectable.
+// the payment form. Create an invoice via the API and send it so it becomes SENT.
 function ensurePayableInvoice() {
-    cy.visit('/invoices');
-    cy.wait(2000);
-    cy.get('body').then($body => {
-        const markButtons = $body.find('button:has(svg.lucide-banknote)');
-        if (markButtons.length > 0) {
-            cy.wrap(markButtons).first().click({ force: true });
-            cy.wait(1500);
-        }
+    cy.request('/api/clients?page=1').then(({ body }) => {
+        const clients = body.clients || [];
+        // Prefer a client with an email so /api/invoices/send actually flips the status to SENT.
+        const client = clients.find((c: any) => c.contactEmail) || clients[0];
+        expect(client, 'at least one client must exist').to.exist;
+
+        cy.request('POST', '/api/invoices', {
+            clientId: client.id,
+            notes: 'E2E payable invoice',
+            currency: 'EUR',
+            items: [{
+                description: 'Payable Service',
+                quantity: 1,
+                unitPrice: 200,
+                vatRate: 20,
+                type: 'SERVICE',
+                order: 0,
+            }],
+        }).then(({ body: invoice }) => {
+            expect(invoice.id, 'created invoice id').to.exist;
+            cy.request('POST', '/api/invoices/send', { id: invoice.id }).then(({ status }) => {
+                expect(status).to.be.oneOf([200, 201]);
+            });
+        });
     });
+    // Give the backend / React Query cache a moment to settle before the UI reads it.
+    cy.wait(500);
 }
 
 describe('Payments E2E', () => {

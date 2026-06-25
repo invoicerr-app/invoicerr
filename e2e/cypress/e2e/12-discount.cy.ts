@@ -103,20 +103,26 @@ function createInvoice({ discountRate = 10, item = defaultQuoteItem }: CreateInv
     });
 }
 
-function createPaymentForInvoice(invoiceLabel: string) {
+function createPaymentForInvoice(invoiceLabel: string, invoiceId: string) {
     cy.intercept('POST', '/api/payments/create-from-invoice').as('createPayment');
 
-    cy.contains('[data-cy="invoice-row"]', invoiceLabel, { timeout: 20000 })
-        .should('exist')
-        .closest('[data-cy="invoice-row"]')
-        .as('invoiceRow');
-
-    cy.get('@invoiceRow').within(() => {
-        cy.get('button')
-            .filter((_, el) => Cypress.$(el).find('svg.lucide-plus').length > 0)
-            .first()
-            .click({ force: true });
+    // The invoice is created as DRAFT; send it first so it becomes SENT and the
+    // "Payment received" action becomes available in the progression view.
+    cy.request('POST', '/api/invoices/send', { id: invoiceId }).then(({ status }) => {
+        expect(status).to.be.oneOf([200, 201]);
     });
+
+    cy.visit('/invoices');
+    cy.get('[data-cy="invoice-view-progression"]').click();
+
+    cy.contains('[data-cy="invoice-progression-row"]', invoiceLabel, { timeout: 20000 })
+        .should('exist')
+        .within(() => {
+            cy.get('[data-cy="invoice-progression-paymentReceived"]').click();
+        });
+
+    cy.get('[data-cy="payment-received-dialog"]', { timeout: 5000 }).should('be.visible');
+    cy.get('[data-cy="payment-received-submit"]').click();
 
     return cy.wait('@createPayment').then(({ response }) => {
         expect(response?.statusCode).to.be.oneOf([200, 201]);
@@ -235,8 +241,8 @@ describe('Discount Feature (Invoice)', () => {
 
 describe('Discount Feature (Payments)', () => {
     it('applies the configured discount rate to payment totals', () => {
-        createInvoice({ discountRate: 10 }).then(({ invoiceLabel }) => {
-            createPaymentForInvoice(invoiceLabel).then(() => {
+        createInvoice({ discountRate: 10 }).then(({ invoiceLabel, invoiceId }) => {
+            createPaymentForInvoice(invoiceLabel, invoiceId).then(() => {
                 cy.visit('/payments');
                 cy.contains('span', invoiceLabel, { timeout: 20000 })
                     .should('exist')
