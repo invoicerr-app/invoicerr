@@ -287,6 +287,11 @@ export class InvoicesService {
             throw new BadRequestException('Invoice not found');
         }
 
+        if (existingInvoice.status !== 'DRAFT') {
+            logger.error('Only draft invoices can be deleted', { category: 'invoice', details: { invoiceId: id, status: existingInvoice.status } });
+            throw new BadRequestException('Only draft invoices can be deleted');
+        }
+
         const deletedInvoice = await prisma.invoice.update({
             where: { id },
             data: { isActive: false },
