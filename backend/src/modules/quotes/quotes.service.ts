@@ -246,9 +246,9 @@ export class QuotesService {
             throw new BadRequestException('Quote not found');
         }
 
-        if (existingQuote.status === 'SIGNED') {
-            logger.error('Cannot edit a signed quote', { category: 'quote', details: { id } });
-            throw new BadRequestException('Cannot edit a signed quote. Create a new version instead.');
+        if (existingQuote.status !== 'DRAFT') {
+            logger.error('Only DRAFT quotes can be edited', { category: 'quote', details: { id, status: existingQuote.status } });
+            throw new BadRequestException('Only DRAFT quotes can be edited. Create a new version instead.');
         }
 
         const existingItemIds = existingQuote.items.map(i => i.id);
@@ -584,6 +584,11 @@ export class QuotesService {
         if (!existingQuote) {
             logger.error('Quote not found', { category: 'quote', details: { id } });
             throw new BadRequestException('Quote not found');
+        }
+
+        if (existingQuote.status !== 'DRAFT') {
+            logger.error('Only DRAFT quotes can be signed', { category: 'quote', details: { id, status: existingQuote.status } });
+            throw new BadRequestException('Only DRAFT quotes can be signed.');
         }
 
         const signDate = new Date();
