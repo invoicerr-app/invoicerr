@@ -1,6 +1,7 @@
-import { ReceiptText, Plus, List, FileText, Repeat, GitBranch } from "lucide-react"
+import { ReceiptText, Plus, List, FileText, Repeat, GitBranch, Table2 } from "lucide-react"
 import { InvoiceList, type InvoiceListHandle } from "@/pages/(app)/invoices/_components/invoice-list"
 import { InvoiceProgression } from "@/pages/(app)/invoices/_components/invoice-progression"
+import { InvoiceTable } from "@/pages/(app)/invoices/_components/invoice-table"
 import { InvoiceViewDialog } from "@/pages/(app)/invoices/_components/invoice-view"
 import { useEffect, useRef, useState } from "react"
 import { useGetRaw, usePost } from "@/hooks/use-fetch"
@@ -11,12 +12,15 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { InvoiceStatus, type Invoice, type InvoiceStatusFilterKey } from "@/types"
 import { usePageHeader } from "@/hooks/use-page-header"
+import { useSearchParams } from "react-router"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
 type InvoiceFilter = "all" | "oneTime" | "recurring"
-type InvoiceView = "list" | "progression"
+type InvoiceView = "list" | "progression" | "table"
+
+const INVOICE_VIEWS: InvoiceView[] = ["list", "progression", "table"]
 
 export default function Invoices() {
     const { t } = useTranslation()
@@ -52,7 +56,17 @@ export default function Invoices() {
 
     const [searchTerm, setSearchTerm] = useState("")
     const [filter, setFilter] = useState<InvoiceFilter>("all")
-    const [view, setView] = useState<InvoiceView>("list")
+    const [searchParams, setSearchParams] = useSearchParams()
+    const viewParam = searchParams.get("view")
+    const view: InvoiceView = INVOICE_VIEWS.includes(viewParam as InvoiceView) ? (viewParam as InvoiceView) : "list"
+    const setView = (next: InvoiceView) => {
+        setSearchParams((params) => {
+            const updated = new URLSearchParams(params)
+            if (next === "list") updated.delete("view")
+            else updated.set("view", next)
+            return updated
+        })
+    }
     const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilterKey[]>(["draft", "sent", "paid"])
 
     const toggleStatusFilter = (key: InvoiceStatusFilterKey) => {
@@ -164,7 +178,7 @@ export default function Invoices() {
         </div>
     )
     return (
-        <div className={cn("mx-auto space-y-6 p-6", view === "progression" ? "max-w-screen-2xl" : "max-w-7xl")}>
+        <div className={cn("mx-auto space-y-6 p-6", view === "progression" || view === "table" ? "max-w-screen-2xl" : "max-w-7xl")}>
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <Tabs value={filter} onValueChange={(value) => setFilter(value as InvoiceFilter)}>
@@ -184,15 +198,22 @@ export default function Invoices() {
                     </TabsList>
                 </Tabs>
 
-                <Button
-                    variant={view === "progression" ? "default" : "outline"}
-                    size="default"
-                    onClick={() => setView(view === "progression" ? "list" : "progression")}
-                    data-cy="invoice-view-progression"
-                >
-                    <GitBranch className="h-4 w-4 mr-2" />
-                    {t("invoices.progression.title")}
-                </Button>
+                <Tabs value={view} onValueChange={(value) => setView(value as InvoiceView)}>
+                    <TabsList>
+                        <TabsTrigger value="list" data-cy="invoice-view-list">
+                            <List className="h-4 w-4 mr-2" />
+                            {t("invoices.views.list")}
+                        </TabsTrigger>
+                        <TabsTrigger value="progression" data-cy="invoice-view-progression">
+                            <GitBranch className="h-4 w-4 mr-2" />
+                            {t("invoices.progression.title")}
+                        </TabsTrigger>
+                        <TabsTrigger value="table" data-cy="invoice-view-table">
+                            <Table2 className="h-4 w-4 mr-2" />
+                            {t("invoices.views.table")}
+                        </TabsTrigger>
+                    </TabsList>
+                </Tabs>
             </div>
 
             {view === "progression" ? (
@@ -211,6 +232,8 @@ export default function Invoices() {
                         }}
                     />
                 </>
+            ) : view === "table" ? (
+                <InvoiceTable />
             ) : (
                 <InvoiceList
                     ref={invoiceListRef}

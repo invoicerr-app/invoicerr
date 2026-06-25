@@ -297,6 +297,33 @@
                 "confirm": "Confirm"
             }
         },
+        "views": {
+            "list": "List",
+            "table": "Table"
+        },
+        "table": {
+            "columns": {
+                "number": "Number",
+                "client": "Client",
+                "status": "Status",
+                "totalTTC": "Total (incl. tax)",
+                "createdAt": "Created on",
+                "validUntil": "Valid until"
+            },
+            "filters": {
+                "client": "Client",
+                "clientPlaceholder": "All clients",
+                "clientNoResults": "No client found",
+                "year": "Year",
+                "month": "Month",
+                "allYears": "All years",
+                "allMonths": "All months"
+            },
+            "actions": {
+                "export": "Export"
+            },
+            "emptyState": "No quotes match these filters."
+        },
         "createInvoiceDialog": {
             "title": "Create invoice from quote",
             "description": "Select the items to invoice from quote {{number}}.",
@@ -513,6 +540,33 @@
                 "cancel": "Cancel"
             },
             "noAction": "No action"
+        },
+        "views": {
+            "list": "List",
+            "table": "Table"
+        },
+        "table": {
+            "columns": {
+                "number": "Number",
+                "client": "Client",
+                "status": "Status",
+                "totalTTC": "Total (incl. tax)",
+                "createdAt": "Created on",
+                "dueDate": "Due date"
+            },
+            "filters": {
+                "client": "Client",
+                "clientPlaceholder": "All clients",
+                "clientNoResults": "No client found",
+                "year": "Year",
+                "month": "Month",
+                "allYears": "All years",
+                "allMonths": "All months"
+            },
+            "actions": {
+                "export": "Export"
+            },
+            "emptyState": "No invoices match these filters."
         },
         "stats": {
             "total": "Total Invoices",
@@ -2005,6 +2059,36 @@
         },
         "pdf": {
             "title": "Payment {{number}} - PDF"
+        },
+        "tabs": {
+            "list": "List",
+            "table": "Table"
+        },
+        "table": {
+            "columns": {
+                "number": "Number",
+                "invoice": "Invoice",
+                "client": "Client",
+                "totalPaid": "Amount paid",
+                "paidAt": "Payment date",
+                "paymentMethod": "Payment method"
+            },
+            "filters": {
+                "invoice": "Invoice",
+                "invoicePlaceholder": "All invoices",
+                "invoiceNoResults": "No invoice found",
+                "client": "Client",
+                "clientPlaceholder": "All clients",
+                "clientNoResults": "No client found",
+                "year": "Year",
+                "month": "Month",
+                "allYears": "All years",
+                "allMonths": "All months"
+            },
+            "actions": {
+                "export": "Export"
+            },
+            "emptyState": "No payments match these filters."
         }
     },
     "stats": {

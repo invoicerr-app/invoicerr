@@ -279,6 +279,33 @@
                 "confirm": "Confirmar"
             }
         },
+        "views": {
+            "list": "Lista",
+            "table": "Tabla"
+        },
+        "table": {
+            "columns": {
+                "number": "Número",
+                "client": "Cliente",
+                "status": "Estado",
+                "totalTTC": "Total (con IVA)",
+                "createdAt": "Creada el",
+                "validUntil": "Válida hasta"
+            },
+            "filters": {
+                "client": "Cliente",
+                "clientPlaceholder": "Todos los clientes",
+                "clientNoResults": "No se encontró ningún cliente",
+                "year": "Año",
+                "month": "Mes",
+                "allYears": "Todos los años",
+                "allMonths": "Todos los meses"
+            },
+            "actions": {
+                "export": "Exportar"
+            },
+            "emptyState": "Ninguna cotización coincide con estos filtros."
+        },
         "createInvoiceDialog": {
             "title": "Crear factura desde la cotización",
             "description": "Seleccione los artículos a facturar desde la cotización {{number}}.",
@@ -436,6 +463,33 @@
             "total": "Total de facturas",
             "sent": "Enviada",
             "paid": "Pagada"
+        },
+        "views": {
+            "list": "Lista",
+            "table": "Tabla"
+        },
+        "table": {
+            "columns": {
+                "number": "Número",
+                "client": "Cliente",
+                "status": "Estado",
+                "totalTTC": "Total (con IVA)",
+                "createdAt": "Creada el",
+                "dueDate": "Fecha de vencimiento"
+            },
+            "filters": {
+                "client": "Cliente",
+                "clientPlaceholder": "Todos los clientes",
+                "clientNoResults": "No se encontró ningún cliente",
+                "year": "Año",
+                "month": "Mes",
+                "allYears": "Todos los años",
+                "allMonths": "Todos los meses"
+            },
+            "actions": {
+                "export": "Exportar"
+            },
+            "emptyState": "Ninguna factura coincide con estos filtros."
         },
         "statusFilters": {
             "all": "Todas",
@@ -1792,6 +1846,36 @@
         },
         "pdf": {
             "title": "Recibo {{number}} - PDF"
+        },
+        "tabs": {
+            "list": "Lista",
+            "table": "Tabla"
+        },
+        "table": {
+            "columns": {
+                "number": "Número",
+                "invoice": "Factura",
+                "client": "Cliente",
+                "totalPaid": "Importe pagado",
+                "paidAt": "Fecha de pago",
+                "paymentMethod": "Método de pago"
+            },
+            "filters": {
+                "invoice": "Factura",
+                "invoicePlaceholder": "Todas las facturas",
+                "invoiceNoResults": "No se encontró ninguna factura",
+                "client": "Cliente",
+                "clientPlaceholder": "Todos los clientes",
+                "clientNoResults": "No se encontró ningún cliente",
+                "year": "Año",
+                "month": "Mes",
+                "allYears": "Todos los años",
+                "allMonths": "Todos los meses"
+            },
+            "actions": {
+                "export": "Exportar"
+            },
+            "emptyState": "Ningún pago coincide con estos filtros."
         }
     },
     "stats": {

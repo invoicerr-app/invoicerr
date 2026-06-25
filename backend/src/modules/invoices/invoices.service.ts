@@ -64,6 +64,55 @@ export class InvoicesService {
         return { pageCount: Math.ceil(totalInvoices / pageSize), invoices: invoicesWithPM };
     }
 
+    async getInvoicesTable(filters: { clientId?: string; year?: string; month?: string; sort?: 'asc' | 'desc' }) {
+        const where: Record<string, any> = { isActive: true };
+
+        if (filters.clientId) {
+            where.clientId = filters.clientId;
+        }
+
+        const year = parseInt(filters.year ?? '', 10);
+        if (!isNaN(year)) {
+            const month = parseInt(filters.month ?? '', 10);
+            if (!isNaN(month) && month >= 1 && month <= 12) {
+                where.createdAt = {
+                    gte: new Date(year, month - 1, 1),
+                    lt: new Date(year, month, 1),
+                };
+            } else {
+                where.createdAt = {
+                    gte: new Date(year, 0, 1),
+                    lt: new Date(year + 1, 0, 1),
+                };
+            }
+        }
+
+        const sort = filters.sort === 'asc' ? 'asc' : 'desc';
+
+        const invoices = await prisma.invoice.findMany({
+            where,
+            orderBy: {
+                createdAt: sort,
+            },
+            include: {
+                items: true,
+                client: true,
+                company: true,
+                payments: { select: { totalPaid: true } },
+            },
+        });
+
+        const invoicesWithPM = await Promise.all(invoices.map(async (inv: any) => {
+            if (inv.paymentMethodId) {
+                const pm = await prisma.paymentMethod.findUnique({ where: { id: inv.paymentMethodId } });
+                return { ...inv, paymentMethod: pm ?? inv.paymentMethod };
+            }
+            return inv;
+        }));
+
+        return invoicesWithPM;
+    }
+
     async searchInvoices(query: string) {
         if (query === '') {
             return this.getInvoices('1'); // Return first page if query is empty
