@@ -507,7 +507,6 @@
                 "viewPdf": "Voir le PDF",
                 "downloadPdf": "Télécharger le PDF",
                 "edit": "Modifier la facture",
-                "markAsPaid": "Marquer comme payée",
                 "delete": "Supprimer la facture",
                 "createPayment": "Créer un paiement à partir de cette facture",
                 "sendByEmail": "Envoyer la facture par email"

@@ -144,14 +144,6 @@ export class InvoicesController {
     return this.invoicesService.createInvoiceFromQuote(quoteId);
   }
 
-  @Post('mark-as-paid')
-  @ApiOperation({ summary: 'Mark invoice as paid', description: 'Marks an invoice as paid with the current date.' })
-  @ApiResponse({ status: 201, description: 'Invoice marked as paid' })
-  @ApiBody({ schema: { type: 'object', properties: { invoiceId: { type: 'string', description: 'ID of the invoice to mark as paid' } } } })
-  markInvoiceAsPaid(@Body('invoiceId') invoiceId: string) {
-    return this.invoicesService.markInvoiceAsPaid(invoiceId);
-  }
-
   @Post()
   @ApiOperation({ summary: 'Create an invoice', description: 'Creates a new invoice with items, client, and pricing information.' })
   @ApiResponse({ status: 201, description: 'Invoice created' })
