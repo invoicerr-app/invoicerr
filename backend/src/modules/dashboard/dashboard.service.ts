@@ -27,12 +27,12 @@ interface DashboardData {
         total: number
     }
     revenue: {
-        last6Months: { createdAt: Date, total: number }[]
+        last6Months: { createdAt: Date, real: number, forecast: number }[]
         currentMonth: number
         previousMonth: number
         monthlyChange: number
         monthlyChangePercent: number
-        last6Years: { createdAt: Date, total: number }[]
+        last6Years: { createdAt: Date, real: number, forecast: number }[]
         currentYear: number
         previousYear: number
         yearlyChange: number
@@ -89,9 +89,12 @@ export class DashboardService {
         const last6Months = await Promise.all(Array.from({ length: 6 }).map(async (_, i) => {
             const date = new Date();
             date.setMonth(date.getMonth() - i);
+            const start = new Date(date.getFullYear(), date.getMonth(), 1);
+            const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
             return {
-                createdAt: new Date(date.getFullYear(), date.getMonth(), 1),
-                total: await this.getMonthlyRevenue(date),
+                createdAt: start,
+                real: await this.getRealRevenueForRange(start, end),
+                forecast: await this.getForecastRevenueForRange(start, end),
             };
         }));
 
@@ -108,9 +111,12 @@ export class DashboardService {
         const last6Years = await Promise.all(Array.from({ length: 6 }).map(async (_, i) => {
             const date = new Date();
             date.setFullYear(date.getFullYear() - i);
+            const start = new Date(date.getFullYear(), 0, 1);
+            const end = new Date(date.getFullYear() + 1, 0, 0);
             return {
-                createdAt: new Date(date.getFullYear(), 0, 1),
-                total: await this.getYearlyRevenue(date),
+                createdAt: start,
+                real: await this.getRealRevenueForRange(start, end),
+                forecast: await this.getForecastRevenueForRange(start, end),
             };
         }));
 
@@ -219,6 +225,39 @@ export class DashboardService {
         });
 
         return amount * rate;
+    }
+
+    /** Real revenue: actual payments received, by payment date. */
+    async getRealRevenueForRange(start: Date, end: Date): Promise<number> {
+        const payments = await prisma.payment.findMany({
+            where: { paidAt: { gte: start, lte: end } },
+            include: { invoice: { include: { company: true } } },
+        });
+
+        const convertedAmounts = await Promise.all(
+            payments.map(async (payment) =>
+                await this.convertToMainCurrency(payment.totalPaid, payment.invoice.currency, payment.invoice.company.currency)
+            )
+        );
+        return convertedAmounts.reduce((total, amount) => total + amount, 0);
+    }
+
+    /** Forecast revenue: total of issued invoices (paid + still expected), by due date. */
+    async getForecastRevenueForRange(start: Date, end: Date): Promise<number> {
+        const invoices = await prisma.invoice.findMany({
+            where: {
+                dueDate: { gte: start, lte: end },
+                status: { in: ['PAID', 'SENT', 'UNPAID'] },
+            },
+            include: { company: true },
+        });
+
+        const convertedAmounts = await Promise.all(
+            invoices.map(async (invoice) =>
+                await this.convertToMainCurrency(invoice.totalTTC, invoice.currency, invoice.company.currency)
+            )
+        );
+        return convertedAmounts.reduce((total, amount) => total + amount, 0);
     }
 
     async getMonthlyRevenue(date: Date): Promise<number> {
