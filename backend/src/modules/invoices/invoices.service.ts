@@ -1228,4 +1228,85 @@ export class InvoicesService {
 
         return { message: 'Invoice sent successfully' };
     }
+
+    async getAvailableActions(id: string) {
+        const invoice = await prisma.invoice.findUnique({ where: { id } });
+        if (!invoice) throw new BadRequestException('Invoice not found');
+
+        const complianceDoc = await prisma.complianceDocument.findFirst({
+            where: { invoiceId: id },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        if (!complianceDoc) {
+            // No compliance doc yet — infer from DRAFT status
+            return {
+                invoiceId: id,
+                status: invoice.status,
+                immutableAfter: 'ISSUE',
+                correctionModel: 'CREDIT_NOTE',
+                cancellation: { allowed: true },
+                actions: {
+                    edit: invoice.status === 'DRAFT',
+                    issue: invoice.status === 'DRAFT',
+                    correct: false,
+                    cancel: false,
+                    cancelAndReplace: false,
+                    send: invoice.status === 'DRAFT',
+                },
+                correctionKinds: ['CREDIT_NOTE'],
+            };
+        }
+
+        const plan = complianceDoc.plan as any;
+        const lifecycle = plan?.lifecycle ?? { immutableAfter: 'ISSUE', correctionModel: 'CREDIT_NOTE', cancellation: { allowed: true, requiresAuthorityAck: false } };
+        const isDraft = invoice.status === 'DRAFT';
+        const isIssued = invoice.status === 'ISSUED' || invoice.status === 'SENT';
+        const isTerminal = invoice.status === 'CANCELLED' || invoice.status === 'CORRECTED' || invoice.status === 'ARCHIVED';
+
+        // Determine cancellation rejection reason (consumes the plan, not a if-pays)
+        let cancelReason: string | undefined;
+        if (!lifecycle.cancellation?.allowed) {
+            cancelReason = 'Cancellation not allowed by country policy; issue a credit note.';
+        } else if (lifecycle.cancellation?.requiresAuthorityAck) {
+            cancelReason = 'Requires authority acknowledgement.';
+        } else if (lifecycle.cancellation?.requiresBuyerConsent) {
+            cancelReason = 'Requires buyer consent.';
+        }
+
+        // Determine which correction kinds are available based on the correction model
+        let correctionKinds: string[];
+        switch (lifecycle.correctionModel) {
+            case 'CORRECTIVE_INVOICE':
+                correctionKinds = ['CORRECTIVE_INVOICE'];
+                break;
+            case 'CANCEL_AND_REPLACE':
+                correctionKinds = ['INVOICE'];
+                break;
+            case 'CREDIT_NOTE':
+            default:
+                correctionKinds = ['CREDIT_NOTE'];
+                break;
+        }
+
+        return {
+            invoiceId: id,
+            status: invoice.status,
+            immutableAfter: lifecycle.immutableAfter,
+            correctionModel: lifecycle.correctionModel,
+            cancellation: {
+                allowed: !!lifecycle.cancellation?.allowed && !isTerminal,
+                reason: cancelReason,
+            },
+            actions: {
+                edit: isDraft,
+                issue: isDraft,
+                correct: isIssued,
+                cancel: isIssued && !!lifecycle.cancellation?.allowed,
+                cancelAndReplace: isIssued && lifecycle.correctionModel === 'CANCEL_AND_REPLACE',
+                send: isIssued,
+            },
+            correctionKinds,
+        };
+    }
 }

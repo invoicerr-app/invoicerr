@@ -185,6 +185,14 @@ export class InvoicesController {
     return this.invoicesService.cancelInvoice(id, reason);
   }
 
+  @Get(':id/available-actions')
+  @ApiOperation({ summary: 'Get available actions for an invoice', description: 'Returns the actions permitted by the country compliance plan (edit, correct, cancel, etc.).' })
+  @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
+  @ApiResponse({ status: 200, description: 'Available actions retrieved' })
+  getAvailableActions(@Param('id') id: string) {
+    return this.invoicesService.getAvailableActions(id);
+  }
+
   @Post('send')
   @ApiOperation({ summary: 'Send invoice by email', description: 'Sends an invoice as a PDF attachment via email to the client.' })
   @ApiResponse({ status: 201, description: 'Invoice sent' })
