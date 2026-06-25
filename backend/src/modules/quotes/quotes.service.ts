@@ -17,6 +17,8 @@ import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { resolveInvoiceTax } from '@/compliance/integration/invoice-tax';
+import { ComplianceService } from '@/compliance/operations/compliance-service';
+import type { TransactionContext } from '@/compliance/canonical/canonical-document';
 import { clampDiscountRate, toMinor } from '@/utils/financial';
 import type { SupplyType } from '@/compliance/types';
 import { augmentWithIdentifiers, getIdentifier } from '@/utils/entity-identifiers';
@@ -28,6 +30,7 @@ export class QuotesService {
     constructor(
         private readonly webhookDispatcher: WebhookDispatcherService,
         private readonly numberingService: NumberingService,
+        private readonly complianceService: ComplianceService,
     ) {
         this.pluginsService = new PluginsService();
     }
@@ -616,7 +619,36 @@ export class QuotesService {
             });
         });
 
-        // TODO: route through ComplianceService.issue() / send() instead of wiring numbering directly (PART III)
+        // Wire ComplianceService: issue a compliance document for the signed quote
+        try {
+            const complianceCtx: TransactionContext = {
+                supplier: {
+                    legalName: existingQuote.company.name,
+                    countryCode: existingQuote.company.countryCode ?? guessCountryCode(existingQuote.company.country) ?? 'FR',
+                    role: 'B2B',
+                    identifiers: (existingQuote.company as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
+                },
+                buyer: {
+                    legalName: existingQuote.client.name,
+                    countryCode: existingQuote.client.countryCode ?? guessCountryCode(existingQuote.client.country) ?? 'FR',
+                    role: existingQuote.client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+                    identifiers: (existingQuote.client as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
+                },
+                lines: existingQuote.items.map((item) => ({
+                    id: `item-${item.order ?? 0}`,
+                    description: item.description,
+                    quantity: item.quantity,
+                    unitNetMinor: toMinor(item.unitPrice, existingQuote.currency),
+                    supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
+                })),
+                issueDate: signDate,
+                currency: existingQuote.currency,
+            };
+            const draft = await this.complianceService.createDraft(complianceCtx, 'INVOICE');
+            await this.complianceService.issue(draft.id);
+        } catch (error) {
+            logger.warn('ComplianceService.issue failed for quote (non-blocking)', { category: 'quote', details: { error: String(error) } });
+        }
 
         logger.info('Quote marked as signed', { category: 'quote', details: { quoteId: id } });
 

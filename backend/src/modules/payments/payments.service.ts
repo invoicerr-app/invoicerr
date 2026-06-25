@@ -13,6 +13,7 @@ import { formatDate } from '@/utils/date';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 import { randomUUID } from 'crypto';
+import { ComplianceService } from '@/compliance/operations/compliance-service';
 import { clampDiscountRate, toMinor } from '@/utils/financial';
 
 @Injectable()
@@ -23,6 +24,7 @@ export class PaymentsService {
         private readonly mailService: MailService,
         private readonly webhookDispatcher: WebhookDispatcherService,
         private readonly numberingService: NumberingService,
+        private readonly complianceService: ComplianceService,
     ) {
         this.logger = new Logger(PaymentsService.name);
     }
@@ -239,7 +241,21 @@ export class PaymentsService {
             });
         });
 
-        // TODO: route through ComplianceService.issue() / send() instead of wiring numbering directly (PART III)
+        // Wire ComplianceService: mark the invoice as paid
+        try {
+            const complianceDoc = await prisma.complianceDocument.findFirst({
+                where: { invoiceId: body.invoiceId },
+                orderBy: { createdAt: 'desc' },
+            });
+            if (complianceDoc) {
+                await this.complianceService.markPaid(complianceDoc.id, {
+                    amountMinor: toMinor(totalPaid, currency),
+                    paidAt: paidAtDate.toISOString(),
+                });
+            }
+        } catch (error) {
+            logger.warn('ComplianceService.markPaid failed (non-blocking)', { category: 'payment', details: { error: String(error) } });
+        }
 
         await this.checkInvoiceAfterPayment(invoice.id);
 

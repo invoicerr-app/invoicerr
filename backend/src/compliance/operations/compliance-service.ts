@@ -100,6 +100,7 @@ export class ComplianceService {
     kind: DocumentKind,
     direction: Direction,
     correctsId?: string,
+    invoiceId?: string,
   ): Promise<ComplianceDocumentRecord> {
     const ts = now();
     return this.store.save({
@@ -110,6 +111,7 @@ export class ComplianceService {
       ctx,
       authorityIds: [],
       correctsId,
+      invoiceId,
       events: [{ id: randomUUID(), type: 'CREATED', at: ts, actor: 'system' }],
       createdAt: ts,
       updatedAt: ts,
@@ -139,8 +141,8 @@ export class ComplianceService {
   // ─────────────────────────── issuance ───────────────────────────
 
   /** Create an editable draft (no compliance obligations attached yet). */
-  async createDraft(ctx: TransactionContext, kind: DocumentKind = 'INVOICE'): Promise<ComplianceDocumentRecord> {
-    return this.createRecord(ctx, kind, 'OUTBOUND');
+  async createDraft(ctx: TransactionContext, kind: DocumentKind = 'INVOICE', invoiceId?: string): Promise<ComplianceDocumentRecord> {
+    return this.createRecord(ctx, kind, 'OUTBOUND', undefined, invoiceId);
   }
 
   /** Free edit — allowed ONLY in DRAFT (immutability after issuance is enforced here). */
@@ -411,6 +413,14 @@ export class ComplianceService {
     this.formats.buildAll(rec.ctx, plan, this.log); // each provider runs its own validate()
     this.log.todo('operations/validate', 'aggregate per-artifact ValidationReports');
     return { valid: true, errors: [], warnings: ['validation aggregation is stubbed'] };
+  }
+
+  /** Append a custom audit event to a document without any state machine transition. */
+  async recordAuditEvent(id: string, type: string, detail?: string, actor?: string): Promise<ComplianceDocumentRecord> {
+    const rec = await this.require(id);
+    return this.store.update(id, {
+      events: [...rec.events, { id: randomUUID(), type, at: now(), actor: actor ?? 'system', detail }],
+    });
   }
 
   // ─────────────────────────── queries ───────────────────────────

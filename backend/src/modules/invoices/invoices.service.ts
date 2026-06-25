@@ -453,6 +453,19 @@ export class InvoicesService {
             },
         });
 
+        // Audit: record EDIT event
+        try {
+            const complianceDoc = await prisma.complianceDocument.findFirst({
+                where: { invoiceId: id },
+                orderBy: { createdAt: 'desc' },
+            });
+            if (complianceDoc) {
+                await this.complianceService.recordAuditEvent(complianceDoc.id, 'EDITED', `draft edited`);
+            }
+        } catch (error) {
+            logger.warn('ComplianceService.recordAuditEvent(EDITED) failed (non-blocking)', { category: 'invoice', details: { error: String(error) } });
+        }
+
         logger.info('Invoice updated', { category: 'invoice', details: { invoiceId: updateInvoice.id } });
 
         try {
@@ -492,6 +505,19 @@ export class InvoicesService {
             where: { id },
             data: { isActive: false },
         });
+
+        // Audit: record DELETED event
+        try {
+            const complianceDoc = await prisma.complianceDocument.findFirst({
+                where: { invoiceId: id },
+                orderBy: { createdAt: 'desc' },
+            });
+            if (complianceDoc) {
+                await this.complianceService.recordAuditEvent(complianceDoc.id, 'DELETED', `draft deleted (soft)`);
+            }
+        } catch (error) {
+            logger.warn('ComplianceService.recordAuditEvent(DELETED) failed (non-blocking)', { category: 'invoice', details: { error: String(error) } });
+        }
 
         logger.info('Invoice deleted', { category: 'invoice', details: { invoiceId: id } });
 
@@ -875,6 +901,19 @@ export class InvoicesService {
             data: { status: 'ARCHIVED' },
         });
 
+        // Audit: record ARCHIVED event
+        try {
+            const complianceDoc = await prisma.complianceDocument.findFirst({
+                where: { invoiceId },
+                orderBy: { createdAt: 'desc' },
+            });
+            if (complianceDoc) {
+                await this.complianceService.recordAuditEvent(complianceDoc.id, 'ARCHIVED', `PAID→ARCHIVED`);
+            }
+        } catch (error) {
+            logger.warn('ComplianceService.recordAuditEvent(ARCHIVED) failed (non-blocking)', { category: 'invoice', details: { error: String(error) } });
+        }
+
         logger.info('Invoice archived', { category: 'invoice', details: { invoiceId } });
 
         try {
@@ -956,6 +995,19 @@ export class InvoicesService {
         }
 
         logger.info('Invoice sent by email', { category: 'invoice', details: { invoiceId, email: invoice.client.contactEmail } });
+
+        // Audit: record SENT event
+        try {
+            const complianceDoc = await prisma.complianceDocument.findFirst({
+                where: { invoiceId },
+                orderBy: { createdAt: 'desc' },
+            });
+            if (complianceDoc) {
+                await this.complianceService.recordAuditEvent(complianceDoc.id, 'SENT', `sent via email to ${invoice.client.contactEmail}`);
+            }
+        } catch (error) {
+            logger.warn('ComplianceService.recordAuditEvent(SENT) failed (non-blocking)', { category: 'invoice', details: { error: String(error) } });
+        }
 
         try {
             await prisma.invoice.update({
