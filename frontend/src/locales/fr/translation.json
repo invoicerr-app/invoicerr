@@ -168,7 +168,14 @@
             "actions": {
                 "cancel": "Annuler",
                 "create": "Créer le client",
-                "save": "Enregistrer les modifications"
+                "save": "Enregistrer les modifications",
+                "lookupSiret": "Rechercher"
+            },
+            "messages": {
+                "siretSuccess": "Informations récupérées avec succès.",
+                "siretNotFound": "Entreprise non trouvée. Vous pouvez saisir les informations manuellement.",
+                "siretInvalid": "Le numéro de SIRET semble invalide.",
+                "siretError": "Impossible de contacter l'annuaire des entreprises."
             }
         },
         "view": {
@@ -421,8 +428,10 @@
                 "draft": "Brouillon",
                 "sent": "Envoyée",
                 "paid": "Payée",
-                "archived": "Archivée"
+                "archived": "Archivée",
+                "partiallyPaid": "Payée partiellement"
             },
+            "percentPaid": "{{percent}} % payé",
             "stepLabel": "Étape {{current}} / {{total}}",
             "actions": {
                 "send": "Envoyer",
@@ -459,9 +468,10 @@
         },
         "statusFilters": {
             "all": "Toutes",
-            "sent": "Envoyées",
-            "paid": "Payées",
-            "unpaid": "Impayées"
+            "draft": "Brouillon",
+            "sent": "Envoyé",
+            "paid": "Payé",
+            "archived": "Archivé"
         },
         "emptyState": {
             "noInvoices": "Aucune facture pour le moment",
@@ -518,7 +528,7 @@
             "messages": {
                 "markAsPaidSuccess": "Facture marquée comme payée avec succès",
                 "markAsPaidError": "Échec du marquage de la facture comme payée",
-                "createReceiptSuccess": "Reçu créé avec succès à partir de la facture",
+                "createPaymentSuccess": "Paiement créé avec succès à partir de la facture",
                 "sendByEmailSuccess": "La facture a été envoyée au client",
                 "archiveSuccess": "Facture archivée avec succès",
                 "archiveError": "Échec de l'archivage de la facture"
@@ -664,6 +674,25 @@
             "emailLabel": "Destinataire :",
             "confirm": "Envoyer",
             "cancel": "Annuler"
+        },
+        "paymentReceived": {
+            "title": "Paiement reçu",
+            "description": "Saisissez le montant reçu pour cette facture.",
+            "percentLabel": "{{percent}} % de la facture seront payés",
+            "fields": {
+                "amount": {
+                    "label": "Montant reçu",
+                    "placeholder": "Saisissez le montant reçu",
+                    "errors": {
+                        "required": "Le montant doit être supérieur à 0",
+                        "tooHigh": "Le montant ne peut pas dépasser le solde restant"
+                    }
+                }
+            },
+            "actions": {
+                "confirm": "Confirmer",
+                "cancel": "Annuler"
+            }
         },
         "delete": {
             "title": "Supprimer la facture",
@@ -1190,6 +1219,7 @@
                 "country": {
                     "label": "Pays",
                     "placeholder": "Saisir le pays",
+                    "description": "Utilisé pour déterminer la recherche d'entreprise disponible (ex. SIRET pour la France)",
                     "errors": {
                         "empty": "Le pays est requis"
                     }
@@ -1733,6 +1763,11 @@
             "placeholder": "Sélectionner une devise",
             "searchPlaceholder": "Rechercher des devises...",
             "noResults": "Aucune devise trouvée"
+        },
+        "country-select": {
+            "placeholder": "Sélectionner un pays",
+            "searchPlaceholder": "Rechercher un pays...",
+            "noResults": "Aucun pays trouvé"
         }
     },
     "common": {
@@ -1754,6 +1789,9 @@
             "count": "{{count}} paiements {{found}}",
             "found": "trouvés"
         },
+        "breakdown": {
+            "label": "Répartition par article"
+        },
         "search": {
             "placeholder": "Rechercher des paiements..."
         },
@@ -1767,7 +1805,7 @@
             "signed": "Signé"
         },
         "emptyState": {
-            "noReceipts": "Aucun paiement pour le moment",
+            "noPayments": "Aucun paiement pour le moment",
             "noResults": "Aucun paiement trouvé",
             "startAdding": "Commencez par créer votre premier paiement.",
             "tryDifferentSearch": "Essayez d'ajuster vos termes de recherche."
@@ -1804,7 +1842,7 @@
                 "emailError": "Échec de l'envoi du paiement au client."
             },
             "actions": {
-                "addNew": "Ajouter un nouveau reçu"
+                "addNew": "Ajouter un nouveau paiement"
             }
         },
         "upsert": {
@@ -1818,6 +1856,10 @@
                     "errors": {
                         "required": "Le client est requis."
                     }
+                },
+                "amount": {
+                    "label": "Montant total",
+                    "placeholder": "Saisissez le montant du paiement"
                 },
                 "items": {
                     "label": "Articles",
@@ -1848,6 +1890,9 @@
                             "required": "Le taux de TVA est requis.",
                             "min": "Le taux de TVA doit être d'au moins 0."
                         }
+                    },
+                    "errors": {
+                        "negativeTotal": "Le total des paiements de cette facture ne peut pas être négatif"
                     }
                 },
                 "invoice": {
@@ -1864,6 +1909,10 @@
                     "label": "Détails du paiement",
                     "placeholder": "Entrez les détails du paiement",
                     "description": "Informations supplémentaires sur le paiement"
+                },
+                "paidAt": {
+                    "label": "Date du paiement",
+                    "placeholder": "Choisissez la date du paiement"
                 }
             },
             "actions": {

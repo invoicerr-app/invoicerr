@@ -42,7 +42,6 @@ export class DiscordDriver implements WebhookDriver {
             embed.addField('Entreprise', payload.company.name, true);
         }
 
-        const res = await hook.addEmbed(embed).send();
-        return res;
+        return await hook.addEmbed(embed).send();
     }
 }

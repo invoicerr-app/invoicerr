@@ -30,6 +30,8 @@ export function PaymentDeleteDialog({ payment, onOpenChange }: PaymentDeleteDial
         trigger()
             .then(() => {
                 queryClient.invalidateQueries({ queryKey: queryKeys.payments.listsAll() })
+                // Deleting a payment can update the invoice's paid amount/status, so refetch invoices.
+                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 onOpenChange(false)
             })
             .catch((error) => {

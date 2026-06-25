@@ -168,7 +168,14 @@
             "actions": {
                 "cancel": "Cancel",
                 "create": "Create Client",
-                "save": "Save Changes"
+                "save": "Save Changes",
+                "lookupSiret": "Look up"
+            },
+            "messages": {
+                "siretSuccess": "Company information retrieved successfully.",
+                "siretNotFound": "Company not found. You can enter the information manually.",
+                "siretInvalid": "The SIRET number looks invalid.",
+                "siretError": "Could not reach the company directory."
             }
         },
         "view": {
@@ -420,8 +427,10 @@
                 "draft": "Draft",
                 "sent": "Sent",
                 "paid": "Paid",
-                "archived": "Archived"
+                "archived": "Archived",
+                "partiallyPaid": "Partially paid"
             },
+            "percentPaid": "{{percent}}% paid",
             "stepLabel": "Step {{current}} / {{total}}",
             "actions": {
                 "send": "Send",
@@ -458,9 +467,10 @@
         },
         "statusFilters": {
             "all": "All",
+            "draft": "Draft",
             "sent": "Sent",
             "paid": "Paid",
-            "unpaid": "Unpaid"
+            "archived": "Archived"
         },
         "emptyState": {
             "noInvoices": "No invoices yet",
@@ -517,7 +527,7 @@
             "messages": {
                 "markAsPaidSuccess": "Invoice marked as paid successfully",
                 "markAsPaidError": "Failed to mark invoice as paid",
-                "createReceiptSuccess": "Receipt created successfully from invoice",
+                "createPaymentSuccess": "Payment created successfully from invoice",
                 "sendByEmailSuccess": "Invoice has been sent to customer",
                 "archiveSuccess": "Invoice archived successfully",
                 "archiveError": "Failed to archive invoice"
@@ -663,6 +673,25 @@
             "emailLabel": "Recipient:",
             "confirm": "Send",
             "cancel": "Cancel"
+        },
+        "paymentReceived": {
+            "title": "Payment received",
+            "description": "Enter the amount received for this invoice.",
+            "percentLabel": "{{percent}}% of the invoice will be paid",
+            "fields": {
+                "amount": {
+                    "label": "Amount received",
+                    "placeholder": "Enter the amount received",
+                    "errors": {
+                        "required": "Amount must be greater than 0",
+                        "tooHigh": "Amount cannot exceed the remaining balance"
+                    }
+                }
+            },
+            "actions": {
+                "confirm": "Confirm",
+                "cancel": "Cancel"
+            }
         },
         "delete": {
             "title": "Delete Invoice",
@@ -1186,6 +1215,7 @@
                 "country": {
                     "label": "Country",
                     "placeholder": "Enter country",
+                    "description": "Used to determine which company lookup is available (e.g. SIRET for France)",
                     "errors": {
                         "empty": "Country is required"
                     }
@@ -1750,6 +1780,11 @@
             "placeholder": "Select your currency",
             "searchPlaceholder": "Search currencies...",
             "noResults": "No currencies found"
+        },
+        "country-select": {
+            "placeholder": "Select a country",
+            "searchPlaceholder": "Search countries...",
+            "noResults": "No countries found"
         }
     },
     "common": {
@@ -1771,6 +1806,9 @@
             "subtitle": "Manage your payments",
             "count": "{{count}} payments {{found}}",
             "found": "found"
+        },
+        "breakdown": {
+            "label": "Distribution across items"
         },
         "search": {
             "placeholder": "Search payments..."
@@ -1837,6 +1875,10 @@
                         "required": "Client is required."
                     }
                 },
+                "amount": {
+                    "label": "Total amount",
+                    "placeholder": "Enter the payment amount"
+                },
                 "items": {
                     "label": "Items",
                     "placeholder": "Add items to the payment",
@@ -1866,6 +1908,9 @@
                             "required": "VAT rate is required.",
                             "min": "VAT rate must be at least 0."
                         }
+                    },
+                    "errors": {
+                        "negativeTotal": "The total payments for this invoice cannot be negative"
                     }
                 },
                 "invoice": {
@@ -1882,6 +1927,10 @@
                     "label": "Payment Details",
                     "placeholder": "Enter payment details",
                     "description": "Additional information about the payment"
+                },
+                "paidAt": {
+                    "label": "Payment Date",
+                    "placeholder": "Pick the payment date"
                 }
             },
             "actions": {

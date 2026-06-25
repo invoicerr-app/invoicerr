@@ -20,6 +20,12 @@ export function getDisplayInvoiceStatus(status: InvoiceStatus | string): Invoice
     return status === InvoiceStatus.UNPAID ? InvoiceStatus.SENT : (status as InvoiceStatus)
 }
 
+/**
+ * Groups raw invoice statuses into the 4 categories filterable from the invoice list:
+ * SENT/UNPAID/OVERDUE are grouped under "sent".
+ */
+export type InvoiceStatusFilterKey = "draft" | "sent" | "paid" | "archived"
+
 export enum InvoiceItemType {
     HOUR = "HOUR",
     DAY = "DAY",
@@ -65,6 +71,7 @@ export interface Invoice {
     totalTTC: number;
     currency: string; // Currency code, e.g., "EUR", "USD"
     isActive: boolean;
+    payments?: { id: string; totalPaid: number }[];
 }
 
 export enum RecurrenceFrequency {

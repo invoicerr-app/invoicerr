@@ -383,11 +383,37 @@
             "sent": "Gesendet",
             "paid": "Bezahlt"
         },
+        "statusFilters": {
+            "all": "Alle",
+            "draft": "Entwurf",
+            "sent": "Gesendet",
+            "paid": "Bezahlt",
+            "archived": "Archiviert"
+        },
         "emptyState": {
             "noInvoices": "Noch keine Rechnungen",
             "noResults": "Keine Rechnungen gefunden",
             "startAdding": "Beginnen Sie mit der Erstellung Ihrer ersten Rechnung.",
             "tryDifferentSearch": "Versuchen Sie, Ihre Suchbegriffe anzupassen."
+        },
+        "paymentReceived": {
+            "title": "Zahlung erhalten",
+            "description": "Geben Sie den für diese Rechnung erhaltenen Betrag ein.",
+            "percentLabel": "{{percent}} % der Rechnung werden bezahlt",
+            "fields": {
+                "amount": {
+                    "label": "Erhaltener Betrag",
+                    "placeholder": "Geben Sie den erhaltenen Betrag ein",
+                    "errors": {
+                        "required": "Der Betrag muss größer als 0 sein",
+                        "tooHigh": "Der Betrag darf den verbleibenden Saldo nicht überschreiten"
+                    }
+                }
+            },
+            "actions": {
+                "confirm": "Bestätigen",
+                "cancel": "Abbrechen"
+            }
         },
         "list": {
             "title": "Alle Rechnungen",
@@ -433,7 +459,7 @@
             "messages": {
                 "markAsPaidSuccess": "Rechnung als erfolgreich bezahlt markiert",
                 "markAsPaidError": "Rechnung konnte nicht als bezahlt markiert werden",
-                "createReceiptSuccess": "Beleg erfolgreich aus Rechnung erstellt",
+                "createPaymentSuccess": "Zahlung erfolgreich aus Rechnung erstellt",
                 "sendByEmailSuccess": "Rechnung wurde versandt"
             }
         },
@@ -1575,6 +1601,9 @@
             "count": "{{count}} Belege {{found}}",
             "found": "gefunden"
         },
+        "breakdown": {
+            "label": "Aufteilung auf die Artikel"
+        },
         "search": {
             "placeholder": "Belege suchen..."
         },
@@ -1588,7 +1617,7 @@
             "signed": "Unterzeichnet"
         },
         "emptyState": {
-            "noReceipts": "Noch keine Belege",
+            "noPayments": "Noch keine Zahlungen",
             "noResults": "Keine Belege gefunden",
             "startAdding": "Beginnen Sie mit der Erstellung Ihres ersten Belegs.",
             "tryDifferentSearch": "Versuchen Sie, Ihre Suchbegriffe anzupassen."
@@ -1640,6 +1669,10 @@
                         "required": "Kunde ist erforderlich."
                     }
                 },
+                "amount": {
+                    "label": "Gesamtbetrag",
+                    "placeholder": "Geben Sie den Zahlungsbetrag ein"
+                },
                 "items": {
                     "label": "Artikel",
                     "placeholder": "Posten zum Beleg hinzufügen",
@@ -1669,6 +1702,9 @@
                             "required": "Der Mehrwertsteuersatz ist erforderlich.",
                             "min": "Der Mehrwertsteuersatz muss mindestens 0 betragen."
                         }
+                    },
+                    "errors": {
+                        "negativeTotal": "Die Gesamtzahlungen für diese Rechnung dürfen nicht negativ sein"
                     }
                 },
                 "invoice": {
@@ -1685,6 +1721,10 @@
                     "label": "Details zur Bezahlung",
                     "placeholder": "Zahlungsdaten eingeben",
                     "description": "Zusätzliche Informationen über die Zahlung"
+                },
+                "paidAt": {
+                    "label": "Zahlungsdatum",
+                    "placeholder": "Wählen Sie das Zahlungsdatum"
                 }
             },
             "actions": {

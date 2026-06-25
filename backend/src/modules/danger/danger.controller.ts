@@ -25,7 +25,7 @@ export class DangerController {
   }
 
   @Post('reset/app')
-  @ApiOperation({ summary: 'Reset app data', description: 'Deletes all documents (invoices, quotes, receipts) while preserving company configuration.' })
+  @ApiOperation({ summary: 'Reset app data', description: 'Deletes all documents (invoices, quotes, payments) while preserving company configuration.' })
   @ApiQuery({ name: 'otp', required: true, type: String, description: 'One-time passcode sent via POST /danger/otp' })
   @ApiResponse({ status: 201, description: 'App data reset' })
   async resetApp(@User() user: CurrentUser, @Query('otp') otp: string) {

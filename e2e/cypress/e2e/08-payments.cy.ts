@@ -2,9 +2,25 @@ beforeEach(() => {
     cy.login();
 });
 
+// Draft and archived invoices can't receive a payment, so they aren't selectable in
+// the payment form. Mark an invoice as paid first to make at least one selectable.
+function ensurePayableInvoice() {
+    cy.visit('/invoices');
+    cy.wait(2000);
+    cy.get('body').then($body => {
+        const markButtons = $body.find('button:has(svg.lucide-banknote)');
+        if (markButtons.length > 0) {
+            cy.wrap(markButtons).first().click({ force: true });
+            cy.wait(1500);
+        }
+    });
+}
+
 describe('Payments E2E', () => {
     describe('Create Payments', () => {
         it('creates a payment from an invoice', () => {
+            ensurePayableInvoice();
+
             cy.visit('/payments');
             cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
             cy.wait(500);
@@ -18,6 +34,9 @@ describe('Payments E2E', () => {
 
             cy.wait(500);
 
+            // The amount is split proportionally across the invoice items on submit.
+            cy.get('[data-cy="payment-amount-input"]').clear({ force: true }).type('100', { force: true });
+
             cy.get('[data-cy="payment-submit"]').click();
 
             cy.get('[data-cy="payment-dialog"]').should('not.exist');
@@ -25,6 +44,8 @@ describe('Payments E2E', () => {
         });
 
         it('creates a payment with a specific payment method', () => {
+            ensurePayableInvoice();
+
             cy.visit('/payments');
             cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
             cy.wait(500);
@@ -40,6 +61,8 @@ describe('Payments E2E', () => {
 
             cy.get('button[role="combobox"][aria-label*="ayment"], select[name="paymentMethodId"]').first().click({ force: true });
             cy.get('[role="option"]').first().click();
+
+            cy.get('[data-cy="payment-amount-input"]').clear({ force: true }).type('100', { force: true });
 
             cy.get('[data-cy="payment-submit"]').click();
 

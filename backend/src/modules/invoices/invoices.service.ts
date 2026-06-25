@@ -20,6 +20,7 @@ import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { resolveInvoiceTax } from '@/compliance/integration/invoice-tax';
 import { clampDiscountRate } from '@/utils/financial';
 import type { SupplyType } from '@/compliance/types';
+import { getDraftWatermarkLabel } from '@/utils/watermark';
 
 @Injectable()
 export class InvoicesService {
@@ -48,7 +49,8 @@ export class InvoicesService {
             include: {
                 items: true,
                 client: true,
-                company: true
+                company: true,
+                payments: { select: { totalPaid: true } },
             },
         });
 
@@ -81,7 +83,8 @@ export class InvoicesService {
             include: {
                 items: true,
                 client: true,
-                company: true
+                company: true,
+                payments: { select: { id: true, totalPaid: true } },
             },
         });
 
@@ -416,6 +419,8 @@ export class InvoicesService {
         const hasDiscount = normalizedDiscountRate > 0 && discountAmountValue > 0;
 
         const html = template({
+            isDraft: invoice.status === 'DRAFT',
+            draftLabel: getDraftWatermarkLabel(invoice.company.country),
             number: invoice.rawNumber || invoice.number.toString(),
             date: formatDate(invoice.company, invoice.createdAt),
             dueDate: formatDate(invoice.company, invoice.dueDate),
@@ -478,7 +483,7 @@ export class InvoicesService {
                 day: pdfConfig.day,
                 deposit: pdfConfig.deposit,
                 service: pdfConfig.service,
-                product: pdfConfig.product
+                product: pdfConfig.product,
             },
         });
 
