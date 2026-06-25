@@ -47,7 +47,7 @@
 		"dotenv": "^17.2.3",
 		"handlebars": "^4.7.9",
 		"jose": "^6.0.12",
-		"nodemailer": "^8.0.4",
+		"nodemailer": "^9.0.1",
 		"passport": "^0.7.0",
 		"passport-openidconnect": "^0.1.2",
 		"pdfkit": "^0.17.1",
