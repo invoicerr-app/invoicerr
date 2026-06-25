@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Download, Edit, Mail, Plus, Receipt as PaymentIcon, Search, Trash2 } from "lucide-react"
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react"
-import { useGetRaw, usePost } from "@/hooks/use-fetch"
+import { Edit, Mail, Plus, Receipt as PaymentIcon, Search, Trash2 } from "lucide-react"
+import { forwardRef, useImperativeHandle, useState } from "react"
+import { usePost } from "@/hooks/use-fetch"
 
 import BetterPagination from "../../../../components/pagination"
 import { Button } from "../../../../components/ui/button"
@@ -9,10 +9,10 @@ import { Input } from "@/components/ui/input"
 import type React from "react"
 import type { Payment } from "@/types"
 import { PaymentDeleteDialog } from "@/pages/(app)/payments/_components/payment-delete"
-import { PaymentPdfModal } from "@/pages/(app)/payments/_components/payment-pdf-view"
 import { PaymentUpsert } from "@/pages/(app)/payments/_components/payment-upsert"
 import { SendConfirmationDialog } from "@/components/send-confirmation-dialog"
 import { toast } from "sonner"
+import { useNavigate } from "react-router"
 import { useTranslation } from "react-i18next"
 
 interface PaymentListProps {
@@ -40,41 +40,21 @@ export const PaymentList = forwardRef<PaymentListHandle, PaymentListProps>(
         ref,
     ) => {
         const { t } = useTranslation()
+        const navigate = useNavigate()
         const { trigger: triggerSendToClient, loading: sendToClientLoading } = usePost<{ message: string; }>(
             `/api/payments/send`,
         )
 
         const [createPaymentDialog, setCreatePaymentDialog] = useState<boolean>(false)
         const [editPaymentDialog, setEditPaymentDialog] = useState<Payment | null>(null)
-        const [viewPaymentPdfDialog, setViewPaymentPdfDialog] = useState<Payment | null>(null)
         const [deletePaymentDialog, setDeletePaymentDialog] = useState<Payment | null>(null)
         const [sendPaymentDialog, setSendPaymentDialog] = useState<Payment | null>(null)
-        const [downloadPaymentPdf, setDownloadPaymentPdf] = useState<Payment | null>(null)
-
-        const { data: pdf } = useGetRaw<Response>(downloadPaymentPdf ? `/api/payments/${downloadPaymentPdf.id}/pdf` : null)
 
         useImperativeHandle(ref, () => ({
             handleAddClick() {
                 setCreatePaymentDialog(true)
             },
         }))
-
-        useEffect(() => {
-            if (downloadPaymentPdf && pdf) {
-                pdf.arrayBuffer().then((buffer) => {
-                    const blob = new Blob([buffer], { type: "application/pdf" })
-                    const url = URL.createObjectURL(blob)
-                    const link = document.createElement("a")
-                    link.href = url
-                    link.download = `payment-${downloadPaymentPdf.number}.pdf`
-                    document.body.appendChild(link)
-                    link.click()
-                    document.body.removeChild(link)
-                    URL.revokeObjectURL(url)
-                    setDownloadPaymentPdf(null) // Reset after download
-                })
-            }
-        }, [downloadPaymentPdf, pdf])
 
         function handleAddClick() {
             setCreatePaymentDialog(true)
@@ -85,11 +65,7 @@ export const PaymentList = forwardRef<PaymentListHandle, PaymentListProps>(
         }
 
         function handleViewPdf(payment: Payment) {
-            setViewPaymentPdfDialog(payment)
-        }
-
-        function handleDownloadPdf(payment: Payment) {
-            setDownloadPaymentPdf(payment)
+            navigate(`/payments/pdf/${payment.id}`, { state: { payment } })
         }
 
         function handleSendToClient(payment: Payment) {
@@ -206,16 +182,6 @@ export const PaymentList = forwardRef<PaymentListHandle, PaymentListProps>(
                                                 </Button>
 
                                                 <Button
-                                                    tooltip={t("payments.list.tooltips.downloadPdf")}
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleDownloadPdf(payment)}
-                                                    className="text-gray-600 hover:text-amber-600"
-                                                >
-                                                    <Download className="h-4 w-4" />
-                                                </Button>
-
-                                                <Button
                                                     tooltip={t("payments.list.tooltips.edit")}
                                                     variant="ghost"
                                                     size="icon"
@@ -279,13 +245,6 @@ export const PaymentList = forwardRef<PaymentListHandle, PaymentListProps>(
                     }}
                 />
 
-
-                <PaymentPdfModal
-                    payment={viewPaymentPdfDialog}
-                    onOpenChange={(open) => {
-                        if (!open) setViewPaymentPdfDialog(null)
-                    }}
-                />
 
                 <PaymentDeleteDialog
                     payment={deletePaymentDialog}

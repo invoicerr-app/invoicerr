@@ -13,7 +13,7 @@ import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from 
 
 import { Response } from 'express';
 import { ExportFormat } from '@fin.cx/einvoice';
-import { CreateInvoiceDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
+import { CreateInvoiceDto, CreateInvoiceFromQuoteDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
 import { InvoicesService } from '@/modules/invoices/invoices.service';
 import { PluginsService } from '@/modules/plugins/plugins.service';
 
@@ -137,11 +137,11 @@ export class InvoicesController {
   }
 
   @Post('create-from-quote')
-  @ApiOperation({ summary: 'Create invoice from quote', description: 'Generates a new invoice based on an existing quote.' })
+  @ApiOperation({ summary: 'Create invoice from quote', description: 'Generates a new invoice based on an existing quote, with a partial selection of items and quantities.' })
   @ApiResponse({ status: 201, description: 'Invoice created from quote' })
-  @ApiBody({ schema: { type: 'object', properties: { quoteId: { type: 'string', description: 'ID of the quote to convert to an invoice' } } } })
-  createInvoiceFromQuote(@Body('quoteId') quoteId: string) {
-    return this.invoicesService.createInvoiceFromQuote(quoteId);
+  @ApiBody({ schema: { type: 'object', properties: { quoteId: { type: 'string', description: 'ID of the quote to convert to an invoice' }, items: { type: 'array', items: { type: 'object', properties: { quoteItemId: { type: 'string' }, quantity: { type: 'number' } } }, description: 'Quote items to invoice with their requested quantities' } } } })
+  createInvoiceFromQuote(@Body() body: CreateInvoiceFromQuoteDto) {
+    return this.invoicesService.createInvoiceFromQuote(body);
   }
 
   @Post()

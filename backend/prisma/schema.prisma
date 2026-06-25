@@ -418,15 +418,16 @@ model Quote {
 }
 
 model QuoteItem {
-  id          String   @id @default(uuid())
-  quote       Quote    @relation(fields: [quoteId], references: [id])
-  quoteId     String
-  description String
-  quantity    Float
-  unitPrice   Float
-  vatRate     Float // 20 for 20%
-  type        ItemType @default(SERVICE)
-  order       Int // For sorting items in the quote pdf
+  id           String        @id @default(uuid())
+  quote        Quote         @relation(fields: [quoteId], references: [id])
+  quoteId      String
+  description  String
+  quantity     Float
+  unitPrice    Float
+  vatRate      Float // 20 for 20%
+  type         ItemType      @default(SERVICE)
+  order        Int // For sorting items in the quote pdf
+  invoiceItems InvoiceItem[]
 }
 
 // Invoice model
@@ -462,15 +463,17 @@ model Invoice {
 }
 
 model InvoiceItem {
-  id           String        @id @default(uuid())
-  invoice      Invoice       @relation(fields: [invoiceId], references: [id])
+  id           String      @id @default(uuid())
+  invoice      Invoice     @relation(fields: [invoiceId], references: [id])
   invoiceId    String
   description  String
   quantity     Float
   unitPrice    Float
   vatRate      Float // 20 for 20%
-  type         ItemType      @default(SERVICE)
+  type         ItemType    @default(SERVICE)
   order        Int
+  quoteItem    QuoteItem?  @relation(fields: [quoteItemId], references: [id])
+  quoteItemId  String?
   paymentItems PaymentItem[]
 }
 

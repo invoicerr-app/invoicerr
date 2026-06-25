@@ -251,6 +251,60 @@
                 "invoiceCreateError": "Error al crear la factura desde la cotización"
             }
         },
+        "progression": {
+            "title": "Progresión",
+            "emptyState": "No hay cotizaciones para mostrar en la progresión.",
+            "noAction": "Sin acción",
+            "steps": {
+                "draft": "Borrador",
+                "sent": "Enviada",
+                "signed": "Firmada"
+            },
+            "stepLabel": "Paso {{current}} / {{total}}",
+            "actions": {
+                "send": "Enviar",
+                "resend": "Reenviar",
+                "createInvoice": "Crear factura"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Enviar cotización",
+                    "description": "¿Está seguro de que desea enviar la cotización {{number}} a {{client}}?"
+                },
+                "resend": {
+                    "title": "Reenviar cotización",
+                    "description": "¿Está seguro de que desea reenviar la cotización {{number}} a {{client}}?"
+                },
+                "cancel": "Cancelar",
+                "confirm": "Confirmar"
+            }
+        },
+        "createInvoiceDialog": {
+            "title": "Crear factura desde la cotización",
+            "description": "Seleccione los artículos a facturar desde la cotización {{number}}.",
+            "percentageLabel": "Porcentaje a facturar",
+            "amountLabel": "Importe a facturar",
+            "maxPercentageHint": "Todavía se puede facturar hasta el {{percent}} % de la cotización.",
+            "fields": {
+                "quantity": {
+                    "label": "Cantidad"
+                }
+            },
+            "alreadyInvoicedBadge": "Ya facturado",
+            "remainingLabel": "Restante: {{remaining}}",
+            "remainingTotalLabel": "{{amount}} {{currency}} restantes",
+            "totalSelectedLabel": "Total: {{amount}} {{currency}}",
+            "percentOfQuoteLabel": "{{percent}}% de la cotización",
+            "itemAmountLabel": "{{amount}} {{currency}}",
+            "actions": {
+                "confirm": "Crear factura",
+                "cancel": "Cancelar"
+            },
+            "errors": {
+                "quoteFullyInvoiced": "Esta cotización ya ha sido facturada por completo.",
+                "quantityExceedsRemaining": "La cantidad solicitada supera la cantidad restante a facturar."
+            }
+        },
         "upsert": {
             "title": {
                 "create": "Crear nueva cotización",

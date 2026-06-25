@@ -251,6 +251,60 @@
                 "invoiceCreateError": "Rechnung kann nicht aus Angebot erstellt werden"
             }
         },
+        "progression": {
+            "title": "Fortschritt",
+            "emptyState": "Keine Angebote in der Fortschrittsansicht.",
+            "noAction": "Keine Aktion",
+            "steps": {
+                "draft": "Entwurf",
+                "sent": "Gesendet",
+                "signed": "Unterzeichnet"
+            },
+            "stepLabel": "Schritt {{current}} / {{total}}",
+            "actions": {
+                "send": "Senden",
+                "resend": "Erneut senden",
+                "createInvoice": "Rechnung erstellen"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Angebot senden",
+                    "description": "Möchten Sie das Angebot {{number}} wirklich an {{client}} senden?"
+                },
+                "resend": {
+                    "title": "Angebot erneut senden",
+                    "description": "Möchten Sie das Angebot {{number}} wirklich erneut an {{client}} senden?"
+                },
+                "cancel": "Abbrechen",
+                "confirm": "Bestätigen"
+            }
+        },
+        "createInvoiceDialog": {
+            "title": "Rechnung aus Angebot erstellen",
+            "description": "Wählen Sie die Artikel aus, die aus dem Angebot {{number}} abgerechnet werden sollen.",
+            "percentageLabel": "Abzurechnender Prozentsatz",
+            "amountLabel": "Abzurechnender Betrag",
+            "maxPercentageHint": "Es können noch bis zu {{percent}} % des Angebots abgerechnet werden.",
+            "fields": {
+                "quantity": {
+                    "label": "Menge"
+                }
+            },
+            "alreadyInvoicedBadge": "Bereits abgerechnet",
+            "remainingLabel": "Verbleibend: {{remaining}}",
+            "remainingTotalLabel": "{{amount}} {{currency}} verbleibend",
+            "totalSelectedLabel": "Gesamt: {{amount}} {{currency}}",
+            "percentOfQuoteLabel": "{{percent}}% des Angebots",
+            "itemAmountLabel": "{{amount}} {{currency}}",
+            "actions": {
+                "confirm": "Rechnung erstellen",
+                "cancel": "Abbrechen"
+            },
+            "errors": {
+                "quoteFullyInvoiced": "Dieses Angebot wurde bereits vollständig abgerechnet.",
+                "quantityExceedsRemaining": "Die angeforderte Menge übersteigt die verbleibende abzurechnende Menge."
+            }
+        },
         "upsert": {
             "title": {
                 "create": "Neues Angebot erstellen",

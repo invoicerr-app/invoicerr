@@ -9,12 +9,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { InvoiceStatus, getDisplayInvoiceStatus, type Invoice, type InvoiceStatusFilterKey } from "@/types"
 import { InvoiceDeleteDialog } from "./invoice-delete"
-import { InvoicePdfModal } from "./invoice-pdf-view"
 import { InvoiceUpsert } from "./invoice-upsert"
 import { InvoiceViewDialog } from "./invoice-view"
 import { SendConfirmationDialog } from "@/components/send-confirmation-dialog"
 import type React from "react"
 import { toast } from "sonner"
+import { useNavigate } from "react-router"
 import { useTranslation } from "react-i18next"
 
 interface InvoiceListProps {
@@ -46,12 +46,12 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         ref,
     ) => {
         const { t } = useTranslation()
+        const navigate = useNavigate()
         const { trigger: triggerSendInvoiceByEmail, loading: sendInvoiceByEmailLoading } = usePost(`/api/invoices/send`)
 
         const [createInvoiceDialog, setCreateInvoiceDialog] = useState<boolean>(false)
         const [editInvoiceDialog, setEditInvoiceDialog] = useState<Invoice | null>(null)
         const [viewInvoiceDialog, setViewInvoiceDialog] = useState<Invoice | null>(null)
-        const [viewInvoicePdfDialog, setViewInvoicePdfDialog] = useState<Invoice | null>(null)
         const [deleteInvoiceDialog, setDeleteInvoiceDialog] = useState<Invoice | null>(null)
         const [sendInvoiceDialog, setSendInvoiceDialog] = useState<Invoice | null>(null)
 
@@ -70,7 +70,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         }
 
         function handleViewPdf(invoice: Invoice) {
-            setViewInvoicePdfDialog(invoice)
+            navigate(`/invoices/pdf/${invoice.id}`, { state: { invoice } })
         }
 
         function handleDelete(invoice: Invoice) {
@@ -382,13 +382,6 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                     invoice={viewInvoiceDialog}
                     onOpenChange={(open: boolean) => {
                         if (!open) setViewInvoiceDialog(null)
-                    }}
-                />
-
-                <InvoicePdfModal
-                    invoice={viewInvoicePdfDialog}
-                    onOpenChange={(open: boolean) => {
-                        if (!open) setViewInvoicePdfDialog(null)
                     }}
                 />
 

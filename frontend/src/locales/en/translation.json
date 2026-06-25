@@ -269,6 +269,60 @@
                 "invoiceCreateError": "Failed to create invoice from quote"
             }
         },
+        "progression": {
+            "title": "Progression",
+            "emptyState": "No quotes to display in progression.",
+            "noAction": "No action",
+            "steps": {
+                "draft": "Draft",
+                "sent": "Sent",
+                "signed": "Signed"
+            },
+            "stepLabel": "Step {{current}} / {{total}}",
+            "actions": {
+                "send": "Send",
+                "resend": "Resend",
+                "createInvoice": "Create invoice"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Send quote",
+                    "description": "Are you sure you want to send quote {{number}} to {{client}}?"
+                },
+                "resend": {
+                    "title": "Resend quote",
+                    "description": "Are you sure you want to resend quote {{number}} to {{client}}?"
+                },
+                "cancel": "Cancel",
+                "confirm": "Confirm"
+            }
+        },
+        "createInvoiceDialog": {
+            "title": "Create invoice from quote",
+            "description": "Select the items to invoice from quote {{number}}.",
+            "percentageLabel": "Percentage to invoice",
+            "amountLabel": "Amount to invoice",
+            "maxPercentageHint": "Up to {{percent}}% of the quote can still be invoiced.",
+            "fields": {
+                "quantity": {
+                    "label": "Quantity"
+                }
+            },
+            "alreadyInvoicedBadge": "Already invoiced",
+            "remainingLabel": "Remaining: {{remaining}}",
+            "remainingTotalLabel": "{{amount}} {{currency}} remaining",
+            "totalSelectedLabel": "Total: {{amount}} {{currency}}",
+            "percentOfQuoteLabel": "{{percent}}% of quote",
+            "itemAmountLabel": "{{amount}} {{currency}}",
+            "actions": {
+                "confirm": "Create invoice",
+                "cancel": "Cancel"
+            },
+            "errors": {
+                "quoteFullyInvoiced": "This quote has already been fully invoiced.",
+                "quantityExceedsRemaining": "The requested quantity exceeds the remaining quantity to invoice."
+            }
+        },
         "upsert": {
             "title": {
                 "create": "Create New Quote",

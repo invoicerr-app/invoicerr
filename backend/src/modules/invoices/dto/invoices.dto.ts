@@ -18,7 +18,18 @@ export class CreateInvoiceDto {
         vatRate: number;
         type: ItemType;
         order: number;
+        quoteItemId?: string;
     }[];
+}
+
+export class CreateInvoiceFromQuoteItemDto {
+    quoteItemId: string;
+    quantity: number;
+}
+
+export class CreateInvoiceFromQuoteDto {
+    quoteId: string;
+    items: CreateInvoiceFromQuoteItemDto[];
 }
 
 export class EditInvoicesDto {
