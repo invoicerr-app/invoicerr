@@ -58,12 +58,13 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
         items: z.array(
             z.object({
                 id: z.string().optional(),
-                description: z
+                name: z
                     .string()
-                    .min(1, t("recurringInvoices.upsert.form.items.description.errors.required"))
+                    .min(1, t("recurringInvoices.upsert.form.items.name.errors.required"))
                     .refine((val) => val !== "", {
-                        message: t("recurringInvoices.upsert.form.items.description.errors.required"),
+                        message: t("recurringInvoices.upsert.form.items.name.errors.required"),
                     }),
+                description: z.string().optional(),
                 type: z.string(),
                 quantity: z
                     .number({
@@ -127,6 +128,7 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
                     .map((item) => ({
                         id: item.id,
                         type: item.type,
+                        name: item.name || "",
                         description: item.description || "",
                         quantity: item.quantity || 1,
                         unitPrice: item.unitPrice || 0,
@@ -236,6 +238,7 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
                                                         form.setValue('items', quote.items.map((item) => ({
                                                             id: item.id,
                                                             type: item.type,
+                                                            name: item.name || "",
                                                             description: item.description || "",
                                                             quantity: item.quantity || 1,
                                                             unitPrice: item.unitPrice || 0,

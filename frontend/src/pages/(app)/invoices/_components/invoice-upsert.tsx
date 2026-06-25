@@ -37,12 +37,13 @@ type CreationMode = "invoice" | "recurring"
 function createItemSchema(t: (key: string) => string, translationPrefix: "invoices" | "recurringInvoices", typeSchema: z.ZodTypeAny) {
     return z.object({
         id: z.string().optional(),
-        description: z
+        name: z
             .string()
-            .min(1, t(`${translationPrefix}.upsert.form.items.description.errors.required`))
+            .min(1, t(`${translationPrefix}.upsert.form.items.name.errors.required`))
             .refine((val) => val !== "", {
-                message: t(`${translationPrefix}.upsert.form.items.description.errors.required`),
+                message: t(`${translationPrefix}.upsert.form.items.name.errors.required`),
             }),
+        description: z.string().optional(),
         type: typeSchema,
         quantity: z
             .number({
@@ -181,6 +182,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                     .sort((a: any, b: any) => a.order - b.order)
                     .map((item: any) => ({
                         id: item.id,
+                        name: item.name || "",
                         description: item.description || "",
                         quantity: item.quantity || 1,
                         unitPrice: item.unitPrice || 0,
@@ -301,6 +303,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                                                 form.setValue("discountRate", selectedQuote?.discountRate ?? 0)
                                                                 form.setValue('items', (selectedQuote?.items || []).map((item: any, index) => ({
                                                                     id: item.id,
+                                                                    name: item.name || "",
                                                                     description: item.description || "",
                                                                     quantity: item.quantity || 1,
                                                                     unitPrice: item.unitPrice || 0,
@@ -468,6 +471,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                                                 recurringForm.setValue('items', quote.items.map((item) => ({
                                                                     id: item.id,
                                                                     type: item.type,
+                                                                    name: item.name || "",
                                                                     description: item.description || "",
                                                                     quantity: item.quantity || 1,
                                                                     unitPrice: item.unitPrice || 0,

@@ -170,6 +170,7 @@ describe('Articles E2E', () => {
             cy.get('[data-cy="article-picker-options"]').should('be.visible');
             cy.contains('[data-cy="article-picker-options"] button', articleName).click();
 
+            cy.get('[name="items.0.name"]').should('have.value', articleName);
             cy.get('[name="items.0.description"]').should('have.value', 'Full day of web design');
             cy.get('[name="items.0.unitPrice"]').should('have.value', '800');
             cy.get('[name="items.0.vatRate"]').should('have.value', '20');

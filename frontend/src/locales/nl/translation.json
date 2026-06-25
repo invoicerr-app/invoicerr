@@ -283,10 +283,17 @@
                     "placeholder": "Selecteer vervaldatum"
                 },
                 "items": {
+                    "name": {
+                        "placeholder": "Naam van het item",
+                        "errors": {
+                            "required": "Naam is vereist"
+                        }
+                    },
                     "description": {
                         "errors": {
                             "required": "Omschrijving is vereist"
-                        }
+                        },
+                        "hint": "Tip: gebruik **vet** en *cursief* om te benadrukken."
                     },
                     "quantity": {
                         "placeholder": "Hoeveelheid",

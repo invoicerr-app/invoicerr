@@ -12,6 +12,7 @@ import { baseTemplate } from '@/modules/invoices/templates/base.template';
 import { business } from '@tsclass/tsclass/dist_ts';
 import { finance } from '@fin.cx/einvoice/dist_ts/plugins';
 import { formatDate } from '@/utils/date';
+import { formatItemDescription } from '@/utils/format-text';
 import { logger } from '@/logger/logger.service';
 import { parseAddress } from '@/utils/adress';
 import prisma from '@/prisma/prisma.service';
@@ -122,7 +123,7 @@ export class InvoicesService {
             where: {
                 OR: [
                     { client: { name: { contains: query } } },
-                    { items: { some: { description: { contains: query } } } },
+                    { items: { some: { name: { contains: query } } } },
                 ],
             },
             include: {
@@ -181,6 +182,7 @@ export class InvoicesService {
                 totalTTC: totals.totalTTC,
                 items: {
                     create: items.map(item => ({
+                        name: item.name,
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
@@ -285,6 +287,7 @@ export class InvoicesService {
                         .map(i => ({
                             where: { id: i.id! },
                             data: {
+                                name: i.name,
                                 description: i.description,
                                 quantity: i.quantity,
                                 unitPrice: i.unitPrice,
@@ -296,6 +299,7 @@ export class InvoicesService {
                     create: items
                         .filter(i => !i.id)
                         .map(i => ({
+                            name: i.name,
                             description: i.description,
                             quantity: i.quantity,
                             unitPrice: i.unitPrice,
@@ -444,7 +448,8 @@ export class InvoicesService {
             client: invoice.client,
             currency: invoice.currency,
             items: invoice.items.map(i => ({
-                description: i.description,
+                name: i.name,
+                description: formatItemDescription(i.description),
                 quantity: Number.isInteger(i.quantity) ? i.quantity.toString() : i.quantity.toFixed(3).replace(/\.?0+$/, ''),
                 unitPrice: i.unitPrice.toFixed(2),
                 vatRate: (i.vatRate || 0).toFixed(2),
@@ -614,7 +619,7 @@ export class InvoicesService {
 
         invRec.items.forEach((item, index) => {
             inv.addItem({
-                name: item.description,
+                name: item.name,
                 unitQuantity: item.quantity,
                 unitNetPrice: item.unitPrice,
                 vatPercentage: item.vatRate || 0,
@@ -698,6 +703,7 @@ export class InvoicesService {
                     throw new BadRequestException(`Requested quantity ${line.quantity} for item "${quoteItem.description}" exceeds remaining quantity ${remaining}`);
                 }
                 return {
+                    name: quoteItem.name,
                     description: quoteItem.description,
                     quantity: line.quantity,
                     unitPrice: quoteItem.unitPrice,
@@ -772,6 +778,7 @@ export class InvoicesService {
             const remainingTTC = remainingQuantity * item.unitPrice * discountFactor * (1 + (item.vatRate || 0) / 100);
             return {
                 quoteItemId: item.id,
+                name: item.name,
                 description: item.description,
                 quantity: item.quantity,
                 invoicedQuantity,

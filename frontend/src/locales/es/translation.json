@@ -360,11 +360,18 @@
                 "items": {
                     "label": "Ítems de la cotización",
                     "addItem": "Agregar ítem",
+                    "name": {
+                        "placeholder": "Nombre del ítem",
+                        "errors": {
+                            "required": "El nombre es obligatorio"
+                        }
+                    },
                     "description": {
                         "placeholder": "Descripción del ítem",
                         "errors": {
                             "required": "La descripción es obligatoria"
-                        }
+                        },
+                        "hint": "Consejo: usa **negrita** y *cursiva* para resaltar."
                     },
                     "quantity": {
                         "placeholder": "Cantidad",
@@ -595,11 +602,18 @@
                 "items": {
                     "label": "Ítems de la factura",
                     "addItem": "Agregar ítem",
+                    "name": {
+                        "placeholder": "Nombre del ítem",
+                        "errors": {
+                            "required": "El nombre es obligatorio"
+                        }
+                    },
                     "description": {
                         "placeholder": "Descripción del ítem",
                         "errors": {
                             "required": "La descripción es obligatoria"
-                        }
+                        },
+                        "hint": "Consejo: usa **negrita** y *cursiva* para resaltar."
                     },
                     "quantity": {
                         "placeholder": "Cantidad",
@@ -795,11 +809,18 @@
                 "items": {
                     "label": "Ítems de factura recurrente",
                     "addItem": "Agregar ítem",
+                    "name": {
+                        "placeholder": "Nombre del ítem",
+                        "errors": {
+                            "required": "El nombre es obligatorio"
+                        }
+                    },
                     "description": {
                         "placeholder": "Descripción del ítem",
                         "errors": {
                             "required": "La descripción es obligatoria"
-                        }
+                        },
+                        "hint": "Consejo: usa **negrita** y *cursiva* para resaltar."
                     },
                     "quantity": {
                         "placeholder": "Cantidad",

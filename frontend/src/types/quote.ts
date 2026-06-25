@@ -49,7 +49,8 @@ export interface QuoteItem {
     id: string;
     quoteId: string;
     type: QuoteItemType;
-    description: string;
+    name: string;
+    description?: string;
     quantity: number;
     unitPrice: number;
     vatRate: number; // 20 for 20%

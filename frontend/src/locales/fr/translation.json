@@ -389,11 +389,18 @@
                 "items": {
                     "label": "Articles du devis",
                     "addItem": "Ajouter un article",
+                    "name": {
+                        "placeholder": "Nom de l'article",
+                        "errors": {
+                            "required": "Le nom est requis"
+                        }
+                    },
                     "description": {
                         "placeholder": "Description de l'article",
                         "errors": {
                             "required": "La description est requise"
-                        }
+                        },
+                        "hint": "Astuce : utilisez **gras** et *italique* pour mettre en valeur."
                     },
                     "quantity": {
                         "placeholder": "Qté",
@@ -670,11 +677,18 @@
                 "items": {
                     "label": "Articles de la facture",
                     "addItem": "Ajouter un article",
+                    "name": {
+                        "placeholder": "Nom de l'article",
+                        "errors": {
+                            "required": "Le nom est requis"
+                        }
+                    },
                     "description": {
                         "placeholder": "Description de l'article",
                         "errors": {
                             "required": "La description est requise"
-                        }
+                        },
+                        "hint": "Astuce : utilisez **gras** et *italique* pour mettre en valeur."
                     },
                     "quantity": {
                         "placeholder": "Qté",
@@ -912,11 +926,18 @@
                 "items": {
                     "label": "Articles de la facture",
                     "addItem": "Ajouter un article",
+                    "name": {
+                        "placeholder": "Nom de l'article",
+                        "errors": {
+                            "required": "Le nom est requis"
+                        }
+                    },
                     "description": {
                         "placeholder": "Description de l'article",
                         "errors": {
                             "required": "La description est requise"
-                        }
+                        },
+                        "hint": "Astuce : utilisez **gras** et *italique* pour mettre en valeur."
                     },
                     "quantity": {
                         "placeholder": "Qté",

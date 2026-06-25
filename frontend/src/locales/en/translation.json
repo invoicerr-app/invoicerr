@@ -388,11 +388,18 @@
                 "items": {
                     "label": "Quote Items",
                     "addItem": "Add Item",
+                    "name": {
+                        "placeholder": "Item name",
+                        "errors": {
+                            "required": "Name is required"
+                        }
+                    },
                     "description": {
                         "placeholder": "Item description",
                         "errors": {
                             "required": "Description is required"
-                        }
+                        },
+                        "hint": "Tip: use **bold** and *italic* for emphasis."
                     },
                     "quantity": {
                         "placeholder": "Qty",
@@ -682,11 +689,18 @@
                 "items": {
                     "label": "Invoice Items",
                     "addItem": "Add Item",
+                    "name": {
+                        "placeholder": "Item name",
+                        "errors": {
+                            "required": "Name is required"
+                        }
+                    },
                     "description": {
                         "placeholder": "Item description",
                         "errors": {
                             "required": "Description is required"
-                        }
+                        },
+                        "hint": "Tip: use **bold** and *italic* for emphasis."
                     },
                     "quantity": {
                         "placeholder": "Qty",
@@ -909,11 +923,18 @@
                 "items": {
                     "label": "Recurring Invoice Items",
                     "addItem": "Add Item",
+                    "name": {
+                        "placeholder": "Item name",
+                        "errors": {
+                            "required": "Name is required"
+                        }
+                    },
                     "description": {
                         "placeholder": "Item description",
                         "errors": {
                             "required": "Description is required"
-                        }
+                        },
+                        "hint": "Tip: use **bold** and *italic* for emphasis."
                     },
                     "quantity": {
                         "placeholder": "Qty",

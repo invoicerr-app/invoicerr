@@ -360,11 +360,18 @@
                 "items": {
                     "label": "Artikel hinzufügen",
                     "addItem": "Artikel hinzufügen",
+                    "name": {
+                        "placeholder": "Artikelname",
+                        "errors": {
+                            "required": "Name ist erforderlich"
+                        }
+                    },
                     "description": {
                         "placeholder": "Beschreibung des Artikels",
                         "errors": {
                             "required": "Beschreibung ist erforderlich"
-                        }
+                        },
+                        "hint": "Tipp: **fett** und *kursiv* zur Hervorhebung verwenden."
                     },
                     "quantity": {
                         "placeholder": "Menge",
@@ -595,11 +602,18 @@
                 "items": {
                     "label": "Positionen der Rechnung",
                     "addItem": "Artikel hinzufügen",
+                    "name": {
+                        "placeholder": "Artikelname",
+                        "errors": {
+                            "required": "Name ist erforderlich"
+                        }
+                    },
                     "description": {
                         "placeholder": "Beschreibung des Artikels",
                         "errors": {
                             "required": "Beschreibung ist erforderlich"
-                        }
+                        },
+                        "hint": "Tipp: **fett** und *kursiv* zur Hervorhebung verwenden."
                     },
                     "quantity": {
                         "placeholder": "Menge",
@@ -795,11 +809,18 @@
                 "items": {
                     "label": "Wiederkehrende Rechnungspositionen",
                     "addItem": "Artikel hinzufügen",
+                    "name": {
+                        "placeholder": "Artikelname",
+                        "errors": {
+                            "required": "Name ist erforderlich"
+                        }
+                    },
                     "description": {
                         "placeholder": "Beschreibung des Artikels",
                         "errors": {
                             "required": "Beschreibung ist erforderlich"
-                        }
+                        },
+                        "hint": "Tipp: **fett** und *kursiv* zur Hervorhebung verwenden."
                     },
                     "quantity": {
                         "placeholder": "Menge",

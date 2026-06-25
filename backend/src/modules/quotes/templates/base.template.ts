@@ -6,27 +6,50 @@ export const baseTemplate = `
     <title>{{labels.quote}} {{number}}</title>
     <style>
         body { font-family: {{fontFamily}}, sans-serif; margin: {{padding}}px; color: #333; }
-        .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
-        .company-info h1 { margin: 0; color: {{primaryColor}}; }
+        .header { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; row-gap: 10px; margin-bottom: 30px; }
+        .company-name h1 { margin: 0; color: {{primaryColor}}; }
         .quote-info { text-align: right; }
-        .client-info { margin-bottom: 30px; }
+        .header p { margin: 0; line-height: 1.4; }
+        .client-info { text-align: left; }
+        .client-info h3 { margin: 0 0 4px; }
+        .client-info .name, .company-info .name { margin: 0 0 4px; font-weight: bold; }
+        .company-info .spacer { visibility: hidden; margin: 0 0 4px; }
+        .item-description { display: block; font-size: 12px; color: #666; white-space: pre-line; margin-top: 4px; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th, td { padding: 12px; text-align: left; vertical-align: top; border-bottom: 1px solid #ddd; }
         th { background-color: {{secondaryColor}}; font-weight: bold; color: {{tableTextColor}}; }
         .total-row { font-weight: bold; background-color: {{secondaryColor}}; color: {{tableTextColor}}; }
         .notes { margin-top: 20px; padding: 20px; background-color: {{secondaryColor}}; border-radius: 4px; color: {{tableTextColor}}; }
         .payment-info { margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-left: 4px solid {{primaryColor}}; color: #333; }
         .validity { color: #dc2626; font-weight: bold; }
         .logo { max-height: 80px; margin-bottom: 10px; }
+        .made-with {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 9px;
+            color: #999;
+        }
     </style>
 </head>
 <body>
+    <div class="made-with">Made with Invoicerr</div>
     <div class="header">
-        <div class="company-info">
+        <div class="company-name">
             {{#if includeLogo}}
                 <img src="{{logoB64}}" alt="Logo" class="logo">
             {{/if}}
-            <h1>{{company.name}}</h1><br>
+            <h1>{{company.name}}</h1>
+        </div>
+        <div class="quote-info">
+            <h2>{{labels.quote}}</h2>
+            <p><strong>{{labels.quote}}:</strong> #{{number}}<br>
+            <strong>{{labels.date}}</strong> {{date}}<br>
+            <strong class="validity">{{labels.validUntil}}</strong> {{validUntil}}</p>
+        </div>
+        <div class="company-info">
+            <h3 class="spacer">{{labels.quoteFor}}</h3>
+            <p class="name">{{company.name}}</p>
             {{#if company.description}}<strong>{{labels.description}}</strong> {{company.description}}<br>{{/if}}
             <p>{{company.address}}<br>
             {{#if company.addressLine2}}{{company.addressLine2}}<br>{{/if}}
@@ -36,24 +59,17 @@ export const baseTemplate = `
             {{#if company.legalId}}<strong>{{labels.legalId}}:</strong> {{company.legalId}}<br>{{/if}}
             {{#if company.VAT}}<strong>{{labels.VATId}}:</strong> {{company.VAT}}{{/if}}</p>
         </div>
-        <div class="quote-info">
-            <h2>{{labels.quote}}</h2>
-            <p><strong>{{labels.quote}}:</strong> #{{number}}<br>
-            <strong>{{labels.date}}</strong> {{date}}<br>
-            <strong class="validity">{{labels.validUntil}}</strong> {{validUntil}}</p>
+        <div class="client-info">
+            <h3>{{labels.quoteFor}}</h3>
+            <p class="name">{{client.name}}</p>
+            {{#if client.description}}<strong>{{labels.description}}</strong> {{client.description}}<br>{{/if}}
+            <p>{{client.address}}<br>
+            {{#if client.addressLine2}}{{client.addressLine2}}<br>{{/if}}
+            {{client.city}}, {{#if client.state}}{{client.state}} {{/if}}{{client.postalCode}}<br>
+            {{client.country}}{{#if client.email}}<br>{{client.email}}{{/if}}
+            {{#if client.legalId}}<br><strong>{{labels.legalId}}:</strong> {{client.legalId}}{{/if}}
+            {{#if client.VAT}}<br><strong>{{labels.VATId}}:</strong> {{client.VAT}}{{/if}}</p>
         </div>
-    </div>
-    <div class="client-info">
-        <h3>{{labels.quoteFor}}</h3>
-        <p>{{client.name}}<br>
-        {{#if client.description}}<strong>{{labels.description}}</strong> {{client.description}}<br>{{/if}}
-        {{client.address}}<br>
-        {{#if client.addressLine2}}{{client.addressLine2}}<br>{{/if}}
-        {{client.city}}, {{#if client.state}}{{client.state}} {{/if}}{{client.postalCode}}<br>
-        {{client.country}}<br>
-        {{client.email}}</br>
-        {{#if client.legalId}}<strong>{{labels.legalId}}:</strong> {{client.legalId}}<br>{{/if}}
-        {{#if client.VAT}}<strong>{{labels.VATId}}:</strong> {{client.VAT}}{{/if}}</p>
     </div>
     <table>
         <thead>
@@ -69,7 +85,7 @@ export const baseTemplate = `
         <tbody>
             {{#each items}}
             <tr>
-                <td>{{description}}</td>
+                <td><strong>{{name}}</strong>{{#if description}}<span class="item-description">{{{description}}}</span>{{/if}}</td>
                 <td>{{type}}</td>
                 <td>{{quantity}}</td>
                 <td>{{../currency}} {{unitPrice}}</td>
