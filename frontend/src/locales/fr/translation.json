@@ -857,7 +857,6 @@
     },
     "dashboard": {
         "title": "Tableau de bord",
-        "welcomeMessage": "Bon retour, {{firstname}} !",
         "revenue": {
             "title": "Aperçu du chiffre d'affaires",
             "description": "Suivez vos performances financières dans le temps",
@@ -891,12 +890,6 @@
             },
             "latestTitle": "Factures récentes",
             "noRecent": "Aucune facture récente"
-        },
-        "clients": {
-            "title": "Aperçu des clients",
-            "stats": {
-                "total": "Total des clients"
-            }
         }
     },
     "articles": {

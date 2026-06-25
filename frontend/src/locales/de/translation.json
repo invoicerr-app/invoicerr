@@ -740,7 +740,6 @@
     },
     "dashboard": {
         "title": "Dashboard",
-        "welcomeMessage": "Willkommen zurück, {{firstname}}!",
         "revenue": {
             "title": "Überblick über die Einnahmen",
             "description": "Verfolgen Sie Ihre finanzielle Leistung im Laufe der Zeit",
@@ -774,12 +773,6 @@
             },
             "latestTitle": "Neueste Rechnungen",
             "noRecent": "Keine aktuellen Rechnungen"
-        },
-        "clients": {
-            "title": "Kunden Überblick",
-            "stats": {
-                "total": "Kunden insgesamt"
-            }
         }
     },
     "paymentMethods": {

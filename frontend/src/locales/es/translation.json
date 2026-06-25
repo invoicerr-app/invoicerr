@@ -740,7 +740,6 @@
     },
     "dashboard": {
         "title": "Panel de control",
-        "welcomeMessage": "¡Bienvenido de nuevo, {{firstname}}!",
         "revenue": {
             "title": "Resumen de ingresos",
             "description": "Sigue tu desempeño financiero a lo largo del tiempo",
@@ -774,12 +773,6 @@
             },
             "latestTitle": "Facturas recientes",
             "noRecent": "No hay facturas recientes"
-        },
-        "clients": {
-            "title": "Resumen de clientes",
-            "stats": {
-                "total": "Total de clientes"
-            }
         }
     },
     "paymentMethods": {
