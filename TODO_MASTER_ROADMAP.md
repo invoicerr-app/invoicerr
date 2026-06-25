@@ -130,8 +130,10 @@ flow (invoice/quote/recurring/payment/correction/cancel) routed through the `Com
 **and** every screen wired to the real backend (issue/correct/cancel/mentions/lifecycle UI). Today the
 engine is built but **not called from `src/modules/*`** (only TODO comments) — that gap is the top
 priority. Only **after** the frontend and backend are connected end-to-end do we go back and fill the
-per-country execution depth: the **~62 `.todo()` execution stubs**, graduating archetype profiles to
-verified `OFFICIAL`, and real clearance transmission (PART X). In short: **connect everything first,
+per-country execution depth: the execution stubs **enumerated in PART XI** (≈43 national formats + ≈50
+authority portals + the fixed provider/handler stubs — far more than the 62 raw `.todo()` call-sites,
+because two of them are data-driven families that fire once per country), graduating archetype profiles
+to verified `OFFICIAL`, and real clearance transmission (PART X). In short: **connect everything first,
 perfect each country second.** A country running on a `FALLBACK`/`BEST_EFFORT` plan but fully wired is
 more valuable now than one `OFFICIAL` country with the rest disconnected. Surface plan `confidence`
 (OFFICIAL/BEST_EFFORT/FALLBACK) in the UI (VI.4) so users see the maturity while breadth lands first.
@@ -521,8 +523,261 @@ Inbound is durable; outbound (transmit, submit-for-clearance, recurring auto-sen
 - [ ] Document taxonomy / B2G specifics (Chorus Pro service code ↔ buyer reference V/II.5;
   boleta/guía/complemento).
 - [ ] Invoice rendered in the buyer's mandated language.
-- [ ] Graduate archetype profiles to verified `OFFICIAL`; fill the ~62 `.todo()` execution stubs.
+- [ ] Graduate archetype profiles to verified `OFFICIAL` (per-country sign-off that the resolved plan
+  matches the law; flip `confidence` once a real document has cleared end-to-end for that country).
+- [ ] Fill the execution stubs — **enumerated one-by-one in PART XI** (every `.todo()` is its own box).
 - [ ] Online payment collection (pay-by-link) — optional product feature, not legal.
+
+---
+
+# PART XI — Execution stubs, enumerated (the `.todo()` inventory) 🔒-LAST
+**This is the depth phase (I.6): do it only once everything is wired end-to-end.** Each box maps to a
+real `log.todo(...)` site in `backend/src/compliance/` — **except** the two data-driven families
+(`XI.1-NAT` formats, `XI.2-NAT` portals) where a single `format/${spec.id}` / `transmission/${spec.id}`
+call-site fires once per country spec, so each country gets its own box. Each stub currently logs a TODO
+and returns a placeholder; "done" = the placeholder is replaced by the real implementation **and** there
+is a test (unit or fixture) proving it. Group rules:
+- **Purity**: keep `compliance/**` free of NestJS/Prisma. A stub that needs I/O (network, disk, DB)
+  takes its dependency as an injected provider/port — the Nest layer supplies the concrete adapter.
+- **Acceptance per group** is stated under each heading; a box is `[x]` only when it meets that bar.
+- A stub that needs real credentials/sandbox (clearance gateways) is `[~]` with a note until the
+  sandbox is wired (don't fake a pass).
+
+## XI.1 Format providers — build + validate national payloads
+File: `providers/format/providers.ts`. **Acceptance:** builds a schema-valid artifact from a canonical
+document **and** `validate` runs the official schema/Schematron against a committed sample fixture.
+- [ ] `format/en16931` — build the artifact via `@fin.cx/einvoice` (`EInvoice.embedInPdf`/`exportXml`)
+  for the requested syntax (UBL / CII / Factur-X). *(EU generic — FR/BE/etc.)*
+- [ ] `format/en16931` — validate against the **EN 16931 Schematron**.
+- [ ] `format/fatturapa` — build **FatturaPA 1.2** XML for SdI. *(IT)*
+- [ ] `format/fatturapa` — validate against the **SdI XSD**.
+- [ ] `format/cfdi` — build **SAT CFDI 4.0** XML (Comprobante, Conceptos, Impuestos, UsoCFDI). *(MX)*
+- [ ] `format/cfdi` — validate against the **SAT XSD + business rules**.
+- [ ] `format/fa-vat` — build **Polish FA_VAT (FA(2)/FA(3))** XML for KSeF. *(PL — #264)*
+- [ ] `format/fa-vat` — validate against the **Ministry of Finance XSD**.
+- [ ] `format/ksa-ubl` — build **ZATCA UBL 2.1 + KSA extension** and the QR payload. *(SA)*
+- [ ] `format/ksa-ubl` — validate against **ZATCA rules**.
+- [ ] `format/national-xml` — build the national clearance XML for `ctx.supplier.countryCode` (generic
+  fallback until a dedicated per-country provider exists).
+- [ ] `format/national-xml` — validate against the national schema.
+- [ ] `format/plain-pdf` — render the PDF via the existing `getInvoicePdf()` Handlebars template (the
+  non-clearance default channel; reuse, don't fork).
+
+## XI.1-NAT National format specs (43) — `providers/format/national-formats.ts`
+Data-driven family: the file loops the spec table and fires `format/${spec.id}` **build + validate**
+per country. Each box below = build the country's payload from its `buildHint` **and** validate per its
+national schema (`validateHint`). One box per country (build+validate together). *(`id` ↔ spec.)*
+**LATAM**
+- [ ] `ar-fe` Argentina Factura Electrónica
+- [ ] `bo-fe` Bolivia Facturación Electrónica
+- [ ] `nfe` Brazil NF-e family
+- [ ] `cl-dte` Chile DTE
+- [ ] `cr-fe` Costa Rica Factura Electrónica v4.4
+- [ ] `do-ecf` Dominican Republic e-CF
+- [ ] `ec-fe` Ecuador comprobantes electrónicos
+- [ ] `gt-fel` Guatemala FEL
+- [ ] `pa-fe` Panama FE/CF
+- [ ] `py-de` Paraguay e-Kuatia DE
+- [ ] `sv-dte` El Salvador DTE (JSON)
+- [ ] `uy-cfe` Uruguay CFE/DFE
+- [ ] `ve-fe` Venezuela Factura Electrónica
+
+**Africa**
+- [ ] `ng-firs` Nigeria FIRS e-invoice
+- [ ] `ke-etims` Kenya eTIMS
+- [ ] `gh-evat` Ghana E-VAT
+- [ ] `rw-ebm` Rwanda EBM
+- [ ] `tz-vfd` Tanzania VFD
+- [ ] `ug-efris` Uganda EFRIS
+- [ ] `zm-smartinvoice` Zambia Smart Invoice
+- [ ] `zw-fdms` Zimbabwe FDMS
+- [ ] `ci-fne` Ivory Coast FNE
+- [ ] `bj-mecef` Benin e-MECeF
+
+**MENA & Türkiye**
+- [ ] `jo-jofotara` Jordan JoFotara
+- [ ] `tn-teif` Tunisia TEIF
+- [ ] `tr-efatura` Turkey UBL-TR
+- [ ] `eg-eta` Egypt ETA e-invoice
+
+**Asia**
+- [ ] `id-efaktur` Indonesia e-Faktur
+- [ ] `tw-egui` Taiwan eGUI
+- [ ] `kz-esf` Kazakhstan ESF
+- [ ] `ph-eis` Philippines EIS
+- [ ] `th-etax` Thailand e-Tax Invoice
+- [ ] `np-cbms` Nepal CBMS
+- [ ] `bd-nbr` Bangladesh NBR e-invoice
+- [ ] `pk-fbr` Pakistan FBR XIR
+- [ ] `cn-efapiao` China e-Fapiao
+- [ ] `in-irp` India GST e-invoice
+- [ ] `vn-tt78` Vietnam TT78 e-invoice
+
+**Europe (national, outside EN 16931)**
+- [ ] `es-facturae` Spain Facturae
+- [ ] `ua-taxinvoice` Ukraine tax-invoice
+- [ ] `me-fiscal` Montenegro fiscalization
+- [ ] `hr-eracun` Croatia e-Račun
+- [ ] `al-fiscalization` Albania fiscalization
+
+## XI.2 Transmission providers — submit + poll per channel
+File: `providers/transmission/providers.ts`. **Acceptance:** real call behind the transmission-plugin
+interface defined in **X.1** (auth → submit → store authority id/receipt; poll maps remote status →
+`ComplianceEvent`). Gateways needing sandbox creds stay `[~]` until the sandbox is configured.
+- [ ] `transmission/sdi` — submit FatturaPA to **SdI**, await receipt/notifica. *(IT)*
+- [ ] `transmission/sdi` — poll SdI notifiche.
+- [ ] `transmission/pdp` — annuaire lookup + deliver to recipient **PDP** + push e-reporting. *(FR)*
+- [ ] `transmission/pdp` — poll PDP lifecycle statuses.
+- [ ] `transmission/pac` — submit to **PAC** for SAT clearance, await UUID/folio fiscal. *(MX)*
+- [ ] `transmission/pac` — poll PAC clearance result.
+- [ ] `transmission/ksef` — authenticate (token/seal) + submit FA_VAT to **KSeF**, await KSeF reference
+  number. *(PL — #264)*
+- [ ] `transmission/ksef` — poll KSeF **UPO**/status.
+- [ ] `transmission/ose` — submit to **OSE**, await CDR. *(PE / LATAM OSE model)*
+- [ ] `transmission/peppol` — **SMP/SML lookup** for the buyer's Peppol id + deliver. *(EU Peppol)*
+- [ ] `transmission/gov-portal` — submit to a generic government clearance/reporting API.
+- [ ] `transmission/print` — produce a printable representation with QR (offline/contingency channel).
+- [ ] `transmission/email` — send artifacts to the buyer via `MailService` (the default non-EDI channel;
+  the Nest adapter injects `MailService`, the provider stays pure).
+
+## XI.2-NAT National portal specs (50) — `providers/transmission/national-portals.ts`
+Data-driven family: the file loops the spec table and fires `transmission/${spec.id}` **submit + poll**
+per country. Each box = real submit to that authority + poll its authorization status (behind the X.1
+plugin interface; `[~]` until its sandbox creds exist). One box per authority (submit+poll together).
+**LATAM**
+- [ ] `afip` Argentina ARCA/AFIP WSFE
+- [ ] `bo-sin` Bolivia SIN
+- [ ] `sefaz` Brazil SEFAZ
+- [ ] `sii` Chile SII
+- [ ] `dian` Colombia DIAN
+- [ ] `cr-hacienda` Costa Rica Hacienda
+- [ ] `dgii` Dominican Republic DGII
+- [ ] `sri` Ecuador SRI
+- [ ] `gt-sat` Guatemala SAT (FEL)
+- [ ] `pa-dgi` Panama DGI
+- [ ] `sifen` Paraguay SIFEN
+- [ ] `sv-mh` El Salvador MH
+- [ ] `uy-dgi` Uruguay DGI
+- [ ] `seniat` Venezuela SENIAT
+
+**Africa**
+- [ ] `firs` Nigeria FIRS
+- [ ] `ke-kra` Kenya KRA eTIMS
+- [ ] `gh-gra` Ghana GRA E-VAT
+- [ ] `rw-rra` Rwanda RRA EBM
+- [ ] `tz-tra` Tanzania TRA VFD
+- [ ] `ug-ura` Uganda URA EFRIS
+- [ ] `zm-zra` Zambia ZRA Smart Invoice
+- [ ] `zw-zimra` Zimbabwe ZIMRA FDMS
+- [ ] `ci-dgi` Ivory Coast DGI (FNE/SIGF)
+- [ ] `bj-dgi` Benin DGI e-MECeF
+
+**MENA & Türkiye**
+- [ ] `zatca` Saudi Arabia ZATCA FATOORA
+- [ ] `jofotara` Jordan JoFotara
+- [ ] `tn-ttn` Tunisia TTN / El Fatoura
+- [ ] `gib` Turkey GİB
+- [ ] `eg-eta` Egypt ETA
+
+**Asia**
+- [ ] `id-coretax` Indonesia DGT e-Faktur/Coretax
+- [ ] `tw-mof` Taiwan MoF
+- [ ] `kz-isesf` Kazakhstan IS ESF
+- [ ] `ph-bir` Philippines BIR EIS
+- [ ] `th-rd` Thailand RD
+- [ ] `np-ird` Nepal IRD CBMS
+- [ ] `bd-nbr` Bangladesh NBR
+- [ ] `pk-fbr` Pakistan FBR
+- [ ] `cn-sta` China STA (Golden Tax IV)
+- [ ] `in-irp` India IRP (GSTN/NIC)
+- [ ] `vn-gdt` Vietnam GDT
+- [ ] `myinvois` Malaysia MyInvois (LHDNM)
+
+**Europe**
+- [ ] `es-aeat` Spain AEAT SII/Verifactu
+- [ ] `ua-dps` Ukraine DPS
+- [ ] `me-fiscal` Montenegro fiscalization
+- [ ] `hr-fiskalizacija` Croatia Fiskalizacija 2.0
+- [ ] `al-cis` Albania CIS
+- [ ] `lv-vid` Latvia VID
+- [ ] `sk-financnasprava` Slovakia Finančná správa
+- [ ] `anaf` Romania ANAF (SPV / RO e-Factura)
+- [ ] `rs-sef` Serbia SEF
+
+## XI.3 Signing providers — electronic signatures
+File: `providers/signing/providers.ts`. **Acceptance:** produces a verifiable signature over the
+rendered artifact using an injected key/cert provider (no secrets in `compliance/**`).
+- [ ] `signing/xades` — **XAdES** sign XML payloads (used by several clearance/archival regimes).
+- [ ] `signing/pades` — **PAdES** sign PDF payloads.
+- [ ] `signing/cades` — **CAdES** sign CMS payloads.
+
+## XI.4 Archive providers — conservation (couples with II.4)
+File: `providers/archive/providers.ts`. **Acceptance:** artifacts persisted with retention + integrity
+per `ArchivalPolicy`; retrievable for audit; WORM bucket is immutable.
+- [ ] `archive/local` — write artifacts to local storage, honour `retentionYears`.
+- [ ] `archive/s3-worm` — PUT artifacts to a **WORM** bucket in `residency` region, retain
+  `retentionYears`, enforce `integrity` (hash/chain).
+
+## XI.5 Tax-system handlers
+File: `taxsystems/handlers.ts`. **Acceptance:** correct computed tax for a fixture set of lines.
+- [ ] `taxsystem/sales-tax` — county/city/special-district rate **stacking** on top of the state rate.
+  *(US)*
+- [ ] `taxsystem/consumption-tax` — consumption-tax **rounding** rules. *(JP and similar)*
+
+## XI.6 Regime handlers — how a country transmits/reports
+File: `regimes/handlers.ts`. **Acceptance:** the handler routes a document through the right channel(s)
+and records the lifecycle, delegating actual I/O to XI.2.
+- [ ] `regime/clearance` — submit for clearance and await authorisation (UUID/folio/protocol) **before**
+  the invoice is valid. *(MX/IT-ish)*
+- [ ] `regime/decentralized-ctc` — route via PDP/Peppol + extract e-reporting; track lifecycle statuses.
+  *(FR 2026)*
+- [ ] `regime/periodic-reporting` — enqueue the document into the periodic **SAF-T/ledger** batch.
+- [ ] `regime/real-time-reporting` — push transaction data to the authority within the mandated window.
+  *(HU/ES-SII-ish)*
+- [ ] `reporting/${scope}` — the reporting-kind dispatcher in `reporting/handlers.ts` (one `.todo()`
+  fired per `scope`): produce the actual periodic/real-time report payload for each reporting scope and
+  enqueue/submit it. Enumerate the scopes from the call sites and tick one per scope.
+
+## XI.7 Reception (couples with PART VII)
+File: `reception/reception-service.ts`. **Acceptance:** an inbound document is parsed, validated, stored
+as `ReceivedDocument`, and the mandated buyer status is emitted.
+- [ ] `reception` — parse + validate an inbound document from `inbound.channel`.
+- [ ] `reception` — emit the buyer **status** (e.g. FR accepted/refused/pending).
+
+## XI.8 Operations (facade — `operations/compliance-service.ts`)
+**Acceptance:** each lifecycle operation performs its real side-effect (most couple with II.4 / X.1).
+- [ ] `operations/issue` — compute a **real content hash** (+ hash-chain link for FR/PT) at issue (II.4).
+- [ ] `operations/validate` — aggregate per-artifact `ValidationReport`s into one result.
+- [ ] `operations/markPaid` — emit the **"encaissée"** status + payment e-reporting (FR payment CTC).
+- [ ] `operations/clearance` — enqueue the document to the **clearance outbox** (PART IX).
+- [ ] `operations/clearance` — poll the authority for the clearance result.
+- [ ] `operations/cancel` — request the authority's **cancellation acknowledgement**.
+- [ ] `operations/contingency` — issue offline (e.g. BR EPEC) and queue late submission.
+- [ ] `operations/contingency` — submit the contingency document once the authority is back.
+
+## XI.9 Numbering depth (the II.3 residue + folio pools)
+File: `lifecycle/numbering.ts`. **Acceptance:** matches II.3's gapless/atomic guarantees.
+- [ ] `numbering/gapless` — **hash-chain link** to the previous document in the series (FR/PT ISCA;
+  couples with II.4 hash-chaining).
+- [ ] `numbering/folio-pool` — request a new **folio range** from the authority for a series
+  (`AUTHORITY_RANGE` — the path II.3 currently throws on). *(MX)*
+- [ ] `numbering/folio-pool` — handle **range exhaustion** (request a new range before issuing).
+
+## XI.10 Lifecycle internals
+Files: `lifecycle/corrections.ts`, `lifecycle/runtime.ts`, `lifecycle/response.ts`,
+`lifecycle/drivers/poll-scheduler.ts`. **Acceptance:** the runtime drives correct events end-to-end
+(couples with PART IV + PART IX).
+- [ ] `lifecycle/corrections/credit-note` — create a `CREDIT_NOTE` referencing the original.
+- [ ] `lifecycle/corrections/corrective-invoice` — create a `CORRECTIVE_INVOICE` for the original.
+- [ ] `lifecycle/corrections/cancel-replace` — cancel the original with the authority + issue a
+  replacement.
+- [ ] `lifecycle/runtime` — map an inbound status to an event in the state machine.
+- [ ] `lifecycle/response` — persist an inbound status as a `ComplianceEvent`.
+- [ ] `lifecycle/poll-scheduler` — on poll timeout, enter contingency / alert.
+
+> **Coverage check (keep honest):** the inventory above is generated from the actual `.todo()` calls
+> (`grep -rn "\.todo(" backend/src/compliance/`). Before declaring PART XI complete, re-run that grep
+> — **zero** results means every stub is filled. If new stubs appear, add a box here.
 
 ---
 
@@ -542,9 +797,11 @@ Inbound is durable; outbound (transmit, submit-for-clearance, recurring auto-sen
    mentions); **PART VI** frontend (VI.1 infra first).
 7. **PART IX** outbox/BullMQ; then **PART VII** reception (legal deadline 2026-09), **PART VIII**
    multi-entity (anticipate schema early even if shipped late).
-8. **LAST — per-country depth (PART X):** only once everything above is wired end-to-end, fill the
-   ~62 `.todo()` execution stubs, graduate archetype profiles `FALLBACK`/`BEST_EFFORT` → `OFFICIAL`,
-   and ship real clearance transmission (X.1). Connect everything first; perfect each country second.
+8. **LAST — per-country depth (PART X + PART XI):** only once everything above is wired end-to-end,
+   ship real clearance transmission (X.1), then work **PART XI box-by-box** to fill every `.todo()`
+   execution stub, and graduate archetype profiles `FALLBACK`/`BEST_EFFORT` → `OFFICIAL`. Connect
+   everything first; perfect each country second. Done when `grep -rn "\.todo(" backend/src/compliance/`
+   returns nothing.
 
 > Each completed section: tick its boxes + one line in `documentation/compliance/COMPLIANCE_STATUS.md`.
 > Keep this roadmap the live index until the subsystem is complete.
