@@ -181,6 +181,12 @@ export class ComplianceService {
 
     await this.store.update(id, { plan, number, immutableHash, previousHash });
     const issued = await this.transition(await this.require(id), 'ISSUE');
+    // Archive the issued document for conservation (providers are stubs — non-blocking)
+    try {
+      await this.archiveDocument(id);
+    } catch {
+      this.log.warn('operations/issue', `archival skipped for ${id}`);
+    }
     return { document: issued };
   }
 
@@ -205,6 +211,12 @@ export class ComplianceService {
         this.response.open(plan.lifecycle.response, rec.ctx.issueDate, this.log);
         current = await this.transition(current, 'OPEN_RESPONSE');
       }
+    }
+    // Archive after delivery/clearance (non-blocking, stubs for now)
+    try {
+      await this.archiveDocument(id);
+    } catch {
+      this.log.warn('operations/send', `archival skipped for ${id}`);
     }
     return { document: current, execution };
   }
