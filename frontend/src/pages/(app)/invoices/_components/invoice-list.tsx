@@ -305,7 +305,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                     <PaymentText className="h-4 w-4" />
                                                 </Button>
 
-                                                {invoice.status !== "PAID" && (
+                                                {invoice.status === InvoiceStatus.DRAFT && (
                                                     <Button
                                                         data-cy="invoice-edit-button"
                                                         tooltip={t("invoices.list.tooltips.edit")}
