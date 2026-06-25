@@ -9,7 +9,7 @@ import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { InvoiceStatus, type Invoice } from "@/types"
+import { InvoiceStatus, type Invoice, type InvoiceStatusFilterKey } from "@/types"
 import { usePageHeader } from "@/hooks/use-page-header"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils"
 
 type InvoiceFilter = "all" | "oneTime" | "recurring"
 type InvoiceView = "list" | "progression"
-type InvoiceStatusFilter = "sent" | "paid" | "unpaid" | undefined
 
 export default function Invoices() {
     const { t } = useTranslation()
@@ -55,7 +54,17 @@ export default function Invoices() {
     const [searchTerm, setSearchTerm] = useState("")
     const [filter, setFilter] = useState<InvoiceFilter>("all")
     const [view, setView] = useState<InvoiceView>("list")
-    const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilter>(undefined)
+    const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilterKey[]>(["draft", "sent", "paid"])
+
+    const toggleStatusFilter = (key: InvoiceStatusFilterKey) => {
+        setStatusFilter((current) => (current.includes(key) ? current.filter((k) => k !== key) : [...current, key]))
+    }
+
+    const getStatusFilterKey = (invoice: Invoice): InvoiceStatusFilterKey =>
+        invoice.status === InvoiceStatus.DRAFT ? "draft" :
+        invoice.status === InvoiceStatus.ARCHIVED ? "archived" :
+        invoice.status === InvoiceStatus.PAID ? "paid" :
+        "sent"
 
     const matchesSearch = (invoice: Invoice) =>
         invoice.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -63,11 +72,7 @@ export default function Invoices() {
         invoice.number?.toString().includes(searchTerm) ||
         invoice.client?.name?.toLowerCase().includes(searchTerm.toLowerCase())
 
-    const matchesStatus = (invoice: Invoice) =>
-        !statusFilter ||
-        (statusFilter === "sent" && invoice.status === InvoiceStatus.SENT) ||
-        (statusFilter === "paid" && invoice.status === InvoiceStatus.PAID) ||
-        (statusFilter === "unpaid" && (invoice.status === InvoiceStatus.UNPAID || invoice.status === InvoiceStatus.OVERDUE))
+    const matchesStatus = (invoice: Invoice) => statusFilter.includes(getStatusFilterKey(invoice))
 
     const upcomingInvoices: Invoice[] = (recurringInvoices?.recurringInvoices || [])
         .filter((recurringInvoice) => !!recurringInvoice.nextInvoiceDate)
@@ -106,9 +111,10 @@ export default function Invoices() {
     ]
 
     const invoiceStatusCounts = {
-        sent: invoices?.invoices.filter((i) => i.status === InvoiceStatus.SENT).length || 0,
-        paid: invoices?.invoices.filter((i) => i.status === InvoiceStatus.PAID).length || 0,
-        unpaid: invoices?.invoices.filter((i) => i.status === InvoiceStatus.UNPAID || i.status === InvoiceStatus.OVERDUE).length || 0,
+        draft: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "draft").length || 0,
+        sent: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "sent").length || 0,
+        paid: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "paid").length || 0,
+        archived: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "archived").length || 0,
     }
 
     usePageHeader(t("sidebar.navigation.invoices"))
@@ -227,7 +233,7 @@ export default function Invoices() {
                     searchTerm={searchTerm}
                     onSearchChange={setSearchTerm}
                     statusFilter={statusFilter}
-                    onStatusFilterChange={setStatusFilter}
+                    onStatusFilterChange={toggleStatusFilter}
                     statusCounts={invoiceStatusCounts}
                     page={page}
                     pageCount={invoices?.pageCount || 1}

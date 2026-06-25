@@ -383,6 +383,13 @@
             "sent": "Gesendet",
             "paid": "Bezahlt"
         },
+        "statusFilters": {
+            "all": "Alle",
+            "draft": "Entwurf",
+            "sent": "Gesendet",
+            "paid": "Bezahlt",
+            "archived": "Archiviert"
+        },
         "emptyState": {
             "noInvoices": "Noch keine Rechnungen",
             "noResults": "Keine Rechnungen gefunden",

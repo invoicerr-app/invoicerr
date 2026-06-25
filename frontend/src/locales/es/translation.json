@@ -383,6 +383,13 @@
             "sent": "Enviada",
             "paid": "Pagada"
         },
+        "statusFilters": {
+            "all": "Todas",
+            "draft": "Borrador",
+            "sent": "Enviada",
+            "paid": "Pagada",
+            "archived": "Archivada"
+        },
         "emptyState": {
             "noInvoices": "Aún no hay facturas",
             "noResults": "No se encontraron facturas",

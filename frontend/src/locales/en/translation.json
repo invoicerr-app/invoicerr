@@ -465,9 +465,10 @@
         },
         "statusFilters": {
             "all": "All",
+            "draft": "Draft",
             "sent": "Sent",
             "paid": "Paid",
-            "unpaid": "Unpaid"
+            "archived": "Archived"
         },
         "emptyState": {
             "noInvoices": "No invoices yet",
