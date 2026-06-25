@@ -434,7 +434,7 @@
                 "totalTTC": "Total (con IVA)"
             },
             "tooltips": {
-                "viewPdf": "Ver PDF",
+                "exportPdf": "Exportar PDF",
                 "downloadPdf": "Descargar PDF",
                 "edit": "Editar factura",
                 "delete": "Eliminar factura",

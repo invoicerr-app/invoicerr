@@ -434,7 +434,7 @@
                 "totalTTC": "Gesamt (inkl. MwSt.)"
             },
             "tooltips": {
-                "viewPdf": "PDF anzeigen",
+                "exportPdf": "PDF exportieren",
                 "downloadPdf": "PDF herunterladen",
                 "edit": "Rechnung bearbeiten",
                 "delete": "Rechnung löschen",
