@@ -120,6 +120,9 @@ export default function SignupPage() {
         const result = await authClient.signUp.email({
             email: data.email,
             password: data.password,
+            // better-auth >=1.6 requires `name` on email sign-up; derive it from the
+            // first/last name (the backend create hook recomputes the same value).
+            name: `${data.firstname} ${data.lastname}`.trim(),
             // @ts-ignore additional fields
             firstname: data.firstname,
             lastname: data.lastname,
