@@ -185,6 +185,15 @@ export class InvoicesController {
     return this.invoicesService.cancelInvoice(id, reason);
   }
 
+  @Post(':id/cancel-and-replace')
+  @ApiOperation({ summary: 'Cancel and replace an invoice', description: 'Cancels the original and issues a replacement invoice (clearance systems with substitution).' })
+  @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
+  @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } } }, required: false })
+  @ApiResponse({ status: 201, description: 'Invoice cancelled and replaced' })
+  cancelAndReplaceInvoice(@Param('id') id: string, @Body('reason') reason?: string) {
+    return this.invoicesService.cancelAndReplaceInvoice(id, reason);
+  }
+
   @Get(':id/available-actions')
   @ApiOperation({ summary: 'Get available actions for an invoice', description: 'Returns the actions permitted by the country compliance plan (edit, correct, cancel, etc.).' })
   @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })

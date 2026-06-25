@@ -504,6 +504,144 @@ export class InvoicesService {
         }
     }
 
+    async cancelAndReplaceInvoice(id: string, reason?: string) {
+        const invoice = await prisma.invoice.findUnique({
+            where: { id },
+            include: {
+                items: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
+            },
+        });
+        if (!invoice) throw new BadRequestException('Invoice not found');
+        if (invoice.status === 'DRAFT') throw new BadRequestException('Only issued invoices can be cancelled');
+
+        try {
+            const complianceDoc = await prisma.complianceDocument.findFirst({
+                where: { invoiceId: id },
+                orderBy: { createdAt: 'desc' },
+            });
+            if (!complianceDoc) {
+                throw new BadRequestException('No compliance document found for this invoice');
+            }
+
+            // Verify correctionModel is CANCEL_AND_REPLACE
+            const storedPlan = complianceDoc.plan as any;
+            const correctionModel = storedPlan?.lifecycle?.correctionModel;
+            if (correctionModel !== 'CANCEL_AND_REPLACE') {
+                throw new BadRequestException('Cancel-and-replace is not available for this country. Use correct instead.');
+            }
+
+            // Cancel the original via ComplianceService (policy-gated)
+            const cancelResult = await this.complianceService.cancel(complianceDoc.id, { reason });
+            if (!cancelResult.accepted) {
+                return { message: 'Cancellation rejected', reason: cancelResult.reason };
+            }
+
+            await prisma.invoice.update({
+                where: { id },
+                data: { status: 'CANCELLED' },
+            });
+
+            // Create a replacement invoice (same content, numbered)
+            const issueDate = new Date();
+            const replacement = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+                const { counter, rawNumber } = await this.numberingService.nextNumber(
+                    tx,
+                    invoice.companyId,
+                    'invoice',
+                    issueDate,
+                );
+
+                return tx.invoice.create({
+                    data: {
+                        kind: 'INVOICE' as any,
+                        correctsInvoiceId: id,
+                        clientId: invoice.clientId,
+                        companyId: invoice.companyId,
+                        currency: invoice.currency,
+                        number: counter,
+                        rawNumber,
+                        issuedAt: issueDate,
+                        status: 'ISSUED',
+                        dueDate: invoice.dueDate,
+                        notes: reason || `Replacement of ${invoice.rawNumber || invoice.number}`,
+                        discountRate: invoice.discountRate,
+                        totalHT: invoice.totalHT,
+                        totalVAT: invoice.totalVAT,
+                        totalTTC: invoice.totalTTC,
+                        items: {
+                            create: invoice.items.map((item, i) => ({
+                                description: item.description,
+                                quantity: item.quantity,
+                                unitPrice: item.unitPrice,
+                                unitPriceMinor: item.unitPriceMinor,
+                                vatRate: item.vatRate,
+                                type: item.type,
+                                order: i,
+                                discountRate: item.discountRate,
+                                discountAmount: item.discountAmount,
+                                discountAmountMinor: item.discountAmountMinor,
+                                chargeAmount: item.chargeAmount,
+                                chargeAmountMinor: item.chargeAmountMinor,
+                                chargeDescription: item.chargeDescription,
+                                unitOfMeasure: item.unitOfMeasure,
+                            })),
+                        },
+                    },
+                    include: {
+                        items: true,
+                        client: { include: { partyIdentifiers: true } },
+                        company: { include: { partyIdentifiers: true } },
+                    },
+                });
+            });
+
+            // Wire ComplianceService for the replacement (non-blocking)
+            try {
+                const company = invoice.company;
+                const client = invoice.client;
+                const complianceCtx: TransactionContext = {
+                    supplier: {
+                        legalName: company.name,
+                        countryCode: company.countryCode ?? guessCountryCode(company.country) ?? 'FR',
+                        role: 'B2B',
+                        identifiers: (company as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
+                    },
+                    buyer: {
+                        legalName: client.name,
+                        countryCode: client.countryCode ?? guessCountryCode(client.country) ?? 'FR',
+                        role: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+                        identifiers: (client as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
+                    },
+                    lines: invoice.items.map((item) => ({
+                        id: `item-${item.order ?? 0}`,
+                        description: item.description,
+                        quantity: item.quantity,
+                        unitNetMinor: item.unitPriceMinor ?? toMinor(item.unitPrice, invoice.currency),
+                        supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
+                    })),
+                    issueDate,
+                    currency: invoice.currency,
+                };
+                const replacementDoc = await this.complianceService.createDraft(complianceCtx, 'INVOICE', replacement.id);
+                await this.complianceService.issue(replacementDoc.id);
+            } catch (error) {
+                logger.warn('ComplianceService wiring for replacement failed (non-blocking)', { category: 'invoice', details: { error: String(error) } });
+            }
+
+            logger.info('Invoice cancelled and replaced', { category: 'invoice', details: { invoiceId: id, replacementId: replacement.id } });
+            return {
+                message: 'Invoice cancelled and replaced',
+                replacementId: replacement.id,
+                replacementNumber: replacement.rawNumber,
+            };
+        } catch (error) {
+            logger.error('Failed to cancel and replace invoice', { category: 'invoice', details: { error: String(error) } });
+            throw new BadRequestException(`Failed to cancel and replace invoice: ${(error as Error).message}`);
+        }
+    }
+
     async editInvoice(body: EditInvoicesDto) {
         const { items, id, discountRate, ...data } = body;
 
@@ -540,8 +678,24 @@ export class InvoicesService {
         }
 
         if (existingInvoice.status !== 'DRAFT') {
-            logger.error('Only DRAFT invoices can be edited', { category: 'invoice', details: { id, status: existingInvoice.status } });
-            throw new BadRequestException('Only DRAFT invoices can be edited. Issued documents require a correction.');
+            // Check immutableAfter from the compliance plan — NEVER means always editable
+            let immutableAfter = 'ISSUE'; // default
+            try {
+                const complianceDoc = await prisma.complianceDocument.findFirst({
+                    where: { invoiceId: id },
+                    orderBy: { createdAt: 'desc' },
+                });
+                if (complianceDoc?.plan) {
+                    immutableAfter = (complianceDoc.plan as any)?.lifecycle?.immutableAfter ?? 'ISSUE';
+                }
+            } catch {
+                // non-blocking: default to ISSUE
+            }
+
+            if (immutableAfter !== 'NEVER') {
+                logger.error('Only DRAFT invoices can be edited', { category: 'invoice', details: { id, status: existingInvoice.status } });
+                throw new BadRequestException('Only DRAFT invoices can be edited. Issued documents require a correction.');
+            }
         }
 
         const existingItemIds = existingInvoice.items.map(i => i.id);
