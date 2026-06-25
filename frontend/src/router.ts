@@ -12,14 +12,20 @@ export type Path =
   | `/clients`
   | `/dashboard`
   | `/invoices`
+  | `/invoices/pdf/:id`
   | `/payment-methods`
   | `/payments`
+  | `/payments/pdf/:id`
   | `/quotes`
+  | `/quotes/pdf/:id`
   | `/settings/:tab?`
   | `/signature/:id`
   | `/stats`
 
 export type Params = {
+  '/invoices/pdf/:id': { id: string }
+  '/payments/pdf/:id': { id: string }
+  '/quotes/pdf/:id': { id: string }
   '/settings/:tab?': { tab?: string }
   '/signature/:id': { id: string }
 }

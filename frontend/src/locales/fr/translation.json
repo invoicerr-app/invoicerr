@@ -270,6 +270,60 @@
                 "invoiceCreateError": "Échec de la création de la facture à partir du devis"
             }
         },
+        "progression": {
+            "title": "Progression",
+            "emptyState": "Aucun devis à afficher dans la progression.",
+            "noAction": "Aucune action",
+            "steps": {
+                "draft": "Brouillon",
+                "sent": "Envoyé",
+                "signed": "Signé"
+            },
+            "stepLabel": "Étape {{current}} / {{total}}",
+            "actions": {
+                "send": "Envoyer",
+                "resend": "Renvoyer",
+                "createInvoice": "Créer une facture"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Envoyer le devis",
+                    "description": "Êtes-vous sûr de vouloir envoyer le devis {{number}} à {{client}} ?"
+                },
+                "resend": {
+                    "title": "Renvoyer le devis",
+                    "description": "Êtes-vous sûr de vouloir renvoyer le devis {{number}} à {{client}} ?"
+                },
+                "cancel": "Annuler",
+                "confirm": "Confirmer"
+            }
+        },
+        "createInvoiceDialog": {
+            "title": "Créer une facture à partir du devis",
+            "description": "Sélectionnez les articles à facturer depuis le devis {{number}}.",
+            "percentageLabel": "Pourcentage à facturer",
+            "amountLabel": "Montant à facturer",
+            "maxPercentageHint": "Il reste {{percent}} % du devis facturable.",
+            "fields": {
+                "quantity": {
+                    "label": "Quantité"
+                }
+            },
+            "alreadyInvoicedBadge": "Déjà facturé",
+            "remainingLabel": "Reste à facturer : {{remaining}}",
+            "remainingTotalLabel": "{{amount}} {{currency}} restants",
+            "totalSelectedLabel": "Total : {{amount}} {{currency}}",
+            "percentOfQuoteLabel": "{{percent}} % du devis",
+            "itemAmountLabel": "{{amount}} {{currency}}",
+            "actions": {
+                "confirm": "Créer la facture",
+                "cancel": "Annuler"
+            },
+            "errors": {
+                "quoteFullyInvoiced": "Ce devis a déjà été entièrement facturé.",
+                "quantityExceedsRemaining": "La quantité demandée dépasse la quantité restant à facturer."
+            }
+        },
         "upsert": {
             "title": {
                 "create": "Créer un nouveau devis",

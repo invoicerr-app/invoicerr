@@ -43,6 +43,7 @@ export interface InvoiceItem {
     vatRate: number; // 20 for 20%
     type: InvoiceItemType;
     order: number;
+    quoteItemId?: string; // Link to the originating QuoteItem when created from a quote
 }
 
 export interface Invoice {
