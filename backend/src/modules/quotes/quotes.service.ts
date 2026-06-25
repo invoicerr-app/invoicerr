@@ -10,6 +10,7 @@ import { PluginsService } from '../plugins/plugins.service';
 import { NumberingService } from '@/utils/numbering';
 import { StorageUploadService } from '@/utils/storage-upload';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
+import { Prisma } from '../../../prisma/generated/prisma/client';
 import { baseTemplate } from '@/modules/quotes/templates/base.template';
 import { formatDate } from '@/utils/date';
 import { logger } from '@/logger/logger.service';
@@ -473,7 +474,7 @@ export class QuotesService {
 
         const html = template({
             number: quote.rawNumber || (quote.number?.toString() ?? 'DRAFT'),
-            date: formatDate(companyAugmented, quote.createdAt),
+            date: formatDate(companyAugmented, quote.issuedAt ?? quote.createdAt),
             validUntil: formatDate(companyAugmented, quote.validUntil),
             company: companyAugmented,
             client: clientAugmented,
@@ -561,34 +562,40 @@ export class QuotesService {
             throw new BadRequestException('Quote not found');
         }
 
-        // Assign a gapless number at sign time if not already assigned
-        let number: number | undefined;
-        let rawNumber: string | undefined;
-        if (existingQuote.number === null) {
-            const signDate = new Date();
-            const assignment = await this.numberingService.nextNumber(
-                existingQuote.companyId,
-                'quote',
-                signDate,
-            );
-            number = assignment.counter;
-            rawNumber = assignment.rawNumber;
-        }
+        const signDate = new Date();
 
-        const signedQuote = await prisma.quote.update({
-            where: { id },
-            data: {
-                signedAt: new Date(),
-                issuedAt: new Date(),
-                status: "SIGNED",
-                ...(number !== undefined ? { number, rawNumber } : {}),
-            },
-            include: {
-                items: true,
-                client: { include: { partyIdentifiers: true } },
-                company: { include: { partyIdentifiers: true } },
-            },
+        const signedQuote = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+            // Assign a gapless number at sign time if not already assigned
+            let number: number | undefined;
+            let rawNumber: string | undefined;
+            if (existingQuote.number === null) {
+                const assignment = await this.numberingService.nextNumber(
+                    tx,
+                    existingQuote.companyId,
+                    'quote',
+                    signDate,
+                );
+                number = assignment.counter;
+                rawNumber = assignment.rawNumber;
+            }
+
+            return tx.quote.update({
+                where: { id },
+                data: {
+                    signedAt: signDate,
+                    issuedAt: signDate,
+                    status: "SIGNED",
+                    ...(number !== undefined ? { number, rawNumber } : {}),
+                },
+                include: {
+                    items: true,
+                    client: { include: { partyIdentifiers: true } },
+                    company: { include: { partyIdentifiers: true } },
+                },
+            });
         });
+
+        // TODO: route through ComplianceService.issue() / send() instead of wiring numbering directly (PART III)
 
         logger.info('Quote marked as signed', { category: 'quote', details: { quoteId: id } });
 

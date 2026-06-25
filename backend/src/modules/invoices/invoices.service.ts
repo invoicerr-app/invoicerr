@@ -9,7 +9,7 @@ import { MailService } from '@/mail/mail.service';
 import { NumberingService } from '@/utils/numbering';
 import { StorageUploadService } from '@/utils/storage-upload';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
-import { WebhookEvent } from '../../../prisma/generated/prisma/client';
+import { Prisma, WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { baseTemplate } from '@/modules/invoices/templates/base.template';
 import { business } from '@tsclass/tsclass/dist_ts';
 import { finance } from '@fin.cx/einvoice/dist_ts/plugins';
@@ -219,28 +219,33 @@ export class InvoicesService {
         }
 
         const issueDate = new Date();
-        const { counter, rawNumber } = await this.numberingService.nextNumber(
-            invoice.companyId,
-            'invoice',
-            issueDate,
-        );
+        const updated = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+            const { counter, rawNumber } = await this.numberingService.nextNumber(
+                tx,
+                invoice.companyId,
+                'invoice',
+                issueDate,
+            );
 
-        const updated = await prisma.invoice.update({
-            where: { id },
-            data: {
-                number: counter,
-                rawNumber,
-                issuedAt: issueDate,
-                status: 'SENT',
-            },
-            include: {
-                items: true,
-                client: { include: { partyIdentifiers: true } },
-                company: { include: { partyIdentifiers: true } },
-            },
+            return tx.invoice.update({
+                where: { id },
+                data: {
+                    number: counter,
+                    rawNumber,
+                    issuedAt: issueDate,
+                    status: 'SENT',
+                },
+                include: {
+                    items: true,
+                    client: { include: { partyIdentifiers: true } },
+                    company: { include: { partyIdentifiers: true } },
+                },
+            });
         });
 
-        logger.info('Invoice issued', { category: 'invoice', details: { invoiceId: id, number: rawNumber } });
+        // TODO: route through ComplianceService.issue() / send() instead of wiring numbering directly (PART III)
+
+        logger.info('Invoice issued', { category: 'invoice', details: { invoiceId: id, number: updated.rawNumber } });
 
         try {
             await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_UPDATED, {
@@ -510,7 +515,7 @@ export class InvoicesService {
             isDraft: invoice.status === 'DRAFT',
             draftLabel: getDraftWatermarkLabel(invoice.company.country),
             number: invoice.rawNumber || (invoice.number?.toString() ?? getDraftWatermarkLabel(invoice.company.country)),
-            date: formatDate(invoice.company, invoice.createdAt),
+            date: formatDate(invoice.company, invoice.issuedAt ?? invoice.createdAt),
             dueDate: formatDate(invoice.company, invoice.dueDate),
             company: companyAugmented,
             client: clientAugmented,
@@ -603,7 +608,7 @@ export class InvoicesService {
         const clientFoundedDate = new Date(invRec.client.foundedAt || new Date());
 
         inv.id = invRec.rawNumber || (invRec.number?.toString() ?? 'DRAFT');
-        inv.issueDate = new Date(invRec.createdAt.toISOString().split('T')[0]);
+        inv.issueDate = new Date((invRec.issuedAt ?? invRec.createdAt).toISOString().split('T')[0]);
         inv.currency = invRec.company.currency as finance.TCurrency || 'EUR';
 
         let fromAdress;

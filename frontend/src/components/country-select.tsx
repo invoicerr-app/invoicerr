@@ -22,7 +22,7 @@ export default function CountrySelect({ value, onChange, onCountryCodeChange, 'd
 
         // Preserve a previously saved free-text value not present in the list (legacy data, other language, etc.)
         if (value && !options.some((option) => option.value === value)) {
-            options.unshift({ label: value, value })
+            options.unshift({ label: value, value, code: value })
         }
 
         return options.sort((a, b) => a.label.localeCompare(b.label))

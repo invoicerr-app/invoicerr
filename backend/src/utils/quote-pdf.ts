@@ -68,7 +68,7 @@ export async function generateQuotePdf(id: string): Promise<Uint8Array> {
 
     const html = template({
         number: quote.rawNumber || quote.number?.toString() || 'DRAFT',
-        date: formatDate(quote.company, quote.createdAt),
+        date: formatDate(quote.company, quote.issuedAt ?? quote.createdAt),
         validUntil: formatDate(quote.company, quote.validUntil),
         company: quote.company,
         client: quote.client,

@@ -224,6 +224,7 @@ export default function CompanySettings() {
 		if (data && Object.keys(data).length > 0) {
 			form.reset({
 				...data,
+				countryCode: data.countryCode ?? undefined,
 				description: data.description ?? "",
 				addressLine2: data.addressLine2 ?? "",
 				state: data.state ?? "",

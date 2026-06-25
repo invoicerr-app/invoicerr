@@ -7,7 +7,7 @@ import { getInvertColor, getPDF } from '@/utils/pdf';
 import { MailService } from '@/mail/mail.service';
 import { NumberingService } from '@/utils/numbering';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
-import { WebhookEvent } from '../../../prisma/generated/prisma/client';
+import { Prisma, WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { baseTemplate } from '@/modules/payments/templates/base.template';
 import { formatDate } from '@/utils/date';
 import { logger } from '@/logger/logger.service';
@@ -204,37 +204,42 @@ export class PaymentsService {
 
         const totalPaid = body.items.reduce((sum, item) => sum + +item.amountPaid, 0);
         const currency = invoice.currency;
-
         const paidAtDate = body.paidAt ? new Date(body.paidAt) : new Date();
-        const assignment = await this.numberingService.nextNumber(
-            invoice.companyId,
-            'payment',
-            paidAtDate,
-        );
 
-        const payment = await prisma.payment.create({
-            data: {
-                number: assignment.counter,
-                rawNumber: assignment.rawNumber,
-                invoiceId: body.invoiceId,
-                items: {
-                    create: body.items.map(item => ({
-                        invoiceItemId: item.invoiceItemId,
-                        amountPaid: +item.amountPaid,
-                        amountPaidMinor: toMinor(+item.amountPaid, currency),
-                    })),
+        const payment = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+            const assignment = await this.numberingService.nextNumber(
+                tx,
+                invoice.companyId,
+                'payment',
+                paidAtDate,
+            );
+
+            return tx.payment.create({
+                data: {
+                    number: assignment.counter,
+                    rawNumber: assignment.rawNumber,
+                    invoiceId: body.invoiceId,
+                    items: {
+                        create: body.items.map(item => ({
+                            invoiceItemId: item.invoiceItemId,
+                            amountPaid: +item.amountPaid,
+                            amountPaidMinor: toMinor(+item.amountPaid, currency),
+                        })),
+                    },
+                    totalPaid,
+                    totalPaidMinor: toMinor(totalPaid, currency),
+                    paymentMethodId: body.paymentMethodId,
+                    paymentMethod: body.paymentMethod,
+                    paymentDetails: body.paymentDetails,
+                    paidAt: body.paidAt ? new Date(body.paidAt) : undefined,
                 },
-                totalPaid,
-                totalPaidMinor: toMinor(totalPaid, currency),
-                paymentMethodId: body.paymentMethodId,
-                paymentMethod: body.paymentMethod,
-                paymentDetails: body.paymentDetails,
-                paidAt: body.paidAt ? new Date(body.paidAt) : undefined,
-            },
-            include: {
-                items: true,
-            },
+                include: {
+                    items: true,
+                },
+            });
         });
+
+        // TODO: route through ComplianceService.issue() / send() instead of wiring numbering directly (PART III)
 
         await this.checkInvoiceAfterPayment(invoice.id);
 
