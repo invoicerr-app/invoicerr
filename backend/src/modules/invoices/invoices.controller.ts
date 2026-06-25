@@ -167,6 +167,24 @@ export class InvoicesController {
     return this.invoicesService.issueInvoice(id);
   }
 
+  @Post(':id/correct')
+  @ApiOperation({ summary: 'Correct an invoice', description: 'Issues a credit note / corrective invoice per the country correction model.' })
+  @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
+  @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } } }, required: false })
+  @ApiResponse({ status: 201, description: 'Correction initiated' })
+  correctInvoice(@Param('id') id: string, @Body('reason') reason?: string) {
+    return this.invoicesService.correctInvoice(id, reason);
+  }
+
+  @Post(':id/cancel')
+  @ApiOperation({ summary: 'Cancel an invoice', description: 'Cancels an issued invoice per the country cancellation policy.' })
+  @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
+  @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } } }, required: false })
+  @ApiResponse({ status: 201, description: 'Cancellation processed' })
+  cancelInvoice(@Param('id') id: string, @Body('reason') reason?: string) {
+    return this.invoicesService.cancelInvoice(id, reason);
+  }
+
   @Post('send')
   @ApiOperation({ summary: 'Send invoice by email', description: 'Sends an invoice as a PDF attachment via email to the client.' })
   @ApiResponse({ status: 201, description: 'Invoice sent' })

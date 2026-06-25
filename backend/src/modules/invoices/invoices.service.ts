@@ -312,6 +312,55 @@ export class InvoicesService {
         return updated;
     }
 
+    async correctInvoice(id: string, reason?: string) {
+        const invoice = await prisma.invoice.findUnique({ where: { id } });
+        if (!invoice) throw new BadRequestException('Invoice not found');
+        if (invoice.status === 'DRAFT') throw new BadRequestException('Only issued invoices can be corrected');
+
+        try {
+            const complianceDoc = await prisma.complianceDocument.findFirst({
+                where: { invoiceId: id },
+                orderBy: { createdAt: 'desc' },
+            });
+            if (!complianceDoc) {
+                throw new BadRequestException('No compliance document found for this invoice');
+            }
+            const result = await this.complianceService.correct(complianceDoc.id, { reason });
+            return {
+                message: 'Correction initiated',
+                correctionId: result.correction.id,
+                correctionKind: result.correction.kind,
+            };
+        } catch (error) {
+            logger.error('Failed to correct invoice', { category: 'invoice', details: { error: String(error) } });
+            throw new BadRequestException(`Failed to correct invoice: ${(error as Error).message}`);
+        }
+    }
+
+    async cancelInvoice(id: string, reason?: string) {
+        const invoice = await prisma.invoice.findUnique({ where: { id } });
+        if (!invoice) throw new BadRequestException('Invoice not found');
+        if (invoice.status === 'DRAFT') throw new BadRequestException('Only issued invoices can be cancelled');
+
+        try {
+            const complianceDoc = await prisma.complianceDocument.findFirst({
+                where: { invoiceId: id },
+                orderBy: { createdAt: 'desc' },
+            });
+            if (!complianceDoc) {
+                throw new BadRequestException('No compliance document found for this invoice');
+            }
+            const result = await this.complianceService.cancel(complianceDoc.id, { reason });
+            if (!result.accepted) {
+                return { message: 'Cancellation rejected', reason: result.reason };
+            }
+            return { message: 'Invoice cancelled', accepted: true };
+        } catch (error) {
+            logger.error('Failed to cancel invoice', { category: 'invoice', details: { error: String(error) } });
+            throw new BadRequestException(`Failed to cancel invoice: ${(error as Error).message}`);
+        }
+    }
+
     async editInvoice(body: EditInvoicesDto) {
         const { items, id, discountRate, ...data } = body;
 
