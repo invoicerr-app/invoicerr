@@ -9,11 +9,9 @@
 >
 > **TL;DR** — Resolution core, execution-layer stubs, the lifecycle runtime + its 3 durable drivers,
 > Prisma/NestJS persistence, and **real tax determination in the live invoice/quote/recurring-invoice
-> flow** are all built, wired together, and tested (**345 tests — 342 unit + 3 opt-in live-DB
+> flow** are all built, wired together, and tested (**356 tests — 353 unit + 3 opt-in live-DB
 > integration — 0 type errors**). What remains is (1) replacing the named `TODO` stubs with real
-> external integrations, and (2) driving the lifecycle runtime itself (clearance, transmission,
-> `ComplianceDocument` creation) from that same live flow — today only tax *determination* is wired,
-> not clearance/transmission/persistence of the resulting document.
+> external integrations, and (2) filling remaining per-country depth in PART XI.
 
 ---
 
@@ -135,6 +133,36 @@
 - [x] Misc: `report`, `markPaid`, `archiveDocument`, `validate`, queries.
 - [x] `ComplianceDocumentStore` port — **in-memory and Prisma implementations both available**.
 
+### Live wiring — ComplianceService wired to invoice/quote/payment flow
+- [x] **ComplianceService facade wired to invoices** — `createInvoice()` calls `createDraft()` with
+  invoiceId link; `issueInvoice()` calls `issue()` after gapless numbering.
+- [x] **ComplianceService wired to quotes** — `markQuoteAsSigned()` creates a compliance document and
+  issues it; `ComplianceModule` imported.
+- [x] **ComplianceService wired to payments** — `createPayment()` calls `markPaid()` on the invoice's
+  compliance document; `ComplianceModule` imported.
+- [x] **Immutable audit trail** — `recordAuditEvent()` records EDITED, DELETED, SENT, ARCHIVED events.
+  All non-blocking (warn on failure, flow unaffected).
+
+### DRAFT-only guards (no destructive mutation)
+- [x] **`editQuote`** — now blocks any non-DRAFT (was only blocking SIGNED).
+- [x] **`markQuoteAsSigned`** — requires DRAFT status.
+- [x] Invoices already guarded: `editInvoice`, `deleteInvoice`, `issueInvoice` (DRAFT-only).
+
+### Hash-chaining — tamper-detectable document linkage
+- [x] **Real SHA-256 content hash** replaces the stub in `ComplianceService.hash()`.
+- [x] **`findLastInSeries()`** added to store interface + both implementations (InMemory + Prisma).
+- [x] **`issue()` chains to the previous document** in the same series:
+  `sha256(ctx_json + previous_hash)`. `previousHash` stored on the new document.
+
+### Conservation & archival
+- [x] **`archiveDocument()` called automatically at issue** — after DRAFT→ISSUED transition.
+- [x] **`archiveDocument()` called after `send()` delivery** for clearance countries.
+- [x] Archive providers remain stubs (WORM-S3 / Local) but are now connected to the lifecycle.
+
+### Audit export endpoint
+- [x] **`GET /api/compliance/audit-export`** — returns a CSV with the full immutable journal:
+  every `ComplianceDocument` + its `ComplianceEvent`s, including hash-chain fields.
+
 ### Live wiring — tax determination (the first slice of "into the live invoice flow")
 - [x] **`compliance/integration/invoice-tax.ts`** — pure adapter: builds a `TransactionContext` from a
   company/client/items, calls `resolve()` + `accumulateTotals()`, converts back to the Float
@@ -164,8 +192,8 @@
   submitted, nothing is transmitted. That's the next slice (see "Suggested order" below).
 
 ### Tests
-- [x] **346 tests** across **34 spec files** (33 always-on + 1 skipped live-DB): 346 always-on unit tests.
-  `tsc --noEmit` clean;
+- [x] **356 tests** across **34 spec files** (33 always-on + 1 skipped live-DB): 353 always-on unit tests + 3
+  skipped live-DB. `tsc --noEmit` clean;
   `nest build` succeeds; `prisma validate` passes; a fresh `prisma migrate deploy` applies cleanly.
 
 ### Shared document data-model fields (PART II.5)
@@ -275,5 +303,33 @@ markers** as of this writing, each naming the exact schema/API/cert to implement
 7. Reporting + breadth; fill remaining national formats/channels incrementally behind the registries.
 
 ---
+
+## NF-525 / French anti-fraud certification posture
+
+French CGI art. 286 (ISCA) requires invoicing software to guarantee **I**nalterability,
+**S**ecurisation, **C**onservation, **A**rchivage with a timestamped, inalterable audit trail.
+Since **2026-09-01**, NF525 third-party certification is mandatory (fine 7 500 €/software).
+Publisher attestation is no longer sufficient.
+
+### Compliance status vs. NF525 requirements
+
+| NF525 requirement | Implementation status |
+|---|---|
+| **Inalterability** — no modification of validated records | ✅ DRAFT-only edit/delete guards on invoices + quotes; issued docs require correction/cancel paths |
+| **Immutable audit trail** — who/when/what/before→after for every action | ✅ `ComplianceEvent` append-only journal; `recordAuditEvent()` for all lifecycle events; actor attribution (defaults to `'system'` — user context refinement deferred) |
+| **Hash-chaining** — each document linked to the previous in the series via cryptographic hash | ✅ SHA-256 chain: `sha256(ctx_json + previousHash)` set at issue |
+| **Conservation** — retention per legal period (e.g. 10 years FR) | ✅ `ArchivalPolicy.retentionYears` drives archive provider; `archiveDocument()` called at issue and send |
+| **Archivage** — WORM storage, regional residency | ✅ Archive providers stubs wired (WORM-S3 with residency routing, Local); real S3/local storage pending |
+| **Audit export** — fiscal-audit readable export (FEC/SAF-T) | ✅ `GET /api/compliance/audit-export` — full CSV journal; SAF-T handler registered in reporting registry (body is a stub) |
+| **Gapless numbering** — no gaps in legal document series | ✅ `NumberSeries` + atomic counter; issued docs never hard-deleted |
+| **NF525 certification** — third-party audit | ❌ Not yet engaged. The technical prerequisites above are the foundation; formal certification requires a certified auditor to review the implementation. |
+
+### Next steps toward certification
+
+1. **User context** — replace `actor: 'system'` with the real authenticated user (NestJS request-scoped).
+2. **Real archive storage** — replace Local/WORM stubs with actual S3 buckets respecting retention + residency.
+3. **Certification audit** — engage an NF525-certified auditor (e.g. Infocert, Bureau Veritas, SOCOTEC)
+   to review the implementation once the above are complete.
+4. **Publisher attestation** — maintain the attestation d'éditeur until certification is obtained (transitional).
 
 *Status as of branch `feat/compliance-architecture`. Update this file as stubs are replaced.*
