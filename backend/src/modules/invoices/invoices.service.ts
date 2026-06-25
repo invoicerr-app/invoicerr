@@ -841,6 +841,11 @@ export class InvoicesService {
             throw new BadRequestException('Quote not found');
         }
 
+        if (quote.status !== 'SIGNED') {
+            logger.error('Only SIGNED quotes can be converted to invoices', { category: 'invoice', details: { quoteId, status: quote.status } });
+            throw new BadRequestException('Only SIGNED quotes can be converted to invoices.');
+        }
+
         const newInvoice = await this.createInvoice({
             clientId: quote.clientId,
             dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
