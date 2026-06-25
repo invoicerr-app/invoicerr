@@ -17,6 +17,7 @@ import { logger } from '@/logger/logger.service';
 import { parseAddress } from '@/utils/adress';
 import prisma from '@/prisma/prisma.service';
 import { calculateDiscountedTotals, clampDiscountRate } from '@/utils/financial';
+import { getDraftWatermarkLabel } from '@/utils/watermark';
 
 @Injectable()
 export class InvoicesService {
@@ -373,6 +374,8 @@ export class InvoicesService {
         const hasDiscount = normalizedDiscountRate > 0 && discountAmountValue > 0;
 
         const html = template({
+            isDraft: invoice.status === 'DRAFT',
+            draftLabel: getDraftWatermarkLabel(invoice.company.country),
             number: invoice.rawNumber || invoice.number.toString(),
             date: formatDate(invoice.company, invoice.createdAt),
             dueDate: formatDate(invoice.company, invoice.dueDate),
@@ -435,7 +438,7 @@ export class InvoicesService {
                 day: pdfConfig.day,
                 deposit: pdfConfig.deposit,
                 service: pdfConfig.service,
-                product: pdfConfig.product
+                product: pdfConfig.product,
             },
         });
 
