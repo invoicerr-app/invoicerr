@@ -6,7 +6,7 @@
  * where an external integration or DB is still required. A NestJS service will wrap this and back the
  * store with Prisma.
  */
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
 import { TransactionContext } from '../canonical/canonical-document';
 import { resolve } from '../engine/compliance-engine';
 import { ComplianceExecutor, defaultExecutor } from '../execution/executor';
@@ -133,9 +133,9 @@ export class ComplianceService {
     });
   }
 
-  private hash(ctx: TransactionContext): string {
-    this.log.todo('operations/issue', 'compute a real content hash (+ hash-chain link for FR/PT)');
-    return `sha256:stub:${JSON.stringify(ctx).length}`;
+  private hash(ctx: TransactionContext, previousHash?: string): string {
+    const input = JSON.stringify(ctx) + (previousHash ?? '');
+    return `sha256:${createHash('sha256').update(input, 'utf8').digest('hex')}`;
   }
 
   // ─────────────────────────── issuance ───────────────────────────
@@ -168,7 +168,18 @@ export class ComplianceService {
       this.log.warn('operations/issue', `numbering blocked: ${(e as Error).message}`);
     }
 
-    await this.store.update(id, { plan, number, immutableHash: this.hash(rec.ctx) });
+    // Hash-chain: find the previous document in the series and link to it
+    let immutableHash: string;
+    let previousHash: string | undefined;
+    const previous = await this.store.findLastInSeries(series);
+    if (previous && previous.immutableHash) {
+      previousHash = previous.immutableHash;
+      immutableHash = this.hash(rec.ctx, previousHash);
+    } else {
+      immutableHash = this.hash(rec.ctx);
+    }
+
+    await this.store.update(id, { plan, number, immutableHash, previousHash });
     const issued = await this.transition(await this.require(id), 'ISSUE');
     return { document: issued };
   }

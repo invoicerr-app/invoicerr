@@ -10,6 +10,8 @@ export interface ComplianceDocumentStore {
   get(id: string): Promise<ComplianceDocumentRecord | null>;
   update(id: string, patch: Partial<ComplianceDocumentRecord>): Promise<ComplianceDocumentRecord>;
   list(): Promise<ComplianceDocumentRecord[]>;
+  /** Find the most recently created document for a given series key (e.g. "FR-INVOICE"). */
+  findLastInSeries(seriesKey: string): Promise<ComplianceDocumentRecord | null>;
 }
 
 export class InMemoryComplianceDocumentStore implements ComplianceDocumentStore {
@@ -34,5 +36,13 @@ export class InMemoryComplianceDocumentStore implements ComplianceDocumentStore 
 
   list(): Promise<ComplianceDocumentRecord[]> {
     return Promise.resolve([...this.docs.values()]);
+  }
+
+  async findLastInSeries(seriesKey: string): Promise<ComplianceDocumentRecord | null> {
+    const all = [...this.docs.values()];
+    const matching = all
+      .filter((d) => `${d.ctx.supplier.countryCode}-${d.kind}` === seriesKey && d.immutableHash)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return matching[0] ?? null;
   }
 }

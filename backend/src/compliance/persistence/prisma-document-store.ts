@@ -80,6 +80,18 @@ export class PrismaComplianceDocumentStore implements ComplianceDocumentStore {
     return documentToRecord(row as any);
   }
 
+  async findLastInSeries(seriesKey: string): Promise<ComplianceDocumentRecord | null> {
+    // Load recent non-DRAFT documents that have a hash, then find the first matching the series
+    const rows = await this.prisma.complianceDocument.findMany({
+      where: { immutableHash: { not: null } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: { events: true, authorityIds: true },
+    });
+    const match = rows.find((r) => r.status !== 'DRAFT' && `${(r.ctx as any).supplier?.countryCode}-${r.kind}` === seriesKey);
+    return match ? documentToRecord(match as any) : null;
+  }
+
   async list(): Promise<ComplianceDocumentRecord[]> {
     const rows = await this.prisma.complianceDocument.findMany({
       include: { events: true, authorityIds: true },
