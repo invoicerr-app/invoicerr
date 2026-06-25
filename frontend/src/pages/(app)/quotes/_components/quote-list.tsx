@@ -228,7 +228,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                                                                 type="button"
                                                                 onClick={() => handleView(quote)}
                                                                 className="underline hover:text-primary text-left"
-                                                                data-cy="quote-name"
+                                                                data-cy={`view-quote-${quote.title?.replace(/\s+/g, '-').toLowerCase()}`}
                                                             >
                                                                 {t("quotes.list.item.title", { number: quote.rawNumber || quote.number, title: quote.title })}
                                                             </button>
