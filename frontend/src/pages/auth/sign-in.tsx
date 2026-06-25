@@ -7,9 +7,11 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ServerUnavailableBanner } from "@/components/server-unavailable-banner"
 import type React from "react"
 import { authClient } from "@/lib/auth"
 import { toast } from "sonner"
+import { useBackendHealth } from "@/hooks/use-backend-health"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -19,6 +21,8 @@ export default function LoginPage() {
     const [errors] = useState<Record<string, string[]>>({})
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const backendHealth = useBackendHealth();
+    const backendUnavailable = backendHealth === "unavailable";
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -66,6 +70,7 @@ export default function LoginPage() {
                     <CardDescription className="text-center">{t("auth.login.description")}</CardDescription>
                 </CardHeader>
                 <CardContent>
+                    {backendUnavailable && <ServerUnavailableBanner />}
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="email">{t("auth.login.form.email.label")}</Label>
@@ -96,7 +101,7 @@ export default function LoginPage() {
                             </div>
                             {errors.password && <p className="text-sm text-red-600">{errors.password[0]}</p>}
                         </div>
-                        <Button type="submit" className="w-full" disabled={loading} data-cy="auth-submit-btn">
+                        <Button type="submit" className="w-full" disabled={loading || backendUnavailable} data-cy="auth-submit-btn">
                             {loading ? t("auth.login.form.loggingIn") : t("auth.login.form.loginButton")}
                         </Button>
                     </form>

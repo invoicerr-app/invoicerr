@@ -10,6 +10,7 @@ import { ConfigModule } from '@nestjs/config';
 import { DangerModule } from './modules/danger/danger.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { DirectoryModule } from './modules/directory/directory.module';
+import { HealthModule } from './modules/health/health.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { MailService } from './mail/mail.service';
@@ -63,6 +64,7 @@ import { auth } from "./lib/auth"
     WebhooksModule,
     InvitationsModule,
     ComplianceModule,
+    HealthModule,
     PrismaModule,
     LoggerModule,
   ],

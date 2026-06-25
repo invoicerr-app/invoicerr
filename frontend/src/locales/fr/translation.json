@@ -1672,6 +1672,10 @@
         }
     },
     "auth": {
+        "serverUnavailable": {
+            "title": "Service temporairement indisponible",
+            "description": "Impossible de joindre le serveur (connexion à la base de données impossible). Réessayez dans quelques instants."
+        },
         "login": {
             "title": "Se connecter",
             "description": "Saisissez vos identifiants pour accéder à votre compte",
