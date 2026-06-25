@@ -1674,7 +1674,7 @@
     "auth": {
         "serverUnavailable": {
             "title": "Service temporairement indisponible",
-            "description": "Impossible de joindre le serveur (connexion à la base de données impossible). Réessayez dans quelques instants."
+            "description": "Impossible de joindre le serveur. Vérifiez les logs."
         },
         "login": {
             "title": "Se connecter",

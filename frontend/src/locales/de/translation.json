@@ -1490,7 +1490,7 @@
     "auth": {
         "serverUnavailable": {
             "title": "Dienst vorübergehend nicht verfügbar",
-            "description": "Der Server ist nicht erreichbar (Datenbankverbindung fehlgeschlagen). Bitte versuchen Sie es in einigen Augenblicken erneut."
+            "description": "Der Server ist nicht erreichbar. Prüfen Sie die Logs."
         },
         "login": {
             "title": "Anmelden",
