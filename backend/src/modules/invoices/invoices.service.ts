@@ -272,7 +272,7 @@ export class InvoicesService {
                     number: counter,
                     rawNumber,
                     issuedAt: issueDate,
-                    status: 'SENT',
+                    status: 'ISSUED',
                 },
                 include: {
                     items: true,
@@ -327,6 +327,12 @@ export class InvoicesService {
             }
             const result = await this.complianceService.correct(complianceDoc.id, { reason });
 
+            // Reflect compliance status on the invoice (III.1 — single vocabulary)
+            await prisma.invoice.update({
+                where: { id },
+                data: { status: 'CORRECTED' },
+            });
+
             logger.info('Invoice corrected', { category: 'invoice', details: { invoiceId: id, correctionId: result.correction.id, correctionKind: result.correction.kind } });
             return {
                 message: 'Correction initiated',
@@ -356,6 +362,12 @@ export class InvoicesService {
             if (!result.accepted) {
                 return { message: 'Cancellation rejected', reason: result.reason };
             }
+
+            // Reflect compliance status on the invoice (III.1 — single vocabulary)
+            await prisma.invoice.update({
+                where: { id },
+                data: { status: 'CANCELLED' },
+            });
 
             logger.info('Invoice cancelled', { category: 'invoice', details: { invoiceId: id } });
             return { message: 'Invoice cancelled', accepted: true };
