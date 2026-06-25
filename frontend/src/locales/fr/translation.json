@@ -863,7 +863,8 @@
             "description": "Suivez vos performances financières dans le temps",
             "thisMonth": "Ce mois-ci",
             "thisYear": "Cette année",
-            "chartLabel": "Chiffre d'affaires"
+            "real": "Réel",
+            "forecast": "Prévision"
         },
         "quotes": {
             "title": "Aperçu des devis",

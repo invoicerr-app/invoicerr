@@ -860,7 +860,8 @@
             "description": "Track your financial performance over time",
             "thisMonth": "This Month",
             "thisYear": "This Year",
-            "chartLabel": "Revenue"
+            "real": "Actual",
+            "forecast": "Forecast"
         },
         "quotes": {
             "title": "Quotes Overview",

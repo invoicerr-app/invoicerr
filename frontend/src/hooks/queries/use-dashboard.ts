@@ -24,12 +24,12 @@ export interface DashboardData {
         total: number
     }
     revenue: {
-        last6Months: { createdAt: Date; total: number }[]
+        last6Months: { createdAt: Date; real: number; forecast: number }[]
         currentMonth: number
         previousMonth: number
         monthlyChange: number
         monthlyChangePercent: number
-        last6Years: { createdAt: Date; total: number }[]
+        last6Years: { createdAt: Date; real: number; forecast: number }[]
         currentYear: number
         previousYear: number
         yearlyChange: number

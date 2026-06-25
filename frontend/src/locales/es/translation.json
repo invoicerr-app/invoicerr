@@ -746,7 +746,8 @@
             "description": "Sigue tu desempeño financiero a lo largo del tiempo",
             "thisMonth": "Este mes",
             "thisYear": "Este año",
-            "chartLabel": "Ingresos"
+            "real": "Real",
+            "forecast": "Previsión"
         },
         "quotes": {
             "title": "Resumen de cotizaciones",

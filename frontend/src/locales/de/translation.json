@@ -746,7 +746,8 @@
             "description": "Verfolgen Sie Ihre finanzielle Leistung im Laufe der Zeit",
             "thisMonth": "Dieser Monat",
             "thisYear": "Dieses Jahr",
-            "chartLabel": "Einnahmen"
+            "real": "Tatsächlich",
+            "forecast": "Prognose"
         },
         "quotes": {
             "title": "Angebote Übersicht",
