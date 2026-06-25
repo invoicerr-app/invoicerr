@@ -506,7 +506,6 @@
                 "viewPdf": "View PDF",
                 "downloadPdf": "Download PDF",
                 "edit": "Edit invoice",
-                "markAsPaid": "Mark as paid",
                 "delete": "Delete invoice",
                 "createPayment": "Create a payment from this invoice",
                 "sendByEmail": "Send invoice by email"

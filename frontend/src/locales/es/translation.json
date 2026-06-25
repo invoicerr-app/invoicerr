@@ -438,7 +438,6 @@
                 "viewPdf": "Ver PDF",
                 "downloadPdf": "Descargar PDF",
                 "edit": "Editar factura",
-                "markAsPaid": "Marcar como pagada",
                 "delete": "Eliminar factura",
                 "createReceipt": "Crear recibo desde esta factura",
                 "sendByEmail": "Enviar factura por correo"

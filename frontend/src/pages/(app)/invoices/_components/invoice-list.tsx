@@ -1,4 +1,4 @@
-import { Banknote, Code, Download, Edit, Eye, FileText, Mail, Plus, ReceiptText as PaymentText, Search, Trash2 } from "lucide-react"
+import { Code, Download, Edit, Eye, FileText, Mail, Plus, ReceiptText as PaymentText, Search, Trash2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react"
@@ -56,7 +56,6 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         const { t } = useTranslation()
         const queryClient = useQueryClient()
         const { data: pdf_formats } = useGet<PluginPdfFormat[]>('/api/plugins/formats')
-        const { trigger: triggerMarkAsPaid } = usePost(`/api/invoices/mark-as-paid`)
         const { trigger: triggerSendInvoiceByEmail, loading: sendInvoiceByEmailLoading } = usePost(`/api/invoices/send`)
         const { trigger: triggerCreatePayment } = usePost(`/api/payments/create-from-invoice`)
 
@@ -117,18 +116,6 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
 
         function handleDelete(invoice: Invoice) {
             setDeleteInvoiceDialog(invoice)
-        }
-
-        function handleMarkAsPaid(invoiceId: string) {
-            triggerMarkAsPaid({ invoiceId })
-                .then(() => {
-                    toast.success(t("invoices.list.messages.markAsPaidSuccess"))
-                    queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
-                })
-                .catch((error) => {
-                    console.error("Error marking invoice as paid:", error)
-                    toast.error(t("invoices.list.messages.markAsPaidError"))
-                })
         }
 
         function handleDownload({ invoice, format, file_format }: { invoice: Invoice; format: string; file_format: 'pdf' | 'xml' }) {
@@ -458,18 +445,6 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                         className="text-gray-600 hover:text-purple-600"
                                                     >
                                                         <Mail className="h-4 w-4" />
-                                                    </Button>
-                                                )}
-
-                                                {invoice.status !== "PAID" && (
-                                                    <Button
-                                                        tooltip={t("invoices.list.tooltips.markAsPaid")}
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => handleMarkAsPaid(invoice.id)}
-                                                        className="text-gray-600 hover:text-blue-600"
-                                                    >
-                                                        <Banknote className="h-4 w-4" />
                                                     </Button>
                                                 )}
 
