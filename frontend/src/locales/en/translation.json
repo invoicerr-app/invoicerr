@@ -566,7 +566,8 @@
             "tabs": {
                 "invoice": "Invoice",
                 "recurring": "Recurring Invoice",
-                "proforma": "Proforma"
+                "proforma": "Proforma",
+                "final": "Final Invoice"
             },
             "form": {
                 "quote": {
@@ -656,13 +657,20 @@
                     "label": "Payment Details",
                     "placeholder": "Enter payment details",
                     "description": "Additional information for payment (e.g., IBAN, instructions, etc.)"
+                },
+                "deposits": {
+                    "label": "Linked Deposits",
+                    "description": "Select deposit invoices to deduct from this final invoice.",
+                    "selected": "{{count}} deposit(s) selected — total: {{total}}",
+                    "none": "No unlinked deposit invoices found for this client."
                 }
             },
             "actions": {
                 "cancel": "Cancel",
                 "create": "Create Invoice",
                 "save": "Save Changes",
-                "createProforma": "Create Proforma"
+                "createProforma": "Create Proforma",
+                "createFinal": "Create Final Invoice"
             }
         },
         "view": {

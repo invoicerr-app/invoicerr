@@ -567,7 +567,8 @@
             "tabs": {
                 "invoice": "Facture",
                 "recurring": "Facture récurrente",
-                "proforma": "Proforma"
+                "proforma": "Proforma",
+                "final": "Facture finale"
             },
             "form": {
                 "quote": {
@@ -657,13 +658,20 @@
                         "min": "La remise ne peut pas être négative",
                         "max": "La remise ne peut pas dépasser 100 %"
                     }
+                },
+                "deposits": {
+                    "label": "Acomptes liés",
+                    "description": "Sélectionner les factures d'acompte à déduire de cette facture finale.",
+                    "selected": "{{count}} acompte(s) sélectionné(s) — total : {{total}}",
+                    "none": "Aucune facture d'acompte non liée trouvée pour ce client."
                 }
             },
             "actions": {
                 "cancel": "Annuler",
                 "create": "Créer la facture",
                 "save": "Enregistrer les modifications",
-                "createProforma": "Créer le proforma"
+                "createProforma": "Créer le proforma",
+                "createFinal": "Créer la facture finale"
             }
         },
         "view": {

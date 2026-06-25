@@ -23,3 +23,13 @@ export function useInvoiceSearch(query: string) {
         },
     )
 }
+
+export function useUnlinkedDeposits(clientId: string | null | undefined) {
+    return useApiQuery<Invoice[]>(
+        ["invoices", "unlinkedDeposits", clientId ?? ""],
+        `/api/invoices/deposits?clientId=${encodeURIComponent(clientId ?? "")}`,
+        {
+            enabled: !!clientId,
+        },
+    )
+}

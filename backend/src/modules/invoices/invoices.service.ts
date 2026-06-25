@@ -1596,6 +1596,19 @@ export class InvoicesService {
     //  III.4 — Deposit (standalone)
     // ──────────────────────────────────────────────────────────────────────
 
+    async getUnlinkedDeposits(clientId: string) {
+        return prisma.invoice.findMany({
+            where: {
+                clientId,
+                kind: 'DEPOSIT',
+                depositOfInvoiceId: null,
+                isActive: true,
+            },
+            include: { items: true },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+
     async createDepositInvoice(body: CreateInvoiceDto & { amount?: number; percentage?: number }) {
         const { items: _ignoredItems, amount, percentage, ...rest } = body as any;
 

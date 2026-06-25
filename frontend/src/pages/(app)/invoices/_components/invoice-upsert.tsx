@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { usePatch, usePost } from "@/hooks/use-fetch"
-import { useClientSearch, usePaymentMethods, useQuoteSearch } from "@/hooks/queries"
+import { useClientSearch, usePaymentMethods, useQuoteSearch, useUnlinkedDeposits } from "@/hooks/queries"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 
@@ -21,6 +21,7 @@ import { PaymentMethodType } from "@/types"
 import SearchSelect from "@/components/search-input"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
@@ -32,7 +33,7 @@ interface InvoiceUpsertDialogProps {
     onOpenChange: (open: boolean) => void
 }
 
-type CreationMode = "invoice" | "recurring" | "proforma"
+type CreationMode = "invoice" | "recurring" | "proforma" | "final"
 
 function createItemSchema(t: (key: string) => string, translationPrefix: "invoices" | "recurringInvoices", typeSchema: z.ZodTypeAny) {
     return z.object({
@@ -132,12 +133,14 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
     const [clientSearchTerm, setClientsSearchTerm] = useState("")
     const [quoteSearchTerm, setQuoteSearchTerm] = useState("")
     const [clientDialogOpen, setClientDialogOpen] = useState(false)
+    const [selectedDepositIds, setSelectedDepositIds] = useState<string[]>([])
     const { data: clients } = useClientSearch(clientSearchTerm)
     const { data: quotes } = useQuoteSearch(quoteSearchTerm)
     const { data: paymentMethods } = usePaymentMethods()
 
     const { trigger: createTrigger } = usePost("/api/invoices")
     const { trigger: createProformaTrigger } = usePost("/api/invoices/proforma")
+    const { trigger: createFinalTrigger } = usePost("/api/invoices/final")
     const { trigger: updateTrigger } = usePatch(`/api/invoices/${invoice?.id}`)
     const { trigger: createRecurringTrigger } = usePost("/api/recurring-invoices")
 
@@ -212,8 +215,11 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
         }
     }, [invoice, form, recurringForm, isEdit])
 
-    const { control, handleSubmit } = form
+    const { control, handleSubmit, watch } = form
     const { control: recurringControl, handleSubmit: handleRecurringSubmit } = recurringForm
+
+    const watchedClientId = watch("clientId")
+    const { data: unlinkedDeposits } = useUnlinkedDeposits(mode === "final" ? watchedClientId : null)
 
     const onSubmit = (data: z.infer<typeof invoiceSchema>) => {
         const trigger = isEdit ? updateTrigger : createTrigger
@@ -243,6 +249,17 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 onOpenChange(false)
                 form.reset()
+            })
+            .catch((err) => console.error(err))
+    }
+
+    const onSubmitFinal = (data: z.infer<typeof invoiceSchema>) => {
+        createFinalTrigger({ ...data, kind: 'FINAL', depositInvoiceIds: selectedDepositIds })
+            .then(() => {
+                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
+                onOpenChange(false)
+                form.reset()
+                setSelectedDepositIds([])
             })
             .catch((err) => console.error(err))
     }
@@ -281,6 +298,9 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                     </TabsTrigger>
                                     <TabsTrigger value="proforma" data-cy="invoice-tab-proforma">
                                         {t("invoices.upsert.tabs.proforma")}
+                                    </TabsTrigger>
+                                    <TabsTrigger value="final" data-cy="invoice-tab-final">
+                                        {t("invoices.upsert.tabs.final")}
                                     </TabsTrigger>
                                 </TabsList>
                             </Tabs>
@@ -761,6 +781,125 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                     />
                                 </form>
                             </Form>
+                        ) : mode === "final" ? (
+                            <Form {...form} key="final-form-mode">
+                                <form id="final-form" onSubmit={handleSubmit(onSubmitFinal)} className="space-y-4" data-cy="final-form">
+                                    <FormField
+                                        control={control}
+                                        name="clientId"
+                                        render={({ field }) => (
+                                            <ClientSelectField
+                                                field={field}
+                                                searchTerm={clientSearchTerm}
+                                                setSearchTerm={setClientsSearchTerm}
+                                                onCreateClient={handleClientCreate}
+                                                clients={clients}
+                                            />
+                                        )}
+                                    />
+
+                                    {/* Deposit selection */}
+                                    {unlinkedDeposits && unlinkedDeposits.length > 0 && (
+                                        <div className="space-y-2">
+                                            <p className="text-sm font-medium">{t("invoices.upsert.form.deposits.label")}</p>
+                                            <p className="text-xs text-muted-foreground">{t("invoices.upsert.form.deposits.description")}</p>
+                                            <div className="border rounded-md divide-y max-h-48 overflow-y-auto" data-cy="deposit-selection">
+                                                {unlinkedDeposits.map((dep) => (
+                                                    <label key={dep.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/50">
+                                                        <Checkbox
+                                                            checked={selectedDepositIds.includes(dep.id)}
+                                                            onCheckedChange={(checked) => {
+                                                                setSelectedDepositIds(prev =>
+                                                                    checked ? [...prev, dep.id] : prev.filter(id => id !== dep.id)
+                                                                )
+                                                            }}
+                                                            data-cy={`deposit-checkbox-${dep.id}`}
+                                                        />
+                                                        <div className="flex-1 min-w-0">
+                                                            <span className="text-sm font-medium">{dep.rawNumber || dep.number?.toString()}</span>
+                                                            <span className="text-xs text-muted-foreground ml-2">
+                                                                {dep.totalTTC.toFixed(2)} {dep.currency}
+                                                            </span>
+                                                        </div>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                            {selectedDepositIds.length > 0 && (
+                                                <p className="text-sm text-muted-foreground">
+                                                    {t("invoices.upsert.form.deposits.selected", { count: selectedDepositIds.length, total: unlinkedDeposits.filter(d => selectedDepositIds.includes(d.id)).reduce((s, d) => s + d.totalTTC, 0).toFixed(2) })}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                    {watchedClientId && unlinkedDeposits && unlinkedDeposits.length === 0 && (
+                                        <p className="text-sm text-muted-foreground italic">{t("invoices.upsert.form.deposits.none")}</p>
+                                    )}
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <FormField
+                                            control={control}
+                                            name="currency"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>{t("invoices.upsert.form.currency.label")}</FormLabel>
+                                                    <FormControl>
+                                                        <CurrencySelect value={field.value} onChange={field.onChange} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        <FormField
+                                            control={control}
+                                            name="discountRate"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>{t("invoices.upsert.form.discountRate.label")}</FormLabel>
+                                                    <FormControl>
+                                                        <BetterInput type="number" step="0.01" min="0" max="100" placeholder={t("invoices.upsert.form.discountRate.placeholder")} {...field} value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? null : parseFloat(e.target.value))} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
+
+                                    <FormField
+                                        control={control}
+                                        name="dueDate"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>{t("invoices.upsert.form.dueDate.label")}</FormLabel>
+                                                <FormControl>
+                                                    <DatePicker className="w-full" placeholder={t("invoices.upsert.form.dueDate.placeholder")} value={field.value || null} onChange={field.onChange} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    <Separator className="my-4" />
+
+                                    <InvoiceLineItemsEditor translationPrefix="invoices" defaultItemType="SERVICE" />
+
+                                    <Separator className="my-4" />
+
+                                    <FormField
+                                        control={control}
+                                        name="notes"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>{t("invoices.upsert.form.notes.label")}</FormLabel>
+                                                <FormControl>
+                                                    <Textarea placeholder={t("invoices.upsert.form.notes.placeholder")} className="resize-none" {...field} value={field.value ?? ""} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </form>
+                            </Form>
                         )}
                     </div>
 
@@ -770,11 +909,13 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                         </Button>
                         <Button
                             type="submit"
-                            form={mode === "invoice" ? "invoice-form" : mode === "proforma" ? "proforma-form" : "recurring-invoice-form"}
+                            form={mode === "invoice" ? "invoice-form" : mode === "proforma" ? "proforma-form" : mode === "final" ? "final-form" : "recurring-invoice-form"}
                             dataCy="invoice-submit"
                         >
                             {mode === "proforma"
                                 ? t("invoices.upsert.actions.createProforma")
+                                : mode === "final"
+                                ? t("invoices.upsert.actions.createFinal")
                                 : mode === "invoice"
                                 ? t(`invoices.upsert.actions.${isEdit ? "save" : "create"}`)
                                 : t("recurringInvoices.upsert.actions.create")}

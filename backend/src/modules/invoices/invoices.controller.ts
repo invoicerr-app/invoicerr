@@ -182,6 +182,14 @@ export class InvoicesController {
     return this.invoicesService.createDepositInvoice(body);
   }
 
+  @Get('deposits')
+  @ApiOperation({ summary: 'List unlinked deposits', description: 'Returns unlinked deposit invoices for a client (for final invoice creation).' })
+  @ApiQuery({ name: 'clientId', required: true, type: String, description: 'Client ID' })
+  @ApiResponse({ status: 200, description: 'Unlinked deposits retrieved' })
+  getUnlinkedDeposits(@Query('clientId') clientId: string) {
+    return this.invoicesService.getUnlinkedDeposits(clientId);
+  }
+
   @Post('final')
   @ApiOperation({ summary: 'Create a final invoice', description: 'Creates a final invoice with deposit deductions. Links deposit invoices and adds a deduction line.' })
   @ApiResponse({ status: 201, description: 'Final invoice created' })

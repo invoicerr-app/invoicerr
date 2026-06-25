@@ -611,13 +611,20 @@
                 },
                 "currency": {
                     "label": "Währung"
+                },
+                "deposits": {
+                    "label": "Linked Deposits",
+                    "description": "Select deposit invoices to deduct from this final invoice.",
+                    "selected": "{{count}} deposit(s) selected — total: {{total}}",
+                    "none": "No unlinked deposit invoices found for this client."
                 }
             },
             "actions": {
                 "cancel": "Abbrechen",
                 "create": "Rechnung erstellen",
                 "save": "Änderungen speichern",
-                "createProforma": "Create Proforma"
+                "createProforma": "Create Proforma",
+                "createFinal": "Create Final Invoice"
             }
         },
         "view": {
