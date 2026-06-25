@@ -498,7 +498,10 @@
                 "edit": "Editar factura",
                 "delete": "Eliminar factura",
                 "sendByEmail": "Enviar factura por correo",
-                "issue": "Emitir factura"
+                "issue": "Emitir factura",
+                "creditNote": "Issue credit note",
+                "cancel": "Cancel invoice",
+                "cancelAndReplace": "Cancel and replace"
             },
             "actions": {
                 "addNew": "Agregar nueva factura",
@@ -518,7 +521,9 @@
                 "markAsPaidError": "Error al marcar la factura como pagada",
                 "sendByEmailSuccess": "La factura fue enviada al cliente",
                 "issueSuccess": "Factura emitida correctamente",
-                "issueError": "Error al emitir la factura"
+                "issueError": "Error al emitir la factura",
+                "correctSuccess": "Credit note issued",
+                "correctError": "Failed to issue credit note"
             }
         },
         "upsert": {
@@ -640,8 +645,14 @@
                 "totalVAT": "Importe IVA",
                 "totalTTC": "Total (con IVA)",
                 "notes": "Notas",
-                "complianceStatus": "Estado de cumplimiento"
-            }
+                "complianceStatus": "Estado de cumplimiento",
+                "correctsInvoice": "Corrects Invoice",
+                "corrections": "Corrections"
+            },
+            "messages": {
+                "cancellationNotAllowed": "Cancellation not allowed"
+            },
+            "correctionOf": "Corrects #{{number}}"
         },
         "delete": {
             "title": "Eliminar factura",

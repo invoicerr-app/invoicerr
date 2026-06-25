@@ -1,4 +1,4 @@
-import { Edit, Mail, Plus, ReceiptText as PaymentText, Search, Trash2, Stamp } from "lucide-react"
+import { Edit, Mail, Plus, ReceiptText as PaymentText, Search, Trash2, Stamp, RotateCcw } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { forwardRef, useImperativeHandle, useState } from "react"
 import { usePost } from "@/hooks/use-fetch"
@@ -7,7 +7,7 @@ import BetterPagination from "../../../../components/pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { InvoiceStatus, getDisplayInvoiceStatus, type Invoice, type InvoiceStatusFilterKey } from "@/types"
+import { InvoiceStatus, getDisplayInvoiceStatus, getInvoiceKindLabel, getInvoiceKindColor, type Invoice, type InvoiceStatusFilterKey } from "@/types"
 import { InvoiceDeleteDialog } from "./invoice-delete"
 import { InvoicePdfModal } from "./invoice-pdf-view"
 import { InvoiceUpsert } from "./invoice-upsert"
@@ -48,6 +48,9 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         const { t } = useTranslation()
         const { trigger: triggerSendInvoiceByEmail, loading: sendInvoiceByEmailLoading } = usePost(`/api/invoices/send`)
         const { trigger: triggerIssueInvoice } = usePost(`/api/invoices/issue`)
+        const { trigger: triggerCorrectInvoice } = usePost(`/api/invoices/correct`)
+        const { trigger: triggerCancelInvoice } = usePost(`/api/invoices/cancel`)
+        const { trigger: triggerCancelAndReplace } = usePost(`/api/invoices/cancel-and-replace`)
 
         const [createInvoiceDialog, setCreateInvoiceDialog] = useState<boolean>(false)
         const [editInvoiceDialog, setEditInvoiceDialog] = useState<Invoice | null>(null)
@@ -277,6 +280,11 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                                 </button>
                                                             )}
                                                         </h3>
+                                                        {invoice.kind && invoice.kind !== "INVOICE" && (
+                                                            <Badge variant="secondary" className={`text-xs ${getInvoiceKindColor(invoice.kind)}`} data-cy="invoice-kind">
+                                                                {getInvoiceKindLabel(invoice.kind)}
+                                                            </Badge>
+                                                        )}
                                                         <span
                                                             data-cy="invoice-status"
                                                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(invoice.status)}`}
@@ -378,6 +386,33 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                         className="text-gray-600 hover:text-violet-600"
                                                     >
                                                         <Stamp className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+
+                                                {/* Correction actions for issued invoices */}
+                                                {(invoice.status === InvoiceStatus.ISSUED || invoice.status === InvoiceStatus.SENT) && (
+                                                    <Button
+                                                        data-cy="invoice-correct-button"
+                                                        tooltip={t("invoices.list.tooltips.creditNote")}
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => {
+                                                            triggerCorrectInvoice({ id: invoice.id })
+                                                                .then((result: any) => {
+                                                                    if (result?.correctionInvoiceId) {
+                                                                        toast.success(t("invoices.list.messages.correctSuccess"))
+                                                                    } else {
+                                                                        toast.error(result?.message || t("invoices.list.messages.correctError"))
+                                                                    }
+                                                                    mutate?.()
+                                                                })
+                                                                .catch(() => {
+                                                                    toast.error(t("invoices.list.messages.correctError"))
+                                                                })
+                                                        }}
+                                                        className="text-gray-600 hover:text-emerald-600"
+                                                    >
+                                                        <RotateCcw className="h-4 w-4" />
                                                     </Button>
                                                 )}
 

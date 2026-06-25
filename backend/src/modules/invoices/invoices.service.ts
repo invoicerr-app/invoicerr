@@ -56,6 +56,10 @@ export class InvoicesService {
                 client: { include: { partyIdentifiers: true } },
                 company: { include: { partyIdentifiers: true } },
                 payments: { select: { totalPaid: true } },
+                correctedBy: {
+                    select: { id: true, rawNumber: true, number: true, kind: true, totalTTC: true, currency: true, status: true },
+                    where: { isActive: true },
+                },
             },
         });
 
@@ -90,6 +94,10 @@ export class InvoicesService {
                 client: { include: { partyIdentifiers: true } },
                 company: { include: { partyIdentifiers: true } },
                 payments: { select: { id: true, totalPaid: true } },
+                correctedBy: {
+                    select: { id: true, rawNumber: true, number: true, kind: true, totalTTC: true, currency: true, status: true },
+                    where: { isActive: true },
+                },
             },
         });
 

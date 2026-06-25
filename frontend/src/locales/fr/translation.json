@@ -527,7 +527,10 @@
                 "edit": "Modifier la facture",
                 "delete": "Supprimer la facture",
                 "sendByEmail": "Envoyer la facture par email",
-                "issue": "Émettre la facture"
+                "issue": "Émettre la facture",
+                "creditNote": "Émettre un avoir",
+                "cancel": "Annuler la facture",
+                "cancelAndReplace": "Annuler et remplacer"
             },
             "actions": {
                 "addNew": "Ajouter une nouvelle facture",
@@ -549,7 +552,9 @@
                 "archiveSuccess": "Facture archivée avec succès",
                 "archiveError": "Échec de l'archivage de la facture",
                 "issueSuccess": "Facture émise avec succès",
-                "issueError": "Échec de l'émission de la facture"
+                "issueError": "Échec de l'émission de la facture",
+                "correctSuccess": "Avoir émis",
+                "correctError": "Échec de l'émission de l'avoir"
             }
         },
         "upsert": {
@@ -689,8 +694,14 @@
                 "totalVAT": "Montant TVA",
                 "totalTTC": "Total TTC",
                 "notes": "Notes",
-                "complianceStatus": "Statut de conformité"
-            }
+                "complianceStatus": "Statut de conformité",
+                "correctsInvoice": "Facture corrigée",
+                "corrections": "Corrections"
+            },
+            "messages": {
+                "cancellationNotAllowed": "Annulation non autorisée"
+            },
+            "correctionOf": "Correcte la facture #{{number}}"
         },
         "sendConfirmation": {
             "title": "Envoyer la facture par email",

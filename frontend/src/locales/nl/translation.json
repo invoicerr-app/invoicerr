@@ -463,5 +463,28 @@
                 }
             }
         }
+    },
+    "invoices": {
+        "view": {
+            "fields": {
+                "correctsInvoice": "Corrects Invoice",
+                "corrections": "Corrections"
+            },
+            "messages": {
+                "cancellationNotAllowed": "Cancellation not allowed"
+            },
+            "correctionOf": "Corrects #{{number}}"
+        },
+        "list": {
+            "tooltips": {
+                "creditNote": "Issue credit note",
+                "cancel": "Cancel invoice",
+                "cancelAndReplace": "Cancel and replace"
+            },
+            "messages": {
+                "correctSuccess": "Credit note issued",
+                "correctError": "Failed to issue credit note"
+            }
+        }
     }
 }

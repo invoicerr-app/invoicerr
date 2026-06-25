@@ -498,7 +498,10 @@
                 "edit": "Rechnung bearbeiten",
                 "delete": "Rechnung löschen",
                 "sendByEmail": "Sende Rechnung per Email",
-                "issue": "Rechnung ausstellen"
+                "issue": "Rechnung ausstellen",
+                "creditNote": "Issue credit note",
+                "cancel": "Cancel invoice",
+                "cancelAndReplace": "Cancel and replace"
             },
             "actions": {
                 "addNew": "Neue Rechnung hinzufügen",
@@ -518,7 +521,9 @@
                 "markAsPaidError": "Rechnung konnte nicht als bezahlt markiert werden",
                 "sendByEmailSuccess": "Rechnung wurde versandt",
                 "issueSuccess": "Rechnung erfolgreich ausgestellt",
-                "issueError": "Rechnung konnte nicht ausgestellt werden"
+                "issueError": "Rechnung konnte nicht ausgestellt werden",
+                "correctSuccess": "Credit note issued",
+                "correctError": "Failed to issue credit note"
             }
         },
         "upsert": {
@@ -640,8 +645,14 @@
                 "totalVAT": "MwSt.-Betrag",
                 "totalTTC": "Gesamt (inkl. MwSt.)",
                 "notes": "Anmerkungen",
-                "complianceStatus": "Compliance-Status"
-            }
+                "complianceStatus": "Compliance-Status",
+                "correctsInvoice": "Corrects Invoice",
+                "corrections": "Corrections"
+            },
+            "messages": {
+                "cancellationNotAllowed": "Cancellation not allowed"
+            },
+            "correctionOf": "Corrects #{{number}}"
         },
         "delete": {
             "title": "Rechnung löschen",

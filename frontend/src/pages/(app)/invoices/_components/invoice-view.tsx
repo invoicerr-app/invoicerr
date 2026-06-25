@@ -1,11 +1,14 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 import type { Invoice, PaymentMethod } from "@/types"
-import { PaymentMethodType, getDisplayInvoiceStatus } from "@/types"
+import { DocumentKind, PaymentMethodType, getDisplayInvoiceStatus, getInvoiceKindLabel, getInvoiceKindColor } from "@/types"
 import { format } from "date-fns"
 import { languageToLocale } from "@/lib/i18n"
 import { getDraftWatermarkLabel } from "@/lib/watermark"
 import { useTranslation } from "react-i18next"
+import { Badge } from "@/components/ui/badge"
+import { useAvailableActions } from "@/hooks/queries/use-available-actions"
+import { useGet } from "@/hooks/use-fetch"
 
 interface InvoiceViewDialogProps {
     invoice: Invoice | null
@@ -14,6 +17,12 @@ interface InvoiceViewDialogProps {
 
 export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogProps) {
     const { t, i18n } = useTranslation()
+    const { data: actions } = useAvailableActions(invoice?.id)
+
+    // Fetch the original invoice when this one corrects another
+    const { data: originalInvoice } = useGet<Invoice>(
+        invoice?.correctsInvoiceId ? `/api/invoices?page=1` : null,
+    )
 
     if (!invoice) return null
 
@@ -26,6 +35,11 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
         return t(`invoices.view.status.${getDisplayInvoiceStatus(status).toLowerCase()}`)
     }
 
+    const kindLabel = getInvoiceKindLabel(invoice.kind)
+    const kindColor = getInvoiceKindColor(invoice.kind)
+    const isCorrection = invoice.kind === DocumentKind.CREDIT_NOTE || invoice.kind === DocumentKind.CORRECTIVE_INVOICE || invoice.kind === DocumentKind.DEBIT_NOTE
+    const correctedBy = invoice.correctedBy ?? []
+
     return (
         <Dialog open={!!invoice} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-[95vw] lg:max-w-3xl max-h-[90dvh] flex flex-col overflow-hidden">
@@ -37,8 +51,13 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
                     </div>
                 )}
                 <DialogHeader className="flex-shrink-0">
-                    <DialogTitle className="text-xl font-semibold">
+                    <DialogTitle className="text-xl font-semibold flex items-center gap-2">
                         {t("invoices.view.title", { number: invoice.rawNumber || invoice.number?.toString() || "DRAFT" })}
+                        {invoice.kind && invoice.kind !== DocumentKind.INVOICE && (
+                            <Badge variant="secondary" className={`text-xs ${kindColor}`}>
+                                {kindLabel}
+                            </Badge>
+                        )}
                     </DialogTitle>
                     <DialogDescription className="text-muted-foreground">{t("invoices.view.description")}</DialogDescription>
                 </DialogHeader>
@@ -179,6 +198,43 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
                             </div>
                         )
                     })()}
+
+                    {/* Correction ↔ original link */}
+                    {isCorrection && invoice.correctsInvoiceId && (
+                        <div className="bg-muted/50 p-4 rounded-lg" data-cy="correction-original-link">
+                            <p className="text-sm text-muted-foreground mb-1">{t("invoices.view.fields.correctsInvoice")}</p>
+                            <p className="font-medium text-sm">
+                                {t("invoices.view.correctionOf", { number: invoice.correctsInvoiceId.slice(0, 8) })}
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Corrections issued against this invoice */}
+                    {correctedBy.length > 0 && (
+                        <div className="bg-muted/50 p-4 rounded-lg" data-cy="corrections-section">
+                            <p className="text-sm text-muted-foreground mb-2">{t("invoices.view.fields.corrections")}</p>
+                            <div className="flex flex-col gap-1">
+                                {correctedBy.map((c) => (
+                                    <div key={c.id} className="flex items-center gap-2 text-sm">
+                                        <Badge variant="secondary" className={`text-xs ${getInvoiceKindColor(c.kind)}`}>
+                                            {getInvoiceKindLabel(c.kind)}
+                                        </Badge>
+                                        <span className="font-medium">{c.rawNumber || c.number?.toString()}</span>
+                                        <span className="text-muted-foreground">
+                                            {c.totalTTC.toFixed(2)} {c.currency}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Cancellation rejection reason */}
+                    {actions && !actions.cancellation.allowed && actions.cancellation.reason && invoice.status !== "CANCELLED" && invoice.status !== "DRAFT" && (
+                        <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-sm text-amber-800" data-cy="cancellation-rejection">
+                            {t("invoices.view.messages.cancellationNotAllowed")}: {actions.cancellation.reason}
+                        </div>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>

@@ -526,7 +526,10 @@
                 "edit": "Edit invoice",
                 "delete": "Delete invoice",
                 "sendByEmail": "Send invoice by email",
-                "issue": "Issue invoice"
+                "issue": "Issue invoice",
+                "creditNote": "Issue credit note",
+                "cancel": "Cancel invoice",
+                "cancelAndReplace": "Cancel and replace"
             },
             "actions": {
                 "addNew": "Add New Invoice",
@@ -548,7 +551,9 @@
                 "archiveSuccess": "Invoice archived successfully",
                 "archiveError": "Failed to archive invoice",
                 "issueSuccess": "Invoice issued successfully",
-                "issueError": "Failed to issue invoice"
+                "issueError": "Failed to issue invoice",
+                "correctSuccess": "Credit note issued",
+                "correctError": "Failed to issue credit note"
             }
         },
         "upsert": {
@@ -688,8 +693,14 @@
                 "totalVAT": "VAT Amount",
                 "totalTTC": "Total (incl. VAT)",
                 "notes": "Notes",
-                "complianceStatus": "Compliance Status"
-            }
+                "complianceStatus": "Compliance Status",
+                "correctsInvoice": "Corrects Invoice",
+                "corrections": "Corrections"
+            },
+            "messages": {
+                "cancellationNotAllowed": "Cancellation not allowed"
+            },
+            "correctionOf": "Corrects #{{number}}"
         },
         "sendConfirmation": {
             "title": "Send Invoice by Email",
