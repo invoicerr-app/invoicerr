@@ -1689,6 +1689,10 @@
         }
     },
     "auth": {
+        "serverUnavailable": {
+            "title": "Service temporarily unavailable",
+            "description": "The server can't be reached. Check the logs."
+        },
         "login": {
             "title": "Sign In",
             "description": "Enter your credentials to access your account",

@@ -15,9 +15,11 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ServerUnavailableBanner } from "@/components/server-unavailable-banner";
 import type React from "react";
 import { authClient } from "@/lib/auth";
 import { toast } from "sonner";
+import { useBackendHealth } from "@/hooks/use-backend-health";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 
@@ -39,6 +41,8 @@ export default function SignupPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [requiresInvitation, setRequiresInvitation] = useState<boolean | null>(null);
     const [checkingInvitation, setCheckingInvitation] = useState(true);
+    const backendHealth = useBackendHealth();
+    const backendUnavailable = backendHealth === "unavailable";
 
     const getEnvVariable = (key: string): string | undefined => {
         return (window as any).__APP_CONFIG__?.[key] || import.meta.env[key];
@@ -51,12 +55,16 @@ export default function SignupPage() {
         const checkInvitationRequired = async () => {
             try {
                 const response = await fetch(`${backendUrl}/api/invitations/is-first-user`);
+                if (!response.ok) {
+                    // Backend reachable but erroring (e.g. DB down -> 500). Don't silently
+                    // require an invitation code; the server-unavailable banner handles the warning.
+                    throw new Error(`is-first-user failed with status ${response.status}`);
+                }
                 const data = await response.json();
                 setRequiresInvitation(!data.isFirstUser);
             } catch (error) {
                 console.error("Error checking invitation requirement:", error);
-                // Default to requiring invitation on error for security
-                setRequiresInvitation(true);
+                setRequiresInvitation(null);
             } finally {
                 setCheckingInvitation(false);
             }
@@ -174,6 +182,7 @@ export default function SignupPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
+                    {backendUnavailable && <ServerUnavailableBanner />}
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
@@ -287,7 +296,7 @@ export default function SignupPage() {
                             </div>
                         )}
 
-                        <Button type="submit" className="w-full" disabled={loading} data-cy="auth-submit-btn">
+                        <Button type="submit" className="w-full" disabled={loading || backendUnavailable} data-cy="auth-submit-btn">
                             {loading
                                 ? t("auth.signup.form.creatingAccount")
                                 : t("auth.signup.form.createButton")}

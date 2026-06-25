@@ -1488,6 +1488,10 @@
         }
     },
     "auth": {
+        "serverUnavailable": {
+            "title": "Servicio temporalmente no disponible",
+            "description": "No se puede contactar con el servidor. Revisa los registros."
+        },
         "login": {
             "title": "Iniciar sesión",
             "description": "Ingrese sus datos para acceder a su cuenta",

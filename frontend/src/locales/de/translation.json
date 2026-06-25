@@ -1488,6 +1488,10 @@
         }
     },
     "auth": {
+        "serverUnavailable": {
+            "title": "Dienst vorübergehend nicht verfügbar",
+            "description": "Der Server ist nicht erreichbar. Prüfen Sie die Logs."
+        },
         "login": {
             "title": "Anmelden",
             "description": "Geben Sie Ihre Anmeldedaten ein, um auf Ihr Konto zuzugreifen",
