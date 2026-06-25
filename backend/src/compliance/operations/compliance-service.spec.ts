@@ -5,6 +5,7 @@ import { RecordingComplianceLogger } from '../execution/logger';
 import { ComplianceExecutor } from '../execution/executor';
 import { ComplianceService } from './compliance-service';
 import { InMemoryComplianceDocumentStore } from './document-store';
+import { resolve } from '../engine/compliance-engine';
 
 function party(country: string, role: PartyRole): PartyTaxProfile {
   return {
@@ -189,5 +190,91 @@ describe('ComplianceService — reporting, payment, archive', () => {
     const d = await service.createDraft(FR());
     await service.issue(d.id);
     expect((await service.validate(d.id)).valid).toBe(true);
+  });
+});
+
+describe('ComplianceService — PART IV: correction ↔ original round-trip', () => {
+  it('credit note references original; original stays immutable; correction is a new issued doc', async () => {
+    const { service } = svc();
+    const original = (await service.issueAndSend(FR())).document;
+    expect(original.status).not.toBe('DRAFT');
+
+    const { original: updatedOriginal, correction } = await service.correct(original.id);
+    expect(correction.kind).toBe('CREDIT_NOTE');
+    expect(correction.correctsId).toBe(original.id);
+    expect(correction.status).toBe('DRAFT'); // correction starts as draft until issued
+    expect(updatedOriginal.events.some((e) => e.type === 'CORRECTION_INITIATED')).toBe(true);
+
+    // The original document is immutable (no edit possible)
+    await expect(service.editDraft(original.id, FR())).rejects.toThrow(/Cannot edit/);
+  });
+
+  it('corrective invoice references original with CORRECTIVE_INVOICE kind', async () => {
+    const { service } = svc();
+    const original = (await service.issueAndSend(FR())).document;
+    const { correction } = await service.issueCorrectiveInvoice(original.id);
+    expect(correction.kind).toBe('CORRECTIVE_INVOICE');
+    expect(correction.correctsId).toBe(original.id);
+  });
+
+  it('cancel-and-replace: cancels original and creates replacement doc', async () => {
+    const { service } = svc();
+    // Use US (post-audit, no response window) so the doc stays at DELIVERED where CANCEL is allowed
+    const original = (await service.issueAndSend(US())).document;
+    expect(original.status).toBe('DELIVERED');
+    const result = await service.cancelAndReplace(original.id);
+    expect(result.original.status).toBe('CANCELLED');
+    expect(result.correction.correctsId).toBe(original.id);
+    expect(result.correction.kind).toBe(original.kind); // replacement is same kind
+  });
+
+  it('multiple corrections can reference the same original', async () => {
+    const { service } = svc();
+    const original = (await service.issueAndSend(FR())).document;
+    const c1 = (await service.correct(original.id)).correction;
+    const c2 = (await service.issueDebitNote(original.id)).correction;
+    expect(c1.correctsId).toBe(original.id);
+    expect(c2.correctsId).toBe(original.id);
+    expect(c1.id).not.toBe(c2.id);
+  });
+});
+
+describe('ComplianceService — PART IV: available-actions resolution', () => {
+  it('FR plan: correctionModel = CREDIT_NOTE, cancellation allowed', () => {
+    const plan = resolve(FR());
+    expect(plan.lifecycle.correctionModel).toBe('CREDIT_NOTE');
+    expect(plan.lifecycle.cancellation.allowed).toBe(true);
+    expect(plan.lifecycle.immutableAfter).toBe('ISSUE');
+  });
+
+  it('MX plan: cancellation requires buyer consent + authority ack', () => {
+    const plan = resolve(MX());
+    expect(plan.lifecycle.cancellation.allowed).toBe(true);
+    expect(plan.lifecycle.cancellation.requiresBuyerConsent).toBe(true);
+    expect(plan.lifecycle.cancellation.requiresAuthorityAck).toBe(true);
+  });
+
+  it('cancel() rejects MX without buyer consent', async () => {
+    const { service } = svc();
+    const d = await service.createDraft(MX());
+    await service.issue(d.id);
+    await service.send(d.id);
+    await service.markCleared(d.id);
+
+    const result = await service.cancel(d.id);
+    expect(result.accepted).toBe(false);
+    expect(result.reason).toMatch(/consent/i);
+  });
+
+  it('cancel() accepts MX with buyer consent', async () => {
+    const { service } = svc();
+    const d = await service.createDraft(MX());
+    await service.issue(d.id);
+    await service.send(d.id);
+    await service.markCleared(d.id);
+
+    const result = await service.cancel(d.id, { buyerConsent: true });
+    expect(result.accepted).toBe(true);
+    expect(result.document.status).toBe('CANCELLED');
   });
 });
