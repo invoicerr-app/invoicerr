@@ -32,7 +32,7 @@ describe('document mappers', () => {
     immutableHash: 'sha256:123',
     correctsId: undefined,
     authorityIds: [{ scheme: 'UUID', value: 'abc-123' }],
-    events: [{ type: 'CREATED', at: now() }, { type: 'ISSUE', at: now() }],
+    events: [{ id: 'e1', type: 'CREATED', at: now(), actor: 'system' }, { id: 'e2', type: 'ISSUE', at: now(), actor: 'system' }],
     createdAt: ts(),
     updatedAt: ts(),
   };

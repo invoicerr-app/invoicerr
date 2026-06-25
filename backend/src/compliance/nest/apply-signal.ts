@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { PrismaService } from '@/prisma/prisma.service';
 import { ChannelType } from '../types';
 import { ComplianceLogger, defaultLogger } from '../execution/logger';
@@ -68,7 +69,7 @@ export class ApplySignalService {
         ]);
         await txDocStore.update(documentId, {
           status: applied.to,
-          events: [...rec.events, { type: applied.event, at: now }],
+          events: [...rec.events, { id: randomUUID(), type: applied.event, at: now, actor: 'system' }],
           updatedAt: now,
         });
       }

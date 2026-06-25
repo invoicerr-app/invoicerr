@@ -20,9 +20,12 @@ import { ChannelType, DocumentKind } from '../types';
 export type Direction = 'OUTBOUND' | 'INBOUND';
 
 export interface ComplianceDocumentEvent {
+  id: string;
   type: string;
   at: string;
+  actor?: string;
   detail?: string;
+  payload?: any;
 }
 
 /** The lifecycle aggregate for one document (issued by us, or received). */

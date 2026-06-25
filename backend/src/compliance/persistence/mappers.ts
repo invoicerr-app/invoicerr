@@ -25,9 +25,12 @@ export function documentToRecord(row: DocumentRow): ComplianceDocumentRecord {
     authorityIds: row.authorityIds.map((a) => ({ scheme: a.scheme, value: a.value })),
     correctsId: row.correctsId ?? undefined,
     events: row.events.map((e): ComplianceDocumentEvent => ({
+      id: e.id,
       type: e.type,
       at: e.at.toISOString(),
+      actor: e.actor ?? undefined,
       detail: e.detail ?? undefined,
+      payload: e.payload ?? undefined,
     })),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -50,9 +53,12 @@ export function documentToCreateInput(record: ComplianceDocumentRecord): Prisma.
     updatedAt: new Date(record.updatedAt),
     events: {
       create: record.events.map((e) => ({
+        id: e.id,
         type: e.type,
         at: new Date(e.at),
+        actor: e.actor ?? null,
         detail: e.detail ?? null,
+        payload: (e.payload as any) ?? null,
       })),
     },
     authorityIds: {
@@ -75,14 +81,6 @@ export function documentToUpdateInput(record: ComplianceDocumentRecord): Prisma.
     correctsId: record.correctsId ?? null,
     createdAt: new Date(record.createdAt),
     updatedAt: new Date(record.updatedAt),
-    events: {
-      deleteMany: {},
-      create: record.events.map((e) => ({
-        type: e.type,
-        at: new Date(e.at),
-        detail: e.detail ?? null,
-      })),
-    },
     authorityIds: {
       deleteMany: {},
       create: record.authorityIds.map((a) => ({ scheme: a.scheme, value: a.value })),

@@ -89,7 +89,7 @@ live('LIVE: ApplySignalService against Postgres', () => {
     const id = 'live-mx-2';
     await docStore.save({
       id, kind: 'INVOICE', direction: 'OUTBOUND', status: 'CLEARED', ctx, plan,
-      authorityIds: [], events: [{ type: 'ISSUE', at: new Date().toISOString() }], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      authorityIds: [], events: [{ id: 'evt-issue', type: 'ISSUE', at: new Date().toISOString(), actor: 'system' }], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     });
 
     // CLEARED has no outgoing POLL transition, so this is a runtime NOOP.

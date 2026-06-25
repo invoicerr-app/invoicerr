@@ -35,12 +35,6 @@ export class PrismaComplianceDocumentStore implements ComplianceDocumentStore {
     if ('previousHash' in patch) data.previousHash = patch.previousHash ?? null;
     if ('ctx' in patch) data.ctx = patch.ctx as any;
     if ('correctsId' in patch) data.correctsId = patch.correctsId ?? null;
-    if ('events' in patch) {
-      data.events = {
-        deleteMany: {},
-        create: patch.events!.map((e) => ({ type: e.type, at: new Date(e.at), detail: e.detail ?? null })),
-      };
-    }
     if ('authorityIds' in patch) {
       data.authorityIds = {
         deleteMany: {},
@@ -54,6 +48,35 @@ export class PrismaComplianceDocumentStore implements ComplianceDocumentStore {
       data,
       include: { events: true, authorityIds: true },
     });
+
+    // Append-only events: only create events whose IDs are not yet persisted
+    if ('events' in patch && patch.events) {
+      const existingIds = (await this.prisma.complianceEvent.findMany({
+        where: { documentId: id },
+        select: { id: true },
+      })).map((e) => e.id);
+      const newEvents = patch.events.filter((e) => !existingIds.includes(e.id));
+      if (newEvents.length > 0) {
+        await this.prisma.complianceEvent.createMany({
+          data: newEvents.map((e) => ({
+            id: e.id,
+            documentId: id,
+            type: e.type,
+            at: new Date(e.at),
+            actor: e.actor ?? null,
+            detail: e.detail ?? null,
+            payload: (e.payload as any) ?? null,
+          })),
+        });
+      }
+      // Re-read to include newly created events
+      const refreshed = await this.prisma.complianceDocument.findUnique({
+        where: { id },
+        include: { events: true, authorityIds: true },
+      });
+      return documentToRecord(refreshed as any);
+    }
+
     return documentToRecord(row as any);
   }
 

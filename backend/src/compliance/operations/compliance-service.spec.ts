@@ -135,6 +135,32 @@ describe('ComplianceService — bidirectional response & inbound', () => {
   });
 });
 
+describe('ComplianceService — event append-only (round-trip)', () => {
+  it('successive transitions append events without duplicates or loss', async () => {
+    const { service } = svc();
+    const draft = await service.createDraft(FR());
+    // After create: 1 event (CREATED)
+    expect(draft.events).toHaveLength(1);
+    expect(draft.events[0].type).toBe('CREATED');
+
+    // After issue: 2 events (CREATED, ISSUE)
+    const { document: issued } = await service.issue(draft.id);
+    expect(issued.events).toHaveLength(2);
+    expect(issued.events.map((e) => e.type)).toEqual(['CREATED', 'ISSUE']);
+
+    // After markPaid: 3 events (CREATED, ISSUE, PAID)
+    const paid = await service.markPaid(issued.id, { paidAt: '2027-02-01T00:00:00.000Z' });
+    expect(paid.events).toHaveLength(3);
+    expect(paid.events.map((e) => e.type)).toEqual(['CREATED', 'ISSUE', 'PAID']);
+
+    // Verify every event has an id and actor
+    paid.events.forEach((e) => {
+      expect(e.id).toBeDefined();
+      expect(e.actor).toBe('system');
+    });
+  });
+});
+
 describe('ComplianceService — reporting, payment, archive', () => {
   it('emits reporting side-effects (FR→IT queues the EC Sales List)', async () => {
     const { service } = svc();

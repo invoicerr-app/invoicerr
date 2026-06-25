@@ -6,6 +6,7 @@
  * where an external integration or DB is still required. A NestJS service will wrap this and back the
  * store with Prisma.
  */
+import { randomUUID } from 'crypto';
 import { TransactionContext } from '../canonical/canonical-document';
 import { resolve } from '../engine/compliance-engine';
 import { ComplianceExecutor, defaultExecutor } from '../execution/executor';
@@ -109,7 +110,7 @@ export class ComplianceService {
       ctx,
       authorityIds: [],
       correctsId,
-      events: [{ type: 'CREATED', at: ts }],
+      events: [{ id: randomUUID(), type: 'CREATED', at: ts, actor: 'system' }],
       createdAt: ts,
       updatedAt: ts,
     });
@@ -121,12 +122,12 @@ export class ComplianceService {
     return rec;
   }
 
-  private async transition(rec: ComplianceDocumentRecord, event: ComplianceEvent, detail?: string): Promise<ComplianceDocumentRecord> {
+  private async transition(rec: ComplianceDocumentRecord, event: ComplianceEvent, detail?: string, actor?: string): Promise<ComplianceDocumentRecord> {
     const sm = new ComplianceStateMachine(rec.status);
     sm.apply(event); // throws on illegal transition
     return this.store.update(rec.id, {
       status: sm.status,
-      events: [...rec.events, { type: event, at: now(), detail }],
+      events: [...rec.events, { id: randomUUID(), type: event, at: now(), actor: actor ?? 'system', detail }],
     });
   }
 
@@ -148,7 +149,7 @@ export class ComplianceService {
     if (!new ComplianceStateMachine(rec.status).canEdit()) {
       throw new Error(`Cannot edit document "${id}" in status ${rec.status}; issue a correction instead.`);
     }
-    return this.store.update(id, { ctx, events: [...rec.events, { type: 'EDITED', at: now() }] });
+    return this.store.update(id, { ctx, events: [...rec.events, { id: randomUUID(), type: 'EDITED', at: now(), actor: 'system' }] });
   }
 
   /** Freeze the draft: resolve the plan, assign the number, hash-chain, transition DRAFT → ISSUED. */
@@ -269,7 +270,7 @@ export class ComplianceService {
     const outcome = strategy.correct(original.id, original.ctx, this.log);
     const correction = await this.createRecord(original.ctx, req.kind ?? outcome.newKind, 'OUTBOUND', original.id);
     const updatedOriginal = await this.store.update(original.id, {
-      events: [...original.events, { type: 'CORRECTION_INITIATED', at: now(), detail: correction.id }],
+      events: [...original.events, { id: randomUUID(), type: 'CORRECTION_INITIATED', at: now(), actor: 'system', detail: correction.id }],
     });
     return { original: updatedOriginal, correction };
   }
@@ -328,7 +329,7 @@ export class ComplianceService {
     if (!transition) {
       // National status with no state change (e.g. FR "encaissée") — record it only.
       const rec = await this.require(id);
-      return this.store.update(id, { events: [...rec.events, { type: `STATUS:${event.status}`, at: now() }] });
+      return this.store.update(id, { events: [...rec.events, { id: randomUUID(), type: `STATUS:${event.status}`, at: now(), actor: event.source.toLowerCase() }] });
     }
     return this.transition(await this.require(id), transition, event.status);
   }
@@ -357,7 +358,7 @@ export class ComplianceService {
       status: 'DELIVERED',
       ctx: ingest.canonical,
       authorityIds: [],
-      events: [{ type: 'RECEIVED', at: ts }],
+      events: [{ id: randomUUID(), type: 'RECEIVED', at: ts, actor: 'system' }],
       createdAt: ts,
       updatedAt: ts,
     });
@@ -368,7 +369,7 @@ export class ComplianceService {
   async acknowledgeInbound(id: string, status: string): Promise<ComplianceDocumentRecord> {
     const rec = await this.require(id);
     this.reception.emitBuyerStatus(status, this.log);
-    return this.store.update(id, { events: [...rec.events, { type: `ACK:${status}`, at: now() }] });
+    return this.store.update(id, { events: [...rec.events, { id: randomUUID(), type: `ACK:${status}`, at: now(), actor: 'system' }] });
   }
 
   // ─────────────────────────── reporting / payment / archive ───────────────────────────
@@ -390,7 +391,7 @@ export class ComplianceService {
       this.log.todo('operations/markPaid', `emit "encaissée" status + payment e-reporting for ${id}`);
     }
     return this.store.update(id, {
-      events: [...rec.events, { type: 'PAID', at: info.paidAt ?? now() }],
+      events: [...rec.events, { id: randomUUID(), type: 'PAID', at: info.paidAt ?? now(), actor: 'system' }],
     });
   }
 
