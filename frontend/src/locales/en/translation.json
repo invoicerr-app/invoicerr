@@ -502,7 +502,6 @@
                 "totalTTC": "Total (incl. VAT)"
             },
             "tooltips": {
-                "view": "View invoice details",
                 "viewPdf": "View PDF",
                 "downloadPdf": "Download PDF",
                 "edit": "Edit invoice",

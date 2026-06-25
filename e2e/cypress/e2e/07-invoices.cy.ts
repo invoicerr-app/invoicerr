@@ -35,7 +35,7 @@ describe('Invoices E2E', () => {
             cy.get('[data-cy="invoice-dialog"]').should('not.exist');
 
             // Click view button on the first invoice in the list
-            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
             cy.contains(/1[.,\s]?500/, { timeout: 10000 }); // FR→US export of services: 0% VAT (EU VAT Directive Art. 59)
             cy.get('body').type('{esc}');
@@ -69,7 +69,7 @@ describe('Invoices E2E', () => {
 
             cy.get('[data-cy="invoice-dialog"]').should('not.exist');
 
-            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
             cy.contains(/5[.,\s]?500/, { timeout: 10000 }); // FR→US export of services: 0% VAT (EU VAT Directive Art. 59)
             cy.get('body').type('{esc}');
@@ -163,7 +163,7 @@ describe('Invoices E2E', () => {
 
             cy.get('[data-cy="invoice-dialog"]').should('not.exist');
 
-            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
             cy.contains(/1[.,\s]?000/, { timeout: 10000 });
             cy.get('body').type('{esc}');
@@ -191,7 +191,7 @@ describe('Invoices E2E', () => {
 
             cy.get('[data-cy="invoice-dialog"]').should('not.exist');
 
-            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
             cy.contains(/299[.,]97/, { timeout: 10000 });
             cy.get('body').type('{esc}');
@@ -219,7 +219,7 @@ describe('Invoices E2E', () => {
 
             cy.get('[data-cy="invoice-dialog"]').should('not.exist');
 
-            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
             cy.contains(/500/, { timeout: 10000 }); // FR→US export of services: 0% VAT (EU VAT Directive Art. 59)
             cy.get('body').type('{esc}');
@@ -231,7 +231,7 @@ describe('Invoices E2E', () => {
             cy.visit('/invoices');
             cy.wait(2000);
 
-            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[data-cy="invoice-name"]').first().click();
 
             cy.get('[role="dialog"]').should('be.visible');
             // We can't be sure which invoice it is, but we can check if the dialog has content
@@ -279,7 +279,7 @@ describe('Invoices E2E', () => {
             cy.wait(2000);
 
             cy.contains('[data-cy="invoice-row"]', 'Jane Doe').within(() => {
-                cy.get('button:has(svg.lucide-eye)').click();
+                cy.get('[data-cy="invoice-name"]').click();
             });
             cy.get('[role="dialog"]').should('be.visible');
             cy.contains('Updated Notes');
@@ -335,7 +335,7 @@ describe('Invoices E2E', () => {
             cy.get('[data-cy="invoice-dialog"]').should('not.exist');
 
             // Verify the invoice displays the fractional quantity
-            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
             
             // Check that the total is calculated correctly (19.875 * 100 = 1987.50, 0% VAT for FR→US export)
@@ -390,7 +390,7 @@ describe('Invoices E2E', () => {
             cy.get('[data-cy="invoice-dialog"]').should('not.exist');
 
             // Verify the total (0.25*800 + 2.75*1000 = 2950, 0% VAT for FR→US export)
-            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
             cy.contains(/2[.,\s]?950/, { timeout: 10000 }); // FR→US export of services: 0% VAT (EU VAT Directive Art. 59)
             cy.get('body').type('{esc}');

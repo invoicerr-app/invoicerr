@@ -434,7 +434,6 @@
                 "totalTTC": "Total (con IVA)"
             },
             "tooltips": {
-                "view": "Ver detalles de la factura",
                 "viewPdf": "Ver PDF",
                 "downloadPdf": "Descargar PDF",
                 "edit": "Editar factura",
