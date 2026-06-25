@@ -294,12 +294,31 @@
                     "title": "Renvoyer le devis",
                     "description": "Êtes-vous sûr de vouloir renvoyer le devis {{number}} à {{client}} ?"
                 },
-                "createInvoice": {
-                    "title": "Créer une facture à partir du devis",
-                    "description": "Êtes-vous sûr de vouloir créer une facture à partir du devis {{number}} ?"
-                },
                 "cancel": "Annuler",
                 "confirm": "Confirmer"
+            }
+        },
+        "createInvoiceDialog": {
+            "title": "Créer une facture à partir du devis",
+            "description": "Sélectionnez les articles à facturer depuis le devis {{number}}.",
+            "percentageLabel": "Pourcentage à facturer",
+            "fields": {
+                "quantity": {
+                    "label": "Quantité"
+                }
+            },
+            "alreadyInvoicedBadge": "Déjà facturé",
+            "remainingLabel": "Reste à facturer : {{remaining}}",
+            "totalSelectedLabel": "Total : {{amount}} {{currency}}",
+            "percentOfQuoteLabel": "{{percent}} % du devis",
+            "itemAmountLabel": "{{amount}} {{currency}}",
+            "actions": {
+                "confirm": "Créer la facture",
+                "cancel": "Annuler"
+            },
+            "errors": {
+                "quoteFullyInvoiced": "Ce devis a déjà été entièrement facturé.",
+                "quantityExceedsRemaining": "La quantité demandée dépasse la quantité restant à facturer."
             }
         },
         "upsert": {

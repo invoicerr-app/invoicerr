@@ -22,6 +22,7 @@ interface QuoteProgressionProps {
     onResend?: (quote: Quote) => void
     onCreateInvoice?: (quote: Quote) => void
     onViewQuote?: (quote: Quote) => void
+    invoicingStatuses?: Record<string, number>
 }
 
 interface PipelineStep {
@@ -62,6 +63,7 @@ function getCurrentStepIndex(quote: Quote): number {
 function getQuoteActions(
     quote: Quote,
     handlers: Pick<QuoteProgressionProps, "onSend" | "onResend" | "onCreateInvoice">,
+    invoicingStatuses?: Record<string, number>,
 ): { action: ProgressionAction; label: string }[] {
     const currentStep = pipeline[getCurrentStepIndex(quote)]
     if (!currentStep?.exists) return []
@@ -76,6 +78,9 @@ function getQuoteActions(
                 ? [{ action: "resend", label: "quotes.progression.actions.resend" }]
                 : []
         case "signed":
+            if (invoicingStatuses?.[quote.id] !== undefined && invoicingStatuses[quote.id] <= 0) {
+                return []
+            }
             return handlers.onCreateInvoice
                 ? [{ action: "createInvoice", label: "quotes.progression.actions.createInvoice" }]
                 : []
@@ -90,6 +95,7 @@ export function QuoteProgression({
     onResend,
     onCreateInvoice,
     onViewQuote,
+    invoicingStatuses,
 }: QuoteProgressionProps) {
     const { t } = useTranslation()
     const handlers = { onSend, onResend, onCreateInvoice }
@@ -147,7 +153,7 @@ export function QuoteProgression({
                     <div className="divide-y">
                         {quotes.map((quote) => {
                             const currentIndex = getCurrentStepIndex(quote)
-                            const actions = getQuoteActions(quote, handlers)
+                            const actions = getQuoteActions(quote, handlers, invoicingStatuses)
                             const currentStep = currentIndex >= 0 ? pipeline[currentIndex] : undefined
                             const colors = currentStep ? stepColors[currentStep.key] ?? neutralColors : neutralColors
                             const statusLabel = currentStep
@@ -215,7 +221,9 @@ export function QuoteProgression({
                                                             "bg-blue-600 text-white hover:bg-blue-700",
                                                     )}
                                                     onClick={() =>
-                                                        setConfirmDialog({ quote, action: action.action })
+                                                        action.action === "createInvoice"
+                                                            ? onCreateInvoice?.(quote)
+                                                            : setConfirmDialog({ quote, action: action.action })
                                                     }
                                                 >
                                                     {t(action.label)}

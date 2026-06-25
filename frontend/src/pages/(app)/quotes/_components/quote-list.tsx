@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "../../../../components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { Quote } from "@/types"
+import { CreateInvoiceFromQuoteDialog } from "@/pages/(app)/quotes/_components/create-invoice-from-quote-dialog"
 import { QuoteDeleteDialog } from "@/pages/(app)/quotes/_components/quote-delete"
 import { QuotePdfModal } from "@/pages/(app)/quotes/_components/quote-pdf-view"
 import { QuoteUpsert } from "@/pages/(app)/quotes/_components/quote-upsert"
@@ -36,6 +37,7 @@ interface QuoteListProps {
     mutate?: () => void
     emptyState: React.ReactNode
     showCreateButton?: boolean
+    invoicingStatuses?: Record<string, number>
 }
 
 export interface QuoteListHandle {
@@ -44,7 +46,7 @@ export interface QuoteListHandle {
 
 export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
     (
-        { quotes, loading, title, description, searchTerm, onSearchChange, statusFilter, onStatusFilterChange, statusCounts, page, pageCount, setPage, mutate, emptyState, showCreateButton = false },
+        { quotes, loading, title, description, searchTerm, onSearchChange, statusFilter, onStatusFilterChange, statusCounts, page, pageCount, setPage, mutate, emptyState, showCreateButton = false, invoicingStatuses },
         ref,
     ) => {
         const { t } = useTranslation()
@@ -52,7 +54,6 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
         const { trigger: triggerSendForSignature, loading: signatureLoading } = usePost<{ message: string; signature: { id: string } }>(
             `/api/signatures`,
         )
-        const { trigger: triggerCreateInvoice } = usePost(`/api/invoices/create-from-quote`)
 
         const [createQuoteDialog, setCreateQuoteDialog] = useState<boolean>(false)
         const [quoteIdForSignature, setQuoteIdForSignature] = useState<string | null>(null)
@@ -62,6 +63,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
         const [deleteQuoteDialog, setDeleteQuoteDialog] = useState<Quote | null>(null)
         const [sendQuoteDialog, setSendQuoteDialog] = useState<Quote | null>(null)
         const [downloadQuotePdf, setDownloadQuotePdf] = useState<Quote | null>(null)
+        const [createInvoiceQuote, setCreateInvoiceQuote] = useState<Quote | null>(null)
 
         const { data: pdf } = useGetRaw<Response>(downloadQuotePdf ? `/api/quotes/${downloadQuotePdf.id}/pdf` : null)
 
@@ -138,17 +140,8 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                 })
         }
 
-        function handleCreateInvoice(quoteId: string) {
-            triggerCreateInvoice({ quoteId })
-                .then(() => {
-                    toast.success(t("quotes.list.messages.invoiceCreated"))
-                    queryClient.invalidateQueries({ queryKey: queryKeys.quotes.listsAll() })
-                    queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
-                })
-                .catch((error) => {
-                    console.error("Error creating invoice from quote:", error)
-                    toast.error(t("quotes.list.messages.invoiceCreateError"))
-                })
+        function handleCreateInvoice(quote: Quote) {
+            setCreateInvoiceQuote(quote)
         }
 
         const getStatusColor = (status: string) => {
@@ -366,11 +359,16 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                                                 {quote.status === "SIGNED" && (
                                                     <Button
                                                         data-cy={`create-invoice-${quote.id}`}
-                                                        tooltip={t("quotes.list.tooltips.createInvoice")}
+                                                        tooltip={
+                                                            invoicingStatuses?.[quote.id] !== undefined && invoicingStatuses[quote.id] <= 0
+                                                                ? t("quotes.createInvoiceDialog.errors.quoteFullyInvoiced")
+                                                                : t("quotes.list.tooltips.createInvoice")
+                                                        }
                                                         variant="ghost"
                                                         size="icon"
-                                                        onClick={() => handleCreateInvoice(quote.id)}
+                                                        onClick={() => handleCreateInvoice(quote)}
                                                         className="text-gray-600 hover:text-green-600"
+                                                        disabled={invoicingStatuses?.[quote.id] !== undefined && invoicingStatuses[quote.id] <= 0}
                                                     >
                                                         <Plus className="h-4 w-4" />
                                                     </Button>
@@ -409,7 +407,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                     open={createQuoteDialog}
                     onOpenChange={(open) => {
                         setCreateQuoteDialog(open)
-                        if (!open) mutate && mutate()
+                        if (!open) mutate?.()
                     }}
                 />
 
@@ -418,7 +416,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                     quote={editQuoteDialog}
                     onOpenChange={(open) => {
                         if (!open) setEditQuoteDialog(null)
-                        mutate && mutate()
+                        mutate?.()
                     }}
                 />
 
@@ -440,7 +438,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                     quote={deleteQuoteDialog}
                     onOpenChange={(open: boolean) => {
                         if (!open) setDeleteQuoteDialog(null)
-                        mutate && mutate()
+                        mutate?.()
                     }}
                 />
 
@@ -457,6 +455,14 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                     cancelLabel={t("quotes.sendConfirmation.cancel")}
                     onConfirm={confirmSendForSignature}
                     loading={signatureLoading && quoteIdForSignature === sendQuoteDialog?.id}
+                />
+
+                <CreateInvoiceFromQuoteDialog
+                    quote={createInvoiceQuote}
+                    onOpenChange={(open: boolean) => {
+                        if (!open) setCreateInvoiceQuote(null)
+                        mutate?.()
+                    }}
                 />
             </>
         )

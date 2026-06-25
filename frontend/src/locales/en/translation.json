@@ -293,12 +293,31 @@
                     "title": "Resend quote",
                     "description": "Are you sure you want to resend quote {{number}} to {{client}}?"
                 },
-                "createInvoice": {
-                    "title": "Create invoice from quote",
-                    "description": "Are you sure you want to create an invoice from quote {{number}}?"
-                },
                 "cancel": "Cancel",
                 "confirm": "Confirm"
+            }
+        },
+        "createInvoiceDialog": {
+            "title": "Create invoice from quote",
+            "description": "Select the items to invoice from quote {{number}}.",
+            "percentageLabel": "Percentage to invoice",
+            "fields": {
+                "quantity": {
+                    "label": "Quantity"
+                }
+            },
+            "alreadyInvoicedBadge": "Already invoiced",
+            "remainingLabel": "Remaining: {{remaining}}",
+            "totalSelectedLabel": "Total: {{amount}} {{currency}}",
+            "percentOfQuoteLabel": "{{percent}}% of quote",
+            "itemAmountLabel": "{{amount}} {{currency}}",
+            "actions": {
+                "confirm": "Create invoice",
+                "cancel": "Cancel"
+            },
+            "errors": {
+                "quoteFullyInvoiced": "This quote has already been fully invoiced.",
+                "quantityExceedsRemaining": "The requested quantity exceeds the remaining quantity to invoice."
             }
         },
         "upsert": {

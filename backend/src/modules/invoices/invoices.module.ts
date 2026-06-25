@@ -9,6 +9,7 @@ import { WebhooksModule } from "../webhooks/webhooks.module";
 @Module({
   imports: [WebhooksModule],
   controllers: [InvoicesController],
-  providers: [InvoicesService, MailService, JwtService, PluginsService]
+  providers: [InvoicesService, MailService, JwtService, PluginsService],
+  exports: [InvoicesService]
 })
 export class InvoicesModule { }

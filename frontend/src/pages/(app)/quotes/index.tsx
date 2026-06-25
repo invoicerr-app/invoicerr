@@ -1,12 +1,13 @@
 import { FileText, GitBranch, Plus } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-import { useGetRaw, usePost } from "@/hooks/use-fetch"
+import { authenticatedFetch, useGetRaw, usePost } from "@/hooks/use-fetch"
 import { useQuotes } from "@/hooks/queries"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 
 import { Button } from "@/components/ui/button"
 import type { Quote } from "@/types"
+import { CreateInvoiceFromQuoteDialog } from "@/pages/(app)/quotes/_components/create-invoice-from-quote-dialog"
 import { QuoteList } from "@/pages/(app)/quotes/_components/quote-list"
 import type { QuoteListHandle } from "@/pages/(app)/quotes/_components/quote-list"
 import { QuoteProgression } from "@/pages/(app)/quotes/_components/quote-progression"
@@ -19,6 +20,10 @@ import { cn } from "@/lib/utils"
 type QuoteStatusFilter = "draft" | "sent" | "signed" | undefined
 type QuoteView = "list" | "progression"
 
+interface QuoteInvoicingStatus {
+    remainingPercent: number
+}
+
 export default function Quotes() {
     const { t } = useTranslation()
     const queryClient = useQueryClient()
@@ -27,12 +32,14 @@ export default function Quotes() {
     const { data: quotes } = useQuotes(page)
     const [downloadQuotePdf, setDownloadQuotePdf] = useState<Quote | null>(null)
     const [viewQuoteDialog, setViewQuoteDialog] = useState<Quote | null>(null)
+    const [createInvoiceQuote, setCreateInvoiceQuote] = useState<Quote | null>(null)
+    const [invoicingStatuses, setInvoicingStatuses] = useState<Record<string, number>>({})
+    const [statusVersion, setStatusVersion] = useState(0)
     const { data: pdf } = useGetRaw<Response>(downloadQuotePdf ? `/api/quotes/${downloadQuotePdf.id}/pdf` : null)
 
     const { trigger: triggerSendForSignature } = usePost<{ message: string; signature: { id: string } }>(
         `/api/signatures`,
     )
-    const { trigger: triggerCreateInvoiceFromQuote } = usePost(`/api/invoices/create-from-quote`)
 
     useEffect(() => {
         if (downloadQuotePdf && pdf) {
@@ -50,6 +57,27 @@ export default function Quotes() {
             })
         }
     }, [downloadQuotePdf, pdf])
+
+    // Load invoicing status for signed quotes so the "create invoice" buttons can
+    // be disabled when a quote is already fully invoiced.
+    useEffect(() => {
+        const signedQuotes = (quotes?.quotes || []).filter((q) => q.status === "SIGNED")
+        if (signedQuotes.length === 0) {
+            setInvoicingStatuses({})
+            return
+        }
+        const baseUrl = import.meta.env.VITE_BACKEND_URL || ""
+        Promise.all(
+            signedQuotes.map((q) =>
+                authenticatedFetch(`${baseUrl}/api/quotes/${q.id}/invoicing-status`)
+                    .then((r) => (r.ok ? r.json() : null))
+                    .then((data: QuoteInvoicingStatus | null) => [q.id, data?.remainingPercent ?? 0] as const)
+                    .catch(() => [q.id, 0] as const),
+            ),
+        ).then((entries) => {
+            setInvoicingStatuses(Object.fromEntries(entries as [string, number][]))
+        })
+    }, [quotes, statusVersion])
 
     const [searchTerm, setSearchTerm] = useState("")
     const [statusFilter, setStatusFilter] = useState<QuoteStatusFilter>(undefined)
@@ -92,15 +120,7 @@ export default function Quotes() {
     }
 
     const handleCreateInvoiceFromQuote = (quote: Quote) => {
-        triggerCreateInvoiceFromQuote({ quoteId: quote.id })
-            .then(() => {
-                toast.success(t("quotes.list.messages.invoiceCreated"))
-                queryClient.invalidateQueries({ queryKey: queryKeys.quotes.listsAll() })
-                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
-            })
-            .catch(() => {
-                toast.error(t("quotes.list.messages.invoiceCreateError"))
-            })
+        setCreateInvoiceQuote(quote)
     }
 
     const emptyState = (
@@ -145,6 +165,7 @@ export default function Quotes() {
                         onResend={handleSendForSignature}
                         onCreateInvoice={handleCreateInvoiceFromQuote}
                         onViewQuote={setViewQuoteDialog}
+                        invoicingStatuses={invoicingStatuses}
                     />
                     <QuoteViewDialog
                         quote={viewQuoteDialog}
@@ -168,8 +189,19 @@ export default function Quotes() {
                     setPage={setPage}
                     emptyState={emptyState}
                     showCreateButton={true}
+                    invoicingStatuses={invoicingStatuses}
                 />
             )}
+
+            <CreateInvoiceFromQuoteDialog
+                quote={createInvoiceQuote}
+                onOpenChange={(open: boolean) => {
+                    if (!open) setCreateInvoiceQuote(null)
+                    queryClient.invalidateQueries({ queryKey: queryKeys.quotes.listsAll() })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
+                    setStatusVersion((v) => v + 1)
+                }}
+            />
         </div>
     )
 }

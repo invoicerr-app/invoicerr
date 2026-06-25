@@ -1,4 +1,5 @@
 import { CreateQuoteDto, EditQuotesDto } from '@/modules/quotes/dto/quotes.dto';
+import { InvoicesService } from '@/modules/invoices/invoices.service';
 import { QuotesService } from '@/modules/quotes/quotes.service';
 import {
   Body,
@@ -18,7 +19,10 @@ import { Response } from 'express';
 @ApiTags('quotes')
 @Controller('quotes')
 export class QuotesController {
-  constructor(private readonly quotesService: QuotesService) { }
+  constructor(
+    private readonly quotesService: QuotesService,
+    private readonly invoicesService: InvoicesService,
+  ) { }
 
   @Get()
   @ApiOperation({ summary: 'List quotes', description: 'Returns a paginated list of quotes.' })
@@ -34,6 +38,15 @@ export class QuotesController {
   @ApiResponse({ status: 200, description: 'Search results retrieved' })
   async searchClients(@Query('query') query: string) {
     return await this.quotesService.searchQuotes(query);
+  }
+
+  @Get(':id/invoicing-status')
+  @ApiOperation({ summary: 'Get quote invoicing status', description: 'Returns the remaining invoicable quantity per quote item and the overall remaining percentage, based on invoices already created from this quote.' })
+  @ApiParam({ name: 'id', type: String, description: 'Quote ID' })
+  @ApiResponse({ status: 200, description: 'Invoicing status retrieved' })
+  @ApiResponse({ status: 404, description: 'Quote not found' })
+  async getQuoteInvoicingStatus(@Param('id') id: string) {
+    return this.invoicesService.getQuoteInvoicingStatus(id);
   }
 
   @Get(':id/pdf')

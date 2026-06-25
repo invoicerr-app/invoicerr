@@ -1,7 +1,7 @@
 import * as Handlebars from 'handlebars';
 
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { CreateInvoiceDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
+import { CreateInvoiceDto, CreateInvoiceFromQuoteDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
 import { EInvoice, ExportFormat } from '@fin.cx/einvoice';
 import { getInvertColor, getPDF } from '@/utils/pdf';
 
@@ -138,6 +138,7 @@ export class InvoicesService {
                         vatRate: isVatExemptFrance ? 0 : (item.vatRate || 0),
                         type: item.type,
                         order: item.order || 0,
+                        quoteItemId: item.quoteItemId,
                     })),
                 },
                 dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
@@ -607,9 +608,9 @@ export class InvoicesService {
         return await inv.embedInPdf(Buffer.from(pdfBuffer), format)
     }
 
-    async createInvoiceFromQuote(quoteId: string) {
+    async createInvoiceFromQuote(body: CreateInvoiceFromQuoteDto) {
         const quote = await prisma.quote.findUnique({
-            where: { id: quoteId },
+            where: { id: body.quoteId },
             include: {
                 items: true,
                 client: true,
@@ -618,14 +619,55 @@ export class InvoicesService {
         });
 
         if (!quote) {
-            logger.error('Quote not found when creating invoice from quote', { category: 'invoice', details: { quoteId } });
+            logger.error('Quote not found when creating invoice from quote', { category: 'invoice', details: { quoteId: body.quoteId } });
             throw new BadRequestException('Quote not found');
+        }
+
+        const invoicingStatus = await this.getQuoteInvoicingStatus(body.quoteId);
+
+        if (invoicingStatus.remainingPercent <= 0) {
+            logger.error('Quote has already been fully invoiced', { category: 'invoice', details: { quoteId: body.quoteId } });
+            throw new BadRequestException('This quote has already been fully invoiced');
+        }
+
+        const quoteItemById = new Map<string, (typeof quote.items)[number]>(
+            quote.items.map(item => [item.id, item] as const),
+        );
+        const remainingByItemId = new Map<string, number>(
+            invoicingStatus.items.map(item => [item.quoteItemId, item.remainingQuantity] as const),
+        );
+
+        const invoiceItems = body.items
+            .filter(line => line.quantity > 0)
+            .map(line => {
+                const quoteItem = quoteItemById.get(line.quoteItemId);
+                if (!quoteItem) {
+                    throw new BadRequestException(`Quote item ${line.quoteItemId} does not belong to quote ${body.quoteId}`);
+                }
+                const remaining = remainingByItemId.get(line.quoteItemId) ?? 0;
+                if (line.quantity > remaining + 1e-9) {
+                    throw new BadRequestException(`Requested quantity ${line.quantity} for item "${quoteItem.description}" exceeds remaining quantity ${remaining}`);
+                }
+                return {
+                    description: quoteItem.description,
+                    quantity: line.quantity,
+                    unitPrice: quoteItem.unitPrice,
+                    vatRate: quoteItem.vatRate,
+                    type: quoteItem.type,
+                    order: quoteItem.order,
+                    quoteItemId: quoteItem.id,
+                };
+            });
+
+        if (invoiceItems.length === 0) {
+            throw new BadRequestException('No items selected to invoice');
         }
 
         const newInvoice = await this.createInvoice({
             clientId: quote.clientId,
+            quoteId: quote.id,
             dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-            items: quote.items,
+            items: invoiceItems,
             currency: quote.currency,
             notes: quote.notes || '',
             paymentMethodId: (quote as any).paymentMethodId || undefined,
@@ -633,7 +675,7 @@ export class InvoicesService {
             paymentDetails: (quote as any).paymentDetails || undefined,
         });
 
-        logger.info('Invoice created from quote', { category: 'invoice', details: { invoiceId: newInvoice.id, quoteId } });
+        logger.info('Invoice created from quote', { category: 'invoice', details: { invoiceId: newInvoice.id, quoteId: quote.id } });
 
         try {
             await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_CREATED_FROM_QUOTE, {
@@ -647,6 +689,51 @@ export class InvoicesService {
         }
 
         return newInvoice;
+    }
+
+    /**
+     * Computes how much of each quote item has already been invoiced across
+     * all invoices created from this quote, and the remaining invoicable total.
+     */
+    async getQuoteInvoicingStatus(quoteId: string) {
+        const quote = await prisma.quote.findUnique({
+            where: { id: quoteId },
+            include: {
+                items: { include: { invoiceItems: { select: { quantity: true } } } },
+            },
+        });
+
+        if (!quote) {
+            logger.error('Quote not found when computing invoicing status', { category: 'invoice', details: { quoteId } });
+            throw new BadRequestException('Quote not found');
+        }
+
+        const discountFactor = 1 - clampDiscountRate(quote.discountRate) / 100;
+
+        const items = quote.items.map(item => {
+            const invoicedQuantity = item.invoiceItems.reduce((sum, inv) => sum + inv.quantity, 0);
+            const remainingQuantity = Math.max(0, item.quantity - invoicedQuantity);
+            const remainingTTC = remainingQuantity * item.unitPrice * discountFactor * (1 + (item.vatRate || 0) / 100);
+            return {
+                quoteItemId: item.id,
+                description: item.description,
+                quantity: item.quantity,
+                invoicedQuantity,
+                remainingQuantity,
+                remainingTTC,
+            };
+        });
+
+        const totalTTC = quote.totalTTC;
+        const remainingTTC = items.reduce((sum, item) => sum + item.remainingTTC, 0);
+        const remainingPercent = totalTTC > 0 ? (remainingTTC / totalTTC) * 100 : 0;
+
+        return {
+            items,
+            totalTTC,
+            remainingTTC,
+            remainingPercent,
+        };
     }
 
     async archiveInvoice(invoiceId: string) {
