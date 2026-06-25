@@ -854,7 +854,6 @@
     },
     "dashboard": {
         "title": "Dashboard",
-        "welcomeMessage": "Welcome back, {{firstname}}!",
         "revenue": {
             "title": "Revenue Overview",
             "description": "Track your financial performance over time",
@@ -888,12 +887,6 @@
             },
             "latestTitle": "Recent Invoices",
             "noRecent": "No recent invoices"
-        },
-        "clients": {
-            "title": "Clients Overview",
-            "stats": {
-                "total": "Total Clients"
-            }
         }
     },
     "articles": {

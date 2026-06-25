@@ -17,15 +17,12 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartToo
 import { InvoiceList } from "@/pages/(app)/invoices/_components/invoice-list"
 import { QuoteList } from "@/pages/(app)/quotes/_components/quote-list"
 import type React from "react"
-import { authClient } from "@/lib/auth"
 import { usePageHeader } from "@/hooks/use-page-header"
 import { useDashboard } from "@/hooks/queries"
 import { useTranslation } from "react-i18next"
 
 export default function Dashboard() {
     const { t, i18n } = useTranslation()
-
-    const { data: user } = authClient.useSession()
 
     const { data: dashboardData } = useDashboard()
 
@@ -78,9 +75,6 @@ export default function Dashboard() {
 
     return (
         <div className="max-w-7xl mx-auto space-y-6 p-6">
-            {/* @ts-ignore */}
-            <p className="text-muted-foreground">{t("dashboard.welcomeMessage", { firstname: user?.user?.firstname })}</p>
-
             <section className="space-y-6">
                 <div className="flex items-center space-x-3">
                     <div className="p-2 bg-emerald-500 rounded-lg">
@@ -391,17 +385,6 @@ export default function Dashboard() {
                         showCreateButton={false}
                     />
                 ) : null}
-            </section>
-
-            <section className="space-y-4">
-                <h2 className="text-lg font-semibold text-foreground">{t("dashboard.clients.title")}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
-                    <DashboardStat
-                        count={dashboardData?.clients.total}
-                        label={t("dashboard.clients.stats.total")}
-                        color="green"
-                    />
-                </div>
             </section>
         </div>
     )
