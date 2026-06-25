@@ -700,7 +700,9 @@
                 "notes": "Notes",
                 "complianceStatus": "Statut de conformité",
                 "correctsInvoice": "Facture corrigée",
-                "corrections": "Corrections"
+                "corrections": "Corrections",
+                "linkedDeposits": "Factures d'acompte liées",
+                "totalDeposited": "Total des acomptes"
             },
             "messages": {
                 "cancellationNotAllowed": "Annulation non autorisée"
@@ -715,6 +717,7 @@
                 "send": "Envoyer",
                 "convertToInvoice": "Convertir en facture",
                 "convertToInvoiceSuccess": "Proforma converti en facture",
+                "deposit": "Émettre une facture d'acompte",
                 "correctSuccess": "Correction émise",
                 "correctError": "Échec de l'émission de la correction",
                 "cancelSuccess": "Facture annulée",
@@ -761,6 +764,30 @@
         },
         "pdf": {
             "title": "Facture {{number}} - PDF"
+        },
+        "deposit": {
+            "title": "Émettre une facture d'acompte",
+            "description": "Créer une facture d'acompte standalone.",
+            "form": {
+                "amount": {
+                    "label": "Montant de l'acompte",
+                    "placeholder": "Saisir le montant de l'acompte",
+                    "errors": {
+                        "required": "Le montant est requis",
+                        "min": "Le montant doit être supérieur à 0"
+                    }
+                },
+                "notes": {
+                    "placeholder": "Notes optionnelles pour la facture d'acompte"
+                }
+            },
+            "actions": {
+                "create": "Créer la facture d'acompte"
+            },
+            "messages": {
+                "success": "Facture d'acompte créée",
+                "error": "Échec de la création de la facture d'acompte"
+            }
         }
     },
     "recurringInvoices": {

@@ -12,7 +12,9 @@ import { useAvailableActions } from "@/hooks/queries/use-available-actions"
 import { useGet } from "@/hooks/use-fetch"
 import { authenticatedFetch } from "@/hooks/use-fetch"
 import { toast } from "sonner"
-import { Edit, RotateCcw, XCircle, Send, ArrowRightLeft } from "lucide-react"
+import { Edit, RotateCcw, XCircle, Send, ArrowRightLeft, Banknote } from "lucide-react"
+import { DepositDialog } from "./deposit-dialog"
+import { useState } from "react"
 
 interface InvoiceViewDialogProps {
     invoice: Invoice | null
@@ -23,6 +25,7 @@ interface InvoiceViewDialogProps {
 export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceViewDialogProps) {
     const { t, i18n } = useTranslation()
     const { data: actions } = useAvailableActions(invoice?.id)
+    const [depositOpen, setDepositOpen] = useState(false)
 
     // Fetch the original invoice when this one corrects another
     const { data: originalInvoice } = useGet<Invoice>(
@@ -76,6 +79,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
     }
 
     return (
+        <>
         <Dialog open={!!invoice} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-[95vw] lg:max-w-3xl max-h-[90dvh] flex flex-col overflow-hidden">
                 {invoice.status === "DRAFT" && (
@@ -140,6 +144,12 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                             <Button size="sm" variant="outline" onClick={() => handleAction("convertToInvoice")} data-cy="action-convert-proforma">
                                 <ArrowRightLeft className="h-3.5 w-3.5 mr-1.5" />
                                 {t("invoices.view.actions.convertToInvoice")}
+                            </Button>
+                        )}
+                        {actions.actions.deposit && (
+                            <Button size="sm" variant="outline" onClick={() => setDepositOpen(true)} data-cy="action-deposit">
+                                <Banknote className="h-3.5 w-3.5 mr-1.5" />
+                                {t("invoices.view.actions.deposit")}
                             </Button>
                         )}
                     </div>
@@ -323,8 +333,41 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                             {t("invoices.view.messages.cancellationNotAllowed")}: {actions.cancellation.reason}
                         </div>
                     )}
+
+                    {/* Linked deposit invoices (for FINAL kind or parent with deposits) */}
+                    {invoice.depositInvoices && invoice.depositInvoices.length > 0 && (
+                        <div className="bg-muted/50 p-4 rounded-lg" data-cy="linked-deposits">
+                            <p className="text-sm text-muted-foreground mb-2">{t("invoices.view.fields.linkedDeposits")}</p>
+                            <div className="flex flex-col gap-1">
+                                {invoice.depositInvoices.map((dep) => (
+                                    <div key={dep.id} className="flex items-center gap-2 text-sm">
+                                        <Badge variant="secondary" className={`text-xs ${getInvoiceKindColor(dep.kind)}`}>
+                                            {getInvoiceKindLabel(dep.kind)}
+                                        </Badge>
+                                        <span className="font-medium">{dep.rawNumber || dep.number?.toString()}</span>
+                                        <span className="text-muted-foreground">
+                                            {dep.totalTTC.toFixed(2)} {dep.currency}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="mt-2 pt-2 border-t flex justify-end text-sm font-medium">
+                                {t("invoices.view.fields.totalDeposited")}: {
+                                    invoice.depositInvoices.reduce((sum, dep) => sum + dep.totalTTC, 0).toFixed(2)
+                                } {invoice.currency}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>
+
+        <DepositDialog
+            open={depositOpen}
+            onOpenChange={setDepositOpen}
+            defaultClientId={invoice?.clientId}
+            defaultCurrency={invoice?.currency}
+        />
+        </>
     )
 }

@@ -468,7 +468,9 @@
         "view": {
             "fields": {
                 "correctsInvoice": "Corrects Invoice",
-                "corrections": "Corrections"
+                "corrections": "Corrections",
+                "linkedDeposits": "Linked Deposit Invoices",
+                "totalDeposited": "Total Deposited"
             },
             "messages": {
                 "cancellationNotAllowed": "Cancellation not allowed"
@@ -490,7 +492,8 @@
                 "sendSuccess": "Invoice sent",
                 "sendError": "Failed to send invoice",
                 "convertToInvoice": "Convert to Invoice",
-                "convertToInvoiceSuccess": "Proforma converted to invoice"
+                "convertToInvoiceSuccess": "Proforma converted to invoice",
+                "deposit": "Issue Deposit Invoice"
             }
         },
         "list": {
@@ -504,6 +507,30 @@
                 "correctError": "Failed to issue credit note",
                 "cancelSuccess": "Invoice cancelled",
                 "cancelError": "Failed to cancel invoice"
+            }
+        },
+        "deposit": {
+            "title": "Issue Deposit Invoice",
+            "description": "Create a standalone deposit invoice (facture d'acompte).",
+            "form": {
+                "amount": {
+                    "label": "Deposit Amount",
+                    "placeholder": "Enter deposit amount",
+                    "errors": {
+                        "required": "Amount is required",
+                        "min": "Amount must be greater than 0"
+                    }
+                },
+                "notes": {
+                    "placeholder": "Optional notes for the deposit invoice"
+                }
+            },
+            "actions": {
+                "create": "Create Deposit Invoice"
+            },
+            "messages": {
+                "success": "Deposit invoice created",
+                "error": "Failed to create deposit invoice"
             }
         }
     }
