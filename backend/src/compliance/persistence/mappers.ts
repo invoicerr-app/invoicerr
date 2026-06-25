@@ -24,6 +24,7 @@ export function documentToRecord(row: DocumentRow): ComplianceDocumentRecord {
     previousHash: row.previousHash ?? undefined,
     authorityIds: row.authorityIds.map((a) => ({ scheme: a.scheme, value: a.value })),
     correctsId: row.correctsId ?? undefined,
+    invoiceId: row.invoiceId ?? undefined,
     events: row.events.map((e): ComplianceDocumentEvent => ({
       id: e.id,
       type: e.type,
@@ -64,6 +65,7 @@ export function documentToCreateInput(record: ComplianceDocumentRecord): Prisma.
     authorityIds: {
       create: record.authorityIds.map((a) => ({ scheme: a.scheme, value: a.value })),
     },
+    ...(record.invoiceId ? { invoice: { connect: { id: record.invoiceId } } } : {}),
   };
 }
 
@@ -85,6 +87,7 @@ export function documentToUpdateInput(record: ComplianceDocumentRecord): Prisma.
       deleteMany: {},
       create: record.authorityIds.map((a) => ({ scheme: a.scheme, value: a.value })),
     },
+    ...(record.invoiceId ? { invoice: { connect: { id: record.invoiceId } } } : {}),
   };
 }
 

@@ -41,6 +41,7 @@ export interface ComplianceDocumentRecord {
   previousHash?: string;
   authorityIds: AuthorityIdentifier[];
   correctsId?: string; // for credit/corrective documents
+  invoiceId?: string; // link to live Invoice row
   events: ComplianceDocumentEvent[];
   createdAt: string;
   updatedAt: string;

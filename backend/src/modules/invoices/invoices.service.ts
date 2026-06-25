@@ -18,8 +18,10 @@ import { parseAddress } from '@/utils/adress';
 import prisma from '@/prisma/prisma.service';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { resolveInvoiceTax } from '@/compliance/integration/invoice-tax';
+import { ComplianceService } from '@/compliance/operations/compliance-service';
+import type { TransactionContext } from '@/compliance/canonical/canonical-document';
 import { clampDiscountRate, toMinor } from '@/utils/financial';
-import type { SupplyType } from '@/compliance/types';
+import type { SupplyType, DocumentKind } from '@/compliance/types';
 import { getDraftWatermarkLabel } from '@/utils/watermark';
 import { augmentWithIdentifiers, getIdentifier } from '@/utils/entity-identifiers';
 
@@ -30,6 +32,7 @@ export class InvoicesService {
         private readonly mailService: MailService,
         private readonly webhookDispatcher: WebhookDispatcherService,
         private readonly numberingService: NumberingService,
+        private readonly complianceService: ComplianceService,
     ) {
     }
 
@@ -190,6 +193,36 @@ export class InvoicesService {
 
         logger.info('Invoice created', { category: 'invoice', details: { invoiceId: invoice.id, clientId: client.id } });
 
+        // Wire ComplianceService: create a draft compliance document linked to this invoice
+        try {
+            const complianceCtx: TransactionContext = {
+                supplier: {
+                    legalName: company.name,
+                    countryCode: company.countryCode ?? guessCountryCode(company.country) ?? 'FR',
+                    role: 'B2B',
+                    identifiers: (company as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
+                },
+                buyer: {
+                    legalName: client.name,
+                    countryCode: client.countryCode ?? guessCountryCode(client.country) ?? 'FR',
+                    role: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+                    identifiers: (client as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
+                },
+                lines: items.map((item) => ({
+                    id: `item-${item.order ?? 0}`,
+                    description: item.description,
+                    quantity: item.quantity,
+                    unitNetMinor: toMinor(item.unitPrice, body.currency || client.currency || company.currency),
+                    supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
+                })),
+                issueDate: new Date(),
+                currency: body.currency || client.currency || company.currency,
+            };
+            await this.complianceService.createDraft(complianceCtx, 'INVOICE', invoice.id);
+        } catch (error) {
+            logger.warn('ComplianceService.createDraft failed (non-blocking)', { category: 'invoice', details: { error: String(error) } });
+        }
+
         try {
             await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_CREATED, {
                 invoice,
@@ -249,7 +282,20 @@ export class InvoicesService {
             });
         });
 
-        // TODO: route through ComplianceService.issue() / send() instead of wiring numbering directly (PART III)
+        // Wire ComplianceService: issue the compliance document linked to this invoice
+        try {
+            const complianceDoc = await prisma.complianceDocument.findFirst({
+                where: { invoiceId: id },
+                orderBy: { createdAt: 'desc' },
+            });
+            if (complianceDoc) {
+                await this.complianceService.issue(complianceDoc.id);
+            } else {
+                logger.warn('No compliance document found for issued invoice', { category: 'invoice', details: { invoiceId: id } });
+            }
+        } catch (error) {
+            logger.warn('ComplianceService.issue failed (non-blocking)', { category: 'invoice', details: { error: String(error) } });
+        }
 
         logger.info('Invoice issued', { category: 'invoice', details: { invoiceId: id, number: updated.rawNumber } });
 
