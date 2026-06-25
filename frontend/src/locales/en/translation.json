@@ -565,7 +565,8 @@
             },
             "tabs": {
                 "invoice": "Invoice",
-                "recurring": "Recurring Invoice"
+                "recurring": "Recurring Invoice",
+                "proforma": "Proforma"
             },
             "form": {
                 "quote": {
@@ -660,7 +661,8 @@
             "actions": {
                 "cancel": "Cancel",
                 "create": "Create Invoice",
-                "save": "Save Changes"
+                "save": "Save Changes",
+                "createProforma": "Create Proforma"
             }
         },
         "view": {
@@ -710,6 +712,8 @@
                 "cancel": "Cancel",
                 "cancelAndReplace": "Cancel & Replace",
                 "send": "Send",
+                "convertToInvoice": "Convert to Invoice",
+                "convertToInvoiceSuccess": "Proforma converted to invoice",
                 "correctSuccess": "Correction issued",
                 "correctError": "Failed to issue correction",
                 "cancelSuccess": "Invoice cancelled",

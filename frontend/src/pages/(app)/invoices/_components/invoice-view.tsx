@@ -12,7 +12,7 @@ import { useAvailableActions } from "@/hooks/queries/use-available-actions"
 import { useGet } from "@/hooks/use-fetch"
 import { authenticatedFetch } from "@/hooks/use-fetch"
 import { toast } from "sonner"
-import { Edit, RotateCcw, XCircle, Send } from "lucide-react"
+import { Edit, RotateCcw, XCircle, Send, ArrowRightLeft } from "lucide-react"
 
 interface InvoiceViewDialogProps {
     invoice: Invoice | null
@@ -49,6 +49,8 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
         if (!invoice) return
         const url = action === 'cancelAndReplace'
             ? `/api/invoices/${invoice.id}/cancel-and-replace`
+            : action === 'convertToInvoice'
+            ? `/api/invoices/${invoice.id}/convert-to-invoice`
             : `/api/invoices/${invoice.id}/${action}`
 
         authenticatedFetch(url, { method: 'POST', body: JSON.stringify({}) })
@@ -56,6 +58,10 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                 const data = await res.json()
                 if (action === 'cancel' && !data.accepted) {
                     toast.error(data.reason || t("invoices.list.messages.cancelError"))
+                } else if (action === 'convertToInvoice' && data.id) {
+                    toast.success(t("invoices.view.actions.convertToInvoiceSuccess"))
+                    onMutate?.()
+                    onOpenChange(false)
                 } else if (data.correctionInvoiceId || data.accepted || data.replacementId) {
                     toast.success(t(`invoices.view.actions.${action}Success`))
                     onMutate?.()
@@ -128,6 +134,12 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                             <Button size="sm" variant="outline" onClick={() => handleAction("send")} data-cy="action-send">
                                 <Send className="h-3.5 w-3.5 mr-1.5" />
                                 {t("invoices.view.actions.send")}
+                            </Button>
+                        )}
+                        {actions.actions.convertToInvoice && (
+                            <Button size="sm" variant="outline" onClick={() => handleAction("convertToInvoice")} data-cy="action-convert-proforma">
+                                <ArrowRightLeft className="h-3.5 w-3.5 mr-1.5" />
+                                {t("invoices.view.actions.convertToInvoice")}
                             </Button>
                         )}
                     </div>

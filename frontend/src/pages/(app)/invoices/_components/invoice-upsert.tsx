@@ -32,7 +32,7 @@ interface InvoiceUpsertDialogProps {
     onOpenChange: (open: boolean) => void
 }
 
-type CreationMode = "invoice" | "recurring"
+type CreationMode = "invoice" | "recurring" | "proforma"
 
 function createItemSchema(t: (key: string) => string, translationPrefix: "invoices" | "recurringInvoices", typeSchema: z.ZodTypeAny) {
     return z.object({
@@ -137,6 +137,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
     const { data: paymentMethods } = usePaymentMethods()
 
     const { trigger: createTrigger } = usePost("/api/invoices")
+    const { trigger: createProformaTrigger } = usePost("/api/invoices/proforma")
     const { trigger: updateTrigger } = usePatch(`/api/invoices/${invoice?.id}`)
     const { trigger: createRecurringTrigger } = usePost("/api/recurring-invoices")
 
@@ -236,6 +237,16 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
             .catch((err) => console.error(err))
     }
 
+    const onSubmitProforma = (data: z.infer<typeof invoiceSchema>) => {
+        createProformaTrigger({ ...data, kind: 'PROFORMA' })
+            .then(() => {
+                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
+                onOpenChange(false)
+                form.reset()
+            })
+            .catch((err) => console.error(err))
+    }
+
     const handleClientCreate = (newClient: Client) => {
         setClientsSearchTerm("")
         clients?.push(newClient)
@@ -267,6 +278,9 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                     </TabsTrigger>
                                     <TabsTrigger value="recurring" data-cy="invoice-tab-recurring">
                                         {t("invoices.upsert.tabs.recurring")}
+                                    </TabsTrigger>
+                                    <TabsTrigger value="proforma" data-cy="invoice-tab-proforma">
+                                        {t("invoices.upsert.tabs.proforma")}
                                     </TabsTrigger>
                                 </TabsList>
                             </Tabs>
@@ -665,6 +679,88 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                     />
                                 </form>
                             </Form>
+                        ) : mode === "proforma" ? (
+                            <Form {...form} key="proforma-form-mode">
+                                <form id="proforma-form" onSubmit={handleSubmit(onSubmitProforma)} className="space-y-4" data-cy="proforma-form">
+                                    <FormField
+                                        control={control}
+                                        name="clientId"
+                                        render={({ field }) => (
+                                            <ClientSelectField
+                                                field={field}
+                                                searchTerm={clientSearchTerm}
+                                                setSearchTerm={setClientsSearchTerm}
+                                                onCreateClient={handleClientCreate}
+                                                clients={clients}
+                                            />
+                                        )}
+                                    />
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <FormField
+                                            control={control}
+                                            name="currency"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>{t("invoices.upsert.form.currency.label")}</FormLabel>
+                                                    <FormControl>
+                                                        <CurrencySelect value={field.value} onChange={field.onChange} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        <FormField
+                                            control={control}
+                                            name="discountRate"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>{t("invoices.upsert.form.discountRate.label")}</FormLabel>
+                                                    <FormControl>
+                                                        <BetterInput type="number" step="0.01" min="0" max="100" placeholder={t("invoices.upsert.form.discountRate.placeholder")} {...field} value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? null : parseFloat(e.target.value))} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
+
+                                    <FormField
+                                        control={control}
+                                        name="dueDate"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>{t("invoices.upsert.form.dueDate.label")}</FormLabel>
+                                                <FormControl>
+                                                    <DatePicker className="w-full" placeholder={t("invoices.upsert.form.dueDate.placeholder")} value={field.value || null} onChange={field.onChange} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    <Separator className="my-4" />
+
+                                    <InvoiceLineItemsEditor translationPrefix="invoices" defaultItemType="SERVICE" />
+
+                                    <Separator className="my-4" />
+
+                                    <FormField
+                                        control={control}
+                                        name="notes"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>{t("invoices.upsert.form.notes.label")}</FormLabel>
+                                                <FormControl>
+                                                    <Textarea placeholder={t("invoices.upsert.form.notes.placeholder")} className="resize-none" {...field} value={field.value ?? ""} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </form>
+                            </Form>
                         )}
                     </div>
 
@@ -674,10 +770,12 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                         </Button>
                         <Button
                             type="submit"
-                            form={mode === "invoice" ? "invoice-form" : "recurring-invoice-form"}
+                            form={mode === "invoice" ? "invoice-form" : mode === "proforma" ? "proforma-form" : "recurring-invoice-form"}
                             dataCy="invoice-submit"
                         >
-                            {mode === "invoice"
+                            {mode === "proforma"
+                                ? t("invoices.upsert.actions.createProforma")
+                                : mode === "invoice"
                                 ? t(`invoices.upsert.actions.${isEdit ? "save" : "create"}`)
                                 : t("recurringInvoices.upsert.actions.create")}
                         </Button>

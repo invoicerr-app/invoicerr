@@ -232,7 +232,9 @@
                 "cancelAndReplaceSuccess": "Invoice cancelled and replaced",
                 "cancelAndReplaceError": "Failed to cancel and replace",
                 "sendSuccess": "Invoice sent",
-                "sendError": "Failed to send invoice"
+                "sendError": "Failed to send invoice",
+                "convertToInvoice": "Convert to Invoice",
+                "convertToInvoiceSuccess": "Proforma converted to invoice"
             }
         },
         "list": {

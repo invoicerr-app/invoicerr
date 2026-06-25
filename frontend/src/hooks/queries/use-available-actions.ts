@@ -1,12 +1,13 @@
-import { useApiQuery } from "@/hooks/use-api-query"
-
-export interface AvailableActions {
-    invoiceId: string
-    status: string
-    immutableAfter: string
-    correctionModel: string
-    cancellation: {
-        allowed: boolean
+ import { useApiQuery } from "@/hooks/use-api-query"
+ 
+ export interface AvailableActions {
+     invoiceId: string
+     status: string
+     kind?: string
+     immutableAfter: string
+     correctionModel: string
+     cancellation: {
+         allowed: boolean
         reason?: string
     }
     actions: {
@@ -16,6 +17,8 @@ export interface AvailableActions {
         cancel: boolean
         cancelAndReplace: boolean
         send: boolean
+        convertToInvoice: boolean
+        deposit: boolean
     }
     correctionKinds: string[]
 }

@@ -1437,6 +1437,455 @@ export class InvoicesService {
         return { message: 'Invoice sent successfully' };
     }
 
+    // ──────────────────────────────────────────────────────────────────────
+    //  III.4 — Proforma
+    // ──────────────────────────────────────────────────────────────────────
+
+    async createProformaInvoice(body: CreateInvoiceDto) {
+        const { items, ...data } = body;
+
+        const company = await prisma.company.findFirst({
+            include: { partyIdentifiers: true },
+        });
+        if (!company) throw new BadRequestException('No company found. Please create a company first.');
+
+        const client = await prisma.client.findUnique({
+            where: { id: body.clientId },
+            include: { partyIdentifiers: true },
+        });
+        if (!client) throw new BadRequestException('Client not found');
+
+        const discountRate = clampDiscountRate(body.discountRate);
+        const taxResult = resolveInvoiceTax({
+            supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
+            supplierExemptVat: !!company.exemptVat,
+            supplierVatNumber: getIdentifier(company, 'VAT'),
+            buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
+            buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+            buyerVatNumber: getIdentifier(client, 'VAT'),
+            currency: body.currency || client.currency || company.currency,
+            issueDate: new Date(),
+            discountRate,
+            items: items.map(item => ({
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                vatRate: item.vatRate,
+                supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
+            })),
+        });
+
+        if (taxResult.warnings.length > 0) {
+            logger.warn('Tax resolution warnings (proforma)', { category: 'invoice', details: { warnings: taxResult.warnings } });
+        }
+
+        const invoice = await prisma.invoice.create({
+            data: {
+                ...data,
+                kind: 'PROFORMA',
+                status: 'DRAFT',
+                currency: body.currency || client.currency || company.currency,
+                companyId: company.id,
+                clientId: client.id,
+                discountRate,
+                totalHT: taxResult.totalHT,
+                totalHTMinor: taxResult.totalsMinor.netMinor,
+                totalVAT: taxResult.totalVAT,
+                totalVATMinor: taxResult.totalsMinor.taxMinor,
+                totalTTC: taxResult.totalTTC,
+                totalTTCMinor: taxResult.totalsMinor.grossMinor,
+                items: {
+                    create: items.map((item, i) => ({
+                        description: item.description,
+                        quantity: item.quantity,
+                        unitPrice: item.unitPrice,
+                        unitPriceMinor: toMinor(item.unitPrice, body.currency || client.currency || company.currency),
+                        vatRate: taxResult.itemVatRates[i],
+                        type: item.type,
+                        order: item.order || 0,
+                        discountRate: item.discountRate ?? 0,
+                        discountAmount: item.discountAmount ?? null,
+                        discountAmountMinor: item.discountAmount ? toMinor(item.discountAmount, body.currency || client.currency || company.currency) : null,
+                        chargeAmount: item.chargeAmount ?? null,
+                        chargeAmountMinor: item.chargeAmount ? toMinor(item.chargeAmount, body.currency || client.currency || company.currency) : null,
+                        chargeDescription: item.chargeDescription ?? null,
+                        unitOfMeasure: item.unitOfMeasure ?? 'C62',
+                    })),
+                },
+                dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+            },
+            include: {
+                items: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
+            },
+        });
+
+        // Non-blocking: compliance draft (tracking only — proforma is never issued)
+        try {
+            const complianceCtx: TransactionContext = {
+                supplier: {
+                    legalName: company.name,
+                    countryCode: company.countryCode ?? guessCountryCode(company.country) ?? 'FR',
+                    role: 'B2B',
+                    identifiers: (company as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
+                },
+                buyer: {
+                    legalName: client.name,
+                    countryCode: client.countryCode ?? guessCountryCode(client.country) ?? 'FR',
+                    role: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+                    identifiers: (client as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
+                },
+                lines: items.map((item) => ({
+                    id: `item-${item.order ?? 0}`,
+                    description: item.description,
+                    quantity: item.quantity,
+                    unitNetMinor: toMinor(item.unitPrice, body.currency || client.currency || company.currency),
+                    supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
+                })),
+                issueDate: new Date(),
+                currency: body.currency || client.currency || company.currency,
+            };
+            await this.complianceService.createDraft(complianceCtx, 'PROFORMA', invoice.id);
+        } catch (error) {
+            logger.warn('ComplianceService.createDraft failed for proforma (non-blocking)', { category: 'invoice', details: { error: String(error) } });
+        }
+
+        logger.info('Proforma created', { category: 'invoice', details: { invoiceId: invoice.id } });
+        return invoice;
+    }
+
+    async convertProformaToInvoice(proformaId: string) {
+        const proforma = await prisma.invoice.findUnique({
+            where: { id: proformaId },
+            include: { items: true },
+        });
+
+        if (!proforma) throw new BadRequestException('Invoice not found');
+        if (proforma.kind !== 'PROFORMA') throw new BadRequestException('Only PROFORMA invoices can be converted');
+
+        const newInvoice = await this.createInvoice({
+            clientId: proforma.clientId,
+            items: proforma.items.map(item => ({
+                description: item.description,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                vatRate: item.vatRate,
+                type: item.type,
+                order: item.order,
+                discountRate: item.discountRate,
+                discountAmount: item.discountAmount ?? undefined,
+                chargeAmount: item.chargeAmount ?? undefined,
+                chargeDescription: item.chargeDescription ?? undefined,
+                unitOfMeasure: item.unitOfMeasure,
+            })),
+            currency: proforma.currency,
+            notes: proforma.notes || '',
+            paymentMethodId: proforma.paymentMethodId || undefined,
+            paymentMethod: proforma.paymentMethod || undefined,
+            paymentDetails: proforma.paymentDetails || undefined,
+            discountRate: proforma.discountRate ?? undefined,
+            dueDate: proforma.dueDate,
+            depositOfInvoiceId: proforma.depositOfInvoiceId || undefined,
+        });
+
+        logger.info('Proforma converted to invoice', { category: 'invoice', details: { proformaId, newInvoiceId: newInvoice.id } });
+        return newInvoice;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  III.4 — Deposit (standalone)
+    // ──────────────────────────────────────────────────────────────────────
+
+    async createDepositInvoice(body: CreateInvoiceDto & { amount?: number; percentage?: number }) {
+        const { items: _ignoredItems, amount, percentage, ...rest } = body as any;
+
+        const company = await prisma.company.findFirst({
+            include: { partyIdentifiers: true },
+        });
+        if (!company) throw new BadRequestException('No company found. Please create a company first.');
+
+        const client = await prisma.client.findUnique({
+            where: { id: body.clientId },
+            include: { partyIdentifiers: true },
+        });
+        if (!client) throw new BadRequestException('Client not found');
+
+        // Compute deposit total TTC from amount or percentage
+        let depositTTC: number;
+        if (typeof amount === 'number' && amount > 0) {
+            depositTTC = amount;
+        } else if (typeof percentage === 'number' && percentage > 0 && percentage <= 100) {
+            // Standalone deposit: no parent invoice — percentage is of the body's own total (or 0).
+            // When linked to a parent at final-creation time, the percentage semantics are:
+            // "X% of the parent invoice total". For standalone creation, we require `amount`.
+            throw new BadRequestException('Standalone deposit invoices require an explicit amount (percentage is only meaningful when linked to a parent invoice).');
+        } else {
+            throw new BadRequestException('Provide either amount or a valid percentage (1-100).');
+        }
+
+        // Use the compliance engine to resolve VAT on the deposit line
+        const discountRate = 0;
+        const taxResult = resolveInvoiceTax({
+            supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
+            supplierExemptVat: !!company.exemptVat,
+            supplierVatNumber: getIdentifier(company, 'VAT'),
+            buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
+            buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+            buyerVatNumber: getIdentifier(client, 'VAT'),
+            currency: body.currency || client.currency || company.currency,
+            issueDate: new Date(),
+            discountRate,
+            items: [{ quantity: 1, unitPrice: depositTTC, vatRate: body.items?.[0]?.vatRate ?? 20, supplyType: 'SERVICES' }],
+        });
+
+        const depositHT = taxResult.totalHT;
+        const depositVAT = taxResult.totalVAT;
+        const depositItemVatRate = taxResult.itemVatRates[0] ?? 20;
+
+        const issueDate = new Date();
+        const currency = body.currency || client.currency || company.currency;
+
+        const depositInvoice = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+            const { counter, rawNumber } = await this.numberingService.nextNumber(tx, company.id, 'invoice', issueDate);
+
+            return tx.invoice.create({
+                data: {
+                    kind: 'DEPOSIT',
+                    status: 'ISSUED',
+                    number: counter,
+                    rawNumber,
+                    issuedAt: issueDate,
+                    clientId: client.id,
+                    companyId: company.id,
+                    currency,
+                    dueDate: body.dueDate ? new Date(body.dueDate) : issueDate,
+                    notes: body.notes || `Deposit invoice — standalone`,
+                    totalHT: depositHT,
+                    totalHTMinor: toMinor(depositHT, currency),
+                    totalVAT: depositVAT,
+                    totalVATMinor: toMinor(depositVAT, currency),
+                    totalTTC: depositTTC,
+                    totalTTCMinor: toMinor(depositTTC, currency),
+                    items: {
+                        create: [{
+                            description: 'Deposit payment',
+                            quantity: 1,
+                            unitPrice: depositTTC,
+                            unitPriceMinor: toMinor(depositTTC, currency),
+                            vatRate: depositItemVatRate,
+                            type: 'DEPOSIT',
+                            order: 0,
+                            unitOfMeasure: 'C62',
+                        }],
+                    },
+                },
+                include: {
+                    items: true,
+                    client: { include: { partyIdentifiers: true } },
+                    company: { include: { partyIdentifiers: true } },
+                },
+            });
+        });
+
+        // Non-blocking: ComplianceService createDraft + issue
+        try {
+            const complianceCtx: TransactionContext = {
+                supplier: {
+                    legalName: company.name,
+                    countryCode: company.countryCode ?? guessCountryCode(company.country) ?? 'FR',
+                    role: 'B2B',
+                    identifiers: (company as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
+                },
+                buyer: {
+                    legalName: client.name,
+                    countryCode: client.countryCode ?? guessCountryCode(client.country) ?? 'FR',
+                    role: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+                    identifiers: (client as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
+                },
+                lines: [{
+                    id: 'deposit-line',
+                    description: 'Deposit payment',
+                    quantity: 1,
+                    unitNetMinor: toMinor(depositHT, currency),
+                    supplyType: 'SERVICES',
+                }],
+                issueDate,
+                currency,
+            };
+            const doc = await this.complianceService.createDraft(complianceCtx, 'DEPOSIT', depositInvoice.id);
+            await this.complianceService.issue(doc.id);
+        } catch (error) {
+            logger.warn('ComplianceService wiring for deposit failed (non-blocking)', { category: 'invoice', details: { error: String(error) } });
+        }
+
+        logger.info('Deposit invoice created', { category: 'invoice', details: { depositInvoiceId: depositInvoice.id, rawNumber: depositInvoice.rawNumber } });
+        return depositInvoice;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  III.4 — Final invoice (with deposit deduction)
+    // ──────────────────────────────────────────────────────────────────────
+
+    async createFinalInvoice(body: CreateInvoiceDto & { depositInvoiceIds: string[] }) {
+        const { depositInvoiceIds, items, ...data } = body as any;
+
+        if (!depositInvoiceIds?.length) {
+            throw new BadRequestException('A final invoice must reference at least one deposit invoice.');
+        }
+
+        const company = await prisma.company.findFirst({
+            include: { partyIdentifiers: true },
+        });
+        if (!company) throw new BadRequestException('No company found. Please create a company first.');
+
+        const client = await prisma.client.findUnique({
+            where: { id: body.clientId },
+            include: { partyIdentifiers: true },
+        });
+        if (!client) throw new BadRequestException('Client not found');
+
+        // Fetch all deposit invoices and validate
+        const deposits = await prisma.invoice.findMany({
+            where: { id: { in: depositInvoiceIds } },
+            include: { items: true },
+        });
+
+        if (deposits.length !== depositInvoiceIds.length) {
+            throw new BadRequestException('One or more deposit invoices not found.');
+        }
+        for (const dep of deposits) {
+            if (dep.kind !== 'DEPOSIT') throw new BadRequestException(`Invoice ${dep.id} is not a deposit invoice (kind=${dep.kind}).`);
+            if (dep.depositOfInvoiceId) throw new BadRequestException(`Deposit invoice ${dep.id} is already linked to another invoice.`);
+            if (dep.clientId !== body.clientId) throw new BadRequestException(`Deposit invoice ${dep.id} belongs to a different client.`);
+        }
+
+        const currency = body.currency || client.currency || company.currency;
+        const totalDeposited = deposits.reduce((sum, d) => sum + d.totalTTC, 0);
+
+        // Compute VAT on the deduction line — [~] The VAT treatment of deposit deductions
+        // is country-specific (FR: the deposit invoice already carried VAT, so the deduction
+        // line is a credit of the same VAT). We pass the deposit items through the engine
+        // with the same vatRate to get a consistent split. If the engine's treatment differs
+        // from the local rule, a warning is surfaced.
+        const depositVatRate = deposits[0]?.items?.[0]?.vatRate ?? 20;
+        const deductionTaxResult = resolveInvoiceTax({
+            supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
+            supplierExemptVat: !!company.exemptVat,
+            supplierVatNumber: getIdentifier(company, 'VAT'),
+            buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
+            buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+            buyerVatNumber: getIdentifier(client, 'VAT'),
+            currency,
+            issueDate: new Date(),
+            discountRate: 0,
+            items: [{ quantity: 1, unitPrice: -totalDeposited, vatRate: depositVatRate, supplyType: 'SERVICES' }],
+        });
+
+        // Build the deduction line item
+        const deductionLine = {
+            description: `Deposit deduction (${deposits.length} deposit(s): ${deposits.map(d => d.rawNumber || d.number?.toString() || d.id.slice(0, 8)).join(', ')})`,
+            quantity: 1,
+            unitPrice: -totalDeposited,
+            unitPriceMinor: toMinor(-totalDeposited, currency),
+            vatRate: deductionTaxResult.itemVatRates[0] ?? depositVatRate,
+            type: 'DEPOSIT' as const,
+            order: (items?.length ?? 0),
+            unitOfMeasure: 'C62',
+        };
+
+        const allItems = [
+            ...(items ?? []).map((item: any, i: number) => ({
+                description: item.description,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                unitPriceMinor: toMinor(item.unitPrice, currency),
+                vatRate: item.vatRate,
+                type: item.type,
+                order: i,
+                discountRate: item.discountRate ?? 0,
+                discountAmount: item.discountAmount ?? null,
+                discountAmountMinor: item.discountAmount ? toMinor(item.discountAmount, currency) : null,
+                chargeAmount: item.chargeAmount ?? null,
+                chargeAmountMinor: item.chargeAmount ? toMinor(item.chargeAmount, currency) : null,
+                chargeDescription: item.chargeDescription ?? null,
+                unitOfMeasure: item.unitOfMeasure ?? 'C62',
+            })),
+            deductionLine,
+        ];
+
+        // Tax resolution for the full set (work items + deduction line)
+        const fullTaxResult = resolveInvoiceTax({
+            supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
+            supplierExemptVat: !!company.exemptVat,
+            supplierVatNumber: getIdentifier(company, 'VAT'),
+            buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
+            buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+            buyerVatNumber: getIdentifier(client, 'VAT'),
+            currency,
+            issueDate: new Date(),
+            discountRate: clampDiscountRate(body.discountRate),
+            items: allItems.map(item => ({
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                vatRate: item.vatRate,
+                supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
+            })),
+        });
+
+        if (fullTaxResult.warnings.length > 0) {
+            logger.warn('Tax resolution warnings (final invoice)', { category: 'invoice', details: { warnings: fullTaxResult.warnings } });
+        }
+
+        // Create the final invoice + link deposits in one transaction
+        const finalInvoice = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+            const { counter, rawNumber } = await this.numberingService.nextNumber(tx, company.id, 'invoice', new Date());
+
+            const created = await tx.invoice.create({
+                data: {
+                    kind: 'FINAL',
+                    status: 'DRAFT',
+                    number: counter,
+                    rawNumber,
+                    clientId: client.id,
+                    companyId: company.id,
+                    currency,
+                    discountRate: clampDiscountRate(body.discountRate),
+                    totalHT: fullTaxResult.totalHT,
+                    totalHTMinor: fullTaxResult.totalsMinor.netMinor,
+                    totalVAT: fullTaxResult.totalVAT,
+                    totalVATMinor: fullTaxResult.totalsMinor.taxMinor,
+                    totalTTC: fullTaxResult.totalTTC,
+                    totalTTCMinor: fullTaxResult.totalsMinor.grossMinor,
+                    dueDate: body.dueDate ? new Date(body.dueDate) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+                    notes: body.notes || '',
+                    paymentMethodId: body.paymentMethodId,
+                    items: {
+                        create: allItems.map((item, i) => ({
+                            ...item,
+                            order: i,
+                        })),
+                    },
+                },
+                include: {
+                    items: true,
+                    client: { include: { partyIdentifiers: true } },
+                    company: { include: { partyIdentifiers: true } },
+                },
+            });
+
+            // Link deposit invoices to this final invoice
+            await tx.invoice.updateMany({
+                where: { id: { in: depositInvoiceIds } },
+                data: { depositOfInvoiceId: created.id },
+            });
+
+            return created;
+        });
+
+        logger.info('Final invoice created', { category: 'invoice', details: { finalInvoiceId: finalInvoice.id, depositCount: deposits.length, totalDeposited } });
+        return finalInvoice;
+    }
+
     async getAvailableActions(id: string) {
         const invoice = await prisma.invoice.findUnique({ where: { id } });
         if (!invoice) throw new BadRequestException('Invoice not found');
@@ -1497,9 +1946,15 @@ export class InvoicesService {
                 break;
         }
 
+        const isProforma = invoice.kind === 'PROFORMA';
+        const isDeposit = invoice.kind === 'DEPOSIT';
+        const isFinal = invoice.kind === 'FINAL';
+        const isPlainInvoice = !invoice.kind || invoice.kind === 'INVOICE';
+
         return {
             invoiceId: id,
             status: invoice.status,
+            kind: invoice.kind,
             immutableAfter: lifecycle.immutableAfter,
             correctionModel: lifecycle.correctionModel,
             cancellation: {
@@ -1507,12 +1962,14 @@ export class InvoicesService {
                 reason: cancelReason,
             },
             actions: {
-                edit: isDraft,
-                issue: isDraft,
+                edit: isDraft && !isDeposit,
+                issue: isDraft && !isProforma,
                 correct: isIssued,
                 cancel: isIssued && !!lifecycle.cancellation?.allowed,
                 cancelAndReplace: isIssued && lifecycle.correctionModel === 'CANCEL_AND_REPLACE',
                 send: isIssued,
+                convertToInvoice: isProforma && isDraft,
+                deposit: isPlainInvoice && isIssued,
             },
             correctionKinds,
         };

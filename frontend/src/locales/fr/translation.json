@@ -566,7 +566,8 @@
             },
             "tabs": {
                 "invoice": "Facture",
-                "recurring": "Facture récurrente"
+                "recurring": "Facture récurrente",
+                "proforma": "Proforma"
             },
             "form": {
                 "quote": {
@@ -661,7 +662,8 @@
             "actions": {
                 "cancel": "Annuler",
                 "create": "Créer la facture",
-                "save": "Enregistrer les modifications"
+                "save": "Enregistrer les modifications",
+                "createProforma": "Créer le proforma"
             }
         },
         "view": {
@@ -711,6 +713,8 @@
                 "cancel": "Annuler",
                 "cancelAndReplace": "Annuler et remplacer",
                 "send": "Envoyer",
+                "convertToInvoice": "Convertir en facture",
+                "convertToInvoiceSuccess": "Proforma converti en facture",
                 "correctSuccess": "Correction émise",
                 "correctError": "Échec de l'émission de la correction",
                 "cancelSuccess": "Facture annulée",

@@ -160,6 +160,35 @@ export class InvoicesController {
     return this.invoicesService.createInvoice(body);
   }
 
+  @Post('proforma')
+  @ApiOperation({ summary: 'Create a proforma', description: 'Creates a non-legal proforma document (no number, not in the gapless series).' })
+  @ApiResponse({ status: 201, description: 'Proforma created' })
+  createProforma(@Body() body: CreateInvoiceDto) {
+    return this.invoicesService.createProformaInvoice(body);
+  }
+
+  @Post(':id/convert-to-invoice')
+  @ApiOperation({ summary: 'Convert proforma to invoice', description: 'Creates a DRAFT invoice from a proforma document.' })
+  @ApiParam({ name: 'id', type: String, description: 'Proforma invoice ID' })
+  @ApiResponse({ status: 201, description: 'Invoice created from proforma' })
+  convertProformaToInvoice(@Param('id') id: string) {
+    return this.invoicesService.convertProformaToInvoice(id);
+  }
+
+  @Post('deposit')
+  @ApiOperation({ summary: 'Create a deposit invoice', description: 'Creates a standalone numbered deposit invoice (facture d\'acompte).' })
+  @ApiResponse({ status: 201, description: 'Deposit invoice created' })
+  createDepositInvoice(@Body() body: CreateInvoiceDto & { amount?: number; percentage?: number }) {
+    return this.invoicesService.createDepositInvoice(body);
+  }
+
+  @Post('final')
+  @ApiOperation({ summary: 'Create a final invoice', description: 'Creates a final invoice with deposit deductions. Links deposit invoices and adds a deduction line.' })
+  @ApiResponse({ status: 201, description: 'Final invoice created' })
+  createFinalInvoice(@Body() body: CreateInvoiceDto & { depositInvoiceIds: string[] }) {
+    return this.invoicesService.createFinalInvoice(body);
+  }
+
   @Post('archive')
   @ApiOperation({ summary: 'Archive invoice', description: 'Archives a paid invoice.' })
   @ApiResponse({ status: 201, description: 'Invoice archived' })
