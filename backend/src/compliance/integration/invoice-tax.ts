@@ -26,6 +26,7 @@ export interface InvoiceTaxResult {
   totalHT: number;
   totalVAT: number;
   totalTTC: number;
+  totalsMinor: { netMinor: number; taxMinor: number; grossMinor: number };
   itemVatRates: number[];
   warnings: string[];
 }
@@ -88,6 +89,11 @@ export function resolveInvoiceTax(input: InvoiceTaxInput): InvoiceTaxResult {
     totalHT: totals.net.minor / divisor,
     totalVAT: totals.tax.minor / divisor,
     totalTTC: totals.gross.minor / divisor,
+    totalsMinor: {
+      netMinor: totals.net.minor,
+      taxMinor: totals.tax.minor,
+      grossMinor: totals.gross.minor,
+    },
     itemVatRates: plan.tax.lines.map(
       (l) => l.treatment.components[0]?.rate ?? 0,
     ),

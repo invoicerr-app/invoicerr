@@ -12,7 +12,7 @@ import { formatDate } from '@/utils/date';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 import { randomUUID } from 'crypto';
-import { clampDiscountRate } from '@/utils/financial';
+import { clampDiscountRate, toMinor } from '@/utils/financial';
 
 @Injectable()
 export class PaymentsService {
@@ -166,11 +166,12 @@ export class PaymentsService {
         if (invoice.status !== 'ARCHIVED') {
             const payments = await prisma.payment.findMany({
                 where: { invoiceId },
-                select: { totalPaid: true },
+                select: { totalPaid: true, totalPaidMinor: true },
             });
 
-            const totalPaid = payments.reduce((sum, payment) => sum + payment.totalPaid, 0);
-            if (totalPaid >= invoice.totalTTC) {
+            const totalPaidMinor = payments.reduce((sum, payment) => sum + (payment.totalPaidMinor ?? toMinor(payment.totalPaid, invoice.currency)), 0);
+            const invoiceTotalTTCMinor = invoice.totalTTCMinor ?? toMinor(invoice.totalTTC, invoice.currency);
+            if (totalPaidMinor >= invoiceTotalTTCMinor) {
                 await prisma.invoice.update({
                     where: { id: invoiceId },
                     data: { status: 'PAID' },
@@ -199,6 +200,9 @@ export class PaymentsService {
             throw new BadRequestException('Invoice not found');
         }
 
+        const totalPaid = body.items.reduce((sum, item) => sum + +item.amountPaid, 0);
+        const currency = invoice.currency;
+
         const payment = await prisma.payment.create({
             data: {
                 invoiceId: body.invoiceId,
@@ -206,9 +210,11 @@ export class PaymentsService {
                     create: body.items.map(item => ({
                         invoiceItemId: item.invoiceItemId,
                         amountPaid: +item.amountPaid,
+                        amountPaidMinor: toMinor(+item.amountPaid, currency),
                     })),
                 },
-                totalPaid: body.items.reduce((sum, item) => sum + +item.amountPaid, 0),
+                totalPaid,
+                totalPaidMinor: toMinor(totalPaid, currency),
                 paymentMethodId: body.paymentMethodId,
                 paymentMethod: body.paymentMethod,
                 paymentDetails: body.paymentDetails,
@@ -300,6 +306,9 @@ export class PaymentsService {
             throw new BadRequestException('Payment not found');
         }
 
+        const totalPaid = body.items.reduce((sum, item) => sum + +item.amountPaid, 0);
+        const invoice = await prisma.invoice.findUnique({ where: { id: existingPayment.invoiceId } });
+
         const updatedPayment = await prisma.payment.update({
             where: { id: existingPayment.id },
             data: {
@@ -310,10 +319,12 @@ export class PaymentsService {
                             id: randomUUID(),
                             invoiceItemId: item.invoiceItemId,
                             amountPaid: +item.amountPaid,
+                            amountPaidMinor: toMinor(+item.amountPaid, invoice?.currency || 'EUR'),
                         })),
                     },
                 },
-                totalPaid: body.items.reduce((sum, item) => sum + +item.amountPaid, 0),
+                totalPaid,
+                totalPaidMinor: toMinor(totalPaid, invoice?.currency || 'EUR'),
                 paymentMethodId: body.paymentMethodId,
                 paymentMethod: body.paymentMethod,
                 paymentDetails: body.paymentDetails,

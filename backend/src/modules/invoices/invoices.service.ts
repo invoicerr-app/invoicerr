@@ -18,7 +18,7 @@ import { parseAddress } from '@/utils/adress';
 import prisma from '@/prisma/prisma.service';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { resolveInvoiceTax } from '@/compliance/integration/invoice-tax';
-import { clampDiscountRate } from '@/utils/financial';
+import { clampDiscountRate, toMinor } from '@/utils/financial';
 import type { SupplyType } from '@/compliance/types';
 import { getDraftWatermarkLabel } from '@/utils/watermark';
 
@@ -151,13 +151,17 @@ export class InvoicesService {
                 companyId: company.id,
                 discountRate,
                 totalHT: taxResult.totalHT,
+                totalHTMinor: taxResult.totalsMinor.netMinor,
                 totalVAT: taxResult.totalVAT,
+                totalVATMinor: taxResult.totalsMinor.taxMinor,
                 totalTTC: taxResult.totalTTC,
+                totalTTCMinor: taxResult.totalsMinor.grossMinor,
                 items: {
                     create: items.map((item, i) => ({
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
+                        unitPriceMinor: toMinor(item.unitPrice, body.currency || client.currency || company.currency),
                         vatRate: taxResult.itemVatRates[i],
                         type: item.type,
                         order: item.order || 0,
@@ -261,8 +265,11 @@ export class InvoicesService {
                 dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
                 discountRate: normalizedDiscountRate,
                 totalHT: taxResult.totalHT,
+                totalHTMinor: taxResult.totalsMinor.netMinor,
                 totalVAT: taxResult.totalVAT,
+                totalVATMinor: taxResult.totalsMinor.taxMinor,
                 totalTTC: taxResult.totalTTC,
+                totalTTCMinor: taxResult.totalsMinor.grossMinor,
                 items: {
                     deleteMany: {
                         id: { in: itemIdsToDelete },
@@ -276,6 +283,7 @@ export class InvoicesService {
                                 description: i.description,
                                 quantity: i.quantity,
                                 unitPrice: i.unitPrice,
+                                unitPriceMinor: toMinor(i.unitPrice, body.currency || client.currency || company.currency),
                                 vatRate: taxResult.itemVatRates[originalIdx],
                                 type: i.type,
                                 order: i.order || 0,
@@ -288,6 +296,7 @@ export class InvoicesService {
                             description: i.description,
                             quantity: i.quantity,
                             unitPrice: i.unitPrice,
+                            unitPriceMinor: toMinor(i.unitPrice, body.currency || client.currency || company.currency),
                             vatRate: taxResult.itemVatRates[originalIdx],
                             type: i.type,
                             order: i.order || 0,

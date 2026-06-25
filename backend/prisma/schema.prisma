@@ -407,8 +407,11 @@ model Quote {
   signedBy        String?
   discountRate    Float      @default(0)
   totalHT         Float
+  totalHTMinor    Int?
   totalVAT        Float
+  totalVATMinor   Int?
   totalTTC        Float
+  totalTTCMinor   Int?
   currency        Currency
   paymentMethod   String? // Ex: "Bank Transfer", "PayPal", "Cash"
   paymentDetails  String? // Details for the payment method (e.g., bank account number)
@@ -424,11 +427,12 @@ model QuoteItem {
   quote       Quote    @relation(fields: [quoteId], references: [id])
   quoteId     String
   description String
-  quantity    Float
-  unitPrice   Float
-  vatRate     Float // 20 for 20%
-  type        ItemType @default(SERVICE)
-  order       Int // For sorting items in the quote pdf
+  quantity        Float
+  unitPrice       Float
+  unitPriceMinor  Int?
+  vatRate         Float // 20 for 20%
+  type            ItemType @default(SERVICE)
+  order           Int // For sorting items in the quote pdf
 }
 
 // Invoice model
@@ -456,8 +460,11 @@ model Invoice {
   notes              String?           @default("")
   discountRate       Float             @default(0)
   totalHT            Float
+  totalHTMinor       Int?
   totalVAT           Float
+  totalVATMinor      Int?
   totalTTC           Float
+  totalTTCMinor      Int?
   currency           Currency
   isActive           Boolean           @default(true)
   payments           Payment[]
@@ -469,12 +476,13 @@ model InvoiceItem {
   invoice      Invoice       @relation(fields: [invoiceId], references: [id])
   invoiceId    String
   description  String
-  quantity     Float
-  unitPrice    Float
-  vatRate      Float // 20 for 20%
-  type         ItemType      @default(SERVICE)
-  order        Int
-  paymentItems PaymentItem[]
+  quantity        Float
+  unitPrice       Float
+  unitPriceMinor  Int?
+  vatRate         Float // 20 for 20%
+  type            ItemType      @default(SERVICE)
+  order           Int
+  paymentItems    PaymentItem[]
 }
 
 // Recurring invoice model
@@ -491,8 +499,11 @@ model RecurringInvoice {
   paymentMethodId   String?
   notes             String?                @default("")
   totalHT           Float
+  totalHTMinor      Int?
   totalVAT          Float
+  totalVATMinor     Int?
   totalTTC          Float
+  totalTTCMinor     Int?
   currency          Currency
   frequency         RecurrenceFrequency // Simplified recurrence frequency
   count             Int? // Number of occurrences, null for infinite
@@ -511,6 +522,7 @@ model RecurringInvoiceItem {
   description        String
   quantity           Float
   unitPrice          Float
+  unitPriceMinor     Int?
   vatRate            Float // 20 for 20%
   type               ItemType         @default(SERVICE)
   order              Int
@@ -522,6 +534,7 @@ model PaymentItem {
   invoiceItem   InvoiceItem @relation(fields: [invoiceItemId], references: [id])
   invoiceItemId String
   amountPaid    Float // Amount paid for this item
+  amountPaidMinor Int?
   Payment       Payment     @relation(fields: [paymentId], references: [id])
   paymentId     String
 }
@@ -534,6 +547,7 @@ model Payment {
   invoice         Invoice       @relation(fields: [invoiceId], references: [id])
   items           PaymentItem[]
   totalPaid       Float
+  totalPaidMinor  Int?
   paymentMethod   String        @default("") // Ex: "Bank Transfer", "PayPal", "Cash"
   paymentDetails  String        @default("") // Details for the payment method (e.g., bank account number)
   paymentMethodId String?
@@ -561,9 +575,10 @@ model Article {
   name        String // label shown in the picker
   description String? // text injected into the line item
   type        ItemType @default(SERVICE)
-  unitPrice   Float    @default(0)
-  vatRate     Float    @default(0)
-  isActive    Boolean  @default(true)
+  unitPrice       Float    @default(0)
+  unitPriceMinor  Int?
+  vatRate         Float    @default(0)
+  isActive        Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

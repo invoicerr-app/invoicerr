@@ -5,6 +5,7 @@ import { UpsertInvoicesDto } from '@/modules/recurring-invoices/dto/invoices.dto
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { resolveInvoiceTax } from '@/compliance/integration/invoice-tax';
+import { toMinor } from '@/utils/financial';
 import type { SupplyType } from '@/compliance/types';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
@@ -105,13 +106,17 @@ export class RecurringInvoicesService {
                 nextInvoiceDate,
                 currency: (data.currency as Currency) || Currency.USD,
                 totalHT: taxResult.totalHT,
+                totalHTMinor: taxResult.totalsMinor.netMinor,
                 totalVAT: taxResult.totalVAT,
+                totalVATMinor: taxResult.totalsMinor.taxMinor,
                 totalTTC: taxResult.totalTTC,
+                totalTTCMinor: taxResult.totalsMinor.grossMinor,
                 items: {
                     create: data.items.map((item, index) => ({
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
+                        unitPriceMinor: toMinor(item.unitPrice, (data.currency as string) || client.currency || company?.currency || 'EUR'),
                         vatRate: taxResult.itemVatRates[index],
                         type: item.type,
                         order: item.order || index,
@@ -188,14 +193,18 @@ export class RecurringInvoicesService {
                 autoSend: data.autoSend || false,
                 currency: (data.currency as Currency) || Currency.USD,
                 totalHT: taxResult.totalHT,
+                totalHTMinor: taxResult.totalsMinor.netMinor,
                 totalVAT: taxResult.totalVAT,
+                totalVATMinor: taxResult.totalsMinor.taxMinor,
                 totalTTC: taxResult.totalTTC,
+                totalTTCMinor: taxResult.totalsMinor.grossMinor,
                 items: {
                     deleteMany: {},
                     create: data.items.map((item, index) => ({
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
+                        unitPriceMinor: toMinor(item.unitPrice, (data.currency as string) || client.currency || company?.currency || 'EUR'),
                         vatRate: taxResult.itemVatRates[index],
                         type: item.type,
                         order: item.order || index,

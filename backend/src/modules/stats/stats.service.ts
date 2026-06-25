@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
+import { toMinor, fromMinor } from '@/utils/financial';
 
 type MonthStat = { month: number; invoiced: number; revenue: number; deposits: number; };
 type YearStat = { year: number; invoiced: number; revenue: number; deposits: number; };
@@ -50,10 +51,12 @@ export class StatsService {
         // Determine the payment moment for invoices that became fully paid
         const paidInvoices: { invoice: any; paidDate: Date }[] = [];
         for (const inv of invoicesWithPayments) {
-            let cumulative = 0;
+            let cumulativeMinor = 0;
+            const invCurrency = inv.currency;
+            const invTotalTTCMinor = inv.totalTTCMinor ?? toMinor(inv.totalTTC, invCurrency);
             for (const r of inv.payments) {
-                cumulative += r.totalPaid;
-                if (cumulative >= inv.totalTTC) {
+                cumulativeMinor += r.totalPaidMinor ?? toMinor(r.totalPaid, invCurrency);
+                if (cumulativeMinor >= invTotalTTCMinor) {
                     paidInvoices.push({ invoice: inv, paidDate: r.createdAt });
                     break;
                 }
@@ -81,7 +84,8 @@ export class StatsService {
             ensureCurrency(currency);
             const monthIndex = inv.createdAt.getMonth();
             const m = monthsByCurrency.get(currency)!.months[monthIndex];
-            m.invoiced += inv.totalTTC;
+            const invMinor = inv.totalTTCMinor ?? toMinor(inv.totalTTC, currency);
+            m.invoiced += fromMinor(invMinor, currency);
         }
 
         // Revenue (without VAT) - calculated from payments created in the period.
@@ -90,25 +94,27 @@ export class StatsService {
             const currency = r.invoice?.currency;
             if (!currency) continue;
             ensureCurrency(currency);
-            const net = r.items.reduce((sum: number, item: any) => {
+            const netMinor = r.items.reduce((sum: number, item: any) => {
                 const invItem = r.invoice.items.find((ii: any) => ii.id === item.invoiceItemId);
                 const vat = invItem?.vatRate || 0;
-                const netItem = item.amountPaid / (1 + vat / 100);
-                return sum + netItem;
+                const amountMinor = item.amountPaidMinor ?? toMinor(item.amountPaid, currency);
+                const netMinor = Math.round(amountMinor / (1 + vat / 100));
+                return sum + netMinor;
             }, 0);
             const monthIndex = r.createdAt.getMonth();
             const m = monthsByCurrency.get(currency)!.months[monthIndex];
-            m.revenue += net;
+            m.revenue += fromMinor(netMinor, currency);
         }
 
-        // Deposits (invoice paid) - attribute invoice.totalTTC to the month when cumulative payments reached the invoice total
+        // Deposits (invoice paid) - attribute invoice total to the month when cumulative payments reached the invoice total
         for (const p of paidInvoices) {
             const paidDate = new Date(p.paidDate);
             if (paidDate.getFullYear() !== year) continue;
             const currency = p.invoice.currency;
             ensureCurrency(currency);
             const m = monthsByCurrency.get(currency)!.months[paidDate.getMonth()];
-            m.deposits += p.invoice.totalTTC;
+            const invMinor = p.invoice.totalTTCMinor ?? toMinor(p.invoice.totalTTC, currency);
+            m.deposits += fromMinor(invMinor, currency);
         }
 
         // Round values
@@ -165,10 +171,12 @@ export class StatsService {
 
         const paidInvoices: { invoice: any; paidDate: Date }[] = [];
         for (const inv of invoicesWithPayments) {
-            let cumulative = 0;
+            let cumulativeMinor = 0;
+            const invCurrency = inv.currency;
+            const invTotalTTCMinor = inv.totalTTCMinor ?? toMinor(inv.totalTTC, invCurrency);
             for (const r of inv.payments) {
-                cumulative += r.totalPaid;
-                if (cumulative >= inv.totalTTC) {
+                cumulativeMinor += r.totalPaidMinor ?? toMinor(r.totalPaid, invCurrency);
+                if (cumulativeMinor >= invTotalTTCMinor) {
                     paidInvoices.push({ invoice: inv, paidDate: r.createdAt });
                     break;
                 }
@@ -193,7 +201,8 @@ export class StatsService {
             const currency = inv.currency;
             ensureCurrencyYears(currency);
             const entry = yearsByCurrency.get(currency)!.years.find(e => e.year === inv.createdAt.getFullYear())!;
-            entry.invoiced += inv.totalTTC;
+            const invMinor = inv.totalTTCMinor ?? toMinor(inv.totalTTC, currency);
+            entry.invoiced += fromMinor(invMinor, currency);
         }
 
         // Revenue
@@ -201,14 +210,15 @@ export class StatsService {
             const currency = r.invoice?.currency;
             if (!currency) continue;
             ensureCurrencyYears(currency);
-            const net = r.items.reduce((sum: number, item: any) => {
+            const netMinor = r.items.reduce((sum: number, item: any) => {
                 const invItem = r.invoice.items.find((ii: any) => ii.id === item.invoiceItemId);
                 const vat = invItem?.vatRate || 0;
-                const netItem = item.amountPaid / (1 + vat / 100);
+                const amountMinor = item.amountPaidMinor ?? toMinor(item.amountPaid, currency);
+                const netItem = Math.round(amountMinor / (1 + vat / 100));
                 return sum + netItem;
             }, 0);
             const entry = yearsByCurrency.get(currency)!.years.find(e => e.year === r.createdAt.getFullYear())!;
-            entry.revenue += net;
+            entry.revenue += fromMinor(netMinor, currency);
         }
 
         // Deposits
@@ -218,7 +228,8 @@ export class StatsService {
             const currency = p.invoice.currency;
             ensureCurrencyYears(currency);
             const entry = yearsByCurrency.get(currency)!.years.find(e => e.year === py)!;
-            entry.deposits += p.invoice.totalTTC;
+            const invMinor = p.invoice.totalTTCMinor ?? toMinor(p.invoice.totalTTC, currency);
+            entry.deposits += fromMinor(invMinor, currency);
         }
 
         for (const [, obj] of yearsByCurrency.entries()) {

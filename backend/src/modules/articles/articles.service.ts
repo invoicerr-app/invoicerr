@@ -3,6 +3,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
+import { toMinor } from '@/utils/financial';
 
 export interface CreateArticleDto {
   name: string;
@@ -37,6 +38,7 @@ export class ArticlesService {
         description: dto.description ?? null,
         type: dto.type ?? ItemType.SERVICE,
         unitPrice: dto.unitPrice ?? 0,
+        unitPriceMinor: toMinor(dto.unitPrice ?? 0, company.currency),
         vatRate: dto.vatRate ?? 0,
       },
     });
@@ -76,13 +78,15 @@ export class ArticlesService {
       throw new BadRequestException('Article not found');
     }
 
+    const updatedUnitPrice = dto.unitPrice ?? existing.unitPrice;
     const updated = await prisma.article.update({
       where: { id },
       data: {
         name: dto.name ?? existing.name,
         description: dto.description !== undefined ? dto.description : existing.description,
         type: dto.type ?? existing.type,
-        unitPrice: dto.unitPrice ?? existing.unitPrice,
+        unitPrice: updatedUnitPrice,
+        unitPriceMinor: toMinor(updatedUnitPrice, company.currency),
         vatRate: dto.vatRate ?? existing.vatRate,
         isActive: dto.isActive ?? existing.isActive,
       },

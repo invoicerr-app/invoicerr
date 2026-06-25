@@ -15,7 +15,7 @@ import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { resolveInvoiceTax } from '@/compliance/integration/invoice-tax';
-import { clampDiscountRate } from '@/utils/financial';
+import { clampDiscountRate, toMinor } from '@/utils/financial';
 import type { SupplyType } from '@/compliance/types';
 
 @Injectable()
@@ -169,13 +169,17 @@ export class QuotesService {
                 paymentMethodId: body.paymentMethodId,
                 discountRate,
                 totalHT: taxResult.totalHT,
+                totalHTMinor: taxResult.totalsMinor.netMinor,
                 totalVAT: taxResult.totalVAT,
+                totalVATMinor: taxResult.totalsMinor.taxMinor,
                 totalTTC: taxResult.totalTTC,
+                totalTTCMinor: taxResult.totalsMinor.grossMinor,
                 items: {
                     create: items.map((item, i) => ({
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
+                        unitPriceMinor: toMinor(item.unitPrice, body.currency || client.currency || company.currency),
                         vatRate: taxResult.itemVatRates[i],
                         type: item.type,
                         order: item.order || 0,
@@ -270,8 +274,11 @@ export class QuotesService {
                 paymentMethodId: (data as any).paymentMethodId || existingQuote.paymentMethodId,
                 discountRate: normalizedDiscountRate,
                 totalHT: taxResult.totalHT,
+                totalHTMinor: taxResult.totalsMinor.netMinor,
                 totalVAT: taxResult.totalVAT,
+                totalVATMinor: taxResult.totalsMinor.taxMinor,
                 totalTTC: taxResult.totalTTC,
+                totalTTCMinor: taxResult.totalsMinor.grossMinor,
                 items: {
                     deleteMany: {
                         id: { in: itemIdsToDelete },
@@ -285,6 +292,7 @@ export class QuotesService {
                                 description: i.description,
                                 quantity: i.quantity,
                                 unitPrice: i.unitPrice,
+                                unitPriceMinor: toMinor(i.unitPrice, body.currency || client.currency || company?.currency || 'EUR'),
                                 vatRate: taxResult.itemVatRates[originalIdx],
                                 type: i.type,
                                 order: i.order || 0,
@@ -297,6 +305,7 @@ export class QuotesService {
                             description: i.description,
                             quantity: i.quantity,
                             unitPrice: i.unitPrice,
+                            unitPriceMinor: toMinor(i.unitPrice, body.currency || client.currency || company?.currency || 'EUR'),
                             vatRate: taxResult.itemVatRates[originalIdx],
                             type: i.type,
                             order: i.order || 0,
