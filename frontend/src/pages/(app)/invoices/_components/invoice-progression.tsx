@@ -291,7 +291,7 @@ export function InvoiceProgression({
                         <AlertDialogCancel onClick={() => setConfirmDialog(null)}>
                             {t("invoices.progression.confirmations.cancel")}
                         </AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirm}>
+                        <AlertDialogAction data-cy="invoice-progression-confirm-action" onClick={handleConfirm}>
                             {t("invoices.progression.confirmations.confirm")}
                         </AlertDialogAction>
                     </AlertDialogFooter>

@@ -3,34 +3,52 @@ beforeEach(() => {
 });
 
 // Draft and archived invoices can't receive a payment, so they aren't selectable in
-// the payment form. Create an invoice via the API and send it so it becomes SENT.
+// the payment form. Create an invoice via the UI and send it so it becomes SENT.
 function ensurePayableInvoice() {
-    cy.request('/api/clients?page=1').then(({ body }) => {
-        const clients = body.clients || [];
-        // Prefer a client with an email so /api/invoices/send actually flips the status to SENT.
-        const client = clients.find((c: any) => c.contactEmail) || clients[0];
-        expect(client, 'at least one client must exist').to.exist;
+    cy.visit('/invoices');
+    cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+    cy.wait(500);
 
-        cy.request('POST', '/api/invoices', {
-            clientId: client.id,
-            notes: 'E2E payable invoice',
-            currency: 'EUR',
-            items: [{
-                description: 'Payable Service',
-                quantity: 1,
-                unitPrice: 200,
-                vatRate: 20,
-                type: 'SERVICE',
-                order: 0,
-            }],
-        }).then(({ body: invoice }) => {
-            expect(invoice.id, 'created invoice id').to.exist;
-            cy.request('POST', '/api/invoices/send', { id: invoice.id }).then(({ status }) => {
-                expect(status).to.be.oneOf([200, 201]);
-            });
-        });
+    cy.get('[data-cy="invoice-dialog"]', { timeout: 5000 }).should('be.visible');
+
+    cy.get('[data-cy="invoice-client-select"] button').first().click();
+    cy.wait(300);
+    cy.get('[data-cy="invoice-client-select-options"]').should('be.visible');
+    cy.get('[data-cy="invoice-client-select-options"] button').first().click();
+
+    cy.get('[data-cy="invoice-currency-select"] button').first().click();
+    cy.wait(200);
+    cy.get('[data-cy="invoice-currency-select"] input').type('EUR');
+    cy.wait(200);
+    cy.get('[data-cy="invoice-currency-select-option-euro-(€)"]').click();
+
+    cy.contains('button', /Add Item|Ajouter/i).click();
+    cy.get('[name="items.0.description"]').type('Payable Service', { force: true });
+    cy.get('[name="items.0.quantity"]').clear({ force: true }).type('1', { force: true });
+    cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('200', { force: true });
+    cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('20', { force: true });
+
+    cy.get('[data-cy="invoice-submit"]').click();
+    cy.get('[data-cy="invoice-dialog"]').should('not.exist');
+    cy.wait(1000);
+
+    // Switch to the progression view and send the invoice so it becomes SENT (payable).
+    cy.get('[data-cy="invoice-view-progression"]').click();
+
+    cy.get('[data-cy="invoice-progression-row"]', { timeout: 10000 }).should('have.length.at.least', 1);
+    cy.get('[data-cy="invoice-progression-row"]').first().within(() => {
+        cy.get('[data-cy="invoice-progression-send"]').click();
     });
-    // Give the backend / React Query cache a moment to settle before the UI reads it.
+
+    cy.get('[role="alertdialog"]').should('be.visible').within(() => {
+        cy.get('[data-cy="invoice-progression-confirm-action"]').click();
+    });
+
+    // Wait until the row exposes the "Payment received" action, meaning the invoice is now SENT.
+    cy.get('[data-cy="invoice-progression-row"]').first().within(() => {
+        cy.get('[data-cy="invoice-progression-paymentReceived"]', { timeout: 15000 }).should('exist');
+    });
+
     cy.wait(500);
 }
 
