@@ -425,20 +425,29 @@
             "emptyState": "No invoices to display in progression.",
             "steps": {
                 "draft": "Draft",
+                "issued": "Issued",
                 "sent": "Sent",
                 "paid": "Paid",
                 "archived": "Archived",
-                "partiallyPaid": "Partially paid"
+                "partiallyPaid": "Partially paid",
+                "cancelled": "Cancelled",
+                "corrected": "Corrected"
             },
             "percentPaid": "{{percent}}% paid",
             "stepLabel": "Step {{current}} / {{total}}",
+            "noNumberYet": "No number yet",
             "actions": {
+                "issue": "Issue",
                 "send": "Send",
                 "resend": "Resend",
                 "paymentReceived": "Payment received",
                 "archive": "Archive"
             },
             "confirmations": {
+                "issue": {
+                    "title": "Issue invoice",
+                    "description": "Are you sure you want to issue invoice {{number}}? The document will be locked and a legal number will be assigned."
+                },
                 "send": {
                     "title": "Send invoice",
                     "description": "Are you sure you want to send invoice {{number}} to {{client}}?"
@@ -468,9 +477,14 @@
         "statusFilters": {
             "all": "All",
             "draft": "Draft",
+            "issued": "Issued",
             "sent": "Sent",
             "paid": "Paid",
-            "archived": "Archived"
+            "archived": "Archived",
+            "cancelled": "Cancelled",
+            "corrected": "Corrected",
+            "pending_clearance": "Pending Clearance",
+            "cleared": "Cleared"
         },
         "emptyState": {
             "noInvoices": "No invoices yet",
@@ -483,12 +497,17 @@
             "description": "Manage and view all your invoices in one place.",
             "status": {
                 "draft": "Draft",
+                "issued": "Issued",
                 "sent": "Sent",
                 "unpaid": "Unpaid",
                 "overdue": "Overdue",
                 "paid": "Paid",
                 "upcoming": "Upcoming",
-                "archived": "Archived"
+                "archived": "Archived",
+                "cancelled": "Cancelled",
+                "corrected": "Corrected",
+                "pending_clearance": "Pending Clearance",
+                "cleared": "Cleared"
             },
             "item": {
                 "title": "Invoice {{number}} {{title}}",
@@ -506,7 +525,8 @@
                 "downloadPdf": "Download PDF",
                 "edit": "Edit invoice",
                 "delete": "Delete invoice",
-                "sendByEmail": "Send invoice by email"
+                "sendByEmail": "Send invoice by email",
+                "issue": "Issue invoice"
             },
             "actions": {
                 "addNew": "Add New Invoice",
@@ -526,7 +546,9 @@
                 "markAsPaidError": "Failed to mark invoice as paid",
                 "sendByEmailSuccess": "Invoice has been sent to customer",
                 "archiveSuccess": "Invoice archived successfully",
-                "archiveError": "Failed to archive invoice"
+                "archiveError": "Failed to archive invoice",
+                "issueSuccess": "Invoice issued successfully",
+                "issueError": "Failed to issue invoice"
             }
         },
         "upsert": {
@@ -639,11 +661,16 @@
             "description": "View all details of this invoice.",
             "status": {
                 "draft": "Draft",
+                "issued": "Issued",
                 "sent": "Sent",
                 "unpaid": "Unpaid",
                 "overdue": "Overdue",
                 "paid": "Paid",
-                "archived": "Archived"
+                "archived": "Archived",
+                "cancelled": "Cancelled",
+                "corrected": "Corrected",
+                "pending_clearance": "Pending Clearance",
+                "cleared": "Cleared"
             },
             "fields": {
                 "number": "Invoice Number",
@@ -660,7 +687,8 @@
                 "totalHT": "Total (excl. VAT)",
                 "totalVAT": "VAT Amount",
                 "totalTTC": "Total (incl. VAT)",
-                "notes": "Notes"
+                "notes": "Notes",
+                "complianceStatus": "Compliance Status"
             }
         },
         "sendConfirmation": {

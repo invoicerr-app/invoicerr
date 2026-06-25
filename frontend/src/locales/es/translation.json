@@ -378,6 +378,55 @@
         "actions": {
             "addNew": "Agregar nueva factura"
         },
+        "progression": {
+            "title": "Progresión",
+            "emptyState": "No hay facturas que mostrar en la progresión.",
+            "steps": {
+                "draft": "Borrador",
+                "sent": "Enviada",
+                "paid": "Pagada",
+                "archived": "Archivada",
+                "partiallyPaid": "Parcialmente pagada",
+                "issued": "Emitida",
+                "cancelled": "Cancelada",
+                "corrected": "Corregida"
+            },
+            "percentPaid": "{{percent}} % pagado",
+            "stepLabel": "Paso {{current}} / {{total}}",
+            "actions": {
+                "send": "Enviar",
+                "resend": "Reenviar",
+                "paymentReceived": "Pago recibido",
+                "archive": "Archivar",
+                "issue": "Emitir"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Enviar factura",
+                    "description": "¿Está seguro de que desea enviar la factura {{number}} a {{client}}?"
+                },
+                "resend": {
+                    "title": "Reenviar factura",
+                    "description": "¿Está seguro de que desea reenviar la factura {{number}} a {{client}}?"
+                },
+                "paymentReceived": {
+                    "title": "Pago recibido",
+                    "description": "¿Confirma que ha recibido el pago de la factura {{number}}?"
+                },
+                "archive": {
+                    "title": "Archivar factura",
+                    "description": "¿Está seguro de que desea archivar la factura {{number}}? Esta acción es irreversible."
+                },
+                "issue": {
+                    "title": "Emitir factura",
+                    "description": "¿Está seguro de que desea emitir la factura {{number}}? El documento se bloqueará y se le asignará un número legal."
+                },
+                "confirm": "Confirmar",
+                "cancel": "Cancelar"
+            },
+            "noAction": "Sin acción",
+            "noNumberYet": "Sin número aún"
+        },
         "stats": {
             "total": "Total de facturas",
             "sent": "Enviada",
@@ -388,7 +437,12 @@
             "draft": "Borrador",
             "sent": "Enviada",
             "paid": "Pagada",
-            "archived": "Archivada"
+            "archived": "Archivada",
+            "issued": "Emitida",
+            "cancelled": "Cancelada",
+            "corrected": "Corregida",
+            "pending_clearance": "Pendiente de liquidación",
+            "cleared": "Liquidada"
         },
         "emptyState": {
             "noInvoices": "Aún no hay facturas",
@@ -422,7 +476,12 @@
                 "sent": "Enviada",
                 "unpaid": "No pagada",
                 "overdue": "Vencida",
-                "paid": "Pagada"
+                "paid": "Pagada",
+                "issued": "Emitida",
+                "cancelled": "Cancelada",
+                "corrected": "Corregida",
+                "pending_clearance": "Pendiente de liquidación",
+                "cleared": "Liquidada"
             },
             "item": {
                 "title": "Factura {{number}} {{title}}",
@@ -438,7 +497,8 @@
                 "downloadPdf": "Descargar PDF",
                 "edit": "Editar factura",
                 "delete": "Eliminar factura",
-                "sendByEmail": "Enviar factura por correo"
+                "sendByEmail": "Enviar factura por correo",
+                "issue": "Emitir factura"
             },
             "actions": {
                 "addNew": "Agregar nueva factura",
@@ -456,7 +516,9 @@
             "messages": {
                 "markAsPaidSuccess": "Factura marcada como pagada con éxito",
                 "markAsPaidError": "Error al marcar la factura como pagada",
-                "sendByEmailSuccess": "La factura fue enviada al cliente"
+                "sendByEmailSuccess": "La factura fue enviada al cliente",
+                "issueSuccess": "Factura emitida correctamente",
+                "issueError": "Error al emitir la factura"
             }
         },
         "upsert": {
@@ -557,7 +619,12 @@
                 "sent": "Enviada",
                 "unpaid": "No pagada",
                 "overdue": "Vencida",
-                "paid": "Pagada"
+                "paid": "Pagada",
+                "issued": "Emitida",
+                "cancelled": "Cancelada",
+                "corrected": "Corregida",
+                "pending_clearance": "Pendiente de liquidación",
+                "cleared": "Liquidada"
             },
             "fields": {
                 "number": "Número de factura",
@@ -572,7 +639,8 @@
                 "totalHT": "Total (sin IVA)",
                 "totalVAT": "Importe IVA",
                 "totalTTC": "Total (con IVA)",
-                "notes": "Notas"
+                "notes": "Notas",
+                "complianceStatus": "Estado de cumplimiento"
             }
         },
         "delete": {

@@ -378,6 +378,55 @@
         "actions": {
             "addNew": "Neue Rechnung hinzufügen"
         },
+        "progression": {
+            "title": "Progression",
+            "emptyState": "Keine Rechnungen zum Anzeigen in der Progression.",
+            "steps": {
+                "draft": "Entwurf",
+                "sent": "Gesendet",
+                "paid": "Bezahlt",
+                "archived": "Archiviert",
+                "partiallyPaid": "Teilweise bezahlt",
+                "issued": "Ausgestellt",
+                "cancelled": "Storniert",
+                "corrected": "Korrigiert"
+            },
+            "percentPaid": "{{percent}} % bezahlt",
+            "stepLabel": "Schritt {{current}} / {{total}}",
+            "actions": {
+                "send": "Senden",
+                "resend": "Erneut senden",
+                "paymentReceived": "Zahlung erhalten",
+                "archive": "Archivieren",
+                "issue": "Ausstellen"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Rechnung senden",
+                    "description": "Sind Sie sicher, dass Sie die Rechnung {{number}} an {{client}} senden möchten?"
+                },
+                "resend": {
+                    "title": "Rechnung erneut senden",
+                    "description": "Sind Sie sicher, dass Sie die Rechnung {{number}} erneut an {{client}} senden möchten?"
+                },
+                "paymentReceived": {
+                    "title": "Zahlung erhalten",
+                    "description": "Bestätigen Sie den Erhalt der Zahlung für die Rechnung {{number}}?"
+                },
+                "archive": {
+                    "title": "Rechnung archivieren",
+                    "description": "Sind Sie sicher, dass Sie die Rechnung {{number}} archivieren möchten? Diese Aktion ist unwiderruflich."
+                },
+                "issue": {
+                    "title": "Rechnung ausstellen",
+                    "description": "Sind Sie sicher, dass Sie Rechnung {{number}} ausstellen möchten? Das Dokument wird gesperrt und erhält eine rechtliche Nummer."
+                },
+                "confirm": "Bestätigen",
+                "cancel": "Abbrechen"
+            },
+            "noAction": "Keine Aktion",
+            "noNumberYet": "Noch keine Nummer"
+        },
         "stats": {
             "total": "Total Rechnungen",
             "sent": "Gesendet",
@@ -388,7 +437,12 @@
             "draft": "Entwurf",
             "sent": "Gesendet",
             "paid": "Bezahlt",
-            "archived": "Archiviert"
+            "archived": "Archiviert",
+            "issued": "Ausgestellt",
+            "cancelled": "Storniert",
+            "corrected": "Korrigiert",
+            "pending_clearance": "Ausstehende Genehmigung",
+            "cleared": "Freigegeben"
         },
         "emptyState": {
             "noInvoices": "Noch keine Rechnungen",
@@ -422,7 +476,12 @@
                 "sent": "Gesendet",
                 "unpaid": "Unbezahlt",
                 "overdue": "Überfällig",
-                "paid": "Bezahlt"
+                "paid": "Bezahlt",
+                "issued": "Ausgestellt",
+                "cancelled": "Storniert",
+                "corrected": "Korrigiert",
+                "pending_clearance": "Ausstehende Genehmigung",
+                "cleared": "Freigegeben"
             },
             "item": {
                 "title": "Rechnung {{number}} {{title}}",
@@ -438,7 +497,8 @@
                 "downloadPdf": "PDF herunterladen",
                 "edit": "Rechnung bearbeiten",
                 "delete": "Rechnung löschen",
-                "sendByEmail": "Sende Rechnung per Email"
+                "sendByEmail": "Sende Rechnung per Email",
+                "issue": "Rechnung ausstellen"
             },
             "actions": {
                 "addNew": "Neue Rechnung hinzufügen",
@@ -456,7 +516,9 @@
             "messages": {
                 "markAsPaidSuccess": "Rechnung als erfolgreich bezahlt markiert",
                 "markAsPaidError": "Rechnung konnte nicht als bezahlt markiert werden",
-                "sendByEmailSuccess": "Rechnung wurde versandt"
+                "sendByEmailSuccess": "Rechnung wurde versandt",
+                "issueSuccess": "Rechnung erfolgreich ausgestellt",
+                "issueError": "Rechnung konnte nicht ausgestellt werden"
             }
         },
         "upsert": {
@@ -557,7 +619,12 @@
                 "sent": "Gesendet",
                 "unpaid": "Unbezahlt",
                 "overdue": "Überfällig",
-                "paid": "Bezahlt"
+                "paid": "Bezahlt",
+                "issued": "Ausgestellt",
+                "cancelled": "Storniert",
+                "corrected": "Korrigiert",
+                "pending_clearance": "Ausstehende Genehmigung",
+                "cleared": "Freigegeben"
             },
             "fields": {
                 "number": "Rechnungsnummer",
@@ -572,7 +639,8 @@
                 "totalHT": "Gesamt (ohne MwSt.)",
                 "totalVAT": "MwSt.-Betrag",
                 "totalTTC": "Gesamt (inkl. MwSt.)",
-                "notes": "Anmerkungen"
+                "notes": "Anmerkungen",
+                "complianceStatus": "Compliance-Status"
             }
         },
         "delete": {

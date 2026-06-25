@@ -4,12 +4,17 @@ import type { PaymentMethod } from "./payment-method";
 
 export enum InvoiceStatus {
     DRAFT = 'DRAFT',
+    ISSUED = 'ISSUED',
     PAID = 'PAID',
     UNPAID = 'UNPAID',
     OVERDUE = 'OVERDUE',
     SENT = 'SENT',
     UPCOMING = 'UPCOMING',
-    ARCHIVED = 'ARCHIVED'
+    ARCHIVED = 'ARCHIVED',
+    PENDING_CLEARANCE = 'PENDING_CLEARANCE',
+    CLEARED = 'CLEARED',
+    CANCELLED = 'CANCELLED',
+    CORRECTED = 'CORRECTED',
 }
 
 /**
@@ -21,10 +26,21 @@ export function getDisplayInvoiceStatus(status: InvoiceStatus | string): Invoice
 }
 
 /**
- * Groups raw invoice statuses into the 4 categories filterable from the invoice list:
+ * Groups raw invoice statuses into filterable categories from the invoice list.
  * SENT/UNPAID/OVERDUE are grouped under "sent".
+ * PENDING_CLEARANCE/CLEARED are placeholders (~) for clearance countries (PART X).
  */
-export type InvoiceStatusFilterKey = "draft" | "sent" | "paid" | "archived"
+export type InvoiceStatusFilterKey =
+    | "draft"
+    | "issued"
+    | "sent"
+    | "paid"
+    | "archived"
+    | "cancelled"
+    | "corrected"
+    // ~ placeholders for clearance countries (PART X)
+    | "pending_clearance"
+    | "cleared"
 
 export enum InvoiceItemType {
     HOUR = "HOUR",
@@ -108,6 +124,13 @@ export interface Invoice {
     payments?: { id: string; totalPaid: number }[];
     correctedBy?: Invoice[];
     depositInvoices?: Invoice[];
+    complianceDocuments?: {
+        id: string;
+        status: string;
+        number?: string;
+        plan?: { confidence?: string; warnings?: string[] };
+        immutableHash?: string;
+    }[];
 }
 
 export enum RecurrenceFrequency {

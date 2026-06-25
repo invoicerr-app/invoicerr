@@ -150,6 +150,35 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
                             <p className="font-medium">{invoice.notes}</p>
                         </div>
                     )}
+
+                    {invoice.complianceDocuments && invoice.complianceDocuments.length > 0 && (() => {
+                        const doc = invoice.complianceDocuments![0]
+                        const confidence = doc.plan?.confidence
+                        const warnings = doc.plan?.warnings
+                        if (!confidence && (!warnings || warnings.length === 0)) return null
+                        return (
+                            <div className="bg-muted/50 p-4 rounded-lg" data-cy="compliance-status">
+                                <p className="text-sm text-muted-foreground mb-2">{t("invoices.view.fields.complianceStatus")}</p>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <span className="font-medium">{doc.status}</span>
+                                    {confidence && (
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+                                            confidence === "OFFICIAL" ? "bg-green-100 text-green-800" :
+                                            confidence === "BEST_EFFORT" ? "bg-yellow-100 text-yellow-800" :
+                                            "bg-gray-100 text-gray-600"
+                                        }`}>
+                                            {confidence}
+                                        </span>
+                                    )}
+                                </div>
+                                {warnings && warnings.length > 0 && (
+                                    <ul className="mt-2 text-sm text-amber-700 list-disc list-inside">
+                                        {warnings.map((w, i) => <li key={i}>{w}</li>)}
+                                    </ul>
+                                )}
+                            </div>
+                        )
+                    })()}
                 </div>
             </DialogContent>
         </Dialog>

@@ -32,6 +32,7 @@ export default function Invoices() {
 
     const { trigger: triggerSendInvoiceByEmail } = usePost(`/api/invoices/send`)
     const { trigger: triggerArchiveInvoice } = usePost(`/api/invoices/archive`)
+    const { trigger: triggerIssueInvoice } = usePost(`/api/invoices/issue`)
 
     useEffect(() => {
         if (downloadInvoicePdf && pdf) {
@@ -53,7 +54,7 @@ export default function Invoices() {
     const [searchTerm, setSearchTerm] = useState("")
     const [filter, setFilter] = useState<InvoiceFilter>("all")
     const [view, setView] = useState<InvoiceView>("list")
-    const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilterKey[]>(["draft", "sent", "paid"])
+    const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilterKey[]>(["draft", "issued", "sent", "paid"])
 
     const toggleStatusFilter = (key: InvoiceStatusFilterKey) => {
         setStatusFilter((current) => (current.includes(key) ? current.filter((k) => k !== key) : [...current, key]))
@@ -61,8 +62,13 @@ export default function Invoices() {
 
     const getStatusFilterKey = (invoice: Invoice): InvoiceStatusFilterKey =>
         invoice.status === InvoiceStatus.DRAFT ? "draft" :
+        invoice.status === InvoiceStatus.ISSUED ? "issued" :
         invoice.status === InvoiceStatus.ARCHIVED ? "archived" :
         invoice.status === InvoiceStatus.PAID ? "paid" :
+        invoice.status === InvoiceStatus.CANCELLED ? "cancelled" :
+        invoice.status === InvoiceStatus.CORRECTED ? "corrected" :
+        invoice.status === InvoiceStatus.PENDING_CLEARANCE ? "pending_clearance" :
+        invoice.status === InvoiceStatus.CLEARED ? "cleared" :
         "sent"
 
     const matchesSearch = (invoice: Invoice) =>
@@ -111,9 +117,12 @@ export default function Invoices() {
 
     const invoiceStatusCounts = {
         draft: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "draft").length || 0,
+        issued: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "issued").length || 0,
         sent: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "sent").length || 0,
         paid: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "paid").length || 0,
         archived: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "archived").length || 0,
+        cancelled: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "cancelled").length || 0,
+        corrected: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "corrected").length || 0,
     }
 
     usePageHeader(t("sidebar.navigation.invoices"))
@@ -130,6 +139,17 @@ export default function Invoices() {
             })
             .catch(() => {
                 toast.error(t("invoices.list.messages.sendByEmailError"))
+            })
+    }
+
+    const handleIssueInvoice = (invoice: Invoice) => {
+        triggerIssueInvoice({ id: invoice.id })
+            .then(() => {
+                toast.success(t("invoices.list.messages.issueSuccess"))
+                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
+            })
+            .catch(() => {
+                toast.error(t("invoices.list.messages.issueError"))
             })
     }
 
@@ -199,6 +219,7 @@ export default function Invoices() {
                 <>
                     <InvoiceProgression
                         invoices={filteredInvoices.filter((invoice) => invoice.status !== InvoiceStatus.UPCOMING)}
+                    onIssue={handleIssueInvoice}
                     onSend={handleSendInvoice}
                     onResend={handleSendInvoice}
                     onArchive={handleArchiveInvoice}

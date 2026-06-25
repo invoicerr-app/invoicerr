@@ -19,6 +19,7 @@ import { PaymentReceivedDialog } from "./payment-received-dialog"
 
 interface InvoiceProgressionProps {
     invoices: Invoice[]
+    onIssue?: (invoice: Invoice) => void
     onSend?: (invoice: Invoice) => void
     onResend?: (invoice: Invoice) => void
     onArchive?: (invoice: Invoice) => void
@@ -32,10 +33,11 @@ interface PipelineStep {
     status?: InvoiceStatus
 }
 
-type ProgressionAction = "send" | "resend" | "paymentReceived" | "archive"
+type ProgressionAction = "issue" | "send" | "resend" | "paymentReceived" | "archive"
 
 const pipeline: PipelineStep[] = [
     { key: "draft", labelKey: "draft", exists: true, status: InvoiceStatus.DRAFT },
+    { key: "issued", labelKey: "issued", exists: true, status: InvoiceStatus.ISSUED },
     { key: "sent", labelKey: "sent", exists: true, status: InvoiceStatus.SENT },
     { key: "paid", labelKey: "paid", exists: true, status: InvoiceStatus.PAID },
     { key: "archived", labelKey: "archived", exists: true, status: InvoiceStatus.ARCHIVED },
@@ -43,9 +45,12 @@ const pipeline: PipelineStep[] = [
 
 const stepColors: Record<string, { dot: string; text: string; bar: string }> = {
     draft: { dot: "bg-slate-400", text: "text-slate-400", bar: "bg-slate-400" },
+    issued: { dot: "bg-violet-500", text: "text-violet-500", bar: "bg-violet-500" },
     sent: { dot: "bg-blue-500", text: "text-blue-500", bar: "bg-blue-500" },
     paid: { dot: "bg-emerald-500", text: "text-emerald-500", bar: "bg-emerald-500" },
     archived: { dot: "bg-slate-400", text: "text-slate-400", bar: "bg-slate-400" },
+    cancelled: { dot: "bg-red-500", text: "text-red-500", bar: "bg-red-500" },
+    corrected: { dot: "bg-amber-500", text: "text-amber-500", bar: "bg-amber-500" },
 }
 
 const neutralColors = { dot: "bg-slate-400", text: "text-slate-400", bar: "bg-slate-400" }
@@ -69,13 +74,17 @@ function getCurrentStepIndex(invoice: Invoice): number {
 
 function getInvoiceActions(
     invoice: Invoice,
-    handlers: Pick<InvoiceProgressionProps, "onSend" | "onResend" | "onArchive">,
+    handlers: Pick<InvoiceProgressionProps, "onIssue" | "onSend" | "onResend" | "onArchive">,
 ): { action: ProgressionAction; label: string }[] {
     const currentStep = pipeline[getCurrentStepIndex(invoice)]
     if (!currentStep?.exists) return []
 
     switch (currentStep.key) {
         case "draft":
+            return handlers.onIssue
+                ? [{ action: "issue", label: "invoices.progression.actions.issue" }]
+                : []
+        case "issued":
             return handlers.onSend
                 ? [{ action: "send", label: "invoices.progression.actions.send" }]
                 : []
@@ -97,13 +106,14 @@ function getInvoiceActions(
 
 export function InvoiceProgression({
     invoices,
+    onIssue,
     onSend,
     onResend,
     onArchive,
     onViewInvoice,
 }: InvoiceProgressionProps) {
     const { t } = useTranslation()
-    const handlers = { onSend, onResend, onArchive }
+    const handlers = { onIssue, onSend, onResend, onArchive }
 
     const [confirmDialog, setConfirmDialog] = useState<{
         invoice: Invoice
@@ -116,6 +126,9 @@ export function InvoiceProgression({
 
         const { invoice, action } = confirmDialog
         switch (action) {
+            case "issue":
+                onIssue?.(invoice)
+                break
             case "send":
                 onSend?.(invoice)
                 break
@@ -186,7 +199,7 @@ export function InvoiceProgression({
                                             onClick={() => onViewInvoice?.(invoice)}
                                             className="font-medium text-foreground hover:text-primary hover:underline text-left"
                                         >
-                                            {invoice.rawNumber || invoice.number}
+                                            {invoice.rawNumber || invoice.number || t("invoices.progression.noNumberYet")}
                                         </button>
                                         <p className="text-sm text-muted-foreground truncate">
                                             {invoice.client.name ||

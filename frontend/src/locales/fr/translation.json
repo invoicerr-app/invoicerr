@@ -429,7 +429,10 @@
                 "sent": "Envoyée",
                 "paid": "Payée",
                 "archived": "Archivée",
-                "partiallyPaid": "Payée partiellement"
+                "partiallyPaid": "Payée partiellement",
+                "issued": "Émise",
+                "cancelled": "Annulée",
+                "corrected": "Corrigée"
             },
             "percentPaid": "{{percent}} % payé",
             "stepLabel": "Étape {{current}} / {{total}}",
@@ -437,7 +440,8 @@
                 "send": "Envoyer",
                 "resend": "Renvoyer",
                 "paymentReceived": "Paiement reçu",
-                "archive": "Archiver"
+                "archive": "Archiver",
+                "issue": "Émettre"
             },
             "confirmations": {
                 "send": {
@@ -456,10 +460,15 @@
                     "title": "Archiver la facture",
                     "description": "Êtes-vous sûr de vouloir archiver la facture {{number}} ? Cette action est irréversible, il ne sera plus possible de revenir en arrière."
                 },
+                "issue": {
+                    "title": "Émettre la facture",
+                    "description": "Êtes-vous sûr de vouloir émettre la facture {{number}} ? Le document sera verrouillé et se verra attribuer un numéro légal."
+                },
                 "confirm": "Confirmer",
                 "cancel": "Annuler"
             },
-            "noAction": "Aucune action"
+            "noAction": "Aucune action",
+            "noNumberYet": "Pas encore de numéro"
         },
         "stats": {
             "total": "Total des factures",
@@ -471,7 +480,12 @@
             "draft": "Brouillon",
             "sent": "Envoyé",
             "paid": "Payé",
-            "archived": "Archivé"
+            "archived": "Archivé",
+            "issued": "Émise",
+            "cancelled": "Annulée",
+            "corrected": "Corrigée",
+            "pending_clearance": "En attente de dégrément",
+            "cleared": "Dégrée"
         },
         "emptyState": {
             "noInvoices": "Aucune facture pour le moment",
@@ -489,7 +503,12 @@
                 "overdue": "En retard",
                 "paid": "Payée",
                 "upcoming": "À venir",
-                "archived": "Archivée"
+                "archived": "Archivée",
+                "issued": "Émise",
+                "cancelled": "Annulée",
+                "corrected": "Corrigée",
+                "pending_clearance": "En attente de dégrément",
+                "cleared": "Dégrée"
             },
             "item": {
                 "title": "Facture {{number}} {{title}}",
@@ -507,7 +526,8 @@
                 "downloadPdf": "Télécharger le PDF",
                 "edit": "Modifier la facture",
                 "delete": "Supprimer la facture",
-                "sendByEmail": "Envoyer la facture par email"
+                "sendByEmail": "Envoyer la facture par email",
+                "issue": "Émettre la facture"
             },
             "actions": {
                 "addNew": "Ajouter une nouvelle facture",
@@ -527,7 +547,9 @@
                 "markAsPaidError": "Échec du marquage de la facture comme payée",
                 "sendByEmailSuccess": "La facture a été envoyée au client",
                 "archiveSuccess": "Facture archivée avec succès",
-                "archiveError": "Échec de l'archivage de la facture"
+                "archiveError": "Échec de l'archivage de la facture",
+                "issueSuccess": "Facture émise avec succès",
+                "issueError": "Échec de l'émission de la facture"
             }
         },
         "upsert": {
@@ -644,7 +666,12 @@
                 "unpaid": "Impayée",
                 "overdue": "En retard",
                 "paid": "Payée",
-                "archived": "Archivée"
+                "archived": "Archivée",
+                "issued": "Émise",
+                "cancelled": "Annulée",
+                "corrected": "Corrigée",
+                "pending_clearance": "En attente de dégrément",
+                "cleared": "Dégrée"
             },
             "fields": {
                 "number": "Numéro de facture",
@@ -661,7 +688,8 @@
                 "totalHT": "Total HT",
                 "totalVAT": "Montant TVA",
                 "totalTTC": "Total TTC",
-                "notes": "Notes"
+                "notes": "Notes",
+                "complianceStatus": "Statut de conformité"
             }
         },
         "sendConfirmation": {
