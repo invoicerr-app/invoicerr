@@ -11,6 +11,7 @@ import { NumberingService } from "@/utils/numbering";
 @Module({
   imports: [WebhooksModule, ComplianceModule],
   controllers: [InvoicesController],
-  providers: [InvoicesService, MailService, JwtService, PluginsService, NumberingService]
+  providers: [InvoicesService, MailService, JwtService, PluginsService, NumberingService],
+  exports: [InvoicesService],
 })
 export class InvoicesModule { }

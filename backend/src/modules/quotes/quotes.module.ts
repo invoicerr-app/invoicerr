@@ -9,6 +9,7 @@ import { NumberingService } from '@/utils/numbering';
 @Module({
   imports: [WebhooksModule, ComplianceModule],
   controllers: [QuotesController],
-  providers: [QuotesService, JwtService, NumberingService]
+  providers: [QuotesService, JwtService, NumberingService],
+  exports: [QuotesService],
 })
 export class QuotesModule { }
