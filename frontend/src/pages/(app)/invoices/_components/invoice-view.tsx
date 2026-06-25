@@ -28,7 +28,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
 
     return (
         <Dialog open={!!invoice} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-[95vw] lg:max-w-3xl max-h-[90dvh] flex flex-col relative overflow-hidden">
+            <DialogContent className="max-w-[95vw] lg:max-w-3xl max-h-[90dvh] flex flex-col overflow-hidden">
                 {invoice.status === "DRAFT" && (
                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-50 overflow-hidden">
                         <span className="text-8xl font-bold text-red-500/15 -rotate-[30deg] select-none whitespace-nowrap">
