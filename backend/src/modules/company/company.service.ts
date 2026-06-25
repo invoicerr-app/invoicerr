@@ -283,6 +283,14 @@ export class CompanyService {
         } else {
             const newCompany = await prisma.company.create({
                 data: {
+                    // Sensible blanks for the fields the simplified onboarding (name + country
+                    // only) doesn't collect — the user fills these in later via Settings.
+                    foundedAt: new Date(),
+                    address: '',
+                    postalCode: '',
+                    city: '',
+                    phone: '',
+                    email: '',
                     ...data,
                     pdfConfig: {
                         create: {}
