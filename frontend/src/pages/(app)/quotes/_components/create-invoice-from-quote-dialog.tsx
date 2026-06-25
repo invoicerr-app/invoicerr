@@ -88,9 +88,10 @@ export function CreateInvoiceFromQuoteDialog({ quote, onOpenChange }: CreateInvo
     const selectedPercent = totalTTC > 0 ? (selectedTTC / totalTTC) * 100 : 0
 
     /** Distributes a raw TTC target proportionally across remaining item quantities,
-     * clamped to what's actually invoicable, and syncs both the percent and amount
-     * inputs to the value that was actually applied (never silently diverging). */
-    const distributeFromTargetTTC = (targetTTC: number) => {
+     * clamped to what's actually invoicable, and syncs the *other* input (percent or
+     * amount) to the value that was actually applied. The input the user is actively
+     * typing in is left untouched so reformatting doesn't fight their keystrokes. */
+    const distributeFromTargetTTC = (targetTTC: number, source: "percent" | "amount") => {
         if (!status || remainingTTC <= 0) return
         const clampedTTC = Math.min(Math.max(targetTTC, 0), remainingTTC)
         const next: Record<string, number> = {}
@@ -104,32 +105,28 @@ export function CreateInvoiceFromQuoteDialog({ quote, onOpenChange }: CreateInvo
         })
         setQuantities(next)
         setRedistributeKey(k => k + 1)
-        const appliedPercent = totalTTC > 0 ? (clampedTTC / totalTTC) * 100 : 0
-        setPercentInput(String(Math.round(appliedPercent * 100) / 100))
-        setAmountInput(clampedTTC.toFixed(2))
-    }
-
-    const distributeFromPercent = (percent: number) => {
-        const clampedPercent = Math.min(Math.max(percent, 0), remainingPercent)
-        distributeFromTargetTTC((clampedPercent / 100) * totalTTC)
+        if (source !== "percent") {
+            const appliedPercent = totalTTC > 0 ? (clampedTTC / totalTTC) * 100 : 0
+            setPercentInput(String(Math.round(appliedPercent * 100) / 100))
+        }
+        if (source !== "amount") {
+            setAmountInput(clampedTTC.toFixed(2))
+        }
     }
 
     const handlePercentChange = (value: string) => {
+        setPercentInput(value)
         const parsed = value === "" ? 0 : Number.parseFloat(value)
-        if (Number.isNaN(parsed)) {
-            setPercentInput(value)
-            return
-        }
-        distributeFromPercent(parsed)
+        if (Number.isNaN(parsed)) return
+        const clampedPercent = Math.min(Math.max(parsed, 0), remainingPercent)
+        distributeFromTargetTTC((clampedPercent / 100) * totalTTC, "percent")
     }
 
     const handleAmountChange = (value: string) => {
+        setAmountInput(value)
         const parsed = value === "" ? 0 : Number.parseFloat(value)
-        if (Number.isNaN(parsed)) {
-            setAmountInput(value)
-            return
-        }
-        distributeFromTargetTTC(parsed)
+        if (Number.isNaN(parsed)) return
+        distributeFromTargetTTC(parsed, "amount")
     }
 
     const handleQuantityChange = (quoteItemId: string, value: number, max: number) => {

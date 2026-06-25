@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Download, Edit, Eye, FileText, Plus, Search, Signature, Trash2 } from "lucide-react"
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react"
-import { useGetRaw, usePost } from "@/hooks/use-fetch"
+import { Edit, FileText, Plus, Search, Signature, Trash2 } from "lucide-react"
+import { forwardRef, useImperativeHandle, useState } from "react"
+import { usePost } from "@/hooks/use-fetch"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 
@@ -62,33 +62,13 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
         const [viewQuoteDialog, setViewQuoteDialog] = useState<Quote | null>(null)
         const [deleteQuoteDialog, setDeleteQuoteDialog] = useState<Quote | null>(null)
         const [sendQuoteDialog, setSendQuoteDialog] = useState<Quote | null>(null)
-        const [downloadQuotePdf, setDownloadQuotePdf] = useState<Quote | null>(null)
         const [createInvoiceQuote, setCreateInvoiceQuote] = useState<Quote | null>(null)
-
-        const { data: pdf } = useGetRaw<Response>(downloadQuotePdf ? `/api/quotes/${downloadQuotePdf.id}/pdf` : null)
 
         useImperativeHandle(ref, () => ({
             handleAddClick() {
                 setCreateQuoteDialog(true)
             },
         }))
-
-        useEffect(() => {
-            if (downloadQuotePdf && pdf) {
-                pdf.arrayBuffer().then((buffer) => {
-                    const blob = new Blob([buffer], { type: "application/pdf" })
-                    const url = URL.createObjectURL(blob)
-                    const link = document.createElement("a")
-                    link.href = url
-                    link.download = `quote-${downloadQuotePdf.number}.pdf`
-                    document.body.appendChild(link)
-                    link.click()
-                    document.body.removeChild(link)
-                    URL.revokeObjectURL(url)
-                    setDownloadQuotePdf(null) // Reset after download
-                })
-            }
-        }, [downloadQuotePdf, pdf])
 
         function handleAddClick() {
             setCreateQuoteDialog(true)
@@ -104,10 +84,6 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
 
         function handleViewPdf(quote: Quote) {
             navigate(`/quotes/pdf/${quote.id}`, { state: { quote } })
-        }
-
-        function handleDownloadPdf(quote: Quote) {
-            setDownloadQuotePdf(quote)
         }
 
         function handleDelete(quote: Quote) {
@@ -248,7 +224,14 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                                                 <div className="flex-1">
                                                     <div className="flex flex-wrap items-center gap-2">
                                                         <h3 className="font-medium text-foreground break-words">
-                                                            {t("quotes.list.item.title", { number: quote.rawNumber || quote.number, title: quote.title })}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleView(quote)}
+                                                                className="underline hover:text-primary text-left"
+                                                                data-cy="quote-name"
+                                                            >
+                                                                {t("quotes.list.item.title", { number: quote.rawNumber || quote.number, title: quote.title })}
+                                                            </button>
                                                         </h3>
                                                         <span
                                                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(quote.status)}`}
@@ -295,17 +278,6 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
 
                                             <div className="grid grid-cols-2 lg:flex justify-start sm:justify-end gap-1 md:gap-2">
                                                 <Button
-                                                    tooltip={t("quotes.list.tooltips.view")}
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleView(quote)}
-                                                    className="text-gray-600 hover:text-blue-600"
-                                                    dataCy={`view-quote-${quote.title?.replace(/\s+/g, '-').toLowerCase()}`}
-                                                >
-                                                    <Eye className="h-4 w-4" />
-                                                </Button>
-
-                                                <Button
                                                     tooltip={t("quotes.list.tooltips.viewPdf")}
                                                     variant="ghost"
                                                     size="icon"
@@ -313,16 +285,6 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                                                     className="text-gray-600 hover:text-pink-600"
                                                 >
                                                     <FileText className="h-4 w-4" />
-                                                </Button>
-
-                                                <Button
-                                                    tooltip={t("quotes.list.tooltips.downloadPdf")}
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleDownloadPdf(quote)}
-                                                    className="text-gray-600 hover:text-amber-600"
-                                                >
-                                                    <Download className="h-4 w-4" />
                                                 </Button>
 
                                                 {quote.status !== "SIGNED" && (
