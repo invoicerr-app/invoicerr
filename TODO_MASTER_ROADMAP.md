@@ -469,12 +469,15 @@ Files: new settings section + `invoice-view.tsx`/`invoice-list.tsx`, `invoices/i
 **Legal, not optional for the home market:** from **2026-09-01 every French business must be able to
 *receive* e-invoices** (emission for SMEs follows 2027). The app is AR-only today; the engine already
 models inbound (`ReceptionService`, inbound-router, `ComplianceInboundMessage`, reception stubs).
-- [ ] Decide + document the scope: minimal legal-reception capability (accept, store, acknowledge an
-  inbound e-invoice via PDP/Peppol/SdI) vs a full AP module. At minimum the legal-reception path.
+- [x] **Scope decided (2026-06-25): Option A — legal-minimum reception only.** Accept, store, and
+  acknowledge an inbound e-invoice (via PDP/Peppol/SdI) + emit the mandated buyer status. **No** AP /
+  expense / accounting module (that side is out of scope — see the note below). Build exactly enough to
+  satisfy the FR 2026-09 reception obligation, nothing more.
 - [ ] Wire the inbound router/reception facade to a stored `ReceivedDocument`, with buyer-status
-  emission where mandated (FR statuses), and a UI to view/acknowledge received invoices.
+  emission where mandated (FR statuses: accepted/refused/pending), and a UI to view/acknowledge
+  received invoices (VI.13). Scope stays minimal per the decision above.
 - [ ] This is a whole new document direction — anticipate the data model now (II.5 `direction`
-  already exists on `ComplianceDocument`).
+  already exists on `ComplianceDocument`). Couples with the reception stubs in XI.7.
 
 > **Out of scope (decided 2026-06-25):** expense tracking / purchase accounting / EÜR (#253, #186
 > item 5). This product does **invoicing only** — no bookkeeping of supplier expenses. The inbound
