@@ -124,6 +124,18 @@ longer sufficient; fine 7 500 €/software). This is not a feature, it's a const
 model: append-only history, no destructive edits/deletes of validated records, hash-chaining, audit
 export. Foundational — see PART II.4.
 
+## I.6 Wire the whole system end-to-end BEFORE deepening per-country stubs 🔒 (priority rule)
+**Breadth-first, not depth-first.** The first goal is a **fully connected vertical slice**: every live
+flow (invoice/quote/recurring/payment/correction/cancel) routed through the `ComplianceService` facade,
+**and** every screen wired to the real backend (issue/correct/cancel/mentions/lifecycle UI). Today the
+engine is built but **not called from `src/modules/*`** (only TODO comments) — that gap is the top
+priority. Only **after** the frontend and backend are connected end-to-end do we go back and fill the
+per-country execution depth: the **~62 `.todo()` execution stubs**, graduating archetype profiles to
+verified `OFFICIAL`, and real clearance transmission (PART X). In short: **connect everything first,
+perfect each country second.** A country running on a `FALLBACK`/`BEST_EFFORT` plan but fully wired is
+more valuable now than one `OFFICIAL` country with the rest disconnected. Surface plan `confidence`
+(OFFICIAL/BEST_EFFORT/FALLBACK) in the UI (VI.4) so users see the maturity while breadth lands first.
+
 ---
 
 # PART II — Foundations 🔒 (do first; everything depends on these)
@@ -515,8 +527,13 @@ Inbound is durable; outbound (transmit, submit-for-clearance, recurring auto-sen
 ---
 
 # Suggested execution order (dependency-first)
-1. **PART II** foundations: II.1 (done) → **II.3 numbering** + **II.4 inalterability** (the two legal
-   keystones) → II.5 fields → II.2 money cutover (independent).
+> **Overriding rule (I.6): breadth before depth.** Get the live flow wired to the facade *and* the
+> frontend wired to the backend across the whole subsystem **first**; the per-country execution stubs
+> (~62 `.todo()`, graduating profiles to `OFFICIAL`, real clearance transmission) are the **last**
+> phase, after everything is connected end-to-end.
+
+1. **PART II** foundations: II.1 (done) → **II.3 numbering** (done) + **II.4 inalterability** (the two
+   legal keystones) → II.5 fields → II.2 money cutover (independent).
 2. **III.1 invoices** (issue step, edit-only-draft) → **PART IV** corrections/cancel.
 3. **III.2 quotes**, **III.4 deposit/proforma** (parallelisable).
 4. **III.3 recurring** (needs III.1 + benefits from PART IX).
@@ -524,7 +541,10 @@ Inbound is durable; outbound (transmit, submit-for-clearance, recurring auto-sen
 6. **PART V** mentions/dunning/FX (V.1 mentions can start early — engine already computes tax
    mentions); **PART VI** frontend (VI.1 infra first).
 7. **PART IX** outbox/BullMQ; then **PART VII** reception (legal deadline 2026-09), **PART VIII**
-   multi-entity (anticipate schema early even if shipped late), **PART X** breadth.
+   multi-entity (anticipate schema early even if shipped late).
+8. **LAST — per-country depth (PART X):** only once everything above is wired end-to-end, fill the
+   ~62 `.todo()` execution stubs, graduate archetype profiles `FALLBACK`/`BEST_EFFORT` → `OFFICIAL`,
+   and ship real clearance transmission (X.1). Connect everything first; perfect each country second.
 
 > Each completed section: tick its boxes + one line in `documentation/compliance/COMPLIANCE_STATUS.md`.
 > Keep this roadmap the live index until the subsystem is complete.
