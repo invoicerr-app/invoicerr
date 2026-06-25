@@ -130,7 +130,7 @@ export function InvoiceProgression({
     }
 
     const invoiceLabel = confirmDialog
-        ? confirmDialog.invoice.rawNumber || confirmDialog.invoice.number.toString()
+        ? confirmDialog.invoice.rawNumber || confirmDialog.invoice.number?.toString() || "DRAFT"
         : ""
     const clientName = confirmDialog
         ? confirmDialog.invoice.client.name ||

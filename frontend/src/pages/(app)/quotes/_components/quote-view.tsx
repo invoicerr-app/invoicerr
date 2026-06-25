@@ -29,7 +29,7 @@ export function QuoteViewDialog({ quote, onOpenChange }: QuoteViewDialogProps) {
             <DialogContent className="max-w-[95vw] lg:max-w-3xl max-h-[90dvh] flex flex-col">
                 <DialogHeader className="flex-shrink-0">
                     <DialogTitle className="text-xl font-semibold">
-                        {t("quotes.view.title", { number: quote.number })}
+                        {t("quotes.view.title", { number: quote.rawNumber || quote.number?.toString() || "DRAFT" })}
                     </DialogTitle>
                     <DialogDescription className="text-muted-foreground">{t("quotes.view.description")}</DialogDescription>
                 </DialogHeader>

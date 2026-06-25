@@ -38,7 +38,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
                 )}
                 <DialogHeader className="flex-shrink-0">
                     <DialogTitle className="text-xl font-semibold">
-                        {t("invoices.view.title", { number: invoice.number })}
+                        {t("invoices.view.title", { number: invoice.rawNumber || invoice.number?.toString() || "DRAFT" })}
                     </DialogTitle>
                     <DialogDescription className="text-muted-foreground">{t("invoices.view.description")}</DialogDescription>
                 </DialogHeader>
@@ -48,7 +48,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-muted/50 p-4 rounded-lg">
                         <div>
                             <p className="text-sm text-muted-foreground">{t("invoices.view.fields.number")}</p>
-                            <p className="font-medium">{invoice.number}</p>
+                            <p className="font-medium">{invoice.rawNumber || invoice.number?.toString() || "DRAFT"}</p>
                         </div>
 
                         <div>

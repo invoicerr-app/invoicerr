@@ -342,6 +342,7 @@ model Company {
   webhooks         Webhook[]
   Article          Article[]
   partyIdentifiers PartyIdentifier[]
+  NumberSeries     NumberSeries[]
 }
 
 // Client model
@@ -401,10 +402,24 @@ model MailTemplate {
   @@unique([companyId, type])
 }
 
+// Gapless numbering series keyed per (company, docType, scopeKey)
+model NumberSeries {
+  id        String   @id @default(cuid())
+  company   Company  @relation(fields: [companyId], references: [id])
+  companyId String
+  docType   String   // 'invoice' | 'quote' | 'payment'
+  scopeKey  String   // e.g. year "2026" or "default"
+  counter   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, docType, scopeKey])
+}
+
 // Quote model
 model Quote {
   id              String      @id @default(uuid())
-  number          Int         @default(autoincrement())
+  number          Int? // assigned at issue (gapless per series)
   rawNumber       String? // Raw number for custom formats
   title           String?
   client          Client      @relation(fields: [clientId], references: [id])
@@ -415,6 +430,7 @@ model Quote {
   status          QuoteStatus @default(DRAFT)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
+  issuedAt        DateTime? // date of issue/DRAFT→SIGNED transition
   validUntil      DateTime?
   signedAt        DateTime?
   viewedAt        DateTime?
@@ -452,7 +468,7 @@ model QuoteItem {
 // Invoice model
 model Invoice {
   id                 String            @id @default(uuid())
-  number             Int               @default(autoincrement())
+  number             Int? // assigned at issue (gapless per series)
   rawNumber          String? // Raw number for custom formats
   quote              Quote?            @relation(fields: [quoteId], references: [id])
   quoteId            String?
@@ -466,6 +482,7 @@ model Invoice {
   status             InvoiceStatus     @default(DRAFT)
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
+  issuedAt           DateTime? // date of DRAFT→ISSUED transition
   dueDate            DateTime
   paidAt             DateTime?
   paymentMethod      String? // Ex: "Bank Transfer", "PayPal", "Cash"
@@ -555,7 +572,7 @@ model PaymentItem {
 
 model Payment {
   id              String        @id @default(cuid())
-  number          Int           @default(autoincrement())
+  number          Int? // assigned at issue (gapless per series)
   rawNumber       String? // Raw number for custom formats
   invoiceId       String
   invoice         Invoice       @relation(fields: [invoiceId], references: [id])

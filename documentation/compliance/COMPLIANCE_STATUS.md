@@ -9,7 +9,7 @@
 >
 > **TL;DR** — Resolution core, execution-layer stubs, the lifecycle runtime + its 3 durable drivers,
 > Prisma/NestJS persistence, and **real tax determination in the live invoice/quote/recurring-invoice
-> flow** are all built, wired together, and tested (**334 tests — 331 unit + 3 opt-in live-DB
+> flow** are all built, wired together, and tested (**345 tests — 342 unit + 3 opt-in live-DB
 > integration — 0 type errors**). What remains is (1) replacing the named `TODO` stubs with real
 > external integrations, and (2) driving the lifecycle runtime itself (clearance, transmission,
 > `ComplianceDocument` creation) from that same live flow — today only tax *determination* is wired,
@@ -49,6 +49,26 @@
   `providerId` resolves to a real provider** (a typo can no longer silently fall back to a catch-all).
 - [x] Honesty via `confidence`: bespoke = `OFFICIAL`; archetype-built = `BEST_EFFORT`; announced
   mandates = `PLANNED`.
+
+### Per-country required identifiers (`requiredIdentifiers`)
+- [x] **New axis** — `CountryComplianceProfile.requiredIdentifiers`: `IdentifierRequirement[]` declaring
+  what identifiers (SIREN, RFC, CURP, EIN, Partita IVA, REGON, NIP, etc.) each country expects.
+- [x] **Bespoke profiles populated** — FR (SIREN/SIRET + VAT), MX (RFC + CURP), US (EIN as LEGAL_ID),
+  IT (Codice Fiscale + Partita IVA), PL (REGON + NIP). All other archetype-built profiles get a
+  generic default: `[{ scheme: 'VAT', label: 'Tax / VAT number', appliesTo: 'BOTH', required: false }]`.
+  FALLBACK → `[]`.
+- [x] **Prisma model** — `PartyIdentifier` table with `@@unique([companyId, scheme])` /
+  `@@unique([clientId, scheme])` and full-replace semantics in the service layer.
+- [x] **Backend API** — `GET /api/compliance/required-fields?countryCode=XX&partyType=COMPANY|INDIVIDUAL`
+  returns filtered `IdentifierRequirement[]` via `RequiredFieldsController`.
+- [x] **Write path rejection** — Backend rejects `LEGAL_ID`/`VAT` scheme entries in `identifiers` array
+  with 400 (those map to existing `legalId`/`VAT` columns).
+- [x] **Frontend dynamic forms** — Company settings, client-upsert dialog, and onboarding all use
+  `useRequiredIdentifiers` (react-query hook) to fetch requirements. `LEGAL_ID`/`VAT` update existing
+  field labels/requiredness; other schemes render as dynamic inputs with help text.
+- [x] **Data-integrity tests** — CI validates every profile has a defined `requiredIdentifiers` array,
+  every `IdentifierRequirement` is well-formed, bespoke profiles are non-empty, FALLBACK is empty,
+  and delegating profiles (e.g. MC → FR) defer to their delegate.
 
 ### Execution layer — providers (wired end to end; bodies are stubs that log `TODO`)
 - [x] **Format**: EN16931 family, PlainPDF, CFDI, FatturaPA, KSA-UBL, FA_VAT, **43 dedicated national
@@ -144,9 +164,29 @@
   submitted, nothing is transmitted. That's the next slice (see "Suggested order" below).
 
 ### Tests
-- [x] **334 tests** across **32 spec files**: 331 always-on unit tests (pure engine/profiles/
-  providers/lifecycle/integration, no I/O) + 3 opt-in live-DB integration tests. `tsc --noEmit` clean;
+- [x] **346 tests** across **34 spec files** (33 always-on + 1 skipped live-DB): 346 always-on unit tests.
+  `tsc --noEmit` clean;
   `nest build` succeeds; `prisma validate` passes; a fresh `prisma migrate deploy` applies cleanly.
+
+### Numbering overhaul (PART II.3)
+- [x] **NumberSeries table** (`NumberSeries`) — gapless per-series (companyId, docType, scopeKey) counter
+  with race-safe `UPDATE … RETURNING` via raw SQL.
+- [x] **NumberingService** (`backend/src/utils/numbering.ts`) — injectable NestJS service that atomically
+  bumps the counter and formats per the company's format pattern (`{year}`, `{number:4}`, …).
+- [x] **Schema migration** (hand-written, data-preserving): `Invoice.number`/`Quote.number`/
+  `Payment.number` made nullable (drop autoincrement); `issuedAt` added to Invoice and Quote;
+  backfill seeds `issuedAt = createdAt` and initialises `NumberSeries` from existing max counters.
+- [x] **Auto-numbering removed** — `$extends` block that numbered on `findMany`/`create`/`update` is
+  deleted from `prisma.service.ts`; `formatPattern()` removed from `pdf.ts`.
+- [x] **Issue endpoint** — `POST /invoices/:id/issue` assigns the next gapless number, sets `issuedAt`,
+  transitions DRAFT→SENT.
+- [x] **Delete guards** — `deleteInvoice`/`deleteQuote` reject non-DRAFT; `editInvoice`/`editQuote`
+  reject issued/signed documents.
+- [x] **Quote numbering** — number assigned at `markQuoteAsSigned` (signing time), not at creation.
+- [x] **Payment numbering** — number assigned at `createPayment` via NumberingService.
+- [x] **Send auto-issues** — `sendInvoiceByEmail` automatically issues a DRAFT before sending.
+- [x] **Frontend types updated** — `Invoice.number`/`Quote.number`/`Payment.number` are now `number?`
+  (nullable); all direct `.toString()` calls updated to handle null; `issuedAt` added to type.
 
 ---
 

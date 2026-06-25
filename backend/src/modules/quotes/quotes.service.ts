@@ -7,6 +7,7 @@ import { getInvertColor, getPDF } from '@/utils/pdf';
 
 import { ISigningProvider } from '@/plugins/signing/types';
 import { PluginsService } from '../plugins/plugins.service';
+import { NumberingService } from '@/utils/numbering';
 import { StorageUploadService } from '@/utils/storage-upload';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { baseTemplate } from '@/modules/quotes/templates/base.template';
@@ -25,6 +26,7 @@ export class QuotesService {
 
     constructor(
         private readonly webhookDispatcher: WebhookDispatcherService,
+        private readonly numberingService: NumberingService,
     ) {
         this.pluginsService = new PluginsService();
     }
@@ -233,6 +235,11 @@ export class QuotesService {
             throw new BadRequestException('Quote not found');
         }
 
+        if (existingQuote.status === 'SIGNED') {
+            logger.error('Cannot edit a signed quote', { category: 'quote', details: { id } });
+            throw new BadRequestException('Cannot edit a signed quote. Create a new version instead.');
+        }
+
         const existingItemIds = existingQuote.items.map(i => i.id);
         const incomingItemIds = items.filter(i => i.id).map(i => i.id!);
 
@@ -363,6 +370,11 @@ export class QuotesService {
             throw new BadRequestException('Quote not found');
         }
 
+        if (existingQuote.status !== 'DRAFT') {
+            logger.error('Only DRAFT quotes can be deleted', { category: 'quote', details: { id, status: existingQuote.status } });
+            throw new BadRequestException('Only DRAFT quotes can be deleted.');
+        }
+
         const deletedQuote = await prisma.quote.update({
             where: { id },
             data: { isActive: false },
@@ -460,7 +472,7 @@ export class QuotesService {
         const hasDiscount = normalizedDiscountRate > 0 && discountAmountValue > 0;
 
         const html = template({
-            number: quote.rawNumber || quote.number.toString(),
+            number: quote.rawNumber || (quote.number?.toString() ?? 'DRAFT'),
             date: formatDate(companyAugmented, quote.createdAt),
             validUntil: formatDate(companyAugmented, quote.validUntil),
             company: companyAugmented,
@@ -549,9 +561,28 @@ export class QuotesService {
             throw new BadRequestException('Quote not found');
         }
 
+        // Assign a gapless number at sign time if not already assigned
+        let number: number | undefined;
+        let rawNumber: string | undefined;
+        if (existingQuote.number === null) {
+            const signDate = new Date();
+            const assignment = await this.numberingService.nextNumber(
+                existingQuote.companyId,
+                'quote',
+                signDate,
+            );
+            number = assignment.counter;
+            rawNumber = assignment.rawNumber;
+        }
+
         const signedQuote = await prisma.quote.update({
             where: { id },
-            data: { signedAt: new Date(), status: "SIGNED" },
+            data: {
+                signedAt: new Date(),
+                issuedAt: new Date(),
+                status: "SIGNED",
+                ...(number !== undefined ? { number, rawNumber } : {}),
+            },
             include: {
                 items: true,
                 client: { include: { partyIdentifiers: true } },

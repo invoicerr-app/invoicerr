@@ -174,7 +174,7 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                                         <FormLabel required>{t("payments.upsert.form.invoice.label")}</FormLabel>
                                         <FormControl>
                                             <SearchSelect
-                                                options={invoiceList.map((invoice) => ({ label: invoice.rawNumber || invoice.number.toString(), value: invoice.id }))}
+                                                options={invoiceList.map((invoice) => ({ label: invoice.rawNumber || invoice.number?.toString() || invoice.id.slice(0, 8), value: invoice.id }))}
                                                 value={field.value ?? ""}
                                                 onValueChange={(val) => { field.onChange(val || null); const inv = invoiceList.find(inv => inv.id === val) || null; setSelectedInvoice(inv); redistribute(inv, Number(form.getValues("amount")) || 0); }}
                                                 onSearchChange={setSearchTerm}

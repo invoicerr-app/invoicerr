@@ -5,6 +5,7 @@ import { CreatePaymentDto, EditPaymentDto } from '@/modules/payments/dto/payment
 import { getInvertColor, getPDF } from '@/utils/pdf';
 
 import { MailService } from '@/mail/mail.service';
+import { NumberingService } from '@/utils/numbering';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { baseTemplate } from '@/modules/payments/templates/base.template';
@@ -20,7 +21,8 @@ export class PaymentsService {
 
     constructor(
         private readonly mailService: MailService,
-        private readonly webhookDispatcher: WebhookDispatcherService
+        private readonly webhookDispatcher: WebhookDispatcherService,
+        private readonly numberingService: NumberingService,
     ) {
         this.logger = new Logger(PaymentsService.name);
     }
@@ -94,7 +96,7 @@ export class PaymentsService {
             const results = await prisma.payment.findMany({
                 take: 10,
                 orderBy: {
-                    number: 'asc',
+                    createdAt: 'desc',
                 },
                 include: {
                     items: true,
@@ -128,7 +130,7 @@ export class PaymentsService {
             },
             take: 10,
             orderBy: {
-                number: 'asc',
+                createdAt: 'desc',
             },
             include: {
                 items: true,
@@ -203,8 +205,17 @@ export class PaymentsService {
         const totalPaid = body.items.reduce((sum, item) => sum + +item.amountPaid, 0);
         const currency = invoice.currency;
 
+        const paidAtDate = body.paidAt ? new Date(body.paidAt) : new Date();
+        const assignment = await this.numberingService.nextNumber(
+            invoice.companyId,
+            'payment',
+            paidAtDate,
+        );
+
         const payment = await prisma.payment.create({
             data: {
+                number: assignment.counter,
+                rawNumber: assignment.rawNumber,
                 invoiceId: body.invoiceId,
                 items: {
                     create: body.items.map(item => ({
@@ -466,7 +477,7 @@ export class PaymentsService {
         const hasDiscount = normalizedDiscountRate > 0 && discountAmountValue > 0;
 
         const html = template({
-            number: payment.rawNumber || payment.number.toString(),
+            number: payment.rawNumber || (payment.number?.toString() ?? 'DRAFT'),
             paymentDate: formatDate(payment.invoice.company, payment.paidAt ?? payment.createdAt),
             invoiceNumber: payment.invoice?.rawNumber || payment.invoice?.number?.toString() || '',
             client: payment.invoice.client,
@@ -554,7 +565,7 @@ export class PaymentsService {
             throw new BadRequestException('Email template for payment not found.');
         }
 
-        const paymentNumber = payment.rawNumber || payment.number.toString();
+        const paymentNumber = payment.rawNumber || (payment.number?.toString() ?? 'DRAFT');
         const envVariables = {
             APP_URL: process.env.APP_URL,
             PAYMENT_NUMBER: paymentNumber,

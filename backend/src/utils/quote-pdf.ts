@@ -67,7 +67,7 @@ export async function generateQuotePdf(id: string): Promise<Uint8Array> {
     const hasDiscount = normalizedDiscountRate > 0 && discountAmountValue > 0;
 
     const html = template({
-        number: quote.rawNumber || quote.number.toString(),
+        number: quote.rawNumber || quote.number?.toString() || 'DRAFT',
         date: formatDate(quote.company, quote.createdAt),
         validUntil: formatDate(quote.company, quote.validUntil),
         company: quote.company,

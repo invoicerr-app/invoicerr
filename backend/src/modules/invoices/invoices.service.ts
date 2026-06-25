@@ -6,6 +6,7 @@ import { EInvoice, ExportFormat } from '@fin.cx/einvoice';
 import { getInvertColor, getPDF } from '@/utils/pdf';
 
 import { MailService } from '@/mail/mail.service';
+import { NumberingService } from '@/utils/numbering';
 import { StorageUploadService } from '@/utils/storage-upload';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { WebhookEvent } from '../../../prisma/generated/prisma/client';
@@ -29,6 +30,7 @@ export class InvoicesService {
     constructor(
         private readonly mailService: MailService,
         private readonly webhookDispatcher: WebhookDispatcherService,
+        private readonly numberingService: NumberingService,
     ) {
     }
 
@@ -195,6 +197,64 @@ export class InvoicesService {
         return invoice;
     }
 
+    async issueInvoice(id: string) {
+        const invoice = await prisma.invoice.findUnique({
+            where: { id },
+            include: { client: true, company: true },
+        });
+
+        if (!invoice) {
+            logger.error('Invoice not found', { category: 'invoice' });
+            throw new BadRequestException('Invoice not found');
+        }
+
+        if (invoice.status !== 'DRAFT') {
+            logger.error('Only DRAFT invoices can be issued', { category: 'invoice', details: { id, status: invoice.status } });
+            throw new BadRequestException('Only DRAFT invoices can be issued');
+        }
+
+        if (invoice.number !== null) {
+            logger.error('Invoice already has a number', { category: 'invoice', details: { id } });
+            throw new BadRequestException('Invoice already has a number');
+        }
+
+        const issueDate = new Date();
+        const { counter, rawNumber } = await this.numberingService.nextNumber(
+            invoice.companyId,
+            'invoice',
+            issueDate,
+        );
+
+        const updated = await prisma.invoice.update({
+            where: { id },
+            data: {
+                number: counter,
+                rawNumber,
+                issuedAt: issueDate,
+                status: 'SENT',
+            },
+            include: {
+                items: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
+            },
+        });
+
+        logger.info('Invoice issued', { category: 'invoice', details: { invoiceId: id, number: rawNumber } });
+
+        try {
+            await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_UPDATED, {
+                invoice: updated,
+                client: updated.client,
+                company: updated.company,
+            });
+        } catch (error) {
+            logger.error('Failed to dispatch INVOICE_UPDATED webhook after issue', { category: 'invoice', details: { error } });
+        }
+
+        return updated;
+    }
+
     async editInvoice(body: EditInvoicesDto) {
         const { items, id, discountRate, ...data } = body;
 
@@ -228,6 +288,11 @@ export class InvoicesService {
         if (!existingInvoice) {
             logger.error('Invoice not found', { category: 'invoice' });
             throw new BadRequestException('Invoice not found');
+        }
+
+        if (existingInvoice.status !== 'DRAFT') {
+            logger.error('Only DRAFT invoices can be edited', { category: 'invoice', details: { id, status: existingInvoice.status } });
+            throw new BadRequestException('Only DRAFT invoices can be edited. Issued documents require a correction.');
         }
 
         const existingItemIds = existingInvoice.items.map(i => i.id);
@@ -347,6 +412,11 @@ export class InvoicesService {
             throw new BadRequestException('Invoice not found');
         }
 
+        if (existingInvoice.status !== 'DRAFT') {
+            logger.error('Only DRAFT invoices can be deleted', { category: 'invoice', details: { id, status: existingInvoice.status } });
+            throw new BadRequestException('Only DRAFT invoices can be deleted. Issued documents must be cancelled instead.');
+        }
+
         const deletedInvoice = await prisma.invoice.update({
             where: { id },
             data: { isActive: false },
@@ -439,7 +509,7 @@ export class InvoicesService {
         const html = template({
             isDraft: invoice.status === 'DRAFT',
             draftLabel: getDraftWatermarkLabel(invoice.company.country),
-            number: invoice.rawNumber || invoice.number.toString(),
+            number: invoice.rawNumber || (invoice.number?.toString() ?? getDraftWatermarkLabel(invoice.company.country)),
             date: formatDate(invoice.company, invoice.createdAt),
             dueDate: formatDate(invoice.company, invoice.dueDate),
             company: companyAugmented,
@@ -532,7 +602,7 @@ export class InvoicesService {
         const companyFoundedDate = new Date(invRec.company.foundedAt || new Date())
         const clientFoundedDate = new Date(invRec.client.foundedAt || new Date());
 
-        inv.id = invRec.rawNumber || invRec.number.toString();
+        inv.id = invRec.rawNumber || (invRec.number?.toString() ?? 'DRAFT');
         inv.issueDate = new Date(invRec.createdAt.toISOString().split('T')[0]);
         inv.currency = invRec.company.currency as finance.TCurrency || 'EUR';
 
@@ -804,6 +874,11 @@ export class InvoicesService {
             throw new BadRequestException('Invoice not found');
         }
 
+        // If the invoice is still a DRAFT, issue it first
+        if (invoice.status === 'DRAFT' || invoice.number === null) {
+            invoice = await this.issueInvoice(invoiceId);
+        }
+
         // If client has no email, skip sending and return an informative message
         if (!invoice.client?.contactEmail) {
             logger.error('Client has no email configured; invoice not sent', { category: 'invoice' });
@@ -824,7 +899,7 @@ export class InvoicesService {
 
         const envVariables = {
             APP_URL: process.env.APP_URL,
-            INVOICE_NUMBER: invoice.rawNumber || invoice.number.toString(),
+            INVOICE_NUMBER: invoice.rawNumber || (invoice.number?.toString() ?? 'DRAFT'),
             COMPANY_NAME: invoice.company.name,
             CLIENT_NAME: invoice.client.name,
         };
@@ -834,7 +909,7 @@ export class InvoicesService {
             subject: mailTemplate.subject.replace(/{{(\w+)}}/g, (_, key) => envVariables[key] || ''),
             html: mailTemplate.body.replace(/{{(\w+)}}/g, (_, key) => envVariables[key] || ''),
             attachments: [{
-                filename: `invoice-${invoice.rawNumber || invoice.number}.pdf`,
+                filename: `invoice-${invoice.rawNumber || invoice.number || 'draft'}.pdf`,
                 content: pdfBuffer,
                 contentType: 'application/pdf',
             }],

@@ -47,7 +47,7 @@ export interface InvoiceItem {
 
 export interface Invoice {
     id: string;
-    number: number; // Ex: "INV-2025-0001"
+    number?: number; // Assigned at issue (null for DRAFT)
     rawNumber?: string; // Optional raw number for custom formats
     title?: string; // Optional title from DTOs
     quoteId?: string;
@@ -60,6 +60,7 @@ export interface Invoice {
     status: InvoiceStatus;
     createdAt: string; // ISO date string
     updatedAt: string; // ISO date string
+    issuedAt?: string; // ISO date string — set at DRAFT→ISSUED transition
     dueDate: string; // ISO date string
     paidAt?: string; // ISO date string
     paymentMethodId?: string; // Reference to saved payment method

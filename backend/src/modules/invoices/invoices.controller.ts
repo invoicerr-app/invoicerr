@@ -167,6 +167,14 @@ export class InvoicesController {
     return this.invoicesService.archiveInvoice(invoiceId);
   }
 
+  @Post(':id/issue')
+  @ApiOperation({ summary: 'Issue an invoice', description: 'Assigns a gapless legal number to a DRAFT invoice and transitions it to ISSUED.' })
+  @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
+  @ApiResponse({ status: 201, description: 'Invoice issued' })
+  issueInvoice(@Param('id') id: string) {
+    return this.invoicesService.issueInvoice(id);
+  }
+
   @Post('send')
   @ApiOperation({ summary: 'Send invoice by email', description: 'Sends an invoice as a PDF attachment via email to the client.' })
   @ApiResponse({ status: 201, description: 'Invoice sent' })

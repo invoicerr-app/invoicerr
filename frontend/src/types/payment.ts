@@ -13,7 +13,7 @@ export interface PaymentItem {
 
 export interface Payment {
     id: string;
-    number: number;
+    number?: number; // Assigned at creation (gapless per series)
     rawNumber?: string; // Optional raw number for custom formats
     invoiceId: string;
     invoice?: Invoice;
