@@ -313,11 +313,19 @@ export class InvoicesService {
     }
 
     async correctInvoice(id: string, reason?: string) {
-        const invoice = await prisma.invoice.findUnique({ where: { id } });
+        const invoice = await prisma.invoice.findUnique({
+            where: { id },
+            include: {
+                items: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
+            },
+        });
         if (!invoice) throw new BadRequestException('Invoice not found');
         if (invoice.status === 'DRAFT') throw new BadRequestException('Only issued invoices can be corrected');
 
         try {
+            // Resolve the correction model from the compliance plan (consumes the engine, not a if-pays)
             const complianceDoc = await prisma.complianceDocument.findFirst({
                 where: { invoiceId: id },
                 orderBy: { createdAt: 'desc' },
@@ -325,19 +333,138 @@ export class InvoicesService {
             if (!complianceDoc) {
                 throw new BadRequestException('No compliance document found for this invoice');
             }
-            const result = await this.complianceService.correct(complianceDoc.id, { reason });
 
-            // Reflect compliance status on the invoice (III.1 — single vocabulary)
+            const storedPlan = complianceDoc.plan as any;
+            const correctionModel: string = storedPlan?.lifecycle?.correctionModel ?? 'CREDIT_NOTE';
+
+            // Determine the correction kind and compute items/totals
+            let correctionKind: DocumentKind;
+            let correctionItems: any[];
+            let totalHT: number;
+            let totalVAT: number;
+            let totalTTC: number;
+
+            const copyItems = (negate: boolean) => invoice.items.map((item, i) => ({
+                description: item.description,
+                quantity: negate ? -item.quantity : item.quantity,
+                unitPrice: item.unitPrice,
+                unitPriceMinor: item.unitPriceMinor != null ? (negate ? -item.unitPriceMinor : item.unitPriceMinor) : null,
+                vatRate: item.vatRate,
+                type: item.type,
+                order: i,
+                discountRate: item.discountRate,
+                discountAmount: negate ? null : item.discountAmount,
+                discountAmountMinor: negate ? null : item.discountAmountMinor,
+                chargeAmount: negate ? null : item.chargeAmount,
+                chargeAmountMinor: negate ? null : item.chargeAmountMinor,
+                chargeDescription: negate ? null : item.chargeDescription,
+                unitOfMeasure: item.unitOfMeasure,
+            }));
+
+            if (correctionModel === 'CANCEL_AND_REPLACE') {
+                correctionKind = 'INVOICE';
+                correctionItems = copyItems(false);
+                totalHT = invoice.totalHT;
+                totalVAT = invoice.totalVAT;
+                totalTTC = invoice.totalTTC;
+            } else if (correctionModel === 'CORRECTIVE_INVOICE') {
+                correctionKind = 'CORRECTIVE_INVOICE';
+                correctionItems = copyItems(false);
+                totalHT = invoice.totalHT;
+                totalVAT = invoice.totalVAT;
+                totalTTC = invoice.totalTTC;
+            } else {
+                correctionKind = 'CREDIT_NOTE';
+                correctionItems = copyItems(true);
+                totalHT = -invoice.totalHT;
+                totalVAT = -invoice.totalVAT;
+                totalTTC = -invoice.totalTTC;
+            }
+
+            // Create the correction invoice as ISSUED (numbered — it's a legal document)
+            const issueDate = new Date();
+            const correctionInvoice = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+                const { counter, rawNumber } = await this.numberingService.nextNumber(
+                    tx,
+                    invoice.companyId,
+                    'invoice',
+                    issueDate,
+                );
+
+                return tx.invoice.create({
+                    data: {
+                        kind: correctionKind as any,
+                        correctsInvoiceId: id,
+                        clientId: invoice.clientId,
+                        companyId: invoice.companyId,
+                        currency: invoice.currency,
+                        number: counter,
+                        rawNumber,
+                        issuedAt: issueDate,
+                        status: 'ISSUED',
+                        dueDate: invoice.dueDate,
+                        notes: reason || `Correction of ${invoice.rawNumber || invoice.number}`,
+                        discountRate: invoice.discountRate,
+                        totalHT,
+                        totalVAT,
+                        totalTTC,
+                        items: {
+                            create: correctionItems,
+                        },
+                    },
+                    include: {
+                        items: true,
+                        client: { include: { partyIdentifiers: true } },
+                        company: { include: { partyIdentifiers: true } },
+                    },
+                });
+            });
+
+            // Update original invoice status → CORRECTED
             await prisma.invoice.update({
                 where: { id },
                 data: { status: 'CORRECTED' },
             });
 
-            logger.info('Invoice corrected', { category: 'invoice', details: { invoiceId: id, correctionId: result.correction.id, correctionKind: result.correction.kind } });
+            // Wire ComplianceService for the correction (non-blocking)
+            try {
+                const company = invoice.company;
+                const client = invoice.client;
+                const complianceCtx: TransactionContext = {
+                    supplier: {
+                        legalName: company.name,
+                        countryCode: company.countryCode ?? guessCountryCode(company.country) ?? 'FR',
+                        role: 'B2B',
+                        identifiers: (company as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
+                    },
+                    buyer: {
+                        legalName: client.name,
+                        countryCode: client.countryCode ?? guessCountryCode(client.country) ?? 'FR',
+                        role: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+                        identifiers: (client as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
+                    },
+                    lines: correctionItems.map((item: any) => ({
+                        id: `item-${item.order ?? 0}`,
+                        description: item.description,
+                        quantity: Math.abs(item.quantity),
+                        unitNetMinor: item.unitPriceMinor ?? toMinor(item.unitPrice, invoice.currency),
+                        supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
+                    })),
+                    issueDate,
+                    currency: invoice.currency,
+                };
+                const correctionDoc = await this.complianceService.createDraft(complianceCtx, correctionKind as any, correctionInvoice.id);
+                await this.complianceService.issue(correctionDoc.id);
+            } catch (error) {
+                logger.warn('ComplianceService wiring for correction failed (non-blocking)', { category: 'invoice', details: { error: String(error) } });
+            }
+
+            logger.info('Invoice corrected', { category: 'invoice', details: { invoiceId: id, correctionInvoiceId: correctionInvoice.id, correctionKind } });
             return {
-                message: 'Correction initiated',
-                correctionId: result.correction.id,
-                correctionKind: result.correction.kind,
+                message: 'Correction issued',
+                correctionInvoiceId: correctionInvoice.id,
+                correctionNumber: correctionInvoice.rawNumber,
+                correctionKind,
             };
         } catch (error) {
             logger.error('Failed to correct invoice', { category: 'invoice', details: { error: String(error) } });
