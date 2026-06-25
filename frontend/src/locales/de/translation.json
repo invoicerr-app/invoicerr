@@ -251,6 +251,38 @@
                 "invoiceCreateError": "Rechnung kann nicht aus Angebot erstellt werden"
             }
         },
+        "progression": {
+            "title": "Fortschritt",
+            "emptyState": "Keine Angebote in der Fortschrittsansicht.",
+            "noAction": "Keine Aktion",
+            "steps": {
+                "draft": "Entwurf",
+                "sent": "Gesendet",
+                "signed": "Unterzeichnet"
+            },
+            "stepLabel": "Schritt {{current}} / {{total}}",
+            "actions": {
+                "send": "Senden",
+                "resend": "Erneut senden",
+                "createInvoice": "Rechnung erstellen"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Angebot senden",
+                    "description": "Möchten Sie das Angebot {{number}} wirklich an {{client}} senden?"
+                },
+                "resend": {
+                    "title": "Angebot erneut senden",
+                    "description": "Möchten Sie das Angebot {{number}} wirklich erneut an {{client}} senden?"
+                },
+                "createInvoice": {
+                    "title": "Rechnung aus Angebot erstellen",
+                    "description": "Möchten Sie wirklich eine Rechnung aus dem Angebot {{number}} erstellen?"
+                },
+                "cancel": "Abbrechen",
+                "confirm": "Bestätigen"
+            }
+        },
         "upsert": {
             "title": {
                 "create": "Neues Angebot erstellen",

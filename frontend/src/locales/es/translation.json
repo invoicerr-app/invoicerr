@@ -251,6 +251,38 @@
                 "invoiceCreateError": "Error al crear la factura desde la cotización"
             }
         },
+        "progression": {
+            "title": "Progresión",
+            "emptyState": "No hay cotizaciones para mostrar en la progresión.",
+            "noAction": "Sin acción",
+            "steps": {
+                "draft": "Borrador",
+                "sent": "Enviada",
+                "signed": "Firmada"
+            },
+            "stepLabel": "Paso {{current}} / {{total}}",
+            "actions": {
+                "send": "Enviar",
+                "resend": "Reenviar",
+                "createInvoice": "Crear factura"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Enviar cotización",
+                    "description": "¿Está seguro de que desea enviar la cotización {{number}} a {{client}}?"
+                },
+                "resend": {
+                    "title": "Reenviar cotización",
+                    "description": "¿Está seguro de que desea reenviar la cotización {{number}} a {{client}}?"
+                },
+                "createInvoice": {
+                    "title": "Crear factura desde la cotización",
+                    "description": "¿Está seguro de que desea crear una factura desde la cotización {{number}}?"
+                },
+                "cancel": "Cancelar",
+                "confirm": "Confirmar"
+            }
+        },
         "upsert": {
             "title": {
                 "create": "Crear nueva cotización",

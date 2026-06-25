@@ -270,6 +270,38 @@
                 "invoiceCreateError": "Échec de la création de la facture à partir du devis"
             }
         },
+        "progression": {
+            "title": "Progression",
+            "emptyState": "Aucun devis à afficher dans la progression.",
+            "noAction": "Aucune action",
+            "steps": {
+                "draft": "Brouillon",
+                "sent": "Envoyé",
+                "signed": "Signé"
+            },
+            "stepLabel": "Étape {{current}} / {{total}}",
+            "actions": {
+                "send": "Envoyer",
+                "resend": "Renvoyer",
+                "createInvoice": "Créer une facture"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Envoyer le devis",
+                    "description": "Êtes-vous sûr de vouloir envoyer le devis {{number}} à {{client}} ?"
+                },
+                "resend": {
+                    "title": "Renvoyer le devis",
+                    "description": "Êtes-vous sûr de vouloir renvoyer le devis {{number}} à {{client}} ?"
+                },
+                "createInvoice": {
+                    "title": "Créer une facture à partir du devis",
+                    "description": "Êtes-vous sûr de vouloir créer une facture à partir du devis {{number}} ?"
+                },
+                "cancel": "Annuler",
+                "confirm": "Confirmer"
+            }
+        },
         "upsert": {
             "title": {
                 "create": "Créer un nouveau devis",

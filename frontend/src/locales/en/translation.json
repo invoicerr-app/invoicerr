@@ -269,6 +269,38 @@
                 "invoiceCreateError": "Failed to create invoice from quote"
             }
         },
+        "progression": {
+            "title": "Progression",
+            "emptyState": "No quotes to display in progression.",
+            "noAction": "No action",
+            "steps": {
+                "draft": "Draft",
+                "sent": "Sent",
+                "signed": "Signed"
+            },
+            "stepLabel": "Step {{current}} / {{total}}",
+            "actions": {
+                "send": "Send",
+                "resend": "Resend",
+                "createInvoice": "Create invoice"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Send quote",
+                    "description": "Are you sure you want to send quote {{number}} to {{client}}?"
+                },
+                "resend": {
+                    "title": "Resend quote",
+                    "description": "Are you sure you want to resend quote {{number}} to {{client}}?"
+                },
+                "createInvoice": {
+                    "title": "Create invoice from quote",
+                    "description": "Are you sure you want to create an invoice from quote {{number}}?"
+                },
+                "cancel": "Cancel",
+                "confirm": "Confirm"
+            }
+        },
         "upsert": {
             "title": {
                 "create": "Create New Quote",
