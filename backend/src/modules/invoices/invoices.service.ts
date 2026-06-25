@@ -326,6 +326,8 @@ export class InvoicesService {
                 throw new BadRequestException('No compliance document found for this invoice');
             }
             const result = await this.complianceService.correct(complianceDoc.id, { reason });
+
+            logger.info('Invoice corrected', { category: 'invoice', details: { invoiceId: id, correctionId: result.correction.id, correctionKind: result.correction.kind } });
             return {
                 message: 'Correction initiated',
                 correctionId: result.correction.id,
@@ -354,6 +356,8 @@ export class InvoicesService {
             if (!result.accepted) {
                 return { message: 'Cancellation rejected', reason: result.reason };
             }
+
+            logger.info('Invoice cancelled', { category: 'invoice', details: { invoiceId: id } });
             return { message: 'Invoice cancelled', accepted: true };
         } catch (error) {
             logger.error('Failed to cancel invoice', { category: 'invoice', details: { error: String(error) } });
