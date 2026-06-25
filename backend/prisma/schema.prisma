@@ -203,14 +203,19 @@ enum QuoteStatus {
   REJECTED
 }
 
-// Invoice status
+// Invoice status — single vocabulary, maps onto ComplianceStatus where possible
 enum InvoiceStatus {
   DRAFT
+  ISSUED
   PAID
   UNPAID
   OVERDUE
   SENT
   ARCHIVED
+  PENDING_CLEARANCE // ~ placeholder for clearance countries (PART X)
+  CLEARED           // ~ placeholder for clearance countries (PART X)
+  CANCELLED
+  CORRECTED
 }
 
 // Recurrence frequency
