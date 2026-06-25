@@ -41,6 +41,15 @@ export class InvoicesController {
     return await this.invoicesService.searchInvoices(query);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a single invoice', description: 'Returns a single invoice by ID with items, client, company, and correction links.' })
+  @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
+  @ApiResponse({ status: 200, description: 'Invoice retrieved' })
+  @ApiResponse({ status: 404, description: 'Invoice not found' })
+  async getInvoice(@Param('id') id: string) {
+    return this.invoicesService.getInvoice(id);
+  }
+
   @Get(':id/pdf')
   @ApiOperation({ summary: 'Get invoice PDF', description: 'Downloads the PDF version of a specific invoice, optionally in a different format (e.g. ZUGFeRD).' })
   @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })

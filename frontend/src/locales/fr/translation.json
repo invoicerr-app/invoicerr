@@ -554,7 +554,9 @@
                 "issueSuccess": "Facture émise avec succès",
                 "issueError": "Échec de l'émission de la facture",
                 "correctSuccess": "Avoir émis",
-                "correctError": "Échec de l'émission de l'avoir"
+                "correctError": "Échec de l'émission de l'avoir",
+                "cancelSuccess": "Facture annulée",
+                "cancelError": "Échec de l'annulation de la facture"
             }
         },
         "upsert": {
@@ -701,7 +703,23 @@
             "messages": {
                 "cancellationNotAllowed": "Annulation non autorisée"
             },
-            "correctionOf": "Correcte la facture #{{number}}"
+            "correctionOf": "Correcte la facture #{{number}}",
+            "actions": {
+                "edit": "Modifier le brouillon",
+                "creditNote": "Avoir",
+                "correctiveInvoice": "Facture rectificative",
+                "cancel": "Annuler",
+                "cancelAndReplace": "Annuler et remplacer",
+                "send": "Envoyer",
+                "correctSuccess": "Correction émise",
+                "correctError": "Échec de l'émission de la correction",
+                "cancelSuccess": "Facture annulée",
+                "cancelError": "Échec de l'annulation de la facture",
+                "cancelAndReplaceSuccess": "Facture annulée et remplacée",
+                "cancelAndReplaceError": "Échec de l'annulation et du remplacement",
+                "sendSuccess": "Facture envoyée",
+                "sendError": "Échec de l'envoi de la facture"
+            }
         },
         "sendConfirmation": {
             "title": "Envoyer la facture par email",

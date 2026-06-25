@@ -43,7 +43,23 @@
             "messages": {
                 "cancellationNotAllowed": "Cancellation not allowed"
             },
-            "correctionOf": "Corrects #{{number}}"
+            "correctionOf": "Corrects #{{number}}",
+            "actions": {
+                "edit": "Edit Draft",
+                "creditNote": "Credit Note",
+                "correctiveInvoice": "Corrective Invoice",
+                "cancel": "Cancel",
+                "cancelAndReplace": "Cancel & Replace",
+                "send": "Send",
+                "correctSuccess": "Correction issued",
+                "correctError": "Failed to issue correction",
+                "cancelSuccess": "Invoice cancelled",
+                "cancelError": "Failed to cancel invoice",
+                "cancelAndReplaceSuccess": "Invoice cancelled and replaced",
+                "cancelAndReplaceError": "Failed to cancel and replace",
+                "sendSuccess": "Invoice sent",
+                "sendError": "Failed to send invoice"
+            }
         },
         "list": {
             "tooltips": {
@@ -53,7 +69,9 @@
             },
             "messages": {
                 "correctSuccess": "Credit note issued",
-                "correctError": "Failed to issue credit note"
+                "correctError": "Failed to issue credit note",
+                "cancelSuccess": "Invoice cancelled",
+                "cancelError": "Failed to cancel invoice"
             }
         }
     }

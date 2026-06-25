@@ -37,6 +37,34 @@ export class InvoicesService {
     }
 
 
+    async getInvoice(id: string) {
+        const invoice = await prisma.invoice.findUnique({
+            where: { id },
+            include: {
+                items: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
+                payments: { select: { totalPaid: true } },
+                correctedBy: {
+                    select: { id: true, rawNumber: true, number: true, kind: true, totalTTC: true, currency: true, status: true },
+                    where: { isActive: true },
+                },
+                complianceDocuments: {
+                    select: { id: true, status: true, number: true, plan: true, immutableHash: true },
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                },
+            },
+        });
+        if (!invoice) throw new BadRequestException('Invoice not found');
+
+        if (invoice.paymentMethodId) {
+            const pm = await prisma.paymentMethod.findUnique({ where: { id: invoice.paymentMethodId } });
+            if (pm) return { ...invoice, paymentMethod: pm ?? invoice.paymentMethod };
+        }
+        return invoice;
+    }
+
     async getInvoices(page: string) {
         const pageNumber = parseInt(page, 10) || 1;
         const pageSize = 10;
@@ -369,6 +397,8 @@ export class InvoicesService {
                 unitOfMeasure: item.unitOfMeasure,
             }));
 
+            const toMinorFn = (v: number | null | undefined) => v != null ? v : null;
+
             if (correctionModel === 'CANCEL_AND_REPLACE') {
                 correctionKind = 'INVOICE';
                 correctionItems = copyItems(false);
@@ -388,6 +418,16 @@ export class InvoicesService {
                 totalVAT = -invoice.totalVAT;
                 totalTTC = -invoice.totalTTC;
             }
+
+            const totalHTMinor = correctionModel === 'CREDIT_NOTE'
+                ? (invoice.totalHTMinor != null ? -invoice.totalHTMinor : null)
+                : invoice.totalHTMinor;
+            const totalVATMinor = correctionModel === 'CREDIT_NOTE'
+                ? (invoice.totalVATMinor != null ? -invoice.totalVATMinor : null)
+                : invoice.totalVATMinor;
+            const totalTTCMinor = correctionModel === 'CREDIT_NOTE'
+                ? (invoice.totalTTCMinor != null ? -invoice.totalTTCMinor : null)
+                : invoice.totalTTCMinor;
 
             // Create the correction invoice as ISSUED (numbered — it's a legal document)
             const issueDate = new Date();
@@ -416,6 +456,9 @@ export class InvoicesService {
                         totalHT,
                         totalVAT,
                         totalTTC,
+                        totalHTMinor,
+                        totalVATMinor,
+                        totalTTCMinor,
                         items: {
                             create: correctionItems,
                         },
@@ -578,6 +621,9 @@ export class InvoicesService {
                         totalHT: invoice.totalHT,
                         totalVAT: invoice.totalVAT,
                         totalTTC: invoice.totalTTC,
+                        totalHTMinor: invoice.totalHTMinor,
+                        totalVATMinor: invoice.totalVATMinor,
+                        totalTTCMinor: invoice.totalTTCMinor,
                         items: {
                             create: invoice.items.map((item, i) => ({
                                 description: item.description,

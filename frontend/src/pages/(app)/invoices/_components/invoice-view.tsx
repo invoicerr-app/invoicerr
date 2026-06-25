@@ -7,21 +7,26 @@ import { languageToLocale } from "@/lib/i18n"
 import { getDraftWatermarkLabel } from "@/lib/watermark"
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { useAvailableActions } from "@/hooks/queries/use-available-actions"
 import { useGet } from "@/hooks/use-fetch"
+import { authenticatedFetch } from "@/hooks/use-fetch"
+import { toast } from "sonner"
+import { Edit, RotateCcw, XCircle, Send } from "lucide-react"
 
 interface InvoiceViewDialogProps {
     invoice: Invoice | null
     onOpenChange: (open: boolean) => void
+    onMutate?: () => void
 }
 
-export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogProps) {
+export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceViewDialogProps) {
     const { t, i18n } = useTranslation()
     const { data: actions } = useAvailableActions(invoice?.id)
 
     // Fetch the original invoice when this one corrects another
     const { data: originalInvoice } = useGet<Invoice>(
-        invoice?.correctsInvoiceId ? `/api/invoices?page=1` : null,
+        invoice?.correctsInvoiceId ? `/api/invoices/${invoice.correctsInvoiceId}` : null,
     )
 
     if (!invoice) return null
@@ -39,6 +44,30 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
     const kindColor = getInvoiceKindColor(invoice.kind)
     const isCorrection = invoice.kind === DocumentKind.CREDIT_NOTE || invoice.kind === DocumentKind.CORRECTIVE_INVOICE || invoice.kind === DocumentKind.DEBIT_NOTE
     const correctedBy = invoice.correctedBy ?? []
+
+    const handleAction = (action: string) => {
+        if (!invoice) return
+        const url = action === 'cancelAndReplace'
+            ? `/api/invoices/${invoice.id}/cancel-and-replace`
+            : `/api/invoices/${invoice.id}/${action}`
+
+        authenticatedFetch(url, { method: 'POST', body: JSON.stringify({}) })
+            .then(async (res) => {
+                const data = await res.json()
+                if (action === 'cancel' && !data.accepted) {
+                    toast.error(data.reason || t("invoices.list.messages.cancelError"))
+                } else if (data.correctionInvoiceId || data.accepted || data.replacementId) {
+                    toast.success(t(`invoices.view.actions.${action}Success`))
+                    onMutate?.()
+                    onOpenChange(false)
+                } else {
+                    toast.error(data.message || t(`invoices.view.actions.${action}Error`))
+                }
+            })
+            .catch(() => {
+                toast.error(t(`invoices.view.actions.${action}Error`))
+            })
+    }
 
     return (
         <Dialog open={!!invoice} onOpenChange={onOpenChange}>
@@ -62,6 +91,47 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
                     <DialogDescription className="text-muted-foreground">{t("invoices.view.description")}</DialogDescription>
                 </DialogHeader>
 
+                {/* Available actions from the compliance plan */}
+                {actions && (
+                    <div className="flex flex-wrap gap-2 flex-shrink-0" data-cy="available-actions">
+                        {actions.actions.edit && (
+                            <Button size="sm" variant="outline" onClick={() => { onOpenChange(false) }} data-cy="action-edit">
+                                <Edit className="h-3.5 w-3.5 mr-1.5" />
+                                {t("invoices.view.actions.edit")}
+                            </Button>
+                        )}
+                        {actions.actions.correct && actions.correctionKinds.includes("CREDIT_NOTE") && (
+                            <Button size="sm" variant="outline" onClick={() => handleAction("correct")} data-cy="action-correct">
+                                <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                                {t("invoices.view.actions.creditNote")}
+                            </Button>
+                        )}
+                        {actions.actions.correct && actions.correctionKinds.includes("CORRECTIVE_INVOICE") && (
+                            <Button size="sm" variant="outline" onClick={() => handleAction("correct")} data-cy="action-corrective">
+                                <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                                {t("invoices.view.actions.correctiveInvoice")}
+                            </Button>
+                        )}
+                        {actions.actions.cancel && (
+                            <Button size="sm" variant="outline" onClick={() => handleAction("cancel")} data-cy="action-cancel" className="text-red-600 hover:text-red-700">
+                                <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                                {t("invoices.view.actions.cancel")}
+                            </Button>
+                        )}
+                        {actions.actions.cancelAndReplace && (
+                            <Button size="sm" variant="outline" onClick={() => handleAction("cancelAndReplace")} data-cy="action-cancel-replace" className="text-red-600 hover:text-red-700">
+                                <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                                {t("invoices.view.actions.cancelAndReplace")}
+                            </Button>
+                        )}
+                        {actions.actions.send && (
+                            <Button size="sm" variant="outline" onClick={() => handleAction("send")} data-cy="action-send">
+                                <Send className="h-3.5 w-3.5 mr-1.5" />
+                                {t("invoices.view.actions.send")}
+                            </Button>
+                        )}
+                    </div>
+                )}
 
                 <div className="overflow-auto mt-2 flex-1 flex flex-col gap-2">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-muted/50 p-4 rounded-lg">
@@ -199,13 +269,19 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
                         )
                     })()}
 
-                    {/* Correction ↔ original link */}
+                    {/* Correction → original link */}
                     {isCorrection && invoice.correctsInvoiceId && (
                         <div className="bg-muted/50 p-4 rounded-lg" data-cy="correction-original-link">
                             <p className="text-sm text-muted-foreground mb-1">{t("invoices.view.fields.correctsInvoice")}</p>
-                            <p className="font-medium text-sm">
-                                {t("invoices.view.correctionOf", { number: invoice.correctsInvoiceId.slice(0, 8) })}
-                            </p>
+                            {originalInvoice ? (
+                                <p className="font-medium text-sm">
+                                    {originalInvoice.rawNumber || originalInvoice.number?.toString() || originalInvoice.id.slice(0, 8)}
+                                </p>
+                            ) : (
+                                <p className="font-medium text-sm text-muted-foreground">
+                                    {invoice.correctsInvoiceId.slice(0, 8)}…
+                                </p>
+                            )}
                         </div>
                     )}
 

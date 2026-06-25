@@ -1,7 +1,7 @@
-import { Edit, Mail, Plus, ReceiptText as PaymentText, Search, Trash2, Stamp, RotateCcw } from "lucide-react"
+import { Edit, Mail, Plus, ReceiptText as PaymentText, Search, Trash2, Stamp, RotateCcw, XCircle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { forwardRef, useImperativeHandle, useState } from "react"
-import { usePost } from "@/hooks/use-fetch"
+import { usePost, authenticatedFetch } from "@/hooks/use-fetch"
 
 import BetterPagination from "../../../../components/pagination"
 import { Badge } from "@/components/ui/badge"
@@ -47,10 +47,6 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
     ) => {
         const { t } = useTranslation()
         const { trigger: triggerSendInvoiceByEmail, loading: sendInvoiceByEmailLoading } = usePost(`/api/invoices/send`)
-        const { trigger: triggerIssueInvoice } = usePost(`/api/invoices/issue`)
-        const { trigger: triggerCorrectInvoice } = usePost(`/api/invoices/correct`)
-        const { trigger: triggerCancelInvoice } = usePost(`/api/invoices/cancel`)
-        const { trigger: triggerCancelAndReplace } = usePost(`/api/invoices/cancel-and-replace`)
 
         const [createInvoiceDialog, setCreateInvoiceDialog] = useState<boolean>(false)
         const [editInvoiceDialog, setEditInvoiceDialog] = useState<Invoice | null>(null)
@@ -116,6 +112,56 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
 
         const handleSendInvoiceByEmail = (invoice: Invoice) => {
             setSendInvoiceDialog(invoice)
+        }
+
+        const handleIssue = (invoice: Invoice) => {
+            authenticatedFetch(`/api/invoices/${invoice.id}/issue`, { method: 'POST' })
+                .then(async (res) => {
+                    if (!res.ok) throw new Error('Issue failed')
+                    toast.success(t("invoices.list.messages.issueSuccess"))
+                    mutate?.()
+                })
+                .catch(() => {
+                    toast.error(t("invoices.list.messages.issueError"))
+                })
+        }
+
+        const handleCorrect = (invoice: Invoice) => {
+            authenticatedFetch(`/api/invoices/${invoice.id}/correct`, {
+                method: 'POST',
+                body: JSON.stringify({}),
+            })
+                .then(async (res) => {
+                    const data = await res.json()
+                    if (data.correctionInvoiceId) {
+                        toast.success(t("invoices.list.messages.correctSuccess"))
+                    } else {
+                        toast.error(data.message || t("invoices.list.messages.correctError"))
+                    }
+                    mutate?.()
+                })
+                .catch(() => {
+                    toast.error(t("invoices.list.messages.correctError"))
+                })
+        }
+
+        const handleCancel = (invoice: Invoice) => {
+            authenticatedFetch(`/api/invoices/${invoice.id}/cancel`, {
+                method: 'POST',
+                body: JSON.stringify({}),
+            })
+                .then(async (res) => {
+                    const data = await res.json()
+                    if (data.accepted) {
+                        toast.success(t("invoices.list.messages.cancelSuccess"))
+                    } else {
+                        toast.error(data.reason || t("invoices.list.messages.cancelError"))
+                    }
+                    mutate?.()
+                })
+                .catch(() => {
+                    toast.error(t("invoices.list.messages.cancelError"))
+                })
         }
 
         const confirmSendInvoiceByEmail = () => {
@@ -373,16 +419,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                         tooltip={t("invoices.list.tooltips.issue")}
                                                         variant="ghost"
                                                         size="icon"
-                                                        onClick={() => {
-                                                            triggerIssueInvoice({ id: invoice.id })
-                                                                .then(() => {
-                                                                    toast.success(t("invoices.list.messages.issueSuccess"))
-                                                                    mutate?.()
-                                                                })
-                                                                .catch(() => {
-                                                                    toast.error(t("invoices.list.messages.issueError"))
-                                                                })
-                                                        }}
+                                                        onClick={() => handleIssue(invoice)}
                                                         className="text-gray-600 hover:text-violet-600"
                                                     >
                                                         <Stamp className="h-4 w-4" />
@@ -396,23 +433,23 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                         tooltip={t("invoices.list.tooltips.creditNote")}
                                                         variant="ghost"
                                                         size="icon"
-                                                        onClick={() => {
-                                                            triggerCorrectInvoice({ id: invoice.id })
-                                                                .then((result: any) => {
-                                                                    if (result?.correctionInvoiceId) {
-                                                                        toast.success(t("invoices.list.messages.correctSuccess"))
-                                                                    } else {
-                                                                        toast.error(result?.message || t("invoices.list.messages.correctError"))
-                                                                    }
-                                                                    mutate?.()
-                                                                })
-                                                                .catch(() => {
-                                                                    toast.error(t("invoices.list.messages.correctError"))
-                                                                })
-                                                        }}
+                                                        onClick={() => handleCorrect(invoice)}
                                                         className="text-gray-600 hover:text-emerald-600"
                                                     >
                                                         <RotateCcw className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+
+                                                {(invoice.status === InvoiceStatus.ISSUED || invoice.status === InvoiceStatus.SENT) && (
+                                                    <Button
+                                                        data-cy="invoice-cancel-button"
+                                                        tooltip={t("invoices.list.tooltips.cancel")}
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleCancel(invoice)}
+                                                        className="text-gray-600 hover:text-red-600"
+                                                    >
+                                                        <XCircle className="h-4 w-4" />
                                                     </Button>
                                                 )}
 
