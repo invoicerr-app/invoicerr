@@ -33,7 +33,12 @@ Your business identity — this information appears on every document you issue.
 
 ## PDF Templates
 
-Customise the appearance of your PDF documents. Upload a custom CSS file or adjust layout options.
+Customise the appearance of your PDF documents, with a live preview you can switch between Invoice, Quote, and Payment layouts:
+
+- **Typography** — font family used across the PDF
+- **Logo and color** — upload your company logo and pick the accent color used for the table header and highlights
+- **Spacing & layout** — page padding and margins
+- **Labels** — override the text shown for each field (e.g. *Bill to*, *VAT*, *Total*), useful for translating documents into another language
 
 ## Email Templates
 

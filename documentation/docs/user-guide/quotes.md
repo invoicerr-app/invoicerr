@@ -24,7 +24,7 @@ Click **Add New** and fill in:
 
 - **Client** (required) and optional **Title**
 - **Currency** and **Payment Method** (optional)
-- **Line items** — each has a Description, Type, Quantity, Unit Price, and VAT Rate; drag to reorder
+- **Line items** — each has a Name, an optional multi-line Description (supports `**bold**` and `*italic*`), Type, Quantity, Unit Price, and VAT Rate; drag to reorder, or add a line straight from your [article catalog](articles.md)
 - **Discount Rate** (0–100%), **Valid Until** date, and **Notes** (all optional)
 
 ## Statuses

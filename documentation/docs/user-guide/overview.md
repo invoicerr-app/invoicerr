@@ -18,8 +18,9 @@ A good order for getting started:
 
 1. **[Settings → Company](settings.md#company)** — your business identity and numbering
 2. **[Clients](clients.md)** — the people and companies you bill
-3. **[Payment Methods](payment-methods.md)** — how clients pay you
-4. **[Quotes](quotes.md)** → **[Quote signing](quote-signing.md)** → **[Invoices](invoices.md)** → **[Receipts](receipts.md)** — the document flow
+3. **[Articles](articles.md)** — reusable catalog items for your line items (optional)
+4. **[Payment Methods](payment-methods.md)** — how clients pay you
+5. **[Quotes](quotes.md)** → **[Quote signing](quote-signing.md)** → **[Invoices](invoices.md)** → **[Receipts](receipts.md)** — the document flow
 
 ## The sidebar
 
@@ -32,6 +33,7 @@ Once signed in, the left sidebar is your main navigation. The items appear in th
 | **Invoices** | Bill clients and track payment |
 | **Receipts** | Issue proof of payment |
 | **Clients** | Manage the people and companies you bill |
+| **Articles** | Reusable catalog items you can drop into quote and invoice line items |
 | **Payment Methods** | Reusable payment options shown on documents |
 | **Statistics** | Revenue analytics over time |
 | **Settings** | Company identity, templates, integrations, and account |
