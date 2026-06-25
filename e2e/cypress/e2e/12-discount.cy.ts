@@ -219,7 +219,7 @@ describe('Discount Feature (Invoice)', () => {
                 .closest('[data-cy="invoice-row"]')
                 .as('invoiceRow');
 
-            cy.get('@invoiceRow').find('button:has(svg.lucide-eye)').first().click();
+            cy.get('@invoiceRow').find('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible').within(() => {
                 cy.contains('Discount Rate').parent().find('p.font-medium', { timeout: 10000 }).should('contain', '10%');
                 cy.contains('Discount Amount').parent().find('p.font-medium').should('contain', '100.00EUR');

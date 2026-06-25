@@ -1,4 +1,4 @@
-import { Code, Download, Edit, Eye, FileText, Mail, Plus, ReceiptText as PaymentText, Search, Trash2 } from "lucide-react"
+import { Code, Download, Edit, FileText, Mail, Plus, ReceiptText as PaymentText, Search, Trash2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react"
@@ -259,14 +259,23 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                 <div className="flex-1">
                                                     <div className="flex flex-wrap items-center gap-2">
                                                         <h3 className="font-medium text-foreground break-words">
-                                                            {invoice.status === InvoiceStatus.UPCOMING
-                                                                ? t("invoices.list.item.upcomingTitle", {
+                                                            {invoice.status === InvoiceStatus.UPCOMING ? (
+                                                                t("invoices.list.item.upcomingTitle", {
                                                                     client: invoice.client.name || `${invoice.client.contactFirstname} ${invoice.client.contactLastname}`,
                                                                 })
-                                                                : t("invoices.list.item.title", {
-                                                                    number: invoice.rawNumber || invoice.number,
-                                                                    title: invoice.title,
-                                                                })}
+                                                            ) : (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleView(invoice)}
+                                                                    className="underline hover:text-primary text-left"
+                                                                    data-cy="invoice-name"
+                                                                >
+                                                                    {t("invoices.list.item.title", {
+                                                                        number: invoice.rawNumber || invoice.number,
+                                                                        title: invoice.title,
+                                                                    })}
+                                                                </button>
+                                                            )}
                                                         </h3>
                                                         <span
                                                             data-cy="invoice-status"
@@ -327,16 +336,6 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
 
                                             {invoice.status !== InvoiceStatus.UPCOMING && (
                                             <div className="grid grid-cols-2 lg:flex justify-start sm:justify-end gap-1 md:gap-2">
-                                                <Button
-                                                    tooltip={t("invoices.list.tooltips.view")}
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleView(invoice)}
-                                                    className="text-gray-600 hover:text-blue-600"
-                                                >
-                                                    <Eye className="h-4 w-4" />
-                                                </Button>
-
                                                 <Button
                                                     tooltip={t("invoices.list.tooltips.viewPdf")}
                                                     variant="ghost"

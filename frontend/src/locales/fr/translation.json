@@ -503,7 +503,6 @@
                 "totalTTC": "Total TTC"
             },
             "tooltips": {
-                "view": "Voir les détails de la facture",
                 "viewPdf": "Voir le PDF",
                 "downloadPdf": "Télécharger le PDF",
                 "edit": "Modifier la facture",
