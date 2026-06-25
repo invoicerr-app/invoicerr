@@ -430,7 +430,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                     </Button>
                                                 )}
 
-                                                {invoice.status !== "PAID" && invoice.status !== "OVERDUE" && (
+                                                {invoice.status === InvoiceStatus.DRAFT && (
                                                     <Button
                                                         tooltip={t("invoices.list.tooltips.delete")}
                                                         variant="ghost"
