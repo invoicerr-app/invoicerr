@@ -508,7 +508,6 @@
                 "downloadPdf": "Télécharger le PDF",
                 "edit": "Modifier la facture",
                 "delete": "Supprimer la facture",
-                "createPayment": "Créer un paiement à partir de cette facture",
                 "sendByEmail": "Envoyer la facture par email"
             },
             "actions": {
@@ -527,7 +526,6 @@
             "messages": {
                 "markAsPaidSuccess": "Facture marquée comme payée avec succès",
                 "markAsPaidError": "Échec du marquage de la facture comme payée",
-                "createPaymentSuccess": "Paiement créé avec succès à partir de la facture",
                 "sendByEmailSuccess": "La facture a été envoyée au client",
                 "archiveSuccess": "Facture archivée avec succès",
                 "archiveError": "Échec de l'archivage de la facture"
