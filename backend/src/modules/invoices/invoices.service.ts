@@ -196,6 +196,11 @@ export class InvoicesService {
             throw new BadRequestException('Invoice not found');
         }
 
+        if (existingInvoice.status !== 'DRAFT') {
+            logger.error('Only draft invoices can be edited', { category: 'invoice', details: { invoiceId: id, status: existingInvoice.status } });
+            throw new BadRequestException('Only draft invoices can be edited');
+        }
+
         const existingItemIds = existingInvoice.items.map(i => i.id);
         const incomingItemIds = items.filter(i => i.id).map(i => i.id!);
 
