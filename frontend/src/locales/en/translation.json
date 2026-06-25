@@ -1697,7 +1697,7 @@
     "auth": {
         "serverUnavailable": {
             "title": "Service temporarily unavailable",
-            "description": "The server can't be reached (database connection failed). Please try again in a few moments."
+            "description": "The server can't be reached. Check the logs."
         },
         "login": {
             "title": "Sign In",

@@ -1496,7 +1496,7 @@
     "auth": {
         "serverUnavailable": {
             "title": "Servicio temporalmente no disponible",
-            "description": "No se puede contactar con el servidor (fallo de conexión con la base de datos). Vuelve a intentarlo en unos momentos."
+            "description": "No se puede contactar con el servidor. Revisa los registros."
         },
         "login": {
             "title": "Iniciar sesión",
