@@ -1,6 +1,6 @@
 import path from 'path';
 import fs from 'fs';
-import type {Plugin} from '@docusaurus/types';
+import type {Plugin, LoadContext} from '@docusaurus/types';
 
 interface CountryContent {
   code: string;
@@ -14,7 +14,11 @@ interface CountryContent {
  * Generates routes /compliance/<country> dynamically.
  * Exposes content via global data for backward compatibility.
  */
-export default function complianceContentPlugin(): Plugin<Record<string, string>> {
+export default function complianceContentPlugin(
+  context: LoadContext,
+): Plugin<Record<string, string>> {
+  const baseUrl = context.baseUrl;
+
   return {
     name: 'compliance-content-plugin',
     async loadContent() {
@@ -43,7 +47,6 @@ export default function complianceContentPlugin(): Plugin<Record<string, string>
         countries.push({code, name: countryName, markdown});
       }
 
-      // Attach countries list to content for route generation
       (content as any)._countries = countries;
       return content;
     },
@@ -54,7 +57,7 @@ export default function complianceContentPlugin(): Plugin<Record<string, string>
       const componentPath = path.resolve(__dirname, '../src/pages/compliance-country.tsx');
       for (const {code, markdown} of countries) {
         actions.addRoute({
-          path: `/compliance/${code.toLowerCase()}`,
+          path: `${baseUrl}compliance/${code.toLowerCase()}`,
           component: componentPath,
           exact: true,
           props: {

@@ -1,5 +1,5 @@
 ---
-sidebar_position: 8
+sidebar_position: 6
 ---
 
 # Statistiques
@@ -18,4 +18,4 @@ La page est en lecture seule et récupère les données de vos factures payées.
 
 ## Premier usage
 
-Le graphique sera vide jusqu'à ce que vous ayez au moins une facture payée. Une fois que vous [marquez une facture comme payée](invoices.md#statuts), la page des statistiques commence à se remplir.
+Le graphique sera vide jusqu'à ce que vous ayez au moins une facture payée. Une fois que vous [marquez une facture comme payée](billing/invoices.md#statuts), la page des statistiques commence à se remplir.

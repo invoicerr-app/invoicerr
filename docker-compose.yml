@@ -9,13 +9,20 @@ services:
       - APP_URL=https://invoicerr.example.com # Required for email templates, as it redirects to the app
       - CORS_ORIGINS=http://localhost:5173,https://invoicerr.example.com # Comma-separated list of allowed origins for CORS
 
-      # Required for email features
+      # Required for email features - choose ONE provider below
+      # Option 1: SMTP (default, MAIL_PROVIDER can be omitted)
+      - MAIL_PROVIDER=smtp
       - SMTP_HOST=smtp-relay.example.com
       - SMTP_USER="username@example.com"
       - SMTP_FROM="user-from@example.com" # Not required if SMTP_USER is the same as SMTP_FROM
       - SMTP_PASSWORD="your_smtp_password"
       - SMTP_PORT=587 # Change this to your SMTP port (default is 587 for TLS)
       - SMTP_SECURE=false # Set to true if your SMTP server requires a secure connection (default is false)
+
+      # Option 2: Brevo (set MAIL_PROVIDER=brevo and comment out the SMTP_* variables above)
+      # - MAIL_PROVIDER=brevo
+      # - BREVO_API_KEY="your_brevo_api_key"
+      # - MAIL_FROM="user-from@example.com" # Sender address, falls back to SMTP_FROM/SMTP_USER if unset
 
       # OIDC Configuration (example for Authentik)
       - OIDC_ISSUER="https://auth.chevrier.dev"

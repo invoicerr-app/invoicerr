@@ -9,6 +9,7 @@ import CountrySelect from "@/components/country-select"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { useForm } from "react-hook-form"
+import { useNavigate } from "react-router"
 import { usePost } from "@/hooks/use-fetch"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -27,6 +28,7 @@ export default function OnBoarding({
   onOpenChange,
 }: OnBoardingProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(false)
 
   const { trigger } = usePost<Company>("/api/company/info")
@@ -55,6 +57,7 @@ export default function OnBoarding({
       await trigger(values)
       toast.success(t("settings.company.messages.updateSuccess"))
       onOpenChange?.(false)
+      navigate("/settings/company")
     } catch (error) {
       console.error("Error during onboarding:", error)
       toast.error(t("settings.company.messages.updateError"))

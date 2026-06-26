@@ -1,5 +1,5 @@
 ---
-sidebar_position: 2
+sidebar_position: 3
 ---
 
 # Clients
@@ -50,4 +50,4 @@ Cliquez sur **Add New** et remplissez le formulaire.
 
 ## Premier usage
 
-Quand vous n'avez encore aucun client, la page affiche *"No clients yet"* avec un bouton **Add New**. Ajoutez votre premier client ici, puis rendez-vous dans [Moyens de paiement](payment-methods.md).
+Quand vous n'avez encore aucun client, la page affiche *"No clients yet"* avec un bouton **Add New**. Ajoutez votre premier client ici, puis rendez-vous dans [Moyens de paiement](billing/payment-methods.md).
