@@ -565,7 +565,7 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
                                                             )}
                                                         />
 
-                                                        <Button variant={"outline"} onClick={() => onRemove(index)}>
+                                                        <Button type="button" variant={"outline"} onClick={() => onRemove(index)}>
                                                             <Trash2 className="h-4 w-4 text-red-700" />
                                                         </Button>
                                                     </div>
@@ -580,6 +580,7 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
                                     variant="outline"
                                     onClick={() =>
                                         append({
+                                            name: "",
                                             description: "",
                                             type: "HOUR",
                                             quantity: Number.NaN,
