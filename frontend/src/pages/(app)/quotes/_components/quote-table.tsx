@@ -46,7 +46,7 @@ export function QuoteTable() {
         ]
 
         const lines = rows.map((quote) => [
-            quote.rawNumber || quote.number?.toString() ?? "",
+            quote.rawNumber || (quote.number?.toString() ?? ""),
             quote.client?.name || "",
             getStatusLabel(quote.status),
             quote.totalTTC.toFixed(2),
