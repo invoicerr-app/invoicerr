@@ -36,4 +36,4 @@ The backend uses [Prisma](https://www.prisma.io/) as its ORM, with the schema de
 
 ## API documentation
 
-The backend exposes a live Swagger/OpenAPI UI at `/api/docs` (JSON spec at `/api/docs-json`), generated from `@nestjs/swagger` decorators on each controller. See the [API Reference](../api-reference/overview.md) page.
+The backend exposes a live Swagger/OpenAPI UI at `/api/docs` (JSON spec at `/api/docs-json`), generated from `@nestjs/swagger` decorators on each controller. See the [API Reference](api-reference.md) page.

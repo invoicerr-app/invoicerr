@@ -1,5 +1,5 @@
 ---
-sidebar_position: 8
+sidebar_position: 6
 ---
 
 # Statistics
@@ -18,4 +18,4 @@ The page is read-only and pulls data from your paid invoices. It updates automat
 
 ## First use
 
-The chart will be empty until you have at least one paid invoice. Once you [mark an invoice as paid](invoices.md#statuses), the statistics page begins to populate.
+The chart will be empty until you have at least one paid invoice. Once you [mark an invoice as paid](billing/invoices.md#statuses), the statistics page begins to populate.

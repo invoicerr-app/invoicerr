@@ -70,20 +70,60 @@ The fastest way to run Invoicerr is using Docker Compose. A prebuilt image is av
 
 ### 🚀 Quick Start
 
-1. Clone the repository:  
-   ```bash
-   git clone https://github.com/invoicerr-app/invoicerr.git
-   cd invoicerr
+1. Create a `docker-compose.yml` file with the following content, then adjust the environment variables to your setup:
+
+   ```yaml
+   services:
+     invoicerr:
+       image: ghcr.io/invoicerr-app/invoicerr:latest
+       ports:
+         - "80:80"
+       environment:
+         - DATABASE_URL=postgresql://invoicerr:invoicerr@invoicerr_db:5432/invoicerr_db
+         - APP_URL=https://invoicerr.example.com # Required for email templates, as it redirects to the app
+         - CORS_ORIGINS=http://localhost:5173,https://invoicerr.example.com # Comma-separated list of allowed origins for CORS
+
+         # Required for email features - choose ONE provider below
+         # Option 1: SMTP (default, MAIL_PROVIDER can be omitted)
+         - MAIL_PROVIDER=smtp
+         - SMTP_HOST=smtp-relay.example.com
+         - SMTP_USER="username@example.com"
+         - SMTP_FROM="user-from@example.com" # Not required if SMTP_USER is the same as SMTP_FROM
+         - SMTP_PASSWORD="your_smtp_password"
+         - SMTP_PORT=587
+         - SMTP_SECURE=false
+
+         # Option 2: Brevo (set MAIL_PROVIDER=brevo and comment out the SMTP_* variables above)
+         # - MAIL_PROVIDER=brevo
+         # - BREVO_API_KEY="your_brevo_api_key"
+
+         # Optional, but recommended for docker deployments
+         - JWT_SECRET="your_jwt_secret"
+       depends_on:
+         - invoicerr_db
+
+     invoicerr_db:
+       image: postgres:15
+       environment:
+         POSTGRES_USER: invoicerr
+         POSTGRES_PASSWORD: invoicerr
+         POSTGRES_DB: invoicerr_db
+       volumes:
+         - db_data:/var/lib/postgresql/data
+
+   volumes:
+     db_data:
+       driver: local
    ```
 
-2. Edit the `docker-compose.yml` to set your environment variables.
+   > The full reference file with OIDC options is available at [`docker-compose.yml`](./docker-compose.yml).
 
-3. Run the app:  
+2. Run the app:  
    ```bash
    docker compose up -d
    ```
 
-4. Open your browser at:  
+3. Open your browser at:  
    ```
    http://localhost
    ```
@@ -102,11 +142,17 @@ These environment variables are defined in `docker-compose.yml` under the `invoi
   Full public URL of the frontend (e.g., `https://invoicerr.example.com`).  
   This is required for email templates and links.
 
+- `MAIL_PROVIDER`  
+  Which email transport to use: `smtp` (default) or `brevo`.
+
 - `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`  
-  Credentials and server used for sending emails (quotes, invoices, etc.)
+  Used when `MAIL_PROVIDER=smtp` (or unset). Credentials and server used for sending emails (quotes, invoices, etc.)
 
 - `SMTP_FROM`  
   Optional — address used as the sender for emails. If omitted, defaults to `SMTP_USER`.
+
+- `BREVO_API_KEY`  
+  Used when `MAIL_PROVIDER=brevo`. API key for sending emails via [Brevo](https://www.brevo.com/) instead of SMTP. The sender address falls back to `MAIL_FROM`, then `SMTP_FROM`/`SMTP_USER`.
 
 - `JWT_SECRET`  
   Optional but recommended for JWT authentication. Can be any random string.  
