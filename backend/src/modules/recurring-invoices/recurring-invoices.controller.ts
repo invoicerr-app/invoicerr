@@ -60,4 +60,36 @@ export class RecurringInvoicesController {
   async deleteRecurringInvoice(@Param('id') id: string) {
     return this.recurringInvoicesService.deleteRecurringInvoice(id);
   }
+
+  @Post(':id/pause')
+  @ApiOperation({ summary: 'Pause a recurring invoice', description: 'Pauses invoice generation for this template. No new invoices will be generated until resumed.' })
+  @ApiParam({ name: 'id', type: String, description: 'Recurring invoice ID' })
+  @ApiResponse({ status: 200, description: 'Recurring invoice paused' })
+  async pauseRecurringInvoice(@Param('id') id: string) {
+    return this.recurringInvoicesService.pauseRecurringInvoice(id);
+  }
+
+  @Post(':id/resume')
+  @ApiOperation({ summary: 'Resume a recurring invoice', description: 'Resumes invoice generation for a paused template.' })
+  @ApiParam({ name: 'id', type: String, description: 'Recurring invoice ID' })
+  @ApiResponse({ status: 200, description: 'Recurring invoice resumed' })
+  async resumeRecurringInvoice(@Param('id') id: string) {
+    return this.recurringInvoicesService.resumeRecurringInvoice(id);
+  }
+
+  @Post(':id/skip-next')
+  @ApiOperation({ summary: 'Skip next cycle', description: 'Skips the next scheduled cycle for this template.' })
+  @ApiParam({ name: 'id', type: String, description: 'Recurring invoice ID' })
+  @ApiResponse({ status: 200, description: 'Next cycle will be skipped' })
+  async skipNextRecurringInvoice(@Param('id') id: string) {
+    return this.recurringInvoicesService.skipNextRecurringInvoice(id);
+  }
+
+  @Post(':id/end-now')
+  @ApiOperation({ summary: 'End recurring invoice now', description: 'Stops this recurring invoice template. No more cycles will be generated.' })
+  @ApiParam({ name: 'id', type: String, description: 'Recurring invoice ID' })
+  @ApiResponse({ status: 200, description: 'Recurring invoice ended' })
+  async endNowRecurringInvoice(@Param('id') id: string) {
+    return this.recurringInvoicesService.endNowRecurringInvoice(id);
+  }
 }
