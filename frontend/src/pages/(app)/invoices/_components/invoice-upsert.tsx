@@ -21,7 +21,6 @@ import { PaymentMethodType } from "@/types"
 import SearchSelect from "@/components/search-input"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
@@ -474,7 +473,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                     <InvoiceLineItemsEditor translationPrefix="invoices" defaultItemType="SERVICE" />
                                 </form>
                             </Form>
-                        ) : (
+                        ) : mode === "recurring" ? (
                             <Form {...recurringForm} key="recurring-form-mode">
                                 <form id="recurring-invoice-form" onSubmit={handleRecurringSubmit(onSubmitRecurring)} className="space-y-4" data-cy="recurring-invoice-form">
                                     <FormField
@@ -702,18 +701,12 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                         ) : mode === "proforma" ? (
                             <Form {...form} key="proforma-form-mode">
                                 <form id="proforma-form" onSubmit={handleSubmit(onSubmitProforma)} className="space-y-4" data-cy="proforma-form">
-                                    <FormField
-                                        control={control}
-                                        name="clientId"
-                                        render={({ field }) => (
-                                            <ClientSelectField
-                                                field={field}
-                                                searchTerm={clientSearchTerm}
-                                                setSearchTerm={setClientsSearchTerm}
-                                                onCreateClient={handleClientCreate}
-                                                clients={clients}
-                                            />
-                                        )}
+                                    <ClientSelectField
+                                        translationPrefix="invoices"
+                                        dataCy="proforma-client-select"
+                                        clients={clients || []}
+                                        onSearchChange={setClientsSearchTerm}
+                                        onRequestCreateClient={() => setClientDialogOpen(true)}
                                     />
 
                                     <div className="grid grid-cols-2 gap-4">
@@ -784,18 +777,12 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                         ) : mode === "final" ? (
                             <Form {...form} key="final-form-mode">
                                 <form id="final-form" onSubmit={handleSubmit(onSubmitFinal)} className="space-y-4" data-cy="final-form">
-                                    <FormField
-                                        control={control}
-                                        name="clientId"
-                                        render={({ field }) => (
-                                            <ClientSelectField
-                                                field={field}
-                                                searchTerm={clientSearchTerm}
-                                                setSearchTerm={setClientsSearchTerm}
-                                                onCreateClient={handleClientCreate}
-                                                clients={clients}
-                                            />
-                                        )}
+                                    <ClientSelectField
+                                        translationPrefix="invoices"
+                                        dataCy="final-client-select"
+                                        clients={clients || []}
+                                        onSearchChange={setClientsSearchTerm}
+                                        onRequestCreateClient={() => setClientDialogOpen(true)}
                                     />
 
                                     {/* Deposit selection */}
@@ -806,13 +793,15 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                             <div className="border rounded-md divide-y max-h-48 overflow-y-auto" data-cy="deposit-selection">
                                                 {unlinkedDeposits.map((dep) => (
                                                     <label key={dep.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/50">
-                                                        <Checkbox
+                                                        <input
+                                                            type="checkbox"
                                                             checked={selectedDepositIds.includes(dep.id)}
-                                                            onCheckedChange={(checked) => {
+                                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                                                 setSelectedDepositIds(prev =>
-                                                                    checked ? [...prev, dep.id] : prev.filter(id => id !== dep.id)
+                                                                    e.target.checked ? [...prev, dep.id] : prev.filter(id => id !== dep.id)
                                                                 )
                                                             }}
+                                                            className="h-4 w-4"
                                                             data-cy={`deposit-checkbox-${dep.id}`}
                                                         />
                                                         <div className="flex-1 min-w-0">
@@ -900,7 +889,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                     />
                                 </form>
                             </Form>
-                        )}
+                        ) : null}
                     </div>
 
                     <div className="shrink-0 border-t px-6 py-4 flex justify-end space-x-2">

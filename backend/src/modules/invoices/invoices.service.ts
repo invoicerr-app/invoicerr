@@ -1636,8 +1636,14 @@ export class InvoicesService {
             throw new BadRequestException('Provide either amount or a valid percentage (1-100).');
         }
 
-        // Use the compliance engine to resolve VAT on the deposit line
+        // Use the compliance engine to resolve VAT on the deposit line.
+        // amount is TTC (the user specifies the gross deposit). We derive HT
+        // so that HT + VAT === TTC holds by construction.
         const discountRate = 0;
+        const vatRate = body.items?.[0]?.vatRate ?? 20;
+        const depositHT = depositTTC / (1 + vatRate / 100);
+        const depositVAT = depositTTC - depositHT;
+
         const taxResult = resolveInvoiceTax({
             supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
             supplierExemptVat: !!company.exemptVat,
@@ -1648,12 +1654,10 @@ export class InvoicesService {
             currency: body.currency || client.currency || company.currency,
             issueDate: new Date(),
             discountRate,
-            items: [{ quantity: 1, unitPrice: depositTTC, vatRate: body.items?.[0]?.vatRate ?? 20, supplyType: 'SERVICES' }],
+            items: [{ quantity: 1, unitPrice: depositHT, vatRate, supplyType: 'SERVICES' }],
         });
 
-        const depositHT = taxResult.totalHT;
-        const depositVAT = taxResult.totalVAT;
-        const depositItemVatRate = taxResult.itemVatRates[0] ?? 20;
+        const depositItemVatRate = taxResult.itemVatRates[0] ?? vatRate;
 
         const issueDate = new Date();
         const currency = body.currency || client.currency || company.currency;
@@ -1683,8 +1687,8 @@ export class InvoicesService {
                         create: [{
                             description: 'Deposit payment',
                             quantity: 1,
-                            unitPrice: depositTTC,
-                            unitPriceMinor: toMinor(depositTTC, currency),
+                            unitPrice: depositHT,
+                            unitPriceMinor: toMinor(depositHT, currency),
                             vatRate: depositItemVatRate,
                             type: 'DEPOSIT',
                             order: 0,
@@ -1777,10 +1781,12 @@ export class InvoicesService {
 
         // Compute VAT on the deduction line — [~] The VAT treatment of deposit deductions
         // is country-specific (FR: the deposit invoice already carried VAT, so the deduction
-        // line is a credit of the same VAT). We pass the deposit items through the engine
-        // with the same vatRate to get a consistent split. If the engine's treatment differs
-        // from the local rule, a warning is surfaced.
+        // line is a credit of the same VAT). totalDeposited is TTC; derive HT to keep the
+        // invariant HT+VAT===TTC.
         const depositVatRate = deposits[0]?.items?.[0]?.vatRate ?? 20;
+        const deductionHT = -totalDeposited / (1 + depositVatRate / 100);
+        const deductionVAT = -totalDeposited - deductionHT;
+
         const deductionTaxResult = resolveInvoiceTax({
             supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
             supplierExemptVat: !!company.exemptVat,
@@ -1791,15 +1797,15 @@ export class InvoicesService {
             currency,
             issueDate: new Date(),
             discountRate: 0,
-            items: [{ quantity: 1, unitPrice: -totalDeposited, vatRate: depositVatRate, supplyType: 'SERVICES' }],
+            items: [{ quantity: 1, unitPrice: deductionHT, vatRate: depositVatRate, supplyType: 'SERVICES' }],
         });
 
         // Build the deduction line item
         const deductionLine = {
             description: `Deposit deduction (${deposits.length} deposit(s): ${deposits.map(d => d.rawNumber || d.number?.toString() || d.id.slice(0, 8)).join(', ')})`,
             quantity: 1,
-            unitPrice: -totalDeposited,
-            unitPriceMinor: toMinor(-totalDeposited, currency),
+            unitPrice: deductionHT,
+            unitPriceMinor: toMinor(deductionHT, currency),
             vatRate: deductionTaxResult.itemVatRates[0] ?? depositVatRate,
             type: 'DEPOSIT' as const,
             order: (items?.length ?? 0),
@@ -1850,15 +1856,12 @@ export class InvoicesService {
         }
 
         // Create the final invoice + link deposits in one transaction
+        // NOTE: DRAFT = no number. The gapless number is assigned at issue() time.
         const finalInvoice = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-            const { counter, rawNumber } = await this.numberingService.nextNumber(tx, company.id, 'invoice', new Date());
-
             const created = await tx.invoice.create({
                 data: {
                     kind: 'FINAL',
                     status: 'DRAFT',
-                    number: counter,
-                    rawNumber,
                     clientId: client.id,
                     companyId: company.id,
                     currency,

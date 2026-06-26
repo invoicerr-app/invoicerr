@@ -83,18 +83,12 @@ export function DepositDialog({ open, onOpenChange, defaultClientId, defaultCurr
 
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" data-cy="deposit-form">
-                            <FormField
-                                control={form.control}
-                                name="clientId"
-                                render={({ field }) => (
-                                    <ClientSelectField
-                                        field={field}
-                                        searchTerm={clientSearchTerm}
-                                        setSearchTerm={setClientsSearchTerm}
-                                        onCreateClient={() => setShowClientCreate(true)}
-                                        clients={clients}
-                                    />
-                                )}
+                            <ClientSelectField
+                                translationPrefix="invoices"
+                                dataCy="deposit-client-select"
+                                clients={clients || []}
+                                onSearchChange={setClientsSearchTerm}
+                                onRequestCreateClient={() => setShowClientCreate(true)}
                             />
 
                             <FormField
@@ -111,7 +105,7 @@ export function DepositDialog({ open, onOpenChange, defaultClientId, defaultCurr
                                                 placeholder={t("invoices.deposit.form.amount.placeholder")}
                                                 {...field}
                                                 value={field.value ?? ""}
-                                                onChange={(e) => field.onChange(e.target.value === "" ? 0 : parseFloat(e.target.value))}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => field.onChange(e.target.value === "" ? 0 : parseFloat(e.target.value))}
                                                 data-cy="deposit-amount"
                                             />
                                         </FormControl>
@@ -155,7 +149,7 @@ export function DepositDialog({ open, onOpenChange, defaultClientId, defaultCurr
             <ClientUpsert
                 open={showClientCreate}
                 onOpenChange={setShowClientCreate}
-                onClientCreated={handleClientCreate}
+                onCreate={handleClientCreate}
             />
         </>
     )
