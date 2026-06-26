@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Edit, Eye, Plus, ReceiptText as PaymentText, Trash2 } from "lucide-react"
+import { Edit, Eye, Pause, Play, SkipForward, StopCircle, Plus, ReceiptText as PaymentText, Trash2 } from "lucide-react"
 import { forwardRef, useImperativeHandle, useState } from "react"
 
 import BetterPagination from "@/components/pagination"
@@ -10,6 +10,11 @@ import { RecurringInvoiceDeleteDialog } from "./recurring-invoices-delete"
 import { RecurringInvoiceUpsert } from "./recurring-invoices-upsert"
 import { RecurringInvoiceViewDialog } from "./recurring-invoices-view"
 import { useTranslation } from "react-i18next"
+import { usePost } from "@/hooks/use-fetch"
+import { queryKeys } from "@/lib/query-keys"
+import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
 
 interface RecurringInvoiceListProps {
     recurringInvoices: RecurringInvoice[]
@@ -34,11 +39,41 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
         ref,
     ) => {
         const { t } = useTranslation()
+        const queryClient = useQueryClient()
+
+        const { trigger: triggerPause } = usePost(`/api/recurring-invoices/`) // placeholder, uses dynamic URL
+        const { trigger: triggerResume } = usePost(`/api/recurring-invoices/`)
+        const { trigger: triggerSkipNext } = usePost(`/api/recurring-invoices/`)
+        const { trigger: triggerEndNow } = usePost(`/api/recurring-invoices/`)
 
         const [createRecurringInvoiceDialog, setCreateRecurringInvoiceDialog] = useState<boolean>(false)
         const [editRecurringInvoiceDialog, setEditRecurringInvoiceDialog] = useState<RecurringInvoice | null>(null)
         const [viewRecurringInvoiceDialog, setViewRecurringInvoiceDialog] = useState<RecurringInvoice | null>(null)
         const [deleteRecurringInvoiceDialog, setDeleteRecurringInvoiceDialog] = useState<RecurringInvoice | null>(null)
+
+        const handlePause = async (ri: RecurringInvoice) => {
+            await fetch(`/api/recurring-invoices/${ri.id}/pause`, { method: 'POST' })
+            toast.success(t("recurringInvoices.list.messages.pauseSuccess"))
+            mutate?.()
+        }
+
+        const handleResume = async (ri: RecurringInvoice) => {
+            await fetch(`/api/recurring-invoices/${ri.id}/resume`, { method: 'POST' })
+            toast.success(t("recurringInvoices.list.messages.resumeSuccess"))
+            mutate?.()
+        }
+
+        const handleSkipNext = async (ri: RecurringInvoice) => {
+            await fetch(`/api/recurring-invoices/${ri.id}/skip-next`, { method: 'POST' })
+            toast.success(t("recurringInvoices.list.messages.skipNextSuccess"))
+            mutate?.()
+        }
+
+        const handleEndNow = async (ri: RecurringInvoice) => {
+            await fetch(`/api/recurring-invoices/${ri.id}/end-now`, { method: 'POST' })
+            toast.success(t("recurringInvoices.list.messages.endNowSuccess"))
+            mutate?.()
+        }
 
         useImperativeHandle(ref, () => ({
             handleAddClick() {
@@ -92,10 +127,27 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
                                     <div key={recurringInvoice.id} className="p-4 sm:p-6">
                                         <div className="flex flex-row sm:items-center sm:justify-between gap-4">
                                             <div className="flex flex-row items-center gap-4 w-full">
-                                                <div className="p-2 bg-blue-100 rounded-lg mb-4 md:mb-0 w-fit h-fit">
-                                                    <PaymentText className="h-5 w-5 text-blue-600" />
+                                                <div className={`p-2 rounded-lg mb-4 md:mb-0 w-fit h-fit ${recurringInvoice.paused ? 'bg-yellow-100' : 'bg-blue-100'}`}>
+                                                    <PaymentText className={`h-5 w-5 ${recurringInvoice.paused ? 'text-yellow-600' : 'text-blue-600'}`} />
                                                 </div>
                                                 <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        {recurringInvoice.paused && (
+                                                            <Badge variant="outline" className="text-yellow-700 border-yellow-300 bg-yellow-50" data-cy="recurring-invoice-paused-badge">
+                                                                {t("recurringInvoices.list.item.paused")}
+                                                            </Badge>
+                                                        )}
+                                                        {recurringInvoice.autoIssue && (
+                                                            <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50" data-cy="recurring-invoice-autoIssue-badge">
+                                                                {t("recurringInvoices.list.item.autoIssue")}
+                                                            </Badge>
+                                                        )}
+                                                        {recurringInvoice.autoSend && (
+                                                            <Badge variant="outline" className="text-blue-700 border-blue-300 bg-blue-50" data-cy="recurring-invoice-autoSend-badge">
+                                                                {t("recurringInvoices.list.item.autoSend")}
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                     <div className="mt-2 flex flex-col gap-2 text-sm text-muted-foreground">
                                                         <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-1">
                                                             <span>
@@ -111,11 +163,8 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
                                                                 </span>
                                                             )}
                                                             <span>
-                                                                <span className="font-medium text-foreground">{t("recurringInvoices.list.item.totalHT")}:</span>{" "}
-                                                                {t("common.valueWithCurrency", {
-                                                                    currency: recurringInvoice.currency,
-                                                                    amount: recurringInvoice.totalHT.toFixed(2),
-                                                                })}
+                                                                <span className="font-medium text-foreground">{t("recurringInvoices.list.item.frequency")}:</span>{" "}
+                                                                {t(`recurringInvoices.frequency.${recurringInvoice.frequency.toLowerCase()}`)}
                                                             </span>
                                                             <span>
                                                                 <span className="font-medium text-foreground">{t("recurringInvoices.list.item.totalTTC")}:</span>{" "}
@@ -123,6 +172,18 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
                                                                     currency: recurringInvoice.currency,
                                                                     amount: recurringInvoice.totalTTC.toFixed(2),
                                                                 })}
+                                                            </span>
+                                                            <span>
+                                                                <span className="font-medium text-foreground">{t("recurringInvoices.list.item.nextRun")}:</span>{" "}
+                                                                {recurringInvoice.nextInvoiceDate ? new Date(recurringInvoice.nextInvoiceDate).toLocaleDateString() : "—"}
+                                                            </span>
+                                                            <span>
+                                                                <span className="font-medium text-foreground">{t("recurringInvoices.list.item.lastRun")}:</span>{" "}
+                                                                {recurringInvoice.lastInvoiceDate ? new Date(recurringInvoice.lastInvoiceDate).toLocaleDateString() : "—"}
+                                                            </span>
+                                                            <span>
+                                                                <span className="font-medium text-foreground">{t("recurringInvoices.list.item.generatedCount")}:</span>{" "}
+                                                                {(recurringInvoice as any)._count?.generatedInvoices ?? "0"}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -136,6 +197,7 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
                                                     size="icon"
                                                     onClick={() => handleView(recurringInvoice)}
                                                     className="text-gray-600 hover:text-blue-600"
+                                                    data-cy="recurring-invoice-view"
                                                 >
                                                     <Eye className="h-4 w-4" />
                                                 </Button>
@@ -146,8 +208,55 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
                                                     size="icon"
                                                     onClick={() => handleEdit(recurringInvoice)}
                                                     className="text-gray-600 hover:text-green-600"
+                                                    data-cy="recurring-invoice-edit"
                                                 >
                                                     <Edit className="h-4 w-4" />
+                                                </Button>
+
+                                                {!recurringInvoice.paused ? (
+                                                    <Button
+                                                        tooltip={t("recurringInvoices.list.tooltips.pause")}
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handlePause(recurringInvoice)}
+                                                        className="text-gray-600 hover:text-yellow-600"
+                                                        data-cy="recurring-invoice-pause"
+                                                    >
+                                                        <Pause className="h-4 w-4" />
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        tooltip={t("recurringInvoices.list.tooltips.resume")}
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleResume(recurringInvoice)}
+                                                        className="text-gray-600 hover:text-green-600"
+                                                        data-cy="recurring-invoice-resume"
+                                                    >
+                                                        <Play className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+
+                                                <Button
+                                                    tooltip={t("recurringInvoices.list.tooltips.skipNext")}
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => handleSkipNext(recurringInvoice)}
+                                                    className="text-gray-600 hover:text-orange-600"
+                                                    data-cy="recurring-invoice-skip-next"
+                                                >
+                                                    <SkipForward className="h-4 w-4" />
+                                                </Button>
+
+                                                <Button
+                                                    tooltip={t("recurringInvoices.list.tooltips.endNow")}
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => handleEndNow(recurringInvoice)}
+                                                    className="text-gray-600 hover:text-red-600"
+                                                    data-cy="recurring-invoice-end-now"
+                                                >
+                                                    <StopCircle className="h-4 w-4" />
                                                 </Button>
 
                                                 <Button
@@ -156,6 +265,7 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
                                                     size="icon"
                                                     onClick={() => handleDelete(recurringInvoice)}
                                                     className="text-gray-600 hover:text-red-600"
+                                                    data-cy="recurring-invoice-delete"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>

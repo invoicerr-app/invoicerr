@@ -742,16 +742,32 @@
                 "client": "Cliente",
                 "payment": "Método de pago",
                 "totalHT": "Total (sin IVA)",
-                "totalTTC": "Total (con IVA)"
+                "totalTTC": "Total (con IVA)",
+                "frequency": "Frequency",
+                "nextRun": "Next Run",
+                "lastRun": "Last Run",
+                "generatedCount": "Generated",
+                "paused": "Paused",
+                "autoIssue": "Auto-Issue",
+                "autoSend": "Auto-Send",
+                "skipNext": "Skip Next"
             },
             "tooltips": {
                 "view": "Ver detalles",
                 "edit": "Editar",
-                "delete": "Eliminar"
+                "delete": "Eliminar",
+                "pause": "Pause",
+                "resume": "Resume",
+                "skipNext": "Skip Next Cycle",
+                "endNow": "End Now"
             },
             "messages": {
                 "manual_process_success": "Proceso manual ejecutado con éxito",
-                "manual_process_error": "Error al ejecutar el proceso manual"
+                "manual_process_error": "Error al ejecutar el proceso manual",
+                "pauseSuccess": "Recurring invoice paused",
+                "resumeSuccess": "Recurring invoice resumed",
+                "skipNextSuccess": "Next cycle will be skipped",
+                "endNowSuccess": "Recurring invoice ended"
             }
         },
         "emptyState": {
@@ -859,12 +875,33 @@
                         "service": "Servicio",
                         "product": "Producto"
                     }
+                },
+                "autoIssue": {
+                    "label": "Auto Issue",
+                    "description": "Automatically assign a number and issue the invoice when generated (DRAFT → ISSUED)"
                 }
             },
             "actions": {
                 "cancel": "Cancelar",
                 "create": "Crear factura recurrente",
                 "save": "Guardar cambios"
+            }
+        },
+        "view": {
+            "title": "Recurring Invoice Details",
+            "description": "Overview of this recurring invoice template",
+            "fields": {
+                "client": "Client",
+                "paymentMethod": "Payment Method",
+                "frequency": "Frequency",
+                "nextRun": "Next Run",
+                "lastRun": "Last Run",
+                "generatedCount": "Generated Invoices",
+                "totalHT": "Total (excl. VAT)",
+                "totalVAT": "VAT",
+                "totalTTC": "Total (incl. VAT)",
+                "notes": "Notes",
+                "generatedInvoices": "Generated Invoices"
             }
         }
     },

@@ -68,5 +68,24 @@
                 "error": "Failed to create deposit invoice"
             }
         }
+    },
+    "recurringInvoices": {
+        "view": {
+            "title": "Recurring Invoice Details",
+            "description": "Overview of this recurring invoice template",
+            "fields": {
+                "client": "Client",
+                "paymentMethod": "Payment Method",
+                "frequency": "Frequency",
+                "nextRun": "Next Run",
+                "lastRun": "Last Run",
+                "generatedCount": "Generated Invoices",
+                "totalHT": "Total (excl. VAT)",
+                "totalVAT": "VAT",
+                "totalTTC": "Total (incl. VAT)",
+                "notes": "Notes",
+                "generatedInvoices": "Generated Invoices"
+            }
+        }
     }
 }

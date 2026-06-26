@@ -817,17 +817,33 @@
             "item": {
                 "client": "Client",
                 "payment": "Payment Method",
+                "frequency": "Frequency",
                 "totalHT": "Total (excl. VAT)",
-                "totalTTC": "Total (incl. VAT)"
+                "totalTTC": "Total (incl. VAT)",
+                "nextRun": "Next Run",
+                "lastRun": "Last Run",
+                "generatedCount": "Generated",
+                "paused": "Paused",
+                "autoIssue": "Auto-Issue",
+                "autoSend": "Auto-Send",
+                "skipNext": "Skip Next"
             },
             "tooltips": {
                 "view": "View Details",
                 "edit": "Edit",
+                "pause": "Pause",
+                "resume": "Resume",
+                "skipNext": "Skip Next Cycle",
+                "endNow": "End Now",
                 "delete": "Delete"
             },
             "messages": {
                 "manual_process_success": "Manual process triggered successfully",
-                "manual_process_error": "Error triggering manual process"
+                "manual_process_error": "Error triggering manual process",
+                "pauseSuccess": "Recurring invoice paused",
+                "resumeSuccess": "Recurring invoice resumed",
+                "skipNextSuccess": "Next cycle will be skipped",
+                "endNowSuccess": "Recurring invoice ended"
             }
         },
         "emptyState": {
@@ -890,6 +906,10 @@
                     "placeholder": "Select end date",
                     "description": "Date when the recurring invoice will stop being generated (leave empty for infinite recurrence)"
                 },
+                "autoIssue": {
+                    "label": "Auto Issue",
+                    "description": "Automatically assign a number and issue the invoice when generated (DRAFT → ISSUED)"
+                },
                 "autoSend": {
                     "label": "Auto Send",
                     "description": "Automatically send the recurring invoice to the client when generated"
@@ -941,6 +961,23 @@
                 "cancel": "Cancel",
                 "create": "Create Recurring Invoice",
                 "save": "Save Changes"
+            }
+        },
+        "view": {
+            "title": "Recurring Invoice Details",
+            "description": "Overview of this recurring invoice template",
+            "fields": {
+                "client": "Client",
+                "paymentMethod": "Payment Method",
+                "frequency": "Frequency",
+                "nextRun": "Next Run",
+                "lastRun": "Last Run",
+                "generatedCount": "Generated Invoices",
+                "totalHT": "Total (excl. VAT)",
+                "totalVAT": "VAT",
+                "totalTTC": "Total (incl. VAT)",
+                "notes": "Notes",
+                "generatedInvoices": "Generated Invoices"
             }
         }
     },

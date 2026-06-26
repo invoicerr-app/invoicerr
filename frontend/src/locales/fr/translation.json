@@ -819,17 +819,33 @@
             "item": {
                 "client": "Client",
                 "payment": "Paiement",
+                "frequency": "Fréquence",
                 "totalHT": "Total HT",
-                "totalTTC": "Total TTC"
+                "totalTTC": "Total TTC",
+                "nextRun": "Prochaine exécution",
+                "lastRun": "Dernière exécution",
+                "generatedCount": "Générées",
+                "paused": "En pause",
+                "autoIssue": "Émission auto",
+                "autoSend": "Envoi auto",
+                "skipNext": "Sauter le prochain"
             },
             "tooltips": {
                 "view": "Voir les détails",
                 "edit": "Modifier",
+                "pause": "Mettre en pause",
+                "resume": "Reprendre",
+                "skipNext": "Sauter le prochain cycle",
+                "endNow": "Arrêter maintenant",
                 "delete": "Supprimer"
             },
             "messages": {
                 "manual_process_success": "Processus de génération déclenché avec succès",
-                "manual_process_error": "Erreur lors du déclenchement du processus"
+                "manual_process_error": "Erreur lors du déclenchement du processus",
+                "pauseSuccess": "Facture récurrente mise en pause",
+                "resumeSuccess": "Facture récurrente reprise",
+                "skipNextSuccess": "Le prochain cycle sera ignoré",
+                "endNowSuccess": "Facture récurrente arrêtée"
             }
         },
         "emptyState": {
@@ -893,6 +909,10 @@
                     "placeholder": "Sélectionner la date de fin",
                     "description": "Date jusqu'à laquelle les factures seront générées (vide pour illimité)"
                 },
+                "autoIssue": {
+                    "label": "Émission automatique",
+                    "description": "Attribuer automatiquement un numéro et émettre la facture lors de la génération (DRAFT → ÉMISE)"
+                },
                 "autoSend": {
                     "label": "Envoi automatique",
                     "description": "Envoyer automatiquement les factures par email aux clients après leur création"
@@ -944,6 +964,23 @@
                 "cancel": "Annuler",
                 "create": "Créer la facture récurrente",
                 "save": "Enregistrer les modifications"
+            }
+        },
+        "view": {
+            "title": "Détails de la facture récurrente",
+            "description": "Aperçu de ce modèle de facture récurrente",
+            "fields": {
+                "client": "Client",
+                "paymentMethod": "Méthode de paiement",
+                "frequency": "Fréquence",
+                "nextRun": "Prochaine exécution",
+                "lastRun": "Dernière exécution",
+                "generatedCount": "Factures générées",
+                "totalHT": "Total HT",
+                "totalVAT": "TVA",
+                "totalTTC": "Total TTC",
+                "notes": "Notes",
+                "generatedInvoices": "Factures générées"
             }
         }
     },
