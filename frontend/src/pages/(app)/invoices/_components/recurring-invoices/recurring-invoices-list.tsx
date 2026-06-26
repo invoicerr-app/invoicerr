@@ -10,9 +10,6 @@ import { RecurringInvoiceDeleteDialog } from "./recurring-invoices-delete"
 import { RecurringInvoiceUpsert } from "./recurring-invoices-upsert"
 import { RecurringInvoiceViewDialog } from "./recurring-invoices-view"
 import { useTranslation } from "react-i18next"
-import { usePost } from "@/hooks/use-fetch"
-import { queryKeys } from "@/lib/query-keys"
-import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 
@@ -39,12 +36,6 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
         ref,
     ) => {
         const { t } = useTranslation()
-        const queryClient = useQueryClient()
-
-        const { trigger: triggerPause } = usePost(`/api/recurring-invoices/`) // placeholder, uses dynamic URL
-        const { trigger: triggerResume } = usePost(`/api/recurring-invoices/`)
-        const { trigger: triggerSkipNext } = usePost(`/api/recurring-invoices/`)
-        const { trigger: triggerEndNow } = usePost(`/api/recurring-invoices/`)
 
         const [createRecurringInvoiceDialog, setCreateRecurringInvoiceDialog] = useState<boolean>(false)
         const [editRecurringInvoiceDialog, setEditRecurringInvoiceDialog] = useState<RecurringInvoice | null>(null)

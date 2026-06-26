@@ -124,7 +124,7 @@ export function QuoteProgression({
     }
 
     const quoteLabel = confirmDialog
-        ? confirmDialog.quote.rawNumber || confirmDialog.quote.number.toString()
+        ? confirmDialog.quote.rawNumber || confirmDialog.quote.number?.toString() ?? ""
         : ""
     const clientName = confirmDialog
         ? confirmDialog.quote.client.name ||

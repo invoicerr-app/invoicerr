@@ -38,7 +38,7 @@ export function PaymentTable() {
 
     const invoiceLabel = (invoiceIdValue?: string) => {
         const invoice = invoiceOptions?.find((inv) => inv.id === invoiceIdValue)
-        return invoice ? (invoice.rawNumber || invoice.number.toString()) : ""
+        return invoice ? (invoice.rawNumber || invoice.number?.toString() ?? "") : ""
     }
 
     const paymentMethodLabel = (payment: (typeof rows)[number]) => {
@@ -59,7 +59,7 @@ export function PaymentTable() {
         ]
 
         const lines = rows.map((payment) => [
-            payment.rawNumber || payment.number.toString(),
+            payment.rawNumber || payment.number?.toString() ?? "",
             payment.invoice?.rawNumber || payment.invoice?.number?.toString() || "",
             payment.invoice?.client?.name || "",
             payment.totalPaid.toFixed(2),
@@ -102,7 +102,7 @@ export function PaymentTable() {
                         <div className="flex items-center gap-1">
                             <SearchSelect
                                 options={(invoiceOptions ?? []).map((invoice) => ({
-                                    label: invoice.rawNumber || invoice.number.toString(),
+                                    label: invoice.rawNumber || invoice.number?.toString() ?? "",
                                     value: invoice.id,
                                 }))}
                                 value={invoiceId ?? ""}
