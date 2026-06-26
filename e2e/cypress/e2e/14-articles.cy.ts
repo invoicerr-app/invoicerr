@@ -29,7 +29,7 @@ describe('Articles E2E', () => {
 
             cy.get('[data-cy="article-dialog"]').should('be.visible');
             cy.get('input[name="name"]').should('exist');
-            cy.get('input[name="description"]').should('exist');
+            cy.get('textarea[name="description"]').should('exist');
             cy.get('[data-cy="article-type-trigger"]').should('exist');
             cy.get('input[name="unitPrice"]').should('exist');
             cy.get('input[name="vatRate"]').should('exist');
@@ -42,7 +42,7 @@ describe('Articles E2E', () => {
 
             const uniqueName = `Consulting Hour ${Date.now()}`;
             cy.get('input[name="name"]').clear().type(uniqueName);
-            cy.get('input[name="description"]').clear().type('One hour of consulting');
+            cy.get('textarea[name="description"]').clear().type('One hour of consulting');
             cy.get('input[name="unitPrice"]').clear().type('120');
             cy.get('input[name="vatRate"]').clear().type('20');
 
@@ -143,7 +143,7 @@ describe('Articles E2E', () => {
             cy.get('[data-cy="article-add-button"]', { timeout: 10000 }).click();
             cy.wait(500);
             cy.get('input[name="name"]').clear().type(articleName);
-            cy.get('input[name="description"]').clear().type('Full day of web design');
+            cy.get('textarea[name="description"]').clear().type('Full day of web design');
             cy.get('[data-cy="article-type-trigger"]').click();
             cy.wait(200);
             cy.get('[role="option"]').contains(/^day$/i).click();
