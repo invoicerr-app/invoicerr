@@ -70,7 +70,7 @@ export class RecurringInvoicesCronService {
                         paymentDetails: recurringInvoice.paymentDetails || undefined,
                         items: recurringInvoice.items.map(item => ({
                             name: item.name,
-                            description: item.description,
+                            description: item.description ?? undefined,
                             quantity: item.quantity,
                             unitPrice: item.unitPrice,
                             vatRate: item.vatRate,

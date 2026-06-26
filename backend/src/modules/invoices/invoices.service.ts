@@ -704,7 +704,7 @@ export class InvoicesService {
                 }
                 return {
                     name: quoteItem.name,
-                    description: quoteItem.description,
+                    description: quoteItem.description ?? undefined,
                     quantity: line.quantity,
                     unitPrice: quoteItem.unitPrice,
                     vatRate: quoteItem.vatRate,
