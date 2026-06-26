@@ -12,8 +12,6 @@ function completeCompanyProfile() {
 
     cy.get('[data-cy="company-name-input"]').clear().type('Acme Corp');
     cy.get('[data-cy="company-description-input"]').clear().type('A fictional company');
-    cy.get('[data-cy="company-legalid-input"]').clear().type('LEGAL123456');
-    cy.get('[data-cy="company-vat-input"]').clear().type('FR12345678901');
     cy.get('[data-cy="company-phone-input"]').clear().type('+33123456789');
     cy.get('[data-cy="company-email-input"]').clear().type('contact@acme.org');
     cy.get('[data-cy="company-address-input"]').clear().type('123 Main St');

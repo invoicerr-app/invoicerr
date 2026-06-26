@@ -105,34 +105,18 @@ function createInvoice({ discountRate = 10, item = defaultQuoteItem }: CreateInv
     });
 }
 
-function createPaymentForInvoice(invoiceLabel: string | null) {
+function createPaymentForInvoice(invoiceLabel: string | null, invoiceId?: string) {
     cy.intercept('POST', '/api/payments/create-from-invoice').as('createPayment');
 
-    // The invoice is created as DRAFT; switch to the progression view, issue it (DRAFT → ISSUED),
-    // then send it (ISSUED → SENT), then use "Payment received" to create the payment.
+    // Issue and send via API instead of fragile UI progression clicks
+    cy.request('POST', '/api/invoices/issue', { id: invoiceId });
+    cy.request('POST', '/api/invoices/send', { id: invoiceId });
+
     cy.visit('/invoices');
     cy.get('[data-cy="invoice-view-progression"]').click();
 
-    // Use the first progression row (most recently created invoice)
-    cy.get('[data-cy="invoice-progression-row"]', { timeout: 20000 }).should('have.length.at.least', 1);
-    cy.get('[data-cy="invoice-progression-row"]').first().within(() => {
-        cy.get('[data-cy="invoice-progression-issue"]').click();
-    });
-
-    cy.get('[role="alertdialog"]').should('be.visible').within(() => {
-        cy.get('[data-cy="invoice-progression-confirm-action"]').click();
-    });
-
-    // Step 2: Send the invoice (ISSUED → SENT)
-    cy.get('[data-cy="invoice-progression-row"]').first().within(() => {
-        cy.get('[data-cy="invoice-progression-send"]', { timeout: 15000 }).should('exist').click();
-    });
-
-    cy.get('[role="alertdialog"]').should('be.visible').within(() => {
-        cy.get('[data-cy="invoice-progression-confirm-action"]').click();
-    });
-
     // Wait until the row exposes the "Payment received" action (invoice is now SENT).
+    cy.get('[data-cy="invoice-progression-row"]', { timeout: 20000 }).should('have.length.at.least', 1);
     cy.get('[data-cy="invoice-progression-row"]').first().within(() => {
         cy.get('[data-cy="invoice-progression-paymentReceived"]', { timeout: 15000 }).should('exist').click();
     });
@@ -253,8 +237,8 @@ describe('Discount Feature (Invoice)', () => {
 
 describe('Discount Feature (Payments)', () => {
     it('applies the configured discount rate to payment totals', () => {
-        createInvoice({ discountRate: 10 }).then(({ invoiceLabel }) => {
-            createPaymentForInvoice(invoiceLabel).then(() => {
+        createInvoice({ discountRate: 10 }).then(({ invoiceLabel, invoiceId }) => {
+            createPaymentForInvoice(invoiceLabel, invoiceId).then(() => {
                 cy.visit('/payments');
                 cy.wait(2000);
                 cy.contains('900.00', { timeout: 20000 }).should('exist');

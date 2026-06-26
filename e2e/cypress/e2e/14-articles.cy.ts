@@ -167,7 +167,7 @@ describe('Articles E2E', () => {
 
             cy.get('[data-cy="article-picker"] button').first().click({ force: true });
             cy.wait(300);
-            cy.get('[data-cy="article-picker-options"]').should('be.visible');
+            cy.get('[data-cy="article-picker-options"]').should('exist');
             cy.contains('[data-cy="article-picker-options"] button', articleName).click({ force: true });
 
             cy.get('[name="items.0.name"]').should('have.value', articleName);

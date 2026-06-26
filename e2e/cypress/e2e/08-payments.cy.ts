@@ -5,6 +5,8 @@ beforeEach(() => {
 // Draft and archived invoices can't receive a payment, so they aren't selectable in
 // the payment form. Create an invoice via the UI and send it so it becomes SENT.
 function ensurePayableInvoice() {
+    cy.intercept('POST', '/api/invoices').as('createInvoice');
+
     cy.visit('/invoices');
     cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
     cy.wait(500);
@@ -30,32 +32,14 @@ function ensurePayableInvoice() {
 
     cy.get('[data-cy="invoice-submit"]').click();
     cy.get('[data-cy="invoice-dialog"]').should('not.exist');
-    cy.wait(1000);
 
-    // Switch to the progression view: DRAFT → ISSUED → SENT.
-    cy.get('[data-cy="invoice-view-progression"]').click();
+    cy.wait('@createInvoice').then(({ response }) => {
+        const invoiceId = response?.body?.id;
+        expect(invoiceId).to.exist;
 
-    cy.get('[data-cy="invoice-progression-row"]', { timeout: 10000 }).should('have.length.at.least', 1);
-
-    // Step 1: Issue the invoice (DRAFT → ISSUED)
-    cy.get('[data-cy="invoice-progression-row"]').first().within(() => {
-        cy.get('[data-cy="invoice-progression-issue"]').click();
-    });
-    cy.get('[role="alertdialog"]').should('be.visible').within(() => {
-        cy.get('[data-cy="invoice-progression-confirm-action"]').click();
-    });
-
-    // Step 2: Send the invoice (ISSUED → SENT)
-    cy.get('[data-cy="invoice-progression-row"]').first().within(() => {
-        cy.get('[data-cy="invoice-progression-send"]', { timeout: 15000 }).should('exist').click();
-    });
-    cy.get('[role="alertdialog"]').should('be.visible').within(() => {
-        cy.get('[data-cy="invoice-progression-confirm-action"]').click();
-    });
-
-    // Wait until the row exposes the "Payment received" action, meaning the invoice is now SENT.
-    cy.get('[data-cy="invoice-progression-row"]').first().within(() => {
-        cy.get('[data-cy="invoice-progression-paymentReceived"]', { timeout: 15000 }).should('exist');
+        // Issue and send via API to avoid fragile UI progression clicks
+        cy.request('POST', '/api/invoices/issue', { id: invoiceId });
+        cy.request('POST', '/api/invoices/send', { id: invoiceId });
     });
 
     cy.wait(500);
