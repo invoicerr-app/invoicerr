@@ -23,7 +23,9 @@ function completeCompanyProfile() {
     cy.get('[data-cy="company-postalcode-input"]').clear().type('75001');
     cy.selectCountry('company-country-input', 'France');
 
-    cy.get('[data-cy="company-currency-select"]').click();
+    cy.get('[data-cy="company-currency-select"] button').first().click();
+    cy.wait(300);
+    cy.get('[data-cy="company-currency-select-options"]').should('be.visible');
     cy.get('[data-cy="company-currency-select-option-euro-(€)"]').click();
 
     cy.get('[data-cy="company-pdfformat-select"]').click();

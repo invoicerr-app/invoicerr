@@ -32,14 +32,23 @@ function ensurePayableInvoice() {
     cy.get('[data-cy="invoice-dialog"]').should('not.exist');
     cy.wait(1000);
 
-    // Switch to the progression view and send the invoice so it becomes SENT (payable).
+    // Switch to the progression view: DRAFT → ISSUED → SENT.
     cy.get('[data-cy="invoice-view-progression"]').click();
 
     cy.get('[data-cy="invoice-progression-row"]', { timeout: 10000 }).should('have.length.at.least', 1);
+
+    // Step 1: Issue the invoice (DRAFT → ISSUED)
     cy.get('[data-cy="invoice-progression-row"]').first().within(() => {
-        cy.get('[data-cy="invoice-progression-send"]').click();
+        cy.get('[data-cy="invoice-progression-issue"]').click();
+    });
+    cy.get('[role="alertdialog"]').should('be.visible').within(() => {
+        cy.get('[data-cy="invoice-progression-confirm-action"]').click();
     });
 
+    // Step 2: Send the invoice (ISSUED → SENT)
+    cy.get('[data-cy="invoice-progression-row"]').first().within(() => {
+        cy.get('[data-cy="invoice-progression-send"]', { timeout: 15000 }).should('exist').click();
+    });
     cy.get('[role="alertdialog"]').should('be.visible').within(() => {
         cy.get('[data-cy="invoice-progression-confirm-action"]').click();
     });
