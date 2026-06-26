@@ -242,6 +242,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                                                 data-cy="quote-client-select"
                                                 noResultsComponent={
                                                     <Button
+                                                        type="button"
                                                         variant="link"
                                                         onClick={() => setClientDialogOpen(true)}
                                                     >
@@ -495,7 +496,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                                                             )}
                                                         />
 
-                                                        <Button variant={"outline"} onClick={() => onRemove(index)} dataCy={`remove-item-${index}`}>
+                                                        <Button type="button" variant={"outline"} onClick={() => onRemove(index)} dataCy={`remove-item-${index}`}>
                                                             <Trash2 className="h-4 w-4 text-red-700" />
                                                         </Button>
                                                     </div>
