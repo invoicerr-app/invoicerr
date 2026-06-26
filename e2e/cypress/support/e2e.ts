@@ -29,12 +29,42 @@ Cypress.on('uncaught:exception', () => {
 // Reset Radix UI scroll-lock residue.
 // Headless Cypress never fires CSS animationend, so Radix's Presence
 // never unmounts the dialog → body stays stuck with pointer-events:none
-// and data-scroll-locked="1".  Force-clear before each test to prevent
-// cascading failures across specs.
+// and data-scroll-locked="1".  A MutationObserver continuously strips
+// these residues so they never block clicks.
 beforeEach(() => {
     cy.document().then((doc) => {
+        // Immediate cleanup from previous test
         doc.body.style.pointerEvents = '';
         doc.body.removeAttribute('data-scroll-locked');
+
+        // Persistent cleanup: strip scroll-lock residue whenever it reappears
+        const observer = new MutationObserver((mutations) => {
+            for (const m of mutations) {
+                if (m.type === 'attributes' && m.attributeName === 'style') {
+                    if (doc.body.style.pointerEvents === 'none') {
+                        doc.body.style.pointerEvents = '';
+                    }
+                }
+                if (m.type === 'attributes' && m.attributeName === 'data-scroll-locked') {
+                    doc.body.removeAttribute('data-scroll-locked');
+                }
+                if (m.type === 'childList') {
+                    // Radix may re-add a <style> tag for RemoveScroll; remove it
+                    m.addedNodes.forEach((node) => {
+                        if (node instanceof doc.defaultView.HTMLStyleElement &&
+                            node.textContent?.includes('data-scroll-locked')) {
+                            node.remove();
+                        }
+                    });
+                }
+            }
+        });
+        observer.observe(doc.body, {
+            attributes: true,
+            attributeFilter: ['style', 'data-scroll-locked'],
+            childList: true,
+            subtree: true,
+        });
     });
 });
 
