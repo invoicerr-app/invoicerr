@@ -20,3 +20,23 @@ export function useQuoteSearch(query: string) {
         `/api/quotes/search?query=${encodeURIComponent(query)}`,
     )
 }
+
+export interface QuotesTableFilters {
+    clientId?: string
+    year?: number
+    month?: number
+    sort: "asc" | "desc"
+}
+
+export function useQuotesTable(filters: QuotesTableFilters) {
+    const params = new URLSearchParams()
+    if (filters.clientId) params.set("clientId", filters.clientId)
+    if (filters.year !== undefined) params.set("year", String(filters.year))
+    if (filters.month !== undefined) params.set("month", String(filters.month))
+    params.set("sort", filters.sort)
+
+    return useApiQuery<Quote[]>(
+        queryKeys.quotes.table(filters),
+        `/api/quotes/table?${params.toString()}`,
+    )
+}

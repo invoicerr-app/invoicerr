@@ -1,4 +1,5 @@
 import { CreateQuoteDto, EditQuotesDto } from '@/modules/quotes/dto/quotes.dto';
+import { InvoicesService } from '@/modules/invoices/invoices.service';
 import { QuotesService } from '@/modules/quotes/quotes.service';
 import {
   Body,
@@ -18,7 +19,10 @@ import { Response } from 'express';
 @ApiTags('quotes')
 @Controller('quotes')
 export class QuotesController {
-  constructor(private readonly quotesService: QuotesService) { }
+  constructor(
+    private readonly quotesService: QuotesService,
+    private readonly invoicesService: InvoicesService,
+  ) { }
 
   @Get()
   @ApiOperation({ summary: 'List quotes', description: 'Returns a paginated list of quotes.' })
@@ -34,6 +38,31 @@ export class QuotesController {
   @ApiResponse({ status: 200, description: 'Search results retrieved' })
   async searchClients(@Query('query') query: string) {
     return await this.quotesService.searchQuotes(query);
+  }
+
+  @Get('table')
+  @ApiOperation({ summary: 'List quotes for table view', description: 'Returns the full (unpaginated) list of quotes matching the given filters, sorted by creation date. Used by the quotes table view and its export.' })
+  @ApiQuery({ name: 'clientId', required: false, type: String, description: 'Filter quotes by client ID.' })
+  @ApiQuery({ name: 'year', required: false, type: String, description: 'Filter quotes created during this year.' })
+  @ApiQuery({ name: 'month', required: false, type: String, description: 'Filter quotes created during this month (1-12). Ignored unless "year" is also provided.' })
+  @ApiQuery({ name: 'sort', required: false, enum: ['asc', 'desc'], description: 'Sort order on creation date. Defaults to "desc".' })
+  @ApiResponse({ status: 200, description: 'Quotes retrieved' })
+  async getQuotesTable(
+    @Query('clientId') clientId?: string,
+    @Query('year') year?: string,
+    @Query('month') month?: string,
+    @Query('sort') sort?: 'asc' | 'desc',
+  ) {
+    return await this.quotesService.getQuotesTable({ clientId, year, month, sort });
+  }
+
+  @Get(':id/invoicing-status')
+  @ApiOperation({ summary: 'Get quote invoicing status', description: 'Returns the remaining invoicable quantity per quote item and the overall remaining percentage, based on invoices already created from this quote.' })
+  @ApiParam({ name: 'id', type: String, description: 'Quote ID' })
+  @ApiResponse({ status: 200, description: 'Invoicing status retrieved' })
+  @ApiResponse({ status: 404, description: 'Quote not found' })
+  async getQuoteInvoicingStatus(@Param('id') id: string) {
+    return this.invoicesService.getQuoteInvoicingStatus(id);
   }
 
   @Get(':id/pdf')

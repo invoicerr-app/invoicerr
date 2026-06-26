@@ -157,6 +157,64 @@ export class PaymentsService {
         return resultsWithPM;
     }
 
+    async getPaymentsTable(filters: { invoiceId?: string; clientId?: string; year?: string; month?: string; sort?: 'asc' | 'desc' }) {
+        const where: Record<string, any> = {};
+
+        if (filters.invoiceId) {
+            where.invoiceId = filters.invoiceId;
+        }
+
+        if (filters.clientId) {
+            where.invoice = { clientId: filters.clientId };
+        }
+
+        const year = parseInt(filters.year ?? '', 10);
+        if (!isNaN(year)) {
+            const month = parseInt(filters.month ?? '', 10);
+            if (!isNaN(month) && month >= 1 && month <= 12) {
+                where.paidAt = {
+                    gte: new Date(year, month - 1, 1),
+                    lt: new Date(year, month, 1),
+                };
+            } else {
+                where.paidAt = {
+                    gte: new Date(year, 0, 1),
+                    lt: new Date(year + 1, 0, 1),
+                };
+            }
+        }
+
+        const sort = filters.sort === 'asc' ? 'asc' : 'desc';
+
+        const payments = await prisma.payment.findMany({
+            where,
+            orderBy: {
+                paidAt: sort,
+            },
+            include: {
+                items: true,
+                invoice: {
+                    include: {
+                        items: true,
+                        client: true,
+                        quote: true,
+                        payments: { select: { id: true, totalPaid: true } },
+                    }
+                }
+            },
+        });
+
+        const paymentsWithPM = await Promise.all(payments.map(async (r: any) => {
+            if (r.paymentMethodId) {
+                const pm = await prisma.paymentMethod.findUnique({ where: { id: r.paymentMethodId } });
+                return { ...r, paymentMethod: pm ?? r.paymentMethod };
+            }
+            return r;
+        }));
+
+        return paymentsWithPM;
+    }
+
     private async checkInvoiceAfterPayment(invoiceId: string) {
         const invoice = await prisma.invoice.findUnique({
             where: { id: invoiceId }

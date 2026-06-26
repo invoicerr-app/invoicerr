@@ -1,7 +1,7 @@
 import * as Handlebars from 'handlebars';
 
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { CreateInvoiceDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
+import { CreateInvoiceDto, CreateInvoiceFromQuoteDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
 import { EInvoice, ExportFormat } from '@fin.cx/einvoice';
 import { getInvertColor, getPDF } from '@/utils/pdf';
 
@@ -103,6 +103,55 @@ export class InvoicesService {
         }));
 
         return { pageCount: Math.ceil(totalInvoices / pageSize), invoices: invoicesWithPM };
+    }
+
+    async getInvoicesTable(filters: { clientId?: string; year?: string; month?: string; sort?: 'asc' | 'desc' }) {
+        const where: Record<string, any> = { isActive: true };
+
+        if (filters.clientId) {
+            where.clientId = filters.clientId;
+        }
+
+        const year = parseInt(filters.year ?? '', 10);
+        if (!isNaN(year)) {
+            const month = parseInt(filters.month ?? '', 10);
+            if (!isNaN(month) && month >= 1 && month <= 12) {
+                where.createdAt = {
+                    gte: new Date(year, month - 1, 1),
+                    lt: new Date(year, month, 1),
+                };
+            } else {
+                where.createdAt = {
+                    gte: new Date(year, 0, 1),
+                    lt: new Date(year + 1, 0, 1),
+                };
+            }
+        }
+
+        const sort = filters.sort === 'asc' ? 'asc' : 'desc';
+
+        const invoices = await prisma.invoice.findMany({
+            where,
+            orderBy: {
+                createdAt: sort,
+            },
+            include: {
+                items: true,
+                client: true,
+                company: true,
+                payments: { select: { totalPaid: true } },
+            },
+        });
+
+        const invoicesWithPM = await Promise.all(invoices.map(async (inv: any) => {
+            if (inv.paymentMethodId) {
+                const pm = await prisma.paymentMethod.findUnique({ where: { id: inv.paymentMethodId } });
+                return { ...inv, paymentMethod: pm ?? inv.paymentMethod };
+            }
+            return inv;
+        }));
+
+        return invoicesWithPM;
     }
 
     async searchInvoices(query: string) {
@@ -217,6 +266,7 @@ export class InvoicesService {
                         chargeAmountMinor: item.chargeAmount ? toMinor(item.chargeAmount, body.currency || client.currency || company.currency) : null,
                         chargeDescription: item.chargeDescription ?? null,
                         unitOfMeasure: item.unitOfMeasure ?? 'C62',
+                        quoteItemId: item.quoteItemId,
                     })),
                 },
                 dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
@@ -1227,9 +1277,9 @@ export class InvoicesService {
         return await inv.embedInPdf(Buffer.from(pdfBuffer), format)
     }
 
-    async createInvoiceFromQuote(quoteId: string) {
+    async createInvoiceFromQuote(body: CreateInvoiceFromQuoteDto) {
         const quote = await prisma.quote.findUnique({
-            where: { id: quoteId },
+            where: { id: body.quoteId },
             include: {
                 items: true,
                 client: { include: { partyIdentifiers: true } },
@@ -1238,31 +1288,62 @@ export class InvoicesService {
         });
 
         if (!quote) {
-            logger.error('Quote not found when creating invoice from quote', { category: 'invoice', details: { quoteId } });
+            logger.error('Quote not found when creating invoice from quote', { category: 'invoice', details: { quoteId: body.quoteId } });
             throw new BadRequestException('Quote not found');
         }
 
-        if (quote.status !== 'SIGNED') {
-            logger.error('Only SIGNED quotes can be converted to invoices', { category: 'invoice', details: { quoteId, status: quote.status } });
-            throw new BadRequestException('Only SIGNED quotes can be converted to invoices.');
+        const invoicingStatus = await this.getQuoteInvoicingStatus(body.quoteId);
+
+        if (invoicingStatus.remainingPercent <= 0) {
+            logger.error('Quote has already been fully invoiced', { category: 'invoice', details: { quoteId: body.quoteId } });
+            throw new BadRequestException('This quote has already been fully invoiced');
+        }
+
+        const quoteItemById = new Map<string, (typeof quote.items)[number]>(
+            quote.items.map(item => [item.id, item] as const),
+        );
+        const remainingByItemId = new Map<string, number>(
+            invoicingStatus.items.map(item => [item.quoteItemId, item.remainingQuantity] as const),
+        );
+
+        const invoiceItems = body.items
+            .filter(line => line.quantity > 0)
+            .map(line => {
+                const quoteItem = quoteItemById.get(line.quoteItemId);
+                if (!quoteItem) {
+                    throw new BadRequestException(`Quote item ${line.quoteItemId} does not belong to quote ${body.quoteId}`);
+                }
+                const remaining = remainingByItemId.get(line.quoteItemId) ?? 0;
+                if (line.quantity > remaining + 1e-9) {
+                    throw new BadRequestException(`Requested quantity ${line.quantity} for item "${quoteItem.description}" exceeds remaining quantity ${remaining}`);
+                }
+                return {
+                    description: quoteItem.description,
+                    quantity: line.quantity,
+                    unitPrice: quoteItem.unitPrice,
+                    vatRate: quoteItem.vatRate,
+                    type: quoteItem.type,
+                    order: quoteItem.order,
+                    discountRate: quoteItem.discountRate,
+                    discountAmount: quoteItem.discountAmount ?? undefined,
+                    discountAmountMinor: quoteItem.discountAmountMinor ?? undefined,
+                    chargeAmount: quoteItem.chargeAmount ?? undefined,
+                    chargeAmountMinor: quoteItem.chargeAmountMinor ?? undefined,
+                    chargeDescription: quoteItem.chargeDescription ?? undefined,
+                    unitOfMeasure: quoteItem.unitOfMeasure,
+                    quoteItemId: quoteItem.id,
+                };
+            });
+
+        if (invoiceItems.length === 0) {
+            throw new BadRequestException('No items selected to invoice');
         }
 
         const newInvoice = await this.createInvoice({
             clientId: quote.clientId,
+            quoteId: quote.id,
             dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-            items: quote.items.map(i => ({
-                description: i.description,
-                quantity: i.quantity,
-                unitPrice: i.unitPrice,
-                vatRate: i.vatRate,
-                type: i.type,
-                order: i.order,
-                discountRate: i.discountRate,
-                discountAmount: i.discountAmount ?? undefined,
-                chargeAmount: i.chargeAmount ?? undefined,
-                chargeDescription: i.chargeDescription ?? undefined,
-                unitOfMeasure: i.unitOfMeasure,
-            })),
+            items: invoiceItems,
             currency: quote.currency,
             notes: quote.notes || '',
             paymentMethodId: (quote as any).paymentMethodId || undefined,
@@ -1270,7 +1351,7 @@ export class InvoicesService {
             paymentDetails: (quote as any).paymentDetails || undefined,
         });
 
-        logger.info('Invoice created from quote', { category: 'invoice', details: { invoiceId: newInvoice.id, quoteId } });
+        logger.info('Invoice created from quote', { category: 'invoice', details: { invoiceId: newInvoice.id, quoteId: quote.id } });
 
         try {
             await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_CREATED_FROM_QUOTE, {
@@ -1284,6 +1365,58 @@ export class InvoicesService {
         }
 
         return newInvoice;
+    }
+
+    /**
+     * Computes how much of each quote item has already been invoiced across
+     * all invoices created from this quote, and the remaining invoicable total.
+     */
+    async getQuoteInvoicingStatus(quoteId: string) {
+        const quote = await prisma.quote.findUnique({
+            where: { id: quoteId },
+            include: {
+                items: {
+                    include: {
+                        // Soft-deleted invoices (isActive: false) must not count towards
+                        // the invoiced quantity, otherwise deleting an invoice never
+                        // frees up the quote items it was created from.
+                        invoiceItems: { where: { invoice: { isActive: true } }, select: { quantity: true } },
+                    },
+                },
+            },
+        });
+
+        if (!quote) {
+            logger.error('Quote not found when computing invoicing status', { category: 'invoice', details: { quoteId } });
+            throw new BadRequestException('Quote not found');
+        }
+
+        const discountFactor = 1 - clampDiscountRate(quote.discountRate) / 100;
+
+        const items = quote.items.map(item => {
+            const invoicedQuantity = item.invoiceItems.reduce((sum, inv) => sum + inv.quantity, 0);
+            const remainingQuantity = Math.max(0, item.quantity - invoicedQuantity);
+            const remainingTTC = remainingQuantity * item.unitPrice * discountFactor * (1 + (item.vatRate || 0) / 100);
+            return {
+                quoteItemId: item.id,
+                description: item.description,
+                quantity: item.quantity,
+                invoicedQuantity,
+                remainingQuantity,
+                remainingTTC,
+            };
+        });
+
+        const totalTTC = quote.totalTTC;
+        const remainingTTC = items.reduce((sum, item) => sum + item.remainingTTC, 0);
+        const remainingPercent = totalTTC > 0 ? (remainingTTC / totalTTC) * 100 : 0;
+
+        return {
+            items,
+            totalTTC,
+            remainingTTC,
+            remainingPercent,
+        };
     }
 
     async archiveInvoice(invoiceId: string) {

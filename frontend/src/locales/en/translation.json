@@ -269,6 +269,87 @@
                 "invoiceCreateError": "Failed to create invoice from quote"
             }
         },
+        "progression": {
+            "title": "Progression",
+            "emptyState": "No quotes to display in progression.",
+            "noAction": "No action",
+            "steps": {
+                "draft": "Draft",
+                "sent": "Sent",
+                "signed": "Signed"
+            },
+            "stepLabel": "Step {{current}} / {{total}}",
+            "actions": {
+                "send": "Send",
+                "resend": "Resend",
+                "createInvoice": "Create invoice"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Send quote",
+                    "description": "Are you sure you want to send quote {{number}} to {{client}}?"
+                },
+                "resend": {
+                    "title": "Resend quote",
+                    "description": "Are you sure you want to resend quote {{number}} to {{client}}?"
+                },
+                "cancel": "Cancel",
+                "confirm": "Confirm"
+            }
+        },
+        "views": {
+            "list": "List",
+            "table": "Table"
+        },
+        "table": {
+            "columns": {
+                "number": "Number",
+                "client": "Client",
+                "status": "Status",
+                "totalTTC": "Total (incl. tax)",
+                "createdAt": "Created on",
+                "validUntil": "Valid until"
+            },
+            "filters": {
+                "client": "Client",
+                "clientPlaceholder": "All clients",
+                "clientNoResults": "No client found",
+                "year": "Year",
+                "month": "Month",
+                "allYears": "All years",
+                "allMonths": "All months"
+            },
+            "actions": {
+                "export": "Export"
+            },
+            "emptyState": "No quotes match these filters."
+        },
+        "createInvoiceDialog": {
+            "title": "Create invoice from quote",
+            "description": "Select the items to invoice from quote {{number}}.",
+            "percentageLabel": "Percentage to invoice",
+            "amountLabel": "Amount to invoice",
+            "maxPercentageHint": "Up to {{percent}}% of the quote can still be invoiced.",
+            "fields": {
+                "quantity": {
+                    "label": "Quantity"
+                }
+            },
+            "alreadyInvoicedBadge": "Already invoiced",
+            "remainingLabel": "Remaining: {{remaining}}",
+            "remainingTotalLabel": "{{amount}} {{currency}} remaining",
+            "totalSelectedLabel": "Total: {{amount}} {{currency}}",
+            "percentOfQuoteLabel": "{{percent}}% of quote",
+            "itemAmountLabel": "{{amount}} {{currency}}",
+            "actions": {
+                "confirm": "Create invoice",
+                "cancel": "Cancel"
+            },
+            "errors": {
+                "quoteFullyInvoiced": "This quote has already been fully invoiced.",
+                "quantityExceedsRemaining": "The requested quantity exceeds the remaining quantity to invoice."
+            }
+        },
         "upsert": {
             "title": {
                 "create": "Create New Quote",
@@ -468,6 +549,33 @@
                 "cancel": "Cancel"
             },
             "noAction": "No action"
+        },
+        "views": {
+            "list": "List",
+            "table": "Table"
+        },
+        "table": {
+            "columns": {
+                "number": "Number",
+                "client": "Client",
+                "status": "Status",
+                "totalTTC": "Total (incl. tax)",
+                "createdAt": "Created on",
+                "dueDate": "Due date"
+            },
+            "filters": {
+                "client": "Client",
+                "clientPlaceholder": "All clients",
+                "clientNoResults": "No client found",
+                "year": "Year",
+                "month": "Month",
+                "allYears": "All years",
+                "allMonths": "All months"
+            },
+            "actions": {
+                "export": "Export"
+            },
+            "emptyState": "No invoices match these filters."
         },
         "stats": {
             "total": "Total Invoices",
@@ -1769,6 +1877,7 @@
         "apiKeys": {
             "title": "API Keys",
             "description": "Manage API keys to authenticate CLI or third-party clients against the API",
+            "swaggerLink": "API documentation",
             "createdKeyTitle": "API key created",
             "createdKeyNotice": "This key will be shown only once. Store it securely.",
             "create": {
@@ -2084,6 +2193,36 @@
         },
         "pdf": {
             "title": "Payment {{number}} - PDF"
+        },
+        "tabs": {
+            "list": "List",
+            "table": "Table"
+        },
+        "table": {
+            "columns": {
+                "number": "Number",
+                "invoice": "Invoice",
+                "client": "Client",
+                "totalPaid": "Amount paid",
+                "paidAt": "Payment date",
+                "paymentMethod": "Payment method"
+            },
+            "filters": {
+                "invoice": "Invoice",
+                "invoicePlaceholder": "All invoices",
+                "invoiceNoResults": "No invoice found",
+                "client": "Client",
+                "clientPlaceholder": "All clients",
+                "clientNoResults": "No client found",
+                "year": "Year",
+                "month": "Month",
+                "allYears": "All years",
+                "allMonths": "All months"
+            },
+            "actions": {
+                "export": "Export"
+            },
+            "emptyState": "No payments match these filters."
         }
     },
     "stats": {

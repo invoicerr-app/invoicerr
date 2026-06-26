@@ -104,6 +104,7 @@ export interface InvoiceItem {
     chargeAmount?: number;
     chargeDescription?: string;
     unitOfMeasure?: string;
+    quoteItemId?: string; // Link to the originating QuoteItem when created from a quote
 }
 
 export interface Invoice {

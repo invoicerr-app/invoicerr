@@ -484,23 +484,24 @@ model Quote {
 }
 
 model QuoteItem {
-  id                 String   @id @default(uuid())
-  quote              Quote    @relation(fields: [quoteId], references: [id])
+  id                 String        @id @default(uuid())
+  quote              Quote         @relation(fields: [quoteId], references: [id])
   quoteId            String
   description        String
   quantity           Float
   unitPrice          Float
   unitPriceMinor     Int?
   vatRate            Float // 20 for 20%
-  type               ItemType @default(SERVICE)
+  type               ItemType      @default(SERVICE)
   order              Int // For sorting items in the quote pdf
-  discountRate       Float    @default(0)
+  discountRate       Float         @default(0)
   discountAmount     Float?
   discountAmountMinor Int?
   chargeAmount       Float?
   chargeAmountMinor  Int?
   chargeDescription  String?
-  unitOfMeasure      String   @default("C62")
+  unitOfMeasure      String        @default("C62")
+  invoiceItems       InvoiceItem[]
 }
 
 // Invoice model
@@ -584,6 +585,8 @@ model InvoiceItem {
   chargeAmountMinor  Int?
   chargeDescription  String?
   unitOfMeasure      String        @default("C62") // UN/ECE Rec 20 code (C62 = piece/one)
+  quoteItem          QuoteItem?    @relation(fields: [quoteItemId], references: [id])
+  quoteItemId        String?
   paymentItems       PaymentItem[]
 }
 

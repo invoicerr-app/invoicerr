@@ -11,9 +11,10 @@ import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
 import { PaymentBreakdown } from "@/components/payment-breakdown"
 import type { DistributedItem } from "@/lib/payment-distribution"
-import type { Invoice } from "@/types"
+import type { Invoice, Payment } from "@/types"
 import { distributePayment } from "@/lib/payment-distribution"
 import { useForm } from "react-hook-form"
+import { useNavigate } from "react-router"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -26,8 +27,9 @@ interface PaymentReceivedDialogProps {
 
 export function PaymentReceivedDialog({ invoice, onOpenChange }: PaymentReceivedDialogProps) {
     const { t } = useTranslation()
+    const navigate = useNavigate()
     const queryClient = useQueryClient()
-    const { trigger: createPaymentFromInvoice, loading } = usePost("/api/payments/create-from-invoice")
+    const { trigger: createPaymentFromInvoice, loading } = usePost<Payment>("/api/payments/create-from-invoice")
 
     const alreadyPaid = invoice?.payments?.reduce((sum, p) => sum + p.totalPaid, 0) ?? 0
     const remaining = Math.max(0, (invoice?.totalTTC ?? 0) - alreadyPaid)
@@ -89,11 +91,12 @@ export function PaymentReceivedDialog({ invoice, onOpenChange }: PaymentReceived
             amount: data.amount,
             items: items.map(item => ({ invoiceItemId: item.invoiceItemId, amountPaid: item.amountPaid })),
         })
-            .then(() => {
+            .then((payment) => {
                 toast.success(t("invoices.list.messages.markAsPaidSuccess"))
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 queryClient.invalidateQueries({ queryKey: queryKeys.payments.listsAll() })
                 handleOpenChange(false)
+                if (payment) navigate(`/payments/pdf/${payment.id}`, { state: { payment } })
             })
             .catch(() => {
                 toast.error(t("invoices.list.messages.markAsPaidError"))

@@ -42,7 +42,18 @@ export class CreateInvoiceDto {
         chargeAmount?: number;
         chargeDescription?: string;
         unitOfMeasure?: string;
+        quoteItemId?: string;
     }[];
+}
+
+export class CreateInvoiceFromQuoteItemDto {
+    quoteItemId: string;
+    quantity: number;
+}
+
+export class CreateInvoiceFromQuoteDto {
+    quoteId: string;
+    items: CreateInvoiceFromQuoteItemDto[];
 }
 
 export class EditInvoicesDto {

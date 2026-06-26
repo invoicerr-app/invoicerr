@@ -251,6 +251,87 @@
                 "invoiceCreateError": "Rechnung kann nicht aus Angebot erstellt werden"
             }
         },
+        "progression": {
+            "title": "Fortschritt",
+            "emptyState": "Keine Angebote in der Fortschrittsansicht.",
+            "noAction": "Keine Aktion",
+            "steps": {
+                "draft": "Entwurf",
+                "sent": "Gesendet",
+                "signed": "Unterzeichnet"
+            },
+            "stepLabel": "Schritt {{current}} / {{total}}",
+            "actions": {
+                "send": "Senden",
+                "resend": "Erneut senden",
+                "createInvoice": "Rechnung erstellen"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Angebot senden",
+                    "description": "Möchten Sie das Angebot {{number}} wirklich an {{client}} senden?"
+                },
+                "resend": {
+                    "title": "Angebot erneut senden",
+                    "description": "Möchten Sie das Angebot {{number}} wirklich erneut an {{client}} senden?"
+                },
+                "cancel": "Abbrechen",
+                "confirm": "Bestätigen"
+            }
+        },
+        "views": {
+            "list": "Liste",
+            "table": "Tabelle"
+        },
+        "table": {
+            "columns": {
+                "number": "Nummer",
+                "client": "Kunde",
+                "status": "Status",
+                "totalTTC": "Gesamt (inkl. MwSt.)",
+                "createdAt": "Erstellt am",
+                "validUntil": "Gültig bis"
+            },
+            "filters": {
+                "client": "Kunde",
+                "clientPlaceholder": "Alle Kunden",
+                "clientNoResults": "Kein Kunde gefunden",
+                "year": "Jahr",
+                "month": "Monat",
+                "allYears": "Alle Jahre",
+                "allMonths": "Alle Monate"
+            },
+            "actions": {
+                "export": "Exportieren"
+            },
+            "emptyState": "Keine Angebote entsprechen diesen Filtern."
+        },
+        "createInvoiceDialog": {
+            "title": "Rechnung aus Angebot erstellen",
+            "description": "Wählen Sie die Artikel aus, die aus dem Angebot {{number}} abgerechnet werden sollen.",
+            "percentageLabel": "Abzurechnender Prozentsatz",
+            "amountLabel": "Abzurechnender Betrag",
+            "maxPercentageHint": "Es können noch bis zu {{percent}} % des Angebots abgerechnet werden.",
+            "fields": {
+                "quantity": {
+                    "label": "Menge"
+                }
+            },
+            "alreadyInvoicedBadge": "Bereits abgerechnet",
+            "remainingLabel": "Verbleibend: {{remaining}}",
+            "remainingTotalLabel": "{{amount}} {{currency}} verbleibend",
+            "totalSelectedLabel": "Gesamt: {{amount}} {{currency}}",
+            "percentOfQuoteLabel": "{{percent}}% des Angebots",
+            "itemAmountLabel": "{{amount}} {{currency}}",
+            "actions": {
+                "confirm": "Rechnung erstellen",
+                "cancel": "Abbrechen"
+            },
+            "errors": {
+                "quoteFullyInvoiced": "Dieses Angebot wurde bereits vollständig abgerechnet.",
+                "quantityExceedsRemaining": "Die angeforderte Menge übersteigt die verbleibende abzurechnende Menge."
+            }
+        },
         "upsert": {
             "title": {
                 "create": "Neues Angebot erstellen",
@@ -432,6 +513,33 @@
             "sent": "Gesendet",
             "paid": "Bezahlt"
         },
+        "views": {
+            "list": "Liste",
+            "table": "Tabelle"
+        },
+        "table": {
+            "columns": {
+                "number": "Nummer",
+                "client": "Kunde",
+                "status": "Status",
+                "totalTTC": "Gesamt (inkl. MwSt.)",
+                "createdAt": "Erstellt am",
+                "dueDate": "Fälligkeitsdatum"
+            },
+            "filters": {
+                "client": "Kunde",
+                "clientPlaceholder": "Alle Kunden",
+                "clientNoResults": "Kein Kunde gefunden",
+                "year": "Jahr",
+                "month": "Monat",
+                "allYears": "Alle Jahre",
+                "allMonths": "Alle Monate"
+            },
+            "actions": {
+                "export": "Exportieren"
+            },
+            "emptyState": "Keine Rechnungen entsprechen diesen Filtern."
+        },
         "statusFilters": {
             "all": "Alle",
             "draft": "Entwurf",
@@ -499,9 +607,9 @@
                 "delete": "Rechnung löschen",
                 "sendByEmail": "Sende Rechnung per Email",
                 "issue": "Rechnung ausstellen",
-                "creditNote": "Issue credit note",
-                "cancel": "Cancel invoice",
-                "cancelAndReplace": "Cancel and replace"
+                "creditNote": "Gutschrift ausstellen",
+                "cancel": "Rechnung stornieren",
+                "cancelAndReplace": "Stornieren und ersetzen"
             },
             "actions": {
                 "addNew": "Neue Rechnung hinzufügen",
@@ -522,10 +630,10 @@
                 "sendByEmailSuccess": "Rechnung wurde versandt",
                 "issueSuccess": "Rechnung erfolgreich ausgestellt",
                 "issueError": "Rechnung konnte nicht ausgestellt werden",
-                "correctSuccess": "Credit note issued",
-                "correctError": "Failed to issue credit note",
-                "cancelSuccess": "Invoice cancelled",
-                "cancelError": "Failed to cancel invoice"
+                "correctSuccess": "Gutschrift ausgestellt",
+                "correctError": "Gutschrift konnte nicht ausgestellt werden",
+                "cancelSuccess": "Rechnung storniert",
+                "cancelError": "Rechnung konnte nicht storniert werden"
             }
         },
         "upsert": {
@@ -1909,6 +2017,36 @@
         },
         "pdf": {
             "title": "Beleg {{number}} - PDF"
+        },
+        "tabs": {
+            "list": "Liste",
+            "table": "Tabelle"
+        },
+        "table": {
+            "columns": {
+                "number": "Nummer",
+                "invoice": "Rechnung",
+                "client": "Kunde",
+                "totalPaid": "Bezahlter Betrag",
+                "paidAt": "Zahlungsdatum",
+                "paymentMethod": "Zahlungsmethode"
+            },
+            "filters": {
+                "invoice": "Rechnung",
+                "invoicePlaceholder": "Alle Rechnungen",
+                "invoiceNoResults": "Keine Rechnung gefunden",
+                "client": "Kunde",
+                "clientPlaceholder": "Alle Kunden",
+                "clientNoResults": "Kein Kunde gefunden",
+                "year": "Jahr",
+                "month": "Monat",
+                "allYears": "Alle Jahre",
+                "allMonths": "Alle Monate"
+            },
+            "actions": {
+                "export": "Exportieren"
+            },
+            "emptyState": "Keine Zahlungen entsprechen diesen Filtern."
         }
     },
     "stats": {
