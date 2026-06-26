@@ -26,6 +26,18 @@ Cypress.on('uncaught:exception', () => {
 })
 
 
+// Reset Radix UI scroll-lock residue.
+// Headless Cypress never fires CSS animationend, so Radix's Presence
+// never unmounts the dialog → body stays stuck with pointer-events:none
+// and data-scroll-locked="1".  Force-clear before each test to prevent
+// cascading failures across specs.
+beforeEach(() => {
+    cy.document().then((doc) => {
+        doc.body.style.pointerEvents = '';
+        doc.body.removeAttribute('data-scroll-locked');
+    });
+});
+
 // Intercept and log auth API calls for debugging
 beforeEach(() => {
     cy.intercept('POST', '**/api/auth/**').as('authRequest');
