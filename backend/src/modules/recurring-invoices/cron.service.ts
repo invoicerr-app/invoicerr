@@ -102,7 +102,8 @@ export class RecurringInvoicesCronService {
                                 paymentDetails: recurringInvoice.paymentDetails || undefined,
                                 dueDate: new Date(cycleDate.getTime() + 14 * 24 * 60 * 60 * 1000),
                                 items: recurringInvoice.items.map(item => ({
-                                    description: item.description,
+                                    name: item.name,
+                                    description: item.description ?? undefined,
                                     quantity: item.quantity,
                                     unitPrice: item.unitPrice,
                                     vatRate: item.vatRate,

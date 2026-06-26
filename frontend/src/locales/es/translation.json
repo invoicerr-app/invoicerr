@@ -360,11 +360,18 @@
                 "items": {
                     "label": "Ítems de la cotización",
                     "addItem": "Agregar ítem",
+                    "name": {
+                        "placeholder": "Nombre del ítem",
+                        "errors": {
+                            "required": "El nombre es obligatorio"
+                        }
+                    },
                     "description": {
                         "placeholder": "Descripción del ítem",
                         "errors": {
                             "required": "La descripción es obligatoria"
-                        }
+                        },
+                        "hint": "Consejo: usa **negrita** y *cursiva* para resaltar."
                     },
                     "quantity": {
                         "placeholder": "Cantidad",
@@ -664,11 +671,18 @@
                 "items": {
                     "label": "Ítems de la factura",
                     "addItem": "Agregar ítem",
+                    "name": {
+                        "placeholder": "Nombre del ítem",
+                        "errors": {
+                            "required": "El nombre es obligatorio"
+                        }
+                    },
                     "description": {
                         "placeholder": "Descripción del ítem",
                         "errors": {
                             "required": "La descripción es obligatoria"
-                        }
+                        },
+                        "hint": "Consejo: usa **negrita** y *cursiva* para resaltar."
                     },
                     "quantity": {
                         "placeholder": "Cantidad",
@@ -945,11 +959,18 @@
                 "items": {
                     "label": "Ítems de factura recurrente",
                     "addItem": "Agregar ítem",
+                    "name": {
+                        "placeholder": "Nombre del ítem",
+                        "errors": {
+                            "required": "El nombre es obligatorio"
+                        }
+                    },
                     "description": {
                         "placeholder": "Descripción del ítem",
                         "errors": {
                             "required": "La descripción es obligatoria"
-                        }
+                        },
+                        "hint": "Consejo: usa **negrita** y *cursiva* para resaltar."
                     },
                     "quantity": {
                         "placeholder": "Cantidad",
@@ -1543,15 +1564,10 @@
                 "description": "Opciones de fuente y estilo de texto",
                 "fontFamily": "Familia tipográfica"
             },
-            "colors": {
-                "title": "Colores",
-                "description": "Colores y tema de la marca",
-                "primaryColor": "Color primario",
-                "secondaryColor": "Color secundario"
-            },
             "logo": {
-                "title": "Logo",
+                "title": "Logo y color",
                 "description": "Configuración del logotipo de la empresa",
+                "color": "Color",
                 "includeLogo": "Incluir logo",
                 "logoPreview": "Vista previa del logo",
                 "uploadText": "Haz clic para subir logo"

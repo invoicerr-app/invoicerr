@@ -16,7 +16,8 @@ export enum RecurrenceFrequency {
 export interface RecurringInvoiceItem {
     id: string;
     recurringInvoiceId: string;
-    description: string;
+    name: string;
+    description?: string;
     quantity: number;
     unitPrice: number;
     vatRate: number;
@@ -63,7 +64,8 @@ export interface CreateRecurringInvoiceDto {
     autoIssue?: boolean;
     autoSend?: boolean;
     items: {
-        description: string;
+        name: string;
+        description?: string;
         quantity: number;
         unitPrice: number;
         vatRate: number;

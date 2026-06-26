@@ -487,7 +487,8 @@ model QuoteItem {
   id                 String        @id @default(uuid())
   quote              Quote         @relation(fields: [quoteId], references: [id])
   quoteId            String
-  description        String
+  name               String
+  description        String?
   quantity           Float
   unitPrice          Float
   unitPriceMinor     Int?
@@ -571,7 +572,8 @@ model InvoiceItem {
   id                 String        @id @default(uuid())
   invoice            Invoice       @relation(fields: [invoiceId], references: [id])
   invoiceId          String
-  description        String
+  name               String
+  description        String?
   quantity           Float
   unitPrice          Float
   unitPriceMinor     Int?
@@ -627,7 +629,8 @@ model RecurringInvoiceItem {
   id                 String           @id @default(uuid())
   recurringInvoice   RecurringInvoice @relation(fields: [recurringInvoiceId], references: [id])
   recurringInvoiceId String
-  description        String
+  name               String
+  description        String?
   quantity           Float
   unitPrice          Float
   unitPriceMinor     Int?

@@ -7,6 +7,7 @@ import { baseTemplate } from '@/modules/quotes/templates/base.template';
 import { formatDate } from '@/utils/date';
 import prisma from '@/prisma/prisma.service';
 import { clampDiscountRate } from '@/utils/financial';
+import { formatItemDescription } from '@/utils/format-text';
 
 export async function generateQuotePdf(id: string): Promise<Uint8Array> {
     const quote = await prisma.quote.findUnique({
@@ -74,7 +75,8 @@ export async function generateQuotePdf(id: string): Promise<Uint8Array> {
         client: quote.client,
         currency: quote.currency,
         items: quote.items.map(i => ({
-            description: i.description,
+            name: i.name,
+            description: formatItemDescription(i.description),
             quantity: i.quantity,
             unitPrice: i.unitPrice.toFixed(2),
             vatRate: i.vatRate,

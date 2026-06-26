@@ -1,5 +1,5 @@
 import { DndContext, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core"
-import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { GripVertical, Plus, Trash2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
@@ -11,6 +11,7 @@ import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
 import { CSS } from "@dnd-kit/utilities"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import type React from "react"
 import { useTranslation } from "react-i18next"
 
@@ -62,17 +63,18 @@ export function InvoiceLineItemsEditor({ translationPrefix, defaultItemType }: I
                                 id={fieldItem.id}
                                 dragHandle={<GripVertical className="cursor-grab text-muted-foreground" />}
                             >
+                                <div className="flex flex-col gap-2 w-full">
                                 <div className="flex gap-2 items-center">
                                     <FormField
                                         control={control}
-                                        name={`items.${index}.description`}
+                                        name={`items.${index}.name`}
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormControl>
                                                     <Input
                                                         {...field}
                                                         placeholder={t(
-                                                            `${translationPrefix}.upsert.form.items.description.placeholder`,
+                                                            `${translationPrefix}.upsert.form.items.name.placeholder`,
                                                         )}
                                                     />
                                                 </FormControl>
@@ -188,6 +190,29 @@ export function InvoiceLineItemsEditor({ translationPrefix, defaultItemType }: I
                                         <Trash2 className="h-4 w-4 text-red-700" />
                                     </Button>
                                 </div>
+
+                                <FormField
+                                    control={control}
+                                    name={`items.${index}.description`}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormControl>
+                                                <Textarea
+                                                    {...field}
+                                                    rows={2}
+                                                    placeholder={t(
+                                                        `${translationPrefix}.upsert.form.items.description.placeholder`,
+                                                    )}
+                                                />
+                                            </FormControl>
+                                            <FormDescription>
+                                                {t(`${translationPrefix}.upsert.form.items.description.hint`)}
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                </div>
                             </SortableItem>
                         ))}
                     </div>
@@ -200,6 +225,7 @@ export function InvoiceLineItemsEditor({ translationPrefix, defaultItemType }: I
                     variant="outline"
                     onClick={() =>
                         append({
+                            name: "",
                             description: "",
                             type: defaultItemType,
                             quantity: Number.NaN,
@@ -217,7 +243,8 @@ export function InvoiceLineItemsEditor({ translationPrefix, defaultItemType }: I
                     className="sm:max-w-xs"
                     onPick={(article) =>
                         append({
-                            description: article.description || article.name,
+                            name: article.name,
+                            description: article.description ?? "",
                             type: article.type,
                             quantity: 1,
                             unitPrice: article.unitPrice,

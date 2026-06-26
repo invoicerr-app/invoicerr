@@ -93,7 +93,8 @@ export enum DocumentKind {
 export interface InvoiceItem {
     id: string;
     invoiceId: string;
-    description: string;
+    name: string;
+    description?: string;
     quantity: number;
     unitPrice: number;
     vatRate: number; // 20 for 20%
@@ -178,7 +179,8 @@ export enum RecurrenceFrequency {
 export interface RecurringInvoiceItem {
     id: string;
     recurringInvoiceId: string;
-    description: string;
+    name: string;
+    description?: string;
     quantity: number;
     unitPrice: number;
     vatRate: number; // 20 for 20%

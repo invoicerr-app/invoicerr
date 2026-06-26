@@ -80,7 +80,7 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
             setSelectedInvoice(payment.invoice || null)
             setItems(payment.items.map(item => ({
                 invoiceItemId: item.invoiceItemId,
-                description: payment.invoice?.items.find(invItem => invItem.id === item.invoiceItemId)?.description || "",
+                name: payment.invoice?.items.find(invItem => invItem.id === item.invoiceItemId)?.name || "",
                 amountPaid: item.amountPaid,
             })))
             setRedistributeKey(k => k + 1)

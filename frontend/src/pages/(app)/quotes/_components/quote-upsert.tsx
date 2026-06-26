@@ -63,12 +63,13 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
         items: z.array(
             z.object({
                 id: z.string().optional(),
-                description: z
+                name: z
                     .string()
-                    .min(1, t("quotes.upsert.form.items.description.errors.required"))
+                    .min(1, t("quotes.upsert.form.items.name.errors.required"))
                     .refine((val) => val !== "", {
-                        message: t("quotes.upsert.form.items.description.errors.required"),
+                        message: t("quotes.upsert.form.items.name.errors.required"),
                     }),
+                description: z.string().optional(),
                 type: z.string(),
                 quantity: z
                     .number({ invalid_type_error: t("quotes.upsert.form.items.quantity.errors.required") })
@@ -126,6 +127,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                     .map((item) => ({
                         id: item.id,
                         type: item.type,
+                        name: item.name || "",
                         description: item.description || "",
                         quantity: item.quantity || 1,
                         unitPrice: item.unitPrice || 0,
@@ -240,6 +242,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                                                 data-cy="quote-client-select"
                                                 noResultsComponent={
                                                     <Button
+                                                        type="button"
                                                         variant="link"
                                                         onClick={() => setClientDialogOpen(true)}
                                                     >
@@ -370,17 +373,18 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                                                     id={fieldItem.id}
                                                     dragHandle={<GripVertical className="cursor-grab text-muted-foreground" />}
                                                 >
+                                                    <div className="flex flex-col gap-2 w-full">
                                                     <div className="flex gap-2 items-center">
                                                         <FormField
                                                             control={control}
-                                                            name={`items.${index}.description`}
+                                                            name={`items.${index}.name`}
                                                             render={({ field }) => (
                                                                 <FormItem>
                                                                     <FormControl>
                                                                         <Input
                                                                             {...field}
                                                                             placeholder={t(
-                                                                                `quotes.upsert.form.items.description.placeholder`,
+                                                                                `quotes.upsert.form.items.name.placeholder`,
                                                                             )}
                                                                         />
                                                                     </FormControl>
@@ -492,9 +496,32 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                                                             )}
                                                         />
 
-                                                        <Button variant={"outline"} onClick={() => onRemove(index)} dataCy={`remove-item-${index}`}>
+                                                        <Button type="button" variant={"outline"} onClick={() => onRemove(index)} dataCy={`remove-item-${index}`}>
                                                             <Trash2 className="h-4 w-4 text-red-700" />
                                                         </Button>
+                                                    </div>
+
+                                                    <FormField
+                                                        control={control}
+                                                        name={`items.${index}.description`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormControl>
+                                                                    <Textarea
+                                                                        {...field}
+                                                                        rows={2}
+                                                                        placeholder={t(
+                                                                            `quotes.upsert.form.items.description.placeholder`,
+                                                                        )}
+                                                                    />
+                                                                </FormControl>
+                                                                <FormDescription>
+                                                                    {t(`quotes.upsert.form.items.description.hint`)}
+                                                                </FormDescription>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
                                                     </div>
                                                 </SortableItem>
                                             ))}
@@ -508,6 +535,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                                         variant="outline"
                                         onClick={() =>
                                             append({
+                                                name: "",
                                                 description: "",
                                                 type: "HOUR",
                                                 quantity: Number.NaN,
@@ -525,7 +553,8 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                                         className="sm:max-w-xs"
                                         onPick={(article) =>
                                             append({
-                                                description: article.description || article.name,
+                                                name: article.name,
+                                                description: article.description ?? "",
                                                 type: article.type,
                                                 quantity: 1,
                                                 unitPrice: article.unitPrice,

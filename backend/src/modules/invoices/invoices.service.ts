@@ -13,6 +13,7 @@ import { baseTemplate } from '@/modules/invoices/templates/base.template';
 import { business } from '@tsclass/tsclass/dist_ts';
 import { finance } from '@fin.cx/einvoice/dist_ts/plugins';
 import { formatDate } from '@/utils/date';
+import { formatItemDescription } from '@/utils/format-text';
 import { logger } from '@/logger/logger.service';
 import { parseAddress } from '@/utils/adress';
 import prisma from '@/prisma/prisma.service';
@@ -163,7 +164,7 @@ export class InvoicesService {
             where: {
                 OR: [
                     { client: { name: { contains: query } } },
-                    { items: { some: { description: { contains: query } } } },
+                    { items: { some: { name: { contains: query } } } },
                 ],
             },
             include: {
@@ -252,6 +253,7 @@ export class InvoicesService {
                 totalTTCMinor: taxResult.totalsMinor.grossMinor,
                 items: {
                     create: items.map((item, i) => ({
+                        name: item.name ?? item.description,
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
@@ -297,7 +299,7 @@ export class InvoicesService {
                 },
                 lines: items.map((item) => ({
                     id: `item-${item.order ?? 0}`,
-                    description: item.description,
+                    description: (item.description ?? '') as string,
                     quantity: item.quantity,
                     unitNetMinor: toMinor(item.unitPrice, body.currency || client.currency || company.currency),
                     supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
@@ -677,6 +679,7 @@ export class InvoicesService {
                         totalTTCMinor: invoice.totalTTCMinor,
                         items: {
                             create: invoice.items.map((item, i) => ({
+                                name: item.name,
                                 description: item.description,
                                 quantity: item.quantity,
                                 unitPrice: item.unitPrice,
@@ -721,7 +724,7 @@ export class InvoicesService {
                     },
                     lines: invoice.items.map((item) => ({
                         id: `item-${item.order ?? 0}`,
-                        description: item.description,
+                        description: (item.description ?? '') as string,
                         quantity: item.quantity,
                         unitNetMinor: item.unitPriceMinor ?? toMinor(item.unitPrice, invoice.currency),
                         supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
@@ -860,6 +863,7 @@ export class InvoicesService {
                         .map(({ i, originalIdx }) => ({
                             where: { id: i.id! },
                             data: {
+                                name: i.name,
                                 description: i.description,
                                 quantity: i.quantity,
                                 unitPrice: i.unitPrice,
@@ -880,6 +884,7 @@ export class InvoicesService {
                         .map((i, originalIdx) => ({ i, originalIdx }))
                         .filter(({ i }) => !i.id)
                         .map(({ i, originalIdx }) => ({
+                            name: i.name ?? i.description,
                             description: i.description,
                             quantity: i.quantity,
                             unitPrice: i.unitPrice,
@@ -1064,7 +1069,8 @@ export class InvoicesService {
             client: clientAugmented,
             currency: invoice.currency,
             items: invoice.items.map(i => ({
-                description: i.description,
+                name: i.name,
+                description: formatItemDescription(i.description),
                 quantity: Number.isInteger(i.quantity) ? i.quantity.toString() : i.quantity.toFixed(3).replace(/\.?0+$/, ''),
                 unitPrice: i.unitPrice.toFixed(2),
                 vatRate: (i.vatRate || 0).toFixed(2),
@@ -1234,7 +1240,7 @@ export class InvoicesService {
 
         invRec.items.forEach((item, index) => {
             inv.addItem({
-                name: item.description,
+                name: item.name,
                 unitQuantity: item.quantity,
                 unitNetPrice: item.unitPrice,
                 vatPercentage: item.vatRate || 0,
@@ -1318,7 +1324,8 @@ export class InvoicesService {
                     throw new BadRequestException(`Requested quantity ${line.quantity} for item "${quoteItem.description}" exceeds remaining quantity ${remaining}`);
                 }
                 return {
-                    description: quoteItem.description,
+                    name: quoteItem.name,
+                    description: quoteItem.description ?? undefined,
                     quantity: line.quantity,
                     unitPrice: quoteItem.unitPrice,
                     vatRate: quoteItem.vatRate,
@@ -1399,6 +1406,7 @@ export class InvoicesService {
             const remainingTTC = remainingQuantity * item.unitPrice * discountFactor * (1 + (item.vatRate || 0) / 100);
             return {
                 quoteItemId: item.id,
+                name: item.name,
                 description: item.description,
                 quantity: item.quantity,
                 invoicedQuantity,
@@ -1629,6 +1637,7 @@ export class InvoicesService {
                 totalTTCMinor: taxResult.totalsMinor.grossMinor,
                 items: {
                     create: items.map((item, i) => ({
+                        name: item.name,
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
@@ -1671,7 +1680,7 @@ export class InvoicesService {
                 },
                 lines: items.map((item) => ({
                     id: `item-${item.order ?? 0}`,
-                    description: item.description,
+                    description: (item.description ?? '') as string,
                     quantity: item.quantity,
                     unitNetMinor: toMinor(item.unitPrice, body.currency || client.currency || company.currency),
                     supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
@@ -1700,7 +1709,8 @@ export class InvoicesService {
         const newInvoice = await this.createInvoice({
             clientId: proforma.clientId,
             items: proforma.items.map(item => ({
-                description: item.description,
+                name: item.name,
+                description: item.description ?? undefined,
                 quantity: item.quantity,
                 unitPrice: item.unitPrice,
                 vatRate: item.vatRate,
@@ -1819,6 +1829,7 @@ export class InvoicesService {
                     totalTTCMinor: toMinor(depositTTC, currency),
                     items: {
                         create: [{
+                            name: 'Deposit payment',
                             description: 'Deposit payment',
                             quantity: 1,
                             unitPrice: depositHT,

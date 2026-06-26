@@ -40,7 +40,19 @@ const config: Config = {
     },
   },
 
-  plugins: [complianceContentPlugin],
+  plugins: [
+    complianceContentPlugin,
+    [
+      require.resolve('@easyops-cn/docusaurus-search-local'),
+      {
+        indexDocs: true,
+        indexBlog: true,
+        indexPages: false,
+        hashed: true,
+        language: ['en', 'fr'],
+      },
+    ],
+  ],
 
   presets: [
     [
@@ -51,7 +63,21 @@ const config: Config = {
           editUrl:
             'https://github.com/invoicerr-app/invoicerr/tree/main/documentation/',
         },
-        blog: false,
+        blog: {
+          path: 'changelog',
+          routeBasePath: '/changelog',
+          showReadingTime: false,
+          postsPerPage: 20,
+          onUntruncatedBlogPosts: 'ignore',
+          truncateMarker: /{\/\* truncate \*\/}/,
+          feedOptions: {
+            type: 'atom',
+            title: 'Invoicerr Changelog',
+          },
+          blogTitle: 'Changelog',
+          blogSidebarTitle: 'Latest releases',
+          blogSidebarCount: 10,
+        },
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -86,12 +112,6 @@ const config: Config = {
         },
         {
           type: 'docSidebar',
-          sidebarId: 'apiReferenceSidebar',
-          label: 'API Reference',
-          position: 'left',
-        },
-        {
-          type: 'docSidebar',
           sidebarId: 'userGuideSidebar',
           label: 'User Guide',
           position: 'left',
@@ -102,8 +122,7 @@ const config: Config = {
           position: 'left',
         },
         {
-          type: 'doc',
-          docId: 'changelog',
+          to: '/changelog',
           label: 'Changelog',
           position: 'left',
         },
@@ -138,7 +157,7 @@ const config: Config = {
             },
             {
               label: 'Changelog',
-              to: '/docs/changelog',
+              to: '/changelog',
             },
           ],
         },

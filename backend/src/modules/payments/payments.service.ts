@@ -572,7 +572,7 @@ export class PaymentsService {
             items: payment.items.map(item => {
                 const invoiceItem = payment.invoice.items.find(i => i.id === item.invoiceItemId);
                 return {
-                    description: invoiceItem?.description || 'N/A',
+                    description: invoiceItem?.name || 'N/A',
                     type: itemTypeLabels[invoiceItem?.type as string] || invoiceItem?.type || '',
                     amount: item.amountPaid.toFixed(2),
                 };

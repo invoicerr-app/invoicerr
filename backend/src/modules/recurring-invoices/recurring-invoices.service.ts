@@ -117,6 +117,7 @@ export class RecurringInvoicesService {
                 totalTTCMinor: taxResult.totalsMinor.grossMinor,
                 items: {
                     create: data.items.map((item, index) => ({
+                        name: item.name,
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
@@ -213,6 +214,7 @@ export class RecurringInvoicesService {
                 items: {
                     deleteMany: {},
                     create: data.items.map((item, index) => ({
+                        name: item.name,
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,

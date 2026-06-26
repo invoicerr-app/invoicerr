@@ -360,11 +360,18 @@
                 "items": {
                     "label": "Artikel hinzufügen",
                     "addItem": "Artikel hinzufügen",
+                    "name": {
+                        "placeholder": "Artikelname",
+                        "errors": {
+                            "required": "Name ist erforderlich"
+                        }
+                    },
                     "description": {
                         "placeholder": "Beschreibung des Artikels",
                         "errors": {
                             "required": "Beschreibung ist erforderlich"
-                        }
+                        },
+                        "hint": "Tipp: **fett** und *kursiv* zur Hervorhebung verwenden."
                     },
                     "quantity": {
                         "placeholder": "Menge",
@@ -664,11 +671,18 @@
                 "items": {
                     "label": "Positionen der Rechnung",
                     "addItem": "Artikel hinzufügen",
+                    "name": {
+                        "placeholder": "Artikelname",
+                        "errors": {
+                            "required": "Name ist erforderlich"
+                        }
+                    },
                     "description": {
                         "placeholder": "Beschreibung des Artikels",
                         "errors": {
                             "required": "Beschreibung ist erforderlich"
-                        }
+                        },
+                        "hint": "Tipp: **fett** und *kursiv* zur Hervorhebung verwenden."
                     },
                     "quantity": {
                         "placeholder": "Menge",
@@ -945,11 +959,18 @@
                 "items": {
                     "label": "Wiederkehrende Rechnungspositionen",
                     "addItem": "Artikel hinzufügen",
+                    "name": {
+                        "placeholder": "Artikelname",
+                        "errors": {
+                            "required": "Name ist erforderlich"
+                        }
+                    },
                     "description": {
                         "placeholder": "Beschreibung des Artikels",
                         "errors": {
                             "required": "Beschreibung ist erforderlich"
-                        }
+                        },
+                        "hint": "Tipp: **fett** und *kursiv* zur Hervorhebung verwenden."
                     },
                     "quantity": {
                         "placeholder": "Menge",
@@ -1543,15 +1564,10 @@
                 "description": "Schrift- und Textgestaltungsoptionen",
                 "fontFamily": "Schriftfamilie"
             },
-            "colors": {
-                "title": "Farben",
-                "description": "Markenfarben und Farbgebung",
-                "primaryColor": "Primärfarbe",
-                "secondaryColor": "Sekundärfarbe"
-            },
             "logo": {
-                "title": "Logo",
+                "title": "Logo & Farbe",
                 "description": "Einstellungen für das Firmenlogo",
+                "color": "Farbe",
                 "includeLogo": "Logo anzeigen",
                 "logoPreview": "Logo-Vorschau",
                 "uploadText": "Zum Hochladen des Logos klicken"

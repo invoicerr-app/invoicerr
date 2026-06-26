@@ -26,7 +26,8 @@ export class CreateQuoteDto {
     paymentMethodId?: string;
     notes: string;
     items: {
-        description: string;
+        name: string;
+        description?: string;
         quantity: number;
         unitPrice: number;
         vatRate: number;
@@ -66,7 +67,8 @@ export class EditQuotesDto {
     paymentMethodId?: string;
     items: {
         id?: string; // Optional for new items
-        description: string;
+        name: string;
+        description?: string;
         quantity: number;
         unitPrice: number;
         vatRate: number;

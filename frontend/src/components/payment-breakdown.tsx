@@ -34,7 +34,7 @@ export function PaymentBreakdown({ items, currency, editable, redistributeKey = 
                     <div className="flex gap-2 items-center" key={item.invoiceItemId}>
                         <FormItem className="flex-1">
                             <FormControl>
-                                <BetterInput value={item.description || ""} disabled />
+                                <BetterInput value={item.name || ""} disabled />
                             </FormControl>
                         </FormItem>
                         <span className="text-sm text-muted-foreground w-12 text-right shrink-0">

@@ -19,9 +19,10 @@ import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { resolveInvoiceTax } from '@/compliance/integration/invoice-tax';
 import { ComplianceService } from '@/compliance/operations/compliance-service';
 import type { TransactionContext } from '@/compliance/canonical/canonical-document';
-import { clampDiscountRate, toMinor } from '@/utils/financial';
+import { clampDiscountRate, toMinor, calculateDiscountedTotals } from '@/utils/financial';
 import type { SupplyType } from '@/compliance/types';
 import { augmentWithIdentifiers, getIdentifier } from '@/utils/entity-identifiers';
+import { formatItemDescription } from '@/utils/format-text';
 
 @Injectable()
 export class QuotesService {
@@ -236,6 +237,7 @@ export class QuotesService {
                 totalTTCMinor: taxResult.totalsMinor.grossMinor,
                 items: {
                     create: items.map((item, i) => ({
+                        name: item.name ?? item.description,
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
@@ -364,6 +366,7 @@ export class QuotesService {
                         .map(({ i, originalIdx }) => ({
                             where: { id: i.id! },
                             data: {
+                                name: i.name,
                                 description: i.description,
                                 quantity: i.quantity,
                                 unitPrice: i.unitPrice,
@@ -384,6 +387,7 @@ export class QuotesService {
                         .map((i, originalIdx) => ({ i, originalIdx }))
                         .filter(({ i }) => !i.id)
                         .map(({ i, originalIdx }) => ({
+                            name: i.name ?? i.description,
                             description: i.description,
                             quantity: i.quantity,
                             unitPrice: i.unitPrice,
@@ -552,7 +556,8 @@ export class QuotesService {
             client: clientAugmented,
             currency: quote.currency,
             items: quote.items.map(i => ({
-                description: i.description,
+                name: i.name,
+                description: formatItemDescription(i.description),
                 quantity: Number.isInteger(i.quantity) ? i.quantity.toString() : i.quantity.toFixed(3).replace(/\.?0+$/, ''),
                 unitPrice: i.unitPrice.toFixed(2),
                 vatRate: i.vatRate,
@@ -689,7 +694,7 @@ export class QuotesService {
                 },
                 lines: existingQuote.items.map((item) => ({
                     id: `item-${item.order ?? 0}`,
-                    description: item.description,
+                    description: (item.description ?? '') as string,
                     quantity: item.quantity,
                     unitNetMinor: toMinor(item.unitPrice, existingQuote.currency),
                     supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,

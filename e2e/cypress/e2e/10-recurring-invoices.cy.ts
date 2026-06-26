@@ -14,7 +14,7 @@ function openRecurringInvoiceDialog() {
 
 function fillRecurringItem(description: string, quantity: string, unitPrice: string, vatRate: string) {
     cy.contains('button', /Add Item|Ajouter/i).click();
-    cy.get('[name="items.0.description"]').type(description, { force: true });
+    cy.get('[name="items.0.name"]').type(description, { force: true });
     cy.get('[name="items.0.quantity"]').clear({ force: true }).type(quantity, { force: true });
     cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type(unitPrice, { force: true });
     cy.get('[name="items.0.vatRate"]').clear({ force: true }).type(vatRate, { force: true });

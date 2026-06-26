@@ -422,33 +422,33 @@ export function formatPayloadForEvent(event: WebhookEvent, payload: any): string
 
         // Item events
         [WebhookEvent.QUOTE_ITEM_CREATED]: (p) =>
-            `Quote: #${p.quote?.number || 'N/A'}\nItem: ${p.item?.description || 'N/A'}`,
+            `Quote: #${p.quote?.number || 'N/A'}\nItem: ${p.item?.name || 'N/A'}`,
         [WebhookEvent.QUOTE_ITEM_UPDATED]: (p) =>
-            `Quote: #${p.quote?.number || 'N/A'}\nItem: ${p.item?.description || 'N/A'}`,
+            `Quote: #${p.quote?.number || 'N/A'}\nItem: ${p.item?.name || 'N/A'}`,
         [WebhookEvent.QUOTE_ITEM_DELETED]: (p) =>
             `Quote: #${p.quote?.number || 'N/A'}`,
         [WebhookEvent.INVOICE_ITEM_CREATED]: (p) =>
-            `Invoice: #${p.invoice?.number || 'N/A'}\nItem: ${p.item?.description || 'N/A'}`,
+            `Invoice: #${p.invoice?.number || 'N/A'}\nItem: ${p.item?.name || 'N/A'}`,
         [WebhookEvent.INVOICE_ITEM_UPDATED]: (p) =>
-            `Invoice: #${p.invoice?.number || 'N/A'}\nItem: ${p.item?.description || 'N/A'}`,
+            `Invoice: #${p.invoice?.number || 'N/A'}\nItem: ${p.item?.name || 'N/A'}`,
         [WebhookEvent.INVOICE_ITEM_DELETED]: (p) =>
             `Invoice: #${p.invoice?.number || 'N/A'}`,
         [WebhookEvent.PAYMENT_ITEM_CREATED]: (p) =>
-            `Payment: #${p.payment?.number || 'N/A'}\nItem: ${p.item?.description || 'N/A'}`,
+            `Payment: #${p.payment?.number || 'N/A'}\nItem: ${p.item?.name || 'N/A'}`,
         [WebhookEvent.PAYMENT_ITEM_UPDATED]: (p) =>
-            `Payment: #${p.payment?.number || 'N/A'}\nItem: ${p.item?.description || 'N/A'}`,
+            `Payment: #${p.payment?.number || 'N/A'}\nItem: ${p.item?.name || 'N/A'}`,
         [WebhookEvent.PAYMENT_ITEM_DELETED]: (p) =>
             `Payment: #${p.payment?.number || 'N/A'}`,
         [WebhookEvent.RECEIPT_ITEM_CREATED]: (p) =>
-            `Receipt: #${p.receipt?.number || 'N/A'}\nItem: ${p.item?.description || 'N/A'}`,
+            `Receipt: #${p.receipt?.number || 'N/A'}\nItem: ${p.item?.name || 'N/A'}`,
         [WebhookEvent.RECEIPT_ITEM_UPDATED]: (p) =>
-            `Receipt: #${p.receipt?.number || 'N/A'}\nItem: ${p.item?.description || 'N/A'}`,
+            `Receipt: #${p.receipt?.number || 'N/A'}\nItem: ${p.item?.name || 'N/A'}`,
         [WebhookEvent.RECEIPT_ITEM_DELETED]: (p) =>
             `Receipt: #${p.receipt?.number || 'N/A'}`,
         [WebhookEvent.RECURRING_INVOICE_ITEM_CREATED]: (p) =>
-            `Recurring Invoice\nItem: ${p.item?.description || 'N/A'}`,
+            `Recurring Invoice\nItem: ${p.item?.name || 'N/A'}`,
         [WebhookEvent.RECURRING_INVOICE_ITEM_UPDATED]: (p) =>
-            `Recurring Invoice\nItem: ${p.item?.description || 'N/A'}`,
+            `Recurring Invoice\nItem: ${p.item?.name || 'N/A'}`,
         [WebhookEvent.RECURRING_INVOICE_ITEM_DELETED]: (p) =>
             `Recurring Invoice`,
 

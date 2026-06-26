@@ -23,7 +23,7 @@ function ensurePayableInvoice() {
     cy.get('[data-cy="invoice-currency-select-option-euro-(€)"]').click();
 
     cy.contains('button', /Add Item|Ajouter/i).click();
-    cy.get('[name="items.0.description"]').type('Payable Service', { force: true });
+    cy.get('[name="items.0.name"]').type('Payable Service', { force: true });
     cy.get('[name="items.0.quantity"]').clear({ force: true }).type('1', { force: true });
     cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('200', { force: true });
     cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('20', { force: true });
