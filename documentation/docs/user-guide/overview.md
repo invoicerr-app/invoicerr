@@ -14,7 +14,7 @@ Open your Invoicerr instance and sign in from the **Sign in** page with your ema
 
 The very first time you open the app, if your company name isn't set yet, Invoicerr automatically opens an onboarding dialog that takes you to **Settings → Company**.
 
-:::tip Do this first
+:::tip[Do this first]
 Complete it before anything else: your company name, address, currency, and document numbering appear on every quote, invoice, and receipt you issue.
 :::
 

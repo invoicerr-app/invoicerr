@@ -10,7 +10,7 @@ Consultez les journaux d'audit de l'activité de votre instance — qui a fait q
 
 ## Danger Zone
 
-:::danger Actions destructrices
+:::danger[Actions destructrices]
 Ces actions sont irréversibles. Seuls les administrateurs de l'instance peuvent les effectuer.
 :::
 

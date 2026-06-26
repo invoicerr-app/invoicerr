@@ -40,7 +40,19 @@ const config: Config = {
     },
   },
 
-  plugins: [complianceContentPlugin],
+  plugins: [
+    complianceContentPlugin,
+    [
+      require.resolve('@easyops-cn/docusaurus-search-local'),
+      {
+        indexDocs: true,
+        indexBlog: true,
+        indexPages: false,
+        hashed: true,
+        language: ['en', 'fr'],
+      },
+    ],
+  ],
 
   presets: [
     [

@@ -14,7 +14,8 @@ The fastest way to run Invoicerr is using Docker Compose. A prebuilt image is av
 - `linux/amd64` (x86_64)
 - `linux/arm64/v8` (ARMv8)
 
-:::warning `linux/arm/v7` is not supported
+:::warning 
+`linux/arm/v7` is not supported
 Prisma does not provide prebuilt binaries for that architecture — the application will not run on 32-bit ARM devices.
 :::
 

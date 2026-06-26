@@ -8,7 +8,7 @@ sidebar_position: 2
 
 Personnalisez le corps des e-mails envoyés aux clients lors de l'envoi de devis pour signature ou de factures par e-mail. Prend en charge des variables dynamiques.
 
-:::info Fournisseur d'e-mail
+:::info[Fournisseur d'e-mail]
 L'envoi des e-mails lui-même (SMTP ou Brevo) se configure au niveau de l'instance via des variables d'environnement, pas depuis cette page. Voir [Installation Docker](../../getting-started/docker-installation.md#envoi-des-e-mails).
 :::
 

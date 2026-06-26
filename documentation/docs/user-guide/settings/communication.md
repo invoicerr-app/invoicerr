@@ -8,7 +8,7 @@ sidebar_position: 2
 
 Customise the email body sent to clients when you send quotes for signature or invoices by email. Supports placeholders for dynamic content.
 
-:::info Mail provider
+:::info[Mail provider]
 Email delivery itself (SMTP or Brevo) is configured at the instance level via environment variables, not from this page. See [Docker Installation](../../getting-started/docker-installation.md#email-delivery).
 :::
 

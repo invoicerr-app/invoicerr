@@ -14,7 +14,7 @@ Ouvrez votre instance Invoicerr et connectez-vous depuis la page **Sign in** ave
 
 La première fois que vous ouvrez l'application, si le nom de votre entreprise n'est pas encore défini, Invoicerr ouvre automatiquement une boîte de dialogue qui vous mène dans **Settings → Company**.
 
-:::tip Commencez par là
+:::tip[Commencez par là]
 Remplissez-la avant toute autre chose : le nom, l'adresse, la devise et la numérotation de votre entreprise apparaissent sur chaque devis, facture et reçu émis.
 :::
 

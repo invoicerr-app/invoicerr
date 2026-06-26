@@ -14,7 +14,8 @@ La façon la plus rapide de lancer Invoicerr est d'utiliser Docker Compose. Une 
 - `linux/amd64` (x86_64)
 - `linux/arm64/v8` (ARMv8)
 
-:::warning `linux/arm/v7` n'est pas pris en charge
+:::warning 
+`linux/arm/v7` n'est pas pris en charge
 Prisma ne fournit pas de binaires précompilés pour cette architecture — l'application ne fonctionnera pas sur les appareils ARM 32 bits.
 :::
 
