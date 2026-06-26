@@ -50,7 +50,7 @@ function createQuote({ baseTitle = 'Discount Flow Test', discountRate = 10, item
     cy.get('[name="discountRate"]').clear({ force: true }).type(`{selectAll}${discountRate}`, { force: true }).blur({ force: true });
 
     cy.contains('button', /Add Item|Ajouter/i).click();
-    cy.get('[name="items.0.description"]').type(item.description, { force: true });
+    cy.get('[name="items.0.name"]').type(item.description, { force: true });
     cy.get('[name="items.0.quantity"]').clear({ force: true }).type(String(item.quantity), { force: true });
     cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type(String(item.unitPrice), { force: true });
     cy.get('[name="items.0.vatRate"]').clear({ force: true }).type(String(item.vatRate), { force: true });
@@ -87,7 +87,7 @@ function createInvoice({ discountRate = 10, item = defaultQuoteItem }: CreateInv
     cy.get('[name="discountRate"]').clear({ force: true }).type(`{selectAll}${discountRate}`, { force: true }).blur({ force: true });
 
     cy.contains('button', /Add Item|Ajouter/i).click();
-    cy.get('[name="items.0.description"]').type(item.description, { force: true });
+    cy.get('[name="items.0.name"]').type(item.description, { force: true });
     cy.get('[name="items.0.quantity"]').clear({ force: true }).type(String(item.quantity), { force: true });
     cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type(String(item.unitPrice), { force: true });
     cy.get('[name="items.0.vatRate"]').clear({ force: true }).type(String(item.vatRate), { force: true });
@@ -179,7 +179,7 @@ describe('Discount Feature (Quote)', () => {
         cy.get('[data-cy="quote-currency-select-option-euro-(€)"]').click();
 
         cy.contains('button', /Add Item|Ajouter/i).click();
-        cy.get('[name="items.0.description"]').type('Validation Item', { force: true });
+        cy.get('[name="items.0.name"]').type('Validation Item', { force: true });
         cy.get('[name="items.0.quantity"]').clear({ force: true }).type('1', { force: true });
         cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('100', { force: true });
         cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('20', { force: true });

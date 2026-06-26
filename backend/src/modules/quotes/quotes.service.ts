@@ -14,6 +14,7 @@ import { formatDate } from '@/utils/date';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 import { calculateDiscountedTotals, clampDiscountRate } from '@/utils/financial';
+import { formatItemDescription } from '@/utils/format-text';
 
 @Injectable()
 export class QuotesService {
@@ -199,6 +200,7 @@ export class QuotesService {
                 totalTTC: totals.totalTTC,
                 items: {
                     create: items.map(item => ({
+                        name: item.name,
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
@@ -280,6 +282,7 @@ export class QuotesService {
                         .map(i => ({
                             where: { id: i.id! },
                             data: {
+                                name: i.name,
                                 description: i.description,
                                 quantity: i.quantity,
                                 unitPrice: i.unitPrice,
@@ -291,6 +294,7 @@ export class QuotesService {
                     create: items
                         .filter(i => !i.id)
                         .map(i => ({
+                            name: i.name,
                             description: i.description,
                             quantity: i.quantity,
                             unitPrice: i.unitPrice,
@@ -443,7 +447,8 @@ export class QuotesService {
             client: quote.client,
             currency: quote.currency,
             items: quote.items.map(i => ({
-                description: i.description,
+                name: i.name,
+                description: formatItemDescription(i.description),
                 quantity: Number.isInteger(i.quantity) ? i.quantity.toString() : i.quantity.toFixed(3).replace(/\.?0+$/, ''),
                 unitPrice: i.unitPrice.toFixed(2),
                 vatRate: i.vatRate,

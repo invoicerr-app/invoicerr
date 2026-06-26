@@ -12,7 +12,8 @@ export class CreateInvoiceDto {
     paymentDetails?: string;
     paymentMethodId?: string;
     items: {
-        description: string;
+        name: string;
+        description?: string;
         quantity: number;
         unitPrice: number;
         vatRate: number;
@@ -46,7 +47,8 @@ export class EditInvoicesDto {
     paymentMethodId?: string;
     items: {
         id?: string; // Optional for new items
-        description: string;
+        name: string;
+        description?: string;
         quantity: number;
         unitPrice: number;
         vatRate: number;

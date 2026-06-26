@@ -10,6 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { BetterInput } from "@/components/better-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { currencies } from "@/lib/constants/currencies";
 import { toast } from "sonner";
 import { useCompany } from "@/hooks/queries";
@@ -126,7 +127,7 @@ export function ArticleUpsert({ article, open, onOpenChange }: ArticleUpsertProp
                 <FormItem>
                   <FormLabel>{t("articles.fields.description.label")}</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder={t("articles.fields.description.placeholder") as string} />
+                    <Textarea {...field} rows={3} placeholder={t("articles.fields.description.placeholder") as string} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

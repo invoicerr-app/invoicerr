@@ -2,7 +2,7 @@ import type { Invoice } from "@/types"
 
 export interface DistributedItem {
     invoiceItemId: string
-    description: string
+    name: string
     amountPaid: number
 }
 
@@ -21,7 +21,7 @@ export function distributePayment(invoice: Invoice, total: number): DistributedI
 
     const list: DistributedItem[] = items.map((it, i) => ({
         invoiceItemId: it.id,
-        description: it.description,
+        name: it.name,
         amountPaid: Math.round(fullTTCs[i] * ratio * 100) / 100,
     }))
 

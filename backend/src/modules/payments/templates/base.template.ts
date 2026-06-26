@@ -6,24 +6,36 @@ export const baseTemplate = `
   <title>{{labels.payment}} {{number}}</title>
   <style>
         body { font-family: {{fontFamily}}, sans-serif; margin: {{padding}}px; color: #333; }
-        .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
-        .company-info h1 { margin: 0; color: {{primaryColor}}; }
+        .header { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; row-gap: 10px; margin-bottom: 30px; }
         .payment-info { text-align: right; }
-        .client-info { margin-bottom: 30px; }
+        .header p { margin: 0; line-height: 1.4; }
+        .client-info { text-align: left; }
+        .client-info h3 { margin: 0 0 4px; }
+        .client-info .name, .company-info .name { margin: 0 0 4px; font-weight: bold; }
+        .company-info .spacer { visibility: hidden; margin: 0 0 4px; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background-color: {{secondaryColor}}; font-weight: bold; color: {{tableTextColor}}; }        
+        th, td { padding: 12px; text-align: left; vertical-align: top; border-bottom: 1px solid #ddd; }
+        th { background-color: {{secondaryColor}}; font-weight: bold; color: {{tableTextColor}}; }
         .total-row { font-weight: bold; background-color: {{secondaryColor}}; color: {{tableTextColor}}; }
-        .logo { max-height: 80px; margin-bottom: 10px; }
+        .logo { max-height: 140px; margin-bottom: 10px; }
   </style>
 </head>
 <body>
     <div class="header">
-        <div class="company-info">
+        <div class="company-name">
             {{#if includeLogo}}
             <img src="{{logoB64}}" alt="Logo" class="logo">
             {{/if}}
-            <h1>{{company.name}}</h1><br>
+        </div>
+        <div class="payment-info">
+            <h2>{{labels.payment}}</h2>
+            <p><strong>{{labels.payment}}:</strong> #{{number}}<br>
+            <strong>{{labels.paymentDate}}</strong> {{paymentDate}}<br>
+            <strong>{{labels.invoiceRefer}}</strong> #{{invoiceNumber}}</p>
+        </div>
+        <div class="company-info">
+            <h3 class="spacer">{{labels.receivedFrom}}</h3>
+            <p class="name">{{company.name}}</p>
             {{#if company.description}}<strong>{{labels.description}}</strong> {{company.description}}<br>{{/if}}
             <p>{{company.address}}<br>
             {{#if company.addressLine2}}{{company.addressLine2}}<br>{{/if}}
@@ -33,28 +45,18 @@ export const baseTemplate = `
             {{#if company.legalId}}<strong>{{labels.legalId}}:</strong> {{company.legalId}}<br>{{/if}}
             {{#if company.VAT}}<strong>{{labels.VATId}}:</strong> {{company.VAT}}{{/if}}</p>
         </div>
-        <div class="payment-info">
-            <h2>{{labels.payment}}</h2>
-            <p><strong>{{labels.payment}}:</strong> #{{number}}<br>
-            <strong>{{labels.paymentDate}}</strong> {{paymentDate}}<br>
-            <strong>{{labels.invoiceRefer}}</strong> #{{invoiceNumber}}</p>
+        <div class="client-info">
+            <h3>{{labels.receivedFrom}}</h3>
+            <p class="name">{{client.name}}</p>
+            {{#if client.description}}<strong>{{labels.description}}</strong> {{client.description}}<br>{{/if}}
+            <p>{{client.address}}<br>
+            {{#if client.addressLine2}}{{client.addressLine2}}<br>{{/if}}
+            {{client.city}}, {{#if client.state}}{{client.state}} {{/if}}{{client.postalCode}}<br>
+            {{client.country}}{{#if client.email}}<br>{{client.email}}{{/if}}
+            {{#if client.legalId}}<br><strong>{{labels.legalId}}:</strong> {{client.legalId}}{{/if}}
+            {{#if client.VAT}}<br><strong>{{labels.VATId}}:</strong> {{client.VAT}}{{/if}}</p>
         </div>
     </div>
-    <div class="client-info">
-        <h3>{{labels.receivedFrom}}</h3>
-        <p>{{client.name}}<br>
-        {{#if client.description}}<strong>{{labels.description}}</strong> {{client.description}}<br>{{/if}}
-        {{client.address}}<br>
-        {{#if client.addressLine2}}{{client.addressLine2}}<br>{{/if}}
-        {{client.city}}, {{#if client.state}}{{client.state}} {{/if}}{{client.postalCode}}<br>
-        {{client.country}}<br>
-        {{client.email}}</p>
-        {{#if client.legalId}}<strong>{{labels.legalId}}:</strong> {{client.legalId}}<br>{{/if}}
-        {{#if client.VAT}}<strong>{{labels.VATId}}:</strong> {{client.VAT}}{{/if}}</p>
-    </div>
-
-
-
   <table>
     <thead><tr><th>{{labels.description}}</th><th>{{labels.type}}</th><th>{{labels.totalReceived}}</th></tr></thead>
     <tbody>
@@ -84,7 +86,7 @@ export const baseTemplate = `
     </tr>
     </tbody>
   </table>
-  
+
     {{#if paymentMethod}}
     <div class="payment-info">
         <strong>{{labels.paymentMethod}}</strong> {{paymentMethod}}<br>

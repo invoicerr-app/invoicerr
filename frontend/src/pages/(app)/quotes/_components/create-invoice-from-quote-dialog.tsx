@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next"
 
 interface QuoteInvoicingStatusItem {
     quoteItemId: string
-    description: string
+    name: string
     quantity: number
     invoicedQuantity: number
     remainingQuantity: number
@@ -251,7 +251,7 @@ export function CreateInvoiceFromQuoteDialog({ quote, onOpenChange }: CreateInvo
                                         className={`flex gap-2 items-center ${fullyInvoiced ? "opacity-60" : ""}`}
                                     >
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm truncate">{item.description}</p>
+                                            <p className="text-sm truncate">{item.name}</p>
                                             <p className="text-xs text-muted-foreground">
                                                 {t("quotes.createInvoiceDialog.remainingLabel", {
                                                     remaining: remaining,
