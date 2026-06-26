@@ -21,6 +21,10 @@ function completeCompanyProfile() {
     cy.get('[data-cy="company-postalcode-input"]').clear().type('75001');
     cy.selectCountry('company-country-input', 'France');
 
+    // Fill SIRET (required by FR compliance)
+    cy.get('[data-cy="company-legalid-input"]', { timeout: 5000 }).should('be.visible');
+    cy.get('[data-cy="company-legalid-input"]').clear().type('73282932000074');
+
     cy.get('[data-cy="company-currency-select"] button').first().click();
     cy.wait(300);
     cy.get('[data-cy="company-currency-select-options"]').should('be.visible');
@@ -118,6 +122,12 @@ describe('Company Settings E2E', () => {
             cy.wait(3000);
             cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should('be.visible');
 
+            cy.get('[data-cy="company-legalid-input"]', { timeout: 5000 }).then(($el) => {
+                if ($el.length && !$el.val()) {
+                    cy.wrap($el).clear().type('73282932000074');
+                }
+            });
+
             cy.get('[data-cy="company-address-line2-input"]').clear().type('Building A, Floor 5');
             cy.get('[data-cy="company-state-input"]').clear().type('Île-de-France');
 
@@ -134,6 +144,13 @@ describe('Company Settings E2E', () => {
             cy.visit('/settings/company');
             cy.wait(3000);
             cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should('be.visible');
+
+            // Fill SIRET while country is still FR (before switching to US)
+            cy.get('[data-cy="company-legalid-input"]', { timeout: 5000 }).then(($el) => {
+                if ($el.length && !$el.val()) {
+                    cy.wrap($el).clear().type('73282932000074');
+                }
+            });
 
             cy.get('[data-cy="company-address-input"]').clear().type('1234 Tech Boulevard');
             cy.get('[data-cy="company-address-line2-input"]').clear().type('Suite 100');
@@ -155,6 +172,12 @@ describe('Company Settings E2E', () => {
             cy.visit('/settings/company');
             cy.wait(3000);
             cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should('be.visible');
+
+            cy.get('[data-cy="company-legalid-input"]', { timeout: 5000 }).then(($el) => {
+                if ($el.length && !$el.val()) {
+                    cy.wrap($el).clear().type('73282932000074');
+                }
+            });
 
             cy.get('[data-cy="company-address-line2-input"]').clear();
             cy.get('[data-cy="company-state-input"]').clear();

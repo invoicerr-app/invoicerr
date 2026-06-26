@@ -4,7 +4,7 @@ import { InvoiceProgression } from "@/pages/(app)/invoices/_components/invoice-p
 import { InvoiceTable } from "@/pages/(app)/invoices/_components/invoice-table"
 import { InvoiceViewDialog } from "@/pages/(app)/invoices/_components/invoice-view"
 import { useEffect, useRef, useState } from "react"
-import { useGetRaw, usePost } from "@/hooks/use-fetch"
+import { useGetRaw, usePost, authenticatedFetch } from "@/hooks/use-fetch"
 import { useInvoices, useRecurringInvoices } from "@/hooks/queries"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
@@ -36,7 +36,6 @@ export default function Invoices() {
 
     const { trigger: triggerSendInvoiceByEmail } = usePost(`/api/invoices/send`)
     const { trigger: triggerArchiveInvoice } = usePost(`/api/invoices/archive`)
-    const { trigger: triggerIssueInvoice } = usePost(`/api/invoices/issue`)
 
     useEffect(() => {
         if (downloadInvoicePdf && pdf) {
@@ -157,8 +156,9 @@ export default function Invoices() {
     }
 
     const handleIssueInvoice = (invoice: Invoice) => {
-        triggerIssueInvoice({ id: invoice.id })
-            .then(() => {
+        authenticatedFetch(`/api/invoices/${invoice.id}/issue`, { method: 'POST' })
+            .then(async (res) => {
+                if (!res.ok) throw new Error('Issue failed')
                 toast.success(t("invoices.list.messages.issueSuccess"))
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
             })

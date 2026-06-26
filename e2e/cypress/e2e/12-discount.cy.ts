@@ -109,7 +109,7 @@ function createPaymentForInvoice(invoiceLabel: string | null, invoiceId?: string
     cy.intercept('POST', '/api/payments/create-from-invoice').as('createPayment');
 
     // Issue and send via API instead of fragile UI progression clicks
-    cy.request('POST', '/api/invoices/issue', { id: invoiceId });
+    cy.request('POST', `/api/invoices/${invoiceId}/issue`);
     cy.request('POST', '/api/invoices/send', { id: invoiceId });
 
     cy.visit('/invoices');

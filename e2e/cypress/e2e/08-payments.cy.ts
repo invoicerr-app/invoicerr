@@ -38,7 +38,7 @@ function ensurePayableInvoice() {
         expect(invoiceId).to.exist;
 
         // Issue and send via API to avoid fragile UI progression clicks
-        cy.request('POST', '/api/invoices/issue', { id: invoiceId });
+        cy.request('POST', `/api/invoices/${invoiceId}/issue`);
         cy.request('POST', '/api/invoices/send', { id: invoiceId });
     });
 

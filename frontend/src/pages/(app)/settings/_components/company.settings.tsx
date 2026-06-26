@@ -306,6 +306,7 @@ export default function CompanySettings() {
 						form.setError(`identifiers.${idx}.value` as any, {
 							message: `${req.label} is required`,
 						});
+						toast.error(`${req.label} is required`);
 						return;
 					}
 				}
