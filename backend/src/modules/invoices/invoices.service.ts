@@ -188,6 +188,7 @@ export class InvoicesService {
                 ...data,
                 status: 'DRAFT',
                 recurringInvoiceId: body.recurringInvoiceId,
+                recurringPeriodKey: body.recurringPeriodKey ?? null,
                 paymentMethod: body.paymentMethod,
                 paymentDetails: body.paymentDetails,
                 paymentMethodId: body.paymentMethodId,

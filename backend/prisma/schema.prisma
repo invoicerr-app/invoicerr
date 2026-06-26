@@ -533,34 +533,37 @@ model Invoice {
   ttcPricing         Boolean           @default(false) // prices entered tax-inclusive
   quote              Quote?            @relation(fields: [quoteId], references: [id])
   quoteId            String?
-  recurringInvoice   RecurringInvoice? @relation(fields: [recurringInvoiceId], references: [id])
-  recurringInvoiceId String?
-  client             Client            @relation(fields: [clientId], references: [id]) // Client receiving the invoice
-  clientId           String
-  company            Company           @relation(fields: [companyId], references: [id]) // Company issuing the invoice
-  companyId          String
-  items              InvoiceItem[]
-  status             InvoiceStatus     @default(DRAFT)
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-  issuedAt           DateTime? // date of DRAFT→ISSUED transition
-  dueDate            DateTime
-  paidAt             DateTime?
-  paymentMethod      String? // Ex: "Bank Transfer", "PayPal", "Cash"
-  paymentDetails     String? // Details for the payment method (e.g., bank account number)
-  paymentMethodId    String?
-  notes              String?           @default("")
-  discountRate       Float             @default(0)
-  totalHT            Float
-  totalHTMinor       Int?
-  totalVAT           Float
-  totalVATMinor      Int?
-  totalTTC           Float
-  totalTTCMinor      Int?
-  currency           Currency
-  isActive           Boolean           @default(true)
-  payments           Payment[]
-  complianceDocuments ComplianceDocument[]
+  recurringInvoice       RecurringInvoice? @relation(fields: [recurringInvoiceId], references: [id])
+  recurringInvoiceId     String?
+  recurringPeriodKey     String?           // Deterministic period key for idempotent generation (e.g. "2026-06-monthly")
+  client                 Client            @relation(fields: [clientId], references: [id]) // Client receiving the invoice
+  clientId               String
+  company                Company           @relation(fields: [companyId], references: [id]) // Company issuing the invoice
+  companyId              String
+  items                  InvoiceItem[]
+  status                 InvoiceStatus     @default(DRAFT)
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+  issuedAt               DateTime? // date of DRAFT→ISSUED transition
+  dueDate                DateTime
+  paidAt                 DateTime?
+  paymentMethod          String? // Ex: "Bank Transfer", "PayPal", "Cash"
+  paymentDetails         String? // Details for the payment method (e.g., bank account number)
+  paymentMethodId        String?
+  notes                  String?           @default("")
+  discountRate           Float             @default(0)
+  totalHT                Float
+  totalHTMinor           Int?
+  totalVAT               Float
+  totalVATMinor          Int?
+  totalTTC               Float
+  totalTTCMinor          Int?
+  currency               Currency
+  isActive               Boolean           @default(true)
+  payments               Payment[]
+  complianceDocuments    ComplianceDocument[]
+
+  @@unique([recurringInvoiceId, recurringPeriodKey], name: "Invoice_recurringPeriodKey_unique")
 }
 
 model InvoiceItem {
@@ -607,7 +610,10 @@ model RecurringInvoice {
   frequency         RecurrenceFrequency // Simplified recurrence frequency
   count             Int? // Number of occurrences, null for infinite
   until             DateTime? // End date for the recurrence
+  autoIssue         Boolean                @default(false) // Auto-issue generated invoices (assigns number)
   autoSend          Boolean                @default(false) // Auto-send generated invoices
+  paused            Boolean                @default(false) // Pause generation
+  skipNext          Boolean                @default(false) // Skip the next cycle
   nextInvoiceDate   DateTime? // Date for the next invoice generation
   lastInvoiceDate   DateTime? // Date of the last generated invoice
   createdAt         DateTime               @default(now())

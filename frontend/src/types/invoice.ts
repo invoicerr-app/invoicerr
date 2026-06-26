@@ -202,7 +202,10 @@ export interface RecurringInvoice {
     frequency: RecurrenceFrequency; // Simplified recurrence frequency
     count?: number; // Number of occurrences, null for infinite
     until?: Date | string; // ISO date string for end date of the recurrence
+    autoIssue?: boolean; // Auto-issue generated invoices (assigns number)
     autoSend?: boolean; // Auto-send generated invoices
+    paused?: boolean; // Pause generation
+    skipNext?: boolean; // Skip the next cycle
     nextInvoiceDate?: Date | string; // Date for the next invoice generation
     lastInvoiceDate?: Date | string; // Date of the last generated invoice
     createdAt: string; // ISO date string

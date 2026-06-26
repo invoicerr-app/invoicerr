@@ -22,6 +22,7 @@ export class CreateInvoiceDto {
     ttcPricing?: boolean;
     quoteId?: string;
     recurringInvoiceId?: string;
+    recurringPeriodKey?: string;
     dueDate?: Date;
     currency?: Currency;
     discountRate?: number;
@@ -66,6 +67,7 @@ export class EditInvoicesDto {
     ttcPricing?: boolean;
     quoteId?: string;
     recurringInvoiceId?: string;
+    recurringPeriodKey?: string;
     clientId: string;
     dueDate?: Date;
     currency?: Currency;
