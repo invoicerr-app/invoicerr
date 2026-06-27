@@ -114,6 +114,9 @@
 			"^@/(.*)$": "<rootDir>/$1",
 			"^(\\.{1,2}/.*)\\.js$": "$1"
 		},
+		"transformIgnorePatterns": [
+			"/node_modules/(?!(@fin\\.cx/einvoice|@tsclass/tsclass)/)"
+		],
 		"collectCoverageFrom": [
 			"**/*.(t|j)s"
 		],

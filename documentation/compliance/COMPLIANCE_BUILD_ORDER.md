@@ -48,7 +48,9 @@
 - [x] 3. `[FORMAT]` **EN 16931 UBL/CII** via `@fin.cx/einvoice` (déjà réel dans `getInvoiceXMLFormat`) — délègue via port · **XML pur ✅** (renderXmlFormat + exportXml), reste Schematron
       → FR(base Factur-X), CO, PE, MY, RO, RS, LV, SK, IE, SI, BE, AE, SG · *(reste : Schematron, optionnel)*
 - [x] 4. `[FORMAT]` **Factur-X** (EN 16931 CII + PDF/A-3 hybride, déjà réel via `embedInPdf`) → 🇫🇷 FR — délègue via port · **casing fix ✅** (export formats now lowercase, matching @fin.cx/einvoice API)
+      Validation : in-memory + structural bytes (guideline `urn:cen.eu:en16931:2017`), pas de round-trip CII via fromXml (bug lib). Byte-level autoritaire → L2 (Mustang) / L3 (EC ITB).
 - [x] 5. `[FORMAT]` **XRechnung** (CIUS de #3) → 🇩🇪 DE — **rendu ✅** (exportXml('xrechnung') via renderXmlFormat)
+      Validation round-trip UBL OK. **Gap data connu** : BR-DE-11 (tél vendeur), BR-DE-12 (email vendeur), BR-DE-13 (EndpointID acheteur Peppol), BR-DE-14 (code moyen paiement UNTDID 4461) — champs absents du modèle company/client/payment, à ajouter avant XRechnung B2G live.
 - [ ] 6. `[FORMAT]` **Facturae** → 🇪🇸 ES — `national-formats.ts` (`es-facturae`)
 
 ## A2 · Grands formats nationaux (marchés majeurs)
@@ -156,6 +158,8 @@
   envoi réel via `EmailTransmissionProvider`/`InvoiceMailGateway`. Le chemin par défaut est désormais **entièrement** piloté par la config.
 - 🟢 **Atteint (A1 XML pur)** : EN 16931 XML pur (#3 UBL/CII + #5 XRechnung + PEPPOL_BIS) via `renderXmlFormat`/`exportXml`
   + casing fix #4 (FACTURX/ZUGFERD/PDF_A3 lowercase → `embedInPdf`). Debloque BE, IE, SI, AE, SG, LV, SK, RO, RS + DE XRechnung.
+  Validation L1 : in-memory + structural bytes pour CII/facturx/zugferd ; round-trip UBL pour ubl/xrechnung. Byte-level autoritaire → L2/L3.
+  **Gap XRechnung** : rendu structurel OK mais données manquantes (tél/email vendeur, EndpointID acheteur, payment means code) — tracer avant B2G.
 - **🇫🇷 France** complète = #4 (Factur-X ✅) + #62 (PDP) + #121 (e-reporting) — marché cible.
 - Premier clearance/`AUTHORITY_RANGE` de bout en bout = **🇲🇽 MX** (#124 FolioPool + #65 PAC→SAT) :
   débloque les pays où le numéro vient de l'autorité (aujourd'hui **bloqués à dessein**, cf. encadré ⚖️ en tête).

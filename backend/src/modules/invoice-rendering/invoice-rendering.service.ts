@@ -14,6 +14,51 @@ import { getDraftWatermarkLabel } from '@/utils/watermark';
 import { augmentWithIdentifiers, getIdentifier } from '@/utils/entity-identifiers';
 import { parseAddress } from '@/utils/adress';
 
+/** Minimal data shape required by {@link InvoiceRenderingService.buildEInvoice}.
+ *  Matches the Prisma include used by {@link renderXml} / {@link renderPdf} but is
+ *  decoupled from Prisma so tests can build invoices from plain objects. */
+export interface InvoiceRenderData {
+  rawNumber: string | null;
+  number: number | null;
+  issuedAt: Date | null;
+  createdAt: Date;
+  company: {
+    name: string;
+    description: string | null;
+    foundedAt: Date | null;
+    currency: string;
+    address: string | null;
+    city: string | null;
+    postalCode: string | null;
+    country: string | null;
+    partyIdentifiers?: { scheme: string; value: string }[];
+  };
+  client: {
+    type: string;
+    name: string;
+    description: string | null;
+    foundedAt: Date | null;
+    contactFirstname: string | null;
+    contactLastname: string | null;
+    salutation: string | null;
+    sex: string | null;
+    title: string | null;
+    isActive: boolean;
+    address: string | null;
+    city: string | null;
+    postalCode: string | null;
+    country: string | null;
+    partyIdentifiers?: { scheme: string; value: string }[];
+  };
+  items: {
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    vatRate: number;
+    type: string;
+  }[];
+}
+
 @Injectable()
 export class InvoiceRenderingService {
 
@@ -161,6 +206,108 @@ export class InvoiceRenderingService {
         return pdfBuffer;
     }
 
+    /** Pure construction — no DB access. Builds an EInvoice from a plain data object. */
+    buildEInvoice(data: InvoiceRenderData): EInvoice {
+        const inv = new EInvoice();
+
+        const companyFoundedDate = new Date(data.company.foundedAt || new Date());
+        const clientFoundedDate = new Date(data.client.foundedAt || new Date());
+
+        inv.id = data.rawNumber || (data.number?.toString() ?? 'DRAFT');
+        inv.issueDate = new Date((data.issuedAt ?? data.createdAt).toISOString().split('T')[0]);
+        inv.currency = data.company.currency as finance.TCurrency || 'EUR';
+
+        let fromAdress;
+        try {
+            fromAdress = parseAddress(data.company.address || '');
+        } catch (error) {
+            fromAdress = {
+                streetName: data.company.address || 'N/A',
+                houseNumber: 'N/A',
+            };
+        }
+
+        inv.from = {
+            name: data.company.name,
+            description: data.company.description || "N/A",
+            status: 'active',
+            foundedDate: { day: companyFoundedDate.getDay(), month: companyFoundedDate.getMonth() + 1, year: companyFoundedDate.getFullYear() },
+            type: 'company',
+            address: {
+                streetName: fromAdress.streetName,
+                houseNumber: fromAdress.houseNumber,
+                city: data.company.city || '',
+                postalCode: data.company.postalCode || '',
+                country: data.company.country || '',
+                countryCode: data.company.country || ''
+            },
+            registrationDetails: { vatId: getIdentifier(data.company, 'VAT') || "N/A", registrationId: getIdentifier(data.company, 'LEGAL_ID') || "N/A", registrationName: data.company.name }
+        };
+
+        let toAdress;
+        try {
+            toAdress = parseAddress(data.client.address || '');
+        } catch (error) {
+            toAdress = {
+                streetName: data.client.address || 'N/A',
+                houseNumber: 'N/A',
+            };
+        }
+
+        if (data.client.type === 'COMPANY') {
+            const companyContact: business.TCompany = {
+                type: 'company',
+                name: data.client.name || "N/A",
+                description: data.client.description || "N/A",
+                status: data.client.isActive ? 'active' : 'planned',
+                foundedDate: { day: clientFoundedDate.getDay(), month: clientFoundedDate.getMonth() + 1, year: clientFoundedDate.getFullYear() },
+                address: {
+                    streetName: toAdress.streetName,
+                    houseNumber: toAdress.houseNumber,
+                    city: data.client.city || '',
+                    postalCode: data.client.postalCode || '',
+                    country: data.client.country || 'FR',
+                    countryCode: (data.client.country || 'FR').slice(0, 2).toUpperCase()
+                },
+                registrationDetails: { vatId: getIdentifier(data.client, 'VAT') || 'N/A', registrationId: getIdentifier(data.client, 'LEGAL_ID') || 'N/A', registrationName: data.client.name }
+            };
+
+            inv.to = companyContact;
+        } else {
+            const personContact: business.TPerson = {
+                type: 'person',
+                name: `${data.client.contactFirstname} ${data.client.contactLastname}` || "N/A",
+                description: data.client.description || "N/A",
+                surname: data.client.contactLastname || 'N/A',
+                salutation: data.client.salutation as "Mr" | "Ms" | "Mrs",
+                sex: data.client.sex as "male" | "female" | "other",
+                title: data.client.title as "Doctor" | "Professor",
+                address: {
+                    streetName: toAdress.streetName,
+                    houseNumber: toAdress.houseNumber,
+                    city: data.client.city || '',
+                    postalCode: data.client.postalCode || '',
+                    country: data.client.country || 'FR',
+                    countryCode: (data.client.country || 'FR').slice(0, 2).toUpperCase()
+                },
+            };
+
+            inv.to = personContact;
+        }
+
+        data.items.forEach((item) => {
+            inv.addItem({
+                name: item.name,
+                unitQuantity: item.quantity,
+                unitNetPrice: item.unitPrice,
+                vatPercentage: item.vatRate || 0,
+                unitType: item.type === 'HOUR' ? 'HUR' : item.type === 'DAY' ? 'DAY' : item.type === 'DEPOSIT' ? 'SET' : item.type === 'SERVICE' ? 'C62' : item.type === 'PRODUCT' ? 'C62' : 'C62',
+            });
+        });
+
+        return inv;
+    }
+
     async renderXml(id: string): Promise<EInvoice> {
         const invRec = await prisma.invoice.findUnique({
             where: { id },
@@ -178,102 +325,7 @@ export class InvoiceRenderingService {
             throw new BadRequestException('Invoice not found');
         }
 
-        const inv = new EInvoice();
-
-        const companyFoundedDate = new Date(invRec.company.foundedAt || new Date())
-        const clientFoundedDate = new Date(invRec.client.foundedAt || new Date());
-
-        inv.id = invRec.rawNumber || (invRec.number?.toString() ?? 'DRAFT');
-        inv.issueDate = new Date((invRec.issuedAt ?? invRec.createdAt).toISOString().split('T')[0]);
-        inv.currency = invRec.company.currency as finance.TCurrency || 'EUR';
-
-        let fromAdress;
-        try {
-            fromAdress = parseAddress(invRec.company.address || '');
-        } catch (error) {
-            fromAdress = {
-                streetName: invRec.company.address || 'N/A',
-                houseNumber: 'N/A',
-            };
-        }
-
-        inv.from = {
-            name: invRec.company.name,
-            description: invRec.company.description || "N/A",
-            status: 'active',
-            foundedDate: { day: companyFoundedDate.getDay(), month: companyFoundedDate.getMonth() + 1, year: companyFoundedDate.getFullYear() },
-            type: 'company',
-            address: {
-                streetName: fromAdress.streetName,
-                houseNumber: fromAdress.houseNumber,
-                city: invRec.company.city,
-                postalCode: invRec.company.postalCode,
-                country: invRec.company.country,
-                countryCode: invRec.company.country
-            },
-            registrationDetails: { vatId: getIdentifier(invRec.company, 'VAT') || "N/A", registrationId: getIdentifier(invRec.company, 'LEGAL_ID') || "N/A", registrationName: invRec.company.name }
-        };
-
-        let toAdress;
-        try {
-            toAdress = parseAddress(invRec.client.address || '');
-        } catch (error) {
-            toAdress = {
-                streetName: invRec.client.address || 'N/A',
-                houseNumber: 'N/A',
-            };
-        }
-
-        if (invRec.client.type === 'COMPANY') {
-            const companyContact: business.TCompany = {
-                type: 'company',
-                name: invRec.client.name || "N/A",
-                description: invRec.client.description || "N/A",
-                status: invRec.client.isActive ? 'active' : 'planned',
-                foundedDate: { day: clientFoundedDate.getDay(), month: clientFoundedDate.getMonth() + 1, year: clientFoundedDate.getFullYear() },
-                address: {
-                    streetName: toAdress.streetName,
-                    houseNumber: toAdress.houseNumber,
-                    city: invRec.client.city,
-                    postalCode: invRec.client.postalCode,
-                    country: invRec.client.country || 'FR',
-                    countryCode: invRec.client.country.slice(0, 2).toUpperCase() || 'FR' // TODO: Refactor the app to store country codes instead of custom country names
-                },
-                registrationDetails: { vatId: getIdentifier(invRec.client, 'VAT') || 'N/A', registrationId: getIdentifier(invRec.client, 'LEGAL_ID') || 'N/A', registrationName: invRec.client.name }
-            };
-
-            inv.to = companyContact;
-        } else {
-            const personContact: business.TPerson = {
-                type: 'person',
-                name: `${invRec.client.contactFirstname} ${invRec.client.contactLastname}` || "N/A",
-                description: invRec.client.description || "N/A",
-                surname: invRec.client.contactLastname || 'N/A',
-                salutation: invRec.client.salutation as "Mr" | "Ms" | "Mrs",
-                sex: invRec.client.sex as "male" | "female" | "other",
-                title: invRec.client.title as "Doctor" | "Professor",
-                address: {
-                    streetName: toAdress.streetName,
-                    houseNumber: toAdress.houseNumber,
-                    city: invRec.client.city,
-                    postalCode: invRec.client.postalCode,
-                    country: invRec.client.country || 'FR',
-                    countryCode: invRec.client.country.slice(0, 2).toUpperCase() || 'FR' // TODO: Refactor the app to store country codes instead of custom country names
-                },
-            };
-
-            inv.to = personContact;
-        }
-
-        invRec.items.forEach((item, index) => {
-            inv.addItem({
-                name: item.name,
-                unitQuantity: item.quantity,
-                unitNetPrice: item.unitPrice,
-                vatPercentage: item.vatRate || 0,
-                unitType: item.type === 'HOUR' ? 'HUR' : item.type === 'DAY' ? 'DAY' : item.type === 'DEPOSIT' ? 'SET' : item.type === 'SERVICE' ? 'C62' : item.type === 'PRODUCT' ? 'C62' : 'C62',
-            });
-        });
+        const inv = this.buildEInvoice(invRec);
 
         const validation = await inv.validate()
 
