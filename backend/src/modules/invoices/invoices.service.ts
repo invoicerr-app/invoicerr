@@ -1543,17 +1543,24 @@ export class InvoicesService {
 
         logger.info('Invoice sent by email', { category: 'invoice', details: { invoiceId, email: invoice.client.contactEmail } });
 
-        // Audit: record SENT event
+        // Trigger compliance pipeline (sign → transmit → archive → report)
         try {
             const complianceDoc = await prisma.complianceDocument.findFirst({
                 where: { invoiceId },
                 orderBy: { createdAt: 'desc' },
             });
             if (complianceDoc) {
-                await this.complianceService.recordAuditEvent(complianceDoc.id, 'SENT', `sent via email to ${invoice.client.contactEmail}`);
+                const result = await this.complianceService.send(complianceDoc.id);
+                logger.info('ComplianceService.send completed', {
+                    category: 'invoice',
+                    details: { invoiceId, complianceStatus: result.document.status },
+                });
             }
         } catch (error) {
-            logger.warn('ComplianceService.recordAuditEvent(SENT) failed (non-blocking)', { category: 'invoice', details: { error: String(error) } });
+            logger.warn('ComplianceService.send failed (non-blocking)', {
+                category: 'invoice',
+                details: { error: String(error) },
+            });
         }
 
         try {
