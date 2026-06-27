@@ -1,98 +1,120 @@
-# Ordre d'implémentation des stubs — checklist séquentielle
+# Ordre d'implémentation des stubs — checklist exhaustive
 
-> Liste **linéaire, dans l'ordre**, de ce qu'il faut coder. Chaque étape = une chose concrète
-> (`FONDATION` / `FORMAT` / `PORTAIL` / `CANAL`) avec son fichier. Stratégie & levier : voir
-> `COMPLIANCE_STUBS_ROADMAP.md`. Cocher au fur et à mesure. Type entre crochets.
-
-## Légende
-`FORMAT` = construire le document (XML/PDF national) · `PORTAIL`/`CANAL` = transmettre + recevoir les
-statuts · `FONDATION` = brique transversale. ⭐ = jalon.
+> Liste **linéaire et complète** de ce qu'il faut coder, dans l'ordre. **Les 106 juridictions câblées
+> y figurent toutes** (index de contrôle en fin de fichier). Stratégie/levier : voir
+> `COMPLIANCE_STUBS_ROADMAP.md`. Type : `FONDATION` / `FORMAT` / `PORTAIL` / `CANAL` / `REPORTING` / `DATA`.
+> `(#4)` = réutilise le provider de l'étape 4 → pas de nouveau format à coder, juste portail + data.
 
 ---
 
-## PHASE 0 — Chemin par défaut réel ⭐ (après : les 24 pays post-audit/no-mandate marchent)
-- [ ] 1. `[FORMAT]` **plain-pdf** → brancher sur `getInvoicePdf()`/`getPDF()` — `providers/format/providers.ts:53`
-- [ ] 2. `[CANAL]` **email** → injecter `MailService.sendMail` (PDF en PJ) — `providers/transmission/providers.ts:14`
-- [ ] 3. `[FONDATION]` **wiring Nest** : passer des registries réels à `ComplianceService` — `nest/compliance.module.ts:85`
+## PHASE 0 — Chemin par défaut réel ⭐
+- [ ] 1. `[FORMAT]` **plain-pdf** → `getInvoicePdf()`/`getPDF()` — `providers/format/providers.ts:53`
+- [ ] 2. `[CANAL]` **email** → `MailService.sendMail` (PDF en PJ) — `providers/transmission/providers.ts:14`
+- [ ] 3. `[FONDATION]` **wiring Nest** : registries réels dans `ComplianceService` — `nest/compliance.module.ts:85`
 
-## PHASE 1 — Socle EU structuré partagé ⭐ (levier max)
+➡️ Après la Phase 0, **les 26 pays "défaut seul" fonctionnent** (cf. §PHASE 9-A) : 🇺🇸 US, 🇬🇧 GB, 🇨🇦 CA,
+🇨🇭 CH, 🇯🇵 JP, 🇦🇺 AU, 🇳🇿 NZ, 🇿🇦 ZA, 🇳🇱 NL, 🇸🇪 SE, 🇳🇴 NO, 🇦🇹 AT, 🇩🇰 DK, 🇫🇮 FI, 🇨🇿 CZ, 🇱🇺 LU, 🇧🇬 BG,
+🇨🇾 CY, 🇪🇪 EE, 🇱🇹 LT, 🇲🇹 MT, 🇲🇩 MD, 🇱🇮 LI, 🇲🇨 MC, 🇻🇦 VA + les "planned" (§PHASE 10).
+
+## PHASE 1 — Socle structuré partagé ⭐ (levier maximal)
 - [ ] 4. `[FORMAT]` **EN 16931 UBL/CII** via `@fin.cx/einvoice` + Schematron — `format/providers.ts:38`
-- [ ] 5. `[CANAL]` **Peppol** : SMP lookup + AS4 + `sendStatus` (Invoice Response) — `transmission/providers.ts:24,28`
-- [ ] 6. `[FORMAT]` **XRechnung** (CIUS de l'étape 4) → DE — `format/providers.ts` + national
-- [ ] 7. `[FORMAT]` **Facturae** → ES — `format/national-formats.ts` (`es-facturae`)
-- [ ] 8. `[PORTAIL]` **es-aeat** (SII/Verifactu) → ES — `transmission/national-portals.ts` (`es-aeat`)
+      → réutilisé par FR(Factur-X), CO, PE, MY, RO, RS, LV, SK, IE, SI, BE, AE, SG
+- [ ] 5. `[CANAL]` **Peppol** : SMP + AS4 + `sendStatus`/Invoice Response — `transmission/providers.ts:24,28`
+      → IE, SI, BE, AE, SG, NL, SE, NO, DE(B2G)
+- [ ] 6. `[FORMAT]` **XRechnung** (CIUS de #4) → 🇩🇪 DE — `format/providers.ts` + national
+- [ ] 7. `[FORMAT]` **Facturae** + 8. `[PORTAIL]` **es-aeat** (SII/Verifactu) → 🇪🇸 ES
 
-## PHASE 2 — Socle asynchrone durable ⭐ (prérequis de TOUTE clearance)
-- [ ] 9. `[FONDATION]` **async core** : Effects runtime (SCHEDULE_POLL/ARM_TIMER/AWAIT_CALLBACK) ↔ stores Prisma + cron + `ApplySignalService` + webhook — `lifecycle/runtime.ts`, `nest/*`
-- [ ] 10. `[FONDATION]` **inbound mapping** : statuts entrants → `applyResponse` — `lifecycle/runtime.ts:142`, `lifecycle/response.ts:33`
+## PHASE 2 — Socle asynchrone durable ⭐ (prérequis de TOUTE clearance/realTime)
+- [ ] 9. `[FONDATION]` **async core** : Effects runtime ↔ stores Prisma + cron + `ApplySignalService` + webhook — `lifecycle/runtime.ts`, `nest/*`
+- [ ] 10. `[FONDATION]` **inbound mapping** : statuts entrants → `applyResponse` — `runtime.ts:142`, `response.ts:33`
 - [ ] 11. `[FONDATION]` **signature** XAdES/PAdES/CAdES — `providers/signing/providers.ts:8,16,24`
 - [ ] 12. `[FONDATION]` **archive** WORM/S3 + résidence — `providers/archive/providers.ts:18`
 
-## PHASE 3 — Premier pays clearance de bout en bout ⭐ (fige le pattern)
-- [ ] 13. `[FORMAT]` **FatturaPA** → IT — `format/providers.ts:82`
-- [ ] 14. `[PORTAIL]` **SdI** : submit + notifiche + `sendStatus`/poll → IT — `transmission/providers.ts:74,78,82`
-  > Valider ici : injection service, idempotence, persistance, gestion d'erreur, callback. **Avant** de paralléliser les suivants.
+## PHASE 3 — 🇫🇷 FRANCE de bout en bout ⭐⭐ (marché cible, pilote)
+- [ ] 13. `[FORMAT]` **Factur-X** (EN 16931 CII #4 + PDF/A-3 hybride) → FR — `fr.ts` syntax FACTURX
+- [ ] 14. `[PORTAIL]` **PDP** : annuaire + remise + `sendStatus`("encaissée") + poll/callback — `transmission/providers.ts:39,43,47`
+- [ ] 15. `[REPORTING]` **e-reporting FR** (transaction + paiement) — `reporting/handlers.ts:48`
+  > Fige ici le pattern callback/PDP. Câblage `markPaid`→`transmitStatus` déjà en place.
 
-## PHASE 4 — C1 grandes économies, mandats live (format + portail chacun)
-- [ ] 15. `[FORMAT]` **CFDI 4.0** → MX — `format/providers.ts:67`
-- [ ] 16. `[PORTAIL]` **PAC → SAT** (timbre/UUID/folio + poll) → MX — `transmission/providers.ts:59,63`
-- [ ] 17. `[FORMAT]` **in-irp** (GST e-invoice) → IN — `format/national-formats.ts`
-- [ ] 18. `[PORTAIL]` **IRP (GSTN/NIC)** → IN — `national-portals.ts`
-- [ ] 19. `[FORMAT]` **nfe** (NF-e/NFS-e/CT-e) → BR — `national-formats.ts`
-- [ ] 20. `[PORTAIL]` **SEFAZ** (par état) → BR — `national-portals.ts`
-- [ ] 21. `[FORMAT]` **KSA UBL 2.1 + QR** → SA — `format/providers.ts:97`
-- [ ] 22. `[PORTAIL]` **ZATCA FATOORA** → SA — `national-portals.ts` (`zatca`)
-- [ ] 23. `[FORMAT]` **FA_VAT** → PL — `format/providers.ts:130`
-- [ ] 24. `[PORTAIL]` **KSeF** (auth + UPO + poll) → PL — `transmission/providers.ts:106,110`
-- [ ] 25. `[FORMAT]` **tr-efatura** (UBL-TR) → TR — `national-formats.ts`
-- [ ] 26. `[PORTAIL]` **GİB** → TR — `national-portals.ts` (`gib`)
-- [ ] 27. `[FORMAT]` **eg-eta** → EG — `national-formats.ts` · 28. `[PORTAIL]` **ETA** → EG
-- [ ] 29. `[FORMAT]` **cn-efapiao** → CN — `national-formats.ts` · 30. `[PORTAIL]` **STA (Golden Tax IV)** → CN
-  > DE/ES déjà couverts par les étapes 6/7/8.
+## PHASE 4 — 🇮🇹 ITALIE (pattern clearance synchrone canonique)
+- [ ] 16. `[FORMAT]` **FatturaPA** → IT — `format/providers.ts:82`
+- [ ] 17. `[PORTAIL]` **SdI** : submit + notifiche + `sendStatus`/poll → IT — `transmission/providers.ts:74,78,82`
+  > Valide injection service · idempotence · persistance · gestion d'erreur · poll/callback **avant** de paralléliser.
 
-## PHASE 5 — C2 LATAM CTC (format + portail chacun ; schémas proches)
-- [ ] 31. CL — `cl-dte` + **SII**
-- [ ] 32. CO — DIAN (format + `dian`)
-- [ ] 33. AR — `ar-fe` + **AFIP/ARCA**
-- [ ] 34. PE — OSE + **SUNAT**
-- [ ] 35. EC — `ec-fe` + **SRI**
-- [ ] 36. UY — `uy-cfe` + **DGI**
-- [ ] 37. CR — `cr-fe` + **Hacienda**
-- [ ] 38. DO — `do-ecf` + **DGII**
-- [ ] 39. GT — `gt-fel` + **SAT**
-- [ ] 40. PA — `pa-fe` + **DGI**
-- [ ] 41. PY — `py-de` + **SIFEN**
-- [ ] 42. SV — `sv-dte` + **MH**
-- [ ] 43. BO — `bo-fe` + **SIN**
-- [ ] 44. VE — `ve-fe` + **SENIAT**
+## PHASE 5 — C1 autres grandes économies (format + portail chacun)
+- [ ] 18-19. 🇲🇽 MX — **CFDI 4.0** (`format/providers.ts:67`) + **PAC→SAT** (`transmission/providers.ts:59,63`)
+- [ ] 20-21. 🇵🇱 PL — **FA_VAT** (`format/providers.ts:130`) + **KSeF** (`transmission/providers.ts:106,110`)
+- [ ] 22-23. 🇮🇳 IN — `in-irp` GST e-invoice + **IRP (GSTN/NIC)**
+- [ ] 24-25. 🇧🇷 BR — `nfe` (NF-e/NFS-e/CT-e) + **SEFAZ** (par état)
+- [ ] 26-27. 🇸🇦 SA — **KSA UBL 2.1 + QR** (`format/providers.ts:97`) + **ZATCA FATOORA**
+- [ ] 28-29. 🇹🇷 TR — `tr-efatura` (UBL-TR) + **GİB**
+- [ ] 30-31. 🇨🇳 CN — `cn-efapiao` + **STA (Golden Tax IV)**
+- [ ] 32-33. 🇪🇬 EG — `eg-eta` + **ETA**
 
-## PHASE 6 — C3 Afrique + Asie (mandats émergents)
-Afrique :
-- [ ] 45. KE `ke-etims`/KRA · 46. NG `ng-firs`/FIRS · 47. GH `gh-evat`/GRA · 48. RW `rw-ebm`/RRA ·
-  49. TZ `tz-vfd`/TRA · 50. UG `ug-efris`/URA · 51. ZM `zm-smartinvoice`/ZRA · 52. ZW `zw-fdms`/ZIMRA ·
-  53. CI `ci-fne`/DGI · 54. BJ `bj-mecef`/DGI · 55. TN `tn-teif`/TTN · 56. JO `jo-jofotara`/JoFotara
+## PHASE 6 — LATAM (clearance ; CO/PE en #4)
+- [ ] 34. 🇨🇱 CL — `cl-dte` + **SII** · 35. 🇨🇴 CO — EN16931 (#4) + **DIAN** · 36. 🇦🇷 AR — `ar-fe` + **AFIP/ARCA**
+- [ ] 37. 🇵🇪 PE — EN16931 (#4) + **OSE→SUNAT** · 38. 🇪🇨 EC — `ec-fe` + **SRI** · 39. 🇺🇾 UY — `uy-cfe` + **DGI**
+- [ ] 40. 🇨🇷 CR — `cr-fe` + **Hacienda** · 41. 🇩🇴 DO — `do-ecf` + **DGII** · 42. 🇬🇹 GT — `gt-fel` + **SAT**
+- [ ] 43. 🇵🇦 PA — `pa-fe` + **DGI** · 44. 🇵🇾 PY — `py-de` + **SIFEN** · 45. 🇸🇻 SV — `sv-dte` + **MH**
+- [ ] 46. 🇧🇴 BO — `bo-fe` + **SIN** · 47. 🇻🇪 VE — `ve-fe` + **SENIAT**
 
-Asie :
-- [ ] 57. ID `id-efaktur`/Coretax · 58. VN `vn-tt78`/GDT · 59. MY MyInvois · 60. PH `ph-eis`/BIR ·
-  61. TW `tw-egui`/MoF · 62. KZ `kz-esf`/IS ESF · 63. TH `th-etax`/RD · 64. NP `np-cbms`/IRD ·
-  65. BD `bd-nbr`/NBR · 66. PK `pk-fbr`/FBR
+## PHASE 7 — MENA + Afrique (clearance/realTime)
+MENA : - [ ] 48. 🇯🇴 JO `jo-jofotara`/JoFotara · 49. 🇹🇳 TN `tn-teif`/TTN
+Afrique : - [ ] 50. 🇳🇬 NG `ng-firs`/FIRS · 51. 🇰🇪 KE `ke-etims`/KRA · 52. 🇬🇭 GH `gh-evat`/GRA ·
+53. 🇷🇼 RW `rw-ebm`/RRA · 54. 🇹🇿 TZ `tz-vfd`/TRA · 55. 🇺🇬 UG `ug-efris`/URA · 56. 🇿🇲 ZM `zm-smartinvoice`/ZRA ·
+57. 🇿🇼 ZW `zw-fdms`/ZIMRA · 58. 🇨🇮 CI `ci-fne`/DGI · 59. 🇧🇯 BJ `bj-mecef`/DGI
 
-## PHASE 7 — C4 UE planifiée 2026-28 (réutilise EN 16931 + Peppol → surtout portail + data)
-- [ ] 67. RO **ANAF** (e-Factura, live 2024 ; format = EN16931 UBL déjà fait)
-- [ ] 68. RS **SEF** (`rs-sef`) · 69. BE Peppol (2026, canal déjà fait → data) · 70. HR `hr-eracun`/Fiskalizacija ·
-  71. LV **VID** · 72. SK **Finančná správa** · 73. SI Peppol (2027) · 74. IE Peppol (2028) ·
-  75. UA `ua-taxinvoice`/DPS · 76. AL `al-fiscalization`/CIS · 77. ME `me-fiscal`
+## PHASE 8 — Asie (clearance/realTime ; MY en #4)
+- [ ] 60. 🇮🇩 ID `id-efaktur`/Coretax · 61. 🇻🇳 VN `vn-tt78`/GDT · 62. 🇲🇾 MY EN16931 (#4)/MyInvois ·
+63. 🇹🇼 TW `tw-egui`/MoF · 64. 🇰🇿 KZ `kz-esf`/IS ESF · 65. 🇵🇭 PH `ph-eis`/BIR · 66. 🇹🇭 TH `th-etax`/RD ·
+67. 🇳🇵 NP `np-cbms`/IRD · 68. 🇧🇩 BD `bd-nbr`/NBR · 69. 🇵🇰 PK `pk-fbr`/FBR
 
-## PHASE 8 — Reporting, fiscalité, data (en parallèle, faible blocage)
-- [ ] 78. `[REPORTING]` e-reporting FR — `reporting/handlers.ts:48`
-- [ ] 79. `[REPORTING]` EC Sales List / OSS / IOSS / Intrastat / SAF-T — `reporting/handlers.ts`
-- [ ] 80. `[FISCAL]` sales-tax US comté/ville — `taxsystems/handlers.ts:29` · arrondis consumption-tax `:38`
-- [ ] 81. `[NUMÉROTATION]` hash-chain — `numbering.ts:29` · folio-pools MX/CL — `:48`
-- [ ] 82. `[DATA]` vérifier les 100 profils `BEST_EFFORT → OFFICIAL` (taux/dates/identifiants) puis étendre vers 196 — `profiles/data/*`
+## PHASE 9 — Europe clearance/realTime restante + Peppol-CTC + défaut-seul
+
+### 9-A · Europe clearance/realTime (formats nationaux ou #4 + portail)
+- [ ] 70. 🇷🇴 RO EN16931 (#4) + **ANAF** (live 2024) · 71. 🇷🇸 RS EN16931 (#4) + **SEF** · 72. 🇭🇷 HR `hr-eracun`/Fiskalizacija
+- [ ] 73. 🇱🇻 LV EN16931 (#4) + **VID** · 74. 🇸🇰 SK EN16931 (#4) + **Finančná správa**
+- [ ] 75. 🇬🇷 GR **myDATA/AADE** (`PORTAIL` à ajouter) · 76. 🇭🇺 HU **Online Számla/NAV** (`PORTAIL` à ajouter)
+- [ ] 77. 🇲🇪 ME `me-fiscal` · 78. 🇦🇱 AL `al-fiscalization`/CIS · 79. 🇺🇦 UA `ua-taxinvoice`/DPS · 80. 🇸🇲 SM FatturaPA(#16)/SdI
+
+### 9-B · Peppol-CTC (canal #5 + data, pas de format dédié)
+- [ ] 81. 🇮🇪 IE (2028) · 82. 🇸🇮 SI (2027) · 83. 🇧🇪 BE (2026) · 84. 🇦🇪 AE · 85. 🇸🇬 SG
+
+### 9-C · Défaut-seul (post-audit + no-mandate) — **aucun code, juste DATA (§PHASE 12)**
+postAudit : 🇩🇪 DE*(→#6) 🇦🇹 AT 🇧🇬 BG 🇨🇾 CY 🇨🇿 CZ 🇩🇰 DK 🇪🇪 EE 🇫🇮 FI 🇱🇮 LI 🇱🇹 LT 🇱🇺 LU 🇲🇩 MD 🇲🇹 MT
+🇳🇱 NL 🇳🇴 NO 🇸🇪 SE 🇯🇵 JP 🇦🇺 AU 🇳🇿 NZ 🇺🇸 US
+noMandate : 🇬🇧 GB 🇨🇭 CH 🇿🇦 ZA 🇨🇦 CA 🇻🇦 VA 🇲🇨 MC
+
+## PHASE 10 — "Planned" (mandats à venir : défaut aujourd'hui, format+portail quand live)
+🇧🇦 BA 🇲🇰 MK 🇭🇳 HN 🇳🇮 NI 🇧🇭 BH 🇴🇲 OM 🇶🇦 QA 🇰🇼 KW 🇩🇿 DZ 🇲🇦 MA 🇨🇲 CM 🇸🇳 SN 🇪🇹 ET 🇱🇰 LK
+- [ ] 86. Suivre les dates d'entrée en vigueur, brancher format+portail au cas par cas.
+
+## PHASE 11 — Reporting agrégé + fiscalité + intégrité
+- [ ] 87. `[REPORTING]` périodique : EC Sales List/DEB, OSS/IOSS, Intrastat, **SAF-T** (🇵🇹 PT, 🇦🇴 AO, 🇲🇿 MZ, NO) — `reporting/handlers.ts`
+- [ ] 88. `[FISCAL]` sales-tax US comté/ville (`taxsystems/handlers.ts:29`) · arrondis consumption-tax (`:38`)
+- [ ] 89. `[NUMÉROTATION]` hash-chain (`numbering.ts:29`) · folio-pools MX/CL (`:48`)
+- [ ] 90. `[OPS]` `operations/validate` (`compliance-service.ts:461`) + contingency (`:291,296`)
+
+## PHASE 12 — DATA (parallèle, faible code)
+- [ ] 91. `[DATA]` vérifier les 106 profils `BEST_EFFORT → OFFICIAL` (taux/dates/identifiants/providerId) puis étendre vers 196 — `profiles/data/*`
 
 ---
 
-## À auditer avant d'y toucher
-- **`lifecycle/corrections.ts`** : redondant avec `correctInvoice`/`cancelInvoice` déjà dans
-  `invoices.service.ts` → câbler comme source unique **ou** retirer.
-- **`operations/validate`** (`compliance-service.ts:461`) + **contingency** (`:291,296`) : à traiter avec la PHASE 2.
+## À AUDITER avant d'implémenter
+- **`lifecycle/corrections.ts`** : redondant avec `correctInvoice`/`cancelInvoice` déjà dans `invoices.service.ts` → câbler comme source unique ou retirer.
+
+---
+
+## INDEX DE CONTRÔLE — 106 juridictions (rien oublié)
+**Format/portail réel requis (clearance/realTime, 54)** : AL AR BO BR CI BJ CL CN CO CR DO EC EG ES* GH
+GR GT HR HU ID IN IT JO KE KZ LV MX MY ME NG NP PA PE PH PK PL PY RO RS RW SA SK SM SV TH TN TR TW TZ
+UA UG UY VE VN ZM ZW.
+**Peppol-CTC (#5 + data, 5)** : AE BE IE SG SI.
+**XRechnung (#6, 1)** : DE.
+**France bespoke (Factur-X+PDP+e-reporting)** : FR.
+**Défaut-seul postAudit (19)** : AT AU BG CY CZ DK EE FI JP LI LT LU MD MT NL NO NZ SE US.
+**Défaut-seul noMandate (6)** : CA CH GB MC VA ZA.
+**Périodique/SAF-T (3)** : AO MZ PT.
+**Planned, défaut→futur (14)** : BA BH CM DZ ET HN KW LK MA MK NI OM QA SN.
+
+*ES listé en Facturae (#7-8). Total = 54+5+1+1+19+6+3+14 = 103 archetypes + FR/IT/MX/PL bespoke déjà comptés dans les groupes ⇒ **106 distincts**.*
