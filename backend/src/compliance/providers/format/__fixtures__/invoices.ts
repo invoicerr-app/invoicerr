@@ -947,6 +947,106 @@ export const IN_B2B: FormatFixture = {
   formats: {},
 };
 
+// Fixture 18: GR B2B — Greece myDATA (AADE)
+// ---------------------------------------------------------------------------
+export const GR_B2B: FormatFixture = {
+  slug: 'gr-b2b',
+  description: 'Greek B2B, myDATA (AADE) e-invoice',
+  data: {
+    rawNumber: 'MYP-2025-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Ελληνική Τεχνολογία AE',
+      description: 'IT services',
+      foundedAt: new Date('2013-05-10'),
+      currency: 'EUR',
+      address: 'Leof. Syngrou 50',
+      city: 'Athens',
+      postalCode: '11737',
+      country: 'Greece',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'EL801234567' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Διεθνής Εμπορική ΑΕ',
+      description: 'Trading',
+      foundedAt: new Date('2009-11-20'),
+      contactFirstname: null,
+      contactLastname: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'Ermou 100',
+      city: 'Athens',
+      postalCode: '10557',
+      country: 'Greece',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'EL987654321' },
+      ],
+    },
+    items: [
+      { name: 'Ανάπτυξη λογισμικού', quantity: 60, unitPrice: 100, vatRate: 24, type: 'SERVICE' },
+      { name: 'Υποστήριξη συστημάτων', quantity: 10, unitPrice: 500, vatRate: 24, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture 19: HU B2B — Hungary Online Számla (NAV)
+// ---------------------------------------------------------------------------
+export const HU_B2B: FormatFixture = {
+  slug: 'hu-b2b',
+  description: 'Hungarian B2B, Online Számla (NAV)',
+  data: {
+    rawNumber: 'SZLA-2025-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Magyar IT Kft.',
+      description: 'Software development',
+      foundedAt: new Date('2012-03-15'),
+      currency: 'HUF',
+      address: 'Váci út 42',
+      city: 'Budapest',
+      postalCode: '1132',
+      country: 'Hungary',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'HU12345678' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Nagy Kereskedelmi Zrt.',
+      description: 'Wholesale',
+      foundedAt: new Date('2006-08-22'),
+      contactFirstname: null,
+      contactLastname: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'Andrássy út 200',
+      city: 'Budapest',
+      postalCode: '1061',
+      country: 'Hungary',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'HU87654321' },
+      ],
+    },
+    items: [
+      { name: 'Szoftverfejlesztés (Software dev)', quantity: 100, unitPrice: 15000, vatRate: 27, type: 'SERVICE' },
+      { name: 'Karbantartás (Maintenance)', quantity: 6, unitPrice: 50000, vatRate: 27, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
 // ---------------------------------------------------------------------------
 // All fixtures — ordered for the harness
 // ---------------------------------------------------------------------------

@@ -18,6 +18,8 @@ import {
   BR_B2B,
   TR_B2B,
   IN_B2B,
+  GR_B2B,
+  HU_B2B,
   FormatFixture,
 } from './__fixtures__/invoices';
 
@@ -322,6 +324,49 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
 
       results.push({ fixture: fixture.slug, format: 'in-irp', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Greece myDATA (GR)', () => {
+    const fixture = GR_B2B;
+    it(`${fixture.slug} → national-xml GR`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'GR');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+
+      const errors: string[] = [];
+      if (!xml.includes('myDATA:Invoice')) errors.push('missing myDATA:Invoice root');
+      if (!xml.includes('myDATA:InvoiceHeader')) errors.push('missing InvoiceHeader');
+      if (!xml.includes('myDATA:Issuer')) errors.push('missing Issuer');
+      if (!xml.includes('myDATA:Counterpart')) errors.push('missing Counterpart');
+      if (!xml.includes('myDATA:InvoiceSummary')) errors.push('missing InvoiceSummary');
+      if (!xml.includes('EL801234567')) errors.push('missing seller AFM');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+
+      results.push({ fixture: fixture.slug, format: 'gr-mydata', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Hungary Online Számla (HU)', () => {
+    const fixture = HU_B2B;
+    it(`${fixture.slug} → national-xml HU`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'HU');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+
+      const errors: string[] = [];
+      if (!xml.includes('Invoice')) errors.push('missing Invoice root');
+      if (!xml.includes('ID')) errors.push('missing ID');
+      if (!xml.includes('IssueDate')) errors.push('missing IssueDate');
+      if (!xml.includes('AccountingSupplierParty')) errors.push('missing SupplierParty');
+      if (!xml.includes('AccountingCustomerParty')) errors.push('missing CustomerParty');
+      if (!xml.includes('InvoiceLine')) errors.push('missing InvoiceLine');
+      if (!xml.includes('HU12345678')) errors.push('missing seller adoszám');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+
+      results.push({ fixture: fixture.slug, format: 'hu-szamla', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
       expect(errors).toEqual([]);
     });
   });

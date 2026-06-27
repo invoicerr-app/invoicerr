@@ -764,6 +764,8 @@ export class InvoiceRenderingService {
             CN: (d) => this._buildCnEfapiao(d),
             EG: (d) => this._buildEgEta(d),
             IN: (d) => this._buildInIrp(d),
+            GR: (d) => this._buildGrMydata(d),
+            HU: (d) => this._buildHuSzM(d),
         };
         const builder = builders[cc];
         if (builder) return builder(data);
@@ -907,6 +909,93 @@ export class InvoiceRenderingService {
   <ItemList>${data.items.map((item, i) => `<Item><SlNo>${i + 1}</SlNo><PrDescription>${item.name}</PrDescription><PrdQty>${item.quantity}</PrdQty><PrdUnitPrice>${item.unitPrice}</PrdUnitPrice></Item>`).join('')}</ItemList>
 </Invoice>
 <!-- TODO: IRN (Invoice Reference Number) + Signed QR Code via IRP -->`;
+    }
+
+    private _buildGrMydata(data: InvoiceRenderData): string {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const afm = getIdentifier(data.company, 'VAT') || '';
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalIVA = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        return `<!-- TODO: Greece myDATA (AADE) — requires UBL/CII XML + Digital Signature + AADE submission -->
+<myDATA:Invoice xmlns:myDATA="https://www.aade.gr/myDATA/invoice/v1.0">
+  <myDATA:InvoiceHeader>
+    <myDATA:series>AA</myDATA:series>
+    <myDATA:number>${data.rawNumber || 'DRAFT'}</myDATA:number>
+    <myDATA:issueDate>${issueDate}</myDATA:issueDate>
+    <myDATA:invoiceType>11.1</myDATA:invoiceType>
+    <myDATA:currencyCode>EUR</myDATA:currencyCode>
+  </myDATA:InvoiceHeader>
+  <myDATA:Issuer>
+    <myDATA:vatNumber>${afm}</myDATA:vatNumber>
+    <myDATA:name>${data.company.name}</myDATA:name>
+  </myDATA:Issuer>
+  <myDATA:Counterpart>
+    <myDATA:vatNumber>${getIdentifier(data.client, 'VAT') || ''}</myDATA:vatNumber>
+    <myDATA:name>${data.client.name}</myDATA:name>
+  </myDATA:Counterpart>
+  <myDATA:InvoiceDetails>${data.items.map((item, i) => `<myDATA:InvoiceDetail>
+    <myDATA:lineNumber>${i + 1}</myDATA:lineNumber>
+    <myDATA:detailType>1</myDATA:detailType>
+    <myDATA:quantity>${item.quantity}</myDATA:quantity>
+    <myDATA:unitPrice>${item.unitPrice}</myDATA:unitPrice>
+    <myDATA:vatCategory>${item.vatRate > 0 ? '1' : '7'}</myDATA:vatCategory>
+    <myDATA:vatAmount>${(item.quantity * item.unitPrice * (item.vatRate || 0) / 100).toFixed(2)}</myDATA:vatAmount>
+  </myDATA:InvoiceDetail>`).join('')}</myDATA:InvoiceDetails>
+  <myDATA:InvoiceSummary>
+    <myDATA:totalNetValue>${total.toFixed(2)}</myDATA:totalNetValue>
+    <myDATA:totalVatAmount>${totalIVA.toFixed(2)}</myDATA:totalVatAmount>
+    <myDATA:totalWithVat>${(total + totalIVA).toFixed(2)}</myDATA:totalWithVat>
+  </myDATA:InvoiceSummary>
+</myDATA:Invoice>
+<!-- TODO: Digital Signature (Qualif. Electronic Signature) + AADE Taxisnet submission + Mark (if >€150) -->`;
+    }
+
+    private _buildHuSzM(data: InvoiceRenderData): string {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const adoszam = getIdentifier(data.company, 'VAT') || '';
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalIVA = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        return `<!-- TODO: Hungary Online Számla (NAV) — requires UBL 2.1 XML + API token + Real-time XML -->
+<Invoice xmlns="urn:peppol.eu:xsd:en16931:2" xmlns:ext="urn:central:not:opentender:schema:xsd:ExtensionComponents-1">
+  <ext:UBLExtensions>
+    <ext:UBLExtension>
+      <ext:ExtensionID>1</ext:ExtensionID>
+      <ext:ExtensionAgencyID>10</ext:ExtensionAgencyID>
+      <ext:ExtensionAgencyName>NAVA</ext:ExtensionAgencyName>
+    </ext:UBLExtension>
+  </ext:UBLExtensions>
+  <ID>${data.rawNumber || 'DRAFT'}</ID>
+  <IssueDate>${issueDate}</IssueDate>
+  <InvoiceTypeCode>380</InvoiceTypeCode>
+  <DocumentCurrencyCode>HUF</DocumentCurrencyCode>
+  <AccountingSupplierParty>
+    <Party>
+      <EndpointID schemeID="2.1">${adoszam}</EndpointID>
+      <PartyName><Name>${data.company.name}</Name></PartyName>
+    </Party>
+  </AccountingSupplierParty>
+  <AccountingCustomerParty>
+    <Party>
+      <EndpointID schemeID="2.1">${getIdentifier(data.client, 'VAT') || ''}</EndpointID>
+      <PartyName><Name>${data.client.name}</Name></PartyName>
+    </Party>
+  </AccountingCustomerParty>
+  <LegalMonetaryTotal>
+    <TaxExclusiveAmount currencyID="HUF">${total.toFixed(2)}</TaxExclusiveAmount>
+    <TaxInclusiveAmount currencyID="HUF">${(total + totalIVA).toFixed(2)}</TaxInclusiveAmount>
+  </LegalMonetaryTotal>
+  ${data.items.map((item, i) => `<InvoiceLine>
+    <ID>${i + 1}</ID>
+    <InvoicedQuantity>${item.quantity}</InvoicedQuantity>
+    <LineExtensionAmount currencyID="HUF">${(item.quantity * item.unitPrice).toFixed(2)}</LineExtensionAmount>
+    <Item>
+      <Name>${item.name}</Name>
+      <ClassifiedTaxCategory><ID>${item.vatRate > 0 ? 'AAA' : 'AAM'}</ID><Percent>${item.vatRate || 0}</Percent></ClassifiedTaxCategory>
+    </Item>
+    <Price><PriceAmount currencyID="HUF">${item.unitPrice}</PriceAmount></Price>
+  </InvoiceLine>`).join('\n  ')}
+</Invoice>
+<!-- TODO: API token registration (NAV) + Real-time XML submission + Transaction ID -->`;
     }
 
     private _buildGenericNationalXml(data: InvoiceRenderData, cc: string): string {
