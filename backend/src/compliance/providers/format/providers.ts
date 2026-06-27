@@ -5,7 +5,7 @@ import { ComplianceLogger } from '../../execution/logger';
 import { RenderedArtifact, ValidationReport } from '../../execution/types';
 import { ArtifactRole, DocumentSyntax } from '../../types';
 import { FormatProvider } from './format-provider';
-import { InvoiceArtifactPort } from './invoice-artifact-port';
+import { InvoiceArtifactPort, XmlExportFormat } from './invoice-artifact-port';
 
 function rendered(artifact: PlannedArtifact): RenderedArtifact {
   return {
@@ -20,11 +20,20 @@ function okValidation(warning: string): ValidationReport {
   return { valid: true, errors: [], warnings: [warning] };
 }
 
-/** Map DocumentSyntax → ExportFormat for the EN 16931 hybrid PDF formats. */
-const SYNTAX_TO_EXPORT_FORMAT: Partial<Record<DocumentSyntax, ExportFormat>> = {
-  FACTURX: 'FACTURX' as ExportFormat,
-  ZUGFERD: 'ZUGFERD' as ExportFormat,
-  PDF_A3: 'PDF_A3' as ExportFormat,
+/** Hybrid PDF/A-3 formats — use `embedInPdf()` (embeds XML inside a PDF container). */
+const SYNTAX_TO_PDF_FORMAT: Partial<Record<DocumentSyntax, ExportFormat>> = {
+  FACTURX: 'facturx',
+  ZUGFERD: 'zugferd',
+  PDF_A3: 'facturx',     // PDF/A-3 hybrid → Factur-X profile by default
+};
+
+/** Pure XML formats — use `exportXml()` (no PDF container). */
+const SYNTAX_TO_XML_FORMAT: Partial<Record<DocumentSyntax, XmlExportFormat>> = {
+  XRECHNUNG: 'xrechnung',
+  EN16931_UBL: 'ubl',
+  EN16931_CII: 'cii',
+  // PEPPOL_BIS → 'ubl' is an approximation; the Peppol CustomizationID will come with provider Peppol #63
+  PEPPOL_BIS: 'ubl',
 };
 
 /** EN 16931 family (Factur-X, ZUGFeRD, XRechnung, UBL, CII, Peppol BIS, PDF/A-3). Wraps
@@ -46,14 +55,23 @@ export class En16931FormatProvider implements FormatProvider {
   }
   async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
     if (this.artifacts && ctx.externalRef) {
-      const exportFormat = SYNTAX_TO_EXPORT_FORMAT[artifact.syntax as DocumentSyntax];
-      if (exportFormat) {
-        const bytes = await this.artifacts.renderPdfFormat(ctx.externalRef, exportFormat);
-        return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/pdf', bytes };
+      const syntax = artifact.syntax as DocumentSyntax;
+      // 1. Try hybrid PDF/A-3 (embedInPdf)
+      const pdfFormat = SYNTAX_TO_PDF_FORMAT[syntax];
+      if (pdfFormat) {
+        const bytes = await this.artifacts.renderPdfFormat(ctx.externalRef, pdfFormat);
+        return { role: artifact.role as ArtifactRole, syntax, mime: 'application/pdf', bytes };
       }
-      // Pure XML syntaxes (UBL, CII, Peppol, XRechnung) — fall back to stub for now
-      log.todo('format/en16931', `render XML ${artifact.syntax} (no ExportFormat mapping yet — stub)`);
-      return { ...rendered(artifact), mime: 'application/xml' };
+      // 2. Try pure XML (exportXml)
+      const xmlFormat = SYNTAX_TO_XML_FORMAT[syntax];
+      if (xmlFormat) {
+        const xml = await this.artifacts.renderXmlFormat(ctx.externalRef, xmlFormat);
+        const bytes = new TextEncoder().encode(xml);
+        return { role: artifact.role as ArtifactRole, syntax, mime: 'application/xml', bytes };
+      }
+      // 3. No mapping — stub
+      log.todo('format/en16931', `render ${syntax} (no format mapping — stub)`);
+      return { ...rendered(artifact), mime: syntax === 'PDF_A3' ? 'application/pdf' : 'application/xml' };
     }
     log.todo('format/en16931', `build ${artifact.syntax} via @fin.cx/einvoice (EInvoice.embedInPdf/exportXml)`);
     return { ...rendered(artifact), mime: artifact.syntax === 'PDF_A3' ? 'application/pdf' : 'application/xml' };

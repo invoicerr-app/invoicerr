@@ -292,6 +292,11 @@ export class InvoiceRenderingService {
         return inv;
     }
 
+    async renderXmlFormat(invoiceId: string, format: 'ubl' | 'cii' | 'xrechnung'): Promise<string> {
+        const inv = await this.renderXml(invoiceId);
+        return inv.exportXml(format);
+    }
+
     async renderPdfFormat(invoiceId: string, format: '' | 'pdf' | ExportFormat): Promise<Uint8Array> {
         const invRec = await prisma.invoice.findUnique({ where: { id: invoiceId }, include: { items: true, client: { include: { partyIdentifiers: true } }, company: { include: { partyIdentifiers: true } }, quote: true } });
         if (!invRec) {

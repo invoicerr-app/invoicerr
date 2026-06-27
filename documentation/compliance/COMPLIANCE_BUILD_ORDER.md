@@ -45,10 +45,10 @@
 > reste seulement à finir 0.3/0.4 (envoi config-driven). Le Schematron de validation est l'unique
 > ajout optionnel résiduel sur #3.
 - [x] 2. `[FORMAT]` **plain-pdf** → délègue `getInvoicePdf()`/`getPDF()` (déjà réel) — `format/providers.ts` via port · *tous les pays défaut*
-- [x] 3. `[FORMAT]` **EN 16931 UBL/CII** via `@fin.cx/einvoice` (déjà réel dans `getInvoiceXMLFormat`) — délègue via port
+- [x] 3. `[FORMAT]` **EN 16931 UBL/CII** via `@fin.cx/einvoice` (déjà réel dans `getInvoiceXMLFormat`) — délègue via port · **XML pur ✅** (renderXmlFormat + exportXml), reste Schematron
       → FR(base Factur-X), CO, PE, MY, RO, RS, LV, SK, IE, SI, BE, AE, SG · *(reste : Schematron, optionnel)*
-- [x] 4. `[FORMAT]` **Factur-X** (EN 16931 CII + PDF/A-3 hybride, déjà réel via `embedInPdf`) → 🇫🇷 FR — délègue via port
-- [ ] 5. `[FORMAT]` **XRechnung** (CIUS de #3) → 🇩🇪 DE
+- [x] 4. `[FORMAT]` **Factur-X** (EN 16931 CII + PDF/A-3 hybride, déjà réel via `embedInPdf`) → 🇫🇷 FR — délègue via port · **casing fix ✅** (export formats now lowercase, matching @fin.cx/einvoice API)
+- [x] 5. `[FORMAT]` **XRechnung** (CIUS de #3) → 🇩🇪 DE — **rendu ✅** (exportXml('xrechnung') via renderXmlFormat)
 - [ ] 6. `[FORMAT]` **Facturae** → 🇪🇸 ES — `national-formats.ts` (`es-facturae`)
 
 ## A2 · Grands formats nationaux (marchés majeurs)
@@ -154,6 +154,8 @@
   (issue→build→email→encaissée), validé par la suite de scénarios CI multi-pays (fr-be, de-fr, it-it, es-pt).
 - 🟢 **Atteint (PHASE 0.3/0.4)** : email **config-driven** → `sendInvoiceByEmail` délègue à `complianceService.send()`,
   envoi réel via `EmailTransmissionProvider`/`InvoiceMailGateway`. Le chemin par défaut est désormais **entièrement** piloté par la config.
+- 🟢 **Atteint (A1 XML pur)** : EN 16931 XML pur (#3 UBL/CII + #5 XRechnung + PEPPOL_BIS) via `renderXmlFormat`/`exportXml`
+  + casing fix #4 (FACTURX/ZUGFERD/PDF_A3 lowercase → `embedInPdf`). Debloque BE, IE, SI, AE, SG, LV, SK, RO, RS + DE XRechnung.
 - **🇫🇷 France** complète = #4 (Factur-X ✅) + #62 (PDP) + #121 (e-reporting) — marché cible.
 - Premier clearance/`AUTHORITY_RANGE` de bout en bout = **🇲🇽 MX** (#124 FolioPool + #65 PAC→SAT) :
   débloque les pays où le numéro vient de l'autorité (aujourd'hui **bloqués à dessein**, cf. encadré ⚖️ en tête).
