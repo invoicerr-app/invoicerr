@@ -412,12 +412,18 @@ export class ComplianceService {
   async markPaid(id: string, info: PaymentInfo = {}): Promise<ComplianceDocumentRecord> {
     const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
+    const paidAt = info.paidAt ?? now();
+
+    const newEvents: Array<{ id: string; type: string; at: string; actor: string }> = [
+      { id: randomUUID(), type: 'PAID', at: paidAt, actor: 'system' },
+    ];
+
     if (plan.lifecycle.response?.statuses?.includes('encaissée')) {
-      this.log.todo('operations/markPaid', `emit "encaissée" status + payment e-reporting for ${id}`);
+      newEvents.push({ id: randomUUID(), type: 'STATUS:encaissée', at: paidAt, actor: 'system' });
+      this.reporting.reportAll(rec.ctx, plan, this.log);
     }
-    return this.store.update(id, {
-      events: [...rec.events, { id: randomUUID(), type: 'PAID', at: info.paidAt ?? now(), actor: 'system' }],
-    });
+
+    return this.store.update(id, { events: [...rec.events, ...newEvents] });
   }
 
   /** Archive the authoritative artifact (retention + residency routing). */

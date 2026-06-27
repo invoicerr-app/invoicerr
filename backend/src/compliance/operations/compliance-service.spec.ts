@@ -139,7 +139,7 @@ describe('ComplianceService — bidirectional response & inbound', () => {
 describe('ComplianceService — event append-only (round-trip)', () => {
   it('successive transitions append events without duplicates or loss', async () => {
     const { service } = svc();
-    const draft = await service.createDraft(FR());
+    const draft = await service.createDraft(US());
     // After create: 1 event (CREATED)
     expect(draft.events).toHaveLength(1);
     expect(draft.events[0].type).toBe('CREATED');
@@ -170,12 +170,13 @@ describe('ComplianceService — reporting, payment, archive', () => {
     expect(results.map((r) => r.kind)).toContain('EC_SALES_LIST');
   });
 
-  it('markPaid triggers the cashed status for France (encaissée)', async () => {
+  it('markPaid triggers the cashed status for France (encaissée) + e-reporting', async () => {
     const { service, log } = svc();
-    const { document } = await service.issueAndSend(FR());
+    const { document } = await service.issueAndSend(ctx('FR', 'FR', 'B2C', 'SERVICES', '2027-01-15'));
     const paid = await service.markPaid(document.id, { paidAt: '2027-02-01T00:00:00.000Z' });
     expect(paid.events.some((e) => e.type === 'PAID')).toBe(true);
-    expect(log.hasScope('operations/markPaid')).toBe(true);
+    expect(paid.events.some((e) => e.type === 'STATUS:encaissée')).toBe(true);
+    expect(log.hasScope('reporting/e-reporting')).toBe(true);
   });
 
   it('archives the document and reports a receipt', async () => {
