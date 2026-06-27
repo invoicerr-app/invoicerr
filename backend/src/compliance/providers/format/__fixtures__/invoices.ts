@@ -647,6 +647,306 @@ export const PL_B2B: FormatFixture = {
   formats: {},
 };
 
+// Fixture 12: CL B2B — Chile DTE (SII)
+// ---------------------------------------------------------------------------
+export const CL_B2B: FormatFixture = {
+  slug: 'cl-b2b',
+  description: 'Chilean B2B, DTE (SII) e-invoice',
+  data: {
+    rawNumber: 'DTE-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'SpA Soluciones',
+      description: 'Tech services',
+      foundedAt: new Date('2015-01-15'),
+      currency: 'CLP',
+      address: 'Av. Providencia 123',
+      city: 'Santiago',
+      postalCode: '7500000',
+      country: 'Chile',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: '76123456-7' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Importadora del Sur',
+      description: 'Import/export',
+      foundedAt: new Date('2010-05-20'),
+      contactFirstname: null,
+      contactLastname: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'Calle Los Leones 456',
+      city: 'Santiago',
+      postalCode: '7500001',
+      country: 'Chile',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: '87654321-0' },
+      ],
+    },
+    items: [
+      { name: 'Consultoría IT', quantity: 10, unitPrice: 50000, vatRate: 19, type: 'SERVICE' },
+      { name: 'Licencia software', quantity: 5, unitPrice: 120000, vatRate: 19, type: 'GOODS' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture 13: AR B2B — Argentina Factura Electronica (AFIP/ARCA)
+// ---------------------------------------------------------------------------
+export const AR_B2B: FormatFixture = {
+  slug: 'ar-b2b',
+  description: 'Argentine B2B, Factura Electronica (AFIP/ARCA)',
+  data: {
+    rawNumber: 'FE-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Tecnología SRL',
+      description: 'Software development',
+      foundedAt: new Date('2012-09-01'),
+      currency: 'ARS',
+      address: 'Av. Corrientes 1000',
+      city: 'Buenos Aires',
+      postalCode: 'C1043',
+      country: 'Argentina',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: '30-71234567-9' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Comercial Norte SA',
+      description: 'Distribution',
+      foundedAt: new Date('2005-11-15'),
+      contactFirstname: null,
+      contactLastname: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'Av. Santa Fe 2000',
+      city: 'Buenos Aires',
+      postalCode: 'C1123',
+      country: 'Argentina',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: '30-98765432-1' },
+      ],
+    },
+    items: [
+      { name: 'Desarrollo web', quantity: 80, unitPrice: 15000, vatRate: 21, type: 'SERVICE' },
+      { name: 'Soporte técnico', quantity: 20, unitPrice: 8000, vatRate: 21, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture 14: EC B2B — Ecuador Factura Electronica (SRI)
+// ---------------------------------------------------------------------------
+export const EC_B2B: FormatFixture = {
+  slug: 'ec-b2b',
+  description: 'Ecuadorian B2B, Factura Electronica (SRI)',
+  data: {
+    rawNumber: 'FE-EC-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Ecuatoriana de Servicios SA',
+      description: 'IT consulting',
+      foundedAt: new Date('2014-03-22'),
+      currency: 'USD',
+      address: 'Av. Amazonas N36-50',
+      city: 'Quito',
+      postalCode: '170135',
+      country: 'Ecuador',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: '1792345678001' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Constructora Andina Cía Ltda',
+      description: 'Construction',
+      foundedAt: new Date('2008-07-10'),
+      contactFirstname: null,
+      contactLastname: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'Av. Eloy Alfaro 1234',
+      city: 'Quito',
+      postalCode: '170201',
+      country: 'Ecuador',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: '1798765432001' },
+      ],
+    },
+    items: [
+      { name: 'Servicios de consultoría', quantity: 40, unitPrice: 85, vatRate: 15, type: 'SERVICE' },
+      { name: 'Licencias anuales', quantity: 10, unitPrice: 250, vatRate: 15, type: 'GOODS' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture 15: BR B2B — Brazil NF-e/NFS-e (SEFAZ)
+// ---------------------------------------------------------------------------
+export const BR_B2B: FormatFixture = {
+  slug: 'br-b2b',
+  description: 'Brazilian B2B, NF-e (SEFAZ) e-invoice',
+  data: {
+    rawNumber: 'NF-e-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Tech Brasil Ltda',
+      description: 'Software house',
+      foundedAt: new Date('2013-04-10'),
+      currency: 'BRL',
+      address: 'Av. Paulista 1000',
+      city: 'São Paulo',
+      postalCode: '01310-100',
+      country: 'Brazil',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: '12.345.678/0001-90' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Comércio Digital ME',
+      description: 'E-commerce',
+      foundedAt: new Date('2019-08-05'),
+      contactFirstname: null,
+      contactLastname: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'Rua das Flores 500',
+      city: 'Porto Alegre',
+      postalCode: '90010-300',
+      country: 'Brazil',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: '98.765.432/0001-10' },
+      ],
+    },
+    items: [
+      { name: 'Desenvolvimento de sistema', quantity: 1, unitPrice: 25000, vatRate: 17, type: 'SERVICE' },
+      { name: 'Suporte mensal', quantity: 3, unitPrice: 2000, vatRate: 17, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture 16: TR B2B — Turkey e-Fatura (GİB)
+// ---------------------------------------------------------------------------
+export const TR_B2B: FormatFixture = {
+  slug: 'tr-b2b',
+  description: 'Turkish B2B, e-Fatura (GİB)',
+  data: {
+    rawNumber: 'EF-2025-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Teknoloji A.Ş.',
+      description: 'Software & consulting',
+      foundedAt: new Date('2011-06-15'),
+      currency: 'TRY',
+      address: 'Bağdat Caddesi 100',
+      city: 'Istanbul',
+      postalCode: '34000',
+      country: 'Turkey',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: '1234567890' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'İthalat Ticaret Ltd. Şti.',
+      description: 'Trading',
+      foundedAt: new Date('2009-12-01'),
+      contactFirstname: null,
+      contactLastname: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'İstiklal Caddesi 200',
+      city: 'Istanbul',
+      postalCode: '34430',
+      country: 'Turkey',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: '0987654321' },
+      ],
+    },
+    items: [
+      { name: 'Yazılım geliştirme', quantity: 120, unitPrice: 500, vatRate: 20, type: 'SERVICE' },
+      { name: 'Eğitim hizmeti', quantity: 5, unitPrice: 8000, vatRate: 20, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture 17: IN B2B — India IRP (GST e-Invoice)
+// ---------------------------------------------------------------------------
+export const IN_B2B: FormatFixture = {
+  slug: 'in-b2b',
+  description: 'Indian B2B, GST e-Invoice (IRP)',
+  data: {
+    rawNumber: 'INV-2025-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'InfoTech Pvt Ltd',
+      description: 'IT services',
+      foundedAt: new Date('2014-02-20'),
+      currency: 'INR',
+      address: 'Plot 42, Sector 5',
+      city: 'Gurugram',
+      postalCode: '122001',
+      country: 'India',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: '06AABCT1234F1Z5' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Global Solutions Ltd',
+      description: 'Enterprise',
+      foundedAt: new Date('2006-08-10'),
+      contactFirstname: null,
+      contactLastname: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'Tower B, Floor 12',
+      city: 'Mumbai',
+      postalCode: '400001',
+      country: 'India',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: '27AAACG9876E1Z9' },
+      ],
+    },
+    items: [
+      { name: 'Software development services', quantity: 200, unitPrice: 5000, vatRate: 18, type: 'SERVICE' },
+      { name: 'Annual maintenance', quantity: 12, unitPrice: 10000, vatRate: 18, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
 // ---------------------------------------------------------------------------
 // All fixtures — ordered for the harness
 // ---------------------------------------------------------------------------

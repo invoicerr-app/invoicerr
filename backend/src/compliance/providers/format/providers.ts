@@ -168,10 +168,16 @@ export class KsaUblFormatProvider implements FormatProvider {
  *  (CL DTE, BR NF-e, AR, EC, TN TEIF…). Keeps every profile wired; replace per country over time. */
 export class NationalXmlFormatProvider implements FormatProvider {
   readonly id = 'national-xml';
+  constructor(private readonly artifacts?: InvoiceArtifactPort) {}
   supports(syntax: DocumentSyntax): boolean {
     return syntax === 'NATIONAL_XML';
   }
   async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
+    if (this.artifacts && ctx.invoiceData) {
+      const xml = await this.artifacts.renderNationalXml(ctx.invoiceData, ctx.supplier.countryCode || 'XX');
+      const bytes = new TextEncoder().encode(xml);
+      return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/xml', bytes };
+    }
     log.todo('format/national-xml', `build the national clearance XML for ${ctx.supplier.countryCode} (dedicated provider TODO)`);
     return { ...rendered(artifact), mime: 'application/xml' };
   }

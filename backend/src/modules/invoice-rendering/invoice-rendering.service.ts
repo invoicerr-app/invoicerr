@@ -751,4 +751,176 @@ export class InvoiceRenderingService {
     async renderFaVat(data: InvoiceRenderData): Promise<string> {
         return this.buildFaVat(data);
     }
+
+    /** Generic national XML — routes by countryCode to country-specific skeleton. */
+    async buildNationalXml(data: InvoiceRenderData, countryCode: string): Promise<string> {
+        const cc = countryCode.toUpperCase();
+        const builders: Record<string, (d: InvoiceRenderData) => string> = {
+            CL: (d) => this._buildClDte(d),
+            AR: (d) => this._buildArFe(d),
+            EC: (d) => this._buildEcFe(d),
+            BR: (d) => this._buildBrNfe(d),
+            TR: (d) => this._buildTrEfatura(d),
+            CN: (d) => this._buildCnEfapiao(d),
+            EG: (d) => this._buildEgEta(d),
+            IN: (d) => this._buildInIrp(d),
+        };
+        const builder = builders[cc];
+        if (builder) return builder(data);
+        return this._buildGenericNationalXml(data, cc);
+    }
+
+    async renderNationalXml(data: InvoiceRenderData, countryCode: string): Promise<string> {
+        return this.buildNationalXml(data, countryCode);
+    }
+
+    // ─── LATAM skeletons ──────────────────────────────────────────────────
+
+    private _buildClDte(data: InvoiceRenderData): string {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const rut = getIdentifier(data.company, 'VAT') || '';
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalIVA = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        return `<!-- TODO: Chile DTE (SII) — requires Folio電子 + Digital Signature -->
+<ClaveDTE>
+  <Encabezado>
+    <IdDoc><TipoDTE>33</TipoDTE><Folio>1</Folio><FchEmis>${issueDate}</FchEmis></IdDoc>
+    <Emisor><RUTEmisor>${rut}</RUTEmisor><RznSocEmisor>${data.company.name}</RznSocEmisor></Emisor>
+    <Receptor><RUTRecep>${getIdentifier(data.client, 'VAT') || ''}</RUTRecep><RznSocRecep>${data.client.name}</RznSocRecep></Receptor>
+    <Totals><MntNeto>${total.toFixed(2)}</MntNeto><IVA>${totalIVA.toFixed(2)}</IVA><MntTotal>${(total + totalIVA).toFixed(2)}</MntTotal></Totals>
+  </Encabezado>
+  <Detalle>${data.items.map((item, i) => `<Dtl><NroLinea>${i + 1}</NroLinea><NmbItem>${item.name}</NmbItem><QtyItem>${item.quantity}</QtyItem><PrcItem>${item.unitPrice}</PrcItem></Dtl>`).join('')}</Detalle>
+</ClaveDTE>
+<!-- TODO: FIRMA ELECTRÓNICA (SII Digital Signature) -->`;
+    }
+
+    private _buildArFe(data: InvoiceRenderData): string {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const cuit = getIdentifier(data.company, 'VAT') || '';
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalIVA = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        return `<!-- TODO: Argentina Factura Electronica (AFIP/ARCA) — requires CAE + Digital Signature -->
+<Factura>
+  <Cabecera>
+    <TipoComprobante>1</TipoComprobante>
+    <PuntoVenta>1</PuntoVenta>
+    <FechaEmision>${issueDate}</FechaEmision>
+    <CUIT>${cuit}</CUIT>
+  </Cabecera>
+  <Detalles>${data.items.map((item, i) => `<Detalle><Id>${i + 1}</Id><Descripcion>${item.name}</Descripcion><Cantidad>${item.quantity}</Cantidad><PrecioUnitario>${item.unitPrice}</PrecioUnitario></Detalle>`).join('')}</Detalles>
+  <Totales><Neto>${total.toFixed(2)}</Neto><IVA>${totalIVA.toFixed(2)}</IVA><Total>${(total + totalIVA).toFixed(2)}</Total></Totales>
+</Factura>
+<!-- TODO: CAE (AFIP Authorization Code) + QR Code -->`;
+    }
+
+    private _buildEcFe(data: InvoiceRenderData): string {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const ruc = getIdentifier(data.company, 'VAT') || '';
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalIVA = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        return `<!-- TODO: Ecuador Factura Electronica (SRI) — requires ClaveAcceso + Digital Signature -->
+<Factura>
+  <InfoTributaria><Ambiente>1</Ambiente><TipoEmision>1</TipoEmision><Ruc>${ruc}</Ruc></InfoTributaria>
+  <InfoFactura><FechaEmision>${issueDate}</FechaEmision><TotalSinImpuestos>${total.toFixed(2)}</TotalSinImpuestos><ImporteTotal>${(total + totalIVA).toFixed(2)}</ImporteTotal></InfoFactura>
+  <Detalles>${data.items.map((item, i) => `<Detalle><CodigoPrincipal>${i + 1}</CodigoPrincipal><Descripcion>${item.name}</Descripcion><Cantidad>${item.quantity}</Cantidad><PrecioUnitario>${item.unitPrice}</PrecioUnitario></Detalle>`).join('')}</Detalles>
+</Factura>
+<!-- TODO: ClaveAcceso (SRI Access Key) + Firma Digital -->`;
+    }
+
+    private _buildBrNfe(data: InvoiceRenderData): string {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const cnpj = getIdentifier(data.company, 'VAT') || '';
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalIVA = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        return `<!-- TODO: Brazil NF-e/NFS-e (SEFAZ) — requires ChaveAcesso + Digital Signature + Lote -->
+<nfeProc>
+  <NFe>
+    <infNFe versao="4.00">
+      <ide><natOp>Serviço</natOp><mod>55</mod><serie>1</serie><tpEmis>1</tpEmis><dhEmi>${issueDate}T12:00:00-03:00</dhEmi></ide>
+      <emit><CNPJ>${cnpj}</CNPJ><xNome>${data.company.name}</xNome><CRT>1</CRT></emit>
+      <det nItem="1"><prod><cProd>1</cProd><xProd>${data.items[0]?.name || 'Service'}</xProd><qCom>${data.items[0]?.quantity || 1}</qCom><vUnCom>${data.items[0]?.unitPrice || 0}</vUnCom><vProd>${total.toFixed(2)}</vProd></prod></det>
+      <total><ICMSTot><vBC>${total.toFixed(2)}</vBC><vICMS>${totalIVA.toFixed(2)}</vICMS><vNF>${(total + totalIVA).toFixed(2)}</vNF></ICMSTot></total>
+    </infNFe>
+  </NFe>
+</nfeProc>
+<!-- TODO: ChaveAcesso + Protocolo + Lote (SEFAZ submission) -->`;
+    }
+
+    private _buildTrEfatura(data: InvoiceRenderData): string {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const vknTckn = getIdentifier(data.company, 'VAT') || '';
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalIVA = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        return `<!-- TODO: Turkey e-Fatura (GİB) — requires e-İmza + KEP -->
+<Invoice>
+  <Header><ID>${data.rawNumber || 'DRAFT'}</ID><IssueDate>${issueDate}</IssueDate><IssueTime>12:00:00</IssueTime><CurrencyCode>${data.company.currency || 'TRY'}</CurrencyCode></Header>
+  <Sender><ID><VKN_TCKN>${vknTckn}</VKN_TCKN></ID><Name>${data.company.name}</Name></Sender>
+  <Receiver><ID><VKN_TCKN>${getIdentifier(data.client, 'VAT') || ''}</VKN_TCKN></ID><Name>${data.client.name}</Name></Receiver>
+  <Lines>${data.items.map((item, i) => `<Line><Order>${i + 1}</Order><ItemName>${item.name}</ItemName><Quantity>${item.quantity}</Quantity><UnitPrice>${item.unitPrice}</UnitPrice><Price>${(item.quantity * item.unitPrice).toFixed(2)}</Price></Line>`).join('')}</Lines>
+  <Totals><SubTotal>${total.toFixed(2)}</SubTotal><Tax>${totalIVA.toFixed(2)}</Tax><GrandTotal>${(total + totalIVA).toFixed(2)}</GrandTotal></Totals>
+</Invoice>
+<!-- TODO: e-İmza (digital signature) + KEP submission to GİB -->`;
+    }
+
+    private _buildCnEfapiao(data: InvoiceRenderData): string {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const nsrsbh = getIdentifier(data.company, 'VAT') || '';
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalIVA = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        return `<!-- TODO: China e-Fapiao (Golden Tax IV / STA) — requires Tax Control Device -->
+<Fapiao>
+  <Header><FapiaoNo>${data.rawNumber || 'DRAFT'}</FapiaoNo><IssueDate>${issueDate}</IssueDate><FapiaoType>Normal</FapiaoType></Header>
+  <Seller><NSRSBH>${nsrsbh}</NSRSBH><Name>${data.company.name}</Name></Seller>
+  <Buyer><NSRSBH>${getIdentifier(data.client, 'VAT') || ''}</NSRSBH><Name>${data.client.name}</Name></Buyer>
+  <Items>${data.items.map((item, i) => `<Item><SerialNo>${i + 1}</SerialNo><Name>${item.name}</Name><Quantity>${item.quantity}</Quantity><UnitPrice>${item.unitPrice}</UnitPrice></Item>`).join('')}</Items>
+  <Totals><TotalAmount>${total.toFixed(2)}</TotalAmount><TaxAmount>${totalIVA.toFixed(2)}</TaxAmount><GrandTotal>${(total + totalIVA).toFixed(2)}</GrandTotal></Totals>
+</Fapiao>
+<!-- TODO: Tax Control Device (Golden Tax IV) + CRC code -->`;
+    }
+
+    private _buildEgEta(data: InvoiceRenderData): string {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const tin = getIdentifier(data.company, 'VAT') || '';
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalIVA = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        return `<!-- TODO: Egypt ETA (E-Invoicing) — requires UUID + QR Code -->
+<Invoice>
+  <Header><UUID>${data.rawNumber || 'DRAFT'}</UUID><IssueDate>${issueDate}</IssueDate></Header>
+  <Seller><TIN>${tin}</TIN><Name>${data.company.name}</Name></Seller>
+  <Buyer><TIN>${getIdentifier(data.client, 'VAT') || ''}</TIN><Name>${data.client.name}</Name></Buyer>
+  <Lines>${data.items.map((item, i) => `<Line><Index>${i + 1}</Index><ItemName>${item.name}</ItemName><Quantity>${item.quantity}</Quantity><UnitPrice>${item.unitPrice}</UnitPrice></Line>`).join('')}</Lines>
+  <Totals><SubTotal>${total.toFixed(2)}</SubTotal><TaxAmount>${totalIVA.toFixed(2)}</TaxAmount><GrandTotal>${(total + totalIVA).toFixed(2)}</GrandTotal></Totals>
+</Invoice>
+<!-- TODO: UUID + QR Code (ETA submission) -->`;
+    }
+
+    private _buildInIrp(data: InvoiceRenderData): string {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const gstin = getIdentifier(data.company, 'VAT') || '';
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalIVA = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        return `<!-- TODO: India IRP (GST e-Invoice via NIC/GSTN) — requires IRN + Signed QR -->
+<Invoice>
+  <TradeParty><GSTIN>${gstin}</GSTIN><LegalName>${data.company.name}</LegalName></TradeParty>
+  <DocumentHeader><DocNo>${data.rawNumber || 'DRAFT'}</DocNo><DocDate>${issueDate}</DocDate><DocType>INV</DocType></DocumentHeader>
+  <DocumentDetails><TotalPreTaxValue>${total.toFixed(2)}</TotalPreTaxValue><TotalTaxValue>${totalIVA.toFixed(2)}</TotalTaxValue><TotalInvoiceValue>${(total + totalIVA).toFixed(2)}</TotalInvoiceValue></DocumentDetails>
+  <ItemList>${data.items.map((item, i) => `<Item><SlNo>${i + 1}</SlNo><PrDescription>${item.name}</PrDescription><PrdQty>${item.quantity}</PrdQty><PrdUnitPrice>${item.unitPrice}</PrdUnitPrice></Item>`).join('')}</ItemList>
+</Invoice>
+<!-- TODO: IRN (Invoice Reference Number) + Signed QR Code via IRP -->`;
+    }
+
+    private _buildGenericNationalXml(data: InvoiceRenderData, cc: string): string {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalIVA = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        return `<!-- TODO: ${cc} national e-invoice — schema and submission service TBD -->
+<NationalInvoice>
+  <Header><CountryCode>${cc}</CountryCode><InvoiceNumber>${data.rawNumber || 'DRAFT'}</InvoiceNumber><IssueDate>${issueDate}</IssueDate><Currency>${data.company.currency}</Currency></Header>
+  <Seller><Name>${data.company.name}</Name><Identifier>${getIdentifier(data.company, 'VAT') || ''}</Identifier><Country>${data.company.country || ''}</Country></Seller>
+  <Buyer><Name>${data.client.name}</Name><Identifier>${getIdentifier(data.client, 'VAT') || ''}</Identifier><Country>${data.client.country || ''}</Country></Buyer>
+  <Lines>${data.items.map((item, i) => `<Line><Number>${i + 1}</Number><Description>${item.name}</Description><Quantity>${item.quantity}</Quantity><UnitPrice>${item.unitPrice}</UnitPrice><VATRate>${item.vatRate || 0}</VATRate></Line>`).join('')}</Lines>
+  <Totals><SubTotal>${total.toFixed(2)}</SubTotal><Tax>${totalIVA.toFixed(2)}</Tax><Total>${(total + totalIVA).toFixed(2)}</Total></Totals>
+</NationalInvoice>
+<!-- TODO: Country-specific schema validation + digital signature + submission -->`;
+    }
 }

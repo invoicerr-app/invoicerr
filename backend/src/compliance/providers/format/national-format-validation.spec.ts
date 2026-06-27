@@ -1,5 +1,5 @@
 /**
- * National Format Validation Harness — FatturaPA, CFDI, Facturae, KSA UBL, FA_VAT.
+ * National Format Validation Harness — all national XML formats.
  *
  * Validates structural correctness of the XML output for each national format.
  * No authoritative validation (that requires external tools / XSD / services).
@@ -12,6 +12,12 @@ import {
   ES_B2B,
   SA_B2B,
   PL_B2B,
+  CL_B2B,
+  AR_B2B,
+  EC_B2B,
+  BR_B2B,
+  TR_B2B,
+  IN_B2B,
   FormatFixture,
 } from './__fixtures__/invoices';
 
@@ -195,6 +201,127 @@ describe('National Format — structural validation', () => {
         errors,
       });
 
+      expect(errors).toEqual([]);
+    });
+  });
+
+  // ─── LATAM + TR + IN via buildNationalXml() ────────────────────────────
+
+  describe('Chile DTE (CL)', () => {
+    const fixture = CL_B2B;
+    it(`${fixture.slug} → national-xml CL`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'CL');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+
+      const errors: string[] = [];
+      if (!xml.includes('ClaveDTE')) errors.push('missing ClaveDTE root');
+      if (!xml.includes('Encabezado')) errors.push('missing Encabezado');
+      if (!xml.includes('Emisor')) errors.push('missing Emisor');
+      if (!xml.includes('Receptor')) errors.push('missing Receptor');
+      if (!xml.includes('TipoDTE')) errors.push('missing TipoDTE');
+      if (!xml.includes('76123456-7')) errors.push('missing seller RUT');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+
+      results.push({ fixture: fixture.slug, format: 'cl-dte', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Argentina FE (AR)', () => {
+    const fixture = AR_B2B;
+    it(`${fixture.slug} → national-xml AR`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'AR');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+
+      const errors: string[] = [];
+      if (!xml.includes('Factura')) errors.push('missing Factura root');
+      if (!xml.includes('Cabecera')) errors.push('missing Cabecera');
+      if (!xml.includes('CUIT')) errors.push('missing CUIT');
+      if (!xml.includes('30-71234567-9')) errors.push('missing seller CUIT');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+
+      results.push({ fixture: fixture.slug, format: 'ar-fe', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Ecuador FE (EC)', () => {
+    const fixture = EC_B2B;
+    it(`${fixture.slug} → national-xml EC`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'EC');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+
+      const errors: string[] = [];
+      if (!xml.includes('Factura')) errors.push('missing Factura root');
+      if (!xml.includes('InfoTributaria')) errors.push('missing InfoTributaria');
+      if (!xml.includes('InfoFactura')) errors.push('missing InfoFactura');
+      if (!xml.includes('1792345678001')) errors.push('missing seller RUC');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+
+      results.push({ fixture: fixture.slug, format: 'ec-fe', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Brazil NF-e (BR)', () => {
+    const fixture = BR_B2B;
+    it(`${fixture.slug} → national-xml BR`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'BR');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+
+      const errors: string[] = [];
+      if (!xml.includes('nfeProc')) errors.push('missing nfeProc root');
+      if (!xml.includes('NFe')) errors.push('missing NFe');
+      if (!xml.includes('infNFe')) errors.push('missing infNFe');
+      if (!xml.includes('emit')) errors.push('missing emit');
+      if (!xml.includes('det')) errors.push('missing det');
+      if (!xml.includes('12.345.678/0001-90')) errors.push('missing seller CNPJ');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+
+      results.push({ fixture: fixture.slug, format: 'br-nfe', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Turkey e-Fatura (TR)', () => {
+    const fixture = TR_B2B;
+    it(`${fixture.slug} → national-xml TR`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'TR');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+
+      const errors: string[] = [];
+      if (!xml.includes('Invoice')) errors.push('missing Invoice root');
+      if (!xml.includes('Header')) errors.push('missing Header');
+      if (!xml.includes('Sender')) errors.push('missing Sender');
+      if (!xml.includes('Receiver')) errors.push('missing Receiver');
+      if (!xml.includes('1234567890')) errors.push('missing seller VKN');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+
+      results.push({ fixture: fixture.slug, format: 'tr-efatura', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('India IRP (IN)', () => {
+    const fixture = IN_B2B;
+    it(`${fixture.slug} → national-xml IN`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'IN');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+
+      const errors: string[] = [];
+      if (!xml.includes('Invoice')) errors.push('missing Invoice root');
+      if (!xml.includes('TradeParty')) errors.push('missing TradeParty');
+      if (!xml.includes('GSTIN')) errors.push('missing GSTIN');
+      if (!xml.includes('06AABCT1234F1Z5')) errors.push('missing seller GSTIN');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+
+      results.push({ fixture: fixture.slug, format: 'in-irp', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
       expect(errors).toEqual([]);
     });
   });

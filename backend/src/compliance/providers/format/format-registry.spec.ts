@@ -68,6 +68,7 @@ function fakePort(overrides?: Partial<InvoiceArtifactPort>): InvoiceArtifactPort
     renderFacturae: async (_data: any) => '<Facturae/>',
     renderKsaUbl: async (_data: any) => '<KsaUbl/>',
     renderFaVat: async (_data: any) => '<FaVat/>',
+    renderNationalXml: async (_data: any, _cc: string) => '<NationalXml/>',
     ...overrides,
   };
 }

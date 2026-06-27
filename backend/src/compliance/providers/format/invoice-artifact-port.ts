@@ -18,4 +18,6 @@ export interface InvoiceArtifactPort {
   renderFacturae(data: import('@/modules/invoice-rendering/invoice-rendering.service').InvoiceRenderData): Promise<string>;
   renderKsaUbl(data: import('@/modules/invoice-rendering/invoice-rendering.service').InvoiceRenderData): Promise<string>;
   renderFaVat(data: import('@/modules/invoice-rendering/invoice-rendering.service').InvoiceRenderData): Promise<string>;
+  /** Generic national XML — routes by countryCode. */
+  renderNationalXml(data: import('@/modules/invoice-rendering/invoice-rendering.service').InvoiceRenderData, countryCode: string): Promise<string>;
 }
