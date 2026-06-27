@@ -20,7 +20,7 @@ jobs:
         run: cd backend && npm ci
 
       - name: Generate Prisma client
-        run: cd backend && npx prisma generate
+        run: cd backend && DATABASE_URL="postgresql://unused:unused@localhost:5432/unused" npx prisma generate
 
       - name: Run backend unit tests
         run: cd backend && npm test -- --ci
