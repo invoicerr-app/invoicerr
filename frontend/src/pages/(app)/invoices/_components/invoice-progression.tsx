@@ -205,6 +205,20 @@ export function InvoiceProgression({
                                             {invoice.client.name ||
                                                 `${invoice.client.contactFirstname} ${invoice.client.contactLastname}`}
                                         </p>
+                                        {(() => {
+                                            const cs = invoice.complianceDocuments?.[0]?.status
+                                            if (!cs || cs === 'DRAFT' || cs === 'ISSUED') return null
+                                            const dotColor =
+                                                ['CLEARED','DELIVERED','ACCEPTED','REPORTED'].includes(cs) ? 'bg-emerald-500' :
+                                                ['PENDING_CLEARANCE','AWAITING_RESPONSE','DISPUTED','CONTINGENCY'].includes(cs) ? 'bg-amber-500' :
+                                                ['REJECTED','REFUSED','CANCELLED'].includes(cs) ? 'bg-red-500' : 'bg-slate-400'
+                                            return (
+                                                <span className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                                                    <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${dotColor}`} />
+                                                    {cs.replace(/_/g, ' ')}
+                                                </span>
+                                            )
+                                        })()}
                                     </div>
 
                                     <div className="flex-1 min-w-0 sm:max-w-md">

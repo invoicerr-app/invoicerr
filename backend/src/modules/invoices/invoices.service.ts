@@ -51,7 +51,17 @@ export class InvoicesService {
                     where: { isActive: true },
                 },
                 complianceDocuments: {
-                    select: { id: true, status: true, number: true, plan: true, immutableHash: true },
+                    select: {
+                        id: true,
+                        status: true,
+                        number: true,
+                        plan: true,
+                        immutableHash: true,
+                        events: {
+                            select: { type: true, at: true, actor: true, detail: true },
+                            orderBy: { at: 'asc' as const },
+                        },
+                    },
                     orderBy: { createdAt: 'desc' },
                     take: 1,
                 },
@@ -88,6 +98,11 @@ export class InvoicesService {
                 correctedBy: {
                     select: { id: true, rawNumber: true, number: true, kind: true, totalTTC: true, currency: true, status: true },
                     where: { isActive: true },
+                },
+                complianceDocuments: {
+                    select: { id: true, status: true },
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
                 },
             },
         });

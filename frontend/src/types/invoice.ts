@@ -162,6 +162,7 @@ export interface Invoice {
         number?: string;
         plan?: { confidence?: string; warnings?: string[] };
         immutableHash?: string;
+        events?: { type: string; at: string; actor?: string; detail?: string }[];
     }[];
 }
 

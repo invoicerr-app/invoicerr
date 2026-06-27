@@ -291,6 +291,51 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                         )
                     })()}
 
+                    {(() => {
+                        const compDoc = invoice.complianceDocuments?.[0]
+                        if (!compDoc) return null
+                        const statusColors: Record<string, string> = {
+                            CLEARED: 'text-emerald-700 bg-emerald-50',
+                            DELIVERED: 'text-emerald-700 bg-emerald-50',
+                            ACCEPTED: 'text-emerald-700 bg-emerald-50',
+                            REPORTED: 'text-emerald-700 bg-emerald-50',
+                            ISSUED: 'text-violet-700 bg-violet-50',
+                            PENDING_CLEARANCE: 'text-amber-700 bg-amber-50',
+                            AWAITING_RESPONSE: 'text-amber-700 bg-amber-50',
+                            DISPUTED: 'text-amber-700 bg-amber-50',
+                            CONTINGENCY: 'text-amber-700 bg-amber-50',
+                            REJECTED: 'text-red-700 bg-red-50',
+                            REFUSED: 'text-red-700 bg-red-50',
+                            CANCELLED: 'text-red-700 bg-red-50',
+                        }
+                        const color = statusColors[compDoc.status] ?? 'text-slate-500 bg-slate-50'
+                        return (
+                            <div className="mt-6 border-t pt-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-sm font-medium text-muted-foreground">Compliance</span>
+                                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${color}`}>
+                                        {compDoc.status.replace(/_/g, ' ')}
+                                    </span>
+                                </div>
+                                {compDoc.events && compDoc.events.length > 0 && (
+                                    <ol className="relative border-l border-muted ml-2 space-y-3">
+                                        {compDoc.events.map((ev, i) => (
+                                            <li key={i} className="ml-4">
+                                                <span className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-muted-foreground/40" />
+                                                <p className="text-xs font-medium text-foreground">{ev.type.replace(/_/g, ' ')}</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {new Date(ev.at).toLocaleString()}
+                                                    {ev.actor && ev.actor !== 'system' && ` · ${ev.actor}`}
+                                                    {ev.detail && ` — ${ev.detail}`}
+                                                </p>
+                                            </li>
+                                        ))}
+                                    </ol>
+                                )}
+                            </div>
+                        )
+                    })()}
+
                     {/* Correction → original link */}
                     {isCorrection && invoice.correctsInvoiceId && (
                         <div className="bg-muted/50 p-4 rounded-lg" data-cy="correction-original-link">
