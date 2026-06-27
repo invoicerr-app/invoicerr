@@ -3,6 +3,7 @@
  export interface AvailableActions {
      invoiceId: string
      status: string
+     complianceStatus?: string
      kind?: string
      immutableAfter: string
      correctionModel: string

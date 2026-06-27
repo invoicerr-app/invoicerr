@@ -21,6 +21,11 @@ import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { resolveInvoiceTax } from '@/compliance/integration/invoice-tax';
 import { ComplianceService } from '@/compliance/operations/compliance-service';
 import type { TransactionContext } from '@/compliance/canonical/canonical-document';
+import { assembleLifecycle, phaseContextFromPlan } from '@/compliance/lifecycle/assembler';
+import { LifecycleRuntime } from '@/compliance/lifecycle/runtime';
+import type { CompliancePlan } from '@/compliance/engine/compliance-engine';
+import type { ComplianceStatus } from '@/compliance/lifecycle/state-machine';
+import { defaultTransmissionRegistry } from '@/compliance/providers/transmission/registry';
 import { clampDiscountRate, toMinor } from '@/utils/financial';
 import type { SupplyType, DocumentKind } from '@/compliance/types';
 import { getDraftWatermarkLabel } from '@/utils/watermark';
@@ -2078,33 +2083,53 @@ export class InvoicesService {
             orderBy: { createdAt: 'desc' },
         });
 
-        if (!complianceDoc) {
-            // No compliance doc yet — infer from DRAFT status
+        const isDraft = invoice.status === 'DRAFT';
+        const isProforma = invoice.kind === 'PROFORMA';
+        const isDeposit = invoice.kind === 'DEPOSIT';
+        const isPlainInvoice = !invoice.kind || invoice.kind === 'INVOICE';
+        const isIssued = invoice.status === 'ISSUED' || invoice.status === 'SENT';
+
+        if (!complianceDoc || !complianceDoc.plan) {
             return {
                 invoiceId: id,
                 status: invoice.status,
+                complianceStatus: complianceDoc?.status ?? null,
                 immutableAfter: 'ISSUE',
                 correctionModel: 'CREDIT_NOTE',
-                cancellation: { allowed: true },
+                cancellation: { allowed: false },
                 actions: {
-                    edit: invoice.status === 'DRAFT',
-                    issue: invoice.status === 'DRAFT',
+                    edit: isDraft && !isDeposit,
+                    issue: isDraft && !isProforma,
                     correct: false,
                     cancel: false,
                     cancelAndReplace: false,
-                    send: invoice.status === 'DRAFT',
+                    send: isIssued,
+                    convertToInvoice: isProforma && isDraft,
+                    deposit: isPlainInvoice && isIssued,
                 },
                 correctionKinds: ['CREDIT_NOTE'],
             };
         }
 
-        const plan = complianceDoc.plan as any;
-        const lifecycle = plan?.lifecycle ?? { immutableAfter: 'ISSUE', correctionModel: 'CREDIT_NOTE', cancellation: { allowed: true, requiresAuthorityAck: false } };
-        const isDraft = invoice.status === 'DRAFT';
-        const isIssued = invoice.status === 'ISSUED' || invoice.status === 'SENT';
-        const isTerminal = invoice.status === 'CANCELLED' || invoice.status === 'CORRECTED' || invoice.status === 'ARCHIVED';
+        const plan = complianceDoc.plan as unknown as CompliancePlan;
+        const lifecycle = plan.lifecycle;
 
-        // Determine cancellation rejection reason (consumes the plan, not a if-pays)
+        const pctx = phaseContextFromPlan(plan, defaultTransmissionRegistry);
+        const graph = assembleLifecycle(plan, pctx);
+        const runtime = new LifecycleRuntime(graph, complianceDoc.status as ComplianceStatus);
+        const manualActions = new Set(
+            runtime.availableActions()
+                .map((t) => t.trigger.kind === 'MANUAL' ? t.trigger.action : null)
+                .filter((a): a is string => a !== null),
+        );
+
+        let correctionKinds: string[];
+        switch (lifecycle.correctionModel) {
+            case 'CORRECTIVE_INVOICE': correctionKinds = ['CORRECTIVE_INVOICE']; break;
+            case 'CANCEL_AND_REPLACE': correctionKinds = ['INVOICE']; break;
+            default: correctionKinds = ['CREDIT_NOTE'];
+        }
+
         let cancelReason: string | undefined;
         if (!lifecycle.cancellation?.allowed) {
             cancelReason = 'Cancellation not allowed by country policy; issue a credit note.';
@@ -2114,42 +2139,23 @@ export class InvoicesService {
             cancelReason = 'Requires buyer consent.';
         }
 
-        // Determine which correction kinds are available based on the correction model
-        let correctionKinds: string[];
-        switch (lifecycle.correctionModel) {
-            case 'CORRECTIVE_INVOICE':
-                correctionKinds = ['CORRECTIVE_INVOICE'];
-                break;
-            case 'CANCEL_AND_REPLACE':
-                correctionKinds = ['INVOICE'];
-                break;
-            case 'CREDIT_NOTE':
-            default:
-                correctionKinds = ['CREDIT_NOTE'];
-                break;
-        }
-
-        const isProforma = invoice.kind === 'PROFORMA';
-        const isDeposit = invoice.kind === 'DEPOSIT';
-        const isFinal = invoice.kind === 'FINAL';
-        const isPlainInvoice = !invoice.kind || invoice.kind === 'INVOICE';
-
         return {
             invoiceId: id,
             status: invoice.status,
+            complianceStatus: complianceDoc.status,
             kind: invoice.kind,
             immutableAfter: lifecycle.immutableAfter,
             correctionModel: lifecycle.correctionModel,
             cancellation: {
-                allowed: !!lifecycle.cancellation?.allowed && !isTerminal,
+                allowed: manualActions.has('cancel'),
                 reason: cancelReason,
             },
             actions: {
                 edit: isDraft && !isDeposit,
                 issue: isDraft && !isProforma,
-                correct: isIssued,
-                cancel: isIssued && !!lifecycle.cancellation?.allowed,
-                cancelAndReplace: isIssued && lifecycle.correctionModel === 'CANCEL_AND_REPLACE',
+                correct: manualActions.has('correct'),
+                cancel: manualActions.has('cancel'),
+                cancelAndReplace: manualActions.has('cancel') && lifecycle.correctionModel === 'CANCEL_AND_REPLACE',
                 send: isIssued,
                 convertToInvoice: isProforma && isDraft,
                 deposit: isPlainInvoice && isIssued,
