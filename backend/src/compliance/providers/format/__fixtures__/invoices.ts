@@ -388,6 +388,266 @@ export const B2C_INDIVIDUAL: FormatFixture = {
 };
 
 // ---------------------------------------------------------------------------
+// Fixture 7: IT B2B — FatturaPA (IT domestic)
+// ---------------------------------------------------------------------------
+export const IT_B2B: FormatFixture = {
+  slug: 'it-b2b',
+  description: 'Italian B2B, FatturaPA 1.2',
+  data: {
+    rawNumber: 'FT-2025-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Rossi SRL',
+      description: 'IT services',
+      foundedAt: new Date('2015-04-10'),
+      currency: 'EUR',
+      address: 'Via Roma 10',
+      city: 'Milano',
+      postalCode: '20100',
+      country: 'Italy',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'IT12345678901' },
+        { scheme: 'LEGAL_ID', value: 'MI1234567' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Bianchi SpA',
+      description: 'Manufacturing client',
+      foundedAt: new Date('2000-01-15'),
+      contactFirstname: null,
+      contactLastname: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'Corso Italia 20',
+      city: 'Roma',
+      postalCode: '00100',
+      country: 'Italy',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'IT98765432109' },
+        { scheme: 'LEGAL_ID', value: 'RM7654321' },
+      ],
+    },
+    items: [
+      { name: 'Consulenza tecnica', quantity: 20, unitPrice: 150, vatRate: 22, type: 'SERVICE' },
+      { name: 'Assistenza remota', quantity: 5, unitPrice: 80, vatRate: 22, type: 'HOUR' },
+    ],
+  },
+  formats: {
+    // National format tests added in national-format-validation.spec.ts
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Fixture 8: MX B2B — CFDI 4.0 (MX domestic)
+// ---------------------------------------------------------------------------
+export const MX_B2B: FormatFixture = {
+  slug: 'mx-b2b',
+  description: 'Mexican B2B, CFDI 4.0 pre-stamp',
+  data: {
+    rawNumber: 'CFDI-2025-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Tech Solutions SA de CV',
+      description: 'Software development',
+      foundedAt: new Date('2017-06-01'),
+      currency: 'MXN',
+      address: 'Av Reforma 500',
+      city: 'Ciudad de Mexico',
+      postalCode: '06000',
+      country: 'Mexico',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'TST101010100' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Comercializadora Lopez SA de CV',
+      description: 'Distribution client',
+      foundedAt: new Date('2005-03-20'),
+      contactFirstname: null,
+      contactLastname: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'Blvd Insurgentes 300',
+      city: 'Guadalajara',
+      postalCode: '44100',
+      country: 'Mexico',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'LOP8501011A9' },
+      ],
+    },
+    items: [
+      { name: 'Licencia software anual', quantity: 10, unitPrice: 5000, vatRate: 16, type: 'PRODUCT' },
+      { name: 'Soporte técnico mensual', quantity: 3, unitPrice: 2000, vatRate: 16, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// ---------------------------------------------------------------------------
+// Fixture 9: ES B2B — Facturae 3.2.2 (ES domestic)
+// ---------------------------------------------------------------------------
+export const ES_B2B: FormatFixture = {
+  slug: 'es-b2b',
+  description: 'Spanish B2B, Facturae 3.2.2',
+  data: {
+    rawNumber: 'FAC-2025-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Garcia Consultores SL',
+      description: 'Management consulting',
+      foundedAt: new Date('2012-09-15'),
+      currency: 'EUR',
+      address: 'Calle Gran Via 40',
+      city: 'Barcelona',
+      postalCode: '08015',
+      country: 'Spain',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'ES12345678A' },
+        { scheme: 'LEGAL_ID', value: 'B12345678' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Fernandez Industrial SA',
+      description: 'Manufacturing client',
+      foundedAt: new Date('1998-05-01'),
+      contactFirstname: null,
+      contactLastname: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'Paseo de la Castellana 100',
+      city: 'Madrid',
+      postalCode: '28046',
+      country: 'Spain',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'ES87654321B' },
+        { scheme: 'LEGAL_ID', value: 'B87654321' },
+      ],
+    },
+    items: [
+      { name: 'Auditoría de sistemas', quantity: 1, unitPrice: 8000, vatRate: 21, type: 'SERVICE' },
+      { name: 'Consultoría fiscal', quantity: 10, unitPrice: 200, vatRate: 21, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// ---------------------------------------------------------------------------
+// Fixture 10: SA B2B — KSA UBL 2.1 (SA/ZATCA)
+// ---------------------------------------------------------------------------
+export const SA_B2B: FormatFixture = {
+  slug: 'sa-b2b',
+  description: 'Saudi B2B, KSA UBL 2.1 + QR',
+  data: {
+    rawNumber: 'INV-2025-SA-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Al Faisal Trading Co',
+      description: 'Import/export',
+      foundedAt: new Date('2010-01-01'),
+      currency: 'SAR',
+      address: 'King Fahd Road 100',
+      city: 'Riyadh',
+      postalCode: '11564',
+      country: 'Saudi Arabia',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: '310123456700003' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Saudi Tech Solutions Ltd',
+      description: 'IT services',
+      foundedAt: new Date('2015-06-15'),
+      contactFirstname: null,
+      contactLastname: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'Olaya Street 50',
+      city: 'Riyadh',
+      postalCode: '12211',
+      country: 'Saudi Arabia',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: '310987654300003' },
+      ],
+    },
+    items: [
+      { name: 'استشارات تقنية (Technical consulting)', quantity: 15, unitPrice: 500, vatRate: 15, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// ---------------------------------------------------------------------------
+// Fixture 11: PL B2B — FA_VAT (PL/KSeF)
+// ---------------------------------------------------------------------------
+export const PL_B2B: FormatFixture = {
+  slug: 'pl-b2b',
+  description: 'Polish B2B, FA_VAT (FA(2)) for KSeF',
+  data: {
+    rawNumber: 'FV-2025-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Kowalski sp. z o.o.',
+      description: 'IT solutions',
+      foundedAt: new Date('2011-07-01'),
+      currency: 'PLN',
+      address: 'ul. Marszałkowska 1',
+      city: 'Warszawa',
+      postalCode: '00-001',
+      country: 'Poland',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'PL1234567890' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Nowak Trading Sp. z o.o.',
+      description: 'Wholesale',
+      foundedAt: new Date('2008-03-10'),
+      contactFirstname: null,
+      contactLastname: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'ul. Złota 5',
+      city: 'Kraków',
+      postalCode: '31-010',
+      country: 'Poland',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'PL0987654321' },
+      ],
+    },
+    items: [
+      { name: 'Usługi IT (IT services)', quantity: 40, unitPrice: 200, vatRate: 23, type: 'SERVICE' },
+      { name: 'Szkolenie (Training)', quantity: 2, unitPrice: 3000, vatRate: 23, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// ---------------------------------------------------------------------------
 // All fixtures — ordered for the harness
 // ---------------------------------------------------------------------------
 export const FIXTURES: FormatFixture[] = [

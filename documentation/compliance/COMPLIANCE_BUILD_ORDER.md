@@ -51,13 +51,23 @@
       Validation : in-memory + structural bytes (guideline `urn:cen.eu:en16931:2017`), pas de round-trip CII via fromXml (bug lib). Byte-level autoritaire → L2 (Mustang) / L3 (EC ITB).
 - [x] 5. `[FORMAT]` **XRechnung** (CIUS de #3) → 🇩🇪 DE — **rendu ✅** (exportXml('xrechnung') via renderXmlFormat)
       Validation round-trip UBL OK. **Gap data connu** : BR-DE-11 (tél vendeur), BR-DE-12 (email vendeur), BR-DE-13 (EndpointID acheteur Peppol), BR-DE-14 (code moyen paiement UNTDID 4461) — champs absents du modèle company/client/payment, à ajouter avant XRechnung B2G live.
-- [ ] 6. `[FORMAT]` **Facturae** → 🇪🇸 ES — `national-formats.ts` (`es-facturae`)
+      **Phase A spike (2026-06-27)**: `@e-invoice-eu/core` installé et testé. Décision **NO-GO** migration :
+      lib supporte cac:Contact/EndpointID/PaymentMeans mais API fondamentalement différente (JSON UBL brut
+      vs classe EInvoice) → réécriture complète de `buildEInvoice()` nécessaire. Coût trop élevé pour run
+      non supervisé. Reste sur `@fin.cx/einvoice`. BR-DE-11/12/13 = bloqués lib (migration = chantier séparé).
+      BR-DE-14 = tentative clôture via `paymentOptions` quand modèle data sera prêt (phone/email endpoint).
+- [ ] 6. `[FORMAT]` **Facturae** → 🇪🇸 ES — `buildFacturae()` + `national-formats.ts` (`es-facturae`) · ✅ squelette structural (3.2.1), XAdES-BES manquant (xadesjs installé, TODO EPES)
+  Validation : présence nœuds racine + gate vivant. XSD/Schematron → L2.
 
 ## A2 · Grands formats nationaux (marchés majeurs)
-- [ ] 7. `[FORMAT]` **FatturaPA** → 🇮🇹 IT, 🇸🇲 SM — `format/providers.ts:82`
-- [ ] 8. `[FORMAT]` **CFDI 4.0** → 🇲🇽 MX — `format/providers.ts:67`
-- [ ] 9. `[FORMAT]` **FA_VAT** → 🇵🇱 PL — `format/providers.ts:130`
-- [ ] 10. `[FORMAT]` **KSA UBL 2.1 + QR** → 🇸🇦 SA — `format/providers.ts:97`
+- [x] 7. `[FORMAT]` **FatturaPA** → 🇮🇹 IT, 🇸🇲 SM — `buildFatturaPa()` via `@digitalia/fatturapa` (JSON→XML) · ✅ squelette FPR12
+  Validation : présence nœuds (CedentePrestatore, CessionarioCommittente, DatiGenerali, DettaglioLinee, DatiRiepilogo, DatiPagamento). XAdES + SdI → BLOC C.
+- [x] 8. `[FORMAT]` **CFDI 4.0** → 🇲🇽 MX — `buildCfdi()` XML brut · ✅ squelette pré-timbre (sans sello/UUID)
+  Validation : structure Comprobante/Emisor/Receptor/Conceptos/Impuestos. Timbrado PAC → canal externe (TODO #65).
+- [x] 9. `[FORMAT]` **FA_VAT** → 🇵🇱 PL — `buildFaVat()` XML FA(2) · ✅ squelette structurel
+  Validation : nœuds Fa/FaWiersz/Podsumowanie. Scellé + soumission KSeF → canal externe (TODO #66).
+- [x] 10. `[FORMAT]` **KSA UBL 2.1 + QR** → 🇸🇦 SA — `buildKsaUbl()` UBL 2.1 + QR placeholder · ✅ squelette ZATCA
+  Validation : nœuds UBL + QR placeholder. Soumission FATOORA → canal externe (TODO #67).
 - [ ] 11. `[FORMAT]` `in-irp` (GST e-invoice) → 🇮🇳 IN
 - [ ] 12. `[FORMAT]` `nfe` (NF-e/NFS-e/CT-e) → 🇧🇷 BR
 - [ ] 13. `[FORMAT]` `tr-efatura` (UBL-TR) → 🇹🇷 TR

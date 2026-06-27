@@ -103,11 +103,17 @@ export class PlainPdfFormatProvider implements FormatProvider {
 
 export class CfdiFormatProvider implements FormatProvider {
   readonly id = 'cfdi-4.0';
+  constructor(private readonly artifacts?: InvoiceArtifactPort) {}
   supports(syntax: DocumentSyntax): boolean {
     return syntax === 'CFDI';
   }
-  async build(artifact: PlannedArtifact, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
-    log.todo('format/cfdi', 'build SAT CFDI 4.0 XML (Comprobante, Conceptos, Impuestos, UsoCFDI)');
+  async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
+    if (this.artifacts && ctx.invoiceData) {
+      const xml = await this.artifacts.renderCfdi(ctx.invoiceData);
+      const bytes = new TextEncoder().encode(xml);
+      return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/xml', bytes };
+    }
+    log.todo('format/cfdi', 'build SAT CFDI 4.0 XML (Comprobante, Conceptos, Impuestos, UsoCFDI) — no invoiceData in context');
     return { ...rendered(artifact), mime: 'application/xml' };
   }
   validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
@@ -118,11 +124,17 @@ export class CfdiFormatProvider implements FormatProvider {
 
 export class FatturaPaFormatProvider implements FormatProvider {
   readonly id = 'fatturapa-1.2';
+  constructor(private readonly artifacts?: InvoiceArtifactPort) {}
   supports(syntax: DocumentSyntax): boolean {
     return syntax === 'FATTURAPA';
   }
-  async build(artifact: PlannedArtifact, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
-    log.todo('format/fatturapa', 'build FatturaPA 1.2 XML for SdI');
+  async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
+    if (this.artifacts && ctx.invoiceData) {
+      const xml = await this.artifacts.renderFatturaPa(ctx.invoiceData);
+      const bytes = new TextEncoder().encode(xml);
+      return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/xml', bytes };
+    }
+    log.todo('format/fatturapa', 'build FatturaPA 1.2 XML for SdI — no invoiceData in context');
     return { ...rendered(artifact), mime: 'application/xml' };
   }
   validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
@@ -133,11 +145,17 @@ export class FatturaPaFormatProvider implements FormatProvider {
 
 export class KsaUblFormatProvider implements FormatProvider {
   readonly id = 'ksa-ubl';
+  constructor(private readonly artifacts?: InvoiceArtifactPort) {}
   supports(syntax: DocumentSyntax): boolean {
     return syntax === 'KSA_UBL';
   }
-  async build(artifact: PlannedArtifact, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
-    log.todo('format/ksa-ubl', 'build ZATCA UBL 2.1 + KSA extension and QR payload');
+  async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
+    if (this.artifacts && ctx.invoiceData) {
+      const xml = await this.artifacts.renderKsaUbl(ctx.invoiceData);
+      const bytes = new TextEncoder().encode(xml);
+      return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/xml', bytes };
+    }
+    log.todo('format/ksa-ubl', 'build ZATCA UBL 2.1 + KSA extension and QR payload — no invoiceData in context');
     return { ...rendered(artifact), mime: 'application/xml' };
   }
   validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
@@ -166,11 +184,17 @@ export class NationalXmlFormatProvider implements FormatProvider {
 /** Poland — FA_VAT (FA(2)/FA(3)) national XML schema submitted to KSeF. */
 export class FaVatFormatProvider implements FormatProvider {
   readonly id = 'fa-vat';
+  constructor(private readonly artifacts?: InvoiceArtifactPort) {}
   supports(syntax: DocumentSyntax): boolean {
     return syntax === 'FA_VAT';
   }
-  async build(artifact: PlannedArtifact, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
-    log.todo('format/fa-vat', 'build Polish FA_VAT (FA(2)/FA(3)) XML for KSeF');
+  async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
+    if (this.artifacts && ctx.invoiceData) {
+      const xml = await this.artifacts.renderFaVat(ctx.invoiceData);
+      const bytes = new TextEncoder().encode(xml);
+      return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/xml', bytes };
+    }
+    log.todo('format/fa-vat', 'build Polish FA_VAT (FA(2)/FA(3)) XML for KSeF — no invoiceData in context');
     return { ...rendered(artifact), mime: 'application/xml' };
   }
   validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {

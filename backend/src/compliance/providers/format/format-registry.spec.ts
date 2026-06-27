@@ -63,6 +63,11 @@ function fakePort(overrides?: Partial<InvoiceArtifactPort>): InvoiceArtifactPort
     renderPdf: async (_id: string) => pdfBytes,
     renderPdfFormat: async (_id: string, _format: '' | 'pdf' | ExportFormat) => formatBytes,
     renderXmlFormat: async (_id: string, _format: XmlExportFormat) => '<xml/>',
+    renderFatturaPa: async (_data: any) => '<FatturaPA/>',
+    renderCfdi: async (_data: any) => '<CFDI/>',
+    renderFacturae: async (_data: any) => '<Facturae/>',
+    renderKsaUbl: async (_data: any) => '<KsaUbl/>',
+    renderFaVat: async (_data: any) => '<FaVat/>',
     ...overrides,
   };
 }

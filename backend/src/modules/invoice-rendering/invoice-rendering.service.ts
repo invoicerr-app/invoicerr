@@ -349,6 +349,369 @@ export class InvoiceRenderingService {
         return inv.exportXml(format);
     }
 
+    // ─── National XML format builders (cycle-safe, no DB) ────────────────
+
+    /** FatturaPA 1.2 XML (IT/SM) via @digitalia/fatturapa — JSON→XML. */
+    async buildFatturaPa(data: InvoiceRenderData): Promise<string> {
+        const { fpa2xml } = await import('@digitalia/fatturapa');
+
+        const vatId = getIdentifier(data.company, 'VAT') || '';
+        const vatCountry = (data.company.country || 'IT').slice(0, 2).toUpperCase();
+        const cf = getIdentifier(data.company, 'LEGAL_ID') || '';
+
+        const clienteVatId = getIdentifier(data.client, 'VAT') || '';
+        const clienteVatCountry = (data.client.country || '').slice(0, 2).toUpperCase();
+        const clienteCf = getIdentifier(data.client, 'LEGAL_ID') || '';
+
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+
+        const dettaglioLinee = data.items.map((item, idx) => ({
+            NumeroLinea: idx + 1,
+            Descrizione: item.name,
+            Quantita: item.quantity,
+            PrezzoUnitario: item.unitPrice,
+            PrezzoTotale: item.quantity * item.unitPrice,
+            AliquotaIVA: item.vatRate || 0,
+            ...(item.vatRate === 0 ? { Natura: 'N1' as const } : {}),
+        }));
+
+        const totaleImponibile = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totaleIVA = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+
+        const datiRiepilogo = data.items.reduce<Record<number, { imponibile: number; imposta: number; rate: number }>>((acc, item) => {
+            const rate = item.vatRate || 0;
+            if (!acc[rate]) acc[rate] = { imponibile: 0, imposta: 0, rate };
+            acc[rate].imponibile += item.quantity * item.unitPrice;
+            acc[rate].imposta += item.quantity * item.unitPrice * rate / 100;
+            return acc;
+        }, {});
+
+        const riepilogoList = Object.values(datiRiepilogo).map(g => ({
+            AliquotaIVA: g.rate,
+            ImponibileImporto: Math.round(g.imponibile * 100) / 100,
+            Imposta: Math.round(g.imposta * 100) / 100,
+            ...(g.rate === 0 ? { Natura: 'N1' as const } : {}),
+        }));
+
+        const fattura = {
+            'p:FatturaElettronica': {
+                '@': { versione: 'FPR12' },
+                'FatturaElettronicaHeader': {
+                    DatiTrasmissione: {
+                        IdTrasmittente: { IdPaese: vatCountry, IdCodice: cf || vatId },
+                        ProgressivoInvio: '00001',
+                        FormatoTrasmissione: 'FPR12',
+                        CodiceDestinatario: '0000000',
+                    },
+                    CedentePrestatore: {
+                        DatiAnagrafici: {
+                            IdFiscaleIVA: { IdPaese: vatCountry, IdCodice: vatId },
+                            Anagrafica: { Denominazione: data.company.name },
+                            RegimeFiscale: 'RF01',
+                        },
+                        Sede: {
+                            Indirizzo: data.company.address || 'N/A',
+                            CAP: data.company.postalCode || '00000',
+                            Comune: data.company.city || 'N/A',
+                            Nazione: vatCountry,
+                        },
+                        ...(data.client.contactFirstname ? {
+                            Contatti: {
+                                Telefono: undefined,
+                                Email: undefined,
+                            },
+                        } : {}),
+                    },
+                    CessionarioCommittente: {
+                        DatiAnagrafici: {
+                            Anagrafica: { Denominazione: data.client.name || `${data.client.contactFirstname || ''} ${data.client.contactLastname || ''}`.trim() },
+                            ...(clienteVatId ? { IdFiscaleIVA: { IdPaese: clienteVatCountry, IdCodice: clienteVatId } } : {}),
+                            ...(clienteCf ? { CodiceFiscale: clienteCf } : {}),
+                        },
+                        Sede: {
+                            Indirizzo: data.client.address || 'N/A',
+                            CAP: data.client.postalCode || '00000',
+                            Comune: data.client.city || 'N/A',
+                            Nazione: clienteVatCountry || 'IT',
+                        },
+                    },
+                },
+                'FatturaElettronicaBody': {
+                    DatiGenerali: {
+                        DatiGeneraliDocumento: {
+                            TipoDocumento: 'TD01',
+                            Divisa: data.company.currency || 'EUR',
+                            Data: issueDate,
+                            Numero: data.rawNumber || (data.number?.toString() ?? 'DRAFT'),
+                            ImportoTotaleDocumento: Math.round((totaleImponibile + totaleIVA) * 100) / 100,
+                        },
+                    },
+                    DatiBeniServizi: {
+                        DettaglioLinee: dettaglioLinee,
+                        DatiRiepilogo: riepilogoList,
+                    },
+                    DatiPagamento: {
+                        CondizioniPagamento: 'TP02',
+                        DettaglioPagamento: {
+                            ModalitaPagamento: 'MP05',
+                            ImportoPagamento: Math.round((totaleImponibile + totaleIVA) * 100) / 100,
+                        },
+                    },
+                },
+            },
+        };
+
+        return fpa2xml(fattura as any);
+    }
+
+    /** CFDI 4.0 Comprobante XML (MX) — structural skeleton. */
+    async buildCfdi(data: InvoiceRenderData): Promise<string> {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const rfc = getIdentifier(data.company, 'VAT') || 'XAXX010101000';
+        const rfcReceptor = getIdentifier(data.client, 'VAT') || 'XAXX010101000';
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalIVA = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        const currency = data.company.currency || 'MXN';
+        const numId = data.rawNumber || (data.number?.toString() ?? '001');
+        const postalCode = data.company.postalCode || '00000';
+        const receptorName = data.client.name || `${data.client.contactFirstname || ''} ${data.client.contactLastname || ''}`.trim();
+        const receptorPostal = data.client.postalCode || '00000';
+
+        let conceptosXml = '';
+        for (let idx = 0; idx < data.items.length; idx++) {
+            const item = data.items[idx];
+            const importe = item.quantity * item.unitPrice;
+            let impuestosXml = '';
+            if (item.vatRate > 0) {
+                const impIVA = importe * item.vatRate / 100;
+                impuestosXml = `
+              <cfdi:Impuestos>
+                <cfdi:Traslados>
+                  <cfdi:Traslado Base="${importe.toFixed(2)}" Impuesto="002" TipoFactor="Tasa" TasaOCuota="${(item.vatRate / 100).toFixed(6)}" Importe="${impIVA.toFixed(2)}"/>
+                </cfdi:Traslados>
+              </cfdi:Impuestos>`;
+            }
+            conceptosXml += `
+          <cfdi:Concepto NoIdentificacion="${idx + 1}" ClaveProdServ="84111506" Cantidad="${item.quantity}" ClaveUnidad="E48" Unidad="Servicio" Descripcion="${item.name}" ValorUnitario="${item.unitPrice.toFixed(2)}" Importe="${importe.toFixed(2)}"${impuestosXml}/>`;
+        }
+
+        let impuestosRoot = '<cfdi:Impuestos TotalImpuestosTrasladados="0"/>';
+        if (totalIVA > 0) {
+            impuestosRoot = `<cfdi:Impuestos TotalImpuestosTrasladados="${totalIVA.toFixed(2)}">
+          <cfdi:Traslados>
+            <cfdi:Traslado Base="${total.toFixed(2)}" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="${totalIVA.toFixed(2)}"/>
+          </cfdi:Traslados>
+        </cfdi:Impuestos>`;
+        }
+
+        return `<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante Version="4.0" Serie="A" Folio="${numId}" Fecha="${issueDate}T12:00:00" FormaPago="03" NoCertificado="30001000000500003416" Certificado="" SubTotal="${total.toFixed(2)}" Moneda="${currency}" Total="${(total + totalIVA).toFixed(2)}" TipoDeComprobante="I" MetodoPago="PUE" LugarExpedicion="${postalCode}" Exportacion="01">
+  <cfdi:Emisor Rfc="${rfc}" Nombre="${data.company.name}" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="${rfcReceptor}" Nombre="${receptorName}" RegimenFiscalReceptor="601" DomicilioFiscalReceptor="${receptorPostal}" UsoCFDI="G03"/>
+  <cfdi:Conceptos>${conceptosXml}
+  </cfdi:Conceptos>
+  ${impuestosRoot}
+  <cfdi:Complemento/>
+</cfdi:Comprobante>`;
+    }
+
+    /** Facturae 3.2.2 XML (ES) — structural skeleton. */
+    async buildFacturae(data: InvoiceRenderData): Promise<string> {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalIVA = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        const vatId = getIdentifier(data.company, 'VAT') || '';
+        const clienteVatId = getIdentifier(data.client, 'VAT') || '';
+
+        const lineas = data.items.map((item, idx) => ({
+            InvoiceLine: {
+                LineItemNumber: idx + 1,
+                ArticleDescription: item.name,
+                Quantity: item.quantity,
+                UnitOfMeasure: '01',
+                UnitPriceWithoutTax: item.unitPrice,
+                TotalCost: item.quantity * item.unitPrice,
+                DiscountsAndRebates: [],
+                TaxesWithheld: [],
+                Charge: [],
+                Tax: { TaxTypeCode: 'IVA', TaxRate: item.vatRate || 0 },
+            },
+        }));
+
+        const facturaxml = {
+            Facturae: {
+                '@': { xmlns: 'http://www.facturae.es/schemas/2014/v3.2.1/Facturae' },
+                FileHeader: {
+                    SchemaVersion: '3.2.1',
+                    InvoiceIssuerType: 'EM',
+                    InvoiceIssueDate: issueDate,
+                    InvoiceCurrencyCode: data.company.currency || 'EUR',
+                    LanguageName: 'es',
+                },
+                Parties: {
+                    SellerParty: {
+                        TaxIdentification: { TaxIdentificationNumber: vatId, PersonTypeCode: 'J', LegalRegistrationNumber: vatId },
+                        PartyLegalEntity: { CorporateName: data.company.name, TradeName: data.company.name },
+                    },
+                    BuyerParty: {
+                        TaxIdentification: { TaxIdentificationNumber: clienteVatId, PersonTypeCode: data.client.type === 'COMPANY' ? 'J' : 'F' },
+                        PartyLegalEntity: { CorporateName: data.client.name || `${data.client.contactFirstname || ''} ${data.client.contactLastname || ''}`.trim() },
+                    },
+                },
+                Invoices: {
+                    Invoice: {
+                        InvoiceHeader: { InvoiceNumber: data.rawNumber || (data.number?.toString() ?? 'DRAFT'), InvoiceDocumentType: 'OC' },
+                        InvoiceTotals: { InvoiceGrossAmount: total + totalIVA, InvoiceTotalAmountWithoutTax: total, InvoiceTotalTaxAmount: totalIVA },
+                        InvoiceItems: lineas,
+                    },
+                },
+            },
+        };
+
+        const builder = await import('xmlbuilder2');
+        const doc = builder.create(facturaxml as any, { format: 'fragment' });
+        return doc.end({ prettyPrint: true });
+    }
+
+    /** KSA UBL 2.1 + QR (SA/ZATCA) — UBL skeleton with QR placeholder. */
+    async buildKsaUbl(data: InvoiceRenderData): Promise<string> {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalIVA = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+
+        const inv = {
+            'ubl:Invoice': {
+                'cbc:CustomizationID': 'urn:cen.biis:en16931:2017#compliant#urn:fdc:zatca.sa:2017:outlook:01:2.1',
+                'cbc:ProfileID': 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0',
+                'cbc:ID': data.rawNumber || (data.number?.toString() ?? 'DRAFT'),
+                'cbc:IssueDate': issueDate,
+                'cbc:InvoiceTypeCode': '380',
+                'cbc:DocumentCurrencyCode': data.company.currency || 'SAR',
+                'cac:AccountingSupplierParty': {
+                    'cac:Party': {
+                        'cbc:EndpointID': getIdentifier(data.company, 'VAT') || '',
+                        'cac:PostalAddress': {
+                            'cbc:CityName': data.company.city || '',
+                            'cac:Country': { 'cbc:IdentificationCode': (data.company.country || 'SA').slice(0, 2).toUpperCase() },
+                        },
+                        'cac:PartyLegalEntity': {
+                            'cbc:RegistrationName': data.company.name,
+                            'cbc:CompanyID': getIdentifier(data.company, 'VAT') || '',
+                        },
+                    },
+                },
+                'cac:AccountingCustomerParty': {
+                    'cac:Party': {
+                        'cbc:EndpointID': getIdentifier(data.client, 'VAT') || '',
+                        'cac:PostalAddress': {
+                            'cbc:CityName': data.client.city || '',
+                            'cac:Country': { 'cbc:IdentificationCode': (data.client.country || '').slice(0, 2).toUpperCase() },
+                        },
+                        'cac:PartyLegalEntity': {
+                            'cbc:RegistrationName': data.client.name || `${data.client.contactFirstname || ''} ${data.client.contactLastname || ''}`.trim(),
+                            'cbc:CompanyID': getIdentifier(data.client, 'VAT') || '',
+                        },
+                    },
+                },
+                'cac:TaxTotal': [{
+                    'cbc:TaxAmount': totalIVA.toFixed(2),
+                    'cbc:TaxAmount@currencyID': data.company.currency || 'SAR',
+                    'cac:TaxSubtotal': Object.values(
+                        data.items.reduce<Record<number, { taxable: number; tax: number }>>((acc, item) => {
+                            const rate = item.vatRate || 0;
+                            if (!acc[rate]) acc[rate] = { taxable: 0, tax: 0 };
+                            acc[rate].taxable += item.quantity * item.unitPrice;
+                            acc[rate].tax += item.quantity * item.unitPrice * rate / 100;
+                            return acc;
+                        }, {})
+                    ).map(g => ({
+                        'cbc:TaxableAmount': g.taxable.toFixed(2),
+                        'cbc:TaxAmount': g.tax.toFixed(2),
+                        'cac:TaxCategory': {
+                            'cbc:ID': g.tax > 0 ? 'S' : 'E',
+                            'cbc:Percent': String(Object.keys(data.items.reduce<Record<number, boolean>>((a, i) => { a[i.vatRate || 0] = true; return a; }, {})).find(r => Math.abs(parseFloat(r) * g.taxable / 100 - g.tax) < 0.01) || 0),
+                            'cac:TaxScheme': { 'cbc:ID': 'VAT' },
+                        },
+                    })),
+                }],
+                'cac:LegalMonetaryTotal': {
+                    'cbc:LineExtensionAmount': total.toFixed(2),
+                    'cbc:TaxExclusiveAmount': total.toFixed(2),
+                    'cbc:TaxInclusiveAmount': (total + totalIVA).toFixed(2),
+                    'cbc:PayableAmount': (total + totalIVA).toFixed(2),
+                },
+                'cac:InvoiceLine': data.items.map((item, idx) => ({
+                    'cbc:ID': String(idx + 1),
+                    'cbc:InvoicedQuantity': String(item.quantity),
+                    'cbc:LineExtensionAmount': (item.quantity * item.unitPrice).toFixed(2),
+                    'cac:Item': {
+                        'cbc:Name': item.name,
+                        'cac:ClassifiedTaxCategory': {
+                            'cbc:ID': item.vatRate > 0 ? 'S' : 'E',
+                            'cbc:Percent': String(item.vatRate || 0),
+                            'cac:TaxScheme': { 'cbc:ID': 'VAT' },
+                        },
+                    },
+                    'cac:Price': {
+                        'cbc:PriceAmount': item.unitPrice.toFixed(2),
+                    },
+                })),
+            },
+        };
+
+        const builder = await import('xmlbuilder2');
+        const doc = builder.create(inv as any, { format: 'fragment' });
+        let xml = doc.end({ prettyPrint: true });
+
+        // QR code placeholder (TLV base64 — to be generated by ZATCA on submission)
+        const qrPlaceholder = '<!-- TODO: ZATCA QR code TLV payload — generated during FATOORA submission -->';
+        xml = xml.replace('</ubl:Invoice>', `${qrPlaceholder}\n</ubl:Invoice>`);
+        return xml;
+    }
+
+    /** FA_VAT (PL/KSeF) XML skeleton — FA(2) structure. */
+    async buildFaVat(data: InvoiceRenderData): Promise<string> {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalIVA = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        const nip = getIdentifier(data.company, 'VAT') || '';
+
+        const fa = {
+            Fa: {
+                '@': { xmlns: 'http://www.faktury.gov.pl/schemat/FA' },
+                WersjaSchematu: 'FA(2)',
+                DataWytworzeniaFa: issueDate + 'T12:00:00',
+                SystemInfo: 'invoicerr',
+                IdentyfikatorSystemowy: data.rawNumber || (data.number?.toString() ?? 'DRAFT'),
+                IdentyfikatorNIP: nip,
+                FaWiersz: data.items.map((item, idx) => ({
+                    NrWierszaFa: idx + 1,
+                    NazwaProdukty: item.name,
+                    PKWiU: '00',
+                    StawkaPodatku: item.vatRate > 0 ? item.vatRate : 0,
+                    KwotaPodatku: Math.round(item.quantity * item.unitPrice * (item.vatRate || 0) / 100 * 100) / 100,
+                    CenaJednostkowaNetto: item.unitPrice,
+                    Ilosc: item.quantity,
+                    WartoscRazem: item.quantity * item.unitPrice,
+                })),
+                Podsumowanie: {
+                    LiczbaWierszyFa: data.items.length,
+                    WartoscRazemNetto: total,
+                    WartoscRazemPodatek: totalIVA,
+                    WartoscRazemBrutto: total + totalIVA,
+                },
+                Stopka: {
+                    OznaczenieFa: data.rawNumber || (data.number?.toString() ?? 'DRAFT'),
+                    DataWystawienia: issueDate,
+                },
+            },
+        };
+
+        const builder = await import('xmlbuilder2');
+        const doc = builder.create(fa as any, { format: 'fragment' });
+        return doc.end({ prettyPrint: true });
+    }
+
     async renderPdfFormat(invoiceId: string, format: '' | 'pdf' | ExportFormat): Promise<Uint8Array> {
         const invRec = await prisma.invoice.findUnique({ where: { id: invoiceId }, include: { items: true, client: { include: { partyIdentifiers: true } }, company: { include: { partyIdentifiers: true } }, quote: true } });
         if (!invRec) {
@@ -365,5 +728,27 @@ export class InvoiceRenderingService {
         const inv = await this.renderXml(invoiceId);
 
         return await inv.embedInPdf(Buffer.from(pdfBuffer), format)
+    }
+
+    // ─── InvoiceArtifactPort national XML renderers ──────────────────────
+
+    async renderFatturaPa(data: InvoiceRenderData): Promise<string> {
+        return this.buildFatturaPa(data);
+    }
+
+    async renderCfdi(data: InvoiceRenderData): Promise<string> {
+        return this.buildCfdi(data);
+    }
+
+    async renderFacturae(data: InvoiceRenderData): Promise<string> {
+        return this.buildFacturae(data);
+    }
+
+    async renderKsaUbl(data: InvoiceRenderData): Promise<string> {
+        return this.buildKsaUbl(data);
+    }
+
+    async renderFaVat(data: InvoiceRenderData): Promise<string> {
+        return this.buildFaVat(data);
     }
 }
