@@ -34,7 +34,7 @@ function nationalPortal(spec: NationalPortalSpec): TransmissionProvider {
     // Clearance portals are polled for their authorization; real-time/report portals are fire-and-forget.
     feedback: spec.async ? 'ASYNC_POLL' : 'NONE',
     pollPolicy: spec.async ? { everySeconds: 60, timeoutHours: 48, backoff: 'EXPONENTIAL' } : undefined,
-    transmit(_artifacts, _ctx, _plan, key: string, log: ComplianceLogger): TransmissionResult {
+    async transmit(_artifacts, _ctx, _plan, key: string, log: ComplianceLogger): Promise<TransmissionResult> {
       log.todo(`transmission/${spec.id}`, `${spec.hint} (key ${key})`);
       return {
         channel: spec.channel,

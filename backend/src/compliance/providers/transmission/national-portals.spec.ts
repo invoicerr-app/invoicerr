@@ -17,24 +17,24 @@ describe('national transmission portals', () => {
     expect(defaultTransmissionRegistry.resolve({ type: 'GOV_PORTAL_API', providerId: 'nope' })?.id).toBe('gov-portal');
   });
 
-  it('clearance portals are ASYNC_POLL with a poll policy and expose poll()', () => {
+  it('clearance portals are ASYNC_POLL with a poll policy and expose poll()', async () => {
     const log = new RecordingComplianceLogger();
     for (const id of ['sefaz', 'sii', 'afip', 'zatca', 'in-irp', 'gib', 'anaf']) {
       const p = defaultTransmissionRegistry.getById(id)!;
       expect(p.feedback).toBe('ASYNC_POLL');
       expect(p.pollPolicy).toBeDefined();
-      expect(p.transmit([], {} as never, {} as never, 'k', log).status).toBe('PENDING');
+      expect((await p.transmit([], {} as never, {} as never, 'k', log)).status).toBe('PENDING');
       expect(p.poll).toBeDefined();
       expect(p.poll!('ref', log).status).toBe('PENDING');
     }
   });
 
-  it('real-time/report portals are fire-and-forget (NONE feedback, SENT)', () => {
+  it('real-time/report portals are fire-and-forget (NONE feedback, SENT)', async () => {
     const log = new RecordingComplianceLogger();
     for (const id of ['ke-kra', 'es-aeat', 'ph-bir']) {
       const p = defaultTransmissionRegistry.getById(id)!;
       expect(p.feedback).toBe('NONE');
-      expect(p.transmit([], {} as never, {} as never, 'k', log).status).toBe('SENT');
+      expect((await p.transmit([], {} as never, {} as never, 'k', log)).status).toBe('SENT');
     }
   });
 

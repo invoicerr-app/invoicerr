@@ -36,7 +36,7 @@ export interface TransmissionProvider {
     plan: CompliancePlan,
     idempotencyKey: string,
     log: ComplianceLogger,
-  ): TransmissionResult;
+  ): TransmissionResult | Promise<TransmissionResult>;
   /** For asynchronous clearance channels: re-check status. */
   poll?(ref: string, log: ComplianceLogger): TransmissionResult;
 

@@ -2,7 +2,6 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateInvoiceDto, CreateInvoiceFromQuoteDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
 import { ExportFormat } from '@fin.cx/einvoice';
 
-import { MailService } from '@/mail/mail.service';
 import { NumberingService } from '@/utils/numbering';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { Prisma, WebhookEvent } from '../../../prisma/generated/prisma/client';
@@ -27,7 +26,6 @@ import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-ren
 export class InvoicesService {
 
     constructor(
-        private readonly mailService: MailService,
         private readonly webhookDispatcher: WebhookDispatcherService,
         private readonly numberingService: NumberingService,
         private readonly complianceService: ComplianceService,
@@ -1253,63 +1251,19 @@ export class InvoicesService {
             return { message: 'Client has no email configured; invoice not sent' };
         }
 
-        const pdfBuffer = await this.getInvoicePDFFormat(invoiceId, (invoice.company.invoicePDFFormat as ExportFormat || 'pdf'));
-
-        const mailTemplate = await prisma.mailTemplate.findFirst({
-            where: { type: 'INVOICE' },
-            select: { subject: true, body: true }
+        // Build → transmit (real email via config-driven plan) → archive → report
+        const complianceDoc = await prisma.complianceDocument.findFirst({
+            where: { invoiceId },
+            orderBy: { createdAt: 'desc' },
         });
-
-        if (!mailTemplate) {
-            logger.error('Email template for signature request not found.', { category: 'invoice' });
-            throw new BadRequestException('Email template for signature request not found.');
+        if (!complianceDoc) {
+            throw new BadRequestException('No compliance document for invoice');
         }
-
-        const envVariables = {
-            APP_URL: process.env.APP_URL,
-            INVOICE_NUMBER: invoice.rawNumber || (invoice.number?.toString() ?? 'DRAFT'),
-            COMPANY_NAME: invoice.company.name,
-            CLIENT_NAME: invoice.client.name,
-        };
-
-        const mailOptions = {
-            to: invoice.client.contactEmail,
-            subject: mailTemplate.subject.replace(/{{(\w+)}}/g, (_, key) => envVariables[key] || ''),
-            html: mailTemplate.body.replace(/{{(\w+)}}/g, (_, key) => envVariables[key] || ''),
-            attachments: [{
-                filename: `invoice-${invoice.rawNumber || invoice.number || 'draft'}.pdf`,
-                content: pdfBuffer,
-                contentType: 'application/pdf',
-            }],
-        };
-
         try {
-            await this.mailService.sendMail(mailOptions);
+            await this.complianceService.send(complianceDoc.id);
         } catch (error) {
-            logger.error('Failed to send invoice email', { category: 'invoice', details: { error } });
+            logger.error('Failed to send invoice', { category: 'invoice', details: { error } });
             throw new BadRequestException('Failed to send invoice email. Please check your SMTP configuration.');
-        }
-
-        logger.info('Invoice sent by email', { category: 'invoice', details: { invoiceId, email: invoice.client.contactEmail } });
-
-        // Trigger compliance pipeline (sign → transmit → archive → report)
-        try {
-            const complianceDoc = await prisma.complianceDocument.findFirst({
-                where: { invoiceId },
-                orderBy: { createdAt: 'desc' },
-            });
-            if (complianceDoc) {
-                const result = await this.complianceService.send(complianceDoc.id);
-                logger.info('ComplianceService.send completed', {
-                    category: 'invoice',
-                    details: { invoiceId, complianceStatus: result.document.status },
-                });
-            }
-        } catch (error) {
-            logger.warn('ComplianceService.send failed (non-blocking)', {
-                category: 'invoice',
-                details: { error: String(error) },
-            });
         }
 
         try {

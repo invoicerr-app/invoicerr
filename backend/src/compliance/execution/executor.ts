@@ -100,7 +100,7 @@ export class ComplianceExecutor {
     const regime = this.regimes.get(plan.regime.model).handle(ctx, plan, signed, log);
 
     // 6. Transmit over every planned channel.
-    const transmissions = this.transmission.transmitAll(signed, ctx, plan, idempotencyKey, log);
+    const transmissions = await this.transmission.transmitAll(signed, ctx, plan, idempotencyKey, log);
 
     // 7. Archive the authoritative artifact (retention + residency routing).
     const archive = this.archive.store(signed, plan.archival, log);

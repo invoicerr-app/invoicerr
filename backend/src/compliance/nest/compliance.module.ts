@@ -9,9 +9,11 @@ import { InboundRouter } from '../lifecycle/drivers/inbound-router';
 import { ComplianceService } from '../operations/compliance-service';
 import { ComplianceExecutor } from '../execution/executor';
 import { FormatProviderRegistry } from '../providers/format/registry';
+import { TransmissionProviderRegistry } from '../providers/transmission/registry';
 import { defaultTransmissionRegistry } from '../providers/transmission/registry';
 import { InvoiceRenderingModule } from '@/modules/invoice-rendering/invoice-rendering.module';
 import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
+import { InvoiceMailGateway } from '@/modules/invoice-rendering/invoice-mail.gateway';
 import { ApplySignalService } from './apply-signal';
 import { ComplianceCron } from './compliance.cron';
 import { AuditExportController } from './audit-export.controller';
@@ -90,11 +92,18 @@ import { RequiredFieldsController } from './required-fields.controller';
       useFactory: (rendering: InvoiceRenderingService) => new FormatProviderRegistry({ artifacts: rendering }),
       inject: [InvoiceRenderingService],
     },
-    // ComplianceExecutor with the wired format registry
+    // TransmissionProviderRegistry with real mail port (InvoiceMailGateway)
+    {
+      provide: TransmissionProviderRegistry,
+      useFactory: (mail: InvoiceMailGateway) => new TransmissionProviderRegistry({ mail }),
+      inject: [InvoiceMailGateway],
+    },
+    // ComplianceExecutor with wired format + transmission registries
     {
       provide: ComplianceExecutor,
-      useFactory: (formats: FormatProviderRegistry) => new ComplianceExecutor({ formats }),
-      inject: [FormatProviderRegistry],
+      useFactory: (formats: FormatProviderRegistry, transmission: TransmissionProviderRegistry) =>
+        new ComplianceExecutor({ formats, transmission }),
+      inject: [FormatProviderRegistry, TransmissionProviderRegistry],
     },
     // ComplianceService (facade) with Prisma store + wired executor
     {

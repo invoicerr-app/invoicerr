@@ -1,7 +1,6 @@
 import { InvoicesController } from "@/modules/invoices/invoices.controller";
 import { InvoicesService } from "@/modules/invoices/invoices.service";
 import { JwtService } from "@nestjs/jwt";
-import { MailService } from "@/mail/mail.service";
 import { Module } from "@nestjs/common";
 import { PluginsService } from "@/modules/plugins/plugins.service";
 import { WebhooksModule } from "../webhooks/webhooks.module";
@@ -12,7 +11,7 @@ import { InvoiceRenderingModule } from "@/modules/invoice-rendering/invoice-rend
 @Module({
   imports: [WebhooksModule, ComplianceModule, InvoiceRenderingModule],
   controllers: [InvoicesController],
-  providers: [InvoicesService, MailService, JwtService, PluginsService, NumberingService],
+  providers: [InvoicesService, JwtService, PluginsService, NumberingService],
   exports: [InvoicesService],
 })
 export class InvoicesModule { }

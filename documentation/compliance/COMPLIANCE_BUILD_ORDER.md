@@ -31,9 +31,9 @@
 
 - [x] **0.1** Extraire `InvoiceRenderingService` (cycle-safe, sans import compliance) — `modules/invoice-rendering/` · ✅ `fca7e241`
 - [x] **0.2** Format providers délèguent via `InvoiceArtifactPort` (`ctx.externalRef` → `renderPdf`/`renderPdfFormat`) — `providers/format/providers.ts` · ✅ `673635d6`
-- [ ] **0.3** Transmission **email réelle** : `MailService` branché sur le provider, `transmit`/`transmitAll`/`execute` async
-- [ ] **0.4** Réduire `sendInvoiceByEmail` à `complianceService.send()` **config-driven**, retirer le bloc PDF+email hardcodé
-- [x] **1.** `[FONDATION]` **wiring Nest** : `FormatProviderRegistry({artifacts: rendering})` → `ComplianceExecutor` → `ComplianceService` — `nest/compliance.module.ts:88` · ✅ (transmissions encore en stubs par défaut)
+- [x] **0.3** Transmission **email réelle** : `EmailTransmissionProvider` → `InvoiceMailPort`/`InvoiceMailGateway` (cycle-safe), `transmit`/`transmitAll`/`execute` async — `providers/transmission/` · ✅
+- [x] **0.4** `sendInvoiceByEmail` réduit à `complianceService.send()` **config-driven**, bloc PDF+email hardcodé retiré, `MailService` sorti de `invoices.service` — `modules/invoices/invoices.service.ts` · ✅
+- [x] **1.** `[FONDATION]` **wiring Nest** : `FormatProviderRegistry({artifacts})` + `TransmissionProviderRegistry({mail})` → `ComplianceExecutor({formats, transmission})` → `ComplianceService` — `nest/compliance.module.ts` · ✅
 
 ---
 
@@ -99,10 +99,10 @@
 # BLOC C — ENVOIS / TRANSMISSIONS (tout, dans l'ordre)
 
 ## C1 · Défaut + France + partagés
-> 🟢 #60 **email** existe déjà dans `invoices.service.ts` (`sendInvoiceByEmail` → `MailService.sendMail`
-> avec PDF en PJ). La PHASE 0 (étapes 0.3/0.4) le **déplace** dans le provider transmission et fait
-> que `sendInvoiceByEmail` appelle `complianceService.send()` config-driven. **Pas à recoder.**
-- [~] 60. `[ENVOI]` **email** → `MailService.sendMail` (PDF en PJ, déjà réel) — à déplacer dans `transmission/providers.ts` (PHASE 0.3/0.4) · *tous les pays défaut*
+> 🟢 #60 **email** : ✅ **fait** (PHASE 0.3/0.4). Déplacé dans `EmailTransmissionProvider` via
+> `InvoiceMailPort`/`InvoiceMailGateway` ; `sendInvoiceByEmail` appelle désormais
+> `complianceService.send()` config-driven. `MailService` retiré de `invoices.service`.
+- [x] 60. `[ENVOI]` **email** → `InvoiceMailGateway` (`MailService.sendMail`, PDF en PJ) via provider transmission · *tous les pays défaut*
 - [ ] 61. `[ENVOI]` **print** (reçus B2C/fiscalisation) — `transmission/providers.ts:133`
 - [ ] 62. `[ENVOI]` **PDP** (annuaire + remise + `sendStatus` + poll/callback) → 🇫🇷 FR — `transmission/providers.ts:39,43,47`
 - [ ] 63. `[ENVOI]` **Peppol** (SMP + AS4 + Invoice Response) → IE, SI, BE, AE, SG, NL, SE, NO, DE(B2G) — `transmission/providers.ts:24,28`
@@ -152,7 +152,8 @@
 - 🟢 **Atteint** : #2-3-4 (PDF + EN 16931 + Factur-X) **déjà réels** et réutilisés (PHASE 0.1/0.2) →
   la majorité des pays `GAPLESS_SELF` ont déjà un format réel **et** un cycle de vie complet
   (issue→build→email→encaissée), validé par la suite de scénarios CI multi-pays (fr-be, de-fr, it-it, es-pt).
-- **Prochain (PHASE 0.3/0.4)** : email config-driven → `sendInvoiceByEmail` délègue à `complianceService.send()`.
+- 🟢 **Atteint (PHASE 0.3/0.4)** : email **config-driven** → `sendInvoiceByEmail` délègue à `complianceService.send()`,
+  envoi réel via `EmailTransmissionProvider`/`InvoiceMailGateway`. Le chemin par défaut est désormais **entièrement** piloté par la config.
 - **🇫🇷 France** complète = #4 (Factur-X ✅) + #62 (PDP) + #121 (e-reporting) — marché cible.
 - Premier clearance/`AUTHORITY_RANGE` de bout en bout = **🇲🇽 MX** (#124 FolioPool + #65 PAC→SAT) :
   débloque les pays où le numéro vient de l'autorité (aujourd'hui **bloqués à dessein**, cf. encadré ⚖️ en tête).

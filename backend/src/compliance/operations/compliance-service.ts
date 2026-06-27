@@ -244,7 +244,7 @@ export class ComplianceService {
       this.log.warn('operations/sendViaChannel', `no provider for channel ${channel}`);
       return { document: rec, transmissions: [{ channel, status: 'SKIPPED', notes: ['no provider'] }] };
     }
-    const result = provider.transmit(artifacts, rec.ctx, plan, `${id}:${channel}`, this.log);
+    const result = await provider.transmit(artifacts, rec.ctx, plan, `${id}:${channel}`, this.log);
     return { document: rec, transmissions: [result] };
   }
 
