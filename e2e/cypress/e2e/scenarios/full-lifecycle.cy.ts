@@ -5,10 +5,17 @@ const s = SCENARIOS[scenarioId];
 const api = Cypress.env('apiUrl');
 
 function fillCompanyIdentifier(legalId: string, scheme?: IdentifierScheme) {
-  const selector = scheme === 'VAT' ? 'company-vat-input' : 'company-legalid-input';
+  if (!scheme) return;
+  const dataCySelector =
+    scheme === 'VAT' ? 'company-vat-input' :
+    scheme === 'LEGAL_ID' ? 'company-legalid-input' :
+    null;
   cy.get('body').then(($body) => {
-    if ($body.find(`[data-cy="${selector}"]`).length) {
-      cy.get(`[data-cy="${selector}"]`).scrollIntoView().clear({ force: true }).type(legalId, { force: true });
+    if (dataCySelector && $body.find(`[data-cy="${dataCySelector}"]`).length) {
+      cy.get(`[data-cy="${dataCySelector}"]`).scrollIntoView().clear({ force: true }).type(legalId, { force: true });
+    } else {
+      // Schemes without data-cy (e.g. RFC for Mexico) — match by placeholder = scheme label
+      cy.get(`input[placeholder="${scheme}"]`).scrollIntoView().clear({ force: true }).type(legalId, { force: true });
     }
   });
 }
@@ -67,8 +74,8 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
     cy.get('[data-cy="company-currency-select"] button').first().click();
     cy.wait(300);
     cy.get('[data-cy="company-currency-select-options"]').should('be.visible');
-    const currencyLabel = s.company.currency === 'EUR' ? 'euro-(€)' : s.company.currency === 'USD' ? 'us-dollar-($)' : s.company.currency === 'MXN' ? 'mexican-peso-(mx$)' : 'euro-(€)';
-    cy.get(`[data-cy="company-currency-select-option-${currencyLabel}"]`).click();
+    const currencySlug = s.company.currencyLabel.toLowerCase().replace(/\s+/g, '-');
+    cy.get(`[data-cy="company-currency-select-option-${currencySlug}"]`).click();
 
     // Legal id (conditional on country scheme)
     fillCompanyIdentifier(s.company.legalId, s.company.identifierScheme);
@@ -149,6 +156,15 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
             quoteId: quote.id,
             items: [{ quoteItemId: quote.items[0].id, quantity: s.item.quantity }],
           }).its('body').then((invoice) => {
+            if (s.expectsAuthorityNumbering) {
+              // MX: AUTHORITY_RANGE country refuses self-numbering (FolioPool not wired yet)
+              cy.request({ method: 'POST', url: `${api}/api/invoices/${invoice.id}/issue`, failOnStatusCode: false })
+                .then((res) => {
+                  expect(res.status, 'AUTHORITY_RANGE country refuses self-numbering').to.eq(400);
+                  expect(res.body.message).to.match(/AUTHORITY_RANGE|FolioPool/);
+                });
+              return;
+            }
             // 8. Issue + send
             cy.request({ method: 'POST', url: `${api}/api/invoices/${invoice.id}/issue`, failOnStatusCode: false });
             cy.request('POST', `${api}/api/invoices/send`, { id: invoice.id });
