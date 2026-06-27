@@ -13,6 +13,6 @@ export interface FormatProvider {
     ctx: TransactionContext,
     plan: CompliancePlan,
     log: ComplianceLogger,
-  ): RenderedArtifact;
+  ): Promise<RenderedArtifact>;
   validate(rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport;
 }

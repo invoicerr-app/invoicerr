@@ -90,4 +90,5 @@ export interface TransactionContext {
   issueDate: Date;
   currency: string;
   documentKind?: DocumentKind;
+  externalRef?: string; // source invoice id (lets format/transmission reuse app rendering)
 }

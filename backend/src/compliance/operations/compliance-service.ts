@@ -196,7 +196,7 @@ export class ComplianceService {
   async send(id: string, opts: IssueOptions = {}): Promise<SendResult> {
     const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
-    const execution = this.executor.execute(rec.ctx, plan, { idempotencyKey: opts.idempotencyKey });
+    const execution = await this.executor.execute(rec.ctx, plan, { idempotencyKey: opts.idempotencyKey });
 
     let current = await this.store.update(id, {
       plan,
@@ -238,7 +238,7 @@ export class ComplianceService {
   async sendViaChannel(id: string, channel: ChannelType): Promise<TransmitResult> {
     const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
-    const artifacts = this.formats.buildAll(rec.ctx, plan, this.log) as SignedArtifact[];
+    const artifacts = await this.formats.buildAll(rec.ctx, plan, this.log) as SignedArtifact[];
     const provider = this.transmission.get(channel);
     if (!provider) {
       this.log.warn('operations/sendViaChannel', `no provider for channel ${channel}`);
@@ -448,7 +448,7 @@ export class ComplianceService {
   async archiveDocument(id: string): Promise<ArchiveResult> {
     const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
-    const artifacts = this.formats.buildAll(rec.ctx, plan, this.log) as SignedArtifact[];
+    const artifacts = await this.formats.buildAll(rec.ctx, plan, this.log) as SignedArtifact[];
     const receipt = this.archive.store(artifacts, plan.archival, this.log);
     return { document: rec, receipt };
   }
@@ -457,7 +457,7 @@ export class ComplianceService {
   async validate(id: string): Promise<{ valid: boolean; errors: string[]; warnings: string[] }> {
     const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
-    this.formats.buildAll(rec.ctx, plan, this.log); // each provider runs its own validate()
+    await this.formats.buildAll(rec.ctx, plan, this.log); // each provider runs its own validate()
     this.log.todo('operations/validate', 'aggregate per-artifact ValidationReports');
     return { valid: true, errors: [], warnings: ['validation aggregation is stubbed'] };
   }

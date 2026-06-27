@@ -7,7 +7,11 @@ import { PollScheduler } from '../lifecycle/drivers/poll-scheduler';
 import { TimerScheduler } from '../lifecycle/drivers/timer-scheduler';
 import { InboundRouter } from '../lifecycle/drivers/inbound-router';
 import { ComplianceService } from '../operations/compliance-service';
+import { ComplianceExecutor } from '../execution/executor';
+import { FormatProviderRegistry } from '../providers/format/registry';
 import { defaultTransmissionRegistry } from '../providers/transmission/registry';
+import { InvoiceRenderingModule } from '@/modules/invoice-rendering/invoice-rendering.module';
+import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
 import { ApplySignalService } from './apply-signal';
 import { ComplianceCron } from './compliance.cron';
 import { AuditExportController } from './audit-export.controller';
@@ -15,6 +19,7 @@ import { ComplianceController } from './compliance.controller';
 import { RequiredFieldsController } from './required-fields.controller';
 
 @Module({
+  imports: [InvoiceRenderingModule],
   controllers: [ComplianceController, RequiredFieldsController, AuditExportController],
   providers: [
     // Stores
@@ -79,11 +84,24 @@ import { RequiredFieldsController } from './required-fields.controller';
       }),
       inject: [ApplySignalService, PrismaCallbackStore],
     },
-    // ComplianceService (facade) with Prisma store
+    // FormatProviderRegistry with real rendering port (InvoiceRenderingService)
+    {
+      provide: FormatProviderRegistry,
+      useFactory: (rendering: InvoiceRenderingService) => new FormatProviderRegistry({ artifacts: rendering }),
+      inject: [InvoiceRenderingService],
+    },
+    // ComplianceExecutor with the wired format registry
+    {
+      provide: ComplianceExecutor,
+      useFactory: (formats: FormatProviderRegistry) => new ComplianceExecutor({ formats }),
+      inject: [FormatProviderRegistry],
+    },
+    // ComplianceService (facade) with Prisma store + wired executor
     {
       provide: ComplianceService,
-      useFactory: (docStore: PrismaComplianceDocumentStore) => new ComplianceService({ store: docStore }),
-      inject: [PrismaComplianceDocumentStore],
+      useFactory: (docStore: PrismaComplianceDocumentStore, executor: ComplianceExecutor) =>
+        new ComplianceService({ store: docStore, executor }),
+      inject: [PrismaComplianceDocumentStore, ComplianceExecutor],
     },
     // Cron
     ComplianceCron,

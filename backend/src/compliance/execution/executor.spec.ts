@@ -35,16 +35,21 @@ function tx(
 }
 
 /** Fresh executor per test so the in-memory numbering counters/folio pools are isolated. */
-function run(ctx: TransactionContext) {
+async function run(ctx: TransactionContext) {
   const log = new RecordingComplianceLogger();
   const executor = new ComplianceExecutor({ numbering: new NumberingRegistry(), logger: log });
   const plan = resolve(ctx);
-  const result = executor.execute(ctx, plan);
+  const result = await executor.execute(ctx, plan);
   return { plan, result, log };
 }
 
 describe('ComplianceExecutor — France (decentralized CTC)', () => {
-  const { result, log } = run(tx('FR', 'FR', 'B2B', 'SERVICES', '2027-01-15'));
+  let result: Awaited<ReturnType<typeof run>>['result'];
+  let log: Awaited<ReturnType<typeof run>>['log'];
+
+  beforeAll(async () => {
+    ({ result, log } = await run(tx('FR', 'FR', 'B2B', 'SERVICES', '2027-01-15')));
+  });
 
   it('builds Factur-X via the EN 16931 provider', () => {
     expect(log.hasScope('format/en16931')).toBe(true);
@@ -69,7 +74,12 @@ describe('ComplianceExecutor — France (decentralized CTC)', () => {
 });
 
 describe('ComplianceExecutor — United States (post-audit, sales tax)', () => {
-  const { result, log } = run(tx('US', 'US', 'B2B', 'GOODS', '2027-01-15', 'CA'));
+  let result: Awaited<ReturnType<typeof run>>['result'];
+  let log: Awaited<ReturnType<typeof run>>['log'];
+
+  beforeAll(async () => {
+    ({ result, log } = await run(tx('US', 'US', 'B2B', 'GOODS', '2027-01-15', 'CA')));
+  });
 
   it('builds a plain PDF and transmits by email', () => {
     expect(log.hasScope('format/plain-pdf')).toBe(true);
@@ -84,7 +94,12 @@ describe('ComplianceExecutor — United States (post-audit, sales tax)', () => {
 });
 
 describe('ComplianceExecutor — Mexico (blocking clearance)', () => {
-  const { result, log } = run(tx('MX', 'MX', 'B2B', 'GOODS', '2024-06-01'));
+  let result: Awaited<ReturnType<typeof run>>['result'];
+  let log: Awaited<ReturnType<typeof run>>['log'];
+
+  beforeAll(async () => {
+    ({ result, log } = await run(tx('MX', 'MX', 'B2B', 'GOODS', '2024-06-01')));
+  });
 
   it('builds the national CFDI format', () => {
     expect(log.hasScope('format/cfdi')).toBe(true);
@@ -114,8 +129,8 @@ describe('ComplianceExecutor — Mexico (blocking clearance)', () => {
 });
 
 describe('ComplianceExecutor — reporting side-effects', () => {
-  it('FR→IT B2B services queues the EC Sales List', () => {
-    const { log } = run(tx('FR', 'IT', 'B2B', 'SERVICES', '2027-01-15'));
+  it('FR→IT B2B services queues the EC Sales List', async () => {
+    const { log } = await run(tx('FR', 'IT', 'B2B', 'SERVICES', '2027-01-15'));
     expect(log.hasScope('reporting/ec-sales-list')).toBe(true);
   });
 });

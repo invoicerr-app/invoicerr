@@ -1,9 +1,11 @@
+import { ExportFormat } from '@fin.cx/einvoice';
 import { TransactionContext } from '../../canonical/canonical-document';
 import { CompliancePlan, PlannedArtifact } from '../../engine/compliance-engine';
 import { ComplianceLogger } from '../../execution/logger';
 import { RenderedArtifact, ValidationReport } from '../../execution/types';
 import { ArtifactRole, DocumentSyntax } from '../../types';
 import { FormatProvider } from './format-provider';
+import { InvoiceArtifactPort } from './invoice-artifact-port';
 
 function rendered(artifact: PlannedArtifact): RenderedArtifact {
   return {
@@ -18,6 +20,13 @@ function okValidation(warning: string): ValidationReport {
   return { valid: true, errors: [], warnings: [warning] };
 }
 
+/** Map DocumentSyntax → ExportFormat for the EN 16931 hybrid PDF formats. */
+const SYNTAX_TO_EXPORT_FORMAT: Partial<Record<DocumentSyntax, ExportFormat>> = {
+  FACTURX: 'FACTURX' as ExportFormat,
+  ZUGFERD: 'ZUGFERD' as ExportFormat,
+  PDF_A3: 'PDF_A3' as ExportFormat,
+};
+
 /** EN 16931 family (Factur-X, ZUGFeRD, XRechnung, UBL, CII, Peppol BIS, PDF/A-3). Wraps
  *  @fin.cx/einvoice — already a dependency and already used by the current invoice flow. */
 export class En16931FormatProvider implements FormatProvider {
@@ -31,10 +40,21 @@ export class En16931FormatProvider implements FormatProvider {
     'PEPPOL_BIS',
     'PDF_A3',
   ];
+  constructor(private readonly artifacts?: InvoiceArtifactPort) {}
   supports(syntax: DocumentSyntax): boolean {
     return En16931FormatProvider.SYNTAXES.includes(syntax);
   }
-  build(artifact: PlannedArtifact, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): RenderedArtifact {
+  async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
+    if (this.artifacts && ctx.externalRef) {
+      const exportFormat = SYNTAX_TO_EXPORT_FORMAT[artifact.syntax as DocumentSyntax];
+      if (exportFormat) {
+        const bytes = await this.artifacts.renderPdfFormat(ctx.externalRef, exportFormat);
+        return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/pdf', bytes };
+      }
+      // Pure XML syntaxes (UBL, CII, Peppol, XRechnung) — fall back to stub for now
+      log.todo('format/en16931', `render XML ${artifact.syntax} (no ExportFormat mapping yet — stub)`);
+      return { ...rendered(artifact), mime: 'application/xml' };
+    }
     log.todo('format/en16931', `build ${artifact.syntax} via @fin.cx/einvoice (EInvoice.embedInPdf/exportXml)`);
     return { ...rendered(artifact), mime: artifact.syntax === 'PDF_A3' ? 'application/pdf' : 'application/xml' };
   }
@@ -46,11 +66,16 @@ export class En16931FormatProvider implements FormatProvider {
 
 export class PlainPdfFormatProvider implements FormatProvider {
   readonly id = 'plain-pdf';
+  constructor(private readonly artifacts?: InvoiceArtifactPort) {}
   supports(syntax: DocumentSyntax): boolean {
     return syntax === 'PLAIN_PDF';
   }
-  build(artifact: PlannedArtifact, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): RenderedArtifact {
-    log.todo('format/plain-pdf', 'render PDF via existing getInvoicePdf() handlebars template');
+  async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
+    if (this.artifacts && ctx.externalRef) {
+      const bytes = await this.artifacts.renderPdf(ctx.externalRef);
+      return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/pdf', bytes };
+    }
+    log.todo('format/plain-pdf', 'render PDF (no externalRef / no port) — stub');
     return { ...rendered(artifact), mime: 'application/pdf' };
   }
   validate(): ValidationReport {
@@ -63,7 +88,7 @@ export class CfdiFormatProvider implements FormatProvider {
   supports(syntax: DocumentSyntax): boolean {
     return syntax === 'CFDI';
   }
-  build(artifact: PlannedArtifact, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): RenderedArtifact {
+  async build(artifact: PlannedArtifact, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
     log.todo('format/cfdi', 'build SAT CFDI 4.0 XML (Comprobante, Conceptos, Impuestos, UsoCFDI)');
     return { ...rendered(artifact), mime: 'application/xml' };
   }
@@ -78,7 +103,7 @@ export class FatturaPaFormatProvider implements FormatProvider {
   supports(syntax: DocumentSyntax): boolean {
     return syntax === 'FATTURAPA';
   }
-  build(artifact: PlannedArtifact, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): RenderedArtifact {
+  async build(artifact: PlannedArtifact, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
     log.todo('format/fatturapa', 'build FatturaPA 1.2 XML for SdI');
     return { ...rendered(artifact), mime: 'application/xml' };
   }
@@ -93,7 +118,7 @@ export class KsaUblFormatProvider implements FormatProvider {
   supports(syntax: DocumentSyntax): boolean {
     return syntax === 'KSA_UBL';
   }
-  build(artifact: PlannedArtifact, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): RenderedArtifact {
+  async build(artifact: PlannedArtifact, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
     log.todo('format/ksa-ubl', 'build ZATCA UBL 2.1 + KSA extension and QR payload');
     return { ...rendered(artifact), mime: 'application/xml' };
   }
@@ -110,7 +135,7 @@ export class NationalXmlFormatProvider implements FormatProvider {
   supports(syntax: DocumentSyntax): boolean {
     return syntax === 'NATIONAL_XML';
   }
-  build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): RenderedArtifact {
+  async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
     log.todo('format/national-xml', `build the national clearance XML for ${ctx.supplier.countryCode} (dedicated provider TODO)`);
     return { ...rendered(artifact), mime: 'application/xml' };
   }
@@ -126,7 +151,7 @@ export class FaVatFormatProvider implements FormatProvider {
   supports(syntax: DocumentSyntax): boolean {
     return syntax === 'FA_VAT';
   }
-  build(artifact: PlannedArtifact, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): RenderedArtifact {
+  async build(artifact: PlannedArtifact, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
     log.todo('format/fa-vat', 'build Polish FA_VAT (FA(2)/FA(3)) XML for KSeF');
     return { ...rendered(artifact), mime: 'application/xml' };
   }

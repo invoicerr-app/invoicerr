@@ -333,6 +333,7 @@ export class InvoicesService {
                 })),
                 issueDate: new Date(),
                 currency: body.currency || client.currency || company.currency,
+                externalRef: invoice.id,
             };
             await this.complianceService.createDraft(complianceCtx, 'INVOICE', invoice.id);
         } catch (error) {
@@ -583,6 +584,7 @@ export class InvoicesService {
                     })),
                     issueDate,
                     currency: invoice.currency,
+                    externalRef: correctionInvoice.id,
                 };
                 const correctionDoc = await this.complianceService.createDraft(complianceCtx, correctionKind as any, correctionInvoice.id);
                 await this.complianceService.issue(correctionDoc.id);
@@ -758,6 +760,7 @@ export class InvoicesService {
                     })),
                     issueDate,
                     currency: invoice.currency,
+                    externalRef: replacement.id,
                 };
                 const replacementDoc = await this.complianceService.createDraft(complianceCtx, 'INVOICE', replacement.id);
                 await this.complianceService.issue(replacementDoc.id);
@@ -1440,6 +1443,7 @@ export class InvoicesService {
                 })),
                 issueDate: new Date(),
                 currency: body.currency || client.currency || company.currency,
+                externalRef: invoice.id,
             };
             await this.complianceService.createDraft(complianceCtx, 'PROFORMA', invoice.id);
         } catch (error) {
@@ -1626,6 +1630,7 @@ export class InvoicesService {
                 }],
                 issueDate,
                 currency,
+                externalRef: depositInvoice.id,
             };
             const doc = await this.complianceService.createDraft(complianceCtx, 'DEPOSIT', depositInvoice.id);
             await this.complianceService.issue(doc.id);

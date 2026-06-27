@@ -70,7 +70,7 @@ export class ComplianceExecutor {
     return 'none';
   }
 
-  execute(ctx: TransactionContext, plan: CompliancePlan, opts: ExecuteOptions = {}): ExecutionResult {
+  async execute(ctx: TransactionContext, plan: CompliancePlan, opts: ExecuteOptions = {}): Promise<ExecutionResult> {
     const log = this.log;
     const warnings: string[] = [...plan.warnings];
     const idempotencyKey = opts.idempotencyKey ?? `${ctx.supplier.countryCode}-${Date.now()}`;
@@ -88,7 +88,7 @@ export class ComplianceExecutor {
     }
 
     // 3. Build each planned artifact (authoritative / human / buyer).
-    const artifacts = this.formats.buildAll(ctx, plan, log);
+    const artifacts = await this.formats.buildAll(ctx, plan, log);
 
     // 4. Sign (when the regime/archive requires it).
     const algo = this.chooseSignAlgo(plan);

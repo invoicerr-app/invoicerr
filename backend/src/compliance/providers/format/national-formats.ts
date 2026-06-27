@@ -33,14 +33,14 @@ function nationalFormat(spec: NationalFormatSpec): FormatProvider {
   return {
     id: spec.id,
     supports: (syntax: DocumentSyntax) => syntax === spec.syntax,
-    build(artifact: PlannedArtifact, _ctx, _plan, log: ComplianceLogger): RenderedArtifact {
+    build(artifact: PlannedArtifact, _ctx, _plan, log: ComplianceLogger): Promise<RenderedArtifact> {
       log.todo(`format/${spec.id}`, spec.buildHint);
-      return {
+      return Promise.resolve({
         role: artifact.role as ArtifactRole,
         syntax: spec.syntax,
         mime: 'application/xml',
         bytes: new Uint8Array(),
-      };
+      });
     },
     validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
       log.todo(`format/${spec.id}`, spec.validateHint ?? `validate ${spec.label} against its national schema`);

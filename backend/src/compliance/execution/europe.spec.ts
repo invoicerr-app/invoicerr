@@ -24,15 +24,21 @@ function tx(country: string, role: PartyRole, supply: SupplyType, date: string):
   };
 }
 
-function run(ctx: TransactionContext) {
+async function run(ctx: TransactionContext) {
   const log = new RecordingComplianceLogger();
   const executor = new ComplianceExecutor({ numbering: new NumberingRegistry(), logger: log });
   const plan = resolve(ctx);
-  return { plan, result: executor.execute(ctx, plan), log };
+  return { plan, result: await executor.execute(ctx, plan), log };
 }
 
 describe('Italy — SdI clearance (building blocks already shared)', () => {
-  const { plan, result, log } = run(tx('IT', 'B2B', 'SERVICES', '2027-01-15'));
+  let plan: Awaited<ReturnType<typeof run>>['plan'];
+  let result: Awaited<ReturnType<typeof run>>['result'];
+  let log: Awaited<ReturnType<typeof run>>['log'];
+
+  beforeAll(async () => {
+    ({ plan, result, log } = await run(tx('IT', 'B2B', 'SERVICES', '2027-01-15')));
+  });
 
   it('is a blocking clearance regime', () => {
     expect(plan.regime.model).toBe('CLEARANCE');
@@ -47,8 +53,8 @@ describe('Italy — SdI clearance (building blocks already shared)', () => {
 });
 
 describe('Poland — KSeF selected via providerId (no portal collision)', () => {
-  it('after the 2026 mandate: clearance, FA_VAT, routed specifically through KSeF (not the generic portal)', () => {
-    const { plan, result, log } = run(tx('PL', 'B2B', 'GOODS', '2027-01-15'));
+  it('after the 2026 mandate: clearance, FA_VAT, routed specifically through KSeF (not the generic portal)', async () => {
+    const { plan, result, log } = await run(tx('PL', 'B2B', 'GOODS', '2027-01-15'));
     expect(plan.regime.model).toBe('CLEARANCE');
     expect(plan.channels[0]).toMatchObject({ type: 'GOV_PORTAL_API', providerId: 'ksef' });
     expect(log.hasScope('transmission/ksef')).toBe(true);
@@ -57,8 +63,8 @@ describe('Poland — KSeF selected via providerId (no portal collision)', () => 
     expect(result.artifacts.some((a) => a.syntax === 'FA_VAT')).toBe(true);
   });
 
-  it('before the mandate: post-audit over email', () => {
-    const { plan, log } = run(tx('PL', 'B2B', 'GOODS', '2025-06-01'));
+  it('before the mandate: post-audit over email', async () => {
+    const { plan, log } = await run(tx('PL', 'B2B', 'GOODS', '2025-06-01'));
     expect(plan.regime.model).toBe('POST_AUDIT');
     expect(log.hasScope('transmission/email')).toBe(true);
     expect(log.hasScope('transmission/ksef')).toBe(false);

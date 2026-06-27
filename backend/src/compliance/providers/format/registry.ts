@@ -4,6 +4,7 @@ import { ComplianceLogger, defaultLogger } from '../../execution/logger';
 import { RenderedArtifact } from '../../execution/types';
 import { DocumentSyntax } from '../../types';
 import { FormatProvider } from './format-provider';
+import { InvoiceArtifactPort } from './invoice-artifact-port';
 import {
   CfdiFormatProvider,
   En16931FormatProvider,
@@ -18,17 +19,22 @@ import { NATIONAL_FORMAT_PROVIDERS } from './national-formats';
 export class FormatProviderRegistry {
   private readonly providers: FormatProvider[];
 
-  constructor(providers?: FormatProvider[]) {
-    this.providers = providers ?? [
-      new En16931FormatProvider(),
-      new PlainPdfFormatProvider(),
-      new CfdiFormatProvider(),
-      new FatturaPaFormatProvider(),
-      new KsaUblFormatProvider(),
-      new FaVatFormatProvider(),
-      ...NATIONAL_FORMAT_PROVIDERS, // dedicated national-XML providers (selected by syntax)
-      new NationalXmlFormatProvider(), // generic catch-all stays last as the safety net
-    ];
+  constructor(providers?: FormatProvider[] | { artifacts?: InvoiceArtifactPort }) {
+    if (Array.isArray(providers)) {
+      this.providers = providers;
+    } else {
+      const port = providers?.artifacts;
+      this.providers = [
+        new En16931FormatProvider(port),
+        new PlainPdfFormatProvider(port),
+        new CfdiFormatProvider(),
+        new FatturaPaFormatProvider(),
+        new KsaUblFormatProvider(),
+        new FaVatFormatProvider(),
+        ...NATIONAL_FORMAT_PROVIDERS, // dedicated national-XML providers (selected by syntax)
+        new NationalXmlFormatProvider(), // generic catch-all stays last as the safety net
+      ];
+    }
   }
 
   /** National strategies win over the generic EN provider when both could match. */
@@ -38,21 +44,24 @@ export class FormatProviderRegistry {
     return this.providers.find((p) => p.supports(syntax)) ?? null;
   }
 
-  buildAll(
+  async buildAll(
     ctx: TransactionContext,
     plan: CompliancePlan,
     log: ComplianceLogger = defaultLogger,
-  ): RenderedArtifact[] {
-    return plan.artifacts.map((artifact: PlannedArtifact) => {
+  ): Promise<RenderedArtifact[]> {
+    const results: RenderedArtifact[] = [];
+    for (const artifact of plan.artifacts) {
       const provider = this.resolve(artifact.syntax as DocumentSyntax);
       if (!provider) {
         log.warn('format', `no provider for syntax ${artifact.syntax}; emitting empty artifact`);
-        return { role: artifact.role as RenderedArtifact['role'], syntax: artifact.syntax as DocumentSyntax, mime: 'application/octet-stream', bytes: new Uint8Array() };
+        results.push({ role: artifact.role as RenderedArtifact['role'], syntax: artifact.syntax as DocumentSyntax, mime: 'application/octet-stream', bytes: new Uint8Array() });
+        continue;
       }
-      const built = provider.build(artifact, ctx, plan, log);
+      const built = await provider.build(artifact, ctx, plan, log);
       provider.validate(built, log);
-      return built;
-    });
+      results.push(built);
+    }
+    return results;
   }
 }
 
