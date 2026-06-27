@@ -26,6 +26,7 @@ import { LifecycleRuntime } from '@/compliance/lifecycle/runtime';
 import type { CompliancePlan } from '@/compliance/engine/compliance-engine';
 import type { ComplianceStatus } from '@/compliance/lifecycle/state-machine';
 import { defaultTransmissionRegistry } from '@/compliance/providers/transmission/registry';
+import { describeFlow } from '@/compliance/lifecycle/flow-descriptor';
 import { clampDiscountRate, toMinor } from '@/utils/financial';
 import type { SupplyType, DocumentKind } from '@/compliance/types';
 import { getDraftWatermarkLabel } from '@/utils/watermark';
@@ -105,7 +106,7 @@ export class InvoicesService {
                     where: { isActive: true },
                 },
                 complianceDocuments: {
-                    select: { id: true, status: true },
+                    select: { id: true, status: true, plan: true },
                     orderBy: { createdAt: 'desc' },
                     take: 1,
                 },
@@ -123,7 +124,21 @@ export class InvoicesService {
             return inv;
         }));
 
-        return { pageCount: Math.ceil(totalInvoices / pageSize), invoices: invoicesWithPM };
+        const mapped = invoicesWithPM.map((inv: any) => {
+            const doc = inv.complianceDocuments?.[0];
+            if (!doc?.plan) return inv;
+            const flow = describeFlow(doc.plan as unknown as CompliancePlan, doc.status as ComplianceStatus);
+            return {
+                ...inv,
+                complianceDocuments: [{
+                    id: doc.id,
+                    status: doc.status,
+                    flow: { channelClass: flow.channelClass, sendLabelKey: flow.sendLabelKey, awaiting: flow.awaiting, pipeline: flow.pipeline, manualActions: flow.manualActions },
+                }],
+            };
+        });
+
+        return { pageCount: Math.ceil(totalInvoices / pageSize), invoices: mapped };
     }
 
     async getInvoicesTable(filters: { clientId?: string; year?: string; month?: string; sort?: 'asc' | 'desc' }) {
@@ -2108,6 +2123,7 @@ export class InvoicesService {
                     deposit: isPlainInvoice && isIssued,
                 },
                 correctionKinds: ['CREDIT_NOTE'],
+                flow: null,
             };
         }
 
@@ -2161,6 +2177,7 @@ export class InvoicesService {
                 deposit: isPlainInvoice && isIssued,
             },
             correctionKinds,
+            flow: describeFlow(plan, complianceDoc.status as ComplianceStatus),
         };
     }
 }

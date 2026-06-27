@@ -163,6 +163,13 @@ export interface Invoice {
         plan?: { confidence?: string; warnings?: string[] };
         immutableHash?: string;
         events?: { type: string; at: string; actor?: string; detail?: string }[];
+        flow?: {
+            channelClass: 'EMAIL' | 'CLEARANCE' | 'PEPPOL' | 'PORTAL' | 'PRINT';
+            sendLabelKey: string;
+            awaiting: 'CLEARANCE' | 'BUYER_RESPONSE' | 'DELIVERY' | null;
+            pipeline: string[];
+            manualActions?: string[];
+        };
     }[];
 }
 

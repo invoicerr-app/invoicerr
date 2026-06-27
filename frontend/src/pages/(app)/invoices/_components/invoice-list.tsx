@@ -1,4 +1,4 @@
-import { Edit, Mail, Plus, ReceiptText as PaymentText, Search, Trash2, Stamp, RotateCcw, XCircle } from "lucide-react"
+import { Edit, Mail, Plus, ReceiptText as PaymentText, Search, Trash2, Stamp, RotateCcw, XCircle, Printer, UploadCloud } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { forwardRef, useImperativeHandle, useState } from "react"
 import { usePost, authenticatedFetch } from "@/hooks/use-fetch"
@@ -60,6 +60,9 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                 setCreateInvoiceDialog(true)
             },
         }))
+
+        const flowOf = (inv: Invoice) => inv.complianceDocuments?.[0]?.flow
+        const can = (inv: Invoice, a: string) => flowOf(inv)?.manualActions?.includes(a) ?? false
 
         function handleEdit(invoice: Invoice) {
             setEditInvoiceDialog(invoice)
@@ -427,7 +430,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                 )}
 
                                                 {/* Correction actions for issued invoices */}
-                                                {(invoice.status === InvoiceStatus.ISSUED || invoice.status === InvoiceStatus.SENT) && (
+                                                {(flowOf(invoice) ? can(invoice, 'correct') : (invoice.status === InvoiceStatus.ISSUED || invoice.status === InvoiceStatus.SENT)) && (
                                                     <Button
                                                         data-cy="invoice-correct-button"
                                                         tooltip={t("invoices.list.tooltips.creditNote")}
@@ -440,7 +443,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                     </Button>
                                                 )}
 
-                                                {(invoice.status === InvoiceStatus.ISSUED || invoice.status === InvoiceStatus.SENT) && (
+                                                {(flowOf(invoice) ? can(invoice, 'cancel') : (invoice.status === InvoiceStatus.ISSUED || invoice.status === InvoiceStatus.SENT)) && (
                                                     <Button
                                                         data-cy="invoice-cancel-button"
                                                         tooltip={t("invoices.list.tooltips.cancel")}
@@ -453,17 +456,22 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                     </Button>
                                                 )}
 
-                                                {invoice.status !== "PAID" && (
-                                                    <Button
-                                                        tooltip={t("invoices.list.tooltips.sendByEmail")}
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => { handleSendInvoiceByEmail(invoice) }}
-                                                        className="text-gray-600 hover:text-purple-600"
-                                                    >
-                                                        <Mail className="h-4 w-4" />
-                                                    </Button>
-                                                )}
+                                                {invoice.status !== "PAID" && (() => {
+                                                    const cc = flowOf(invoice)?.channelClass
+                                                    const sendLabelKey = flowOf(invoice)?.sendLabelKey ?? 'send'
+                                                    const SendIcon = cc === 'PRINT' ? Printer : cc === 'CLEARANCE' || cc === 'PORTAL' ? UploadCloud : Mail
+                                                    return (
+                                                        <Button
+                                                            tooltip={t(`invoices.view.actions.${sendLabelKey}`)}
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => { handleSendInvoiceByEmail(invoice) }}
+                                                            className="text-gray-600 hover:text-purple-600"
+                                                        >
+                                                            <SendIcon className="h-4 w-4" />
+                                                        </Button>
+                                                    )
+                                                })()}
 
                                                 {invoice.status === InvoiceStatus.DRAFT && (
                                                     <Button
@@ -518,6 +526,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                     onOpenChange={(open: boolean) => {
                         if (!open) setViewInvoiceDialog(null)
                     }}
+                    onMutate={() => mutate?.()}
                 />
 
                 <InvoiceDeleteDialog

@@ -1,5 +1,15 @@
  import { useApiQuery } from "@/hooks/use-api-query"
- 
+
+ export interface FlowDescriptor {
+     primaryChannel: { type: string; providerId?: string; feedback: string }
+     channelClass: 'EMAIL' | 'CLEARANCE' | 'PEPPOL' | 'PORTAL' | 'PRINT'
+     sendLabelKey: string
+     awaiting: 'CLEARANCE' | 'BUYER_RESPONSE' | 'DELIVERY' | null
+     pipeline: string[]
+     terminal: boolean
+     manualActions: string[]
+ }
+
  export interface AvailableActions {
      invoiceId: string
      status: string
@@ -22,6 +32,7 @@
         deposit: boolean
     }
     correctionKinds: string[]
+    flow?: FlowDescriptor | null
 }
 
 export function useAvailableActions(invoiceId: string | null | undefined) {
