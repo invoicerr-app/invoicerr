@@ -514,6 +514,9 @@
             "steps": {
                 "draft": "Draft",
                 "issued": "Issued",
+                "pendingClearance": "Pending clearance",
+                "cleared": "Cleared",
+                "delivered": "Delivered",
                 "sent": "Sent",
                 "paid": "Paid",
                 "archived": "Archived",
@@ -854,7 +857,15 @@
                 "cancelAndReplaceSuccess": "Invoice cancelled and replaced",
                 "cancelAndReplaceError": "Failed to cancel and replace",
                 "sendSuccess": "Invoice sent",
-                "sendError": "Failed to send invoice"
+                "sendError": "Failed to send invoice",
+                "sendByEmail": "Send by email",
+                "submitClearance": "Submit for clearance",
+                "sendViaPeppol": "Send via Peppol",
+                "sendToPortal": "Send to portal",
+                "print": "Print",
+                "awaitingClearance": "Awaiting clearance from the authority",
+                "awaitingBuyerResponse": "Awaiting buyer response",
+                "awaitingDelivery": "Awaiting delivery confirmation"
             }
         },
         "sendConfirmation": {

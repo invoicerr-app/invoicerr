@@ -12,7 +12,7 @@ import { useAvailableActions } from "@/hooks/queries/use-available-actions"
 import { useGet } from "@/hooks/use-fetch"
 import { authenticatedFetch } from "@/hooks/use-fetch"
 import { toast } from "sonner"
-import { Edit, RotateCcw, XCircle, Send, ArrowRightLeft, Banknote } from "lucide-react"
+import { Edit, RotateCcw, XCircle, Send, ArrowRightLeft, Banknote, Printer, UploadCloud, Clock } from "lucide-react"
 import { DepositDialog } from "./deposit-dialog"
 import { useState } from "react"
 
@@ -54,23 +54,26 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
             ? `/api/invoices/${invoice.id}/cancel-and-replace`
             : action === 'convertToInvoice'
             ? `/api/invoices/${invoice.id}/convert-to-invoice`
+            : action === 'send'
+            ? `/api/invoices/send`
             : `/api/invoices/${invoice.id}/${action}`
+        const body = action === 'send'
+            ? JSON.stringify({ id: invoice.id })
+            : JSON.stringify({})
 
-        authenticatedFetch(url, { method: 'POST', body: JSON.stringify({}) })
+        authenticatedFetch(url, { method: 'POST', body })
             .then(async (res) => {
-                const data = await res.json()
+                const data = await res.json().catch(() => ({}))
+                if (!res.ok) {
+                    toast.error(data.message || data.reason || t(`invoices.view.actions.${action}Error`))
+                    return
+                }
                 if (action === 'cancel' && !data.accepted) {
                     toast.error(data.reason || t("invoices.list.messages.cancelError"))
-                } else if (action === 'convertToInvoice' && data.id) {
-                    toast.success(t("invoices.view.actions.convertToInvoiceSuccess"))
-                    onMutate?.()
-                    onOpenChange(false)
-                } else if (data.correctionInvoiceId || data.accepted || data.replacementId) {
+                } else {
                     toast.success(t(`invoices.view.actions.${action}Success`))
                     onMutate?.()
                     onOpenChange(false)
-                } else {
-                    toast.error(data.message || t(`invoices.view.actions.${action}Error`))
                 }
             })
             .catch(() => {
@@ -134,12 +137,18 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                                 {t("invoices.view.actions.cancelAndReplace")}
                             </Button>
                         )}
-                        {actions.actions.send && (
-                            <Button size="sm" variant="outline" onClick={() => handleAction("send")} data-cy="action-send">
-                                <Send className="h-3.5 w-3.5 mr-1.5" />
-                                {t("invoices.view.actions.send")}
-                            </Button>
-                        )}
+                        {actions.actions.send && (() => {
+                            const labelKey = actions.flow?.sendLabelKey ?? 'send'
+                            const Icon = actions.flow?.channelClass === 'PRINT' ? Printer
+                                : actions.flow?.channelClass === 'CLEARANCE' || actions.flow?.channelClass === 'PORTAL' ? UploadCloud
+                                : Send
+                            return (
+                                <Button size="sm" variant="outline" onClick={() => handleAction("send")} data-cy="action-send">
+                                    <Icon className="h-3.5 w-3.5 mr-1.5" />
+                                    {t(`invoices.view.actions.${labelKey}`)}
+                                </Button>
+                            )
+                        })()}
                         {actions.actions.convertToInvoice && (
                             <Button size="sm" variant="outline" onClick={() => handleAction("convertToInvoice")} data-cy="action-convert-proforma">
                                 <ArrowRightLeft className="h-3.5 w-3.5 mr-1.5" />
@@ -152,6 +161,13 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                                 {t("invoices.view.actions.deposit")}
                             </Button>
                         )}
+                    </div>
+                )}
+
+                {actions?.flow?.awaiting && (
+                    <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 flex-shrink-0" data-cy="flow-awaiting">
+                        <Clock className="h-4 w-4 flex-shrink-0" />
+                        {t(`invoices.view.actions.awaiting${actions.flow.awaiting === 'CLEARANCE' ? 'Clearance' : actions.flow.awaiting === 'BUYER_RESPONSE' ? 'BuyerResponse' : 'Delivery'}`)}
                     </div>
                 )}
 

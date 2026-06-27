@@ -514,11 +514,14 @@
             "emptyState": "Aucune facture à afficher dans la progression.",
             "steps": {
                 "draft": "Brouillon",
+                "issued": "Émise",
+                "pendingClearance": "En attente de validation",
+                "cleared": "Validée",
+                "delivered": "Livrée",
                 "sent": "Envoyée",
                 "paid": "Payée",
                 "archived": "Archivée",
                 "partiallyPaid": "Payée partiellement",
-                "issued": "Émise",
                 "cancelled": "Annulée",
                 "corrected": "Corrigée"
             },
@@ -855,7 +858,15 @@
                 "cancelAndReplaceSuccess": "Facture annulée et remplacée",
                 "cancelAndReplaceError": "Échec de l'annulation et du remplacement",
                 "sendSuccess": "Facture envoyée",
-                "sendError": "Échec de l'envoi de la facture"
+                "sendError": "Échec de l'envoi de la facture",
+                "sendByEmail": "Envoyer par e-mail",
+                "submitClearance": "Soumettre pour validation",
+                "sendViaPeppol": "Envoyer via Peppol",
+                "sendToPortal": "Envoyer au portail",
+                "print": "Imprimer",
+                "awaitingClearance": "En attente de validation par l'administration",
+                "awaitingBuyerResponse": "En attente de réponse de l'acheteur",
+                "awaitingDelivery": "En attente de confirmation de livraison"
             }
         },
         "sendConfirmation": {

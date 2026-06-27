@@ -251,6 +251,7 @@ export default function Invoices() {
                         onOpenChange={(open: boolean) => {
                             if (!open) setViewInvoiceDialog(null)
                         }}
+                        onMutate={() => queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })}
                     />
                 </>
             ) : view === "table" ? (
