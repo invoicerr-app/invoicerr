@@ -77,7 +77,7 @@ function getCurrentStepIndex(invoice: Invoice, steps: { status: InvoiceStatus }[
 
 function getInvoiceActions(
     invoice: Invoice,
-    steps: { key: string }[],
+    steps: { key: string; status: InvoiceStatus }[],
     handlers: Pick<InvoiceProgressionProps, "onIssue" | "onSend" | "onResend" | "onArchive">,
 ): { action: ProgressionAction; label: string }[] {
     const idx = getCurrentStepIndex(invoice, steps)
