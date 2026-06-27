@@ -1,3 +1,13 @@
+---
+region: Asia-Pacific
+status: voluntary
+priority: low
+formats:
+  - Peppol PINT A-NZ
+scope:
+  - B2B
+  - B2G
+---
 # 🇳🇿 New Zealand - Invoicing Specifications (Peppol / PINT A-NZ)
 
 **Status:** 🟡 **Voluntary B2B** | 🟢 **Mandatory B2G** (Emission & Reception)

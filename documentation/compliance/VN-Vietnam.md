@@ -1,3 +1,12 @@
+---
+region: Asia-Pacific
+status: mandatory
+priority: low
+formats:
+  - TT78
+scope:
+  - B2B
+---
 # 🇻🇳 Vietnam - Invoicing Specifications (GDT e-Invoice)
 
 **Status:** 🔴 **Mandatory Clearance** (For nearly all businesses)

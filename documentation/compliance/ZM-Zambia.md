@@ -1,3 +1,10 @@
+---
+region: Africa
+status: mandatory
+priority: low
+formats:
+  - Smart Invoice
+---
 # 🇿🇲 Zambia - E-Invoicing Specifications
 
 **Status:** 🟢 **Mandatory** | Active

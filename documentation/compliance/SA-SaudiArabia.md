@@ -1,3 +1,14 @@
+---
+region: Middle East
+status: mandatory
+priority: low
+formats:
+  - ZATCA UBL 2.1
+scope:
+  - B2B
+  - B2C
+  - B2G
+---
 # 🇸🇦 Saudi Arabia - E-Invoicing Specifications (ZATCA e-Invoicing)
 
 **Status:** 🔴 **Mandatory Clearance** | Active

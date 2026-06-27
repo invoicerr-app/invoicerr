@@ -1,3 +1,10 @@
+---
+region: Asia-Pacific
+status: mandatory
+priority: low
+formats:
+  - NBR e-Invoice
+---
 # 🇧🇩 Bangladesh - E-Invoicing Specifications (NBR e-Invoice)
 
 **Status:** 🟢 **Mandatory** | Active for threshold-based taxpayers

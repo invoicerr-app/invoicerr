@@ -1,3 +1,13 @@
+---
+region: Asia-Pacific
+status: mandatory
+priority: low
+formats:
+  - e-Fapiao
+scope:
+  - B2B
+  - B2C
+---
 # 🇨🇳 China - Invoicing Specifications (Golden Tax System IV / e-Fapiao)
 
 **Status:** 🔴 **Mandatory Clearance** (Fully Digitalized e-Fapiao)

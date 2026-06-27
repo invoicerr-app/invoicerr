@@ -1,3 +1,13 @@
+---
+region: Europe
+status: mandatory
+priority: medium
+formats:
+  - FatturaPA
+scope:
+  - B2B
+  - B2G
+---
 # 🇻🇦 Vatican City - E-Invoicing Specifications
 
 **Status:** 🟢 **Following Italy** | 🟢 **Mandatory** | 🟢 **SDI Integration**

@@ -1,3 +1,15 @@
+---
+region: Europe
+status: phased
+priority: medium
+formats:
+  - EN 16931
+  - Peppol BIS
+  - OIOUBL
+scope:
+  - B2B
+  - B2G
+---
 # 🇩🇰 Denmark - E-Invoicing Specifications
 
 **Status:** 🟢 **B2G Mandatory** | 🟡 **B2B Acceptance Mandatory** | 🟡 **Full B2B 2027+**

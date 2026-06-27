@@ -1,11 +1,21 @@
 import path from 'path';
 import fs from 'fs';
+import matter from 'gray-matter';
 import type {Plugin, LoadContext} from '@docusaurus/types';
+
+interface CountryMeta {
+  region?: string;
+  status?: string;
+  priority?: string;
+  formats?: string[];
+  scope?: string[];
+}
 
 interface CountryContent {
   code: string;
   name: string;
   markdown: string;
+  meta: CountryMeta;
 }
 
 /**
@@ -41,13 +51,18 @@ export default function complianceContentPlugin(
         const code = match[1];
         const countryName = file.replace(/^[A-Z]{2}-/, '').replace(/\.md$/, '');
         const filePath = path.join(baseDir, file);
-        const markdown = await fs.promises.readFile(filePath, 'utf-8');
+        const raw = await fs.promises.readFile(filePath, 'utf-8');
+        const {data, content: body} = matter(raw);
+        const meta = data as CountryMeta;
 
-        content[code] = markdown;
-        countries.push({code, name: countryName, markdown});
+        content[code] = body;
+        countries.push({code, name: countryName, markdown: body, meta});
       }
 
       (content as any)._countries = countries;
+      (content as any)._meta = Object.fromEntries(
+        countries.map(({code, meta}) => [code, meta]),
+      );
       return content;
     },
     async contentLoaded({content, actions}) {

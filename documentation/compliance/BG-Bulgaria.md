@@ -1,3 +1,14 @@
+---
+region: Europe
+status: voluntary
+priority: low
+formats:
+  - EN 16931
+  - Peppol BIS
+scope:
+  - B2B
+  - B2G
+---
 # 🇧🇬 Bulgaria - E-Invoicing Specifications
 
 **Status:** 🟢 **B2G Active** | 🟡 **B2B Voluntary** | 🟡 **SAF-T 2026+**

@@ -1,3 +1,10 @@
+---
+region: Africa
+status: mandatory
+priority: low
+formats:
+  - TEIF
+---
 # 🇹🇳 Tunisia - E-Invoicing Specifications
 
 **Status:** 🟢 **Mandatory** | Active

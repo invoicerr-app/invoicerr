@@ -1,3 +1,15 @@
+---
+region: Europe
+status: phased
+priority: high
+formats:
+  - EN 16931
+  - Factur-X
+scope:
+  - B2B
+  - B2C
+  - B2G
+---
 # 🇫🇷 France - E-Invoicing Specifications (Réforme de la facturation électronique)
 
 **Status:** 🟢 **B2G Active** (Chorus Pro) | 🟡 **B2B/B2C Phased 2026-2027**

@@ -1,3 +1,13 @@
+---
+region: Europe
+status: mandatory
+priority: medium
+formats:
+  - National XML
+scope:
+  - B2B
+  - B2G
+---
 # 🇲🇰 North Macedonia - E-Invoicing Specifications
 
 **Status:** 🟢 **Mandatory** | 🟢 **B2G/B2B Active**

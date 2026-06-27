@@ -1,3 +1,10 @@
+---
+region: Africa
+status: phased
+priority: low
+formats:
+  - FNE
+---
 # 🇨🇮 Ivory Coast - E-Invoicing Specifications (SIGF)
 
 **Status:** 🟡 **Partial** | Mandatory for digital services since 2019

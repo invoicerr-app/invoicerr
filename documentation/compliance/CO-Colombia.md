@@ -1,3 +1,14 @@
+---
+region: Americas
+status: mandatory
+priority: low
+formats:
+  - DIAN UBL 2.1
+scope:
+  - B2B
+  - B2C
+  - B2G
+---
 # 🇨🇴 Colombia - E-Invoicing Specifications (DIAN Sistema de Factura Electrónica)
 
 **Status:** 🟢 **Mandatory** | Active for all VAT-registered businesses

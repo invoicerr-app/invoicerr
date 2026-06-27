@@ -1,3 +1,13 @@
+---
+region: Europe
+status: phased
+priority: medium
+formats:
+  - Fiscal XML
+scope:
+  - B2B
+  - B2G
+---
 # 🇲🇪 Montenegro - E-Fiscalization Specifications
 
 **Status:** 🟡 **E-Fiscalization** | 🟢 **B2G Active** | 🔴 **B2B Planned**

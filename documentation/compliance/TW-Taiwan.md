@@ -1,3 +1,13 @@
+---
+region: Asia-Pacific
+status: mandatory
+priority: low
+formats:
+  - eGUI
+scope:
+  - B2B
+  - B2C
+---
 # 🇹🇼 Taiwan - E-Invoicing Specifications (NRA e-Invoice)
 
 **Status:** 🟢 **Mandatory** | Active for all businesses

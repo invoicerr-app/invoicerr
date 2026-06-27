@@ -1,3 +1,14 @@
+---
+region: Americas
+status: mandatory
+priority: low
+formats:
+  - NF-e
+  - NFS-e
+  - NFC-e
+scope:
+  - B2C
+---
 # 🇧🇷 Brazil - E-Invoicing Specifications (NF-e / NFS-e / NFCom / CT-e)
 
 **Status:** 🟢 **Mandatory** | Multi-document system active

@@ -1,3 +1,10 @@
+---
+region: Asia-Pacific
+status: mandatory
+priority: low
+formats:
+  - eTax Invoice
+---
 # 🇹🇭 Thailand - E-Invoicing Specifications (e-Tax Invoice)
 
 **Status:** 🟢 **Mandatory** | Active for all VAT taxpayers

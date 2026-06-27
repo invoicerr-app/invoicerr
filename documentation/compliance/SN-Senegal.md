@@ -1,3 +1,10 @@
+---
+region: Africa
+status: planned
+priority: low
+formats:
+  - EN 16931
+---
 # 🇸🇳 Senegal - E-Invoicing Specifications
 
 **Status:** 🟡 **Planned** | Mandatory e-invoicing expected 2025

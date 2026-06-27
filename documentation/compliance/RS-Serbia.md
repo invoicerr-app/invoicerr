@@ -1,3 +1,14 @@
+---
+region: Europe
+status: mandatory
+priority: medium
+formats:
+  - SEF
+  - EN 16931
+scope:
+  - B2B
+  - B2G
+---
 # 🇷🇸 Serbia - Invoicing Specifications (SEF / E-Faktura)
 
 **Status:** 🔴 **Mandatory Clearance (B2B / B2G)**

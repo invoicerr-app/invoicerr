@@ -1,3 +1,15 @@
+---
+region: Europe
+status: phased
+priority: medium
+formats:
+  - EN 16931
+  - XRechnung
+  - ZUGFeRD
+scope:
+  - B2B
+  - B2G
+---
 # 🇩🇪 Germany - Invoicing Specifications (ZUGFeRD & XRechnung)
 
 **Status:** 🟡 **Voluntary Emission / Mandatory Reception (2025)**

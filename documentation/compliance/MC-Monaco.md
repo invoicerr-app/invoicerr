@@ -1,3 +1,14 @@
+---
+region: Europe
+status: phased
+priority: medium
+formats:
+  - EN 16931
+  - Factur-X
+scope:
+  - B2B
+  - B2G
+---
 # 🇲🇨 Monaco - E-Invoicing Specifications
 
 **Status:** 🟢 **Following France** | 🟢 **B2G Active** | 🟡 **B2B Sep 2026**

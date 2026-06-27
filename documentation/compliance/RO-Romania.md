@@ -1,3 +1,15 @@
+---
+region: Europe
+status: mandatory
+priority: medium
+formats:
+  - RO e-Factura
+  - EN 16931
+scope:
+  - B2B
+  - B2C
+  - B2G
+---
 # 🇷🇴 Romania - Invoicing Specifications (RO e-Factura)
 
 **Status:** 🔴 **Mandatory Clearance (B2B / B2G / B2C)**

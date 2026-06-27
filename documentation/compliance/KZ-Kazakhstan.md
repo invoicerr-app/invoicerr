@@ -1,3 +1,10 @@
+---
+region: Asia-Pacific
+status: mandatory
+priority: low
+formats:
+  - ESF
+---
 # 🇰🇿 Kazakhstan - E-Invoicing Specifications (KKM e-Invoice)
 
 **Status:** 🟢 **Mandatory** | Active for all businesses

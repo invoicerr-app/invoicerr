@@ -1,3 +1,13 @@
+---
+region: Asia-Pacific
+status: phased
+priority: low
+formats:
+  - MyInvois
+  - Peppol PINT MY
+scope:
+  - B2C
+---
 # 🇲🇾 Malaysia - Invoicing Specifications (MyInvois)
 
 **Status:** 🔴 **Mandatory Clearance** (Phased Implementation)

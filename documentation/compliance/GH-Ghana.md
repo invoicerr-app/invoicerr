@@ -1,3 +1,10 @@
+---
+region: Africa
+status: mandatory
+priority: low
+formats:
+  - e-VAT
+---
 # 🇬🇭 Ghana - E-Invoicing Specifications
 
 **Status:** 🟢 **Mandatory** | Active

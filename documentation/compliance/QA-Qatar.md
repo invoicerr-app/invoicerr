@@ -1,3 +1,12 @@
+---
+region: Middle East
+status: mandatory
+priority: low
+formats:
+  - National XML
+scope:
+  - B2C
+---
 # 🇶🇦 Qatar - E-Invoicing Specifications (GTA e-Invoice)
 
 **Status:** 🟢 **Mandatory** | Active for all businesses

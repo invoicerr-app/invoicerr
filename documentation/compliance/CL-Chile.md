@@ -1,3 +1,13 @@
+---
+region: Americas
+status: mandatory
+priority: low
+formats:
+  - DTE
+scope:
+  - B2B
+  - B2G
+---
 # 🇨🇱 Chile - E-Invoicing Specifications (DTE - Documento Tributario Electrónico)
 
 **Status:** 🟢 **Mandatory** | Active for all businesses

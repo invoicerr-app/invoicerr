@@ -1,3 +1,10 @@
+---
+region: Asia-Pacific
+status: mandatory
+priority: low
+formats:
+  - FBR e-Invoice
+---
 # 🇵🇰 Pakistan - E-Invoicing Specifications (XIR System)
 
 **Status:** 🟢 **Mandatory** | Active for threshold-based taxpayers

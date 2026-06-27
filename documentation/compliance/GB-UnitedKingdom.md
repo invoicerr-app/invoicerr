@@ -1,3 +1,13 @@
+---
+region: Europe
+status: voluntary
+priority: low
+formats:
+  - Peppol BIS
+scope:
+  - B2B
+  - B2G
+---
 # 🇬🇧 United Kingdom - Invoicing Specifications (Peppol / MTD)
 
 **Status:** 🟡 **Voluntary B2B** | 🟢 **Mandatory B2G (NHS)**

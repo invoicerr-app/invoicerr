@@ -1,3 +1,13 @@
+---
+region: Americas
+status: mandatory
+priority: low
+formats:
+  - AFIP/ARCA XML
+scope:
+  - B2B
+  - B2C
+---
 # 🇦🇷 Argentina - E-Invoicing Specifications (AFIP/ARCA Sistema de Factura Electrónica)
 
 **Status:** 🟢 **Mandatory** | Active

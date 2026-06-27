@@ -1,3 +1,10 @@
+---
+region: Middle East
+status: mandatory
+priority: low
+formats:
+  - JoFotara
+---
 # 🇯🇴 Jordan - E-Invoicing Specifications (ISTD e-Invoice)
 
 **Status:** 🟢 **Mandatory** | Active for all businesses

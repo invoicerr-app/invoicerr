@@ -1,3 +1,10 @@
+---
+region: Americas
+status: mandatory
+priority: low
+formats:
+  - SRI XML
+---
 # 🇪🇨 Ecuador - E-Invoicing Specifications (Factura Electrónica)
 
 **Status:** 🟢 **Mandatory** | Active for all businesses

@@ -1,3 +1,11 @@
+---
+region: Africa
+status: planned
+priority: low
+formats:
+  - UBL
+  - Peppol
+---
 # 🇿🇦 South Africa - E-Invoicing Specifications
 
 **Status:** 🟡 **Planned** | Mandatory e-invoicing expected 2028

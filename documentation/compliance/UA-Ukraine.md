@@ -1,3 +1,13 @@
+---
+region: Europe
+status: mandatory
+priority: medium
+formats:
+  - National XML
+scope:
+  - B2B
+  - B2G
+---
 # 🇺🇦 Ukraine - E-Invoicing Specifications
 
 **Status:** 🟢 **B2G Active** | 🟡 **B2B Progressive** | 🟢 **PROZORRO**

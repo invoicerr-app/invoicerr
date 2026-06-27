@@ -1,3 +1,13 @@
+---
+region: Europe
+status: phased
+priority: medium
+formats:
+  - EN 16931
+  - Facturae
+scope:
+  - B2B
+---
 # 🇪🇸 Spain - Invoicing Specifications (Veri*Factu / Crea y Crece)
 
 **Status:** 🟡 **Pilot Phase (Veri*Factu)** | 🔴 **Regional Mandates (TicketBAI)**

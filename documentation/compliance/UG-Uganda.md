@@ -1,3 +1,10 @@
+---
+region: Africa
+status: mandatory
+priority: low
+formats:
+  - EFRIS
+---
 # 🇺🇬 Uganda - E-Invoicing Specifications
 
 **Status:** 🟢 **Mandatory** | Active

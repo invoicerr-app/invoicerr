@@ -1,3 +1,14 @@
+---
+region: Europe
+status: mandatory
+priority: medium
+formats:
+  - e-Fatura (UBL-TR)
+scope:
+  - B2B
+  - B2C
+  - B2G
+---
 # 🇹🇷 Turkey - Invoicing Specifications (GİB e-Fatura / e-Arşiv)
 
 **Status:** 🔴 **Mandatory Clearance**

@@ -1,3 +1,13 @@
+---
+region: Europe
+status: planned
+priority: low
+formats:
+  - UBL
+scope:
+  - B2B
+  - B2G
+---
 # 🇧🇦 Bosnia and Herzegovina - E-Invoicing Specifications
 
 **Status:** 🔴 **Planned** | 🟡 **Under Development**

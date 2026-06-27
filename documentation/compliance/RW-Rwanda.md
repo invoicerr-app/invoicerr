@@ -1,3 +1,10 @@
+---
+region: Africa
+status: mandatory
+priority: low
+formats:
+  - EBM
+---
 # 🇷🇼 Rwanda - E-Invoicing Specifications
 
 **Status:** 🟢 **Mandatory** | Active

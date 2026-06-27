@@ -1,3 +1,12 @@
+---
+region: Africa
+status: mandatory
+priority: low
+formats:
+  - FDMS
+scope:
+  - B2B
+---
 # 🇿🇼 Zimbabwe - Fiscalisation Specifications (Virtual Fiscalisation)
 
 **Status:** 🟢 **Mandatory** | Active since January 2022

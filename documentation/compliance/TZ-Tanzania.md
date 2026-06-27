@@ -1,3 +1,10 @@
+---
+region: Africa
+status: mandatory
+priority: low
+formats:
+  - VFD
+---
 # 🇹🇿 Tanzania - E-Invoicing Specifications
 
 **Status:** 🟢 **Mandatory** | Active

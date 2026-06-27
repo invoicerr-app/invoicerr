@@ -1,3 +1,15 @@
+---
+region: Europe
+status: mandatory
+priority: medium
+formats:
+  - EN 16931
+  - e-Račun
+scope:
+  - B2B
+  - B2C
+  - B2G
+---
 # 🇭🇷 Croatia - E-Invoicing Specifications (Fiscalization 2.0)
 
 **Status:** 🟢 **Mandatory** | Active since January 1, 2026

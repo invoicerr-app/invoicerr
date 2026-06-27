@@ -1,3 +1,12 @@
+---
+region: Middle East
+status: mandatory
+priority: low
+formats:
+  - National XML
+scope:
+  - B2C
+---
 # 🇰🇼 Kuwait - E-Invoicing Specifications (MOF e-Invoice)
 
 **Status:** 🟢 **Mandatory** | Active for all businesses

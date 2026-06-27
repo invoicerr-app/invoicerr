@@ -1,3 +1,10 @@
+---
+region: Americas
+status: mandatory
+priority: low
+formats:
+  - FE (CUFE)
+---
 # 🇵🇦 Panama - E-Invoicing Specifications (FE/CF)
 
 **Status:** 🟢 **Mandatory** | Active for all businesses

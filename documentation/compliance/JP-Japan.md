@@ -1,3 +1,12 @@
+---
+region: Asia-Pacific
+status: voluntary
+priority: low
+formats:
+  - Peppol JP PINT
+scope:
+  - B2B
+---
 # 🇯🇵 Japan - Invoicing Specifications (JP PINT / QIS)
 
 **Status:** 🟡 **Voluntary B2B** (Strong incentives) | 🔴 **Mandatory Archiving (EBKA)**

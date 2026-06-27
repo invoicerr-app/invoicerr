@@ -1,3 +1,14 @@
+---
+region: Europe
+status: mandatory
+priority: medium
+formats:
+  - FatturaPA
+scope:
+  - B2B
+  - B2C
+  - B2G
+---
 # 🇸🇲 San Marino - E-Invoicing Specifications
 
 **Status:** 🟢 **Following Italy** | 🟢 **Mandatory** | 🟢 **SDI Integration**

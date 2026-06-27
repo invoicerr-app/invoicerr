@@ -1,3 +1,13 @@
+---
+region: Europe
+status: mandatory
+priority: medium
+formats:
+  - Online Számla
+scope:
+  - B2B
+  - B2C
+---
 # 🇭🇺 Hungary - Invoicing Specifications (Online Számla / RTIR)
 
 **Status:** 🔴 **Mandatory Reporting (RTIR)** | 🟡 **Mandatory E-Invoicing (Energy/Water)**

@@ -1,3 +1,10 @@
+---
+region: Asia-Pacific
+status: mandatory
+priority: low
+formats:
+  - CBMS
+---
 # 🇳🇵 Nepal - E-Invoicing Specifications
 
 **Status:** 🟢 **Mandatory** | Active

@@ -1,3 +1,15 @@
+---
+region: Europe
+status: voluntary
+priority: low
+formats:
+  - EN 16931
+  - Peppol BIS
+  - SI-UBL
+scope:
+  - B2B
+  - B2G
+---
 # 🇳🇱 Netherlands - Invoicing Specifications (Peppol / Digipoort)
 
 **Status:** 🟡 **Voluntary B2B** | 🟢 **Mandatory B2G**

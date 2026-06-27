@@ -1,3 +1,15 @@
+---
+region: Europe
+status: voluntary
+priority: low
+formats:
+  - EN 16931
+  - Peppol BIS
+  - EHF
+scope:
+  - B2B
+  - B2G
+---
 # 🇳🇴 Norway - Invoicing Specifications (EHF / Peppol)
 
 **Status:** 🟡 **Voluntary B2B** (De facto standard) | 🟢 **Mandatory B2G**

@@ -1,3 +1,13 @@
+---
+region: Asia-Pacific
+status: mandatory
+priority: low
+formats:
+  - GST e-Invoice (IRP)
+scope:
+  - B2B
+  - B2C
+---
 # 🇮🇳 India - Invoicing Specifications (GST e-Invoice / IRP)
 
 **Status:** 🔴 **Mandatory Clearance** (For turnover > ₹5 Cr)

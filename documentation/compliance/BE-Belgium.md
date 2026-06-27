@@ -1,3 +1,14 @@
+---
+region: Europe
+status: phased
+priority: medium
+formats:
+  - EN 16931
+  - Peppol BIS
+scope:
+  - B2B
+  - B2G
+---
 # 🇧🇪 Belgium - Invoicing Specifications
 
 **Status:** 🔴 **B2B Mandatory (Jan 1, 2026)** | 🟢 **B2G Mandatory (Now)**

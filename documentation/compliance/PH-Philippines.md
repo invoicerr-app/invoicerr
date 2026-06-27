@@ -1,3 +1,10 @@
+---
+region: Asia-Pacific
+status: mandatory
+priority: low
+formats:
+  - EIS
+---
 # 🇵🇭 Philippines - E-Invoicing Specifications (BIR e-Invoice)
 
 **Status:** 🟢 **Mandatory** | Active for all businesses

@@ -1,3 +1,10 @@
+---
+region: Americas
+status: mandatory
+priority: low
+formats:
+  - SAR XML
+---
 # 🇭🇳 Honduras - E-Invoicing Specifications (Factura Electrónica)
 
 **Status:** 🟢 **Mandatory** | Active for all businesses

@@ -1,3 +1,10 @@
+---
+region: Americas
+status: mandatory
+priority: low
+formats:
+  - SIN XML
+---
 # 🇧🇴 Bolivia - E-Invoicing Specifications (SIN Sistema de Factura Electrónica)
 
 **Status:** 🟢 **Mandatory** | Active for all businesses

@@ -1,3 +1,10 @@
+---
+region: Americas
+status: mandatory
+priority: low
+formats:
+  - DTE
+---
 # 🇸🇻 El Salvador - E-Invoicing Specifications
 
 **Status:** 🟢 **Mandatory** | Active

@@ -1,3 +1,10 @@
+---
+region: Americas
+status: mandatory
+priority: low
+formats:
+  - SIFEN
+---
 # 🇵🇾 Paraguay - E-Invoicing Specifications (Factura Electrónica)
 
 **Status:** 🟢 **Mandatory** | Active for all businesses

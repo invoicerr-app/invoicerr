@@ -1,3 +1,10 @@
+---
+region: Africa
+status: mandatory
+priority: low
+formats:
+  - FIRS e-Invoice
+---
 # 🇳🇬 Nigeria - E-Invoicing Specifications
 
 **Status:** 🟢 **Mandatory** | Active

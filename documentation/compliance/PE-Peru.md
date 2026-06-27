@@ -1,3 +1,14 @@
+---
+region: Americas
+status: mandatory
+priority: low
+formats:
+  - SUNAT UBL 2.1
+scope:
+  - B2B
+  - B2C
+  - B2G
+---
 # 🇵🇪 Peru - E-Invoicing Specifications (CPE - Comprobante de Pago Electrónico)
 
 **Status:** 🟢 **Mandatory** | Active for all taxpayers

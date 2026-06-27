@@ -1,3 +1,12 @@
+---
+region: Asia-Pacific
+status: mandatory
+priority: low
+formats:
+  - e-Faktur
+scope:
+  - B2B
+---
 # 🇮🇩 Indonesia - E-Invoicing Specifications (e-Faktur)
 
 **Status:** 🟢 **Mandatory** | Active for all VAT taxpayers

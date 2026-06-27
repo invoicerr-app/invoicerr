@@ -1,3 +1,14 @@
+---
+region: Europe
+status: phased
+priority: medium
+formats:
+  - e-Factura
+scope:
+  - B2B
+  - B2C
+  - B2G
+---
 # 🇲🇩 Moldova - E-Invoicing Specifications
 
 **Status:** 🟢 **B2G Active** | 🟢 **B2B Mandatory Oct 2026**

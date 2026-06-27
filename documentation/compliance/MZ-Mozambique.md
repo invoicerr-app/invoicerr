@@ -1,3 +1,10 @@
+---
+region: Africa
+status: mandatory
+priority: low
+formats:
+  - National XML
+---
 # 🇲🇿 Mozambique - E-Invoicing Specifications
 
 **Status:** 🟢 **Mandatory** | Active

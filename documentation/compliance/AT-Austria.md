@@ -1,3 +1,15 @@
+---
+region: Europe
+status: post-audit
+priority: medium
+formats:
+  - EN 16931
+  - Peppol BIS
+  - ebInterface
+scope:
+  - B2B
+  - B2G
+---
 # 🇦🇹 Austria - Invoicing Specifications
 
 **Status:** 🟢 **B2G Mandatory** (Since 2014) | ⚪ **B2B Voluntary** (Post-Audit)

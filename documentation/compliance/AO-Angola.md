@@ -1,3 +1,10 @@
+---
+region: Africa
+status: mandatory
+priority: low
+formats:
+  - SAF-T
+---
 # 🇦🇴 Angola - E-Invoicing Specifications (SAF-T)
 
 **Status:** 🟢 **Mandatory** | Active since 2019

@@ -1,3 +1,10 @@
+---
+region: Americas
+status: mandatory
+priority: low
+formats:
+  - e-CF
+---
 # 🇩🇴 Dominican Republic - E-Invoicing Specifications (e-CF / NCF)
 
 **Status:** 🟢 **Mandatory** | Active for all businesses

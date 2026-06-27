@@ -1,3 +1,15 @@
+---
+region: Europe
+status: voluntary
+priority: low
+formats:
+  - QR-bill
+  - ZUGFeRD
+scope:
+  - B2B
+  - B2C
+  - B2G
+---
 # 🇨🇭 Switzerland - Invoicing Specifications (QR-Bill / eBill)
 
 **Status:** 🔴 **Mandatory Format (QR-Bill)** | 🟡 **Voluntary e-Invoicing (eBill)**

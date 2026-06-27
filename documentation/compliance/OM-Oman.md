@@ -1,3 +1,12 @@
+---
+region: Middle East
+status: mandatory
+priority: low
+formats:
+  - National XML
+scope:
+  - B2C
+---
 # 🇴🇲 Oman - E-Invoicing Specifications (Tax Authority)
 
 **Status:** 🟢 **Mandatory** | Active for all businesses

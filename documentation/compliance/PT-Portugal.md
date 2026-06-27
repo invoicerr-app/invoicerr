@@ -1,3 +1,13 @@
+---
+region: Europe
+status: mandatory
+priority: medium
+formats:
+  - SAF-T (PT)
+  - CIUS-PT
+scope:
+  - B2G
+---
 # 🇵🇹 Portugal - Invoicing Specifications (ATCUD / SAF-T)
 
 **Status:** 🔴 **Strict Reporting & Formatting**

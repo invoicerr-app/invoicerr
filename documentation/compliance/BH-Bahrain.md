@@ -1,3 +1,12 @@
+---
+region: Middle East
+status: mandatory
+priority: low
+formats:
+  - UBL
+scope:
+  - B2C
+---
 # 🇧🇭 Bahrain - E-Invoicing Specifications (eTax / NBR)
 
 **Status:** 🟢 **Mandatory** | Active for all businesses

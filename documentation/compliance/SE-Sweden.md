@@ -1,3 +1,14 @@
+---
+region: Europe
+status: voluntary
+priority: low
+formats:
+  - EN 16931
+  - Peppol BIS
+scope:
+  - B2B
+  - B2G
+---
 # 🇸🇪 Sweden - Invoicing Specifications (Peppol / SFTI)
 
 **Status:** 🔴 **Mandatory B2G** | 🟡 **Voluntary B2B** (De facto standard)

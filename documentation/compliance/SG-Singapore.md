@@ -1,3 +1,11 @@
+---
+region: Asia-Pacific
+status: phased
+priority: low
+formats:
+  - InvoiceNow
+  - Peppol SG PINT
+---
 # 🇸🇬 Singapore - Invoicing Specifications (InvoiceNow / PINT-SG)
 
 **Status:** 🔴 **Mandatory Clearance** (Phased: Voluntary new registrants in 2026)

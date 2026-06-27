@@ -1,3 +1,13 @@
+---
+region: Europe
+status: mandatory
+priority: medium
+formats:
+  - EN 16931
+  - UBL
+scope:
+  - B2B
+---
 # 🇦🇱 Albania - E-Invoicing Specifications
 
 **Status:** 🟢 **Mandatory** | Since 2021

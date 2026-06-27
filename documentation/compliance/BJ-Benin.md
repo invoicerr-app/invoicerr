@@ -1,3 +1,12 @@
+---
+region: Africa
+status: mandatory
+priority: low
+formats:
+  - e-MECeF
+scope:
+  - B2B
+---
 # 🇧🇯 Benin - E-Invoicing Specifications (e-MECeF)
 
 **Status:** 🟢 **Mandatory** | Active since 2020

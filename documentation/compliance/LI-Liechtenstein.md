@@ -1,3 +1,13 @@
+---
+region: Europe
+status: voluntary
+priority: low
+formats:
+  - QR-bill
+scope:
+  - B2B
+  - B2G
+---
 # 🇱🇮 Liechtenstein - E-Invoicing Specifications
 
 **Status:** 🟢 **Follows Switzerland** | 🟢 **eVAT Portal 2025**

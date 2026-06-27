@@ -1,3 +1,12 @@
+---
+region: Europe
+status: phased
+priority: medium
+formats:
+  - KSeF FA_VAT
+scope:
+  - B2B
+---
 # 🇵🇱 Poland - Invoicing Specifications (KSeF)
 
 **Status:** 🔴 **Mandatory B2B (Feb/Apr 2026)**

@@ -1,3 +1,15 @@
+---
+region: Europe
+status: voluntary
+priority: low
+formats:
+  - EN 16931
+  - Peppol BIS
+  - Finvoice
+scope:
+  - B2B
+  - B2G
+---
 # 🇫🇮 Finland - E-Invoicing Specifications
 
 **Status:** 🟢 **B2G Active** | 🟢 **B2B Widely Adopted** | 🟡 **ViDA 2030**

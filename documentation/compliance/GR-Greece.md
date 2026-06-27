@@ -1,3 +1,13 @@
+---
+region: Europe
+status: phased
+priority: medium
+formats:
+  - myDATA
+scope:
+  - B2B
+  - B2G
+---
 # 🇬🇷 Greece - Invoicing Specifications (myDATA & e-Delivery)
 
 **Status:** 🟡 **Mandatory Reporting (Current)** | 🔴 **Mandatory e-Invoicing (2026)**

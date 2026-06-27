@@ -1,3 +1,10 @@
+---
+region: Americas
+status: mandatory
+priority: low
+formats:
+  - FEL
+---
 # 🇬🇹 Guatemala - E-Invoicing Specifications (DTE)
 
 **Status:** 🟢 **Mandatory** | Active for all businesses

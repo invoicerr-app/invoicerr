@@ -1,3 +1,10 @@
+---
+region: Americas
+status: mandatory
+priority: low
+formats:
+  - CFE
+---
 # 🇺🇾 Uruguay - E-Invoicing Specifications (DFE / CFE)
 
 **Status:** 🟢 **Mandatory** | Active for all businesses

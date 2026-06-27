@@ -1,3 +1,14 @@
+---
+region: Middle East
+status: mandatory
+priority: low
+formats:
+  - Peppol PINT AE
+scope:
+  - B2B
+  - B2C
+  - B2G
+---
 # 🇦🇪 United Arab Emirates - E-Invoicing Specifications (FTA e-Invoicing)
 
 **Status:** 🔴 **Mandatory Clearance** | Active
