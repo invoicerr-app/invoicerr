@@ -251,6 +251,87 @@
                 "invoiceCreateError": "Error al crear la factura desde la cotización"
             }
         },
+        "progression": {
+            "title": "Progresión",
+            "emptyState": "No hay cotizaciones para mostrar en la progresión.",
+            "noAction": "Sin acción",
+            "steps": {
+                "draft": "Borrador",
+                "sent": "Enviada",
+                "signed": "Firmada"
+            },
+            "stepLabel": "Paso {{current}} / {{total}}",
+            "actions": {
+                "send": "Enviar",
+                "resend": "Reenviar",
+                "createInvoice": "Crear factura"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Enviar cotización",
+                    "description": "¿Está seguro de que desea enviar la cotización {{number}} a {{client}}?"
+                },
+                "resend": {
+                    "title": "Reenviar cotización",
+                    "description": "¿Está seguro de que desea reenviar la cotización {{number}} a {{client}}?"
+                },
+                "cancel": "Cancelar",
+                "confirm": "Confirmar"
+            }
+        },
+        "views": {
+            "list": "Lista",
+            "table": "Tabla"
+        },
+        "table": {
+            "columns": {
+                "number": "Número",
+                "client": "Cliente",
+                "status": "Estado",
+                "totalTTC": "Total (con IVA)",
+                "createdAt": "Creada el",
+                "validUntil": "Válida hasta"
+            },
+            "filters": {
+                "client": "Cliente",
+                "clientPlaceholder": "Todos los clientes",
+                "clientNoResults": "No se encontró ningún cliente",
+                "year": "Año",
+                "month": "Mes",
+                "allYears": "Todos los años",
+                "allMonths": "Todos los meses"
+            },
+            "actions": {
+                "export": "Exportar"
+            },
+            "emptyState": "Ninguna cotización coincide con estos filtros."
+        },
+        "createInvoiceDialog": {
+            "title": "Crear factura desde la cotización",
+            "description": "Seleccione los artículos a facturar desde la cotización {{number}}.",
+            "percentageLabel": "Porcentaje a facturar",
+            "amountLabel": "Importe a facturar",
+            "maxPercentageHint": "Todavía se puede facturar hasta el {{percent}} % de la cotización.",
+            "fields": {
+                "quantity": {
+                    "label": "Cantidad"
+                }
+            },
+            "alreadyInvoicedBadge": "Ya facturado",
+            "remainingLabel": "Restante: {{remaining}}",
+            "remainingTotalLabel": "{{amount}} {{currency}} restantes",
+            "totalSelectedLabel": "Total: {{amount}} {{currency}}",
+            "percentOfQuoteLabel": "{{percent}}% de la cotización",
+            "itemAmountLabel": "{{amount}} {{currency}}",
+            "actions": {
+                "confirm": "Crear factura",
+                "cancel": "Cancelar"
+            },
+            "errors": {
+                "quoteFullyInvoiced": "Esta cotización ya ha sido facturada por completo.",
+                "quantityExceedsRemaining": "La cantidad solicitada supera la cantidad restante a facturar."
+            }
+        },
         "upsert": {
             "title": {
                 "create": "Crear nueva cotización",
@@ -279,11 +360,18 @@
                 "items": {
                     "label": "Ítems de la cotización",
                     "addItem": "Agregar ítem",
+                    "name": {
+                        "placeholder": "Nombre del ítem",
+                        "errors": {
+                            "required": "El nombre es obligatorio"
+                        }
+                    },
                     "description": {
                         "placeholder": "Descripción del ítem",
                         "errors": {
                             "required": "La descripción es obligatoria"
-                        }
+                        },
+                        "hint": "Consejo: usa **negrita** y *cursiva* para resaltar."
                     },
                     "quantity": {
                         "placeholder": "Cantidad",
@@ -383,11 +471,64 @@
             "sent": "Enviada",
             "paid": "Pagada"
         },
+        "views": {
+            "list": "Lista",
+            "table": "Tabla"
+        },
+        "table": {
+            "columns": {
+                "number": "Número",
+                "client": "Cliente",
+                "status": "Estado",
+                "totalTTC": "Total (con IVA)",
+                "createdAt": "Creada el",
+                "dueDate": "Fecha de vencimiento"
+            },
+            "filters": {
+                "client": "Cliente",
+                "clientPlaceholder": "Todos los clientes",
+                "clientNoResults": "No se encontró ningún cliente",
+                "year": "Año",
+                "month": "Mes",
+                "allYears": "Todos los años",
+                "allMonths": "Todos los meses"
+            },
+            "actions": {
+                "export": "Exportar"
+            },
+            "emptyState": "Ninguna factura coincide con estos filtros."
+        },
+        "statusFilters": {
+            "all": "Todas",
+            "draft": "Borrador",
+            "sent": "Enviada",
+            "paid": "Pagada",
+            "archived": "Archivada"
+        },
         "emptyState": {
             "noInvoices": "Aún no hay facturas",
             "noResults": "No se encontraron facturas",
             "startAdding": "Comienza creando tu primera factura.",
             "tryDifferentSearch": "Prueba ajustando tus términos de búsqueda."
+        },
+        "paymentReceived": {
+            "title": "Pago recibido",
+            "description": "Introduce el importe recibido para esta factura.",
+            "percentLabel": "Se pagará el {{percent}} % de la factura",
+            "fields": {
+                "amount": {
+                    "label": "Importe recibido",
+                    "placeholder": "Introduce el importe recibido",
+                    "errors": {
+                        "required": "El importe debe ser mayor que 0",
+                        "tooHigh": "El importe no puede superar el saldo restante"
+                    }
+                }
+            },
+            "actions": {
+                "confirm": "Confirmar",
+                "cancel": "Cancelar"
+            }
         },
         "list": {
             "title": "Todas las facturas",
@@ -408,13 +549,10 @@
                 "totalTTC": "Total (con IVA)"
             },
             "tooltips": {
-                "view": "Ver detalles de la factura",
-                "viewPdf": "Ver PDF",
+                "exportPdf": "Exportar PDF",
                 "downloadPdf": "Descargar PDF",
                 "edit": "Editar factura",
-                "markAsPaid": "Marcar como pagada",
                 "delete": "Eliminar factura",
-                "createReceipt": "Crear recibo desde esta factura",
                 "sendByEmail": "Enviar factura por correo"
             },
             "actions": {
@@ -433,7 +571,6 @@
             "messages": {
                 "markAsPaidSuccess": "Factura marcada como pagada con éxito",
                 "markAsPaidError": "Error al marcar la factura como pagada",
-                "createReceiptSuccess": "Recibo creado correctamente desde la factura",
                 "sendByEmailSuccess": "La factura fue enviada al cliente"
             }
         },
@@ -465,11 +602,18 @@
                 "items": {
                     "label": "Ítems de la factura",
                     "addItem": "Agregar ítem",
+                    "name": {
+                        "placeholder": "Nombre del ítem",
+                        "errors": {
+                            "required": "El nombre es obligatorio"
+                        }
+                    },
                     "description": {
                         "placeholder": "Descripción del ítem",
                         "errors": {
                             "required": "La descripción es obligatoria"
-                        }
+                        },
+                        "hint": "Consejo: usa **negrita** y *cursiva* para resaltar."
                     },
                     "quantity": {
                         "placeholder": "Cantidad",
@@ -665,11 +809,18 @@
                 "items": {
                     "label": "Ítems de factura recurrente",
                     "addItem": "Agregar ítem",
+                    "name": {
+                        "placeholder": "Nombre del ítem",
+                        "errors": {
+                            "required": "El nombre es obligatorio"
+                        }
+                    },
                     "description": {
                         "placeholder": "Descripción del ítem",
                         "errors": {
                             "required": "La descripción es obligatoria"
-                        }
+                        },
+                        "hint": "Consejo: usa **negrita** y *cursiva* para resaltar."
                     },
                     "quantity": {
                         "placeholder": "Cantidad",
@@ -714,13 +865,13 @@
     },
     "dashboard": {
         "title": "Panel de control",
-        "welcomeMessage": "¡Bienvenido de nuevo, {{firstname}}!",
         "revenue": {
             "title": "Resumen de ingresos",
             "description": "Sigue tu desempeño financiero a lo largo del tiempo",
             "thisMonth": "Este mes",
             "thisYear": "Este año",
-            "chartLabel": "Ingresos"
+            "real": "Real",
+            "forecast": "Previsión"
         },
         "quotes": {
             "title": "Resumen de cotizaciones",
@@ -747,12 +898,6 @@
             },
             "latestTitle": "Facturas recientes",
             "noRecent": "No hay facturas recientes"
-        },
-        "clients": {
-            "title": "Resumen de clientes",
-            "stats": {
-                "total": "Total de clientes"
-            }
         }
     },
     "paymentMethods": {
@@ -1032,18 +1177,18 @@
                         "format": "El formato de número de factura es inválido. Use {year}, {month}, {day}, {number} con relleno opcional (ej. {number:4})"
                     }
                 },
-                "receiptStartingNumber": {
-                    "label": "Número inicial de recibo",
-                    "placeholder": "Ingrese número inicial para recibos",
-                    "description": "Número inicial para la numeración de recibos",
+                "paymentStartingNumber": {
+                    "label": "Número inicial de pago",
+                    "placeholder": "Ingrese número inicial para pagos",
+                    "description": "Número inicial para la numeración de pagos",
                     "errors": {
-                        "min": "El número inicial de recibo debe ser al menos 1"
+                        "min": "El número inicial de pago debe ser al menos 1"
                     }
                 },
-                "receiptNumberFormat": {
-                    "label": "Formato de número de recibo",
-                    "placeholder": "Ingrese el formato de número de recibo (ej. REC-{year}-{number})",
-                    "description": "Formato para los números de recibo",
+                "paymentNumberFormat": {
+                    "label": "Formato de número de pago",
+                    "placeholder": "Ingrese el formato de número de pago (ej. PAY-{year}-{number})",
+                    "description": "Formato para los números de pago",
                     "errors": {
                         "required": "El formato de número de recibo es obligatorio",
                         "maxLength": "El formato de número de recibo debe ser menor a 100 caracteres",
@@ -1240,7 +1385,7 @@
                 "options": {
                     "invoice": "Plantilla de factura",
                     "quote": "Plantilla de cotización",
-                    "receipt": "Plantilla de recibo"
+                    "payment": "Plantilla de pago"
                 }
             },
             "typography": {
@@ -1248,15 +1393,10 @@
                 "description": "Opciones de fuente y estilo de texto",
                 "fontFamily": "Familia tipográfica"
             },
-            "colors": {
-                "title": "Colores",
-                "description": "Colores y tema de la marca",
-                "primaryColor": "Color primario",
-                "secondaryColor": "Color secundario"
-            },
             "logo": {
-                "title": "Logo",
+                "title": "Logo y color",
                 "description": "Configuración del logotipo de la empresa",
+                "color": "Color",
                 "includeLogo": "Incluir logo",
                 "logoPreview": "Vista previa del logo",
                 "uploadText": "Haz clic para subir logo"
@@ -1270,7 +1410,7 @@
                 "title": "Etiquetas y textos",
                 "invoice": "Factura",
                 "quote": "Cotización",
-                "receipt": "Recibo",
+                "payment": "Pago",
                 "billTo": "Facturar a",
                 "quoteFor": "Cotización para",
                 "validUntil": "Válida hasta",
@@ -1309,7 +1449,7 @@
             "defaultLabels": {
                 "invoice": "Factura",
                 "quote": "Cotización",
-                "receipt": "Recibo",
+                "payment": "Pago",
                 "billTo": "Facturar a",
                 "quoteFor": "Cotización para",
                 "validUntil": "Válida hasta",
@@ -1441,7 +1581,7 @@
             "dashboard": "Panel de control",
             "quotes": "Cotizaciones",
             "invoices": "Facturas",
-            "receipts": "Recibos",
+            "payments": "Pagos",
             "clients": "Clientes",
             "paymentMethods": "Métodos de pago",
             "stats": "Estadísticas",
@@ -1468,6 +1608,10 @@
         }
     },
     "auth": {
+        "serverUnavailable": {
+            "title": "Servicio temporalmente no disponible",
+            "description": "No se puede contactar con el servidor. Revisa los registros."
+        },
         "login": {
             "title": "Iniciar sesión",
             "description": "Ingrese sus datos para acceder a su cuenta",
@@ -1569,11 +1713,14 @@
         "valueWithCurrency": "{{amount}}{{currency}}"
     },
     "noOptions": "No hay opciones disponibles. Cree un nuevo cliente.",
-    "receipts": {
+    "payments": {
         "header": {
             "subtitle": "Administra tus recibos",
             "count": "{{count}} recibos {{found}}",
             "found": "encontrados"
+        },
+        "breakdown": {
+            "label": "Distribución por ítem"
         },
         "search": {
             "placeholder": "Buscar recibos..."
@@ -1588,7 +1735,7 @@
             "signed": "Firmada"
         },
         "emptyState": {
-            "noReceipts": "Aún no hay recibos",
+            "noPayments": "Aún no hay pagos",
             "noResults": "No se encontraron recibos",
             "startAdding": "Comienza creando tu primer recibo.",
             "tryDifferentSearch": "Prueba ajustando tus términos de búsqueda."
@@ -1640,6 +1787,10 @@
                         "required": "El cliente es obligatorio."
                     }
                 },
+                "amount": {
+                    "label": "Importe total",
+                    "placeholder": "Introduce el importe del pago"
+                },
                 "items": {
                     "label": "Ítems",
                     "placeholder": "Agregue ítems al recibo",
@@ -1669,6 +1820,9 @@
                             "required": "La tasa de IVA es obligatoria.",
                             "min": "La tasa de IVA debe ser al menos 0."
                         }
+                    },
+                    "errors": {
+                        "negativeTotal": "El total de pagos de esta factura no puede ser negativo"
                     }
                 },
                 "invoice": {
@@ -1685,6 +1839,10 @@
                     "label": "Detalles de pago",
                     "placeholder": "Ingrese detalles del pago",
                     "description": "Información adicional sobre el pago"
+                },
+                "paidAt": {
+                    "label": "Fecha de pago",
+                    "placeholder": "Elige la fecha de pago"
                 }
             },
             "actions": {
@@ -1704,6 +1862,36 @@
         },
         "pdf": {
             "title": "Recibo {{number}} - PDF"
+        },
+        "tabs": {
+            "list": "Lista",
+            "table": "Tabla"
+        },
+        "table": {
+            "columns": {
+                "number": "Número",
+                "invoice": "Factura",
+                "client": "Cliente",
+                "totalPaid": "Importe pagado",
+                "paidAt": "Fecha de pago",
+                "paymentMethod": "Método de pago"
+            },
+            "filters": {
+                "invoice": "Factura",
+                "invoicePlaceholder": "Todas las facturas",
+                "invoiceNoResults": "No se encontró ninguna factura",
+                "client": "Cliente",
+                "clientPlaceholder": "Todos los clientes",
+                "clientNoResults": "No se encontró ningún cliente",
+                "year": "Año",
+                "month": "Mes",
+                "allYears": "Todos los años",
+                "allMonths": "Todos los meses"
+            },
+            "actions": {
+                "export": "Exportar"
+            },
+            "emptyState": "Ningún pago coincide con estos filtros."
         }
     },
     "stats": {

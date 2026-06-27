@@ -13,58 +13,20 @@ import {
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { CartesianGrid, Line, LineChart, XAxis } from "recharts"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import type { Company, Invoice, Quote } from "@/types"
-
+import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { InvoiceList } from "@/pages/(app)/invoices/_components/invoice-list"
 import { QuoteList } from "@/pages/(app)/quotes/_components/quote-list"
 import type React from "react"
-import { authClient } from "@/lib/auth"
 import { usePageHeader } from "@/hooks/use-page-header"
-import { useSse } from "@/hooks/use-fetch"
+import { useDashboard } from "@/hooks/queries"
 import { useTranslation } from "react-i18next"
 
-interface DashboardData {
-    company: Company | null
-    quotes: {
-        total: number
-        draft: number
-        sent: number
-        signed: number
-        expired: number
-        latests: Quote[]
-    }
-    invoices: {
-        total: number
-        unpaid: number
-        sent: number
-        paid: number
-        overdue: number
-        latests: Invoice[]
-    }
-    clients: {
-        total: number
-    }
-    revenue: {
-        last6Months: { createdAt: Date; total: number }[]
-        currentMonth: number
-        previousMonth: number
-        monthlyChange: number
-        monthlyChangePercent: number
-        last6Years: { createdAt: Date; total: number }[]
-        currentYear: number
-        previousYear: number
-        yearlyChange: number
-        yearlyChangePercent: number
-    }
-}
-
 export default function Dashboard() {
-    const { t } = useTranslation()
+    const { t, i18n } = useTranslation()
 
-    const { data: user } = authClient.useSession()
+    const { data: dashboardData } = useDashboard()
 
-    const { data: dashboardData } = useSse<DashboardData>("/api/dashboard/sse")
+    usePageHeader(t("dashboard.title"), <LayoutDashboard className="h-5 w-5 text-blue-600" />)
 
     usePageHeader(t("dashboard.title"), <LayoutDashboard className="h-5 w-5 text-blue-600" />)
 
@@ -81,17 +43,38 @@ export default function Dashboard() {
     }
 
     const chartConfig = {
-        revenue: {
-            label: t("dashboard.revenue.chartLabel"),
-            color: "hsl(var(--primary))",
+        real: {
+            label: t("dashboard.revenue.real"),
+            color: "hsl(142 71% 45%)",
         },
+        forecast: {
+            label: t("dashboard.revenue.forecast"),
+            color: "hsl(217 91% 60%)",
+        },
+    }
+
+    const chartCurrency = dashboardData?.company?.currency || "USD"
+
+    // Tooltip row: colored dot + series label, then the amount with the currency on the right.
+    const formatTooltipItem = (value: any, name: any, item: any) => {
+        const label = chartConfig[name as keyof typeof chartConfig]?.label ?? name
+        const amount = new Intl.NumberFormat(i18n.language || "en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(Number(value) || 0)
+        return (
+            <div className="flex items-center gap-2 w-full">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: item?.color }} />
+                <span className="text-muted-foreground">{label}</span>
+                <span className="ml-auto font-mono font-medium tabular-nums text-foreground">
+                    {amount} {chartCurrency}
+                </span>
+            </div>
+        )
     }
 
     return (
         <div className="max-w-7xl mx-auto space-y-6 p-6">
-            {/* @ts-ignore */}
-            <p className="text-muted-foreground">{t("dashboard.welcomeMessage", { firstname: user?.user?.firstname })}</p>
-
             <section className="space-y-6">
                 <div className="flex items-center space-x-3">
                     <div className="p-2 bg-emerald-500 rounded-lg">
@@ -140,14 +123,15 @@ export default function Dashboard() {
                                             <DollarSign className="h-6 w-6 text-white" />
                                         </div>
                                     </section>
-                                    <ChartContainer config={chartConfig} className="h-32 w-full">
+                                    <ChartContainer config={chartConfig} className="h-40 w-full">
                                         <LineChart
                                             accessibilityLayer
                                             data={(dashboardData?.revenue.last6Months || [])
                                                 .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                                                 .map((item) => ({
                                                     createdAt: new Date(item.createdAt),
-                                                    revenue: item.total,
+                                                    real: item.real,
+                                                    forecast: item.forecast,
                                                 }))}
                                             margin={{
                                                 top: 5,
@@ -163,16 +147,24 @@ export default function Dashboard() {
                                                     new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(date))
                                                 }
                                             />
-                                            <ChartTooltip content={<ChartTooltipContent />} />
+                                            <ChartTooltip content={<ChartTooltipContent formatter={formatTooltipItem} />} />
+                                            <ChartLegend content={<ChartLegendContent />} />
                                             <Line
                                                 type="bump"
                                                 strokeWidth={2}
-                                                dataKey="revenue"
-                                                stroke="var(--color-white)"
+                                                dataKey="real"
+                                                stroke="var(--color-real)"
                                                 isAnimationActive={false}
-                                                activeDot={{
-                                                    r: 6,
-                                                }}
+                                                activeDot={{ r: 6 }}
+                                            />
+                                            <Line
+                                                type="bump"
+                                                strokeWidth={2}
+                                                dataKey="forecast"
+                                                stroke="var(--color-forecast)"
+                                                strokeDasharray="4 4"
+                                                isAnimationActive={false}
+                                                activeDot={{ r: 6 }}
                                             />
                                         </LineChart>
                                     </ChartContainer>
@@ -217,14 +209,15 @@ export default function Dashboard() {
                                             <TrendingUp className="h-6 w-6 text-white" />
                                         </div>
                                     </section>
-                                    <ChartContainer config={chartConfig} className="h-32 w-full">
+                                    <ChartContainer config={chartConfig} className="h-40 w-full">
                                         <LineChart
                                             accessibilityLayer
                                             data={(dashboardData?.revenue.last6Years || [])
                                                 .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                                                 .map((item) => ({
                                                     createdAt: new Date(item.createdAt),
-                                                    revenue: item.total,
+                                                    real: item.real,
+                                                    forecast: item.forecast,
                                                 }))}
                                             margin={{
                                                 top: 5,
@@ -237,19 +230,27 @@ export default function Dashboard() {
                                             <XAxis
                                                 dataKey="createdAt"
                                                 tickFormatter={(date) =>
-                                                    new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(date))
+                                                    new Intl.DateTimeFormat("en-US", { year: "numeric" }).format(new Date(date))
                                                 }
                                             />
-                                            <ChartTooltip content={<ChartTooltipContent />} />
+                                            <ChartTooltip content={<ChartTooltipContent formatter={formatTooltipItem} />} />
+                                            <ChartLegend content={<ChartLegendContent />} />
                                             <Line
                                                 type="bump"
                                                 strokeWidth={2}
                                                 isAnimationActive={false}
-                                                dataKey="revenue"
-                                                stroke="var(--color-white)"
-                                                activeDot={{
-                                                    r: 6,
-                                                }}
+                                                dataKey="real"
+                                                stroke="var(--color-real)"
+                                                activeDot={{ r: 6 }}
+                                            />
+                                            <Line
+                                                type="bump"
+                                                strokeWidth={2}
+                                                isAnimationActive={false}
+                                                dataKey="forecast"
+                                                stroke="var(--color-forecast)"
+                                                strokeDasharray="4 4"
+                                                activeDot={{ r: 6 }}
                                             />
                                         </LineChart>
                                     </ChartContainer>
@@ -384,17 +385,6 @@ export default function Dashboard() {
                         showCreateButton={false}
                     />
                 ) : null}
-            </section>
-
-            <section className="space-y-4">
-                <h2 className="text-lg font-semibold text-foreground">{t("dashboard.clients.title")}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
-                    <DashboardStat
-                        count={dashboardData?.clients.total}
-                        label={t("dashboard.clients.stats.total")}
-                        color="green"
-                    />
-                </div>
             </section>
         </div>
     )

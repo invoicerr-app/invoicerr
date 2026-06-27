@@ -6,13 +6,17 @@ import { useGet, usePost } from "@/hooks/use-fetch"
 
 import { Button } from "@/components/ui/button"
 import type { Company } from "@/types"
+import CountrySelect from "@/components/country-select"
 import CurrencySelect from "@/components/currency-select"
 import { DatePicker } from "@/components/date-picker"
 import { Input } from "@/components/ui/input"
+import { Loader2, Search } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { format } from "date-fns"
 import { toast } from "sonner"
 import { useForm } from "react-hook-form"
+import { useLookupSiret } from "@/hooks/use-lookup-siret"
+import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -114,14 +118,14 @@ export default function CompanySettings() {
             .refine((val) => {
                 return validateNumberFormat(val)
             }, t("settings.company.form.invoiceNumberFormat.errors.format")),
-        receiptStartingNumber: z.number().min(1, t("settings.company.form.receiptStartingNumber.errors.min")),
-        receiptNumberFormat: z
+        paymentStartingNumber: z.number().min(1, t("settings.company.form.paymentStartingNumber.errors.min")),
+        paymentNumberFormat: z
             .string()
-            .min(1, t("settings.company.form.receiptNumberFormat.errors.required"))
-            .max(100, t("settings.company.form.receiptNumberFormat.errors.maxLength"))
+            .min(1, t("settings.company.form.paymentNumberFormat.errors.required"))
+            .max(100, t("settings.company.form.paymentNumberFormat.errors.maxLength"))
             .refine((val) => {
                 return validateNumberFormat(val)
-            }, t("settings.company.form.receiptNumberFormat.errors.format")),
+            }, t("settings.company.form.paymentNumberFormat.errors.format")),
         invoicePDFFormat: z
             .string()
             .refine((val) => {
@@ -165,8 +169,8 @@ export default function CompanySettings() {
             quoteNumberFormat: "Q-{year}-{number}",
             invoiceStartingNumber: 1,
             invoiceNumberFormat: "INV-{year}-{number}",
-            receiptStartingNumber: 1,
-            receiptNumberFormat: "REC-{year}-{number}",
+            paymentStartingNumber: 1,
+            paymentNumberFormat: "PAY-{year}-{number}",
         },
     })
 
@@ -174,11 +178,31 @@ export default function CompanySettings() {
         if (data && Object.keys(data).length > 0) {
             form.reset({
                 ...data,
+                description: data.description ?? "",
+                legalId: data.legalId ?? "",
+                VAT: data.VAT ?? "",
+                addressLine2: data.addressLine2 ?? "",
+                state: data.state ?? "",
                 foundedAt: new Date(data.foundedAt),
                 exemptVat: !!data.exemptVat,
             })
         }
     }, [data, form])
+
+    const legalIdValue = form.watch("legalId")
+    const countryValue = form.watch("country")
+    const isFranceOrUnset = !countryValue || /^fr(ance)?$/i.test(countryValue.trim())
+
+    const { lookup: onLookupSiret, isLoading: siretLookupLoading } = useLookupSiret(form, {
+        messages: {
+            invalid: t("clients.upsert.messages.siretInvalid"),
+            notFound: t("clients.upsert.messages.siretNotFound"),
+            success: t("clients.upsert.messages.siretSuccess"),
+            error: t("clients.upsert.messages.siretError"),
+        },
+    })
+    useCountryToCurrency(form)
+    const isSiretLookupDisabled = siretLookupLoading || !legalIdValue || legalIdValue.replace(/\D/g, '').length !== 14
 
     async function onSubmit(values: z.infer<typeof companySchema>) {
         setIsLoading(true)
@@ -265,6 +289,23 @@ export default function CompanySettings() {
                                         </FormItem>
                                     )}
                                 />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <FormField
+                                    control={form.control}
+                                    name="country"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel required>{t("settings.company.form.country.label")}</FormLabel>
+                                            <FormControl>
+                                                <CountrySelect value={field.value} onChange={(value) => field.onChange(value)} data-cy="company-country-input" />
+                                            </FormControl>
+                                            <FormDescription>{t("settings.company.form.country.description")}</FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
 
                                 <FormField
                                     control={form.control}
@@ -284,7 +325,9 @@ export default function CompanySettings() {
                                         </FormItem>
                                     )}
                                 />
+                            </div>
 
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormField
                                     control={form.control}
                                     name="legalId"
@@ -292,7 +335,22 @@ export default function CompanySettings() {
                                         <FormItem>
                                             <FormLabel>{t("settings.company.form.legalId.label")}</FormLabel>
                                             <FormControl>
-                                                <Input placeholder={t("settings.company.form.legalId.placeholder")} {...field} data-cy="company-legalid-input" />
+                                                <div className="flex gap-2">
+                                                    <Input placeholder={t("settings.company.form.legalId.placeholder")} {...field} data-cy="company-legalid-input" />
+                                                    {isFranceOrUnset && (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="icon"
+                                                            disabled={isSiretLookupDisabled}
+                                                            onClick={() => onLookupSiret(legalIdValue)}
+                                                            title={t("clients.upsert.actions.lookupSiret")}
+                                                            data-cy="company-siret-lookup"
+                                                        >
+                                                            {siretLookupLoading ? <Loader2 className="animate-spin" /> : <Search />}
+                                                        </Button>
+                                                    )}
+                                                </div>
                                             </FormControl>
                                             <FormDescription>{t("settings.company.form.legalId.description")}</FormDescription>
                                             <FormMessage />
@@ -397,20 +455,6 @@ export default function CompanySettings() {
                                     )}
                                 />
                             </div>
-
-                            <FormField
-                                control={form.control}
-                                name="country"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel required>{t("settings.company.form.country.label")}</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder={t("settings.company.form.country.placeholder")} {...field} data-cy="company-country-input" />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
                         </CardContent>
                     </Card>
 
@@ -538,21 +582,21 @@ export default function CompanySettings() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <FormField
                                         control={form.control}
-                                        name="receiptStartingNumber"
+                                        name="paymentStartingNumber"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel required>{t("settings.company.form.receiptStartingNumber.label")}</FormLabel>
+                                                <FormLabel required>{t("settings.company.form.paymentStartingNumber.label")}</FormLabel>
                                                 <FormControl>
                                                     <Input
                                                         type="number"
-                                                        placeholder={t("settings.company.form.receiptStartingNumber.placeholder")}
+                                                        placeholder={t("settings.company.form.paymentStartingNumber.placeholder")}
                                                         {...field}
                                                         onChange={(e) => field.onChange(Number(e.target.value))}
-                                                        data-cy="company-receipt-starting-number-input"
+                                                        data-cy="company-payment-starting-number-input"
                                                     />
                                                 </FormControl>
                                                 <FormDescription>
-                                                    {t("settings.company.form.receiptStartingNumber.description")}
+                                                    {t("settings.company.form.paymentStartingNumber.description")}
                                                 </FormDescription>
                                                 <FormMessage />
                                             </FormItem>
@@ -560,14 +604,14 @@ export default function CompanySettings() {
                                     />
                                     <FormField
                                         control={form.control}
-                                        name="receiptNumberFormat"
+                                        name="paymentNumberFormat"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel required>{t("settings.company.form.receiptNumberFormat.label")}</FormLabel>
+                                                <FormLabel required>{t("settings.company.form.paymentNumberFormat.label")}</FormLabel>
                                                 <FormControl>
-                                                    <Input placeholder={t("settings.company.form.receiptNumberFormat.placeholder")} {...field} data-cy="company-receipt-number-format-input" />
+                                                    <Input placeholder={t("settings.company.form.paymentNumberFormat.placeholder")} {...field} data-cy="company-payment-number-format-input" />
                                                 </FormControl>
-                                                <FormDescription>{t("settings.company.form.receiptNumberFormat.description")}</FormDescription>
+                                                <FormDescription>{t("settings.company.form.paymentNumberFormat.description")}</FormDescription>
                                                 <FormMessage />
                                             </FormItem>
                                         )}

@@ -9,11 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { useEffect, useState } from "react"
 import { useFieldArray, useForm } from "react-hook-form"
-import { useGet, usePatch, usePost } from "@/hooks/use-fetch"
+import { usePatch, usePost } from "@/hooks/use-fetch"
+import { useClientSearch, usePaymentMethods } from "@/hooks/queries"
+import { queryKeys } from "@/lib/query-keys"
+import { useQueryClient } from "@tanstack/react-query"
 
 import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
 import { CSS } from "@dnd-kit/utilities"
+import { ArticlePicker } from "@/components/article-picker"
 import { ClientUpsert } from "../../clients/_components/client-upsert"
 import CurrencySelect from "@/components/currency-select"
 import { DatePicker } from "@/components/date-picker"
@@ -35,6 +39,7 @@ interface QuoteUpsertDialogProps {
 export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProps) {
     const { t } = useTranslation()
     const isEdit = !!quote
+    const queryClient = useQueryClient()
 
     const [clientDialogOpen, setClientDialogOpen] = useState(false)
 
@@ -58,12 +63,13 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
         items: z.array(
             z.object({
                 id: z.string().optional(),
-                description: z
+                name: z
                     .string()
-                    .min(1, t("quotes.upsert.form.items.description.errors.required"))
+                    .min(1, t("quotes.upsert.form.items.name.errors.required"))
                     .refine((val) => val !== "", {
-                        message: t("quotes.upsert.form.items.description.errors.required"),
+                        message: t("quotes.upsert.form.items.name.errors.required"),
                     }),
+                description: z.string().optional(),
                 type: z.string(),
                 quantity: z
                     .number({ invalid_type_error: t("quotes.upsert.form.items.quantity.errors.required") })
@@ -88,8 +94,8 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
     })
 
     const [searchTerm, setSearchTerm] = useState("")
-    const { data: clients } = useGet<Client[]>(`/api/clients/search?query=${searchTerm}`)
-    const { data: paymentMethods } = useGet<PaymentMethod[]>(`/api/payment-methods`)
+    const { data: clients } = useClientSearch(searchTerm)
+    const { data: paymentMethods } = usePaymentMethods()
 
     const { trigger: createTrigger } = usePost("/api/quotes")
     const { trigger: updateTrigger } = usePatch(`/api/quotes/${quote?.id}`)
@@ -121,6 +127,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                     .map((item) => ({
                         id: item.id,
                         type: item.type,
+                        name: item.name || "",
                         description: item.description || "",
                         quantity: item.quantity || 1,
                         unitPrice: item.unitPrice || 0,
@@ -178,6 +185,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
 
         trigger(data)
             .then(() => {
+                queryClient.invalidateQueries({ queryKey: queryKeys.quotes.listsAll() })
                 onOpenChange(false)
                 form.reset()
             })
@@ -234,6 +242,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                                                 data-cy="quote-client-select"
                                                 noResultsComponent={
                                                     <Button
+                                                        type="button"
                                                         variant="link"
                                                         onClick={() => setClientDialogOpen(true)}
                                                     >
@@ -364,17 +373,18 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                                                     id={fieldItem.id}
                                                     dragHandle={<GripVertical className="cursor-grab text-muted-foreground" />}
                                                 >
+                                                    <div className="flex flex-col gap-2 w-full">
                                                     <div className="flex gap-2 items-center">
                                                         <FormField
                                                             control={control}
-                                                            name={`items.${index}.description`}
+                                                            name={`items.${index}.name`}
                                                             render={({ field }) => (
                                                                 <FormItem>
                                                                     <FormControl>
                                                                         <Input
                                                                             {...field}
                                                                             placeholder={t(
-                                                                                `quotes.upsert.form.items.description.placeholder`,
+                                                                                `quotes.upsert.form.items.name.placeholder`,
                                                                             )}
                                                                         />
                                                                     </FormControl>
@@ -486,9 +496,32 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                                                             )}
                                                         />
 
-                                                        <Button variant={"outline"} onClick={() => onRemove(index)} dataCy={`remove-item-${index}`}>
+                                                        <Button type="button" variant={"outline"} onClick={() => onRemove(index)} dataCy={`remove-item-${index}`}>
                                                             <Trash2 className="h-4 w-4 text-red-700" />
                                                         </Button>
+                                                    </div>
+
+                                                    <FormField
+                                                        control={control}
+                                                        name={`items.${index}.description`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormControl>
+                                                                    <Textarea
+                                                                        {...field}
+                                                                        rows={2}
+                                                                        placeholder={t(
+                                                                            `quotes.upsert.form.items.description.placeholder`,
+                                                                        )}
+                                                                    />
+                                                                </FormControl>
+                                                                <FormDescription>
+                                                                    {t(`quotes.upsert.form.items.description.hint`)}
+                                                                </FormDescription>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
                                                     </div>
                                                 </SortableItem>
                                             ))}
@@ -496,23 +529,41 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                                     </SortableContext>
                                 </DndContext>
 
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() =>
-                                        append({
-                                            description: "",
-                                            type: "HOUR",
-                                            quantity: Number.NaN,
-                                            unitPrice: Number.NaN,
-                                            vatRate: Number.NaN,
-                                            order: fields.length,
-                                        })
-                                    }
-                                >
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    {t("quotes.upsert.form.items.addItem")}
-                                </Button>
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() =>
+                                            append({
+                                                name: "",
+                                                description: "",
+                                                type: "HOUR",
+                                                quantity: Number.NaN,
+                                                unitPrice: Number.NaN,
+                                                vatRate: Number.NaN,
+                                                order: fields.length,
+                                            })
+                                        }
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        {t("quotes.upsert.form.items.addItem")}
+                                    </Button>
+
+                                    <ArticlePicker
+                                        className="sm:max-w-xs"
+                                        onPick={(article) =>
+                                            append({
+                                                name: article.name,
+                                                description: article.description ?? "",
+                                                type: article.type,
+                                                quantity: 1,
+                                                unitPrice: article.unitPrice,
+                                                vatRate: article.vatRate,
+                                                order: fields.length,
+                                            })
+                                        }
+                                    />
+                                </div>
                             </FormItem>
                         </form>
                     </Form>

@@ -2,6 +2,40 @@ beforeEach(() => {
     cy.login();
 });
 
+// The simplified onboarding only collects name + country. The rest of the profile
+// (address, contact, currency, numbering/PDF/date formats) is filled in afterwards via
+// Settings > Company, which several tests below assume is already valid.
+function completeCompanyProfile() {
+    cy.visit('/settings/company');
+    cy.wait(3000);
+    cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should('be.visible');
+
+    cy.get('[data-cy="company-name-input"]').clear().type('Acme Corp');
+    cy.get('[data-cy="company-description-input"]').clear().type('A fictional company');
+    cy.get('[data-cy="company-legalid-input"]').clear().type('LEGAL123456');
+    cy.get('[data-cy="company-vat-input"]').clear().type('FR12345678901');
+    cy.get('[data-cy="company-phone-input"]').clear().type('+33123456789');
+    cy.get('[data-cy="company-email-input"]').clear().type('contact@acme.org');
+    cy.get('[data-cy="company-address-input"]').clear().type('123 Main St');
+    cy.get('[data-cy="company-address-line2-input"]').clear();
+    cy.get('[data-cy="company-city-input"]').clear().type('Paris');
+    cy.get('[data-cy="company-state-input"]').clear();
+    cy.get('[data-cy="company-postalcode-input"]').clear().type('75001');
+    cy.selectCountry('company-country-input', 'France');
+
+    cy.get('[data-cy="company-currency-select"]').click();
+    cy.get('[data-cy="company-currency-select-option-euro-(€)"]').click();
+
+    cy.get('[data-cy="company-pdfformat-select"]').click();
+    cy.get('[data-cy="company-pdfformat-option-pdf"]').click();
+
+    cy.get('[data-cy="company-dateformat-select"]').click();
+    cy.get('[data-cy="company-dateformat-option-dd-MM-yyyy"]').first().click();
+
+    cy.get('[data-cy="company-submit-btn"]').click();
+    cy.wait(5000);
+}
+
 describe('Company Settings E2E', () => {
     describe('1 - Initial Company Setup (Required for other tests)', () => {
         it('creates the company via onboarding', () => {
@@ -10,32 +44,7 @@ describe('Company Settings E2E', () => {
             cy.get('[data-cy="onboarding-dialog"]', { timeout: 10000 }).should('be.visible');
 
             cy.get('[data-cy="onboarding-company-name-input"]').clear().type('Acme Corp');
-            cy.get('[data-cy="onboarding-company-description-input"]').clear().type('A fictional company');
-            cy.get('[data-cy="onboarding-company-legalid-input"]').clear().type('LEGAL123456');
-            cy.get('[data-cy="onboarding-company-vat-input"]').clear().type('FR12345678901');
-
-            cy.get('[data-cy="onboarding-company-currency-select"]').click();
-            cy.get('[data-cy="onboarding-company-currency-select-option-euro-(€)"]').click();
-
-            cy.get('[data-cy="onboarding-next-btn"]').click();
-
-            cy.get('[data-cy="onboarding-company-address-input"]').clear().type('123 Main Street');
-            cy.get('[data-cy="onboarding-company-postalcode-input"]').clear().type('75001');
-            cy.get('[data-cy="onboarding-company-city-input"]').clear().type('Paris');
-            cy.get('[data-cy="onboarding-company-country-input"]').clear().type('France');
-
-            cy.get('[data-cy="onboarding-next-btn"]').click();
-
-            cy.get('[data-cy="onboarding-company-phone-input"]').clear().type('+33123456789');
-            cy.get('[data-cy="onboarding-company-email-input"]').clear().type('contact@acme.org');
-
-            cy.get('[data-cy="onboarding-next-btn"]').click();
-
-            cy.get('[data-cy="onboarding-company-pdfformat-select"]').click();
-            cy.get('[data-cy="onboarding-company-pdfformat-option-pdf"]').click();
-
-            cy.get('[data-cy="onboarding-company-dateformat-select"]').click();
-            cy.get('[data-cy="onboarding-company-dateformat-option-dd/MM/yyyy"]').click();
+            cy.selectCountry('onboarding-company-country-input', 'France');
 
             cy.get('[data-cy="onboarding-submit-btn"]').click();
 
@@ -48,7 +57,18 @@ describe('Company Settings E2E', () => {
         });
     });
 
-    describe('2 - Validation Errors', () => {
+    describe('2 - Complete Company Profile (Required for other tests)', () => {
+        it('fills in the rest of the company profile via Settings', () => {
+            completeCompanyProfile();
+
+            cy.visit('/settings/company');
+            cy.wait(3000);
+            cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should('be.visible');
+            cy.get('[data-cy="company-address-input"]').should('have.value', '123 Main St');
+        });
+    });
+
+    describe('3 - Validation Errors', () => {
         it('shows error for empty company name', () => {
             cy.visit('/settings/company');
             cy.get('[data-cy="company-name-input"]', { timeout: 10000 }).clear();
@@ -68,13 +88,6 @@ describe('Company Settings E2E', () => {
             cy.get('[data-cy="company-city-input"]', { timeout: 10000 }).clear();
             cy.get('[data-cy="company-submit-btn"]').click();
             cy.contains(/required|empty|city/i);
-        });
-
-        it('shows error for empty country', () => {
-            cy.visit('/settings/company');
-            cy.get('[data-cy="company-country-input"]', { timeout: 10000 }).clear();
-            cy.get('[data-cy="company-submit-btn"]').click();
-            cy.contains(/required|empty|country/i);
         });
 
         it('shows error for invalid postal code format', () => {
@@ -127,7 +140,7 @@ describe('Company Settings E2E', () => {
             cy.get('[data-cy="company-city-input"]').clear().type('Austin');
             cy.get('[data-cy="company-state-input"]').clear().type('TX');
             cy.get('[data-cy="company-postalcode-input"]').clear().type('78701');
-            cy.get('[data-cy="company-country-input"]').clear().type('USA');
+            cy.selectCountry('company-country-input', 'United States');
 
             cy.get('[data-cy="company-submit-btn"]').click();
             cy.wait(2000);
@@ -156,7 +169,7 @@ describe('Company Settings E2E', () => {
         });
     });
 
-    describe('3 - Edge Cases', () => {
+    describe('4 - Edge Cases', () => {
         it('handles special characters in company name', () => {
             cy.visit('/settings/company');
             cy.get('[data-cy="company-name-input"]', { timeout: 10000 }).clear().type("O'Reilly & Associates");
@@ -189,36 +202,9 @@ describe('Company Settings E2E', () => {
         });
     });
 
-    describe('4 - Restore Valid State (Must run last)', () => {
+    describe('5 - Restore Valid State (Must run last)', () => {
         it('restores valid company settings for other tests', () => {
-            cy.visit('/settings/company');
-            cy.wait(3000);
-            cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should('be.visible');
-
-            cy.get('[data-cy="company-name-input"]').clear().type('Acme Corp');
-            cy.get('[data-cy="company-description-input"]').clear().type('A fictional company');
-            cy.get('[data-cy="company-legalid-input"]').clear().type('LEGAL123456');
-            cy.get('[data-cy="company-vat-input"]').clear().type('FR12345678901');
-            cy.get('[data-cy="company-phone-input"]').clear().type('+33123456789');
-            cy.get('[data-cy="company-email-input"]').clear().type('contact@acme.org');
-            cy.get('[data-cy="company-address-input"]').clear().type('123 Main St');
-            cy.get('[data-cy="company-address-line2-input"]').clear();
-            cy.get('[data-cy="company-city-input"]').clear().type('Paris');
-            cy.get('[data-cy="company-state-input"]').clear();
-            cy.get('[data-cy="company-postalcode-input"]').clear().type('75001');
-            cy.get('[data-cy="company-country-input"]').clear().type('France');
-
-            cy.get('[data-cy="company-currency-select"]').click();
-            cy.get('[data-cy="company-currency-select-option-euro-(€)"]').click();
-
-            cy.get('[data-cy="company-pdfformat-select"]').click();
-            cy.get('[data-cy="company-pdfformat-option-pdf"]').click();
-
-            cy.get('[data-cy="company-dateformat-select"]').click();
-            cy.get('[data-cy="company-dateformat-option-dd-MM-yyyy"]').first().click();
-
-            cy.get('[data-cy="company-submit-btn"]').click();
-            cy.wait(5000);
+            completeCompanyProfile();
 
             cy.visit('/settings/company');
             cy.wait(3000);

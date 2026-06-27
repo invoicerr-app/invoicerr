@@ -35,7 +35,16 @@ export const EVENT_STYLES: Record<WebhookEvent, EventStyle> = {
     [WebhookEvent.INVOICE_SEARCHED]: { color: "#6b7280", emoji: "🔍", title: "Invoice Searched" },
     [WebhookEvent.INVOICE_STATUS_CHANGED]: { color: "#10b981", emoji: "🔄", title: "Invoice Status Changed" },
 
-    // Receipt events - Purple
+    // Payment document events - Purple
+    [WebhookEvent.PAYMENT_CREATED]: { color: "#8b5cf6", emoji: "🧾", title: "Payment Created" },
+    [WebhookEvent.PAYMENT_UPDATED]: { color: "#8b5cf6", emoji: "✏️", title: "Payment Updated" },
+    [WebhookEvent.PAYMENT_DELETED]: { color: "#ef4444", emoji: "🗑️", title: "Payment Deleted" },
+    [WebhookEvent.PAYMENT_SENT]: { color: "#8b5cf6", emoji: "📧", title: "Payment Sent" },
+    [WebhookEvent.PAYMENT_PDF_GENERATED]: { color: "#6366f1", emoji: "📄", title: "Payment PDF Generated" },
+    [WebhookEvent.PAYMENT_CREATED_FROM_INVOICE]: { color: "#8b5cf6", emoji: "🔄", title: "Payment Created from Invoice" },
+    [WebhookEvent.PAYMENT_SEARCHED]: { color: "#6b7280", emoji: "🔍", title: "Payment Searched" },
+
+    // Receipt events - Purple (deprecated, use PAYMENT_* instead)
     [WebhookEvent.RECEIPT_CREATED]: { color: "#8b5cf6", emoji: "🧾", title: "Receipt Created" },
     [WebhookEvent.RECEIPT_UPDATED]: { color: "#8b5cf6", emoji: "✏️", title: "Receipt Updated" },
     [WebhookEvent.RECEIPT_DELETED]: { color: "#ef4444", emoji: "🗑️", title: "Receipt Deleted" },
@@ -146,6 +155,9 @@ export const EVENT_STYLES: Record<WebhookEvent, EventStyle> = {
     [WebhookEvent.INVOICE_ITEM_CREATED]: { color: "#10b981", emoji: "➕", title: "Invoice Item Created" },
     [WebhookEvent.INVOICE_ITEM_UPDATED]: { color: "#10b981", emoji: "✏️", title: "Invoice Item Updated" },
     [WebhookEvent.INVOICE_ITEM_DELETED]: { color: "#ef4444", emoji: "➖", title: "Invoice Item Deleted" },
+    [WebhookEvent.PAYMENT_ITEM_CREATED]: { color: "#8b5cf6", emoji: "➕", title: "Payment Item Created" },
+    [WebhookEvent.PAYMENT_ITEM_UPDATED]: { color: "#8b5cf6", emoji: "✏️", title: "Payment Item Updated" },
+    [WebhookEvent.PAYMENT_ITEM_DELETED]: { color: "#ef4444", emoji: "➖", title: "Payment Item Deleted" },
     [WebhookEvent.RECEIPT_ITEM_CREATED]: { color: "#8b5cf6", emoji: "➕", title: "Receipt Item Created" },
     [WebhookEvent.RECEIPT_ITEM_UPDATED]: { color: "#8b5cf6", emoji: "✏️", title: "Receipt Item Updated" },
     [WebhookEvent.RECEIPT_ITEM_DELETED]: { color: "#ef4444", emoji: "➖", title: "Receipt Item Deleted" },
@@ -161,6 +173,7 @@ export const EVENT_STYLES: Record<WebhookEvent, EventStyle> = {
     // Number formatting events
     [WebhookEvent.QUOTE_NUMBER_GENERATED]: { color: "#3b82f6", emoji: "🔢", title: "Quote Number Generated" },
     [WebhookEvent.INVOICE_NUMBER_GENERATED]: { color: "#10b981", emoji: "🔢", title: "Invoice Number Generated" },
+    [WebhookEvent.PAYMENT_NUMBER_GENERATED]: { color: "#8b5cf6", emoji: "🔢", title: "Payment Number Generated" },
     [WebhookEvent.RECEIPT_NUMBER_GENERATED]: { color: "#8b5cf6", emoji: "🔢", title: "Receipt Number Generated" },
 
     // Background process events
@@ -234,7 +247,21 @@ export function formatPayloadForEvent(event: WebhookEvent, payload: any): string
         [WebhookEvent.INVOICE_STATUS_CHANGED]: (p) =>
             `**Invoice #${p.invoice?.number || p.invoiceId}**\nNew status: ${p.newStatus || 'N/A'}`,
 
-        // Receipt events
+        // Payment document events
+        [WebhookEvent.PAYMENT_CREATED]: (p) =>
+            `**Payment #${p.payment?.number || p.paymentId}**\nInvoice: #${p.invoice?.number || 'N/A'}\nAmount: ${p.payment?.totalPaid || 0}${p.invoice?.currency || '€'}`,
+        [WebhookEvent.PAYMENT_UPDATED]: (p) =>
+            `**Payment #${p.payment?.number || p.paymentId}**\nInvoice: #${p.invoice?.number || 'N/A'}`,
+        [WebhookEvent.PAYMENT_DELETED]: (p) =>
+            `**Payment #${p.payment?.number || p.paymentId}**\nInvoice: #${p.invoice?.number || 'N/A'}`,
+        [WebhookEvent.PAYMENT_SENT]: (p) =>
+            `**Payment #${p.payment?.number || p.paymentId}**\nInvoice: #${p.invoice?.number || 'N/A'}`,
+        [WebhookEvent.PAYMENT_PDF_GENERATED]: (p) => null,
+        [WebhookEvent.PAYMENT_CREATED_FROM_INVOICE]: (p) =>
+            `**Payment #${p.payment?.number || p.paymentId}**\nFrom Invoice #${p.invoice?.number || 'N/A'}`,
+        [WebhookEvent.PAYMENT_SEARCHED]: (p) => null,
+
+        // Receipt events (deprecated, use PAYMENT_* instead)
         [WebhookEvent.RECEIPT_CREATED]: (p) =>
             `**Receipt #${p.receipt?.number || p.receiptId}**\nInvoice: #${p.invoice?.number || 'N/A'}\nAmount: ${p.receipt?.totalPaid || 0}${p.invoice?.currency || '€'}`,
         [WebhookEvent.RECEIPT_UPDATED]: (p) =>
@@ -395,27 +422,33 @@ export function formatPayloadForEvent(event: WebhookEvent, payload: any): string
 
         // Item events
         [WebhookEvent.QUOTE_ITEM_CREATED]: (p) =>
-            `Quote: #${p.quote?.number || 'N/A'}\nItem: ${p.item?.description || 'N/A'}`,
+            `Quote: #${p.quote?.number || 'N/A'}\nItem: ${p.item?.name || 'N/A'}`,
         [WebhookEvent.QUOTE_ITEM_UPDATED]: (p) =>
-            `Quote: #${p.quote?.number || 'N/A'}\nItem: ${p.item?.description || 'N/A'}`,
+            `Quote: #${p.quote?.number || 'N/A'}\nItem: ${p.item?.name || 'N/A'}`,
         [WebhookEvent.QUOTE_ITEM_DELETED]: (p) =>
             `Quote: #${p.quote?.number || 'N/A'}`,
         [WebhookEvent.INVOICE_ITEM_CREATED]: (p) =>
-            `Invoice: #${p.invoice?.number || 'N/A'}\nItem: ${p.item?.description || 'N/A'}`,
+            `Invoice: #${p.invoice?.number || 'N/A'}\nItem: ${p.item?.name || 'N/A'}`,
         [WebhookEvent.INVOICE_ITEM_UPDATED]: (p) =>
-            `Invoice: #${p.invoice?.number || 'N/A'}\nItem: ${p.item?.description || 'N/A'}`,
+            `Invoice: #${p.invoice?.number || 'N/A'}\nItem: ${p.item?.name || 'N/A'}`,
         [WebhookEvent.INVOICE_ITEM_DELETED]: (p) =>
             `Invoice: #${p.invoice?.number || 'N/A'}`,
+        [WebhookEvent.PAYMENT_ITEM_CREATED]: (p) =>
+            `Payment: #${p.payment?.number || 'N/A'}\nItem: ${p.item?.name || 'N/A'}`,
+        [WebhookEvent.PAYMENT_ITEM_UPDATED]: (p) =>
+            `Payment: #${p.payment?.number || 'N/A'}\nItem: ${p.item?.name || 'N/A'}`,
+        [WebhookEvent.PAYMENT_ITEM_DELETED]: (p) =>
+            `Payment: #${p.payment?.number || 'N/A'}`,
         [WebhookEvent.RECEIPT_ITEM_CREATED]: (p) =>
-            `Receipt: #${p.receipt?.number || 'N/A'}\nItem: ${p.item?.description || 'N/A'}`,
+            `Receipt: #${p.receipt?.number || 'N/A'}\nItem: ${p.item?.name || 'N/A'}`,
         [WebhookEvent.RECEIPT_ITEM_UPDATED]: (p) =>
-            `Receipt: #${p.receipt?.number || 'N/A'}\nItem: ${p.item?.description || 'N/A'}`,
+            `Receipt: #${p.receipt?.number || 'N/A'}\nItem: ${p.item?.name || 'N/A'}`,
         [WebhookEvent.RECEIPT_ITEM_DELETED]: (p) =>
             `Receipt: #${p.receipt?.number || 'N/A'}`,
         [WebhookEvent.RECURRING_INVOICE_ITEM_CREATED]: (p) =>
-            `Recurring Invoice\nItem: ${p.item?.description || 'N/A'}`,
+            `Recurring Invoice\nItem: ${p.item?.name || 'N/A'}`,
         [WebhookEvent.RECURRING_INVOICE_ITEM_UPDATED]: (p) =>
-            `Recurring Invoice\nItem: ${p.item?.description || 'N/A'}`,
+            `Recurring Invoice\nItem: ${p.item?.name || 'N/A'}`,
         [WebhookEvent.RECURRING_INVOICE_ITEM_DELETED]: (p) =>
             `Recurring Invoice`,
 
@@ -432,6 +465,8 @@ export function formatPayloadForEvent(event: WebhookEvent, payload: any): string
             `Quote number: ${p.number || 'N/A'}`,
         [WebhookEvent.INVOICE_NUMBER_GENERATED]: (p) =>
             `Invoice number: ${p.number || 'N/A'}`,
+        [WebhookEvent.PAYMENT_NUMBER_GENERATED]: (p) =>
+            `Payment number: ${p.number || 'N/A'}`,
         [WebhookEvent.RECEIPT_NUMBER_GENERATED]: (p) =>
             `Receipt number: ${p.number || 'N/A'}`,
 

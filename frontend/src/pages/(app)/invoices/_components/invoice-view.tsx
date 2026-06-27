@@ -1,9 +1,10 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 import type { Invoice, PaymentMethod } from "@/types"
-import { PaymentMethodType } from "@/types"
+import { PaymentMethodType, getDisplayInvoiceStatus } from "@/types"
 import { format } from "date-fns"
 import { languageToLocale } from "@/lib/i18n"
+import { getDraftWatermarkLabel } from "@/lib/watermark"
 import { useTranslation } from "react-i18next"
 
 interface InvoiceViewDialogProps {
@@ -22,12 +23,19 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
     const discountAmount = Math.max(0, subtotalBeforeDiscount - invoice.totalHT)
 
     const getStatusLabel = (status: string) => {
-        return t(`invoices.view.status.${status.toLowerCase()}`)
+        return t(`invoices.view.status.${getDisplayInvoiceStatus(status).toLowerCase()}`)
     }
 
     return (
         <Dialog open={!!invoice} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-[95vw] lg:max-w-3xl max-h-[90dvh] flex flex-col">
+            <DialogContent className="max-w-[95vw] lg:max-w-3xl max-h-[90dvh] flex flex-col overflow-hidden">
+                {invoice.status === "DRAFT" && (
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-50 overflow-hidden">
+                        <span className="text-8xl font-bold text-red-500/15 -rotate-[30deg] select-none whitespace-nowrap">
+                            {getDraftWatermarkLabel(invoice.company?.country)}
+                        </span>
+                    </div>
+                )}
                 <DialogHeader className="flex-shrink-0">
                     <DialogTitle className="text-xl font-semibold">
                         {t("invoices.view.title", { number: invoice.number })}

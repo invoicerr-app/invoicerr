@@ -41,10 +41,8 @@ export class RecurringInvoicesService {
         }));
 
         return {
-            data: recurringInvoicesWithPM,
-            totalCount,
-            currentPage: page,
-            totalPages: Math.ceil(totalCount / pageSize),
+            pageCount: Math.ceil(totalCount / pageSize),
+            recurringInvoices: recurringInvoicesWithPM,
         };
     }
 
@@ -93,6 +91,7 @@ export class RecurringInvoicesService {
                 totalTTC,
                 items: {
                     create: data.items.map((item, index) => ({
+                        name: item.name,
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
@@ -162,6 +161,7 @@ export class RecurringInvoicesService {
                 items: {
                     deleteMany: {},
                     create: data.items.map((item, index) => ({
+                        name: item.name,
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,

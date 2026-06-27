@@ -25,7 +25,7 @@ describe('Invoices E2E', () => {
             cy.get('[name="notes"]').type('Payment due within 30 days');
 
             cy.contains('button', /Add Item|Ajouter/i).click();
-            cy.get('[name="items.0.description"]').type('Consulting Services', { force: true });
+            cy.get('[name="items.0.name"]').type('Consulting Services', { force: true });
             cy.get('[name="items.0.quantity"]').clear({ force: true }).type('10', { force: true });
             cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('150', { force: true });
             cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('20', { force: true });
@@ -35,7 +35,7 @@ describe('Invoices E2E', () => {
             cy.get('[data-cy="invoice-dialog"]').should('not.exist');
 
             // Click view button on the first invoice in the list
-            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
             cy.contains(/1[.,\s]?800/, { timeout: 10000 });
             cy.get('body').type('{esc}');
@@ -54,13 +54,13 @@ describe('Invoices E2E', () => {
             cy.get('[data-cy="invoice-client-select-options"] button').first().click();
 
             cy.contains('button', /Add Item|Ajouter/i).click();
-            cy.get('[name="items.0.description"]').type('Design Work', { force: true });
+            cy.get('[name="items.0.name"]').type('Design Work', { force: true });
             cy.get('[name="items.0.quantity"]').clear({ force: true }).type('20', { force: true });
             cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('75', { force: true });
             cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('20', { force: true });
 
             cy.contains('button', /Add Item|Ajouter/i).click();
-            cy.get('[name="items.1.description"]').type('Development Work', { force: true });
+            cy.get('[name="items.1.name"]').type('Development Work', { force: true });
             cy.get('[name="items.1.quantity"]').clear({ force: true }).type('40', { force: true });
             cy.get('[name="items.1.unitPrice"]').clear({ force: true }).type('100', { force: true });
             cy.get('[name="items.1.vatRate"]').clear({ force: true }).type('20', { force: true });
@@ -69,7 +69,7 @@ describe('Invoices E2E', () => {
 
             cy.get('[data-cy="invoice-dialog"]').should('not.exist');
 
-            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
             cy.contains(/6[.,\s]?600/, { timeout: 10000 });
             cy.get('body').type('{esc}');
@@ -85,7 +85,7 @@ describe('Invoices E2E', () => {
             cy.get('[data-cy="invoice-dialog"]', { timeout: 5000 }).should('be.visible');
 
             cy.contains('button', /Add Item|Ajouter/i).click();
-            cy.get('[name="items.0.description"]').type('Test Item', { force: true });
+            cy.get('[name="items.0.name"]').type('Test Item', { force: true });
             cy.get('[name="items.0.quantity"]').clear({ force: true }).type('1', { force: true });
             cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('100', { force: true });
             cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('0', { force: true });
@@ -108,7 +108,7 @@ describe('Invoices E2E', () => {
             cy.get('[data-cy="invoice-client-select-options"] button').first().click();
 
             cy.contains('button', /Add Item|Ajouter/i).click();
-            cy.get('[name="items.0.description"]').clear({ force: true });
+            cy.get('[name="items.0.name"]').clear({ force: true });
             cy.get('[name="items.0.quantity"]').clear({ force: true }).type('1', { force: true });
             cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('100', { force: true });
 
@@ -130,7 +130,7 @@ describe('Invoices E2E', () => {
             cy.get('[data-cy="invoice-client-select-options"] button').first().click();
 
             cy.contains('button', /Add Item|Ajouter/i).click();
-            cy.get('[name="items.0.description"]').type('Test Item', { force: true });
+            cy.get('[name="items.0.name"]').type('Test Item', { force: true });
             cy.get('[name="items.0.quantity"]').clear({ force: true }).type('0', { force: true });
             cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('100', { force: true });
 
@@ -154,7 +154,7 @@ describe('Invoices E2E', () => {
             cy.get('[data-cy="invoice-client-select-options"] button').first().click();
 
             cy.contains('button', /Add Item|Ajouter/i).click();
-            cy.get('[name="items.0.description"]').type('Zero VAT Service', { force: true });
+            cy.get('[name="items.0.name"]').type('Zero VAT Service', { force: true });
             cy.get('[name="items.0.quantity"]').clear({ force: true }).type('1', { force: true });
             cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('1000', { force: true });
             cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('0', { force: true });
@@ -163,7 +163,7 @@ describe('Invoices E2E', () => {
 
             cy.get('[data-cy="invoice-dialog"]').should('not.exist');
 
-            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
             cy.contains(/1[.,\s]?000/, { timeout: 10000 });
             cy.get('body').type('{esc}');
@@ -182,7 +182,7 @@ describe('Invoices E2E', () => {
             cy.get('[data-cy="invoice-client-select-options"] button').first().click();
 
             cy.contains('button', /Add Item|Ajouter/i).click();
-            cy.get('[name="items.0.description"]').type('Decimal Price Service', { force: true });
+            cy.get('[name="items.0.name"]').type('Decimal Price Service', { force: true });
             cy.get('[name="items.0.quantity"]').clear({ force: true }).type('3', { force: true });
             cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('99.99', { force: true });
             cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('5.5', { force: true });
@@ -191,7 +191,7 @@ describe('Invoices E2E', () => {
 
             cy.get('[data-cy="invoice-dialog"]').should('not.exist');
 
-            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
             cy.contains(/299[.,]97/, { timeout: 10000 });
             cy.get('body').type('{esc}');
@@ -210,7 +210,7 @@ describe('Invoices E2E', () => {
             cy.get('[data-cy="invoice-client-select-options"] button').first().click();
 
             cy.contains('button', /Add Item|Ajouter/i).click();
-            cy.get('[name="items.0.description"]').type("Service spécial <test> & 'quotes'", { force: true });
+            cy.get('[name="items.0.name"]').type("Service spécial <test> & 'quotes'", { force: true });
             cy.get('[name="items.0.quantity"]').clear({ force: true }).type('1', { force: true });
             cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('500', { force: true });
             cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('20', { force: true });
@@ -219,7 +219,7 @@ describe('Invoices E2E', () => {
 
             cy.get('[data-cy="invoice-dialog"]').should('not.exist');
 
-            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
             cy.contains(/600/, { timeout: 10000 });
             cy.get('body').type('{esc}');
@@ -231,7 +231,7 @@ describe('Invoices E2E', () => {
             cy.visit('/invoices');
             cy.wait(2000);
 
-            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[data-cy="invoice-name"]').first().click();
 
             cy.get('[role="dialog"]').should('be.visible');
             // We can't be sure which invoice it is, but we can check if the dialog has content
@@ -250,7 +250,7 @@ describe('Invoices E2E', () => {
             cy.wait(300);
             cy.get('[data-cy="invoice-client-select-options"] button').first().click();
             cy.contains('button', /Add Item|Ajouter/i).click();
-            cy.get('[name="items.0.description"]').type('Editable Service', { force: true });
+            cy.get('[name="items.0.name"]').type('Editable Service', { force: true });
             cy.get('[name="items.0.quantity"]').clear({ force: true }).type('1', { force: true });
             cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('100', { force: true });
             cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('20', { force: true });
@@ -263,7 +263,7 @@ describe('Invoices E2E', () => {
             // Find the row for the created invoice
             cy.contains('[data-cy="invoice-row"]', 'Jane Doe').within(() => {
                 // Check status
-                cy.get('[data-cy="invoice-status"]').invoke('text').should('match', /Unpaid|Impayée/i);
+                cy.get('[data-cy="invoice-status"]').invoke('text').should('match', /Draft|Brouillon/i);
 
                 // Click Edit button
                 cy.get('[data-cy="invoice-edit-button"]').click();
@@ -279,7 +279,7 @@ describe('Invoices E2E', () => {
             cy.wait(2000);
 
             cy.contains('[data-cy="invoice-row"]', 'Jane Doe').within(() => {
-                cy.get('button:has(svg.lucide-eye)').click();
+                cy.get('[data-cy="invoice-name"]').click();
             });
             cy.get('[role="dialog"]').should('be.visible');
             cy.contains('Updated Notes');
@@ -326,7 +326,7 @@ describe('Invoices E2E', () => {
 
             // Add item with fractional quantity
             cy.contains('button', /Add Item|Ajouter/i).click();
-            cy.get('[name="items.0.description"]').type('Consulting Hours - Fractional', { force: true });
+            cy.get('[name="items.0.name"]').type('Consulting Hours - Fractional', { force: true });
             cy.get('[name="items.0.quantity"]').clear({ force: true }).type('19.875', { force: true });
             cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('100', { force: true });
             cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('20', { force: true });
@@ -335,7 +335,7 @@ describe('Invoices E2E', () => {
             cy.get('[data-cy="invoice-dialog"]').should('not.exist');
 
             // Verify the invoice displays the fractional quantity
-            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
             
             // Check that the total is calculated correctly (19.875 * 100 * 1.2 = 2385)
@@ -374,14 +374,14 @@ describe('Invoices E2E', () => {
 
             // Add first item with fractional quantity
             cy.contains('button', /Add Item|Ajouter/i).click();
-            cy.get('[name="items.0.description"]').type('Design Work - 0.25 days', { force: true });
+            cy.get('[name="items.0.name"]').type('Design Work - 0.25 days', { force: true });
             cy.get('[name="items.0.quantity"]').clear({ force: true }).type('0.25', { force: true });
             cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('800', { force: true });
             cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('20', { force: true });
 
             // Add second item with fractional quantity
             cy.contains('button', /Add Item|Ajouter/i).click();
-            cy.get('[name="items.1.description"]').type('Development - 2.75 days', { force: true });
+            cy.get('[name="items.1.name"]').type('Development - 2.75 days', { force: true });
             cy.get('[name="items.1.quantity"]').clear({ force: true }).type('2.75', { force: true });
             cy.get('[name="items.1.unitPrice"]').clear({ force: true }).type('1000', { force: true });
             cy.get('[name="items.1.vatRate"]').clear({ force: true }).type('20', { force: true });
@@ -390,7 +390,7 @@ describe('Invoices E2E', () => {
             cy.get('[data-cy="invoice-dialog"]').should('not.exist');
 
             // Verify the total (0.25*800 + 2.75*1000 = 200 + 2750 = 2950 * 1.2 = 3540)
-            cy.get('button:has(svg.lucide-eye)').first().click();
+            cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
             cy.contains(/3[.,\s]?540/, { timeout: 10000 });
             cy.get('body').type('{esc}');

@@ -8,17 +8,14 @@ import {
   Post,
   Query,
   Res,
-  Sse,
 } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { Response } from 'express';
 import { ExportFormat } from '@fin.cx/einvoice';
-import { CreateInvoiceDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
+import { CreateInvoiceDto, CreateInvoiceFromQuoteDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
 import { InvoicesService } from '@/modules/invoices/invoices.service';
 import { PluginsService } from '@/modules/plugins/plugins.service';
-import { interval } from 'rxjs/internal/observable/interval';
-import { from, map, startWith, switchMap } from 'rxjs';
 
 @ApiTags('invoices')
 @Controller('invoices')
@@ -28,15 +25,12 @@ export class InvoicesController {
     private readonly pluginService: PluginsService,
   ) { }
 
-  @Sse('sse')
-  @ApiOperation({ summary: 'Subscribe to invoice list updates', description: 'Server-sent event stream that pushes the list of invoices every second.' })
+  @Get()
+  @ApiOperation({ summary: 'List invoices', description: 'Returns a paginated list of invoices.' })
   @ApiQuery({ name: 'page', required: false, type: String, description: 'Page number (1-indexed) of the paginated invoice list. Defaults to 1.' })
-  async getInvoicesInfoSse(@Query('page') page: string) {
-    return interval(1000).pipe(
-      startWith(0),
-      switchMap(() => from(this.invoicesService.getInvoices(page))),
-      map((data) => ({ data: JSON.stringify(data) })),
-    );
+  @ApiResponse({ status: 200, description: 'Invoices retrieved' })
+  async getInvoices(@Query('page') page: string) {
+    return this.invoicesService.getInvoices(page);
   }
 
   @Get('search')
@@ -45,6 +39,22 @@ export class InvoicesController {
   @ApiResponse({ status: 200, description: 'Search results retrieved' })
   async searchInvoices(@Query('query') query: string) {
     return await this.invoicesService.searchInvoices(query);
+  }
+
+  @Get('table')
+  @ApiOperation({ summary: 'List invoices for table view', description: 'Returns the full (unpaginated) list of invoices matching the given filters, sorted by creation date. Used by the invoices table view and its export.' })
+  @ApiQuery({ name: 'clientId', required: false, type: String, description: 'Filter invoices by client ID.' })
+  @ApiQuery({ name: 'year', required: false, type: String, description: 'Filter invoices created during this year.' })
+  @ApiQuery({ name: 'month', required: false, type: String, description: 'Filter invoices created during this month (1-12). Ignored unless "year" is also provided.' })
+  @ApiQuery({ name: 'sort', required: false, enum: ['asc', 'desc'], description: 'Sort order on creation date. Defaults to "desc".' })
+  @ApiResponse({ status: 200, description: 'Invoices retrieved' })
+  async getInvoicesTable(
+    @Query('clientId') clientId?: string,
+    @Query('year') year?: string,
+    @Query('month') month?: string,
+    @Query('sort') sort?: 'asc' | 'desc',
+  ) {
+    return await this.invoicesService.getInvoicesTable({ clientId, year, month, sort });
   }
 
   @Get(':id/pdf')
@@ -143,19 +153,11 @@ export class InvoicesController {
   }
 
   @Post('create-from-quote')
-  @ApiOperation({ summary: 'Create invoice from quote', description: 'Generates a new invoice based on an existing quote.' })
+  @ApiOperation({ summary: 'Create invoice from quote', description: 'Generates a new invoice based on an existing quote, with a partial selection of items and quantities.' })
   @ApiResponse({ status: 201, description: 'Invoice created from quote' })
-  @ApiBody({ schema: { type: 'object', properties: { quoteId: { type: 'string', description: 'ID of the quote to convert to an invoice' } } } })
-  createInvoiceFromQuote(@Body('quoteId') quoteId: string) {
-    return this.invoicesService.createInvoiceFromQuote(quoteId);
-  }
-
-  @Post('mark-as-paid')
-  @ApiOperation({ summary: 'Mark invoice as paid', description: 'Marks an invoice as paid with the current date.' })
-  @ApiResponse({ status: 201, description: 'Invoice marked as paid' })
-  @ApiBody({ schema: { type: 'object', properties: { invoiceId: { type: 'string', description: 'ID of the invoice to mark as paid' } } } })
-  markInvoiceAsPaid(@Body('invoiceId') invoiceId: string) {
-    return this.invoicesService.markInvoiceAsPaid(invoiceId);
+  @ApiBody({ schema: { type: 'object', properties: { quoteId: { type: 'string', description: 'ID of the quote to convert to an invoice' }, items: { type: 'array', items: { type: 'object', properties: { quoteItemId: { type: 'string' }, quantity: { type: 'number' } } }, description: 'Quote items to invoice with their requested quantities' } } } })
+  createInvoiceFromQuote(@Body() body: CreateInvoiceFromQuoteDto) {
+    return this.invoicesService.createInvoiceFromQuote(body);
   }
 
   @Post()
@@ -163,6 +165,14 @@ export class InvoicesController {
   @ApiResponse({ status: 201, description: 'Invoice created' })
   postInvoicesInfo(@Body() body: CreateInvoiceDto) {
     return this.invoicesService.createInvoice(body);
+  }
+
+  @Post('archive')
+  @ApiOperation({ summary: 'Archive invoice', description: 'Archives a paid invoice.' })
+  @ApiResponse({ status: 201, description: 'Invoice archived' })
+  @ApiBody({ schema: { type: 'object', properties: { invoiceId: { type: 'string', description: 'ID of the invoice to archive' } } } })
+  archiveInvoice(@Body('invoiceId') invoiceId: string) {
+    return this.invoicesService.archiveInvoice(invoiceId);
   }
 
   @Post('send')

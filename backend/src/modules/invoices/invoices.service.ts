@@ -1,22 +1,23 @@
 import * as Handlebars from 'handlebars';
 
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { CreateInvoiceDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
+import { CreateInvoiceDto, CreateInvoiceFromQuoteDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
 import { EInvoice, ExportFormat } from '@fin.cx/einvoice';
 import { getInvertColor, getPDF } from '@/utils/pdf';
 
 import { MailService } from '@/mail/mail.service';
-import { StorageUploadService } from '@/utils/storage-upload';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { baseTemplate } from '@/modules/invoices/templates/base.template';
 import { business } from '@tsclass/tsclass/dist_ts';
 import { finance } from '@fin.cx/einvoice/dist_ts/plugins';
 import { formatDate } from '@/utils/date';
+import { formatItemDescription } from '@/utils/format-text';
 import { logger } from '@/logger/logger.service';
 import { parseAddress } from '@/utils/adress';
 import prisma from '@/prisma/prisma.service';
 import { calculateDiscountedTotals, clampDiscountRate } from '@/utils/financial';
+import { getDraftWatermarkLabel } from '@/utils/watermark';
 
 @Injectable()
 export class InvoicesService {
@@ -45,7 +46,8 @@ export class InvoicesService {
             include: {
                 items: true,
                 client: true,
-                company: true
+                company: true,
+                payments: { select: { totalPaid: true } },
             },
         });
 
@@ -63,6 +65,55 @@ export class InvoicesService {
         return { pageCount: Math.ceil(totalInvoices / pageSize), invoices: invoicesWithPM };
     }
 
+    async getInvoicesTable(filters: { clientId?: string; year?: string; month?: string; sort?: 'asc' | 'desc' }) {
+        const where: Record<string, any> = { isActive: true };
+
+        if (filters.clientId) {
+            where.clientId = filters.clientId;
+        }
+
+        const year = parseInt(filters.year ?? '', 10);
+        if (!isNaN(year)) {
+            const month = parseInt(filters.month ?? '', 10);
+            if (!isNaN(month) && month >= 1 && month <= 12) {
+                where.createdAt = {
+                    gte: new Date(year, month - 1, 1),
+                    lt: new Date(year, month, 1),
+                };
+            } else {
+                where.createdAt = {
+                    gte: new Date(year, 0, 1),
+                    lt: new Date(year + 1, 0, 1),
+                };
+            }
+        }
+
+        const sort = filters.sort === 'asc' ? 'asc' : 'desc';
+
+        const invoices = await prisma.invoice.findMany({
+            where,
+            orderBy: {
+                createdAt: sort,
+            },
+            include: {
+                items: true,
+                client: true,
+                company: true,
+                payments: { select: { totalPaid: true } },
+            },
+        });
+
+        const invoicesWithPM = await Promise.all(invoices.map(async (inv: any) => {
+            if (inv.paymentMethodId) {
+                const pm = await prisma.paymentMethod.findUnique({ where: { id: inv.paymentMethodId } });
+                return { ...inv, paymentMethod: pm ?? inv.paymentMethod };
+            }
+            return inv;
+        }));
+
+        return invoicesWithPM;
+    }
+
     async searchInvoices(query: string) {
         if (query === '') {
             return this.getInvoices('1'); // Return first page if query is empty
@@ -72,13 +123,14 @@ export class InvoicesService {
             where: {
                 OR: [
                     { client: { name: { contains: query } } },
-                    { items: { some: { description: { contains: query } } } },
+                    { items: { some: { name: { contains: query } } } },
                 ],
             },
             include: {
                 items: true,
                 client: true,
-                company: true
+                company: true,
+                payments: { select: { id: true, totalPaid: true } },
             },
         });
 
@@ -117,6 +169,7 @@ export class InvoicesService {
         const invoice = await prisma.invoice.create({
             data: {
                 ...data,
+                status: 'DRAFT',
                 recurringInvoiceId: body.recurringInvoiceId,
                 paymentMethod: body.paymentMethod,
                 paymentDetails: body.paymentDetails,
@@ -129,12 +182,14 @@ export class InvoicesService {
                 totalTTC: totals.totalTTC,
                 items: {
                     create: items.map(item => ({
+                        name: item.name,
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
                         vatRate: isVatExemptFrance ? 0 : (item.vatRate || 0),
                         type: item.type,
                         order: item.order || 0,
+                        quoteItemId: item.quoteItemId,
                     })),
                 },
                 dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
@@ -193,6 +248,11 @@ export class InvoicesService {
             throw new BadRequestException('Invoice not found');
         }
 
+        if (existingInvoice.status !== 'DRAFT') {
+            logger.error('Only draft invoices can be edited', { category: 'invoice', details: { invoiceId: id, status: existingInvoice.status } });
+            throw new BadRequestException('Only draft invoices can be edited');
+        }
+
         const existingItemIds = existingInvoice.items.map(i => i.id);
         const incomingItemIds = items.filter(i => i.id).map(i => i.id!);
 
@@ -227,6 +287,7 @@ export class InvoicesService {
                         .map(i => ({
                             where: { id: i.id! },
                             data: {
+                                name: i.name,
                                 description: i.description,
                                 quantity: i.quantity,
                                 unitPrice: i.unitPrice,
@@ -238,6 +299,7 @@ export class InvoicesService {
                     create: items
                         .filter(i => !i.id)
                         .map(i => ({
+                            name: i.name,
                             description: i.description,
                             quantity: i.quantity,
                             unitPrice: i.unitPrice,
@@ -282,6 +344,11 @@ export class InvoicesService {
         if (!existingInvoice) {
             logger.error('Invoice not found', { category: 'invoice' });
             throw new BadRequestException('Invoice not found');
+        }
+
+        if (existingInvoice.status !== 'DRAFT') {
+            logger.error('Only draft invoices can be deleted', { category: 'invoice', details: { invoiceId: id, status: existingInvoice.status } });
+            throw new BadRequestException('Only draft invoices can be deleted');
         }
 
         const deletedInvoice = await prisma.invoice.update({
@@ -372,6 +439,8 @@ export class InvoicesService {
         const hasDiscount = normalizedDiscountRate > 0 && discountAmountValue > 0;
 
         const html = template({
+            isDraft: invoice.status === 'DRAFT',
+            draftLabel: getDraftWatermarkLabel(invoice.company.country),
             number: invoice.rawNumber || invoice.number.toString(),
             date: formatDate(invoice.company, invoice.createdAt),
             dueDate: formatDate(invoice.company, invoice.dueDate),
@@ -379,7 +448,8 @@ export class InvoicesService {
             client: invoice.client,
             currency: invoice.currency,
             items: invoice.items.map(i => ({
-                description: i.description,
+                name: i.name,
+                description: formatItemDescription(i.description),
                 quantity: Number.isInteger(i.quantity) ? i.quantity.toString() : i.quantity.toFixed(3).replace(/\.?0+$/, ''),
                 unitPrice: i.unitPrice.toFixed(2),
                 vatRate: (i.vatRate || 0).toFixed(2),
@@ -434,7 +504,7 @@ export class InvoicesService {
                 day: pdfConfig.day,
                 deposit: pdfConfig.deposit,
                 service: pdfConfig.service,
-                product: pdfConfig.product
+                product: pdfConfig.product,
             },
         });
 
@@ -549,7 +619,7 @@ export class InvoicesService {
 
         invRec.items.forEach((item, index) => {
             inv.addItem({
-                name: item.description,
+                name: item.name,
                 unitQuantity: item.quantity,
                 unitNetPrice: item.unitPrice,
                 vatPercentage: item.vatRate || 0,
@@ -592,9 +662,9 @@ export class InvoicesService {
         return await inv.embedInPdf(Buffer.from(pdfBuffer), format)
     }
 
-    async createInvoiceFromQuote(quoteId: string) {
+    async createInvoiceFromQuote(body: CreateInvoiceFromQuoteDto) {
         const quote = await prisma.quote.findUnique({
-            where: { id: quoteId },
+            where: { id: body.quoteId },
             include: {
                 items: true,
                 client: true,
@@ -603,14 +673,56 @@ export class InvoicesService {
         });
 
         if (!quote) {
-            logger.error('Quote not found when creating invoice from quote', { category: 'invoice', details: { quoteId } });
+            logger.error('Quote not found when creating invoice from quote', { category: 'invoice', details: { quoteId: body.quoteId } });
             throw new BadRequestException('Quote not found');
+        }
+
+        const invoicingStatus = await this.getQuoteInvoicingStatus(body.quoteId);
+
+        if (invoicingStatus.remainingPercent <= 0) {
+            logger.error('Quote has already been fully invoiced', { category: 'invoice', details: { quoteId: body.quoteId } });
+            throw new BadRequestException('This quote has already been fully invoiced');
+        }
+
+        const quoteItemById = new Map<string, (typeof quote.items)[number]>(
+            quote.items.map(item => [item.id, item] as const),
+        );
+        const remainingByItemId = new Map<string, number>(
+            invoicingStatus.items.map(item => [item.quoteItemId, item.remainingQuantity] as const),
+        );
+
+        const invoiceItems = body.items
+            .filter(line => line.quantity > 0)
+            .map(line => {
+                const quoteItem = quoteItemById.get(line.quoteItemId);
+                if (!quoteItem) {
+                    throw new BadRequestException(`Quote item ${line.quoteItemId} does not belong to quote ${body.quoteId}`);
+                }
+                const remaining = remainingByItemId.get(line.quoteItemId) ?? 0;
+                if (line.quantity > remaining + 1e-9) {
+                    throw new BadRequestException(`Requested quantity ${line.quantity} for item "${quoteItem.description}" exceeds remaining quantity ${remaining}`);
+                }
+                return {
+                    name: quoteItem.name,
+                    description: quoteItem.description ?? undefined,
+                    quantity: line.quantity,
+                    unitPrice: quoteItem.unitPrice,
+                    vatRate: quoteItem.vatRate,
+                    type: quoteItem.type,
+                    order: quoteItem.order,
+                    quoteItemId: quoteItem.id,
+                };
+            });
+
+        if (invoiceItems.length === 0) {
+            throw new BadRequestException('No items selected to invoice');
         }
 
         const newInvoice = await this.createInvoice({
             clientId: quote.clientId,
+            quoteId: quote.id,
             dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-            items: quote.items,
+            items: invoiceItems,
             currency: quote.currency,
             notes: quote.notes || '',
             paymentMethodId: (quote as any).paymentMethodId || undefined,
@@ -618,7 +730,7 @@ export class InvoicesService {
             paymentDetails: (quote as any).paymentDetails || undefined,
         });
 
-        logger.info('Invoice created from quote', { category: 'invoice', details: { invoiceId: newInvoice.id, quoteId } });
+        logger.info('Invoice created from quote', { category: 'invoice', details: { invoiceId: newInvoice.id, quoteId: quote.id } });
 
         try {
             await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_CREATED_FROM_QUOTE, {
@@ -634,54 +746,95 @@ export class InvoicesService {
         return newInvoice;
     }
 
-    async markInvoiceAsPaid(invoiceId: string) {
+    /**
+     * Computes how much of each quote item has already been invoiced across
+     * all invoices created from this quote, and the remaining invoicable total.
+     */
+    async getQuoteInvoicingStatus(quoteId: string) {
+        const quote = await prisma.quote.findUnique({
+            where: { id: quoteId },
+            include: {
+                items: {
+                    include: {
+                        // Soft-deleted invoices (isActive: false) must not count towards
+                        // the invoiced quantity, otherwise deleting an invoice never
+                        // frees up the quote items it was created from.
+                        invoiceItems: { where: { invoice: { isActive: true } }, select: { quantity: true } },
+                    },
+                },
+            },
+        });
+
+        if (!quote) {
+            logger.error('Quote not found when computing invoicing status', { category: 'invoice', details: { quoteId } });
+            throw new BadRequestException('Quote not found');
+        }
+
+        const discountFactor = 1 - clampDiscountRate(quote.discountRate) / 100;
+
+        const items = quote.items.map(item => {
+            const invoicedQuantity = item.invoiceItems.reduce((sum, inv) => sum + inv.quantity, 0);
+            const remainingQuantity = Math.max(0, item.quantity - invoicedQuantity);
+            const remainingTTC = remainingQuantity * item.unitPrice * discountFactor * (1 + (item.vatRate || 0) / 100);
+            return {
+                quoteItemId: item.id,
+                name: item.name,
+                description: item.description,
+                quantity: item.quantity,
+                invoicedQuantity,
+                remainingQuantity,
+                remainingTTC,
+            };
+        });
+
+        const totalTTC = quote.totalTTC;
+        const remainingTTC = items.reduce((sum, item) => sum + item.remainingTTC, 0);
+        const remainingPercent = totalTTC > 0 ? (remainingTTC / totalTTC) * 100 : 0;
+
+        return {
+            items,
+            totalTTC,
+            remainingTTC,
+            remainingPercent,
+        };
+    }
+
+    async archiveInvoice(invoiceId: string) {
         const invoice = await prisma.invoice.findUnique({
             where: { id: invoiceId },
-            include: {
-                items: true,
-                client: true,
-                company: true,
-            }
+            include: { client: true, company: true },
         });
 
         if (!invoice) {
-            logger.error('Invoice not found when trying to mark as paid', { category: 'invoice', details: { invoiceId } });
+            logger.error('Invoice not found when trying to archive', { category: 'invoice', details: { invoiceId } });
             throw new BadRequestException('Invoice not found');
         }
 
-        const paidInvoice = await prisma.invoice.update({
+        if (invoice.status !== 'PAID') {
+            logger.error('Only paid invoices can be archived', { category: 'invoice', details: { invoiceId, status: invoice.status } });
+            throw new BadRequestException('Only paid invoices can be archived');
+        }
+
+        const archivedInvoice = await prisma.invoice.update({
             where: { id: invoiceId },
-            data: { status: 'PAID', paidAt: new Date() }
+            data: { status: 'ARCHIVED' },
         });
 
-        logger.info('Invoice marked as paid', { category: 'invoice', details: { invoiceId } });
+        logger.info('Invoice archived', { category: 'invoice', details: { invoiceId } });
 
         try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_MARKED_AS_PAID, {
-                invoice: paidInvoice,
+            await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_STATUS_CHANGED, {
+                invoice: archivedInvoice,
                 client: invoice.client,
                 company: invoice.company,
-                paidAt: paidInvoice.paidAt,
+                previousStatus: invoice.status,
+                newStatus: archivedInvoice.status,
             });
         } catch (error) {
-            logger.error('Failed to dispatch INVOICE_MARKED_AS_PAID webhook', { category: 'invoice', details: { error } });
+            logger.error('Failed to dispatch INVOICE_STATUS_CHANGED webhook', { category: 'invoice', details: { error } });
         }
 
-        try {
-            logger.info(`Uploading paid invoice ${invoiceId} to storage providers...`, { category: 'invoice' });
-            const pdfBuffer = await this.getInvoicePdf(invoiceId);
-            const uploadedUrls = await StorageUploadService.uploadPaidInvoicePdf(invoiceId, pdfBuffer);
-            if (uploadedUrls.length > 0) {
-                logger.info(`Invoice ${invoiceId} successfully uploaded to ${uploadedUrls.length} storage provider(s)`, { category: 'invoice', details: { uploadedUrls } });
-            }
-        } catch (error) {
-            logger.error(
-                `Failed to upload paid invoice ${invoiceId} to storage providers`,
-                { category: 'invoice', details: { error: error instanceof Error ? error.message : String(error) } }
-            );
-        }
-
-        return paidInvoice;
+        return archivedInvoice;
     }
 
     async sendInvoiceByEmail(invoiceId: string) {
@@ -743,6 +896,15 @@ export class InvoicesService {
         }
 
         logger.info('Invoice sent by email', { category: 'invoice', details: { invoiceId, email: invoice.client.contactEmail } });
+
+        try {
+            await prisma.invoice.update({
+                where: { id: invoiceId },
+                data: { status: 'SENT' },
+            });
+        } catch (error) {
+            logger.error('Failed to update invoice status after sending', { category: 'invoice', details: { error } });
+        }
 
         try {
             await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_SENT, {

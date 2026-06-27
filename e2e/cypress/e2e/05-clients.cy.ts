@@ -24,7 +24,7 @@ describe('Clients E2E', () => {
             cy.get('[name="address"]').clear().type('123 Tech Boulevard');
             cy.get('[name="postalCode"]').clear().type('12345');
             cy.get('[name="city"]').clear().type('San Francisco');
-            cy.get('[name="country"]').clear().type('USA');
+            cy.selectCountry('client-country-select', 'United States');
 
             cy.get('[data-cy="client-submit"]').click();
 
@@ -55,7 +55,7 @@ describe('Clients E2E', () => {
             cy.get('[name="address"]').clear().type('456 Developer Lane');
             cy.get('[name="postalCode"]').clear().type('67890');
             cy.get('[name="city"]').clear().type('Los Angeles');
-            cy.get('[name="country"]').clear().type('USA');
+            cy.selectCountry('client-country-select', 'United States');
 
             cy.get('[data-cy="client-submit"]').click();
 
@@ -78,7 +78,7 @@ describe('Clients E2E', () => {
             cy.get('[name="address"]').clear().type('123 Test St');
             cy.get('[name="postalCode"]').clear().type('12345');
             cy.get('[name="city"]').clear().type('Test City');
-            cy.get('[name="country"]').clear().type('Test Country');
+            cy.selectCountry('client-country-select', 'France');
 
             cy.get('[data-cy="client-submit"]').click();
             cy.get('[data-cy="client-dialog"]').should('be.visible');
@@ -97,7 +97,7 @@ describe('Clients E2E', () => {
             cy.get('[name="address"]').clear().type('123 Test St');
             cy.get('[name="postalCode"]').clear().type('12345');
             cy.get('[name="city"]').clear().type('Test City');
-            cy.get('[name="country"]').clear().type('Test Country');
+            cy.selectCountry('client-country-select', 'France');
 
             cy.get('[data-cy="client-submit"]').click();
             cy.get('[data-cy="client-dialog"]').should('be.visible');
@@ -121,7 +121,7 @@ describe('Clients E2E', () => {
             cy.get('[name="address"]').clear().type('123 Test St');
             cy.get('[name="postalCode"]').clear().type('12345');
             cy.get('[name="city"]').clear().type('Test City');
-            cy.get('[name="country"]').clear().type('Test Country');
+            cy.selectCountry('client-country-select', 'France');
 
             cy.get('[data-cy="client-submit"]').click();
             cy.get('[data-cy="client-dialog"]').should('be.visible');
@@ -143,7 +143,7 @@ describe('Clients E2E', () => {
             cy.get('[name="address"]').clear().type('123 Test St');
             cy.get('[name="postalCode"]').clear().type('12345');
             cy.get('[name="city"]').clear().type('Test City');
-            cy.get('[name="country"]').clear().type('Test Country');
+            cy.selectCountry('client-country-select', 'France');
 
             cy.get('[data-cy="client-submit"]').click();
             cy.get('[data-cy="client-dialog"]').should('be.visible');
@@ -164,7 +164,7 @@ describe('Clients E2E', () => {
             cy.get('[name="address"]').clear().type('123 Test St');
             cy.get('[name="postalCode"]').clear().type('12345');
             cy.get('[name="city"]').clear().type('Test City');
-            cy.get('[name="country"]').clear().type('Test Country');
+            cy.selectCountry('client-country-select', 'France');
 
             cy.get('[data-cy="client-submit"]').click();
             cy.get('[data-cy="client-dialog"]').should('be.visible');
@@ -193,7 +193,7 @@ describe('Clients E2E', () => {
             cy.get('[name="address"]').clear().type('123 Test St');
             cy.get('[name="postalCode"]').clear().type('AB');
             cy.get('[name="city"]').clear().type('Test City');
-            cy.get('[name="country"]').clear().type('Test Country');
+            cy.selectCountry('client-country-select', 'France');
 
             cy.get('[data-cy="client-submit"]').click();
             cy.get('[data-cy="client-dialog"]').should('be.visible');
@@ -212,7 +212,7 @@ describe('Clients E2E', () => {
             cy.get('[name="address"]').clear().type('123 Test St');
             cy.get('[name="postalCode"]').clear().type('12345');
             cy.get('[name="city"]').clear().type('Test City');
-            cy.get('[name="country"]').clear().type('Test Country');
+            cy.selectCountry('client-country-select', 'France');
 
             cy.get('[data-cy="client-submit"]').click();
             cy.get('[data-cy="client-dialog"]').should('be.visible');
@@ -235,7 +235,7 @@ describe('Clients E2E', () => {
             cy.get('[name="postalCode"]').clear().type('94105');
             cy.get('[name="city"]').clear().type('San Francisco');
             cy.get('[name="state"]').clear().type('CA');
-            cy.get('[name="country"]').clear().type('USA');
+            cy.selectCountry('client-country-select', 'United States');
 
             cy.get('[data-cy="client-submit"]').click();
 
@@ -265,7 +265,7 @@ describe('Clients E2E', () => {
             cy.get('[name="addressLine2"]').clear().type('3. Etage');
             cy.get('[name="postalCode"]').clear().type('10115');
             cy.get('[name="city"]').clear().type('Berlin');
-            cy.get('[name="country"]').clear().type('Germany');
+            cy.selectCountry('client-country-select', 'Germany');
 
             cy.get('[data-cy="client-submit"]').click();
 
@@ -285,7 +285,7 @@ describe('Clients E2E', () => {
             cy.get('[name="address"]').clear().type('10 Downing Street');
             cy.get('[name="postalCode"]').clear().type('SW1A 2AA');
             cy.get('[name="city"]').clear().type('London');
-            cy.get('[name="country"]').clear().type('United Kingdom');
+            cy.selectCountry('client-country-select', 'United Kingdom');
 
             cy.get('[data-cy="client-submit"]').click();
 
@@ -324,7 +324,7 @@ describe('Clients E2E', () => {
             cy.get('[name="address"]').clear().type('789 Publishing Way');
             cy.get('[name="postalCode"]').clear().type('11111');
             cy.get('[name="city"]').clear().type('New York');
-            cy.get('[name="country"]').clear().type('USA');
+            cy.selectCountry('client-country-select', 'United States');
 
             cy.get('[data-cy="client-submit"]').click();
 
@@ -345,7 +345,7 @@ describe('Clients E2E', () => {
             cy.get('[name="address"]').clear().type('1 Rue de la Paix');
             cy.get('[name="postalCode"]').clear().type('75001');
             cy.get('[name="city"]').clear().type('Paris');
-            cy.get('[name="country"]').clear().type('France');
+            cy.selectCountry('client-country-select', 'France');
 
             cy.get('[data-cy="client-submit"]').click();
 
@@ -366,7 +366,7 @@ describe('Clients E2E', () => {
             cy.get('[name="address"]').clear().type('Hauptstrasse 1');
             cy.get('[name="postalCode"]').clear().type('10115');
             cy.get('[name="city"]').clear().type('Berlin');
-            cy.get('[name="country"]').clear().type('Germany');
+            cy.selectCountry('client-country-select', 'Germany');
 
             cy.get('[data-cy="client-submit"]').click();
 

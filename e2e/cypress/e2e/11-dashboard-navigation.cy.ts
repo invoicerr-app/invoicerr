@@ -78,12 +78,12 @@ describe('Navigation E2E', () => {
             cy.url().should('include', '/invoices');
         });
 
-        it('navigates to receipts', () => {
+        it('navigates to payments', () => {
             cy.visit('/dashboard');
             cy.wait(1000);
 
-            cy.get('[data-cy="sidebar-receipts-link"]').click({ force: true });
-            cy.url().should('include', '/receipts');
+            cy.get('[data-cy="sidebar-payments-link"]').click({ force: true });
+            cy.url().should('include', '/payments');
         });
 
         it('navigates to settings', () => {
@@ -116,9 +116,9 @@ describe('Navigation E2E', () => {
             cy.url().should('include', '/invoices');
         });
 
-        it('accesses receipts directly', () => {
-            cy.visit('/receipts');
-            cy.url().should('include', '/receipts');
+        it('accesses payments directly', () => {
+            cy.visit('/payments');
+            cy.url().should('include', '/payments');
         });
 
         it('accesses settings directly', () => {

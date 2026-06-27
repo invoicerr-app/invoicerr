@@ -1,12 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Sse } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   PaymentMethodsService,
   CreatePaymentMethodDto,
   EditPaymentMethodDto,
 } from './payment-methods.service';
-import { switchMap } from 'rxjs/internal/operators/switchMap';
-import { from, interval, map, startWith } from 'rxjs';
 
 @ApiTags('payment-methods')
 @Controller('payment-methods')
@@ -18,16 +16,6 @@ export class PaymentMethodsController {
   @ApiResponse({ status: 200, description: 'Payment methods retrieved' })
   async findAll() {
     return this.paymentMethodService.findAll();
-  }
-
-  @Sse('sse')
-  @ApiOperation({ summary: 'Subscribe to payment method updates', description: 'Server-sent event stream that pushes the list of payment methods every second.' })
-  async getReceiptsInfoSse() {
-    return interval(1000).pipe(
-      startWith(0),
-      switchMap(() => from(this.paymentMethodService.findAll())),
-      map((data) => ({ data: JSON.stringify(data) })),
-    );
   }
 
   @Get(':id')

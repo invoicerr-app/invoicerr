@@ -1,6 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useEffect, useState } from "react"
 
+import { Button } from "@/components/ui/button"
+import { Download } from "lucide-react"
 import type { Quote } from "@/types"
 import { useGetRaw } from "@/hooks/use-fetch"
 import { useTranslation } from "react-i18next"
@@ -12,7 +14,7 @@ type QuotePdfModalProps = {
 
 export function QuotePdfModal({ quote, onOpenChange }: QuotePdfModalProps) {
   const { t } = useTranslation()
-  const { data } = useGetRaw<Response>(`/api/quotes/${quote?.id}/pdf`)
+  const { data } = useGetRaw<Response>(quote ? `/api/quotes/${quote.id}/pdf` : null)
   const [pdfData, setPdfData] = useState<Uint8Array | null>(null)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
 
@@ -40,6 +42,16 @@ export function QuotePdfModal({ quote, onOpenChange }: QuotePdfModalProps) {
 
   if (!quote) return null
 
+  const handleDownload = () => {
+    if (!pdfUrl) return
+    const link = document.createElement("a")
+    link.href = pdfUrl
+    link.download = `quote-${quote.number}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   return (
     <Dialog
       open={!!quote}
@@ -52,8 +64,12 @@ export function QuotePdfModal({ quote, onOpenChange }: QuotePdfModalProps) {
       }}
     >
       <DialogContent className="!max-w-6xl w-[95vw] h-[90dvh] overflow-hidden flex flex-col">
-        <DialogHeader>
+        <DialogHeader className="flex flex-row items-center justify-between gap-4 pr-8">
           <DialogTitle>{t("quotes.pdf.title", { number: quote?.number })}</DialogTitle>
+          <Button type="button" variant="outline" size="sm" onClick={handleDownload} disabled={!pdfUrl}>
+            <Download className="h-4 w-4 mr-2" />
+            {t("quotes.list.tooltips.downloadPdf")}
+          </Button>
         </DialogHeader>
 
         <section className="h-full overflow-auto">
@@ -61,7 +77,7 @@ export function QuotePdfModal({ quote, onOpenChange }: QuotePdfModalProps) {
             <div className="flex justify-center h-full overflow-auto">
               <iframe
                 className="w-full h-full"
-                src={pdfUrl}
+                src={`${pdfUrl}#zoom=page-fit`}
                 title={t("quotes.pdf.title", { number: quote?.number })}
               />
             </div>

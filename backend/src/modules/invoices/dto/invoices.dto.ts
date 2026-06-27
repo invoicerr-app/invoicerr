@@ -12,13 +12,25 @@ export class CreateInvoiceDto {
     paymentDetails?: string;
     paymentMethodId?: string;
     items: {
-        description: string;
+        name: string;
+        description?: string;
         quantity: number;
         unitPrice: number;
         vatRate: number;
         type: ItemType;
         order: number;
+        quoteItemId?: string;
     }[];
+}
+
+export class CreateInvoiceFromQuoteItemDto {
+    quoteItemId: string;
+    quantity: number;
+}
+
+export class CreateInvoiceFromQuoteDto {
+    quoteId: string;
+    items: CreateInvoiceFromQuoteItemDto[];
 }
 
 export class EditInvoicesDto {
@@ -35,7 +47,8 @@ export class EditInvoicesDto {
     paymentMethodId?: string;
     items: {
         id?: string; // Optional for new items
-        description: string;
+        name: string;
+        description?: string;
         quantity: number;
         unitPrice: number;
         vatRate: number;

@@ -6,6 +6,7 @@ import {
     LayoutDashboard,
     LogOut,
     Moon,
+    Package,
     Receipt,
     ReceiptText,
     Settings,
@@ -31,15 +32,14 @@ import {
 } from "@/components/ui/sidebar"
 
 import { Button } from "./ui/button"
-import type { Company } from "@/types"
 import OnBoarding from "./onboarding"
 import type React from "react"
 import { Skeleton } from "./ui/skeleton"
 import { authClient } from "@/lib/auth"
 import { useEffect, useRef, useState } from "react"
 
+import { useCompany } from "@/hooks/queries"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { useSse } from "@/hooks/use-fetch"
 import { useTheme } from "./theme-provider"
 import { useTranslation } from "react-i18next"
 
@@ -52,7 +52,7 @@ export function Sidebar() {
     const { data, isPending: userLoading } = authClient.useSession()
 
     const { setTheme } = useTheme()
-    const { data: company, loading: companyLoading } = useSse<Company>("/api/company/info/sse")
+    const { data: company, isLoading: companyLoading } = useCompany()
     const navigate = useNavigate()
 
     const [onboardingOpen, setOnboardingOpen] = useState(false)
@@ -90,16 +90,22 @@ export function Sidebar() {
             dataCy: "sidebar-invoices-link",
         },
         {
-            title: t("sidebar.navigation.receipts"),
+            title: t("sidebar.navigation.payments"),
             icon: <Receipt className="w-4 h-4" />,
-            url: "/receipts",
-            dataCy: "sidebar-receipts-link",
+            url: "/payments",
+            dataCy: "sidebar-payments-link",
         },
         {
             title: t("sidebar.navigation.clients"),
             icon: <Users className="w-4 h-4" />,
             url: "/clients",
             dataCy: "sidebar-clients-link",
+        },
+        {
+            title: t("sidebar.navigation.articles"),
+            icon: <Package className="w-4 h-4" />,
+            url: "/articles",
+            dataCy: "sidebar-articles-link",
         },
         {
             title: t("sidebar.navigation.paymentMethods"),

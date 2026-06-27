@@ -283,10 +283,17 @@
                     "placeholder": "Selecteer vervaldatum"
                 },
                 "items": {
+                    "name": {
+                        "placeholder": "Naam van het item",
+                        "errors": {
+                            "required": "Naam is vereist"
+                        }
+                    },
                     "description": {
                         "errors": {
                             "required": "Omschrijving is vereist"
-                        }
+                        },
+                        "hint": "Tip: gebruik **vet** en *cursief* om te benadrukken."
                     },
                     "quantity": {
                         "placeholder": "Hoeveelheid",
@@ -390,7 +397,7 @@
         }
     },
     "noOptions": "Geen opties beschikbaar. Maak een nieuwe klant aan.",
-    "receipts": {
+    "payments": {
         "header": {
             "subtitle": "Beheer je bonnen",
             "count": "{{count}} bonnen {{found}}",
@@ -409,7 +416,7 @@
             "signed": "Ondertekend"
         },
         "emptyState": {
-            "noReceipts": "Nog geen bonnen",
+            "noPayments": "Nog geen betalingen",
             "noResults": "Geen bonnen gevonden",
             "startAdding": "Begin met het maken van je eerste bon.",
             "tryDifferentSearch": "Pas uw zoekopdracht aan."

@@ -251,6 +251,87 @@
                 "invoiceCreateError": "Rechnung kann nicht aus Angebot erstellt werden"
             }
         },
+        "progression": {
+            "title": "Fortschritt",
+            "emptyState": "Keine Angebote in der Fortschrittsansicht.",
+            "noAction": "Keine Aktion",
+            "steps": {
+                "draft": "Entwurf",
+                "sent": "Gesendet",
+                "signed": "Unterzeichnet"
+            },
+            "stepLabel": "Schritt {{current}} / {{total}}",
+            "actions": {
+                "send": "Senden",
+                "resend": "Erneut senden",
+                "createInvoice": "Rechnung erstellen"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Angebot senden",
+                    "description": "Möchten Sie das Angebot {{number}} wirklich an {{client}} senden?"
+                },
+                "resend": {
+                    "title": "Angebot erneut senden",
+                    "description": "Möchten Sie das Angebot {{number}} wirklich erneut an {{client}} senden?"
+                },
+                "cancel": "Abbrechen",
+                "confirm": "Bestätigen"
+            }
+        },
+        "views": {
+            "list": "Liste",
+            "table": "Tabelle"
+        },
+        "table": {
+            "columns": {
+                "number": "Nummer",
+                "client": "Kunde",
+                "status": "Status",
+                "totalTTC": "Gesamt (inkl. MwSt.)",
+                "createdAt": "Erstellt am",
+                "validUntil": "Gültig bis"
+            },
+            "filters": {
+                "client": "Kunde",
+                "clientPlaceholder": "Alle Kunden",
+                "clientNoResults": "Kein Kunde gefunden",
+                "year": "Jahr",
+                "month": "Monat",
+                "allYears": "Alle Jahre",
+                "allMonths": "Alle Monate"
+            },
+            "actions": {
+                "export": "Exportieren"
+            },
+            "emptyState": "Keine Angebote entsprechen diesen Filtern."
+        },
+        "createInvoiceDialog": {
+            "title": "Rechnung aus Angebot erstellen",
+            "description": "Wählen Sie die Artikel aus, die aus dem Angebot {{number}} abgerechnet werden sollen.",
+            "percentageLabel": "Abzurechnender Prozentsatz",
+            "amountLabel": "Abzurechnender Betrag",
+            "maxPercentageHint": "Es können noch bis zu {{percent}} % des Angebots abgerechnet werden.",
+            "fields": {
+                "quantity": {
+                    "label": "Menge"
+                }
+            },
+            "alreadyInvoicedBadge": "Bereits abgerechnet",
+            "remainingLabel": "Verbleibend: {{remaining}}",
+            "remainingTotalLabel": "{{amount}} {{currency}} verbleibend",
+            "totalSelectedLabel": "Gesamt: {{amount}} {{currency}}",
+            "percentOfQuoteLabel": "{{percent}}% des Angebots",
+            "itemAmountLabel": "{{amount}} {{currency}}",
+            "actions": {
+                "confirm": "Rechnung erstellen",
+                "cancel": "Abbrechen"
+            },
+            "errors": {
+                "quoteFullyInvoiced": "Dieses Angebot wurde bereits vollständig abgerechnet.",
+                "quantityExceedsRemaining": "Die angeforderte Menge übersteigt die verbleibende abzurechnende Menge."
+            }
+        },
         "upsert": {
             "title": {
                 "create": "Neues Angebot erstellen",
@@ -279,11 +360,18 @@
                 "items": {
                     "label": "Artikel hinzufügen",
                     "addItem": "Artikel hinzufügen",
+                    "name": {
+                        "placeholder": "Artikelname",
+                        "errors": {
+                            "required": "Name ist erforderlich"
+                        }
+                    },
                     "description": {
                         "placeholder": "Beschreibung des Artikels",
                         "errors": {
                             "required": "Beschreibung ist erforderlich"
-                        }
+                        },
+                        "hint": "Tipp: **fett** und *kursiv* zur Hervorhebung verwenden."
                     },
                     "quantity": {
                         "placeholder": "Menge",
@@ -383,11 +471,64 @@
             "sent": "Gesendet",
             "paid": "Bezahlt"
         },
+        "views": {
+            "list": "Liste",
+            "table": "Tabelle"
+        },
+        "table": {
+            "columns": {
+                "number": "Nummer",
+                "client": "Kunde",
+                "status": "Status",
+                "totalTTC": "Gesamt (inkl. MwSt.)",
+                "createdAt": "Erstellt am",
+                "dueDate": "Fälligkeitsdatum"
+            },
+            "filters": {
+                "client": "Kunde",
+                "clientPlaceholder": "Alle Kunden",
+                "clientNoResults": "Kein Kunde gefunden",
+                "year": "Jahr",
+                "month": "Monat",
+                "allYears": "Alle Jahre",
+                "allMonths": "Alle Monate"
+            },
+            "actions": {
+                "export": "Exportieren"
+            },
+            "emptyState": "Keine Rechnungen entsprechen diesen Filtern."
+        },
+        "statusFilters": {
+            "all": "Alle",
+            "draft": "Entwurf",
+            "sent": "Gesendet",
+            "paid": "Bezahlt",
+            "archived": "Archiviert"
+        },
         "emptyState": {
             "noInvoices": "Noch keine Rechnungen",
             "noResults": "Keine Rechnungen gefunden",
             "startAdding": "Beginnen Sie mit der Erstellung Ihrer ersten Rechnung.",
             "tryDifferentSearch": "Versuchen Sie, Ihre Suchbegriffe anzupassen."
+        },
+        "paymentReceived": {
+            "title": "Zahlung erhalten",
+            "description": "Geben Sie den für diese Rechnung erhaltenen Betrag ein.",
+            "percentLabel": "{{percent}} % der Rechnung werden bezahlt",
+            "fields": {
+                "amount": {
+                    "label": "Erhaltener Betrag",
+                    "placeholder": "Geben Sie den erhaltenen Betrag ein",
+                    "errors": {
+                        "required": "Der Betrag muss größer als 0 sein",
+                        "tooHigh": "Der Betrag darf den verbleibenden Saldo nicht überschreiten"
+                    }
+                }
+            },
+            "actions": {
+                "confirm": "Bestätigen",
+                "cancel": "Abbrechen"
+            }
         },
         "list": {
             "title": "Alle Rechnungen",
@@ -408,13 +549,10 @@
                 "totalTTC": "Gesamt (inkl. MwSt.)"
             },
             "tooltips": {
-                "view": "Rechnungsdetails anzeigen",
-                "viewPdf": "PDF anzeigen",
+                "exportPdf": "PDF exportieren",
                 "downloadPdf": "PDF herunterladen",
                 "edit": "Rechnung bearbeiten",
-                "markAsPaid": "Als bezahlt markieren",
                 "delete": "Rechnung löschen",
-                "createReceipt": "Erstelle ein Beleg von dieser Rechnung",
                 "sendByEmail": "Sende Rechnung per Email"
             },
             "actions": {
@@ -433,7 +571,6 @@
             "messages": {
                 "markAsPaidSuccess": "Rechnung als erfolgreich bezahlt markiert",
                 "markAsPaidError": "Rechnung konnte nicht als bezahlt markiert werden",
-                "createReceiptSuccess": "Beleg erfolgreich aus Rechnung erstellt",
                 "sendByEmailSuccess": "Rechnung wurde versandt"
             }
         },
@@ -465,11 +602,18 @@
                 "items": {
                     "label": "Positionen der Rechnung",
                     "addItem": "Artikel hinzufügen",
+                    "name": {
+                        "placeholder": "Artikelname",
+                        "errors": {
+                            "required": "Name ist erforderlich"
+                        }
+                    },
                     "description": {
                         "placeholder": "Beschreibung des Artikels",
                         "errors": {
                             "required": "Beschreibung ist erforderlich"
-                        }
+                        },
+                        "hint": "Tipp: **fett** und *kursiv* zur Hervorhebung verwenden."
                     },
                     "quantity": {
                         "placeholder": "Menge",
@@ -665,11 +809,18 @@
                 "items": {
                     "label": "Wiederkehrende Rechnungspositionen",
                     "addItem": "Artikel hinzufügen",
+                    "name": {
+                        "placeholder": "Artikelname",
+                        "errors": {
+                            "required": "Name ist erforderlich"
+                        }
+                    },
                     "description": {
                         "placeholder": "Beschreibung des Artikels",
                         "errors": {
                             "required": "Beschreibung ist erforderlich"
-                        }
+                        },
+                        "hint": "Tipp: **fett** und *kursiv* zur Hervorhebung verwenden."
                     },
                     "quantity": {
                         "placeholder": "Menge",
@@ -714,13 +865,13 @@
     },
     "dashboard": {
         "title": "Dashboard",
-        "welcomeMessage": "Willkommen zurück, {{firstname}}!",
         "revenue": {
             "title": "Überblick über die Einnahmen",
             "description": "Verfolgen Sie Ihre finanzielle Leistung im Laufe der Zeit",
             "thisMonth": "Dieser Monat",
             "thisYear": "Dieses Jahr",
-            "chartLabel": "Einnahmen"
+            "real": "Tatsächlich",
+            "forecast": "Prognose"
         },
         "quotes": {
             "title": "Angebote Übersicht",
@@ -747,12 +898,6 @@
             },
             "latestTitle": "Neueste Rechnungen",
             "noRecent": "Keine aktuellen Rechnungen"
-        },
-        "clients": {
-            "title": "Kunden Überblick",
-            "stats": {
-                "total": "Kunden insgesamt"
-            }
         }
     },
     "paymentMethods": {
@@ -1032,7 +1177,7 @@
                         "format": "Das Format der Rechnungsnummer ist ungültig. Verwenden Sie {Jahr}, {Monat}, {Tag}, {Zahl} mit optionaler Auffüllung (z. B. {Zahl:4})"
                     }
                 },
-                "receiptStartingNumber": {
+                "paymentStartingNumber": {
                     "label": "Beleg Startnummer",
                     "placeholder": "Startnummer für Beleg eingeben",
                     "description": "Initiale Nummer für die Belegnummerierung",
@@ -1040,9 +1185,9 @@
                         "min": "Die Ausgangsnummer des Belegs muss mindestens 1 sein."
                     }
                 },
-                "receiptNumberFormat": {
+                "paymentNumberFormat": {
                     "label": "Format der Belegnummer",
-                    "placeholder": "Geben Sie das Format der Belegnummer ein (z. B. BEL-{year}-{number})",
+                    "placeholder": "Geben Sie das Format der Belegnummer ein (z. B. PAY-{year}-{number})",
                     "description": "Format für Belegnummern",
                     "errors": {
                         "required": "Format der Belegnummer ist erforderlich",
@@ -1240,7 +1385,7 @@
                 "options": {
                     "invoice": "Rechnungsvorlage",
                     "quote": "Angebotsvorlage",
-                    "receipt": "Belegvorlage"
+                    "payment": "Belegvorlage"
                 }
             },
             "typography": {
@@ -1248,15 +1393,10 @@
                 "description": "Schrift- und Textgestaltungsoptionen",
                 "fontFamily": "Schriftfamilie"
             },
-            "colors": {
-                "title": "Farben",
-                "description": "Markenfarben und Farbgebung",
-                "primaryColor": "Primärfarbe",
-                "secondaryColor": "Sekundärfarbe"
-            },
             "logo": {
-                "title": "Logo",
+                "title": "Logo & Farbe",
                 "description": "Einstellungen für das Firmenlogo",
+                "color": "Farbe",
                 "includeLogo": "Logo anzeigen",
                 "logoPreview": "Logo-Vorschau",
                 "uploadText": "Zum Hochladen des Logos klicken"
@@ -1270,7 +1410,7 @@
                 "title": "Etiketten & Text",
                 "invoice": "Rechnung",
                 "quote": "Angebot",
-                "receipt": "Beleg",
+                "payment": "Beleg",
                 "billTo": "Rechnung an",
                 "quoteFor": "Angebot für",
                 "validUntil": "Gültig bis",
@@ -1309,7 +1449,7 @@
             "defaultLabels": {
                 "invoice": "Rechnung",
                 "quote": "Angebot",
-                "receipt": "Beleg",
+                "payment": "Beleg",
                 "billTo": "Rechnung an",
                 "quoteFor": "Angebot für",
                 "validUntil": "Gültig bis",
@@ -1441,7 +1581,7 @@
             "dashboard": "Dashboard",
             "quotes": "Angebote",
             "invoices": "Rechnungen",
-            "receipts": "Belege",
+            "payments": "Belege",
             "clients": "Kunden",
             "paymentMethods": "Zahlungsmethoden",
             "stats": "Statistiken",
@@ -1468,6 +1608,10 @@
         }
     },
     "auth": {
+        "serverUnavailable": {
+            "title": "Dienst vorübergehend nicht verfügbar",
+            "description": "Der Server ist nicht erreichbar. Prüfen Sie die Logs."
+        },
         "login": {
             "title": "Anmelden",
             "description": "Geben Sie Ihre Anmeldedaten ein, um auf Ihr Konto zuzugreifen",
@@ -1569,11 +1713,14 @@
         "valueWithCurrency": "{{amount}}{{currency}}"
     },
     "noOptions": "Keine Optionen vorhanden. Erstellen Sie einen neuen Kunden.",
-    "receipts": {
+    "payments": {
         "header": {
             "subtitle": "Verwalten Sie Ihre Belege",
             "count": "{{count}} Belege {{found}}",
             "found": "gefunden"
+        },
+        "breakdown": {
+            "label": "Aufteilung auf die Artikel"
         },
         "search": {
             "placeholder": "Belege suchen..."
@@ -1588,7 +1735,7 @@
             "signed": "Unterzeichnet"
         },
         "emptyState": {
-            "noReceipts": "Noch keine Belege",
+            "noPayments": "Noch keine Zahlungen",
             "noResults": "Keine Belege gefunden",
             "startAdding": "Beginnen Sie mit der Erstellung Ihres ersten Belegs.",
             "tryDifferentSearch": "Versuchen Sie, Ihre Suchbegriffe anzupassen."
@@ -1640,6 +1787,10 @@
                         "required": "Kunde ist erforderlich."
                     }
                 },
+                "amount": {
+                    "label": "Gesamtbetrag",
+                    "placeholder": "Geben Sie den Zahlungsbetrag ein"
+                },
                 "items": {
                     "label": "Artikel",
                     "placeholder": "Posten zum Beleg hinzufügen",
@@ -1669,6 +1820,9 @@
                             "required": "Der Mehrwertsteuersatz ist erforderlich.",
                             "min": "Der Mehrwertsteuersatz muss mindestens 0 betragen."
                         }
+                    },
+                    "errors": {
+                        "negativeTotal": "Die Gesamtzahlungen für diese Rechnung dürfen nicht negativ sein"
                     }
                 },
                 "invoice": {
@@ -1685,6 +1839,10 @@
                     "label": "Details zur Bezahlung",
                     "placeholder": "Zahlungsdaten eingeben",
                     "description": "Zusätzliche Informationen über die Zahlung"
+                },
+                "paidAt": {
+                    "label": "Zahlungsdatum",
+                    "placeholder": "Wählen Sie das Zahlungsdatum"
                 }
             },
             "actions": {
@@ -1704,6 +1862,36 @@
         },
         "pdf": {
             "title": "Beleg {{number}} - PDF"
+        },
+        "tabs": {
+            "list": "Liste",
+            "table": "Tabelle"
+        },
+        "table": {
+            "columns": {
+                "number": "Nummer",
+                "invoice": "Rechnung",
+                "client": "Kunde",
+                "totalPaid": "Bezahlter Betrag",
+                "paidAt": "Zahlungsdatum",
+                "paymentMethod": "Zahlungsmethode"
+            },
+            "filters": {
+                "invoice": "Rechnung",
+                "invoicePlaceholder": "Alle Rechnungen",
+                "invoiceNoResults": "Keine Rechnung gefunden",
+                "client": "Kunde",
+                "clientPlaceholder": "Alle Kunden",
+                "clientNoResults": "Kein Kunde gefunden",
+                "year": "Jahr",
+                "month": "Monat",
+                "allYears": "Alle Jahre",
+                "allMonths": "Alle Monate"
+            },
+            "actions": {
+                "export": "Exportieren"
+            },
+            "emptyState": "Keine Zahlungen entsprechen diesen Filtern."
         }
     },
     "stats": {

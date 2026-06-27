@@ -81,12 +81,12 @@ export class CompanyService {
             }),
             prisma.mailTemplate.upsert({
                 where: {
-                    companyId_type: { companyId: company.id, type: MailTemplateType.RECEIPT }
+                    companyId_type: { companyId: company.id, type: MailTemplateType.PAYMENT }
                 },
                 create: {
-                    type: MailTemplateType.RECEIPT,
-                    subject: 'Receipt #{{RECEIPT_NUMBER}} from {{COMPANY_NAME}}',
-                    body: '<p>Dear {{CLIENT_NAME}},</p><p>Please find attached the receipt #{{RECEIPT_NUMBER}} from {{COMPANY_NAME}}.</p><p>Thank you for your business!</p><p>Best regards,<br>{{COMPANY_NAME}}</p><hr><p style="font-size: 12px; color: #666;">This email was sent from {{APP_URL}}</p>',
+                    type: MailTemplateType.PAYMENT,
+                    subject: 'Payment #{{PAYMENT_NUMBER}} from {{COMPANY_NAME}}',
+                    body: '<p>Dear {{CLIENT_NAME}},</p><p>Please find attached the payment receipt #{{PAYMENT_NUMBER}} from {{COMPANY_NAME}}.</p><p>Thank you for your business!</p><p>Best regards,<br>{{COMPANY_NAME}}</p><hr><p style="font-size: 12px; color: #666;">This email was sent from {{APP_URL}}</p>',
                     companyId: company.id
                 },
                 update: {}
@@ -124,8 +124,8 @@ export class CompanyService {
             secondaryColor: existingCompany.pdfConfig.secondaryColor,
 
             labels: {
-                // Receipt-specific labels
-                receipt: existingCompany.pdfConfig.receipt,
+                // Payment-specific labels
+                payment: existingCompany.pdfConfig.payment,
                 receivedFrom: existingCompany.pdfConfig.receivedFrom,
                 invoiceRefer: existingCompany.pdfConfig.invoiceRefer,
                 paymentDate: existingCompany.pdfConfig.paymentDate,
@@ -192,8 +192,8 @@ export class CompanyService {
                 primaryColor: pdfConfig.primaryColor,
                 secondaryColor: pdfConfig.secondaryColor,
 
-                // Receipt-specific labels
-                receipt: pdfConfig.labels.receipt,
+                // Payment-specific labels
+                payment: pdfConfig.labels.payment,
                 receivedFrom: pdfConfig.labels.receivedFrom,
                 invoiceRefer: pdfConfig.labels.invoiceRefer,
                 paymentDate: pdfConfig.labels.paymentDate,
@@ -283,6 +283,14 @@ export class CompanyService {
         } else {
             const newCompany = await prisma.company.create({
                 data: {
+                    // Sensible blanks for the fields the simplified onboarding (name + country
+                    // only) doesn't collect — the user fills these in later via Settings.
+                    foundedAt: new Date(),
+                    address: '',
+                    postalCode: '',
+                    city: '',
+                    phone: '',
+                    email: '',
                     ...data,
                     pdfConfig: {
                         create: {}
@@ -360,8 +368,8 @@ export class CompanyService {
                     CLIENT_NAME: 'Acme',
                     COMPANY_NAME: existingCompany.name,
                 },
-                ...template.type === MailTemplateType.RECEIPT && {
-                    RECEIPT_NUMBER: 'REC-2025-0001',
+                ...template.type === MailTemplateType.PAYMENT && {
+                    PAYMENT_NUMBER: 'PAY-2025-0001',
                     CLIENT_NAME: 'Acme',
                     COMPANY_NAME: existingCompany.name,
                 }

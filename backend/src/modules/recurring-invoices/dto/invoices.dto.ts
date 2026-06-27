@@ -12,7 +12,8 @@ export class UpsertInvoicesDto {
     currency?: string;
     items: {
         id?: string;
-        description: string;
+        name: string;
+        description?: string;
         quantity: number;
         unitPrice: number;
         vatRate: number;

@@ -1,16 +1,17 @@
 export interface Company {
     id: string
-    description: string
+    description?: string | null
+    legalId?: string | null
     foundedAt: Date | string
     name: string
     currency: string
-    VAT: string
+    VAT?: string | null
     exemptVat?: boolean
     address: string
-    addressLine2?: string
+    addressLine2?: string | null
     postalCode: string
     city: string
-    state?: string
+    state?: string | null
     country: string
     phone: string
     email: string

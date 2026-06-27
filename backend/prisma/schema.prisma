@@ -188,6 +188,8 @@ enum MailTemplateType {
   SIGNATURE_REQUEST
   VERIFICATION_CODE
   INVOICE
+  PAYMENT
+  /// @deprecated use PAYMENT instead
   RECEIPT
 }
 
@@ -203,10 +205,12 @@ enum QuoteStatus {
 
 // Invoice status
 enum InvoiceStatus {
+  DRAFT
   PAID
   UNPAID
   OVERDUE
   SENT
+  ARCHIVED
 }
 
 // Recurrence frequency
@@ -260,7 +264,7 @@ model PDFConfig {
 
   invoice        String @default("Invoice")
   quote          String @default("Quote")
-  receipt        String @default("Receipt")
+  payment        String @default("Payment")
   description    String @default("Description:")
   date           String @default("Date:")
   dueDate        String @default("Due date:")
@@ -322,8 +326,8 @@ model Company {
   quoteNumberFormat     String @default("Q-{year}-{number:4}") // Ex: "Q-2025-0001"
   invoiceStartingNumber Int    @default(1) // Starting number for invoices
   invoiceNumberFormat   String @default("INV-{year}-{number:4}") // Ex: "INV-2025-0001"
-  receiptStartingNumber Int    @default(1) // Starting number for receipts
-  receiptNumberFormat   String @default("REC-{year}-{number:4}") // Ex: "REC-2025-0001"
+  paymentStartingNumber Int    @default(1) // Starting number for payments
+  paymentNumberFormat   String @default("PAY-{year}-{number:4}") // Ex: "PAY-2025-0001"
 
   invoicePDFFormat String @default("facturx") // Ex: 'pdf' | 'facturx' | 'zugferd' | 'xrechnung' | 'ubl' | 'cii'
 
@@ -337,6 +341,7 @@ model Company {
   emailTemplates   MailTemplate[]
   RecurringInvoice RecurringInvoice[]
   webhooks         Webhook[]
+  Article          Article[]
 }
 
 // Client model
@@ -349,7 +354,7 @@ model Client {
   foundedAt        DateTime? // Date when the client company was founded
   contactFirstname String?
   contactLastname  String?
-  contactEmail     String?            @unique
+  contactEmail     String?
   contactPhone     String?
   address          String
   addressLine2     String? // Second line for address (apartment, suite, etc.)
@@ -413,15 +418,17 @@ model Quote {
 }
 
 model QuoteItem {
-  id          String   @id @default(uuid())
-  quote       Quote    @relation(fields: [quoteId], references: [id])
-  quoteId     String
-  description String
-  quantity    Float
-  unitPrice   Float
-  vatRate     Float // 20 for 20%
-  type        ItemType @default(SERVICE)
-  order       Int // For sorting items in the quote pdf
+  id           String        @id @default(uuid())
+  quote        Quote         @relation(fields: [quoteId], references: [id])
+  quoteId      String
+  name         String
+  description  String?
+  quantity     Float
+  unitPrice    Float
+  vatRate      Float // 20 for 20%
+  type         ItemType      @default(SERVICE)
+  order        Int // For sorting items in the quote pdf
+  invoiceItems InvoiceItem[]
 }
 
 // Invoice model
@@ -438,7 +445,7 @@ model Invoice {
   company            Company           @relation(fields: [companyId], references: [id]) // Company issuing the invoice
   companyId          String
   items              InvoiceItem[]
-  status             InvoiceStatus     @default(UNPAID)
+  status             InvoiceStatus     @default(DRAFT)
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   dueDate            DateTime
@@ -453,20 +460,23 @@ model Invoice {
   totalTTC           Float
   currency           Currency
   isActive           Boolean           @default(true)
-  receipts           Receipt[]
+  payments           Payment[]
 }
 
 model InvoiceItem {
-  id           String        @id @default(uuid())
-  invoice      Invoice       @relation(fields: [invoiceId], references: [id])
+  id           String      @id @default(uuid())
+  invoice      Invoice     @relation(fields: [invoiceId], references: [id])
   invoiceId    String
-  description  String
+  name         String
+  description  String?
   quantity     Float
   unitPrice    Float
   vatRate      Float // 20 for 20%
-  type         ItemType      @default(SERVICE)
+  type         ItemType    @default(SERVICE)
   order        Int
-  receiptItems ReceiptItem[]
+  quoteItem    QuoteItem?  @relation(fields: [quoteItemId], references: [id])
+  quoteItemId  String?
+  paymentItems PaymentItem[]
 }
 
 // Recurring invoice model
@@ -500,7 +510,8 @@ model RecurringInvoiceItem {
   id                 String           @id @default(uuid())
   recurringInvoice   RecurringInvoice @relation(fields: [recurringInvoiceId], references: [id])
   recurringInvoiceId String
-  description        String
+  name               String
+  description        String?
   quantity           Float
   unitPrice          Float
   vatRate            Float // 20 for 20%
@@ -508,27 +519,28 @@ model RecurringInvoiceItem {
   order              Int
 }
 
-// Receipt models
-model ReceiptItem {
+// Payment models
+model PaymentItem {
   id            String      @id @default(uuid())
   invoiceItem   InvoiceItem @relation(fields: [invoiceItemId], references: [id])
   invoiceItemId String
   amountPaid    Float // Amount paid for this item
-  Receipt       Receipt     @relation(fields: [receiptId], references: [id])
-  receiptId     String
+  Payment       Payment     @relation(fields: [paymentId], references: [id])
+  paymentId     String
 }
 
-model Receipt {
+model Payment {
   id              String        @id @default(cuid())
   number          Int           @default(autoincrement())
   rawNumber       String? // Raw number for custom formats
   invoiceId       String
   invoice         Invoice       @relation(fields: [invoiceId], references: [id])
-  items           ReceiptItem[]
+  items           PaymentItem[]
   totalPaid       Float
   paymentMethod   String        @default("") // Ex: "Bank Transfer", "PayPal", "Cash"
   paymentDetails  String        @default("") // Details for the payment method (e.g., bank account number)
   paymentMethodId String?
+  paidAt          DateTime      @default(now())
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 }
@@ -543,6 +555,20 @@ model PaymentMethod {
   isActive  Boolean           @default(true)
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
+}
+
+model Article {
+  id          String   @id @default(cuid())
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId   String
+  name        String // label shown in the picker
+  description String? // text injected into the line item
+  type        ItemType @default(SERVICE)
+  unitPrice   Float    @default(0)
+  vatRate     Float    @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // Signature model
@@ -616,7 +642,16 @@ enum WebhookEvent {
   INVOICE_SEARCHED
   INVOICE_STATUS_CHANGED
 
-  // Receipt events
+  // Payment document events
+  PAYMENT_CREATED
+  PAYMENT_UPDATED
+  PAYMENT_DELETED
+  PAYMENT_SENT
+  PAYMENT_PDF_GENERATED
+  PAYMENT_CREATED_FROM_INVOICE
+  PAYMENT_SEARCHED
+
+  // Receipt events (deprecated, use PAYMENT_* instead)
   RECEIPT_CREATED
   RECEIPT_UPDATED
   RECEIPT_DELETED
@@ -625,7 +660,7 @@ enum WebhookEvent {
   RECEIPT_CREATED_FROM_INVOICE
   RECEIPT_SEARCHED
 
-  // Payment events
+  // Payment method events
   PAYMENT_RECEIVED
   PAYMENT_METHOD_CREATED
   PAYMENT_METHOD_UPDATED
@@ -730,7 +765,12 @@ enum WebhookEvent {
   INVOICE_ITEM_UPDATED
   INVOICE_ITEM_DELETED
 
-  // Receipt Item events
+  // Payment Item events
+  PAYMENT_ITEM_CREATED
+  PAYMENT_ITEM_UPDATED
+  PAYMENT_ITEM_DELETED
+
+  // Receipt Item events (deprecated, use PAYMENT_ITEM_* instead)
   RECEIPT_ITEM_CREATED
   RECEIPT_ITEM_UPDATED
   RECEIPT_ITEM_DELETED
@@ -748,6 +788,8 @@ enum WebhookEvent {
   // Number formatting events
   QUOTE_NUMBER_GENERATED
   INVOICE_NUMBER_GENERATED
+  PAYMENT_NUMBER_GENERATED
+  /// @deprecated use PAYMENT_NUMBER_GENERATED instead
   RECEIPT_NUMBER_GENERATED
 
   // Background process events

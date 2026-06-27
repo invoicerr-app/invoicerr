@@ -14,6 +14,7 @@ import { formatDate } from '@/utils/date';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 import { calculateDiscountedTotals, clampDiscountRate } from '@/utils/financial';
+import { formatItemDescription } from '@/utils/format-text';
 
 @Injectable()
 export class QuotesService {
@@ -56,6 +57,54 @@ export class QuotesService {
         }));
 
         return { pageCount: Math.ceil(totalQuotes / pageSize), quotes: quotesWithPM };
+    }
+
+    async getQuotesTable(filters: { clientId?: string; year?: string; month?: string; sort?: 'asc' | 'desc' }) {
+        const where: Record<string, any> = { isActive: true };
+
+        if (filters.clientId) {
+            where.clientId = filters.clientId;
+        }
+
+        const year = parseInt(filters.year ?? '', 10);
+        if (!isNaN(year)) {
+            const month = parseInt(filters.month ?? '', 10);
+            if (!isNaN(month) && month >= 1 && month <= 12) {
+                where.createdAt = {
+                    gte: new Date(year, month - 1, 1),
+                    lt: new Date(year, month, 1),
+                };
+            } else {
+                where.createdAt = {
+                    gte: new Date(year, 0, 1),
+                    lt: new Date(year + 1, 0, 1),
+                };
+            }
+        }
+
+        const sort = filters.sort === 'asc' ? 'asc' : 'desc';
+
+        const quotes = await prisma.quote.findMany({
+            where,
+            orderBy: {
+                createdAt: sort,
+            },
+            include: {
+                items: true,
+                client: true,
+                company: true,
+            },
+        });
+
+        const quotesWithPM = await Promise.all(quotes.map(async (q: any) => {
+            if (q.paymentMethodId) {
+                const pm = await prisma.paymentMethod.findUnique({ where: { id: q.paymentMethodId } });
+                return { ...q, paymentMethod: pm ?? q.paymentMethod };
+            }
+            return q;
+        }));
+
+        return quotesWithPM;
     }
 
     async searchQuotes(query: string) {
@@ -151,6 +200,7 @@ export class QuotesService {
                 totalTTC: totals.totalTTC,
                 items: {
                     create: items.map(item => ({
+                        name: item.name,
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
@@ -232,6 +282,7 @@ export class QuotesService {
                         .map(i => ({
                             where: { id: i.id! },
                             data: {
+                                name: i.name,
                                 description: i.description,
                                 quantity: i.quantity,
                                 unitPrice: i.unitPrice,
@@ -243,6 +294,7 @@ export class QuotesService {
                     create: items
                         .filter(i => !i.id)
                         .map(i => ({
+                            name: i.name,
                             description: i.description,
                             quantity: i.quantity,
                             unitPrice: i.unitPrice,
@@ -395,7 +447,8 @@ export class QuotesService {
             client: quote.client,
             currency: quote.currency,
             items: quote.items.map(i => ({
-                description: i.description,
+                name: i.name,
+                description: formatItemDescription(i.description),
                 quantity: Number.isInteger(i.quantity) ? i.quantity.toString() : i.quantity.toFixed(3).replace(/\.?0+$/, ''),
                 unitPrice: i.unitPrice.toFixed(2),
                 vatRate: i.vatRate,

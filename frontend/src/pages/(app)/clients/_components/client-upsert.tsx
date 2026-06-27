@@ -2,14 +2,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { usePatch, usePost } from "@/hooks/use-fetch"
+import { queryKeys } from "@/lib/query-keys"
+import { useQueryClient } from "@tanstack/react-query"
 
 import { Button } from "@/components/ui/button"
 import type { Client } from "@/types"
+import CountrySelect from "@/components/country-select"
 import CurrencySelect from "@/components/currency-select"
 import { DatePicker } from "@/components/date-picker"
 import { Input } from "@/components/ui/input"
+import { Loader2, Search } from "lucide-react"
 import { useEffect } from "react"
 import { useForm } from "react-hook-form"
+import { useLookupSiret } from "@/hooks/use-lookup-siret"
+import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -24,6 +30,7 @@ interface ClientUpsertProps {
 export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUpsertProps) {
     const { t } = useTranslation()
     const isEditing = !!client
+    const queryClient = useQueryClient()
 
     const { trigger: createClient } = usePost("/api/clients")
     const { trigger: updateClient } = usePatch(`/api/clients/${client?.id}`)
@@ -156,11 +163,27 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         }
     }, [client, isEditing, form])
 
+    const legalIdValue = form.watch("legalId")
+    const countryValue = form.watch("country")
+    const isFranceOrUnset = !countryValue || /^fr(ance)?$/i.test(countryValue.trim())
+
+    const { lookup: onLookupSiret, isLoading: siretLookupLoading } = useLookupSiret(form, {
+        messages: {
+            invalid: t("clients.upsert.messages.siretInvalid"),
+            notFound: t("clients.upsert.messages.siretNotFound"),
+            success: t("clients.upsert.messages.siretSuccess"),
+            error: t("clients.upsert.messages.siretError"),
+        },
+    })
+    useCountryToCurrency(form)
+    const isSiretLookupDisabled = siretLookupLoading || !legalIdValue || legalIdValue.replace(/\D/g, '').length !== 14
+
     const onSubmit = (data: z.infer<typeof clientSchema>) => {
         const trigger = isEditing ? updateClient : createClient
 
         trigger(data)
             .then((createdClient) => {
+                queryClient.invalidateQueries({ queryKey: queryKeys.clients.listsAll() })
                 if (!isEditing && onCreate) {
                     onCreate(createdClient)
                 }
@@ -179,6 +202,20 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                     </DialogHeader>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4" data-cy="client-form">
+
+                            <FormField
+                                control={form.control}
+                                name="country"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel required>{t("clients.upsert.fields.country.label")}</FormLabel>
+                                        <FormControl>
+                                            <CountrySelect value={field.value} onChange={(value) => field.onChange(value)} data-cy="client-country-select" />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
 
                             <FormField
                                 control={form.control}
@@ -275,7 +312,22 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                                             <FormItem>
                                                 <FormLabel required>{t("clients.upsert.fields.legalId.label")}</FormLabel>
                                                 <FormControl>
-                                                    <Input {...field} placeholder={t("clients.upsert.fields.legalId.placeholder")} />
+                                                    <div className="flex gap-2">
+                                                        <Input {...field} placeholder={t("clients.upsert.fields.legalId.placeholder")} />
+                                                        {isFranceOrUnset && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="icon"
+                                                                disabled={isSiretLookupDisabled}
+                                                                onClick={() => onLookupSiret(legalIdValue)}
+                                                                title={t("clients.upsert.actions.lookupSiret")}
+                                                                dataCy="client-siret-lookup"
+                                                            >
+                                                                {siretLookupLoading ? <Loader2 className="animate-spin" /> : <Search />}
+                                                            </Button>
+                                                        )}
+                                                    </div>
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -429,20 +481,6 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                                     )}
                                 />
                             </div>
-
-                            <FormField
-                                control={form.control}
-                                name="country"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel required>{t("clients.upsert.fields.country.label")}</FormLabel>
-                                        <FormControl>
-                                            <Input {...field} placeholder={t("clients.upsert.fields.country.placeholder")} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
 
                             <div className="flex justify-end space-x-2">
                                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)} dataCy="client-cancel">

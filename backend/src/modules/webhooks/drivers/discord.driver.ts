@@ -43,6 +43,6 @@ export class DiscordDriver implements WebhookDriver {
         }
 
         const res = await hook.addEmbed(embed).send();
-        return res;
+        return res.ok;
     }
 }

@@ -50,7 +50,7 @@ function createQuote({ baseTitle = 'Discount Flow Test', discountRate = 10, item
     cy.get('[name="discountRate"]').clear({ force: true }).type(`{selectAll}${discountRate}`, { force: true }).blur({ force: true });
 
     cy.contains('button', /Add Item|Ajouter/i).click();
-    cy.get('[name="items.0.description"]').type(item.description, { force: true });
+    cy.get('[name="items.0.name"]').type(item.description, { force: true });
     cy.get('[name="items.0.quantity"]').clear({ force: true }).type(String(item.quantity), { force: true });
     cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type(String(item.unitPrice), { force: true });
     cy.get('[name="items.0.vatRate"]').clear({ force: true }).type(String(item.vatRate), { force: true });
@@ -87,7 +87,7 @@ function createInvoice({ discountRate = 10, item = defaultQuoteItem }: CreateInv
     cy.get('[name="discountRate"]').clear({ force: true }).type(`{selectAll}${discountRate}`, { force: true }).blur({ force: true });
 
     cy.contains('button', /Add Item|Ajouter/i).click();
-    cy.get('[name="items.0.description"]').type(item.description, { force: true });
+    cy.get('[name="items.0.name"]').type(item.description, { force: true });
     cy.get('[name="items.0.quantity"]').clear({ force: true }).type(String(item.quantity), { force: true });
     cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type(String(item.unitPrice), { force: true });
     cy.get('[name="items.0.vatRate"]').clear({ force: true }).type(String(item.vatRate), { force: true });
@@ -103,24 +103,38 @@ function createInvoice({ discountRate = 10, item = defaultQuoteItem }: CreateInv
     });
 }
 
-function createReceiptForInvoice(invoiceLabel: string) {
-    cy.intercept('POST', '/api/receipts/create-from-invoice').as('createReceipt');
+function createPaymentForInvoice(invoiceLabel: string) {
+    cy.intercept('POST', '/api/payments/create-from-invoice').as('createPayment');
 
-    cy.contains('[data-cy="invoice-row"]', invoiceLabel, { timeout: 20000 })
+    // The invoice is created as DRAFT; switch to the progression view, send it so it
+    // becomes SENT, then use the "Payment received" action to create the payment.
+    cy.visit('/invoices');
+    cy.get('[data-cy="invoice-view-progression"]').click();
+
+    cy.contains('[data-cy="invoice-progression-row"]', invoiceLabel, { timeout: 20000 })
         .should('exist')
-        .closest('[data-cy="invoice-row"]')
-        .as('invoiceRow');
+        .within(() => {
+            cy.get('[data-cy="invoice-progression-send"]').click();
+        });
 
-    cy.get('@invoiceRow').within(() => {
-        cy.get('button')
-            .filter((_, el) => Cypress.$(el).find('svg.lucide-plus').length > 0)
-            .first()
-            .click({ force: true });
+    cy.get('[role="alertdialog"]').should('be.visible').within(() => {
+        cy.get('[data-cy="invoice-progression-confirm-action"]').click();
     });
 
-    return cy.wait('@createReceipt').then(({ response }) => {
+    // Wait until the row exposes the "Payment received" action (invoice is now SENT).
+    // Re-select by label to avoid a detached DOM node after the list re-renders.
+    cy.contains('[data-cy="invoice-progression-row"]', invoiceLabel, { timeout: 15000 })
+        .should('exist')
+        .within(() => {
+            cy.get('[data-cy="invoice-progression-paymentReceived"]').should('exist').click();
+        });
+
+    cy.get('[data-cy="payment-received-dialog"]', { timeout: 5000 }).should('be.visible');
+    cy.get('[data-cy="payment-received-submit"]').click();
+
+    return cy.wait('@createPayment').then(({ response }) => {
         expect(response?.statusCode).to.be.oneOf([200, 201]);
-        return cy.wrap({ receipt: response?.body });
+        return cy.wrap({ payment: response?.body });
     });
 }
 
@@ -165,7 +179,7 @@ describe('Discount Feature (Quote)', () => {
         cy.get('[data-cy="quote-currency-select-option-euro-(€)"]').click();
 
         cy.contains('button', /Add Item|Ajouter/i).click();
-        cy.get('[name="items.0.description"]').type('Validation Item', { force: true });
+        cy.get('[name="items.0.name"]').type('Validation Item', { force: true });
         cy.get('[name="items.0.quantity"]').clear({ force: true }).type('1', { force: true });
         cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('100', { force: true });
         cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('20', { force: true });
@@ -219,7 +233,7 @@ describe('Discount Feature (Invoice)', () => {
                 .closest('[data-cy="invoice-row"]')
                 .as('invoiceRow');
 
-            cy.get('@invoiceRow').find('button:has(svg.lucide-eye)').first().click();
+            cy.get('@invoiceRow').find('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible').within(() => {
                 cy.contains('Discount Rate').parent().find('p.font-medium', { timeout: 10000 }).should('contain', '10%');
                 cy.contains('Discount Amount').parent().find('p.font-medium').should('contain', '100.00EUR');
@@ -233,17 +247,17 @@ describe('Discount Feature (Invoice)', () => {
     });
 });
 
-describe('Discount Feature (Receipts)', () => {
-    it('applies the configured discount rate to receipt totals', () => {
+describe('Discount Feature (Payments)', () => {
+    it('applies the configured discount rate to payment totals', () => {
         createInvoice({ discountRate: 10 }).then(({ invoiceLabel }) => {
-            createReceiptForInvoice(invoiceLabel).then(() => {
-                cy.visit('/receipts');
+            createPaymentForInvoice(invoiceLabel).then(() => {
+                cy.visit('/payments');
                 cy.contains('span', invoiceLabel, { timeout: 20000 })
                     .should('exist')
                     .closest('div.p-4')
-                    .as('receiptRow');
+                    .as('paymentRow');
 
-                cy.get('@receiptRow').contains('span', '1080.00EUR').should('exist');
+                cy.get('@paymentRow').contains('span', '1080.00EUR').should('exist');
             });
         });
     });

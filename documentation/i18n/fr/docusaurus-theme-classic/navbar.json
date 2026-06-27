@@ -15,10 +15,6 @@
     "message": "Guide développeur",
     "description": "Navbar item with label Developer Guide"
   },
-  "item.label.API Reference": {
-    "message": "Référence API",
-    "description": "Navbar item with label API Reference"
-  },
   "item.label.Compliance": {
     "message": "Conformité",
     "description": "Navbar item with label Compliance"

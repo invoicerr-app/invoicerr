@@ -5,20 +5,27 @@ import { components, hooks, utils } from '@generouted/react-router/client'
 
 export type Path =
   | `/`
+  | `/articles`
   | `/auth/sign-in`
   | `/auth/sign-out`
   | `/auth/sign-up`
   | `/clients`
   | `/dashboard`
   | `/invoices`
+  | `/invoices/pdf/:id`
   | `/payment-methods`
+  | `/payments`
+  | `/payments/pdf/:id`
   | `/quotes`
-  | `/receipts`
+  | `/quotes/pdf/:id`
   | `/settings/:tab?`
   | `/signature/:id`
   | `/stats`
 
 export type Params = {
+  '/invoices/pdf/:id': { id: string }
+  '/payments/pdf/:id': { id: string }
+  '/quotes/pdf/:id': { id: string }
   '/settings/:tab?': { tab?: string }
   '/signature/:id': { id: string }
 }

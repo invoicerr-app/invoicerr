@@ -70,6 +70,13 @@ Cypress.Commands.add('clearEmails', () => {
     return cy.request('DELETE', 'http://localhost:8025/api/v1/messages');
 });
 
+Cypress.Commands.add('selectCountry', (dataCy: string, countryName: string) => {
+    cy.get(`[data-cy="${dataCy}"] button`).click();
+    cy.get(`[data-cy="${dataCy}-options"]`).should('be.visible');
+    cy.get(`[data-cy="${dataCy}"] input`).clear().type(countryName);
+    cy.get(`[data-cy="${dataCy}-option-${countryName.toLowerCase().replace(/\s+/g, '-')}"]`).click();
+});
+
 Cypress.on('window:before:load', (window) => {
     Object.defineProperty(window.navigator, 'language', { value: 'en-US' })
     Object.defineProperty(window.navigator, 'languages', { value: ['en-US'] })

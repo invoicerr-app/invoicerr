@@ -6,7 +6,7 @@ import { BadRequestException } from '@nestjs/common';
 import { PrismaClient } from '../../prisma/generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
-type PatternType = "receipt" | "invoice" | "quote";
+type PatternType = "payment" | "invoice" | "quote";
 
 export async function formatPattern(type: PatternType, number: number, date: Date = new Date()): Promise<string> {
     const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
@@ -19,9 +19,9 @@ export async function formatPattern(type: PatternType, number: number, date: Dat
     let pattern = '';
     let startingNumber = 1;
     switch (type) {
-        case "receipt":
-            pattern = company.receiptNumberFormat;
-            startingNumber = company.receiptStartingNumber;
+        case "payment":
+            pattern = company.paymentNumberFormat;
+            startingNumber = company.paymentStartingNumber;
             break;
         case "invoice":
             pattern = company.invoiceNumberFormat;
@@ -92,7 +92,7 @@ export const getPDF = async (html: string) => {
         });
     }
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.setContent(html, { waitUntil: 'load' });
 
     const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
 

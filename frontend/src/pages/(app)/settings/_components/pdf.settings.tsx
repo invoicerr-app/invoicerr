@@ -18,6 +18,23 @@ import { UnavailablePlatform } from "@/components/unavailable-platform"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 
+function escapeHtml(text: string): string {
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;")
+}
+
+/** Mirrors the backend's item description formatting for an accurate preview. */
+function formatItemDescription(text?: string | null): string {
+    if (!text) return ""
+    const escaped = escapeHtml(text)
+    const withBold = escaped.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    return withBold.replace(/\*(.+?)\*/g, "<em>$1</em>")
+}
+
 const defaultInvoiceTemplate = `
 <!DOCTYPE html>
 <html>
@@ -26,32 +43,37 @@ const defaultInvoiceTemplate = `
     <title>{{labels.invoice}} {{number}}</title>
     <style>
         body { font-family: {{fontFamily}}, sans-serif; margin: {{padding}}px; color: #333; }
-        .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
-        .company-info h1 { margin: 0; color: {{primaryColor}}; }
-        .invoice-info { text-align: right; }
-        .client-info { margin-bottom: 30px; }
+        .header { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; row-gap: 10px; margin-bottom: 30px; }
+                .invoice-info { text-align: right; }
+        .header p { margin: 0; line-height: 1.4; }
+        .client-info { text-align: left; }
+        .client-info h3 { margin: 0 0 4px; }
+        .client-info .name, .company-info .name { margin: 0 0 4px; font-weight: bold; }
+        .company-info .spacer { visibility: hidden; margin: 0 0 4px; }
+        .item-description { display: block; font-size: 12px; color: #666; white-space: pre-line; margin-top: 4px; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th, td { padding: 12px; text-align: left; vertical-align: top; border-bottom: 1px solid #ddd; }
         th { background-color: {{secondaryColor}}; font-weight: bold; color: {{tableTextColor}}; }
         .total-row { font-weight: bold; background-color: {{secondaryColor}}; color: {{tableTextColor}}; }
         .notes { margin-top: 30px; padding: 20px; background-color: {{secondaryColor}}; border-radius: 4px; color: {{tableTextColor}}; }
         .payment-info { margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-left: 4px solid {{primaryColor}}; color: #333; }
-        .logo { max-height: 80px; margin-bottom: 10px; }
+        .logo { max-height: 140px; margin-bottom: 10px; }
+        .made-with {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 9px;
+            color: #999;
+        }
     </style>
 </head>
 <body>
+    <div class="made-with">Made with Invoicerr</div>
     <div class="header">
-        <div class="company-info">
+        <div class="company-name">
             {{#if includeLogo}}
             <img src="{{logoB64}}" alt="Logo" class="logo">
             {{/if}}
-            <h1>{{company.name}}</h1>
-            <p>{{company.address}}<br>
-            {{company.city}}, {{company.postalCode}}<br>
-            {{company.country}}<br>
-            {{company.email}} | {{company.phone}}</br>
-            {{#if company.legalId}}<strong>{{labels.legalId}}:</strong> {{company.legalId}}<br>{{/if}}
-            {{#if company.VAT}}<strong>{{labels.VATId}}:</strong> {{company.VAT}}{{/if}}</p>
         </div>
         <div class="invoice-info">
             <h2>{{labels.invoice}}</h2>
@@ -59,16 +81,25 @@ const defaultInvoiceTemplate = `
             <strong>{{labels.date}}</strong> {{date}}<br>
             <strong>{{labels.dueDate}}</strong> {{dueDate}}</p>
         </div>
-    </div>
-    <div class="client-info">
-        <h3>{{labels.billTo}}</h3>
-        <p>{{client.name}}<br>
-        {{client.address}}<br>
-        {{client.city}}, {{client.postalCode}}<br>
-        {{client.country}}<br>
-        {{client.email}}</br>
-        {{#if client.legalId}}<strong>{{labels.legalId}}:</strong> {{client.legalId}}<br>{{/if}}
-        {{#if client.VAT}}<strong>{{labels.VATId}}:</strong> {{client.VAT}}{{/if}}</p>
+        <div class="company-info">
+            <h3 class="spacer">{{labels.billTo}}</h3>
+            <p class="name">{{company.name}}</p>
+            <p>{{company.address}}<br>
+            {{company.city}}, {{company.postalCode}}<br>
+            {{company.country}}<br>
+            {{company.email}} | {{company.phone}}<br>
+            {{#if company.legalId}}<strong>{{labels.legalId}}:</strong> {{company.legalId}}<br>{{/if}}
+            {{#if company.VAT}}<strong>{{labels.VATId}}:</strong> {{company.VAT}}{{/if}}</p>
+        </div>
+        <div class="client-info">
+            <h3>{{labels.billTo}}</h3>
+            <p class="name">{{client.name}}</p>
+            <p>{{client.address}}<br>
+            {{client.city}}, {{client.postalCode}}<br>
+            {{client.country}}{{#if client.email}}<br>{{client.email}}{{/if}}
+            {{#if client.legalId}}<br><strong>{{labels.legalId}}:</strong> {{client.legalId}}{{/if}}
+            {{#if client.VAT}}<br><strong>{{labels.VATId}}:</strong> {{client.VAT}}{{/if}}</p>
+        </div>
     </div>
     <table>
         <thead>
@@ -84,7 +115,7 @@ const defaultInvoiceTemplate = `
         <tbody>
             {{#each items}}
             <tr>
-                <td>{{description}}</td>
+                <td><strong>{{name}}</strong>{{#if description}}<span class="item-description">{{{description}}}</span>{{/if}}</td>
                 <td>{{type}}</td>
                 <td>{{quantity}}</td>
                 <td>{{../currency}} {{unitPrice}}</td>
@@ -104,10 +135,6 @@ const defaultInvoiceTemplate = `
                 <td><strong>-{{currency}} {{discountAmount}}</strong></td>
             </tr>
             {{/if}}
-            <tr>
-                <td colspan="5"><strong>{{labels.total}}</strong></td>
-                <td><strong>{{currency}} {{totalHT}}</strong></td>
-            </tr>
             <tr>
                 <td colspan="5"><strong>{{labels.vat}}</strong></td>
                 <td><strong>{{currency}} {{totalVAT}}</strong></td>
@@ -127,7 +154,7 @@ const defaultInvoiceTemplate = `
         {{/if}}
     </div>
     {{/if}}
-    
+
     {{#if noteExists}}
     <div class="notes">
         <h4>{{labels.notes}}</h4>
@@ -146,33 +173,38 @@ const defaultQuoteTemplate = `
     <title>Quote {{number}}</title>
     <style>
         body { font-family: {{fontFamily}}, sans-serif; margin: {{padding}}px; color: #333; }
-        .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
-        .company-info h1 { margin: 0; color: {{primaryColor}}; }
-        .quote-info { text-align: right; }
-        .client-info { margin-bottom: 30px; }
+        .header { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; row-gap: 10px; margin-bottom: 30px; }
+                .quote-info { text-align: right; }
+        .header p { margin: 0; line-height: 1.4; }
+        .client-info { text-align: left; }
+        .client-info h3 { margin: 0 0 4px; }
+        .client-info .name, .company-info .name { margin: 0 0 4px; font-weight: bold; }
+        .company-info .spacer { visibility: hidden; margin: 0 0 4px; }
+        .item-description { display: block; font-size: 12px; color: #666; white-space: pre-line; margin-top: 4px; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th, td { padding: 12px; text-align: left; vertical-align: top; border-bottom: 1px solid #ddd; }
         th { background-color: {{secondaryColor}}; font-weight: bold; color: {{tableTextColor}}; }
         .total-row { font-weight: bold; background-color: {{secondaryColor}}; color: {{tableTextColor}}; }
         .notes { margin-top: 20px; padding: 20px; background-color: {{secondaryColor}}; border-radius: 4px; color: {{tableTextColor}}; }
         .payment-info { margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-left: 4px solid {{primaryColor}}; color: #333; }
         .validity { color: #dc2626; font-weight: bold; }
-        .logo { max-height: 80px; margin-bottom: 10px; }
+        .logo { max-height: 140px; margin-bottom: 10px; }
+        .made-with {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 9px;
+            color: #999;
+        }
     </style>
 </head>
 <body>
+    <div class="made-with">Made with Invoicerr</div>
     <div class="header">
-        <div class="company-info">
+        <div class="company-name">
             {{#if includeLogo}}
             <img src="{{logoB64}}" alt="Logo" class="logo">
             {{/if}}
-            <h1>{{company.name}}</h1>
-            <p>{{company.address}}<br>
-            {{company.city}}, {{company.postalCode}}<br>
-            {{company.country}}<br>
-            {{company.email}} | {{company.phone}}</br>
-            {{#if company.legalId}}<strong>{{labels.legalId}}:</strong> {{company.legalId}}<br>{{/if}}
-            {{#if company.VAT}}<strong>{{labels.VATId}}:</strong> {{company.VAT}}{{/if}}</p>
         </div>
         <div class="quote-info">
             <h2>{{labels.quote}}</h2>
@@ -180,16 +212,25 @@ const defaultQuoteTemplate = `
             <strong>{{labels.date}}</strong> {{date}}<br>
             <strong class="validity">{{labels.validUntil}}</strong> {{validUntil}}</p>
         </div>
-    </div>
-    <div class="client-info">
-        <h3>{{labels.quoteFor}}</h3>
-        <p>{{client.name}}<br>
-        {{client.address}}<br>
-        {{client.city}}, {{client.postalCode}}<br>
-        {{client.country}}<br>
-        {{client.email}}</br>
-        {{#if client.legalId}}<strong>{{labels.legalId}}:</strong> {{client.legalId}}<br>{{/if}}
-        {{#if client.VAT}}<strong>{{labels.VATId}}:</strong> {{client.VAT}}{{/if}}</p>
+        <div class="company-info">
+            <h3 class="spacer">{{labels.quoteFor}}</h3>
+            <p class="name">{{company.name}}</p>
+            <p>{{company.address}}<br>
+            {{company.city}}, {{company.postalCode}}<br>
+            {{company.country}}<br>
+            {{company.email}} | {{company.phone}}<br>
+            {{#if company.legalId}}<strong>{{labels.legalId}}:</strong> {{company.legalId}}<br>{{/if}}
+            {{#if company.VAT}}<strong>{{labels.VATId}}:</strong> {{company.VAT}}{{/if}}</p>
+        </div>
+        <div class="client-info">
+            <h3>{{labels.quoteFor}}</h3>
+            <p class="name">{{client.name}}</p>
+            <p>{{client.address}}<br>
+            {{client.city}}, {{client.postalCode}}<br>
+            {{client.country}}{{#if client.email}}<br>{{client.email}}{{/if}}
+            {{#if client.legalId}}<br><strong>{{labels.legalId}}:</strong> {{client.legalId}}{{/if}}
+            {{#if client.VAT}}<br><strong>{{labels.VATId}}:</strong> {{client.VAT}}{{/if}}</p>
+        </div>
     </div>
     <table>
         <thead>
@@ -205,7 +246,7 @@ const defaultQuoteTemplate = `
         <tbody>
             {{#each items}}
             <tr>
-                <td>{{description}}</td>
+                <td><strong>{{name}}</strong>{{#if description}}<span class="item-description">{{{description}}}</span>{{/if}}</td>
                 <td>{{type}}</td>
                 <td>{{quantity}}</td>
                 <td>{{../currency}} {{unitPrice}}</td>
@@ -225,10 +266,6 @@ const defaultQuoteTemplate = `
                 <td><strong>-{{currency}} {{discountAmount}}</strong></td>
             </tr>
             {{/if}}
-            <tr>
-                <td colspan="5"><strong>{{labels.total}}</strong></td>
-                <td><strong>{{currency}} {{totalHT}}</strong></td>
-            </tr>
             <tr>
                 <td colspan="5"><strong>{{labels.vat}}</strong></td>
                 <td><strong>{{currency}} {{totalVAT}}</strong></td>
@@ -259,34 +296,46 @@ const defaultQuoteTemplate = `
 </html>
 `
 
-const defaultReceiptTemplate = `
+const defaultPaymentTemplate = `
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
-    <title>{{labels.receipt}} {{number}}</title>
+    <title>{{labels.payment}} {{number}}</title>
     <style>
         body { font-family: {{fontFamily}}, sans-serif; margin: {{padding}}px; color: #333; }
-        .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
-        .company-info h1 { margin: 0; color: {{primaryColor}}; }
-        .receipt-info { text-align: right; }
-        .client-info { margin-bottom: 30px; }
+        .header { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; row-gap: 10px; margin-bottom: 30px; }
+                .payment-info { text-align: right; }
+        .header p { margin: 0; line-height: 1.4; }
+        .client-info { text-align: left; }
+        .client-info h3 { margin: 0 0 4px; }
+        .client-info .name, .company-info .name { margin: 0 0 4px; font-weight: bold; }
+        .company-info .spacer { visibility: hidden; margin: 0 0 4px; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th, td { padding: 12px; text-align: left; vertical-align: top; border-bottom: 1px solid #ddd; }
         th { background-color: {{secondaryColor}}; font-weight: bold; color: {{tableTextColor}}; }
         .total-row { font-weight: bold; background-color: {{secondaryColor}}; color: {{tableTextColor}}; }
         .notes { margin-top: 20px; padding: 20px; background-color: {{secondaryColor}}; border-radius: 4px; color: {{tableTextColor}}; }
         .payment-info { margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-left: 4px solid {{primaryColor}}; color: #333; }
-        .logo { max-height: 80px; margin-bottom: 10px; }
+        .logo { max-height: 140px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="company-info">
+        <div class="company-name">
             {{#if includeLogo}}
             <img src="{{logoB64}}" alt="Logo" class="logo">
             {{/if}}
-            <h1>{{company.name}}</h1>
+        </div>
+        <div class="payment-info">
+            <h2>{{labels.payment}}</h2>
+            <p><strong>{{labels.payment}}:</strong> #{{number}}<br>
+            <strong>{{labels.paymentDate}}</strong> {{paymentDate}}<br>
+            <strong>{{labels.invoiceRefer}}</strong> {{invoiceNumber}}</p>
+        </div>
+        <div class="company-info">
+            <h3 class="spacer">{{labels.receivedFrom}}</h3>
+            <p class="name">{{company.name}}</p>
             <p>{{company.address}}<br>
             {{company.city}}, {{company.postalCode}}<br>
             {{company.country}}<br>
@@ -294,21 +343,15 @@ const defaultReceiptTemplate = `
             {{#if company.legalId}}<strong>{{labels.legalId}}:</strong> {{company.legalId}}<br>{{/if}}
             {{#if company.VAT}}<strong>{{labels.VATId}}:</strong> {{company.VAT}}{{/if}}</p>
         </div>
-        <div class="receipt-info">
-            <h2>{{labels.receipt}}</h2>
-            <p><strong>{{labels.receipt}}:</strong> #{{number}}<br>
-            <strong>{{labels.paymentDate}}</strong> {{paymentDate}}<br>
-            <strong>{{labels.invoiceRefer}}</strong> {{invoiceNumber}}</p>
+        <div class="client-info">
+            <h3>{{labels.receivedFrom}}</h3>
+            <p class="name">{{client.name}}</p>
+            <p>{{client.address}}<br>
+            {{client.city}}, {{client.postalCode}}<br>
+            {{client.country}}{{#if client.email}}<br>{{client.email}}{{/if}}
+            {{#if client.legalId}}<br><strong>{{labels.legalId}}:</strong> {{client.legalId}}{{/if}}
+            {{#if client.VAT}}<br><strong>{{labels.VATId}}:</strong> {{client.VAT}}{{/if}}</p>
         </div>
-    </div>
-    <div class="client-info">
-        <h3>{{labels.receivedFrom}}</h3>
-        <p>{{client.name}}<br>
-        {{#if client.description}}<strong>{{labels.description}}</strong> {{client.description}}<br>{{/if}}
-        {{client.address}}<br>
-        {{client.city}}, {{client.postalCode}}<br>
-        {{client.country}}<br>
-        {{client.email}}</p>
     </div>
     <table>
         <thead>
@@ -364,7 +407,7 @@ const defaultReceiptTemplate = `
 </html>
 `
 interface TemplateSettings {
-    templateType: "invoice" | "quote" | "receipt"
+    templateType: "invoice" | "quote" | "payment"
     fontFamily: string
     primaryColor: string
     secondaryColor: string
@@ -399,8 +442,8 @@ interface TemplateSettings {
         product: string
         type: string
 
-        // Receipt-specific labels
-        receipt: string
+        // Payment-specific labels
+        payment: string
         receivedFrom: string
         invoiceRefer: string
         paymentDate: string
@@ -480,8 +523,8 @@ export default function PDFTemplatesSettings() {
             product: t("settings.pdfTemplates.defaultLabels.product"),
             type: t("settings.pdfTemplates.defaultLabels.type"),
 
-            // Receipt defaults
-            receipt: t("settings.pdfTemplates.defaultLabels.receipt"),
+            // Payment defaults
+            payment: t("settings.pdfTemplates.defaultLabels.payment"),
             receivedFrom: t("settings.pdfTemplates.defaultLabels.receivedFrom"),
             invoiceRefer: t("settings.pdfTemplates.defaultLabels.invoiceRefer"),
             paymentDate: t("settings.pdfTemplates.defaultLabels.paymentDate"),
@@ -560,7 +603,7 @@ export default function PDFTemplatesSettings() {
                 legalId: "987654321",
                 VAT: "US987654321",
             },
-            number: settings.templateType === "invoice" ? "INV-2024-001" : settings.templateType === "quote" ? "QUO-2024-001" : "REC-2024-001",
+            number: settings.templateType === "invoice" ? "INV-2024-001" : settings.templateType === "quote" ? "QUO-2024-001" : "PAY-2024-001",
             date: new Date().toLocaleDateString("en-US"),
             dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString("en-US"),
             validUntil: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString("en-US"),
@@ -572,7 +615,8 @@ export default function PDFTemplatesSettings() {
             notes: "Thank you for your business! If you have any questions, feel free to contact us.",
             items: [
                 {
-                    description: "Web Development",
+                    name: "Web Development",
+                    description: formatItemDescription("**Frontend and backend** implementation, including *code review*."),
                     type: "Hour",
                     quantity: "40",
                     unitPrice: "75.00",
@@ -580,7 +624,8 @@ export default function PDFTemplatesSettings() {
                     totalPrice: "3600.00",
                 },
                 {
-                    description: "Consulting Services",
+                    name: "Consulting Services",
+                    description: "",
                     type: "Service",
                     quantity: "10",
                     unitPrice: "100.00",
@@ -615,7 +660,7 @@ export default function PDFTemplatesSettings() {
                 ? defaultInvoiceTemplate
                 : settings.templateType === "quote"
                     ? defaultQuoteTemplate
-                    : defaultReceiptTemplate
+                    : defaultPaymentTemplate
         const compiledTemplate = Handlebars.compile(template)
         return compiledTemplate(sampleData)
     }, [settings, sampleData])
@@ -658,7 +703,7 @@ export default function PDFTemplatesSettings() {
                                                 <Label htmlFor="template-type">{t("settings.pdfTemplates.templateType.label")}</Label>
                                                 <Select
                                                     value={settings.templateType}
-                                                    onValueChange={(value: "invoice" | "quote" | "receipt") =>
+                                                    onValueChange={(value: "invoice" | "quote" | "payment") =>
                                                         setSettings((prev) => ({ ...prev, templateType: value }))
                                                     }
                                                 >
@@ -672,8 +717,8 @@ export default function PDFTemplatesSettings() {
                                                         <SelectItem value="quote">
                                                             {t("settings.pdfTemplates.templateType.options.quote")}
                                                         </SelectItem>
-                                                        <SelectItem value="receipt">
-                                                            {t("settings.pdfTemplates.templateType.options.receipt")}
+                                                        <SelectItem value="payment">
+                                                            {t("settings.pdfTemplates.templateType.options.payment")}
                                                         </SelectItem>
                                                     </SelectContent>
                                                 </Select>
@@ -710,53 +755,27 @@ export default function PDFTemplatesSettings() {
 
                                     <Card>
                                         <CardHeader>
-                                            <CardTitle>{t("settings.pdfTemplates.colors.title")}</CardTitle>
-                                            <CardDescription>{t("settings.pdfTemplates.colors.description")}</CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="space-y-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="primary-color">{t("settings.pdfTemplates.colors.primaryColor")}</Label>
-                                                <div className="flex items-center space-x-2">
-                                                    <input
-                                                        type="color"
-                                                        id="primary-color"
-                                                        value={settings.primaryColor}
-                                                        onChange={(e) => setSettings((prev) => ({ ...prev, primaryColor: e.target.value }))}
-                                                        className="w-12 h-10 rounded border border-input"
-                                                    />
-                                                    <Input
-                                                        value={settings.primaryColor}
-                                                        onChange={(e) => setSettings((prev) => ({ ...prev, primaryColor: e.target.value }))}
-                                                        className="flex-1"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="primary-color">{t("settings.pdfTemplates.colors.secondaryColor")}</Label>
-                                                <div className="flex items-center space-x-2">
-                                                    <input
-                                                        type="color"
-                                                        id="primary-color"
-                                                        value={settings.secondaryColor}
-                                                        onChange={(e) => setSettings((prev) => ({ ...prev, secondaryColor: e.target.value }))}
-                                                        className="w-12 h-10 rounded border border-input"
-                                                    />
-                                                    <Input
-                                                        value={settings.secondaryColor}
-                                                        onChange={(e) => setSettings((prev) => ({ ...prev, secondaryColor: e.target.value }))}
-                                                        className="flex-1"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card>
-                                        <CardHeader>
                                             <CardTitle>{t("settings.pdfTemplates.logo.title")}</CardTitle>
                                             <CardDescription>{t("settings.pdfTemplates.logo.description")}</CardDescription>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="secondary-color">{t("settings.pdfTemplates.logo.color")}</Label>
+                                                <div className="flex items-center space-x-2">
+                                                    <input
+                                                        type="color"
+                                                        id="secondary-color"
+                                                        value={settings.secondaryColor}
+                                                        onChange={(e) => setSettings((prev) => ({ ...prev, secondaryColor: e.target.value }))}
+                                                        className="w-12 h-10 rounded border border-input"
+                                                    />
+                                                    <Input
+                                                        value={settings.secondaryColor}
+                                                        onChange={(e) => setSettings((prev) => ({ ...prev, secondaryColor: e.target.value }))}
+                                                        className="flex-1"
+                                                    />
+                                                </div>
+                                            </div>
                                             <div className="flex items-center space-x-2">
                                                 <Switch
                                                     id="include-logo"
@@ -1054,11 +1073,11 @@ export default function PDFTemplatesSettings() {
                                                 </div>
 
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="label-receipt">{t("settings.pdfTemplates.labels.receipt")}</Label>
+                                                    <Label htmlFor="label-payment">{t("settings.pdfTemplates.labels.payment")}</Label>
                                                     <Input
-                                                        id="label-receipt"
-                                                        value={settings.labels.receipt}
-                                                        onChange={(e) => updateLabel("receipt", e.target.value)}
+                                                        id="label-payment"
+                                                        value={settings.labels.payment}
+                                                        onChange={(e) => updateLabel("payment", e.target.value)}
                                                     />
                                                 </div>
                                                 <div className="space-y-2">

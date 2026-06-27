@@ -29,3 +29,7 @@
   --ifm-color-primary-lightest: #ffffff;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
+
+.navbar__items--right [class^='navbarSearchContainer'] {
+  order: -1;
+}

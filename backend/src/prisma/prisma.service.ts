@@ -13,9 +13,9 @@ const prisma = new PrismaClient({ adapter }).$extends({
         $allModels: {
             async findMany({ model, operation, args, query }) {
                 if (
-                    ['Quote', 'Invoice', 'Receipt'].includes(model) &&
+                    ['Quote', 'Invoice', 'Payment'].includes(model) &&
                     args?.where &&
-                    (args.where as Prisma.QuoteWhereInput | Prisma.InvoiceWhereInput | Prisma.ReceiptWhereInput).rawNumber! === null
+                    (args.where as Prisma.QuoteWhereInput | Prisma.InvoiceWhereInput | Prisma.PaymentWhereInput).rawNumber! === null
                 ) {
                     return query(args);
                 }
@@ -24,7 +24,7 @@ const prisma = new PrismaClient({ adapter }).$extends({
                 const result = await query(args);
 
                 // Mise à jour automatique des rawNumber manquants
-                if (['Quote', 'Invoice', 'Receipt'].includes(model)) {
+                if (['Quote', 'Invoice', 'Payment'].includes(model)) {
                     if (model === 'Quote') {
                         const toUpdate = await prisma.quote.findMany({
                             where: { rawNumber: null },
@@ -65,20 +65,20 @@ const prisma = new PrismaClient({ adapter }).$extends({
                         );
                     }
 
-                    if (model === 'Receipt') {
-                        const toUpdate = await prisma.receipt.findMany({
+                    if (model === 'Payment') {
+                        const toUpdate = await prisma.payment.findMany({
                             where: { rawNumber: null },
                             include: { invoice: { include: { company: true } } },
                         });
                         await Promise.all(
-                            toUpdate.map(async (receipt) => {
+                            toUpdate.map(async (payment) => {
                                 const formattedNumber = await formatPattern(
-                                    'receipt',
-                                    receipt.number,
-                                    receipt.createdAt,
+                                    'payment',
+                                    payment.number,
+                                    payment.createdAt,
                                 );
-                                await prisma.receipt.update({
-                                    where: { id: receipt.id },
+                                await prisma.payment.update({
+                                    where: { id: payment.id },
                                     data: { rawNumber: formattedNumber },
                                 });
                             }),
@@ -92,11 +92,11 @@ const prisma = new PrismaClient({ adapter }).$extends({
             async create({ model, args, query }) {
                 const result = (await query(args));
 
-                if (['Quote', 'Invoice', 'Receipt'].includes(model)) {
-                    const typedResult = result as Prisma.QuoteGetPayload<{}> | Prisma.InvoiceGetPayload<{}> | Prisma.ReceiptGetPayload<{}>;
+                if (['Quote', 'Invoice', 'Payment'].includes(model)) {
+                    const typedResult = result as Prisma.QuoteGetPayload<{}> | Prisma.InvoiceGetPayload<{}> | Prisma.PaymentGetPayload<{}>;
                     if (!typedResult.rawNumber) {
                         const formattedNumber = await formatPattern(
-                            (model.toLowerCase() as 'quote' | 'invoice' | 'receipt'),
+                            (model.toLowerCase() as 'quote' | 'invoice' | 'payment'),
                             typedResult.number,
                             typedResult.createdAt,
                         );
@@ -113,11 +113,11 @@ const prisma = new PrismaClient({ adapter }).$extends({
             async update({ model, args, query }) {
                 const result = await query(args);
 
-                if (['Quote', 'Invoice', 'Receipt'].includes(model)) {
-                    const typedResult = result as Prisma.QuoteGetPayload<{}> | Prisma.InvoiceGetPayload<{}> | Prisma.ReceiptGetPayload<{}>;
+                if (['Quote', 'Invoice', 'Payment'].includes(model)) {
+                    const typedResult = result as Prisma.QuoteGetPayload<{}> | Prisma.InvoiceGetPayload<{}> | Prisma.PaymentGetPayload<{}>;
                     if (!typedResult.rawNumber) {
                         const formattedNumber = await formatPattern(
-                            (model.toLowerCase() as 'quote' | 'invoice' | 'receipt'),
+                            (model.toLowerCase() as 'quote' | 'invoice' | 'payment'),
                             typedResult.number,
                             typedResult.createdAt,
                         );
@@ -159,7 +159,8 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     get client_model() { return this.client.client; }
     get quote() { return this.client.quote; }
     get invoice() { return this.client.invoice; }
-    get receipt() { return this.client.receipt; }
+    get payment() { return this.client.payment; }
+    get paymentItem() { return this.client.paymentItem; }
     get recurringInvoice() { return this.client.recurringInvoice; }
     get paymentMethod() { return this.client.paymentMethod; }
     get webhook() { return this.client.webhook; }
