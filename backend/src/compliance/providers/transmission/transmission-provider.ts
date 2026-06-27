@@ -39,4 +39,18 @@ export interface TransmissionProvider {
   ): TransmissionResult;
   /** For asynchronous clearance channels: re-check status. */
   poll?(ref: string, log: ComplianceLogger): TransmissionResult;
+
+  /**
+   * Push a lifecycle status update (not a document) to this channel — e.g. FR "encaissée"
+   * relayed by a PDP, or a buyer accept/refuse acknowledgement. Only channels that carry an
+   * outbound status model implement it (PDP, SDI, Peppol). Returns a TransmissionResult like
+   * transmit().
+   */
+  sendStatus?(
+    ref: string,
+    status: string,
+    ctx: TransactionContext,
+    plan: CompliancePlan,
+    log: ComplianceLogger,
+  ): TransmissionResult;
 }

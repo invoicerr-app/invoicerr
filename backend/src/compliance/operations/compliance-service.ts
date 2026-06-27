@@ -11,7 +11,7 @@ import { TransactionContext } from '../canonical/canonical-document';
 import { resolve } from '../engine/compliance-engine';
 import { ComplianceExecutor, defaultExecutor } from '../execution/executor';
 import { ComplianceLogger, defaultLogger } from '../execution/logger';
-import { AuthorityIdentifier, SignedArtifact } from '../execution/types';
+import { AuthorityIdentifier, SignedArtifact, TransmissionResult } from '../execution/types';
 import { defaultCorrectionRegistry, CorrectionRegistry } from '../lifecycle/corrections';
 import { defaultNumberingRegistry, NumberingRegistry } from '../lifecycle/numbering';
 import { defaultResponseTracker, ResponseTracker } from '../lifecycle/response';
@@ -248,6 +248,19 @@ export class ComplianceService {
     return { document: rec, transmissions: [result] };
   }
 
+  /** Push a lifecycle status (e.g. FR "encaissée") to the primary channel that supports outbound status. */
+  async transmitStatus(id: string, status: string): Promise<TransmissionResult | null> {
+    const rec = await this.require(id);
+    const plan = rec.plan ?? resolve(rec.ctx);
+    const spec = plan.channels?.[0];
+    const provider = spec ? this.transmission.resolve(spec) : null;
+    if (!provider?.sendStatus) {
+      this.log.todo('operations/transmitStatus', `no outbound-status channel for "${status}" on ${id}`);
+      return null;
+    }
+    return provider.sendStatus(id, status, rec.ctx, plan, this.log);
+  }
+
   // ─────────────────────────── clearance (blocking regimes) ───────────────────────────
 
   async submitForClearance(id: string): Promise<ComplianceDocumentRecord> {
@@ -421,6 +434,11 @@ export class ComplianceService {
     if (plan.lifecycle.response?.statuses?.includes('encaissée')) {
       newEvents.push({ id: randomUUID(), type: 'STATUS:encaissée', at: paidAt, actor: 'system' });
       this.reporting.reportAll(rec.ctx, plan, this.log);
+      try {
+        await this.transmitStatus(id, 'encaissée');
+      } catch (e) {
+        this.log.warn('operations/markPaid', `status transmission skipped for ${id}: ${(e as Error).message}`);
+      }
     }
 
     return this.store.update(id, { events: [...rec.events, ...newEvents] });

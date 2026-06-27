@@ -279,3 +279,32 @@ describe('ComplianceService — PART IV: available-actions resolution', () => {
     expect(result.document.status).toBe('CANCELLED');
   });
 });
+
+describe('ComplianceService — outgoing lifecycle status (sendStatus)', () => {
+  it('transmitStatus pushes "encaissée" via the primary PDP channel for FR', async () => {
+    const { service, log } = svc();
+    const { document } = await service.issueAndSend(FR());
+    const result = await service.transmitStatus(document.id, 'encaissée');
+    expect(result).not.toBeNull();
+    expect(result!.channel).toBe('PDP');
+    expect(result!.status).toBe('QUEUED');
+    expect(log.hasScope('transmission/pdp')).toBe(true);
+  });
+
+  it('transmitStatus returns null for EMAIL channel (no sendStatus impl)', async () => {
+    const { service, log } = svc();
+    const { document } = await service.issueAndSend(US());
+    const result = await service.transmitStatus(document.id, 'encaissée');
+    expect(result).toBeNull();
+    expect(log.hasScope('operations/transmitStatus')).toBe(true);
+  });
+
+  it('markPaid on FR triggers sendStatus for "encaissée" alongside e-reporting', async () => {
+    const { service, log } = svc();
+    const { document } = await service.issueAndSend(ctx('FR', 'FR', 'B2C', 'SERVICES', '2027-01-15'));
+    const paid = await service.markPaid(document.id, { paidAt: '2027-02-01T00:00:00.000Z' });
+    expect(paid.events.some((e) => e.type === 'STATUS:encaissée')).toBe(true);
+    expect(log.hasScope('reporting/e-reporting')).toBe(true);
+    expect(log.hasScope('transmission/pdp')).toBe(true);
+  });
+});

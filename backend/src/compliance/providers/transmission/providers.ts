@@ -24,6 +24,10 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
     log.todo('transmission/peppol', `SMP lookup for ${ctx.buyer.peppolId ?? '(no peppolId)'} + AS4 send (key ${key})`);
     return { channel: 'PEPPOL', status: ctx.buyer.peppolId ? 'SENT' : 'SKIPPED', notes: ['stub: integrate a Peppol Access Point'] };
   }
+  sendStatus(ref: string, status: string, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): TransmissionResult {
+    log.todo('transmission/peppol', `push lifecycle status "${status}" to Peppol for ${ref}`);
+    return { channel: 'PEPPOL', status: 'QUEUED', ref, notes: [`stub: relay "${status}" via Peppol Invoice Response`] };
+  }
 }
 
 /** France — Plateforme de Dématérialisation Partenaire (+ PPF annuaire routing). */
@@ -34,6 +38,10 @@ export class PdpTransmissionProvider implements TransmissionProvider {
   transmit(_artifacts: SignedArtifact[], _ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): TransmissionResult {
     log.todo('transmission/pdp', `annuaire lookup + deliver to recipient PDP + push e-reporting (key ${key})`);
     return { channel: 'PDP', status: 'SENT', notes: ['stub: integrate a registered PDP'] };
+  }
+  sendStatus(ref: string, status: string, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): TransmissionResult {
+    log.todo('transmission/pdp', `push lifecycle status "${status}" to the PDP for ${ref}`);
+    return { channel: 'PDP', status: 'QUEUED', ref, notes: [`stub: relay "${status}" via registered PDP`] };
   }
   poll(ref: string, log: ComplianceLogger): TransmissionResult {
     log.todo('transmission/pdp', `poll PDP lifecycle statuses for ${ref}`);
@@ -65,6 +73,10 @@ export class SdiTransmissionProvider implements TransmissionProvider {
   transmit(_artifacts: SignedArtifact[], _ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): TransmissionResult {
     log.todo('transmission/sdi', `submit FatturaPA to SdI, await receipt/notifica (key ${key})`);
     return { channel: 'SDI', status: 'PENDING', notes: ['stub: integrate SdI'] };
+  }
+  sendStatus(ref: string, status: string, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): TransmissionResult {
+    log.todo('transmission/sdi', `push lifecycle status "${status}" to SdI for ${ref}`);
+    return { channel: 'SDI', status: 'QUEUED', ref, notes: [`stub: relay "${status}" via SdI`] };
   }
   poll(ref: string, log: ComplianceLogger): TransmissionResult {
     log.todo('transmission/sdi', `poll SdI notifiche for ${ref}`);
