@@ -5,10 +5,13 @@
 > `COMPLIANCE_STUBS_ROADMAP.md`. Type : `FONDATION` / `FORMAT` / `PORTAIL` / `CANAL` / `REPORTING` / `DATA`.
 > `(#4)` = réutilise le provider de l'étape 4 → pas de nouveau format à coder, juste portail + data.
 >
-> ⚠️ **Format ET portail dépendent du rôle B2B/B2C/B2G** (pas seulement du pays). Schéma type :
-> **B2G** → portail public dédié (Chorus Pro, FACe, ZRE, SdI-PA), souvent Peppol ; **B2C** → reçu /
-> fiscalisation / e-reporting seul (souvent **aucun** e-invoice transmis à l'acheteur) ; **B2B** → flux
-> e-invoice/clearance principal. Voir §PHASE 2-bis (prérequis) et §SPECS MANQUANTES.
+> ⚠️ **Le couple (régime, format, canal) dépend du rôle B2B/B2C/B2G ET du pays — c'est de la CONFIG,
+> pas une règle universelle.** Il n'existe PAS de mapping fixe « B2G=portail, B2C=e-reporting,
+> B2B=clearance » : chaque profil **déclare** ses règles par rôle via `appliesTo`, comme le fait déjà
+> 🇫🇷 `fr.ts` (regime/format/reporting role-gatés : B2B/B2G → CTC/PDP, B2C → e-reporting). Le travail =
+> (1) rendre le moteur capable de lire **aussi la transmission** par rôle (§PHASE 2-bis), puis
+> (2) **renseigner ces règles par rôle dans CHAQUE profil** (DATA), pays par pays. Les exemples plus
+> bas (Chorus Pro, FACe, fiscalisation…) sont des **valeurs de config** FR/ES/DE/…, pas un défaut codé.
 
 ---
 
@@ -43,14 +46,17 @@ prendrait le PDP — faux.*
 - [ ] 12a. `[FONDATION]` ajouter `appliesTo?: ClassificationSelector` à `TransmissionRule` — `profiles/schema.ts:61`
 - [ ] 12b. `[FONDATION]` engine : transmission role-aware → `pickWithSelector(sp.transmission, date, buyerRole, supply)` — `engine/compliance-engine.ts:113`
 - [ ] 12c. `[FONDATION]` détecter **B2G** : ajouter `GOVERNMENT` à `ClientType` (Prisma `schema.prisma:234` + form client) ; mapper `buyerRole:'B2G'` à TOUS les sites ctx — `invoices.service.ts:254,332,582,757,855,1648`
-- [ ] 12d. `[DATA]` scinder les `channels` par rôle (`appliesTo`) dans les profils où B2B/B2C/B2G divergent (FR, IT, ES, DE, …)
+- [ ] 12d. `[DATA]` **déclarer dans CHAQUE profil les règles par rôle** (regime/format/canal/reporting via `appliesTo`), à la manière de `fr.ts` — pas un défaut codé en dur. C'est l'essentiel du travail de config (axe DATA, §PHASE 12), pays par pays.
 
-## SPECS MANQUANTES à AJOUTER (formats/portails absents du code)
-*Vérifié : 0 spec pour ces pays/rôles. À créer dans `national-formats.ts` / `national-portals.ts` (+ provider).*
+## SPECS MANQUANTES à AJOUTER (providers format/portail qui n'existent pas encore)
+*Quand un profil déclare (en config) un format/portail dont le **provider n'existe pas**, il faut le
+créer dans `national-formats.ts` / `national-portals.ts` (+ provider). Vérifié : 0 provider pour ceux-ci.*
 - [ ] 12e. 🇬🇷 GR — `[FORMAT]` myDATA XML + `[PORTAIL]` **AADE** (realTime) — absents
 - [ ] 12f. 🇭🇺 HU — `[FORMAT]` Online Számla (RTIR) + `[PORTAIL]` **NAV** — absents
 - [ ] 12g. 🇵🇪 PE — `[PORTAIL]` **SUNAT/SEE** dédié (aujourd'hui canal `OSE` générique) — à préciser
-- [ ] 12h. **Portails B2G dédiés** à ajouter : 🇫🇷 Chorus Pro / PPF (B2G), 🇪🇸 FACe (B2G), 🇩🇪 ZRE/OZG-RE (B2G), 🇮🇹 SdI-PA (Codice Univoco Ufficio) — chacun via `appliesTo:{roles:['B2G']}`
+- [ ] 12h. **Portails B2G** dont un profil aurait besoin (à déclarer en config + créer le provider) :
+  ex. 🇫🇷 Chorus Pro/PPF, 🇪🇸 FACe, 🇩🇪 ZRE/OZG-RE, 🇮🇹 SdI-PA — **valeurs propres à chaque profil**, gatées
+  `appliesTo:{roles:['B2G']}`, pas un schéma universel.
 
 ## PHASE 3 — 🇫🇷 FRANCE de bout en bout ⭐⭐ (marché cible, pilote)
 - [ ] 13. `[FORMAT]` **Factur-X** (EN 16931 CII #4 + PDF/A-3 hybride) → FR — `fr.ts` syntax FACTURX
