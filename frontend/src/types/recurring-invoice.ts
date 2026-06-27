@@ -42,7 +42,10 @@ export interface RecurringInvoice {
     frequency: RecurrenceFrequency;
     count?: number;
     until?: string;
+    autoIssue: boolean;
     autoSend: boolean;
+    paused: boolean;
+    skipNext: boolean;
     nextInvoiceDate?: string;
     lastInvoiceDate?: string;
     createdAt: string;
@@ -58,6 +61,7 @@ export interface CreateRecurringInvoiceDto {
     frequency: RecurrenceFrequency;
     count?: number;
     until?: Date;
+    autoIssue?: boolean;
     autoSend?: boolean;
     items: {
         name: string;

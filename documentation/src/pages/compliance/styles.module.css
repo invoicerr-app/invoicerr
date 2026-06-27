@@ -1,3 +1,117 @@
+/* ---- Page header ---- */
+.pageHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pageTitle {
+  margin-bottom: 0;
+}
+
+.timelineBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ifm-color-primary-contrast-foreground);
+  background: var(--ifm-color-primary-contrast-background);
+}
+
+/* ---- Country filters ---- */
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-card-border-radius, 12px);
+  background: var(--ifm-card-background-color, var(--ifm-background-surface-color));
+}
+
+.filterGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.75rem;
+}
+
+.filterLabel {
+  flex: 0 0 5.5rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.filterChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.filterChip {
+  padding: 0.2rem 0.7rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-800);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.filterChip:hover {
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+}
+
+.filterChipActive,
+.filterChipActive:hover {
+  color: var(--ifm-color-primary-contrast-foreground);
+  background: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+}
+
+[data-theme='dark'] .filterChipActive,
+[data-theme='dark'] .filterChipActive:hover {
+  color: #1a1a2e;
+}
+
+.filterMeta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.countBadge {
+  font-weight: 700;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.filterReset {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ---- Country grid cards ---- */
 .countryCard {
   display: flex;
   flex-direction: column;
@@ -30,4 +144,266 @@
 
 .countryName {
   font-weight: 600;
+}
+
+/* ---- Pillar (domain) cards ---- */
+.domainCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  height: 100%;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-top: 3px solid var(--ifm-color-primary);
+  border-radius: var(--ifm-card-border-radius, 12px);
+  background: var(--ifm-card-background-color, var(--ifm-background-surface-color));
+}
+
+.domainCard h3 {
+  margin-bottom: 0.25rem;
+}
+
+.domainCard p {
+  margin-bottom: 0.5rem;
+}
+
+.domainIcon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+/* ---- Status flow pills ---- */
+.statusFlow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.statusFlowItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.statusArrow {
+  color: var(--ifm-color-emphasis-500);
+  font-weight: 700;
+}
+
+.statusException {
+  margin-top: 0.6rem;
+  align-self: flex-start;
+}
+
+.neutral {
+  color: var(--ifm-color-emphasis-800);
+  background: var(--ifm-color-emphasis-200);
+}
+
+.info {
+  color: var(--ifm-color-info-contrast-foreground);
+  background: var(--ifm-color-info-contrast-background);
+}
+
+.warning {
+  color: var(--ifm-color-warning-contrast-foreground);
+  background: var(--ifm-color-warning-contrast-background);
+}
+
+.success {
+  color: var(--ifm-color-success-contrast-foreground);
+  background: var(--ifm-color-success-contrast-background);
+}
+
+.danger {
+  color: var(--ifm-color-danger-contrast-foreground);
+  background: var(--ifm-color-danger-contrast-background);
+}
+
+/* ---- Format chips ---- */
+.formatChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: var(--ifm-font-family-monospace);
+  color: var(--ifm-color-emphasis-800);
+  background: var(--ifm-color-emphasis-200);
+}
+
+.chipPrimary {
+  color: var(--ifm-color-primary-contrast-foreground);
+  background: var(--ifm-color-primary-contrast-background);
+}
+
+/* ---- Checklist ---- */
+.checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.checklistTwoCol {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem 1.5rem;
+}
+
+.checklist li {
+  position: relative;
+  padding-left: 1.75rem;
+}
+
+.checklist li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--ifm-color-primary);
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .checklistTwoCol {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- Mandatory mentions callout ---- */
+.mentionsCard {
+  margin: 1rem 0 2rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-left: 4px solid var(--ifm-color-primary);
+  border-radius: var(--ifm-card-border-radius, 12px);
+  background: var(--ifm-color-primary-contrast-background);
+}
+
+.mentionsTitle {
+  margin-bottom: 0.85rem;
+}
+
+/* ---- Feature grid (what Invoicerr implements) ---- */
+.featureGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.featureItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-card-border-radius, 12px);
+  background: var(--ifm-card-background-color, var(--ifm-background-surface-color));
+}
+
+.featureIcon {
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+@media (max-width: 996px) {
+  .featureGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .featureGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- PDP banner ---- */
+.pdpBanner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin: 2rem 0;
+  padding: 1.5rem 1.75rem;
+  border-radius: var(--ifm-card-border-radius, 12px);
+  color: #fff;
+  background: linear-gradient(
+    135deg,
+    var(--ifm-color-primary) 0%,
+    var(--ifm-color-primary-darkest) 100%
+  );
+}
+
+.pdpBannerIcon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.pdpBannerText {
+  flex: 1 1 280px;
+}
+
+.pdpBannerBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.pdpBannerBody {
+  margin: 0;
+  font-weight: 500;
+}
+
+.pdpBannerLink {
+  color: #fff;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.pdpBannerLink:hover {
+  color: #fff;
+}
+
+.pdpBannerCta {
+  flex-shrink: 0;
+  color: var(--ifm-color-primary-darkest);
+  background: #fff;
+  border-color: #fff;
+}
+
+.pdpBannerCta:hover {
+  color: var(--ifm-color-primary-darkest);
+  background: var(--ifm-color-emphasis-100);
 }

@@ -107,12 +107,16 @@
 		],
 		"rootDir": "src",
 		"testRegex": ".*\\.spec\\.ts$",
-		"moduleNameMapper": {
-			"^@/(.*)$": "<rootDir>/$1"
-		},
 		"transform": {
 			"^.+\\.(t|j)s$": "ts-jest"
 		},
+		"moduleNameMapper": {
+			"^@/(.*)$": "<rootDir>/$1",
+			"^(\\.{1,2}/.*)\\.js$": "$1"
+		},
+		"transformIgnorePatterns": [
+			"/node_modules/(?!(@fin\\.cx/einvoice|@tsclass/tsclass)/)"
+		],
 		"collectCoverageFrom": [
 			"**/*.(t|j)s"
 		],

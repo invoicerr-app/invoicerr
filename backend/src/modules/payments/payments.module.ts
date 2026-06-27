@@ -5,10 +5,12 @@ import { PaymentsController } from '@/modules/payments/payments.controller';
 import { PaymentsService } from '@/modules/payments/payments.service';
 import { ReceiptsDeprecatedController } from '@/modules/payments/receipts-deprecated.controller';
 import { WebhooksModule } from '../webhooks/webhooks.module';
+import { ComplianceModule } from '@/compliance/nest/compliance.module';
+import { NumberingService } from '@/utils/numbering';
 
 @Module({
-    imports: [WebhooksModule],
+    imports: [WebhooksModule, ComplianceModule],
     controllers: [PaymentsController, ReceiptsDeprecatedController],
-    providers: [PaymentsService, MailService, JwtService]
+    providers: [PaymentsService, MailService, JwtService, NumberingService]
 })
 export class PaymentsModule { }

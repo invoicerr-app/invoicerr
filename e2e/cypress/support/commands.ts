@@ -71,10 +71,38 @@ Cypress.Commands.add('clearEmails', () => {
 });
 
 Cypress.Commands.add('selectCountry', (dataCy: string, countryName: string) => {
-    cy.get(`[data-cy="${dataCy}"] button`).click();
-    cy.get(`[data-cy="${dataCy}-options"]`).should('be.visible');
-    cy.get(`[data-cy="${dataCy}"] input`).clear().type(countryName);
-    cy.get(`[data-cy="${dataCy}-option-${countryName.toLowerCase().replace(/\s+/g, '-')}"]`).click();
+    cy.get(`[data-cy="${dataCy}"] button`).first().click({ force: true });
+    cy.wait(500);
+    cy.get(`[data-cy="${dataCy}-options"]`, { timeout: 3000 }).should('exist');
+    cy.get(`[data-cy="${dataCy}"] input`).clear({ force: true }).type(countryName, { force: true });
+    cy.wait(300);
+    cy.get(`[data-cy="${dataCy}-option-${countryName.toLowerCase().replace(/\s+/g, '-')}"]`, { timeout: 3000 }).should('exist').click({ force: true });
+});
+
+Cypress.Commands.add('ensureClient', () => {
+    const apiUrl = Cypress.env('apiUrl');
+    cy.request({ url: `${apiUrl}/api/clients`, failOnStatusCode: false }).then(({ status, body }: any) => {
+        if (status !== 200) return; // auth failed, skip
+        const clients = Array.isArray(body) ? body : body?.clients ?? [];
+        if (clients.length === 0) {
+            cy.request({
+                method: 'POST',
+                url: `${apiUrl}/api/clients`,
+                body: {
+                    name: 'Test Client',
+                    contactEmail: 'test.client@example.com',
+                    currency: 'EUR',
+                    country: 'FR',
+                    address: '123 Test St',
+                    city: 'Paris',
+                    postalCode: '75001',
+                    isActive: true,
+                    type: 'COMPANY',
+                },
+                failOnStatusCode: false,
+            });
+        }
+    });
 });
 
 Cypress.on('window:before:load', (window) => {

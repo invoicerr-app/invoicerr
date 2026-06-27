@@ -7,20 +7,32 @@ import { getInvertColor, getPDF } from '@/utils/pdf';
 
 import { ISigningProvider } from '@/plugins/signing/types';
 import { PluginsService } from '../plugins/plugins.service';
+import { NumberingService } from '@/utils/numbering';
 import { StorageUploadService } from '@/utils/storage-upload';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
+import { Prisma } from '../../../prisma/generated/prisma/client';
 import { baseTemplate } from '@/modules/quotes/templates/base.template';
 import { formatDate } from '@/utils/date';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
-import { calculateDiscountedTotals, clampDiscountRate } from '@/utils/financial';
+import { guessCountryCode } from '@/utils/country-name-to-iso';
+import { resolveInvoiceTax } from '@/compliance/integration/invoice-tax';
+import { ComplianceService } from '@/compliance/operations/compliance-service';
+import type { TransactionContext } from '@/compliance/canonical/canonical-document';
+import { clampDiscountRate, toMinor, calculateDiscountedTotals } from '@/utils/financial';
+import type { SupplyType } from '@/compliance/types';
+import { augmentWithIdentifiers, getIdentifier } from '@/utils/entity-identifiers';
 import { formatItemDescription } from '@/utils/format-text';
 
 @Injectable()
 export class QuotesService {
     private readonly pluginsService: PluginsService
 
-    constructor(private readonly webhookDispatcher: WebhookDispatcherService) {
+    constructor(
+        private readonly webhookDispatcher: WebhookDispatcherService,
+        private readonly numberingService: NumberingService,
+        private readonly complianceService: ComplianceService,
+    ) {
         this.pluginsService = new PluginsService();
     }
 
@@ -40,8 +52,8 @@ export class QuotesService {
             },
             include: {
                 items: true,
-                client: true,
-                company: true
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
             },
         });
 
@@ -112,12 +124,12 @@ export class QuotesService {
             const results = await prisma.quote.findMany({
                 take: 10,
                 orderBy: {
-                    number: 'asc',
+                    createdAt: 'desc',
                 },
                 include: {
                     items: true,
-                    company: true,
-                    client: true,
+                    company: { include: { partyIdentifiers: true } },
+                    client: { include: { partyIdentifiers: true } },
                 },
             });
 
@@ -142,12 +154,12 @@ export class QuotesService {
             },
             take: 10,
             orderBy: {
-                number: 'asc',
+                createdAt: 'desc',
             },
             include: {
                 items: true,
-                company: true,
-                client: true,
+                company: { include: { partyIdentifiers: true } },
+                client: { include: { partyIdentifiers: true } },
             },
         });
 
@@ -165,7 +177,9 @@ export class QuotesService {
     async createQuote(body: CreateQuoteDto) {
         const { items, ...data } = body;
 
-        const company = await prisma.company.findFirst();
+        const company = await prisma.company.findFirst({
+            include: { partyIdentifiers: true },
+        });
 
         if (!company) {
             logger.error('No company found. Please create a company first.', { category: 'quote' });
@@ -174,6 +188,7 @@ export class QuotesService {
 
         const client = await prisma.client.findUnique({
             where: { id: body.clientId },
+            include: { partyIdentifiers: true },
         });
 
         if (!client) {
@@ -181,9 +196,28 @@ export class QuotesService {
             throw new BadRequestException('Client not found');
         }
 
-        const isVatExemptFrance = !!(company.exemptVat && (company.country || '').toUpperCase() === 'FRANCE');
         const discountRate = clampDiscountRate(body.discountRate);
-        const totals = calculateDiscountedTotals(items, discountRate, { isVatExempt: isVatExemptFrance });
+        const taxResult = resolveInvoiceTax({
+            supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
+            supplierExemptVat: !!company.exemptVat,
+            supplierVatNumber: getIdentifier(company, 'VAT'),
+            buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
+            buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+            buyerVatNumber: getIdentifier(client, 'VAT'),
+            currency: body.currency || client.currency || company.currency,
+            issueDate: new Date(),
+            discountRate,
+            items: items.map(item => ({
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                vatRate: item.vatRate,
+                supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
+            })),
+        });
+
+        if (taxResult.warnings.length > 0) {
+            logger.warn('Tax resolution warnings', { category: 'quote', details: { warnings: taxResult.warnings } });
+        }
 
         const quote = await prisma.quote.create({
             data: {
@@ -194,27 +228,38 @@ export class QuotesService {
                 paymentMethod: body.paymentMethod,
                 paymentDetails: body.paymentDetails,
                 paymentMethodId: body.paymentMethodId,
-                discountRate: totals.discountRate,
-                totalHT: totals.totalHT,
-                totalVAT: totals.totalVAT,
-                totalTTC: totals.totalTTC,
+                discountRate,
+                totalHT: taxResult.totalHT,
+                totalHTMinor: taxResult.totalsMinor.netMinor,
+                totalVAT: taxResult.totalVAT,
+                totalVATMinor: taxResult.totalsMinor.taxMinor,
+                totalTTC: taxResult.totalTTC,
+                totalTTCMinor: taxResult.totalsMinor.grossMinor,
                 items: {
-                    create: items.map(item => ({
-                        name: item.name,
+                    create: items.map((item, i) => ({
+                        name: item.name ?? item.description,
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
-                        vatRate: isVatExemptFrance ? 0 : (item.vatRate || 0),
+                        unitPriceMinor: toMinor(item.unitPrice, body.currency || client.currency || company.currency),
+                        vatRate: taxResult.itemVatRates[i],
                         type: item.type,
                         order: item.order || 0,
+                        discountRate: item.discountRate ?? 0,
+                        discountAmount: item.discountAmount ?? null,
+                        discountAmountMinor: item.discountAmount ? toMinor(item.discountAmount, body.currency || client.currency || company.currency) : null,
+                        chargeAmount: item.chargeAmount ?? null,
+                        chargeAmountMinor: item.chargeAmount ? toMinor(item.chargeAmount, body.currency || client.currency || company.currency) : null,
+                        chargeDescription: item.chargeDescription ?? null,
+                        unitOfMeasure: item.unitOfMeasure ?? 'C62',
                     })),
                 },
                 validUntil: body.validUntil ? new Date(body.validUntil) : null,
             },
             include: {
                 items: true,
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
             },
         });
 
@@ -251,15 +296,50 @@ export class QuotesService {
             throw new BadRequestException('Quote not found');
         }
 
+        if (existingQuote.status !== 'DRAFT') {
+            logger.error('Only DRAFT quotes can be edited', { category: 'quote', details: { id, status: existingQuote.status } });
+            throw new BadRequestException('Only DRAFT quotes can be edited. Create a new version instead.');
+        }
+
         const existingItemIds = existingQuote.items.map(i => i.id);
         const incomingItemIds = items.filter(i => i.id).map(i => i.id!);
 
         const itemIdsToDelete = existingItemIds.filter(id => !incomingItemIds.includes(id));
 
-        const company = await prisma.company.findFirst();
-        const isVatExemptFrance = !!(company?.exemptVat && (company?.country || '').toUpperCase() === 'FRANCE');
+        const company = await prisma.company.findFirst({
+            include: { partyIdentifiers: true },
+        });
+        const client = await prisma.client.findUnique({
+            where: { id: data.clientId },
+            include: { partyIdentifiers: true },
+        });
+        if (!client) {
+            logger.error('Client not found', { category: 'quote' });
+            throw new BadRequestException('Client not found');
+        }
+
         const normalizedDiscountRate = clampDiscountRate(discountRate ?? existingQuote.discountRate);
-        const totals = calculateDiscountedTotals(items, normalizedDiscountRate, { isVatExempt: isVatExemptFrance });
+        const taxResult = resolveInvoiceTax({
+            supplierCountryCode: company?.countryCode ?? guessCountryCode(company?.country),
+            supplierExemptVat: !!company?.exemptVat,
+            supplierVatNumber: getIdentifier(company, 'VAT'),
+            buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
+            buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+            buyerVatNumber: getIdentifier(client, 'VAT'),
+            currency: body.currency || client.currency || company?.currency || 'EUR',
+            issueDate: new Date(),
+            discountRate: normalizedDiscountRate,
+            items: items.map(item => ({
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                vatRate: item.vatRate,
+                supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
+            })),
+        });
+
+        if (taxResult.warnings.length > 0) {
+            logger.warn('Tax resolution warnings', { category: 'quote', details: { warnings: taxResult.warnings } });
+        }
 
         const updateQuote = await prisma.quote.update({
             where: { id },
@@ -269,45 +349,66 @@ export class QuotesService {
                 paymentMethod: data.paymentMethod || existingQuote.paymentMethod,
                 paymentDetails: data.paymentDetails || existingQuote.paymentDetails,
                 paymentMethodId: (data as any).paymentMethodId || existingQuote.paymentMethodId,
-                discountRate: totals.discountRate,
-                totalHT: totals.totalHT,
-                totalVAT: totals.totalVAT,
-                totalTTC: totals.totalTTC,
+                discountRate: normalizedDiscountRate,
+                totalHT: taxResult.totalHT,
+                totalHTMinor: taxResult.totalsMinor.netMinor,
+                totalVAT: taxResult.totalVAT,
+                totalVATMinor: taxResult.totalsMinor.taxMinor,
+                totalTTC: taxResult.totalTTC,
+                totalTTCMinor: taxResult.totalsMinor.grossMinor,
                 items: {
                     deleteMany: {
                         id: { in: itemIdsToDelete },
                     },
                     updateMany: items
-                        .filter(i => i.id)
-                        .map(i => ({
+                        .map((i, originalIdx) => ({ i, originalIdx }))
+                        .filter(({ i }) => i.id)
+                        .map(({ i, originalIdx }) => ({
                             where: { id: i.id! },
                             data: {
                                 name: i.name,
                                 description: i.description,
                                 quantity: i.quantity,
                                 unitPrice: i.unitPrice,
-                                vatRate: isVatExemptFrance ? 0 : (i.vatRate || 0),
+                                unitPriceMinor: toMinor(i.unitPrice, body.currency || client.currency || company?.currency || 'EUR'),
+                                vatRate: taxResult.itemVatRates[originalIdx],
                                 type: i.type,
                                 order: i.order || 0,
+                                discountRate: i.discountRate ?? 0,
+                                discountAmount: i.discountAmount ?? null,
+                                discountAmountMinor: i.discountAmount ? toMinor(i.discountAmount, body.currency || client.currency || company?.currency || 'EUR') : null,
+                                chargeAmount: i.chargeAmount ?? null,
+                                chargeAmountMinor: i.chargeAmount ? toMinor(i.chargeAmount, body.currency || client.currency || company?.currency || 'EUR') : null,
+                                chargeDescription: i.chargeDescription ?? null,
+                                unitOfMeasure: i.unitOfMeasure ?? 'C62',
                             },
                         })),
                     create: items
-                        .filter(i => !i.id)
-                        .map(i => ({
-                            name: i.name,
+                        .map((i, originalIdx) => ({ i, originalIdx }))
+                        .filter(({ i }) => !i.id)
+                        .map(({ i, originalIdx }) => ({
+                            name: i.name ?? i.description,
                             description: i.description,
                             quantity: i.quantity,
                             unitPrice: i.unitPrice,
-                            vatRate: isVatExemptFrance ? 0 : (i.vatRate || 0),
+                            unitPriceMinor: toMinor(i.unitPrice, body.currency || client.currency || company?.currency || 'EUR'),
+                            vatRate: taxResult.itemVatRates[originalIdx],
                             type: i.type,
                             order: i.order || 0,
+                            discountRate: i.discountRate ?? 0,
+                            discountAmount: i.discountAmount ?? null,
+                            discountAmountMinor: i.discountAmount ? toMinor(i.discountAmount, body.currency || client.currency || company?.currency || 'EUR') : null,
+                            chargeAmount: i.chargeAmount ?? null,
+                            chargeAmountMinor: i.chargeAmount ? toMinor(i.chargeAmount, body.currency || client.currency || company?.currency || 'EUR') : null,
+                            chargeDescription: i.chargeDescription ?? null,
+                            unitOfMeasure: i.unitOfMeasure ?? 'C62',
                         })),
                 },
             },
             include: {
                 items: true,
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
             },
         });
 
@@ -336,14 +437,19 @@ export class QuotesService {
             where: { id },
             include: {
                 items: true,
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
             },
         });
 
         if (!existingQuote) {
             logger.error('Quote not found', { category: 'quote', details: { id } });
             throw new BadRequestException('Quote not found');
+        }
+
+        if (existingQuote.status !== 'DRAFT') {
+            logger.error('Only DRAFT quotes can be deleted', { category: 'quote', details: { id, status: existingQuote.status } });
+            throw new BadRequestException('Only DRAFT quotes can be deleted.');
         }
 
         const deletedQuote = await prisma.quote.update({
@@ -372,9 +478,9 @@ export class QuotesService {
             where: { id },
             include: {
                 items: true,
-                client: true,
+                client: { include: { partyIdentifiers: true } },
                 company: {
-                    include: { pdfConfig: true },
+                    include: { pdfConfig: true, partyIdentifiers: true },
                 },
             },
         });
@@ -396,6 +502,9 @@ export class QuotesService {
                 logger.error(`Error generating PDF via signing provider, falling back to built-in PDF generation`, { category: 'quote', details: { error } });
             }
         }
+
+        const companyAugmented = augmentWithIdentifiers(quote.company);
+        const clientAugmented = augmentWithIdentifiers(quote.client);
 
         const config = quote.company.pdfConfig;
         const templateHtml = baseTemplate;
@@ -440,11 +549,11 @@ export class QuotesService {
         const hasDiscount = normalizedDiscountRate > 0 && discountAmountValue > 0;
 
         const html = template({
-            number: quote.rawNumber || quote.number.toString(),
-            date: formatDate(quote.company, quote.createdAt),
-            validUntil: formatDate(quote.company, quote.validUntil),
-            company: quote.company,
-            client: quote.client,
+            number: quote.rawNumber || (quote.number?.toString() ?? 'DRAFT'),
+            date: formatDate(companyAugmented, quote.issuedAt ?? quote.createdAt),
+            validUntil: formatDate(companyAugmented, quote.validUntil),
+            company: companyAugmented,
+            client: clientAugmented,
             currency: quote.currency,
             items: quote.items.map(i => ({
                 name: i.name,
@@ -520,8 +629,8 @@ export class QuotesService {
             where: { id },
             include: {
                 items: true,
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
             },
         });
 
@@ -530,15 +639,74 @@ export class QuotesService {
             throw new BadRequestException('Quote not found');
         }
 
-        const signedQuote = await prisma.quote.update({
-            where: { id },
-            data: { signedAt: new Date(), status: "SIGNED" },
-            include: {
-                items: true,
-                client: true,
-                company: true,
-            },
+        if (existingQuote.status !== 'DRAFT') {
+            logger.error('Only DRAFT quotes can be signed', { category: 'quote', details: { id, status: existingQuote.status } });
+            throw new BadRequestException('Only DRAFT quotes can be signed.');
+        }
+
+        const signDate = new Date();
+
+        const signedQuote = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+            // Assign a gapless number at sign time if not already assigned
+            let number: number | undefined;
+            let rawNumber: string | undefined;
+            if (existingQuote.number === null) {
+                const assignment = await this.numberingService.nextNumber(
+                    tx,
+                    existingQuote.companyId,
+                    'quote',
+                    signDate,
+                );
+                number = assignment.counter;
+                rawNumber = assignment.rawNumber;
+            }
+
+            return tx.quote.update({
+                where: { id },
+                data: {
+                    signedAt: signDate,
+                    issuedAt: signDate,
+                    status: "SIGNED",
+                    ...(number !== undefined ? { number, rawNumber } : {}),
+                },
+                include: {
+                    items: true,
+                    client: { include: { partyIdentifiers: true } },
+                    company: { include: { partyIdentifiers: true } },
+                },
+            });
         });
+
+        // Wire ComplianceService: issue a compliance document for the signed quote
+        try {
+            const complianceCtx: TransactionContext = {
+                supplier: {
+                    legalName: existingQuote.company.name,
+                    countryCode: existingQuote.company.countryCode ?? guessCountryCode(existingQuote.company.country) ?? 'FR',
+                    role: 'B2B',
+                    identifiers: (existingQuote.company as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
+                },
+                buyer: {
+                    legalName: existingQuote.client.name,
+                    countryCode: existingQuote.client.countryCode ?? guessCountryCode(existingQuote.client.country) ?? 'FR',
+                    role: existingQuote.client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+                    identifiers: (existingQuote.client as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
+                },
+                lines: existingQuote.items.map((item) => ({
+                    id: `item-${item.order ?? 0}`,
+                    description: (item.description ?? '') as string,
+                    quantity: item.quantity,
+                    unitNetMinor: toMinor(item.unitPrice, existingQuote.currency),
+                    supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
+                })),
+                issueDate: signDate,
+                currency: existingQuote.currency,
+            };
+            const draft = await this.complianceService.createDraft(complianceCtx, 'INVOICE');
+            await this.complianceService.issue(draft.id);
+        } catch (error) {
+            logger.warn('ComplianceService.issue failed for quote (non-blocking)', { category: 'quote', details: { error: String(error) } });
+        }
 
         logger.info('Quote marked as signed', { category: 'quote', details: { quoteId: id } });
 

@@ -466,6 +466,55 @@
         "actions": {
             "addNew": "Neue Rechnung hinzufügen"
         },
+        "progression": {
+            "title": "Progression",
+            "emptyState": "Keine Rechnungen zum Anzeigen in der Progression.",
+            "steps": {
+                "draft": "Entwurf",
+                "sent": "Gesendet",
+                "paid": "Bezahlt",
+                "archived": "Archiviert",
+                "partiallyPaid": "Teilweise bezahlt",
+                "issued": "Ausgestellt",
+                "cancelled": "Storniert",
+                "corrected": "Korrigiert"
+            },
+            "percentPaid": "{{percent}} % bezahlt",
+            "stepLabel": "Schritt {{current}} / {{total}}",
+            "actions": {
+                "send": "Senden",
+                "resend": "Erneut senden",
+                "paymentReceived": "Zahlung erhalten",
+                "archive": "Archivieren",
+                "issue": "Ausstellen"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Rechnung senden",
+                    "description": "Sind Sie sicher, dass Sie die Rechnung {{number}} an {{client}} senden möchten?"
+                },
+                "resend": {
+                    "title": "Rechnung erneut senden",
+                    "description": "Sind Sie sicher, dass Sie die Rechnung {{number}} erneut an {{client}} senden möchten?"
+                },
+                "paymentReceived": {
+                    "title": "Zahlung erhalten",
+                    "description": "Bestätigen Sie den Erhalt der Zahlung für die Rechnung {{number}}?"
+                },
+                "archive": {
+                    "title": "Rechnung archivieren",
+                    "description": "Sind Sie sicher, dass Sie die Rechnung {{number}} archivieren möchten? Diese Aktion ist unwiderruflich."
+                },
+                "issue": {
+                    "title": "Rechnung ausstellen",
+                    "description": "Sind Sie sicher, dass Sie Rechnung {{number}} ausstellen möchten? Das Dokument wird gesperrt und erhält eine rechtliche Nummer."
+                },
+                "confirm": "Bestätigen",
+                "cancel": "Abbrechen"
+            },
+            "noAction": "Keine Aktion",
+            "noNumberYet": "Noch keine Nummer"
+        },
         "stats": {
             "total": "Total Rechnungen",
             "sent": "Gesendet",
@@ -503,7 +552,12 @@
             "draft": "Entwurf",
             "sent": "Gesendet",
             "paid": "Bezahlt",
-            "archived": "Archiviert"
+            "archived": "Archiviert",
+            "issued": "Ausgestellt",
+            "cancelled": "Storniert",
+            "corrected": "Korrigiert",
+            "pending_clearance": "Ausstehende Genehmigung",
+            "cleared": "Freigegeben"
         },
         "emptyState": {
             "noInvoices": "Noch keine Rechnungen",
@@ -537,7 +591,12 @@
                 "sent": "Gesendet",
                 "unpaid": "Unbezahlt",
                 "overdue": "Überfällig",
-                "paid": "Bezahlt"
+                "paid": "Bezahlt",
+                "issued": "Ausgestellt",
+                "cancelled": "Storniert",
+                "corrected": "Korrigiert",
+                "pending_clearance": "Ausstehende Genehmigung",
+                "cleared": "Freigegeben"
             },
             "item": {
                 "title": "Rechnung {{number}} {{title}}",
@@ -553,7 +612,11 @@
                 "downloadPdf": "PDF herunterladen",
                 "edit": "Rechnung bearbeiten",
                 "delete": "Rechnung löschen",
-                "sendByEmail": "Sende Rechnung per Email"
+                "sendByEmail": "Sende Rechnung per Email",
+                "issue": "Rechnung ausstellen",
+                "creditNote": "Gutschrift ausstellen",
+                "cancel": "Rechnung stornieren",
+                "cancelAndReplace": "Stornieren und ersetzen"
             },
             "actions": {
                 "addNew": "Neue Rechnung hinzufügen",
@@ -571,7 +634,13 @@
             "messages": {
                 "markAsPaidSuccess": "Rechnung als erfolgreich bezahlt markiert",
                 "markAsPaidError": "Rechnung konnte nicht als bezahlt markiert werden",
-                "sendByEmailSuccess": "Rechnung wurde versandt"
+                "sendByEmailSuccess": "Rechnung wurde versandt",
+                "issueSuccess": "Rechnung erfolgreich ausgestellt",
+                "issueError": "Rechnung konnte nicht ausgestellt werden",
+                "correctSuccess": "Gutschrift ausgestellt",
+                "correctError": "Gutschrift konnte nicht ausgestellt werden",
+                "cancelSuccess": "Rechnung storniert",
+                "cancelError": "Rechnung konnte nicht storniert werden"
             }
         },
         "upsert": {
@@ -664,12 +733,20 @@
                 },
                 "currency": {
                     "label": "Währung"
+                },
+                "deposits": {
+                    "label": "Linked Deposits",
+                    "description": "Select deposit invoices to deduct from this final invoice.",
+                    "selected": "{{count}} deposit(s) selected — total: {{total}}",
+                    "none": "No unlinked deposit invoices found for this client."
                 }
             },
             "actions": {
                 "cancel": "Abbrechen",
                 "create": "Rechnung erstellen",
-                "save": "Änderungen speichern"
+                "save": "Änderungen speichern",
+                "createProforma": "Create Proforma",
+                "createFinal": "Create Final Invoice"
             }
         },
         "view": {
@@ -679,7 +756,12 @@
                 "sent": "Gesendet",
                 "unpaid": "Unbezahlt",
                 "overdue": "Überfällig",
-                "paid": "Bezahlt"
+                "paid": "Bezahlt",
+                "issued": "Ausgestellt",
+                "cancelled": "Storniert",
+                "corrected": "Korrigiert",
+                "pending_clearance": "Ausstehende Genehmigung",
+                "cleared": "Freigegeben"
             },
             "fields": {
                 "number": "Rechnungsnummer",
@@ -694,7 +776,35 @@
                 "totalHT": "Gesamt (ohne MwSt.)",
                 "totalVAT": "MwSt.-Betrag",
                 "totalTTC": "Gesamt (inkl. MwSt.)",
-                "notes": "Anmerkungen"
+                "notes": "Anmerkungen",
+                "complianceStatus": "Compliance-Status",
+                "correctsInvoice": "Corrects Invoice",
+                "corrections": "Corrections",
+                "linkedDeposits": "Linked Deposit Invoices",
+                "totalDeposited": "Total Deposited"
+            },
+            "messages": {
+                "cancellationNotAllowed": "Cancellation not allowed"
+            },
+            "correctionOf": "Corrects #{{number}}",
+            "actions": {
+                "edit": "Edit Draft",
+                "creditNote": "Credit Note",
+                "correctiveInvoice": "Corrective Invoice",
+                "cancel": "Cancel",
+                "cancelAndReplace": "Cancel & Replace",
+                "send": "Send",
+                "correctSuccess": "Correction issued",
+                "correctError": "Failed to issue correction",
+                "cancelSuccess": "Invoice cancelled",
+                "cancelError": "Failed to cancel invoice",
+                "cancelAndReplaceSuccess": "Invoice cancelled and replaced",
+                "cancelAndReplaceError": "Failed to cancel and replace",
+                "sendSuccess": "Invoice sent",
+                "sendError": "Failed to send invoice",
+                "convertToInvoice": "Convert to Invoice",
+                "convertToInvoiceSuccess": "Proforma converted to invoice",
+                "deposit": "Issue Deposit Invoice"
             }
         },
         "delete": {
@@ -707,6 +817,30 @@
         },
         "pdf": {
             "title": "Rechnung {{number}} - PDF"
+        },
+        "deposit": {
+            "title": "Issue Deposit Invoice",
+            "description": "Create a standalone deposit invoice (facture d'acompte).",
+            "form": {
+                "amount": {
+                    "label": "Deposit Amount",
+                    "placeholder": "Enter deposit amount",
+                    "errors": {
+                        "required": "Amount is required",
+                        "min": "Amount must be greater than 0"
+                    }
+                },
+                "notes": {
+                    "placeholder": "Optional notes for the deposit invoice"
+                }
+            },
+            "actions": {
+                "create": "Create Deposit Invoice"
+            },
+            "messages": {
+                "success": "Deposit invoice created",
+                "error": "Failed to create deposit invoice"
+            }
         }
     },
     "recurringInvoices": {
@@ -730,16 +864,32 @@
                 "client": "Kunde",
                 "payment": "Zahlungsmethode",
                 "totalHT": "Gesamt (ohne MwSt.)",
-                "totalTTC": "Gesamt (inkl. MwSt.)"
+                "totalTTC": "Gesamt (inkl. MwSt.)",
+                "frequency": "Frequency",
+                "nextRun": "Next Run",
+                "lastRun": "Last Run",
+                "generatedCount": "Generated",
+                "paused": "Paused",
+                "autoIssue": "Auto-Issue",
+                "autoSend": "Auto-Send",
+                "skipNext": "Skip Next"
             },
             "tooltips": {
                 "view": "Details anzeigen",
                 "edit": "Bearbeiten",
-                "delete": "Löschen"
+                "delete": "Löschen",
+                "pause": "Pause",
+                "resume": "Resume",
+                "skipNext": "Skip Next Cycle",
+                "endNow": "End Now"
             },
             "messages": {
                 "manual_process_success": "Manueller Prozess erfolgreich gestartet",
-                "manual_process_error": "Fehler beim Starten eines manuellen Prozesses"
+                "manual_process_error": "Fehler beim Starten eines manuellen Prozesses",
+                "pauseSuccess": "Recurring invoice paused",
+                "resumeSuccess": "Recurring invoice resumed",
+                "skipNextSuccess": "Next cycle will be skipped",
+                "endNowSuccess": "Recurring invoice ended"
             }
         },
         "emptyState": {
@@ -854,12 +1004,33 @@
                         "service": "Service",
                         "product": "Produkt"
                     }
+                },
+                "autoIssue": {
+                    "label": "Auto Issue",
+                    "description": "Automatically assign a number and issue the invoice when generated (DRAFT → ISSUED)"
                 }
             },
             "actions": {
                 "cancel": "Abbrechen",
                 "create": "Wiederkehrende Rechnungen erstellen",
                 "save": "Änderungen speichern"
+            }
+        },
+        "view": {
+            "title": "Recurring Invoice Details",
+            "description": "Overview of this recurring invoice template",
+            "fields": {
+                "client": "Client",
+                "paymentMethod": "Payment Method",
+                "frequency": "Frequency",
+                "nextRun": "Next Run",
+                "lastRun": "Last Run",
+                "generatedCount": "Generated Invoices",
+                "totalHT": "Total (excl. VAT)",
+                "totalVAT": "VAT",
+                "totalTTC": "Total (incl. VAT)",
+                "notes": "Notes",
+                "generatedInvoices": "Generated Invoices"
             }
         }
     },

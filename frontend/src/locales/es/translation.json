@@ -466,6 +466,55 @@
         "actions": {
             "addNew": "Agregar nueva factura"
         },
+        "progression": {
+            "title": "Progresión",
+            "emptyState": "No hay facturas que mostrar en la progresión.",
+            "steps": {
+                "draft": "Borrador",
+                "sent": "Enviada",
+                "paid": "Pagada",
+                "archived": "Archivada",
+                "partiallyPaid": "Parcialmente pagada",
+                "issued": "Emitida",
+                "cancelled": "Cancelada",
+                "corrected": "Corregida"
+            },
+            "percentPaid": "{{percent}} % pagado",
+            "stepLabel": "Paso {{current}} / {{total}}",
+            "actions": {
+                "send": "Enviar",
+                "resend": "Reenviar",
+                "paymentReceived": "Pago recibido",
+                "archive": "Archivar",
+                "issue": "Emitir"
+            },
+            "confirmations": {
+                "send": {
+                    "title": "Enviar factura",
+                    "description": "¿Está seguro de que desea enviar la factura {{number}} a {{client}}?"
+                },
+                "resend": {
+                    "title": "Reenviar factura",
+                    "description": "¿Está seguro de que desea reenviar la factura {{number}} a {{client}}?"
+                },
+                "paymentReceived": {
+                    "title": "Pago recibido",
+                    "description": "¿Confirma que ha recibido el pago de la factura {{number}}?"
+                },
+                "archive": {
+                    "title": "Archivar factura",
+                    "description": "¿Está seguro de que desea archivar la factura {{number}}? Esta acción es irreversible."
+                },
+                "issue": {
+                    "title": "Emitir factura",
+                    "description": "¿Está seguro de que desea emitir la factura {{number}}? El documento se bloqueará y se le asignará un número legal."
+                },
+                "confirm": "Confirmar",
+                "cancel": "Cancelar"
+            },
+            "noAction": "Sin acción",
+            "noNumberYet": "Sin número aún"
+        },
         "stats": {
             "total": "Total de facturas",
             "sent": "Enviada",
@@ -503,7 +552,12 @@
             "draft": "Borrador",
             "sent": "Enviada",
             "paid": "Pagada",
-            "archived": "Archivada"
+            "archived": "Archivada",
+            "issued": "Emitida",
+            "cancelled": "Cancelada",
+            "corrected": "Corregida",
+            "pending_clearance": "Pendiente de liquidación",
+            "cleared": "Liquidada"
         },
         "emptyState": {
             "noInvoices": "Aún no hay facturas",
@@ -537,7 +591,12 @@
                 "sent": "Enviada",
                 "unpaid": "No pagada",
                 "overdue": "Vencida",
-                "paid": "Pagada"
+                "paid": "Pagada",
+                "issued": "Emitida",
+                "cancelled": "Cancelada",
+                "corrected": "Corregida",
+                "pending_clearance": "Pendiente de liquidación",
+                "cleared": "Liquidada"
             },
             "item": {
                 "title": "Factura {{number}} {{title}}",
@@ -553,7 +612,11 @@
                 "downloadPdf": "Descargar PDF",
                 "edit": "Editar factura",
                 "delete": "Eliminar factura",
-                "sendByEmail": "Enviar factura por correo"
+                "sendByEmail": "Enviar factura por correo",
+                "issue": "Emitir factura",
+                "creditNote": "Emitir nota de crédito",
+                "cancel": "Cancelar factura",
+                "cancelAndReplace": "Cancelar y reemplazar"
             },
             "actions": {
                 "addNew": "Agregar nueva factura",
@@ -571,7 +634,13 @@
             "messages": {
                 "markAsPaidSuccess": "Factura marcada como pagada con éxito",
                 "markAsPaidError": "Error al marcar la factura como pagada",
-                "sendByEmailSuccess": "La factura fue enviada al cliente"
+                "sendByEmailSuccess": "La factura fue enviada al cliente",
+                "issueSuccess": "Factura emitida correctamente",
+                "issueError": "Error al emitir la factura",
+                "correctSuccess": "Nota de crédito emitida",
+                "correctError": "Error al emitir la nota de crédito",
+                "cancelSuccess": "Factura cancelada",
+                "cancelError": "Error al cancelar la factura"
             }
         },
         "upsert": {
@@ -664,12 +733,20 @@
                 },
                 "currency": {
                     "label": "Moneda"
+                },
+                "deposits": {
+                    "label": "Linked Deposits",
+                    "description": "Select deposit invoices to deduct from this final invoice.",
+                    "selected": "{{count}} deposit(s) selected — total: {{total}}",
+                    "none": "No unlinked deposit invoices found for this client."
                 }
             },
             "actions": {
                 "cancel": "Cancelar",
                 "create": "Crear factura",
-                "save": "Guardar cambios"
+                "save": "Guardar cambios",
+                "createProforma": "Create Proforma",
+                "createFinal": "Create Final Invoice"
             }
         },
         "view": {
@@ -679,7 +756,12 @@
                 "sent": "Enviada",
                 "unpaid": "No pagada",
                 "overdue": "Vencida",
-                "paid": "Pagada"
+                "paid": "Pagada",
+                "issued": "Emitida",
+                "cancelled": "Cancelada",
+                "corrected": "Corregida",
+                "pending_clearance": "Pendiente de liquidación",
+                "cleared": "Liquidada"
             },
             "fields": {
                 "number": "Número de factura",
@@ -694,7 +776,35 @@
                 "totalHT": "Total (sin IVA)",
                 "totalVAT": "Importe IVA",
                 "totalTTC": "Total (con IVA)",
-                "notes": "Notas"
+                "notes": "Notas",
+                "complianceStatus": "Estado de cumplimiento",
+                "correctsInvoice": "Corrects Invoice",
+                "corrections": "Corrections",
+                "linkedDeposits": "Linked Deposit Invoices",
+                "totalDeposited": "Total Deposited"
+            },
+            "messages": {
+                "cancellationNotAllowed": "Cancellation not allowed"
+            },
+            "correctionOf": "Corrects #{{number}}",
+            "actions": {
+                "edit": "Edit Draft",
+                "creditNote": "Credit Note",
+                "correctiveInvoice": "Corrective Invoice",
+                "cancel": "Cancel",
+                "cancelAndReplace": "Cancel & Replace",
+                "send": "Send",
+                "correctSuccess": "Correction issued",
+                "correctError": "Failed to issue correction",
+                "cancelSuccess": "Invoice cancelled",
+                "cancelError": "Failed to cancel invoice",
+                "cancelAndReplaceSuccess": "Invoice cancelled and replaced",
+                "cancelAndReplaceError": "Failed to cancel and replace",
+                "sendSuccess": "Invoice sent",
+                "sendError": "Failed to send invoice",
+                "convertToInvoice": "Convert to Invoice",
+                "convertToInvoiceSuccess": "Proforma converted to invoice",
+                "deposit": "Issue Deposit Invoice"
             }
         },
         "delete": {
@@ -707,6 +817,30 @@
         },
         "pdf": {
             "title": "Factura {{number}} - PDF"
+        },
+        "deposit": {
+            "title": "Issue Deposit Invoice",
+            "description": "Create a standalone deposit invoice (facture d'acompte).",
+            "form": {
+                "amount": {
+                    "label": "Deposit Amount",
+                    "placeholder": "Enter deposit amount",
+                    "errors": {
+                        "required": "Amount is required",
+                        "min": "Amount must be greater than 0"
+                    }
+                },
+                "notes": {
+                    "placeholder": "Optional notes for the deposit invoice"
+                }
+            },
+            "actions": {
+                "create": "Create Deposit Invoice"
+            },
+            "messages": {
+                "success": "Deposit invoice created",
+                "error": "Failed to create deposit invoice"
+            }
         }
     },
     "recurringInvoices": {
@@ -730,16 +864,32 @@
                 "client": "Cliente",
                 "payment": "Método de pago",
                 "totalHT": "Total (sin IVA)",
-                "totalTTC": "Total (con IVA)"
+                "totalTTC": "Total (con IVA)",
+                "frequency": "Frequency",
+                "nextRun": "Next Run",
+                "lastRun": "Last Run",
+                "generatedCount": "Generated",
+                "paused": "Paused",
+                "autoIssue": "Auto-Issue",
+                "autoSend": "Auto-Send",
+                "skipNext": "Skip Next"
             },
             "tooltips": {
                 "view": "Ver detalles",
                 "edit": "Editar",
-                "delete": "Eliminar"
+                "delete": "Eliminar",
+                "pause": "Pause",
+                "resume": "Resume",
+                "skipNext": "Skip Next Cycle",
+                "endNow": "End Now"
             },
             "messages": {
                 "manual_process_success": "Proceso manual ejecutado con éxito",
-                "manual_process_error": "Error al ejecutar el proceso manual"
+                "manual_process_error": "Error al ejecutar el proceso manual",
+                "pauseSuccess": "Recurring invoice paused",
+                "resumeSuccess": "Recurring invoice resumed",
+                "skipNextSuccess": "Next cycle will be skipped",
+                "endNowSuccess": "Recurring invoice ended"
             }
         },
         "emptyState": {
@@ -854,12 +1004,33 @@
                         "service": "Servicio",
                         "product": "Producto"
                     }
+                },
+                "autoIssue": {
+                    "label": "Auto Issue",
+                    "description": "Automatically assign a number and issue the invoice when generated (DRAFT → ISSUED)"
                 }
             },
             "actions": {
                 "cancel": "Cancelar",
                 "create": "Crear factura recurrente",
                 "save": "Guardar cambios"
+            }
+        },
+        "view": {
+            "title": "Recurring Invoice Details",
+            "description": "Overview of this recurring invoice template",
+            "fields": {
+                "client": "Client",
+                "paymentMethod": "Payment Method",
+                "frequency": "Frequency",
+                "nextRun": "Next Run",
+                "lastRun": "Last Run",
+                "generatedCount": "Generated Invoices",
+                "totalHT": "Total (excl. VAT)",
+                "totalVAT": "VAT",
+                "totalTTC": "Total (incl. VAT)",
+                "notes": "Notes",
+                "generatedInvoices": "Generated Invoices"
             }
         }
     },

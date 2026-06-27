@@ -1,13 +1,13 @@
-import { Edit, Mail, Plus, ReceiptText as PaymentText, Search, Trash2 } from "lucide-react"
+import { Edit, Mail, Plus, ReceiptText as PaymentText, Search, Trash2, Stamp, RotateCcw, XCircle, Printer, UploadCloud } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { forwardRef, useImperativeHandle, useState } from "react"
-import { usePost } from "@/hooks/use-fetch"
+import { usePost, authenticatedFetch } from "@/hooks/use-fetch"
 
 import BetterPagination from "../../../../components/pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { InvoiceStatus, getDisplayInvoiceStatus, type Invoice, type InvoiceStatusFilterKey } from "@/types"
+import { InvoiceStatus, getDisplayInvoiceStatus, getInvoiceKindLabel, getInvoiceKindColor, type Invoice, type InvoiceStatusFilterKey } from "@/types"
 import { InvoiceDeleteDialog } from "./invoice-delete"
 import { InvoiceUpsert } from "./invoice-upsert"
 import { InvoiceViewDialog } from "./invoice-view"
@@ -26,7 +26,7 @@ interface InvoiceListProps {
     onSearchChange?: (value: string) => void
     statusFilter?: InvoiceStatusFilterKey[]
     onStatusFilterChange?: (key: InvoiceStatusFilterKey) => void
-    statusCounts?: { draft: number; sent: number; paid: number; archived: number }
+    statusCounts?: { draft: number; issued: number; sent: number; paid: number; archived: number; cancelled: number; corrected: number }
     page?: number
     pageCount?: number
     setPage?: (page: number) => void
@@ -61,6 +61,9 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
             },
         }))
 
+        const flowOf = (inv: Invoice) => inv.complianceDocuments?.[0]?.flow
+        const can = (inv: Invoice, a: string) => flowOf(inv)?.manualActions?.includes(a) ?? false
+
         function handleEdit(invoice: Invoice) {
             setEditInvoiceDialog(invoice)
         }
@@ -81,6 +84,8 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
             switch (getDisplayInvoiceStatus(status)) {
                 case "DRAFT":
                     return "bg-gray-200 text-gray-700"
+                case "ISSUED":
+                    return "bg-violet-100 text-violet-800"
                 case "SENT":
                     return "bg-yellow-100 text-yellow-800"
                 case "OVERDUE":
@@ -91,6 +96,14 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                     return "bg-purple-100 text-purple-800"
                 case "ARCHIVED":
                     return "bg-slate-100 text-slate-600"
+                case "CANCELLED":
+                    return "bg-red-100 text-red-700"
+                case "CORRECTED":
+                    return "bg-amber-100 text-amber-800"
+                case "PENDING_CLEARANCE":
+                    return "bg-sky-100 text-sky-800"
+                case "CLEARED":
+                    return "bg-teal-100 text-teal-800"
                 default:
                     return "bg-gray-100 text-gray-800"
             }
@@ -102,6 +115,56 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
 
         const handleSendInvoiceByEmail = (invoice: Invoice) => {
             setSendInvoiceDialog(invoice)
+        }
+
+        const handleIssue = (invoice: Invoice) => {
+            authenticatedFetch(`/api/invoices/${invoice.id}/issue`, { method: 'POST' })
+                .then(async (res) => {
+                    if (!res.ok) throw new Error('Issue failed')
+                    toast.success(t("invoices.list.messages.issueSuccess"))
+                    mutate?.()
+                })
+                .catch(() => {
+                    toast.error(t("invoices.list.messages.issueError"))
+                })
+        }
+
+        const handleCorrect = (invoice: Invoice) => {
+            authenticatedFetch(`/api/invoices/${invoice.id}/correct`, {
+                method: 'POST',
+                body: JSON.stringify({}),
+            })
+                .then(async (res) => {
+                    const data = await res.json()
+                    if (data.correctionInvoiceId) {
+                        toast.success(t("invoices.list.messages.correctSuccess"))
+                    } else {
+                        toast.error(data.message || t("invoices.list.messages.correctError"))
+                    }
+                    mutate?.()
+                })
+                .catch(() => {
+                    toast.error(t("invoices.list.messages.correctError"))
+                })
+        }
+
+        const handleCancel = (invoice: Invoice) => {
+            authenticatedFetch(`/api/invoices/${invoice.id}/cancel`, {
+                method: 'POST',
+                body: JSON.stringify({}),
+            })
+                .then(async (res) => {
+                    const data = await res.json()
+                    if (data.accepted) {
+                        toast.success(t("invoices.list.messages.cancelSuccess"))
+                    } else {
+                        toast.error(data.reason || t("invoices.list.messages.cancelError"))
+                    }
+                    mutate?.()
+                })
+                .catch(() => {
+                    toast.error(t("invoices.list.messages.cancelError"))
+                })
         }
 
         const confirmSendInvoiceByEmail = () => {
@@ -159,6 +222,16 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                         {t("invoices.statusFilters.draft")} ({statusCounts?.draft ?? 0})
                                     </Badge>
                                     <Badge
+                                        onClick={() => onStatusFilterChange("issued")}
+                                        variant="outline"
+                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter?.includes("issued")
+                                            ? "bg-violet-500 text-white font-semibold shadow-sm scale-105"
+                                            : "bg-violet-50 text-violet-700/70 hover:bg-violet-100"
+                                            }`}
+                                    >
+                                        {t("invoices.statusFilters.issued")} ({statusCounts?.issued ?? 0})
+                                    </Badge>
+                                    <Badge
                                         onClick={() => onStatusFilterChange("sent")}
                                         variant="outline"
                                         className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter?.includes("sent")
@@ -187,6 +260,26 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                             }`}
                                     >
                                         {t("invoices.statusFilters.archived")} ({statusCounts?.archived ?? 0})
+                                    </Badge>
+                                    <Badge
+                                        onClick={() => onStatusFilterChange("cancelled")}
+                                        variant="outline"
+                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter?.includes("cancelled")
+                                            ? "bg-red-500 text-white font-semibold shadow-sm scale-105"
+                                            : "bg-red-50 text-red-700/70 hover:bg-red-100"
+                                            }`}
+                                    >
+                                        {t("invoices.statusFilters.cancelled")} ({statusCounts?.cancelled ?? 0})
+                                    </Badge>
+                                    <Badge
+                                        onClick={() => onStatusFilterChange("corrected")}
+                                        variant="outline"
+                                        className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter?.includes("corrected")
+                                            ? "bg-amber-500 text-white font-semibold shadow-sm scale-105"
+                                            : "bg-amber-50 text-amber-700/70 hover:bg-amber-100"
+                                            }`}
+                                    >
+                                        {t("invoices.statusFilters.corrected")} ({statusCounts?.corrected ?? 0})
                                     </Badge>
                                 </div>
                             )}
@@ -236,6 +329,11 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                                 </button>
                                                             )}
                                                         </h3>
+                                                        {invoice.kind && invoice.kind !== "INVOICE" && (
+                                                            <Badge variant="secondary" className={`text-xs ${getInvoiceKindColor(invoice.kind)}`} data-cy="invoice-kind">
+                                                                {getInvoiceKindLabel(invoice.kind)}
+                                                            </Badge>
+                                                        )}
                                                         <span
                                                             data-cy="invoice-status"
                                                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(invoice.status)}`}
@@ -318,17 +416,62 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                     </Button>
                                                 )}
 
-                                                {invoice.status !== "PAID" && (
+                                                {invoice.status === InvoiceStatus.DRAFT && (
                                                     <Button
-                                                        tooltip={t("invoices.list.tooltips.sendByEmail")}
+                                                        data-cy="invoice-issue-button"
+                                                        tooltip={t("invoices.list.tooltips.issue")}
                                                         variant="ghost"
                                                         size="icon"
-                                                        onClick={() => { handleSendInvoiceByEmail(invoice) }}
-                                                        className="text-gray-600 hover:text-purple-600"
+                                                        onClick={() => handleIssue(invoice)}
+                                                        className="text-gray-600 hover:text-violet-600"
                                                     >
-                                                        <Mail className="h-4 w-4" />
+                                                        <Stamp className="h-4 w-4" />
                                                     </Button>
                                                 )}
+
+                                                {/* Correction actions for issued invoices */}
+                                                {(flowOf(invoice) ? can(invoice, 'correct') : (invoice.status === InvoiceStatus.ISSUED || invoice.status === InvoiceStatus.SENT)) && (
+                                                    <Button
+                                                        data-cy="invoice-correct-button"
+                                                        tooltip={t("invoices.list.tooltips.creditNote")}
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleCorrect(invoice)}
+                                                        className="text-gray-600 hover:text-emerald-600"
+                                                    >
+                                                        <RotateCcw className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+
+                                                {(flowOf(invoice) ? can(invoice, 'cancel') : (invoice.status === InvoiceStatus.ISSUED || invoice.status === InvoiceStatus.SENT)) && (
+                                                    <Button
+                                                        data-cy="invoice-cancel-button"
+                                                        tooltip={t("invoices.list.tooltips.cancel")}
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleCancel(invoice)}
+                                                        className="text-gray-600 hover:text-red-600"
+                                                    >
+                                                        <XCircle className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+
+                                                {invoice.status !== "PAID" && (() => {
+                                                    const cc = flowOf(invoice)?.channelClass
+                                                    const sendLabelKey = flowOf(invoice)?.sendLabelKey ?? 'send'
+                                                    const SendIcon = cc === 'PRINT' ? Printer : cc === 'CLEARANCE' || cc === 'PORTAL' ? UploadCloud : Mail
+                                                    return (
+                                                        <Button
+                                                            tooltip={t(`invoices.view.actions.${sendLabelKey}`)}
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => { handleSendInvoiceByEmail(invoice) }}
+                                                            className="text-gray-600 hover:text-purple-600"
+                                                        >
+                                                            <SendIcon className="h-4 w-4" />
+                                                        </Button>
+                                                    )
+                                                })()}
 
                                                 {invoice.status === InvoiceStatus.DRAFT && (
                                                     <Button
@@ -383,6 +526,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                     onOpenChange={(open: boolean) => {
                         if (!open) setViewInvoiceDialog(null)
                     }}
+                    onMutate={() => mutate?.()}
                 />
 
                 <InvoiceDeleteDialog

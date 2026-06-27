@@ -5,14 +5,16 @@ import { CreatePaymentDto, EditPaymentDto } from '@/modules/payments/dto/payment
 import { getInvertColor, getPDF } from '@/utils/pdf';
 
 import { MailService } from '@/mail/mail.service';
+import { NumberingService } from '@/utils/numbering';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
-import { WebhookEvent } from '../../../prisma/generated/prisma/client';
+import { Prisma, WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { baseTemplate } from '@/modules/payments/templates/base.template';
 import { formatDate } from '@/utils/date';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 import { randomUUID } from 'crypto';
-import { clampDiscountRate } from '@/utils/financial';
+import { ComplianceService } from '@/compliance/operations/compliance-service';
+import { clampDiscountRate, toMinor } from '@/utils/financial';
 
 @Injectable()
 export class PaymentsService {
@@ -20,7 +22,9 @@ export class PaymentsService {
 
     constructor(
         private readonly mailService: MailService,
-        private readonly webhookDispatcher: WebhookDispatcherService
+        private readonly webhookDispatcher: WebhookDispatcherService,
+        private readonly numberingService: NumberingService,
+        private readonly complianceService: ComplianceService,
     ) {
         this.logger = new Logger(PaymentsService.name);
     }
@@ -94,7 +98,7 @@ export class PaymentsService {
             const results = await prisma.payment.findMany({
                 take: 10,
                 orderBy: {
-                    number: 'asc',
+                    createdAt: 'desc',
                 },
                 include: {
                     items: true,
@@ -128,7 +132,7 @@ export class PaymentsService {
             },
             take: 10,
             orderBy: {
-                number: 'asc',
+                createdAt: 'desc',
             },
             include: {
                 items: true,
@@ -224,11 +228,12 @@ export class PaymentsService {
         if (invoice.status !== 'ARCHIVED') {
             const payments = await prisma.payment.findMany({
                 where: { invoiceId },
-                select: { totalPaid: true },
+                select: { totalPaid: true, totalPaidMinor: true },
             });
 
-            const totalPaid = payments.reduce((sum, payment) => sum + payment.totalPaid, 0);
-            if (totalPaid >= invoice.totalTTC) {
+            const totalPaidMinor = payments.reduce((sum, payment) => sum + (payment.totalPaidMinor ?? toMinor(payment.totalPaid, invoice.currency)), 0);
+            const invoiceTotalTTCMinor = invoice.totalTTCMinor ?? toMinor(invoice.totalTTC, invoice.currency);
+            if (totalPaidMinor >= invoiceTotalTTCMinor) {
                 await prisma.invoice.update({
                     where: { id: invoiceId },
                     data: { status: 'PAID' },
@@ -257,25 +262,58 @@ export class PaymentsService {
             throw new BadRequestException('Invoice not found');
         }
 
-        const payment = await prisma.payment.create({
-            data: {
-                invoiceId: body.invoiceId,
-                items: {
-                    create: body.items.map(item => ({
-                        invoiceItemId: item.invoiceItemId,
-                        amountPaid: +item.amountPaid,
-                    })),
+        const totalPaid = body.items.reduce((sum, item) => sum + +item.amountPaid, 0);
+        const currency = invoice.currency;
+        const paidAtDate = body.paidAt ? new Date(body.paidAt) : new Date();
+
+        const payment = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+            const assignment = await this.numberingService.nextNumber(
+                tx,
+                invoice.companyId,
+                'payment',
+                paidAtDate,
+            );
+
+            return tx.payment.create({
+                data: {
+                    number: assignment.counter,
+                    rawNumber: assignment.rawNumber,
+                    invoiceId: body.invoiceId,
+                    items: {
+                        create: body.items.map(item => ({
+                            invoiceItemId: item.invoiceItemId,
+                            amountPaid: +item.amountPaid,
+                            amountPaidMinor: toMinor(+item.amountPaid, currency),
+                        })),
+                    },
+                    totalPaid,
+                    totalPaidMinor: toMinor(totalPaid, currency),
+                    paymentMethodId: body.paymentMethodId,
+                    paymentMethod: body.paymentMethod,
+                    paymentDetails: body.paymentDetails,
+                    paidAt: body.paidAt ? new Date(body.paidAt) : undefined,
                 },
-                totalPaid: body.items.reduce((sum, item) => sum + +item.amountPaid, 0),
-                paymentMethodId: body.paymentMethodId,
-                paymentMethod: body.paymentMethod,
-                paymentDetails: body.paymentDetails,
-                paidAt: body.paidAt ? new Date(body.paidAt) : undefined,
-            },
-            include: {
-                items: true,
-            },
+                include: {
+                    items: true,
+                },
+            });
         });
+
+        // Wire ComplianceService: mark the invoice as paid
+        try {
+            const complianceDoc = await prisma.complianceDocument.findFirst({
+                where: { invoiceId: body.invoiceId },
+                orderBy: { createdAt: 'desc' },
+            });
+            if (complianceDoc) {
+                await this.complianceService.markPaid(complianceDoc.id, {
+                    amountMinor: toMinor(totalPaid, currency),
+                    paidAt: paidAtDate.toISOString(),
+                });
+            }
+        } catch (error) {
+            logger.warn('ComplianceService.markPaid failed (non-blocking)', { category: 'payment', details: { error: String(error) } });
+        }
 
         await this.checkInvoiceAfterPayment(invoice.id);
 
@@ -358,6 +396,9 @@ export class PaymentsService {
             throw new BadRequestException('Payment not found');
         }
 
+        const totalPaid = body.items.reduce((sum, item) => sum + +item.amountPaid, 0);
+        const invoice = await prisma.invoice.findUnique({ where: { id: existingPayment.invoiceId } });
+
         const updatedPayment = await prisma.payment.update({
             where: { id: existingPayment.id },
             data: {
@@ -368,10 +409,12 @@ export class PaymentsService {
                             id: randomUUID(),
                             invoiceItemId: item.invoiceItemId,
                             amountPaid: +item.amountPaid,
+                            amountPaidMinor: toMinor(+item.amountPaid, invoice?.currency || 'EUR'),
                         })),
                     },
                 },
-                totalPaid: body.items.reduce((sum, item) => sum + +item.amountPaid, 0),
+                totalPaid,
+                totalPaidMinor: toMinor(totalPaid, invoice?.currency || 'EUR'),
                 paymentMethodId: body.paymentMethodId,
                 paymentMethod: body.paymentMethod,
                 paymentDetails: body.paymentDetails,
@@ -513,7 +556,7 @@ export class PaymentsService {
         const hasDiscount = normalizedDiscountRate > 0 && discountAmountValue > 0;
 
         const html = template({
-            number: payment.rawNumber || payment.number.toString(),
+            number: payment.rawNumber || (payment.number?.toString() ?? 'DRAFT'),
             paymentDate: formatDate(payment.invoice.company, payment.paidAt ?? payment.createdAt),
             invoiceNumber: payment.invoice?.rawNumber || payment.invoice?.number?.toString() || '',
             client: payment.invoice.client,
@@ -601,7 +644,7 @@ export class PaymentsService {
             throw new BadRequestException('Email template for payment not found.');
         }
 
-        const paymentNumber = payment.rawNumber || payment.number.toString();
+        const paymentNumber = payment.rawNumber || (payment.number?.toString() ?? 'DRAFT');
         const envVariables = {
             APP_URL: process.env.APP_URL,
             PAYMENT_NUMBER: paymentNumber,

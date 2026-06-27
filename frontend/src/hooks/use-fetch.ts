@@ -8,7 +8,11 @@ type UseGetResult<T> = {
 };
 
 export async function authenticatedFetch(input: RequestInfo, init: RequestInit = {}): Promise<Response> {
-    const res = await fetch(input, {
+    const fullUrl = typeof input === 'string' && !input.startsWith('http')
+        ? `${import.meta.env.VITE_BACKEND_URL || ''}${input}`
+        : input;
+
+    const res = await fetch(fullUrl, {
         ...init,
         credentials: "include",
         headers: {

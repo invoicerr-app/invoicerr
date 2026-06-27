@@ -1,3 +1,13 @@
+import { decimalsFor } from '../compliance/taxsystems/tax-system'
+
+export function toMinor(amount: number, currency: string): number {
+  return Math.round(amount * 10 ** decimalsFor(currency))
+}
+
+export function fromMinor(minor: number, currency: string): number {
+  return minor / 10 ** decimalsFor(currency)
+}
+
 export type FinancialLineItem = {
     quantity: number;
     unitPrice: number;

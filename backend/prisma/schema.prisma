@@ -203,14 +203,19 @@ enum QuoteStatus {
   REJECTED
 }
 
-// Invoice status
+// Invoice status — single vocabulary, maps onto ComplianceStatus where possible
 enum InvoiceStatus {
   DRAFT
+  ISSUED
   PAID
   UNPAID
   OVERDUE
   SENT
   ARCHIVED
+  PENDING_CLEARANCE // ~ placeholder for clearance countries (PART X)
+  CLEARED           // ~ placeholder for clearance countries (PART X)
+  CANCELLED
+  CORRECTED
 }
 
 // Recurrence frequency
@@ -229,6 +234,17 @@ enum RecurrenceFrequency {
 enum ClientType {
   INDIVIDUAL
   COMPANY
+}
+
+// Document kind for Invoice (EN 16931 document taxonomy)
+enum DocumentKind {
+  INVOICE
+  CREDIT_NOTE
+  DEBIT_NOTE
+  CORRECTIVE_INVOICE
+  PROFORMA
+  DEPOSIT
+  FINAL
 }
 
 // Item type (used for quote/invoice/recurring items)
@@ -309,9 +325,7 @@ model Company {
   name        String
   description String?
   currency    Currency @default(EUR)
-  legalId     String?
   foundedAt   DateTime
-  VAT         String?
   exemptVat   Boolean  @default(false)
   address      String
   addressLine2 String? // Second line for address (apartment, suite, etc.)
@@ -319,6 +333,7 @@ model Company {
   city         String
   state        String? // State/Province (for US addresses, etc.)
   country      String
+  countryCode  String?  // ISO 3166-1 alpha-2, explicit override; falls back to guessCountryCode(country)
   phone        String
   email        String
 
@@ -342,6 +357,8 @@ model Company {
   RecurringInvoice RecurringInvoice[]
   webhooks         Webhook[]
   Article          Article[]
+  partyIdentifiers PartyIdentifier[]
+  NumberSeries     NumberSeries[]
 }
 
 // Client model
@@ -349,8 +366,6 @@ model Client {
   id               String             @id @default(cuid())
   name             String
   description      String?
-  legalId          String? // Legal identification number (SIRET, EIN, etc.)
-  VAT              String? // VAT number
   foundedAt        DateTime? // Date when the client company was founded
   contactFirstname String?
   contactLastname  String?
@@ -362,6 +377,7 @@ model Client {
   city             String
   state            String? // State/Province (for US addresses, etc.)
   country          String
+  countryCode      String?  // ISO 3166-1 alpha-2, explicit override; falls back to guessCountryCode(country)
   currency         Currency?
   type             ClientType         @default(COMPANY)
   salutation       String             @default("Mr") // Mr, Ms, Mrs (We need a default value for the invoice generation)
@@ -371,6 +387,23 @@ model Client {
   Quote            Quote[]
   Invoice          Invoice[]
   RecurringInvoice RecurringInvoice[]
+  partyIdentifiers PartyIdentifier[]
+}
+
+// Per-country required identifiers (LEGAL_ID, VAT, RFC, CURP, REGON, …)
+model PartyIdentifier {
+  id        String   @id @default(cuid())
+  scheme    String
+  value     String
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, scheme])
+  @@unique([clientId, scheme])
 }
 
 // Email templates
@@ -385,98 +418,178 @@ model MailTemplate {
   @@unique([companyId, type])
 }
 
+// Gapless numbering series keyed per (company, docType, scopeKey)
+model NumberSeries {
+  id        String   @id @default(cuid())
+  company   Company  @relation(fields: [companyId], references: [id])
+  companyId String
+  docType   String   // 'invoice' | 'quote' | 'payment'
+  scopeKey  String   // e.g. year "2026" or "default"
+  counter   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, docType, scopeKey])
+}
+
 // Quote model
 model Quote {
-  id              String      @id @default(uuid())
-  number          Int         @default(autoincrement())
-  rawNumber       String? // Raw number for custom formats
-  title           String?
-  client          Client      @relation(fields: [clientId], references: [id])
-  clientId        String
-  company         Company     @relation(fields: [companyId], references: [id])
-  companyId       String
-  items           QuoteItem[]
-  status          QuoteStatus @default(DRAFT)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  validUntil      DateTime?
-  signedAt        DateTime?
-  viewedAt        DateTime?
-  signedBy        String?
-  discountRate    Float      @default(0)
-  totalHT         Float
-  totalVAT        Float
-  totalTTC        Float
-  currency        Currency
-  paymentMethod   String? // Ex: "Bank Transfer", "PayPal", "Cash"
-  paymentDetails  String? // Details for the payment method (e.g., bank account number)
-  paymentMethodId String?
-  notes           String?     @default("")
-  isActive        Boolean     @default(true)
-  Invoice         Invoice[]
-  signatures      Signature[]
+  id                 String      @id @default(uuid())
+  number             Int? // assigned at issue (gapless per series)
+  rawNumber          String? // Raw number for custom formats
+  title              String?
+  buyerReference     String? // PO / contract reference
+  purchaseOrder      String?
+  deliveryDate       DateTime?
+  deliveryAddress    String?
+  deliveryAddressLine2 String?
+  deliveryPostalCode String?
+  deliveryCity       String?
+  deliveryState      String?
+  deliveryCountry    String?
+  paymentTerms       String?
+  paymentMeansCode   String?
+  fxRate             Float?
+  fxTaxAmount        Float?
+  fxTaxAmountMinor   Int?
+  ttcPricing         Boolean         @default(false)
+  client             Client          @relation(fields: [clientId], references: [id])
+  clientId           String
+  company            Company         @relation(fields: [companyId], references: [id])
+  companyId          String
+  items              QuoteItem[]
+  status             QuoteStatus     @default(DRAFT)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  issuedAt           DateTime? // date of issue/DRAFT→SIGNED transition
+  validUntil         DateTime?
+  signedAt           DateTime?
+  viewedAt           DateTime?
+  signedBy           String?
+  discountRate       Float           @default(0)
+  totalHT            Float
+  totalHTMinor       Int?
+  totalVAT           Float
+  totalVATMinor      Int?
+  totalTTC           Float
+  totalTTCMinor      Int?
+  currency           Currency
+  paymentMethod      String? // Ex: "Bank Transfer", "PayPal", "Cash"
+  paymentDetails     String? // Details for the payment method (e.g., bank account number)
+  paymentMethodId    String?
+  notes              String?         @default("")
+  isActive           Boolean         @default(true)
+  Invoice            Invoice[]
+  signatures         Signature[]
 }
 
 model QuoteItem {
-  id           String        @id @default(uuid())
-  quote        Quote         @relation(fields: [quoteId], references: [id])
-  quoteId      String
-  name         String
-  description  String?
-  quantity     Float
-  unitPrice    Float
-  vatRate      Float // 20 for 20%
-  type         ItemType      @default(SERVICE)
-  order        Int // For sorting items in the quote pdf
-  invoiceItems InvoiceItem[]
+  id                 String        @id @default(uuid())
+  quote              Quote         @relation(fields: [quoteId], references: [id])
+  quoteId            String
+  name               String
+  description        String?
+  quantity           Float
+  unitPrice          Float
+  unitPriceMinor     Int?
+  vatRate            Float // 20 for 20%
+  type               ItemType      @default(SERVICE)
+  order              Int // For sorting items in the quote pdf
+  discountRate       Float         @default(0)
+  discountAmount     Float?
+  discountAmountMinor Int?
+  chargeAmount       Float?
+  chargeAmountMinor  Int?
+  chargeDescription  String?
+  unitOfMeasure      String        @default("C62")
+  invoiceItems       InvoiceItem[]
 }
 
 // Invoice model
 model Invoice {
   id                 String            @id @default(uuid())
-  number             Int               @default(autoincrement())
+  number             Int? // assigned at issue (gapless per series)
   rawNumber          String? // Raw number for custom formats
+  kind               DocumentKind      @default(INVOICE)
+  correctsInvoiceId  String?
+  correctsInvoice    Invoice?          @relation("Correction", fields: [correctsInvoiceId], references: [id])
+  correctedBy        Invoice[]         @relation("Correction")
+  depositOfInvoiceId String?
+  depositOfInvoice   Invoice?          @relation("Deposit", fields: [depositOfInvoiceId], references: [id])
+  depositInvoices    Invoice[]         @relation("Deposit")
+  buyerReference     String? // PO / contract reference (EN 16931 BT-13)
+  purchaseOrder      String? // structured PO number
+  contractRef        String? // structured contract reference
+  deliveryDate       DateTime?
+  deliveryAddress    String?
+  deliveryAddressLine2 String?
+  deliveryPostalCode String?
+  deliveryCity       String?
+  deliveryState      String?
+  deliveryCountry    String?
+  paymentTerms       String? // free-text payment terms
+  paymentMeansCode   String? // UN/ECE 4461 code
+  fxRate             Float? // exchange rate at issue when invoice currency ≠ company currency
+  fxTaxAmount        Float? // tax amount in company base currency
+  fxTaxAmountMinor   Int?
+  ttcPricing         Boolean           @default(false) // prices entered tax-inclusive
   quote              Quote?            @relation(fields: [quoteId], references: [id])
   quoteId            String?
-  recurringInvoice   RecurringInvoice? @relation(fields: [recurringInvoiceId], references: [id])
-  recurringInvoiceId String?
-  client             Client            @relation(fields: [clientId], references: [id]) // Client receiving the invoice
-  clientId           String
-  company            Company           @relation(fields: [companyId], references: [id]) // Company issuing the invoice
-  companyId          String
-  items              InvoiceItem[]
-  status             InvoiceStatus     @default(DRAFT)
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-  dueDate            DateTime
-  paidAt             DateTime?
-  paymentMethod      String? // Ex: "Bank Transfer", "PayPal", "Cash"
-  paymentDetails     String? // Details for the payment method (e.g., bank account number)
-  paymentMethodId    String?
-  notes              String?           @default("")
-  discountRate       Float             @default(0)
-  totalHT            Float
-  totalVAT           Float
-  totalTTC           Float
-  currency           Currency
-  isActive           Boolean           @default(true)
-  payments           Payment[]
+  recurringInvoice       RecurringInvoice? @relation(fields: [recurringInvoiceId], references: [id])
+  recurringInvoiceId     String?
+  recurringPeriodKey     String?           // Deterministic period key for idempotent generation (e.g. "2026-06-monthly")
+  client                 Client            @relation(fields: [clientId], references: [id]) // Client receiving the invoice
+  clientId               String
+  company                Company           @relation(fields: [companyId], references: [id]) // Company issuing the invoice
+  companyId              String
+  items                  InvoiceItem[]
+  status                 InvoiceStatus     @default(DRAFT)
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+  issuedAt               DateTime? // date of DRAFT→ISSUED transition
+  dueDate                DateTime
+  paidAt                 DateTime?
+  paymentMethod          String? // Ex: "Bank Transfer", "PayPal", "Cash"
+  paymentDetails         String? // Details for the payment method (e.g., bank account number)
+  paymentMethodId        String?
+  notes                  String?           @default("")
+  discountRate           Float             @default(0)
+  totalHT                Float
+  totalHTMinor           Int?
+  totalVAT               Float
+  totalVATMinor          Int?
+  totalTTC               Float
+  totalTTCMinor          Int?
+  currency               Currency
+  isActive               Boolean           @default(true)
+  payments               Payment[]
+  complianceDocuments    ComplianceDocument[]
+
+  @@unique([recurringInvoiceId, recurringPeriodKey], name: "Invoice_recurringPeriodKey_unique")
 }
 
 model InvoiceItem {
-  id           String      @id @default(uuid())
-  invoice      Invoice     @relation(fields: [invoiceId], references: [id])
-  invoiceId    String
-  name         String
-  description  String?
-  quantity     Float
-  unitPrice    Float
-  vatRate      Float // 20 for 20%
-  type         ItemType    @default(SERVICE)
-  order        Int
-  quoteItem    QuoteItem?  @relation(fields: [quoteItemId], references: [id])
-  quoteItemId  String?
-  paymentItems PaymentItem[]
+  id                 String        @id @default(uuid())
+  invoice            Invoice       @relation(fields: [invoiceId], references: [id])
+  invoiceId          String
+  name               String
+  description        String?
+  quantity           Float
+  unitPrice          Float
+  unitPriceMinor     Int?
+  vatRate            Float // 20 for 20%
+  type               ItemType      @default(SERVICE)
+  order              Int
+  discountRate       Float         @default(0) // line-level discount percentage
+  discountAmount     Float?
+  discountAmountMinor Int?
+  chargeAmount       Float? // line-level surcharge (shipping, handling)
+  chargeAmountMinor  Int?
+  chargeDescription  String?
+  unitOfMeasure      String        @default("C62") // UN/ECE Rec 20 code (C62 = piece/one)
+  quoteItem          QuoteItem?    @relation(fields: [quoteItemId], references: [id])
+  quoteItemId        String?
+  paymentItems       PaymentItem[]
 }
 
 // Recurring invoice model
@@ -493,13 +606,19 @@ model RecurringInvoice {
   paymentMethodId   String?
   notes             String?                @default("")
   totalHT           Float
+  totalHTMinor      Int?
   totalVAT          Float
+  totalVATMinor     Int?
   totalTTC          Float
+  totalTTCMinor     Int?
   currency          Currency
   frequency         RecurrenceFrequency // Simplified recurrence frequency
   count             Int? // Number of occurrences, null for infinite
   until             DateTime? // End date for the recurrence
+  autoIssue         Boolean                @default(false) // Auto-issue generated invoices (assigns number)
   autoSend          Boolean                @default(false) // Auto-send generated invoices
+  paused            Boolean                @default(false) // Pause generation
+  skipNext          Boolean                @default(false) // Skip the next cycle
   nextInvoiceDate   DateTime? // Date for the next invoice generation
   lastInvoiceDate   DateTime? // Date of the last generated invoice
   createdAt         DateTime               @default(now())
@@ -514,6 +633,7 @@ model RecurringInvoiceItem {
   description        String?
   quantity           Float
   unitPrice          Float
+  unitPriceMinor     Int?
   vatRate            Float // 20 for 20%
   type               ItemType         @default(SERVICE)
   order              Int
@@ -525,18 +645,20 @@ model PaymentItem {
   invoiceItem   InvoiceItem @relation(fields: [invoiceItemId], references: [id])
   invoiceItemId String
   amountPaid    Float // Amount paid for this item
+  amountPaidMinor Int?
   Payment       Payment     @relation(fields: [paymentId], references: [id])
   paymentId     String
 }
 
 model Payment {
   id              String        @id @default(cuid())
-  number          Int           @default(autoincrement())
+  number          Int? // assigned at issue (gapless per series)
   rawNumber       String? // Raw number for custom formats
   invoiceId       String
   invoice         Invoice       @relation(fields: [invoiceId], references: [id])
   items           PaymentItem[]
   totalPaid       Float
+  totalPaidMinor  Int?
   paymentMethod   String        @default("") // Ex: "Bank Transfer", "PayPal", "Cash"
   paymentDetails  String        @default("") // Details for the payment method (e.g., bank account number)
   paymentMethodId String?
@@ -564,9 +686,10 @@ model Article {
   name        String // label shown in the picker
   description String? // text injected into the line item
   type        ItemType @default(SERVICE)
-  unitPrice   Float    @default(0)
-  vatRate     Float    @default(0)
-  isActive    Boolean  @default(true)
+  unitPrice       Float    @default(0)
+  unitPriceMinor  Int?
+  vatRate         Float    @default(0)
+  isActive        Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -970,3 +1093,170 @@ model Log {
 }
 
 // ======= END OF LOGGING SYSTEM ======= //
+
+// ======= START OF COMPLIANCE LIFECYCLE PERSISTENCE ======= //
+// See COMPLIANCE_ARCHITECTURE.md §13 + TODO_PRISMA.md §4. Additive only.
+
+enum ComplianceStatus {
+  DRAFT
+  ISSUED
+  PENDING_CLEARANCE
+  CLEARED
+  REJECTED
+  CONTINGENCY
+  DELIVERED
+  AWAITING_RESPONSE
+  ACCEPTED
+  REFUSED
+  DISPUTED
+  REPORTED
+  CANCELLED
+  CORRECTED
+  LEGACY
+}
+
+enum ComplianceDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum ComplianceDocumentKind {
+  INVOICE
+  CREDIT_NOTE
+  DEBIT_NOTE
+  CORRECTIVE_INVOICE
+  PROFORMA
+  DEPOSIT
+  FINAL
+  PREPAYMENT
+  SELF_BILLED
+  EXPORT_INVOICE
+  CASH_RECEIPT
+  WITHHOLDING_RECEIPT
+  PAYMENT_RECEIPT
+}
+
+enum ScheduledJobKind {
+  POLL
+  TIMER
+}
+
+enum ScheduledJobStatus {
+  PENDING
+  ARMED
+  DONE
+  FIRED
+  EXPIRED
+  CANCELLED
+}
+
+enum CallbackRegStatus {
+  WAITING
+  RESOLVED
+  CANCELLED
+}
+
+model ComplianceDocument {
+  id             String                 @id
+  invoiceId      String?
+  invoice        Invoice?               @relation(fields: [invoiceId], references: [id])
+  kind           ComplianceDocumentKind @default(INVOICE)
+  direction      ComplianceDirection    @default(OUTBOUND)
+  status         ComplianceStatus       @default(DRAFT)
+  ctx            Json                   // TransactionContext snapshot (issueDate is an ISO string in JSON)
+  plan           Json?                  // CompliancePlan
+  lifecycleGraph Json?                  // frozen LifecycleGraph (assembler output)
+  profileVersion String?
+  number         String?
+  immutableHash  String?
+  previousHash   String?
+  correctsId     String?                // self-reference id for credit/corrective docs (not a FK)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  events         ComplianceEvent[]
+  authorityIds   ComplianceAuthorityId[]
+  scheduledJobs  ScheduledJob[]
+  callbacks      ComplianceCallbackRegistration[]
+
+  @@index([status])
+  @@index([invoiceId])
+}
+
+model ComplianceEvent {
+  id         String             @id @default(uuid())
+  documentId String
+  document   ComplianceDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  type       String             // ISSUE | CLEAR | REFUSE | an inbound status string …
+  at         DateTime           @default(now())
+  actor      String?            // user | authority | system
+  detail     String?
+  payload    Json?
+
+  @@index([documentId])
+}
+
+model ComplianceAuthorityId {
+  id         String             @id @default(uuid())
+  documentId String
+  document   ComplianceDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  scheme     String             // UUID | IRN | SDI | CHNFE | CUFE | CDR | PROTOCOL | FOLIO …
+  value      String
+  issuedAt   DateTime           @default(now())
+
+  @@index([documentId])
+}
+
+// One row backs BOTH PollJob (kind=POLL) and TimerJob (kind=TIMER). Nullable columns per kind.
+model ScheduledJob {
+  id         String             @id
+  documentId String
+  document   ComplianceDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  kind       ScheduledJobKind
+  status     ScheduledJobStatus @default(PENDING)
+  awaiting   String             // the ComplianceStatus the job guards
+  // poll
+  providerId String?
+  channel    String?
+  ref        String?
+  attempts   Int                @default(0)
+  nextRunAt  DateTime?
+  expiresAt  DateTime?
+  policy     Json?              // PollPolicy
+  // timer
+  onElapse   String?            // ComplianceEvent to fire on elapse
+  fireAt     DateTime?
+  createdAt  DateTime           @default(now())
+
+  @@index([kind, status, nextRunAt])
+  @@index([kind, status, fireAt])
+  @@index([documentId])
+}
+
+model ComplianceCallbackRegistration {
+  id             String             @id
+  documentId     String
+  document       ComplianceDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  channel        String
+  correlationKey String
+  awaiting       String
+  status         CallbackRegStatus  @default(WAITING)
+  createdAt      DateTime           @default(now())
+
+  @@index([channel, correlationKey, status])
+  @@index([documentId])
+}
+
+model ComplianceInboundMessage {
+  id             String   @id
+  channel        String
+  correlationKey String
+  status         String
+  rawRef         String?
+  receivedAt     DateTime @default(now())
+
+  @@index([channel, correlationKey])
+  // dedup is enforced in the store (check by channel+rawRef before insert); a partial unique index
+  // on (channel, rawRef) WHERE rawRef IS NOT NULL is a nice-to-have via raw SQL in the migration.
+}
+
+// ======= END OF COMPLIANCE LIFECYCLE PERSISTENCE ======= //
