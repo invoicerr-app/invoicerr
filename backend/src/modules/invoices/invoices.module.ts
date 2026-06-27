@@ -7,9 +7,10 @@ import { PluginsService } from "@/modules/plugins/plugins.service";
 import { WebhooksModule } from "../webhooks/webhooks.module";
 import { ComplianceModule } from "@/compliance/nest/compliance.module";
 import { NumberingService } from "@/utils/numbering";
+import { InvoiceRenderingModule } from "@/modules/invoice-rendering/invoice-rendering.module";
 
 @Module({
-  imports: [WebhooksModule, ComplianceModule],
+  imports: [WebhooksModule, ComplianceModule, InvoiceRenderingModule],
   controllers: [InvoicesController],
   providers: [InvoicesService, MailService, JwtService, PluginsService, NumberingService],
   exports: [InvoicesService],
