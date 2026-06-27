@@ -9,20 +9,45 @@
 > dans le profil, cf. `fr.ts`), **pas une règle universelle**. Ici on liste les *providers* à coder ;
 > *quel* rôle utilise *quel* format/envoi se déclare dans chaque profil (axe DATA, §BLOC E).
 
+> 🟢 **Déjà réel — NE PAS recoder.** Le chemin par défaut (PDF, EN 16931 / Factur-X, email) existe
+> **déjà** dans `invoices.service.ts` (`getInvoicePdf` via Handlebars+`getPDF`; `getInvoiceXMLFormat`
+> via `@fin.cx/einvoice` → EN16931/Factur-X/UBL ; `sendInvoiceByEmail` via `MailService`). Les stubs
+> `plain-pdf` (#2), `EN 16931` (#3), `Factur-X` (#4) et `email` (#60) **dupliquaient** ce code → la
+> **PHASE 0** ci-dessous les **branche sur l'existant** (déplacement de code, pas réécriture) au lieu
+> de les réimplémenter.
+
+> ⚖️ **Cycle de vie complet vs numérotation.** Aujourd'hui le pipeline va de bout en bout
+> **uniquement pour les pays `GAPLESS_SELF`** (numéro auto-assigné par l'app — FR, DE, IT, ES, BE…).
+> Les pays `AUTHORITY_RANGE` (numéro attribué par l'autorité — 🇲🇽 MX/CFDI et cie) sont
+> **correctement bloqués** : l'app **throw** `"Numbering model is AUTHORITY_RANGE … self-assignment is
+> not allowed. Use the compliance engine's FolioPool instead."` tant que les FolioPool (#124) et les
+> stubs clearance (#65, BLOC C) ne sont pas réels. Ce n'est **pas un bug** — c'est la garde attendue.
+
 ---
 
-## PHASE 0 — prérequis minimal
-- [ ] 1. `[FONDATION]` **wiring Nest** : registries réels (formats/envois) dans `ComplianceService` — `nest/compliance.module.ts:85`
+## PHASE 0 — refactor `invoices.service` → délégation config-driven (déplacer, pas réécrire)
+> But : faire que `invoices.service` **appelle la compliance** (résolue par la config du pays/rôle)
+> au lieu de hardcoder PDF/format/email. Le code réel existant est **déplacé**, pas réécrit.
+
+- [x] **0.1** Extraire `InvoiceRenderingService` (cycle-safe, sans import compliance) — `modules/invoice-rendering/` · ✅ `fca7e241`
+- [x] **0.2** Format providers délèguent via `InvoiceArtifactPort` (`ctx.externalRef` → `renderPdf`/`renderPdfFormat`) — `providers/format/providers.ts` · ✅ `673635d6`
+- [ ] **0.3** Transmission **email réelle** : `MailService` branché sur le provider, `transmit`/`transmitAll`/`execute` async
+- [ ] **0.4** Réduire `sendInvoiceByEmail` à `complianceService.send()` **config-driven**, retirer le bloc PDF+email hardcodé
+- [x] **1.** `[FONDATION]` **wiring Nest** : `FormatProviderRegistry({artifacts: rendering})` → `ComplianceExecutor` → `ComplianceService` — `nest/compliance.module.ts:88` · ✅ (transmissions encore en stubs par défaut)
 
 ---
 
 # BLOC A — FORMATS (tout, dans l'ordre)
 
 ## A1 · Défaut + partagés (levier maximal)
-- [ ] 2. `[FORMAT]` **plain-pdf** → `getInvoicePdf()`/`getPDF()` — `format/providers.ts:53` · *tous les pays défaut*
-- [ ] 3. `[FORMAT]` **EN 16931 UBL/CII** via `@fin.cx/einvoice` + Schematron — `format/providers.ts:38`
-      → FR(base Factur-X), CO, PE, MY, RO, RS, LV, SK, IE, SI, BE, AE, SG
-- [ ] 4. `[FORMAT]` **Factur-X** (EN 16931 CII #3 + PDF/A-3 hybride) → 🇫🇷 FR — `fr.ts` FACTURX
+> 🟢 #2/#3/#4 sont **déjà implémentés dans `invoices.service.ts`** et **réutilisés** via la PHASE 0
+> (le provider délègue à `InvoiceRenderingService` par `ctx.externalRef`). **À NE PAS recoder** —
+> reste seulement à finir 0.3/0.4 (envoi config-driven). Le Schematron de validation est l'unique
+> ajout optionnel résiduel sur #3.
+- [x] 2. `[FORMAT]` **plain-pdf** → délègue `getInvoicePdf()`/`getPDF()` (déjà réel) — `format/providers.ts` via port · *tous les pays défaut*
+- [x] 3. `[FORMAT]` **EN 16931 UBL/CII** via `@fin.cx/einvoice` (déjà réel dans `getInvoiceXMLFormat`) — délègue via port
+      → FR(base Factur-X), CO, PE, MY, RO, RS, LV, SK, IE, SI, BE, AE, SG · *(reste : Schematron, optionnel)*
+- [x] 4. `[FORMAT]` **Factur-X** (EN 16931 CII + PDF/A-3 hybride, déjà réel via `embedInPdf`) → 🇫🇷 FR — délègue via port
 - [ ] 5. `[FORMAT]` **XRechnung** (CIUS de #3) → 🇩🇪 DE
 - [ ] 6. `[FORMAT]` **Facturae** → 🇪🇸 ES — `national-formats.ts` (`es-facturae`)
 
@@ -74,7 +99,10 @@
 # BLOC C — ENVOIS / TRANSMISSIONS (tout, dans l'ordre)
 
 ## C1 · Défaut + France + partagés
-- [ ] 60. `[ENVOI]` **email** → `MailService.sendMail` (PDF en PJ) — `transmission/providers.ts:14` · *tous les pays défaut*
+> 🟢 #60 **email** existe déjà dans `invoices.service.ts` (`sendInvoiceByEmail` → `MailService.sendMail`
+> avec PDF en PJ). La PHASE 0 (étapes 0.3/0.4) le **déplace** dans le provider transmission et fait
+> que `sendInvoiceByEmail` appelle `complianceService.send()` config-driven. **Pas à recoder.**
+- [~] 60. `[ENVOI]` **email** → `MailService.sendMail` (PDF en PJ, déjà réel) — à déplacer dans `transmission/providers.ts` (PHASE 0.3/0.4) · *tous les pays défaut*
 - [ ] 61. `[ENVOI]` **print** (reçus B2C/fiscalisation) — `transmission/providers.ts:133`
 - [ ] 62. `[ENVOI]` **PDP** (annuaire + remise + `sendStatus` + poll/callback) → 🇫🇷 FR — `transmission/providers.ts:39,43,47`
 - [ ] 63. `[ENVOI]` **Peppol** (SMP + AS4 + Invoice Response) → IE, SI, BE, AE, SG, NL, SE, NO, DE(B2G) — `transmission/providers.ts:24,28`
@@ -121,9 +149,14 @@
 ---
 
 ## Jalons
-- Après **#2-3** (plain-pdf + EN 16931) : la majorité des pays ont un format réel.
-- **🇫🇷 France** complète = #4 (Factur-X) + #62 (PDP) + #121 (e-reporting) — marché cible.
-- Premier clearance de bout en bout = **🇮🇹 IT** (#7 format + #64 SdI) : valide injection/idempotence/persistance/callback avant de paralléliser C3-C6.
+- 🟢 **Atteint** : #2-3-4 (PDF + EN 16931 + Factur-X) **déjà réels** et réutilisés (PHASE 0.1/0.2) →
+  la majorité des pays `GAPLESS_SELF` ont déjà un format réel **et** un cycle de vie complet
+  (issue→build→email→encaissée), validé par la suite de scénarios CI multi-pays (fr-be, de-fr, it-it, es-pt).
+- **Prochain (PHASE 0.3/0.4)** : email config-driven → `sendInvoiceByEmail` délègue à `complianceService.send()`.
+- **🇫🇷 France** complète = #4 (Factur-X ✅) + #62 (PDP) + #121 (e-reporting) — marché cible.
+- Premier clearance/`AUTHORITY_RANGE` de bout en bout = **🇲🇽 MX** (#124 FolioPool + #65 PAC→SAT) :
+  débloque les pays où le numéro vient de l'autorité (aujourd'hui **bloqués à dessein**, cf. encadré ⚖️ en tête).
+- Premier clearance Peppol/SdI de bout en bout = **🇮🇹 IT** (#7 format + #64 SdI) : valide injection/idempotence/persistance/callback avant de paralléliser C3-C6.
 
 ## À AUDITER
 - `lifecycle/corrections.ts` : redondant avec `correctInvoice`/`cancelInvoice` déjà dans `invoices.service.ts` → source unique ou retirer.
@@ -142,3 +175,9 @@ SE US ; noMandate (6) : CA CH GB MC VA ZA.
 
 *Total = 106 (vérifié). Les pays "défaut seul" et "planned" n'ont besoin que de #2 + #60 aujourd'hui ;
 leur seul reste est l'axe DATA (#126).*
+
+> ⚖️ **Rappel cycle de vie (cf. encadré en tête).** Tous les pays ci-dessus en `GAPLESS_SELF`
+> (numéro auto-assigné : défaut seul, planned, FR/DE/IT/ES/BE… post-format) ont déjà un **cycle
+> complet** une fois la PHASE 0 finie. Les pays `AUTHORITY_RANGE` (MX/CFDI et autres clearance où
+> l'autorité attribue le numéro) restent **volontairement bloqués** jusqu'aux FolioPool (#124) +
+> stubs clearance (BLOC C) — l'app throw au lieu d'auto-assigner. À ne pas confondre avec un défaut.
