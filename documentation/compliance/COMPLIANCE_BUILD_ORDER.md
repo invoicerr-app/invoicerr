@@ -4,6 +4,11 @@
 > y figurent toutes** (index de contrôle en fin de fichier). Stratégie/levier : voir
 > `COMPLIANCE_STUBS_ROADMAP.md`. Type : `FONDATION` / `FORMAT` / `PORTAIL` / `CANAL` / `REPORTING` / `DATA`.
 > `(#4)` = réutilise le provider de l'étape 4 → pas de nouveau format à coder, juste portail + data.
+>
+> ⚠️ **Format ET portail dépendent du rôle B2B/B2C/B2G** (pas seulement du pays). Schéma type :
+> **B2G** → portail public dédié (Chorus Pro, FACe, ZRE, SdI-PA), souvent Peppol ; **B2C** → reçu /
+> fiscalisation / e-reporting seul (souvent **aucun** e-invoice transmis à l'acheteur) ; **B2B** → flux
+> e-invoice/clearance principal. Voir §PHASE 2-bis (prérequis) et §SPECS MANQUANTES.
 
 ---
 
@@ -29,6 +34,23 @@
 - [ ] 10. `[FONDATION]` **inbound mapping** : statuts entrants → `applyResponse` — `runtime.ts:142`, `response.ts:33`
 - [ ] 11. `[FONDATION]` **signature** XAdES/PAdES/CAdES — `providers/signing/providers.ts:8,16,24`
 - [ ] 12. `[FONDATION]` **archive** WORM/S3 + résidence — `providers/archive/providers.ts:18`
+
+## PHASE 2-bis — Routage par rôle B2B/B2C/B2G ⭐ (prérequis : sans ça, FR/IT/ES/DE sont faux)
+*Aujourd'hui regime/format/reporting sont role-aware (`appliesTo`), mais **la transmission est choisie
+par date seulement** (`compliance-engine.ts:113`, `TransmissionRule` sans `appliesTo`) et **B2G n'est
+jamais détecté** (`invoices.service.ts` fait partout `INDIVIDUAL?'B2C':'B2B'`). Donc un B2C français
+prendrait le PDP — faux.*
+- [ ] 12a. `[FONDATION]` ajouter `appliesTo?: ClassificationSelector` à `TransmissionRule` — `profiles/schema.ts:61`
+- [ ] 12b. `[FONDATION]` engine : transmission role-aware → `pickWithSelector(sp.transmission, date, buyerRole, supply)` — `engine/compliance-engine.ts:113`
+- [ ] 12c. `[FONDATION]` détecter **B2G** : ajouter `GOVERNMENT` à `ClientType` (Prisma `schema.prisma:234` + form client) ; mapper `buyerRole:'B2G'` à TOUS les sites ctx — `invoices.service.ts:254,332,582,757,855,1648`
+- [ ] 12d. `[DATA]` scinder les `channels` par rôle (`appliesTo`) dans les profils où B2B/B2C/B2G divergent (FR, IT, ES, DE, …)
+
+## SPECS MANQUANTES à AJOUTER (formats/portails absents du code)
+*Vérifié : 0 spec pour ces pays/rôles. À créer dans `national-formats.ts` / `national-portals.ts` (+ provider).*
+- [ ] 12e. 🇬🇷 GR — `[FORMAT]` myDATA XML + `[PORTAIL]` **AADE** (realTime) — absents
+- [ ] 12f. 🇭🇺 HU — `[FORMAT]` Online Számla (RTIR) + `[PORTAIL]` **NAV** — absents
+- [ ] 12g. 🇵🇪 PE — `[PORTAIL]` **SUNAT/SEE** dédié (aujourd'hui canal `OSE` générique) — à préciser
+- [ ] 12h. **Portails B2G dédiés** à ajouter : 🇫🇷 Chorus Pro / PPF (B2G), 🇪🇸 FACe (B2G), 🇩🇪 ZRE/OZG-RE (B2G), 🇮🇹 SdI-PA (Codice Univoco Ufficio) — chacun via `appliesTo:{roles:['B2G']}`
 
 ## PHASE 3 — 🇫🇷 FRANCE de bout en bout ⭐⭐ (marché cible, pilote)
 - [ ] 13. `[FORMAT]` **Factur-X** (EN 16931 CII #4 + PDF/A-3 hybride) → FR — `fr.ts` syntax FACTURX

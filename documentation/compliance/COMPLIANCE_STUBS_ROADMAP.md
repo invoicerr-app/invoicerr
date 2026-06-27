@@ -30,6 +30,7 @@ Répartition actuelle des archétypes : `clearance` 34 · `realTime` 20 · `post
 | **A1** | **Socle async durable** : connecter les Effects du runtime (SCHEDULE_POLL/AWAIT_CALLBACK/ARM_TIMER) aux stores Prisma + cron + `ApplySignalService` + webhook **déjà présents** ; mapper statuts entrants → `applyResponse` | `lifecycle/runtime.ts:142`, `lifecycle/response.ts:33`, `nest/*` | **les 54 pays clearance+realTime** (tout régime async) | XL |
 | **A2** | **Signature** XAdES/PAdES/CAdES | `providers/signing/providers.ts:8,16,24` | tous régimes clearance + archive signé | M |
 | **A3** | **Archive** WORM/S3 + résidence | `providers/archive/providers.ts:18` | rétention légale partout | M |
+| **A4** | **Routage par rôle B2B/B2C/B2G** : `appliesTo` sur `TransmissionRule` + engine role-aware (`engine:113`) + détecter B2G (`ClientType.GOVERNMENT` + ctx `invoices.service`) | `profiles/schema.ts:61`, `engine/compliance-engine.ts:113`, `prisma/schema.prisma:234` | **correction transverse** : format/portail diffèrent par rôle (FR/IT/ES/DE faux sans ça) | M |
 
 ---
 
