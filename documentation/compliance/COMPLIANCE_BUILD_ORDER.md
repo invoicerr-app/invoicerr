@@ -56,7 +56,7 @@
       vs classe EInvoice) → réécriture complète de `buildEInvoice()` nécessaire. Coût trop élevé pour run
       non supervisé. Reste sur `@fin.cx/einvoice`. BR-DE-11/12/13 = bloqués lib (migration = chantier séparé).
       BR-DE-14 = tentative clôture via `paymentOptions` quand modèle data sera prêt (phone/email endpoint).
-- [ ] 6. `[FORMAT]` **Facturae** → 🇪🇸 ES — `buildFacturae()` + `national-formats.ts` (`es-facturae`) · ✅ squelette structural (3.2.1), XAdES-BES manquant (xadesjs installé, TODO EPES)
+- [x] 6. `[FORMAT]` **Facturae** → 🇪🇸 ES — `buildFacturae()` + `national-formats.ts` (`es-facturae`) · ✅ squelette structural (3.2.1), XAdES-BES manquant (xadesjs installé, TODO EPES)
   Validation : présence nœuds racine + gate vivant. XSD/Schematron → L2.
 
 ## A2 · Grands formats nationaux (marchés majeurs)
@@ -68,16 +68,17 @@
   Validation : nœuds Fa/FaWiersz/Podsumowanie. Scellé + soumission KSeF → canal externe (TODO #66).
 - [x] 10. `[FORMAT]` **KSA UBL 2.1 + QR** → 🇸🇦 SA — `buildKsaUbl()` UBL 2.1 + QR placeholder · ✅ squelette ZATCA
   Validation : nœuds UBL + QR placeholder. Soumission FATOORA → canal externe (TODO #67).
-- [ ] 11. `[FORMAT]` `in-irp` (GST e-invoice) → 🇮🇳 IN
-- [ ] 12. `[FORMAT]` `nfe` (NF-e/NFS-e/CT-e) → 🇧🇷 BR
-- [ ] 13. `[FORMAT]` `tr-efatura` (UBL-TR) → 🇹🇷 TR
-- [ ] 14. `[FORMAT]` `cn-efapiao` → 🇨🇳 CN
-- [ ] 15. `[FORMAT]` `eg-eta` → 🇪🇬 EG
+- [x] 11. `[FORMAT]` `in-irp` (GST e-invoice) → 🇮🇳 IN · ✅ squelette via `buildNationalXml(data, 'IN')`
+- [x] 12. `[FORMAT]` `nfe` (NF-e/NFS-e/CT-e) → 🇧🇷 BR · ✅ squelette via `buildNationalXml(data, 'BR')`
+- [x] 13. `[FORMAT]` `tr-efatura` (UBL-TR) → 🇹🇷 TR · ✅ squelette via `buildNationalXml(data, 'TR')`
+- [x] 14. `[FORMAT]` `cn-efapiao` → 🇨🇳 CN · ✅ squelette via `buildNationalXml(data, 'CN')`
+- [x] 15. `[FORMAT]` `eg-eta` → 🇪🇬 EG · ✅ squelette via `buildNationalXml(data, 'EG')`
 
 ## A3 · LATAM (CO & PE réutilisent #3)
-- [ ] 16. 🇨🇱 `cl-dte` · 17. 🇦🇷 `ar-fe` · 18. 🇪🇨 `ec-fe` · 19. 🇺🇾 `uy-cfe` · 20. 🇨🇷 `cr-fe` ·
-  21. 🇩🇴 `do-ecf` · 22. 🇬🇹 `gt-fel` · 23. 🇵🇦 `pa-fe` · 24. 🇵🇾 `py-de` · 25. 🇸🇻 `sv-dte` ·
-  26. 🇧🇴 `bo-fe` · 27. 🇻🇪 `ve-fe`
+- [x] 16. 🇨🇱 `cl-dte` · ✅ squelette via `buildNationalXml(data, 'CL')`
+- [x] 17. 🇦🇷 `ar-fe` · ✅ squelette via `buildNationalXml(data, 'AR')`
+- [x] 18. 🇪🇨 `ec-fe` · ✅ squelette via `buildNationalXml(data, 'EC')`
+- [ ] 19. 🇺🇾 `uy-cfe` · 20. 🇨🇷 `cr-fe` · 21. 🇩🇴 `do-ecf` · 22. 🇬🇹 `gt-fel` · 23. 🇵🇦 `pa-fe` · 24. 🇵🇾 `py-de` · 25. 🇸🇻 `sv-dte` · 26. 🇧🇴 `bo-fe` · 27. 🇻🇪 `ve-fe`
 
 ## A4 · Afrique
 - [ ] 28. 🇳🇬 `ng-firs` · 29. 🇰🇪 `ke-etims` · 30. 🇬🇭 `gh-evat` · 31. 🇷🇼 `rw-ebm` · 32. 🇹🇿 `tz-vfd` ·
@@ -92,8 +93,8 @@
   51. 🇺🇦 `ua-taxinvoice` · 52. 🇲🇪 `me-fiscal`
 
 ## A7 · Formats absents du code — à CRÉER
-- [ ] 53. 🇬🇷 GR — `[FORMAT]` **myDATA** XML (realTime) — absent
-- [ ] 54. 🇭🇺 HU — `[FORMAT]` **Online Számla** (RTIR) — absent
+- [x] 53. 🇬🇷 GR — `[FORMAT]` **myDATA** XML (realTime) — ✅ squelette via `buildNationalXml(data, 'GR')`
+- [x] 54. 🇭🇺 HU — `[FORMAT]` **Online Számla** (RTIR) — ✅ squelette via `buildNationalXml(data, 'HU')`
 
 > RO, RS, LV, SK, CO, PE, MY, IE, SI, BE, AE, SG : **aucun format à coder** (EN 16931 #3) → tout est en BLOC C/E.
 
