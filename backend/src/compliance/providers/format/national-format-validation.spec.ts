@@ -2,10 +2,11 @@
  * National Format Validation Harness — all national XML formats.
  *
  * Validates structural correctness of the XML output for each national format.
- * No authoritative validation (that requires external tools / XSD / services).
+ * PL FA(2): authoritative XSD validation via vendored schemas + libxmljs2.
  * Gate vivant: presence of required root elements and data integrity.
  */
 import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
+import { validateXsd, XsdResult } from '@/compliance/schemas/validate';
 import {
   IT_B2B,
   IT_MULTI_VAT,
@@ -15,6 +16,9 @@ import {
   ES_B2B,
   SA_B2B,
   PL_B2B,
+  PL_B2B_MULTI_VAT,
+  PL_B2B_EXEMPT,
+  PL_B2C,
   CL_B2B,
   AR_B2B,
   EC_B2B,
@@ -203,33 +207,134 @@ describe('National Format — structural validation', () => {
 
   describe('FA_VAT (PL)', () => {
     const fixture = PL_B2B;
-    it(`${fixture.slug} → fa-vat`, async () => {
+    it(`${fixture.slug} → fa-vat (XSD + structural)`, async () => {
       const xml = await service.buildFaVat(fixture.data);
       expect(typeof xml).toBe('string');
       expect(xml.length).toBeGreaterThan(100);
 
       const errors: string[] = [];
-      if (!xml.includes('Fa')) errors.push('missing Fa root');
-      if (!xml.includes('WersjaSchematu')) errors.push('missing WersjaSchematu');
+      if (!xml.includes('Faktura')) errors.push('missing Faktura root');
+      if (!xml.includes('Naglowek')) errors.push('missing Naglowek');
+      if (!xml.includes('KodFormularza')) errors.push('missing KodFormularza');
+      if (!xml.includes('Podmiot1')) errors.push('missing Podmiot1 (seller)');
+      if (!xml.includes('Podmiot2')) errors.push('missing Podmiot2 (buyer)');
       if (!xml.includes('FaWiersz')) errors.push('missing FaWiersz');
-      if (!xml.includes('Podsumowanie')) errors.push('missing Podsumowanie');
-      if (!xml.includes('PL1234567890')) errors.push('missing seller NIP');
-      if (!xml.includes('FA(2)')) errors.push('missing schema version FA(2)');
+      if (!xml.includes('1234567890')) errors.push('missing seller NIP');
+      if (!xml.includes('9876543210')) errors.push('missing buyer NIP');
+
+      // XSD validation (authoritative gate)
+      const xsdResult: XsdResult = validateXsd(xml, 'pl/schemat_FA2.xsd');
 
       results.push({
         fixture: fixture.slug,
         format: 'fa-vat',
         xmlLength: xml.length,
-        hasRequiredElements: errors.length === 0,
-        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
-        errors,
+        hasRequiredElements: errors.length === 0 && xsdResult.valid,
+        verdict: xsdResult.valid ? 'PASS' : 'FAIL',
+        errors: [...errors, ...xsdResult.errors],
       });
 
       expect(errors).toEqual([]);
+      expect(xsdResult.valid).toBe(true);
     });
   });
 
-  // ─── LATAM + TR + IN via buildNationalXml() ────────────────────────────
+  describe('FA_VAT (PL) — multi-VAT', () => {
+    const fixture = PL_B2B_MULTI_VAT;
+    it(`${fixture.slug} → fa-vat (multi-VAT: 23+8+5%)`, async () => {
+      const xml = await service.buildFaVat(fixture.data);
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+
+      const errors: string[] = [];
+      if (!xml.includes('Faktura')) errors.push('missing Faktura root');
+      if (!xml.includes('Naglowek')) errors.push('missing Naglowek');
+      if (!xml.includes('Podmiot1')) errors.push('missing Podmiot1 (seller)');
+      if (!xml.includes('Podmiot2')) errors.push('missing Podmiot2 (buyer)');
+      if (!xml.includes('FaWiersz')) errors.push('missing FaWiersz');
+      if (!xml.includes('1234567890')) errors.push('missing seller NIP');
+      if (!xml.includes('9876543210')) errors.push('missing buyer NIP');
+
+      // XSD validation
+      const xsdResult: XsdResult = validateXsd(xml, 'pl/schemat_FA2.xsd');
+
+      results.push({
+        fixture: fixture.slug,
+        format: 'fa-vat',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0 && xsdResult.valid,
+        verdict: xsdResult.valid ? 'PASS' : 'FAIL',
+        errors: [...errors, ...xsdResult.errors],
+      });
+
+      expect(errors).toEqual([]);
+      expect(xsdResult.valid).toBe(true);
+    });
+  });
+
+  describe('FA_VAT (PL) — VAT exempt', () => {
+    const fixture = PL_B2B_EXEMPT;
+    it(`${fixture.slug} → fa-vat (0% exempt)`, async () => {
+      const xml = await service.buildFaVat(fixture.data);
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+
+      const errors: string[] = [];
+      if (!xml.includes('Faktura')) errors.push('missing Faktura root');
+      if (!xml.includes('Naglowek')) errors.push('missing Naglowek');
+      if (!xml.includes('Podmiot1')) errors.push('missing Podmiot1 (seller)');
+      if (!xml.includes('FaWiersz')) errors.push('missing FaWiersz');
+      if (!xml.includes('1234567890')) errors.push('missing seller NIP');
+
+      // XSD validation
+      const xsdResult: XsdResult = validateXsd(xml, 'pl/schemat_FA2.xsd');
+
+      results.push({
+        fixture: fixture.slug,
+        format: 'fa-vat',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0 && xsdResult.valid,
+        verdict: xsdResult.valid ? 'PASS' : 'FAIL',
+        errors: [...errors, ...xsdResult.errors],
+      });
+
+      expect(errors).toEqual([]);
+      expect(xsdResult.valid).toBe(true);
+    });
+  });
+
+  describe('FA_VAT (PL) — B2C individual', () => {
+    const fixture = PL_B2C;
+    it(`${fixture.slug} → fa-vat (B2C, no NIP)`, async () => {
+      const xml = await service.buildFaVat(fixture.data);
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+
+      const errors: string[] = [];
+      if (!xml.includes('Faktura')) errors.push('missing Faktura root');
+      if (!xml.includes('Naglowek')) errors.push('missing Naglowek');
+      if (!xml.includes('Podmiot1')) errors.push('missing Podmiot1 (seller)');
+      if (!xml.includes('Podmiot2')) errors.push('missing Podmiot2 (buyer)');
+      if (!xml.includes('FaWiersz')) errors.push('missing FaWiersz');
+      if (!xml.includes('1234567890')) errors.push('missing seller NIP');
+      if (!xml.includes('BrakID')) errors.push('missing BrakID for B2C');
+
+      // XSD validation
+      const xsdResult: XsdResult = validateXsd(xml, 'pl/schemat_FA2.xsd');
+
+      results.push({
+        fixture: fixture.slug,
+        format: 'fa-vat',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0 && xsdResult.valid,
+        verdict: xsdResult.valid ? 'PASS' : 'FAIL',
+        errors: [...errors, ...xsdResult.errors],
+      });
+
+      expect(errors).toEqual([]);
+      expect(xsdResult.valid).toBe(true);
+    });
+  });
 
   describe('Chile DTE (CL)', () => {
     const fixture = CL_B2B;
@@ -432,6 +537,23 @@ describe('National Format — structural validation', () => {
 
       results.push({ fixture: fixture.slug, format: 'eg-eta', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
       expect(errors).toEqual([]);
+    });
+  });
+
+  describe('FA_VAT XSD — negative test', () => {
+    it('rejects broken FA(2) XML missing required elements', () => {
+      const broken = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<Faktura xmlns="http://crd.gov.pl/wzor/2023/06/29/12648/">',
+        '  <Naglowek>',
+        '    <KodFormularza>Fa</KodFormularza>',
+        '    <WariantFormularza>2</WariantFormularza>',
+        '  </Naglowek>',
+        '</Faktura>',
+      ].join('\n');
+      const result = validateXsd(broken, 'pl/schemat_FA2.xsd');
+      expect(result.valid).toBe(false);
+      expect(result.errorCount).toBeGreaterThan(0);
     });
   });
 });

@@ -806,12 +806,163 @@ export const PL_B2B: FormatFixture = {
       postalCode: '31-010',
       country: 'Poland',
       partyIdentifiers: [
-        { scheme: 'VAT', value: 'PL0987654321' },
+        { scheme: 'VAT', value: 'PL9876543210' },
       ],
     },
     items: [
       { name: 'Usługi IT (IT services)', quantity: 40, unitPrice: 200, vatRate: 23, type: 'SERVICE' },
       { name: 'Szkolenie (Training)', quantity: 2, unitPrice: 3000, vatRate: 23, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// ---------------------------------------------------------------------------
+// Fixture 11b: PL B2B — multi-VAT (23 % + 8 % + 5 %)
+// ---------------------------------------------------------------------------
+export const PL_B2B_MULTI_VAT: FormatFixture = {
+  slug: 'pl-b2b-multi-vat',
+  description: 'Polish B2B, FA_VAT — multiple VAT rates (23+8+5)',
+  data: {
+    rawNumber: 'FV-2025-0002',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Kowalski sp. z o.o.',
+      description: 'IT solutions',
+      foundedAt: new Date('2011-07-01'),
+      currency: 'PLN',
+      address: 'ul. Marszałkowska 1',
+      city: 'Warszawa',
+      postalCode: '00-001',
+      country: 'Poland',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'PL1234567890' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Nowak Trading Sp. z o.o.',
+      description: 'Wholesale',
+      foundedAt: new Date('2008-03-10'),
+      contactFirstname: null,
+      contactLastname: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'ul. Złota 5',
+      city: 'Kraków',
+      postalCode: '31-010',
+      country: 'Poland',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'PL9876543210' },
+      ],
+    },
+    items: [
+      { name: 'Usługi IT (IT services)', quantity: 40, unitPrice: 200, vatRate: 23, type: 'SERVICE' },
+      { name: 'Wsparcie techniczne (Support)', quantity: 10, unitPrice: 100, vatRate: 8, type: 'SERVICE' },
+      { name: 'Dokumentacja (Documentation)', quantity: 2, unitPrice: 50, vatRate: 5, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// ---------------------------------------------------------------------------
+// Fixture 11c: PL B2B — VAT exempt (0 %)
+// ---------------------------------------------------------------------------
+export const PL_B2B_EXEMPT: FormatFixture = {
+  slug: 'pl-b2b-exempt',
+  description: 'Polish B2B, FA_VAT — VAT exempt (0%)',
+  data: {
+    rawNumber: 'FV-2025-0003',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Kowalski sp. z o.o.',
+      description: 'IT solutions',
+      foundedAt: new Date('2011-07-01'),
+      currency: 'PLN',
+      address: 'ul. Marszałkowska 1',
+      city: 'Warszawa',
+      postalCode: '00-001',
+      country: 'Poland',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'PL1234567890' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Kowalski sp. z o.o.',
+      description: 'IT solutions',
+      foundedAt: new Date('2011-07-01'),
+      contactFirstname: null,
+      contactLastname: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'ul. Marszałkowska 1',
+      city: 'Warszawa',
+      postalCode: '00-001',
+      country: 'Poland',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'PL1234567890' },
+      ],
+    },
+    items: [
+      { name: 'Usługa eksportowa (Export service)', quantity: 1, unitPrice: 5000, vatRate: 0, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// ---------------------------------------------------------------------------
+// Fixture 11d: PL B2C — individual consumer
+// ---------------------------------------------------------------------------
+export const PL_B2C: FormatFixture = {
+  slug: 'pl-b2c',
+  description: 'Polish B2C, FA_VAT — individual consumer',
+  data: {
+    rawNumber: 'FV-2025-B2C-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Kowalski sp. z o.o.',
+      description: 'IT solutions',
+      foundedAt: new Date('2011-07-01'),
+      currency: 'PLN',
+      address: 'ul. Marszałkowska 1',
+      city: 'Warszawa',
+      postalCode: '00-001',
+      country: 'Poland',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'PL1234567890' },
+      ],
+    },
+    client: {
+      type: 'INDIVIDUAL',
+      name: '',
+      description: null,
+      foundedAt: null,
+      contactFirstname: 'Jan',
+      contactLastname: 'Kowalski',
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'ul. Złota 5',
+      city: 'Kraków',
+      postalCode: '31-010',
+      country: 'Poland',
+      partyIdentifiers: [],
+    },
+    items: [
+      { name: 'Kurs online (Online course)', quantity: 1, unitPrice: 299, vatRate: 23, type: 'SERVICE' },
+      { name: 'Wsparcie (Support)', quantity: 1, unitPrice: 49, vatRate: 23, type: 'SERVICE' },
     ],
   },
   formats: {},
@@ -1327,4 +1478,7 @@ export const FIXTURES: FormatFixture[] = [
   DE_B2B,
   EU_B2B_REVERSE_CHARGE,
   B2C_INDIVIDUAL,
+  PL_B2B_MULTI_VAT,
+  PL_B2B_EXEMPT,
+  PL_B2C,
 ];

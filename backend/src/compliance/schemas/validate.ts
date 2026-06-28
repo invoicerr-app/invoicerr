@@ -69,21 +69,9 @@ export function validateSchematron(xml: string, sefRelPath: string): SchematronR
   };
 }
 
-// ─── XSD (PL FA(2) via libxmljs2) ──────────────────────────────────────────
-
-const XSD_CACHE = new Map<string, any>();
-
-function loadXsd(relPath: string): any {
-  const cached = XSD_CACHE.get(relPath);
-  if (cached) return cached;
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const libxmljs = require('libxmljs2');
-  const absPath = path.resolve(__dirname, relPath);
-  const xsdStr = fs.readFileSync(absPath, 'utf-8');
-  const xsd = libxmljs.parseXml(xsdStr);
-  XSD_CACHE.set(relPath, xsd);
-  return xsd;
-}
+// ─── XSD (PL FA(2) via xmllint subprocess) ─────────────────────────────────
+// libxmljs2 can't resolve xsd:import/xsd:include from in-memory strings.
+// xmllint resolves file-based schema chains correctly.
 
 export interface XsdResult {
   valid: boolean;
@@ -92,24 +80,36 @@ export interface XsdResult {
 }
 
 /**
- * Validate XML against an XSD schema (via libxmljs2, native in-process).
+ * Validate XML against an XSD schema (via xmllint --schema subprocess).
  * Returns the list of validation errors (empty = valid).
  */
 export function validateXsd(xml: string, xsdRelPath: string): XsdResult {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const libxmljs = require('libxmljs2');
-  const xsd = loadXsd(xsdRelPath);
-  const doc = libxmljs.parseXml(xml);
+  const { execSync } = require('child_process');
+  const os = require('os');
+  const xsdAbsPath = path.resolve(__dirname, xsdRelPath);
 
-  const isValid = doc.validate(xsd);
-  if (isValid) {
+  // Write XML to a temp file (xmllint needs a file path)
+  const tmpFile = path.join(os.tmpdir(), `xsd-validate-${Date.now()}-${Math.random().toString(36).slice(2)}.xml`);
+  try {
+    fs.writeFileSync(tmpFile, xml, 'utf-8');
+    const stdout = execSync(
+      `xmllint --noout --schema "${xsdAbsPath}" "${tmpFile}" 2>&1`,
+      { timeout: 10_000 },
+    );
+    // xmllint exits 0 and prints "... validates" on success
     return { valid: true, errorCount: 0, errors: [] };
+  } catch (err: any) {
+    // xmllint exits non-zero on validation errors; stderr/stdout contains the error lines
+    const output: string = (err.stdout ?? err.stderr ?? String(err)).toString();
+    const lines = output.split('\n').filter(l => l.trim() && !l.includes('validates'));
+    // Filter out "fails to validate" summary line
+    const errors = lines.filter(l => !l.includes('fails to validate') && !l.includes('does not validate'));
+    return {
+      valid: false,
+      errorCount: errors.length,
+      errors,
+    };
+  } finally {
+    try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
   }
-
-  const validationErrors = doc.validationErrors.map((e: any) => e.message || String(e));
-  return {
-    valid: false,
-    errorCount: validationErrors.length,
-    errors: validationErrors,
-  };
 }
