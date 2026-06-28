@@ -47,8 +47,10 @@
 - [x] 2. `[FORMAT]` **plain-pdf** → délègue `getInvoicePdf()`/`getPDF()` (déjà réel) — `format/providers.ts` via port · *tous les pays défaut*
 - [x] 3. `[FORMAT]` **EN 16931 UBL/CII** via `@fin.cx/einvoice` (déjà réel dans `getInvoiceXMLFormat`) — délègue via port · **XML pur ✅** (renderXmlFormat + exportXml), reste Schematron
       → FR(base Factur-X), CO, PE, MY, RO, RS, LV, SK, IE, SI, BE, AE, SG · *(reste : Schematron, optionnel)*
-- [x] 4. `[FORMAT]` **Factur-X** (EN 16931 CII + PDF/A-3 hybride, déjà réel via `embedInPdf`) → 🇫🇷 FR — délègue via port · **casing fix ✅** (export formats now lowercase, matching @fin.cx/einvoice API)
-      Validation : in-memory + structural bytes (guideline `urn:cen.eu:en16931:2017`), pas de round-trip CII via fromXml (bug lib). Byte-level autoritaire → L2 (Mustang) / L3 (EC ITB).
+- [x] 4. `[FORMAT]` **Factur-X** (EN 16931 CII + PDF/A-3 hybride, déjà réel via `embedInPdf`) → 🇫🇷 FR — délègue via port · ✅ Schematron validé
+      Validation : in-memory + structural bytes (guideline `urn:cen.eu:en16931:2017`) + **EN16931 CII Schematron** (preprocessed → XSLT → SEF via saxon-js).
+      Living gate : subset-check par fixture + afterAll coverage. Known gaps : BR-CO-15, BR-S-01, BR-CL-14 (lib `@fin.cx/einvoice`).
+      Byte-level autoritaire → L2 (Mustang) / L3 (EC ITB).
 - [x] 5. `[FORMAT]` **XRechnung** (CIUS de #3) → 🇩🇪 DE — **rendu ✅** (exportXml('xrechnung') via renderXmlFormat)
       Validation round-trip UBL OK. **Gap data connu** : BR-DE-11 (tél vendeur), BR-DE-12 (email vendeur), BR-DE-13 (EndpointID acheteur Peppol), BR-DE-14 (code moyen paiement UNTDID 4461) — champs absents du modèle company/client/payment, à ajouter avant XRechnung B2G live.
       **Phase A spike (2026-06-27)**: `@e-invoice-eu/core` installé et testé. Décision **NO-GO** migration :
@@ -66,8 +68,10 @@
   XAdES-BES + SdI → BLOC C #64 (canal externe, certificat requis).
 - [x] 8. `[FORMAT]` **CFDI 4.0** → 🇲🇽 MX — `buildCfdi()` XML brut · ✅ squelette pré-timbre (sans sello/UUID)
   Validation : structure Comprobante/Emisor/Receptor/Conceptos/Impuestos. Timbrado PAC → canal externe (TODO #65).
-- [x] 9. `[FORMAT]` **FA_VAT** → 🇵🇱 PL — `buildFaVat()` XML FA(2) · ✅ squelette structurel
-  Validation : nœuds Fa/FaWiersz/Podsumowanie. Scellé + soumission KSeF → canal externe (TODO #66).
+- [x] 9. `[FORMAT]` **FA_VAT** → 🇵🇱 PL — `buildFaVat()` XML FA(2) · ✅ complet (builder + XSD validation)
+  Validation : xmllint --schema (4 vendored XSD files : schemat_FA2 + StrukturyDanych + ElementarneTypyDanych + KodyKrajow).
+  4 fixtures : B2B, multi-VAT (23+8+5%), exempt (0%), B2C (no NIP). Negative test proven.
+  Scellé + soumission KSeF → canal externe (TODO #66).
 - [x] 10. `[FORMAT]` **KSA UBL 2.1 + QR** → 🇸🇦 SA — `buildKsaUbl()` UBL 2.1 + QR placeholder · ✅ squelette ZATCA
   Validation : nœuds UBL + QR placeholder. Soumission FATOORA → canal externe (TODO #67).
 - [x] 11. `[FORMAT]` `in-irp` (GST e-invoice) → 🇮🇳 IN · ✅ squelette via `buildNationalXml(data, 'IN')`
