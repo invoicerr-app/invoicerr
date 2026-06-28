@@ -56,7 +56,7 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
         country: 'France',
         phone: '+33100000000',
         email: 'seller@example.fr',
-        partyIdentifiers: [{ scheme: 'VAT', value: 'FR40303265045' }],
+        partyIdentifiers: [{ scheme: 'VAT', value: 'FR00315143296' }, { scheme: 'LEGAL_ID', value: '315143296' }],
       },
       client: {
         type: 'COMPANY',
@@ -75,7 +75,7 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
         city: 'Lyon',
         postalCode: '69002',
         country: 'France',
-        partyIdentifiers: [{ scheme: 'VAT', value: 'FR23334173221' }],
+        partyIdentifiers: [{ scheme: 'VAT', value: 'FR23334173221' }, { scheme: 'LEGAL_ID', value: '552081317' }],
       },
       items: [
         { name: 'Prestation de test', quantity: 1, unitPrice: 100, vatRate: 20, type: 'SERVICE' },
@@ -84,6 +84,7 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
 
     const facturxXml = await inv.exportXml('facturx');
     console.log('Factur-X XML length:', facturxXml.length);
+    console.log('XML has SIREN 315143296:', facturxXml.includes('315143296'), '| has SpecifiedLegalOrganization:', facturxXml.includes('SpecifiedLegalOrganization'));
     expect(facturxXml).toContain('CrossIndustryInvoice');
 
     // ── Transmit through the real provider path ──
