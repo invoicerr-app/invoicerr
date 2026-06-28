@@ -21,6 +21,35 @@ export interface PollPolicy {
   backoff?: 'NONE' | 'EXPONENTIAL';
 }
 
+// ---------------------------------------------------------------------------
+// Channel config schema — mirrors the plugin form.json pattern (IPluginFormField)
+// but adds `secret` to flag sensitive fields that must be masked in the UI and
+// encrypted at rest. The entire config blob is encrypted regardless, but the
+// schema tells the UI which fields to mask with "••••".
+// ---------------------------------------------------------------------------
+
+export interface ChannelConfigField {
+  type: 'text' | 'number' | 'switch' | 'select';
+  name: string;
+  label: string;
+  placeholder?: string;
+  required?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  min?: number;
+  max?: number;
+  default?: boolean | string | number;
+  multiple?: boolean;
+  pattern?: string;
+  options?: { label: string; value: string }[];
+  /** When true the field holds a secret (token, certificate, password). Masked in UI. */
+  secret?: boolean;
+}
+
+export interface ChannelConfigSchema {
+  fields: ChannelConfigField[];
+}
+
 /** Delivers the artifact over one channel (email, Peppol, a clearance API, a portal, print…) (§10). */
 export interface TransmissionProvider {
   /** Stable provider id (e.g. 'email', 'sdi', 'ksef'); used for exact selection via ChannelSpec.providerId. */
@@ -30,6 +59,12 @@ export interface TransmissionProvider {
   readonly feedback?: ChannelFeedback;
   /** Cadence/timeout for ASYNC_POLL providers. */
   readonly pollPolicy?: PollPolicy;
+  /**
+   * Declarative schema for the config this provider needs from a company.
+   * When present, the UI renders a form and the backend validates against it.
+   * Fields with `secret: true` are masked in the API response and encrypted at rest.
+   */
+  readonly configSchema?: ChannelConfigSchema;
   transmit(
     artifacts: SignedArtifact[],
     ctx: TransactionContext,

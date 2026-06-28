@@ -1,9 +1,10 @@
-import { AlertTriangle, Building2, FileText, KeyRound, Mail, Plug, TicketIcon, User, Webhook } from "lucide-react"
+import { AlertTriangle, Building2, FileText, KeyRound, Mail, Plug, Radio, TicketIcon, User, Webhook } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useNavigate, useParams } from "react-router"
 
 import AccountSettings from "./_components/account.settings"
 import ApiKeysSettings from "./_components/api-keys.settings"
+import ChannelsSettings from "./_components/channels.settings"
 import CompanySettings from "./_components/company.settings"
 import DangerZoneSettings from "./_components/danger.settings"
 import EmailTemplatesSettings from "./_components/templates.settings"
@@ -21,7 +22,7 @@ export default function Settings() {
     const { tab } = useParams()
     const navigate = useNavigate()
 
-    const validTabs = ["company", "template", "email", "webhooks", "apiKeys", "logs", "account", "invitations", "plugins", "danger"]
+    const validTabs = ["company", "template", "email", "webhooks", "apiKeys", "logs", "account", "invitations", "plugins", "channels", "danger"]
     const currentTab = validTabs.includes(tab!) ? tab! : "company"
 
     const handleTabChange = (newTab: string) => {
@@ -75,6 +76,11 @@ export default function Settings() {
             icon: Plug,
         },
         {
+            value: "channels",
+            label: t("settings.tabs.channels", "E-invoicing"),
+            icon: Radio,
+        },
+        {
             value: "danger",
             label: t("settings.tabs.dangerZone"),
             icon: AlertTriangle,
@@ -105,6 +111,8 @@ export default function Settings() {
                 return <InvitationsSettings />
             case "plugins":
                 return <PluginsSettings />
+            case "channels":
+                return <ChannelsSettings />
             case "danger":
                 return <DangerZoneSettings />
             default:

@@ -359,6 +359,7 @@ model Company {
   Article          Article[]
   partyIdentifiers PartyIdentifier[]
   NumberSeries     NumberSeries[]
+  channelConfigs   CompanyChannelConfig[]
 }
 
 // Client model
@@ -1156,6 +1157,11 @@ enum CallbackRegStatus {
   CANCELLED
 }
 
+enum ChannelEnvironment {
+  TEST
+  PROD
+}
+
 model ComplianceDocument {
   id             String                 @id
   invoiceId      String?
@@ -1260,3 +1266,21 @@ model ComplianceInboundMessage {
 }
 
 // ======= END OF COMPLIANCE LIFECYCLE PERSISTENCE ======= //
+
+// ======= CHANNEL CONFIG (per-company credentials, encrypted) ======= //
+
+model CompanyChannelConfig {
+  id            String              @id @default(cuid())
+  companyId     String
+  company       Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  channel       String              // ChannelType string ('EMAIL' | 'PEPPOL' | 'GOV_PORTAL_API' | …)
+  providerId    String              // 'ksef' | 'pdp' | 'sdi' | 'email' | 'print' | …
+  environment   ChannelEnvironment  @default(TEST)
+  config        String              // AES-256-GCM encrypted JSON blob (credentials + non-secret config)
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@unique([companyId, providerId, environment])
+  @@index([companyId])
+}

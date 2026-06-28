@@ -30,6 +30,7 @@ export * from './providers/signing/signing-provider';
 export * from './providers/signing/providers';
 export * from './providers/signing/registry';
 export * from './providers/transmission/transmission-provider';
+export * from './providers/transmission/channel-credentials-port';
 export * from './providers/transmission/providers';
 export * from './providers/transmission/registry';
 export * from './providers/archive/archive-provider';

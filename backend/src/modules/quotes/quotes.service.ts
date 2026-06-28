@@ -701,6 +701,7 @@ export class QuotesService {
                 })),
                 issueDate: signDate,
                 currency: existingQuote.currency,
+                supplierCompanyId: existingQuote.company.id,
             };
             const draft = await this.complianceService.createDraft(complianceCtx, 'INVOICE');
             await this.complianceService.issue(draft.id);

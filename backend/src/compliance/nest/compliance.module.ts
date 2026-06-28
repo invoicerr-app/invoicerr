@@ -14,6 +14,9 @@ import { defaultTransmissionRegistry } from '../providers/transmission/registry'
 import { InvoiceRenderingModule } from '@/modules/invoice-rendering/invoice-rendering.module';
 import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
 import { InvoiceMailGateway } from '@/modules/invoice-rendering/invoice-mail.gateway';
+import { ChannelCredentialsModule } from '@/modules/channel-credentials/channel-credentials.module';
+import { ChannelCredentialsService } from '@/modules/channel-credentials/channel-credentials.service';
+import { ChannelCredentialsController } from './channel-credentials.controller';
 import { ApplySignalService } from './apply-signal';
 import { ComplianceCron } from './compliance.cron';
 import { AuditExportController } from './audit-export.controller';
@@ -21,8 +24,8 @@ import { ComplianceController } from './compliance.controller';
 import { RequiredFieldsController } from './required-fields.controller';
 
 @Module({
-  imports: [InvoiceRenderingModule],
-  controllers: [ComplianceController, RequiredFieldsController, AuditExportController],
+  imports: [InvoiceRenderingModule, ChannelCredentialsModule],
+  controllers: [ComplianceController, RequiredFieldsController, AuditExportController, ChannelCredentialsController],
   providers: [
     // Stores
     {
@@ -92,11 +95,12 @@ import { RequiredFieldsController } from './required-fields.controller';
       useFactory: (rendering: InvoiceRenderingService) => new FormatProviderRegistry({ artifacts: rendering }),
       inject: [InvoiceRenderingService],
     },
-    // TransmissionProviderRegistry with real mail port (InvoiceMailGateway)
+    // TransmissionProviderRegistry with real mail port + credentials port
     {
       provide: TransmissionProviderRegistry,
-      useFactory: (mail: InvoiceMailGateway) => new TransmissionProviderRegistry({ mail }),
-      inject: [InvoiceMailGateway],
+      useFactory: (mail: InvoiceMailGateway, credentials: ChannelCredentialsService) =>
+        new TransmissionProviderRegistry({ mail, credentials }),
+      inject: [InvoiceMailGateway, ChannelCredentialsService],
     },
     // ComplianceExecutor with wired format + transmission registries
     {

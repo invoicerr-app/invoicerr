@@ -4,6 +4,7 @@ import { ComplianceLogger, defaultLogger } from '../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../execution/types';
 import { ChannelSpec } from '../../profiles/schema';
 import { ChannelType } from '../../types';
+import { ChannelCredentialsPort } from './channel-credentials-port';
 import { InvoiceMailPort } from './invoice-mail-port';
 import { TransmissionProvider } from './transmission-provider';
 import {
@@ -22,12 +23,15 @@ import { NATIONAL_PORTAL_PROVIDERS } from './national-portals';
 export class TransmissionProviderRegistry {
   private readonly byChannel = new Map<ChannelType, TransmissionProvider>();
   private readonly byId = new Map<string, TransmissionProvider>();
+  readonly credentials?: ChannelCredentialsPort;
 
-  constructor(providers?: TransmissionProvider[] | { mail?: InvoiceMailPort }) {
+  constructor(providers?: TransmissionProvider[] | { mail?: InvoiceMailPort; credentials?: ChannelCredentialsPort }) {
     let list: TransmissionProvider[];
     if (Array.isArray(providers)) {
       list = providers;
+      this.credentials = undefined;
     } else {
+      this.credentials = providers?.credentials;
       list = [
         new EmailTransmissionProvider(providers?.mail),
         new PeppolTransmissionProvider(),
@@ -58,6 +62,11 @@ export class TransmissionProviderRegistry {
     return this.byId.get(id) ?? null;
   }
 
+  /** All registered providers (deduplicated by id). */
+  allProviders(): TransmissionProvider[] {
+    return Array.from(this.byId.values());
+  }
+
   /** Exact provider id wins over the generic channel default (e.g. 'ksef' vs GOV_PORTAL_API). */
   resolve(spec: ChannelSpec): TransmissionProvider | null {
     if (spec.providerId) {
@@ -83,6 +92,22 @@ export class TransmissionProviderRegistry {
         results.push({ channel: spec.type, status: 'SKIPPED', notes: ['no provider'] });
         continue;
       }
+
+      // Resolve credentials when the provider declares a configSchema and the ctx carries a company id.
+      if (provider.configSchema && this.credentials && ctx.supplierCompanyId) {
+        const providerId = spec.providerId ?? provider.id;
+        // Environment resolution happens in the concrete transmit() implementation;
+        // providers can read it from the resolved config or default to TEST.
+        const resolved = await this.credentials.resolve(ctx.supplierCompanyId, providerId, 'TEST');
+        if (!resolved || !resolved.isActive) {
+          log.info('transmission', `channel not configured for company (${providerId}) — skipping`);
+          results.push({ channel: spec.type, status: 'SKIPPED', notes: [`channel ${providerId} not configured for company`] });
+          continue;
+        }
+        // Attach resolved config as metadata on the TransmissionResult notes for now;
+        // concrete providers will receive it through a dedicated parameter once they consume it.
+      }
+
       results.push(await provider.transmit(artifacts, ctx, plan, `${idempotencyKeyBase}:${provider.id}:${i}`, log));
     }
     return results;

@@ -91,4 +91,6 @@ export interface TransactionContext {
   currency: string;
   documentKind?: DocumentKind;
   externalRef?: string; // source invoice id (lets format/transmission reuse app rendering)
+  /** Company ID of the supplier — used to resolve channel credentials per-company. */
+  supplierCompanyId?: string;
 }

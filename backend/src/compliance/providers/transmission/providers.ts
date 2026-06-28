@@ -4,13 +4,19 @@ import { ComplianceLogger } from '../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../execution/types';
 import { ChannelType } from '../../types';
 import { InvoiceMailPort } from './invoice-mail-port';
-import { TransmissionProvider } from './transmission-provider';
+import { ChannelConfigSchema, TransmissionProvider } from './transmission-provider';
 
 /** Email — real send via InvoiceMailPort when wired, stub otherwise. */
 export class EmailTransmissionProvider implements TransmissionProvider {
   readonly id = 'email';
   readonly channel: ChannelType = 'EMAIL';
   readonly feedback = 'NONE' as const;
+  readonly configSchema: ChannelConfigSchema = {
+    fields: [
+      { type: 'text', name: 'fromAddress', label: 'From address', placeholder: 'invoices@company.com', required: true },
+      { type: 'text', name: 'replyTo', label: 'Reply-to address', placeholder: 'accounting@company.com' },
+    ],
+  };
 
   constructor(private readonly mail?: InvoiceMailPort) {}
 
@@ -47,6 +53,15 @@ export class PdpTransmissionProvider implements TransmissionProvider {
   readonly id = 'pdp';
   readonly channel: ChannelType = 'PDP';
   readonly feedback = 'ASYNC_CALLBACK' as const; // PDP pushes lifecycle statuses (déposée/refusée/encaissée)
+  readonly configSchema: ChannelConfigSchema = {
+    fields: [
+      { type: 'text', name: 'pdpName', label: 'PDP name', placeholder: 'Example PDP', required: true },
+      { type: 'text', name: 'apiBaseUrl', label: 'API base URL', placeholder: 'https://api.pdp.example.com/v1', required: true },
+      { type: 'text', name: 'clientId', label: 'Client ID', required: true },
+      { type: 'text', name: 'clientSecret', label: 'Client secret', required: true, secret: true },
+      { type: 'text', name: 'pdpId', label: 'PDP identifier (SIRET)', placeholder: '12345678901234' },
+    ],
+  };
   async transmit(_artifacts: SignedArtifact[], _ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): Promise<TransmissionResult> {
     log.todo('transmission/pdp', `annuaire lookup + deliver to recipient PDP + push e-reporting (key ${key})`);
     return { channel: 'PDP', status: 'SENT', notes: ['stub: integrate a registered PDP'] };
@@ -82,6 +97,17 @@ export class SdiTransmissionProvider implements TransmissionProvider {
   readonly id = 'sdi';
   readonly channel: ChannelType = 'SDI';
   readonly feedback = 'ASYNC_CALLBACK' as const; // SdI notifiche (consegnata/scartata…)
+  readonly configSchema: ChannelConfigSchema = {
+    fields: [
+      { type: 'text', name: 'idTrasmittente', label: 'IdTrasmittente', placeholder: 'IT01234567890', required: true },
+      { type: 'select', name: 'transmitChannel', label: 'Transmission channel', required: true, options: [
+        { label: 'SDI Cooperativa (web service)', value: 'SDICoop' },
+        { label: 'PEC (Posta Elettronica Certificata)', value: 'PEC' },
+      ]},
+      { type: 'text', name: 'certificate', label: 'PFX certificate (base64)', required: true, secret: true },
+      { type: 'text', name: 'certificatePassword', label: 'Certificate password', required: true, secret: true },
+    ],
+  };
   async transmit(_artifacts: SignedArtifact[], _ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): Promise<TransmissionResult> {
     log.todo('transmission/sdi', `submit FatturaPA to SdI, await receipt/notifica (key ${key})`);
     return { channel: 'SDI', status: 'PENDING', notes: ['stub: integrate SdI'] };
@@ -114,6 +140,16 @@ export class KsefTransmissionProvider implements TransmissionProvider {
   readonly channel: ChannelType = 'GOV_PORTAL_API';
   readonly feedback = 'ASYNC_POLL' as const; // poll KSeF for the UPO / reference number
   readonly pollPolicy = { everySeconds: 30, timeoutHours: 24, backoff: 'EXPONENTIAL' as const };
+  readonly configSchema: ChannelConfigSchema = {
+    fields: [
+      { type: 'select', name: 'environment', label: 'KSeF environment', required: true, options: [
+        { label: 'Test', value: 'test' },
+        { label: 'Production', value: 'prod' },
+      ], default: 'test' },
+      { type: 'text', name: 'authToken', label: 'Session token / certificate', secret: true },
+      { type: 'text', name: 'nip', label: 'NIP (tax id)', placeholder: 'PL1234567890' },
+    ],
+  };
   async transmit(_artifacts: SignedArtifact[], _ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): Promise<TransmissionResult> {
     log.todo('transmission/ksef', `authenticate (token/seal) + submit FA_VAT to KSeF, await KSeF reference number (key ${key})`);
     return { channel: 'GOV_PORTAL_API', status: 'PENDING', notes: ['stub: integrate KSeF'] };
@@ -141,6 +177,12 @@ export class PrintTransmissionProvider implements TransmissionProvider {
   readonly id = 'print';
   readonly channel: ChannelType = 'PRINT';
   readonly feedback = 'NONE' as const;
+  readonly configSchema: ChannelConfigSchema = {
+    fields: [
+      { type: 'switch', name: 'includeQR', label: 'Include QR code', default: true },
+      { type: 'switch', name: 'includePaymentInfo', label: 'Include payment information', default: false },
+    ],
+  };
   async transmit(_artifacts: SignedArtifact[], _ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): Promise<TransmissionResult> {
     log.todo('transmission/print', `produce printable representation with QR (key ${key})`);
     return { channel: 'PRINT', status: 'SENT', notes: ['stub: generate printable PDF/receipt'] };

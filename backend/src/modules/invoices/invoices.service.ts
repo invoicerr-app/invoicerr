@@ -331,6 +331,7 @@ export class InvoicesService {
                 })),
                 issueDate: new Date(),
                 currency: body.currency || client.currency || company.currency,
+                supplierCompanyId: company.id,
                 externalRef: invoice.id,
             };
             await this.complianceService.createDraft(complianceCtx, 'INVOICE', invoice.id);
@@ -560,30 +561,31 @@ export class InvoicesService {
             try {
                 const company = invoice.company;
                 const client = invoice.client;
-                const complianceCtx: TransactionContext = {
-                    supplier: {
-                        legalName: company.name,
-                        countryCode: company.countryCode ?? guessCountryCode(company.country) ?? 'FR',
-                        role: 'B2B',
-                        identifiers: (company as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
-                    },
-                    buyer: {
-                        legalName: client.name,
-                        countryCode: client.countryCode ?? guessCountryCode(client.country) ?? 'FR',
-                        role: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
-                        identifiers: (client as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
-                    },
-                    lines: correctionItems.map((item: any) => ({
-                        id: `item-${item.order ?? 0}`,
-                        description: item.description,
-                        quantity: Math.abs(item.quantity),
-                        unitNetMinor: item.unitPriceMinor ?? toMinor(item.unitPrice, invoice.currency),
-                        supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
-                    })),
-                    issueDate,
-                    currency: invoice.currency,
-                    externalRef: correctionInvoice.id,
-                };
+            const complianceCtx: TransactionContext = {
+                supplier: {
+                    legalName: company.name,
+                    countryCode: company.countryCode ?? guessCountryCode(company.country) ?? 'FR',
+                    role: 'B2B',
+                    identifiers: (company as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
+                },
+                buyer: {
+                    legalName: client.name,
+                    countryCode: client.countryCode ?? guessCountryCode(client.country) ?? 'FR',
+                    role: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+                    identifiers: (client as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
+                },
+                lines: correctionInvoice.items.map((item: any) => ({
+                    id: `item-${item.order ?? 0}`,
+                    description: (item.description ?? '') as string,
+                    quantity: item.quantity,
+                    unitNetMinor: toMinor(item.unitPrice, invoice.currency),
+                    supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
+                })),
+                issueDate: new Date(),
+                currency: invoice.currency,
+                externalRef: invoice.id,
+                supplierCompanyId: company.id,
+            };
                 const correctionDoc = await this.complianceService.createDraft(complianceCtx, correctionKind as any, correctionInvoice.id);
                 await this.complianceService.issue(correctionDoc.id);
             } catch (error) {
@@ -758,6 +760,7 @@ export class InvoicesService {
                     })),
                     issueDate,
                     currency: invoice.currency,
+                    supplierCompanyId: company.id,
                     externalRef: replacement.id,
                 };
                 const replacementDoc = await this.complianceService.createDraft(complianceCtx, 'INVOICE', replacement.id);
@@ -1397,6 +1400,7 @@ export class InvoicesService {
                 })),
                 issueDate: new Date(),
                 currency: body.currency || client.currency || company.currency,
+                supplierCompanyId: company.id,
                 externalRef: invoice.id,
             };
             await this.complianceService.createDraft(complianceCtx, 'PROFORMA', invoice.id);
@@ -1584,6 +1588,7 @@ export class InvoicesService {
                 }],
                 issueDate,
                 currency,
+                supplierCompanyId: company.id,
                 externalRef: depositInvoice.id,
             };
             const doc = await this.complianceService.createDraft(complianceCtx, 'DEPOSIT', depositInvoice.id);
