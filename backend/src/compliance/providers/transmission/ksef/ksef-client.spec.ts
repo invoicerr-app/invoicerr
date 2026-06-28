@@ -41,7 +41,7 @@ describe('KsefClient', () => {
       expect(result.challenge).toBe('uuid-123');
       expect(result.timestampMs).toBe(1735689600000);
       expect(http.request).toHaveBeenCalledWith(
-        expect.objectContaining({ method: 'POST', path: '/auth/challenge' }),
+        expect.objectContaining({ method: 'POST', path: expect.stringContaining('/auth/challenge') }),
       );
     });
   });
@@ -76,7 +76,7 @@ describe('KsefClient', () => {
       expect(http.request).toHaveBeenCalledWith(
         expect.objectContaining({
           method: 'GET',
-          path: '/auth/auth-ref',
+          path: expect.stringContaining('/auth/auth-ref'),
           headers: { Authorization: 'Bearer my-bearer-token' },
         }),
       );
@@ -145,7 +145,7 @@ describe('KsefClient', () => {
       await client.closeSession('session-ref', 'access-token');
 
       expect(http.request).toHaveBeenCalledWith(
-        expect.objectContaining({ method: 'POST', path: '/sessions/online/session-ref/close' }),
+        expect.objectContaining({ method: 'POST', path: expect.stringContaining('/sessions/online/session-ref/close') }),
       );
     });
   });
@@ -161,7 +161,7 @@ describe('KsefClient', () => {
 
       expect(result.status.code).toBe(100);
       expect(http.request).toHaveBeenCalledWith(
-        expect.objectContaining({ method: 'GET', path: '/sessions/session-ref/invoices/inv-ref' }),
+        expect.objectContaining({ method: 'GET', path: expect.stringContaining('/sessions/session-ref/invoices/inv-ref') }),
       );
     });
   });

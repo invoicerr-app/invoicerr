@@ -148,7 +148,7 @@ export class KsefClient {
   // ── helpers ────────────────────────────────────────────────────────────────
 
   private async post<T>(path: string, body?: unknown, headers?: Record<string, string>): Promise<T> {
-    const res = await this.http.request({ method: 'POST', path, body, headers });
+    const res = await this.http.request({ method: 'POST', path: this.baseUrl + path, body, headers });
     if (res.status >= 400) throw ksefError(res);
     return res.body as T;
   }
@@ -156,7 +156,7 @@ export class KsefClient {
   private async get<T>(path: string, bearerToken: string): Promise<T> {
     const res = await this.http.request({
       method: 'GET',
-      path,
+      path: this.baseUrl + path,
       headers: { Authorization: `Bearer ${bearerToken}` },
     });
     if (res.status >= 400) throw ksefError(res);
@@ -250,7 +250,7 @@ export class KsefClient {
   async closeSession(sessionRef: string, accessToken: string): Promise<void> {
     const res = await this.http.request({
       method: 'POST',
-      path: `/sessions/online/${sessionRef}/close`,
+      path: this.baseUrl + `/sessions/online/${sessionRef}/close`,
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (res.status >= 400) throw ksefError(res);
@@ -275,7 +275,7 @@ export class KsefClient {
 
   /** Fetch MF public key certificates (no auth required). */
   async publicKeyCertificates(): Promise<PublicKeyCertificate[]> {
-    const res = await this.http.request({ method: 'GET', path: '/security/public-key-certificates' });
+    const res = await this.http.request({ method: 'GET', path: this.baseUrl + '/security/public-key-certificates' });
     if (res.status >= 400) throw ksefError(res);
     return res.body as PublicKeyCertificate[];
   }

@@ -80,8 +80,6 @@ describe('KSeF transmission — credential flow', () => {
       config: {
         nip: '1234567890',
         authToken: 'test-token-value',
-        tokenEncryptionKeyPem: '-----BEGIN PUBLIC KEY-----\nfake\n-----END PUBLIC KEY-----',
-        symmetricKeyPem: '-----BEGIN PUBLIC KEY-----\nfake\n-----END PUBLIC KEY-----',
       },
       isActive: true,
     });
@@ -114,8 +112,6 @@ describe('KSeF transmission — credential flow', () => {
       config: {
         nip: '1234567890',
         authToken: 'test-token',
-        tokenEncryptionKeyPem: 'key1',
-        symmetricKeyPem: 'key2',
       },
       isActive: true,
     });

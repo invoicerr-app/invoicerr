@@ -149,8 +149,6 @@ export class KsefTransmissionProvider implements TransmissionProvider {
       ], default: 'test' },
       { type: 'text', name: 'authToken', label: 'KSeF token', secret: true },
       { type: 'text', name: 'nip', label: 'NIP (tax id)', placeholder: 'PL1234567890' },
-      { type: 'text', name: 'tokenEncryptionKeyPem', label: 'RSA public key for token encryption (PEM)', secret: true },
-      { type: 'text', name: 'symmetricKeyPem', label: 'RSA public key for symmetric key encryption (PEM)', secret: true },
     ],
   };
 
@@ -172,11 +170,9 @@ export class KsefTransmissionProvider implements TransmissionProvider {
     const { config, environment } = resolvedConfig;
     const nip = config.nip as string;
     const ksefToken = config.authToken as string;
-    const tokenEncryptionKeyPem = config.tokenEncryptionKeyPem as string;
-    const symmetricKeyPem = config.symmetricKeyPem as string;
 
-    if (!nip || !ksefToken || !tokenEncryptionKeyPem || !symmetricKeyPem) {
-      return { channel: 'GOV_PORTAL_API', status: 'SKIPPED', notes: ['ksef: incomplete config (nip, authToken, tokenEncryptionKeyPem, symmetricKeyPem required)'] };
+    if (!nip || !ksefToken) {
+      return { channel: 'GOV_PORTAL_API', status: 'SKIPPED', notes: ['ksef: incomplete config (nip and authToken required)'] };
     }
 
     // Find the FA_VAT artifact
@@ -194,14 +190,18 @@ export class KsefTransmissionProvider implements TransmissionProvider {
       const { KsefClient } = await import('./ksef/ksef-client.js');
       const { FetchKsefHttpClient } = await import('./ksef/fetch-http-client.js');
       const { generateSessionKey } = await import('./ksef/ksef-crypto.js');
+      const { loadVendorizedKeys } = await import('./ksef/ksef-public-keys.js');
+
+      // Load MF public keys from vendorized PEM files (no company input needed)
+      const keys = loadVendorizedKeys(environment as 'test' | 'prod');
 
       const http = new FetchKsefHttpClient();
       const client = new KsefClient(http, {
         environment: environment as 'test' | 'prod',
         nip,
         ksefToken,
-        tokenEncryptionKeyPem,
-        symmetricKeyPem,
+        tokenEncryptionKeyPem: keys.tokenEncryptionKeyPem,
+        symmetricKeyPem: keys.symmetricKeyPem,
       });
 
       const xmlContent = typeof faVatArtifact.bytes === 'string'
@@ -288,19 +288,19 @@ export class KsefTransmissionProvider implements TransmissionProvider {
       const { config, environment } = resolved;
       const nip = config.nip as string;
       const ksefToken = config.authToken as string;
-      const tokenEncryptionKeyPem = config.tokenEncryptionKeyPem as string;
-      const symmetricKeyPem = config.symmetricKeyPem as string;
 
       const { KsefClient } = await import('./ksef/ksef-client.js');
       const { FetchKsefHttpClient } = await import('./ksef/fetch-http-client.js');
+      const { loadVendorizedKeys } = await import('./ksef/ksef-public-keys.js');
 
+      const keys = loadVendorizedKeys(environment as 'test' | 'prod');
       const http = new FetchKsefHttpClient();
       const client = new KsefClient(http, {
         environment: environment as 'test' | 'prod',
         nip,
         ksefToken,
-        tokenEncryptionKeyPem,
-        symmetricKeyPem,
+        tokenEncryptionKeyPem: keys.tokenEncryptionKeyPem,
+        symmetricKeyPem: keys.symmetricKeyPem,
       });
 
       // Re-authenticate (challenge → ksef-token → poll → redeem)
