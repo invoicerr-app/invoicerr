@@ -12,12 +12,12 @@ export interface InvoiceArtifactPort {
   renderPdfFormat(invoiceId: string, format: '' | 'pdf' | ExportFormat): Promise<Uint8Array>;
   renderXmlFormat(invoiceId: string, format: XmlExportFormat): Promise<string>;
 
-  /** National XML formats — build from InvoiceRenderData (no DB access). */
-  renderFatturaPa(data: import('@/modules/invoice-rendering/invoice-rendering.service').InvoiceRenderData): Promise<string>;
-  renderCfdi(data: import('@/modules/invoice-rendering/invoice-rendering.service').InvoiceRenderData): Promise<string>;
-  renderFacturae(data: import('@/modules/invoice-rendering/invoice-rendering.service').InvoiceRenderData): Promise<string>;
-  renderKsaUbl(data: import('@/modules/invoice-rendering/invoice-rendering.service').InvoiceRenderData): Promise<string>;
-  renderFaVat(data: import('@/modules/invoice-rendering/invoice-rendering.service').InvoiceRenderData): Promise<string>;
+  /** National XML — fetches InvoiceRenderData internally, then builds XML. */
+  renderFatturaPa(invoiceId: string): Promise<string>;
+  renderCfdi(invoiceId: string): Promise<string>;
+  renderFacturae(invoiceId: string): Promise<string>;
+  renderKsaUbl(invoiceId: string): Promise<string>;
+  renderFaVat(invoiceId: string): Promise<string>;
   /** Generic national XML — routes by countryCode. */
-  renderNationalXml(data: import('@/modules/invoice-rendering/invoice-rendering.service').InvoiceRenderData, countryCode: string): Promise<string>;
+  renderNationalXml(invoiceId: string, countryCode: string): Promise<string>;
 }

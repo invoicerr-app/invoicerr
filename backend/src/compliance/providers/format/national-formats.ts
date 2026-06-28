@@ -88,7 +88,6 @@ export const NATIONAL_FORMAT_PROVIDERS: FormatProvider[] = [
   nationalFormat({ id: 'bd-nbr', syntax: 'BD_NBR', label: 'Bangladesh NBR e-invoice', buildHint: 'build NBR e-invoice payload' }),
   nationalFormat({ id: 'pk-fbr', syntax: 'PK_FBR', label: 'Pakistan FBR XIR', buildHint: 'build FBR XIR payload + IRN/QR' }),
   // --- Europe (national, non-EN/Peppol) ---
-  nationalFormat({ id: 'es-facturae', syntax: 'ES_FACTURAE', label: 'Spain Facturae', buildHint: 'build Facturae 3.2.x XML (XAdES); for SII/Verifactu push the AEAT ledger record' }),
   nationalFormat({ id: 'ua-taxinvoice', syntax: 'UA_TAXINVOICE', label: 'Ukraine tax-invoice', buildHint: 'build DPS tax-invoice XML for ЄРПН registration; qualified signature' }),
   nationalFormat({ id: 'me-fiscal', syntax: 'ME_FISCAL', label: 'Montenegro fiscalization', buildHint: 'build fiscalization XML (IKOF/JIKR) + QR' }),
   nationalFormat({ id: 'hr-eracun', syntax: 'HR_ERACUN', label: 'Croatia e-Račun', buildHint: 'build Fiscalization 2.0 e-Račun (EN 16931 / CIUS-HR) for the CIS' }),

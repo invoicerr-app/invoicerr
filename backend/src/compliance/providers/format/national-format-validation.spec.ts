@@ -20,6 +20,8 @@ import {
   IN_B2B,
   GR_B2B,
   HU_B2B,
+  CN_B2B,
+  EG_B2B,
   FormatFixture,
 } from './__fixtures__/invoices';
 
@@ -367,6 +369,48 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
 
       results.push({ fixture: fixture.slug, format: 'hu-szamla', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('China e-Fapiao (CN)', () => {
+    const fixture = CN_B2B;
+    it(`${fixture.slug} → national-xml CN`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'CN');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+
+      const errors: string[] = [];
+      if (!xml.includes('Fapiao')) errors.push('missing Fapiao root');
+      if (!xml.includes('Header')) errors.push('missing Header');
+      if (!xml.includes('Seller')) errors.push('missing Seller');
+      if (!xml.includes('Buyer')) errors.push('missing Buyer');
+      if (!xml.includes('Items')) errors.push('missing Items');
+      if (!xml.includes('91110000MA01XXXXX')) errors.push('missing seller NSRSBH');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+
+      results.push({ fixture: fixture.slug, format: 'cn-efapiao', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Egypt ETA (EG)', () => {
+    const fixture = EG_B2B;
+    it(`${fixture.slug} → national-xml EG`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'EG');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+
+      const errors: string[] = [];
+      if (!xml.includes('Invoice')) errors.push('missing Invoice root');
+      if (!xml.includes('Header')) errors.push('missing Header');
+      if (!xml.includes('Seller')) errors.push('missing Seller');
+      if (!xml.includes('Buyer')) errors.push('missing Buyer');
+      if (!xml.includes('Lines')) errors.push('missing Lines');
+      if (!xml.includes('EG-123456789')) errors.push('missing seller TIN');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+
+      results.push({ fixture: fixture.slug, format: 'eg-eta', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
       expect(errors).toEqual([]);
     });
   });

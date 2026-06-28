@@ -732,24 +732,81 @@ export class InvoiceRenderingService {
 
     // ─── InvoiceArtifactPort national XML renderers ──────────────────────
 
-    async renderFatturaPa(data: InvoiceRenderData): Promise<string> {
-        return this.buildFatturaPa(data);
+    /** Shared fetch — mirrors the include used by renderXml/renderPdf. */
+    private async fetchRenderData(invoiceId: string): Promise<InvoiceRenderData> {
+        const inv = await prisma.invoice.findUnique({
+            where: { id: invoiceId },
+            include: {
+                items: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
+            },
+        });
+        if (!inv) {
+            logger.error('Invoice not found', { category: 'invoice' });
+            throw new BadRequestException('Invoice not found');
+        }
+        return {
+            rawNumber: inv.rawNumber,
+            number: inv.number,
+            issuedAt: inv.issuedAt,
+            createdAt: inv.createdAt,
+            company: {
+                name: inv.company.name,
+                description: inv.company.description,
+                foundedAt: inv.company.foundedAt,
+                currency: inv.company.currency,
+                address: inv.company.address,
+                city: inv.company.city,
+                postalCode: inv.company.postalCode,
+                country: inv.company.country,
+                partyIdentifiers: inv.company.partyIdentifiers.map(p => ({ scheme: p.scheme, value: p.value })),
+            },
+            client: {
+                type: inv.client.type,
+                name: inv.client.name,
+                description: inv.client.description,
+                foundedAt: inv.client.foundedAt,
+                contactFirstname: inv.client.contactFirstname,
+                contactLastname: inv.client.contactLastname,
+                salutation: inv.client.salutation,
+                sex: inv.client.sex,
+                title: inv.client.title,
+                isActive: inv.client.isActive,
+                address: inv.client.address,
+                city: inv.client.city,
+                postalCode: inv.client.postalCode,
+                country: inv.client.country,
+                partyIdentifiers: inv.client.partyIdentifiers.map(p => ({ scheme: p.scheme, value: p.value })),
+            },
+            items: inv.items.map(i => ({
+                name: i.name,
+                quantity: i.quantity,
+                unitPrice: i.unitPrice,
+                vatRate: i.vatRate ?? 0,
+                type: i.type,
+            })),
+        };
     }
 
-    async renderCfdi(data: InvoiceRenderData): Promise<string> {
-        return this.buildCfdi(data);
+    async renderFatturaPa(invoiceId: string): Promise<string> {
+        return this.buildFatturaPa(await this.fetchRenderData(invoiceId));
     }
 
-    async renderFacturae(data: InvoiceRenderData): Promise<string> {
-        return this.buildFacturae(data);
+    async renderCfdi(invoiceId: string): Promise<string> {
+        return this.buildCfdi(await this.fetchRenderData(invoiceId));
     }
 
-    async renderKsaUbl(data: InvoiceRenderData): Promise<string> {
-        return this.buildKsaUbl(data);
+    async renderFacturae(invoiceId: string): Promise<string> {
+        return this.buildFacturae(await this.fetchRenderData(invoiceId));
     }
 
-    async renderFaVat(data: InvoiceRenderData): Promise<string> {
-        return this.buildFaVat(data);
+    async renderKsaUbl(invoiceId: string): Promise<string> {
+        return this.buildKsaUbl(await this.fetchRenderData(invoiceId));
+    }
+
+    async renderFaVat(invoiceId: string): Promise<string> {
+        return this.buildFaVat(await this.fetchRenderData(invoiceId));
     }
 
     /** Generic national XML — routes by countryCode to country-specific skeleton. */
@@ -772,8 +829,8 @@ export class InvoiceRenderingService {
         return this._buildGenericNationalXml(data, cc);
     }
 
-    async renderNationalXml(data: InvoiceRenderData, countryCode: string): Promise<string> {
-        return this.buildNationalXml(data, countryCode);
+    async renderNationalXml(invoiceId: string, countryCode: string): Promise<string> {
+        return this.buildNationalXml(await this.fetchRenderData(invoiceId), countryCode);
     }
 
     // ─── LATAM skeletons ──────────────────────────────────────────────────

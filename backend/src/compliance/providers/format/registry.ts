@@ -9,6 +9,7 @@ import {
   CfdiFormatProvider,
   En16931FormatProvider,
   FaVatFormatProvider,
+  FacturaeFormatProvider,
   FatturaPaFormatProvider,
   KsaUblFormatProvider,
   NationalXmlFormatProvider,
@@ -27,12 +28,13 @@ export class FormatProviderRegistry {
       this.providers = [
         new En16931FormatProvider(port),
         new PlainPdfFormatProvider(port),
-        new CfdiFormatProvider(),
-        new FatturaPaFormatProvider(),
-        new KsaUblFormatProvider(),
-        new FaVatFormatProvider(),
+        new CfdiFormatProvider(port),
+        new FatturaPaFormatProvider(port),
+        new KsaUblFormatProvider(port),
+        new FaVatFormatProvider(port),
+        new FacturaeFormatProvider(port),
         ...NATIONAL_FORMAT_PROVIDERS, // dedicated national-XML providers (selected by syntax)
-        new NationalXmlFormatProvider(), // generic catch-all stays last as the safety net
+        new NationalXmlFormatProvider(port), // generic catch-all stays last as the safety net
       ];
     }
   }

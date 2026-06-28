@@ -1047,6 +1047,106 @@ export const HU_B2B: FormatFixture = {
   formats: {},
 };
 
+// Fixture 20: CN B2B — China e-Fapiao (Golden Tax IV)
+// ---------------------------------------------------------------------------
+export const CN_B2B: FormatFixture = {
+  slug: 'cn-b2b',
+  description: 'Chinese B2B, e-Fapiao (Golden Tax System IV)',
+  data: {
+    rawNumber: 'FAP-2025-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: '北京科技有限公司',
+      description: 'Technology',
+      foundedAt: new Date('2010-06-15'),
+      currency: 'CNY',
+      address: '朝阳区建国路88号',
+      city: 'Beijing',
+      postalCode: '100022',
+      country: 'China',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: '91110000MA01XXXXX' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: '上海贸易有限公司',
+      description: 'Trading',
+      foundedAt: new Date('2008-03-20'),
+      contactFirstname: null,
+      contactLastname: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: '浦东新区陆家嘴100号',
+      city: 'Shanghai',
+      postalCode: '200120',
+      country: 'China',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: '91310000MA01YYYYY' },
+      ],
+    },
+    items: [
+      { name: '软件开发服务', quantity: 1, unitPrice: 80000, vatRate: 13, type: 'SERVICE' },
+      { name: '年度维护', quantity: 12, unitPrice: 5000, vatRate: 13, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture 21: EG B2B — Egypt ETA e-invoice
+// ---------------------------------------------------------------------------
+export const EG_B2B: FormatFixture = {
+  slug: 'eg-b2b',
+  description: 'Egyptian B2B, ETA e-invoice',
+  data: {
+    rawNumber: 'ETA-2025-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Arab Digital Solutions',
+      description: 'IT services',
+      foundedAt: new Date('2015-09-01'),
+      currency: 'EGP',
+      address: '5th Settlement, New Cairo',
+      city: 'Cairo',
+      postalCode: '11835',
+      country: 'Egypt',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'EG-123456789' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Delta Commerce Co.',
+      description: 'Import/export',
+      foundedAt: new Date('2011-04-10'),
+      contactFirstname: null,
+      contactLastname: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'Alexandria Corniche',
+      city: 'Alexandria',
+      postalCode: '21599',
+      country: 'Egypt',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'EG-987654321' },
+      ],
+    },
+    items: [
+      { name: 'System development', quantity: 1, unitPrice: 120000, vatRate: 14, type: 'SERVICE' },
+      { name: 'Technical support', quantity: 6, unitPrice: 15000, vatRate: 14, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
 // ---------------------------------------------------------------------------
 // All fixtures — ordered for the harness
 // ---------------------------------------------------------------------------

@@ -1,12 +1,12 @@
 import { ExportFormat } from '@fin.cx/einvoice';
-import { PlannedArtifact } from '../../engine/compliance-engine';
+import { PlannedArtifact, CompliancePlan } from '../../engine/compliance-engine';
 import { RecordingComplianceLogger } from '../../execution/logger';
 import { TransactionContext } from '../../canonical/canonical-document';
 import { DocumentSyntax } from '../../types';
 import { NATIONAL_FORMAT_PROVIDERS } from './national-formats';
-import { defaultFormatRegistry } from './registry';
+import { defaultFormatRegistry, FormatProviderRegistry } from './registry';
 import { InvoiceArtifactPort, XmlExportFormat } from './invoice-artifact-port';
-import { En16931FormatProvider, PlainPdfFormatProvider } from './providers';
+import { En16931FormatProvider, PlainPdfFormatProvider, CfdiFormatProvider, FatturaPaFormatProvider, FacturaeFormatProvider, KsaUblFormatProvider, FaVatFormatProvider, NationalXmlFormatProvider } from './providers';
 
 describe('FormatProviderRegistry resolution', () => {
   it('resolves the EN 16931 family to the en16931 provider', () => {
@@ -21,6 +21,7 @@ describe('FormatProviderRegistry resolution', () => {
     expect(defaultFormatRegistry.resolve('FATTURAPA')?.id).toBe('fatturapa-1.2');
     expect(defaultFormatRegistry.resolve('KSA_UBL')?.id).toBe('ksa-ubl');
     expect(defaultFormatRegistry.resolve('FA_VAT')?.id).toBe('fa-vat');
+    expect(defaultFormatRegistry.resolve('ES_FACTURAE')?.id).toBe('es-facturae');
     expect(defaultFormatRegistry.resolve('NATIONAL_XML')?.id).toBe('national-xml');
   });
 
@@ -63,12 +64,12 @@ function fakePort(overrides?: Partial<InvoiceArtifactPort>): InvoiceArtifactPort
     renderPdf: async (_id: string) => pdfBytes,
     renderPdfFormat: async (_id: string, _format: '' | 'pdf' | ExportFormat) => formatBytes,
     renderXmlFormat: async (_id: string, _format: XmlExportFormat) => '<xml/>',
-    renderFatturaPa: async (_data: any) => '<FatturaPA/>',
-    renderCfdi: async (_data: any) => '<CFDI/>',
-    renderFacturae: async (_data: any) => '<Facturae/>',
-    renderKsaUbl: async (_data: any) => '<KsaUbl/>',
-    renderFaVat: async (_data: any) => '<FaVat/>',
-    renderNationalXml: async (_data: any, _cc: string) => '<NationalXml/>',
+    renderFatturaPa: async (_id: string) => '<FatturaPA/>',
+    renderCfdi: async (_id: string) => '<CFDI/>',
+    renderFacturae: async (_id: string) => '<Facturae/>',
+    renderKsaUbl: async (_id: string) => '<KsaUbl/>',
+    renderFaVat: async (_id: string) => '<FaVat/>',
+    renderNationalXml: async (_id: string, _cc: string) => '<NationalXml/>',
     ...overrides,
   };
 }
@@ -246,5 +247,96 @@ describe('En16931FormatProvider — real rendering', () => {
     const built = await provider.build(artifact, ctxWithRef('inv-99'), {} as never, log);
     expect(built.bytes.byteLength).toBe(0);
     expect(log.hasScope('format/en16931')).toBe(true);
+  });
+});
+
+// ─── Reachability tests: prove executor → provider → port delegation ──────
+
+const MARKER_XML = '<REACHABILITY_MARKER/>';
+const MARKER_BYTES = new TextEncoder().encode(MARKER_XML);
+
+function reachablePort(): InvoiceArtifactPort {
+  return {
+    renderPdf: async () => new Uint8Array(),
+    renderPdfFormat: async () => new Uint8Array(),
+    renderXmlFormat: async () => '',
+    renderFatturaPa: async () => MARKER_XML,
+    renderCfdi: async () => MARKER_XML,
+    renderFacturae: async () => MARKER_XML,
+    renderKsaUbl: async () => MARKER_XML,
+    renderFaVat: async () => MARKER_XML,
+    renderNationalXml: async () => MARKER_XML,
+  };
+}
+
+function ctxWithExternalRef(ref: string, countryCode = 'FR'): TransactionContext {
+  return {
+    supplier: { legalName: 'X', countryCode, role: 'B2B', identifiers: [] },
+    buyer: { legalName: 'Y', countryCode: 'DE', role: 'B2B', identifiers: [] },
+    lines: [],
+    issueDate: new Date(),
+    currency: 'EUR',
+    externalRef: ref,
+  } as TransactionContext;
+}
+
+const REACHABILITY_CASES: { syntax: DocumentSyntax; label: string }[] = [
+  { syntax: 'FATTURAPA', label: 'FatturaPA' },
+  { syntax: 'CFDI', label: 'CFDI' },
+  { syntax: 'ES_FACTURAE', label: 'Facturae' },
+  { syntax: 'KSA_UBL', label: 'KSA UBL' },
+  { syntax: 'FA_VAT', label: 'FA_VAT' },
+  { syntax: 'NATIONAL_XML', label: 'NationalXml (generic)' },
+];
+
+describe('Reachability: executor → provider → port', () => {
+  for (const { syntax, label } of REACHABILITY_CASES) {
+    it(`${label} (${syntax}) — registry.buildAll emits XML from port, not empty stub`, async () => {
+      const registry = new FormatProviderRegistry({ artifacts: reachablePort() });
+      const plan = { artifacts: [{ role: 'AUTHORITATIVE', syntax }] } as CompliancePlan;
+      const ctx = ctxWithExternalRef('inv-reach-42', 'IT');
+      const log = new RecordingComplianceLogger();
+      const results = await registry.buildAll(ctx, plan, log);
+      expect(results).toHaveLength(1);
+      expect(results[0].bytes).toEqual(MARKER_BYTES);
+      expect(new TextDecoder().decode(results[0].bytes)).toBe(MARKER_XML);
+    });
+  }
+
+  it('NATIONAL_XML routes by countryCode via port.renderNationalXml(invoiceId, cc)', async () => {
+    let receivedCc = '';
+    const port: InvoiceArtifactPort = {
+      ...reachablePort(),
+      renderNationalXml: async (_id: string, cc: string) => { receivedCc = cc; return MARKER_XML; },
+    };
+    const registry = new FormatProviderRegistry({ artifacts: port });
+    const plan = { artifacts: [{ role: 'AUTHORITATIVE', syntax: 'NATIONAL_XML' }] } as CompliancePlan;
+    const ctx = ctxWithExternalRef('inv-reach-99', 'CL');
+    const log = new RecordingComplianceLogger();
+    const results = await registry.buildAll(ctx, plan, log);
+    expect(results).toHaveLength(1);
+    expect(results[0].bytes).toEqual(MARKER_BYTES);
+    expect(receivedCc).toBe('CL');
+  });
+
+  it('without port, all national providers fall back to empty stub (no crash)', async () => {
+    const registry = new FormatProviderRegistry({ artifacts: undefined });
+    const plan = { artifacts: [{ role: 'AUTHORITATIVE', syntax: 'CFDI' }] } as CompliancePlan;
+    const ctx = ctxWithExternalRef('inv-42', 'MX');
+    const log = new RecordingComplianceLogger();
+    const results = await registry.buildAll(ctx, plan, log);
+    expect(results).toHaveLength(1);
+    expect(results[0].bytes.byteLength).toBe(0);
+  });
+
+  it('without externalRef, all national providers fall back to empty stub (no crash)', async () => {
+    const registry = new FormatProviderRegistry({ artifacts: reachablePort() });
+    const plan = { artifacts: [{ role: 'AUTHORITATIVE', syntax: 'CFDI' }] } as CompliancePlan;
+    const ctx = ctxWithExternalRef('', 'MX'); // empty ref
+    ctx.externalRef = undefined;
+    const log = new RecordingComplianceLogger();
+    const results = await registry.buildAll(ctx, plan, log);
+    expect(results).toHaveLength(1);
+    expect(results[0].bytes.byteLength).toBe(0);
   });
 });

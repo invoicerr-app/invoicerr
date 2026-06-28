@@ -2,7 +2,23 @@
 
 ## Summary
 
-All 8 phases (A–H) completed. **20 national e-invoice format skeletons** implemented, **61 tests passing**, `nest build` clean.
+All 8 phases (A–H) completed. **22 national e-invoice format skeletons** implemented, **72 tests passing**, `nest build` clean. **Generators are now reachable in prod** via executor → provider → port delegation.
+
+## What Changed in the Amorçage (2026-06-28)
+
+The night run produced DB-free generators (`buildFatturaPa(data)`, `buildCfdi(data)`, …) but wired them through `ctx.invoiceData` — a field nobody populated, so in prod all national providers fell back to `log.todo` stubs. The harness was green because it called `service.buildX(data)` directly, bypassing the executor.
+
+**Fix**: Align national render methods with the existing `renderPdf(invoiceId)` / `renderXmlFormat(invoiceId)` pattern — fetch from DB internally, expose `(invoiceId)` signature on the port.
+
+### Changes
+1. **`InvoiceArtifactPort`**: All national methods changed from `(data: InvoiceRenderData)` → `(invoiceId: string)`. Removed `InvoiceRenderData` import from port.
+2. **`InvoiceRenderingService`**: Added `fetchRenderData(invoiceId)` — shared private method. Render wrappers (`renderFatturaPa`, `renderCfdi`, `renderFacturae`, `renderKsaUbl`, `renderFaVat`, `renderNationalXml`) now take `invoiceId`, fetch, then delegate to `buildX(data)`. Build methods remain DB-free for isolated testing.
+3. **`TransactionContext`**: Removed `invoiceData?` field (no longer needed).
+4. **All format providers** (Cfdi, FatturaPa, KsaUbl, FaVat, NationalXml): switched from `ctx.invoiceData` → `ctx.externalRef`.
+5. **`FacturaeFormatProvider`** (new): supports `ES_FACTURAE`, delegates to `renderFacturae(ctx.externalRef)`. Replaces the empty `es-facturae` stub in `NATIONAL_FORMAT_PROVIDERS`.
+6. **`FormatProviderRegistry`**: now passes `artifacts` to all providers including `CfdiFormatProvider`, `FatturaPaFormatProvider`, `KsaUblFormatProvider`, `FaVatFormatProvider`, `FacturaeFormatProvider`, `NationalXmlFormatProvider`.
+7. **CN & EG fixtures**: added `CN_B2B`, `EG_B2B` with structural validation tests.
+8. **Reachability tests**: 9 new tests prove executor→provider→port delegation (registry.buildAll with mock port emits marker XML bytes, not empty stubs).
 
 ## Phases Completed
 
@@ -23,6 +39,7 @@ All 8 phases (A–H) completed. **20 national e-invoice format skeletons** imple
 
 ### Phase D: Facturae 3.2.1 (ES) ✅
 - xmlbuilder2: Facturae, FileHeader, Parties, InvoiceHeader, InvoiceTotals, InvoiceItems
+- **Wired to executor** via `FacturaeFormatProvider` (ES_FACTURAE syntax)
 - Missing: XAdES-BES/EPES signature (xadesjs installed, TODO EPES signing)
 
 ### Phase E: KSA UBL 2.1 + QR (SA) ✅
@@ -34,7 +51,7 @@ All 8 phases (A–H) completed. **20 national e-invoice format skeletons** imple
 - xmlbuilder2: Fa, FaWiersz, Podsumowanie, IdentyfikatorNIP
 - Missing: KSeF API token, submission
 
-### Phase G: LATAM + TR + IN (8 countries) ✅
+### Phase G: LATAM + TR + IN + CN + EG (10 countries) ✅
 - Generic `buildNationalXml(data, countryCode)` router
 - Country-specific skeleton builders:
   - **CL** (Chile DTE/SII): ClaveDTE, Encabezado, Emisor, Receptor
@@ -55,29 +72,23 @@ All 8 phases (A–H) completed. **20 national e-invoice format skeletons** imple
 | Suite | Tests | Status |
 |-------|-------|--------|
 | format-validation.spec.ts (EN16931) | 48 | ✅ PASS |
-| format-registry.spec.ts | 8 | ✅ PASS |
-| national-format-validation.spec.ts | 13 | ✅ PASS |
-| **Total** | **61** | **✅ PASS** |
-
-## Commits
-
-1. `6b3d476` — feat(compliance): implement FatturaPA, CFDI, Facturae, KSA UBL, FA_VAT format providers
-2. `5e1435d` — feat(compliance): implement LATAM + TR + IN national XML skeletons (Phase G)
-3. `f0f990e` — feat(compliance): add GR myDATA and HU Online Számla XML skeletons (Phase H)
+| format-registry.spec.ts (resolution + reachability) | 17 | ✅ PASS |
+| national-format-validation.spec.ts | 15 | ✅ PASS |
+| **Total** | **72** | **✅ PASS** |
 
 ## Architecture
 
 ```
-InvoiceArtifactPort (interface)
+InvoiceArtifactPort (interface) — all methods take (invoiceId: string)
 ├── renderPdf(invoiceId) → PDF bytes
 ├── renderPdfFormat(invoiceId, format) → PDF/A-3 bytes
 ├── renderXmlFormat(invoiceId, format) → UBL/CII/XRechnung XML
-├── renderFatturaPa(data) → FatturaPA 1.2 XML
-├── renderCfdi(data) → CFDI 4.0 XML
-├── renderFacturae(data) → Facturae 3.2.1 XML
-├── renderKsaUbl(data) → KSA UBL 2.1 XML
-├── renderFaVat(data) → FA_VAT FA(2) XML
-└── renderNationalXml(data, countryCode) → Generic router
+├── renderFatturaPa(invoiceId) → FatturaPA 1.2 XML  [fetches via fetchRenderData]
+├── renderCfdi(invoiceId) → CFDI 4.0 XML            [fetches via fetchRenderData]
+├── renderFacturae(invoiceId) → Facturae 3.2.1 XML   [fetches via fetchRenderData]
+├── renderKsaUbl(invoiceId) → KSA UBL 2.1 XML       [fetches via fetchRenderData]
+├── renderFaVat(invoiceId) → FA_VAT FA(2) XML       [fetches via fetchRenderData]
+└── renderNationalXml(invoiceId, countryCode) → Generic router [fetches via fetchRenderData]
     ├── CL → DTE/SII
     ├── AR → FE/AFIP
     ├── EC → FE/SRI
@@ -92,12 +103,20 @@ InvoiceArtifactPort (interface)
 FormatProvider implementations (providers.ts):
 ├── En16931FormatProvider (EN 16931 family)
 ├── PlainPdfFormatProvider (plain PDF)
-├── FatturaPaFormatProvider (IT)
-├── CfdiFormatProvider (MX)
-├── KsaUblFormatProvider (SA)
-├── FaVatFormatProvider (PL)
-└── NationalXmlFormatProvider (generic router)
+├── FatturaPaFormatProvider (IT)    → port.renderFatturaPa(externalRef)
+├── CfdiFormatProvider (MX)         → port.renderCfdi(externalRef)
+├── FacturaeFormatProvider (ES)     → port.renderFacturae(externalRef)
+├── KsaUblFormatProvider (SA)       → port.renderKsaUbl(externalRef)
+├── FaVatFormatProvider (PL)        → port.renderFaVat(externalRef)
+├── NationalXmlFormatProvider (GEN) → port.renderNationalXml(externalRef, cc)
+└── NATIONAL_FORMAT_PROVIDERS (stub providers for remaining countries)
 ```
+
+## Commits
+
+1. `6b3d476` — feat(compliance): implement FatturaPA, CFDI, Facturae, KSA UBL, FA_VAT format providers
+2. `5e1435d` — feat(compliance): implement LATAM + TR + IN national XML skeletons (Phase G)
+3. `f0f990e` — feat(compliance): add GR myDATA and HU Online Számla XML skeletons (Phase H)
 
 ## What's Missing (Next Steps)
 

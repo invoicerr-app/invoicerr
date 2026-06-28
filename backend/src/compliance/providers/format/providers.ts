@@ -108,12 +108,12 @@ export class CfdiFormatProvider implements FormatProvider {
     return syntax === 'CFDI';
   }
   async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
-    if (this.artifacts && ctx.invoiceData) {
-      const xml = await this.artifacts.renderCfdi(ctx.invoiceData);
+    if (this.artifacts && ctx.externalRef) {
+      const xml = await this.artifacts.renderCfdi(ctx.externalRef);
       const bytes = new TextEncoder().encode(xml);
       return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/xml', bytes };
     }
-    log.todo('format/cfdi', 'build SAT CFDI 4.0 XML (Comprobante, Conceptos, Impuestos, UsoCFDI) — no invoiceData in context');
+    log.todo('format/cfdi', 'build SAT CFDI 4.0 XML (Comprobante, Conceptos, Impuestos, UsoCFDI) — no externalRef in context');
     return { ...rendered(artifact), mime: 'application/xml' };
   }
   validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
@@ -129,12 +129,12 @@ export class FatturaPaFormatProvider implements FormatProvider {
     return syntax === 'FATTURAPA';
   }
   async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
-    if (this.artifacts && ctx.invoiceData) {
-      const xml = await this.artifacts.renderFatturaPa(ctx.invoiceData);
+    if (this.artifacts && ctx.externalRef) {
+      const xml = await this.artifacts.renderFatturaPa(ctx.externalRef);
       const bytes = new TextEncoder().encode(xml);
       return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/xml', bytes };
     }
-    log.todo('format/fatturapa', 'build FatturaPA 1.2 XML for SdI — no invoiceData in context');
+    log.todo('format/fatturapa', 'build FatturaPA 1.2 XML for SdI — no externalRef in context');
     return { ...rendered(artifact), mime: 'application/xml' };
   }
   validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
@@ -150,12 +150,12 @@ export class KsaUblFormatProvider implements FormatProvider {
     return syntax === 'KSA_UBL';
   }
   async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
-    if (this.artifacts && ctx.invoiceData) {
-      const xml = await this.artifacts.renderKsaUbl(ctx.invoiceData);
+    if (this.artifacts && ctx.externalRef) {
+      const xml = await this.artifacts.renderKsaUbl(ctx.externalRef);
       const bytes = new TextEncoder().encode(xml);
       return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/xml', bytes };
     }
-    log.todo('format/ksa-ubl', 'build ZATCA UBL 2.1 + KSA extension and QR payload — no invoiceData in context');
+    log.todo('format/ksa-ubl', 'build ZATCA UBL 2.1 + KSA extension and QR payload — no externalRef in context');
     return { ...rendered(artifact), mime: 'application/xml' };
   }
   validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
@@ -173,12 +173,12 @@ export class NationalXmlFormatProvider implements FormatProvider {
     return syntax === 'NATIONAL_XML';
   }
   async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
-    if (this.artifacts && ctx.invoiceData) {
-      const xml = await this.artifacts.renderNationalXml(ctx.invoiceData, ctx.supplier.countryCode || 'XX');
+    if (this.artifacts && ctx.externalRef) {
+      const xml = await this.artifacts.renderNationalXml(ctx.externalRef, ctx.supplier.countryCode || 'XX');
       const bytes = new TextEncoder().encode(xml);
       return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/xml', bytes };
     }
-    log.todo('format/national-xml', `build the national clearance XML for ${ctx.supplier.countryCode} (dedicated provider TODO)`);
+    log.todo('format/national-xml', `build the national clearance XML for ${ctx.supplier.countryCode} (no externalRef in context)`);
     return { ...rendered(artifact), mime: 'application/xml' };
   }
   validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
@@ -195,16 +195,38 @@ export class FaVatFormatProvider implements FormatProvider {
     return syntax === 'FA_VAT';
   }
   async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
-    if (this.artifacts && ctx.invoiceData) {
-      const xml = await this.artifacts.renderFaVat(ctx.invoiceData);
+    if (this.artifacts && ctx.externalRef) {
+      const xml = await this.artifacts.renderFaVat(ctx.externalRef);
       const bytes = new TextEncoder().encode(xml);
       return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/xml', bytes };
     }
-    log.todo('format/fa-vat', 'build Polish FA_VAT (FA(2)/FA(3)) XML for KSeF — no invoiceData in context');
+    log.todo('format/fa-vat', 'build Polish FA_VAT (FA(2)/FA(3)) XML for KSeF — no externalRef in context');
     return { ...rendered(artifact), mime: 'application/xml' };
   }
   validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
     log.todo('format/fa-vat', 'validate against the Ministry of Finance XSD');
     return okValidation('FA_VAT validation not implemented (stub)');
+  }
+}
+
+/** Spain Facturae 3.2.x — delegates to InvoiceArtifactPort when available. */
+export class FacturaeFormatProvider implements FormatProvider {
+  readonly id = 'es-facturae';
+  constructor(private readonly artifacts?: InvoiceArtifactPort) {}
+  supports(syntax: DocumentSyntax): boolean {
+    return syntax === 'ES_FACTURAE';
+  }
+  async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
+    if (this.artifacts && ctx.externalRef) {
+      const xml = await this.artifacts.renderFacturae(ctx.externalRef);
+      const bytes = new TextEncoder().encode(xml);
+      return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/xml', bytes };
+    }
+    log.todo('format/es-facturae', 'build Facturae 3.2.x XML (XAdES-BES) for Spain — no externalRef in context');
+    return { ...rendered(artifact), mime: 'application/xml' };
+  }
+  validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
+    log.todo('format/es-facturae', 'validate against Facturae 3.2.x XSD');
+    return okValidation('Facturae validation not implemented (stub)');
   }
 }

@@ -91,5 +91,4 @@ export interface TransactionContext {
   currency: string;
   documentKind?: DocumentKind;
   externalRef?: string; // source invoice id (lets format/transmission reuse app rendering)
-  invoiceData?: import('@/modules/invoice-rendering/invoice-rendering.service').InvoiceRenderData; // DB-free data for national XML format builders
 }
