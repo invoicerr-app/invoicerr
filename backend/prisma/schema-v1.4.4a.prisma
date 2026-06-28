@@ -1,0 +1,915 @@
+datasource db {
+  provider = "postgres"
+}
+
+generator client {
+  provider     = "prisma-client"
+  output       = "./generated/prisma"
+  moduleFormat = "cjs"
+}
+
+// Currency enum
+enum Currency {
+  AED
+  AFN
+  ALL
+  AMD
+  ANG
+  AOA
+  ARS
+  AUD
+  AWG
+  AZN
+  BAM
+  BBD
+  BDT
+  BGN
+  BHD
+  BIF
+  BMD
+  BND
+  BOB
+  BRL
+  BSD
+  BTC
+  BTN
+  BWP
+  BYR
+  BZD
+  CAD
+  CDF
+  CHF
+  CLF
+  CLP
+  CNY
+  COP
+  CRC
+  CUC
+  CUP
+  CVE
+  CZK
+  DJF
+  DKK
+  DOP
+  DZD
+  EEK
+  EGP
+  ERN
+  ETB
+  EUR
+  FJD
+  FKP
+  GBP
+  GEL
+  GGP
+  GHS
+  GIP
+  GMD
+  GNF
+  GTQ
+  GYD
+  HKD
+  HNL
+  HRK
+  HTG
+  HUF
+  IDR
+  ILS
+  IMP
+  INR
+  IQD
+  IRR
+  ISK
+  JEP
+  JMD
+  JOD
+  JPY
+  KES
+  KGS
+  KHR
+  KMF
+  KPW
+  KRW
+  KWD
+  KYD
+  KZT
+  LAK
+  LBP
+  LKR
+  LRD
+  LSL
+  LTL
+  LVL
+  LYD
+  MAD
+  MDL
+  MGA
+  MKD
+  MMK
+  MNT
+  MOP
+  MRO
+  MTL
+  MUR
+  MVR
+  MWK
+  MXN
+  MYR
+  MZN
+  NAD
+  NGN
+  NIO
+  NOK
+  NPR
+  NZD
+  OMR
+  PAB
+  PEN
+  PGK
+  PHP
+  PKR
+  PLN
+  PYG
+  QAR
+  RON
+  RSD
+  RUB
+  RWF
+  SAR
+  SBD
+  SCR
+  SDG
+  SEK
+  SGD
+  SHP
+  SLL
+  SOS
+  SRD
+  STD
+  SVC
+  SYP
+  SZL
+  THB
+  TJS
+  TMT
+  TND
+  TOP
+  TRY
+  TTD
+  TWD
+  TZS
+  UAH
+  UGX
+  USD
+  UYU
+  UZS
+  VEF
+  VND
+  VUV
+  WST
+  XAF
+  XAG
+  XAU
+  XCD
+  XDR
+  XOF
+  XPD
+  XPF
+  XPT
+  YER
+  ZAR
+  ZMK
+  ZMW
+  ZWL
+}
+
+// Email template types
+enum MailTemplateType {
+  SIGNATURE_REQUEST
+  VERIFICATION_CODE
+  INVOICE
+  RECEIPT
+}
+
+// Quote status
+enum QuoteStatus {
+  DRAFT
+  SENT
+  VIEWED
+  SIGNED
+  EXPIRED
+  REJECTED
+}
+
+// Invoice status
+enum InvoiceStatus {
+  PAID
+  UNPAID
+  OVERDUE
+  SENT
+}
+
+// Recurrence frequency
+enum RecurrenceFrequency {
+  WEEKLY // Every week
+  BIWEEKLY // Every 2 weeks
+  MONTHLY // Every month
+  BIMONTHLY // Every 2 months
+  QUARTERLY // Every 3 months
+  QUADMONTHLY // Every 4 months
+  SEMIANNUALLY // Every 6 months
+  ANNUALLY // Every year
+}
+
+// Client type
+enum ClientType {
+  INDIVIDUAL
+  COMPANY
+}
+
+// Item type (used for quote/invoice/recurring items)
+enum ItemType {
+  HOUR
+  DAY
+  DEPOSIT
+  SERVICE
+  PRODUCT
+}
+
+// Payment method types
+enum PaymentMethodType {
+  BANK_TRANSFER
+  PAYPAL
+  CASH
+  CHECK
+  OTHER
+}
+
+// PDF Configuration
+model PDFConfig {
+  id      String   @id @default(cuid())
+  Company Company? // Relation inverse, sans arguments
+
+  fontFamily     String @default("Arial")
+  padding        Int    @default(40)
+  primaryColor   String @default("#2563eb")
+  secondaryColor String @default("#64748b")
+
+  includeLogo Boolean @default(false)
+  logoB64     String?
+
+  invoice        String @default("Invoice")
+  quote          String @default("Quote")
+  receipt        String @default("Receipt")
+  description    String @default("Description:")
+  date           String @default("Date:")
+  dueDate        String @default("Due date:")
+  validUntil     String @default("Valid until:")
+  paymentDate    String @default("Payment date:")
+  billTo         String @default("Bill to:")
+  quoteFor       String @default("Quote for:")
+  receivedFrom   String @default("Received from:")
+  invoiceRefer   String @default("Invoice reference:")
+  quantity       String @default("Qty")
+  vatRate        String @default("VAT (%)")
+  unitPrice      String @default("Unit price")
+  subtotal       String @default("Subtotal:")
+  discount       String @default("Discount:")
+  total          String @default("Total:")
+  vat            String @default("VAT:")
+  grandTotal     String @default("Grand total:")
+  totalReceived  String @default("Total received:")
+  notes          String @default("Notes:")
+  paymentMethod  String @default("Payment Method:")
+  paymentDetails String @default("Payment Details:")
+  type           String @default("Type")
+  hour           String @default("Hour")
+  day            String @default("Day")
+  deposit        String @default("Deposit")
+  service        String @default("Service")
+  product        String @default("Product")
+
+  paymentMethodBankTransfer String @default("Bank transfer")
+  paymentMethodPayPal       String @default("PayPal")
+  paymentMethodCash         String @default("Cash")
+  paymentMethodCheck        String @default("Check")
+  paymentMethodOther        String @default("Other")
+
+  VATId   String @default("VAT")
+  legalId String @default("Legal ID")
+}
+
+// Company model
+model Company {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  currency    Currency @default(EUR)
+  legalId     String?
+  foundedAt   DateTime
+  VAT         String?
+  exemptVat   Boolean  @default(false)
+  address      String
+  addressLine2 String? // Second line for address (apartment, suite, etc.)
+  postalCode   String
+  city         String
+  state        String? // State/Province (for US addresses, etc.)
+  country      String
+  phone        String
+  email        String
+
+  quoteStartingNumber   Int    @default(1) // Starting number for quotes
+  quoteNumberFormat     String @default("Q-{year}-{number:4}") // Ex: "Q-2025-0001"
+  invoiceStartingNumber Int    @default(1) // Starting number for invoices
+  invoiceNumberFormat   String @default("INV-{year}-{number:4}") // Ex: "INV-2025-0001"
+  receiptStartingNumber Int    @default(1) // Starting number for receipts
+  receiptNumberFormat   String @default("REC-{year}-{number:4}") // Ex: "REC-2025-0001"
+
+  invoicePDFFormat String @default("facturx") // Ex: 'pdf' | 'facturx' | 'zugferd' | 'xrechnung' | 'ubl' | 'cii'
+
+  dateFormat String @default("dd/MM/yyyy") // Date format for quotes and invoices
+
+  pDFConfigId      String             @unique
+  pdfConfig        PDFConfig          @relation(fields: [pDFConfigId], references: [id])
+  Quote            Quote[]
+  Invoice          Invoice[]
+  PaymentMethod    PaymentMethod[]
+  emailTemplates   MailTemplate[]
+  RecurringInvoice RecurringInvoice[]
+  webhooks         Webhook[]
+}
+
+// Client model
+model Client {
+  id               String             @id @default(cuid())
+  name             String
+  description      String?
+  legalId          String? // Legal identification number (SIRET, EIN, etc.)
+  VAT              String? // VAT number
+  foundedAt        DateTime? // Date when the client company was founded
+  contactFirstname String?
+  contactLastname  String?
+  contactEmail     String?            @unique
+  contactPhone     String?
+  address          String
+  addressLine2     String? // Second line for address (apartment, suite, etc.)
+  postalCode       String
+  city             String
+  state            String? // State/Province (for US addresses, etc.)
+  country          String
+  currency         Currency?
+  type             ClientType         @default(COMPANY)
+  salutation       String             @default("Mr") // Mr, Ms, Mrs (We need a default value for the invoice generation)
+  sex              String             @default("other") // male, female, other (We need a default value for the invoice generation)
+  title            String             @default("Doctor") // Doctor, Professor (We need a default value for the invoice generation)
+  isActive         Boolean            @default(true)
+  Quote            Quote[]
+  Invoice          Invoice[]
+  RecurringInvoice RecurringInvoice[]
+}
+
+// Email templates
+model MailTemplate {
+  id        String           @id @default(cuid())
+  type      MailTemplateType
+  subject   String
+  body      String
+  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  @@unique([companyId, type])
+}
+
+// Quote model
+model Quote {
+  id              String      @id @default(uuid())
+  number          Int         @default(autoincrement())
+  rawNumber       String? // Raw number for custom formats
+  title           String?
+  client          Client      @relation(fields: [clientId], references: [id])
+  clientId        String
+  company         Company     @relation(fields: [companyId], references: [id])
+  companyId       String
+  items           QuoteItem[]
+  status          QuoteStatus @default(DRAFT)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  validUntil      DateTime?
+  signedAt        DateTime?
+  viewedAt        DateTime?
+  signedBy        String?
+  discountRate    Float      @default(0)
+  totalHT         Float
+  totalVAT        Float
+  totalTTC        Float
+  currency        Currency
+  paymentMethod   String? // Ex: "Bank Transfer", "PayPal", "Cash"
+  paymentDetails  String? // Details for the payment method (e.g., bank account number)
+  paymentMethodId String?
+  notes           String?     @default("")
+  isActive        Boolean     @default(true)
+  Invoice         Invoice[]
+  signatures      Signature[]
+}
+
+model QuoteItem {
+  id          String   @id @default(uuid())
+  quote       Quote    @relation(fields: [quoteId], references: [id])
+  quoteId     String
+  description String
+  quantity    Float
+  unitPrice   Float
+  vatRate     Float // 20 for 20%
+  type        ItemType @default(SERVICE)
+  order       Int // For sorting items in the quote pdf
+}
+
+// Invoice model
+model Invoice {
+  id                 String            @id @default(uuid())
+  number             Int               @default(autoincrement())
+  rawNumber          String? // Raw number for custom formats
+  quote              Quote?            @relation(fields: [quoteId], references: [id])
+  quoteId            String?
+  recurringInvoice   RecurringInvoice? @relation(fields: [recurringInvoiceId], references: [id])
+  recurringInvoiceId String?
+  client             Client            @relation(fields: [clientId], references: [id]) // Client receiving the invoice
+  clientId           String
+  company            Company           @relation(fields: [companyId], references: [id]) // Company issuing the invoice
+  companyId          String
+  items              InvoiceItem[]
+  status             InvoiceStatus     @default(UNPAID)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  dueDate            DateTime
+  paidAt             DateTime?
+  paymentMethod      String? // Ex: "Bank Transfer", "PayPal", "Cash"
+  paymentDetails     String? // Details for the payment method (e.g., bank account number)
+  paymentMethodId    String?
+  notes              String?           @default("")
+  discountRate       Float             @default(0)
+  totalHT            Float
+  totalVAT           Float
+  totalTTC           Float
+  currency           Currency
+  isActive           Boolean           @default(true)
+  receipts           Receipt[]
+}
+
+model InvoiceItem {
+  id           String        @id @default(uuid())
+  invoice      Invoice       @relation(fields: [invoiceId], references: [id])
+  invoiceId    String
+  description  String
+  quantity     Float
+  unitPrice    Float
+  vatRate      Float // 20 for 20%
+  type         ItemType      @default(SERVICE)
+  order        Int
+  receiptItems ReceiptItem[]
+}
+
+// Recurring invoice model
+model RecurringInvoice {
+  id                String                 @id @default(uuid())
+  client            Client                 @relation(fields: [clientId], references: [id])
+  clientId          String
+  company           Company                @relation(fields: [companyId], references: [id])
+  companyId         String
+  items             RecurringInvoiceItem[]
+  generatedInvoices Invoice[] // Relation inverse pour les factures générées
+  paymentMethod     String? // Ex: "Bank Transfer", "PayPal", "Cash"
+  paymentDetails    String? // Details for the payment method (e.g., bank account number)
+  paymentMethodId   String?
+  notes             String?                @default("")
+  totalHT           Float
+  totalVAT          Float
+  totalTTC          Float
+  currency          Currency
+  frequency         RecurrenceFrequency // Simplified recurrence frequency
+  count             Int? // Number of occurrences, null for infinite
+  until             DateTime? // End date for the recurrence
+  autoSend          Boolean                @default(false) // Auto-send generated invoices
+  nextInvoiceDate   DateTime? // Date for the next invoice generation
+  lastInvoiceDate   DateTime? // Date of the last generated invoice
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+}
+
+model RecurringInvoiceItem {
+  id                 String           @id @default(uuid())
+  recurringInvoice   RecurringInvoice @relation(fields: [recurringInvoiceId], references: [id])
+  recurringInvoiceId String
+  description        String
+  quantity           Float
+  unitPrice          Float
+  vatRate            Float // 20 for 20%
+  type               ItemType         @default(SERVICE)
+  order              Int
+}
+
+// Receipt models
+model ReceiptItem {
+  id            String      @id @default(uuid())
+  invoiceItem   InvoiceItem @relation(fields: [invoiceItemId], references: [id])
+  invoiceItemId String
+  amountPaid    Float // Amount paid for this item
+  Receipt       Receipt     @relation(fields: [receiptId], references: [id])
+  receiptId     String
+}
+
+model Receipt {
+  id              String        @id @default(cuid())
+  number          Int           @default(autoincrement())
+  rawNumber       String? // Raw number for custom formats
+  invoiceId       String
+  invoice         Invoice       @relation(fields: [invoiceId], references: [id])
+  items           ReceiptItem[]
+  totalPaid       Float
+  paymentMethod   String        @default("") // Ex: "Bank Transfer", "PayPal", "Cash"
+  paymentDetails  String        @default("") // Details for the payment method (e.g., bank account number)
+  paymentMethodId String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model PaymentMethod {
+  id        String            @id @default(cuid())
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+  name      String
+  details   String? // Use this to store IBAN or other textual details
+  type      PaymentMethodType @default(BANK_TRANSFER)
+  isActive  Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+// Signature model
+model Signature {
+  id        String    @id @default(uuid())
+  quoteId   String
+  signedAt  DateTime?
+  expiresAt DateTime?
+  otpCode   String?
+  otpUsed   Boolean   @default(false)
+  quote     Quote     @relation(fields: [quoteId], references: [id])
+  isActive  Boolean   @default(true)
+}
+
+// Currency conversion model
+model CurrencyConversion {
+  id           String   @id @default(cuid())
+  fromCurrency String
+  toCurrency   String
+  rate         Float
+  expiresAt    DateTime
+
+  @@unique([fromCurrency, toCurrency])
+}
+
+// IN-APP PLUGINS
+
+enum PluginType {
+  SIGNING
+  STORAGE
+}
+
+model Plugin {
+  id            String     @id @default(cuid())
+  name          String
+  type          PluginType
+  config        Json?      @default("{}")
+  isActive      Boolean    @default(true)
+  webhookUrl    String?
+  webhookSecret String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+enum WebhookEvent {
+  // Quote events
+  QUOTE_CREATED
+  QUOTE_UPDATED
+  QUOTE_DELETED
+  QUOTE_SENT
+  QUOTE_SIGNED
+  QUOTE_EXPIRED
+  QUOTE_REJECTED
+  QUOTE_VIEWED
+  QUOTE_MARKED_AS_SIGNED
+  QUOTE_PDF_GENERATED
+  QUOTE_SEARCHED
+  QUOTE_STATUS_CHANGED
+
+  // Invoice events
+  INVOICE_CREATED
+  INVOICE_UPDATED
+  INVOICE_DELETED
+  INVOICE_SENT
+  INVOICE_PAID
+  INVOICE_OVERDUE
+  INVOICE_MARKED_AS_PAID
+  INVOICE_PDF_GENERATED
+  INVOICE_XML_DOWNLOADED
+  INVOICE_CREATED_FROM_QUOTE
+  INVOICE_SEARCHED
+  INVOICE_STATUS_CHANGED
+
+  // Receipt events
+  RECEIPT_CREATED
+  RECEIPT_UPDATED
+  RECEIPT_DELETED
+  RECEIPT_SENT
+  RECEIPT_PDF_GENERATED
+  RECEIPT_CREATED_FROM_INVOICE
+  RECEIPT_SEARCHED
+
+  // Payment events
+  PAYMENT_RECEIVED
+  PAYMENT_METHOD_CREATED
+  PAYMENT_METHOD_UPDATED
+  PAYMENT_METHOD_DELETED
+  PAYMENT_METHOD_ACTIVATED
+  PAYMENT_METHOD_DEACTIVATED
+
+  // Signature events
+  SIGNATURE_CREATED
+  SIGNATURE_COMPLETED
+  SIGNATURE_EXPIRED
+  SIGNATURE_OTP_GENERATED
+  SIGNATURE_OTP_SENT
+  SIGNATURE_VIEWED
+  SIGNATURE_EMAIL_SENT
+
+  // Client events
+  CLIENT_CREATED
+  CLIENT_UPDATED
+  CLIENT_DELETED
+  CLIENT_ACTIVATED
+  CLIENT_DEACTIVATED
+  CLIENT_SEARCHED
+
+  // Company events
+  COMPANY_CREATED
+  COMPANY_UPDATED
+  COMPANY_PDF_CONFIG_UPDATED
+  COMPANY_EMAIL_TEMPLATE_UPDATED
+  COMPANY_INFO_VIEWED
+
+  // Recurring Invoice events
+  RECURRING_INVOICE_CREATED
+  RECURRING_INVOICE_UPDATED
+  RECURRING_INVOICE_DELETED
+  RECURRING_INVOICE_GENERATED
+  RECURRING_INVOICE_AUTO_SENT
+  RECURRING_INVOICE_PROCESSED
+  RECURRING_INVOICE_NEXT_DATE_CALCULATED
+
+  // Plugin events
+  PLUGIN_ACTIVATED
+  PLUGIN_DEACTIVATED
+  PLUGIN_CONFIGURED
+  PLUGIN_ADDED
+  PLUGIN_REMOVED
+  PLUGIN_VALIDATED
+  PLUGIN_PROVIDER_REQUESTED
+  PLUGIN_FORMAT_REQUESTED
+  PLUGIN_WEBHOOK_RECEIVED
+
+  // Authentication events
+  USER_CREATED
+  USER_UPDATED
+  USER_LOGGED_IN
+  USER_PASSWORD_CHANGED
+  USER_PROFILE_UPDATED
+  USER_OIDC_LOGIN
+  USER_OIDC_CALLBACK
+
+  // Email events
+  EMAIL_SENT
+  EMAIL_TEMPLATE_UPDATED
+  EMAIL_FAILED
+
+  // Dashboard events
+  DASHBOARD_VIEWED
+  DASHBOARD_STATS_CALCULATED
+  STATS_MONTHLY_REQUESTED
+  STATS_YEARLY_REQUESTED
+  CURRENCY_RATE_UPDATED
+
+  // System events
+  APP_RESET
+  APP_ALL_DATA_RESET
+  OTP_REQUESTED
+  OTP_VALIDATED
+  OTP_EXPIRED
+
+  // Search events
+  SEARCH_PERFORMED
+
+  // File events
+  PDF_GENERATED
+  XML_GENERATED
+  FILE_DOWNLOADED
+
+  // Webhook events
+  WEBHOOK_CREATED
+  WEBHOOK_UPDATED
+  WEBHOOK_DELETED
+  WEBHOOK_TRIGGERED
+  WEBHOOK_FAILED
+
+  // Quote Item events
+  QUOTE_ITEM_CREATED
+  QUOTE_ITEM_UPDATED
+  QUOTE_ITEM_DELETED
+
+  // Invoice Item events
+  INVOICE_ITEM_CREATED
+  INVOICE_ITEM_UPDATED
+  INVOICE_ITEM_DELETED
+
+  // Receipt Item events
+  RECEIPT_ITEM_CREATED
+  RECEIPT_ITEM_UPDATED
+  RECEIPT_ITEM_DELETED
+
+  // Recurring Invoice Item events
+  RECURRING_INVOICE_ITEM_CREATED
+  RECURRING_INVOICE_ITEM_UPDATED
+  RECURRING_INVOICE_ITEM_DELETED
+
+  // Configuration events
+  PDF_CONFIG_CREATED
+  PDF_CONFIG_UPDATED
+  EMAIL_TEMPLATE_CREATED
+
+  // Number formatting events
+  QUOTE_NUMBER_GENERATED
+  INVOICE_NUMBER_GENERATED
+  RECEIPT_NUMBER_GENERATED
+
+  // Background process events
+  CRON_JOB_STARTED
+  CRON_JOB_COMPLETED
+  CRON_JOB_FAILED
+
+  // Currency events
+  CURRENCY_CONVERSION_REQUESTED
+  CURRENCY_RATE_FETCHED
+
+  // Mail template events
+  MAIL_TEMPLATE_CREATED
+  MAIL_TEMPLATE_UPDATED
+
+  // SSE events
+  SSE_CONNECTION_ESTABLISHED
+  SSE_DATA_STREAMED
+
+  // Validation events
+  DATA_VALIDATED
+  CONFIGURATION_VALIDATED
+}
+
+enum WebhookType {
+  GENERIC
+  DISCORD
+  MATTERMOST
+  SLACK
+  TEAMS
+  ZAPIER
+  ROCKETCHAT
+}
+
+model Webhook {
+  id     String         @id @default(cuid())
+  url    String
+  secret String?
+  type   WebhookType    @default(GENERIC)
+  events WebhookEvent[]
+
+  // Link webhooks to a company (required)
+  company   Company @relation(fields: [companyId], references: [id])
+  companyId String
+
+  @@index([companyId])
+}
+
+// ======= INVITATION SYSTEM ======= //
+
+model InvitationCode {
+  id          String    @id @default(uuid())
+  code        String    @unique
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime?
+  usedAt      DateTime?
+  createdById String
+  createdBy   User      @relation("CreatedInvitations", fields: [createdById], references: [id], onDelete: Cascade)
+  usedById    String?   @unique
+  usedBy      User?     @relation("UsedInvitation", fields: [usedById], references: [id], onDelete: SetNull)
+
+  @@index([code])
+  @@index([createdById])
+  @@map("invitation_code")
+}
+
+// ======= BETTER AUTH INTEGRATION ======= //
+
+model User {
+  id            String    @id
+  name          String?
+  firstname     String
+  lastname      String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  // Invitation relations
+  createdInvitations InvitationCode[] @relation("CreatedInvitations")
+  usedInvitation     InvitationCode?  @relation("UsedInvitation")
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ======= END OF BETTER AUTH INTEGRATION ======= //
+
+// ======= START OF LOGGING SYSTEM ======= //
+
+enum LogLevel {
+  DEBUG
+  INFO
+  WARN
+  ERROR
+  FATAL
+}
+
+model Log {
+  id        String   @id @default(uuid())
+  level     LogLevel
+  category  String
+  message   String
+  timestamp DateTime @default(now())
+  userId    String?
+  path      String?
+  details   Json
+
+  @@index([level])
+  @@index([category])
+  @@index([timestamp])
+}
+
+// ======= END OF LOGGING SYSTEM ======= //

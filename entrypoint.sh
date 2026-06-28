@@ -32,7 +32,7 @@ EOF
 
 # Push database schema using the standard Prisma command
 echo "Pushing database schema..."
-npx prisma db push --accept-data-loss --schema=/usr/share/nginx/backend/prisma/schema.prisma
+npx prisma db push --accept-data-loss --schema=/usr/share/nginx/backend/prisma/schema-v1.4.4a.prisma
 
 # Start the backend service
 echo "Starting backend service..."

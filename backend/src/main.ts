@@ -7,8 +7,18 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
+import { syncDatabaseSchema } from './prisma/sync-schema';
 
 async function bootstrap() {
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      await syncDatabaseSchema();
+    } catch (err) {
+      console.error('[bootstrap] database sync failed, aborting startup:', err);
+      process.exit(1);
+    }
+  }
+
   const app = await NestFactory.create(AppModule, { bodyParser: false });
   app.enableCors({
     credentials: true,
