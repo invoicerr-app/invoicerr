@@ -161,7 +161,7 @@ describeLive('KSeF live round-trip', () => {
     expect(fa2Xml).toContain(testNip);
 
     // ── XSD validation (fail fast before consuming KSeF) ──
-    const xsdResult = validateXsd(fa2Xml, 'pl/schemat_FA2.xsd');
+    const xsdResult = await validateXsd(fa2Xml, 'pl/schemat_FA2.xsd');
     console.log('XSD validation:', xsdResult.valid ? 'PASS' : 'FAIL', xsdResult.errors);
     expect(xsdResult.valid).toBe(true);
 

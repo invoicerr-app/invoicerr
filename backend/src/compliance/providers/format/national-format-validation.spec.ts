@@ -223,7 +223,7 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('9876543210')) errors.push('missing buyer NIP');
 
       // XSD validation (authoritative gate)
-      const xsdResult: XsdResult = validateXsd(xml, 'pl/schemat_FA2.xsd');
+      const xsdResult: XsdResult = await validateXsd(xml, 'pl/schemat_FA2.xsd');
 
       results.push({
         fixture: fixture.slug,
@@ -256,7 +256,7 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('9876543210')) errors.push('missing buyer NIP');
 
       // XSD validation
-      const xsdResult: XsdResult = validateXsd(xml, 'pl/schemat_FA2.xsd');
+      const xsdResult: XsdResult = await validateXsd(xml, 'pl/schemat_FA2.xsd');
 
       results.push({
         fixture: fixture.slug,
@@ -287,7 +287,7 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('1234567890')) errors.push('missing seller NIP');
 
       // XSD validation
-      const xsdResult: XsdResult = validateXsd(xml, 'pl/schemat_FA2.xsd');
+      const xsdResult: XsdResult = await validateXsd(xml, 'pl/schemat_FA2.xsd');
 
       results.push({
         fixture: fixture.slug,
@@ -320,7 +320,7 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('BrakID')) errors.push('missing BrakID for B2C');
 
       // XSD validation
-      const xsdResult: XsdResult = validateXsd(xml, 'pl/schemat_FA2.xsd');
+      const xsdResult: XsdResult = await validateXsd(xml, 'pl/schemat_FA2.xsd');
 
       results.push({
         fixture: fixture.slug,
@@ -541,7 +541,7 @@ describe('National Format — structural validation', () => {
   });
 
   describe('FA_VAT XSD — negative test', () => {
-    it('rejects broken FA(2) XML missing required elements', () => {
+    it('rejects broken FA(2) XML missing required elements', async () => {
       const broken = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<Faktura xmlns="http://crd.gov.pl/wzor/2023/06/29/12648/">',
@@ -551,7 +551,7 @@ describe('National Format — structural validation', () => {
         '  </Naglowek>',
         '</Faktura>',
       ].join('\n');
-      const result = validateXsd(broken, 'pl/schemat_FA2.xsd');
+      const result = await validateXsd(broken, 'pl/schemat_FA2.xsd');
       expect(result.valid).toBe(false);
       expect(result.errorCount).toBeGreaterThan(0);
     });

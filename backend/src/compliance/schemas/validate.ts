@@ -70,9 +70,13 @@ export function validateSchematron(xml: string, schRelPath: string): SchematronR
   };
 }
 
-// ─── XSD (PL FA(2) via xmllint subprocess) ─────────────────────────────────
-// libxmljs2 can't resolve xsd:import/xsd:include from in-memory strings.
-// xmllint resolves file-based schema chains correctly.
+// ─── XSD (PL FA(2) via xmllint-wasm) ──────────────────────────────────────
+// xmllint-wasm runs xmllint inside a WASM sandbox — no system binary required.
+// All XSD files in the schema directory are preloaded into the WASM VFS so that
+// xsd:include and xsd:import chains resolve correctly.
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { validateXML } = require('xmllint-wasm');
 
 export interface XsdResult {
   valid: boolean;
@@ -81,36 +85,33 @@ export interface XsdResult {
 }
 
 /**
- * Validate XML against an XSD schema (via xmllint --schema subprocess).
+ * Validate XML against an XSD schema (via xmllint-wasm).
+ * All sibling .xsd files in the same directory are preloaded for xsd:import resolution.
  * Returns the list of validation errors (empty = valid).
  */
-export function validateXsd(xml: string, xsdRelPath: string): XsdResult {
-  const { execSync } = require('child_process');
-  const os = require('os');
+export async function validateXsd(xml: string, xsdRelPath: string): Promise<XsdResult> {
   const xsdAbsPath = path.resolve(__dirname, xsdRelPath);
+  const xsdDir = path.dirname(xsdAbsPath);
+  const mainXsdName = path.basename(xsdAbsPath);
 
-  // Write XML to a temp file (xmllint needs a file path)
-  const tmpFile = path.join(os.tmpdir(), `xsd-validate-${Date.now()}-${Math.random().toString(36).slice(2)}.xml`);
-  try {
-    fs.writeFileSync(tmpFile, xml, 'utf-8');
-    const stdout = execSync(
-      `xmllint --noout --schema "${xsdAbsPath}" "${tmpFile}" 2>&1`,
-      { timeout: 10_000 },
-    );
-    // xmllint exits 0 and prints "... validates" on success
-    return { valid: true, errorCount: 0, errors: [] };
-  } catch (err: any) {
-    // xmllint exits non-zero on validation errors; stderr/stdout contains the error lines
-    const output: string = (err.stdout ?? err.stderr ?? String(err)).toString();
-    const lines = output.split('\n').filter(l => l.trim() && !l.includes('validates'));
-    // Filter out "fails to validate" summary line
-    const errors = lines.filter(l => !l.includes('fails to validate') && !l.includes('does not validate'));
-    return {
-      valid: false,
-      errorCount: errors.length,
-      errors,
-    };
-  } finally {
-    try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
-  }
+  // Load all .xsd files in the directory so that xsd:include / xsd:import chains resolve.
+  const schemaFiles = fs.readdirSync(xsdDir)
+    .filter((f) => f.endsWith('.xsd'))
+    .map((f) => ({
+      fileName: f,
+      contents: fs.readFileSync(path.join(xsdDir, f), 'utf-8'),
+    }));
+
+  const result = await validateXML({
+    xml: { fileName: 'invoice.xml', contents: xml },
+    schema: schemaFiles.find((f) => f.fileName === mainXsdName)
+      ? schemaFiles
+      : [{ fileName: mainXsdName, contents: fs.readFileSync(xsdAbsPath, 'utf-8') }, ...schemaFiles],
+  });
+
+  return {
+    valid: result.valid,
+    errorCount: result.errors.length,
+    errors: result.errors.map((e) => e.message),
+  };
 }
