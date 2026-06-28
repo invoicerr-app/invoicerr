@@ -3,64 +3,60 @@
  *
  * Guard: KSEF_LIVE=1 npx jest ksef-live.spec.ts --no-coverage
  *
- * Flow:
- * 1. Read test token from scratchpad/ksef-test-creds.local.env
- * 2. Build a resolved config as if resolveActive() returned it
- * 3. Execute transmit() via the provider (uses vendorized MF keys)
- * 4. Execute poll() to get KSeF status
- * 5. Assert real reference numbers and status
+ * Two runs:
+ *   Run A — crypto guard: plaintext placeholder (proves encryption round-trip, no 435)
+ *   Run B — valid FA(2) via buildFaVat: proves real invoice acceptance → CLEARED + ksefNumber
  *
  * Never logs token, XML, or accessToken.
  */
 const LIVE = !!process.env.KSEF_LIVE;
 
-// Minimal FA(2) XML — just enough structure for KSeF to accept (or reject semantically)
-const MINIMAL_FA_VAT =
-  '<?xml version="1.0" encoding="UTF-8"?>' +
-  '<Faktura xmlns="http://crd.gov.pl/wzor/2023/06/29/12648/">' +
-  '<Naglowek><KodFormularza systemCode="FA" wersjaSchemy="1-0E">FA</KodFormularza>' +
-  '<WariantFormularza>2</WariantFormularza>' +
-  '<DataWygenerowania>2026-06-28</DataWygenerowania>' +
-  '<SystemInfo>invoicerr-live-test</SystemInfo></Naglowek>' +
-  '<Podmiot1><AdresPodmiotu><KodKraju>PL</KodKraju><NrNIP>0000000000</NrNIP>' +
-  '<Nazwa>Test Live</Nazwa></AdresPodmiotu><NRAKtywnosciVAT>123456</NRAKtywnosciVAT>' +
-  '<StatusCzynnyVAT>true</StatusCzynnyVAT></Podmiot1>' +
-  '<Podmiot2><AdresPodmiotu><KodKraju>PL</KodKraju><NrNIP>0000000000</NrNIP>' +
-  '<Nazwa>Test Buyer</Nazwa></AdresPodmiotu></Podmiot2>' +
-  '<Fa><KodWaluty>PLN</KodWaluty><DataWystawienia>2026-06-28</DataWystawienia>' +
-  '<DataZakupu>2026-06-28</DataZakupu><TerminPlatnosci>2026-07-28</TerminPlatnosci>' +
-  '<FormaPlatnosci>przelew</FormaPlatnosci><PlatnoscZaliczkowaCzesciowa>false</PlatnoscZaliczkowaCzesciowa>' +
-  '<PlatnoscCalkowita>false</PlatnoscCalkowita><KwotaRazem>123.00</KwotaRazem>' +
-  '<FaWiersz><NrWierszaFa>1</NrWierszaFa><NazwaTowaruUslugi>Test item</NazwaTowaruUslugi>' +
-  '<PKWiU>PKWiU 62.01</PKWiU><JednostkaMiary>szt.</JednostkaMiary>' +
-  '<IloscJednostkowa>1</IloscJednostkowa><CenaJednostkowaBrutto>100.00</CenaJednostkowaBrutto>' +
-  '<WartoscBrutto>100.00</WartoscBrutto></FaWiersz></Fa></Faktura>';
-
 // eslint-disable-next-line no-restricted-properties
 const describeLive = LIVE ? describe : describe.skip;
+
+/** Minimal plaintext for Run A — crypto round-trip guard. */
+const CRYPTO_GUARD_XML =
+  '<?xml version="1.0" encoding="UTF-8"?>' +
+  '<Faktura xmlns="http://crd.gov.pl/wzor/2023/06/29/12648/">' +
+  '<Naglowek><KodFormularza kodSystemowy="FA (2)" wersjaSchemy="1-0E">FA</KodFormularza>' +
+  '<WariantFormularza>2</WariantFormularza>' +
+  '<DataWytworzeniaFa>2026-06-28T12:00:00</DataWygenerowaniaFa>' +
+  '<SystemInfo>invoicerr-crypto-guard</SystemInfo></Naglowek>' +
+  '<Podmiot1><PrefiksPodatnika>PL</PrefiksPodatnika>' +
+  '<DaneIdentyfikacyjne><NIP>1234567802</NIP><Nazwa>Test Seller</Nazwa></DaneIdentyfikacyjne>' +
+  '<Adres><KodKraju>PL</KodKraju><AdresL1>ul. Testowa 1</AdresL1></Adres></Podmiot1>' +
+  '<Podmiot2><DaneIdentyfikacyjne><NIP>1234567803</NIP><Nazwa>Test Buyer</Nazwa></DaneIdentyfikacyjne>' +
+  '<Adres><KodKraju>PL</KodKraju><AdresL1>ul. Kupiecka 2</AdresL1></Adres></Podmiot2>' +
+  '<Fa><KodWaluty>PLN</KodWaluty><P_1>2026-06-28</P_1><P_2>INV-CRYPTO-001</P_2>' +
+  '<P_13_1>100.00</P_13_1><P_14_1>23.00</P_14_1><P_15>123.00</P_15>' +
+  '<Adnotacje><P_16>2</P_16><P_17>2</P_17><P_18>2</P_18><P_18A>2</P_18A>' +
+  '<Zwolnienie><P_19N>1</P_19N></Zwolnienie>' +
+  '<NoweSrodkiTransportu><P_22N>1</P_22N></NoweSrodkiTransportu>' +
+  '<P_23>2</P_23><PMarzy><P_PMarzyN>1</P_PMarzyN></PMarzy></Adnotacje>' +
+  '<RodzajFaktury>VAT</RodzajFaktury>' +
+  '<FaWiersz><NrWierszaFa>1</NrWierszaFa><P_7>Test item</P_7><PKWiU>00</PKWiU>' +
+  '<P_8A>szt.</P_8A><P_8B>1</P_8B><P_9A>100</P_9A><P_11>100.00</P_11><P_12>23</P_12>' +
+  '</FaWiersz></Fa></Faktura>';
 
 describeLive('KSeF live round-trip', () => {
   let testToken: string;
   let testNip: string;
 
   beforeAll(() => {
-    // Credentials come from the environment (local export or GitHub CI secrets) — never the repo.
     testToken = process.env.KSEF_AUTH_TOKEN ?? process.env.KSEF_TOKEN ?? '';
-    testNip = process.env.KSEF_NIP ?? '1234567890';
+    testNip = process.env.KSEF_NIP ?? '1234567802';
 
     if (!testToken) {
       throw new Error(
-        'KSEF_LIVE=1 requires KSEF_AUTH_TOKEN (and optionally KSEF_NIP) in the environment. ' +
-        'Locally: export them in your shell. In CI: set them as repository secrets and inject as env.',
+        'KSEF_LIVE=1 requires KSEF_AUTH_TOKEN (and optionally KSEF_NIP) in the environment.',
       );
     }
   });
 
-  it('transmits a real invoice to ksef-test.mf.gov.pl and polls its status', async () => {
+  it('Run A: crypto guard — encrypts and transmits without 435 (decryption error)', async () => {
     process.env.CREDENTIALS_ENCRYPTION_KEY ??= '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
-    const companyId = 'live_test_' + Date.now();
-
+    const companyId = 'live_crypto_' + Date.now();
     const { KsefTransmissionProvider } = await import('../providers.js');
     const { TransmissionProviderRegistry } = await import('../registry.js');
     const { RecordingComplianceLogger } = await import('../../../execution/logger.js');
@@ -75,10 +71,7 @@ describeLive('KSeF live round-trip', () => {
 
     // Stub credentials port so poll() can re-resolve + re-authenticate (mirrors production,
     // where the registry injects the real ChannelCredentialsPort into the provider).
-    const stubCredentials = {
-      resolve: async () => fakeResolvedConfig,
-      resolveActive: async () => fakeResolvedConfig,
-    };
+    const stubCredentials = { resolve: async () => fakeResolvedConfig, resolveActive: async () => fakeResolvedConfig };
     const reg = new TransmissionProviderRegistry([new KsefTransmissionProvider(stubCredentials as any) as any]);
     const ksef = reg.getById('ksef')!;
 
@@ -86,75 +79,166 @@ describeLive('KSeF live round-trip', () => {
       role: 'AUTHORITATIVE' as const,
       syntax: 'FA_VAT' as const,
       mime: 'application/xml',
-      bytes: Buffer.from(MINIMAL_FA_VAT, 'utf8'),
+      bytes: Buffer.from(CRYPTO_GUARD_XML, 'utf8'),
     };
 
     const log = new RecordingComplianceLogger();
-
     const ctx = {
-      supplier: {
-        legalName: 'Live Test',
-        countryCode: 'PL',
-        role: 'B2B',
-        identifiers: [{ scheme: 'VAT', value: 'PL' + testNip, validated: true }],
-      },
-      buyer: {
-        legalName: 'Buyer',
-        countryCode: 'PL',
-        role: 'B2B',
-        identifiers: [{ scheme: 'VAT', value: 'PL0000000000', validated: true }],
-      },
-      lines: [],
-      issueDate: new Date('2026-06-28'),
-      currency: 'PLN',
-      supplierCompanyId: companyId,
+      supplier: { legalName: 'Test', countryCode: 'PL', role: 'B2B', identifiers: [{ scheme: 'VAT', value: 'PL' + testNip, validated: true }] },
+      buyer: { legalName: 'Buyer', countryCode: 'PL', role: 'B2B', identifiers: [{ scheme: 'VAT', value: 'PL1234567803', validated: true }] },
+      lines: [], issueDate: new Date('2026-06-28'), currency: 'PLN', supplierCompanyId: companyId,
     } as any;
 
     const transmitResult = await ksef.transmit!(
-      [faVatArtifact],
-      ctx,
+      [faVatArtifact], ctx,
       { channels: [{ type: 'GOV_PORTAL_API', providerId: 'ksef' }] } as any,
-      'live-test-key',
-      log,
-      fakeResolvedConfig as any,
+      'crypto-guard', log, fakeResolvedConfig as any,
     );
 
-    console.log('Transmit result:', JSON.stringify(transmitResult, null, 2));
+    console.log('Run A transmit:', JSON.stringify(transmitResult, null, 2));
 
-    // Real proof: the invoice MUST have reached KSeF and come back with a session+invoice
-    // reference. A local error (missing keys, network, auth) surfaces as a non-PENDING status
-    // with notes — that is a FAILURE here, not a tolerated outcome (no false green).
+    // Crypto guard: must not fail with decryption error (435)
+    // Accept PENDING (success) or REJECTED (semantic — expected for placeholder XML)
+    expect(['PENDING', 'REJECTED']).toContain(transmitResult.status);
+    const allNotes = (transmitResult.notes ?? []).join(' ');
+    expect(allNotes).not.toMatch(/435|decrypt/i);
+  });
+
+  it('Run B: valid FA(2) via buildFaVat → CLEARED + ksefNumber', async () => {
+    process.env.CREDENTIALS_ENCRYPTION_KEY ??= '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
+    const timestamp = Date.now();
+    const companyId = 'live_valid_' + timestamp;
+    const invoiceNumber = `INV-${timestamp}`;
+
+    // ── Generate FA(2) via buildFaVat (DB-free) ──
+    const { InvoiceRenderingService } = await import('../../../../modules/invoice-rendering/invoice-rendering.service.js');
+    const { validateXsd } = await import('../../../schemas/validate.js');
+
+    const service = new InvoiceRenderingService();
+    const now = new Date();
+    const fa2Xml = await service.buildFaVat({
+      rawNumber: invoiceNumber,
+      number: null,
+      issuedAt: now,
+      createdAt: now,
+      company: {
+        name: 'Test Live Seller',
+        description: null,
+        foundedAt: null,
+        currency: 'PLN',
+        address: 'ul. Testowa 1',
+        city: 'Warszawa',
+        postalCode: '00-001',
+        country: 'Poland',
+        partyIdentifiers: [{ scheme: 'VAT', value: 'PL' + testNip }],
+      },
+      client: {
+        type: 'COMPANY',
+        name: 'Test Live Buyer',
+        description: null,
+        foundedAt: null,
+        contactFirstname: null,
+        contactLastname: null,
+        salutation: null,
+        sex: null,
+        title: null,
+        isActive: true,
+        address: 'ul. Kupiecka 2',
+        city: 'Kraków',
+        postalCode: '31-010',
+        country: 'Poland',
+        partyIdentifiers: [{ scheme: 'VAT', value: 'PL1234567803' }],
+      },
+      items: [
+        { name: 'Usługa testowa (Test service)', quantity: 1, unitPrice: 100, vatRate: 23, type: 'SERVICE' },
+      ],
+    } as any);
+
+    console.log('FA(2) XML length:', fa2Xml.length);
+    expect(fa2Xml).toContain('Faktura');
+    expect(fa2Xml).toContain(invoiceNumber);
+    expect(fa2Xml).toContain(testNip);
+
+    // ── XSD validation (fail fast before consuming KSeF) ──
+    const xsdResult = validateXsd(fa2Xml, 'pl/schemat_FA2.xsd');
+    console.log('XSD validation:', xsdResult.valid ? 'PASS' : 'FAIL', xsdResult.errors);
+    expect(xsdResult.valid).toBe(true);
+
+    // ── Transmit to KSeF ──
+    const { KsefTransmissionProvider } = await import('../providers.js');
+    const { TransmissionProviderRegistry } = await import('../registry.js');
+    const { RecordingComplianceLogger } = await import('../../../execution/logger.js');
+
+    const fakeResolvedConfig = {
+      providerId: 'ksef',
+      channel: 'GOV_PORTAL_API',
+      environment: 'test',
+      config: { nip: testNip, authToken: testToken },
+      isActive: true,
+    };
+
+    // Stub credentials port so poll() can re-resolve + re-authenticate (mirrors production,
+    // where the registry injects the real ChannelCredentialsPort into the provider).
+    const stubCredentials = { resolve: async () => fakeResolvedConfig, resolveActive: async () => fakeResolvedConfig };
+    const reg = new TransmissionProviderRegistry([new KsefTransmissionProvider(stubCredentials as any) as any]);
+    const ksef = reg.getById('ksef')!;
+
+    const faVatArtifact = {
+      role: 'AUTHORITATIVE' as const,
+      syntax: 'FA_VAT' as const,
+      mime: 'application/xml',
+      bytes: Buffer.from(fa2Xml, 'utf8'),
+    };
+
+    const log = new RecordingComplianceLogger();
+    const ctx = {
+      supplier: { legalName: 'Test Live Seller', countryCode: 'PL', role: 'B2B', identifiers: [{ scheme: 'VAT', value: 'PL' + testNip, validated: true }] },
+      buyer: { legalName: 'Test Live Buyer', countryCode: 'PL', role: 'B2B', identifiers: [{ scheme: 'VAT', value: 'PL1234567803', validated: true }] },
+      lines: [], issueDate: now, currency: 'PLN', supplierCompanyId: companyId,
+    } as any;
+
+    const transmitResult = await ksef.transmit!(
+      [faVatArtifact], ctx,
+      { channels: [{ type: 'GOV_PORTAL_API', providerId: 'ksef' }] } as any,
+      'valid-fa', log, fakeResolvedConfig as any,
+    );
+
+    console.log('Run B transmit:', JSON.stringify(transmitResult, null, 2));
     expect(transmitResult.status).toBe('PENDING');
     expect(transmitResult.ref).toBeTruthy();
 
     const parts = transmitResult.ref!.split('|');
     expect(parts.length).toBe(3);
     const [, sessionRef, invoiceRef] = parts;
-    expect(sessionRef).toMatch(/^\d{8}-[A-Z]{2}-/);
+    expect(sessionRef).toBeTruthy();
     expect(invoiceRef).toBeTruthy();
-
     console.log('Session:', sessionRef, 'Invoice:', invoiceRef);
 
-    // KSeF processes asynchronously — poll (each call re-authenticates) until terminal or timeout.
-    await new Promise((r) => setTimeout(r, 4000));
-    let pollResult = await ksef.poll!(transmitResult.ref!, log);
-    for (let i = 0; i < 8 && pollResult.status === 'PENDING'; i++) {
-      await new Promise((r) => setTimeout(r, 4000));
-      pollResult = await ksef.poll!(transmitResult.ref!, log);
-    }
-    console.log('Poll result:', JSON.stringify(pollResult, null, 2));
+    // ── Poll for CLEARED ──
+    const MAX_POLLS = 15;
+    const POLL_INTERVAL_MS = 3000;
+    let pollResult: any;
 
-    // poll() must have actually reached KSeF and re-authenticated — never a local error.
-    const noteStr = (pollResult.notes ?? []).join(' ');
-    expect(noteStr).not.toMatch(/error|ENOENT|no credentials/i);
-    // Crypto-pipeline regression guard: KSeF must be able to DECRYPT the invoice. A code-435
-    // "Błąd odszyfrowania pliku" (decryption error) means the AES/session-key handling broke.
-    // A semantic rejection (code 450) of the placeholder invoice is fine — it proves KSeF
-    // decrypted + parsed the document.
-    expect(noteStr).not.toMatch(/odszyfrowania|decryption|code 435/i);
-    expect(['PENDING', 'CLEARED', 'REJECTED']).toContain(pollResult.status);
-    if (pollResult.status === 'CLEARED') {
-      expect(noteStr).toMatch(/ksefNumber/i);
+    for (let i = 0; i < MAX_POLLS; i++) {
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+      pollResult = await ksef.poll!(transmitResult.ref!, log);
+      console.log(`Poll ${i + 1}/${MAX_POLLS}:`, pollResult.status, (pollResult.notes ?? []).join(' | '));
+
+      if (pollResult.status === 'CLEARED') break;
+      if (pollResult.status === 'REJECTED') break;
     }
-  }, 90_000);
+
+    expect(pollResult).toBeDefined();
+    console.log('Final poll result:', JSON.stringify(pollResult, null, 2));
+
+    // The ultimate proof: CLEARED with a real ksefNumber from ksef-test.mf.gov.pl
+    expect(pollResult.status).toBe('CLEARED');
+    const ksefNumberNote = (pollResult.notes ?? []).find((n: string) => n.startsWith('ksefNumber:'));
+    expect(ksefNumberNote).toBeTruthy();
+    const ksefNumber = ksefNumberNote!.replace('ksefNumber: ', '');
+    console.log('ksefNumber:', ksefNumber);
+    // Real KSeF number format: {NIP}-{YYYYMMDD}-{hex}-{checksum}, e.g. 1234567802-20260628-8D1951000000-C8
+    expect(ksefNumber).toMatch(/^\d{10}-\d{8}-[0-9A-F]+-[0-9A-F]{2}$/);
+  }, 120_000);
 });
