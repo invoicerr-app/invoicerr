@@ -13,6 +13,8 @@ import { clampDiscountRate } from '@/utils/financial';
 import { getDraftWatermarkLabel } from '@/utils/watermark';
 import { augmentWithIdentifiers, getIdentifier } from '@/utils/entity-identifiers';
 import { parseAddress } from '@/utils/adress';
+import { guessCountryCode } from '@/utils/country-name-to-iso';
+
 
 /** Minimal data shape required by {@link InvoiceRenderingService.buildEInvoice}.
  *  Matches the Prisma include used by {@link renderXml} / {@link renderPdf} but is
@@ -243,7 +245,7 @@ export class InvoiceRenderingService {
                 city: data.company.city || '',
                 postalCode: data.company.postalCode || '',
                 country: data.company.country || '',
-                countryCode: data.company.country || ''
+                countryCode: guessCountryCode(data.company.country) ?? '',
             },
             registrationDetails: { vatId: getIdentifier(data.company, 'VAT') || "N/A", registrationId: getIdentifier(data.company, 'LEGAL_ID') || "N/A", registrationName: data.company.name }
         };
@@ -271,7 +273,7 @@ export class InvoiceRenderingService {
                     city: data.client.city || '',
                     postalCode: data.client.postalCode || '',
                     country: data.client.country || 'FR',
-                    countryCode: (data.client.country || 'FR').slice(0, 2).toUpperCase()
+                    countryCode: guessCountryCode(data.client.country) || 'FR',
                 },
                 registrationDetails: { vatId: getIdentifier(data.client, 'VAT') || 'N/A', registrationId: getIdentifier(data.client, 'LEGAL_ID') || 'N/A', registrationName: data.client.name }
             };
@@ -292,7 +294,7 @@ export class InvoiceRenderingService {
                     city: data.client.city || '',
                     postalCode: data.client.postalCode || '',
                     country: data.client.country || 'FR',
-                    countryCode: (data.client.country || 'FR').slice(0, 2).toUpperCase()
+                    countryCode: guessCountryCode(data.client.country) || 'FR',
                 },
             };
 
@@ -754,24 +756,9 @@ export class InvoiceRenderingService {
         const sellerNip = (getIdentifier(data.company, 'VAT') || '').replace(/^[A-Z]{2}/, '');
         const clientNip = (getIdentifier(data.client, 'VAT') || '').replace(/^[A-Z]{2}/, '');
 
-        // ── address builder (FA(2) TAdresPol) ──
-        const COUNTRY_NAME_TO_CODE: Record<string, string> = {
-            poland: 'PL', deutschland: 'DE', france: 'FR', spain: 'ES', italy: 'IT',
-            czech: 'CZ', czechia: 'CZ', österreich: 'AT', austria: 'AT', nederland: 'NL',
-            netherlands: 'NL', belgium: 'BE', portugal: 'PT', ireland: 'IE', sweden: 'SE',
-            denmark: 'DK', finland: 'FI', romania: 'RO', hungary: 'HU', bulgaria: 'BG',
-            greece: 'GR', croatia: 'HR', slovakia: 'SK', slovenia: 'SI', lithuania: 'LT',
-            latvia: 'LV', estonia: 'EE', luxembourg: 'LU', cyprus: 'CY', malta: 'MT',
-        };
-        const resolveCountryCode = (input?: string | null): string => {
-            if (!input) return 'PL';
-            const cc = input.trim();
-            if (/^[A-Z]{2}$/i.test(cc)) return cc.toUpperCase();
-            return COUNTRY_NAME_TO_CODE[cc.toLowerCase()] || cc.slice(0, 2).toUpperCase();
-        };
         // ── address builder (FA(2) TAdres: KodKraju + AdresPol fields) ──
         const buildAddress = (e: { address?: string | null; city?: string | null; postalCode?: string | null; country?: string | null }) => {
-            const cc = resolveCountryCode(e.country);
+            const cc = guessCountryCode(e.country) ?? 'PL';
             const street = e.address || '';
             const cityLine = [e.postalCode, e.city].filter(Boolean).join(' ') || '';
             const addr: Record<string, string> = { KodKraju: cc, AdresL1: street || cityLine || '-' };

@@ -68,6 +68,8 @@ export class PdpTransmissionProvider implements TransmissionProvider {
         { label: 'SuperPDP (proprietary)', value: 'superpdp' },
         { label: 'AFNOR Flow (XP Z12-013)', value: 'afnor' },
       ], default: 'superpdp' },
+      { type: 'text', name: 'sellerEndpointId', label: 'Seller endpoint ID', placeholder: '315143296_1422', required: false },
+      { type: 'text', name: 'buyerEndpointId', label: 'Buyer endpoint ID', placeholder: '315143296_1421', required: false },
     ],
   };
 
@@ -117,11 +119,28 @@ export class PdpTransmissionProvider implements TransmissionProvider {
         apiStyle: apiStyle as 'superpdp' | 'afnor',
       });
 
-      const xmlContent = typeof facturxArtifact.bytes === 'string'
+      let rawBytes = typeof facturxArtifact.bytes === 'string'
         ? Buffer.from(facturxArtifact.bytes, 'utf-8')
         : facturxArtifact.bytes instanceof Buffer
           ? facturxArtifact.bytes
           : Buffer.from(facturxArtifact.bytes);
+
+      // CTC FR post-processing: inject SpecifiedLegalOrganization/ID into CII XML
+      // @fin.cx/einvoice does NOT emit this element, but CTC FR rules require it.
+      const { postProcessCiiForCtc } = await import('../../schemas/cii-post-process.js');
+      const first4 = String.fromCharCode(rawBytes[0], rawBytes[1], rawBytes[2], rawBytes[3]);
+      if (first4.startsWith('<') || rawBytes[0] === 0x3c) {
+        const originalXml = rawBytes.toString('utf-8');
+        // sellerEndpointId / buyerEndpointId come from company channel config.
+        // Format: {pdp_siren}_{account_id} — NOT the company's SIREN.
+        const sellerRouting = config.sellerEndpointId as string | undefined;
+        const buyerRouting = config.buyerEndpointId as string | undefined;
+        const patched = postProcessCiiForCtc(originalXml, { sellerRouting, buyerRouting });
+        if (patched !== originalXml) {
+          log.info('transmission/pdp', `CTC post-processing: injected SpecifiedLegalOrganization (key ${key})`);
+          rawBytes = Buffer.from(patched, 'utf-8');
+        }
+      }
 
       log.info('transmission/pdp', `authenticating (key ${key})`);
       await client.authenticate();
@@ -129,7 +148,7 @@ export class PdpTransmissionProvider implements TransmissionProvider {
       if (apiStyle === 'afnor') {
         // AFNOR Flow API path
         log.info('transmission/pdp', `submitting flow via AFNOR API (key ${key})`);
-        const flow = await client.submitFlow(xmlContent, {
+        const flow = await client.submitFlow(rawBytes, {
           flowSyntax: 'Factur-X',
           flowProfile: 'Extended-CTC-FR',
           name: ctx.externalRef ?? `invoice-${key}`,
@@ -144,7 +163,7 @@ export class PdpTransmissionProvider implements TransmissionProvider {
 
       // SuperPDP proprietary API path (default)
       log.info('transmission/pdp', `submitting invoice via SuperPDP API (key ${key})`);
-      const invoice = await client.sendInvoice(xmlContent, {
+      const invoice = await client.sendInvoice(rawBytes, {
         externalId: key,
         disablePreCheck: false,
       });

@@ -36,10 +36,18 @@
  *
  * CI gate: deterministic, no network, no Java.
  */
+
 import { EInvoice, ValidationLevel } from '@fin.cx/einvoice';
+import {
+	type SchematronResult,
+	validateSchematron,
+} from "@/compliance/schemas/validate";
 import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
-import { validateSchematron, SchematronResult } from '@/compliance/schemas/validate';
-import { FIXTURES, ExportableFormat, ExpectedResult } from './__fixtures__/invoices';
+import {
+	type ExpectedResult,
+	type ExportableFormat,
+	FIXTURES,
+} from "./__fixtures__/invoices";
 
 /** CII structural sections that must appear in every CII-family export. */
 const CII_REQUIRED_SECTIONS = [

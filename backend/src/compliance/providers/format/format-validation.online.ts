@@ -9,9 +9,9 @@
  *
  * @see https://www.itb.ec.europa.eu/invoice for API docs
  */
-import { EInvoice } from '@fin.cx/einvoice';
+
 import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
-import { FIXTURES, ExportableFormat } from './__fixtures__/invoices';
+import { type ExportableFormat, FIXTURES } from "./__fixtures__/invoices";
 
 const ONLINE_ENABLED = process.env.FORMAT_VALIDATION_ONLINE === '1';
 const ITB_API_URL = 'https://www.itb.ec.europa.eu/invoice/api/validate';

@@ -40,27 +40,34 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
     const { InvoiceRenderingService } = await import('../../../../modules/invoice-rendering/invoice-rendering.service.js');
     const service = new InvoiceRenderingService();
     const now = new Date();
+    // Sandbox test companies (superpdp sandbox — Burger Queen=seller, Tricatel=buyer)
+    // Routing addresses: {pdp_siren}_{account_id} — NOT the company's SIREN.
+    // pdp_siren=315143296 (superpdp sandbox operator), account_ids: BQ=1422, Tricatel=1421.
+    const SELLER_ROUTING = '315143296_1422';
+    const BUYER_ROUTING = '315143296_1421';
+
     const inv = service.buildEInvoice({
       rawNumber: `INV-${timestamp}`,
       number: null,
       issuedAt: now,
       createdAt: now,
       company: {
-        name: 'Test Live Seller SARL',
+        name: 'Burger Queen',
         description: null,
         foundedAt: null,
         currency: 'EUR',
-        address: '1 rue de Test',
-        city: 'Paris',
-        postalCode: '75001',
+        address: '809 avenue du Languedoc',
+        city: 'Millau',
+        postalCode: '12100',
         country: 'France',
         phone: '+33100000000',
         email: 'seller@example.fr',
-        partyIdentifiers: [{ scheme: 'VAT', value: 'FR00315143296' }, { scheme: 'LEGAL_ID', value: '315143296' }],
+        // Sandbox SIREN 000000002 — must match the authenticated company in superpdp
+        partyIdentifiers: [{ scheme: 'VAT', value: 'FR18000000002' }, { scheme: 'LEGAL_ID', value: '000000002' }],
       },
       client: {
         type: 'COMPANY',
-        name: 'Test Live Buyer SAS',
+        name: 'Tricatel',
         description: null,
         foundedAt: null,
         contactFirstname: null,
@@ -71,11 +78,12 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
         sex: null,
         title: null,
         isActive: true,
-        address: '2 avenue du Client',
-        city: 'Lyon',
-        postalCode: '69002',
+        address: '1 rue de Tricatel',
+        city: 'Paris',
+        postalCode: '75001',
         country: 'France',
-        partyIdentifiers: [{ scheme: 'VAT', value: 'FR23334173221' }, { scheme: 'LEGAL_ID', value: '552081317' }],
+        // Sandbox buyer SIREN 000000001
+        partyIdentifiers: [{ scheme: 'VAT', value: 'FR15000000001' }, { scheme: 'LEGAL_ID', value: '000000001' }],
       },
       items: [
         { name: 'Prestation de test', quantity: 1, unitPrice: 100, vatRate: 20, type: 'SERVICE' },
@@ -87,6 +95,17 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
     console.log('XML has SIREN 315143296:', facturxXml.includes('315143296'), '| has SpecifiedLegalOrganization:', facturxXml.includes('SpecifiedLegalOrganization'));
     expect(facturxXml).toContain('CrossIndustryInvoice');
 
+    // Verify post-processing would inject SpecifiedLegalOrganization
+    const { postProcessCiiForCtc } = await import('../../../../compliance/schemas/cii-post-process.js');
+    const patched = postProcessCiiForCtc(facturxXml, {
+      sellerRouting: SELLER_ROUTING,
+      buyerRouting: BUYER_ROUTING,
+    });
+    console.log('Post-processed has SpecifiedLegalOrganization:', patched.includes('SpecifiedLegalOrganization'));
+    expect(patched).toContain('SpecifiedLegalOrganization');
+    // After namespace normalization, tags use xmlns= style (no ram: prefix)
+    expect(patched).toContain('schemeID="0002">000000002<');
+
     // ── Transmit through the real provider path ──
     const { PdpTransmissionProvider } = await import('../providers.js');
     const { TransmissionProviderRegistry } = await import('../registry.js');
@@ -96,7 +115,7 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
       providerId: 'pdp',
       channel: 'PDP',
       environment: 'sandbox',
-      config: { baseUrl, clientId, clientSecret, apiStyle },
+      config: { baseUrl, clientId, clientSecret, apiStyle, sellerEndpointId: SELLER_ROUTING, buyerEndpointId: BUYER_ROUTING },
       isActive: true,
     };
 
@@ -114,8 +133,8 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
 
     const log = new RecordingComplianceLogger();
     const ctx = {
-      supplier: { legalName: 'Test Live Seller SARL', countryCode: 'FR', role: 'B2B', identifiers: [{ scheme: 'VAT', value: 'FR40303265045', validated: true }] },
-      buyer: { legalName: 'Test Live Buyer SAS', countryCode: 'FR', role: 'B2B', identifiers: [{ scheme: 'VAT', value: 'FR23334173221', validated: true }] },
+      supplier: { legalName: 'Burger Queen', countryCode: 'FR', role: 'B2B', identifiers: [{ scheme: 'VAT', value: 'FR18000000002', validated: true }] },
+      buyer: { legalName: 'Tricatel', countryCode: 'FR', role: 'B2B', identifiers: [{ scheme: 'VAT', value: 'FR15000000001', validated: true }] },
       lines: [], issueDate: now, currency: 'EUR', supplierCompanyId: companyId, externalRef: `INV-${timestamp}`,
     } as any;
 
