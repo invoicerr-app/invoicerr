@@ -35,7 +35,7 @@ export class TransmissionProviderRegistry {
       list = [
         new EmailTransmissionProvider(providers?.mail),
         new PeppolTransmissionProvider(),
-        new PdpTransmissionProvider(),
+        new PdpTransmissionProvider(providers?.credentials),
         new PacTransmissionProvider(),
         new SdiTransmissionProvider(),
         new GovPortalTransmissionProvider(),

@@ -53,27 +53,249 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
 export class PdpTransmissionProvider implements TransmissionProvider {
   readonly id = 'pdp';
   readonly channel: ChannelType = 'PDP';
-  readonly feedback = 'ASYNC_CALLBACK' as const; // PDP pushes lifecycle statuses (déposée/refusée/encaissée)
+  readonly feedback = 'ASYNC_CALLBACK' as const; // PDP pushes lifecycle statuses (déposée/refusée/encaissée); poll() is the fallback
+  readonly pollPolicy = { everySeconds: 30, timeoutHours: 24, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {
     fields: [
-      { type: 'text', name: 'pdpName', label: 'PDP name', placeholder: 'Example PDP', required: true },
-      { type: 'text', name: 'apiBaseUrl', label: 'API base URL', placeholder: 'https://api.pdp.example.com/v1', required: true },
+      { type: 'text', name: 'baseUrl', label: 'API base URL', placeholder: 'https://api.superpdp.tech', required: true },
       { type: 'text', name: 'clientId', label: 'Client ID', required: true },
       { type: 'text', name: 'clientSecret', label: 'Client secret', required: true, secret: true },
-      { type: 'text', name: 'pdpId', label: 'PDP identifier (SIRET)', placeholder: '12345678901234' },
+      { type: 'select', name: 'environment', label: 'Environment', required: true, options: [
+        { label: 'Sandbox', value: 'sandbox' },
+        { label: 'Production', value: 'prod' },
+      ], default: 'sandbox' },
+      { type: 'select', name: 'apiStyle', label: 'API style', required: false, options: [
+        { label: 'SuperPDP (proprietary)', value: 'superpdp' },
+        { label: 'AFNOR Flow (XP Z12-013)', value: 'afnor' },
+      ], default: 'superpdp' },
     ],
   };
-  async transmit(_artifacts: SignedArtifact[], _ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): Promise<TransmissionResult> {
-    log.todo('transmission/pdp', `annuaire lookup + deliver to recipient PDP + push e-reporting (key ${key})`);
-    return { channel: 'PDP', status: 'SENT', notes: ['stub: integrate a registered PDP'] };
+
+  constructor(private readonly credentials?: ChannelCredentialsPort) {}
+
+  async transmit(
+    artifacts: SignedArtifact[],
+    ctx: TransactionContext,
+    _plan: CompliancePlan,
+    key: string,
+    log: ComplianceLogger,
+    resolvedConfig?: ResolvedChannelConfig,
+  ): Promise<TransmissionResult> {
+    if (!resolvedConfig) {
+      log.info('transmission/pdp', `no resolved config for company — skipping (key ${key})`);
+      return { channel: 'PDP', status: 'SKIPPED', notes: ['pdp: no resolved config'] };
+    }
+
+    const { config } = resolvedConfig;
+    const baseUrl = config.baseUrl as string;
+    const clientId = config.clientId as string;
+    const clientSecret = config.clientSecret as string;
+    const apiStyle = (config.apiStyle as string) ?? 'superpdp';
+
+    if (!baseUrl || !clientId || !clientSecret) {
+      return { channel: 'PDP', status: 'SKIPPED', notes: ['pdp: incomplete config (baseUrl, clientId, clientSecret required)'] };
+    }
+
+    // Find the Factur-X artifact (PDF/A-3 hybrid — the FR format)
+    const facturxArtifact = artifacts.find((a) => a.syntax === 'FACTURX');
+    if (!facturxArtifact) {
+      return { channel: 'PDP', status: 'SKIPPED', notes: ['pdp: no FACTURX artifact'] };
+    }
+
+    const companyId = ctx.supplierCompanyId;
+    if (!companyId) {
+      return { channel: 'PDP', status: 'SKIPPED', notes: ['pdp: no supplierCompanyId in context'] };
+    }
+
+    try {
+      const { PdpClient } = await import('./pdp/pdp-client.js');
+
+      const client = new PdpClient({
+        baseUrl,
+        clientId,
+        clientSecret,
+        apiStyle: apiStyle as 'superpdp' | 'afnor',
+      });
+
+      const xmlContent = typeof facturxArtifact.bytes === 'string'
+        ? Buffer.from(facturxArtifact.bytes, 'utf-8')
+        : facturxArtifact.bytes instanceof Buffer
+          ? facturxArtifact.bytes
+          : Buffer.from(facturxArtifact.bytes);
+
+      log.info('transmission/pdp', `authenticating (key ${key})`);
+      await client.authenticate();
+
+      if (apiStyle === 'afnor') {
+        // AFNOR Flow API path
+        log.info('transmission/pdp', `submitting flow via AFNOR API (key ${key})`);
+        const flow = await client.submitFlow(xmlContent, {
+          flowSyntax: 'Factur-X',
+          flowProfile: 'Extended-CTC-FR',
+          name: ctx.externalRef ?? `invoice-${key}`,
+          processingRule: 'B2B',
+          trackingId: key,
+        });
+
+        const ref = `${companyId}|${flow.flowId}`;
+        log.info('transmission/pdp', `flow submitted → ${flow.flowId} (key ${key})`);
+        return { channel: 'PDP', status: 'PENDING', ref, notes: [`flowId: ${flow.flowId}`] };
+      }
+
+      // SuperPDP proprietary API path (default)
+      log.info('transmission/pdp', `submitting invoice via SuperPDP API (key ${key})`);
+      const invoice = await client.sendInvoice(xmlContent, {
+        externalId: key,
+        disablePreCheck: false,
+      });
+
+      const ref = `${companyId}|${invoice.id}`;
+      log.info('transmission/pdp', `invoice submitted → id ${invoice.id} (key ${key})`);
+      return { channel: 'PDP', status: 'PENDING', ref, notes: [`invoiceId: ${invoice.id}`] };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn('transmission/pdp', `transmit failed: ${msg} (key ${key})`);
+      return { channel: 'PDP', status: 'REJECTED', notes: [`pdp: transmit error: ${msg}`] };
+    }
   }
+
   sendStatus(ref: string, status: string, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): TransmissionResult {
     log.todo('transmission/pdp', `push lifecycle status "${status}" to the PDP for ${ref}`);
     return { channel: 'PDP', status: 'QUEUED', ref, notes: [`stub: relay "${status}" via registered PDP`] };
   }
-  poll(ref: string, log: ComplianceLogger): TransmissionResult {
-    log.todo('transmission/pdp', `poll PDP lifecycle statuses for ${ref}`);
-    return { channel: 'PDP', status: 'PENDING', ref, notes: [] };
+
+  async poll(ref: string, log: ComplianceLogger): Promise<TransmissionResult> {
+    // Parse ref: companyId|invoiceId or companyId|flowId
+    const parts = ref.split('|');
+    if (parts.length !== 2) {
+      return { channel: 'PDP', status: 'PENDING', ref, notes: ['pdp: invalid ref format'] };
+    }
+    const [companyId, invoiceId] = parts;
+
+    if (!this.credentials) {
+      return { channel: 'PDP', status: 'PENDING', ref, notes: ['pdp: no credentials port'] };
+    }
+
+    try {
+      // Re-resolve credentials from persisted config (survives restarts — KSeF lesson)
+      const resolved = await this.credentials.resolveActive(companyId, 'pdp');
+      if (!resolved || !resolved.isActive) {
+        return { channel: 'PDP', status: 'PENDING', ref, notes: ['pdp: credentials no longer active'] };
+      }
+
+      const { config } = resolved;
+      const baseUrl = config.baseUrl as string;
+      const clientId = config.clientId as string;
+      const clientSecret = config.clientSecret as string;
+      const apiStyle = (config.apiStyle as string) ?? 'superpdp';
+
+      const { PdpClient } = await import('./pdp/pdp-client.js');
+      const client = new PdpClient({
+        baseUrl,
+        clientId,
+        clientSecret,
+        apiStyle: apiStyle as 'superpdp' | 'afnor',
+      });
+
+      // Force re-auth (no in-memory cache as source of truth)
+      client.clearToken();
+      await client.authenticate();
+
+      if (apiStyle === 'afnor') {
+        return this.pollAfnor(client, invoiceId, ref, log);
+      }
+
+      return this.pollSuperPdp(client, invoiceId, ref, log);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn('transmission/pdp', `poll failed: ${msg}`);
+      return { channel: 'PDP', status: 'PENDING', ref, notes: [`pdp: poll error: ${msg}`] };
+    }
+  }
+
+  private async pollSuperPdp(
+    client: { getInvoice(id: number): Promise<{ status_code?: string[] }> },
+    invoiceId: string,
+    ref: string,
+    _log: ComplianceLogger,
+  ): Promise<TransmissionResult> {
+    const id = parseInt(invoiceId, 10);
+    if (Number.isNaN(id)) {
+      return { channel: 'PDP', status: 'PENDING', ref, notes: ['pdp: invalid invoice id'] };
+    }
+
+    const invoice = await client.getInvoice(id);
+    const latestStatus = invoice.status_code?.[invoice.status_code.length - 1];
+
+    if (!latestStatus) {
+      return { channel: 'PDP', status: 'PENDING', ref, notes: ['pdp: no status codes'] };
+    }
+
+    // Map SuperPDP status codes to lifecycle outcomes
+    return this.mapSuperPdpStatus(latestStatus, ref, invoice.status_code);
+  }
+
+  private async pollAfnor(
+    client: { getFlow(flowId: string): Promise<{ flowId: string; acknowledgement?: { status: string; details?: Array<{ reasonCode: string; reasonMessage: string }> } }> },
+    flowId: string,
+    ref: string,
+    _log: ComplianceLogger,
+  ): Promise<TransmissionResult> {
+    const flow = await client.getFlow(flowId);
+    const ack = flow.acknowledgement?.status;
+
+    if (ack === 'Ok') {
+      return { channel: 'PDP', status: 'CLEARED', ref, notes: [`flowId: ${flowId}`] };
+    }
+    if (ack === 'Error') {
+      const details = flow.acknowledgement?.details?.map((d) => `${d.reasonCode}: ${d.reasonMessage}`).join('; ') ?? '';
+      return { channel: 'PDP', status: 'REJECTED', ref, notes: [`pdp: flow rejected${details ? ` — ${details}` : ''}`] };
+    }
+    // Pending or unknown
+    return { channel: 'PDP', status: 'PENDING', ref, notes: [`ack: ${ack ?? 'unknown'}`] };
+  }
+
+  /** Map SuperPDP proprietary status codes to TransmissionResult status. */
+  private mapSuperPdpStatus(status: string, ref: string, allStatuses?: string[]): TransmissionResult {
+    const notes: string[] = [];
+    if (allStatuses?.length) notes.push(`statuses: ${allStatuses.join(', ')}`);
+
+    // --- fr:* lifecycle statuses (XP Z12-012) ---
+    // fr:200 = Submitted, fr:201 = Sent, fr:202 = Received,
+    // fr:203 = Made available, fr:204 = Acknowledged
+    if (['fr:200', 'fr:201', 'fr:202', 'fr:203', 'fr:204'].includes(status)) {
+      return { channel: 'PDP', status: 'PENDING', ref, notes };
+    }
+    // fr:205 = Accepted, fr:206 = Partly accepted, fr:209 = Completed
+    if (['fr:205', 'fr:206', 'fr:209'].includes(status)) {
+      return { channel: 'PDP', status: 'CLEARED', ref, notes };
+    }
+    // fr:207 = Disputed, fr:208 = On hold — still pending, not terminal
+    if (['fr:207', 'fr:208'].includes(status)) {
+      return { channel: 'PDP', status: 'PENDING', ref, notes };
+    }
+    // fr:210 = Refused, fr:213 = Rejected, fr:501 = Inadmissible
+    if (['fr:210', 'fr:213', 'fr:501'].includes(status)) {
+      return { channel: 'PDP', status: 'REJECTED', ref, notes };
+    }
+    // fr:211 = Payment sent, fr:212 = Payment received → cleared
+    if (['fr:211', 'fr:212'].includes(status)) {
+      return { channel: 'PDP', status: 'CLEARED', ref, notes };
+    }
+
+    // --- api:* statuses (SuperPDP internal) ---
+    if (['api:uploaded', 'api:validated', 'api:sent', 'api:received', 'api:acknowledged'].includes(status)) {
+      return { channel: 'PDP', status: 'PENDING', ref, notes };
+    }
+    if (status === 'api:accepted') {
+      return { channel: 'PDP', status: 'CLEARED', ref, notes };
+    }
+    if (['api:invalid', 'api:rejected'].includes(status)) {
+      return { channel: 'PDP', status: 'REJECTED', ref, notes };
+    }
+
+    // Unknown status — stay pending
+    return { channel: 'PDP', status: 'PENDING', ref, notes: [...notes, `unknown status: ${status}`] };
   }
 }
 
