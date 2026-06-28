@@ -8,6 +8,7 @@
  * Optional: a runtime cache can refresh keys from the live endpoint (e.g. for
  * key rotation after 2027-09-29 expiry). Falls back to vendorized on fetch failure.
  */
+import { createPublicKey } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import type { KsefEnvironment } from './ksef-client';
@@ -38,12 +39,21 @@ export function loadVendorizedKeys(environment: KsefEnvironment): KsefPublicKeys
   const tokenKeyPath = join(dir, 'token-encryption.pem');
   const symKeyPath = join(dir, 'symmetric-key-encryption.pem');
 
-  const tokenEncryptionKeyPem = readFileSync(tokenKeyPath, 'utf8');
-  const symmetricKeyPem = readFileSync(symKeyPath, 'utf8');
+  const tokenCertPem = readFileSync(tokenKeyPath, 'utf8');
+  const symCertPem = readFileSync(symKeyPath, 'utf8');
+
+  const tokenEncryptionKeyPem = extractPublicKeyFromCert(tokenCertPem);
+  const symmetricKeyPem = extractPublicKeyFromCert(symCertPem);
 
   const keys: KsefPublicKeys = { tokenEncryptionKeyPem, symmetricKeyPem };
   cache.set(environment, keys);
   return keys;
+}
+
+/** Extract SPKI public key from an X.509 certificate PEM. */
+function extractPublicKeyFromCert(certPem: string): string {
+  const keyObj = createPublicKey({ key: certPem, format: 'pem', type: 'spki' });
+  return keyObj.export({ type: 'spki', format: 'pem' }) as string;
 }
 
 /**
@@ -104,8 +114,6 @@ function derToPem(base64Der: string): string {
     lines.join('\n') +
     '\n-----END CERTIFICATE-----';
 
-  // Use Node.js crypto to extract the public key from the certificate
-  const { createPublicKey } = require('crypto');
   const keyObj = createPublicKey({ key: Buffer.from(certPem, 'utf8'), format: 'pem', type: 'spki' });
   return keyObj.export({ type: 'spki', format: 'pem' }) as string;
 }

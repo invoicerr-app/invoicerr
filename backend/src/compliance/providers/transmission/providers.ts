@@ -239,7 +239,7 @@ export class KsefTransmissionProvider implements TransmissionProvider {
       // 2. Open online session
       log.info('transmission/ksef', `open online session (key ${key})`);
       const sessionKey = generateSessionKey();
-      const session = await client.openOnlineSession(tokens.accessToken.token);
+      const session = await client.openOnlineSession(tokens.accessToken.token, sessionKey);
 
       // 3. Send encrypted invoice
       log.info('transmission/ksef', `send invoice (key ${key})`);
@@ -327,15 +327,15 @@ export class KsefTransmissionProvider implements TransmissionProvider {
 
       // Map KSeF status codes to lifecycle outcomes
       const code = status.status.code;
-      if (code === 100 || code === 200) {
-        // Accepted / success → CLEARED
+      if (code === 200) {
+        // Success → CLEARED (ksefNumber assigned)
         const notes: string[] = [];
         if (status.ksefNumber) notes.push(`ksefNumber: ${status.ksefNumber}`);
         if (status.invoiceNumber) notes.push(`invoiceNumber: ${status.invoiceNumber}`);
         return { channel: 'GOV_PORTAL_API', status: 'CLEARED', ref, notes };
       }
-      if (code === 150) {
-        // Still processing
+      if (code === 100 || code === 150) {
+        // 100 = accepted for processing, 150 = still processing → PENDING
         return { channel: 'GOV_PORTAL_API', status: 'PENDING', ref, notes: [] };
       }
       if (code >= 400) {

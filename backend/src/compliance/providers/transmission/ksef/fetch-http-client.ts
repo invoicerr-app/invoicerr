@@ -35,12 +35,17 @@ export class FetchKsefHttpClient implements KsefHttpClient {
       const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
       try {
+        const headers: Record<string, string> = {};
+        if (req.body !== undefined && req.method !== 'GET') {
+          headers['Content-Type'] = 'application/json';
+        }
+        if (req.headers) {
+          Object.assign(headers, req.headers);
+        }
+
         const fetchOpts: RequestInit = {
           method: req.method,
-          headers: {
-            'Content-Type': 'application/json',
-            ...req.headers,
-          },
+          headers,
           signal: controller.signal,
         };
         if (req.body !== undefined && req.method !== 'GET') {

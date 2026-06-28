@@ -73,7 +73,13 @@ describeLive('KSeF live round-trip', () => {
       isActive: true,
     };
 
-    const reg = new TransmissionProviderRegistry([new KsefTransmissionProvider() as any]);
+    // Stub credentials port so poll() can re-resolve + re-authenticate (mirrors production,
+    // where the registry injects the real ChannelCredentialsPort into the provider).
+    const stubCredentials = {
+      resolve: async () => fakeResolvedConfig,
+      resolveActive: async () => fakeResolvedConfig,
+    };
+    const reg = new TransmissionProviderRegistry([new KsefTransmissionProvider(stubCredentials as any) as any]);
     const ksef = reg.getById('ksef')!;
 
     const faVatArtifact = {
@@ -129,13 +135,26 @@ describeLive('KSeF live round-trip', () => {
 
     console.log('Session:', sessionRef, 'Invoice:', invoiceRef);
 
-    await new Promise((r) => setTimeout(r, 5000));
-
-    const pollResult = await ksef.poll!(transmitResult.ref!, log);
+    // KSeF processes asynchronously — poll (each call re-authenticates) until terminal or timeout.
+    await new Promise((r) => setTimeout(r, 4000));
+    let pollResult = await ksef.poll!(transmitResult.ref!, log);
+    for (let i = 0; i < 8 && pollResult.status === 'PENDING'; i++) {
+      await new Promise((r) => setTimeout(r, 4000));
+      pollResult = await ksef.poll!(transmitResult.ref!, log);
+    }
     console.log('Poll result:', JSON.stringify(pollResult, null, 2));
 
-    // A real round-trip resolves to one of these — never a local transmit error.
+    // poll() must have actually reached KSeF and re-authenticated — never a local error.
+    const noteStr = (pollResult.notes ?? []).join(' ');
+    expect(noteStr).not.toMatch(/error|ENOENT|no credentials/i);
+    // Crypto-pipeline regression guard: KSeF must be able to DECRYPT the invoice. A code-435
+    // "Błąd odszyfrowania pliku" (decryption error) means the AES/session-key handling broke.
+    // A semantic rejection (code 450) of the placeholder invoice is fine — it proves KSeF
+    // decrypted + parsed the document.
+    expect(noteStr).not.toMatch(/odszyfrowania|decryption|code 435/i);
     expect(['PENDING', 'CLEARED', 'REJECTED']).toContain(pollResult.status);
-    expect((pollResult.notes ?? []).join(' ')).not.toMatch(/error|ENOENT/i);
-  });
+    if (pollResult.status === 'CLEARED') {
+      expect(noteStr).toMatch(/ksefNumber/i);
+    }
+  }, 90_000);
 });

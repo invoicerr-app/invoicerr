@@ -19,7 +19,7 @@
  * Status flow:
  *   8. GET /sessions/{sRef}/invoices/{iRef} → invoice status + ksefNumber
  */
-import { encryptKsefToken, generateSessionKey, encryptSymmetricKey, encryptXmlContent, sha256base64, SessionKey } from './ksef-crypto';
+import { encryptKsefToken, encryptSymmetricKey, encryptXmlContent, sha256base64, SessionKey } from './ksef-crypto';
 
 // ---------------------------------------------------------------------------
 // Types (aligned to live OpenAPI spec at api-test.ksef.mf.gov.pl/v2)
@@ -47,8 +47,10 @@ export interface AuthKsefTokenResponse {
 export interface AuthStatusResponse {
   startDate: string;
   authenticationMethod: string;
+  authenticationMethodInfo?: { category: string; code: string; displayName: string } | null;
   status: { code: number; description: string; details?: string[] | null };
   isTokenRedeemed?: boolean | null;
+  lastTokenRefreshDate?: string | null;
   refreshTokenValidUntil?: string | null;
 }
 
@@ -66,6 +68,19 @@ export interface SendInvoiceResponse {
   referenceNumber: string;
 }
 
+export interface SessionStatusResponse {
+  status: { code: number; description: string; details?: string[] | null };
+  dateCreated: string;
+  dateUpdated: string;
+  validUntil?: string | null;
+  upo?: {
+    pages: { referenceNumber: string; downloadUrl: string; downloadUrlExpirationDate: string }[];
+  } | null;
+  invoiceCount?: number | null;
+  successfulInvoiceCount?: number | null;
+  failedInvoiceCount?: number | null;
+}
+
 export interface InvoiceStatusResponse {
   ordinalNumber: number;
   invoiceNumber?: string | null;
@@ -73,8 +88,18 @@ export interface InvoiceStatusResponse {
   referenceNumber: string;
   invoiceHash: string;
   invoicingDate: string;
-  status: { code: number; description: string; details?: string[] | null };
+  status: {
+    code: number;
+    description: string;
+    details?: string[] | null;
+    extensions?: { originalSessionReferenceNumber?: string | null; originalKsefNumber?: string | null } | null;
+  };
+  acquisitionDate?: string | null;
+  permanentStorageDate?: string | null;
   upoDownloadUrl?: string | null;
+  upoDownloadUrlExpirationDate?: string | null;
+  invoicingMode?: string | null;
+  invoiceFileName?: string | null;
 }
 
 export interface PublicKeyCertificate {
@@ -200,17 +225,18 @@ export class KsefClient {
   // ── online session ─────────────────────────────────────────────────────────
 
   /** Open an online session for FA(2) invoice submission. */
-  async openOnlineSession(accessToken: string): Promise<OpenSessionResponse> {
-    const key = generateSessionKey();
-    const encryptedSymmetricKey = encryptSymmetricKey(key.aesKey, this.symKeyPem);
+  async openOnlineSession(accessToken: string, sessionKey: SessionKey): Promise<OpenSessionResponse> {
+    // The SAME session key must encrypt every invoice sent in this session, so it is supplied
+    // by the caller (not generated here) and reused in sendInvoice().
+    const encryptedSymmetricKey = encryptSymmetricKey(sessionKey.aesKey, this.symKeyPem);
 
     const session = await this.post<OpenSessionResponse>(
       '/sessions/online',
       {
-        formCode: { systemCode: 'FA', schemaVersion: '1-0E', value: 'FA' },
+        formCode: { systemCode: 'FA (2)', schemaVersion: '1-0E', value: 'FA' },
         encryption: {
           encryptedSymmetricKey,
-          initializationVector: key.iv.toString('base64'),
+          initializationVector: sessionKey.iv.toString('base64'),
         },
       },
       { Authorization: `Bearer ${accessToken}` },
@@ -267,8 +293,8 @@ export class KsefClient {
   }
 
   /** Get session status (including UPO pages when available). */
-  async sessionStatus(sessionRef: string, accessToken: string): Promise<unknown> {
-    return this.get<unknown>(`/sessions/${sessionRef}`, accessToken);
+  async sessionStatus(sessionRef: string, accessToken: string): Promise<SessionStatusResponse> {
+    return this.get<SessionStatusResponse>(`/sessions/${sessionRef}`, accessToken);
   }
 
   // ── public keys ────────────────────────────────────────────────────────────
@@ -286,7 +312,10 @@ export class KsefClient {
 // ---------------------------------------------------------------------------
 
 function ksefError(res: HttpResponse): KsefError {
-  return Object.assign(new Error(`KSeF API error ${res.status}`), {
+  let bodyStr: string;
+  try { bodyStr = typeof res.body === 'string' ? res.body : JSON.stringify(res.body); }
+  catch { bodyStr = String(res.body); }
+  return Object.assign(new Error(`KSeF API error ${res.status}: ${bodyStr}`), {
     status: res.status,
     body: res.body,
   }) as KsefError;
