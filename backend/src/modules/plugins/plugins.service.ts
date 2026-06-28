@@ -2,7 +2,6 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { existsSync, readdirSync, rmSync, statSync } from 'fs';
 import { extname, join } from 'path';
 
-import { EInvoice } from '@fin.cx/einvoice';
 import { PluginRegistry } from '../../plugins';
 import { PluginType } from '../../../prisma/generated/prisma/client';
 import { generateWebhookSecret } from '@/utils/webhook-security';
@@ -29,7 +28,7 @@ export interface IPlugin {
 
 export interface InvoicePlugin extends IPlugin {
   pdf_format_info: () => PdfFormatInfo;
-  pdf_format: (invoice: EInvoice) => Promise<string>;
+  pdf_format: (invoice: unknown) => Promise<string>;
 }
 
 const PLUGIN_DIR = process.env.PLUGIN_DIR || '/root/invoicerr-plugins';

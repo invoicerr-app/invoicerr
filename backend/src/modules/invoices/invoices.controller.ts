@@ -12,7 +12,7 @@ import {
 import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { Response } from 'express';
-import { ExportFormat } from '@fin.cx/einvoice';
+import { ExportFormat } from '@/compliance/providers/format/invoice-artifact-port';
 import { CreateInvoiceDto, CreateInvoiceFromQuoteDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
 import { InvoicesService } from '@/modules/invoices/invoices.service';
 import { PluginsService } from '@/modules/plugins/plugins.service';

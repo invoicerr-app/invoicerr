@@ -1,4 +1,4 @@
-import type { ExportFormat } from "@fin.cx/einvoice";
+import type { ExportFormat } from "./invoice-artifact-port";
 import type { TransactionContext } from "../../canonical/canonical-document";
 import type {
 	CompliancePlan,

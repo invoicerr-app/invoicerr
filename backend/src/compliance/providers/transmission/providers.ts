@@ -126,7 +126,7 @@ export class PdpTransmissionProvider implements TransmissionProvider {
           : Buffer.from(facturxArtifact.bytes);
 
       // CTC FR post-processing: inject SpecifiedLegalOrganization/ID into CII XML
-      // @fin.cx/einvoice does NOT emit this element, but CTC FR rules require it.
+      // @e-invoice-eu/core emits SpecifiedLegalOrganization when cbc:CompanyID@schemeID='0002' is set.
       const { postProcessCiiForCtc } = await import('../../schemas/cii-post-process.js');
       const first4 = String.fromCharCode(rawBytes[0], rawBytes[1], rawBytes[2], rawBytes[3]);
       if (first4.startsWith('<') || rawBytes[0] === 0x3c) {

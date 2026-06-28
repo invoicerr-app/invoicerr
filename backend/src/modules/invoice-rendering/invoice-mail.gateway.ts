@@ -2,7 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { InvoiceMailPort } from '@/compliance/providers/transmission/invoice-mail-port';
 import { MailService } from '@/mail/mail.service';
 import { InvoiceRenderingService } from './invoice-rendering.service';
-import { ExportFormat } from '@fin.cx/einvoice';
+import { ExportFormat } from '@/compliance/providers/format/invoice-artifact-port';
 import prisma from '@/prisma/prisma.service';
 import { logger } from '@/logger/logger.service';
 

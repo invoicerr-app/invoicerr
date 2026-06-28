@@ -12,8 +12,7 @@
  *
  * @see docs/format-validation.md for setup instructions
  */
-import { EInvoice, ValidationLevel } from '@fin.cx/einvoice';
-import { InvoiceRenderingService, InvoiceRenderData } from '@/modules/invoice-rendering/invoice-rendering.service';
+import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
 import { FIXTURES, ExportableFormat } from './__fixtures__/invoices';
 
 const OFFLINE_ENABLED = process.env.FORMAT_VALIDATION_OFFLINE === '1';

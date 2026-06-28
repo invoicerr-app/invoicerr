@@ -1,8 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import * as Handlebars from 'handlebars';
-import { EInvoice, ExportFormat } from '@fin.cx/einvoice';
-import { finance } from '@fin.cx/einvoice/dist_ts/plugins';
-import { business } from '@tsclass/tsclass/dist_ts';
+import type { Invoice as EuInvoice } from '@e-invoice-eu/core';
+import { InvoiceService as EuInvoiceService } from '@e-invoice-eu/core';
 import prisma from '@/prisma/prisma.service';
 import { logger } from '@/logger/logger.service';
 import { getInvertColor, getPDF } from '@/utils/pdf';
@@ -14,6 +13,47 @@ import { getDraftWatermarkLabel } from '@/utils/watermark';
 import { augmentWithIdentifiers, getIdentifier } from '@/utils/entity-identifiers';
 import { parseAddress } from '@/utils/adress';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
+import type { ExportFormat } from '@/compliance/providers/format/invoice-artifact-port';
+
+/** Silent logger for @e-invoice-eu/core — validation errors surface as thrown exceptions. */
+const EU_LOGGER = { log: () => {}, warn: () => {}, error: () => {} };
+
+/** Format name mapping: our ExportFormat strings → @e-invoice-eu/core format names. */
+const EU_FORMAT_MAP: Record<string, string> = {
+  ubl: 'UBL',
+  cii: 'CII',
+  xrechnung: 'XRECHNUNG-UBL',
+  facturx: 'CII',   // Factur-X XML content is CII (PDF embedding via embedInPdf)
+  zugferd: 'CII',   // ZUGFeRD 2.x uses the same CII/EN16931 profile
+};
+
+/**
+ * Thin wrapper around @e-invoice-eu/core Invoice data object.
+ * Provides the exportXml / embedInPdf interface consumed by all downstream code.
+ */
+export class BuiltEInvoice {
+  constructor(private readonly invoice: EuInvoice) {}
+
+  async exportXml(format: string): Promise<string> {
+    const fmtName = EU_FORMAT_MAP[format] ?? 'CII';
+    const svc = new EuInvoiceService(EU_LOGGER);
+    const result = await svc.generate(this.invoice, { format: fmtName, lang: 'en' });
+    return result.toString();
+  }
+
+  async embedInPdf(pdfBuffer: Buffer, format: string): Promise<Uint8Array> {
+    // Hybrid PDF/A-3 formats: embed CII XML into the PDF container
+    const fmtName = format === 'zugferd' ? 'Factur-X-EN16931' : 'Factur-X-EN16931';
+    const svc = new EuInvoiceService(EU_LOGGER);
+    const result = await svc.generate(this.invoice, {
+      format: fmtName,
+      lang: 'en',
+      pdf: { buffer: pdfBuffer, filename: 'invoice.pdf', mimetype: 'application/pdf' },
+    });
+    if (typeof result === 'string') return Buffer.from(result, 'utf-8');
+    return result as Uint8Array;
+  }
+}
 
 
 /** Minimal data shape required by {@link InvoiceRenderingService.buildEInvoice}.
@@ -212,109 +252,168 @@ export class InvoiceRenderingService {
         return pdfBuffer;
     }
 
-    /** Pure construction — no DB access. Builds an EInvoice from a plain data object. */
-    buildEInvoice(data: InvoiceRenderData): EInvoice {
-        const inv = new EInvoice();
+    /** Pure construction — no DB access. Builds a BuiltEInvoice from a plain data object. */
+    buildEInvoice(data: InvoiceRenderData): BuiltEInvoice {
+        const currency = data.company.currency || 'EUR';
+        const issueDate = new Date(data.issuedAt ?? data.createdAt);
+        const issueDateStr = issueDate.toISOString().split('T')[0];
 
-        const companyFoundedDate = new Date(data.company.foundedAt || new Date());
-        const clientFoundedDate = new Date(data.client.foundedAt || new Date());
+        const sellerCountryCode = guessCountryCode(data.company.country) ?? 'FR';
+        const buyerCountryCode = guessCountryCode(data.client.country) ?? 'FR';
 
-        inv.id = data.rawNumber || (data.number?.toString() ?? 'DRAFT');
-        inv.issueDate = new Date((data.issuedAt ?? data.createdAt).toISOString().split('T')[0]);
-        inv.currency = data.company.currency as finance.TCurrency || 'EUR';
+        const sellerVat = getIdentifier(data.company, 'VAT');
+        const sellerSiren = getIdentifier(data.company, 'LEGAL_ID');
+        const buyerVat = getIdentifier(data.client, 'VAT');
+        const buyerSiren = getIdentifier(data.client, 'LEGAL_ID');
 
-        let fromAdress;
-        try {
-            fromAdress = parseAddress(data.company.address || '');
-        } catch (error) {
-            fromAdress = {
-                streetName: data.company.address || 'N/A',
-                houseNumber: 'N/A',
-            };
+        // ── Compute totals ────────────────────────────────────────────────
+        const fmt2 = (n: number) => n.toFixed(2);
+
+        const vatGroups = new Map<number, { taxable: number; tax: number }>();
+        let lineExtensionTotal = 0;
+
+        for (const item of data.items) {
+            const rate = item.vatRate || 0;
+            const net = item.quantity * item.unitPrice;
+            lineExtensionTotal += net;
+            const g = vatGroups.get(rate) ?? { taxable: 0, tax: 0 };
+            g.taxable += net;
+            g.tax += net * rate / 100;
+            vatGroups.set(rate, g);
         }
 
-        inv.from = {
-            name: data.company.name,
-            description: data.company.description || "N/A",
-            status: 'active',
-            foundedDate: { day: companyFoundedDate.getDay(), month: companyFoundedDate.getMonth() + 1, year: companyFoundedDate.getFullYear() },
-            type: 'company',
-            address: {
-                streetName: fromAdress.streetName,
-                houseNumber: fromAdress.houseNumber,
-                city: data.company.city || '',
-                postalCode: data.company.postalCode || '',
-                country: data.company.country || '',
-                countryCode: guessCountryCode(data.company.country) ?? '',
+        const totalVat = [...vatGroups.values()].reduce((s, g) => s + g.tax, 0);
+        const totalIncl = lineExtensionTotal + totalVat;
+
+        const taxSubtotals = [...vatGroups.entries()].map(([rate, g]) => ({
+            'cbc:TaxableAmount': fmt2(g.taxable),
+            'cbc:TaxableAmount@currencyID': currency,
+            'cbc:TaxAmount': fmt2(g.tax),
+            'cbc:TaxAmount@currencyID': currency,
+            'cac:TaxCategory': {
+                'cbc:ID': rate === 0 ? 'Z' : 'S',
+                'cbc:Percent': String(rate),
+                'cac:TaxScheme': { 'cbc:ID': 'VAT' },
             },
-            registrationDetails: { vatId: getIdentifier(data.company, 'VAT') || "N/A", registrationId: getIdentifier(data.company, 'LEGAL_ID') || "N/A", registrationName: data.company.name }
-        };
+        }));
 
-        let toAdress;
-        try {
-            toAdress = parseAddress(data.client.address || '');
-        } catch (error) {
-            toAdress = {
-                streetName: data.client.address || 'N/A',
-                houseNumber: 'N/A',
-            };
-        }
-
-        if (data.client.type === 'COMPANY') {
-            const companyContact: business.TCompany = {
-                type: 'company',
-                name: data.client.name || "N/A",
-                description: data.client.description || "N/A",
-                status: data.client.isActive ? 'active' : 'planned',
-                foundedDate: { day: clientFoundedDate.getDay(), month: clientFoundedDate.getMonth() + 1, year: clientFoundedDate.getFullYear() },
-                address: {
-                    streetName: toAdress.streetName,
-                    houseNumber: toAdress.houseNumber,
-                    city: data.client.city || '',
-                    postalCode: data.client.postalCode || '',
-                    country: data.client.country || 'FR',
-                    countryCode: guessCountryCode(data.client.country) || 'FR',
+        const invoiceLines = data.items.map((item, idx) => {
+            const net = item.quantity * item.unitPrice;
+            const unitCode = item.type === 'HOUR' ? 'HUR'
+                           : item.type === 'DAY'  ? 'DAY'
+                           : item.type === 'DEPOSIT' ? 'SET'
+                           : 'C62';
+            return {
+                'cbc:ID': String(idx + 1),
+                'cbc:InvoicedQuantity': String(item.quantity),
+                'cbc:InvoicedQuantity@unitCode': unitCode,
+                'cbc:LineExtensionAmount': fmt2(net),
+                'cbc:LineExtensionAmount@currencyID': currency,
+                'cac:Item': {
+                    'cbc:Name': item.name,
+                    'cac:ClassifiedTaxCategory': {
+                        'cbc:ID': (item.vatRate || 0) === 0 ? 'Z' : 'S',
+                        'cbc:Percent': String(item.vatRate || 0),
+                        'cac:TaxScheme': { 'cbc:ID': 'VAT' },
+                    },
                 },
-                registrationDetails: { vatId: getIdentifier(data.client, 'VAT') || 'N/A', registrationId: getIdentifier(data.client, 'LEGAL_ID') || 'N/A', registrationName: data.client.name }
-            };
-
-            inv.to = companyContact;
-        } else {
-            const personContact: business.TPerson = {
-                type: 'person',
-                name: `${data.client.contactFirstname} ${data.client.contactLastname}` || "N/A",
-                description: data.client.description || "N/A",
-                surname: data.client.contactLastname || 'N/A',
-                salutation: data.client.salutation as "Mr" | "Ms" | "Mrs",
-                sex: data.client.sex as "male" | "female" | "other",
-                title: data.client.title as "Doctor" | "Professor",
-                address: {
-                    streetName: toAdress.streetName,
-                    houseNumber: toAdress.houseNumber,
-                    city: data.client.city || '',
-                    postalCode: data.client.postalCode || '',
-                    country: data.client.country || 'FR',
-                    countryCode: guessCountryCode(data.client.country) || 'FR',
+                'cac:Price': {
+                    'cbc:PriceAmount': fmt2(item.unitPrice),
+                    'cbc:PriceAmount@currencyID': currency,
                 },
             };
-
-            inv.to = personContact;
-        }
-
-        data.items.forEach((item) => {
-            inv.addItem({
-                name: item.name,
-                unitQuantity: item.quantity,
-                unitNetPrice: item.unitPrice,
-                vatPercentage: item.vatRate || 0,
-                unitType: item.type === 'HOUR' ? 'HUR' : item.type === 'DAY' ? 'DAY' : item.type === 'DEPOSIT' ? 'SET' : item.type === 'SERVICE' ? 'C62' : item.type === 'PRODUCT' ? 'C62' : 'C62',
-            });
         });
 
-        return inv;
+        // ── Build invoice data object ──────────────────────────────────────
+        // @e-invoice-eu/core requires EndpointID on both parties.
+        // For companies: use SIREN with schemeID 0225 (FR PDP routing) or email with EM.
+        const sellerEndpointId = sellerSiren
+            ?? (data.company.email ? data.company.email.trim() : null)
+            ?? 'seller@local.invalid';
+        const sellerEndpointScheme = sellerSiren ? '0225' : 'EM';
+
+        const sellerParty: Record<string, unknown> = {
+            'cbc:EndpointID': sellerEndpointId,
+            'cbc:EndpointID@schemeID': sellerEndpointScheme,
+            'cac:PostalAddress': {
+                'cbc:StreetName': data.company.address || 'N/A',
+                'cbc:CityName': data.company.city || '',
+                'cbc:PostalZone': data.company.postalCode || '',
+                'cac:Country': { 'cbc:IdentificationCode': sellerCountryCode },
+            },
+            'cac:PartyLegalEntity': {
+                'cbc:RegistrationName': data.company.name,
+                ...(sellerSiren ? { 'cbc:CompanyID': sellerSiren, 'cbc:CompanyID@schemeID': '0002' } : {}),
+            },
+        };
+        if (sellerSiren) {
+            sellerParty['cac:PartyIdentification'] = [{ 'cbc:ID': sellerSiren, 'cbc:ID@schemeID': '0225' }];
+        }
+        if (sellerVat) {
+            sellerParty['cac:PartyTaxScheme'] = [{ 'cbc:CompanyID': sellerVat, 'cac:TaxScheme': { 'cbc:ID': 'VAT' } }];
+        }
+
+        // @e-invoice-eu/core requires EndpointID on the buyer party (mandatory in its JSON schema).
+        // For B2B: use SIREN with schemeID 0225.
+        // For B2C (individual with no SIREN): use contact email with EM, or fall back to a placeholder.
+        const buyerEndpointId = buyerSiren
+            ?? (data.client.contactEmail ? data.client.contactEmail.trim() : null)
+            ?? ((data.client as any).email ? (data.client as any).email.trim() : null)
+            ?? 'consumer@local.invalid';
+        const buyerEndpointScheme = buyerSiren ? '0225' : 'EM';
+
+        const buyerParty: Record<string, unknown> = {
+            'cbc:EndpointID': buyerEndpointId,
+            'cbc:EndpointID@schemeID': buyerEndpointScheme,
+            'cac:PostalAddress': {
+                'cbc:StreetName': data.client.address || 'N/A',
+                'cbc:CityName': data.client.city || '',
+                'cbc:PostalZone': data.client.postalCode || '',
+                'cac:Country': { 'cbc:IdentificationCode': buyerCountryCode },
+            },
+            'cac:PartyLegalEntity': {
+                'cbc:RegistrationName': data.client.name || data.client.contactFirstname || 'N/A',
+                ...(buyerSiren ? { 'cbc:CompanyID': buyerSiren, 'cbc:CompanyID@schemeID': '0002' } : {}),
+            },
+        };
+        if (buyerVat) {
+            buyerParty['cac:PartyTaxScheme'] = { 'cbc:CompanyID': buyerVat, 'cac:TaxScheme': { 'cbc:ID': 'VAT' } };
+        }
+
+        const euInvoice: EuInvoice = {
+            'ubl:Invoice': {
+                'cbc:CustomizationID': 'urn:cen.eu:en16931:2017',
+                'cbc:ProfileID': 'M1',
+                'cbc:ID': data.rawNumber || (data.number?.toString() ?? 'DRAFT'),
+                'cbc:IssueDate': issueDateStr,
+                'cbc:InvoiceTypeCode': '380',
+                'cbc:DocumentCurrencyCode': currency,
+                'cac:AccountingSupplierParty': { 'cac:Party': sellerParty as any },
+                'cac:AccountingCustomerParty': { 'cac:Party': buyerParty as any },
+                'cac:Delivery': { 'cbc:ActualDeliveryDate': issueDateStr },
+                'cac:TaxTotal': [{
+                    'cbc:TaxAmount': fmt2(totalVat),
+                    'cbc:TaxAmount@currencyID': currency,
+                    'cac:TaxSubtotal': taxSubtotals as any,
+                }],
+                'cac:LegalMonetaryTotal': {
+                    'cbc:LineExtensionAmount': fmt2(lineExtensionTotal),
+                    'cbc:LineExtensionAmount@currencyID': currency,
+                    'cbc:TaxExclusiveAmount': fmt2(lineExtensionTotal),
+                    'cbc:TaxExclusiveAmount@currencyID': currency,
+                    'cbc:TaxInclusiveAmount': fmt2(totalIncl),
+                    'cbc:TaxInclusiveAmount@currencyID': currency,
+                    'cbc:PayableAmount': fmt2(totalIncl),
+                    'cbc:PayableAmount@currencyID': currency,
+                },
+                'cac:InvoiceLine': invoiceLines as any,
+            },
+        } as EuInvoice;
+
+        return new BuiltEInvoice(euInvoice);
     }
 
-    async renderXml(id: string): Promise<EInvoice> {
+    async renderXml(id: string): Promise<BuiltEInvoice> {
         const invRec = await prisma.invoice.findUnique({
             where: { id },
             include: {
@@ -331,23 +430,7 @@ export class InvoiceRenderingService {
             throw new BadRequestException('Invoice not found');
         }
 
-        const inv = this.buildEInvoice(invRec);
-
-        const validation = await inv.validate()
-
-        logger.info('E-Invoice validation result: ' + (validation.valid ? 'valid' : 'invalid'), { category: 'invoice' });
-        logger.info('E-Invoice validation warnings: ' + (validation.warnings ? validation.warnings.length : '0'), { category: 'invoice' });
-        logger.info('E-Invoice validation errors: ' + (validation.errors ? validation.errors.length : '0'), { category: 'invoice' });
-
-        if (!validation.valid) {
-            if (validation.warnings) {
-                logger.warn('Validation warnings:', { category: 'invoice', details: { warnings: validation.warnings } });
-            }
-
-            logger.error('Validation errors:', { category: 'invoice', details: { errors: validation.errors } });
-        }
-
-        return inv;
+        return this.buildEInvoice(invRec);
     }
 
     async renderXmlFormat(invoiceId: string, format: 'ubl' | 'cii' | 'xrechnung'): Promise<string> {
@@ -902,7 +985,7 @@ export class InvoiceRenderingService {
         return doc.end({ prettyPrint: true });
     }
 
-    async renderPdfFormat(invoiceId: string, format: '' | 'pdf' | ExportFormat): Promise<Uint8Array> {
+    async renderPdfFormat(invoiceId: string, format: '' | 'pdf' | string): Promise<Uint8Array> {
         const invRec = await prisma.invoice.findUnique({ where: { id: invoiceId }, include: { items: true, client: { include: { partyIdentifiers: true } }, company: { include: { partyIdentifiers: true } }, quote: true } });
         if (!invRec) {
             logger.error('Invoice not found', { category: 'invoice' });

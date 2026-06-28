@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateInvoiceDto, CreateInvoiceFromQuoteDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
-import { ExportFormat } from '@fin.cx/einvoice';
+import { ExportFormat } from '@/compliance/providers/format/invoice-artifact-port';
 
 import { NumberingService } from '@/utils/numbering';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';

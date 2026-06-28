@@ -1,4 +1,3 @@
-import { finance } from "@fin.cx/einvoice/dist_ts/plugins"
 
 export interface PDFConfigDto {
     fontFamily: string
@@ -65,7 +64,7 @@ export class EditCompanyDto {
     description?: string
     foundedAt?: Date
     name: string
-    currency: finance.TCurrency
+    currency: import('../../../../prisma/generated/prisma/client').Currency
     exemptVat?: boolean
     address?: string
     addressLine2?: string

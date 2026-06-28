@@ -1,6 +1,7 @@
-import { ExportFormat } from '@fin.cx/einvoice';
+/** Hybrid PDF/A-3 + pure-XML export formats supported by BuiltEInvoice. */
+export type ExportFormat = 'ubl' | 'cii' | 'xrechnung' | 'facturx' | 'zugferd';
 
-/** Pure-XML export formats supported by @fin.cx/einvoice `exportXml()`. */
+/** Pure-XML export formats (no PDF embedding). */
 export type XmlExportFormat = 'ubl' | 'cii' | 'xrechnung';
 
 /** National XML export formats — each builds XML from InvoiceRenderData (DB-free). */
