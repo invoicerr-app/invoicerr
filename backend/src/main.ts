@@ -32,7 +32,10 @@ async function bootstrap() {
     next();
   });
 
-  const { version } = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf-8'));
+  // Resolve relative to this file, not cwd: entrypoint.sh `cd`s into
+  // backend/src before starting node, but package.json only ever lives at
+  // the backend root (one level up from src/ in both dev and prod).
+  const { version } = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Invoicerr API')
