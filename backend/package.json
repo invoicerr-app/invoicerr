@@ -49,6 +49,8 @@
 		"dotenv": "^17.2.3",
 		"handlebars": "^4.7.9",
 		"jose": "^6.0.12",
+		"libxmljs2": "^0.37.0",
+		"node-schematron": "^2.1.0",
 		"nodemailer": "^9.0.1",
 		"passport": "^0.7.0",
 		"passport-openidconnect": "^0.1.2",
@@ -57,10 +59,12 @@
 		"puppeteer": "^24.11.0",
 		"reflect-metadata": "^0.2.2",
 		"rxjs": "^7.8.1",
+		"saxon-js": "^2.7.0",
 		"simple-git": "^3.32.3",
 		"stream-buffers": "^3.0.3",
 		"xadesjs": "^2.6.7",
-		"xmlbuilder2": "^4.0.3"
+		"xmlbuilder2": "^4.0.3",
+		"xslt3": "^2.7.0"
 	},
 	"devDependencies": {
 		"@eslint/eslintrc": "^3.2.0",
@@ -119,7 +123,7 @@
 			"^(\\.{1,2}/.*)\\.js$": "$1"
 		},
 		"transformIgnorePatterns": [
-			"/node_modules/(?!(@fin\\.cx/einvoice|@tsclass/tsclass)/)"
+			"/node_modules/(?!(@fin\\.cx/einvoice|@tsclass/tsclass|saxon-js|libxmljs2|xslt3|node-schematron)/)"
 		],
 		"collectCoverageFrom": [
 			"**/*.(t|j)s"
