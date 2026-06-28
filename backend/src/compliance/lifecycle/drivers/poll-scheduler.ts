@@ -107,7 +107,7 @@ export class PollScheduler {
         continue;
       }
 
-      const result = provider.poll(job.ref ?? job.documentId, this.log);
+      const result = await provider.poll(job.ref ?? job.documentId, this.log);
       report.polled++;
       const decision = decidePoll(job, outcomeFromTransmission(result.status), now);
       await this.store.save(decision.job);

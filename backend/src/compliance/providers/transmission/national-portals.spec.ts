@@ -25,7 +25,7 @@ describe('national transmission portals', () => {
       expect(p.pollPolicy).toBeDefined();
       expect((await p.transmit([], {} as never, {} as never, 'k', log)).status).toBe('PENDING');
       expect(p.poll).toBeDefined();
-      expect(p.poll!('ref', log).status).toBe('PENDING');
+      expect((await p.poll!('ref', log)).status).toBe('PENDING');
     }
   });
 

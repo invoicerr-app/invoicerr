@@ -32,4 +32,13 @@ export interface ChannelCredentialsPort {
     providerId: string,
     environment: string,
   ): Promise<ResolvedChannelConfig | null>;
+
+  /**
+   * Resolve the single active config for a company+provider across all environments.
+   * Returns null when zero or 2+ active configs exist (caller must not guess).
+   */
+  resolveActive(
+    companyId: string,
+    providerId: string,
+  ): Promise<ResolvedChannelConfig | null>;
 }

@@ -20,7 +20,7 @@ interface ChannelConfigResponse {
   channel: string;
   environment: string;
   isActive: boolean;
-  /** Masked config — secrets replaced with "•••• se". Never contains decrypted secrets. */
+  /** Masked config — secrets replaced with "•••• set". Never contains decrypted secrets. */
   config: Record<string, unknown>;
 }
 
@@ -29,13 +29,20 @@ function maskSecrets(
   config: Record<string, unknown>,
   schema?: ChannelConfigSchema,
 ): Record<string, unknown> {
-  if (!schema) return config;
+  if (!schema) {
+    // No schema → mask ALL values (defensive: never leak unknown fields).
+    const masked: Record<string, unknown> = {};
+    for (const k of Object.keys(config)) {
+      masked[k] = '•••• set';
+    }
+    return masked;
+  }
   const secretNames = new Set(
     schema.fields.filter((f) => f.secret).map((f) => f.name),
   );
   const masked: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(config)) {
-    masked[k] = secretNames.has(k) ? '•••• se' : v;
+    masked[k] = secretNames.has(k) ? '•••• set' : v;
   }
   return masked;
 }
@@ -79,7 +86,7 @@ export class ChannelCredentialsController {
   @ApiOperation({
     summary: 'List channel configs for a company',
     description:
-      'Returns existing channel configurations for a company. Secret fields are masked with "•••• se".',
+      'Returns existing channel configurations for a company. Secret fields are masked with "•••• set".',
   })
   @ApiParam({ name: 'id', type: String, description: 'Company ID' })
   @ApiResponse({ status: 200, description: 'Configs retrieved' })

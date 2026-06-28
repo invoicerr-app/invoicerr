@@ -3,6 +3,7 @@ import { CompliancePlan } from '../../engine/compliance-engine';
 import { ComplianceLogger } from '../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../execution/types';
 import { ChannelType } from '../../types';
+import { ResolvedChannelConfig } from './channel-credentials-port';
 
 /**
  * How a channel reports the document's evolving state back to us — drives the lifecycle trigger
@@ -71,9 +72,10 @@ export interface TransmissionProvider {
     plan: CompliancePlan,
     idempotencyKey: string,
     log: ComplianceLogger,
+    resolvedConfig?: ResolvedChannelConfig,
   ): TransmissionResult | Promise<TransmissionResult>;
   /** For asynchronous clearance channels: re-check status. */
-  poll?(ref: string, log: ComplianceLogger): TransmissionResult;
+  poll?(ref: string, log: ComplianceLogger): TransmissionResult | Promise<TransmissionResult>;
 
   /**
    * Push a lifecycle status update (not a document) to this channel — e.g. FR "encaissée"

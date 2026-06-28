@@ -4,7 +4,7 @@ import { ComplianceLogger, defaultLogger } from '../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../execution/types';
 import { ChannelSpec } from '../../profiles/schema';
 import { ChannelType } from '../../types';
-import { ChannelCredentialsPort } from './channel-credentials-port';
+import { ChannelCredentialsPort, ResolvedChannelConfig } from './channel-credentials-port';
 import { InvoiceMailPort } from './invoice-mail-port';
 import { TransmissionProvider } from './transmission-provider';
 import {
@@ -39,7 +39,7 @@ export class TransmissionProviderRegistry {
         new PacTransmissionProvider(),
         new SdiTransmissionProvider(),
         new GovPortalTransmissionProvider(),
-        new KsefTransmissionProvider(),
+        new KsefTransmissionProvider(providers?.credentials),
         new OseTransmissionProvider(),
         new PrintTransmissionProvider(),
         // Dedicated national portals — selected by ChannelSpec.providerId. Registered AFTER the
@@ -94,21 +94,19 @@ export class TransmissionProviderRegistry {
       }
 
       // Resolve credentials when the provider declares a configSchema and the ctx carries a company id.
+      let resolvedConfig: ResolvedChannelConfig | undefined;
       if (provider.configSchema && this.credentials && ctx.supplierCompanyId) {
         const providerId = spec.providerId ?? provider.id;
-        // Environment resolution happens in the concrete transmit() implementation;
-        // providers can read it from the resolved config or default to TEST.
-        const resolved = await this.credentials.resolve(ctx.supplierCompanyId, providerId, 'TEST');
+        const resolved = await this.credentials.resolveActive(ctx.supplierCompanyId, providerId);
         if (!resolved || !resolved.isActive) {
           log.info('transmission', `channel not configured for company (${providerId}) — skipping`);
           results.push({ channel: spec.type, status: 'SKIPPED', notes: [`channel ${providerId} not configured for company`] });
           continue;
         }
-        // Attach resolved config as metadata on the TransmissionResult notes for now;
-        // concrete providers will receive it through a dedicated parameter once they consume it.
+        resolvedConfig = resolved;
       }
 
-      results.push(await provider.transmit(artifacts, ctx, plan, `${idempotencyKeyBase}:${provider.id}:${i}`, log));
+      results.push(await provider.transmit(artifacts, ctx, plan, `${idempotencyKeyBase}:${provider.id}:${i}`, log, resolvedConfig));
     }
     return results;
   }
