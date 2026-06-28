@@ -2,26 +2,31 @@
  * Reusable schema validation helpers for compliance format harness.
  *
  * Vendored schemas live in:
- *   backend/src/compliance/schemas/en16931/   — EN16931 CII Schematron (preprocessed + compiled SEF)
+ *   backend/src/compliance/schemas/en16931/   — EN16931 CII Schematron (preprocessed .sch)
  *   backend/src/compliance/schemas/pl/        — PL FA(2) XSD
  *
- * Schematron uses saxon-js (SEF) for XPath 2.0 support.
- * XSD uses libxmljs2 (native, in-process).
+ * Schematron uses node-schematron (runs .sch directly, no compile step).
+ * XSD uses xmllint-wasm (no native binary dependency).
  */
 import * as fs from 'fs';
 import * as path from 'path';
 
-// ─── Schematron (EN16931 CII via saxon-js) ─────────────────────────────────
+// ─── Schematron (EN16931 CII via node-schematron) ──────────────────────────
 
-const SEF_CACHE = new Map<string, string>();
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { Schema } = require('node-schematron');
 
-function loadSef(relPath: string): string {
-  const cached = SEF_CACHE.get(relPath);
+// Cache compiled Schema instances by path (Schema.fromString is expensive)
+const SCH_CACHE = new Map<string, ReturnType<typeof Schema.fromString>>();
+
+function loadSchema(relPath: string) {
+  const cached = SCH_CACHE.get(relPath);
   if (cached) return cached;
   const absPath = path.resolve(__dirname, relPath);
   const content = fs.readFileSync(absPath, 'utf-8');
-  SEF_CACHE.set(relPath, content);
-  return content;
+  const schema = Schema.fromString(content);
+  SCH_CACHE.set(relPath, schema);
+  return schema;
 }
 
 export interface SchematronResult {
@@ -37,30 +42,26 @@ export interface SchematronError {
 }
 
 /**
- * Validate XML against a compiled Schematron SEF (via saxon-js).
- * The SEF must be pre-compiled from the .sch → .xsl → .sef.json pipeline.
+ * Validate XML against a Schematron .sch file (via node-schematron).
+ * Pass the preprocessed .sch (with all includes resolved) — e.g.
+ * 'en16931/EN16931-CII-validation-preprocessed.sch'.
+ *
+ * node-schematron result items: { assertId: string, isReport: boolean, message: string }
+ * isReport=false → failed assertion (error), isReport=true → fired report (informational).
  */
-export function validateSchematron(xml: string, sefRelPath: string): SchematronResult {
-  // Lazy-load saxon-js (heavy module)
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const SaxonJS = require('saxon-js');
-  const sefText = loadSef(sefRelPath);
+export function validateSchematron(xml: string, schRelPath: string): SchematronResult {
+  const schema = loadSchema(schRelPath);
+  const results: Array<{ assertId: string; isReport: boolean; message: string }> =
+    schema.validateString(xml);
 
-  const result = SaxonJS.transform({
-    stylesheetText: sefText,
-    sourceText: xml,
-    destination: 'serialized',
-  });
-
-  const output: string = result.principalResult ?? '';
-  const failMatches = [...output.matchAll(/<svrl:failed-assert[^>]*id="([^"]+)"[^>]*flag="([^"]*)"[^>]*>/g)];
-  const textMatches = [...output.matchAll(/<svrl:failed-assert[^>]*id="([^"]+)"[^>]*>.*?<svrl:text>(.*?)<\/svrl:text>/gs)];
-
-  const errors: SchematronError[] = failMatches.map((m, i) => ({
-    id: m[1],
-    flag: m[2],
-    message: textMatches[i]?.[2] ?? '',
-  }));
+  // Only count failed assertions (isReport=false); reports are informational
+  const errors: SchematronError[] = results
+    .filter((r) => !r.isReport)
+    .map((r) => ({
+      id: r.assertId,
+      flag: 'error',
+      message: r.message,
+    }));
 
   return {
     valid: errors.length === 0,

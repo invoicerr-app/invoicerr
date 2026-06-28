@@ -59,12 +59,10 @@
 		"puppeteer": "^24.11.0",
 		"reflect-metadata": "^0.2.2",
 		"rxjs": "^7.8.1",
-		"saxon-js": "^2.7.0",
 		"simple-git": "^3.32.3",
 		"stream-buffers": "^3.0.3",
 		"xadesjs": "^2.6.7",
-		"xmlbuilder2": "^4.0.3",
-		"xslt3": "^2.7.0"
+		"xmlbuilder2": "^4.0.3"
 	},
 	"devDependencies": {
 		"@eslint/eslintrc": "^3.2.0",
@@ -123,7 +121,7 @@
 			"^(\\.{1,2}/.*)\\.js$": "$1"
 		},
 		"transformIgnorePatterns": [
-			"/node_modules/(?!(@fin\\.cx/einvoice|@tsclass/tsclass|saxon-js|libxmljs2|xslt3|node-schematron)/)"
+			"/node_modules/(?!(@fin\\.cx/einvoice|@tsclass/tsclass|libxmljs2|node-schematron)/)"
 		],
 		"collectCoverageFrom": [
 			"**/*.(t|j)s"

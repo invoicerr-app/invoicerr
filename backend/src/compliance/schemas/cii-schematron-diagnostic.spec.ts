@@ -8,7 +8,7 @@ import type { Invoice } from '@e-invoice-eu/core';
 import { postProcessCiiForCtc } from './cii-post-process';
 import { validateSchematron, SchematronResult } from './validate';
 
-const CII_SCH = 'en16931/EN16931-CII-validation.sef.json';
+const CII_SCH = 'en16931/EN16931-CII-validation-preprocessed.sch';
 
 async function buildCii(): Promise<string> {
   const svc = new InvoiceService({ log: () => {}, warn: () => {}, error: () => {} });
