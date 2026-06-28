@@ -27,10 +27,19 @@ The night run produced DB-free generators (`buildFatturaPa(data)`, `buildCfdi(da
 - Requires complete `buildEInvoice()` rewrite; cost too high for unattended run
 - Stay on `@fin.cx/einvoice` for EN 16931 family
 
-### Phase B: FatturaPA 1.2 (IT/SM) ✅
+### Phase B: FatturaPA 1.2 (IT/SM) ✅ COMPLET
 - Library: `@digitalia/fatturapa` — `fpa2xml()` JSON→XML generation
-- Structural validation: CedentePrestatore, CessionarioCommittente, DatiGenerali, DettaglioLinee, DatiRiepilogo, DatiPagamento
-- Missing: XAdES-BES signature, SdI submission → BLOC C
+- **XSD validation**: `fpa2js(xml, { validate: true, valuesOnly: true })` — fast-xml-parser syntax check
+- **Business-rule validation**: `fpaValidate(parsed, FPAYupSchema)` — yup schema (CodiceDestinatario, amounts, Natura, Riepilogo, Pagamento)
+- **All amounts formatted as strings** matching yup regex patterns (SPrezzoSchema, SAliquota, SSignAmount)
+- **Natura deduced from operation nature**: N6 (reverse charge intra-EU), N2 (non soggette, default 0%), N4 (esente)
+- **EsigibilitaIVA**: defaults to 'I' (immédiate) on all DatiRiepilogo
+- **RiferimentoNormativo**: emitted when Natura present
+- **CodiceDestinatario**: 'XXXXXXX' (foreign/default) — PEC absent from InvoiceRenderData = documented gap
+- **Contatti**: populated from company.phone/email when present, omitted when absent (never undefined)
+- **StabileOrganizzazione**: emitted for non-IT CessionarioCommittente (yup schema requirement)
+- 4 fixtures: it-b2b-standard (IT→IT 22%), it-multi-vat (22+10+4), it-reverse-charge (IT→DE N6), it-esente (N4)
+- Missing: XAdES-BES signature, SdI submission → BLOC C #64
 
 ### Phase C: CFDI 4.0 (MX) ✅
 - Raw XML construction (xmlbuilder2 `@` attribute syntax broken; template literals)

@@ -60,8 +60,10 @@
   Validation : présence nœuds racine + gate vivant. XSD/Schematron → L2.
 
 ## A2 · Grands formats nationaux (marchés majeurs)
-- [x] 7. `[FORMAT]` **FatturaPA** → 🇮🇹 IT, 🇸🇲 SM — `buildFatturaPa()` via `@digitalia/fatturapa` (JSON→XML) · ✅ squelette FPR12
-  Validation : présence nœuds (CedentePrestatore, CessionarioCommittente, DatiGenerali, DettaglioLinee, DatiRiepilogo, DatiPagamento). XAdES + SdI → BLOC C.
+- [x] 7. `[FORMAT]` **FatturaPA** → 🇮🇹 IT, 🇸🇲 SM — `buildFatturaPa()` via `@digitalia/fatturapa` (JSON→XML) · ✅ format complet
+  Validation : XSD (fpa2js validate) + règles métier (fpaValidate/FPAYupSchema) — 4 fixtures IT (standard, multi-VAT, reverse-charge N6, esente N4) ✅
+  Gap connu : CodiceDestinatario='XXXXXXX' (pas de PEC/SdI dans le modèle), RegimeFiscale RF01 (configurable).
+  XAdES-BES + SdI → BLOC C #64 (canal externe, certificat requis).
 - [x] 8. `[FORMAT]` **CFDI 4.0** → 🇲🇽 MX — `buildCfdi()` XML brut · ✅ squelette pré-timbre (sans sello/UUID)
   Validation : structure Comprobante/Emisor/Receptor/Conceptos/Impuestos. Timbrado PAC → canal externe (TODO #65).
 - [x] 9. `[FORMAT]` **FA_VAT** → 🇵🇱 PL — `buildFaVat()` XML FA(2) · ✅ squelette structurel

@@ -8,6 +8,9 @@
 import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
 import {
   IT_B2B,
+  IT_MULTI_VAT,
+  IT_REVERSE_CHARGE,
+  IT_ESENTE,
   MX_B2B,
   ES_B2B,
   SA_B2B,
@@ -53,38 +56,55 @@ describe('National Format — structural validation', () => {
   });
 
   describe('FatturaPA 1.2 (IT)', () => {
-    const fixture = IT_B2B;
-    it(`${fixture.slug} → fatturapa`, async () => {
-      const xml = await service.buildFatturaPa(fixture.data);
-      expect(typeof xml).toBe('string');
-      expect(xml.length).toBeGreaterThan(100);
+    let fpa2js: (xml: string, opts: any) => any;
+    let fpaValidate: (fpa: any, schema: any) => Promise<any>;
+    let FPAYupSchema: any;
 
-      const errors: string[] = [];
-      // Structural checks
-      if (!xml.includes('FatturaElettronica')) errors.push('missing FatturaElettronica root');
-      if (!xml.includes('FatturaElettronicaHeader')) errors.push('missing Header');
-      if (!xml.includes('DatiTrasmissione')) errors.push('missing DatiTrasmissione');
-      if (!xml.includes('CedentePrestatore')) errors.push('missing CedentePrestatore');
-      if (!xml.includes('CessionarioCommittente')) errors.push('missing CessionarioCommittente');
-      if (!xml.includes('FatturaElettronicaBody')) errors.push('missing Body');
-      if (!xml.includes('DatiGeneraliDocumento')) errors.push('missing DatiGeneraliDocumento');
-      if (!xml.includes('DettaglioLinee')) errors.push('missing DettaglioLinee');
-      if (!xml.includes('DatiRiepilogo')) errors.push('missing DatiRiepilogo');
-      if (!xml.includes('DatiPagamento')) errors.push('missing DatiPagamento');
-      if (!xml.includes('TD01')) errors.push('missing TipoDocumento TD01');
-      if (!xml.includes('Rossi SRL')) errors.push('missing seller name');
-
-      results.push({
-        fixture: fixture.slug,
-        format: 'fatturapa',
-        xmlLength: xml.length,
-        hasRequiredElements: errors.length === 0,
-        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
-        errors,
-      });
-
-      expect(errors).toEqual([]);
+    beforeAll(async () => {
+      const mod = await import('@digitalia/fatturapa');
+      fpa2js = mod.fpa2js;
+      fpaValidate = mod.fpaValidate;
+      FPAYupSchema = mod.FPAYupSchema;
     });
+
+    function validateFatturaPa(fixture: FormatFixture) {
+      return async () => {
+        const xml = await service.buildFatturaPa(fixture.data);
+        expect(typeof xml).toBe('string');
+        expect(xml.length).toBeGreaterThan(100);
+
+        // 1) XML syntax validation + parse to JS (valuesOnly avoids lib bug in parseFn callback)
+        //    checkXML(xmlData) validates via fastXmlParser.validate() then returns parsed object.
+        const parsed = fpa2js(xml, { validate: true, valuesOnly: true });
+        expect(parsed).toBeDefined();
+        expect(parsed.FatturaElettronicaHeader).toBeDefined();
+        expect(parsed.FatturaElettronicaBody).toBeDefined();
+
+        // 2) Structural presence checks (belt-and-suspenders)
+        expect(xml).toContain('FatturaElettronica');
+        expect(xml).toContain('DatiTrasmissione');
+        expect(xml).toContain('CedentePrestatore');
+        expect(xml).toContain('CessionarioCommittente');
+        expect(xml).toContain('DettaglioLinee');
+        expect(xml).toContain('DatiRiepilogo');
+        expect(xml).toContain('DatiPagamento');
+
+        // 3) Business-rule validation via yup schema (authoritative gate)
+        try {
+          const result = await fpaValidate(parsed, FPAYupSchema);
+          // fpaValidate returns the validated object on success
+          expect(result).toBeDefined();
+        } catch (err: any) {
+          // Fail with clear message — never swallow
+          throw new Error(`fpaValidate failed for ${fixture.slug}: ${err.message}`);
+        }
+      };
+    }
+
+    it(`${IT_B2B.slug} → fatturapa (XSD + business rules)`, validateFatturaPa(IT_B2B));
+    it(`${IT_MULTI_VAT.slug} → fatturapa (multi-VAT)`, validateFatturaPa(IT_MULTI_VAT));
+    it(`${IT_REVERSE_CHARGE.slug} → fatturapa (reverse-charge N6)`, validateFatturaPa(IT_REVERSE_CHARGE));
+    it(`${IT_ESENTE.slug} → fatturapa (esente N4)`, validateFatturaPa(IT_ESENTE));
   });
 
   describe('CFDI 4.0 (MX)', () => {

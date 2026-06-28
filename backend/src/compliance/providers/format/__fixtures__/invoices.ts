@@ -443,6 +443,176 @@ export const IT_B2B: FormatFixture = {
 };
 
 // ---------------------------------------------------------------------------
+// Fixture 7b: IT multi-VAT (22 % + 10 % + 4 %)
+// ---------------------------------------------------------------------------
+export const IT_MULTI_VAT: FormatFixture = {
+  slug: 'it-multi-vat',
+  description: 'Italian B2B, FatturaPA 1.2 — multiple VAT rates (22+10+4)',
+  data: {
+    rawNumber: 'FT-2025-MV-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Rossi SRL',
+      description: 'IT services',
+      foundedAt: new Date('2015-04-10'),
+      currency: 'EUR',
+      address: 'Via Roma 10',
+      city: 'Milano',
+      postalCode: '20100',
+      country: 'Italy',
+      phone: '0212345678',
+      email: 'info@rossisrl.it',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'IT12345678901' },
+        { scheme: 'LEGAL_ID', value: 'MI1234567' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Bianchi SpA',
+      description: 'Manufacturing client',
+      foundedAt: new Date('2000-01-15'),
+      contactFirstname: null,
+      contactLastname: null,
+      contactEmail: null,
+      contactPhone: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'Corso Italia 20',
+      city: 'Roma',
+      postalCode: '00100',
+      country: 'Italy',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'IT98765432109' },
+        { scheme: 'LEGAL_ID', value: 'RM7654321' },
+      ],
+    },
+    items: [
+      { name: 'Consulenza tecnica', quantity: 20, unitPrice: 150, vatRate: 22, type: 'SERVICE' },
+      { name: 'Assistenza remota', quantity: 5, unitPrice: 80, vatRate: 10, type: 'HOUR' },
+      { name: 'Materiale didattico', quantity: 10, unitPrice: 25, vatRate: 4, type: 'PRODUCT' },
+    ],
+  },
+  formats: {},
+};
+
+// ---------------------------------------------------------------------------
+// Fixture 7c: IT reverse-charge (IT → UE, N6)
+// ---------------------------------------------------------------------------
+export const IT_REVERSE_CHARGE: FormatFixture = {
+  slug: 'it-reverse-charge',
+  description: 'Italian B2B, FatturaPA 1.2 — intra-EU reverse charge (IT → DE)',
+  data: {
+    rawNumber: 'FT-2025-RC-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Rossi SRL',
+      description: 'IT services',
+      foundedAt: new Date('2015-04-10'),
+      currency: 'EUR',
+      address: 'Via Roma 10',
+      city: 'Milano',
+      postalCode: '20100',
+      country: 'Italy',
+      phone: '0212345678',
+      email: 'info@rossisrl.it',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'IT12345678901' },
+        { scheme: 'LEGAL_ID', value: 'MI1234567' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'München Tech AG',
+      description: 'Bavarian manufacturer',
+      foundedAt: new Date('2005-11-10'),
+      contactFirstname: null,
+      contactLastname: null,
+      contactEmail: null,
+      contactPhone: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'Marienplatz 1',
+      city: 'München',
+      postalCode: '80331',
+      country: 'Germany',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'DE987654321' },
+        { scheme: 'LEGAL_ID', value: 'HRB 987654' },
+      ],
+    },
+    items: [
+      { name: 'Consulenza transfrontaliera', quantity: 5, unitPrice: 1500, vatRate: 0, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// ---------------------------------------------------------------------------
+// Fixture 7d: IT esente (N4)
+// ---------------------------------------------------------------------------
+export const IT_ESENTE: FormatFixture = {
+  slug: 'it-esente',
+  description: 'Italian B2B, FatturaPA 1.2 — esente IVA (N4, 0% domestic exemption)',
+  data: {
+    rawNumber: 'FT-2025-ES-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Rossi SRL',
+      description: 'IT services',
+      foundedAt: new Date('2015-04-10'),
+      currency: 'EUR',
+      address: 'Via Roma 10',
+      city: 'Milano',
+      postalCode: '20100',
+      country: 'Italy',
+      phone: '0212345678',
+      email: 'info@rossisrl.it',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'IT12345678901' },
+        { scheme: 'LEGAL_ID', value: 'MI1234567' },
+      ],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Verdi SpA',
+      description: 'Healthcare client',
+      foundedAt: new Date('2003-06-20'),
+      contactFirstname: null,
+      contactLastname: null,
+      contactEmail: null,
+      contactPhone: null,
+      salutation: null,
+      sex: null,
+      title: null,
+      isActive: true,
+      address: 'Via Sanità 5',
+      city: 'Napoli',
+      postalCode: '80100',
+      country: 'Italy',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'IT11223344556' },
+        { scheme: 'LEGAL_ID', value: 'NA9988776' },
+      ],
+    },
+    items: [
+      { name: 'Prestazione esente art.10', quantity: 1, unitPrice: 5000, vatRate: 0, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// ---------------------------------------------------------------------------
 // Fixture 8: MX B2B — CFDI 4.0 (MX domestic)
 // ---------------------------------------------------------------------------
 export const MX_B2B: FormatFixture = {
