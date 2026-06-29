@@ -35,10 +35,10 @@ export class TransmissionProviderRegistry {
         new EmailTransmissionProvider(providers?.mail),
         new PeppolTransmissionProvider(providers?.credentials),
         new PdpTransmissionProvider(providers?.credentials),
-        new PacTransmissionProvider(),
+        new PacTransmissionProvider(providers?.credentials),
         new SdiTransmissionProvider(providers?.credentials),
         new KsefTransmissionProvider(providers?.credentials),
-        new OseTransmissionProvider(),
+        new OseTransmissionProvider(providers?.credentials),
         new PrintTransmissionProvider(),
         // Dedicated national portals — selected by ChannelSpec.providerId.
         // There is NO generic GOV_PORTAL_API default: every GOV_PORTAL_API channel MUST carry a

@@ -56,6 +56,7 @@ export type DocumentSyntax =
   | 'CR_FE' // Costa Rica — Factura Electrónica v4.4 (Hacienda)
   | 'DO_ECF' // Dominican Republic — e-CF (DGII)
   | 'EC_FE' // Ecuador — Comprobantes electrónicos (SRI), clave de acceso
+  | 'PE_UBL' // Peru — Comprobante Electrónico UBL 2.1 (SUNAT/OSE), CDR
   | 'GT_FEL' // Guatemala — Factura Electrónica en Línea (SAT)
   | 'PA_FE' // Panama — Factura Electrónica FE/CF (DGI)
   | 'PY_DE' // Paraguay — Documento Electrónico / e-Kuatia (SIFEN)
