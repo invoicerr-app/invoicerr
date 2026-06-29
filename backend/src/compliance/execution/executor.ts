@@ -6,6 +6,7 @@
  */
 import { TransactionContext } from '../canonical/canonical-document';
 import { validateContextIdentifiers } from '../canonical/identifier-validator';
+import { IdentifierExistencePort, NullIdentifierExistenceClient } from '../canonical/identifier-existence.port';
 import { CompliancePlan } from '../engine/compliance-engine';
 import { ArchiveProviderRegistry, defaultArchiveRegistry } from '../providers/archive/registry';
 import { FormatProviderRegistry, defaultFormatRegistry } from '../providers/format/registry';
@@ -34,6 +35,8 @@ export interface ExecutorDeps {
   numbering?: NumberingRegistry;
   response?: ResponseTracker;
   logger?: ComplianceLogger;
+  /** Optional remote existence checker (VIES/SIRENE). Defaults to NullIdentifierExistenceClient (offline-safe). */
+  existence?: IdentifierExistencePort;
 }
 
 export interface ExecuteOptions {
@@ -51,6 +54,7 @@ export class ComplianceExecutor {
   private readonly numbering: NumberingRegistry;
   private readonly response: ResponseTracker;
   private readonly log: ComplianceLogger;
+  private readonly existence: IdentifierExistencePort;
 
   constructor(deps: ExecutorDeps = {}) {
     this.formats = deps.formats ?? defaultFormatRegistry;
@@ -63,6 +67,44 @@ export class ComplianceExecutor {
     this.numbering = deps.numbering ?? defaultNumberingRegistry;
     this.response = deps.response ?? defaultResponseTracker;
     this.log = deps.logger ?? defaultLogger;
+    this.existence = deps.existence ?? new NullIdentifierExistenceClient();
+  }
+
+  /**
+   * Run remote existence checks for supplier VAT and FR SIRET identifiers.
+   * Returns advisory warning strings; never throws; uses the injected (possibly
+   * cached or null) client so the default is always offline-safe.
+   */
+  private async checkIdentifierExistence(ctx: TransactionContext): Promise<string[]> {
+    const warnings: string[] = [];
+    const parties = [
+      { label: 'supplier', party: ctx.supplier },
+      { label: 'buyer', party: ctx.buyer },
+    ];
+    for (const { label, party } of parties) {
+      for (const id of party.identifiers) {
+        try {
+          if (id.scheme === 'VAT') {
+            const res = await this.existence.checkVat(id.value);
+            if (res.exists === false) {
+              warnings.push(
+                `[existence] ${label} VAT "${id.value}" not found in ${res.source.toUpperCase()} registry`,
+              );
+            }
+          } else if (id.scheme === 'SIRET') {
+            const res = await this.existence.checkSiret(id.value);
+            if (res.exists === false) {
+              warnings.push(
+                `[existence] ${label} SIRET "${id.value}" not found in SIRENE registry`,
+              );
+            }
+          }
+        } catch {
+          // Swallow — existence check must never block invoice processing
+        }
+      }
+    }
+    return warnings;
   }
 
   /** Decide the signature algorithm from the plan (clearance or signed-archive ⇒ XAdES). */
@@ -86,6 +128,16 @@ export class ComplianceExecutor {
       warnings.push(...idWarnings);
     }
     ctx = validatedCtx;
+
+    // 0b. Optional remote existence checks (VIES for EU VAT, SIRENE for FR SIRET).
+    //     Default: NullIdentifierExistenceClient → exists: null → no warning (offline-safe).
+    //     A real client adds a warning when exists === false (not-found in registry).
+    //     Never blocks transmission — just adds advisory warnings.
+    const existenceWarnings = await this.checkIdentifierExistence(ctx);
+    if (existenceWarnings.length > 0) {
+      for (const w of existenceWarnings) log.warn('executor/existence', w);
+      warnings.push(...existenceWarnings);
+    }
 
     // 1. Monetary totals via the tax-system handler.
     const totals = this.taxSystems.get(plan.taxSystemKind).computeTotals(ctx, plan.tax, log);
