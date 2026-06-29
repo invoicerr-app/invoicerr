@@ -12,7 +12,7 @@ import { useAvailableActions } from "@/hooks/queries/use-available-actions"
 import { useGet } from "@/hooks/use-fetch"
 import { authenticatedFetch } from "@/hooks/use-fetch"
 import { toast } from "sonner"
-import { Edit, RotateCcw, XCircle, Send, ArrowRightLeft, Banknote, Printer, UploadCloud, Clock } from "lucide-react"
+import { Edit, RefreshCw, RotateCcw, XCircle, Send, ArrowRightLeft, Banknote, Printer, UploadCloud, Clock } from "lucide-react"
 import { DepositDialog } from "./deposit-dialog"
 import { useState } from "react"
 
@@ -26,6 +26,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
     const { t, i18n } = useTranslation()
     const { data: actions } = useAvailableActions(invoice?.id)
     const [depositOpen, setDepositOpen] = useState(false)
+    const [refreshing, setRefreshing] = useState(false)
 
     // Fetch the original invoice when this one corrects another
     const { data: originalInvoice } = useGet<Invoice>(
@@ -79,6 +80,23 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
             .catch(() => {
                 toast.error(t(`invoices.view.actions.${action}Error`))
             })
+    }
+
+    const handleRefreshComplianceStatus = async (compDocId: string) => {
+        setRefreshing(true)
+        try {
+            const res = await authenticatedFetch(`/api/compliance/documents/${compDocId}/refresh`, { method: 'POST' })
+            if (res.ok) {
+                toast.success(t("invoices.view.actions.refreshStatusSuccess", "Status refreshed"))
+                onMutate?.()
+            } else {
+                toast.error(t("invoices.view.actions.refreshStatusError", "Failed to refresh status"))
+            }
+        } catch {
+            toast.error(t("invoices.view.actions.refreshStatusError", "Failed to refresh status"))
+        } finally {
+            setRefreshing(false)
+        }
     }
 
     return (
@@ -329,9 +347,21 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                             <div className="mt-6 border-t pt-4">
                                 <div className="flex items-center justify-between mb-3">
                                     <span className="text-sm font-medium text-muted-foreground">Compliance</span>
-                                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${color}`}>
-                                        {compDoc.status.replace(/_/g, ' ')}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${color}`}>
+                                            {compDoc.status.replace(/_/g, ' ')}
+                                        </span>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 px-2 text-xs"
+                                            disabled={refreshing}
+                                            onClick={() => handleRefreshComplianceStatus(compDoc.id)}
+                                            title={t("invoices.view.actions.refreshStatus", "Refresh status")}
+                                        >
+                                            <RefreshCw className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
+                                        </Button>
+                                    </div>
                                 </div>
                                 {compDoc.events && compDoc.events.length > 0 && (
                                     <ol className="relative border-l border-muted ml-2 space-y-3">

@@ -1934,7 +1934,8 @@
             "articles": "Articles",
             "paymentMethods": "Payment Methods",
             "stats": "Statistics",
-            "settings": "Settings"
+            "settings": "Settings",
+            "receivedInvoices": "Received Invoices"
         },
         "company": {
             "plan": "Entreprise"
@@ -2298,6 +2299,56 @@
             "instructions": "Configuration Instructions",
             "warning": "Configure both the webhook URL and secret in your {{pluginName}} settings to receive authenticated real-time updates. Store the secret securely - it won't be shown again.",
             "gotIt": "Got it!"
+        }
+    },
+    "receivedInvoices": {
+        "title": "Received Invoices",
+        "description": "Supplier invoices received via e-invoicing channels.",
+        "emptyState": {
+            "title": "No received invoices",
+            "description": "Supplier invoices received via PDP, SdI, Peppol or KSeF will appear here."
+        },
+        "columns": {
+            "date": "Date",
+            "sender": "Sender",
+            "number": "Invoice No.",
+            "amount": "Amount",
+            "status": "Status",
+            "channel": "Channel",
+            "actions": "Actions"
+        },
+        "status": {
+            "RECEIVED": "Received",
+            "PARSED": "Parsed",
+            "ACCEPTED": "Accepted",
+            "REJECTED": "Rejected"
+        },
+        "actions": {
+            "accept": "Accept",
+            "reject": "Reject",
+            "download": "Download",
+            "view": "View",
+            "acceptSuccess": "Invoice accepted",
+            "acceptError": "Failed to accept invoice",
+            "rejectSuccess": "Invoice rejected",
+            "rejectError": "Failed to reject invoice"
+        },
+        "detail": {
+            "title": "Invoice Detail",
+            "invoiceNumber": "Invoice number",
+            "issueDate": "Issue date",
+            "sellerName": "Seller",
+            "sellerTaxId": "Seller tax ID",
+            "buyerTaxId": "Buyer tax ID",
+            "currency": "Currency",
+            "totalNet": "Net amount",
+            "totalTax": "Tax amount",
+            "totalGross": "Gross amount",
+            "channel": "Channel",
+            "externalId": "External ID",
+            "receivedAt": "Received at",
+            "rawPayload": "Raw payload",
+            "downloadRaw": "Download raw"
         }
     },
     "folderSelect": {

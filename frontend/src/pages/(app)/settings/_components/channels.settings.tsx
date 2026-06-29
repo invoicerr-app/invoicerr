@@ -7,7 +7,7 @@ import { DynamicFormModal } from "@/components/form-modal"
 import type { FormConfig } from "@/components/form-modal"
 import { useGet, usePut, authenticatedFetch } from "@/hooks/use-fetch"
 import { useCompany } from "@/hooks/queries/use-company"
-import { CheckCircle2, ExternalLink, Loader2, Radio, Settings2, Trash2, XCircle } from "lucide-react"
+import { CheckCircle2, Clock, ExternalLink, Loader2, Radio, Settings2, Trash2, XCircle } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
@@ -26,6 +26,8 @@ interface RequiredChannel {
   isConfigured: boolean
   environment: string | null
   config: Record<string, unknown> | null
+  /** ISO date string — when this channel mandate starts. Future dates = "coming soon". */
+  availableFrom?: string
 }
 
 export default function ChannelsSettings() {
@@ -153,25 +155,39 @@ export default function ChannelsSettings() {
         {requiredChannels?.map((ch) => {
           const hasSchema = !!ch.provider?.configSchema
 
-          return (
+          // Determine if the channel mandate is in the future
+        const isFuture = ch.availableFrom ? new Date(ch.availableFrom) > new Date() : false
+        const availableFromDate = ch.availableFrom
+          ? new Date(ch.availableFrom).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })
+          : null
+
+        return (
             <Card key={ch.providerId}>
               <CardContent className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-3">
                   <div className="shrink-0">
                     {ch.isConfigured ? (
                       <CheckCircle2 className="h-5 w-5 text-green-500" />
+                    ) : isFuture ? (
+                      <Clock className="h-5 w-5 text-amber-400" />
                     ) : (
                       <XCircle className="h-5 w-5 text-muted-foreground" />
                     )}
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium">{ch.providerId}</p>
                       <Badge variant={ch.isConfigured ? "default" : "secondary"}>
                         {ch.isConfigured
                           ? t("settings.channels.status.connected", "Connected")
                           : t("settings.channels.status.notConfigured", "Not configured")}
                       </Badge>
+                      {isFuture && availableFromDate && (
+                        <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-xs">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {t("settings.channels.availableFrom", "Available from {{date}}", { date: availableFromDate })}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground mt-0.5">
                       {ch.type}

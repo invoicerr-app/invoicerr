@@ -3,6 +3,7 @@ import {
     ChevronsUpDown,
     CreditCard,
     FileText,
+    Inbox,
     LayoutDashboard,
     LogOut,
     Moon,
@@ -112,6 +113,12 @@ export function Sidebar() {
             icon: <CreditCard className="w-4 h-4" />,
             url: "/payment-methods",
             dataCy: "sidebar-payment-methods-link",
+        },
+        {
+            title: t("sidebar.navigation.receivedInvoices", "Received Invoices"),
+            icon: <Inbox className="w-4 h-4" />,
+            url: "/received-invoices",
+            dataCy: "sidebar-received-invoices-link",
         },
         {
             title: t("sidebar.navigation.stats"),

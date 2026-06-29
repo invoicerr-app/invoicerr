@@ -18,6 +18,7 @@ export type Path =
   | `/payments/pdf/:id`
   | `/quotes`
   | `/quotes/pdf/:id`
+  | `/received-invoices`
   | `/settings/:tab?`
   | `/signature/:id`
   | `/stats`
