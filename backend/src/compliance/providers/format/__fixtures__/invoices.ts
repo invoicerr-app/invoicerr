@@ -2406,6 +2406,248 @@ export const RW_B2B: FormatFixture = {
 };
 
 // ---------------------------------------------------------------------------
+// MENA — scaffold fixtures
+// ---------------------------------------------------------------------------
+export const JO_B2B: FormatFixture = {
+  slug: 'jo-b2b',
+  description: 'Jordanian B2B, JoFotara e-invoice',
+  data: {
+    rawNumber: 'JO-INV-2026-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Amman Tech Solutions LLC',
+      description: 'IT services',
+      foundedAt: new Date('2016-03-01'),
+      currency: 'JOD',
+      address: 'Mecca Street, Amman',
+      city: 'Amman',
+      postalCode: '11190',
+      country: 'Jordan',
+      partyIdentifiers: [{ scheme: 'VAT', value: '1234567890' }], // Jordan TIN (10 digits)
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Aqaba Commerce Co.',
+      description: 'Trading',
+      foundedAt: new Date('2010-06-15'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'King Hussein Street, Aqaba',
+      city: 'Aqaba',
+      postalCode: '77110',
+      country: 'Jordan',
+      partyIdentifiers: [{ scheme: 'VAT', value: '9876543210' }],
+    },
+    items: [
+      { name: 'IT consulting services', quantity: 5, unitPrice: 500, vatRate: 16, type: 'SERVICE' },
+      { name: 'Software license', quantity: 2, unitPrice: 300, vatRate: 16, type: 'PRODUCT' },
+    ],
+  },
+  formats: {},
+};
+
+export const TN_B2B: FormatFixture = {
+  slug: 'tn-b2b',
+  description: 'Tunisian B2B, TEIF e-invoice via TTN',
+  data: {
+    rawNumber: 'TN-INV-2026-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Tunis Digital Services SARL',
+      description: 'IT services',
+      foundedAt: new Date('2015-01-10'),
+      currency: 'TND',
+      address: 'Avenue Habib Bourguiba, Tunis',
+      city: 'Tunis',
+      postalCode: '1001',
+      country: 'Tunisia',
+      partyIdentifiers: [{ scheme: 'VAT', value: '1234567/A/M/000' }], // MF matricule fiscal
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Sfax Commerce SA',
+      description: 'Trading',
+      foundedAt: new Date('2008-09-20'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Route de Tunis, Sfax',
+      city: 'Sfax',
+      postalCode: '3000',
+      country: 'Tunisia',
+      partyIdentifiers: [{ scheme: 'VAT', value: '9876543/B/M/000' }],
+    },
+    items: [
+      { name: 'Software development', quantity: 10, unitPrice: 1200, vatRate: 19, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// ---------------------------------------------------------------------------
+// Europe-national — scaffold fixtures
+// ---------------------------------------------------------------------------
+export const UA_B2B: FormatFixture = {
+  slug: 'ua-b2b',
+  description: 'Ukrainian B2B, DPS tax-invoice for ЄРПН registration',
+  data: {
+    rawNumber: 'UA-INV-2026-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Kyiv Tech Solutions TOV',
+      description: 'IT services',
+      foundedAt: new Date('2017-04-15'),
+      currency: 'UAH',
+      address: 'Khreschatyk 22, Kyiv',
+      city: 'Kyiv',
+      postalCode: '01001',
+      country: 'Ukraine',
+      partyIdentifiers: [{ scheme: 'VAT', value: 'UA123456789' }], // IPN/EDRPOU
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Lviv Commerce TOV',
+      description: 'Trading',
+      foundedAt: new Date('2011-02-20'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Rynok Square 1, Lviv',
+      city: 'Lviv',
+      postalCode: '79000',
+      country: 'Ukraine',
+      partyIdentifiers: [{ scheme: 'VAT', value: 'UA987654321' }],
+    },
+    items: [
+      { name: 'IT consulting', quantity: 8, unitPrice: 50000, vatRate: 20, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+export const ME_B2B: FormatFixture = {
+  slug: 'me-b2b',
+  description: 'Montenegrin B2B, fiscal invoice (IKOF/JIKR)',
+  data: {
+    rawNumber: 'ME-INV-2026-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Podgorica Digital doo',
+      description: 'IT services',
+      foundedAt: new Date('2018-06-01'),
+      currency: 'EUR',
+      address: 'Bulevar Svetog Petra Cetinjskog 1',
+      city: 'Podgorica',
+      postalCode: '81000',
+      country: 'Montenegro',
+      partyIdentifiers: [{ scheme: 'VAT', value: '12345678' }], // PIB (8 digits)
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Bar Commerce doo',
+      description: 'Trading',
+      foundedAt: new Date('2012-03-10'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Ulica Vladimira Rolovića 3',
+      city: 'Bar',
+      postalCode: '85000',
+      country: 'Montenegro',
+      partyIdentifiers: [{ scheme: 'VAT', value: '87654321' }],
+    },
+    items: [
+      { name: 'Software license', quantity: 3, unitPrice: 1500, vatRate: 21, type: 'PRODUCT' },
+    ],
+  },
+  formats: {},
+};
+
+export const HR_B2B: FormatFixture = {
+  slug: 'hr-b2b',
+  description: 'Croatian B2B, e-Račun / Fiskalizacija 2.0',
+  data: {
+    rawNumber: 'HR-INV-2026-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Zagreb Tech d.o.o.',
+      description: 'IT services',
+      foundedAt: new Date('2016-09-01'),
+      currency: 'EUR',
+      address: 'Ilica 1, Zagreb',
+      city: 'Zagreb',
+      postalCode: '10000',
+      country: 'Croatia',
+      partyIdentifiers: [{ scheme: 'VAT', value: 'HR12345678901' }], // OIB (11 digits) prefixed with HR
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Split Commerce d.o.o.',
+      description: 'Commerce',
+      foundedAt: new Date('2009-05-20'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Marmontova 5, Split',
+      city: 'Split',
+      postalCode: '21000',
+      country: 'Croatia',
+      partyIdentifiers: [{ scheme: 'VAT', value: 'HR98765432101' }],
+    },
+    items: [
+      { name: 'IT consulting', quantity: 10, unitPrice: 800, vatRate: 25, type: 'SERVICE' },
+      { name: 'Hardware', quantity: 2, unitPrice: 1200, vatRate: 25, type: 'PRODUCT' },
+    ],
+  },
+  formats: {},
+};
+
+export const AL_B2B: FormatFixture = {
+  slug: 'al-b2b',
+  description: 'Albanian B2B, CIS fiscalization invoice',
+  data: {
+    rawNumber: 'AL-INV-2026-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Tirana Digital Sh.p.k.',
+      description: 'IT services',
+      foundedAt: new Date('2019-01-15'),
+      currency: 'ALL',
+      address: 'Rruga Myslym Shyri 1, Tirana',
+      city: 'Tirana',
+      postalCode: '1001',
+      country: 'Albania',
+      partyIdentifiers: [{ scheme: 'VAT', value: 'K12345678A' }], // NIPT (10 chars)
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Durres Commerce Sh.p.k.',
+      description: 'Trading',
+      foundedAt: new Date('2013-07-10'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Rruga Tregtare 5, Durres',
+      city: 'Durres',
+      postalCode: '2001',
+      country: 'Albania',
+      partyIdentifiers: [{ scheme: 'VAT', value: 'L98765432B' }],
+    },
+    items: [
+      { name: 'IT services', quantity: 6, unitPrice: 50000, vatRate: 20, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// ---------------------------------------------------------------------------
 // All fixtures — ordered for the harness
 // ---------------------------------------------------------------------------
 export const FIXTURES: FormatFixture[] = [

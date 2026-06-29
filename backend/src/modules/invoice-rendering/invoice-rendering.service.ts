@@ -1192,6 +1192,14 @@ export class InvoiceRenderingService {
             PK: (d) => this._buildPkFbr(d),
             VN: (d) => this._buildVnTt78(d),
             MY: (d) => this._buildMyInvois(d),
+            // MENA — added by §1.3 scaffold
+            JO: (d) => this._buildJoJofotara(d),
+            TN: (d) => this._buildTnTeif(d),
+            // Europe-national — added by §1.3 scaffold
+            UA: (d) => this._buildUaTaxinvoice(d),
+            ME: (d) => this._buildMeFiscal(d),
+            HR: (d) => this._buildHrEracun(d),
+            AL: (d) => this._buildAlFiscalization(d),
             // Africa — added by §1.3 scaffold
             NG: (d) => this._buildNgFirs(d),
             KE: (d) => this._buildKeEtims(d),
@@ -3069,6 +3077,340 @@ ${JSON.stringify(eisJson, null, 2)}`;
   <QRCode>TODO-QR</QRCode>
 </FactureMecef>
 <!-- TODO: IFU registration with DGI; POST to SeMeF /factures/enregistrer; embed MECeF code + QR -->`;
+    }
+
+    // ─── MENA skeletons (§1.3 scaffold) ──────────────────────────────────────
+
+    /**
+     * Jordan JoFotara e-invoice (ISTD national platform, UBL-based).
+     * TODO: embed mandatory ISTD namespace extensions; add QR/hash seam;
+     *   register with ISTD and obtain merchant credential; POST to JoFotara API.
+     */
+    private _buildJoJofotara(data: InvoiceRenderData): string {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const tin = getIdentifier(data.company, 'VAT') || '';
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalVat = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        return `<!-- TODO: Jordan JoFotara (ISTD) — UBL 2.1 + ISTD extensions; QR seam; merchant registration -->
+<ubl:Invoice xmlns:ubl="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+             xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+             xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
+             xmlns:istd="urn:jo:istd:jofotara:extensions:1">
+  <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:istd.gov.jo:jofotara:1.0</cbc:CustomizationID>
+  <cbc:ProfileID>urn:jo:istd:einvoice:1.0</cbc:ProfileID>
+  <cbc:ID>${data.rawNumber || 'DRAFT'}</cbc:ID>
+  <cbc:IssueDate>${issueDate}</cbc:IssueDate>
+  <cbc:InvoiceTypeCode>388</cbc:InvoiceTypeCode>
+  <cbc:DocumentCurrencyCode>${data.company.currency || 'JOD'}</cbc:DocumentCurrencyCode>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>${tin}</cbc:CompanyID>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity><cbc:RegistrationName>${data.company.name}</cbc:RegistrationName></cac:PartyLegalEntity>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:AccountingCustomerParty>
+    <cac:Party>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>${getIdentifier(data.client, 'VAT') || ''}</cbc:CompanyID>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity><cbc:RegistrationName>${data.client.name}</cbc:RegistrationName></cac:PartyLegalEntity>
+    </cac:Party>
+  </cac:AccountingCustomerParty>
+  <cac:TaxTotal>
+    <cbc:TaxAmount currencyID="${data.company.currency || 'JOD'}">${totalVat.toFixed(3)}</cbc:TaxAmount>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <cbc:TaxExclusiveAmount currencyID="${data.company.currency || 'JOD'}">${total.toFixed(3)}</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="${data.company.currency || 'JOD'}">${(total + totalVat).toFixed(3)}</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount currencyID="${data.company.currency || 'JOD'}">${(total + totalVat).toFixed(3)}</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+  ${data.items.map((item, i) => `<cac:InvoiceLine>
+    <cbc:ID>${i + 1}</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="C62">${item.quantity}</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="${data.company.currency || 'JOD'}">${(item.quantity * item.unitPrice).toFixed(3)}</cbc:LineExtensionAmount>
+    <cac:Item><cbc:Name>${item.name}</cbc:Name></cac:Item>
+    <cac:Price><cbc:PriceAmount currencyID="${data.company.currency || 'JOD'}">${item.unitPrice.toFixed(3)}</cbc:PriceAmount></cac:Price>
+  </cac:InvoiceLine>`).join('\n  ')}
+  <istd:QRCode>TODO-JOFOTARA-QR</istd:QRCode>
+</ubl:Invoice>
+<!-- TODO: ISTD JoFotara merchant registration; POST to national platform; embed QR code -->`;
+    }
+
+    /**
+     * Tunisia TEIF (Titre Electronique d'Imputation Fiscale) / El Fatoora via TTN (TradeNet).
+     * TODO: build full TEIF XML per DGI/TTN schema; embed seller MF + buyer info;
+     *   sign with qualified certificate; POST to TTN El Fatoora gateway.
+     */
+    private _buildTnTeif(data: InvoiceRenderData): string {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const mf = getIdentifier(data.company, 'VAT') || '';
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalTva = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        return `<!-- TODO: Tunisia TEIF (El Fatoora/TTN) — DGI TEIF schema; qualified signature; POST to TTN gateway -->
+<TEIF xmlns="urn:tn:dgi:teif:v1" xmlns:ttn="urn:tn:tradenet:elfattoura:1">
+  <Entete>
+    <NumeroFacture>${data.rawNumber || 'DRAFT'}</NumeroFacture>
+    <DateEmission>${issueDate}</DateEmission>
+    <TypeDocument>FV</TypeDocument>
+    <Devise>${data.company.currency || 'TND'}</Devise>
+  </Entete>
+  <Vendeur>
+    <MatriculeFiscal>${mf}</MatriculeFiscal>
+    <RaisonSociale>${data.company.name}</RaisonSociale>
+    <Adresse>${data.company.address || 'TODO'}</Adresse>
+    <Ville>${data.company.city || ''}</Ville>
+    <CodePostal>${data.company.postalCode || ''}</CodePostal>
+  </Vendeur>
+  <Acheteur>
+    <MatriculeFiscal>${getIdentifier(data.client, 'VAT') || ''}</MatriculeFiscal>
+    <RaisonSociale>${data.client.name}</RaisonSociale>
+    <Adresse>${data.client.address || 'TODO'}</Adresse>
+  </Acheteur>
+  <Lignes>${data.items.map((item, i) => `
+    <Ligne>
+      <Numero>${i + 1}</Numero>
+      <Designation>${item.name}</Designation>
+      <Quantite>${item.quantity}</Quantite>
+      <PrixUnitaireHT>${item.unitPrice.toFixed(3)}</PrixUnitaireHT>
+      <MontantHT>${(item.quantity * item.unitPrice).toFixed(3)}</MontantHT>
+      <TauxTVA>${item.vatRate || 19}</TauxTVA>
+      <MontantTVA>${(item.quantity * item.unitPrice * (item.vatRate || 19) / 100).toFixed(3)}</MontantTVA>
+      <MontantTTC>${(item.quantity * item.unitPrice * (1 + (item.vatRate || 19) / 100)).toFixed(3)}</MontantTTC>
+    </Ligne>`).join('')}
+  </Lignes>
+  <Totaux>
+    <TotalHT>${total.toFixed(3)}</TotalHT>
+    <TotalTVA>${totalTva.toFixed(3)}</TotalTVA>
+    <TotalTTC>${(total + totalTva).toFixed(3)}</TotalTTC>
+  </Totaux>
+  <Signature>TODO-QUALIFIED-SIGNATURE-SEAM</Signature>
+</TEIF>
+<!-- TODO: DGI TEIF schema validation; qualified certificate signing; POST to TTN El Fatoora API -->`;
+    }
+
+    // ─── Europe-national skeletons (§1.3 scaffold) ────────────────────────────
+
+    /**
+     * Ukraine DPS tax-invoice (податкова накладна) for ЄРПН registration.
+     * TODO: build full DPS XML per ДПС schema; apply qualified e-signature (КЕП);
+     *   submit to ЄРПН via cabinet.tax.gov.ua API; handle blocking/unblocking.
+     */
+    private _buildUaTaxinvoice(data: InvoiceRenderData): string {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const ipn = getIdentifier(data.company, 'VAT') || '';
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalPdv = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        return `<!-- TODO: Ukraine DPS Податкова Накладна — ДПС XML schema; КЕП qualified signature; ЄРПН registration -->
+<DECLAR xmlns="http://www.dps.gov.ua/pdv/pn/pn_schema_v1" version="1">
+  <DECLARHEAD>
+    <HType>1</HType>
+    <HNUM>${data.rawNumber || 'DRAFT'}</HNUM>
+    <HDATE>${issueDate}</HDATE>
+    <HPERIOD>${issueDate.substring(0, 7)}</HPERIOD>
+    <HCNT>${data.company.name}</HCNT>
+    <HTIN>${ipn}</HTIN>
+  </DECLARHEAD>
+  <DECLARBODY>
+    <BODY_R01C01>${data.client.name}</BODY_R01C01>
+    <BODY_R01C02>${getIdentifier(data.client, 'VAT') || ''}</BODY_R01C02>
+    <ITEMS>${data.items.map((item, i) => `
+      <ITEM>
+        <NUM>${i + 1}</NUM>
+        <DESCRIPTION>${item.name}</DESCRIPTION>
+        <QTY>${item.quantity}</QTY>
+        <PRICE>${item.unitPrice.toFixed(2)}</PRICE>
+        <AMOUNT>${(item.quantity * item.unitPrice).toFixed(2)}</AMOUNT>
+        <PDV_RATE>${item.vatRate || 20}</PDV_RATE>
+        <PDV_AMOUNT>${(item.quantity * item.unitPrice * (item.vatRate || 20) / 100).toFixed(2)}</PDV_AMOUNT>
+      </ITEM>`).join('')}
+    </ITEMS>
+    <TOT_SUM>${total.toFixed(2)}</TOT_SUM>
+    <TOT_PDV>${totalPdv.toFixed(2)}</TOT_PDV>
+    <TOT_TOTAL>${(total + totalPdv).toFixed(2)}</TOT_TOTAL>
+  </DECLARBODY>
+</DECLAR>
+<!-- TODO: КЕП (qualified e-signature via КНЕДП); submit to DPS API; poll ЄРПН status -->`;
+    }
+
+    /**
+     * Montenegro fiscalization XML (IKOF/JIKR).
+     * TODO: implement Porezna Uprava fiscalization spec; generate IKOF (issuer code);
+     *   POST to PU CIS fiscalization endpoint (real-time); receive JIKR.
+     */
+    private _buildMeFiscal(data: InvoiceRenderData): string {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const pib = getIdentifier(data.company, 'VAT') || '';
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalPdv = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        return `<!-- TODO: Montenegro Fiscalization (Porezna Uprava) — IKOF generation; POST to CIS; receive JIKR -->
+<FiscalInvoice xmlns="urn:me:pu:fiscalization:v3">
+  <Header>
+    <InvoiceNumber>${data.rawNumber || 'DRAFT'}</InvoiceNumber>
+    <IssueDateTime>${issueDate}T12:00:00+02:00</IssueDateTime>
+    <InvoiceType>CASH</InvoiceType>
+    <Currency>${data.company.currency || 'EUR'}</Currency>
+    <IKOF>TODO-IKOF-ISSUER-CODE-OF-INVOICE</IKOF>
+  </Header>
+  <Seller>
+    <PIB>${pib}</PIB>
+    <Name>${data.company.name}</Name>
+    <Address>${data.company.address || 'TODO'}</Address>
+    <City>${data.company.city || ''}</City>
+  </Seller>
+  <Buyer>
+    <PIB>${getIdentifier(data.client, 'VAT') || ''}</PIB>
+    <Name>${data.client.name}</Name>
+  </Buyer>
+  <Items>${data.items.map((item, i) => `
+    <Item>
+      <Number>${i + 1}</Number>
+      <Name>${item.name}</Name>
+      <Quantity>${item.quantity}</Quantity>
+      <UnitPrice>${item.unitPrice.toFixed(2)}</UnitPrice>
+      <VatRate>${item.vatRate || 21}</VatRate>
+      <GrossAmount>${(item.quantity * item.unitPrice * (1 + (item.vatRate || 21) / 100)).toFixed(2)}</GrossAmount>
+    </Item>`).join('')}
+  </Items>
+  <Totals>
+    <TotalBeforeVAT>${total.toFixed(2)}</TotalBeforeVAT>
+    <TotalVAT>${totalPdv.toFixed(2)}</TotalVAT>
+    <TotalWithVAT>${(total + totalPdv).toFixed(2)}</TotalWithVAT>
+  </Totals>
+  <JIKR>TODO-JIKR-FROM-CIS</JIKR>
+  <QRCode>TODO-QR</QRCode>
+</FiscalInvoice>
+<!-- TODO: IKOF (RSA signature of invoice data); POST to PU CIS; embed received JIKR + QR code -->`;
+    }
+
+    /**
+     * Croatia e-Račun (UBL 2.1 / EN 16931 + CIUS-HR) for Fiskalizacija 2.0 / CIS.
+     * TODO: apply CIUS-HR customization (ProfileID, extension namespace);
+     *   fiscalize via HTTPS to CIS (ws.eracun.hr); sign with FINA qualified certificate.
+     */
+    private _buildHrEracun(data: InvoiceRenderData): string {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const oib = getIdentifier(data.company, 'VAT') || '';
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalPdv = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        return `<!-- TODO: Croatia e-Račun (CIUS-HR / Fiskalizacija 2.0) — FINA cert signing; POST to CIS -->
+<ubl:Invoice xmlns:ubl="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+             xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+             xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
+             xmlns:hr="urn:fina.hr:eracun:extensions:1">
+  <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:fina.hr:eracun:1.0</cbc:CustomizationID>
+  <cbc:ProfileID>urn:fina.hr:eracun:2.0</cbc:ProfileID>
+  <cbc:ID>${data.rawNumber || 'DRAFT'}</cbc:ID>
+  <cbc:IssueDate>${issueDate}</cbc:IssueDate>
+  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+  <cbc:DocumentCurrencyCode>${data.company.currency || 'EUR'}</cbc:DocumentCurrencyCode>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>${oib}</cbc:CompanyID>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>${data.company.name}</cbc:RegistrationName>
+        <cbc:CompanyID>${oib.replace(/^HR/, '')}</cbc:CompanyID><!-- OIB (11 digits) -->
+      </cac:PartyLegalEntity>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:AccountingCustomerParty>
+    <cac:Party>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>${getIdentifier(data.client, 'VAT') || ''}</cbc:CompanyID>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity><cbc:RegistrationName>${data.client.name}</cbc:RegistrationName></cac:PartyLegalEntity>
+    </cac:Party>
+  </cac:AccountingCustomerParty>
+  <cac:TaxTotal>
+    <cbc:TaxAmount currencyID="${data.company.currency || 'EUR'}">${totalPdv.toFixed(2)}</cbc:TaxAmount>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="${data.company.currency || 'EUR'}">${total.toFixed(2)}</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="${data.company.currency || 'EUR'}">${totalPdv.toFixed(2)}</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>25</cbc:Percent>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <cbc:TaxExclusiveAmount currencyID="${data.company.currency || 'EUR'}">${total.toFixed(2)}</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="${data.company.currency || 'EUR'}">${(total + totalPdv).toFixed(2)}</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount currencyID="${data.company.currency || 'EUR'}">${(total + totalPdv).toFixed(2)}</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+  ${data.items.map((item, i) => `<cac:InvoiceLine>
+    <cbc:ID>${i + 1}</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="C62">${item.quantity}</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="${data.company.currency || 'EUR'}">${(item.quantity * item.unitPrice).toFixed(2)}</cbc:LineExtensionAmount>
+    <cac:Item><cbc:Name>${item.name}</cbc:Name></cac:Item>
+    <cac:Price><cbc:PriceAmount currencyID="${data.company.currency || 'EUR'}">${item.unitPrice.toFixed(2)}</cbc:PriceAmount></cac:Price>
+  </cac:InvoiceLine>`).join('\n  ')}
+  <hr:FiskalizacijaData>
+    <hr:ZKI>TODO-ZKI-PROTECTION-CODE</hr:ZKI>
+    <hr:JIR>TODO-JIR-FROM-CIS</hr:JIR>
+    <hr:QRCode>TODO-QR</hr:QRCode>
+  </hr:FiskalizacijaData>
+</ubl:Invoice>
+<!-- TODO: ZKI (zaštitni kod ispis — MD5 of seller data); POST to ws.eracun.hr CIS; embed JIR + QR -->`;
+    }
+
+    /**
+     * Albania CIS fiscalization (UBL-based, NIPT identifier).
+     * TODO: implement Albanian NIC (NSLF/NIVF) fiscalization spec;
+     *   POST to Albanian CIS; receive NIVF (unique identification number);
+     *   embed NSLF + QR on printout.
+     */
+    private _buildAlFiscalization(data: InvoiceRenderData): string {
+        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const nipt = getIdentifier(data.company, 'VAT') || '';
+        const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const totalTvsh = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        return `<!-- TODO: Albania CIS Fiscalization — NIC schema; NSLF computation; POST to CIS; embed NIVF + QR -->
+<FiscalInvoice xmlns="urn:al:tatime:cis:fiscalization:v1">
+  <Header>
+    <IIC>${data.rawNumber || 'DRAFT'}</IIC><!-- Issuer Invoice Code (NSLF) -->
+    <IssueDateTime>${issueDate}T12:00:00+02:00</IssueDateTime>
+    <InvoiceType>CASH</InvoiceType>
+    <Currency>${data.company.currency || 'ALL'}</Currency>
+    <NSLF>TODO-NSLF-SELLER-SELF-CONTROL-CODE</NSLF>
+  </Header>
+  <Seller>
+    <NIPT>${nipt}</NIPT>
+    <Name>${data.company.name}</Name>
+    <Address>${data.company.address || 'TODO'}</Address>
+    <City>${data.company.city || ''}</City>
+  </Seller>
+  <Buyer>
+    <NIPT>${getIdentifier(data.client, 'VAT') || ''}</NIPT>
+    <Name>${data.client.name}</Name>
+  </Buyer>
+  <Items>${data.items.map((item, i) => `
+    <Item>
+      <Number>${i + 1}</Number>
+      <Name>${item.name}</Name>
+      <Quantity>${item.quantity}</Quantity>
+      <UnitPrice>${item.unitPrice.toFixed(2)}</UnitPrice>
+      <VatRate>${item.vatRate || 20}</VatRate>
+      <VatAmount>${(item.quantity * item.unitPrice * (item.vatRate || 20) / 100).toFixed(2)}</VatAmount>
+      <TotalWithVat>${(item.quantity * item.unitPrice * (1 + (item.vatRate || 20) / 100)).toFixed(2)}</TotalWithVat>
+    </Item>`).join('')}
+  </Items>
+  <Totals>
+    <TotalWithoutVAT>${total.toFixed(2)}</TotalWithoutVAT>
+    <TotalVAT>${totalTvsh.toFixed(2)}</TotalVAT>
+    <TotalWithVAT>${(total + totalTvsh).toFixed(2)}</TotalWithVAT>
+  </Totals>
+  <NIVF>TODO-NIVF-FROM-CIS</NIVF><!-- Numri i Identifikimit të Veçantë të Faturës -->
+  <QRCode>TODO-QR</QRCode>
+</FiscalInvoice>
+<!-- TODO: NSLF (RSA-2048 signature of key fields); POST to Albanian CIS; embed NIVF + QR code -->`;
     }
 
     private _buildGenericNationalXml(data: InvoiceRenderData, cc: string): string {

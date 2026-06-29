@@ -52,6 +52,12 @@ import {
   KE_B2B,
   GH_B2B,
   RW_B2B,
+  JO_B2B,
+  TN_B2B,
+  UA_B2B,
+  ME_B2B,
+  HR_B2B,
+  AL_B2B,
   FormatFixture,
 } from './__fixtures__/invoices';
 
@@ -999,6 +1005,129 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('100123456')) errors.push('missing seller TIN');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
       results.push({ fixture: fixture.slug, format: 'rw-ebm', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // MENA — scaffold formats (structural / gate-vivant tests)
+  // ---------------------------------------------------------------------------
+
+  describe('Jordan JoFotara (JO)', () => {
+    const fixture = JO_B2B;
+    it(`${fixture.slug} → national-xml JO`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'JO');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('ubl:Invoice')) errors.push('missing ubl:Invoice root');
+      if (!xml.includes('cac:AccountingSupplierParty')) errors.push('missing AccountingSupplierParty');
+      if (!xml.includes('cac:AccountingCustomerParty')) errors.push('missing AccountingCustomerParty');
+      if (!xml.includes('cac:LegalMonetaryTotal')) errors.push('missing LegalMonetaryTotal');
+      if (!xml.includes('cac:InvoiceLine')) errors.push('missing InvoiceLine');
+      if (!xml.includes('1234567890')) errors.push('missing seller TIN');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'jo-jofotara', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Tunisia TEIF (TN)', () => {
+    const fixture = TN_B2B;
+    it(`${fixture.slug} → national-xml TN`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'TN');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('TEIF')) errors.push('missing TEIF root');
+      if (!xml.includes('Entete')) errors.push('missing Entete');
+      if (!xml.includes('Vendeur')) errors.push('missing Vendeur');
+      if (!xml.includes('Acheteur')) errors.push('missing Acheteur');
+      if (!xml.includes('Lignes')) errors.push('missing Lignes');
+      if (!xml.includes('1234567/A/M/000')) errors.push('missing seller MF (matricule fiscal)');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'tn-teif', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Europe-national — scaffold formats (structural / gate-vivant tests)
+  // ---------------------------------------------------------------------------
+
+  describe('Ukraine tax-invoice (UA)', () => {
+    const fixture = UA_B2B;
+    it(`${fixture.slug} → national-xml UA`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'UA');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('DECLAR')) errors.push('missing DECLAR root');
+      if (!xml.includes('DECLARHEAD')) errors.push('missing DECLARHEAD');
+      if (!xml.includes('DECLARBODY')) errors.push('missing DECLARBODY');
+      if (!xml.includes('ITEMS')) errors.push('missing ITEMS');
+      if (!xml.includes('UA123456789')) errors.push('missing seller IPN/EDRPOU');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'ua-taxinvoice', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Montenegro fiscalization (ME)', () => {
+    const fixture = ME_B2B;
+    it(`${fixture.slug} → national-xml ME`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'ME');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('FiscalInvoice')) errors.push('missing FiscalInvoice root');
+      if (!xml.includes('Seller')) errors.push('missing Seller');
+      if (!xml.includes('Buyer')) errors.push('missing Buyer');
+      if (!xml.includes('Items')) errors.push('missing Items');
+      if (!xml.includes('Totals')) errors.push('missing Totals');
+      if (!xml.includes('IKOF')) errors.push('missing IKOF block');
+      if (!xml.includes('12345678')) errors.push('missing seller PIB');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'me-fiscal', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Croatia e-Račun (HR)', () => {
+    const fixture = HR_B2B;
+    it(`${fixture.slug} → national-xml HR`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'HR');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('ubl:Invoice')) errors.push('missing ubl:Invoice root');
+      if (!xml.includes('cac:AccountingSupplierParty')) errors.push('missing AccountingSupplierParty');
+      if (!xml.includes('cac:AccountingCustomerParty')) errors.push('missing AccountingCustomerParty');
+      if (!xml.includes('cac:LegalMonetaryTotal')) errors.push('missing LegalMonetaryTotal');
+      if (!xml.includes('HR12345678901')) errors.push('missing seller OIB (HR-prefixed)');
+      if (!xml.includes('ZKI')) errors.push('missing ZKI (Zaštitni Kod Ispisa)');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'hr-eracun', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Albania CIS fiscalization (AL)', () => {
+    const fixture = AL_B2B;
+    it(`${fixture.slug} → national-xml AL`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'AL');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('FiscalInvoice')) errors.push('missing FiscalInvoice root');
+      if (!xml.includes('Seller')) errors.push('missing Seller');
+      if (!xml.includes('Buyer')) errors.push('missing Buyer');
+      if (!xml.includes('Items')) errors.push('missing Items');
+      if (!xml.includes('Totals')) errors.push('missing Totals');
+      if (!xml.includes('NSLF')) errors.push('missing NSLF (seller self-control code)');
+      if (!xml.includes('K12345678A')) errors.push('missing seller NIPT');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'al-fiscalization', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
       expect(errors).toEqual([]);
     });
   });
