@@ -69,6 +69,9 @@ export default function ChannelsSettings() {
         setConfigModalOpen(false)
         setEditingChannel(null)
         refetch()
+      } else {
+        // trigger() swallows HTTP errors and returns null — surface it instead of failing silently.
+        toast.error(t("settings.channels.messages.saveError", "Failed to save configuration"))
       }
     } catch {
       toast.error(t("settings.channels.messages.saveError", "Failed to save configuration"))

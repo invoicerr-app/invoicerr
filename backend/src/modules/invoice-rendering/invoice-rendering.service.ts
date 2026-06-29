@@ -262,9 +262,15 @@ export class InvoiceRenderingService {
         const buyerCountryCode = guessCountryCode(data.client.country) ?? 'FR';
 
         const sellerVat = getIdentifier(data.company, 'VAT');
-        const sellerSiren = getIdentifier(data.company, 'LEGAL_ID');
         const buyerVat = getIdentifier(data.client, 'VAT');
-        const buyerSiren = getIdentifier(data.client, 'LEGAL_ID');
+        // schemeID 0002 = SIREN (9 digits). The app stores the French legal id as a 14-digit SIRET
+        // (SIREN + NIC); derive the SIREN from its first 9 digits so the CTC seller/buyer id is valid.
+        const toSiren = (legalId?: string): string | undefined => {
+            const digits = (legalId ?? '').replace(/\D/g, '');
+            return digits.length === 14 ? digits.slice(0, 9) : (legalId || undefined);
+        };
+        const sellerSiren = toSiren(getIdentifier(data.company, 'LEGAL_ID'));
+        const buyerSiren = toSiren(getIdentifier(data.client, 'LEGAL_ID'));
 
         // ── Compute totals ────────────────────────────────────────────────
         const fmt2 = (n: number) => n.toFixed(2);

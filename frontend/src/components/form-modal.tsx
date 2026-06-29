@@ -245,8 +245,10 @@ export function DynamicFormModal({ open, title, description, config, currentValu
     })
 
     const handleSubmit = (data: Record<string, any>) => {
+        // Don't reset here: onSubmit is async, and an eager reset would wipe the fields before the
+        // request resolves (and on failure the user would lose their input). The parent closes the
+        // modal on success (unmounting it); handleCancel resets on dismiss.
         onSubmit(data)
-        form.reset()
     }
 
     const handleCancel = () => {
