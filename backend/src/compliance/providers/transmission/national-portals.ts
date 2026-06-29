@@ -19,6 +19,10 @@
 import { ComplianceLogger } from '../../execution/logger';
 import { TransmissionResult } from '../../execution/types';
 import { ChannelType } from '../../types';
+import { IdCoretaxTransmissionProvider } from './asia/id-coretax-transmission';
+import { InIrpTransmissionProvider } from './asia/in-irp-transmission';
+import { MyInvoisTransmissionProvider } from './asia/myinvois-transmission';
+import { SMALL_ASIA_PROVIDERS } from './asia/smaller-portals';
 import { AfipTransmissionProvider } from './latam/afip-transmission';
 import { SefazTransmissionProvider } from './latam/sefaz-transmission';
 import { SiiTransmissionProvider } from './latam/sii-transmission';
@@ -91,15 +95,12 @@ export const NATIONAL_PORTAL_PROVIDERS: TransmissionProvider[] = [
   nationalPortal({ id: 'zw-zimra', channel: GP, label: 'Zimbabwe ZIMRA FDMS', hint: 'transmit to ZIMRA FDMS in real time' }),
   nationalPortal({ id: 'ci-dgi', channel: GP, label: 'Ivory Coast DGI (FNE/SIGF)', hint: 'transmit FNE to DGI SIGF in real time' }),
   nationalPortal({ id: 'bj-dgi', channel: GP, label: 'Benin DGI e-MECeF', hint: 'transmit to DGI e-MECeF in real time' }),
-  // --- Asia ---
-  nationalPortal({ id: 'id-coretax', channel: GP, label: 'Indonesia DGT e-Faktur/Coretax', hint: 'submit e-Faktur to DGT/Coretax, await approval code', async: true }),
-  nationalPortal({ id: 'tw-mof', channel: GP, label: 'Taiwan MoF', hint: 'transmit eGUI to the MoF platform, reserve invoice-number track', async: true }),
-  nationalPortal({ id: 'kz-isesf', channel: GP, label: 'Kazakhstan IS ESF', hint: 'submit ESF to IS ESF, await registration', async: true }),
-  nationalPortal({ id: 'ph-bir', channel: GP, label: 'Philippines BIR EIS', hint: 'transmit to BIR EIS in real time' }),
-  nationalPortal({ id: 'th-rd', channel: GP, label: 'Thailand RD', hint: 'submit e-Tax Invoice to the RD (or report via service provider)' }),
-  nationalPortal({ id: 'np-ird', channel: GP, label: 'Nepal IRD CBMS', hint: 'transmit to IRD CBMS in real time' }),
-  nationalPortal({ id: 'bd-nbr', channel: GP, label: 'Bangladesh NBR', hint: 'transmit to NBR e-invoice in real time' }),
-  nationalPortal({ id: 'pk-fbr', channel: GP, label: 'Pakistan FBR', hint: 'transmit to FBR e-invoice in real time, await IRN' }),
+  // --- Asia — scaffolded clients with injectable HTTP port + configSchema ---
+  new IdCoretaxTransmissionProvider(),  // ID — DGT Coretax e-Faktur (NSFP → kodeOtorisasi)
+  new InIrpTransmissionProvider(),      // IN — GST IRP (IRN hash + signed QR)
+  new MyInvoisTransmissionProvider(),   // MY — LHDNM MyInvois UBL clearance
+  // TW, KZ, PH, TH, NP, BD, PK, CN, VN — uniform scaffold (auth/submit/poll, HTTP injectable)
+  ...SMALL_ASIA_PROVIDERS,
   // --- Europe (national) ---
   // France B2G: Chorus Pro is the mandatory government-invoicing platform (AIFE / DGFiP).
   // B2B invoices go via PDP (channel type PDP); B2G invoices go here (GOV_PORTAL_API/choruspro).
@@ -115,11 +116,8 @@ export const NATIONAL_PORTAL_PROVIDERS: TransmissionProvider[] = [
   nationalPortal({ id: 'al-cis', channel: GP, label: 'Albania CIS', hint: 'fiscalize via the Central Information System, await NIVF/NSLF', async: true }),
   nationalPortal({ id: 'lv-vid', channel: GP, label: 'Latvia VID', hint: 'submit to VID / eAddress (mandate from 2026)' }),
   nationalPortal({ id: 'sk-financnasprava', channel: GP, label: 'Slovakia Finančná správa', hint: 'submit to the Financial Administration e-invoice system' }),
-  // --- Added with the dev docs merge (new clearance majors) ---
-  nationalPortal({ id: 'cn-sta', channel: GP, label: 'China STA (Golden Tax IV)', hint: 'submit e-Fapiao to the STA platform, await authorization', async: true }),
-  nationalPortal({ id: 'in-irp', channel: GP, label: 'India IRP (GSTN/NIC)', hint: 'submit INV-01 to the Invoice Registration Portal, await IRN + signed QR', async: true }),
-  nationalPortal({ id: 'vn-gdt', channel: GP, label: 'Vietnam GDT', hint: 'submit to the GDT, await the invoice code (mã CQT)', async: true }),
-  nationalPortal({ id: 'myinvois', channel: GP, label: 'Malaysia MyInvois (LHDNM)', hint: 'submit to MyInvois for validation before sharing, await the validation UIN', async: true }),
+  // --- Europe / Other (new clearance majors from dev docs merge) ---
+  // Note: cn-sta, in-irp, vn-gdt, myinvois now live in the Asia providers above.
   nationalPortal({ id: 'anaf', channel: GP, label: 'Romania ANAF (SPV / RO e-Factura)', hint: 'upload UBL/RO_CIUS to the SPV, await the ministry signature/index', async: true }),
   nationalPortal({ id: 'rs-sef', channel: GP, label: 'Serbia SEF', hint: 'submit UBL/SRBEFN to the SEF, await acceptance', async: true }),
   nationalPortal({ id: 'gib', channel: GP, label: 'Turkey GİB', hint: 'submit UBL-TR e-Fatura/e-Arşiv via GİB or a private integrator, await the envelope status', async: true }),

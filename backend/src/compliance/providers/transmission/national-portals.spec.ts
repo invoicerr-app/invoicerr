@@ -31,12 +31,16 @@ describe('national transmission portals', () => {
     }
   });
 
-  it('real-time/report portals are fire-and-forget (NONE feedback, SENT)', async () => {
+  it('real-time/report portals are fire-and-forget (NONE feedback)', async () => {
     const log = new RecordingComplianceLogger();
     for (const id of ['ke-kra', 'es-aeat', 'ph-bir', 'gr-aade', 'hu-nav']) {
       const p = defaultTransmissionRegistry.getById(id)!;
       expect(p.feedback).toBe('NONE');
-      expect((await p.transmit([], {} as never, {} as never, 'k', log)).status).toBe('SENT');
+      // Stub portals (nationalPortal) return SENT; scaffolded portals with configSchema
+      // return SKIPPED when unconfigured — both are valid pre-credentials states.
+      expect(['SENT', 'SKIPPED']).toContain(
+        (await p.transmit([], {} as never, {} as never, 'k', log)).status,
+      );
     }
   });
 
