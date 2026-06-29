@@ -58,8 +58,8 @@
 - [ ] MENA : `JO_JOFOTARA` · `TN_TEIF` · `TR_EFATURA` · `EG_ETA`
 - [ ] Afrique : `NG_FIRS` · `KE_ETIMS` · `GH_EVAT` · `RW_EBM` · `TZ_VFD` · `UG_EFRIS` · `ZM_SMARTINVOICE` ·
   `ZW_FDMS` · `CI_FNE` · `BJ_MECEF`
-- [ ] Asie : `ID_EFAKTUR` · `TW_EGUI` · `KZ_ESF` · `PH_EIS` · `TH_ETAX` · `NP_CBMS` · `BD_NBR` · `PK_FBR` ·
-  `CN_EFAPIAO` · `IN_IRP` · `VN_TT78`
+- [~] Asie **scaffoldé** (builders + clients, mockés, live‑deferred) : `IN_IRP`(IRN SHA‑256), `MY MyInvois`(UBL+OAuth2),
+  `ID_EFAKTUR`(Coretax) profonds ; `TW_EGUI`·`KZ_ESF`·`PH_EIS`·`TH_ETAX`·`NP_CBMS`·`BD_NBR`·`PK_FBR`·`CN_EFAPIAO`·`VN_TT78` génériques. Reste : champs obligatoires + XSD + sceau DSC/PKCS#7 + clearance.
 - [ ] Europe (national) : `UA_TAXINVOICE` · `ME_FISCAL` · `HR_ERACUN` · `AL_FISCALIZATION`
 - [ ] `NATIONAL_XML` placeholder → remplacer par des providers dédiés par pays.
 
@@ -114,7 +114,8 @@
     `bo-sin`/`cr-hacienda`/`dgii`/`gt-sat`/`pa-dgi`/`sifen`/`sv-mh`/`seniat` génériques. [ ] `dian`(CO) reste stub ; [ ] endpoints/auth réels par autorité.
   - [ ] MENA : `zatca` · `jofotara` · `tn-ttn`
   - [ ] Afrique : `firs` · `ke-kra` · `gh-gra` · `rw-rra` · `tz-tra` · `ug-ura` · `zm-zra` · `zw-zimra` · `ci-dgi` · `bj-dgi`
-  - [ ] Asie : `id-coretax` · `tw-mof` · `kz-isesf` · `ph-bir` · `th-rd` · `np-ird` · `bd-nbr` · `pk-fbr` · `cn-sta` · `in-irp` · `vn-gdt` · `myinvois`
+  - [~] Asie **scaffoldé** (clients mockés, live‑deferred) : `in-irp`·`myinvois`·`id-coretax` profonds ;
+    `tw-mof`·`kz-isesf`·`ph-bir`·`th-rd`·`np-ird`·`bd-nbr`·`pk-fbr`·`cn-sta`·`vn-gdt` génériques. [ ] auth/endpoints réels.
   - [ ] Europe : `choruspro` · `es-aeat` · `ua-dps` · `me-fiscal` · `hr-fiskalizacija` · `al-cis` · `lv-vid` · `sk-financnasprava` · `anaf` · `rs-sef` · `gib` · `gr-aade` · `hu-nav` · `eg-eta`
 
 ### 3.5 Transverse transmission
