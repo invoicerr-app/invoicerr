@@ -161,7 +161,9 @@
 
 - [x] **SIREN ← SIRET** (schemeID 0002 = 9 premiers chiffres du SIRET 14).
 - [ ] **Routing acheteur** via annuaire (AFNOR Directory / Peppol SMP) plutôt qu'en config société.
-- [ ] **Validation identifiants** : VAT (VIES), SIRET (SIRENE), NIP, Codice Fiscale/P.IVA, RFC… (format+checksum+existence).
+- [x] **Validation identifiants — checksums offline** : SIREN/SIRET (Luhn), NIP (mod‑11), VAT FR (mod‑97)/IT/DE (ISO 7064)/ES NIF‑NIE (mod‑23)/PL, Codice Fiscale (mod‑26). `validateContextIdentifiers` câblé en step 0 de l'executor (warnings, non bloquant). 74 tests (valides+invalides cités). RFC/CIF/clé alpha FR = structurel.
+- [x] **Existence distante (port)** : `ViesExistenceClient` (VIES REST, sans creds) + `SireneExistenceClient` (INSEE, Bearer) derrière `IdentifierExistencePort` ; défaut `Null` (offline‑safe), tests mockés. Live deferred.
+- [ ] Brancher l'existence VIES/SIRENE dans le flux + cache ; durcir clé alpha FR VAT + CIF ES.
 - [ ] Champs manquants au modèle : EndpointID/Peppol ID par client, tel/email vendeur, code moyen de paiement, NIC.
 - [ ] Table + lookup + cache **annuaire** des participants.
 
@@ -181,7 +183,7 @@
 - **🇫🇷 FR** — [x] EN16931_CII(→PDP) + Factur‑X · [x] PDP(superpdp) · [ ] AFNOR preuve · [ ] ChorusPro B2G ·
   [x] Peppol(mocké) · [x] Email · [ ] signature · [ ] push PDP `encaissée` · [ ] e‑reporting B2C.
 - **🇵🇱 PL** — [x] FA(2) · [x] KSeF(test) · [ ] KSeF prod · [ ] archivage UPO.
-- **🇮🇹 IT** — [x] FatturaPA(build) · [x] SdI(mocké) · [ ] SdI live · [ ] CAdES .p7m · [ ] notifiche entrant.
+- **🇮🇹 IT** — [x] FatturaPA(build) · [x] SdI(mocké) · [x] CAdES .p7m (réel) · [x] notifiche entrant (parser) · [ ] SdI live.
 - **🇲🇽 MX** — [ ] CFDI(finir) · [ ] PAC/timbrado · [ ] sceau SAT · [ ] folios bloquants.
 - **🇺🇸 US** — [x] post‑audit Email/Peppol (vérifier le profil).
 - **🇲🇨 MC** — [x] délègue à FR.
