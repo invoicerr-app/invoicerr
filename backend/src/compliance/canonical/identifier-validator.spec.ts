@@ -192,11 +192,40 @@ describe('validateFrVat', () => {
     expect(r.reason).toMatch(/key mismatch/i);
   });
 
-  it('accepts alpha key as structural-only (no checksum)', () => {
-    // Historically some FR VAT numbers used letters as key chars (e.g. FRA0, FR0B...)
-    const r = validateFrVat('FRA0303265045');
+  // Historical alpha/mixed-key algorithm (base-34 encoding of clé):
+  //   key decoded: val(k1)*34 + val(k2), where '0'-'9'→0-9, 'A'-'H'→10-17, 'J'-'N'→18-22, 'P'-'Z'→23-33
+  //   valid when key_base34 == (12 + 3*(siren%97))%97
+  //
+  // Derivation for "FR0B123456782" (SIREN=123456782, clé=11):
+  //   '0'→0, 'B'→11; key_base34=0*34+11=11. Expected=(12+3*32)%97=11. ✓
+  it('accepts a valid alpha-key FR VAT (base-34 checksum passes)', () => {
+    const r = validateFrVat('FR0B123456782');
     expect(r.valid).toBe(true);
-    expect(r.checksumValidated).toBe(false);
+    expect(r.checksumValidated).toBe(true);
+  });
+
+  it('rejects an alpha-key FR VAT with wrong base-34 key', () => {
+    // "FR0C123456782": '0C'→0*34+12=12, expected=11 → mismatch
+    const r = validateFrVat('FR0C123456782');
+    expect(r.valid).toBe(false);
+    expect(r.checksumValidated).toBe(true);
+    expect(r.reason).toMatch(/alpha key mismatch/i);
+  });
+
+  it('rejects alpha key "A0" whose base-34 value (340) exceeds the valid range (0-96)', () => {
+    // "FRA0303265045": 'A0'→10*34+0=340; expected=(12+3*74)%97=40; 340≠40 → invalid.
+    // (No SIREN can produce clé=340 since clé is always 0-96.)
+    const r = validateFrVat('FRA0303265045');
+    expect(r.valid).toBe(false);
+    expect(r.checksumValidated).toBe(true);
+  });
+
+  it('accepts a mixed digit+letter alpha key (FR1A100000059)', () => {
+    // SIREN=100000059, siren%97=(81+59)%97=43; clé=(12+3*43)%97=44.
+    // key "1A": '1'→1, 'A'→10; key_base34=1*34+10=44. 44==44 ✓
+    const r = validateFrVat('FR1A100000059');
+    expect(r.valid).toBe(true);
+    expect(r.checksumValidated).toBe(true);
   });
 
   it('rejects malformed FR VAT', () => {
@@ -353,11 +382,40 @@ describe('validateEsVat', () => {
     expect(r.valid).toBe(false);
   });
 
-  it('accepts CIF structural format (checksum not validated)', () => {
-    // CIF: letter + 7 digits + alphanumeric. No checksum here.
-    const r = validateEsVat('ESA1234567B');
+  // CIF control-char derivation for digits "1234567":
+  //   sumOdd(d1,d3,d5,d7) = 1+3+5+7 = 16
+  //   sumEven(d2,d4,d6 × 2, subtract 9 if >9) = 4+8+3 = 15 (12→3)
+  //   total = 31; control_digit = (10-1)%10 = 9; control_letter = "JABCDEFGHI"[9] = 'I'
+  //   Org A (digit control) → expected '9'; Org K (letter control) → expected 'I'
+  it('accepts CIF with digit control char (org type A → expected digit "9")', () => {
+    // ESA12345679: org=A, digits=1234567, ctrl='9'. control_digit=9 ✓
+    const r = validateEsVat('ESA12345679');
     expect(r.valid).toBe(true);
-    expect(r.checksumValidated).toBe(false);
+    expect(r.checksumValidated).toBe(true);
+  });
+
+  it('accepts CIF with letter control char (org type K → expected letter "I")', () => {
+    // ESK1234567I: org=K, digits=1234567, ctrl='I'. control_letter='I' ✓
+    const r = validateEsVat('ESK1234567I');
+    expect(r.valid).toBe(true);
+    expect(r.checksumValidated).toBe(true);
+  });
+
+  it('rejects CIF with wrong control char (ESA1234567B → expected "9" not "B")', () => {
+    const r = validateEsVat('ESA1234567B');
+    expect(r.valid).toBe(false);
+    expect(r.checksumValidated).toBe(true);
+    expect(r.reason).toMatch(/CIF control char mismatch/i);
+  });
+
+  it('accepts CIF with letter or digit for general org type (org type C)', () => {
+    // ESC12345679: org=C (general), ctrl='9' = digit form. Should accept.
+    const r = validateEsVat('ESC12345679');
+    expect(r.valid).toBe(true);
+    expect(r.checksumValidated).toBe(true);
+    // Also accept letter form
+    const r2 = validateEsVat('ESC1234567I');
+    expect(r2.valid).toBe(true);
   });
 
   it('rejects malformed ES VAT (wrong length)', () => {

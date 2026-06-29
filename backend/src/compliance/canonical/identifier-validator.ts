@@ -105,9 +105,28 @@ export function validateNip(value: string): IdentifierValidationResult {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // French VAT (TVA intracommunautaire) — FR + 2-char key + 9-digit SIREN
-// Numeric key only: expected = (12 + 3 × (SIREN mod 97)) mod 97.
-// Alpha/mixed key (historical): structural check only.
+//
+// The key is always derived from the same base formula:
+//   clé = (12 + 3 × (SIREN mod 97)) mod 97   → value in [0, 96]
+//
+// Modern encoding (all-digit key): clé expressed as a zero-padded 2-digit decimal.
+//   e.g. clé=11 → key "11"
+//
+// Historical encoding (alpha/mixed key, legacy pre-2012 assignments):
+//   clé expressed in base 34 using the alphabet "0-9 A-H J-N P-Z" (I and O excluded).
+//   char values: '0'→0, '1'→1, …, '9'→9, 'A'→10, 'B'→11, …, 'H'→17, 'J'→18, …, 'Z'→33.
+//   key_base34 = val(k1)*34 + val(k2); valid when key_base34 == clé.
+//   Valid alpha keys always satisfy key_base34 ≤ 96 (k1 ≤ '2' in base-34).
+//
+// Reference: https://fr.wikipedia.org/wiki/Num%C3%A9ro_de_TVA_intracommunautaire#France
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** Base-34 alphabet for FR VAT key encoding (excludes I and O). */
+const FR_VAT_B34 = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // 34 chars
+
+function frVatCharVal(c: string): number {
+  return FR_VAT_B34.indexOf(c); // returns -1 for invalid chars (I, O) — caught by regex guard
+}
 
 export function validateFrVat(value: string): IdentifierValidationResult {
   const clean = value.replace(/[\s-]/g, '').toUpperCase();
@@ -117,8 +136,10 @@ export function validateFrVat(value: string): IdentifierValidationResult {
   }
   const key = clean.slice(2, 4);
   const siren = clean.slice(4);
+  const expected = (12 + 3 * (parseInt(siren, 10) % 97)) % 97;
+
   if (/^\d{2}$/.test(key)) {
-    const expected = (12 + 3 * (parseInt(siren, 10) % 97)) % 97;
+    // Modern encoding: key is a 2-digit decimal integer.
     const actual = parseInt(key, 10);
     const valid = actual === expected;
     return {
@@ -127,8 +148,18 @@ export function validateFrVat(value: string): IdentifierValidationResult {
       checksumValidated: true,
     };
   }
-  // Alpha key: structural only (letter encoding is historical, not checksum-verified here)
-  return { scheme: 'VAT', value, valid: true, reason: 'Alpha key: structural check only', checksumValidated: false };
+
+  // Historical alpha/mixed-key encoding: decode key in base 34 and compare to clé.
+  // Both chars are in [0-9A-HJ-NP-Z] (guaranteed by the regex above); I and O are excluded.
+  const actual = frVatCharVal(key[0]) * 34 + frVatCharVal(key[1]);
+  const valid = actual === expected;
+  return {
+    scheme: 'VAT', value, valid,
+    reason: valid
+      ? undefined
+      : `FR VAT alpha key mismatch (base-34 value ${actual} ≠ expected ${expected})`,
+    checksumValidated: true,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -232,16 +263,48 @@ export function validateDeVat(value: string): IdentifierValidationResult {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Spanish VAT/NIF/NIE — ES + 9 chars
+// Spanish VAT/NIF/NIE/CIF — ES + 9 chars
+//
 // NIF (individuals): ES + 8 digits + check letter
 //   check = "TRWAGMYFPDXBNJZSQVHLCKE"[number % 23]
 // NIE (EU foreigners): ES + X/Y/Z + 7 digits + check letter
 //   X→0, Y→1, Z→2, then same NIF formula
-// CIF (companies) and other forms: structural only
-// Reference: https://en.wikipedia.org/wiki/VAT_identification_number#Spain
+// CIF (organisations): ES + org-type letter + 7 digits + control char
+//   Algorithm (Código de Identificación Fiscal):
+//     A = sum of digits at odd 1-indexed positions (d1,d3,d5,d7)
+//     B = sum of doubled even-position digits (d2,d4,d6; subtract 9 if >9)
+//     C = (A + B) mod 10; control_digit = (10 − C) mod 10
+//     control_letter = "JABCDEFGHI"[control_digit]
+//   Org types requiring DIGIT control: A, B, E, H
+//   Org types requiring LETTER control: K, P, Q, S, W
+//   Others: accept either digit or letter.
+//
+// References:
+//   https://en.wikipedia.org/wiki/VAT_identification_number#Spain
+//   https://es.wikipedia.org/wiki/C%C3%B3digo_de_identificaci%C3%B3n_fiscal
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ES_NIF_LETTERS = 'TRWAGMYFPDXBNJZSQVHLCKE';
+const CIF_CONTROL_LETTERS = 'JABCDEFGHI';
+const CIF_DIGIT_ONLY_ORG = new Set(['A', 'B', 'E', 'H']);
+const CIF_LETTER_ONLY_ORG = new Set(['K', 'P', 'Q', 'S', 'W']);
+
+/**
+ * Compute the CIF control digit (0-9) from the 7 interior digits.
+ * digits: 7-character string d1..d7.
+ */
+function cifControlDigit(digits: string): number {
+  // Sum digits at 1-indexed odd positions (d1, d3, d5, d7 = 0-indexed 0, 2, 4, 6)
+  let sumOdd = 0;
+  for (const i of [0, 2, 4, 6]) sumOdd += parseInt(digits[i], 10);
+  // Double digits at 1-indexed even positions (d2, d4, d6 = 0-indexed 1, 3, 5); subtract 9 if >9
+  let sumEven = 0;
+  for (const i of [1, 3, 5]) {
+    const d = parseInt(digits[i], 10) * 2;
+    sumEven += d > 9 ? d - 9 : d;
+  }
+  return (10 - (sumOdd + sumEven) % 10) % 10;
+}
 
 export function validateEsVat(value: string): IdentifierValidationResult {
   const clean = value.replace(/[\s-]/g, '').toUpperCase();
@@ -264,8 +327,30 @@ export function validateEsVat(value: string): IdentifierValidationResult {
     const valid = body[8] === expected;
     return { scheme: 'VAT', value, valid, reason: valid ? undefined : `ES NIE letter mismatch (expected ${expected})`, checksumValidated: true };
   }
-  // CIF (letter + 7 digits + alphanumeric) and other patterns: structural only
-  return { scheme: 'VAT', value, valid: true, reason: 'Structural check only (CIF or unrecognised ES pattern)', checksumValidated: false };
+  // CIF: org-type letter + 7 digits + control char (digit or letter)
+  if (/^[A-Z]\d{7}[A-Z0-9]$/.test(body)) {
+    const orgType = body[0];
+    const digits = body.slice(1, 8);
+    const ctrl = body[8];
+    const ctrlDigit = cifControlDigit(digits);
+    const ctrlLetter = CIF_CONTROL_LETTERS[ctrlDigit];
+
+    let valid: boolean;
+    let reason: string | undefined;
+    if (CIF_DIGIT_ONLY_ORG.has(orgType)) {
+      valid = ctrl === String(ctrlDigit);
+      if (!valid) reason = `ES CIF control char mismatch for org type ${orgType} (expected digit '${ctrlDigit}', got '${ctrl}')`;
+    } else if (CIF_LETTER_ONLY_ORG.has(orgType)) {
+      valid = ctrl === ctrlLetter;
+      if (!valid) reason = `ES CIF control char mismatch for org type ${orgType} (expected letter '${ctrlLetter}', got '${ctrl}')`;
+    } else {
+      valid = ctrl === String(ctrlDigit) || ctrl === ctrlLetter;
+      if (!valid) reason = `ES CIF control char mismatch (expected '${ctrlDigit}' or '${ctrlLetter}', got '${ctrl}')`;
+    }
+    return { scheme: 'VAT', value, valid, reason, checksumValidated: true };
+  }
+  // Unrecognised ES pattern — structural only
+  return { scheme: 'VAT', value, valid: true, reason: 'Structural check only (unrecognised ES pattern)', checksumValidated: false };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

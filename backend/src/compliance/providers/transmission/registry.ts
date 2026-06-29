@@ -24,6 +24,34 @@ export class TransmissionProviderRegistry {
   private readonly byId = new Map<string, TransmissionProvider>();
   readonly credentials?: ChannelCredentialsPort;
 
+  /**
+   * In-memory idempotency store: maps a per-channel idempotency key to the
+   * Unix ms timestamp of the first send.  A second transmitAll call with the
+   * same (idempotencyKeyBase + provider + channel-index) within the TTL window
+   * returns SKIPPED instead of forwarding to the provider, preventing
+   * double-submission on retries.
+   *
+   * Scope: process lifetime only (no persistence).  The TTL window (5 min) is
+   * sized so that an in-flight retry cycle is caught but a deliberate re-issue
+   * hours later is not suppressed.
+   */
+  private readonly _seenKeys = new Map<string, number>(); // key → timestamp ms
+  private readonly _idempotencyTtlMs = 5 * 60 * 1000;   // 5 minutes
+
+  private _isDuplicate(key: string): boolean {
+    const ts = this._seenKeys.get(key);
+    if (ts === undefined) return false;
+    if (Date.now() - ts > this._idempotencyTtlMs) {
+      this._seenKeys.delete(key);
+      return false;
+    }
+    return true;
+  }
+
+  private _markSeen(key: string): void {
+    this._seenKeys.set(key, Date.now());
+  }
+
   constructor(providers?: TransmissionProvider[] | { mail?: InvoiceMailPort; credentials?: ChannelCredentialsPort }) {
     let list: TransmissionProvider[];
     if (Array.isArray(providers)) {
@@ -126,7 +154,14 @@ export class TransmissionProviderRegistry {
         }
       }
 
-      results.push(await provider.transmit(artifacts, ctx, plan, `${idempotencyKeyBase}:${provider.id}:${i}`, log, resolvedConfig));
+      const iKey = `${idempotencyKeyBase}:${provider.id}:${i}`;
+      if (this._isDuplicate(iKey)) {
+        log.info('transmission', `idempotency: duplicate send suppressed (key=${iKey})`);
+        results.push({ channel: spec.type, status: 'SKIPPED', notes: [`idempotency: duplicate send suppressed (key=${iKey})`] });
+        continue;
+      }
+      this._markSeen(iKey);
+      results.push(await provider.transmit(artifacts, ctx, plan, iKey, log, resolvedConfig));
     }
     return results;
   }

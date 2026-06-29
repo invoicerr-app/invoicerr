@@ -262,6 +262,53 @@ describe('Peppol BIS Billing 3.0 — Schematron gate (PEPPOL-EN16931-UBL.sch)', 
   });
 });
 
+// ── EN16931 CII — Schematron gate ────────────────────────────────────────────
+//
+// Reusable validation harness helper: given an XML string and a .sch path,
+// runs the bundled Schematron and returns { valid, errorCount, errors }.
+// Used here for CII EN16931; the same function is available in tests that
+// need to run a single-format gate without constructing a full provider.
+
+describe('EN16931 CII — Schematron gate (EN16931-CII-validation-preprocessed.sch)', () => {
+  const CII_SCH = 'en16931/EN16931-CII-validation-preprocessed.sch';
+  const service = new InvoiceRenderingService();
+
+  it('[positive] FR_B2B_STANDARD CII builder output validates (no Schematron errors)', async () => {
+    const inv = service.buildEInvoice(FR_B2B_STANDARD.data);
+    const xml = await inv.exportXml('cii');
+    expect(xml).toContain('CrossIndustryInvoice');
+
+    const result = validateSchematron(xml, CII_SCH);
+    if (result.errorCount > 0) {
+      console.warn(
+        'EN16931 CII Schematron errors:',
+        result.errors.map((e) => `[${e.id}] ${e.message}`).join('\n'),
+      );
+    }
+    expect(result.errorCount).toBe(0);
+    expect(result.valid).toBe(true);
+  });
+
+  it('[negative] CII Schematron fires on document with SellerTradeParty removed (EN16931 BR-07)', async () => {
+    const inv = service.buildEInvoice(FR_B2B_STANDARD.data);
+    const xml = await inv.exportXml('cii');
+    // Remove the seller party block — EN16931 rule BR-07 requires it
+    const broken = xml.replace(/<ram:SellerTradeParty>[\s\S]*?<\/ram:SellerTradeParty>/, '');
+    const result = validateSchematron(broken, CII_SCH);
+    expect(result.errorCount).toBeGreaterThan(0);
+  });
+
+  it('[negative] CII Schematron fires on document with all line amounts zeroed out', async () => {
+    const inv = service.buildEInvoice(FR_B2B_STANDARD.data);
+    const xml = await inv.exportXml('cii');
+    // Corrupt line amounts: replace all ram:LineTotalAmount with 0 (while header totals unchanged)
+    const broken = xml.replace(/<ram:LineTotalAmount>[^<]+<\/ram:LineTotalAmount>/g, '<ram:LineTotalAmount>0</ram:LineTotalAmount>');
+    const result = validateSchematron(broken, CII_SCH);
+    // EN16931 arithmetic consistency rules (BR-CO-*) should fire
+    expect(result.errorCount).toBeGreaterThan(0);
+  });
+});
+
 // ── FA_VAT (PL) — XSD gate (complement to national-format-validation.spec.ts) ──
 
 describe('FA_VAT (PL) — XSD gate via provider.validate()', () => {
