@@ -68,6 +68,9 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         country: z.string().min(1, t("clients.upsert.validation.country.required")),
         countryCode: z.string().optional(),
         identifiers: z.array(z.object({ scheme: z.string(), value: z.string() })).optional(),
+        // Peppol / electronic routing (stored as PEPPOL_ENDPOINT party identifier)
+        peppolSchemeId: z.string().optional(),
+        peppolEndpointId: z.string().optional(),
     }).superRefine((val, ctx) => {
         if (val.type === 'INDIVIDUAL') {
             if (!val.contactFirstname || val.contactFirstname.trim() === '') {
@@ -103,6 +106,8 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
             country: "",
             countryCode: "",
             identifiers: [],
+            peppolSchemeId: "0088",
+            peppolEndpointId: "",
         },
     })
 
@@ -112,6 +117,12 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
     useEffect(() => {
         if (isEditing && client) {
             const c: any = client as any;
+            // Parse Peppol endpoint from partyIdentifiers (format: 'schemeId:value')
+            const peppolEntry = (c.partyIdentifiers || []).find((pi: any) => pi.scheme === 'PEPPOL_ENDPOINT');
+            const peppolRaw: string = peppolEntry?.value || '';
+            const colonIdx = peppolRaw.indexOf(':');
+            const parsedPeppolSchemeId = colonIdx >= 0 ? peppolRaw.slice(0, colonIdx) : '0088';
+            const parsedPeppolEndpointId = colonIdx >= 0 ? peppolRaw.slice(colonIdx + 1) : '';
             form.reset({
                 type: c.type || 'COMPANY',
                 name: c.name || "",
@@ -129,7 +140,11 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                 state: c.state || "",
                 country: c.country || "",
                 countryCode: c.countryCode || "",
-                identifiers: (c.partyIdentifiers || []).map((pi: any) => ({ scheme: pi.scheme, value: pi.value })),
+                identifiers: (c.partyIdentifiers || [])
+                    .filter((pi: any) => pi.scheme !== 'PEPPOL_ENDPOINT')
+                    .map((pi: any) => ({ scheme: pi.scheme, value: pi.value })),
+                peppolSchemeId: parsedPeppolSchemeId,
+                peppolEndpointId: parsedPeppolEndpointId,
             })
         } else if (!isEditing) {
             form.reset({
@@ -150,6 +165,8 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                 country: "",
                 countryCode: "",
                 identifiers: [],
+                peppolSchemeId: "0088",
+                peppolEndpointId: "",
             })
         }
     }, [client, isEditing, form])
@@ -220,10 +237,18 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
 
         const trigger = isEditing ? updateClient : createClient
 
+        // Merge Peppol endpoint into identifiers (stored as PEPPOL_ENDPOINT party identifier)
+        const peppolEntry = data.peppolSchemeId && data.peppolEndpointId?.trim()
+            ? { scheme: 'PEPPOL_ENDPOINT', value: `${data.peppolSchemeId}:${data.peppolEndpointId.trim()}` }
+            : null;
+        const { peppolSchemeId: _ps, peppolEndpointId: _pe, ...dataWithoutPeppol } = data;
         // Filter out empty identifiers so we don't send {scheme, value: ""}
         const payload = {
-            ...data,
-            identifiers: (data.identifiers || []).filter((i) => i.value.trim() !== ""),
+            ...dataWithoutPeppol,
+            identifiers: [
+                ...(data.identifiers || []).filter((i) => i.value.trim() !== ""),
+                ...(peppolEntry ? [peppolEntry] : []),
+            ],
         }
 
         trigger(payload)
@@ -395,6 +420,63 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                                     </div>
                                 </div>
                             ) : null}
+
+                            {/* Peppol / Electronic routing section */}
+                            <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
+                                <p className="text-sm font-medium text-muted-foreground">
+                                    {t("clients.upsert.fields.peppol.label") || "Peppol / Electronic routing (optional)"}
+                                </p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="peppolSchemeId"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>{t("clients.upsert.fields.peppolSchemeId.label") || "Peppol scheme"}</FormLabel>
+                                                <FormControl>
+                                                    <Select value={field.value || "0088"} onValueChange={field.onChange}>
+                                                        <SelectTrigger data-cy="client-peppol-scheme-select">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="0088">0088 — GLN</SelectItem>
+                                                            <SelectItem value="0192">0192 — NO org.nr</SelectItem>
+                                                            <SelectItem value="0009">0009 — FR SIRET</SelectItem>
+                                                            <SelectItem value="9925">9925 — EU VAT</SelectItem>
+                                                            <SelectItem value="0007">0007 — SE org.nr</SelectItem>
+                                                            <SelectItem value="0208">0208 — BE org.nr</SelectItem>
+                                                            <SelectItem value="0106">0106 — DK CVR</SelectItem>
+                                                            <SelectItem value="0151">0151 — AU ABN</SelectItem>
+                                                            <SelectItem value="0060">0060 — DUNS</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="peppolEndpointId"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>{t("clients.upsert.fields.peppolEndpointId.label") || "Peppol endpoint ID"}</FormLabel>
+                                                <FormControl>
+                                                    <Input
+                                                        {...field}
+                                                        placeholder={t("clients.upsert.fields.peppolEndpointId.placeholder") || "e.g. 7300010000001"}
+                                                        data-cy="client-peppol-endpoint-input"
+                                                    />
+                                                </FormControl>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {t("clients.upsert.fields.peppolEndpointId.helpText") || "Leave blank if this client is not on the Peppol network"}
+                                                </p>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+                            </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField

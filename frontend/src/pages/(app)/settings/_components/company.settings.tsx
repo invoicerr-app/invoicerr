@@ -186,6 +186,9 @@ export default function CompanySettings() {
 		identifiers: z
 			.array(z.object({ scheme: z.string(), value: z.string() }))
 			.optional(),
+		// Peppol / electronic routing (stored as PEPPOL_ENDPOINT party identifier)
+		peppolSchemeId: z.string().optional(),
+		peppolEndpointId: z.string().optional(),
 	});
 
 	const { data } = useGet<Company>("/api/company/info");
@@ -217,11 +220,19 @@ export default function CompanySettings() {
 			paymentStartingNumber: 1,
 			paymentNumberFormat: "PAY-{year}-{number}",
 			identifiers: [],
+			peppolSchemeId: "0088",
+			peppolEndpointId: "",
 		},
 	});
 
 	useEffect(() => {
 		if (data && Object.keys(data).length > 0) {
+			// Parse Peppol endpoint from partyIdentifiers (format: 'schemeId:value')
+			const peppolEntry = (data.partyIdentifiers || []).find((pi: any) => pi.scheme === 'PEPPOL_ENDPOINT');
+			const peppolRaw: string = peppolEntry?.value || '';
+			const colonIdx = peppolRaw.indexOf(':');
+			const parsedPeppolSchemeId = colonIdx >= 0 ? peppolRaw.slice(0, colonIdx) : '0088';
+			const parsedPeppolEndpointId = colonIdx >= 0 ? peppolRaw.slice(colonIdx + 1) : '';
 			form.reset({
 				...data,
 				countryCode: data.countryCode ?? undefined,
@@ -230,10 +241,14 @@ export default function CompanySettings() {
 				state: data.state ?? "",
 				foundedAt: new Date(data.foundedAt),
 				exemptVat: !!data.exemptVat,
-				identifiers: (data.partyIdentifiers || []).map((pi: any) => ({
-					scheme: pi.scheme,
-					value: pi.value,
-				})),
+				identifiers: (data.partyIdentifiers || [])
+					.filter((pi: any) => pi.scheme !== 'PEPPOL_ENDPOINT')
+					.map((pi: any) => ({
+						scheme: pi.scheme,
+						value: pi.value,
+					})),
+				peppolSchemeId: parsedPeppolSchemeId,
+				peppolEndpointId: parsedPeppolEndpointId,
 			});
 		}
 	}, [data, form]);
@@ -314,11 +329,17 @@ export default function CompanySettings() {
 		}
 
 		setIsLoading(true);
+		// Merge Peppol endpoint into identifiers (stored as PEPPOL_ENDPOINT party identifier)
+		const peppolEntry = values.peppolSchemeId && values.peppolEndpointId?.trim()
+			? { scheme: 'PEPPOL_ENDPOINT', value: `${values.peppolSchemeId}:${values.peppolEndpointId.trim()}` }
+			: null;
+		const { peppolSchemeId: _ps, peppolEndpointId: _pe, ...valuesWithoutPeppol } = values;
 		const payload = {
-			...values,
-			identifiers: (values.identifiers || []).filter(
-				(i) => i.value.trim() !== "",
-			),
+			...valuesWithoutPeppol,
+			identifiers: [
+				...(values.identifiers || []).filter((i) => i.value.trim() !== ""),
+				...(peppolEntry ? [peppolEntry] : []),
+			],
 		};
 		trigger(payload)
 			.then(() => {
@@ -560,6 +581,63 @@ export default function CompanySettings() {
 									</div>
 								</div>
 							) : null}
+
+						{/* Peppol / Electronic routing section (seller) */}
+						<div className="space-y-4 border rounded-lg p-4 bg-muted/30 mt-4">
+							<p className="text-sm font-medium text-muted-foreground">
+								{t("settings.company.form.peppol.label") || "Peppol / Electronic routing (optional)"}
+							</p>
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<FormField
+									control={form.control}
+									name="peppolSchemeId"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>{t("settings.company.form.peppolSchemeId.label") || "Peppol scheme"}</FormLabel>
+											<FormControl>
+												<Select value={field.value || "0088"} onValueChange={field.onChange}>
+													<SelectTrigger data-cy="company-peppol-scheme-select">
+														<SelectValue />
+													</SelectTrigger>
+													<SelectContent>
+														<SelectItem value="0088">0088 — GLN</SelectItem>
+														<SelectItem value="0192">0192 — NO org.nr</SelectItem>
+														<SelectItem value="0009">0009 — FR SIRET</SelectItem>
+														<SelectItem value="9925">9925 — EU VAT</SelectItem>
+														<SelectItem value="0007">0007 — SE org.nr</SelectItem>
+														<SelectItem value="0208">0208 — BE org.nr</SelectItem>
+														<SelectItem value="0106">0106 — DK CVR</SelectItem>
+														<SelectItem value="0151">0151 — AU ABN</SelectItem>
+														<SelectItem value="0060">0060 — DUNS</SelectItem>
+													</SelectContent>
+												</Select>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+								<FormField
+									control={form.control}
+									name="peppolEndpointId"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>{t("settings.company.form.peppolEndpointId.label") || "Peppol endpoint ID"}</FormLabel>
+											<FormControl>
+												<Input
+													{...field}
+													placeholder={t("settings.company.form.peppolEndpointId.placeholder") || "e.g. 7300010000001"}
+													data-cy="company-peppol-endpoint-input"
+												/>
+											</FormControl>
+											<p className="text-xs text-muted-foreground">
+												{t("settings.company.form.peppolEndpointId.helpText") || "Leave blank if your company is not registered on the Peppol network"}
+											</p>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+							</div>
+						</div>
 						</CardContent>
 					</Card>
 

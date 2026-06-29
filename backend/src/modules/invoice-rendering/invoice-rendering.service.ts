@@ -473,11 +473,17 @@ export class InvoiceRenderingService {
 
         // ── Build invoice data object ──────────────────────────────────────
         // @e-invoice-eu/core requires EndpointID on both parties.
-        // For companies: use SIREN with schemeID 0225 (FR PDP routing) or email with EM.
-        const sellerEndpointId = sellerSiren
+        // Priority: 1) PEPPOL_ENDPOINT party identifier (format 'schemeId:value', e.g. '0088:7300010000001')
+        //           2) SIREN with schemeID 0225 (FR PDP routing)
+        //           3) email with EM
+        //           4) placeholder
+        const rawPeppolSeller = getIdentifier(data.company, 'PEPPOL_ENDPOINT');
+        const peppolSellerParts = rawPeppolSeller?.match(/^(\d{4,}):(.+)$/);
+        const sellerEndpointId = peppolSellerParts?.[2]
+            ?? sellerSiren
             ?? (data.company.email ? data.company.email.trim() : null)
             ?? 'seller@local.invalid';
-        const sellerEndpointScheme = sellerSiren ? '0225' : 'EM';
+        const sellerEndpointScheme = peppolSellerParts?.[1] ?? (sellerSiren ? '0225' : 'EM');
 
         const sellerParty: Record<string, unknown> = {
             'cbc:EndpointID': sellerEndpointId,
@@ -508,13 +514,18 @@ export class InvoiceRenderingService {
         }
 
         // @e-invoice-eu/core requires EndpointID on the buyer party (mandatory in its JSON schema).
-        // For B2B: use SIREN with schemeID 0225.
-        // For B2C (individual with no SIREN): use contact email with EM, or fall back to a placeholder.
-        const buyerEndpointId = buyerSiren
+        // Priority: 1) PEPPOL_ENDPOINT party identifier (format 'schemeId:value', e.g. '0088:7300010000001')
+        //           2) SIREN with schemeID 0225 (FR B2B routing)
+        //           3) contact email with EM
+        //           4) placeholder
+        const rawPeppolBuyer = getIdentifier(data.client, 'PEPPOL_ENDPOINT');
+        const peppolBuyerParts = rawPeppolBuyer?.match(/^(\d{4,}):(.+)$/);
+        const buyerEndpointId = peppolBuyerParts?.[2]
+            ?? buyerSiren
             ?? (data.client.contactEmail ? data.client.contactEmail.trim() : null)
             ?? ((data.client as any).email ? (data.client as any).email.trim() : null)
             ?? 'consumer@local.invalid';
-        const buyerEndpointScheme = buyerSiren ? '0225' : 'EM';
+        const buyerEndpointScheme = peppolBuyerParts?.[1] ?? (buyerSiren ? '0225' : 'EM');
 
         const buyerParty: Record<string, unknown> = {
             'cbc:EndpointID': buyerEndpointId,

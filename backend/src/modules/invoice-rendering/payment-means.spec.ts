@@ -354,3 +354,96 @@ describe('buildEInvoice line-level AllowanceCharge (BG-27)', () => {
     expect(xml).toContain('<cbc:PayableAmount currencyID="EUR">650.00</cbc:PayableAmount>');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Peppol routing — EndpointID / PEPPOL_ENDPOINT party identifier
+// ---------------------------------------------------------------------------
+
+describe('buildEInvoice Peppol routing (EndpointID)', () => {
+  let service: InvoiceRenderingService;
+
+  beforeEach(() => {
+    service = new InvoiceRenderingService();
+  });
+
+  it('emits buyer EndpointID with PEPPOL_ENDPOINT schemeId when identifier is set (GLN 0088)', async () => {
+    const data = baseData({
+      client: {
+        ...baseData().client,
+        partyIdentifiers: [
+          { scheme: 'VAT', value: 'DE987654321' },
+          { scheme: 'PEPPOL_ENDPOINT', value: '0088:7300010000001' },
+        ],
+      },
+    });
+    const inv = service.buildEInvoice(data);
+    const xml = await inv.exportXml('ubl');
+    expect(xml).toContain('schemeID="0088"');
+    expect(xml).toContain('>7300010000001<');
+  });
+
+  it('emits buyer EndpointID with Norwegian org.no (0192) when PEPPOL_ENDPOINT is set', async () => {
+    const data = baseData({
+      client: {
+        ...baseData().client,
+        country: 'Norway',
+        partyIdentifiers: [
+          { scheme: 'PEPPOL_ENDPOINT', value: '0192:987654321' },
+        ],
+      },
+    });
+    const inv = service.buildEInvoice(data);
+    const xml = await inv.exportXml('ubl');
+    expect(xml).toContain('schemeID="0192"');
+    expect(xml).toContain('>987654321<');
+  });
+
+  it('falls back to contact email (EM) when no PEPPOL_ENDPOINT and no SIREN', async () => {
+    const data = baseData({
+      client: {
+        ...baseData().client,
+        contactEmail: 'buyer@example.com',
+        partyIdentifiers: [],
+      },
+    });
+    const inv = service.buildEInvoice(data);
+    const xml = await inv.exportXml('ubl');
+    expect(xml).toContain('schemeID="EM"');
+    expect(xml).toContain('>buyer@example.com<');
+  });
+
+  it('PEPPOL_ENDPOINT takes precedence over SIREN (0225) fallback', async () => {
+    const data = baseData({
+      client: {
+        ...baseData().client,
+        partyIdentifiers: [
+          { scheme: 'LEGAL_ID', value: '12345678901234' }, // SIRET → SIREN 123456789
+          { scheme: 'PEPPOL_ENDPOINT', value: '9925:FR12345678901' },
+        ],
+      },
+    });
+    const inv = service.buildEInvoice(data);
+    const xml = await inv.exportXml('ubl');
+    // Peppol wins over SIREN
+    expect(xml).toContain('schemeID="9925"');
+    expect(xml).toContain('>FR12345678901<');
+    // SIREN schemeID should NOT appear for endpoint
+    expect(xml).not.toContain('schemeID="0225"');
+  });
+
+  it('emits seller EndpointID from PEPPOL_ENDPOINT when set on company', async () => {
+    const data = baseData({
+      company: {
+        ...baseData().company,
+        partyIdentifiers: [
+          { scheme: 'VAT', value: 'DE123456789' },
+          { scheme: 'PEPPOL_ENDPOINT', value: '0088:4012345000176' },
+        ],
+      },
+    });
+    const inv = service.buildEInvoice(data);
+    const xml = await inv.exportXml('ubl');
+    expect(xml).toContain('schemeID="0088"');
+    expect(xml).toContain('>4012345000176<');
+  });
+});
