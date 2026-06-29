@@ -86,6 +86,13 @@ export interface TransmissionProvider {
    * Fields with `secret: true` are masked in the API response and encrypted at rest.
    */
   readonly configSchema?: ChannelConfigSchema;
+  /**
+   * When true, a missing/inactive per-company config does NOT skip the channel.
+   * Instead, `transmit()` is called with `resolvedConfig=undefined` and may fall back
+   * to a global default (e.g. EMAIL uses the global SMTP provider).
+   * Default: false — missing config → SKIPPED (used by KSeF, PDP, SdI, Peppol).
+   */
+  readonly optionalConfig?: boolean;
   transmit(
     artifacts: SignedArtifact[],
     ctx: TransactionContext,

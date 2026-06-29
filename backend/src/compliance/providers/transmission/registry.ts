@@ -113,11 +113,17 @@ export class TransmissionProviderRegistry {
         const providerId = spec.providerId ?? provider.id;
         const resolved = await this.credentials.resolveActive(ctx.supplierCompanyId, providerId);
         if (!resolved || !resolved.isActive) {
-          log.info('transmission', `channel not configured for company (${providerId}) — skipping`);
-          results.push({ channel: spec.type, status: 'SKIPPED', notes: [`channel ${providerId} not configured for company`] });
-          continue;
+          if (provider.optionalConfig) {
+            // Optional config: proceed without it — provider will fall back to global defaults.
+            log.info('transmission', `no per-company config for ${providerId} — using global default`);
+          } else {
+            log.info('transmission', `channel not configured for company (${providerId}) — skipping`);
+            results.push({ channel: spec.type, status: 'SKIPPED', notes: [`channel ${providerId} not configured for company`] });
+            continue;
+          }
+        } else {
+          resolvedConfig = resolved;
         }
-        resolvedConfig = resolved;
       }
 
       results.push(await provider.transmit(artifacts, ctx, plan, `${idempotencyKeyBase}:${provider.id}:${i}`, log, resolvedConfig));

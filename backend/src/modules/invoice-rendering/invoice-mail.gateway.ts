@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { InvoiceMailPort } from '@/compliance/providers/transmission/invoice-mail-port';
+import { InvoiceMailPort, SmtpOverrides } from '@/compliance/providers/transmission/invoice-mail-port';
 import { MailService } from '@/mail/mail.service';
 import { InvoiceRenderingService } from './invoice-rendering.service';
 import { ExportFormat } from '@/compliance/providers/format/invoice-artifact-port';
@@ -21,6 +21,7 @@ export class InvoiceMailGateway implements InvoiceMailPort {
 
   async sendInvoiceEmail(
     invoiceId: string,
+    smtpOverrides?: SmtpOverrides,
   ): Promise<{ sent: boolean; skipped?: boolean; reason?: string }> {
     const invoice = await prisma.invoice.findUnique({
       where: { id: invoiceId },
@@ -78,7 +79,7 @@ export class InvoiceMailGateway implements InvoiceMailPort {
       ],
     };
 
-    await this.mailService.sendMail(mailOptions);
+    await this.mailService.sendMail(mailOptions, smtpOverrides);
 
     logger.info('Invoice sent by email', {
       category: 'invoice',
