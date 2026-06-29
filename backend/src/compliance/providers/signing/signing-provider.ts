@@ -3,8 +3,11 @@ import { RenderedArtifact, SignedArtifact } from '../../execution/types';
 
 export type SignAlgo = 'XAdES' | 'CAdES' | 'PAdES' | 'none';
 
-/** Applies a digital signature / seal to a rendered artifact (§10, extends the existing SIGNING plugin). */
+/**
+ * Applies a digital signature / seal to a rendered artifact (§10).
+ * sign() is async because WebCrypto and PDF-signing libraries are inherently async.
+ */
 export interface SigningProvider {
   readonly algo: SignAlgo;
-  sign(rendered: RenderedArtifact, certRef: string, log: ComplianceLogger): SignedArtifact;
+  sign(rendered: RenderedArtifact, certRef: string, log: ComplianceLogger): Promise<SignedArtifact>;
 }

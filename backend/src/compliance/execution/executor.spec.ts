@@ -105,9 +105,12 @@ describe('ComplianceExecutor — Mexico (blocking clearance)', () => {
     expect(log.hasScope('format/cfdi')).toBe(true);
     expect(result.artifacts.some((a) => a.syntax === 'CFDI')).toBe(true);
   });
-  it('signs (XAdES) because clearance + signed archive are required', () => {
+  it('invokes the XAdES signer because clearance + signed archive are required', () => {
+    // XAdES signer is invoked (executor selects XAdES algo for blocking/signed-archive plans).
+    // In this test environment no cert is configured, so the signer logs a warn and passes
+    // the artifact through unsigned. Real signing is proven in providers.spec.ts.
     expect(log.hasScope('signing/xades')).toBe(true);
-    expect(result.signed.every((s) => s.signature?.algo === 'XAdES')).toBe(true);
+    expect(result.signed.every((s) => !s.signature)).toBe(true);
   });
   it('submits to a PAC and is not yet cleared (async clearance)', () => {
     expect(log.hasScope('transmission/pac')).toBe(true);

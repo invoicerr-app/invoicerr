@@ -94,7 +94,7 @@ export class ComplianceExecutor {
     const algo = this.chooseSignAlgo(plan);
     const signer = this.signing.get(algo);
     const certRef = `${ctx.supplier.countryCode}-cert`;
-    const signed: SignedArtifact[] = artifacts.map((a) => signer.sign(a, certRef, log));
+    const signed: SignedArtifact[] = await Promise.all(artifacts.map((a) => signer.sign(a, certRef, log)));
 
     // 5. Regime-specific handling (clearance gates validity; CTC routes & e-reports).
     const regime = this.regimes.get(plan.regime.model).handle(ctx, plan, signed, log);
