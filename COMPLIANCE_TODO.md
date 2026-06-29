@@ -40,7 +40,7 @@
 - [x] **EN16931_UBL** — `exportXml('ubl')`.
 - [x] Validation EN16931 Schematron (`node-schematron`) + XSD CII/FA(2) (`xmllint-wasm`).
 - [x] `cii-post-process.ts` réduit au strict (namespaces + routing PDP).
-- [x] **XRECHNUNG** — BR‑DE‑11/12 `cac:Contact` + BR‑DE‑14 `PaymentMeans` ; **code UNCL4461 dérivé** de `paymentMethod` (BANK_TRANSFER→58…) + IBAN (`PayeeFinancialAccount`). [ ] DIRECT_DEBIT/carte.
+- [x] **XRECHNUNG** — BR‑DE‑11/12 `cac:Contact` + BR‑DE‑14 `PaymentMeans` ; **code UNCL4461** complet (BANK_TRANSFER→58, DIRECT_DEBIT→59 + `PaymentMandate`, CARD→48, PSP→97) + IBAN (`PayeeFinancialAccount`).
 - [x] **ZUGFERD** — alias no‑op retiré ; ZUGFeRD 2.x = même profil CII/EN16931 + PDF/A‑3 + CustomizationID que Factur‑X (pas de profil divergent dans `@e-invoice-eu/core`) — alignement documenté.
 - [x] **PEPPOL_BIS** — `CustomizationID`/`ProfileID` BIS Billing 3.0 réels injectés (au lieu d'UBL générique).
 
@@ -66,9 +66,8 @@
 
 ### 1.4 Transverse formats
 - [x] Validation **XSD FatturaPA 1.2** (`Schema_VFPR12.xsd`) + **XSD CFDI 4.0** (`cfdv40.xsd`+catalogues, 128 MB) + **Schematron Peppol BIS** (`PEPPOL-EN16931-UBL.sch`) vendorisés + câblés (xmllint‑wasm/node‑schematron), tests positifs+négatifs. Builders FatturaPA/CFDI/UBL corrigés pour passer le XSD réel.
-- [x] **Allowances niveau document** — `discountRate` → `cac:AllowanceCharge` (reason 95) + recalcul VAT proportionnel + AllowanceTotalAmount.
-- [ ] Facturae XSD (2 tests `todo`) + XSD/Schematron de chaque format national (LATAM/Asie/Afrique/MENA/Europe).
-- [ ] Gap `BR‑27` **niveau ligne** (prix net négatif) persiste (`CII_KNOWN_SCHEMATRON_GAPS:['BR-27']`) — allowances par ligne.
+- [x] **Allowances document + ligne** — `discountRate`/items négatifs → `AllowanceCharge` doc (BG‑20) + `allowances[]` par ligne (BG‑27) ; **`BR‑27` fermé** (plus de prix net négatif ; `CII_KNOWN_SCHEMATRON_GAPS` vide).
+- [ ] Facturae XSD — **introuvable hors‑ligne** (facturae.gob.es + miroirs GitHub 404) ; 2 tests `todo` honnêtes. [ ] XSD/Schematron de chaque format national.
 
 ---
 
@@ -94,7 +93,7 @@
 - [x] PDP : `sendStatus` (déposée/refusée/encaissée → fr:205/210/211/212) implémenté (mocké, live deferred).
 - [ ] PDP : **API Annuaire** (résoudre `buyerEndpointId` du client).
 - [x] **Email SMTP par société** 🟢 (`MailService.sendMail(opts, smtpOverrides?)`, fallback global).
-- [ ] Email : **preuve réelle** (vrais creds SMTP) + vrai contenu (sujet/corps i18n + PDF + XML).
+- [x] Email : **preuve réelle SMTP** via Ethereal (`EMAIL_LIVE=1` email-live.spec) — vrai messageId + preview URL à travers `MailService.sendMail`. [ ] vrai contenu i18n soigné (sujet/corps + PDF + XML).
 
 ### 3.2 Implémentés (mocké) — preuve live en attente
 - [x] **SdI** (IT) 🟢 — client + mapping des 6 notifiche (RC/NS/MC/NE/DT/AT) + tests.
@@ -215,7 +214,8 @@
 ## 11. PREUVE LIVE & TESTS
 
 - [x] Round‑trips live : **KSeF** ✅, **PDP‑superpdp** ✅.
-- [ ] Round‑trips live : PDP‑AFNOR ⛔, SdI ⛔, Peppol ⛔, Email ⛔, chaque portail ⛔.
+- [x] Round‑trips live : **Email** (Ethereal SMTP, messageId réel) ✅ · **PDP‑AFNOR transport** (flowId i_90103) ✅.
+- [ ] Round‑trips live restants : PDP‑AFNOR contenu (ack=Error), SdI, Peppol, KSeF prod, chaque portail national (creds).
 - [x] Tests d'intégration mockés (filets) : PDP, KSeF, Email, SdI, Peppol, executor‑e2e. **635 tests verts.**
 - [x] Discipline « boot test » (l'app démarre, DI/routes OK).
 - [ ] Tests gated `*_LIVE=1` par canal, assertions dures (pas de REJECTED/SKIPPED toléré).
