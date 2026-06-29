@@ -5,6 +5,7 @@
  * and is wired, so adding a real integration is "fill in one provider", never "rewire the pipeline".
  */
 import { TransactionContext } from '../canonical/canonical-document';
+import { validateContextIdentifiers } from '../canonical/identifier-validator';
 import { CompliancePlan } from '../engine/compliance-engine';
 import { ArchiveProviderRegistry, defaultArchiveRegistry } from '../providers/archive/registry';
 import { FormatProviderRegistry, defaultFormatRegistry } from '../providers/format/registry';
@@ -74,6 +75,17 @@ export class ComplianceExecutor {
     const log = this.log;
     const warnings: string[] = [...plan.warnings];
     const idempotencyKey = opts.idempotencyKey ?? `${ctx.supplier.countryCode}-${Date.now()}`;
+
+    // 0. Offline identifier validation — checksum-validates all party identifiers, updates the
+    //    `validated` flag, and surfaces warnings for any failures.  Does NOT block transmission
+    //    (a bad check digit is a data-quality issue, not a hard stop), but the warning will
+    //    appear in ExecutionResult.warnings so the caller / UI can surface it.
+    const { ctx: validatedCtx, warnings: idWarnings } = validateContextIdentifiers(ctx);
+    if (idWarnings.length > 0) {
+      for (const w of idWarnings) log.warn('executor/identifiers', w);
+      warnings.push(...idWarnings);
+    }
+    ctx = validatedCtx;
 
     // 1. Monetary totals via the tax-system handler.
     const totals = this.taxSystems.get(plan.taxSystemKind).computeTotals(ctx, plan.tax, log);

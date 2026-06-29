@@ -8,6 +8,8 @@
 // --- Resolution core ---
 export * from './types';
 export * from './canonical/canonical-document';
+export * from './canonical/identifier-validator';
+export * from './canonical/identifier-existence.port';
 export * from './profiles/schema';
 export * from './profiles/temporal';
 export * from './profiles/archetypes';
