@@ -74,6 +74,48 @@ export class InboundRouter {
     await this.store.cancelForDocument(documentId);
   }
 
+  /**
+   * Boot replay — re-apply inbound messages that were stored but not yet applied to the runtime.
+   *
+   * This handles the crash window between `recordMessage()` persisting the message and
+   * `applySignal()` completing. On boot, we find all WAITING registrations and any stored
+   * messages for their (channel, correlationKey). For each, we call `applySignal` directly
+   * (bypassing dedup, which would short-circuit a re-run through `receive()`).
+   *
+   * Safe to call multiple times: `applySignal` dispatches into the lifecycle runtime which
+   * returns NOOP if the signal no longer matches any transition (already applied).
+   *
+   * Does NOT handle messages with no matching WAITING registration — those were already
+   * applied (registration is RESOLVED/CANCELLED) or truly unmatched (permanent UNMATCHED).
+   */
+  async replayUnapplied(): Promise<{ replayed: number; skipped: number }> {
+    const waitingRegs = await this.store.waitingRegistrations();
+    let replayed = 0;
+    let skipped = 0;
+
+    for (const reg of waitingRegs) {
+      const messages = await this.store.messagesForCorrelation(reg.channel, reg.correlationKey);
+      if (messages.length === 0) {
+        skipped++;
+        continue;
+      }
+      // Apply the latest message (most recent status wins; earlier ones are superceded)
+      const latest = messages[messages.length - 1];
+      const signal: LifecycleSignal = { type: 'INBOUND_STATUS', status: latest.status };
+      try {
+        await this.applySignal(reg.documentId, signal, this.log);
+        this.log.info('lifecycle/inbound-router', `boot-replay: applied "${latest.status}" to document ${reg.documentId} (reg ${reg.id})`);
+        replayed++;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.log.warn('lifecycle/inbound-router', `boot-replay: applySignal failed for document ${reg.documentId}: ${msg}`);
+        skipped++;
+      }
+    }
+
+    return { replayed, skipped };
+  }
+
   /** An inbound status arrived: dedup → correlate → feed INBOUND_STATUS into the document's runtime. */
   async receive(input: InboundInput): Promise<ReceiveResult> {
     const msg: InboundMessage = {

@@ -2,6 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { PollScheduler } from '../lifecycle/drivers/poll-scheduler';
 import { TimerScheduler } from '../lifecycle/drivers/timer-scheduler';
+import { InboundRouter } from '../lifecycle/drivers/inbound-router';
 
 /** Periodic reconciliation interval — default 12h, overridable via COMPLIANCE_RECONCILE_HOURS. */
 const RECONCILE_INTERVAL_MS = (Number(process.env.COMPLIANCE_RECONCILE_HOURS) || 12) * 60 * 60 * 1000;
@@ -16,15 +17,36 @@ export class ComplianceCron implements OnApplicationBootstrap {
   constructor(
     private readonly pollScheduler: PollScheduler,
     private readonly timerScheduler: TimerScheduler,
+    private readonly inboundRouter: InboundRouter,
   ) {}
 
   /**
-   * On boot: reconcile every non-terminal document's status. After a downtime, the authority/PDP may
-   * have resolved (or pushed, and we missed the webhook) statuses while we were offline — re-poll them
-   * now instead of waiting for the next due tick. Fire-and-forget so it never blocks app readiness.
+   * On boot: two parallel recovery paths (both fire-and-forget to not block app readiness):
+   *   1. reconcile() — re-poll all pending ASYNC_POLL jobs; fire elapsed timers. Catches
+   *      pushes that arrived while we were offline and were missed by poll schedulers.
+   *   2. replayInbound() — re-apply any InboundMessage that was stored in the DB (at-least-once
+   *      delivery) but whose applySignal() call never completed (crash window).
    */
   onApplicationBootstrap(): void {
     void this.reconcile('boot');
+    void this.replayInbound();
+  }
+
+  /**
+   * Boot replay of un-applied inbound messages (COMPLIANCE_TODO §4).
+   *
+   * Loads all WAITING callback registrations and re-applies any stored messages for them.
+   * Safe to call multiple times: the runtime returns NOOP for already-applied signals.
+   */
+  private async replayInbound(): Promise<void> {
+    try {
+      const { replayed, skipped } = await this.inboundRouter.replayUnapplied();
+      if (replayed > 0 || skipped > 0) {
+        this.logger.log(`boot inbound replay: ${replayed} replayed, ${skipped} skipped`);
+      }
+    } catch (err) {
+      this.logger.error(`boot inbound replay failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   /** Periodic safety net (default every 12h) against missed push/webhook notifications. */

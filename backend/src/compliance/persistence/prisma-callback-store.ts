@@ -1,5 +1,6 @@
 import { PrismaService } from '@/prisma/prisma.service';
 import { CallbackRegistration, CallbackStore, InboundMessage } from '../lifecycle/drivers/inbound-job';
+import { ChannelType } from '../types';
 import { callbackRegToRow, rowToCallbackReg, inboundMsgToRow, rowToInboundMsg } from './mappers';
 
 const ACTIVE_STATUSES: string[] = ['WAITING'];
@@ -50,5 +51,21 @@ export class PrismaCallbackStore implements CallbackStore {
     const data = inboundMsgToRow(msg);
     await this.prisma.complianceInboundMessage.create({ data: data as any });
     return { duplicate: false };
+  }
+
+  async waitingRegistrations(): Promise<CallbackRegistration[]> {
+    const rows = await this.prisma.complianceCallbackRegistration.findMany({
+      where: { status: { in: ACTIVE_STATUSES as any } },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map((r) => rowToCallbackReg(r as any));
+  }
+
+  async messagesForCorrelation(channel: ChannelType, correlationKey: string): Promise<InboundMessage[]> {
+    const rows = await this.prisma.complianceInboundMessage.findMany({
+      where: { channel, correlationKey },
+      orderBy: { receivedAt: 'asc' },
+    });
+    return rows.map((r) => rowToInboundMsg(r as any));
   }
 }

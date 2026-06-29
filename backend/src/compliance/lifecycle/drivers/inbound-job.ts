@@ -60,6 +60,16 @@ export interface CallbackStore {
   cancelForDocument(documentId: string): Promise<void>;
   /** Record an inbound message (audit). Returns whether it was already seen (at-least-once delivery). */
   recordMessage(msg: InboundMessage): Promise<{ duplicate: boolean }>;
+  /**
+   * Return all registrations currently in WAITING state.
+   * Used by boot replay to find documents that may have missed an inbound push.
+   */
+  waitingRegistrations(): Promise<CallbackRegistration[]>;
+  /**
+   * Return all stored inbound messages for a given channel + correlationKey combination.
+   * Used by boot replay to find messages received but not yet applied.
+   */
+  messagesForCorrelation(channel: ChannelType, correlationKey: string): Promise<InboundMessage[]>;
 }
 
 export class InMemoryCallbackStore implements CallbackStore {
@@ -99,5 +109,15 @@ export class InMemoryCallbackStore implements CallbackStore {
     this.seen.add(key);
     this.messages.set(msg.id, msg);
     return Promise.resolve({ duplicate: false });
+  }
+
+  waitingRegistrations(): Promise<CallbackRegistration[]> {
+    return Promise.resolve([...this.regs.values()].filter((r) => r.status === 'WAITING'));
+  }
+
+  messagesForCorrelation(channel: ChannelType, correlationKey: string): Promise<InboundMessage[]> {
+    return Promise.resolve(
+      [...this.messages.values()].filter((m) => m.channel === channel && m.correlationKey === correlationKey),
+    );
   }
 }

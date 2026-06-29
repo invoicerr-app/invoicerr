@@ -119,8 +119,16 @@ import { RequiredFieldsController } from './required-fields.controller';
     },
     // Channel settings (backs ChannelCredentialsController: company config CRUD + required channels)
     ChannelSettingsService,
-    // Cron
-    ComplianceCron,
+    // Cron — injects PollScheduler, TimerScheduler, InboundRouter
+    {
+      provide: ComplianceCron,
+      useFactory: (
+        pollScheduler: PollScheduler,
+        timerScheduler: TimerScheduler,
+        inboundRouter: InboundRouter,
+      ) => new ComplianceCron(pollScheduler, timerScheduler, inboundRouter),
+      inject: [PollScheduler, TimerScheduler, InboundRouter],
+    },
   ],
   exports: [ComplianceService],
 })
