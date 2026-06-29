@@ -203,7 +203,11 @@ export default function ChannelsSettings() {
           title={`${t("settings.channels.configure", "Configure")} ${editingChannel.providerId}`}
           description={`${t("settings.channels.configureDesc", "Set credentials for")} ${editingChannel.providerId}`}
           config={buildFormConfig(editingChannel)}
-          currentValues={editingChannel.config ?? undefined}
+          currentValues={{
+            ...(editingChannel.config ?? {}),
+            // `environment` lives in the DB column, not the config blob — merge it so the select pre-fills.
+            ...(editingChannel.environment ? { environment: editingChannel.environment } : {}),
+          }}
           onCancel={() => {
             setConfigModalOpen(false)
             setEditingChannel(null)

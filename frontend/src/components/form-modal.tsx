@@ -39,6 +39,7 @@ interface TextField extends BaseField {
     minLength?: number
     maxLength?: number
     pattern?: string
+    default?: string
 }
 
 interface NumberField extends BaseField {
@@ -47,6 +48,7 @@ interface NumberField extends BaseField {
     min?: number
     max?: number
     pattern?: string
+    default?: number
 }
 
 interface SwitchField extends BaseField {
@@ -59,6 +61,7 @@ interface SelectField extends BaseField {
     placeholder?: string
     multiple?: boolean
     options: SelectOption[]
+    default?: string
 }
 
 interface FolderField extends BaseField {
@@ -212,15 +215,16 @@ function generateDefaultValues(fields: FormFieldItem[], currentValues?: Record<s
     const defaults: Record<string, any> = {}
 
     fields.forEach((field) => {
-        // Utiliser la valeur existante si disponible, sinon utiliser la valeur par défaut
+        // Existing value wins; otherwise fall back to the field's schema default (selects/numbers
+        // included — not just switches), so forms pre-fill sensibly on both create and edit.
         const existingValue = currentValues?.[field.name]
 
-        if (existingValue !== undefined && existingValue !== null) {
+        if (existingValue !== undefined && existingValue !== null && existingValue !== "") {
             defaults[field.name] = existingValue
         } else if (field.type === "switch") {
-            defaults[field.name] = (field as SwitchField).default ?? false
-        } else if (field.type === "number") {
-            defaults[field.name] = "" // Keep as empty string for better UX
+            defaults[field.name] = field.default ?? false
+        } else if (field.type === "select" || field.type === "text" || field.type === "number") {
+            defaults[field.name] = field.default ?? ""
         } else {
             defaults[field.name] = ""
         }

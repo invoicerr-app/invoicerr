@@ -14,8 +14,12 @@ export class EmailTransmissionProvider implements TransmissionProvider {
   readonly feedback = 'NONE' as const;
   readonly configSchema: ChannelConfigSchema = {
     fields: [
+      { type: 'text', name: 'host', label: 'SMTP host', placeholder: 'smtp.example.com', required: true },
+      { type: 'number', name: 'port', label: 'SMTP port', placeholder: '587', required: true, default: 587 },
+      { type: 'switch', name: 'secure', label: 'Use TLS (implicit, port 465)', default: false },
+      { type: 'text', name: 'username', label: 'SMTP username', placeholder: 'apikey / user@example.com', required: true },
+      { type: 'text', name: 'password', label: 'SMTP password', required: true, secret: true },
       { type: 'text', name: 'fromAddress', label: 'From address', placeholder: 'invoices@company.com', required: true },
-      { type: 'text', name: 'replyTo', label: 'Reply-to address', placeholder: 'accounting@company.com' },
     ],
   };
 
@@ -39,6 +43,17 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
   readonly id = 'peppol';
   readonly channel: ChannelType = 'PEPPOL';
   readonly feedback = 'ASYNC_CALLBACK' as const; // Peppol Invoice Response / MLR
+  readonly configSchema: ChannelConfigSchema = {
+    fields: [
+      { type: 'select', name: 'environment', label: 'Environment', required: true, options: [
+        { label: 'Test', value: 'TEST' },
+        { label: 'Production', value: 'PROD' },
+      ], default: 'TEST' },
+      { type: 'text', name: 'participantId', label: 'Your Peppol ID', placeholder: '0009:12345678900011', required: true },
+      { type: 'text', name: 'accessPointUrl', label: 'Access Point URL', placeholder: 'https://ap.example.com', required: true },
+      { type: 'text', name: 'apiKey', label: 'Access Point API key', required: true, secret: true },
+    ],
+  };
   async transmit(_artifacts: SignedArtifact[], ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): Promise<TransmissionResult> {
     log.todo('transmission/peppol', `SMP lookup for ${ctx.buyer.peppolId ?? '(no peppolId)'} + AS4 send (key ${key})`);
     return { channel: 'PEPPOL', status: ctx.buyer.peppolId ? 'SENT' : 'SKIPPED', notes: ['stub: integrate a Peppol Access Point'] };
@@ -61,15 +76,16 @@ export class PdpTransmissionProvider implements TransmissionProvider {
       { type: 'text', name: 'clientId', label: 'Client ID', required: true },
       { type: 'text', name: 'clientSecret', label: 'Client secret', required: true, secret: true },
       { type: 'select', name: 'environment', label: 'Environment', required: true, options: [
-        { label: 'Sandbox', value: 'sandbox' },
-        { label: 'Production', value: 'prod' },
-      ], default: 'sandbox' },
+        { label: 'Test (sandbox)', value: 'TEST' },
+        { label: 'Production', value: 'PROD' },
+      ], default: 'TEST' },
       { type: 'select', name: 'apiStyle', label: 'API style', required: false, options: [
         { label: 'SuperPDP (proprietary)', value: 'superpdp' },
         { label: 'AFNOR Flow (XP Z12-013)', value: 'afnor' },
       ], default: 'superpdp' },
-      { type: 'text', name: 'sellerEndpointId', label: 'Seller endpoint ID', placeholder: '315143296_1422', required: false },
-      { type: 'text', name: 'buyerEndpointId', label: 'Buyer endpoint ID', placeholder: '315143296_1421', required: false },
+      // The company's OWN routing address on its PDP: {pdp_siren}_{account_id}. The buyer's
+      // endpoint is resolved per-invoice from the client/annuaire — not configured here.
+      { type: 'text', name: 'sellerEndpointId', label: 'Your PDP routing ID', placeholder: '315143296_1422', required: false },
     ],
   };
 
@@ -386,11 +402,11 @@ export class KsefTransmissionProvider implements TransmissionProvider {
   readonly configSchema: ChannelConfigSchema = {
     fields: [
       { type: 'select', name: 'environment', label: 'KSeF environment', required: true, options: [
-        { label: 'Test', value: 'test' },
-        { label: 'Production', value: 'prod' },
-      ], default: 'test' },
-      { type: 'text', name: 'authToken', label: 'KSeF token', secret: true },
-      { type: 'text', name: 'nip', label: 'NIP (tax id)', placeholder: 'PL1234567890' },
+        { label: 'Test', value: 'TEST' },
+        { label: 'Production', value: 'PROD' },
+      ], default: 'TEST' },
+      { type: 'text', name: 'authToken', label: 'KSeF token', required: true, secret: true },
+      // NIP is NOT asked here — it's a required company identifier, auto-filled at save time.
     ],
   };
 
@@ -410,6 +426,8 @@ export class KsefTransmissionProvider implements TransmissionProvider {
     }
 
     const { config, environment } = resolvedConfig;
+    // DB stores ChannelEnvironment as TEST/PROD; the KSeF client expects lowercase test/prod.
+    const env = (environment ?? 'test').toLowerCase() as 'test' | 'prod';
     const nip = config.nip as string;
     const ksefToken = config.authToken as string;
 
@@ -435,11 +453,11 @@ export class KsefTransmissionProvider implements TransmissionProvider {
       const { loadVendorizedKeys } = await import('./ksef/ksef-public-keys.js');
 
       // Load MF public keys from vendorized PEM files (no company input needed)
-      const keys = loadVendorizedKeys(environment as 'test' | 'prod');
+      const keys = loadVendorizedKeys(env);
 
       const http = new FetchKsefHttpClient();
       const client = new KsefClient(http, {
-        environment: environment as 'test' | 'prod',
+        environment: env,
         nip,
         ksefToken,
         tokenEncryptionKeyPem: keys.tokenEncryptionKeyPem,
@@ -528,6 +546,8 @@ export class KsefTransmissionProvider implements TransmissionProvider {
       }
 
       const { config, environment } = resolved;
+      // DB stores ChannelEnvironment as TEST/PROD; the KSeF client expects lowercase test/prod.
+      const env = (environment ?? 'test').toLowerCase() as 'test' | 'prod';
       const nip = config.nip as string;
       const ksefToken = config.authToken as string;
 
@@ -535,10 +555,10 @@ export class KsefTransmissionProvider implements TransmissionProvider {
       const { FetchKsefHttpClient } = await import('./ksef/fetch-http-client.js');
       const { loadVendorizedKeys } = await import('./ksef/ksef-public-keys.js');
 
-      const keys = loadVendorizedKeys(environment as 'test' | 'prod');
+      const keys = loadVendorizedKeys(env);
       const http = new FetchKsefHttpClient();
       const client = new KsefClient(http, {
-        environment: environment as 'test' | 'prod',
+        environment: env,
         nip,
         ksefToken,
         tokenEncryptionKeyPem: keys.tokenEncryptionKeyPem,

@@ -29,6 +29,16 @@ function toChannelEnvironment(value: string | undefined): ChannelEnvironment {
   return ChannelEnvironment.TEST;
 }
 
+/** Derive a 10-digit tax id (e.g. Polish NIP) from a company's identifiers. */
+function deriveTaxId(identifiers: { scheme: string; value: string }[]): string | undefined {
+  const raw =
+    identifiers.find((i) => i.scheme === 'VAT')?.value ??
+    identifiers.find((i) => i.scheme === 'LEGAL_ID')?.value;
+  if (!raw) return undefined;
+  const digits = raw.replace(/\D/g, '');
+  return digits.length >= 10 ? digits.slice(-10) : digits || undefined;
+}
+
 /** Mask secret fields in a config object using the provider's schema. */
 function maskSecrets(
   config: Record<string, unknown>,
@@ -197,7 +207,19 @@ export class ChannelSettingsService {
       throw new HttpException(`Unknown provider: ${providerId}`, HttpStatus.BAD_REQUEST);
     }
 
-    const encrypted = encryptJson(config);
+    // Auto-fill identity the channel needs from the company, so the user isn't asked for data
+    // already held on the company. KSeF authenticates per NIP (a required company identifier).
+    const enrichedConfig = { ...config };
+    if (provider.id === 'ksef' && !enrichedConfig.nip) {
+      const company = await this.prisma.company.findUnique({
+        where: { id: companyId },
+        include: { partyIdentifiers: { select: { scheme: true, value: true } } },
+      });
+      const nip = deriveTaxId(company?.partyIdentifiers ?? []);
+      if (nip) enrichedConfig.nip = nip;
+    }
+
+    const encrypted = encryptJson(enrichedConfig);
     const env = toChannelEnvironment(environment);
 
     const row = await this.prisma.companyChannelConfig.upsert({
@@ -223,7 +245,7 @@ export class ChannelSettingsService {
       channel: row.channel,
       environment: row.environment,
       isActive: row.isActive,
-      config: maskSecrets(config, provider.configSchema),
+      config: maskSecrets(enrichedConfig, provider.configSchema),
     };
   }
 
