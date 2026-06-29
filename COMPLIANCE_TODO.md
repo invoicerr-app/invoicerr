@@ -150,10 +150,12 @@
 
 ## 6. REPORTING (`reporting/reporting-handler.ts`, `ReportingKind`)
 
-- [x] `reportAll()` câblé (ex. `markPaid` FR déclenche le stub e‑reporting).
-- [ ] **E_REPORTING** (FR B2C + transfrontalier) réel vers PDP/PPF.
-- [ ] **SAF‑T** · **OSS** · **IOSS** · **EC_SALES_LIST** · **INTRASTAT** · **SALES_PURCHASE_LEDGER** · **CUSTOMS_EXPORT**.
-- [ ] Planification (mensuel/trimestriel) + idempotence + preuve de dépôt.
+- [x] `reportAll()` câblé + **8 générateurs purs** (E_REPORTING, SAF‑T, OSS, IOSS, EC_SALES_LIST, INTRASTAT, SALES_PURCHASE_LEDGER, CUSTOMS_EXPORT) ; modèle Prisma `ComplianceReport` (migration) ; 30 tests.
+- [x] **E_REPORTING** (FR B2C + transfrontalier) — payload structuré (classification du plan). [ ] soumission réelle PDP/PPF (mockée).
+- [x] **SAF‑T** — XML OECD SAF‑T 1.04 (xmlbuilder2), structurellement valide. [ ] variantes pays (PL/NO) + XSD.
+- [x] **OSS/IOSS/EC_SALES_LIST/INTRASTAT/SALES_PURCHASE_LEDGER/CUSTOMS_EXPORT** — agrégation structurée. [ ] Intrastat `commodityCode` (catalogue produits).
+- [x] **Idempotence** (kind, period, company, invoiceRef) — 2e run = no‑op + preuve de dépôt (`markSubmitted` ref). Period key mensuel/trimestriel par kind.
+- [ ] **Planification batch** (clôture de période via cron) — seam prêt, cron pas encore ; soumission autorité réelle (mockée).
 
 ---
 
