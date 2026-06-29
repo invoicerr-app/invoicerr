@@ -258,7 +258,7 @@ export class ComplianceService {
       this.log.todo('operations/transmitStatus', `no outbound-status channel for "${status}" on ${id}`);
       return null;
     }
-    return provider.sendStatus(id, status, rec.ctx, plan, this.log);
+    return Promise.resolve(provider.sendStatus(id, status, rec.ctx, plan, this.log));
   }
 
   // ─────────────────────────── clearance (blocking regimes) ───────────────────────────

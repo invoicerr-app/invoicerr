@@ -71,6 +71,22 @@ export interface PeppolStatusResult {
 // Port — swappable AP transport (real HTTP or mock in tests)
 // ---------------------------------------------------------------------------
 
+/** Peppol Invoice Response (IMR / BIS 36a / BIS 3 CIUS) send request. */
+export interface PeppolInvoiceResponseRequest {
+  /** Sender (buyer) Peppol participant ID. */
+  senderParticipantId: string;
+  /** Original seller's Peppol participant ID. */
+  receiverParticipantId: string;
+  /** Reference to the original invoice message ID. */
+  originalMessageId: string;
+  /** AB = accepted, RE = rejected, UQ = under query, AP = in process */
+  responseCode: 'AB' | 'RE' | 'UQ' | 'AP';
+  /** Human-readable description (reason for rejection, etc.). */
+  description?: string;
+  /** Optional idempotency key. */
+  idempotencyKey?: string;
+}
+
 /**
  * Port for the Peppol Access Point gateway REST API.
  * Inject a mock for tests; production uses the real HTTP implementation.
@@ -86,6 +102,19 @@ export interface PeppolApPort {
    * Poll the AP gateway for the delivery status of a previously sent message.
    */
   getStatus(messageId: string): Promise<PeppolStatusResult>;
+
+  /**
+   * Send a Peppol Invoice Response (IMR / BIS 3 CIUS / BIS 36a MLR).
+   *
+   * This is the buyer's structured acceptance/rejection relayed back through the Peppol
+   * network to the original sender's AP. In the 4-corner model: C4 → C3 → AS4 → C2 → C1.
+   *
+   * Document type: urn:oasis:names:specification:ubl:schema:xsd:ApplicationResponse-2
+   * Process: urn:fdc:peppol.eu:poacc:bis:invoice_response:3
+   *
+   * LIVE PROOF: DEFERRED — requires a connected Access Point.
+   */
+  sendInvoiceResponse(request: PeppolInvoiceResponseRequest): Promise<PeppolSendResult>;
 }
 
 // ---------------------------------------------------------------------------
@@ -186,6 +215,43 @@ export class PeppolApHttpClient implements PeppolApPort {
       status: this.normalizeStatus(result.status),
       mlrCode: result.mlrCode,
       mlrDescription: result.mlrDescription,
+    };
+  }
+
+  async sendInvoiceResponse(request: PeppolInvoiceResponseRequest): Promise<PeppolSendResult> {
+    const url = `${this.config.accessPointUrl}/api/v1/invoice-response`;
+
+    const body = {
+      sender: request.senderParticipantId,
+      receiver: request.receiverParticipantId,
+      documentTypeId: PEPPOL_DOC_TYPES.INVOICE_RESPONSE,
+      processId: 'urn:fdc:peppol.eu:poacc:bis:invoice_response:3',
+      responseCode: request.responseCode,
+      originalMessageId: request.originalMessageId,
+      description: request.description,
+      idempotencyKey: request.idempotencyKey,
+      environment: this.config.environment,
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.config.apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`Peppol AP invoice response failed: HTTP ${response.status} — ${text}`);
+    }
+
+    const result = (await response.json()) as { messageId: string; status?: string };
+    return {
+      messageId: result.messageId,
+      status: result.status === 'SENT' ? 'SENT' : 'QUEUED',
     };
   }
 

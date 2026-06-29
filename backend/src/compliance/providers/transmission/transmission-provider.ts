@@ -109,6 +109,8 @@ export interface TransmissionProvider {
    * relayed by a PDP, or a buyer accept/refuse acknowledgement. Only channels that carry an
    * outbound status model implement it (PDP, SDI, Peppol). Returns a TransmissionResult like
    * transmit().
+   *
+   * Real implementations are async (HTTP calls); callers must await.
    */
   sendStatus?(
     ref: string,
@@ -116,5 +118,5 @@ export interface TransmissionProvider {
     ctx: TransactionContext,
     plan: CompliancePlan,
     log: ComplianceLogger,
-  ): TransmissionResult;
+  ): TransmissionResult | Promise<TransmissionResult>;
 }

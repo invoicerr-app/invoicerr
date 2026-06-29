@@ -10,6 +10,27 @@ import type { SdiHttpPort } from './sdi/sdi-client';
 import type { PeppolApPort } from './peppol/peppol-client';
 import type { SmpLookupPort } from './peppol/smp-client';
 
+// ---------------------------------------------------------------------------
+// Helpers — status mapping
+// ---------------------------------------------------------------------------
+
+/**
+ * Map a free-text lifecycle status to a PDP XP Z12-012 lifecycle code (fr:xxx).
+ *
+ * Used by PdpTransmissionProvider.sendStatus() to translate internal status
+ * strings ("encaissée", "accepted", etc.) to the canonical PDP codes.
+ */
+function mapStatusToPdpCode(status: string): string {
+  const s = status.toLowerCase();
+  if (s.includes('encaiss') || s.includes('payment received') || s.includes('paid')) return 'fr:212'; // paiement reçu
+  if (s.includes('payment sent') || s.includes('paiement envoyé')) return 'fr:211'; // paiement envoyé
+  if (s.includes('accept') || s.includes('approv') || s.includes('approuv')) return 'fr:205'; // acceptée
+  if (s.includes('refus') || s.includes('reject') || s.includes('rejet')) return 'fr:210'; // refusée
+  if (s.includes('litige') || s.includes('disput') || s.includes('contesté')) return 'fr:207'; // litige
+  // Default to "received" (fr:202) for unknown statuses
+  return 'fr:202';
+}
+
 /** Email — real send via InvoiceMailPort when wired, stub otherwise. */
 export class EmailTransmissionProvider implements TransmissionProvider {
   readonly id = 'email';
@@ -205,9 +226,82 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
     }
   }
 
-  sendStatus(ref: string, status: string, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): TransmissionResult {
-    log.todo('transmission/peppol', `push lifecycle status "${status}" to Peppol for ${ref}`);
-    return { channel: 'PEPPOL', status: 'QUEUED', ref, notes: [`stub: relay "${status}" via Peppol Invoice Response (BIS 3 IMR)`] };
+  async sendStatus(ref: string, status: string, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<TransmissionResult> {
+    // Peppol Invoice Response (IMR / BIS 3 CIUS / BIS 36a MLR).
+    // Called when WE are the buyer confirming acceptance/rejection of a received invoice,
+    // OR when the seller's AP relays our response back through the 4-corner network.
+    //
+    // LIVE PROOF: DEFERRED — requires a connected Access Point (AccAP or production AP).
+    //
+    // The response code mapping:
+    //   accept / approved / cleared → AB (Invoice Accepted)
+    //   refuse / reject             → RE (Invoice Rejected)
+    //   dispute / litige            → UQ (Under Query)
+    //   (default)                   → AP (In Process)
+
+    const parts = ref.split('|');
+    if (parts.length !== 2) {
+      return { channel: 'PEPPOL', status: 'QUEUED', ref, notes: ['peppol: invalid ref for sendStatus'] };
+    }
+    const [companyId, originalMessageId] = parts;
+
+    if (!this.credentials) {
+      return { channel: 'PEPPOL', status: 'QUEUED', ref, notes: ['peppol: no credentials port for sendStatus'] };
+    }
+
+    const resolved = await this.credentials.resolveActive(companyId, 'peppol');
+    if (!resolved?.isActive) {
+      return { channel: 'PEPPOL', status: 'QUEUED', ref, notes: ['peppol: credentials no longer active'] };
+    }
+
+    const { config } = resolved;
+    const senderParticipantId = config.participantId as string;
+    const accessPointUrl = config.accessPointUrl as string;
+    const apiKey = config.apiKey as string;
+    const environment = (config.environment as string ?? 'TEST') as 'TEST' | 'PROD';
+
+    if (!senderParticipantId || !accessPointUrl || !apiKey) {
+      return { channel: 'PEPPOL', status: 'QUEUED', ref, notes: ['peppol: incomplete config for sendStatus'] };
+    }
+
+    const receiverPeppolId = ctx.buyer.peppolId ?? ctx.supplier.peppolId;
+    if (!receiverPeppolId) {
+      log.todo('transmission/peppol', `sendStatus: no peppolId on counterpart (ref ${ref})`);
+      return { channel: 'PEPPOL', status: 'QUEUED', ref, notes: ['peppol: no counterpart peppolId for Invoice Response'] };
+    }
+
+    const sl = status.toLowerCase();
+    const responseCode: 'AB' | 'RE' | 'UQ' | 'AP' =
+      ['accept', 'approv', 'cleared', 'consegn'].some((w) => sl.includes(w)) ? 'AB' :
+      ['refus', 'reject', 'rechaz', 'scart'].some((w) => sl.includes(w)) ? 'RE' :
+      ['litige', 'disput', 'query'].some((w) => sl.includes(w)) ? 'UQ' :
+      'AP';
+
+    try {
+      const { PeppolApHttpClient } = await import('./peppol/peppol-client.js');
+      const ap = this.apPort ?? new PeppolApHttpClient({ accessPointUrl, apiKey, environment });
+
+      log.info('transmission/peppol', `sendStatus: sending Invoice Response "${responseCode}" for originalMessageId ${originalMessageId}`);
+      const result = await ap.sendInvoiceResponse({
+        senderParticipantId,
+        receiverParticipantId: receiverPeppolId,
+        originalMessageId,
+        responseCode,
+        description: `Invoice Response for status: ${status}`,
+        idempotencyKey: `${ref}:${status}`,
+      });
+
+      return {
+        channel: 'PEPPOL',
+        status: 'SENT',
+        ref,
+        notes: [`Invoice Response sent (${responseCode}); responseMessageId: ${result.messageId}`],
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn('transmission/peppol', `sendStatus failed: ${msg}`);
+      return { channel: 'PEPPOL', status: 'QUEUED', ref, notes: [`peppol: sendStatus error: ${msg}`] };
+    }
   }
 
   async poll(ref: string, log: ComplianceLogger): Promise<TransmissionResult> {
@@ -402,9 +496,80 @@ export class PdpTransmissionProvider implements TransmissionProvider {
     }
   }
 
-  sendStatus(ref: string, status: string, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): TransmissionResult {
-    log.todo('transmission/pdp', `push lifecycle status "${status}" to the PDP for ${ref}`);
-    return { channel: 'PDP', status: 'QUEUED', ref, notes: [`stub: relay "${status}" via registered PDP`] };
+  async sendStatus(ref: string, status: string, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<TransmissionResult> {
+    // Push a lifecycle status (XP Z12-012 lifecycle code) to the PDP for a previously deposited
+    // invoice. Typical callers: markPaid() emitting "encaissée" (fr:212 = paiement reçu).
+    //
+    // Ref format: "companyId|invoiceId" (SuperPDP) or "companyId|flowId" (AFNOR).
+    //
+    // LIVE PROOF: Deferred — endpoint needs live SuperPDP sandbox verification.
+    // The SuperPDP proprietary API exposes POST /v1.beta/invoices/{id}/lifecycle_events
+    // for seller-side status pushes (payment received, etc.).
+
+    const parts = ref.split('|');
+    if (parts.length !== 2) {
+      return { channel: 'PDP', status: 'QUEUED', ref, notes: ['pdp: invalid ref for sendStatus'] };
+    }
+    const [companyId, invoiceIdOrFlowId] = parts;
+
+    if (!this.credentials) {
+      return { channel: 'PDP', status: 'QUEUED', ref, notes: ['pdp: no credentials port for sendStatus'] };
+    }
+
+    const resolved = await this.credentials.resolveActive(companyId, 'pdp');
+    if (!resolved?.isActive) {
+      return { channel: 'PDP', status: 'QUEUED', ref, notes: ['pdp: credentials no longer active'] };
+    }
+
+    const { config } = resolved;
+    const baseUrl = config.baseUrl as string;
+    const clientId = config.clientId as string;
+    const clientSecret = config.clientSecret as string;
+    const apiStyle = (config.apiStyle as string) ?? 'superpdp';
+
+    if (!baseUrl || !clientId || !clientSecret) {
+      return { channel: 'PDP', status: 'QUEUED', ref, notes: ['pdp: incomplete config for sendStatus'] };
+    }
+
+    try {
+      const { PdpClient } = await import('./pdp/pdp-client.js');
+      const client = new PdpClient({
+        baseUrl,
+        clientId,
+        clientSecret,
+        apiStyle: apiStyle as 'superpdp' | 'afnor',
+      });
+      client.clearToken();
+      await client.authenticate();
+
+      // Map the lifecycle status text to a PDP XP Z12-012 code.
+      const pdpCode = mapStatusToPdpCode(status);
+
+      if (apiStyle === 'afnor') {
+        // AFNOR Flow does not define a seller-side lifecycle push endpoint in the v1 spec.
+        log.todo('transmission/pdp', `sendStatus AFNOR: flow "${invoiceIdOrFlowId}" status "${status}" (code ${pdpCode}) — no standard endpoint yet`);
+        return { channel: 'PDP', status: 'QUEUED', ref, notes: [`pdp: AFNOR sendStatus deferred (no v1 endpoint); would push ${pdpCode}`] };
+      }
+
+      // SuperPDP: POST /v1.beta/invoices/{id}/lifecycle_events { code }
+      const invoiceId = parseInt(invoiceIdOrFlowId, 10);
+      if (Number.isNaN(invoiceId)) {
+        return { channel: 'PDP', status: 'QUEUED', ref, notes: [`pdp: invalid invoiceId in ref: ${invoiceIdOrFlowId}`] };
+      }
+
+      log.info('transmission/pdp', `sendStatus: pushing "${pdpCode}" for invoiceId ${invoiceId} (ref ${ref})`);
+      await client.pushLifecycleStatus(invoiceId, pdpCode);
+      return {
+        channel: 'PDP',
+        status: 'SENT',
+        ref,
+        notes: [`pushed lifecycle code: ${pdpCode} (input: "${status}")`],
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn('transmission/pdp', `sendStatus failed: ${msg} (ref ${ref})`);
+      return { channel: 'PDP', status: 'QUEUED', ref, notes: [`pdp: sendStatus error: ${msg}`] };
+    }
   }
 
   async poll(ref: string, log: ComplianceLogger): Promise<TransmissionResult> {
@@ -645,6 +810,7 @@ export class SdiTransmissionProvider implements TransmissionProvider {
       const http = this.httpPort ?? {
         submit: async () => { throw new Error('SdI SDICoop transport not implemented — AdE intermediary accreditation and PFX certificate required'); },
         getStatus: async () => { throw new Error('SdI SDICoop transport not implemented — AdE intermediary accreditation required'); },
+        sendEsito: async () => { throw new Error('SdI sendEsito not implemented — AdE intermediary accreditation required'); },
       };
 
       const client = new SdiClient(http, { idTrasmittente, certificate, certificatePassword });
@@ -662,9 +828,74 @@ export class SdiTransmissionProvider implements TransmissionProvider {
     }
   }
 
-  sendStatus(ref: string, status: string, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): TransmissionResult {
-    log.todo('transmission/sdi', `push lifecycle status "${status}" to SdI buyer for ${ref}`);
-    return { channel: 'SDI', status: 'QUEUED', ref, notes: [`stub: relay "${status}" via SdI NE (notifica esito)`] };
+  async sendStatus(ref: string, status: string, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<TransmissionResult> {
+    // Emit the esito committente (NE notifica) — buyer acceptance/refusal — to SdI.
+    // Called when WE are the buyer receiving a FatturaPA and emitting our response.
+    //
+    // Status mapping:
+    //   accept / approv / consegn → EC01 (accettazione — accepted)
+    //   refus / reject / scart   → EC02 (rifiuto — refused)
+    //
+    // Ref format: "companyId|idSdI|idTrasmittente"
+    //
+    // LIVE PROOF: DEFERRED — SDICoop SOAP transport requires AdE intermediary accreditation
+    // and a qualified PFX certificate. The SdiHttpPort.sendEsito() port is defined;
+    // inject a real SOAP transport once accreditation is obtained.
+
+    const parts = ref.split('|');
+    if (parts.length !== 3) {
+      return { channel: 'SDI', status: 'QUEUED', ref, notes: ['sdi: invalid ref for sendStatus'] };
+    }
+    const [companyId, idSdIStr, idTrasmittente] = parts;
+    const idSdI = parseInt(idSdIStr, 10);
+
+    if (Number.isNaN(idSdI)) {
+      return { channel: 'SDI', status: 'QUEUED', ref, notes: ['sdi: invalid idSdI in ref'] };
+    }
+
+    const sl = status.toLowerCase();
+    const esito: 'EC01' | 'EC02' =
+      ['accept', 'approv', 'consegn', 'cleared', 'autoriz'].some((w) => sl.includes(w)) ? 'EC01' : 'EC02';
+
+    if (!this.credentials) {
+      return { channel: 'SDI', status: 'QUEUED', ref, notes: ['sdi: no credentials port for sendStatus'] };
+    }
+
+    const resolved = await this.credentials.resolveActive(companyId, 'sdi');
+    if (!resolved?.isActive) {
+      return { channel: 'SDI', status: 'QUEUED', ref, notes: ['sdi: credentials no longer active'] };
+    }
+
+    const { config } = resolved;
+    const certificate = config.certificate as string | undefined;
+    const certificatePassword = config.certificatePassword as string | undefined;
+
+    try {
+      const { SdiClient } = await import('./sdi/sdi-client.js');
+
+      // Use injected port (test mock) or fall back to a stub that throws clearly.
+      // A real SOAP SDICoop client with sendEsito() requires AdE accreditation.
+      const http = this.httpPort ?? {
+        submit: async () => { throw new Error('SdI SDICoop transport not implemented'); },
+        getStatus: async () => { throw new Error('SdI SDICoop transport not implemented'); },
+        sendEsito: async () => { throw new Error('SdI sendEsito not implemented — AdE intermediary accreditation required'); },
+      };
+
+      const client = new SdiClient(http, { idTrasmittente, certificate, certificatePassword });
+
+      log.info('transmission/sdi', `sendStatus: sending esito ${esito} (${status}) for idSdI ${idSdI} (ref ${ref})`);
+      await client.sendEsito(idSdI, esito);
+      return {
+        channel: 'SDI',
+        status: 'SENT',
+        ref,
+        notes: [`esito committente ${esito} sent for idSdI ${idSdI}`],
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn('transmission/sdi', `sendStatus failed: ${msg} (ref ${ref})`);
+      return { channel: 'SDI', status: 'QUEUED', ref, notes: [`sdi: sendStatus error: ${msg}`] };
+    }
   }
 
   async poll(ref: string, log: ComplianceLogger): Promise<TransmissionResult> {
@@ -699,6 +930,7 @@ export class SdiTransmissionProvider implements TransmissionProvider {
       const http = this.httpPort ?? {
         submit: async () => { throw new Error('SdI transport not implemented'); },
         getStatus: async () => { throw new Error('SdI SDICoop transport not implemented — AdE accreditation required'); },
+        sendEsito: async () => { throw new Error('SdI sendEsito not implemented — AdE intermediary accreditation required'); },
       };
 
       const client = new SdiClient(http, { idTrasmittente, certificate, certificatePassword });

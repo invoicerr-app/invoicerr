@@ -97,6 +97,17 @@ export interface SdiHttpPort {
    * Returns the latest notifica received, if any.
    */
   getStatus(idSdI: number, idTrasmittente: string): Promise<SdiStatusResult>;
+
+  /**
+   * Send the esito committente (NE notifica) to SdI — the buyer's acceptance or refusal.
+   *
+   * EC01 = accettazione (accepted by buyer)
+   * EC02 = rifiuto     (refused by buyer)
+   *
+   * Corresponds to the SOAP service RiceviNotificaService on the intermediary's SDICoop endpoint.
+   * DEFERRED: requires AdE intermediary accreditation + qualified PFX certificate.
+   */
+  sendEsito(idSdI: number, idTrasmittente: string, esito: 'EC01' | 'EC02', descrizione?: string): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -137,6 +148,18 @@ export class SdiClient {
    */
   async getStatus(idSdI: number): Promise<SdiStatusResult> {
     return this.http.getStatus(idSdI, this.config.idTrasmittente);
+  }
+
+  /**
+   * Send the esito committente (NE notifica) — buyer's acceptance or refusal — to SdI.
+   *
+   * EC01 = accettazione (buyer accepts the invoice)
+   * EC02 = rifiuto     (buyer refuses the invoice)
+   *
+   * DEFERRED: real transport requires AdE intermediary accreditation + qualified PFX.
+   */
+  async sendEsito(idSdI: number, esito: 'EC01' | 'EC02', descrizione?: string): Promise<void> {
+    return this.http.sendEsito(idSdI, this.config.idTrasmittente, esito, descrizione);
   }
 
   /**

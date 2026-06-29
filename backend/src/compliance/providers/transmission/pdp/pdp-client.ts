@@ -397,6 +397,25 @@ export class PdpClient {
   }
 
   // -----------------------------------------------------------------------
+  // Lifecycle status push (outbound — seller notifying the PDP of a status change)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Push a lifecycle status event to the PDP for a deposited invoice.
+   *
+   * SuperPDP proprietary endpoint: POST /v1.beta/invoices/{id}/lifecycle_events
+   * Body: { code: "fr:211" } (XP Z12-012 lifecycle code, e.g. fr:211 = payment sent,
+   *        fr:212 = payment received, fr:205 = accepted by buyer).
+   *
+   * LIVE PROOF: Deferred — requires live SuperPDP sandbox creds + invoice ID.
+   */
+  async pushLifecycleStatus(invoiceId: number, code: string): Promise<void> {
+    await this.request<unknown>('POST', `/v1.beta/invoices/${invoiceId}/lifecycle_events`, {
+      body: { code },
+    });
+  }
+
+  // -----------------------------------------------------------------------
   // AFNOR Directory Service (XP Z12-013 standard)
   // -----------------------------------------------------------------------
 
