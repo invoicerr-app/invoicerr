@@ -190,7 +190,9 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('cac:LegalMonetaryTotal')) errors.push('missing MonetaryTotal');
       if (!xml.includes('cac:InvoiceLine')) errors.push('missing InvoiceLine');
       if (!xml.includes('310123456700003')) errors.push('missing seller VAT');
-      if (!xml.includes('TODO: ZATCA QR')) errors.push('missing QR placeholder');
+      if (!xml.includes('cac:AdditionalDocumentReference')) errors.push('missing AdditionalDocumentReference (QR)');
+      if (!xml.includes('<cbc:ID>QR</cbc:ID>')) errors.push('missing QR ID tag');
+      if (!xml.includes('EmbeddedDocumentBinaryObject')) errors.push('missing QR TLV payload');
 
       results.push({
         fixture: fixture.slug,
@@ -554,6 +556,100 @@ describe('National Format — structural validation', () => {
       const result = await validateXsd(broken, 'pl/schemat_FA2.xsd');
       expect(result.valid).toBe(false);
       expect(result.errorCount).toBeGreaterThan(0);
+    });
+  });
+
+  describe('KSA ZATCA — QR TLV decode verification', () => {
+    it('embeds decodable 5-field TLV base64 QR in the invoice XML', async () => {
+      const xml = await service.buildKsaUbl(SA_B2B.data);
+      // Extract base64 from EmbeddedDocumentBinaryObject element
+      const match = xml.match(/<cbc:EmbeddedDocumentBinaryObject[^>]*>([A-Za-z0-9+/=]+)<\/cbc:EmbeddedDocumentBinaryObject>/);
+      expect(match).not.toBeNull();
+      const b64 = match![1];
+      const buf = Buffer.from(b64, 'base64');
+      // Decode TLV: tag(1), length(1), value(length) x 5 fields
+      const fields: { tag: number; value: string }[] = [];
+      let offset = 0;
+      while (offset < buf.length) {
+        const tag = buf[offset++];
+        const len = buf[offset++];
+        const value = buf.slice(offset, offset + len).toString('utf-8');
+        offset += len;
+        fields.push({ tag, value });
+      }
+      expect(fields.length).toBeGreaterThanOrEqual(5);
+      expect(fields[0].tag).toBe(1); // sellerName
+      expect(fields[1].tag).toBe(2); // vatNumber
+      expect(fields[2].tag).toBe(3); // issueDateTime
+      expect(fields[3].tag).toBe(4); // totalWithVat
+      expect(fields[4].tag).toBe(5); // vatAmount
+      expect(fields[0].value).toBe(SA_B2B.data.company.name);
+      expect(fields[1].value).toBe('310123456700003');
+    });
+  });
+
+  describe('Facturae 3.2.2 + XAdES signing (ES)', () => {
+    it('generates Facturae 3.2.2 XML and XAdES signature node is present after signing', async () => {
+      // Inline cert generation (mirrors providers.spec.ts pattern)
+      const forge = await import('node-forge');
+      const keys = forge.pki.rsa.generateKeyPair({ bits: 1024, e: 0x10001 });
+      const cert = forge.pki.createCertificate();
+      cert.publicKey = keys.publicKey;
+      cert.serialNumber = '01';
+      cert.validity.notBefore = new Date();
+      cert.validity.notAfter = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+      const attrs = [{ name: 'commonName', value: 'Test ES Signing' }];
+      cert.setSubject(attrs);
+      cert.setIssuer(attrs);
+      cert.setExtensions([{ name: 'basicConstraints', cA: false }]);
+      cert.sign(keys.privateKey, forge.md.sha256.create());
+
+      const certPem = forge.pki.certificateToPem(cert);
+      const privateKeyPem = forge.pki.privateKeyInfoToPem(
+        forge.pki.wrapRsaPrivateKey(forge.pki.privateKeyToAsn1(keys.privateKey))
+      );
+      const certDer = Buffer.from(forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes(), 'binary');
+
+      const { XadesSigningProvider } = await import('../signing/providers');
+      const { setNodeDependencies } = await import('xadesjs');
+      const { Application: XmldsigApp } = await import('xmldsigjs');
+      const { DOMParser: Dom, XMLSerializer: Ser } = await import('@xmldom/xmldom');
+      setNodeDependencies({ DOMParser: Dom, XMLSerializer: Ser } as any);
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const path = require('path') as typeof import('path');
+      const xmldsigDir = path.dirname(require.resolve('xmldsigjs'));
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const xmlCore = require(require.resolve('xml-core', { paths: [xmldsigDir] })) as any;
+      xmlCore.setNodeDependencies({ DOMParser: Dom, XMLSerializer: Ser });
+      XmldsigApp.setEngine('native', globalThis.crypto as Crypto);
+
+      const material = { certDer, privateKeyPem, certPem };
+      const provider = new XadesSigningProvider({ resolve: async () => material });
+
+      const xml = await service.buildFacturae(ES_B2B.data);
+      expect(xml).toContain('3.2.2'); // namespace confirms version
+
+      const xmlBytes = new TextEncoder().encode(xml);
+      const artifact = {
+        role: 'AUTHORITATIVE' as const,
+        syntax: 'ES_FACTURAE' as any,
+        mime: 'application/xml',
+        bytes: xmlBytes,
+      };
+
+      const { RecordingComplianceLogger } = await import('../../execution/logger');
+      const log = new RecordingComplianceLogger();
+      const signed = await provider.sign(artifact, 'es-cert', log);
+
+      const signedXml = Buffer.from(signed.bytes).toString('utf-8');
+      // If signing failed silently, the log will have a warn entry; surface it for diagnostics.
+      const warnEntries = log.entries.filter(e => e.level === 'warn');
+      if (warnEntries.length > 0) {
+        throw new Error(`XAdES signing produced warnings: ${warnEntries.map(e => e.message).join('; ')}`);
+      }
+      // XAdES embeds a <ds:Signature> or <Signature> element — check for both variants.
+      expect(signedXml).toMatch(/Signature/);
+      expect(signed.signature?.algo).toBe('XAdES');
     });
   });
 });

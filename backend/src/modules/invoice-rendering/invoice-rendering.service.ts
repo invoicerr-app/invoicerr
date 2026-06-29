@@ -42,8 +42,10 @@ export class BuiltEInvoice {
   }
 
   async embedInPdf(pdfBuffer: Buffer, format: string): Promise<Uint8Array> {
-    // Hybrid PDF/A-3 formats: embed CII XML into the PDF container
-    const fmtName = format === 'zugferd' ? 'Factur-X-EN16931' : 'Factur-X-EN16931';
+    // Hybrid PDF/A-3 formats: embed CII XML into the PDF container.
+    // ZUGFeRD 2.x is fully aligned with Factur-X 1.0 (same CII/EN16931 content, PDF/A-3 container,
+    // identical CustomizationID). The library uses 'Factur-X-EN16931' for both; no separate profile.
+    const fmtName = 'Factur-X-EN16931';
     const svc = new EuInvoiceService(EU_LOGGER);
     const result = await svc.generate(this.invoice, {
       format: fmtName,
@@ -103,6 +105,34 @@ export interface InvoiceRenderData {
     vatRate: number;
     type: string;
   }[];
+}
+
+/**
+ * ZATCA FATOORA TLV QR — 5 mandatory fields, base64-encoded.
+ * Tags: 1=sellerName, 2=vatNumber, 3=issueDateTime, 4=totalWithVat, 5=vatAmount.
+ * Each field: [tag:u8][length:u8][value:utf-8 bytes].
+ */
+function buildZatcaQrTlv(
+    sellerName: string,
+    vatNumber: string,
+    issueDateTime: string,
+    totalWithVat: string,
+    vatAmount: string,
+): string {
+    const encodeField = (tag: number, value: string): Buffer => {
+        const valueBytes = Buffer.from(value, 'utf-8');
+        const header = Buffer.alloc(2);
+        header[0] = tag;
+        header[1] = valueBytes.length;
+        return Buffer.concat([header, valueBytes]);
+    };
+    return Buffer.concat([
+        encodeField(1, sellerName),
+        encodeField(2, vatNumber),
+        encodeField(3, issueDateTime),
+        encodeField(4, totalWithVat),
+        encodeField(5, vatAmount),
+    ]).toString('base64');
 }
 
 @Injectable()
@@ -358,6 +388,13 @@ export class InvoiceRenderingService {
         if (sellerVat) {
             sellerParty['cac:PartyTaxScheme'] = [{ 'cbc:CompanyID': sellerVat, 'cac:TaxScheme': { 'cbc:ID': 'VAT' } }];
         }
+        // BR-DE-11 (seller telephone) + BR-DE-12 (seller email) — emit when data is available
+        if (data.company.phone || data.company.email) {
+            sellerParty['cac:Contact'] = {
+                ...(data.company.phone ? { 'cbc:Telephone': data.company.phone } : {}),
+                ...(data.company.email ? { 'cbc:ElectronicMail': data.company.email } : {}),
+            };
+        }
 
         // @e-invoice-eu/core requires EndpointID on the buyer party (mandatory in its JSON schema).
         // For B2B: use SIREN with schemeID 0225.
@@ -397,6 +434,11 @@ export class InvoiceRenderingService {
                 'cac:AccountingSupplierParty': { 'cac:Party': sellerParty as any },
                 'cac:AccountingCustomerParty': { 'cac:Party': buyerParty as any },
                 'cac:Delivery': { 'cbc:ActualDeliveryDate': issueDateStr },
+                // BR-DE-14: payment means code required in XRechnung (BT-81 is mandatory).
+                // Code 1 = "Instrument not defined" — safe default that satisfies the presence
+                // requirement without triggering CII-SR-470 (which requires IBAN for code 30/58).
+                // TODO: derive a specific code from invoice.paymentMethod when that field is exposed.
+                'cac:PaymentMeans': [{ 'cbc:PaymentMeansCode': '1' }] as any,
                 'cac:TaxTotal': [{
                     'cbc:TaxAmount': fmt2(totalVat),
                     'cbc:TaxAmount@currencyID': currency,
@@ -707,9 +749,9 @@ export class InvoiceRenderingService {
 
         const facturaxml = {
             Facturae: {
-                '@': { xmlns: 'http://www.facturae.es/schemas/2014/v3.2.1/Facturae' },
+                '@': { xmlns: 'http://www.facturae.es/Facturae/2014/v3.2.2/Facturae' },
                 FileHeader: {
-                    SchemaVersion: '3.2.1',
+                    SchemaVersion: '3.2.2',
                     InvoiceIssuerType: 'EM',
                     InvoiceIssueDate: issueDate,
                     InvoiceCurrencyCode: data.company.currency || 'EUR',
@@ -740,30 +782,50 @@ export class InvoiceRenderingService {
         return doc.end({ prettyPrint: true });
     }
 
-    /** KSA UBL 2.1 + QR (SA/ZATCA) — UBL skeleton with QR placeholder. */
+    /** KSA UBL 2.1 + TLV QR (SA/ZATCA FATOORA). */
     async buildKsaUbl(data: InvoiceRenderData): Promise<string> {
-        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+        const issueDateTime = (data.issuedAt ?? data.createdAt).toISOString();
+        const issueDate = issueDateTime.split('T')[0];
         const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
         const totalIVA = data.items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0);
+        const vatNumber = getIdentifier(data.company, 'VAT') || '';
+
+        // ZATCA TLV QR — generated offline; final QR includes the digital signature (tag 6)
+        // which requires the FATOORA clearance step. This covers the 5 pre-clearance fields.
+        const qrTlv = buildZatcaQrTlv(
+            data.company.name,
+            vatNumber,
+            issueDateTime,
+            (total + totalIVA).toFixed(2),
+            totalIVA.toFixed(2),
+        );
 
         const inv = {
             'ubl:Invoice': {
-                'cbc:CustomizationID': 'urn:cen.biis:en16931:2017#compliant#urn:fdc:zatca.sa:2017:outlook:01:2.1',
-                'cbc:ProfileID': 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0',
+                'cbc:CustomizationID': 'urn:cen.eu:en16931:2017#compliant#urn:fdc:zatca.sa:2017:invoice:01:1.0',
+                'cbc:ProfileID': 'reporting:1.0',
                 'cbc:ID': data.rawNumber || (data.number?.toString() ?? 'DRAFT'),
                 'cbc:IssueDate': issueDate,
                 'cbc:InvoiceTypeCode': '380',
                 'cbc:DocumentCurrencyCode': data.company.currency || 'SAR',
+                // ZATCA QR TLV embedded as AdditionalDocumentReference (tag QR)
+                'cac:AdditionalDocumentReference': {
+                    'cbc:ID': 'QR',
+                    'cac:Attachment': {
+                        'cbc:EmbeddedDocumentBinaryObject': qrTlv,
+                        'cbc:EmbeddedDocumentBinaryObject@mimeCode': 'text/plain',
+                    },
+                },
                 'cac:AccountingSupplierParty': {
                     'cac:Party': {
-                        'cbc:EndpointID': getIdentifier(data.company, 'VAT') || '',
+                        'cbc:EndpointID': vatNumber,
                         'cac:PostalAddress': {
                             'cbc:CityName': data.company.city || '',
                             'cac:Country': { 'cbc:IdentificationCode': (data.company.country || 'SA').slice(0, 2).toUpperCase() },
                         },
                         'cac:PartyLegalEntity': {
                             'cbc:RegistrationName': data.company.name,
-                            'cbc:CompanyID': getIdentifier(data.company, 'VAT') || '',
+                            'cbc:CompanyID': vatNumber,
                         },
                     },
                 },
@@ -828,12 +890,7 @@ export class InvoiceRenderingService {
 
         const builder = await import('xmlbuilder2');
         const doc = builder.create(inv as any, { format: 'fragment' });
-        let xml = doc.end({ prettyPrint: true });
-
-        // QR code placeholder (TLV base64 — to be generated by ZATCA on submission)
-        const qrPlaceholder = '<!-- TODO: ZATCA QR code TLV payload — generated during FATOORA submission -->';
-        xml = xml.replace('</ubl:Invoice>', `${qrPlaceholder}\n</ubl:Invoice>`);
-        return xml;
+        return doc.end({ prettyPrint: true });
     }
 
     /** FA_VAT (PL/KSeF) XML — fully XSD-compliant FA(2) structure. */

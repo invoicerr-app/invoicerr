@@ -31,9 +31,12 @@ const SYNTAX_TO_XML_FORMAT: Partial<Record<DocumentSyntax, XmlExportFormat>> = {
   XRECHNUNG: 'xrechnung',
   EN16931_UBL: 'ubl',
   EN16931_CII: 'cii',
-  // PEPPOL_BIS → 'ubl' is an approximation; the Peppol CustomizationID will come with provider Peppol #63
   PEPPOL_BIS: 'ubl',
 };
+
+const PEPPOL_BIS_CUSTOMIZATION_ID =
+  'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0';
+const PEPPOL_BIS_PROFILE_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0';
 
 /** EN 16931 family (Factur-X, ZUGFeRD, XRechnung, UBL, CII, Peppol BIS, PDF/A-3). Wraps
  *  @e-invoice-eu/core via InvoiceRenderingService.buildEInvoice → BuiltEInvoice. */
@@ -64,7 +67,12 @@ export class En16931FormatProvider implements FormatProvider {
       // 2. Try pure XML (exportXml)
       const xmlFormat = SYNTAX_TO_XML_FORMAT[syntax];
       if (xmlFormat) {
-        const xml = await this.artifacts.renderXmlFormat(ctx.externalRef, xmlFormat);
+        let xml = await this.artifacts.renderXmlFormat(ctx.externalRef, xmlFormat);
+        // Peppol BIS Billing 3.0 requires specific CustomizationID/ProfileID distinct from generic EN16931.
+        if (syntax === 'PEPPOL_BIS') {
+          xml = xml.replace('urn:cen.eu:en16931:2017', PEPPOL_BIS_CUSTOMIZATION_ID);
+          xml = xml.replace('<cbc:ProfileID>M1</cbc:ProfileID>', `<cbc:ProfileID>${PEPPOL_BIS_PROFILE_ID}</cbc:ProfileID>`);
+        }
         const bytes = new TextEncoder().encode(xml);
         return { role: artifact.role as ArtifactRole, syntax, mime: 'application/xml', bytes };
       }

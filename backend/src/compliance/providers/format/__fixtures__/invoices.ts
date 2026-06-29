@@ -238,6 +238,8 @@ export const DE_B2B: FormatFixture = {
       city: 'Berlin',
       postalCode: '10117',
       country: 'Germany',
+      phone: '+49-30-12345678',
+      email: 'invoice@schmidt-software.de',
       partyIdentifiers: DE_COMPANY_PARTY,
     },
     client: {
