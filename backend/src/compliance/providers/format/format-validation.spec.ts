@@ -40,15 +40,11 @@ const CII_SCH_PATH = 'en16931/EN16931-CII-validation-preprocessed.sch';
  * Known Schematron error IDs from CII exports via @e-invoice-eu/core.
  * Update this list if the library is improved or new fixtures are added.
  * Living gate: actual errors must be a SUBSET of this set (no new errors).
+ *
+ * BR-27 was removed 2026-06-29: buildEInvoice now converts negative-price items to document-level
+ * AllowanceCharge entries, so BT-146 (PriceAmount) is always non-negative.
  */
-const CII_KNOWN_SCHEMATRON_GAPS: string[] = [
-  // BR-27: "[BR-27]-The Item net price (BT-146) shall NOT be negative."
-  //   Fires on fr-b2b-discount fixture (line item unitPrice: -500 represents a discount).
-  //   EN16931 requires discounts to be modeled as SpecifiedTradeAllowanceCharge, not negative
-  //   unit prices. Saxon-JS/SEF was not catching this due to XPath 2.0 empty-sequence handling.
-  //   TODO: fix buildEInvoice to convert negative unitPrice to line-level allowance (BG-27).
-  'BR-27',
-];
+const CII_KNOWN_SCHEMATRON_GAPS: string[] = [];
 
 interface RowResult {
   fixture: string;
