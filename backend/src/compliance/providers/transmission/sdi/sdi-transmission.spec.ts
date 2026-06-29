@@ -91,6 +91,7 @@ function mockSdiHttpPort(idSdI = 12345): SdiHttpPort {
       delivered: false,
       latestNotifica: undefined,
     } satisfies SdiStatusResult),
+    sendEsito: jest.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -259,6 +260,7 @@ describe('SdiTransmissionProvider — credential and artifact flow', () => {
     const failingHttp: SdiHttpPort = {
       submit: jest.fn().mockRejectedValue(new Error('SOAP connection refused')),
       getStatus: jest.fn(),
+      sendEsito: jest.fn().mockResolvedValue(undefined),
     };
     const provider = new SdiTransmissionProvider(undefined, failingHttp);
     const log = new RecordingComplianceLogger();
@@ -346,6 +348,7 @@ describe('SdiTransmissionProvider.poll() — ref parsing and credential resoluti
           dataOraRicezione: '2026-07-01T12:00:00Z',
         } satisfies SdiNotifica,
       } satisfies SdiStatusResult),
+      sendEsito: jest.fn().mockResolvedValue(undefined),
     };
     const credentials = mockCredentials(makeResolvedConfig());
     const provider = new SdiTransmissionProvider(credentials, http);
@@ -363,6 +366,7 @@ describe('SdiTransmissionProvider.poll() — ref parsing and credential resoluti
         delivered: false,
         latestNotifica: undefined,
       } satisfies SdiStatusResult),
+      sendEsito: jest.fn().mockResolvedValue(undefined),
     };
     const credentials = mockCredentials(makeResolvedConfig());
     const provider = new SdiTransmissionProvider(credentials, http);

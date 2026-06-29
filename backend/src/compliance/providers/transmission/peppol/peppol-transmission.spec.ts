@@ -112,6 +112,10 @@ function mockApPort(messageId = 'msg-001'): PeppolApPort {
       messageId,
       status: 'DELIVERED',
     } satisfies PeppolStatusResult),
+    sendInvoiceResponse: jest.fn().mockResolvedValue({
+      messageId: `ir-${messageId}`,
+      status: 'QUEUED',
+    } satisfies PeppolSendResult),
   };
 }
 
@@ -253,6 +257,7 @@ describe('PeppolTransmissionProvider — credential and transmission flow', () =
     const failingAp: PeppolApPort = {
       send: jest.fn().mockRejectedValue(new Error('AP gateway timeout')),
       getStatus: jest.fn(),
+      sendInvoiceResponse: jest.fn().mockResolvedValue({ messageId: 'ir-1', status: 'QUEUED' }),
     };
     const provider = new PeppolTransmissionProvider(undefined, failingAp, mockSmpPort());
     const log = new RecordingComplianceLogger();
@@ -331,6 +336,7 @@ describe('PeppolTransmissionProvider.poll() — delivery status mapping', () => 
     const ap: PeppolApPort = {
       send: jest.fn(),
       getStatus: jest.fn().mockResolvedValue({ messageId: 'msg-1', status: 'DELIVERED' } satisfies PeppolStatusResult),
+      sendInvoiceResponse: jest.fn().mockResolvedValue({ messageId: 'ir-1', status: 'QUEUED' }),
     };
     const credentials = mockCredentials(makeResolvedConfig());
     const provider = new PeppolTransmissionProvider(credentials, ap);
@@ -345,6 +351,7 @@ describe('PeppolTransmissionProvider.poll() — delivery status mapping', () => 
     const ap: PeppolApPort = {
       send: jest.fn(),
       getStatus: jest.fn().mockResolvedValue({ messageId: 'msg-2', status: 'FAILED', mlrCode: 'ERR001', mlrDescription: 'Invalid document' } satisfies PeppolStatusResult),
+      sendInvoiceResponse: jest.fn().mockResolvedValue({ messageId: 'ir-2', status: 'QUEUED' }),
     };
     const credentials = mockCredentials(makeResolvedConfig());
     const provider = new PeppolTransmissionProvider(credentials, ap);
@@ -359,6 +366,7 @@ describe('PeppolTransmissionProvider.poll() — delivery status mapping', () => 
     const ap: PeppolApPort = {
       send: jest.fn(),
       getStatus: jest.fn().mockResolvedValue({ messageId: 'msg-3', status: 'QUEUED' } satisfies PeppolStatusResult),
+      sendInvoiceResponse: jest.fn().mockResolvedValue({ messageId: 'ir-3', status: 'QUEUED' }),
     };
     const credentials = mockCredentials(makeResolvedConfig());
     const provider = new PeppolTransmissionProvider(credentials, ap);
