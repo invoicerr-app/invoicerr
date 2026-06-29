@@ -48,7 +48,7 @@
 - [x] **FA_VAT** (PL, FA(2)) — `buildFaVat()` ✅ (prouvé KSeF).
 - [x] **FATTURAPA** (IT, 1.2) — build + **XSD validé** (`Schema_VFPR12.xsd`) — transmission SdI à finir (§3).
 - [x] **ES_FACTURAE** (3.2.2) — builder + ns/SchemaVersion corrects + **XAdES câblé** (nœud Signature vérifié). [ ] XSD officiel non bundlé (validation structurelle) ; [ ] SII/Verifactu.
-- [ ] 🟡 **KSA_UBL** (ZATCA FATOORA) — UBL 2.1 + **QR TLV 5 champs (base64)** + CustomizationID corrects. [ ] hash PIH‑chain + sceau tag‑6 (clearance) + XSD.
+- [~] **KSA_UBL** (ZATCA FATOORA) — UBL 2.1 + QR TLV 5 champs + CustomizationID + **invoice hash SHA‑256 (base64) + chaîne PIH** (BR‑KSA‑26, `ZATCA_PIH_INIT`) offline, 8 tests. [ ] sceau tag‑6 + clearance (live) + XSD.
 - [ ] 🟡 **CFDI** (MX 4.0) — ns `cfd/4` + seam Sello/Certificado (faux NoCertificado retiré). [ ] timbrado PAC (UUID/TimbreFiscalDigital) + sceau CSD + complément/addenda + XSD.
 
 ### 1.3 Formats nationaux 🔴 (stubs `national-formats.ts`) — build + validation + signature + champs + profil + preuve
@@ -176,7 +176,7 @@
 - [x] Existence VIES/SIRENE branchée (executor step 0b, warnings `[existence]` non bloquants) + `CachedExistenceClient` (TTL 24h) ; défaut `Null` (offline‑safe).
 - [x] Checksums durcis : **clé alpha FR VAT** (base‑34) + **CIF ES** (algo officiel, routage type d'org) avec vecteurs cités.
 - [x] **Identifiants de routage** : `PEPPOL_ENDPOINT` (`schemeId:endpointId`) par client/société via `PartyIdentifier` (sans migration) → `cac:EndpointID schemeID` UBL Peppol BIS + XRechnung (acheteur+vendeur), fallback inchangé ; UI client+société (select scheme 0088/0192/0009/9925…). NIC dérivé du SIRET. tel/email vendeur + code paiement déjà faits. 5 tests rendering.
-- [ ] Table + lookup + cache **annuaire** des participants.
+- [x] **Annuaire** : lookup (Peppol SMP + AFNOR) déjà présent ; **`CachedBuyerDirectory`** (TTL + dédup in‑flight + éviction) wiré dans Peppol/PDP — résout l'endpoint acheteur quand absent. 9 tests. [ ] preuve SMP/AFNOR live.
 
 ---
 
@@ -185,7 +185,7 @@
 - [x] Config canal par société chiffrée ; `CREDENTIALS_ENCRYPTION_KEY` requise (sinon 503) — à documenter en déploiement.
 - [x] **Stockage des certificats de signature** (PFX/PKCS#12 + mdp) par société, chiffré + validité (cf. §2) ; UI upload. [ ] chaîne/renouvellement.
 - [ ] Certificats canal : SdI (PFX qualifié), Peppol (cert AP) ; KSeF token ✅ ; PDP OAuth ✅.
-- [ ] Rotation des secrets ; audit d'accès ; jamais de secret en clair dans les logs (✅ vérifié pour SMTP).
+- [x] **Audit d'accès** aux credentials (`CredentialAccessAudit` : companyId/ref/action/outcome, jamais de secret — test garde) émis aux points de résolution config+cert ; **seams de rotation** (`reEncrypt` config, `rotate` cert) sans migration. 7 tests.
 
 ---
 
