@@ -3,7 +3,7 @@
 > Tableau de bord exhaustif : tout ce qui est **fait** (coché) et tout ce qu'il **reste** (décoché),
 > pour montrer où on en est. Statut au 2026‑06‑29. Branche `feat/compliance-architecture`.
 >
-> **Légende :** `[x]` fait · `[ ]` à faire. Suffixes : ✅ prouvé live · 🟢 implémenté+testé (mocké),
+> **Légende :** `[x]` fait · `[~]` scaffoldé (structurel + mocké, non validé autorité, live‑deferred) · `[ ]` à faire. Suffixes : ✅ prouvé live · 🟢 implémenté+testé (mocké),
 > preuve live en attente de creds · 🟡 partiel/échafaudé · 🔴 stub (log.todo) · ⛔ absent.
 >
 > **Principe :** « a country is data ». Un profil (`profiles/data/*.ts`) déclare format(s), canal(aux),
@@ -52,8 +52,9 @@
 - [ ] 🟡 **CFDI** (MX 4.0) — ns `cfd/4` + seam Sello/Certificado (faux NoCertificado retiré). [ ] timbrado PAC (UUID/TimbreFiscalDigital) + sceau CSD + complément/addenda + XSD.
 
 ### 1.3 Formats nationaux 🔴 (stubs `national-formats.ts`) — build + validation + signature + champs + profil + preuve
-- [ ] LATAM : `AR_FE` · `BO_FE` · `NFE`(BR) · `CL_DTE` · `CR_FE` · `DO_ECF` · `EC_FE` · `GT_FEL` · `PA_FE` ·
-  `PY_DE` · `SV_DTE` · `UY_CFE` · `VE_FE`
+- [~] LATAM **scaffoldé** (builders structurés + tests structurels, **non validé autorité, live‑deferred**) :
+  `AR_FE` · `BO_FE` · `NFE`(BR) · `CL_DTE` · `CR_FE` · `DO_ECF` · `EC_FE` · `GT_FEL` · `PA_FE` · `PY_DE` ·
+  `SV_DTE`(JSON) · `UY_CFE` · `VE_FE`. Reste par pays : champs obligatoires manquants + XSD + sceau/clearance (CAE/CUFE/claveAcceso).
 - [ ] MENA : `JO_JOFOTARA` · `TN_TEIF` · `TR_EFATURA` · `EG_ETA`
 - [ ] Afrique : `NG_FIRS` · `KE_ETIMS` · `GH_EVAT` · `RW_EBM` · `TZ_VFD` · `UG_EFRIS` · `ZM_SMARTINVOICE` ·
   `ZW_FDMS` · `CI_FNE` · `BJ_MECEF`
@@ -108,7 +109,9 @@
 - [x] Suppression du `gov-portal` générique ; `GOV_PORTAL_API` **exige un `providerId`** (sinon SKIPPED explicite) + test garde.
 - [x] Ajout des providers nommés `choruspro` (FR B2G), `gr-aade` (GR), `hu-nav` (HU) ; ~50 portails nommés présents.
 - [ ] Implémenter chaque portail 🔴 (auth + build + submit + poll/`sendStatus` + mapping) :
-  - [ ] LATAM : `afip` · `bo-sin` · `sefaz` · `sii` · `dian` · `cr-hacienda` · `dgii` · `sri` · `gt-sat` · `pa-dgi` · `sifen` · `sv-mh` · `uy-dgi` · `seniat`
+  - [~] LATAM **scaffoldé** (clients auth/submit/poll, HTTP mocké, live‑deferred) : `afip`(WSAA→WSFE→CAE) ·
+    `sefaz`(lote→protocolo) · `sii`(seed→token→EnvioDTE) · `sri`(claveAcceso) · `uy-dgi`(CAE) profonds ;
+    `bo-sin`/`cr-hacienda`/`dgii`/`gt-sat`/`pa-dgi`/`sifen`/`sv-mh`/`seniat` génériques. [ ] `dian`(CO) reste stub ; [ ] endpoints/auth réels par autorité.
   - [ ] MENA : `zatca` · `jofotara` · `tn-ttn`
   - [ ] Afrique : `firs` · `ke-kra` · `gh-gra` · `rw-rra` · `tz-tra` · `ug-ura` · `zm-zra` · `zw-zimra` · `ci-dgi` · `bj-dgi`
   - [ ] Asie : `id-coretax` · `tw-mof` · `kz-isesf` · `ph-bir` · `th-rd` · `np-ird` · `bd-nbr` · `pk-fbr` · `cn-sta` · `in-irp` · `vn-gdt` · `myinvois`
