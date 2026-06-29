@@ -147,7 +147,7 @@
 ## 5. ENTRANT (réception)
 
 - [x] `InboundRouter.receive()` (pur) + webhook controller + corrélation/dedup de base.
-- [ ] **Recevoir des factures** (fournisseurs) par canal : PDP, KSeF, SdI, Peppol — parse/valide/stocke/UI.
+- [x] **Recevoir des factures** (fournisseurs) — modèle `InboundInvoice` (migration) ; parsers CII/UBL/FatturaPA/FA_VAT (structurels) → champs canoniques ; dedup `(channel, externalId)` ; endpoints list/get/accept/reject + `receive/:channel` ; UI page `/received-invoices` + détail + download raw. 8 tests.
 - [x] **Statuts entrants** par canal → `INBOUND_STATUS` (parsers PDP webhook / SdI notifica RC‑NS‑MC‑NE‑DT‑AT /
   Peppol MLR → `InboundInput`, corrélation par ref externe + dedup ; 21 tests). Reste : re‑armer le callback avec le ref transmit après envoi (corrélation auto, cf. note code).
 - [x] **Acks à émettre** — Peppol Invoice Response + SdI esito committente câblés via `sendStatus` (mockés).
@@ -225,10 +225,10 @@
 
 - [x] Réglages canaux par pays (cartes Connect/Edit, secrets masqués, erreurs surfacées, auto‑fill).
 - [x] Flow lifecycle (badges, available‑actions, pipeline, timeline).
-- [ ] Affichage des **factures entrantes** (après §5).
-- [ ] Étiquette « disponible à partir du {date} » (`availableFrom` déjà renvoyé).
+- [x] Affichage des **factures entrantes** — page `/received-invoices` (table date/n°/expéditeur/montant/canal/statut, détail, accept/reject, download raw) + entrée sidebar.
+- [x] Étiquette « disponible à partir du {date} » — badge ambre `availableFrom` futur dans channels.settings.
 - [x] Gestion des **certificats de signature** dans les réglages société (onglet « Signing certs » : upload PFX+mdp, sujet/expiry/statut, delete ; secrets write‑only).
-- [ ] Action « rafraîchir le statut » (poll manuel).
+- [x] Action « rafraîchir le statut » — bouton dans la timeline compliance → `POST /compliance/documents/:id/refresh` (reconcile one‑off).
 
 ---
 
