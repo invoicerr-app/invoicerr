@@ -124,7 +124,7 @@
 ### 3.5 Transverse transmission
 - [x] **`sendStatus` sortant** réel PDP (`/lifecycle_events`) / SdI (esito EC01/EC02) / Peppol (Invoice Response AB/RE/UQ/AP) — config par société, mappage statut→code, erreurs→QUEUED ; tests mockés. Live deferred.
 - [ ] **`poll()`** réel pour tous les `ASYNC_POLL` (KSeF/PDP ok ; reste à finir).
-- [ ] Vérifier l'**idempotence** des envois côté providers.
+- [x] **Idempotence des envois** — clé `${base}:${providerId}:${idx}` dédupliquée (TTL 5 min) dans `transmitAll` (duplicate→SKIPPED) + clé executor en `randomUUID`.
 
 ---
 
@@ -173,7 +173,8 @@
 - [x] **Routing acheteur via annuaire** — `BuyerDirectoryPort` : `AfnorDirectoryLookup` (PDP `searchDirectoryLines`, SIREN/SIRET→addressingIdentifier) + `SmpBuyerDirectory` (DnsSmpLookup→AP endpoint) ; PDP transmit résout le buyer si absent de la config (non bloquant) ; défaut `Null` offline‑safe. 18 tests. [ ] table/cache annuaire.
 - [x] **Validation identifiants — checksums offline** : SIREN/SIRET (Luhn), NIP (mod‑11), VAT FR (mod‑97)/IT/DE (ISO 7064)/ES NIF‑NIE (mod‑23)/PL, Codice Fiscale (mod‑26). `validateContextIdentifiers` câblé en step 0 de l'executor (warnings, non bloquant). 74 tests (valides+invalides cités). RFC/CIF/clé alpha FR = structurel.
 - [x] **Existence distante (port)** : `ViesExistenceClient` (VIES REST, sans creds) + `SireneExistenceClient` (INSEE, Bearer) derrière `IdentifierExistencePort` ; défaut `Null` (offline‑safe), tests mockés. Live deferred.
-- [x] Existence VIES/SIRENE branchée (executor step 0b, warnings `[existence]` non bloquants) + `CachedExistenceClient` (TTL 24h) ; défaut `Null` (offline‑safe). [ ] durcir clé alpha FR VAT + CIF ES.
+- [x] Existence VIES/SIRENE branchée (executor step 0b, warnings `[existence]` non bloquants) + `CachedExistenceClient` (TTL 24h) ; défaut `Null` (offline‑safe).
+- [x] Checksums durcis : **clé alpha FR VAT** (base‑34) + **CIF ES** (algo officiel, routage type d'org) avec vecteurs cités.
 - [ ] Champs manquants au modèle : EndpointID/Peppol ID par client, tel/email vendeur, code moyen de paiement, NIC.
 - [ ] Table + lookup + cache **annuaire** des participants.
 
@@ -207,7 +208,7 @@
 - [x] Validateur EN16931 (`node-schematron`) + XSD (`xmllint-wasm`).
 - [x] XSD/Schematron : **FatturaPA + CFDI + Peppol BIS** vendorisés+câblés (cf. §1.4) ; FA(2) PL + EN16931 CII déjà. [ ] Facturae (introuvable) + formats nationaux.
 - [x] Gap `BR‑27` (allowances EN16931) **fermé** (cf. §1.4).
-- [ ] Harnais de validation par format ; valider via lib, pas de XML à la main.
+- [x] Harnais de validation par format (XSD/Schematron via lib, docs construits par les vrais builders) : EN16931 CII + FA(2) + FatturaPA + CFDI + Peppol BIS couverts (positif + négatif).
 
 ---
 
