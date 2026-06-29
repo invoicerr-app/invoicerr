@@ -88,7 +88,8 @@
 - [x] **PDP** (FR, superpdp propriétaire) ✅ facture acceptée (89xxx).
 - [ ] **PDP‑AFNOR** (`apiStyle: afnor`) — ⛔ à prouver live (superpdp expose l'API Flux ; comparer au Swagger
   `AFNOR-Flow_Service-1.0.2-swagger.json`, corriger endpoints/payload si rejet).
-- [ ] PDP : **API Annuaire** (résoudre `buyerEndpointId` du client) ; `sendStatus` (déposée/refusée/encaissée) 🔴.
+- [x] PDP : `sendStatus` (déposée/refusée/encaissée → fr:205/210/211/212) implémenté (mocké, live deferred).
+- [ ] PDP : **API Annuaire** (résoudre `buyerEndpointId` du client).
 - [x] **Email SMTP par société** 🟢 (`MailService.sendMail(opts, smtpOverrides?)`, fallback global).
 - [ ] Email : **preuve réelle** (vrais creds SMTP) + vrai contenu (sujet/corps i18n + PDF + XML).
 
@@ -114,7 +115,7 @@
   - [ ] Europe : `choruspro` · `es-aeat` · `ua-dps` · `me-fiscal` · `hr-fiskalizacija` · `al-cis` · `lv-vid` · `sk-financnasprava` · `anaf` · `rs-sef` · `gib` · `gr-aade` · `hu-nav` · `eg-eta`
 
 ### 3.5 Transverse transmission
-- [ ] **`sendStatus` sortant** réel PDP/SdI/Peppol (aujourd'hui QUEUED stub).
+- [x] **`sendStatus` sortant** réel PDP (`/lifecycle_events`) / SdI (esito EC01/EC02) / Peppol (Invoice Response AB/RE/UQ/AP) — config par société, mappage statut→code, erreurs→QUEUED ; tests mockés. Live deferred.
 - [ ] **`poll()`** réel pour tous les `ASYNC_POLL` (KSeF/PDP ok ; reste à finir).
 - [ ] Vérifier l'**idempotence** des envois côté providers.
 
@@ -128,9 +129,10 @@
   `PollScheduler.reconcile()` poll **tous** les jobs en cours (rattrape downtime + push manqués) + tick timers.
 - [x] **Sweep 12h** — `@Interval(COMPLIANCE_RECONCILE_HOURS|12 h)` `reconcile()` (filet anti‑webhook‑manqué),
   garde anti‑chevauchement, erreurs catchées. `PollJobStore.pending()` ajouté (jobs en cours, hors filtre due).
-- [ ] Rejouer les `InboundMessage` reçus mais non appliqués au boot (dedup) — pas encore.
-- [ ] Câbler **toutes** les sources de statut : poll (pull) ✅, webhook (push, par canal) 🔴, polling d'inbox
-  (SdI SFTP/mailbox) 🔴, action UI « rafraîchir » 🔴.
+- [x] Rejouer les `InboundMessage` reçus mais non appliqués au boot — `InboundRouter.replayUnapplied()` (idempotent, NOOP si déjà appliqué) appelé dans `onApplicationBootstrap` (fire‑and‑forget).
+- [x] Câbler les sources de statut : poll (pull) ✅, **webhook push par canal** 🟢 (parsers PDP/SdI/Peppol +
+  endpoints typés `/compliance/inbound/{pdp/webhook,sdi/notifica,peppol/mlr}`, secret partagé).
+- [ ] Restantes : polling d'inbox (SdI SFTP/mailbox) 🔴, action UI « rafraîchir » 🔴.
 - [ ] Compléter le lifecycle par juridiction (statuts/transitions) ; FR push `encaissée` réel ; régimes bloquants MX.
 
 ---
@@ -139,9 +141,10 @@
 
 - [x] `InboundRouter.receive()` (pur) + webhook controller + corrélation/dedup de base.
 - [ ] **Recevoir des factures** (fournisseurs) par canal : PDP, KSeF, SdI, Peppol — parse/valide/stocke/UI.
-- [ ] **Statuts entrants** réels par canal → `INBOUND_STATUS` runtime (corrélation ref/idSdI/flowId/ksefNumber).
-- [ ] **Acks à émettre** (Peppol Invoice Response, SdI esito committente…).
-- [ ] Authenticité des webhooks (signature/mTLS/allowlist).
+- [x] **Statuts entrants** par canal → `INBOUND_STATUS` (parsers PDP webhook / SdI notifica RC‑NS‑MC‑NE‑DT‑AT /
+  Peppol MLR → `InboundInput`, corrélation par ref externe + dedup ; 21 tests). Reste : re‑armer le callback avec le ref transmit après envoi (corrélation auto, cf. note code).
+- [x] **Acks à émettre** — Peppol Invoice Response + SdI esito committente câblés via `sendStatus` (mockés).
+- [x] Authenticité des webhooks — gate **secret partagé** en place ; [ ] durcir (signature/mTLS/allowlist).
 
 ---
 
@@ -233,5 +236,5 @@
 2. [x] **Signature réelle** (§2) — XAdES/CAdES/PAdES réels + vérifiés offline (reste : store cert DB + TSA).
 3. [ ] **Prouver PDP‑AFNOR** + **Email réel** (§3.1) — rapides, creds dispo.
 4. [ ] **SdI live** puis **Peppol live** (§3.2) — dès creds/AP.
-5. [ ] **Entrant** (§5) + **sendStatus** (§3.5) — boucle complète.
+5. [x] **Entrant statuts** (§5) + **sendStatus** (§3.5) — boucle de statut complète (mockée). Reste : réception de factures fournisseurs + inbox SdI + durcissement webhook.
 6. [ ] **Reporting** (§6) + élargissement formats/portails nationaux (§1.3, §3.4) par marché.
