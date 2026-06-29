@@ -90,7 +90,8 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
       ],
     } as any);
 
-    const facturxXml = await inv.exportXml('facturx');
+    // Mirror the REAL executor path: FR profile primary = EN16931_CII → exportXml('cii').
+    const facturxXml = await inv.exportXml('cii');
     console.log('Factur-X XML length:', facturxXml.length);
     console.log('XML has SIREN 315143296:', facturxXml.includes('315143296'), '| has SpecifiedLegalOrganization:', facturxXml.includes('SpecifiedLegalOrganization'));
     expect(facturxXml).toContain('CrossIndustryInvoice');
@@ -126,7 +127,7 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
 
     const artifact = {
       role: 'AUTHORITATIVE' as const,
-      syntax: 'FACTURX' as const,
+      syntax: 'EN16931_CII' as const,
       mime: 'application/xml',
       bytes: Buffer.from(facturxXml, 'utf8'),
     };

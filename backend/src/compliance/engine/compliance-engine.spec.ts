@@ -33,10 +33,12 @@ describe('ComplianceEngine — France, temporal correctness', () => {
     expect(plan.regime.model).toBe('DECENTRALIZED_CTC');
     expect(plan.regime.blocking).toBe(false);
     expect(plan.channels.map((c) => c.type)).toContain('PDP');
+    // Post-mandate FR: the AUTHORITATIVE e-invoice sent to the PDP is the CII XML (CTC
+    // post-processing applies); the human/buyer copy is the Factur-X PDF/A-3 hybrid.
     expect(plan.artifacts).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ role: 'AUTHORITATIVE', syntax: 'FACTURX' }),
-        expect.objectContaining({ role: 'HUMAN', syntax: 'PDF_A3' }),
+        expect.objectContaining({ role: 'AUTHORITATIVE', syntax: 'EN16931_CII' }),
+        expect.objectContaining({ role: 'HUMAN', syntax: 'FACTURX' }),
       ]),
     );
     expect(plan.lifecycle.immutableAfter).toBe('ISSUE');
