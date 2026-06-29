@@ -40,7 +40,7 @@
 - [x] **EN16931_UBL** — `exportXml('ubl')`.
 - [x] Validation EN16931 Schematron (`node-schematron`) + XSD CII/FA(2) (`xmllint-wasm`).
 - [x] `cii-post-process.ts` réduit au strict (namespaces + routing PDP).
-- [x] **XRECHNUNG** — BR‑DE‑11/12 `cac:Contact` (tel+email vendeur) + BR‑DE‑14 `cac:PaymentMeans` code émis. [ ] dériver le code moyen de paiement de `invoice.paymentMethod` + IBAN pour code 30.
+- [x] **XRECHNUNG** — BR‑DE‑11/12 `cac:Contact` + BR‑DE‑14 `PaymentMeans` ; **code UNCL4461 dérivé** de `paymentMethod` (BANK_TRANSFER→58…) + IBAN (`PayeeFinancialAccount`). [ ] DIRECT_DEBIT/carte.
 - [x] **ZUGFERD** — alias no‑op retiré ; ZUGFeRD 2.x = même profil CII/EN16931 + PDF/A‑3 + CustomizationID que Factur‑X (pas de profil divergent dans `@e-invoice-eu/core`) — alignement documenté.
 - [x] **PEPPOL_BIS** — `CustomizationID`/`ProfileID` BIS Billing 3.0 réels injectés (au lieu d'UBL générique).
 
@@ -66,8 +66,9 @@
 
 ### 1.4 Transverse formats
 - [x] Validation **XSD FatturaPA 1.2** (`Schema_VFPR12.xsd`) + **XSD CFDI 4.0** (`cfdv40.xsd`+catalogues, 128 MB) + **Schematron Peppol BIS** (`PEPPOL-EN16931-UBL.sch`) vendorisés + câblés (xmllint‑wasm/node‑schematron), tests positifs+négatifs. Builders FatturaPA/CFDI/UBL corrigés pour passer le XSD réel.
+- [x] **Allowances niveau document** — `discountRate` → `cac:AllowanceCharge` (reason 95) + recalcul VAT proportionnel + AllowanceTotalAmount.
 - [ ] Facturae XSD (2 tests `todo`) + XSD/Schematron de chaque format national (LATAM/Asie/Afrique/MENA/Europe).
-- [ ] Gap `BR‑27` (prix net ligne / modèle remises EN16931) — modéliser les allowances.
+- [ ] Gap `BR‑27` **niveau ligne** (prix net négatif) persiste (`CII_KNOWN_SCHEMATRON_GAPS:['BR-27']`) — allowances par ligne.
 
 ---
 
@@ -87,7 +88,7 @@
 
 ### 3.1 Faits / prouvés
 - [x] **KSeF** (PL) ✅ round‑trip prouvé (CLEARED + ksefNumber).
-- [ ] KSeF : chemin **prod** (clés MF prod) ; archivage **UPO** ; `sendStatus` si requis.
+- [x] KSeF : **référence UPO** persistée sur CLEARED (`upoDownloadUrl`→`ComplianceAuthorityId{scheme:UPO}` + ksefNumber). [ ] chemin **prod** (clés MF prod) + télécharger/stocker les **octets UPO** ; `sendStatus` si requis.
 - [x] **PDP** (FR, superpdp propriétaire) ✅ facture acceptée (89xxx).
 - [ ] **PDP‑AFNOR** (`apiStyle: afnor`) — ⛔ à prouver live (superpdp expose l'API Flux ; comparer au Swagger
   `AFNOR-Flow_Service-1.0.2-swagger.json`, corriger endpoints/payload si rejet).
@@ -113,7 +114,7 @@
 - [ ] Implémenter chaque portail 🔴 (auth + build + submit + poll/`sendStatus` + mapping) :
   - [~] LATAM **scaffoldé** (clients auth/submit/poll, HTTP mocké, live‑deferred) : `afip`(WSAA→WSFE→CAE) ·
     `sefaz`(lote→protocolo) · `sii`(seed→token→EnvioDTE) · `sri`(claveAcceso) · `uy-dgi`(CAE) profonds ;
-    `bo-sin`/`cr-hacienda`/`dgii`/`gt-sat`/`pa-dgi`/`sifen`/`sv-mh`/`seniat` génériques. [ ] `dian`(CO) reste stub ; [ ] endpoints/auth réels par autorité.
+    `bo-sin`/`cr-hacienda`/`dgii`/`gt-sat`/`pa-dgi`/`sifen`/`sv-mh`/`seniat` génériques ; `dian`(CO) scaffoldé (OAuth2+UBL+CUFE poll). [ ] endpoints/auth réels par autorité.
   - [~] MENA **scaffoldé** : `gib`(TR)·`eg-eta`(EG) profonds ; `jofotara`·`tn-ttn` génériques ; `zatca` (KSA, voir §1.2).
   - [~] Afrique **scaffoldé** (clients mockés, live‑deferred) : `firs`·`ke-kra` profonds ;
     `gh-gra`·`rw-rra`·`tz-tra`·`ug-ura`·`zm-zra`·`zw-zimra`·`ci-dgi`·`bj-dgi` génériques. [ ] auth/endpoints/device réels.
@@ -193,13 +194,13 @@
 
 - **🇫🇷 FR** — [x] EN16931_CII(→PDP) + Factur‑X · [x] PDP(superpdp) · [ ] AFNOR preuve · [ ] ChorusPro B2G ·
   [x] Peppol(mocké) · [x] Email · [ ] signature · [ ] push PDP `encaissée` · [ ] e‑reporting B2C.
-- **🇵🇱 PL** — [x] FA(2) · [x] KSeF(test) · [ ] KSeF prod · [ ] archivage UPO.
+- **🇵🇱 PL** — [x] FA(2) · [x] KSeF(test) · [x] réf UPO sur CLEARED · [ ] KSeF prod · [ ] octets UPO.
 - **🇮🇹 IT** — [x] FatturaPA(build) · [x] SdI(mocké) · [x] CAdES .p7m (réel) · [x] notifiche entrant (parser) · [ ] SdI live.
 - **🇲🇽 MX** — [ ] CFDI(finir) · [ ] PAC/timbrado · [ ] sceau SAT · [ ] folios bloquants.
 - **🇺🇸 US** — [x] post‑audit Email/Peppol (vérifier le profil).
 - **🇲🇨 MC** — [x] délègue à FR.
 - **XX** — [x] Email/print fallback (vérifier).
-- [ ] Étendre : DE (XRechnung+Peppol B2G), ES (Facturae+SII), + nouveaux pays archétype→profil.
+- [x] **DE** profil (XRechnung 3.0 + Peppol/Email, POST_AUDIT, GoBD 10 ans, LEITWEG_ID B2G) + **ES** profil (Facturae 3.2.2 + XAdES + SII REAL_TIME_REPORTING + Verifactu E_REPORTING daté). [ ] nouveaux pays archétype→profil.
 
 ---
 
