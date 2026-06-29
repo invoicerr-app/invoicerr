@@ -140,7 +140,8 @@
 - [x] Rejouer les `InboundMessage` reçus mais non appliqués au boot — `InboundRouter.replayUnapplied()` (idempotent, NOOP si déjà appliqué) appelé dans `onApplicationBootstrap` (fire‑and‑forget).
 - [x] Câbler les sources de statut : poll (pull) ✅, **webhook push par canal** 🟢 (parsers PDP/SdI/Peppol +
   endpoints typés `/compliance/inbound/{pdp/webhook,sdi/notifica,peppol/mlr}`, secret partagé).
-- [ ] Restantes : polling d'inbox (SdI SFTP/mailbox) 🔴, action UI « rafraîchir » 🔴.
+- [x] **Polling d'inbox** — `InboxPoller` (`@Interval(60s)` + cron‑lock) via `InboxPort` (défaut `NullInboxPort` offline‑safe) → `InboundRouter.receive` (dedup) ; seam SdI SFTP/IMAP. 7 tests.
+- [x] Action UI « rafraîchir » (cf. §12).
 - [ ] Compléter le lifecycle par juridiction (statuts/transitions) ; FR push `encaissée` réel ; régimes bloquants MX.
 
 ---
@@ -152,7 +153,7 @@
 - [x] **Statuts entrants** par canal → `INBOUND_STATUS` (parsers PDP webhook / SdI notifica RC‑NS‑MC‑NE‑DT‑AT /
   Peppol MLR → `InboundInput`, corrélation par ref externe + dedup ; 21 tests). Reste : re‑armer le callback avec le ref transmit après envoi (corrélation auto, cf. note code).
 - [x] **Acks à émettre** — Peppol Invoice Response + SdI esito committente câblés via `sendStatus` (mockés).
-- [x] Authenticité des webhooks — gate **secret partagé** en place ; [ ] durcir (signature/mTLS/allowlist).
+- [x] Authenticité des webhooks — **HMAC‑SHA256** sur le corps brut (`X-Signature`, `timingSafeEqual`) par canal (`WEBHOOK_SECRET_{PDP,SDI,PEPPOL}`) + **IP allowlist** + fallback secret partagé ; appliqué aux 4 endpoints. 12 tests. [ ] mTLS.
 
 ---
 
@@ -170,7 +171,7 @@
 ## 7. IDENTIFIANTS & DONNÉES DE RÉFÉRENCE
 
 - [x] **SIREN ← SIRET** (schemeID 0002 = 9 premiers chiffres du SIRET 14).
-- [ ] **Routing acheteur** via annuaire (AFNOR Directory / Peppol SMP) plutôt qu'en config société.
+- [x] **Routing acheteur via annuaire** — `BuyerDirectoryPort` : `AfnorDirectoryLookup` (PDP `searchDirectoryLines`, SIREN/SIRET→addressingIdentifier) + `SmpBuyerDirectory` (DnsSmpLookup→AP endpoint) ; PDP transmit résout le buyer si absent de la config (non bloquant) ; défaut `Null` offline‑safe. 18 tests. [ ] table/cache annuaire.
 - [x] **Validation identifiants — checksums offline** : SIREN/SIRET (Luhn), NIP (mod‑11), VAT FR (mod‑97)/IT/DE (ISO 7064)/ES NIF‑NIE (mod‑23)/PL, Codice Fiscale (mod‑26). `validateContextIdentifiers` câblé en step 0 de l'executor (warnings, non bloquant). 74 tests (valides+invalides cités). RFC/CIF/clé alpha FR = structurel.
 - [x] **Existence distante (port)** : `ViesExistenceClient` (VIES REST, sans creds) + `SireneExistenceClient` (INSEE, Bearer) derrière `IdentifierExistencePort` ; défaut `Null` (offline‑safe), tests mockés. Live deferred.
 - [x] Existence VIES/SIRENE branchée (executor step 0b, warnings `[existence]` non bloquants) + `CachedExistenceClient` (TTL 24h) ; défaut `Null` (offline‑safe). [ ] durcir clé alpha FR VAT + CIF ES.
