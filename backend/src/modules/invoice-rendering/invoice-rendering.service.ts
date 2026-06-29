@@ -66,6 +66,12 @@ export interface InvoiceRenderData {
   number: number | null;
   issuedAt: Date | null;
   createdAt: Date;
+  /** Payment method type — drives UNCL4461 PaymentMeansCode in EN16931/XRechnung. */
+  paymentMethod?: string | null;
+  /** Free-text payment details, e.g. IBAN or PayPal address — used as PayeeFinancialAccount/IBAN. */
+  paymentDetails?: string | null;
+  /** Document-level discount rate (0–100). When > 0, an AllowanceCharge is emitted in EN16931. */
+  discountRate?: number | null;
   company: {
     name: string;
     description: string | null;
@@ -105,6 +111,36 @@ export interface InvoiceRenderData {
     vatRate: number;
     type: string;
   }[];
+}
+
+/**
+ * Map the app's payment method enum value to an UNCL4461 PaymentMeansCode.
+ *
+ * UNCL4461 codes used here:
+ *   1  = Instrument not defined (safe default — satisfies BR-DE-14 without triggering IBAN rules)
+ *   10 = In cash
+ *   20 = Cheque
+ *   30 = Credit transfer (SEP AT-01, SEPA CT; requires PayeeFinancialAccount/IBAN with code 58)
+ *   48 = Bank card (debit/credit card)
+ *   58 = SEPA credit transfer (preferred over 30 for SEPA zone)
+ *   97 = Clearing between partners (used for PayPal, Stripe, other PSPs)
+ *
+ * Code 30/58 + IBAN → CII-SR-470 requires PayeeFinancialAccount; we add it when an IBAN is found.
+ */
+export function mapPaymentMeansCode(method: string | null | undefined): number {
+  const m = (method ?? '').toUpperCase();
+  if (m === 'BANK_TRANSFER') return 58;  // SEPA credit transfer
+  if (m === 'CHECK' || m === 'CHEQUE') return 20;
+  if (m === 'CASH') return 10;
+  if (m === 'PAYPAL' || m === 'STRIPE' || m === 'CARD') return 97;
+  return 1; // instrument not defined — safe default
+}
+
+/** Extract a bare IBAN from a free-text details string (e.g. "IBAN: DE89 3704 0044 0532 0130 00"). */
+export function extractIban(details: string | null | undefined): string | undefined {
+  if (!details) return undefined;
+  const m = details.replace(/\s/g, '').match(/[A-Z]{2}\d{2}[A-Z0-9]{8,30}/);
+  return m ? m[0] : undefined;
 }
 
 /**
@@ -318,13 +354,28 @@ export class InvoiceRenderingService {
             vatGroups.set(rate, g);
         }
 
-        const totalVat = [...vatGroups.values()].reduce((s, g) => s + g.tax, 0);
-        const totalIncl = lineExtensionTotal + totalVat;
+        // Document-level discount (AllowanceCharge BT-92/BT-93).
+        // The discount is applied at document level: taxable amount = lineExtensionTotal - discountAmount.
+        const discountRate = Math.max(0, Math.min(100, data.discountRate ?? 0));
+        const discountAmount = discountRate > 0 ? Math.round(lineExtensionTotal * discountRate) / 100 : 0;
+        // Taxable base after discount — used for VAT calculation
+        const taxableBase = lineExtensionTotal - discountAmount;
 
-        const taxSubtotals = [...vatGroups.entries()].map(([rate, g]) => ({
-            'cbc:TaxableAmount': fmt2(g.taxable),
+        // Re-compute VAT on the discounted base (proportional reduction across all VAT groups)
+        const discountRatio = lineExtensionTotal > 0 ? taxableBase / lineExtensionTotal : 1;
+        let totalVat = 0;
+        const taxSubtotalsAfterDiscount = [...vatGroups.entries()].map(([rate, g]) => {
+            const discountedTaxable = g.taxable * discountRatio;
+            const discountedTax = discountedTaxable * rate / 100;
+            totalVat += discountedTax;
+            return { rate, taxable: discountedTaxable, tax: discountedTax };
+        });
+        const totalIncl = taxableBase + totalVat;
+
+        const taxSubtotals = taxSubtotalsAfterDiscount.map(({ rate, taxable, tax }) => ({
+            'cbc:TaxableAmount': fmt2(taxable),
             'cbc:TaxableAmount@currencyID': currency,
-            'cbc:TaxAmount': fmt2(g.tax),
+            'cbc:TaxAmount': fmt2(tax),
             'cbc:TaxAmount@currencyID': currency,
             'cac:TaxCategory': {
                 'cbc:ID': rate === 0 ? 'Z' : 'S',
@@ -423,6 +474,45 @@ export class InvoiceRenderingService {
             buyerParty['cac:PartyTaxScheme'] = { 'cbc:CompanyID': buyerVat, 'cac:TaxScheme': { 'cbc:ID': 'VAT' } };
         }
 
+        // ── PaymentMeans (BT-81 / BR-DE-14) ──────────────────────────────────
+        // Derive UNCL4461 code from the invoice's payment method.
+        // Code 58 (SEPA CT) and 30 (credit transfer) require PayeeFinancialAccount/IBAN per
+        // CII-SR-470; we add cac:PayeeFinancialAccount when a recognisable IBAN is present.
+        const pmCode = mapPaymentMeansCode(data.paymentMethod);
+        const iban = extractIban(data.paymentDetails);
+        const paymentMeansEntry: Record<string, unknown> = { 'cbc:PaymentMeansCode': String(pmCode) };
+        if ((pmCode === 58 || pmCode === 30) && iban) {
+            // cbc:ID carries the IBAN; the @e-invoice-eu/core CREDITTRANSFER schema
+            // does not support @schemeID on this field so we omit it.
+            paymentMeansEntry['cac:PayeeFinancialAccount'] = {
+                'cbc:ID': iban,
+            };
+        }
+
+        // ── AllowanceCharge (BG-20 document-level discount) ─────────────────
+        // EN16931 BR-27 requires that AllowanceCharge amounts are reflected in LegalMonetaryTotal.
+        // We emit a single document-level allowance (ChargeIndicator=false) for the discount.
+        const allowanceCharges: Record<string, unknown>[] = [];
+        if (discountAmount > 0) {
+            allowanceCharges.push({
+                'cbc:ChargeIndicator': 'false',
+                'cbc:AllowanceChargeReasonCode': '95',  // UNTDID 5189 code 95 = "Discount"
+                'cbc:AllowanceChargeReason': 'Discount',
+                'cbc:MultiplierFactorNumeric': fmt2(discountRate),
+                'cbc:Amount': fmt2(discountAmount),
+                'cbc:Amount@currencyID': currency,
+                'cbc:BaseAmount': fmt2(lineExtensionTotal),
+                'cbc:BaseAmount@currencyID': currency,
+                'cac:TaxCategory': {
+                    // Use the first VAT rate from the invoice; for mixed rates a per-group
+                    // allowance is more accurate but single-rate is the common case.
+                    'cbc:ID': (taxSubtotalsAfterDiscount[0]?.rate ?? 0) === 0 ? 'Z' : 'S',
+                    'cbc:Percent': String(taxSubtotalsAfterDiscount[0]?.rate ?? 0),
+                    'cac:TaxScheme': { 'cbc:ID': 'VAT' },
+                },
+            });
+        }
+
         const euInvoice: EuInvoice = {
             'ubl:Invoice': {
                 'cbc:CustomizationID': 'urn:cen.eu:en16931:2017',
@@ -437,11 +527,10 @@ export class InvoiceRenderingService {
                 'cac:AccountingSupplierParty': { 'cac:Party': sellerParty as any },
                 'cac:AccountingCustomerParty': { 'cac:Party': buyerParty as any },
                 'cac:Delivery': { 'cbc:ActualDeliveryDate': issueDateStr },
-                // BR-DE-14: payment means code required in XRechnung (BT-81 is mandatory).
-                // Code 1 = "Instrument not defined" — safe default that satisfies the presence
-                // requirement without triggering CII-SR-470 (which requires IBAN for code 30/58).
-                // TODO: derive a specific code from invoice.paymentMethod when that field is exposed.
-                'cac:PaymentMeans': [{ 'cbc:PaymentMeansCode': '1' }] as any,
+                // BR-DE-14: payment means code (mandatory in XRechnung). Derived from paymentMethod.
+                'cac:PaymentMeans': [paymentMeansEntry] as any,
+                // BG-20: document-level allowance/charge (discount). Empty array when no discount.
+                ...(allowanceCharges.length > 0 ? { 'cac:AllowanceCharge': allowanceCharges as any } : {}),
                 'cac:TaxTotal': [{
                     'cbc:TaxAmount': fmt2(totalVat),
                     'cbc:TaxAmount@currencyID': currency,
@@ -450,7 +539,13 @@ export class InvoiceRenderingService {
                 'cac:LegalMonetaryTotal': {
                     'cbc:LineExtensionAmount': fmt2(lineExtensionTotal),
                     'cbc:LineExtensionAmount@currencyID': currency,
-                    'cbc:TaxExclusiveAmount': fmt2(lineExtensionTotal),
+                    // BR-27: AllowanceTotalAmount must be present when AllowanceCharge entries exist
+                    ...(discountAmount > 0 ? {
+                        'cbc:AllowanceTotalAmount': fmt2(discountAmount),
+                        'cbc:AllowanceTotalAmount@currencyID': currency,
+                    } : {}),
+                    // TaxExclusiveAmount = net after allowances (BT-109)
+                    'cbc:TaxExclusiveAmount': fmt2(taxableBase),
                     'cbc:TaxExclusiveAmount@currencyID': currency,
                     'cbc:TaxInclusiveAmount': fmt2(totalIncl),
                     'cbc:TaxInclusiveAmount@currencyID': currency,
@@ -1115,6 +1210,9 @@ export class InvoiceRenderingService {
             number: inv.number,
             issuedAt: inv.issuedAt,
             createdAt: inv.createdAt,
+            paymentMethod: inv.paymentMethod ?? null,
+            paymentDetails: inv.paymentDetails ?? null,
+            discountRate: (inv as any).discountRate ?? null,
             company: {
                 name: inv.company.name,
                 description: inv.company.description,
