@@ -18,6 +18,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { SigningCredentialsMaterial, SigningCredentialsPort } from '@/compliance/providers/signing/signing-credentials-port';
 import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
+import { credentialAudit } from '@/utils/credential-access-audit';
 import { ChannelEnvironment, CompanySigningCertificate } from '../../../prisma/generated/prisma/client';
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -184,7 +185,17 @@ export class SigningCertificatesService implements SigningCredentialsPort {
       if (found && found.isActive) { row = found; break; }
     }
 
-    if (!row) return null;
+    if (!row) {
+      credentialAudit.emit({
+        companyId,
+        credentialRef: certRef,
+        action: 'RESOLVE',
+        outcome: 'MISS',
+        timestamp: new Date().toISOString(),
+        context: { reason: 'no_active_cert' },
+      });
+      return null;
+    }
 
     // Validity check — skip expired certs rather than crashing.
     if (row.notAfter < new Date()) {
@@ -192,6 +203,15 @@ export class SigningCertificatesService implements SigningCredentialsPort {
         `Signing cert "${row.id}" (${row.label}) for company ${companyId} expired on ` +
         `${row.notAfter.toISOString()} — skipping, artifact will be unsigned.`,
       );
+      credentialAudit.emit({
+        companyId,
+        // SECURITY: certId is metadata, not a secret value.
+        credentialRef: row.id,
+        action: 'RESOLVE',
+        outcome: 'MISS',
+        timestamp: new Date().toISOString(),
+        context: { reason: 'cert_expired', label: row.label },
+      });
       return null;
     }
 
@@ -203,6 +223,14 @@ export class SigningCertificatesService implements SigningCredentialsPort {
       const pfxBuffer = Buffer.from(pfxBase64, 'base64');
 
       // SECURITY: never log privateKeyPem or password.
+      credentialAudit.emit({
+        companyId,
+        credentialRef: row.id,
+        action: 'RESOLVE',
+        outcome: 'HIT',
+        timestamp: new Date().toISOString(),
+        context: { label: row.label, environment: row.environment },
+      });
       return {
         certDer,
         privateKeyPem,
@@ -214,6 +242,14 @@ export class SigningCertificatesService implements SigningCredentialsPort {
       this.logger.error(
         `Failed to decrypt/parse signing cert "${row.id}" for company ${companyId}: ${(err as Error).message}`,
       );
+      credentialAudit.emit({
+        companyId,
+        credentialRef: row.id,
+        action: 'RESOLVE',
+        outcome: 'ERROR',
+        timestamp: new Date().toISOString(),
+        context: { reason: 'decrypt_failed' },
+      });
       return null;
     }
   }
@@ -298,5 +334,74 @@ export class SigningCertificatesService implements SigningCredentialsPort {
     await this.prisma.companySigningCertificate.deleteMany({
       where: { id: certId, companyId },
     });
+    credentialAudit.emit({
+      companyId,
+      credentialRef: certId,
+      action: 'DELETE',
+      outcome: 'HIT',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // §188 — Rotation seam
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Certificate rotation seam: deactivate the current active certificate for a given
+   * (companyId, applicability, environment) slot and upload the replacement atomically.
+   *
+   * No DB migration required: uses the existing `CompanySigningCertificate` table.
+   * The old row stays in the table with `isActive = false` for audit history.
+   *
+   * SECURITY: never logs PFX bytes, private keys, or passwords — only metadata.
+   *
+   * @returns The metadata of the newly uploaded certificate.
+   */
+  async rotate(companyId: string, newCert: UploadCertificateBody): Promise<CertificateMetaResponse> {
+    if (!isEncryptionAvailable()) {
+      throw new Error('CREDENTIALS_ENCRYPTION_KEY is not set — cannot rotate signing certificate.');
+    }
+
+    const applicability = newCert.applicability ?? '*';
+    const environment = toChannelEnvironment(newCert.environment);
+
+    // Deactivate existing cert in this slot (if any) — keep row for audit history.
+    await this.prisma.companySigningCertificate.updateMany({
+      where: { companyId, applicability, environment, isActive: true },
+      data: { isActive: false, updatedAt: new Date() },
+    });
+
+    // Upload the new cert (creates a new row; upsert is intentionally avoided so history is preserved).
+    const meta = parsePfx(newCert.pfxBase64, newCert.pfxPassword);
+    const encryptedPfx = encryptJson(newCert.pfxBase64);
+    const encryptedPass = encryptJson(newCert.pfxPassword);
+
+    const row = await this.prisma.companySigningCertificate.create({
+      data: {
+        companyId,
+        label: newCert.label,
+        applicability,
+        environment,
+        encryptedPfx,
+        encryptedPass,
+        notBefore: meta.notBefore,
+        notAfter: meta.notAfter,
+        serial: meta.serial,
+        subject: meta.subject,
+        isActive: true,
+      },
+    });
+
+    credentialAudit.emit({
+      companyId,
+      credentialRef: row.id,
+      action: 'ROTATE',
+      outcome: 'HIT',
+      timestamp: new Date().toISOString(),
+      context: { label: row.label, environment: row.environment, applicability },
+    });
+
+    return toMeta(row);
   }
 }

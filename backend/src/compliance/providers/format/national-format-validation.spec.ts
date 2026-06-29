@@ -1152,10 +1152,12 @@ describe('National Format — structural validation', () => {
   describe('KSA ZATCA — QR TLV decode verification', () => {
     it('embeds decodable 5-field TLV base64 QR in the invoice XML', async () => {
       const xml = await service.buildKsaUbl(SA_B2B.data);
-      // Extract base64 from EmbeddedDocumentBinaryObject element
-      const match = xml.match(/<cbc:EmbeddedDocumentBinaryObject[^>]*>([A-Za-z0-9+/=]+)<\/cbc:EmbeddedDocumentBinaryObject>/);
-      expect(match).not.toBeNull();
-      const b64 = match![1];
+      // §51: XML now contains two AdditionalDocumentReferences: PIH + QR.
+      // Extract the QR-specific EmbeddedDocumentBinaryObject by finding the block
+      // that follows cbc:ID containing 'QR'.
+      const qrBlock = xml.match(/<cbc:ID[^>]*>QR<\/cbc:ID>[\s\S]*?<cbc:EmbeddedDocumentBinaryObject[^>]*>([A-Za-z0-9+/=]+)<\/cbc:EmbeddedDocumentBinaryObject>/);
+      expect(qrBlock).not.toBeNull();
+      const b64 = qrBlock![1];
       const buf = Buffer.from(b64, 'base64');
       // Decode TLV: tag(1), length(1), value(length) x 5 fields
       const fields: { tag: number; value: string }[] = [];

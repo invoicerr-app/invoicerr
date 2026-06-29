@@ -7,6 +7,7 @@ import { ChannelType } from '../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from './channel-credentials-port';
 import { InvoiceMailPort } from './invoice-mail-port';
 import { TransmissionProvider } from './transmission-provider';
+import type { BuyerDirectoryPort } from './buyer-directory-port';
 import {
   EmailTransmissionProvider,
   KsefTransmissionProvider,
@@ -52,17 +53,23 @@ export class TransmissionProviderRegistry {
     this._seenKeys.set(key, Date.now());
   }
 
-  constructor(providers?: TransmissionProvider[] | { mail?: InvoiceMailPort; credentials?: ChannelCredentialsPort }) {
+  constructor(providers?: TransmissionProvider[] | {
+    mail?: InvoiceMailPort;
+    credentials?: ChannelCredentialsPort;
+    /** §179 — optional directory for buyer routing resolution (cached externally). */
+    buyerDirectory?: BuyerDirectoryPort;
+  }) {
     let list: TransmissionProvider[];
     if (Array.isArray(providers)) {
       list = providers;
       this.credentials = undefined;
     } else {
       this.credentials = providers?.credentials;
+      const dir = !Array.isArray(providers) ? providers?.buyerDirectory : undefined;
       list = [
         new EmailTransmissionProvider(providers?.mail),
-        new PeppolTransmissionProvider(providers?.credentials),
-        new PdpTransmissionProvider(providers?.credentials),
+        new PeppolTransmissionProvider(providers?.credentials, undefined, undefined, dir),
+        new PdpTransmissionProvider(providers?.credentials, dir),
         new PacTransmissionProvider(providers?.credentials),
         new SdiTransmissionProvider(providers?.credentials),
         new KsefTransmissionProvider(providers?.credentials),

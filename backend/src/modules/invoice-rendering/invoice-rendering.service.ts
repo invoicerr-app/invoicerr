@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
+import { createHash } from 'crypto';
 import * as Handlebars from 'handlebars';
 import type { Invoice as EuInvoice } from '@e-invoice-eu/core';
 import { InvoiceService as EuInvoiceService } from '@e-invoice-eu/core';
@@ -168,6 +169,38 @@ export function extractIban(details: string | null | undefined): string | undefi
   const m = details.replace(/\s/g, '').match(/[A-Z]{2}\d{2}[A-Z0-9]{8,30}/);
   return m ? m[0] : undefined;
 }
+
+// ---------------------------------------------------------------------------
+// §51 — ZATCA FATOORA invoice hash + PIH chain (offline-computable)
+// ---------------------------------------------------------------------------
+
+/**
+ * Compute the ZATCA invoice hash: SHA-256 of the canonical XML bytes, base64-encoded.
+ *
+ * Per ZATCA FATOORA Phase 1 spec, the hash is computed over the UTF-8 serialized
+ * invoice XML.  The result is:
+ *   - Stored as the PIH (Previous Invoice Hash) in the *next* invoice.
+ *   - Provided to ZATCA's clearance API as the invoice hash during submission.
+ *
+ * This is fully offline-computable; ZATCA clearance (tag-6 stamp) is live-deferred.
+ */
+export function computeKsaInvoiceHash(xml: string): string {
+  return createHash('sha256').update(xml, 'utf-8').digest('base64');
+}
+
+/**
+ * ZATCA-specified initialization value for the PIH (Previous Invoice Hash) field of the
+ * *first* invoice in a sequence.
+ *
+ * Per ZATCA FATOORA Business Rules BR-KSA-26: the PIH of the first invoice is the
+ * SHA-256 hash of the string "00000000000000000000000000000000000000000000000000000000000000000"
+ * (64 ASCII zeros), encoded as base64.
+ *
+ * This constant is deterministic and allows unit-tests to verify the chain independently.
+ */
+export const ZATCA_PIH_INIT: string = computeKsaInvoiceHash(
+  '0000000000000000000000000000000000000000000000000000000000000000',
+);
 
 /**
  * ZATCA FATOORA TLV QR — 5 mandatory fields, base64-encoded.
@@ -1001,8 +1034,23 @@ export class InvoiceRenderingService {
         return doc.end({ prettyPrint: true });
     }
 
-    /** KSA UBL 2.1 + TLV QR (SA/ZATCA FATOORA). */
-    async buildKsaUbl(data: InvoiceRenderData): Promise<string> {
+    /**
+     * KSA UBL 2.1 + TLV QR (SA/ZATCA FATOORA).
+     *
+     * §51 — PIH chain (offline-computable):
+     *   options.pih — the hash of the previous invoice in the sequence.
+     *                 Use ZATCA_PIH_INIT for the first invoice.
+     *                 Defaults to ZATCA_PIH_INIT when omitted.
+     *
+     * The returned XML embeds PIH in cac:AdditionalDocumentReference[cbc:ID=PIH].
+     * Call computeKsaInvoiceHash(xml) on the result to obtain the hash for
+     * the next invoice in the chain.
+     *
+     * NOTE: ZATCA clearance (digital stamp / tag-6) is live-deferred and NOT
+     * included here — this covers the offline Phase-1 hash + PIH fields only.
+     */
+    async buildKsaUbl(data: InvoiceRenderData, options?: { pih?: string }): Promise<string> {
+        const pih = options?.pih ?? ZATCA_PIH_INIT;
         const issueDateTime = (data.issuedAt ?? data.createdAt).toISOString();
         const issueDate = issueDateTime.split('T')[0];
         const total = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
@@ -1027,14 +1075,27 @@ export class InvoiceRenderingService {
                 'cbc:IssueDate': issueDate,
                 'cbc:InvoiceTypeCode': '380',
                 'cbc:DocumentCurrencyCode': data.company.currency || 'SAR',
-                // ZATCA QR TLV embedded as AdditionalDocumentReference (tag QR)
-                'cac:AdditionalDocumentReference': {
-                    'cbc:ID': 'QR',
-                    'cac:Attachment': {
-                        'cbc:EmbeddedDocumentBinaryObject': qrTlv,
-                        'cbc:EmbeddedDocumentBinaryObject@mimeCode': 'text/plain',
+                // §51 — ZATCA AdditionalDocumentReferences:
+                //   PIH: Previous Invoice Hash (offline-computable hash chain).
+                //   QR:  TLV QR (5 pre-clearance fields).
+                // NOTE: IH (Invoice Hash) is computed on the final XML and passed to ZATCA
+                // during clearance; it is NOT re-embedded here (Phase-1 reporting mode).
+                'cac:AdditionalDocumentReference': [
+                    {
+                        'cbc:ID': 'PIH',
+                        'cac:Attachment': {
+                            'cbc:EmbeddedDocumentBinaryObject': pih,
+                            'cbc:EmbeddedDocumentBinaryObject@mimeCode': 'text/plain',
+                        },
                     },
-                },
+                    {
+                        'cbc:ID': 'QR',
+                        'cac:Attachment': {
+                            'cbc:EmbeddedDocumentBinaryObject': qrTlv,
+                            'cbc:EmbeddedDocumentBinaryObject@mimeCode': 'text/plain',
+                        },
+                    },
+                ],
                 'cac:AccountingSupplierParty': {
                     'cac:Party': {
                         'cbc:EndpointID': vatNumber,

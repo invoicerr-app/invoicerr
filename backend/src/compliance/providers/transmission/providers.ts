@@ -129,6 +129,12 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
     /** Inject mocks for tests; production uses the real HTTP implementations. */
     private readonly apPort?: PeppolApPort,
     private readonly smpPort?: SmpLookupPort,
+    /**
+     * §179 — optional directory for resolving the buyer's Peppol participant ID
+     * when it is not pre-configured in ctx.buyer.peppolId.
+     * Falls back gracefully to SKIPPED when the directory returns null.
+     */
+    private readonly buyerDirectory?: BuyerDirectoryPort,
   ) {}
 
   async transmit(
@@ -154,8 +160,30 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
       return { channel: 'PEPPOL', status: 'SKIPPED', notes: ['peppol: incomplete config (participantId, accessPointUrl, apiKey required)'] };
     }
 
-    // Determine receiver participant ID from ctx
-    const receiverPeppolId = ctx.buyer.peppolId;
+    // Determine receiver participant ID from ctx.
+    // §179: when peppolId is absent but buyer has a PEPPOL identifier, resolve via directory.
+    let receiverPeppolId = ctx.buyer.peppolId;
+    if (!receiverPeppolId && this.buyerDirectory) {
+      const peppolIdentifier = ctx.buyer.identifiers?.find(
+        (id) => id.scheme === 'PEPPOL' || id.scheme === 'PEPPOL_ID',
+      );
+      if (peppolIdentifier) {
+        try {
+          const dirResult = await this.buyerDirectory.lookup({
+            identifier: peppolIdentifier.value,
+            scheme: 'PEPPOL_ID',
+            environment,
+          });
+          if (dirResult) {
+            receiverPeppolId = dirResult.endpointId;
+            log.info('transmission/peppol', `directory resolved buyer ${peppolIdentifier.value} → ${receiverPeppolId} (key ${key})`);
+          }
+        } catch {
+          // Directory unavailable — proceed without peppolId (non-blocking).
+        }
+      }
+    }
+
     if (!receiverPeppolId) {
       return { channel: 'PEPPOL', status: 'SKIPPED', notes: ['peppol: buyer has no peppolId — cannot route'] };
     }
