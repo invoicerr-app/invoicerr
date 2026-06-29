@@ -1333,3 +1333,14 @@ model CompanySigningCertificate {
   @@unique([companyId, applicability, environment])
   @@index([companyId])
 }
+
+// ======= CRON LOCK (distributed lease for multi-instance deployments) ======= //
+
+/// One row per cron job name. Acquire by conditional upsert (only if lockedUntil < NOW()).
+/// Crashed instances auto-expire when lockedUntil passes.
+model CronLock {
+  name        String   @id         // job name e.g. "tickPolls"
+  lockedUntil DateTime             // UTC expiry — past = available
+  owner       String               // hostname:pid of the holding instance
+  updatedAt   DateTime @updatedAt
+}

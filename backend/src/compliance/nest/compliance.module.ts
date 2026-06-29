@@ -5,6 +5,9 @@ import { PrismaPollJobStore, PrismaTimerJobStore } from '../persistence/prisma-s
 import { PrismaCallbackStore } from '../persistence/prisma-callback-store';
 import { PrismaReportingStore } from '../reporting/prisma-reporting-store';
 import { ReportingRegistry } from '../reporting/registry';
+import { NullIdentifierExistenceClient } from '../canonical/identifier-existence.port';
+import { CachedExistenceClient } from '../canonical/cached-existence-client';
+import { CronLockService } from './cron-lock.service';
 import { PollScheduler } from '../lifecycle/drivers/poll-scheduler';
 import { TimerScheduler } from '../lifecycle/drivers/timer-scheduler';
 import { InboundRouter } from '../lifecycle/drivers/inbound-router';
@@ -128,7 +131,7 @@ import { RequiredFieldsController } from './required-fields.controller';
       useFactory: (store: PrismaReportingStore) => new ReportingRegistry(undefined, store),
       inject: [PrismaReportingStore],
     },
-    // ComplianceExecutor with wired format + signing + transmission + reporting registries
+    // ComplianceExecutor with wired format + signing + transmission + reporting registries + existence client
     {
       provide: ComplianceExecutor,
       useFactory: (
@@ -136,8 +139,9 @@ import { RequiredFieldsController } from './required-fields.controller';
         signing: SigningProviderRegistry,
         transmission: TransmissionProviderRegistry,
         reporting: ReportingRegistry,
-      ) => new ComplianceExecutor({ formats, signing, transmission, reporting }),
-      inject: [FormatProviderRegistry, SigningProviderRegistry, TransmissionProviderRegistry, ReportingRegistry],
+        existence: CachedExistenceClient,
+      ) => new ComplianceExecutor({ formats, signing, transmission, reporting, existence }),
+      inject: [FormatProviderRegistry, SigningProviderRegistry, TransmissionProviderRegistry, ReportingRegistry, 'IDENTIFIER_EXISTENCE_CLIENT'],
     },
     // ComplianceService (facade) with Prisma store + wired executor
     {
@@ -148,15 +152,30 @@ import { RequiredFieldsController } from './required-fields.controller';
     },
     // Channel settings (backs ChannelCredentialsController: company config CRUD + required channels)
     ChannelSettingsService,
-    // Cron — injects PollScheduler, TimerScheduler, InboundRouter
+    // CronLockService — distributed lease lock for multi-instance deployments (§13)
+    {
+      provide: CronLockService,
+      useFactory: (prisma: PrismaService) => new CronLockService(prisma),
+      inject: [PrismaService],
+    },
+    // IdentifierExistencePort — offline-safe default (NullIdentifierExistenceClient wrapped in cache) (§7)
+    // To enable live checks: replace NullIdentifierExistenceClient with ViesExistenceClient /
+    // SireneExistenceClient and set EXISTENCE_CHECK_ENABLED=true in the environment.
+    {
+      provide: 'IDENTIFIER_EXISTENCE_CLIENT',
+      useFactory: () => new CachedExistenceClient(new NullIdentifierExistenceClient()),
+    },
+    // Cron — injects PollScheduler, TimerScheduler, InboundRouter, ReportingStore, CronLockService
     {
       provide: ComplianceCron,
       useFactory: (
         pollScheduler: PollScheduler,
         timerScheduler: TimerScheduler,
         inboundRouter: InboundRouter,
-      ) => new ComplianceCron(pollScheduler, timerScheduler, inboundRouter),
-      inject: [PollScheduler, TimerScheduler, InboundRouter],
+        reportingStore: PrismaReportingStore,
+        cronLock: CronLockService,
+      ) => new ComplianceCron(pollScheduler, timerScheduler, inboundRouter, reportingStore, cronLock),
+      inject: [PollScheduler, TimerScheduler, InboundRouter, PrismaReportingStore, CronLockService],
     },
   ],
   exports: [ComplianceService],
