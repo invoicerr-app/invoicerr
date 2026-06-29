@@ -175,7 +175,7 @@
 - [x] **Existence distante (port)** : `ViesExistenceClient` (VIES REST, sans creds) + `SireneExistenceClient` (INSEE, Bearer) derrière `IdentifierExistencePort` ; défaut `Null` (offline‑safe), tests mockés. Live deferred.
 - [x] Existence VIES/SIRENE branchée (executor step 0b, warnings `[existence]` non bloquants) + `CachedExistenceClient` (TTL 24h) ; défaut `Null` (offline‑safe).
 - [x] Checksums durcis : **clé alpha FR VAT** (base‑34) + **CIF ES** (algo officiel, routage type d'org) avec vecteurs cités.
-- [ ] Champs manquants au modèle : EndpointID/Peppol ID par client, tel/email vendeur, code moyen de paiement, NIC.
+- [x] **Identifiants de routage** : `PEPPOL_ENDPOINT` (`schemeId:endpointId`) par client/société via `PartyIdentifier` (sans migration) → `cac:EndpointID schemeID` UBL Peppol BIS + XRechnung (acheteur+vendeur), fallback inchangé ; UI client+société (select scheme 0088/0192/0009/9925…). NIC dérivé du SIRET. tel/email vendeur + code paiement déjà faits. 5 tests rendering.
 - [ ] Table + lookup + cache **annuaire** des participants.
 
 ---
