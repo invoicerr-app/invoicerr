@@ -68,14 +68,14 @@
 
 ---
 
-## 2. SIGNATURE (`providers/signing/`) — 🔴 TOUT EST STUB
+## 2. SIGNATURE (`providers/signing/`) — signatures réelles en place
 
-- [ ] **XAdES** (XML) — ‑B/T/LT/LTA + TSA. Pour Facturae, FatturaPA option, KSA, LATAM, TR.
-- [ ] **CAdES** (.p7m) — pour **SdI** (FatturaPA `CAdES‑BES`), etc.
-- [ ] **PAdES** (PDF) — Factur‑X/PDF signés (étendre `plugins/signing`, Documenso déjà présent + pdf‑lib).
-- [ ] Gestion des **certificats de signature** par société (PFX/PKCS#12 + mot de passe), chiffrés ; validité/chaîne/renouvellement.
-- [ ] Mapper « algo + certificat » **par profil** (champ signature → vrais providers).
-- [ ] Horodatage **TSA** (niveaux ‑T/‑LT/‑LTA).
+- [x] **XAdES‑BES** (XML) — `xadesjs` + WebCrypto ; **vérifié offline** (signature valide, références résolues). Pour Facturae, FatturaPA option, LATAM, TR.
+- [x] **CAdES‑BES** (.p7m) — `node-forge` PKCS#7 ; **vérifié offline**. Pour **SdI** (FatturaPA `.p7m`).
+- [x] **PAdES‑B** (PDF) — `@signpdf` + node-forge P12 ; **vérifié offline**. Factur‑X/PDF signés.
+- [x] **Algo→provider par profil** : `executor` sélectionne l'algo ; `none` = pass‑through réel ; `SigningCredentialsPort` (mirroir du port creds) ; sans cert → renvoie non signé avec note (testé). 18 tests (cert auto‑signé in‑memory).
+- [ ] **Stockage cert en DB** : `NullSigningCredentials` par défaut — brancher le chargement PFX/PKCS#12 chiffré par société (seam prêt) ; validité/chaîne/renouvellement.
+- [ ] **Niveaux ‑T/‑LT/‑LTA + horodatage TSA** — hooks stubbés.
 - [x] (réf.) KSeF scelle/chiffre lui‑même côté client ; clés MF vendorisées `certs/ksef/{test,prod}`.
 
 ---
@@ -230,7 +230,7 @@
 
 ## Ordre conseillé
 1. [x] **Lifecycle freshness** (§4 : boot + sweep 12h) — fait (reste : replay inbound + webhooks push par canal).
-2. [ ] **Signature réelle** (§2) — débloque SdI (.p7m), Facturae, KSA, LATAM.
+2. [x] **Signature réelle** (§2) — XAdES/CAdES/PAdES réels + vérifiés offline (reste : store cert DB + TSA).
 3. [ ] **Prouver PDP‑AFNOR** + **Email réel** (§3.1) — rapides, creds dispo.
 4. [ ] **SdI live** puis **Peppol live** (§3.2) — dès creds/AP.
 5. [ ] **Entrant** (§5) + **sendStatus** (§3.5) — boucle complète.
