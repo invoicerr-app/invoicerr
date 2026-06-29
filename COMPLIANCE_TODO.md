@@ -40,16 +40,16 @@
 - [x] **EN16931_UBL** — `exportXml('ubl')`.
 - [x] Validation EN16931 Schematron (`node-schematron`) + XSD CII/FA(2) (`xmllint-wasm`).
 - [x] `cii-post-process.ts` réduit au strict (namespaces + routing PDP).
-- [ ] 🟡 **XRECHNUNG** — gap data **BR‑DE‑11/12/13/14** (tel+email vendeur, EndpointID acheteur, code moyen de paiement) à modéliser.
-- [ ] 🟡 **ZUGFERD** — aliasé sur Factur‑X (`invoice-rendering.service.ts:46`) ; distinguer les vrais profils.
-- [ ] 🟡 **PEPPOL_BIS** — approximé `'ubl'` ; poser le bon `CustomizationID`/`ProfileID` BIS Billing 3.0.
+- [x] **XRECHNUNG** — BR‑DE‑11/12 `cac:Contact` (tel+email vendeur) + BR‑DE‑14 `cac:PaymentMeans` code émis. [ ] dériver le code moyen de paiement de `invoice.paymentMethod` + IBAN pour code 30.
+- [x] **ZUGFERD** — alias no‑op retiré ; ZUGFeRD 2.x = même profil CII/EN16931 + PDF/A‑3 + CustomizationID que Factur‑X (pas de profil divergent dans `@e-invoice-eu/core`) — alignement documenté.
+- [x] **PEPPOL_BIS** — `CustomizationID`/`ProfileID` BIS Billing 3.0 réels injectés (au lieu d'UBL générique).
 
 ### 1.2 Formats nationaux majeurs
 - [x] **FA_VAT** (PL, FA(2)) — `buildFaVat()` ✅ (prouvé KSeF).
 - [x] **FATTURAPA** (IT, 1.2) — `@digitalia/fatturapa` (build) — transmission SdI à finir (§3).
-- [ ] 🟡 **CFDI** (MX 4.0) — finir complément/addenda + sceau SAT + timbrado PAC.
-- [ ] 🟡 **ES_FACTURAE** (3.2.x) — finir + XAdES + SII/Verifactu.
-- [ ] 🔴 **KSA_UBL** (ZATCA FATOORA) — UBL 2.1 + hash + QR + sceau XAdES.
+- [x] **ES_FACTURAE** (3.2.2) — builder + ns/SchemaVersion corrects + **XAdES câblé** (nœud Signature vérifié). [ ] XSD officiel non bundlé (validation structurelle) ; [ ] SII/Verifactu.
+- [ ] 🟡 **KSA_UBL** (ZATCA FATOORA) — UBL 2.1 + **QR TLV 5 champs (base64)** + CustomizationID corrects. [ ] hash PIH‑chain + sceau tag‑6 (clearance) + XSD.
+- [ ] 🟡 **CFDI** (MX 4.0) — ns `cfd/4` + seam Sello/Certificado (faux NoCertificado retiré). [ ] timbrado PAC (UUID/TimbreFiscalDigital) + sceau CSD + complément/addenda + XSD.
 
 ### 1.3 Formats nationaux 🔴 (stubs `national-formats.ts`) — build + validation + signature + champs + profil + preuve
 - [ ] LATAM : `AR_FE` · `BO_FE` · `NFE`(BR) · `CL_DTE` · `CR_FE` · `DO_ECF` · `EC_FE` · `GT_FEL` · `PA_FE` ·
