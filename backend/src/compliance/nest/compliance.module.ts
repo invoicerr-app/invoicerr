@@ -34,6 +34,8 @@ import { ComplianceController } from './compliance.controller';
 import { RequiredFieldsController } from './required-fields.controller';
 import { InboundInvoiceController } from './inbound-invoice.controller';
 import { InboundInvoiceService } from '../reception/inbound-invoice.service';
+import { InboxPoller } from '../lifecycle/drivers/inbox-poller';
+import { NullInboxPort } from '../lifecycle/drivers/inbox-port';
 
 @Module({
   imports: [InvoiceRenderingModule, ChannelCredentialsModule, SigningCertificatesModule],
@@ -167,23 +169,37 @@ import { InboundInvoiceService } from '../reception/inbound-invoice.service';
       provide: 'IDENTIFIER_EXISTENCE_CLIENT',
       useFactory: () => new CachedExistenceClient(new NullIdentifierExistenceClient()),
     },
-    // Cron — injects PollScheduler, TimerScheduler, InboundRouter, ReportingStore, CronLockService
+    // Cron — injects PollScheduler, TimerScheduler, InboundRouter, InboxPoller, ReportingStore, CronLockService
     {
       provide: ComplianceCron,
       useFactory: (
         pollScheduler: PollScheduler,
         timerScheduler: TimerScheduler,
         inboundRouter: InboundRouter,
+        inboxPoller: InboxPoller,
         reportingStore: PrismaReportingStore,
         cronLock: CronLockService,
-      ) => new ComplianceCron(pollScheduler, timerScheduler, inboundRouter, reportingStore, cronLock),
-      inject: [PollScheduler, TimerScheduler, InboundRouter, PrismaReportingStore, CronLockService],
+      ) => new ComplianceCron(pollScheduler, timerScheduler, inboundRouter, inboxPoller, reportingStore, cronLock),
+      inject: [PollScheduler, TimerScheduler, InboundRouter, InboxPoller, PrismaReportingStore, CronLockService],
     },
     // InboundInvoiceService — parse + store received supplier invoices
     {
       provide: InboundInvoiceService,
       useFactory: (prisma: PrismaService) => new InboundInvoiceService(prisma),
       inject: [PrismaService],
+    },
+    // InboxPoller — §4 inbox polling driver (SFTP/IMAP).
+    // Default: NullInboxPort (offline-safe, no polling without config).
+    // Replace 'INBOX_PORTS' with real port instances when credentials are available.
+    {
+      provide: 'INBOX_PORTS',
+      useFactory: () => [new NullInboxPort()],
+    },
+    {
+      provide: InboxPoller,
+      useFactory: (router: InboundRouter, ports: InstanceType<typeof NullInboxPort>[]) =>
+        new InboxPoller({ router, ports }),
+      inject: [InboundRouter, 'INBOX_PORTS'],
     },
   ],
   exports: [ComplianceService],

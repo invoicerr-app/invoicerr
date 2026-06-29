@@ -3,6 +3,7 @@ import { Cron, Interval } from '@nestjs/schedule';
 import { PollScheduler } from '../lifecycle/drivers/poll-scheduler';
 import { TimerScheduler } from '../lifecycle/drivers/timer-scheduler';
 import { InboundRouter } from '../lifecycle/drivers/inbound-router';
+import { InboxPoller } from '../lifecycle/drivers/inbox-poller';
 import { PrismaReportingStore } from '../reporting/prisma-reporting-store';
 import { getPeriodKey, frequencyForKind } from '../reporting/period';
 import { ReportingKind } from '../types';
@@ -16,6 +17,7 @@ const RECONCILE_INTERVAL_MS = (Number(process.env.COMPLIANCE_RECONCILE_HOURS) ||
 const LOCK_TTL = {
   polls: 25_000,        // 25 s  (tick is 30 s)
   timers: 55_000,       // 55 s  (tick is 60 s)
+  inbox: 55_000,        // 55 s  (tick is 60 s)
   reconcile: 11 * 60 * 60 * 1000, // 11 h (tick is 12 h)
   reportingClose: 23 * 60 * 60 * 1000, // 23 h (tick is daily)
 };
@@ -27,6 +29,7 @@ export class ComplianceCron implements OnApplicationBootstrap {
   // In-process guards (first line of defence — cheaper than a DB round-trip)
   private pollInFlight = false;
   private timerInFlight = false;
+  private inboxInFlight = false;
   private reconcileInFlight = false;
   private reportingCloseInFlight = false;
 
@@ -34,6 +37,7 @@ export class ComplianceCron implements OnApplicationBootstrap {
     private readonly pollScheduler: PollScheduler,
     private readonly timerScheduler: TimerScheduler,
     private readonly inboundRouter: InboundRouter,
+    private readonly inboxPoller: InboxPoller,
     private readonly reportingStore: PrismaReportingStore,
     private readonly cronLock: CronLockService,
   ) {}
@@ -126,6 +130,41 @@ export class ComplianceCron implements OnApplicationBootstrap {
       }
     } finally {
       this.pollInFlight = false;
+      await this.cronLock.release(lockName);
+    }
+  }
+
+  /**
+   * §4 — Inbox polling tick (every 60 s, same cadence as timers).
+   *
+   * Polls all registered `InboxPort`s for new inbound documents (e.g. SdI SFTP notifiche,
+   * IMAP mailboxes) and feeds them into the `InboundRouter` for dedup + correlation.
+   * When no ports are configured (default: NullInboxPort), the tick is a no-op.
+   */
+  @Interval(60_000)
+  async tickInbox(): Promise<void> {
+    // In-process guard
+    if (this.inboxInFlight) {
+      this.logger.warn('inbox tick skipped: previous tick still running');
+      return;
+    }
+    // Distributed lock guard (§13)
+    const lockName = 'compliance:inbox';
+    const acquired = await this.cronLock.tryAcquire(lockName, LOCK_TTL.inbox);
+    if (!acquired) {
+      this.logger.debug('inbox tick skipped: lock held by another instance');
+      return;
+    }
+    this.inboxInFlight = true;
+    try {
+      const report = await this.inboxPoller.tick();
+      if (report.fetched > 0 || report.errors > 0) {
+        this.logger.debug(
+          `inbox tick: fetched=${report.fetched} routed=${report.routed} duplicates=${report.duplicates} unmatched=${report.unmatched} errors=${report.errors}`,
+        );
+      }
+    } finally {
+      this.inboxInFlight = false;
       await this.cronLock.release(lockName);
     }
   }

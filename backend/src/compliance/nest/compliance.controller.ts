@@ -1,4 +1,5 @@
-import { Body, Controller, Headers, HttpCode, HttpException, HttpStatus, Logger, Param, Post } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, HttpException, HttpStatus, Logger, Param, Post, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { Public } from '@/decorators/public.decorator';
 import { InboundRouter } from '../lifecycle/drivers/inbound-router';
 import { ChannelType } from '../types';
@@ -11,6 +12,7 @@ import {
   PeppolMlrWebhookPayload,
 } from '../lifecycle/drivers/inbound-parsers';
 import type { InboundInput } from '../lifecycle/drivers/inbound-router';
+import { assertWebhookAuth } from './webhook-auth';
 
 /**
  * Generic body accepted by the canonical `/compliance/inbound/:channel` endpoint.
@@ -24,16 +26,29 @@ interface GenericInboundBody {
 }
 
 /**
- * Authenticity guard: very coarse shared-secret check as a first line of defence.
- * Per-channel HMAC/signature verification is a TODO seam — each channel's real
- * verification (SuperPDP HMAC, SdI mTLS, Peppol AP TLS client cert) should be added
- * here or in a per-channel NestJS guard once live credentials are available.
+ * Extract the raw body bytes from the request for HMAC verification.
+ * The bodyParser `verify` callback in main.ts attaches the raw bytes to `req.rawBody`.
+ * Falls back to re-serialising the parsed body (slightly less reliable but safe for
+ * providers that normalise JSON whitespace before signing).
  */
-function assertSecret(secret: string | undefined): void {
-  const expected = process.env.COMPLIANCE_WEBHOOK_SECRET;
-  if (expected && secret !== expected) {
-    throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
+function getRawBody(req: Request, parsedBody: unknown): Buffer {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const raw = (req as any).rawBody;
+  if (raw instanceof Buffer) return raw;
+  return Buffer.from(JSON.stringify(parsedBody) ?? '', 'utf-8');
+}
+
+/**
+ * Extract remote IP from the request, honouring X-Forwarded-For (set by a trusted
+ * reverse-proxy). Returns undefined when no IP can be determined.
+ */
+function getRemoteIp(req: Request): string | undefined {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    const first = Array.isArray(forwarded) ? forwarded[0] : forwarded.split(',')[0];
+    return first?.trim();
   }
+  return req.socket?.remoteAddress;
 }
 
 @Controller('compliance/inbound')
@@ -58,9 +73,17 @@ export class ComplianceController {
   async receiveInbound(
     @Param('channel') channel: ChannelType,
     @Body() body: GenericInboundBody,
-    @Headers('x-compliance-secret') secret?: string,
+    @Req() req: Request,
+    @Headers('x-signature') sigHeader?: string,
+    @Headers('x-compliance-secret') secretHeader?: string,
   ) {
-    assertSecret(secret);
+    assertWebhookAuth({
+      channel: String(channel).toUpperCase(),
+      rawBody: getRawBody(req, body),
+      signatureHeader: sigHeader,
+      sharedSecretHeader: secretHeader,
+      remoteIp: getRemoteIp(req),
+    });
     const result = await this.inboundRouter.receive({ channel, ...body });
     this.logger.debug(`inbound [${channel}] generic result: ${result.kind}`);
     return result;
@@ -76,17 +99,25 @@ export class ComplianceController {
    * SuperPDP pushes lifecycle events here when the status of a deposited invoice changes.
    * URL to register with SuperPDP: POST /compliance/inbound/pdp/webhook
    *
-   * Authenticity: shared secret via `x-compliance-secret` header (coarse gate).
-   * TODO: add HMAC-SHA256 verification once SuperPDP publishes their signing spec.
+   * Authenticity: HMAC-SHA256 via X-Signature header (preferred) or X-Compliance-Secret
+   * fallback. Configure WEBHOOK_SECRET_PDP in env. Optional IP allowlist: WEBHOOK_ALLOWLIST_PDP.
    */
   @Public()
   @Post('pdp/webhook')
   @HttpCode(200)
   async receivePdpWebhook(
     @Body() body: PdpWebhookPayload,
-    @Headers('x-compliance-secret') secret?: string,
+    @Req() req: Request,
+    @Headers('x-signature') sigHeader?: string,
+    @Headers('x-compliance-secret') secretHeader?: string,
   ) {
-    assertSecret(secret);
+    assertWebhookAuth({
+      channel: 'PDP',
+      rawBody: getRawBody(req, body),
+      signatureHeader: sigHeader,
+      sharedSecretHeader: secretHeader,
+      remoteIp: getRemoteIp(req),
+    });
 
     if (!body.invoice_id || !body.status_code) {
       this.logger.warn('inbound/pdp: missing invoice_id or status_code in webhook');
@@ -105,16 +136,25 @@ export class ComplianceController {
    * The SdI intermediary pushes notifiche (RC/NS/MC/NE/DT/AT) here.
    * URL to register with your SDICoop intermediary: POST /compliance/inbound/sdi/notifica
    *
-   * Authenticity: shared secret + TODO mTLS from the intermediary's known IP range.
+   * Authenticity: HMAC-SHA256 via X-Signature (preferred) or X-Compliance-Secret fallback.
+   * Configure WEBHOOK_SECRET_SDI. Optional IP allowlist: WEBHOOK_ALLOWLIST_SDI.
    */
   @Public()
   @Post('sdi/notifica')
   @HttpCode(200)
   async receiveSdiNotifica(
     @Body() body: SdiNotificaWebhookPayload,
-    @Headers('x-compliance-secret') secret?: string,
+    @Req() req: Request,
+    @Headers('x-signature') sigHeader?: string,
+    @Headers('x-compliance-secret') secretHeader?: string,
   ) {
-    assertSecret(secret);
+    assertWebhookAuth({
+      channel: 'SDI',
+      rawBody: getRawBody(req, body),
+      signatureHeader: sigHeader,
+      sharedSecretHeader: secretHeader,
+      remoteIp: getRemoteIp(req),
+    });
 
     if (!body.type || !body.idSdI) {
       this.logger.warn('inbound/sdi: missing type or idSdI in notifica');
@@ -133,16 +173,25 @@ export class ComplianceController {
    * The AP gateway pushes delivery status and Invoice Responses here.
    * URL to register with the AP gateway: POST /compliance/inbound/peppol/mlr
    *
-   * Authenticity: shared secret + TODO AP-gateway-specific HMAC or mTLS.
+   * Authenticity: HMAC-SHA256 via X-Signature (preferred) or X-Compliance-Secret fallback.
+   * Configure WEBHOOK_SECRET_PEPPOL. Optional IP allowlist: WEBHOOK_ALLOWLIST_PEPPOL.
    */
   @Public()
   @Post('peppol/mlr')
   @HttpCode(200)
   async receivePeppolMlr(
     @Body() body: PeppolMlrWebhookPayload,
-    @Headers('x-compliance-secret') secret?: string,
+    @Req() req: Request,
+    @Headers('x-signature') sigHeader?: string,
+    @Headers('x-compliance-secret') secretHeader?: string,
   ) {
-    assertSecret(secret);
+    assertWebhookAuth({
+      channel: 'PEPPOL',
+      rawBody: getRawBody(req, body),
+      signatureHeader: sigHeader,
+      sharedSecretHeader: secretHeader,
+      remoteIp: getRemoteIp(req),
+    });
 
     if (!body.messageId || !body.responseCode) {
       this.logger.warn('inbound/peppol: missing messageId or responseCode in MLR');

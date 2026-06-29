@@ -11,6 +11,7 @@ import type { PeppolApPort } from './peppol/peppol-client';
 import type { SmpLookupPort } from './peppol/smp-client';
 import type { PacHttpPort } from './latam/pac-client';
 import type { OseHttpPort, OseTipoDoc } from './latam/ose-client';
+import type { BuyerDirectoryPort } from './buyer-directory-port';
 
 // ---------------------------------------------------------------------------
 // Helpers — status mapping
@@ -392,7 +393,11 @@ export class PdpTransmissionProvider implements TransmissionProvider {
     ],
   };
 
-  constructor(private readonly credentials?: ChannelCredentialsPort) {}
+  constructor(
+    private readonly credentials?: ChannelCredentialsPort,
+    /** Optional AFNOR Directory seam to resolve buyer endpoint when not in config. */
+    private readonly buyerDirectory?: BuyerDirectoryPort,
+  ) {}
 
   async transmit(
     artifacts: SignedArtifact[],
@@ -454,7 +459,26 @@ export class PdpTransmissionProvider implements TransmissionProvider {
         // sellerEndpointId / buyerEndpointId come from company channel config.
         // Format: {pdp_siren}_{account_id} — NOT the company's SIREN.
         const sellerRouting = config.sellerEndpointId as string | undefined;
-        const buyerRouting = config.buyerEndpointId as string | undefined;
+        let buyerRouting = config.buyerEndpointId as string | undefined;
+
+        // §7 — resolve buyer endpoint from AFNOR Directory when not pre-configured.
+        if (!buyerRouting && this.buyerDirectory) {
+          const buyerSiren = ctx.buyer.identifiers?.find(
+            (id) => id.scheme === 'SIREN' || id.scheme === 'SIRET',
+          )?.value;
+          if (buyerSiren) {
+            try {
+              const dirResult = await this.buyerDirectory.lookup({ identifier: buyerSiren });
+              if (dirResult) {
+                buyerRouting = dirResult.endpointId;
+                log.info('transmission/pdp', `AFNOR directory resolved buyer ${buyerSiren} → ${buyerRouting} (key ${key})`);
+              }
+            } catch {
+              // Directory lookup failed — proceed without buyer routing (non-blocking).
+            }
+          }
+        }
+
         const patched = postProcessCiiForCtc(originalXml, { sellerRouting, buyerRouting });
         if (patched !== originalXml) {
           log.info('transmission/pdp', `CTC post-processing: injected SpecifiedLegalOrganization (key ${key})`);

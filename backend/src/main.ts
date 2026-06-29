@@ -16,7 +16,15 @@ async function bootstrap() {
   });
   app.use(cookieParser());
   app.setGlobalPrefix('api');
-  app.use(bodyParser.json({ limit: '1mb' }));
+  app.use(bodyParser.json({
+    limit: '1mb',
+    // Capture the raw body buffer so webhook HMAC verification can operate on the
+    // original bytes (re-serialising a parsed JSON object is unreliable for HMAC).
+    verify: (req, _res, buf) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (req as any).rawBody = buf;
+    },
+  }));
   app.use((_req, res, next) => {
     res.header('Access-Control-Expose-Headers', 'WWW-Authenticate');
     next();
