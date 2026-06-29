@@ -101,10 +101,10 @@
 - [x] **Peppol** 🟢 — lookup SMP/SML + envoi passerelle AP + mapping + tests.
 - [ ] Peppol : **Access Point** réel + cert AP + lookup SML/SMP réel + MLR/Invoice Response → lifecycle ; preuve live.
 
-### 3.3 Stubs 🔴
-- [ ] **PAC** (MX) — timbrado, UUID/folio fiscal, clearance async.
-- [ ] **OSE** (PE) — CDR.
-- [ ] **PRINT** — représentation imprimable + QR.
+### 3.3 PRINT réel · PAC/OSE scaffoldés
+- [x] **PRINT** — **réel** : PDF A4 (pdfkit) + QR (qrcode) embarqué, offline ; `transmit`→SENT, fallback universel. Test : magic `%PDF` + QR décodé (jsQR round‑trip).
+- [~] **PAC** (MX) — client `timbrar`/`consultaEstado` (mocké) → CLEARED + UUID ; configSchema ; SKIP si non configuré. [ ] PAC réel + sceau SAT.
+- [~] **OSE** (PE) — client `enviarComprobante`/`obtenerCdr` (mocké, codes SUNAT) ; `PE_UBL` ajouté. [ ] OSE réel + CDR signé.
 
 ### 3.4 Taxonomie portails
 - [x] Suppression du `gov-portal` générique ; `GOV_PORTAL_API` **exige un `providerId`** (sinon SKIPPED explicite) + test garde.
