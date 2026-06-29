@@ -17,6 +17,7 @@ import { InvoiceMailGateway } from '@/modules/invoice-rendering/invoice-mail.gat
 import { ChannelCredentialsModule } from '@/modules/channel-credentials/channel-credentials.module';
 import { ChannelCredentialsService } from '@/modules/channel-credentials/channel-credentials.service';
 import { ChannelCredentialsController } from './channel-credentials.controller';
+import { ChannelSettingsService } from './channel-settings.service';
 import { ApplySignalService } from './apply-signal';
 import { ComplianceCron } from './compliance.cron';
 import { AuditExportController } from './audit-export.controller';
@@ -116,6 +117,8 @@ import { RequiredFieldsController } from './required-fields.controller';
         new ComplianceService({ store: docStore, executor }),
       inject: [PrismaComplianceDocumentStore, ComplianceExecutor],
     },
+    // Channel settings (backs ChannelCredentialsController: company config CRUD + required channels)
+    ChannelSettingsService,
     // Cron
     ComplianceCron,
   ],
