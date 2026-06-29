@@ -46,7 +46,7 @@
 
 ### 1.2 Formats nationaux majeurs
 - [x] **FA_VAT** (PL, FA(2)) — `buildFaVat()` ✅ (prouvé KSeF).
-- [x] **FATTURAPA** (IT, 1.2) — `@digitalia/fatturapa` (build) — transmission SdI à finir (§3).
+- [x] **FATTURAPA** (IT, 1.2) — build + **XSD validé** (`Schema_VFPR12.xsd`) — transmission SdI à finir (§3).
 - [x] **ES_FACTURAE** (3.2.2) — builder + ns/SchemaVersion corrects + **XAdES câblé** (nœud Signature vérifié). [ ] XSD officiel non bundlé (validation structurelle) ; [ ] SII/Verifactu.
 - [ ] 🟡 **KSA_UBL** (ZATCA FATOORA) — UBL 2.1 + **QR TLV 5 champs (base64)** + CustomizationID corrects. [ ] hash PIH‑chain + sceau tag‑6 (clearance) + XSD.
 - [ ] 🟡 **CFDI** (MX 4.0) — ns `cfd/4` + seam Sello/Certificado (faux NoCertificado retiré). [ ] timbrado PAC (UUID/TimbreFiscalDigital) + sceau CSD + complément/addenda + XSD.
@@ -65,7 +65,8 @@
 - [x] `NATIONAL_XML` placeholder → builders dédiés par pays (LATAM/Asie/Afrique/MENA/Europe) via `buildNationalXml()`.
 
 ### 1.4 Transverse formats
-- [ ] Étendre validation : XSD/Schematron FatturaPA, CFDI, Facturae, + chaque format national.
+- [x] Validation **XSD FatturaPA 1.2** (`Schema_VFPR12.xsd`) + **XSD CFDI 4.0** (`cfdv40.xsd`+catalogues, 128 MB) + **Schematron Peppol BIS** (`PEPPOL-EN16931-UBL.sch`) vendorisés + câblés (xmllint‑wasm/node‑schematron), tests positifs+négatifs. Builders FatturaPA/CFDI/UBL corrigés pour passer le XSD réel.
+- [ ] Facturae XSD (2 tests `todo`) + XSD/Schematron de chaque format national (LATAM/Asie/Afrique/MENA/Europe).
 - [ ] Gap `BR‑27` (prix net ligne / modèle remises EN16931) — modéliser les allowances.
 
 ---
