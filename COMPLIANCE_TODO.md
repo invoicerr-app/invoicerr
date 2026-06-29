@@ -219,7 +219,7 @@
 - [ ] Round‑trips live restants : PDP‑AFNOR contenu (ack=Error), SdI, Peppol, KSeF prod, chaque portail national (creds).
 - [x] Tests d'intégration mockés (filets) : PDP, KSeF, Email, SdI, Peppol, executor‑e2e. **635 tests verts.**
 - [x] Discipline « boot test » (l'app démarre, DI/routes OK).
-- [ ] Tests gated `*_LIVE=1` par canal, assertions dures (pas de REJECTED/SKIPPED toléré).
+- [x] Tests gated `*_LIVE=1` par canal, assertions dures (pas de REJECTED/SKIPPED toléré) — `live-gate.ts` + 7 specs (KSeF✅/PDP✅/AFNOR✅/Email✅/SdI🔴/Peppol🔴/Portal🟡), tous skippés par défaut.
 - [x] CI : jest backend + cypress e2e (workflow « Tests »).
 
 ---

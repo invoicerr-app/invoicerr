@@ -1,18 +1,21 @@
 /**
  * KSeF live round-trip test — REAL API, REAL token, never in CI.
  *
- * Guard: KSEF_LIVE=1 npx jest ksef-live.spec.ts --no-coverage
+ * Guard: KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> [KSEF_NIP=<nip>] npx jest ksef-live --no-coverage
  *
  * Two runs:
  *   Run A — crypto guard: plaintext placeholder (proves encryption round-trip, no 435)
  *   Run B — valid FA(2) via buildFaVat: proves real invoice acceptance → CLEARED + ksefNumber
  *
  * Never logs token, XML, or accessToken.
+ *
+ * See LIVE_TESTING.md for full env var documentation.
  */
-const LIVE = !!process.env.KSEF_LIVE;
+import { liveDescribe } from '../live-gate.js';
 
-// eslint-disable-next-line no-restricted-properties
-const describeLive = LIVE ? describe : describe.skip;
+// KSEF_AUTH_TOKEN is the canonical cred; KSEF_TOKEN is the legacy alias.
+// The gate checks KSEF_AUTH_TOKEN; if only KSEF_TOKEN is set the beforeAll will surface it.
+const describeLive = liveDescribe('KSEF_LIVE', ['KSEF_AUTH_TOKEN']);
 
 /** Minimal plaintext for Run A — crypto round-trip guard. */
 const CRYPTO_GUARD_XML =

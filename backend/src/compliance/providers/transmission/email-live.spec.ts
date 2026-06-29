@@ -16,11 +16,10 @@
  */
 import * as nodemailer from 'nodemailer';
 import { MailService } from '@/mail/mail.service';
+import { liveDescribe } from './live-gate.js';
 
-const LIVE = !!process.env.EMAIL_LIVE;
-
-// eslint-disable-next-line no-restricted-properties
-const describeLive = LIVE ? describe : describe.skip;
+// Email live test uses Ethereal (creates a free test account automatically) — no pre-set creds needed.
+const describeLive = liveDescribe('EMAIL_LIVE');
 
 describeLive('Email live round-trip (Ethereal SMTP)', () => {
   it('sends an invoice email via MailService.sendMail() with Ethereal SmtpOverrides', async () => {

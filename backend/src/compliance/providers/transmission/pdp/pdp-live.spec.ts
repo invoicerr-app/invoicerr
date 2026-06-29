@@ -1,18 +1,20 @@
 /**
  * PDP (France) live round-trip test — REAL superpdp sandbox, REAL credentials, never in CI.
  *
- * Guard: PDP_LIVE=1 (+ PDP_BASE_URL / PDP_CLIENT_ID / PDP_CLIENT_SECRET in the env, e.g.
- *   `set -a; . ./.env.pdp.local; set +a` then run).
+ * Guard: PDP_LIVE=1 PDP_BASE_URL=<url> PDP_CLIENT_ID=<id> PDP_CLIENT_SECRET=<secret> \
+ *          npx jest pdp-live --no-coverage
+ *   (or: `set -a; . ./.env.pdp.local; set +a` then run)
  *
  * Proves: buildEInvoice → Factur-X (CII) → transmit to superpdp → real invoice id → poll fr:* status.
  * Never logs the client secret or the access token.
+ *
+ * See LIVE_TESTING.md for full env var documentation.
  */
 export {}; // make this file a module (dynamic imports only → otherwise treated as a global script)
 
-const LIVE = !!process.env.PDP_LIVE;
+import { liveDescribe } from '../live-gate.js';
 
-// eslint-disable-next-line no-restricted-properties
-const describeLive = LIVE ? describe : describe.skip;
+const describeLive = liveDescribe('PDP_LIVE', ['PDP_BASE_URL', 'PDP_CLIENT_ID', 'PDP_CLIENT_SECRET']);
 
 describeLive('PDP live round-trip (superpdp sandbox)', () => {
   let baseUrl: string;
