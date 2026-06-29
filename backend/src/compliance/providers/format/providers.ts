@@ -2,6 +2,7 @@ import { TransactionContext } from '../../canonical/canonical-document';
 import { CompliancePlan, PlannedArtifact } from '../../engine/compliance-engine';
 import { ComplianceLogger } from '../../execution/logger';
 import { RenderedArtifact, ValidationReport } from '../../execution/types';
+import { validateSchematron, validateXsd } from '../../schemas/validate';
 import { ArtifactRole, DocumentSyntax } from '../../types';
 import { FormatProvider } from './format-provider';
 import { ExportFormat, InvoiceArtifactPort, XmlExportFormat } from './invoice-artifact-port';
@@ -83,9 +84,20 @@ export class En16931FormatProvider implements FormatProvider {
     log.todo('format/en16931', `build ${artifact.syntax} via BuiltEInvoice (embedInPdf/exportXml)`);
     return { ...rendered(artifact), mime: artifact.syntax === 'PDF_A3' ? 'application/pdf' : 'application/xml' };
   }
-  validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
-    log.todo('format/en16931', 'validate against EN 16931 Schematron');
-    return okValidation('EN16931 validation not implemented (stub)');
+  async validate(rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport> {
+    if (rendered.syntax !== 'PEPPOL_BIS') {
+      log.todo('format/en16931', `validate ${rendered.syntax} against EN 16931 Schematron`);
+      return okValidation(`EN16931 ${rendered.syntax} validation not implemented (stub)`);
+    }
+    // Peppol BIS Billing 3.0 — validate UBL output against the official PEPPOL Schematron
+    if (!rendered.bytes.length) return okValidation('PEPPOL_BIS validation skipped (no bytes — stub path)');
+    const xml = new TextDecoder().decode(rendered.bytes);
+    const result = validateSchematron(xml, 'peppol/PEPPOL-EN16931-UBL.sch');
+    const errors = result.errors.map((e) => `[${e.id}] ${e.message}`);
+    if (!result.valid) {
+      log.warn('format/peppol-bis', `Peppol BIS Schematron: ${result.errorCount} error(s) — ${errors.slice(0, 3).join('; ')}`);
+    }
+    return { valid: result.valid, errors, warnings: [] };
   }
 }
 
@@ -103,7 +115,7 @@ export class PlainPdfFormatProvider implements FormatProvider {
     log.todo('format/plain-pdf', 'render PDF (no externalRef / no port) — stub');
     return { ...rendered(artifact), mime: 'application/pdf' };
   }
-  validate(): ValidationReport {
+  async validate(): Promise<ValidationReport> {
     return okValidation('plain PDF has no structured validation');
   }
 }
@@ -123,9 +135,29 @@ export class CfdiFormatProvider implements FormatProvider {
     log.todo('format/cfdi', 'build SAT CFDI 4.0 XML (Comprobante, Conceptos, Impuestos, UsoCFDI) — no externalRef in context');
     return { ...rendered(artifact), mime: 'application/xml' };
   }
-  validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
-    log.todo('format/cfdi', 'validate against SAT XSD + business rules');
-    return okValidation('CFDI validation not implemented (stub)');
+  async validate(rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport> {
+    // SAT CFDI 4.0 XSD gate (cfdv40.xsd + catCFDI.xsd + tdCFDI.xsd vendored under schemas/mx/).
+    // Note: NoCertificado/Certificado/Sello are intentionally empty in the builder output
+    // (PAC-seam: the PAC timbrado fills NoCertificado [20 digits] and TimbreFiscalDigital).
+    // XSD will reject an empty NoCertificado; callers must fill the seam before XSD-validating
+    // the final signed+sealed document. We surface an explicit warning here.
+    if (!rendered.bytes.length) return okValidation('CFDI validation skipped (no bytes — stub path)');
+    const xml = new TextDecoder().decode(rendered.bytes);
+    // catCFDI.xsd (SAT product catalog) is ~6 MB; raise WASM memory to 128 MB to avoid OOM during schema parse.
+    const result = await validateXsd(xml, 'mx/cfdv40.xsd', { maxMemoryPages: 2048 });
+    if (!result.valid) {
+      // Classify: seam errors vs real structural errors
+      const seamErrors = result.errors.filter((e) => e.includes('NoCertificado'));
+      const realErrors = result.errors.filter((e) => !e.includes('NoCertificado'));
+      if (realErrors.length > 0) {
+        log.warn('format/cfdi', `CFDI XSD structural errors: ${realErrors.join('; ')}`);
+        return { valid: false, errors: realErrors, warnings: seamErrors };
+      }
+      // Only NoCertificado seam error — the document is structurally valid, PAC seam pending
+      log.warn('format/cfdi', 'CFDI XSD: NoCertificado seam empty (expected before PAC timbrado)');
+      return { valid: true, errors: [], warnings: seamErrors };
+    }
+    return { valid: true, errors: [], warnings: [] };
   }
 }
 
@@ -144,9 +176,16 @@ export class FatturaPaFormatProvider implements FormatProvider {
     log.todo('format/fatturapa', 'build FatturaPA 1.2 XML for SdI — no externalRef in context');
     return { ...rendered(artifact), mime: 'application/xml' };
   }
-  validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
-    log.todo('format/fatturapa', 'validate against SdI XSD');
-    return okValidation('FatturaPA validation not implemented (stub)');
+  async validate(rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport> {
+    // FatturaPA 1.2 XSD gate — Schema_VFPR12.xsd (vendored from @digitalia/fatturapa) + xmldsig-core-schema.xsd
+    if (!rendered.bytes.length) return okValidation('FatturaPA validation skipped (no bytes — stub path)');
+    const xml = new TextDecoder().decode(rendered.bytes);
+    const result = await validateXsd(xml, 'it/Schema_VFPR12.xsd');
+    if (!result.valid) {
+      log.warn('format/fatturapa', `FatturaPA XSD errors: ${result.errors.slice(0, 3).join('; ')}`);
+      return { valid: false, errors: result.errors, warnings: [] };
+    }
+    return { valid: true, errors: [], warnings: [] };
   }
 }
 
@@ -165,8 +204,8 @@ export class KsaUblFormatProvider implements FormatProvider {
     log.todo('format/ksa-ubl', 'build ZATCA UBL 2.1 + KSA extension and QR payload — no externalRef in context');
     return { ...rendered(artifact), mime: 'application/xml' };
   }
-  validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
-    log.todo('format/ksa-ubl', 'validate against ZATCA rules');
+  async validate(_rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport> {
+    log.todo('format/ksa-ubl', 'validate against ZATCA XSD + business rules (schema not yet vendored)');
     return okValidation('KSA UBL validation not implemented (stub)');
   }
 }
@@ -188,7 +227,7 @@ export class NationalXmlFormatProvider implements FormatProvider {
     log.todo('format/national-xml', `build the national clearance XML for ${ctx.supplier.countryCode} (no externalRef in context)`);
     return { ...rendered(artifact), mime: 'application/xml' };
   }
-  validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
+  async validate(_rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport> {
     log.todo('format/national-xml', 'validate against the national schema');
     return okValidation('national XML validation not implemented (stub)');
   }
@@ -210,9 +249,16 @@ export class FaVatFormatProvider implements FormatProvider {
     log.todo('format/fa-vat', 'build Polish FA_VAT (FA(2)/FA(3)) XML for KSeF — no externalRef in context');
     return { ...rendered(artifact), mime: 'application/xml' };
   }
-  validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
-    log.todo('format/fa-vat', 'validate against the Ministry of Finance XSD');
-    return okValidation('FA_VAT validation not implemented (stub)');
+  async validate(rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport> {
+    // Poland FA(2) XSD gate — schemat_FA2.xsd + support schemas (vendored under schemas/pl/).
+    if (!rendered.bytes.length) return okValidation('FA_VAT validation skipped (no bytes — stub path)');
+    const xml = new TextDecoder().decode(rendered.bytes);
+    const result = await validateXsd(xml, 'pl/schemat_FA2.xsd');
+    if (!result.valid) {
+      log.warn('format/fa-vat', `FA_VAT XSD errors: ${result.errors.slice(0, 3).join('; ')}`);
+      return { valid: false, errors: result.errors, warnings: [] };
+    }
+    return { valid: true, errors: [], warnings: [] };
   }
 }
 
@@ -232,8 +278,12 @@ export class FacturaeFormatProvider implements FormatProvider {
     log.todo('format/es-facturae', 'build Facturae 3.2.x XML (XAdES-BES) for Spain — no externalRef in context');
     return { ...rendered(artifact), mime: 'application/xml' };
   }
-  validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
-    log.todo('format/es-facturae', 'validate against Facturae 3.2.x XSD');
-    return okValidation('Facturae validation not implemented (stub)');
+  async validate(_rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport> {
+    // TODO: vendor Facturaev3_2_2.xsd — the official schema from facturae.gob.es is not publicly
+    // reachable via direct HTTP at this time (HTTP 403 from all attempted mirrors as of 2026-06-29).
+    // Keeping structural validation only until the XSD can be obtained from the official AEAT/FACe
+    // channel or via the ZIP download at https://www.facturae.gob.es/formato/Documents/.
+    log.todo('format/es-facturae', 'validate against Facturae 3.2.x XSD (schema not yet vendored — see TODO)');
+    return okValidation('Facturae XSD not available (see TODO in FacturaeFormatProvider.validate)');
   }
 }

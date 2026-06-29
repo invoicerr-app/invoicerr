@@ -83,7 +83,7 @@ describe("FormatProviderRegistry resolution", () => {
 			const built = await p.build(artifact, {} as never, {} as never, log);
 			expect(built.mime).toBe("application/xml");
 			expect(log.hasScope(`format/${p.id}`)).toBe(true);
-			expect(p.validate(built, log).valid).toBe(true);
+			expect((await p.validate(built, log)).valid).toBe(true);
 		}
 	});
 });

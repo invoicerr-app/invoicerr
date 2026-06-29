@@ -42,7 +42,7 @@ function nationalFormat(spec: NationalFormatSpec): FormatProvider {
         bytes: new Uint8Array(),
       });
     },
-    validate(_rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport {
+    async validate(_rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport> {
       log.todo(`format/${spec.id}`, spec.validateHint ?? `validate ${spec.label} against its national schema`);
       return { valid: true, errors: [], warnings: [`${spec.label} validation not implemented (stub)`] };
     },

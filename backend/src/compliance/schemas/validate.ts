@@ -11,10 +11,33 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-// ─── Schematron (EN16931 CII via node-schematron) ──────────────────────────
+// ─── Schematron (EN16931 CII + Peppol BIS UBL via node-schematron) ─────────
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { Schema } = require('node-schematron');
+
+// Register the Peppol BIS `u:slack` custom function with fontoxpath.
+// The Peppol BIS Schematron (PEPPOL-EN16931-UBL.sch) defines u:slack as an
+// XSLT function for ±tolerance comparisons (price/amount rounding checks).
+// node-schematron uses fontoxpath which requires custom functions to be
+// pre-registered via registerCustomXPathFunction — they are not parsed from
+// xsl:function declarations inside the .sch file.
+// Registration is idempotent (same key → no-op on re-import via module cache).
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const fontoxpath = require('fontoxpath');
+  // Peppol BIS calls u:slack with numeric values that fontoxpath evaluates as xs:double.
+  // Use xs:anyAtomicType to accept both xs:decimal and xs:double without a cast error.
+  fontoxpath.registerCustomXPathFunction(
+    { localName: 'slack', namespaceURI: 'utils' },
+    ['xs:anyAtomicType', 'xs:anyAtomicType', 'xs:anyAtomicType'],
+    'xs:boolean',
+    (_ctx: unknown, exp: unknown, val: unknown, slack: unknown): boolean =>
+      Number(exp) + Number(slack) >= Number(val) && Number(exp) - Number(slack) <= Number(val),
+  );
+} catch {
+  // fontoxpath not available — Peppol BIS Schematron validation will skip u:slack rules
+}
 
 // Cache compiled Schema instances by path (Schema.fromString is expensive)
 const SCH_CACHE = new Map<string, ReturnType<typeof Schema.fromString>>();
@@ -89,24 +112,35 @@ export interface XsdResult {
  * All sibling .xsd files in the same directory are preloaded for xsd:import resolution.
  * Returns the list of validation errors (empty = valid).
  */
-export async function validateXsd(xml: string, xsdRelPath: string): Promise<XsdResult> {
+export async function validateXsd(
+  xml: string,
+  xsdRelPath: string,
+  opts?: { maxMemoryPages?: number },
+): Promise<XsdResult> {
   const xsdAbsPath = path.resolve(__dirname, xsdRelPath);
   const xsdDir = path.dirname(xsdAbsPath);
   const mainXsdName = path.basename(xsdAbsPath);
 
-  // Load all .xsd files in the directory so that xsd:include / xsd:import chains resolve.
-  const schemaFiles = fs.readdirSync(xsdDir)
+  // Load all .xsd files in the directory for xsd:include / xsd:import chain resolution.
+  // The MAIN schema is passed as `schema`; all others are passed as `preload` (VFS-mounted
+  // so xmllint can resolve imports, but not used as the primary validation schema).
+  const allXsdFiles = fs.readdirSync(xsdDir)
     .filter((f) => f.endsWith('.xsd'))
     .map((f) => ({
       fileName: f,
       contents: fs.readFileSync(path.join(xsdDir, f), 'utf-8'),
     }));
 
+  const mainSchema = allXsdFiles.find((f) => f.fileName === mainXsdName)
+    ?? { fileName: mainXsdName, contents: fs.readFileSync(xsdAbsPath, 'utf-8') };
+  const preloadFiles = allXsdFiles.filter((f) => f.fileName !== mainXsdName);
+
   const result = await validateXML({
     xml: { fileName: 'invoice.xml', contents: xml },
-    schema: schemaFiles.find((f) => f.fileName === mainXsdName)
-      ? schemaFiles
-      : [{ fileName: mainXsdName, contents: fs.readFileSync(xsdAbsPath, 'utf-8') }, ...schemaFiles],
+    schema: mainSchema,
+    preload: preloadFiles,
+    // Allow callers to raise the WASM memory limit for large schema sets (e.g. SAT CFDI catCFDI.xsd ≈ 6 MB)
+    ...(opts?.maxMemoryPages ? { maxMemoryPages: opts.maxMemoryPages } : {}),
   });
 
   return {

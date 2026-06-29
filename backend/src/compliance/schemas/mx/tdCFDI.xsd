@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:tdCFDI="http://www.sat.gob.mx/sitio_internet/cfd/tipoDatos/tdCFDI" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.sat.gob.mx/sitio_internet/cfd/tipoDatos/tdCFDI" elementFormDefault="unqualified" attributeFormDefault="unqualified">
+	<xs:simpleType name="t_CURP">
+		<xs:annotation>
+			<xs:documentation>Tipo definido para expresar la Clave Única de Registro de Población (CURP)</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:whiteSpace value="collapse"/>
+			<xs:length value="18"/>
+			<xs:pattern value="[A-Z][AEIOUX][A-Z]{2}[0-9]{2}(0[1-9]|1[012])(0[1-9]|[12][0-9]|3[01])[MHX]([ABCMTZ]S|[BCJMOT]C|[CNPST]L|[GNQ]T|[GQS]R|C[MH]|[MY]N|[DH]G|NE|VZ|DF|SP)[BCDFGHJ-NP-TV-Z]{3}[0-9A-Z][0-9]"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="t_Importe">
+		<xs:annotation>
+			<xs:documentation>Tipo definido para expresar importes numéricos con fracción hasta seis decimales. No se permiten valores negativos.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:decimal">
+			<xs:fractionDigits value="6"/>
+			<xs:minInclusive value="0.000000"/>
+			<xs:whiteSpace value="collapse"/>
+			<xs:pattern value="[0-9]{1,18}(.[0-9]{1,6})?"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="t_Fecha">
+		<xs:annotation>
+			<xs:documentation>Tipo definido para la expresión de la fecha. Se expresa en la forma AAAA-MM-DD.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:date">
+			<xs:whiteSpace value="collapse"/>
+			<xs:pattern value="((19|20)[0-9][0-9])-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="t_ImporteMXN">
+		<xs:annotation>
+			<xs:documentation>Tipo definido para expresar importes monetarios en moneda nacional MXN con fracción hasta dos decimales. No se permiten valores negativos.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:decimal">
+			<xs:fractionDigits value="2"/>
+			<xs:minInclusive value="0.00"/>
+			<xs:whiteSpace value="collapse"/>
+			<xs:pattern value="[0-9]{1,18}(.[0-9]{1,2})?"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="t_CuentaBancaria">
+		<xs:annotation>
+			<xs:documentation>Tipo definido para expresar la cuenta bancarizada.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:integer">
+			<xs:whiteSpace value="collapse"/>
+			<xs:pattern value="[0-9]{10,18}"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="t_RFC">
+		<xs:annotation>
+			<xs:documentation>Tipo definido para expresar claves del Registro Federal de Contribuyentes</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:whiteSpace value="collapse"/>
+			<xs:minLength value="12"/>
+			<xs:maxLength value="13"/>
+			<xs:pattern value="[A-Z&amp;Ñ]{3,4}[0-9]{2}(0[1-9]|1[012])(0[1-9]|[12][0-9]|3[01])[A-Z0-9]{2}[0-9A]"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="t_RFC_PM">
+		<xs:annotation>
+			<xs:documentation>Tipo definido para la expresión de un Registro Federal de Contribuyentes de persona moral.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:whiteSpace value="collapse"/>
+			<xs:minLength value="12"/>
+			<xs:pattern value="[A-Z&amp;Ñ]{3}[0-9]{2}(0[1-9]|1[012])(0[1-9]|[12][0-9]|3[01])[A-Z0-9]{2}[0-9A]"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="t_RFC_PF">
+		<xs:annotation>
+			<xs:documentation>Tipo definido para la expresión de un Registro Federal de Contribuyentes de persona física.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:whiteSpace value="collapse"/>
+			<xs:minLength value="13"/>
+			<xs:pattern value="[A-Z&amp;Ñ]{4}[0-9]{2}(0[1-9]|1[012])(0[1-9]|[12][0-9]|3[01])[A-Z0-9]{2}[0-9A]"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="t_FechaHora">
+		<xs:annotation>
+			<xs:documentation>Tipo definido para la expresión de la fecha y hora. Se expresa en la forma AAAA-MM-DDThh:mm:ss</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:dateTime">
+			<xs:whiteSpace value="collapse"/>
+			<xs:pattern value="((19|20)[0-9][0-9])-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T(([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9])"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="t_FechaH">
+		<xs:annotation>
+			<xs:documentation>Tipo definido para la expresión de la fecha y hora. Se expresa en la forma AAAA-MM-DDThh:mm:ss</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:dateTime">
+			<xs:whiteSpace value="collapse"/>
+			<xs:pattern value="(20[1-9][0-9])-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T(([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9])"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="t_Descrip100">
+		<xs:annotation>
+			<xs:documentation>Tipo definido para expresar la calle en que está ubicado el domicilio del emisor del comprobante o del destinatario de la mercancía.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="100"/>
+			<xs:whiteSpace value="collapse"/>
+			<xs:pattern value="[^|]{1,100}"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="t_NumeroDomicilio">
+		<xs:annotation>
+			<xs:documentation>Tipo definido para expresar el número interior o el número exterior en donde se ubica el domicilio del emisor del comprobante o del destinatario de la mercancía.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="55"/>
+			<xs:whiteSpace value="collapse"/>
+			<xs:pattern value="[^|]{1,55}"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="t_Referencia">
+		<xs:annotation>
+			<xs:documentation>Tipo definido para expresar la referencia geográfica adicional que permita una  fácil o precisa ubicación del domicilio del emisor del comprobante o del destinatario de la mercancía, por ejemplo las coordenadas GPS.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="250"/>
+			<xs:whiteSpace value="collapse"/>
+			<xs:pattern value="[^|]{1,250}"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="t_Descrip120">
+		<xs:annotation>
+			<xs:documentation>Tipo definido para expresar la colonia, localidad o municipio en que está ubicado el domicilio del emisor del comprobante o del destinatario de la mercancía.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:minLength value="1"/>
+			<xs:maxLength value="120"/>
+			<xs:whiteSpace value="collapse"/>
+			<xs:pattern value="[^|]{1,120}"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="t_TipoCambio">
+		<xs:annotation>
+			<xs:documentation>Tipo definido para expresar el tipo de cambio. No se permiten valores negativos.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:decimal">
+			<xs:minInclusive value="0.00"/>
+			<xs:fractionDigits value="6"/>
+			<xs:whiteSpace value="collapse"/>
+			<xs:pattern value="[0-9]{1,18}(.[0-9]{1,6})?"/>
+		</xs:restriction>
+	</xs:simpleType>
+</xs:schema>

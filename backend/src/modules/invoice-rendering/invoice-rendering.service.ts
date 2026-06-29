@@ -431,6 +431,9 @@ export class InvoiceRenderingService {
                 'cbc:IssueDate': issueDateStr,
                 'cbc:InvoiceTypeCode': '380',
                 'cbc:DocumentCurrencyCode': currency,
+                // PEPPOL-EN16931-R003: buyer reference or purchase order reference is required.
+                // Fall back to the invoice number when no explicit buyer PO ref is provided.
+                'cbc:BuyerReference': data.rawNumber || (data.number?.toString() ?? '0'),
                 'cac:AccountingSupplierParty': { 'cac:Party': sellerParty as any },
                 'cac:AccountingCustomerParty': { 'cac:Party': buyerParty as any },
                 'cac:Delivery': { 'cbc:ActualDeliveryDate': issueDateStr },
@@ -600,7 +603,13 @@ export class InvoiceRenderingService {
         // ── Build the FatturaPA JSON object ──────────────────────────────
         const fattura = {
             'p:FatturaElettronica': {
-                '@': { versione: 'FPR12' },
+                '@': {
+                    versione: 'FPR12',
+                    'xmlns:p': 'http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2',
+                    'xmlns:ds': 'http://www.w3.org/2000/09/xmldsig#',
+                    'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+                    'xsi:schemaLocation': 'http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2 http://www.fatturapa.gov.it/export/fatturazione/sdi/fatturapa/v1.2/Schema_VFPR12.xsd',
+                },
                 FatturaElettronicaHeader: {
                     DatiTrasmissione: {
                         IdTrasmittente: { IdPaese: vatCountry, IdCodice: cf || vatId },
@@ -624,9 +633,12 @@ export class InvoiceRenderingService {
                     },
                     CessionarioCommittente: {
                         DatiAnagrafici: {
-                            Anagrafica: { Denominazione: data.client.name || `${data.client.contactFirstname || ''} ${data.client.contactLastname || ''}`.trim() },
+                            // XSD sequence: IdFiscaleIVA → CodiceFiscale → Anagrafica (order matters).
+                            // CodiceFiscale must match [A-Z0-9]{11,16} (ITA XSD constraint); skip
+                            // values like CCIAA registration numbers that are stored as LEGAL_ID.
                             ...(clienteVatId ? { IdFiscaleIVA: { IdPaese: clienteVatCountry, IdCodice: clienteVatId } } : {}),
-                            ...(clienteCf ? { CodiceFiscale: clienteCf } : {}),
+                            ...(clienteCf && /^[A-Z0-9]{11,16}$/.test(clienteCf) ? { CodiceFiscale: clienteCf } : {}),
+                            Anagrafica: { Denominazione: data.client.name || `${data.client.contactFirstname || ''} ${data.client.contactLastname || ''}`.trim() },
                         },
                         Sede: {
                             Indirizzo: data.client.address || 'N/A',
@@ -702,8 +714,16 @@ export class InvoiceRenderingService {
                 </cfdi:Traslados>
               </cfdi:Impuestos>`;
             }
-            conceptosXml += `
-          <cfdi:Concepto NoIdentificacion="${idx + 1}" ClaveProdServ="84111506" Cantidad="${item.quantity}" ClaveUnidad="E48" Unidad="Servicio" Descripcion="${item.name}" ValorUnitario="${item.unitPrice.toFixed(2)}" Importe="${importe.toFixed(2)}"${impuestosXml}/>`;
+            // ObjetoImp: "01"=sujeto a impuesto (has tax), "02"=no sujeto a impuesto (no tax)
+            const objetoImp = impuestosXml ? '01' : '02';
+            if (impuestosXml) {
+                conceptosXml += `
+          <cfdi:Concepto NoIdentificacion="${idx + 1}" ClaveProdServ="84111506" Cantidad="${item.quantity}" ClaveUnidad="E48" Unidad="Servicio" Descripcion="${item.name}" ValorUnitario="${item.unitPrice.toFixed(2)}" Importe="${importe.toFixed(2)}" ObjetoImp="${objetoImp}">${impuestosXml}
+          </cfdi:Concepto>`;
+            } else {
+                conceptosXml += `
+          <cfdi:Concepto NoIdentificacion="${idx + 1}" ClaveProdServ="84111506" Cantidad="${item.quantity}" ClaveUnidad="E48" Unidad="Servicio" Descripcion="${item.name}" ValorUnitario="${item.unitPrice.toFixed(2)}" Importe="${importe.toFixed(2)}" ObjetoImp="${objetoImp}"/>`;
+            }
         }
 
         let impuestosRoot = '<cfdi:Impuestos TotalImpuestosTrasladados="0"/>';

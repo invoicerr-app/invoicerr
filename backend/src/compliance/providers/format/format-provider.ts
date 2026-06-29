@@ -14,5 +14,5 @@ export interface FormatProvider {
     plan: CompliancePlan,
     log: ComplianceLogger,
   ): Promise<RenderedArtifact>;
-  validate(rendered: RenderedArtifact, log: ComplianceLogger): ValidationReport;
+  validate(rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport>;
 }

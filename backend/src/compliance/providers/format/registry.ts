@@ -60,7 +60,7 @@ export class FormatProviderRegistry {
         continue;
       }
       const built = await provider.build(artifact, ctx, plan, log);
-      provider.validate(built, log);
+      await provider.validate(built, log);
       results.push(built);
     }
     return results;
