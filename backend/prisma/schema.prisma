@@ -1344,3 +1344,45 @@ model CronLock {
   owner       String               // hostname:pid of the holding instance
   updatedAt   DateTime @updatedAt
 }
+
+// ======= INBOUND INVOICES (received supplier invoices) ======= //
+
+/// Lifecycle status for a received supplier invoice.
+enum InboundInvoiceStatus {
+  RECEIVED  // raw payload stored; parse not yet attempted or failed
+  PARSED    // key fields successfully extracted from the payload
+  ACCEPTED  // buyer explicitly accepted (ack sent)
+  REJECTED  // buyer explicitly rejected (ack sent)
+}
+
+/// One row per received supplier invoice document.
+/// Dedup key: (channel, externalId) — the authority-assigned document reference.
+model InboundInvoice {
+  id            String               @id @default(cuid())
+  companyId     String               // the receiving company (buyer)
+  channel       String               // ChannelType: PDP | SDI | PEPPOL | GOV_PORTAL_API | KSEF …
+  providerId    String?              // specific provider id (superpdp | sdi | ksef | …)
+  externalId    String               // authority-assigned document ID (PDP invoice_id, idSdI, …)
+  senderId      String?              // sender endpoint / tax ID (for quick display)
+  syntax        String?              // DocumentSyntax hint (EN16931_CII | EN16931_UBL | FATTURAPA | FA_VAT | …)
+  rawPayload    String               // raw XML or JSON string verbatim (never truncated)
+  // Canonicalized parsed fields (best-effort; null if parse failed)
+  invoiceNumber String?
+  issueDate     String?              // ISO date string "YYYY-MM-DD"
+  sellerName    String?
+  sellerTaxId   String?
+  buyerTaxId    String?
+  currency      String?
+  totalNet      Float?
+  totalTax      Float?
+  totalGross    Float?
+  // Lifecycle
+  status        InboundInvoiceStatus @default(RECEIVED)
+  receivedAt    DateTime             @default(now())
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@unique([channel, externalId])
+  @@index([companyId, receivedAt])
+  @@index([status])
+}
