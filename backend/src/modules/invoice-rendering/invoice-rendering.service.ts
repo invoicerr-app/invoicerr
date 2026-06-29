@@ -673,7 +673,9 @@ export class InvoiceRenderingService {
         return fpa2xml(fattura as any);
     }
 
-    /** CFDI 4.0 Comprobante XML (MX) — structural skeleton. */
+    /** CFDI 4.0 Comprobante XML (MX) — Emisor/Receptor/Conceptos/Impuestos complete, namespaced
+     *  to the SAT cfd/4 schema. Emitted unsealed: Sello/Certificado are the signing port's concern,
+     *  the TimbreFiscalDigital UUID is the PAC (timbrado) transmission concern. No values faked. */
     async buildCfdi(data: InvoiceRenderData): Promise<string> {
         const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
         const rfc = getIdentifier(data.company, 'VAT') || 'XAXX010101000';
@@ -713,8 +715,14 @@ export class InvoiceRenderingService {
         </cfdi:Impuestos>`;
         }
 
+        // Sello / Certificado / NoCertificado seam: the CFDI seal is computed over the
+        // "cadena original" (a fixed XSLT transform of the document) and signed with the
+        // taxpayer's CSD (Certificado de Sello Digital) private key, then the SAT-authorized
+        // PAC stamps the TimbreFiscalDigital (UUID) in <cfdi:Complemento>. We emit the document
+        // UNSEALED (empty Sello/Certificado/NoCertificado) — the signing port fills the seal and
+        // the PAC transmission concern fills the UUID. We do NOT fabricate a certificate or UUID.
         return `<?xml version="1.0" encoding="UTF-8"?>
-<cfdi:Comprobante Version="4.0" Serie="A" Folio="${numId}" Fecha="${issueDate}T12:00:00" FormaPago="03" NoCertificado="30001000000500003416" Certificado="" SubTotal="${total.toFixed(2)}" Moneda="${currency}" Total="${(total + totalIVA).toFixed(2)}" TipoDeComprobante="I" MetodoPago="PUE" LugarExpedicion="${postalCode}" Exportacion="01">
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd" Version="4.0" Serie="A" Folio="${numId}" Fecha="${issueDate}T12:00:00" FormaPago="03" NoCertificado="" Certificado="" Sello="" SubTotal="${total.toFixed(2)}" Moneda="${currency}" Total="${(total + totalIVA).toFixed(2)}" TipoDeComprobante="I" MetodoPago="PUE" LugarExpedicion="${postalCode}" Exportacion="01">
   <cfdi:Emisor Rfc="${rfc}" Nombre="${data.company.name}" RegimenFiscal="601"/>
   <cfdi:Receptor Rfc="${rfcReceptor}" Nombre="${receptorName}" RegimenFiscalReceptor="601" DomicilioFiscalReceptor="${receptorPostal}" UsoCFDI="G03"/>
   <cfdi:Conceptos>${conceptosXml}

@@ -127,6 +127,12 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('Version="4.0"')) errors.push('missing Version 4.0');
       if (!xml.includes('TST101010100')) errors.push('missing seller RFC');
       if (!xml.includes('LOP8501011A9')) errors.push('missing buyer RFC');
+      // CFDI namespace must be declared (seam test: real SAT cfd/4 namespace, not a bare prefix)
+      if (!xml.includes('http://www.sat.gob.mx/cfd/4')) errors.push('missing CFDI cfd/4 namespace');
+      // Sello/Certificado seam: emitted UNSEALED (empty) — the seal is the signing port's job,
+      // the UUID is the PAC's. Assert we do NOT fabricate a seal or certificate.
+      if (!xml.includes('Sello=""')) errors.push('Sello must be present but empty (sealing seam)');
+      if (!xml.includes('Certificado=""')) errors.push('Certificado must be present but empty (CSD seam)');
 
       results.push({
         fixture: fixture.slug,
