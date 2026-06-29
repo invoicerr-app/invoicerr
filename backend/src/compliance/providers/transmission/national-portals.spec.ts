@@ -23,9 +23,11 @@ describe('national transmission portals', () => {
       const p = defaultTransmissionRegistry.getById(id)!;
       expect(p.feedback).toBe('ASYNC_POLL');
       expect(p.pollPolicy).toBeDefined();
-      expect((await p.transmit([], {} as never, {} as never, 'k', log)).status).toBe('PENDING');
+      // Stub portals return PENDING unconditionally; portals with a real client SKIP when the
+      // company has no credentials configured (empty args here) — both are valid not-yet-failed states.
+      expect(['PENDING', 'SKIPPED']).toContain((await p.transmit([], {} as never, {} as never, 'k', log)).status);
       expect(p.poll).toBeDefined();
-      expect((await p.poll!('ref', log)).status).toBe('PENDING');
+      expect(['PENDING', 'SKIPPED']).toContain((await p.poll!('ref', log)).status);
     }
   });
 
