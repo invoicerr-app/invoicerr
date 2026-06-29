@@ -55,13 +55,14 @@
 - [~] LATAM **scaffoldé** (builders structurés + tests structurels, **non validé autorité, live‑deferred**) :
   `AR_FE` · `BO_FE` · `NFE`(BR) · `CL_DTE` · `CR_FE` · `DO_ECF` · `EC_FE` · `GT_FEL` · `PA_FE` · `PY_DE` ·
   `SV_DTE`(JSON) · `UY_CFE` · `VE_FE`. Reste par pays : champs obligatoires manquants + XSD + sceau/clearance (CAE/CUFE/claveAcceso).
-- [ ] MENA : `JO_JOFOTARA` · `TN_TEIF` · `TR_EFATURA` · `EG_ETA`
+- [~] MENA **scaffoldé** (builders + clients, mockés, live‑deferred) : `TR_EFATURA`(gib UBL‑TR), `EG_ETA`(UUID+hash) profonds ; `JO_JOFOTARA`(UBL+ISTD)·`TN_TEIF` génériques.
 - [~] Afrique **scaffoldé** (builders + clients, mockés, live‑deferred) : `NG_FIRS`(IRN SHA‑256+QR), `KE_ETIMS`(VSCU+QR)
   profonds ; `GH_EVAT`·`RW_EBM`·`TZ_VFD`·`UG_EFRIS`·`ZM_SMARTINVOICE`·`ZW_FDMS`·`CI_FNE`·`BJ_MECEF` génériques. Reste : champs + device/OSCU + sceau + clearance.
 - [~] Asie **scaffoldé** (builders + clients, mockés, live‑deferred) : `IN_IRP`(IRN SHA‑256), `MY MyInvois`(UBL+OAuth2),
   `ID_EFAKTUR`(Coretax) profonds ; `TW_EGUI`·`KZ_ESF`·`PH_EIS`·`TH_ETAX`·`NP_CBMS`·`BD_NBR`·`PK_FBR`·`CN_EFAPIAO`·`VN_TT78` génériques. Reste : champs obligatoires + XSD + sceau DSC/PKCS#7 + clearance.
-- [ ] Europe (national) : `UA_TAXINVOICE` · `ME_FISCAL` · `HR_ERACUN` · `AL_FISCALIZATION`
-- [ ] `NATIONAL_XML` placeholder → remplacer par des providers dédiés par pays.
+- [~] Europe (national) **scaffoldé** (builders + clients, mockés, live‑deferred) : `HR_ERACUN`(UBL CIUS‑HR) profond ;
+  `UA_TAXINVOICE`·`ME_FISCAL`·`AL_FISCALIZATION` génériques (+ portail `anaf` RO e‑Factura profond).
+- [x] `NATIONAL_XML` placeholder → builders dédiés par pays (LATAM/Asie/Afrique/MENA/Europe) via `buildNationalXml()`.
 
 ### 1.4 Transverse formats
 - [ ] Étendre validation : XSD/Schematron FatturaPA, CFDI, Facturae, + chaque format national.
@@ -112,12 +113,13 @@
   - [~] LATAM **scaffoldé** (clients auth/submit/poll, HTTP mocké, live‑deferred) : `afip`(WSAA→WSFE→CAE) ·
     `sefaz`(lote→protocolo) · `sii`(seed→token→EnvioDTE) · `sri`(claveAcceso) · `uy-dgi`(CAE) profonds ;
     `bo-sin`/`cr-hacienda`/`dgii`/`gt-sat`/`pa-dgi`/`sifen`/`sv-mh`/`seniat` génériques. [ ] `dian`(CO) reste stub ; [ ] endpoints/auth réels par autorité.
-  - [ ] MENA : `zatca` · `jofotara` · `tn-ttn`
+  - [~] MENA **scaffoldé** : `gib`(TR)·`eg-eta`(EG) profonds ; `jofotara`·`tn-ttn` génériques ; `zatca` (KSA, voir §1.2).
   - [~] Afrique **scaffoldé** (clients mockés, live‑deferred) : `firs`·`ke-kra` profonds ;
     `gh-gra`·`rw-rra`·`tz-tra`·`ug-ura`·`zm-zra`·`zw-zimra`·`ci-dgi`·`bj-dgi` génériques. [ ] auth/endpoints/device réels.
   - [~] Asie **scaffoldé** (clients mockés, live‑deferred) : `in-irp`·`myinvois`·`id-coretax` profonds ;
     `tw-mof`·`kz-isesf`·`ph-bir`·`th-rd`·`np-ird`·`bd-nbr`·`pk-fbr`·`cn-sta`·`vn-gdt` génériques. [ ] auth/endpoints réels.
-  - [ ] Europe : `choruspro` · `es-aeat` · `ua-dps` · `me-fiscal` · `hr-fiskalizacija` · `al-cis` · `lv-vid` · `sk-financnasprava` · `anaf` · `rs-sef` · `gib` · `gr-aade` · `hu-nav` · `eg-eta`
+  - [~] Europe **scaffoldé** (clients mockés, configSchema, live‑deferred) : `anaf`(RO) profond ; `ua-dps`·`me-fiscal`·
+    `hr-fiskalizacija`·`al-cis`·`lv-vid`·`sk-financnasprava`·`rs-sef`·`es-aeat`·`gr-aade`·`hu-nav` génériques ; `choruspro` (FR B2G). [ ] auth/cert/endpoints réels.
 
 ### 3.5 Transverse transmission
 - [x] **`sendStatus` sortant** réel PDP (`/lifecycle_events`) / SdI (esito EC01/EC02) / Peppol (Invoice Response AB/RE/UQ/AP) — config par société, mappage statut→code, erreurs→QUEUED ; tests mockés. Live deferred.
