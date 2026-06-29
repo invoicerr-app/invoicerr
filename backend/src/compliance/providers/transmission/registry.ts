@@ -33,10 +33,10 @@ export class TransmissionProviderRegistry {
       this.credentials = providers?.credentials;
       list = [
         new EmailTransmissionProvider(providers?.mail),
-        new PeppolTransmissionProvider(),
+        new PeppolTransmissionProvider(providers?.credentials),
         new PdpTransmissionProvider(providers?.credentials),
         new PacTransmissionProvider(),
-        new SdiTransmissionProvider(),
+        new SdiTransmissionProvider(providers?.credentials),
         new KsefTransmissionProvider(providers?.credentials),
         new OseTransmissionProvider(),
         new PrintTransmissionProvider(),

@@ -6,6 +6,9 @@ import { ChannelType } from '../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from './channel-credentials-port';
 import { InvoiceMailPort, SmtpOverrides } from './invoice-mail-port';
 import { ChannelConfigSchema, TransmissionProvider } from './transmission-provider';
+import type { SdiHttpPort } from './sdi/sdi-client';
+import type { PeppolApPort } from './peppol/peppol-client';
+import type { SmpLookupPort } from './peppol/smp-client';
 
 /** Email — real send via InvoiceMailPort when wired, stub otherwise. */
 export class EmailTransmissionProvider implements TransmissionProvider {
@@ -66,28 +69,205 @@ export class EmailTransmissionProvider implements TransmissionProvider {
   }
 }
 
+/**
+ * Peppol 4-corner transmission provider.
+ *
+ * LIVE PROOF: DEFERRED — requires a Peppol-connected Access Point (production or
+ * OpenPeppol AccAP test environment) with a valid AP certificate and network agreement.
+ * All unit tests use a mocked PeppolApPort and SmpLookupPort.
+ *
+ * Transmission flow:
+ *   1. SMP/SML lookup: DNS → SMP → receiver's AP endpoint URL (mocked in tests).
+ *   2. AP HTTP send: POST document to configured AP gateway (wraps AS4/ebMS3).
+ *   3. poll(): GET status from AP gateway → map delivery/MLR to lifecycle.
+ *
+ * Ref format: "{companyId}|{messageId}"
+ */
 export class PeppolTransmissionProvider implements TransmissionProvider {
   readonly id = 'peppol';
   readonly channel: ChannelType = 'PEPPOL';
   readonly feedback = 'ASYNC_CALLBACK' as const; // Peppol Invoice Response / MLR
+  readonly pollPolicy = { everySeconds: 60, timeoutHours: 48, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {
     fields: [
       { type: 'select', name: 'environment', label: 'Environment', required: true, options: [
-        { label: 'Test', value: 'TEST' },
+        { label: 'Test (OpenPeppol AccAP)', value: 'TEST' },
         { label: 'Production', value: 'PROD' },
       ], default: 'TEST' },
       { type: 'text', name: 'participantId', label: 'Your Peppol ID', placeholder: '0009:12345678900011', required: true },
-      { type: 'text', name: 'accessPointUrl', label: 'Access Point URL', placeholder: 'https://ap.example.com', required: true },
+      { type: 'text', name: 'accessPointUrl', label: 'Access Point gateway URL', placeholder: 'https://ap.example.com', required: true },
       { type: 'text', name: 'apiKey', label: 'Access Point API key', required: true, secret: true },
     ],
   };
-  async transmit(_artifacts: SignedArtifact[], ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): Promise<TransmissionResult> {
-    log.todo('transmission/peppol', `SMP lookup for ${ctx.buyer.peppolId ?? '(no peppolId)'} + AS4 send (key ${key})`);
-    return { channel: 'PEPPOL', status: ctx.buyer.peppolId ? 'SENT' : 'SKIPPED', notes: ['stub: integrate a Peppol Access Point'] };
+
+  constructor(
+    private readonly credentials?: ChannelCredentialsPort,
+    /** Inject mocks for tests; production uses the real HTTP implementations. */
+    private readonly apPort?: PeppolApPort,
+    private readonly smpPort?: SmpLookupPort,
+  ) {}
+
+  async transmit(
+    artifacts: SignedArtifact[],
+    ctx: TransactionContext,
+    _plan: CompliancePlan,
+    key: string,
+    log: ComplianceLogger,
+    resolvedConfig?: ResolvedChannelConfig,
+  ): Promise<TransmissionResult> {
+    if (!resolvedConfig) {
+      log.info('transmission/peppol', `no resolved config for company — skipping (key ${key})`);
+      return { channel: 'PEPPOL', status: 'SKIPPED', notes: ['peppol: no resolved config'] };
+    }
+
+    const { config } = resolvedConfig;
+    const senderParticipantId = config.participantId as string;
+    const accessPointUrl = config.accessPointUrl as string;
+    const apiKey = config.apiKey as string;
+    const environment = (config.environment as string ?? 'TEST') as 'TEST' | 'PROD';
+
+    if (!senderParticipantId || !accessPointUrl || !apiKey) {
+      return { channel: 'PEPPOL', status: 'SKIPPED', notes: ['peppol: incomplete config (participantId, accessPointUrl, apiKey required)'] };
+    }
+
+    // Determine receiver participant ID from ctx
+    const receiverPeppolId = ctx.buyer.peppolId;
+    if (!receiverPeppolId) {
+      return { channel: 'PEPPOL', status: 'SKIPPED', notes: ['peppol: buyer has no peppolId — cannot route'] };
+    }
+
+    // Find UBL or CII artifact (PEPPOL_BIS preferred, then EN16931_UBL, then EN16931_CII)
+    const documentArtifact = artifacts.find((a) => a.syntax === 'PEPPOL_BIS')
+      ?? artifacts.find((a) => a.syntax === 'EN16931_UBL')
+      ?? artifacts.find((a) => a.syntax === 'EN16931_CII');
+
+    if (!documentArtifact) {
+      return { channel: 'PEPPOL', status: 'SKIPPED', notes: ['peppol: no PEPPOL_BIS, EN16931_UBL, or EN16931_CII artifact'] };
+    }
+
+    const companyId = ctx.supplierCompanyId;
+    if (!companyId) {
+      return { channel: 'PEPPOL', status: 'SKIPPED', notes: ['peppol: no supplierCompanyId'] };
+    }
+
+    try {
+      const { PeppolApHttpClient, PEPPOL_BILLING_PROCESS_ID, PEPPOL_DOC_TYPES } = await import('./peppol/peppol-client.js');
+      const { DnsSmpLookup } = await import('./peppol/smp-client.js');
+
+      // Parse receiver participant ID: icd:identifier
+      const [receiverIcd, receiverIdentifier] = receiverPeppolId.split(':');
+      if (!receiverIcd || !receiverIdentifier) {
+        return { channel: 'PEPPOL', status: 'SKIPPED', notes: [`peppol: invalid receiverPeppolId format (expected icd:identifier): ${receiverPeppolId}`] };
+      }
+
+      // SMP lookup to confirm the receiver is registered and find their AP endpoint
+      const smp = this.smpPort ?? new DnsSmpLookup();
+      const docTypeId = PEPPOL_DOC_TYPES.INVOICE_UBL;
+
+      log.info('transmission/peppol', `SMP lookup for receiver ${receiverPeppolId} (key ${key})`);
+      const smpResult = await smp.lookup(
+        { icd: receiverIcd, identifier: receiverIdentifier },
+        docTypeId,
+        environment,
+      );
+
+      if (!smpResult) {
+        return { channel: 'PEPPOL', status: 'SKIPPED', notes: [`peppol: receiver ${receiverPeppolId} not found in SMP — not registered on Peppol`] };
+      }
+
+      log.info('transmission/peppol', `SMP resolved → AP endpoint: ${smpResult.endpoint.url} (key ${key})`);
+
+      const documentBytes = typeof documentArtifact.bytes === 'string'
+        ? Buffer.from(documentArtifact.bytes, 'utf-8')
+        : documentArtifact.bytes instanceof Buffer
+          ? documentArtifact.bytes
+          : Buffer.from(documentArtifact.bytes);
+
+      // Submit via AP gateway
+      const ap = this.apPort ?? new PeppolApHttpClient({ accessPointUrl, apiKey, environment });
+      log.info('transmission/peppol', `submitting to AP gateway ${accessPointUrl} (key ${key})`);
+      const sendResult = await ap.send({
+        senderParticipantId,
+        receiverParticipantId: receiverPeppolId,
+        documentTypeId: docTypeId,
+        processId: PEPPOL_BILLING_PROCESS_ID,
+        documentBytes,
+        idempotencyKey: key,
+      });
+
+      const ref = `${companyId}|${sendResult.messageId}`;
+      log.info('transmission/peppol', `submitted → messageId ${sendResult.messageId} (key ${key})`);
+      return { channel: 'PEPPOL', status: 'PENDING', ref, notes: [`messageId: ${sendResult.messageId}`] };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn('transmission/peppol', `transmit failed: ${msg} (key ${key})`);
+      return { channel: 'PEPPOL', status: 'REJECTED', notes: [`peppol: transmit error: ${msg}`] };
+    }
   }
+
   sendStatus(ref: string, status: string, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): TransmissionResult {
     log.todo('transmission/peppol', `push lifecycle status "${status}" to Peppol for ${ref}`);
-    return { channel: 'PEPPOL', status: 'QUEUED', ref, notes: [`stub: relay "${status}" via Peppol Invoice Response`] };
+    return { channel: 'PEPPOL', status: 'QUEUED', ref, notes: [`stub: relay "${status}" via Peppol Invoice Response (BIS 3 IMR)`] };
+  }
+
+  async poll(ref: string, log: ComplianceLogger): Promise<TransmissionResult> {
+    // Parse ref: companyId|messageId
+    const parts = ref.split('|');
+    if (parts.length !== 2) {
+      return { channel: 'PEPPOL', status: 'PENDING', ref, notes: ['peppol: invalid ref format'] };
+    }
+    const [companyId, messageId] = parts;
+
+    if (!this.credentials) {
+      return { channel: 'PEPPOL', status: 'PENDING', ref, notes: ['peppol: no credentials port'] };
+    }
+
+    try {
+      const resolved = await this.credentials.resolveActive(companyId, 'peppol');
+      if (!resolved || !resolved.isActive) {
+        return { channel: 'PEPPOL', status: 'PENDING', ref, notes: ['peppol: credentials no longer active'] };
+      }
+
+      const { config } = resolved;
+      const accessPointUrl = config.accessPointUrl as string;
+      const apiKey = config.apiKey as string;
+      const environment = (config.environment as string ?? 'TEST') as 'TEST' | 'PROD';
+
+      const { PeppolApHttpClient } = await import('./peppol/peppol-client.js');
+      const ap = this.apPort ?? new PeppolApHttpClient({ accessPointUrl, apiKey, environment });
+
+      const status = await ap.getStatus(messageId);
+
+      return this.mapDeliveryStatus(status, ref);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn('transmission/peppol', `poll failed: ${msg}`);
+      return { channel: 'PEPPOL', status: 'PENDING', ref, notes: [`peppol: poll error: ${msg}`] };
+    }
+  }
+
+  private mapDeliveryStatus(
+    status: { messageId: string; status: string; mlrCode?: string; mlrDescription?: string },
+    ref: string,
+  ): TransmissionResult {
+    const notes: string[] = [`messageId: ${status.messageId}`];
+    if (status.mlrCode) notes.push(`MLR: ${status.mlrCode}`);
+    if (status.mlrDescription) notes.push(`MLR desc: ${status.mlrDescription}`);
+
+    switch (status.status) {
+      case 'DELIVERED':
+        // AS4 receipt received from receiver's AP
+        return { channel: 'PEPPOL', status: 'CLEARED', ref, notes };
+
+      case 'FAILED':
+        return { channel: 'PEPPOL', status: 'REJECTED', ref, notes };
+
+      case 'SENT':
+      case 'QUEUED':
+      case 'UNKNOWN':
+      default:
+        return { channel: 'PEPPOL', status: 'PENDING', ref, notes };
+    }
   }
 }
 
@@ -378,11 +558,25 @@ export class PacTransmissionProvider implements TransmissionProvider {
   }
 }
 
-/** Italy — Sistema di Interscambio. */
+/**
+ * Italy — Sistema di Interscambio.
+ *
+ * LIVE PROOF: DEFERRED — requires AdE (Agenzia delle Entrate) intermediary accreditation
+ * and a qualified digital certificate (PFX) before a real round-trip can be attempted.
+ * All unit tests use a mocked SdiHttpPort.
+ *
+ * Transmission flow:
+ *   1. transmit(): build a SdiClient from the resolved config, submit FatturaPA → PENDING + ref.
+ *   2. poll(): re-check SdI for the latest notifica → map to CLEARED/REJECTED/PENDING.
+ *   3. Inbound callbacks (notifiche): handled via the InboundRouter (not implemented here).
+ *
+ * Ref format: "{companyId}|{idSdI}|{idTrasmittente}"
+ */
 export class SdiTransmissionProvider implements TransmissionProvider {
   readonly id = 'sdi';
   readonly channel: ChannelType = 'SDI';
   readonly feedback = 'ASYNC_CALLBACK' as const; // SdI notifiche (consegnata/scartata…)
+  readonly pollPolicy = { everySeconds: 60, timeoutHours: 72, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {
     fields: [
       { type: 'text', name: 'idTrasmittente', label: 'IdTrasmittente', placeholder: 'IT01234567890', required: true },
@@ -394,17 +588,133 @@ export class SdiTransmissionProvider implements TransmissionProvider {
       { type: 'text', name: 'certificatePassword', label: 'Certificate password', required: true, secret: true },
     ],
   };
-  async transmit(_artifacts: SignedArtifact[], _ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): Promise<TransmissionResult> {
-    log.todo('transmission/sdi', `submit FatturaPA to SdI, await receipt/notifica (key ${key})`);
-    return { channel: 'SDI', status: 'PENDING', notes: ['stub: integrate SdI'] };
+
+  constructor(
+    private readonly credentials?: ChannelCredentialsPort,
+    /** Inject a mock SdiHttpPort for tests; production uses the default stub. */
+    private readonly httpPort?: SdiHttpPort,
+  ) {}
+
+  async transmit(
+    artifacts: SignedArtifact[],
+    ctx: TransactionContext,
+    _plan: CompliancePlan,
+    key: string,
+    log: ComplianceLogger,
+    resolvedConfig?: ResolvedChannelConfig,
+  ): Promise<TransmissionResult> {
+    if (!resolvedConfig) {
+      log.info('transmission/sdi', `no resolved config for company — skipping (key ${key})`);
+      return { channel: 'SDI', status: 'SKIPPED', notes: ['sdi: no resolved config'] };
+    }
+
+    const { config } = resolvedConfig;
+    const idTrasmittente = config.idTrasmittente as string;
+    const certificate = config.certificate as string | undefined;
+    const certificatePassword = config.certificatePassword as string | undefined;
+
+    if (!idTrasmittente) {
+      return { channel: 'SDI', status: 'SKIPPED', notes: ['sdi: incomplete config (idTrasmittente required)'] };
+    }
+
+    // Find FatturaPA artifact
+    const fatturapaArtifact = artifacts.find((a) => a.syntax === 'FATTURAPA');
+    if (!fatturapaArtifact) {
+      return { channel: 'SDI', status: 'SKIPPED', notes: ['sdi: no FATTURAPA artifact'] };
+    }
+
+    const companyId = ctx.supplierCompanyId;
+    if (!companyId) {
+      return { channel: 'SDI', status: 'SKIPPED', notes: ['sdi: no supplierCompanyId in context'] };
+    }
+
+    try {
+      const { SdiClient } = await import('./sdi/sdi-client.js');
+
+      const xmlBytes = typeof fatturapaArtifact.bytes === 'string'
+        ? Buffer.from(fatturapaArtifact.bytes, 'utf-8')
+        : fatturapaArtifact.bytes instanceof Buffer
+          ? fatturapaArtifact.bytes
+          : Buffer.from(fatturapaArtifact.bytes);
+
+      // Derive canonical SdI filename: IT{idTrasmittente}_{progr}.xml (simplified from key)
+      const filename = `${idTrasmittente}_${key.slice(-5).replace(/[^a-zA-Z0-9]/g, '0')}.xml`;
+
+      // Use injected HTTP port (test mock) or fall back to a stub that throws clearly.
+      // A real SDICoop SOAP client requires AdE intermediary accreditation + PFX certificate.
+      const http = this.httpPort ?? {
+        submit: async () => { throw new Error('SdI SDICoop transport not implemented — AdE intermediary accreditation and PFX certificate required'); },
+        getStatus: async () => { throw new Error('SdI SDICoop transport not implemented — AdE intermediary accreditation required'); },
+      };
+
+      const client = new SdiClient(http, { idTrasmittente, certificate, certificatePassword });
+
+      log.info('transmission/sdi', `submitting FatturaPA to SdI (key ${key}, file ${filename})`);
+      const result = await client.submit(xmlBytes, filename);
+
+      const ref = `${companyId}|${result.idSdI}|${idTrasmittente}`;
+      log.info('transmission/sdi', `submitted → idSdI ${result.idSdI} (key ${key})`);
+      return { channel: 'SDI', status: 'PENDING', ref, notes: [`idSdI: ${result.idSdI}`, `file: ${result.filename}`] };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn('transmission/sdi', `transmit failed: ${msg} (key ${key})`);
+      return { channel: 'SDI', status: 'REJECTED', notes: [`sdi: transmit error: ${msg}`] };
+    }
   }
+
   sendStatus(ref: string, status: string, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): TransmissionResult {
-    log.todo('transmission/sdi', `push lifecycle status "${status}" to SdI for ${ref}`);
-    return { channel: 'SDI', status: 'QUEUED', ref, notes: [`stub: relay "${status}" via SdI`] };
+    log.todo('transmission/sdi', `push lifecycle status "${status}" to SdI buyer for ${ref}`);
+    return { channel: 'SDI', status: 'QUEUED', ref, notes: [`stub: relay "${status}" via SdI NE (notifica esito)`] };
   }
-  poll(ref: string, log: ComplianceLogger): TransmissionResult {
-    log.todo('transmission/sdi', `poll SdI notifiche for ${ref}`);
-    return { channel: 'SDI', status: 'PENDING', ref, notes: [] };
+
+  async poll(ref: string, log: ComplianceLogger): Promise<TransmissionResult> {
+    // Parse ref: companyId|idSdI|idTrasmittente
+    const parts = ref.split('|');
+    if (parts.length !== 3) {
+      return { channel: 'SDI', status: 'PENDING', ref, notes: ['sdi: invalid ref format'] };
+    }
+    const [companyId, idSdIStr, idTrasmittente] = parts;
+    const idSdI = parseInt(idSdIStr, 10);
+
+    if (Number.isNaN(idSdI)) {
+      return { channel: 'SDI', status: 'PENDING', ref, notes: ['sdi: invalid idSdI in ref'] };
+    }
+
+    if (!this.credentials) {
+      return { channel: 'SDI', status: 'PENDING', ref, notes: ['sdi: no credentials port'] };
+    }
+
+    try {
+      const resolved = await this.credentials.resolveActive(companyId, 'sdi');
+      if (!resolved || !resolved.isActive) {
+        return { channel: 'SDI', status: 'PENDING', ref, notes: ['sdi: credentials no longer active'] };
+      }
+
+      const { config } = resolved;
+      const certificate = config.certificate as string | undefined;
+      const certificatePassword = config.certificatePassword as string | undefined;
+
+      const { SdiClient } = await import('./sdi/sdi-client.js');
+
+      const http = this.httpPort ?? {
+        submit: async () => { throw new Error('SdI transport not implemented'); },
+        getStatus: async () => { throw new Error('SdI SDICoop transport not implemented — AdE accreditation required'); },
+      };
+
+      const client = new SdiClient(http, { idTrasmittente, certificate, certificatePassword });
+
+      const status = await client.getStatus(idSdI);
+
+      if (!status.latestNotifica) {
+        return { channel: 'SDI', status: 'PENDING', ref, notes: ['sdi: no notifica received yet'] };
+      }
+
+      return SdiClient.mapNotifica(status.latestNotifica, ref);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn('transmission/sdi', `poll failed: ${msg}`);
+      return { channel: 'SDI', status: 'PENDING', ref, notes: [`sdi: poll error: ${msg}`] };
+    }
   }
 }
 
