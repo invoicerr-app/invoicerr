@@ -1313,7 +1313,35 @@ export class KsefTransmissionProvider implements TransmissionProvider {
         const notes: string[] = [];
         if (status.ksefNumber) notes.push(`ksefNumber: ${status.ksefNumber}`);
         if (status.invoiceNumber) notes.push(`invoiceNumber: ${status.invoiceNumber}`);
-        return { channel: 'GOV_PORTAL_API', status: 'CLEARED', ref, notes };
+
+        // §3.1 UPO archival: persist the Urzędowe Poświadczenie Odbioru download reference.
+        // The KSeF API exposes upoDownloadUrl directly on the invoice status response.
+        // We store it as an authorityId with scheme='UPO' so the lifecycle layer can
+        // retrieve/download the official acknowledgement for archival.
+        const authorityIds: import('../../execution/types').AuthorityIdentifier[] = [];
+        if (status.ksefNumber) {
+          authorityIds.push({ scheme: 'KSEF_NUMBER', value: status.ksefNumber });
+        }
+        if (status.upoDownloadUrl) {
+          authorityIds.push({ scheme: 'UPO', value: status.upoDownloadUrl });
+          notes.push(`upoUrl: ${status.upoDownloadUrl}`);
+        }
+
+        // Also try to fetch the UPO pages from session status (contains multiple invoice UPOs)
+        if (!status.upoDownloadUrl) {
+          try {
+            const sessionSt = await client.sessionStatus(sessionRef, tokens.accessToken.token);
+            if (sessionSt.upo?.pages?.length) {
+              const upoPage = sessionSt.upo.pages[0];
+              authorityIds.push({ scheme: 'UPO', value: upoPage.downloadUrl });
+              notes.push(`upoUrl: ${upoPage.downloadUrl}`);
+            }
+          } catch {
+            // UPO page fetch is non-blocking — clearance is still valid without it
+          }
+        }
+
+        return { channel: 'GOV_PORTAL_API', status: 'CLEARED', ref, notes, authorityIds };
       }
       if (code === 100 || code === 150) {
         // 100 = accepted for processing, 150 = still processing → PENDING
