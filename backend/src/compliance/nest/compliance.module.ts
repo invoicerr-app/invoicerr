@@ -13,12 +13,16 @@ import { ComplianceExecutor } from '../execution/executor';
 import { FormatProviderRegistry } from '../providers/format/registry';
 import { TransmissionProviderRegistry } from '../providers/transmission/registry';
 import { defaultTransmissionRegistry } from '../providers/transmission/registry';
+import { SigningProviderRegistry } from '../providers/signing/registry';
 import { InvoiceRenderingModule } from '@/modules/invoice-rendering/invoice-rendering.module';
 import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
 import { InvoiceMailGateway } from '@/modules/invoice-rendering/invoice-mail.gateway';
 import { ChannelCredentialsModule } from '@/modules/channel-credentials/channel-credentials.module';
 import { ChannelCredentialsService } from '@/modules/channel-credentials/channel-credentials.service';
+import { SigningCertificatesModule } from '@/modules/signing-certificates/signing-certificates.module';
+import { SigningCertificatesService } from '@/modules/signing-certificates/signing-certificates.service';
 import { ChannelCredentialsController } from './channel-credentials.controller';
+import { SigningCertificatesController } from './signing-certificates.controller';
 import { ChannelSettingsService } from './channel-settings.service';
 import { ApplySignalService } from './apply-signal';
 import { ComplianceCron } from './compliance.cron';
@@ -27,8 +31,8 @@ import { ComplianceController } from './compliance.controller';
 import { RequiredFieldsController } from './required-fields.controller';
 
 @Module({
-  imports: [InvoiceRenderingModule, ChannelCredentialsModule],
-  controllers: [ComplianceController, RequiredFieldsController, AuditExportController, ChannelCredentialsController],
+  imports: [InvoiceRenderingModule, ChannelCredentialsModule, SigningCertificatesModule],
+  controllers: [ComplianceController, RequiredFieldsController, AuditExportController, ChannelCredentialsController, SigningCertificatesController],
   providers: [
     // Stores
     {
@@ -105,6 +109,13 @@ import { RequiredFieldsController } from './required-fields.controller';
         new TransmissionProviderRegistry({ mail, credentials }),
       inject: [InvoiceMailGateway, ChannelCredentialsService],
     },
+    // SigningProviderRegistry wired with the real per-company cert store
+    {
+      provide: SigningProviderRegistry,
+      useFactory: (signingCerts: SigningCertificatesService) =>
+        new SigningProviderRegistry(undefined, signingCerts),
+      inject: [SigningCertificatesService],
+    },
     // PrismaReportingStore — idempotence + proof-of-filing persistence
     {
       provide: PrismaReportingStore,
@@ -117,12 +128,16 @@ import { RequiredFieldsController } from './required-fields.controller';
       useFactory: (store: PrismaReportingStore) => new ReportingRegistry(undefined, store),
       inject: [PrismaReportingStore],
     },
-    // ComplianceExecutor with wired format + transmission + reporting registries
+    // ComplianceExecutor with wired format + signing + transmission + reporting registries
     {
       provide: ComplianceExecutor,
-      useFactory: (formats: FormatProviderRegistry, transmission: TransmissionProviderRegistry, reporting: ReportingRegistry) =>
-        new ComplianceExecutor({ formats, transmission, reporting }),
-      inject: [FormatProviderRegistry, TransmissionProviderRegistry, ReportingRegistry],
+      useFactory: (
+        formats: FormatProviderRegistry,
+        signing: SigningProviderRegistry,
+        transmission: TransmissionProviderRegistry,
+        reporting: ReportingRegistry,
+      ) => new ComplianceExecutor({ formats, signing, transmission, reporting }),
+      inject: [FormatProviderRegistry, SigningProviderRegistry, TransmissionProviderRegistry, ReportingRegistry],
     },
     // ComplianceService (facade) with Prisma store + wired executor
     {

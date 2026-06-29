@@ -105,7 +105,10 @@ export class ComplianceExecutor {
     // 4. Sign (when the regime/archive requires it).
     const algo = this.chooseSignAlgo(plan);
     const signer = this.signing.get(algo);
-    const certRef = `${ctx.supplier.countryCode}-cert`;
+    // certRef encodes the DB company ID so SigningCertificatesService can resolve
+    // the per-company encrypted cert.  Falls back to countryCode-cert for contexts
+    // without a DB company ID (e.g. unit tests that don't need a real cert).
+    const certRef = ctx.supplierCompanyId ?? `${ctx.supplier.countryCode}-cert`;
     const signed: SignedArtifact[] = await Promise.all(artifacts.map((a) => signer.sign(a, certRef, log)));
 
     // 5. Regime-specific handling (clearance gates validity; CTC routes & e-reports).
