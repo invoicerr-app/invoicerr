@@ -78,7 +78,7 @@
 - [x] **PAdES‑B** (PDF) — `@signpdf` + node-forge P12 ; **vérifié offline**. Factur‑X/PDF signés.
 - [x] **Algo→provider par profil** : `executor` sélectionne l'algo ; `none` = pass‑through réel ; `SigningCredentialsPort` (mirroir du port creds) ; sans cert → renvoie non signé avec note (testé). 18 tests (cert auto‑signé in‑memory).
 - [x] **Stockage cert en DB** : `SigningCertificatesService implements SigningCredentialsPort` (PFX/PKCS#12 + mdp chiffrés AES‑256‑GCM), résolution active par (société, algo, env), check d'expiration, → wiré dans `SigningProviderRegistry` (remplace `NullSigningCredentials`). Modèle `CompanySigningCertificate` + migration + UI upload. 8 tests. [ ] chaîne/renouvellement.
-- [ ] **Niveaux ‑T/‑LT/‑LTA + horodatage TSA** — hooks stubbés.
+- [x] **Horodatage TSA + niveau ‑T** réels (XAdES `SignatureTimeStamp` ETSI EN 319 132 + CAdES `signature-time-stamp` EN 319 122) via `TsaPort` RFC 3161 (`HttpTsaClient`/`NullTsaClient` défaut offline) ; BES inchangé (byte‑identique). 16 tests (TSA mockée). [ ] ‑LT/‑LTA (CRL/OCSP) + PAdES‑T = seams ; [ ] preuve TSA live.
 - [x] (réf.) KSeF scelle/chiffre lui‑même côté client ; clés MF vendorisées `certs/ksef/{test,prod}`.
 
 ---
