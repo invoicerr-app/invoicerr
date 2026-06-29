@@ -76,7 +76,7 @@
 - [x] **CAdES‑BES** (.p7m) — `node-forge` PKCS#7 ; **vérifié offline**. Pour **SdI** (FatturaPA `.p7m`).
 - [x] **PAdES‑B** (PDF) — `@signpdf` + node-forge P12 ; **vérifié offline**. Factur‑X/PDF signés.
 - [x] **Algo→provider par profil** : `executor` sélectionne l'algo ; `none` = pass‑through réel ; `SigningCredentialsPort` (mirroir du port creds) ; sans cert → renvoie non signé avec note (testé). 18 tests (cert auto‑signé in‑memory).
-- [ ] **Stockage cert en DB** : `NullSigningCredentials` par défaut — brancher le chargement PFX/PKCS#12 chiffré par société (seam prêt) ; validité/chaîne/renouvellement.
+- [x] **Stockage cert en DB** : `SigningCertificatesService implements SigningCredentialsPort` (PFX/PKCS#12 + mdp chiffrés AES‑256‑GCM), résolution active par (société, algo, env), check d'expiration, → wiré dans `SigningProviderRegistry` (remplace `NullSigningCredentials`). Modèle `CompanySigningCertificate` + migration + UI upload. 8 tests. [ ] chaîne/renouvellement.
 - [ ] **Niveaux ‑T/‑LT/‑LTA + horodatage TSA** — hooks stubbés.
 - [x] (réf.) KSeF scelle/chiffre lui‑même côté client ; clés MF vendorisées `certs/ksef/{test,prod}`.
 
@@ -181,7 +181,7 @@
 ## 8. CREDENTIALS & CERTIFICATS
 
 - [x] Config canal par société chiffrée ; `CREDENTIALS_ENCRYPTION_KEY` requise (sinon 503) — à documenter en déploiement.
-- [ ] **Stockage des certificats de signature** (PFX/PKCS#12 + mdp) par société, chiffré ; validité/chaîne/renouvellement.
+- [x] **Stockage des certificats de signature** (PFX/PKCS#12 + mdp) par société, chiffré + validité (cf. §2) ; UI upload. [ ] chaîne/renouvellement.
 - [ ] Certificats canal : SdI (PFX qualifié), Peppol (cert AP) ; KSeF token ✅ ; PDP OAuth ✅.
 - [ ] Rotation des secrets ; audit d'accès ; jamais de secret en clair dans les logs (✅ vérifié pour SMTP).
 
@@ -227,7 +227,7 @@
 - [x] Flow lifecycle (badges, available‑actions, pipeline, timeline).
 - [ ] Affichage des **factures entrantes** (après §5).
 - [ ] Étiquette « disponible à partir du {date} » (`availableFrom` déjà renvoyé).
-- [ ] Gestion des **certificats de signature** dans les réglages société.
+- [x] Gestion des **certificats de signature** dans les réglages société (onglet « Signing certs » : upload PFX+mdp, sujet/expiry/statut, delete ; secrets write‑only).
 - [ ] Action « rafraîchir le statut » (poll manuel).
 
 ---
