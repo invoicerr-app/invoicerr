@@ -141,7 +141,7 @@
   endpoints typés `/compliance/inbound/{pdp/webhook,sdi/notifica,peppol/mlr}`, secret partagé).
 - [x] **Polling d'inbox** — `InboxPoller` (`@Interval(60s)` + cron‑lock) via `InboxPort` (défaut `NullInboxPort` offline‑safe) → `InboundRouter.receive` (dedup) ; seam SdI SFTP/IMAP. 7 tests.
 - [x] Action UI « rafraîchir » (cf. §12).
-- [ ] Compléter le lifecycle par juridiction (statuts/transitions) ; FR push `encaissée` réel ; régimes bloquants MX.
+- [x] Lifecycle par juridiction complété : FR `markPaid`→push `encaissée` (PDP, mocké) ; **MX bloquant** (PENDING_CLEARANCE bloque DELIVER/ACCEPT/REPORT, REJECTED terminal) ; cohérence profils FR/PL/IT/DE/ES/MX (BFS sans état orphelin, `CANCELLED` retiré si non atteignable, entrées pré‑mandat PL/IT). 22 tests.
 
 ---
 
