@@ -6,7 +6,7 @@ formats:
   - KSeF FA_VAT
 scope:
   - B2B
-progress: testing
+progress: in-progress
 ---
 # 🇵🇱 Poland - Invoicing Specifications (KSeF)
 

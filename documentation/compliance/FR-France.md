@@ -9,7 +9,7 @@ scope:
   - B2B
   - B2C
   - B2G
-progress: testing
+progress: in-progress
 ---
 # 🇫🇷 France - E-Invoicing Specifications (Réforme de la facturation électronique)
 

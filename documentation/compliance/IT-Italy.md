@@ -8,7 +8,7 @@ scope:
   - B2B
   - B2C
   - B2G
-progress: testing
+progress: in-progress
 ---
 # 🇮🇹 Italy - Invoicing Specifications (Sistema di Interscambio)
 
