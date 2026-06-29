@@ -205,8 +205,8 @@
 ## 10. VALIDATION & QUALITÉ
 
 - [x] Validateur EN16931 (`node-schematron`) + XSD (`xmllint-wasm`).
-- [ ] Schématron/XSD FatturaPA, CFDI, Facturae, FA(2) prod, formats nationaux.
-- [ ] Gap `BR‑27` (allowances EN16931).
+- [x] XSD/Schematron : **FatturaPA + CFDI + Peppol BIS** vendorisés+câblés (cf. §1.4) ; FA(2) PL + EN16931 CII déjà. [ ] Facturae (introuvable) + formats nationaux.
+- [x] Gap `BR‑27` (allowances EN16931) **fermé** (cf. §1.4).
 - [ ] Harnais de validation par format ; valider via lib, pas de XML à la main.
 
 ---
