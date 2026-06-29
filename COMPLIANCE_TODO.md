@@ -90,8 +90,7 @@
 - [x] **KSeF** (PL) ✅ round‑trip prouvé (CLEARED + ksefNumber).
 - [x] KSeF : **référence UPO** persistée sur CLEARED (`upoDownloadUrl`→`ComplianceAuthorityId{scheme:UPO}` + ksefNumber). [ ] chemin **prod** (clés MF prod) + télécharger/stocker les **octets UPO** ; `sendStatus` si requis.
 - [x] **PDP** (FR, superpdp propriétaire) ✅ facture acceptée (89xxx).
-- [ ] **PDP‑AFNOR** (`apiStyle: afnor`) — ⛔ à prouver live (superpdp expose l'API Flux ; comparer au Swagger
-  `AFNOR-Flow_Service-1.0.2-swagger.json`, corriger endpoints/payload si rejet).
+- [x] **PDP‑AFNOR** (`apiStyle: afnor`) — **transport prouvé live** : `POST /afnor-flow/v1/flows` accepte la soumission, flowId réel `i_90103` assigné, transmit→PENDING (fix : `processingRule` omis, sinon superpdp renvoie 501). [ ] validation **contenu** du flow (le sandbox rejette la facture de test — diagnostiquer le motif de rejet AFNOR).
 - [x] PDP : `sendStatus` (déposée/refusée/encaissée → fr:205/210/211/212) implémenté (mocké, live deferred).
 - [ ] PDP : **API Annuaire** (résoudre `buyerEndpointId` du client).
 - [x] **Email SMTP par société** 🟢 (`MailService.sendMail(opts, smtpOverrides?)`, fallback global).
@@ -248,7 +247,7 @@
 ## Ordre conseillé
 1. [x] **Lifecycle freshness** (§4 : boot + sweep 12h) — fait (reste : replay inbound + webhooks push par canal).
 2. [x] **Signature réelle** (§2) — XAdES/CAdES/PAdES réels + vérifiés offline (reste : store cert DB + TSA).
-3. [ ] **Prouver PDP‑AFNOR** + **Email réel** (§3.1) — rapides, creds dispo.
+3. [x] **PDP‑AFNOR transport prouvé** (flowId i_90103) ; [ ] validation contenu AFNOR + **Email réel** (§3.1).
 4. [ ] **SdI live** puis **Peppol live** (§3.2) — dès creds/AP.
 5. [x] **Entrant statuts** (§5) + **sendStatus** (§3.5) — boucle de statut complète (mockée). Reste : réception de factures fournisseurs + inbox SdI + durcissement webhook.
 6. [ ] **Reporting** (§6) + élargissement formats/portails nationaux (§1.3, §3.4) par marché.
