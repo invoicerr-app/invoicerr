@@ -32,10 +32,12 @@ import { ComplianceCron } from './compliance.cron';
 import { AuditExportController } from './audit-export.controller';
 import { ComplianceController } from './compliance.controller';
 import { RequiredFieldsController } from './required-fields.controller';
+import { InboundInvoiceController } from './inbound-invoice.controller';
+import { InboundInvoiceService } from '../reception/inbound-invoice.service';
 
 @Module({
   imports: [InvoiceRenderingModule, ChannelCredentialsModule, SigningCertificatesModule],
-  controllers: [ComplianceController, RequiredFieldsController, AuditExportController, ChannelCredentialsController, SigningCertificatesController],
+  controllers: [ComplianceController, RequiredFieldsController, AuditExportController, ChannelCredentialsController, SigningCertificatesController, InboundInvoiceController],
   providers: [
     // Stores
     {
@@ -176,6 +178,12 @@ import { RequiredFieldsController } from './required-fields.controller';
         cronLock: CronLockService,
       ) => new ComplianceCron(pollScheduler, timerScheduler, inboundRouter, reportingStore, cronLock),
       inject: [PollScheduler, TimerScheduler, InboundRouter, PrismaReportingStore, CronLockService],
+    },
+    // InboundInvoiceService — parse + store received supplier invoices
+    {
+      provide: InboundInvoiceService,
+      useFactory: (prisma: PrismaService) => new InboundInvoiceService(prisma),
+      inject: [PrismaService],
     },
   ],
   exports: [ComplianceService],
