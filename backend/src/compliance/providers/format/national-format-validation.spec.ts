@@ -29,6 +29,15 @@ import {
   HU_B2B,
   CN_B2B,
   EG_B2B,
+  UY_B2B,
+  PY_B2B,
+  CR_B2B,
+  DO_B2B,
+  GT_B2B,
+  PA_B2B,
+  SV_B2B,
+  VE_B2B,
+  BO_B2B,
   FormatFixture,
 } from './__fixtures__/invoices';
 
@@ -544,6 +553,169 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
 
       results.push({ fixture: fixture.slug, format: 'eg-eta', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // LATAM — new scaffold formats (structural / gate-vivant tests)
+  // ---------------------------------------------------------------------------
+
+  describe('Uruguay CFE (UY)', () => {
+    const fixture = UY_B2B;
+    it(`${fixture.slug} → national-xml UY`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'UY');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('<CFE ')) errors.push('missing CFE root');
+      if (!xml.includes('<eFact>')) errors.push('missing eFact inner element');
+      if (!xml.includes('Encabezado')) errors.push('missing Encabezado');
+      if (!xml.includes('Emisor')) errors.push('missing Emisor');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'uy-cfe', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Paraguay DE (PY)', () => {
+    const fixture = PY_B2B;
+    it(`${fixture.slug} → national-xml PY`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'PY');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('<DE ')) errors.push('missing DE root element');
+      if (!xml.includes('gDatGralOpe')) errors.push('missing gDatGralOpe');
+      if (!xml.includes('gEmis')) errors.push('missing gEmis (Emisor)');
+      if (!xml.includes('gDatRec')) errors.push('missing gDatRec (Receptor/Destinatario)');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'py-de', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Costa Rica FE (CR)', () => {
+    const fixture = CR_B2B;
+    it(`${fixture.slug} → national-xml CR`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'CR');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('FacturaElectronica')) errors.push('missing FacturaElectronica root');
+      if (!xml.includes('Emisor')) errors.push('missing Emisor');
+      if (!xml.includes('Receptor')) errors.push('missing Receptor');
+      if (!xml.includes('DetalleServicio')) errors.push('missing DetalleServicio');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'cr-fe', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Dominican Republic e-CF (DO)', () => {
+    const fixture = DO_B2B;
+    it(`${fixture.slug} → national-xml DO`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'DO');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      // Root element is FCCE (Factura de Comprobante de Crédito Electrónico)
+      if (!xml.includes('<FCCE ')) errors.push('missing FCCE root');
+      if (!xml.includes('Encabezado')) errors.push('missing Encabezado');
+      if (!xml.includes('Emisor')) errors.push('missing Emisor');
+      if (!xml.includes('Comprador')) errors.push('missing Comprador');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'do-ecf', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Guatemala FEL (GT)', () => {
+    const fixture = GT_B2B;
+    it(`${fixture.slug} → national-xml GT`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'GT');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      // SAT FEL DTE — root is <DTE>
+      if (!xml.includes('<DTE ')) errors.push('missing DTE root');
+      if (!xml.includes('DatosEmision')) errors.push('missing DatosEmision');
+      if (!xml.includes('Emisor')) errors.push('missing Emisor');
+      if (!xml.includes('Receptor')) errors.push('missing Receptor');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'gt-fel', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Panama FE (PA)', () => {
+    const fixture = PA_B2B;
+    it(`${fixture.slug} → national-xml PA`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'PA');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      // Root is <DocumentoFiscal>
+      if (!xml.includes('DocumentoFiscal')) errors.push('missing DocumentoFiscal root');
+      if (!xml.includes('Encabezado')) errors.push('missing Encabezado');
+      if (!xml.includes('Emisor')) errors.push('missing Emisor');
+      if (!xml.includes('Receptor')) errors.push('missing Receptor');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'pa-fe', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('El Salvador DTE (SV)', () => {
+    const fixture = SV_B2B;
+    it(`${fixture.slug} → national-xml SV`, async () => {
+      // SV DTE is JSON (not XML) — the scaffold wraps JSON in XML comments
+      const out = await service.buildNationalXml(fixture.data, 'SV');
+      expect(typeof out).toBe('string');
+      expect(out.length).toBeGreaterThan(50);
+      const errors: string[] = [];
+      // JSON keys present in the serialized DTE JSON
+      if (!out.includes('dteJson')) errors.push('missing dteJson key');
+      if (!out.includes('emisor')) errors.push('missing emisor');
+      if (!out.includes('receptor')) errors.push('missing receptor');
+      if (!out.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'sv-dte', xmlLength: out.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Venezuela FE (VE)', () => {
+    const fixture = VE_B2B;
+    it(`${fixture.slug} → national-xml VE`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'VE');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('FacturaElectronica')) errors.push('missing FacturaElectronica root');
+      if (!xml.includes('EncabezadoFactura')) errors.push('missing EncabezadoFactura');
+      if (!xml.includes('Emisor')) errors.push('missing Emisor');
+      if (!xml.includes('Receptor')) errors.push('missing Receptor');
+      if (!xml.includes('Detalles')) errors.push('missing Detalles');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 've-fe', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Bolivia FE (BO)', () => {
+    const fixture = BO_B2B;
+    it(`${fixture.slug} → national-xml BO`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'BO');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      // Root is <facturaComputarizadaCompraVenta> (lowercase, SIN schema)
+      if (!xml.includes('facturaComputarizadaCompraVenta')) errors.push('missing facturaComputarizadaCompraVenta root');
+      if (!xml.includes('<cabecera>')) errors.push('missing cabecera');
+      if (!xml.includes('<detalle>')) errors.push('missing detalle');
+      if (!xml.includes('nitEmisor')) errors.push('missing nitEmisor');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'bo-fe', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
       expect(errors).toEqual([]);
     });
   });

@@ -19,6 +19,12 @@
 import { ComplianceLogger } from '../../execution/logger';
 import { TransmissionResult } from '../../execution/types';
 import { ChannelType } from '../../types';
+import { AfipTransmissionProvider } from './latam/afip-transmission';
+import { SefazTransmissionProvider } from './latam/sefaz-transmission';
+import { SiiTransmissionProvider } from './latam/sii-transmission';
+import { SMALL_LATAM_PROVIDERS } from './latam/smaller-portals';
+import { SriTransmissionProvider } from './latam/sri-transmission';
+import { UyDgiTransmissionProvider } from './latam/uy-dgi-transmission';
 import { TransmissionProvider } from './transmission-provider';
 
 interface NationalPortalSpec {
@@ -61,21 +67,15 @@ function nationalPortal(spec: NationalPortalSpec): TransmissionProvider {
 const GP: ChannelType = 'GOV_PORTAL_API';
 
 export const NATIONAL_PORTAL_PROVIDERS: TransmissionProvider[] = [
-  // --- LATAM (clearance) ---
-  nationalPortal({ id: 'afip', channel: GP, label: 'Argentina ARCA/AFIP WSFE', hint: 'submit comprobante to ARCA/AFIP web service, await CAE', async: true }),
-  nationalPortal({ id: 'bo-sin', channel: GP, label: 'Bolivia SIN', hint: 'submit to SIN Sistema de Facturación Electrónica, await authorization', async: true }),
-  nationalPortal({ id: 'sefaz', channel: GP, label: 'Brazil SEFAZ', hint: 'submit signed NF-e to the SEFAZ web service, await protocolo de autorização', async: true }),
-  nationalPortal({ id: 'sii', channel: GP, label: 'Chile SII', hint: 'submit DTE to SII (EnvioDTE), await aceptación; send acuse', async: true }),
+  // --- LATAM (clearance) — proper scaffolded clients ---
+  new AfipTransmissionProvider(),       // AR — ARCA/AFIP WSFE
+  new SefazTransmissionProvider(),      // BR — SEFAZ NF-e (async, 2-phase)
+  new SiiTransmissionProvider(),        // CL — SII DTE (seed→token→EnvioDTE→poll)
   nationalPortal({ id: 'dian', channel: GP, label: 'Colombia DIAN', hint: 'submit UBL 2.1 to DIAN for validación previa, await CUFE acknowledgement', async: true }),
-  nationalPortal({ id: 'cr-hacienda', channel: GP, label: 'Costa Rica Hacienda', hint: 'submit XML to Ministerio de Hacienda, await respuesta-Hacienda', async: true }),
-  nationalPortal({ id: 'dgii', channel: GP, label: 'Dominican Republic DGII', hint: 'submit e-CF to DGII, await aprobación comercial / acuse', async: true }),
-  nationalPortal({ id: 'sri', channel: GP, label: 'Ecuador SRI', hint: 'submit comprobante to SRI, await autorización (clave de acceso)', async: true }),
-  nationalPortal({ id: 'gt-sat', channel: GP, label: 'Guatemala SAT (FEL)', hint: 'certify FEL DTE via certificador → SAT, await UUID', async: true }),
-  nationalPortal({ id: 'pa-dgi', channel: GP, label: 'Panama DGI', hint: 'submit FE/CF via PAC → DGI, await CUFE authorization', async: true }),
-  nationalPortal({ id: 'sifen', channel: GP, label: 'Paraguay SIFEN', hint: 'submit e-Kuatia DE to SIFEN, await aprobación', async: true }),
-  nationalPortal({ id: 'sv-mh', channel: GP, label: 'El Salvador MH', hint: 'submit DTE JSON to Ministerio de Hacienda, await selloRecibido', async: true }),
-  nationalPortal({ id: 'uy-dgi', channel: GP, label: 'Uruguay DGI', hint: 'submit CFE to DGI, await respuesta', async: true }),
-  nationalPortal({ id: 'seniat', channel: GP, label: 'Venezuela SENIAT', hint: 'submit factura electrónica to SENIAT, await authorization', async: true }),
+  new SriTransmissionProvider(),        // EC — SRI comprobante (submit→claveAcceso→poll)
+  new UyDgiTransmissionProvider(),      // UY — DGI CFE (enviarCfe→idEnvio→poll)
+  // CR, DO, GT, PA, PY, SV, VE, BO — generic scaffold with configSchema + injectable HTTP
+  ...SMALL_LATAM_PROVIDERS,
   // --- MENA ---
   nationalPortal({ id: 'zatca', channel: GP, label: 'Saudi Arabia ZATCA FATOORA', hint: 'report/clear via FATOORA (B2B clearance, B2C reporting ≤24h), await ZATCA hash/UUID', async: true }),
   nationalPortal({ id: 'jofotara', channel: GP, label: 'Jordan JoFotara', hint: 'submit to JoFotara national platform, await acknowledgement', async: true }),
