@@ -1394,6 +1394,9 @@
                     "label": "TVA inaplicable",
                     "description": "Mostrar el aviso legal 'IVA no aplicable, art. 293 B del CGI' en los próximos documentos cuando esté activado y si el país de la empresa es Francia."
                 },
+                "identifiers": {
+                    "label": "Country-specific identifiers"
+                },
                 "saving": "Guardando...",
                 "saveSettings": "Guardar configuración"
             },

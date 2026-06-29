@@ -1394,6 +1394,9 @@
                     "label": "TVA non applicable (art. 293 B du CGI)",
                     "description": "Die gesetzliche Angabe 'TVA non applicable, art. 293 B du CGI' auf zukünftigen Dokumenten anzeigen, wenn aktiviert und das Land Ihres Unternehmens Frankreich ist."
                 },
+                "identifiers": {
+                    "label": "Country-specific identifiers"
+                },
                 "saving": "Speichern...",
                 "saveSettings": "Einstellungen speichern"
             },

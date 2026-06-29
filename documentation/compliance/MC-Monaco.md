@@ -1,7 +1,7 @@
 ---
 region: Europe
 status: phased
-priority: medium
+priority: high
 formats:
   - EN 16931
   - Factur-X

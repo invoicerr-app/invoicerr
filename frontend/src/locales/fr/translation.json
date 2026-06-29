@@ -1587,6 +1587,9 @@
                     "label": "TVA non applicable (art. 293 B du CGI)",
                     "description": "Afficher la mention légale 'TVA non applicable, art. 293 B du CGI' sur les prochains documents lorsque activé et si le pays de l'entreprise est la France."
                 },
+                "identifiers": {
+                    "label": "Identifiants spécifiques au pays"
+                },
                 "saving": "Enregistrement...",
                 "saveSettings": "Enregistrer les paramètres"
             },

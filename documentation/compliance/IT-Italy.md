@@ -1,13 +1,14 @@
 ---
 region: Europe
 status: mandatory
-priority: medium
+priority: high
 formats:
   - FatturaPA
 scope:
   - B2B
   - B2C
   - B2G
+progress: testing
 ---
 # 🇮🇹 Italy - Invoicing Specifications (Sistema di Interscambio)
 

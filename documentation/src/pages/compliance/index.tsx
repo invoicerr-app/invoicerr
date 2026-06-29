@@ -14,9 +14,10 @@ type CountryMeta = {
   priority?: string;
   formats?: string[];
   scope?: string[];
+  progress?: string;
 };
 
-type FacetKey = 'region' | 'scope' | 'status' | 'formats' | 'priority';
+type FacetKey = 'region' | 'scope' | 'status' | 'formats' | 'priority' | 'progress';
 
 const FACET_ORDER: FacetKey[] = [
   'region',
@@ -24,6 +25,7 @@ const FACET_ORDER: FacetKey[] = [
   'status',
   'formats',
   'priority',
+  'progress',
 ];
 
 const facetTitle = (key: FacetKey): string =>
@@ -38,6 +40,10 @@ const facetTitle = (key: FacetKey): string =>
     priority: translate({
       id: 'compliance.page.filter.priority',
       message: 'Priority',
+    }),
+    progress: translate({
+      id: 'compliance.page.filter.progress',
+      message: 'Progress',
     }),
   })[key];
 
@@ -108,6 +114,15 @@ const valueLabel = (key: FacetKey, value: string): string => {
         id: 'compliance.page.priorityValue.low',
         message: 'Low',
       }),
+    };
+    return map[value] ?? value;
+  }
+  if (key === 'progress') {
+    const map: Record<string, string> = {
+      'in-progress': `🔄 ${translate({id: 'compliance.page.progressValue.inProgress', message: 'In progress'})}`,
+      testing: `🧪 ${translate({id: 'compliance.page.progressValue.testing', message: 'Testing'})}`,
+      done: `✅ ${translate({id: 'compliance.page.progressValue.done', message: 'Done'})}`,
+      next: `⏳ ${translate({id: 'compliance.page.progressValue.next', message: 'Next'})}`,
     };
     return map[value] ?? value;
   }
@@ -226,18 +241,25 @@ function CountryExplorer(): ReactNode {
       </div>
 
       <div className="row margin-top--md">
-        {visible.map(([code, {flag, name}]) => (
-          <div className="col col--3" key={code}>
-            <Link
-              to={`/compliance/${code.toLowerCase()}`}
-              className={styles.countryCard}>
-              <span className={styles.flag} role="img" aria-hidden="true">
-                {flag}
-              </span>
-              <span className={styles.countryName}>{name}</span>
-            </Link>
-          </div>
-        ))}
+        {visible.map(([code, {flag, name}]) => {
+          const prog = metaByCode[code]?.progress
+          const progValue = prog ? valueLabel('progress' as FacetKey, prog) : null
+          return (
+            <div className="col col--3" key={code}>
+              <Link
+                to={`/compliance/${code.toLowerCase()}`}
+                className={styles.countryCard}>
+                <span className={styles.flag} role="img" aria-hidden="true">
+                  {flag}
+                </span>
+                <span className={styles.countryName}>{name}</span>
+                {prog && (
+                  <span className={styles.progressBadge}>{progValue}</span>
+                )}
+              </Link>
+            </div>
+          )
+        })}
       </div>
     </>
   );

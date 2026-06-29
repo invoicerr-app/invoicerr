@@ -7,7 +7,7 @@ import { DynamicFormModal } from "@/components/form-modal"
 import type { FormConfig } from "@/components/form-modal"
 import { useGet, usePut, authenticatedFetch } from "@/hooks/use-fetch"
 import { useCompany } from "@/hooks/queries/use-company"
-import { CheckCircle2, Loader2, Radio, Settings2, Trash2, XCircle } from "lucide-react"
+import { CheckCircle2, ExternalLink, Loader2, Radio, Settings2, Trash2, XCircle } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
@@ -116,16 +116,37 @@ export default function ChannelsSettings() {
     )
   }
 
+  const DOCS_BASE = `${import.meta.env.DEV ? "http://localhost:3001" : "https://docs.invoicerr.app"}/docs/user-guide/e-invoicing`
+  const DOC_SLUGS: Record<string, string> = {
+    superpdp: "superpdp",
+    pdp: "superpdp",
+    ksef: "ksef",
+    sdi: "sdi",
+  }
+
+  const countryCode = company?.countryCode
+  const country = company?.country
+  const countryFlag = countryCode
+    ? String.fromCodePoint(...countryCode.toUpperCase().split("").map((c) => 0x1F1E6 + c.charCodeAt(0) - 0x41))
+    : ""
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold mb-2">{t("settings.channels.title", "E-invoicing Channels")}</h1>
-        <p className="text-muted-foreground">
-          {t(
-            "settings.channels.description",
-            "Connect the transmission channels required by your company's country. Secrets are encrypted at rest.",
-          )}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold mb-2">{t("settings.channels.title", "E-invoicing Channels")}</h1>
+          <p className="text-muted-foreground">
+            {t(
+              "settings.channels.description",
+              "Connect the transmission channels required by your company's country. Secrets are encrypted at rest.",
+            )}
+          </p>
+        </div>
+        {countryCode && (
+          <Badge variant="outline" className="text-base px-3 py-1 shrink-0 mt-1">
+            {countryFlag} {country}
+          </Badge>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -159,6 +180,18 @@ export default function ChannelsSettings() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {DOC_SLUGS[ch.providerId] && (
+                    <a
+                      href={`${DOCS_BASE}/${DOC_SLUGS[ch.providerId]}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button variant="ghost" size="sm">
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                        {t("settings.channels.actions.documentation", "Documentation")}
+                      </Button>
+                    </a>
+                  )}
                   {hasSchema && (
                     <Button
                       variant="outline"

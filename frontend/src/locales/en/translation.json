@@ -1583,6 +1583,9 @@
                     "label": "TVA unapplicable",
                     "description": "Display the legal notice 'VAT not applicable, art. 293 B of the CGI' on future documents when enabled and if the company's country is France."
                 },
+                "identifiers": {
+                    "label": "Country-specific identifiers"
+                },
                 "saving": "Saving...",
                 "saveSettings": "Save Settings"
             },

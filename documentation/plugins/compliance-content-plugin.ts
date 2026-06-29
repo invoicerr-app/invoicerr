@@ -9,6 +9,7 @@ interface CountryMeta {
   priority?: string;
   formats?: string[];
   scope?: string[];
+  progress?: string;
 }
 
 interface CountryContent {

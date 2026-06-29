@@ -1,9 +1,10 @@
 ---
 region: Americas
 status: mandatory
-priority: low
+priority: high
 formats:
   - CFDI 4.0
+progress: in-progress
 ---
 # 🇲🇽 Mexico - E-Invoicing Specifications (CFDI 4.0)
 

@@ -146,6 +146,16 @@
   font-weight: 600;
 }
 
+.progressBadge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  color: var(--ifm-color-primary-contrast-foreground);
+  background: var(--ifm-color-primary-contrast-background);
+  white-space: nowrap;
+}
+
 /* ---- Pillar (domain) cards ---- */
 .domainCard {
   display: flex;
