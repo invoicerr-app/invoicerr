@@ -1,4 +1,6 @@
 import { CountryComplianceProfile } from '../schema';
+import { DE } from './de';
+import { ES } from './es';
 import { FR } from './fr';
 import { IT } from './it';
 import { MC } from './monaco';
@@ -13,7 +15,7 @@ import { ASIA_PROFILES } from './asia';
 import { REST_PROFILES } from './rest';
 
 /** Hand-written profiles with richer, verified specifics (OFFICIAL confidence). */
-export const BESPOKE_PROFILES: CountryComplianceProfile[] = [FR, US, MX, IT, PL, MC];
+export const BESPOKE_PROFILES: CountryComplianceProfile[] = [DE, ES, FR, US, MX, IT, PL, MC];
 
 /**
  * Every wired jurisdiction. Bespoke profiles take precedence over any archetype-built one with the

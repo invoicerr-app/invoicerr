@@ -6,9 +6,11 @@ import { clearance, noMandate, peppolCtc, periodic, planned, postAudit, realTime
  * Rates and dates are BEST_EFFORT data to be refined against documentation/compliance over time.
  */
 export const EUROPE_PROFILES: CountryComplianceProfile[] = [
-  // --- Majors (not in documentation/compliance but traded with heavily) ---
+  // --- Majors ---
+  // DE and ES are bespoke profiles (profiles/data/de.ts + es.ts); listed here as stubs
+  // so the archetype list is complete but the bespoke entries in BESPOKE_PROFILES take precedence.
   postAudit('DE', 'Germany', { tax: vat(19, [7]), primary: 'XRECHNUNG', receiveSyntax: 'XRECHNUNG' }),
-  realTime('ES', 'Spain', { from: '2017-07-01', syntax: 'ES_FACTURAE', providerId: 'es-aeat', tax: vat(21, [10, 4]), channel: 'GOV_PORTAL_API' }), // Facturae + SII/Verifactu
+  realTime('ES', 'Spain', { from: '2017-07-01', syntax: 'ES_FACTURAE', providerId: 'es-aeat', tax: vat(21, [10, 4]), channel: 'GOV_PORTAL_API' }),
   noMandate('GB', 'United Kingdom', { tax: vat(20, [5]) }),
 
   // --- EU member states (post-audit today; several phasing into CTC/RTR) ---
