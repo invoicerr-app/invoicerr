@@ -19,6 +19,9 @@
 import { ComplianceLogger } from '../../execution/logger';
 import { TransmissionResult } from '../../execution/types';
 import { ChannelType } from '../../types';
+import { FirsTransmissionProvider } from './africa/firs-transmission';
+import { KeKraTransmissionProvider } from './africa/ke-kra-transmission';
+import { SMALL_AFRICA_PROVIDERS } from './africa/smaller-portals';
 import { IdCoretaxTransmissionProvider } from './asia/id-coretax-transmission';
 import { InIrpTransmissionProvider } from './asia/in-irp-transmission';
 import { MyInvoisTransmissionProvider } from './asia/myinvois-transmission';
@@ -84,17 +87,11 @@ export const NATIONAL_PORTAL_PROVIDERS: TransmissionProvider[] = [
   nationalPortal({ id: 'zatca', channel: GP, label: 'Saudi Arabia ZATCA FATOORA', hint: 'report/clear via FATOORA (B2B clearance, B2C reporting ≤24h), await ZATCA hash/UUID', async: true }),
   nationalPortal({ id: 'jofotara', channel: GP, label: 'Jordan JoFotara', hint: 'submit to JoFotara national platform, await acknowledgement', async: true }),
   nationalPortal({ id: 'tn-ttn', channel: GP, label: 'Tunisia TTN / El Fatoura', hint: 'submit TEIF via TradeNet (TTN), await clearance', async: true }),
-  // --- Sub-Saharan Africa (real-time fiscal device/API) ---
-  nationalPortal({ id: 'firs', channel: GP, label: 'Nigeria FIRS', hint: 'submit to FIRS e-invoice (MBS), await IRN', async: true }),
-  nationalPortal({ id: 'ke-kra', channel: GP, label: 'Kenya KRA eTIMS', hint: 'transmit to KRA eTIMS (OSCU/VSCU) in real time' }),
-  nationalPortal({ id: 'gh-gra', channel: GP, label: 'Ghana GRA E-VAT', hint: 'transmit to GRA E-VAT in real time' }),
-  nationalPortal({ id: 'rw-rra', channel: GP, label: 'Rwanda RRA EBM', hint: 'transmit to RRA EBM in real time' }),
-  nationalPortal({ id: 'tz-tra', channel: GP, label: 'Tanzania TRA VFD', hint: 'transmit to TRA VFD in real time' }),
-  nationalPortal({ id: 'ug-ura', channel: GP, label: 'Uganda URA EFRIS', hint: 'transmit to URA EFRIS in real time' }),
-  nationalPortal({ id: 'zm-zra', channel: GP, label: 'Zambia ZRA Smart Invoice', hint: 'transmit to ZRA Smart Invoice in real time' }),
-  nationalPortal({ id: 'zw-zimra', channel: GP, label: 'Zimbabwe ZIMRA FDMS', hint: 'transmit to ZIMRA FDMS in real time' }),
-  nationalPortal({ id: 'ci-dgi', channel: GP, label: 'Ivory Coast DGI (FNE/SIGF)', hint: 'transmit FNE to DGI SIGF in real time' }),
-  nationalPortal({ id: 'bj-dgi', channel: GP, label: 'Benin DGI e-MECeF', hint: 'transmit to DGI e-MECeF in real time' }),
+  // --- Sub-Saharan Africa — scaffolded clients with injectable HTTP port + configSchema ---
+  new FirsTransmissionProvider(),   // NG — FIRS MBS e-invoice (IRN + QR, async clearance)
+  new KeKraTransmissionProvider(),  // KE — KRA eTIMS OSCU/VSCU (real-time fiscal)
+  // GH, RW, TZ, UG, ZM, ZW, CI, BJ — uniform scaffold (auth/submit/poll, HTTP injectable)
+  ...SMALL_AFRICA_PROVIDERS,
   // --- Asia — scaffolded clients with injectable HTTP port + configSchema ---
   new IdCoretaxTransmissionProvider(),  // ID — DGT Coretax e-Faktur (NSFP → kodeOtorisasi)
   new InIrpTransmissionProvider(),      // IN — GST IRP (IRN hash + signed QR)
