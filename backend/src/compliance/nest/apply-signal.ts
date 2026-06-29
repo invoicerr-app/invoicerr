@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { Prisma } from '../../../prisma/generated/prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { ChannelType } from '../types';
 import { ComplianceLogger, defaultLogger } from '../execution/logger';
@@ -50,11 +51,11 @@ export class ApplySignalService {
     if (effects.length === 1 && effects[0].kind === 'NOOP') return;
 
     const now = new Date().toISOString();
-    await this.prisma.transaction(async (tx: unknown) => {
-      const txDocStore = new PrismaComplianceDocumentStore(tx as PrismaService);
-      const txPollStore = new PrismaPollJobStore(tx as PrismaService);
-      const txTimerStore = new PrismaTimerJobStore(tx as PrismaService);
-      const txCallbackStore = new PrismaCallbackStore(tx as PrismaService);
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const txDocStore = new PrismaComplianceDocumentStore(tx as unknown as PrismaService);
+      const txPollStore = new PrismaPollJobStore(tx as unknown as PrismaService);
+      const txTimerStore = new PrismaTimerJobStore(tx as unknown as PrismaService);
+      const txCallbackStore = new PrismaCallbackStore(tx as unknown as PrismaService);
 
       const applied = effects.find((e): e is Extract<Effect, { kind: 'APPLIED' }> => e.kind === 'APPLIED');
       if (applied) {

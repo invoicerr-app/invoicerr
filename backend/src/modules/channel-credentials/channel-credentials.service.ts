@@ -2,6 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from '@/compliance/providers/transmission/channel-credentials-port';
 import { decryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
+import { ChannelEnvironment, CompanyChannelConfig } from '../../../prisma/generated/prisma/client';
+
+/** Coerce an untrusted string to a valid ChannelEnvironment, defaulting to TEST. */
+function toChannelEnvironment(value: string | undefined): ChannelEnvironment {
+  if (value === ChannelEnvironment.PROD) return ChannelEnvironment.PROD;
+  return ChannelEnvironment.TEST;
+}
 
 /**
  * Resolves per-company channel credentials from the DB, decrypting the config blob.
@@ -20,12 +27,12 @@ export class ChannelCredentialsService implements ChannelCredentialsPort {
   ): Promise<ResolvedChannelConfig | null> {
     if (!isEncryptionAvailable()) return null;
 
-    const row = await (this.prisma as any).companyChannelConfig.findUnique({
+    const row = await this.prisma.companyChannelConfig.findUnique({
       where: {
         companyId_providerId_environment: {
           companyId,
           providerId,
-          environment: environment as any,
+          environment: toChannelEnvironment(environment),
         },
       },
     });
@@ -53,19 +60,19 @@ export class ChannelCredentialsService implements ChannelCredentialsPort {
   ): Promise<ResolvedChannelConfig | null> {
     if (!isEncryptionAvailable()) return null;
 
-    const rows = await (this.prisma as any).companyChannelConfig.findMany({
+    const rows: CompanyChannelConfig[] = await this.prisma.companyChannelConfig.findMany({
       where: { companyId, providerId },
       orderBy: { environment: 'asc' },
     });
 
-    const active = rows.filter((r: any) => r.isActive);
+    const active = rows.filter((r: CompanyChannelConfig) => r.isActive);
 
     if (active.length === 0) return null;
 
     if (active.length > 1) {
       this.logger.error(
         `Multiple active configs for company ${companyId} provider ${providerId}: ` +
-        `[${active.map((r: any) => r.environment).join(', ')}]. ` +
+        `[${active.map((r: CompanyChannelConfig) => r.environment).join(', ')}]. ` +
         `Exactly one must be active — skipping transmission.`,
       );
       return null;

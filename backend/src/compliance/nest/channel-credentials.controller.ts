@@ -10,13 +10,14 @@ import {
   Put,
 } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { TransmissionProviderRegistry } from '@/compliance/providers/transmission/registry';
-import { ChannelConfigSchema } from '@/compliance/providers/transmission/transmission-provider';
-import { PrismaService } from '@/prisma/prisma.service';
-import { encryptJson, decryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
 import { defaultRegistry } from '@/compliance/profiles/registry';
 import { pickByDate } from '@/compliance/profiles/temporal';
+import type { TransmissionProviderRegistry } from '@/compliance/providers/transmission/registry';
+import type { ChannelConfigSchema } from '@/compliance/providers/transmission/transmission-provider';
+import type { PrismaService } from '@/prisma/prisma.service';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
+import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
+import { ChannelEnvironment, CompanyChannelConfig } from '../../../prisma/generated/prisma/client';
 
 interface ChannelConfigResponse {
   providerId: string;
@@ -25,6 +26,12 @@ interface ChannelConfigResponse {
   isActive: boolean;
   /** Masked config — secrets replaced with "•••• set". Never contains decrypted secrets. */
   config: Record<string, unknown>;
+}
+
+/** Coerce an untrusted string to a valid ChannelEnvironment, defaulting to TEST. */
+function toChannelEnvironment(value: string | undefined): ChannelEnvironment {
+  if (value === ChannelEnvironment.PROD) return ChannelEnvironment.PROD;
+  return ChannelEnvironment.TEST;
 }
 
 /** Mask secret fields in a config object using the provider's schema. */
@@ -96,7 +103,7 @@ export class ChannelCredentialsController {
   @ApiResponse({ status: 200, description: 'Required channels retrieved' })
   async getRequiredChannels(@Param('id') companyId: string) {
     // 1. Resolve company country
-    const company = await (this.prisma as any).company.findUnique({
+    const company = await this.prisma.company.findUnique({
       where: { id: companyId },
       select: { countryCode: true, country: true },
     });
@@ -115,10 +122,10 @@ export class ChannelCredentialsController {
     const channels = transmissionRule?.channels ?? [];
 
     // 4. Fetch existing configs for this company
-    const existingConfigs: any[] = await (this.prisma as any).companyChannelConfig.findMany({
+    const existingConfigs: CompanyChannelConfig[] = await this.prisma.companyChannelConfig.findMany({
       where: { companyId },
     });
-    const configMap = new Map<string, any>();
+    const configMap = new Map<string, CompanyChannelConfig>();
     for (const cfg of existingConfigs) {
       configMap.set(cfg.providerId, cfg);
     }
@@ -169,12 +176,12 @@ export class ChannelCredentialsController {
   @ApiParam({ name: 'id', type: String, description: 'Company ID' })
   @ApiResponse({ status: 200, description: 'Configs retrieved' })
   async listCompanyChannels(@Param('id') companyId: string): Promise<ChannelConfigResponse[]> {
-    const rows = await (this.prisma as any).companyChannelConfig.findMany({
+    const rows: CompanyChannelConfig[] = await this.prisma.companyChannelConfig.findMany({
       where: { companyId },
       orderBy: [{ providerId: 'asc' }, { environment: 'asc' }],
     });
 
-    return rows.map((row: any) => {
+    return rows.map((row: CompanyChannelConfig) => {
       const provider = this.txRegistry.getById(row.providerId);
       let config: Record<string, unknown>;
       try {
@@ -245,19 +252,20 @@ export class ChannelCredentialsController {
 
     const encrypted = encryptJson(config);
 
-    const row = await (this.prisma as any).companyChannelConfig.upsert({
+    const env = toChannelEnvironment(environment);
+    const row = await this.prisma.companyChannelConfig.upsert({
       where: {
         companyId_providerId_environment: {
           companyId,
           providerId,
-          environment: environment as any,
+          environment: env,
         },
       },
       create: {
         companyId,
         channel: provider.channel,
         providerId,
-        environment: environment as any,
+        environment: env,
         config: encrypted,
         isActive,
       },
@@ -295,9 +303,9 @@ export class ChannelCredentialsController {
     @Param('providerId') providerId: string,
     @Body() body: { environment?: string },
   ) {
-    const environment = body?.environment ?? 'TEST';
-    await (this.prisma as any).companyChannelConfig.deleteMany({
-      where: { companyId, providerId, environment: environment as any },
+    const env = toChannelEnvironment(body?.environment);
+    await this.prisma.companyChannelConfig.deleteMany({
+      where: { companyId, providerId, environment: env },
     });
     return { deleted: true };
   }
