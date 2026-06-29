@@ -2244,6 +2244,168 @@ export const MY_B2B: FormatFixture = {
 };
 
 // ---------------------------------------------------------------------------
+// Africa fixtures — scaffold
+// ---------------------------------------------------------------------------
+
+export const NG_B2B: FormatFixture = {
+  slug: 'ng-b2b',
+  description: 'Nigerian B2B, FIRS MBS e-invoice',
+  data: {
+    rawNumber: 'NG-INV-2026-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Lagos Tech Solutions Ltd',
+      description: 'IT services',
+      foundedAt: new Date('2015-03-01'),
+      currency: 'NGN',
+      address: '15 Adeola Odeku Street, Victoria Island',
+      city: 'Lagos',
+      postalCode: '101241',
+      country: 'Nigeria',
+      partyIdentifiers: [{ scheme: 'VAT', value: '123456789012' }], // TIN (12 digits)
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Abuja Commerce Ltd',
+      description: 'Commerce',
+      foundedAt: new Date('2010-05-14'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: '22 Wuse Zone 5',
+      city: 'Abuja',
+      postalCode: '900105',
+      country: 'Nigeria',
+      partyIdentifiers: [{ scheme: 'VAT', value: '987654321098' }],
+    },
+    items: [
+      { name: 'Software consulting', quantity: 10, unitPrice: 500000, vatRate: 7.5, type: 'SERVICE' },
+      { name: 'Annual support', quantity: 12, unitPrice: 150000, vatRate: 7.5, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+export const KE_B2B: FormatFixture = {
+  slug: 'ke-b2b',
+  description: 'Kenyan B2B, KRA eTIMS VSCU invoice',
+  data: {
+    rawNumber: 'KE-INV-2026-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Nairobi Digital Services Ltd',
+      description: 'IT services',
+      foundedAt: new Date('2016-07-01'),
+      currency: 'KES',
+      address: 'Westlands Business Park',
+      city: 'Nairobi',
+      postalCode: '00100',
+      country: 'Kenya',
+      partyIdentifiers: [{ scheme: 'VAT', value: 'A000000000A' }], // KRA PIN (11 chars)
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Mombasa Trading Co Ltd',
+      description: 'Trading',
+      foundedAt: new Date('2008-02-20'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: '10 Nkrumah Road',
+      city: 'Mombasa',
+      postalCode: '80100',
+      country: 'Kenya',
+      partyIdentifiers: [{ scheme: 'VAT', value: 'A111111111A' }],
+    },
+    items: [
+      { name: 'Cloud services', quantity: 12, unitPrice: 50000, vatRate: 16, type: 'SERVICE' },
+      { name: 'Training', quantity: 5, unitPrice: 20000, vatRate: 16, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+export const GH_B2B: FormatFixture = {
+  slug: 'gh-b2b',
+  description: 'Ghanaian B2B, GRA E-VAT invoice',
+  data: {
+    rawNumber: 'GH-INV-2026-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Accra Tech Ltd',
+      description: 'IT services',
+      foundedAt: new Date('2017-01-10'),
+      currency: 'GHS',
+      address: 'Independence Avenue, Accra',
+      city: 'Accra',
+      postalCode: 'GA-184-0000',
+      country: 'Ghana',
+      partyIdentifiers: [{ scheme: 'VAT', value: 'GHA-000000001-1' }],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Kumasi Industries Ltd',
+      description: 'Manufacturing',
+      foundedAt: new Date('2005-06-30'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Asokwa Industrial Area',
+      city: 'Kumasi',
+      postalCode: 'AK-123-0000',
+      country: 'Ghana',
+      partyIdentifiers: [{ scheme: 'VAT', value: 'GHA-000000002-2' }],
+    },
+    items: [
+      { name: 'IT consultancy', quantity: 20, unitPrice: 5000, vatRate: 12.5, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+export const RW_B2B: FormatFixture = {
+  slug: 'rw-b2b',
+  description: 'Rwandan B2B, RRA EBM invoice',
+  data: {
+    rawNumber: 'RW-INV-2026-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Kigali Digital Ltd',
+      description: 'IT services',
+      foundedAt: new Date('2018-04-01'),
+      currency: 'RWF',
+      address: 'KN 4 Ave, Nyarugenge',
+      city: 'Kigali',
+      postalCode: '',
+      country: 'Rwanda',
+      partyIdentifiers: [{ scheme: 'VAT', value: '100123456' }], // RRA TIN 9 digits
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Musanze Commerce Ltd',
+      description: 'Trading',
+      foundedAt: new Date('2012-09-15'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Musanze District',
+      city: 'Musanze',
+      postalCode: '',
+      country: 'Rwanda',
+      partyIdentifiers: [{ scheme: 'VAT', value: '100987654' }],
+    },
+    items: [
+      { name: 'Software license', quantity: 5, unitPrice: 200000, vatRate: 18, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// ---------------------------------------------------------------------------
 // All fixtures — ordered for the harness
 // ---------------------------------------------------------------------------
 export const FIXTURES: FormatFixture[] = [

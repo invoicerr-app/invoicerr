@@ -48,6 +48,10 @@ import {
   PK_B2B,
   VN_B2B,
   MY_B2B,
+  NG_B2B,
+  KE_B2B,
+  GH_B2B,
+  RW_B2B,
   FormatFixture,
 } from './__fixtures__/invoices';
 
@@ -914,6 +918,87 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('C12345678900')) errors.push('missing seller TIN');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
       results.push({ fixture: fixture.slug, format: 'my-invois', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Africa — scaffold formats (structural / gate-vivant tests)
+  // ---------------------------------------------------------------------------
+
+  describe('Nigeria FIRS MBS (NG)', () => {
+    const fixture = NG_B2B;
+    it(`${fixture.slug} → national-xml NG`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'NG');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('FirsInvoice')) errors.push('missing FirsInvoice root');
+      if (!xml.includes('Supplier')) errors.push('missing Supplier');
+      if (!xml.includes('Buyer')) errors.push('missing Buyer');
+      if (!xml.includes('Lines')) errors.push('missing Lines');
+      if (!xml.includes('Totals')) errors.push('missing Totals');
+      if (!xml.includes('7.5')) errors.push('missing VAT rate (7.5%)');
+      if (!xml.includes('123456789012')) errors.push('missing seller TIN');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'ng-firs', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Kenya KRA eTIMS (KE)', () => {
+    const fixture = KE_B2B;
+    it(`${fixture.slug} → national-xml KE`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'KE');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('ETimsInvoice')) errors.push('missing ETimsInvoice root');
+      if (!xml.includes('Supplier')) errors.push('missing Supplier');
+      if (!xml.includes('Buyer')) errors.push('missing Buyer');
+      if (!xml.includes('Items')) errors.push('missing Items');
+      if (!xml.includes('Totals')) errors.push('missing Totals');
+      if (!xml.includes('A000000000A')) errors.push('missing seller TPIN');
+      if (!xml.includes('Receipt')) errors.push('missing Receipt block');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'ke-etims', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Ghana GRA E-VAT (GH)', () => {
+    const fixture = GH_B2B;
+    it(`${fixture.slug} → national-xml GH`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'GH');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('EvatInvoice')) errors.push('missing EvatInvoice root');
+      if (!xml.includes('Seller')) errors.push('missing Seller');
+      if (!xml.includes('Buyer')) errors.push('missing Buyer');
+      if (!xml.includes('Lines')) errors.push('missing Lines');
+      if (!xml.includes('Totals')) errors.push('missing Totals');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'gh-evat', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Rwanda RRA EBM (RW)', () => {
+    const fixture = RW_B2B;
+    it(`${fixture.slug} → national-xml RW`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'RW');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('EbmInvoice')) errors.push('missing EbmInvoice root');
+      if (!xml.includes('Seller')) errors.push('missing Seller');
+      if (!xml.includes('Buyer')) errors.push('missing Buyer');
+      if (!xml.includes('Lines')) errors.push('missing Lines');
+      if (!xml.includes('Totals')) errors.push('missing Totals');
+      if (!xml.includes('100123456')) errors.push('missing seller TIN');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'rw-ebm', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
       expect(errors).toEqual([]);
     });
   });
