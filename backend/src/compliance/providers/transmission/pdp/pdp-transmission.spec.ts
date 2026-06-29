@@ -25,11 +25,11 @@ function mockCredentials(resolved: ResolvedChannelConfig | null): ChannelCredent
   };
 }
 
-const FACTURX_ARTIFACT: SignedArtifact = {
+const CII_ARTIFACT: SignedArtifact = {
   role: 'AUTHORITATIVE',
-  syntax: 'FACTURX',
-  mime: 'application/pdf',
-  bytes: Buffer.from('%PDF-1.4 fake factur-x content', 'utf8'),
+  syntax: 'EN16931_CII',
+  mime: 'application/xml',
+  bytes: Buffer.from('<?xml version="1.0"?><CrossIndustryInvoice xmlns="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"/>', 'utf8'),
 };
 
 function makeCtx(companyId: string): TransactionContext {
@@ -78,7 +78,7 @@ describe('PDP transmission — credential flow', () => {
     const log = new RecordingComplianceLogger();
 
     const result = await reg.transmitAll(
-      [FACTURX_ARTIFACT],
+      [CII_ARTIFACT],
       makeCtx(COMPANY_ID),
       { channels: [{ type: 'PDP', providerId: 'pdp' }] } as any,
       'test-key',
@@ -98,7 +98,7 @@ describe('PDP transmission — credential flow', () => {
 
     // The transmit will fail (no real API) but we verify config WAS passed
     const result = await reg.transmitAll(
-      [FACTURX_ARTIFACT],
+      [CII_ARTIFACT],
       makeCtx(COMPANY_ID),
       { channels: [{ type: 'PDP', providerId: 'pdp' }] } as any,
       'test-key',
@@ -111,7 +111,7 @@ describe('PDP transmission — credential flow', () => {
     expect(result[0].notes.join(' ')).not.toMatch(/not configured for company/);
   });
 
-  it('transmit() returns SKIPPED when no FACTURX artifact is provided', async () => {
+  it('transmit() returns SKIPPED when no CII or FACTURX artifact is provided', async () => {
     const credentials = mockCredentials(makeResolvedConfig());
     const reg = new TransmissionProviderRegistry({ credentials });
     const log = new RecordingComplianceLogger();
@@ -126,7 +126,7 @@ describe('PDP transmission — credential flow', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].status).toBe('SKIPPED');
-    expect(result[0].notes.join(' ')).toMatch(/no FACTURX artifact/);
+    expect(result[0].notes.join(' ')).toMatch(/no CII or FACTURX artifact/);
   });
 
   it('transmit() returns SKIPPED when config is incomplete', async () => {
@@ -135,7 +135,7 @@ describe('PDP transmission — credential flow', () => {
     const log = new RecordingComplianceLogger();
 
     const result = await reg.transmitAll(
-      [FACTURX_ARTIFACT],
+      [CII_ARTIFACT],
       makeCtx(COMPANY_ID),
       { channels: [{ type: 'PDP', providerId: 'pdp' }] } as any,
       'test-key',

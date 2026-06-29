@@ -98,10 +98,11 @@ export class PdpTransmissionProvider implements TransmissionProvider {
       return { channel: 'PDP', status: 'SKIPPED', notes: ['pdp: incomplete config (baseUrl, clientId, clientSecret required)'] };
     }
 
-    // Find the Factur-X artifact (PDF/A-3 hybrid — the FR format)
-    const facturxArtifact = artifacts.find((a) => a.syntax === 'FACTURX');
+    // Prefer EN16931_CII (raw CII XML for CTC) over FACTURX (may be PDF/A-3)
+    const ciiArtifact = artifacts.find((a) => a.syntax === 'EN16931_CII');
+    const facturxArtifact = ciiArtifact ?? artifacts.find((a) => a.syntax === 'FACTURX');
     if (!facturxArtifact) {
-      return { channel: 'PDP', status: 'SKIPPED', notes: ['pdp: no FACTURX artifact'] };
+      return { channel: 'PDP', status: 'SKIPPED', notes: ['pdp: no CII or FACTURX artifact'] };
     }
 
     const companyId = ctx.supplierCompanyId;

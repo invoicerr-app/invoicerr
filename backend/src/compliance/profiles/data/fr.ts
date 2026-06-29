@@ -43,8 +43,8 @@ export const FR: CountryComplianceProfile = {
 		{
 			validFrom: "1900-01-01",
 			value: {
-				primary: { syntax: "FACTURX" }, // hybrid PDF/A-3 + CII — produced by @e-invoice-eu/core
-				human: { syntax: "PDF_A3" },
+				primary: { syntax: "EN16931_CII" }, // CII XML → submitted to PDP (CTC post-processing applies)
+				human: { syntax: "FACTURX" },        // PDF/A-3 hybrid → delivered to buyers/humans
 				buyerNegotiable: true,
 			},
 		},
