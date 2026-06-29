@@ -1836,6 +1836,414 @@ export const BO_B2B: FormatFixture = {
 };
 
 // ---------------------------------------------------------------------------
+// Asia fixtures — §1.3 scaffold (format builders, portal tests) — live-deferred
+// ---------------------------------------------------------------------------
+
+// Fixture: ID B2B — Indonesia e-Faktur (DGT Coretax)
+export const ID_B2B: FormatFixture = {
+  slug: 'id-b2b',
+  description: 'Indonesian B2B, e-Faktur (DGT Coretax)',
+  data: {
+    rawNumber: 'FP-0000001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'PT Teknologi Nusantara',
+      description: 'Software services',
+      foundedAt: new Date('2015-03-10'),
+      currency: 'IDR',
+      address: 'Jl. Sudirman No. 100',
+      city: 'Jakarta',
+      postalCode: '10220',
+      country: 'Indonesia',
+      partyIdentifiers: [{ scheme: 'VAT', value: '012345678901234' }],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'PT Mitra Usaha Bersama',
+      description: 'Trading',
+      foundedAt: new Date('2010-06-15'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Jl. Gatot Subroto 200',
+      city: 'Jakarta',
+      postalCode: '12930',
+      country: 'Indonesia',
+      partyIdentifiers: [{ scheme: 'VAT', value: '987654321098765' }],
+    },
+    items: [
+      { name: 'Jasa pengembangan perangkat lunak', quantity: 100, unitPrice: 500000, vatRate: 11, type: 'SERVICE' },
+      { name: 'Lisensi tahunan', quantity: 5, unitPrice: 2000000, vatRate: 11, type: 'GOODS' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture: TW B2B — Taiwan eGUI (MoF)
+export const TW_B2B: FormatFixture = {
+  slug: 'tw-b2b',
+  description: 'Taiwanese B2B, eGUI unified invoice (MoF)',
+  data: {
+    rawNumber: 'TW-INV-2025-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: '台灣科技股份有限公司',
+      description: 'IT services',
+      foundedAt: new Date('2012-09-01'),
+      currency: 'TWD',
+      address: '台北市信義區松仁路100號',
+      city: 'Taipei',
+      postalCode: '110',
+      country: 'Taiwan',
+      partyIdentifiers: [{ scheme: 'VAT', value: '12345678' }], // 統一編號 (8 digits)
+    },
+    client: {
+      type: 'COMPANY',
+      name: '美商進口貿易有限公司',
+      description: 'Import/export',
+      foundedAt: new Date('2008-04-20'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: '台北市大安區仁愛路300號',
+      city: 'Taipei',
+      postalCode: '106',
+      country: 'Taiwan',
+      partyIdentifiers: [{ scheme: 'VAT', value: '87654321' }],
+    },
+    items: [
+      { name: '軟體開發服務', quantity: 50, unitPrice: 20000, vatRate: 5, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture: KZ B2B — Kazakhstan IS ESF
+export const KZ_B2B: FormatFixture = {
+  slug: 'kz-b2b',
+  description: 'Kazakhstani B2B, IS ESF electronic invoice',
+  data: {
+    rawNumber: 'КЗ-ЭСФ-2025-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'ТОО "ИТ Решения Казахстан"',
+      description: 'IT services',
+      foundedAt: new Date('2014-05-20'),
+      currency: 'KZT',
+      address: 'пр. Республики 45',
+      city: 'Astana',
+      postalCode: '010000',
+      country: 'Kazakhstan',
+      partyIdentifiers: [{ scheme: 'VAT', value: '123456789012' }], // БИН 12 digits
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'АО "Казахстанский Банк"',
+      description: 'Financial services',
+      foundedAt: new Date('2005-11-01'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'ул. Бейбитшилик 20',
+      city: 'Astana',
+      postalCode: '010000',
+      country: 'Kazakhstan',
+      partyIdentifiers: [{ scheme: 'VAT', value: '987654321098' }],
+    },
+    items: [
+      { name: 'Разработка программного обеспечения', quantity: 200, unitPrice: 15000, vatRate: 12, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture: PH B2B — Philippines BIR EIS
+export const PH_B2B: FormatFixture = {
+  slug: 'ph-b2b',
+  description: 'Philippine B2B, BIR EIS e-invoice',
+  data: {
+    rawNumber: 'PH-INV-2025-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Philippine Tech Solutions Inc.',
+      description: 'IT services',
+      foundedAt: new Date('2016-02-14'),
+      currency: 'PHP',
+      address: '123 Ayala Avenue, Makati City',
+      city: 'Makati',
+      postalCode: '1226',
+      country: 'Philippines',
+      partyIdentifiers: [{ scheme: 'VAT', value: '123456789012' }], // TIN (12 digits)
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Manila Commerce Corporation',
+      description: 'Trading',
+      foundedAt: new Date('2009-08-30'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: '456 Rizal Avenue, Manila',
+      city: 'Manila',
+      postalCode: '1000',
+      country: 'Philippines',
+      partyIdentifiers: [{ scheme: 'VAT', value: '987654321098' }],
+    },
+    items: [
+      { name: 'Software development services', quantity: 150, unitPrice: 3000, vatRate: 12, type: 'SERVICE' },
+      { name: 'Annual support contract', quantity: 1, unitPrice: 120000, vatRate: 12, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture: TH B2B — Thailand RD e-Tax Invoice
+export const TH_B2B: FormatFixture = {
+  slug: 'th-b2b',
+  description: 'Thai B2B, RD e-Tax Invoice',
+  data: {
+    rawNumber: 'TH-ETX-2025-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'บริษัท ไทยเทคโนโลยี จำกัด',
+      description: 'IT services',
+      foundedAt: new Date('2013-07-01'),
+      currency: 'THB',
+      address: '88 Wireless Road',
+      city: 'Bangkok',
+      postalCode: '10330',
+      country: 'Thailand',
+      partyIdentifiers: [{ scheme: 'VAT', value: '1234567890123' }], // เลขประจำตัวผู้เสียภาษี (13 digits)
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'บริษัท พาณิชย์ไทย จำกัด',
+      description: 'Commerce',
+      foundedAt: new Date('2007-11-15'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: '200 Silom Road',
+      city: 'Bangkok',
+      postalCode: '10500',
+      country: 'Thailand',
+      partyIdentifiers: [{ scheme: 'VAT', value: '9876543210987' }],
+    },
+    items: [
+      { name: 'Software development', quantity: 80, unitPrice: 5000, vatRate: 7, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture: NP B2B — Nepal IRD CBMS
+export const NP_B2B: FormatFixture = {
+  slug: 'np-b2b',
+  description: 'Nepali B2B, IRD CBMS e-invoice',
+  data: {
+    rawNumber: 'NP-INV-2025-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Nepal IT Services Pvt Ltd',
+      description: 'Software services',
+      foundedAt: new Date('2017-04-10'),
+      currency: 'NPR',
+      address: 'New Baneshwor, Kathmandu',
+      city: 'Kathmandu',
+      postalCode: '44600',
+      country: 'Nepal',
+      partyIdentifiers: [{ scheme: 'VAT', value: '123456789' }], // PAN (9 digits)
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Himalayan Trade House',
+      description: 'Trading',
+      foundedAt: new Date('2011-09-25'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Thamel, Kathmandu',
+      city: 'Kathmandu',
+      postalCode: '44600',
+      country: 'Nepal',
+      partyIdentifiers: [{ scheme: 'VAT', value: '987654321' }],
+    },
+    items: [
+      { name: 'IT consultancy', quantity: 20, unitPrice: 10000, vatRate: 13, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture: BD B2B — Bangladesh NBR e-invoice
+export const BD_B2B: FormatFixture = {
+  slug: 'bd-b2b',
+  description: 'Bangladeshi B2B, NBR e-invoice',
+  data: {
+    rawNumber: 'BD-INV-2025-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Dhaka Software Limited',
+      description: 'IT services',
+      foundedAt: new Date('2014-10-01'),
+      currency: 'BDT',
+      address: 'Tejgaon, Dhaka-1208',
+      city: 'Dhaka',
+      postalCode: '1208',
+      country: 'Bangladesh',
+      partyIdentifiers: [{ scheme: 'VAT', value: '123456789' }], // BIN (9 digits)
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Chittagong Commerce Ltd',
+      description: 'Commerce',
+      foundedAt: new Date('2008-05-20'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: '42 Agrabad, Chittagong',
+      city: 'Chittagong',
+      postalCode: '4100',
+      country: 'Bangladesh',
+      partyIdentifiers: [{ scheme: 'VAT', value: '987654321' }],
+    },
+    items: [
+      { name: 'Software services', quantity: 10, unitPrice: 50000, vatRate: 15, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture: PK B2B — Pakistan FBR XIR
+export const PK_B2B: FormatFixture = {
+  slug: 'pk-b2b',
+  description: 'Pakistani B2B, FBR XIR e-invoice',
+  data: {
+    rawNumber: 'PK-FBR-2025-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Karachi Tech Solutions (Pvt) Ltd',
+      description: 'IT services',
+      foundedAt: new Date('2016-01-15'),
+      currency: 'PKR',
+      address: 'I.I. Chundrigar Road, Karachi',
+      city: 'Karachi',
+      postalCode: '74000',
+      country: 'Pakistan',
+      partyIdentifiers: [{ scheme: 'VAT', value: '1234567' }], // STRN
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Lahore Industries Ltd',
+      description: 'Manufacturing',
+      foundedAt: new Date('2009-07-22'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Gulberg III, Lahore',
+      city: 'Lahore',
+      postalCode: '54660',
+      country: 'Pakistan',
+      partyIdentifiers: [{ scheme: 'VAT', value: '7654321' }],
+    },
+    items: [
+      { name: 'Software development', quantity: 100, unitPrice: 8000, vatRate: 18, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture: VN B2B — Vietnam TT78 e-invoice
+export const VN_B2B: FormatFixture = {
+  slug: 'vn-b2b',
+  description: 'Vietnamese B2B, TT78/Decree-123 e-invoice',
+  data: {
+    rawNumber: 'VN-HD-2025-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Công ty TNHH Công nghệ Việt',
+      description: 'IT services',
+      foundedAt: new Date('2015-06-01'),
+      currency: 'VND',
+      address: '100 Nguyễn Huệ, Quận 1',
+      city: 'Ho Chi Minh City',
+      postalCode: '700000',
+      country: 'Vietnam',
+      partyIdentifiers: [{ scheme: 'VAT', value: '0123456789' }], // MST (10 digits)
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Công ty Cổ phần Thương mại Hà Nội',
+      description: 'Trading',
+      foundedAt: new Date('2009-03-14'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: '50 Trần Hưng Đạo, Hoàn Kiếm',
+      city: 'Hanoi',
+      postalCode: '100000',
+      country: 'Vietnam',
+      partyIdentifiers: [{ scheme: 'VAT', value: '0987654321' }],
+    },
+    items: [
+      { name: 'Phát triển phần mềm', quantity: 120, unitPrice: 1000000, vatRate: 10, type: 'SERVICE' },
+      { name: 'Bảo trì hệ thống', quantity: 12, unitPrice: 5000000, vatRate: 10, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture: MY B2B — Malaysia MyInvois (UBL 2.1)
+export const MY_B2B: FormatFixture = {
+  slug: 'my-b2b',
+  description: 'Malaysian B2B, MyInvois UBL 2.1',
+  data: {
+    rawNumber: 'MY-INV-2025-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Tech Malaysia Sdn Bhd',
+      description: 'IT services',
+      foundedAt: new Date('2013-11-01'),
+      currency: 'MYR',
+      address: 'Level 10, Menara Kuala Lumpur',
+      city: 'Kuala Lumpur',
+      postalCode: '50350',
+      country: 'Malaysia',
+      partyIdentifiers: [{ scheme: 'VAT', value: 'C12345678900' }], // TIN (C + 11 digits)
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Buyer Enterprise Sdn Bhd',
+      description: 'Commerce',
+      foundedAt: new Date('2007-08-15'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Jalan Ampang, KL',
+      city: 'Kuala Lumpur',
+      postalCode: '50450',
+      country: 'Malaysia',
+      partyIdentifiers: [{ scheme: 'VAT', value: 'C98765432100' }],
+    },
+    items: [
+      { name: 'Software development', quantity: 50, unitPrice: 5000, vatRate: 8, type: 'SERVICE' },
+      { name: 'Annual maintenance', quantity: 12, unitPrice: 2000, vatRate: 8, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// ---------------------------------------------------------------------------
 // All fixtures — ordered for the harness
 // ---------------------------------------------------------------------------
 export const FIXTURES: FormatFixture[] = [

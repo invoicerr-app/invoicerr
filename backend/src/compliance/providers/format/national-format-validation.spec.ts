@@ -38,6 +38,16 @@ import {
   SV_B2B,
   VE_B2B,
   BO_B2B,
+  ID_B2B,
+  TW_B2B,
+  KZ_B2B,
+  PH_B2B,
+  TH_B2B,
+  NP_B2B,
+  BD_B2B,
+  PK_B2B,
+  VN_B2B,
+  MY_B2B,
   FormatFixture,
 } from './__fixtures__/invoices';
 
@@ -716,6 +726,194 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('nitEmisor')) errors.push('missing nitEmisor');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
       results.push({ fixture: fixture.slug, format: 'bo-fe', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Asia — scaffold formats (structural / gate-vivant tests)
+  // ---------------------------------------------------------------------------
+
+  describe('Indonesia e-Faktur (ID)', () => {
+    const fixture = ID_B2B;
+    it(`${fixture.slug} → national-xml ID`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'ID');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('FakturPajak')) errors.push('missing FakturPajak root');
+      if (!xml.includes('Penjual')) errors.push('missing Penjual (seller)');
+      if (!xml.includes('Pembeli')) errors.push('missing Pembeli (buyer)');
+      if (!xml.includes('BarangJasa')) errors.push('missing BarangJasa (items)');
+      if (!xml.includes('PPN')) errors.push('missing PPN (tax)');
+      if (!xml.includes('012345678901234')) errors.push('missing seller NPWP');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'id-efaktur', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Taiwan eGUI (TW)', () => {
+    const fixture = TW_B2B;
+    it(`${fixture.slug} → national-xml TW`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'TW');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('Invoice')) errors.push('missing Invoice root');
+      if (!xml.includes('SellerID')) errors.push('missing SellerID');
+      if (!xml.includes('BuyerID')) errors.push('missing BuyerID');
+      if (!xml.includes('SalesAmount')) errors.push('missing SalesAmount');
+      if (!xml.includes('12345678')) errors.push('missing seller tax ID (統一編號)');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'tw-egui', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Kazakhstan IS ESF (KZ)', () => {
+    const fixture = KZ_B2B;
+    it(`${fixture.slug} → national-xml KZ`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'KZ');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('ESF')) errors.push('missing ESF root');
+      if (!xml.includes('Supplier')) errors.push('missing Supplier');
+      if (!xml.includes('Recipient')) errors.push('missing Recipient');
+      if (!xml.includes('Products')) errors.push('missing Products');
+      if (!xml.includes('123456789012')) errors.push('missing seller BIN');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'kz-esf', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Philippines BIR EIS (PH)', () => {
+    const fixture = PH_B2B;
+    it(`${fixture.slug} → national-xml PH`, async () => {
+      const out = await service.buildNationalXml(fixture.data, 'PH');
+      expect(typeof out).toBe('string');
+      expect(out.length).toBeGreaterThan(50);
+      const errors: string[] = [];
+      // PH EIS uses JSON wrapped in a comment
+      if (!out.includes('sellerTIN')) errors.push('missing sellerTIN');
+      if (!out.includes('sellerName')) errors.push('missing sellerName');
+      if (!out.includes('buyerTIN')) errors.push('missing buyerTIN');
+      if (!out.includes('items')) errors.push('missing items');
+      if (!out.includes('123456789012')) errors.push('missing seller TIN');
+      if (!out.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'ph-eis', xmlLength: out.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Thailand RD e-Tax Invoice (TH)', () => {
+    const fixture = TH_B2B;
+    it(`${fixture.slug} → national-xml TH`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'TH');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('TaxInvoice')) errors.push('missing TaxInvoice root');
+      if (!xml.includes('Seller')) errors.push('missing Seller');
+      if (!xml.includes('Buyer')) errors.push('missing Buyer');
+      if (!xml.includes('LineItems')) errors.push('missing LineItems');
+      if (!xml.includes('1234567890123')) errors.push('missing seller TIN');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'th-etax', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Nepal IRD CBMS (NP)', () => {
+    const fixture = NP_B2B;
+    it(`${fixture.slug} → national-xml NP`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'NP');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('CBMSInvoice')) errors.push('missing CBMSInvoice root');
+      if (!xml.includes('Taxpayer')) errors.push('missing Taxpayer');
+      if (!xml.includes('Customer')) errors.push('missing Customer');
+      if (!xml.includes('Items')) errors.push('missing Items');
+      if (!xml.includes('123456789')) errors.push('missing seller PAN');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'np-cbms', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Bangladesh NBR e-invoice (BD)', () => {
+    const fixture = BD_B2B;
+    it(`${fixture.slug} → national-xml BD`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'BD');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('NBRInvoice')) errors.push('missing NBRInvoice root');
+      if (!xml.includes('Supplier')) errors.push('missing Supplier');
+      if (!xml.includes('Recipient')) errors.push('missing Recipient');
+      if (!xml.includes('LineItems')) errors.push('missing LineItems');
+      if (!xml.includes('123456789')) errors.push('missing seller BIN');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'bd-nbr', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Pakistan FBR XIR (PK)', () => {
+    const fixture = PK_B2B;
+    it(`${fixture.slug} → national-xml PK`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'PK');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('FBRInvoice')) errors.push('missing FBRInvoice root');
+      if (!xml.includes('Seller')) errors.push('missing Seller');
+      if (!xml.includes('Buyer')) errors.push('missing Buyer');
+      if (!xml.includes('Items')) errors.push('missing Items');
+      if (!xml.includes('1234567')) errors.push('missing seller STRN');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'pk-fbr', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Vietnam TT78 e-invoice (VN)', () => {
+    const fixture = VN_B2B;
+    it(`${fixture.slug} → national-xml VN`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'VN');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('HDon')) errors.push('missing HDon root');
+      if (!xml.includes('NBan')) errors.push('missing NBan (seller)');
+      if (!xml.includes('NMua')) errors.push('missing NMua (buyer)');
+      if (!xml.includes('DSHHDVu')) errors.push('missing DSHHDVu (items)');
+      if (!xml.includes('0123456789')) errors.push('missing seller MST');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'vn-tt78', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Malaysia MyInvois (MY)', () => {
+    const fixture = MY_B2B;
+    it(`${fixture.slug} → national-xml MY`, async () => {
+      const xml = await service.buildNationalXml(fixture.data, 'MY');
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+      const errors: string[] = [];
+      if (!xml.includes('Invoice')) errors.push('missing Invoice root');
+      if (!xml.includes('cac:AccountingSupplierParty')) errors.push('missing AccountingSupplierParty');
+      if (!xml.includes('cac:AccountingCustomerParty')) errors.push('missing AccountingCustomerParty');
+      if (!xml.includes('cac:TaxTotal')) errors.push('missing TaxTotal');
+      if (!xml.includes('cac:LegalMonetaryTotal')) errors.push('missing LegalMonetaryTotal');
+      if (!xml.includes('cbc:ProfileID')) errors.push('missing ProfileID (LHDNM extension)');
+      if (!xml.includes('C12345678900')) errors.push('missing seller TIN');
+      if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
+      results.push({ fixture: fixture.slug, format: 'my-invois', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
       expect(errors).toEqual([]);
     });
   });
