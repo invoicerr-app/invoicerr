@@ -33,6 +33,17 @@ export const IT: CountryComplianceProfile = {
   taxSystem: { kind: 'VAT', standardRate: 22, reducedRates: [10, 5, 4], schemes: ['STANDARD'] },
 
   lifecycle: [
+    // Pre-SdI: standard post-audit lifecycle — immutable after issue, credit-note corrections.
+    {
+      validFrom: '1900-01-01',
+      validTo: '2019-01-01',
+      value: {
+        immutableAfter: 'ISSUE',
+        correctionModel: 'CREDIT_NOTE',
+        cancellation: { allowed: true, requiresAuthorityAck: false },
+      },
+    },
+    // SdI era: immutable after clearance; AdE acknowledgement required to cancel.
     {
       validFrom: '2019-01-01',
       value: {

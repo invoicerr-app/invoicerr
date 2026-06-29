@@ -34,6 +34,17 @@ export const PL: CountryComplianceProfile = {
   taxSystem: { kind: 'VAT', standardRate: 23, reducedRates: [8, 5, 0], schemes: ['STANDARD'] },
 
   lifecycle: [
+    // Pre-KSeF: standard post-audit lifecycle — immutable after issue, credit-note corrections.
+    {
+      validFrom: '1900-01-01',
+      validTo: '2026-02-01',
+      value: {
+        immutableAfter: 'ISSUE',
+        correctionModel: 'CREDIT_NOTE',
+        cancellation: { allowed: true, requiresAuthorityAck: false },
+      },
+    },
+    // KSeF era: immutable after clearance; only corrective invoices (faktura korygująca); no self-cancel.
     {
       validFrom: '2026-02-01',
       value: {

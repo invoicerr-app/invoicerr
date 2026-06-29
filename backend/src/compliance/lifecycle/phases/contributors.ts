@@ -102,7 +102,10 @@ export class CorrectionsPhase implements PhaseContributor {
   readonly id = 'corrections';
   contributes(plan: CompliancePlan): PhaseFragment {
     const lc = plan.lifecycle;
-    const states: PhaseFragment['states'] = ['CANCELLED', 'CORRECTED'];
+    // Only include CANCELLED in the assembled graph when cancellation is actually allowed —
+    // otherwise the state is unreachable (no transition leads to it) and would be dangling.
+    const states: PhaseFragment['states'] = ['CORRECTED'];
+    if (lc.cancellation?.allowed) states.push('CANCELLED');
     const transitions: PhaseFragment['transitions'] = [];
 
     if (lc.cancellation?.allowed) {
