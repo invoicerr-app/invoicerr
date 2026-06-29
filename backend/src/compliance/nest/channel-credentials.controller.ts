@@ -14,6 +14,9 @@ import { TransmissionProviderRegistry } from '@/compliance/providers/transmissio
 import { ChannelConfigSchema } from '@/compliance/providers/transmission/transmission-provider';
 import { PrismaService } from '@/prisma/prisma.service';
 import { encryptJson, decryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
+import { defaultRegistry } from '@/compliance/profiles/registry';
+import { pickByDate } from '@/compliance/profiles/temporal';
+import { guessCountryCode } from '@/utils/country-name-to-iso';
 
 interface ChannelConfigResponse {
   providerId: string;
@@ -77,6 +80,81 @@ export class ChannelCredentialsController {
       feedback: p.feedback ?? 'NONE',
       configSchema: p.configSchema ?? null,
     }));
+  }
+
+  /**
+   * GET /compliance/companies/:id/required-channels
+   * Resolves the company's country → its compliance profile → currently-active transmission channels.
+   * Returns each required channel with provider metadata, configSchema, and whether it's configured.
+   */
+  @Get('companies/:id/required-channels')
+  @ApiOperation({
+    summary: 'Required channels for a company',
+    description: "Resolves the company's country compliance profile and returns the required transmission channels with their configuration status.",
+  })
+  @ApiParam({ name: 'id', type: String, description: 'Company ID' })
+  @ApiResponse({ status: 200, description: 'Required channels retrieved' })
+  async getRequiredChannels(@Param('id') companyId: string) {
+    // 1. Resolve company country
+    const company = await (this.prisma as any).company.findUnique({
+      where: { id: companyId },
+      select: { countryCode: true, country: true },
+    });
+    if (!company) {
+      throw new HttpException('Company not found', HttpStatus.NOT_FOUND);
+    }
+
+    const countryCode = company.countryCode ?? guessCountryCode(company.country) ?? 'XX';
+
+    // 2. Resolve compliance profile
+    const { profile } = defaultRegistry.resolve(countryCode);
+
+    // 3. Get active transmission channels
+    const now = new Date();
+    const transmissionRule = pickByDate(profile.transmission ?? [], now);
+    const channels = transmissionRule?.channels ?? [];
+
+    // 4. Fetch existing configs for this company
+    const existingConfigs: any[] = await (this.prisma as any).companyChannelConfig.findMany({
+      where: { companyId },
+    });
+    const configMap = new Map<string, any>();
+    for (const cfg of existingConfigs) {
+      configMap.set(cfg.providerId, cfg);
+    }
+
+    // 5. Build response
+    return channels.map((spec) => {
+      const provider = spec.providerId
+        ? this.txRegistry.getById(spec.providerId)
+        : this.txRegistry.get(spec.type);
+      const providerId = spec.providerId ?? provider?.id ?? spec.type.toLowerCase();
+
+      const existing = configMap.get(providerId);
+      let maskedConfig: Record<string, unknown> | null = null;
+      if (existing) {
+        try {
+          const decrypted = decryptJson<Record<string, unknown>>(existing.config);
+          maskedConfig = maskSecrets(decrypted, provider?.configSchema);
+        } catch {
+          maskedConfig = {};
+        }
+      }
+
+      return {
+        type: spec.type,
+        providerId,
+        provider: provider ? {
+          id: provider.id,
+          channel: provider.channel,
+          feedback: provider.feedback ?? 'NONE',
+          configSchema: provider.configSchema ?? null,
+        } : null,
+        isConfigured: !!existing?.isActive,
+        environment: existing?.environment ?? null,
+        config: maskedConfig,
+      };
+    });
   }
 
   /**
