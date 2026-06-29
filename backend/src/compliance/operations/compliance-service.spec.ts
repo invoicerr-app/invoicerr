@@ -176,7 +176,7 @@ describe('ComplianceService — reporting, payment, archive', () => {
     const paid = await service.markPaid(document.id, { paidAt: '2027-02-01T00:00:00.000Z' });
     expect(paid.events.some((e) => e.type === 'PAID')).toBe(true);
     expect(paid.events.some((e) => e.type === 'STATUS:encaissée')).toBe(true);
-    expect(log.hasScope('reporting/e-reporting')).toBe(true);
+    expect(log.hasScope('reporting/E_REPORTING')).toBe(true);
   });
 
   it('archives the document and reports a receipt', async () => {
@@ -304,7 +304,7 @@ describe('ComplianceService — outgoing lifecycle status (sendStatus)', () => {
     const { document } = await service.issueAndSend(ctx('FR', 'FR', 'B2C', 'SERVICES', '2027-01-15'));
     const paid = await service.markPaid(document.id, { paidAt: '2027-02-01T00:00:00.000Z' });
     expect(paid.events.some((e) => e.type === 'STATUS:encaissée')).toBe(true);
-    expect(log.hasScope('reporting/e-reporting')).toBe(true);
+    expect(log.hasScope('reporting/E_REPORTING')).toBe(true);
     expect(log.hasScope('transmission/pdp')).toBe(true);
   });
 });

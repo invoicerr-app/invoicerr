@@ -134,6 +134,6 @@ describe('ComplianceExecutor — Mexico (blocking clearance)', () => {
 describe('ComplianceExecutor — reporting side-effects', () => {
   it('FR→IT B2B services queues the EC Sales List', async () => {
     const { log } = await run(tx('FR', 'IT', 'B2B', 'SERVICES', '2027-01-15'));
-    expect(log.hasScope('reporting/ec-sales-list')).toBe(true);
+    expect(log.hasScope('reporting/EC_SALES_LIST')).toBe(true);
   });
 });
