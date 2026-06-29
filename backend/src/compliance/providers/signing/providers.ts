@@ -6,8 +6,12 @@
  *  - If no credential is resolved, the artifact is returned unsigned with a warn log.
  *  - No ASN.1 or crypto primitives are hand-rolled — only maintained libraries are used.
  *
- * TSA / -T / -LT / -LTA timestamps are stubbed: the code is structured to accept a
- * TSA URL (see tsa hook comments) but does not call an external timestamp server.
+ * Signature levels (§2):
+ *  BES  — Basic signature.  Default; byte-identical to the previous behaviour.
+ *  T    — Adds an RFC 3161 SignatureTimeStamp via the injected TsaPort.
+ *  LT/LTA — Accepted but treated as T until revocation embedding is implemented (documented seam).
+ *
+ * TSA is opt-in: passing no TsaPort (or NullTsaClient) always produces BES output.
  */
 import * as forge from 'node-forge';
 import { Application as XmldsigApp, Parse as XmlParse } from 'xmldsigjs';
@@ -21,12 +25,27 @@ import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
 
 import { ComplianceLogger } from '../../execution/logger';
 import { RenderedArtifact, SignedArtifact } from '../../execution/types';
-import { SignAlgo, SigningProvider } from './signing-provider';
+import { SignAlgo, SignatureLevel, SigningProvider } from './signing-provider';
 import {
   NullSigningCredentials,
   SigningCredentialsMaterial,
   SigningCredentialsPort,
 } from './signing-credentials-port';
+import { NullTsaClient, SHA256_OID, TsaPort } from './tsa-client';
+
+/** Options shared by all timestamp-capable providers. */
+export interface TimestampOptions {
+  /**
+   * Desired signature level.  Default: 'BES' (no timestamp).
+   * LT / LTA are accepted but treated as T until revocation material embedding is added.
+   */
+  signatureLevel?: SignatureLevel;
+  /**
+   * TSA client to use for -T level.  Default: NullTsaClient (offline-safe).
+   * When null/absent the provider always produces BES-level output.
+   */
+  tsa?: TsaPort;
+}
 
 // ---------------------------------------------------------------------------
 // One-time DOM + WebCrypto engine setup for xmldsigjs / xadesjs.
@@ -91,13 +110,137 @@ async function importPublicKeyFromCertDer(certDer: Buffer): Promise<CryptoKey> {
 }
 
 // ---------------------------------------------------------------------------
+// RFC 3161 timestamp embedding helpers
+// ---------------------------------------------------------------------------
+
+/** XAdES namespace URI (ETSI EN 319 132 / TS 101 903 v1.3.2) */
+const XADES_NS = 'http://uri.etsi.org/01903/v1.3.2#';
+/** CAdES id-aa-signatureTimeStampToken OID (RFC 5652 / ETSI EN 319 122) */
+const CADES_TIMESTAMP_OID = '1.2.840.113549.1.9.16.2.14';
+
+/**
+ * XAdES-T: insert a SignatureTimeStamp into the QualifyingProperties of an already-signed XML.
+ * The timestamp covers the SHA-256 hash of the raw (base64-decoded) ds:SignatureValue bytes,
+ * per ETSI EN 319 132 §5.5.
+ *
+ * Returns the original xmlString unchanged when the TSA returns null (BES fall-through).
+ */
+async function applyTimestampXades(xmlString: string, tsa: TsaPort): Promise<string> {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlString, 'text/xml');
+
+  const sigValues = doc.getElementsByTagNameNS('http://www.w3.org/2000/09/xmldsig#', 'SignatureValue');
+  if (sigValues.length === 0) return xmlString;
+
+  const sigValueB64 = (sigValues[0].textContent ?? '').replace(/\s/g, '');
+  const sigValueBytes = Buffer.from(sigValueB64, 'base64');
+
+  const digestAb = await crypto.subtle.digest('SHA-256', sigValueBytes);
+  const tst = await tsa.timestamp(Buffer.from(digestAb), SHA256_OID);
+  if (!tst) return xmlString; // TSA unavailable → BES fall-through
+
+  // Find the xades:QualifyingProperties element to append UnsignedProperties to.
+  const qualifyingProps = doc.getElementsByTagNameNS(XADES_NS, 'QualifyingProperties');
+  if (qualifyingProps.length === 0) return xmlString;
+
+  const qp = qualifyingProps[0];
+
+  const unsignedProps = doc.createElementNS(XADES_NS, 'xades:UnsignedProperties');
+  const unsignedSigProps = doc.createElementNS(XADES_NS, 'xades:UnsignedSignatureProperties');
+  const sigTimestamp = doc.createElementNS(XADES_NS, 'xades:SignatureTimeStamp');
+  const encapsulated = doc.createElementNS(XADES_NS, 'xades:EncapsulatedTimeStamp');
+
+  encapsulated.textContent = tst.toString('base64');
+  sigTimestamp.appendChild(encapsulated);
+  unsignedSigProps.appendChild(sigTimestamp);
+  unsignedProps.appendChild(unsignedSigProps);
+  qp.appendChild(unsignedProps);
+
+  return new XMLSerializer().serializeToString(doc);
+}
+
+/**
+ * CAdES-T: append an id-aa-signatureTimeStampToken unsigned attribute to the SignerInfo
+ * of an already-signed PKCS#7 / CAdES-BES DER buffer.
+ * The timestamp covers the SHA-256 hash of the SignerInfo.signature (OCTET STRING) bytes,
+ * per ETSI EN 319 122 §5.5.
+ *
+ * Returns the original p7mDer unchanged when the TSA returns null (BES fall-through).
+ */
+async function applyTimestampCades(p7mDer: Buffer, tsa: TsaPort): Promise<Buffer> {
+  // Re-parse the DER to navigate the ASN.1 tree.
+  const parsed = forge.asn1.fromDer(p7mDer.toString('binary'));
+
+  // ContentInfo > [0] EXPLICIT > SignedData
+  const signedData = (parsed.value as forge.asn1.Asn1[])[1].value[0] as forge.asn1.Asn1;
+
+  // signerInfos = last SET in SignedData (digestAlgorithms is the first SET)
+  const sdChildren = signedData.value as forge.asn1.Asn1[];
+  let signerInfosSet: forge.asn1.Asn1 | null = null;
+  for (let i = sdChildren.length - 1; i >= 0; i--) {
+    if (sdChildren[i].type === forge.asn1.Type.SET) { signerInfosSet = sdChildren[i]; break; }
+  }
+  if (!signerInfosSet) return p7mDer;
+
+  const signerInfo = (signerInfosSet.value as forge.asn1.Asn1[])[0];
+  if (!signerInfo) return p7mDer;
+
+  // Signature value = last OCTET STRING in SignerInfo
+  const siChildren = signerInfo.value as forge.asn1.Asn1[];
+  let sigOctet: forge.asn1.Asn1 | null = null;
+  for (let i = siChildren.length - 1; i >= 0; i--) {
+    if (siChildren[i].type === forge.asn1.Type.OCTETSTRING) { sigOctet = siChildren[i]; break; }
+  }
+  if (!sigOctet) return p7mDer;
+
+  const sigBytes = Buffer.from(sigOctet.value as string, 'binary');
+  const digestAb = await crypto.subtle.digest('SHA-256', sigBytes);
+  const tst = await tsa.timestamp(Buffer.from(digestAb), SHA256_OID);
+  if (!tst) return p7mDer; // TSA unavailable → BES fall-through
+
+  // Build [1] IMPLICIT unsignedAttrs containing id-aa-signatureTimeStampToken.
+  // The attribute value is the TST ContentInfo DER (a SEQUENCE), not an OctetString.
+  const unsignedAttrs = forge.asn1.create(
+    forge.asn1.Class.CONTEXT_SPECIFIC,
+    1,  // [1] IMPLICIT
+    true,
+    [
+      forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+        forge.asn1.create(
+          forge.asn1.Class.UNIVERSAL,
+          forge.asn1.Type.OID,
+          false,
+          forge.asn1.oidToDer(CADES_TIMESTAMP_OID).getBytes(),
+        ),
+        forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [
+          forge.asn1.fromDer(tst.toString('binary')),  // TST ContentInfo
+        ]),
+      ]),
+    ],
+  );
+
+  siChildren.push(unsignedAttrs);
+
+  return Buffer.from(forge.asn1.toDer(parsed).getBytes(), 'binary');
+}
+
+// ---------------------------------------------------------------------------
 // XAdES provider — enveloped XAdES-BES over XML documents
 // ---------------------------------------------------------------------------
 
 export class XadesSigningProvider implements SigningProvider {
   readonly algo: SignAlgo = 'XAdES';
 
-  constructor(private readonly credentials: SigningCredentialsPort = new NullSigningCredentials()) {}
+  private readonly signatureLevel: SignatureLevel;
+  private readonly tsa: TsaPort;
+
+  constructor(
+    private readonly credentials: SigningCredentialsPort = new NullSigningCredentials(),
+    options: TimestampOptions = {},
+  ) {
+    this.signatureLevel = options.signatureLevel ?? 'BES';
+    this.tsa = options.tsa ?? new NullTsaClient();
+  }
 
   async sign(rendered: RenderedArtifact, certRef: string, log: ComplianceLogger): Promise<SignedArtifact> {
     const material = await this.credentials.resolve(certRef);
@@ -125,15 +268,18 @@ export class XadesSigningProvider implements SigningProvider {
         {
           keyValue: publicKey,
           references: [{ hash: 'SHA-256', transforms: ['enveloped'] }],
-          // TSA hook (stubbed — wire a real TSA URL here for XAdES-T):
-          // tsaUrl: process.env.TSA_URL,
         },
       );
 
-      const signedXmlString = signedXml.toString();
-      const signedBytes = Buffer.from(signedXmlString, 'utf-8');
+      // Apply RFC 3161 timestamp when level ≥ T and a TSA is wired up.
+      let signedXmlString = signedXml.toString();
+      if (this.signatureLevel !== 'BES') {
+        signedXmlString = await applyTimestampXades(signedXmlString, this.tsa);
+      }
 
-      log.info('signing/xades', `XAdES-BES signed ${rendered.syntax} with cert "${certRef}" (${signedBytes.length} bytes)`);
+      const signedBytes = Buffer.from(signedXmlString, 'utf-8');
+      const level = this.signatureLevel !== 'BES' ? `-${this.signatureLevel}` : '-BES';
+      log.info('signing/xades', `XAdES${level} signed ${rendered.syntax} with cert "${certRef}" (${signedBytes.length} bytes)`);
       return {
         ...rendered,
         bytes: new Uint8Array(signedBytes),
@@ -153,7 +299,16 @@ export class XadesSigningProvider implements SigningProvider {
 export class CadesSigningProvider implements SigningProvider {
   readonly algo: SignAlgo = 'CAdES';
 
-  constructor(private readonly credentials: SigningCredentialsPort = new NullSigningCredentials()) {}
+  private readonly signatureLevel: SignatureLevel;
+  private readonly tsa: TsaPort;
+
+  constructor(
+    private readonly credentials: SigningCredentialsPort = new NullSigningCredentials(),
+    options: TimestampOptions = {},
+  ) {
+    this.signatureLevel = options.signatureLevel ?? 'BES';
+    this.tsa = options.tsa ?? new NullTsaClient();
+  }
 
   async sign(rendered: RenderedArtifact, certRef: string, log: ComplianceLogger): Promise<SignedArtifact> {
     const material = await this.credentials.resolve(certRef);
@@ -163,8 +318,15 @@ export class CadesSigningProvider implements SigningProvider {
     }
 
     try {
-      const p7mBytes = await this.signWithForge(rendered.bytes, material);
-      log.info('signing/cades', `CAdES-BES signed ${rendered.syntax} with cert "${certRef}" (${p7mBytes.length} bytes .p7m)`);
+      let p7mBytes = await this.signWithForge(rendered.bytes, material);
+
+      // Apply RFC 3161 timestamp when level ≥ T and a TSA is wired up.
+      if (this.signatureLevel !== 'BES') {
+        p7mBytes = await applyTimestampCades(p7mBytes, this.tsa);
+      }
+
+      const level = this.signatureLevel !== 'BES' ? `-${this.signatureLevel}` : '-BES';
+      log.info('signing/cades', `CAdES${level} signed ${rendered.syntax} with cert "${certRef}" (${p7mBytes.length} bytes .p7m)`);
       return {
         ...rendered,
         bytes: new Uint8Array(p7mBytes),
@@ -193,8 +355,6 @@ export class CadesSigningProvider implements SigningProvider {
         { type: forge.pki.oids.messageDigest },
         // signingTime: omit value — forge fills it in automatically from current time
         { type: forge.pki.oids.signingTime },
-        // TSA hook (stubbed — add unsigned attribute for CAdES-T here):
-        // { type: forge.pki.oids.signingCertificate, ... }
       ],
     });
     p7.sign({ detached: false });
@@ -212,7 +372,20 @@ export class CadesSigningProvider implements SigningProvider {
 export class PadesSigningProvider implements SigningProvider {
   readonly algo: SignAlgo = 'PAdES';
 
-  constructor(private readonly credentials: SigningCredentialsPort = new NullSigningCredentials()) {}
+  private readonly signatureLevel: SignatureLevel;
+
+  constructor(
+    private readonly credentials: SigningCredentialsPort = new NullSigningCredentials(),
+    options: TimestampOptions = {},
+  ) {
+    this.signatureLevel = options.signatureLevel ?? 'BES';
+    // NOTE: PAdES document timestamp (ISO 32000-2 §12.8.5) requires adding a separate
+    // signature revision after the main signature, which is outside the scope of
+    // @signpdf/signpdf's placeholder-fill model. PAdES-T is a documented seam:
+    // the signatureLevel is stored and logged but the output is equivalent to PAdES-B
+    // until a dedicated PDF timestamp revision layer is added.
+    void options.tsa; // tsa is accepted for API consistency but unused here
+  }
 
   async sign(rendered: RenderedArtifact, certRef: string, log: ComplianceLogger): Promise<SignedArtifact> {
     const material = await this.credentials.resolve(certRef);
@@ -227,7 +400,8 @@ export class PadesSigningProvider implements SigningProvider {
 
     try {
       const signedBytes = await this.signPdf(rendered.bytes, material);
-      log.info('signing/pades', `PAdES-B signed ${rendered.syntax} with cert "${certRef}" (${signedBytes.length} bytes)`);
+      const level = this.signatureLevel !== 'BES' ? `-${this.signatureLevel}(seam/B)` : '-B';
+      log.info('signing/pades', `PAdES${level} signed ${rendered.syntax} with cert "${certRef}" (${signedBytes.length} bytes)`);
       return {
         ...rendered,
         bytes: new Uint8Array(signedBytes),
