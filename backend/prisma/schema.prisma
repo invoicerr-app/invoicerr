@@ -359,7 +359,8 @@ model Company {
   Article          Article[]
   partyIdentifiers PartyIdentifier[]
   NumberSeries     NumberSeries[]
-  channelConfigs   CompanyChannelConfig[]
+  channelConfigs      CompanyChannelConfig[]
+  signingCertificates CompanySigningCertificate[]
 }
 
 // Client model
@@ -1305,5 +1306,30 @@ model CompanyChannelConfig {
   updatedAt     DateTime            @updatedAt
 
   @@unique([companyId, providerId, environment])
+  @@index([companyId])
+}
+
+// ======= SIGNING CERTIFICATES (per-company, encrypted PFX) ======= //
+
+model CompanySigningCertificate {
+  id            String             @id @default(cuid())
+  companyId     String
+  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  label         String             // Human-readable label (e.g. "FR production cert 2025")
+  applicability String             @default("*") // "*" | "XAdES" | "CAdES" | "PAdES" — which sign algos this cert covers
+  environment   ChannelEnvironment @default(TEST)
+  encryptedPfx  String             // AES-256-GCM encrypted PFX bytes (base64-encoded ciphertext blob)
+  encryptedPass String             // AES-256-GCM encrypted PFX password
+  notBefore     DateTime           // Cert validity start — extracted at upload
+  notAfter      DateTime           // Cert validity end — extracted at upload
+  serial        String             // X.509 serial number (hex)
+  subject       String             // X.509 subject DN
+  isActive      Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  // At most one active cert per (company, applicability, environment).
+  // Use applicability="*" for a generic cert that covers all algorithms.
+  @@unique([companyId, applicability, environment])
   @@index([companyId])
 }
