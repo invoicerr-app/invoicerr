@@ -1,9 +1,28 @@
-import { Currency, ItemType } from "../../../../prisma/generated/prisma/client";
+import { Currency, DocumentKind, ItemType } from "../../../../prisma/generated/prisma/client";
 
 export class CreateInvoiceDto {
     clientId: string;
+    kind?: DocumentKind;
+    correctsInvoiceId?: string;
+    depositOfInvoiceId?: string;
+    buyerReference?: string;
+    purchaseOrder?: string;
+    contractRef?: string;
+    deliveryDate?: Date;
+    deliveryAddress?: string;
+    deliveryAddressLine2?: string;
+    deliveryPostalCode?: string;
+    deliveryCity?: string;
+    deliveryState?: string;
+    deliveryCountry?: string;
+    paymentTerms?: string;
+    paymentMeansCode?: string;
+    fxRate?: number;
+    fxTaxAmount?: number;
+    ttcPricing?: boolean;
     quoteId?: string;
-    recurringInvoiceId?: string; // Ajout du champ pour la relation
+    recurringInvoiceId?: string;
+    recurringPeriodKey?: string;
     dueDate?: Date;
     currency?: Currency;
     discountRate?: number;
@@ -19,6 +38,11 @@ export class CreateInvoiceDto {
         vatRate: number;
         type: ItemType;
         order: number;
+        discountRate?: number;
+        discountAmount?: number;
+        chargeAmount?: number;
+        chargeDescription?: string;
+        unitOfMeasure?: string;
         quoteItemId?: string;
     }[];
 }
@@ -35,8 +59,27 @@ export class CreateInvoiceFromQuoteDto {
 
 export class EditInvoicesDto {
     id: string;
+    kind?: DocumentKind;
+    correctsInvoiceId?: string;
+    depositOfInvoiceId?: string;
+    buyerReference?: string;
+    purchaseOrder?: string;
+    contractRef?: string;
+    deliveryDate?: Date;
+    deliveryAddress?: string;
+    deliveryAddressLine2?: string;
+    deliveryPostalCode?: string;
+    deliveryCity?: string;
+    deliveryState?: string;
+    deliveryCountry?: string;
+    paymentTerms?: string;
+    paymentMeansCode?: string;
+    fxRate?: number;
+    fxTaxAmount?: number;
+    ttcPricing?: boolean;
     quoteId?: string;
     recurringInvoiceId?: string;
+    recurringPeriodKey?: string;
     clientId: string;
     dueDate?: Date;
     currency?: Currency;
@@ -54,5 +97,10 @@ export class EditInvoicesDto {
         vatRate: number;
         type: ItemType;
         order: number;
+        discountRate?: number;
+        discountAmount?: number;
+        chargeAmount?: number;
+        chargeDescription?: string;
+        unitOfMeasure?: string;
     }[];
 }

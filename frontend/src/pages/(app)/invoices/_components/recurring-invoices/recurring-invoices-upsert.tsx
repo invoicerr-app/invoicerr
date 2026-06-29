@@ -54,6 +54,7 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
         count: z.number().optional(),
         until: z.date().optional(),
         currency: z.string().optional(),
+        autoIssue: z.boolean().optional(),
         autoSend: z.boolean().optional(),
         items: z.array(
             z.object({
@@ -122,6 +123,7 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
                 frequency: recurringInvoice.frequency || "MONTHLY",
                 count: recurringInvoice.count,
                 until: recurringInvoice.until ? new Date(recurringInvoice.until) : undefined,
+                autoIssue: recurringInvoice.autoIssue || false,
                 autoSend: recurringInvoice.autoSend || false,
                 items: recurringInvoice.items
                     .sort((a, b) => a.order - b.order)
@@ -143,6 +145,7 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
                 items: [],
                 notes: "",
                 frequency: "MONTHLY",
+                autoIssue: false,
                 autoSend: false,
             })
         }
@@ -596,6 +599,26 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
                             </FormItem>
 
                             <Separator className="my-4" />
+
+                            <FormField
+                                control={control}
+                                name="autoIssue"
+                                render={({ field }) => (
+                                    <FormItem className="mt-4">
+                                        <Switch
+                                            id="autoIssue"
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                        <FormLabel className="ml-2" htmlFor="autoIssue">
+                                            {t("recurringInvoices.upsert.form.autoIssue.label")}
+                                        </FormLabel>
+                                        <FormDescription>
+                                            {t("recurringInvoices.upsert.form.autoIssue.description")}
+                                        </FormDescription>
+                                    </FormItem>
+                                )}
+                            />
 
                             <FormField
                                 control={control}

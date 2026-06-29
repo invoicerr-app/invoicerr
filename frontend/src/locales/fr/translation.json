@@ -514,10 +514,16 @@
             "emptyState": "Aucune facture à afficher dans la progression.",
             "steps": {
                 "draft": "Brouillon",
+                "issued": "Émise",
+                "pendingClearance": "En attente de validation",
+                "cleared": "Validée",
+                "delivered": "Livrée",
                 "sent": "Envoyée",
                 "paid": "Payée",
                 "archived": "Archivée",
-                "partiallyPaid": "Payée partiellement"
+                "partiallyPaid": "Payée partiellement",
+                "cancelled": "Annulée",
+                "corrected": "Corrigée"
             },
             "percentPaid": "{{percent}} % payé",
             "stepLabel": "Étape {{current}} / {{total}}",
@@ -525,7 +531,8 @@
                 "send": "Envoyer",
                 "resend": "Renvoyer",
                 "paymentReceived": "Paiement reçu",
-                "archive": "Archiver"
+                "archive": "Archiver",
+                "issue": "Émettre"
             },
             "confirmations": {
                 "send": {
@@ -544,10 +551,15 @@
                     "title": "Archiver la facture",
                     "description": "Êtes-vous sûr de vouloir archiver la facture {{number}} ? Cette action est irréversible, il ne sera plus possible de revenir en arrière."
                 },
+                "issue": {
+                    "title": "Émettre la facture",
+                    "description": "Êtes-vous sûr de vouloir émettre la facture {{number}} ? Le document sera verrouillé et se verra attribuer un numéro légal."
+                },
                 "confirm": "Confirmer",
                 "cancel": "Annuler"
             },
-            "noAction": "Aucune action"
+            "noAction": "Aucune action",
+            "noNumberYet": "Pas encore de numéro"
         },
         "views": {
             "list": "Liste",
@@ -586,7 +598,12 @@
             "draft": "Brouillon",
             "sent": "Envoyé",
             "paid": "Payé",
-            "archived": "Archivé"
+            "archived": "Archivé",
+            "issued": "Émise",
+            "cancelled": "Annulée",
+            "corrected": "Corrigée",
+            "pending_clearance": "En attente de dégrément",
+            "cleared": "Dégrée"
         },
         "emptyState": {
             "noInvoices": "Aucune facture pour le moment",
@@ -604,7 +621,12 @@
                 "overdue": "En retard",
                 "paid": "Payée",
                 "upcoming": "À venir",
-                "archived": "Archivée"
+                "archived": "Archivée",
+                "issued": "Émise",
+                "cancelled": "Annulée",
+                "corrected": "Corrigée",
+                "pending_clearance": "En attente de dégrément",
+                "cleared": "Dégrée"
             },
             "item": {
                 "title": "Facture {{number}} {{title}}",
@@ -622,7 +644,11 @@
                 "downloadPdf": "Télécharger le PDF",
                 "edit": "Modifier la facture",
                 "delete": "Supprimer la facture",
-                "sendByEmail": "Envoyer la facture par email"
+                "sendByEmail": "Envoyer la facture par email",
+                "issue": "Émettre la facture",
+                "creditNote": "Émettre un avoir",
+                "cancel": "Annuler la facture",
+                "cancelAndReplace": "Annuler et remplacer"
             },
             "actions": {
                 "addNew": "Ajouter une nouvelle facture",
@@ -642,7 +668,13 @@
                 "markAsPaidError": "Échec du marquage de la facture comme payée",
                 "sendByEmailSuccess": "La facture a été envoyée au client",
                 "archiveSuccess": "Facture archivée avec succès",
-                "archiveError": "Échec de l'archivage de la facture"
+                "archiveError": "Échec de l'archivage de la facture",
+                "issueSuccess": "Facture émise avec succès",
+                "issueError": "Échec de l'émission de la facture",
+                "correctSuccess": "Avoir émis",
+                "correctError": "Échec de l'émission de l'avoir",
+                "cancelSuccess": "Facture annulée",
+                "cancelError": "Échec de l'annulation de la facture"
             }
         },
         "upsert": {
@@ -652,7 +684,9 @@
             },
             "tabs": {
                 "invoice": "Facture",
-                "recurring": "Facture récurrente"
+                "recurring": "Facture récurrente",
+                "proforma": "Proforma",
+                "final": "Facture finale"
             },
             "form": {
                 "quote": {
@@ -749,12 +783,20 @@
                         "min": "La remise ne peut pas être négative",
                         "max": "La remise ne peut pas dépasser 100 %"
                     }
+                },
+                "deposits": {
+                    "label": "Acomptes liés",
+                    "description": "Sélectionner les factures d'acompte à déduire de cette facture finale.",
+                    "selected": "{{count}} acompte(s) sélectionné(s) — total : {{total}}",
+                    "none": "Aucune facture d'acompte non liée trouvée pour ce client."
                 }
             },
             "actions": {
                 "cancel": "Annuler",
                 "create": "Créer la facture",
-                "save": "Enregistrer les modifications"
+                "save": "Enregistrer les modifications",
+                "createProforma": "Créer le proforma",
+                "createFinal": "Créer la facture finale"
             }
         },
         "view": {
@@ -766,7 +808,12 @@
                 "unpaid": "Impayée",
                 "overdue": "En retard",
                 "paid": "Payée",
-                "archived": "Archivée"
+                "archived": "Archivée",
+                "issued": "Émise",
+                "cancelled": "Annulée",
+                "corrected": "Corrigée",
+                "pending_clearance": "En attente de dégrément",
+                "cleared": "Dégrée"
             },
             "fields": {
                 "number": "Numéro de facture",
@@ -783,7 +830,43 @@
                 "totalHT": "Total HT",
                 "totalVAT": "Montant TVA",
                 "totalTTC": "Total TTC",
-                "notes": "Notes"
+                "notes": "Notes",
+                "complianceStatus": "Statut de conformité",
+                "correctsInvoice": "Facture corrigée",
+                "corrections": "Corrections",
+                "linkedDeposits": "Factures d'acompte liées",
+                "totalDeposited": "Total des acomptes"
+            },
+            "messages": {
+                "cancellationNotAllowed": "Annulation non autorisée"
+            },
+            "correctionOf": "Correcte la facture #{{number}}",
+            "actions": {
+                "edit": "Modifier le brouillon",
+                "creditNote": "Avoir",
+                "correctiveInvoice": "Facture rectificative",
+                "cancel": "Annuler",
+                "cancelAndReplace": "Annuler et remplacer",
+                "send": "Envoyer",
+                "convertToInvoice": "Convertir en facture",
+                "convertToInvoiceSuccess": "Proforma converti en facture",
+                "deposit": "Émettre une facture d'acompte",
+                "correctSuccess": "Correction émise",
+                "correctError": "Échec de l'émission de la correction",
+                "cancelSuccess": "Facture annulée",
+                "cancelError": "Échec de l'annulation de la facture",
+                "cancelAndReplaceSuccess": "Facture annulée et remplacée",
+                "cancelAndReplaceError": "Échec de l'annulation et du remplacement",
+                "sendSuccess": "Facture envoyée",
+                "sendError": "Échec de l'envoi de la facture",
+                "sendByEmail": "Envoyer par e-mail",
+                "submitClearance": "Soumettre pour validation",
+                "sendViaPeppol": "Envoyer via Peppol",
+                "sendToPortal": "Envoyer au portail",
+                "print": "Imprimer",
+                "awaitingClearance": "En attente de validation par l'administration",
+                "awaitingBuyerResponse": "En attente de réponse de l'acheteur",
+                "awaitingDelivery": "En attente de confirmation de livraison"
             }
         },
         "sendConfirmation": {
@@ -822,6 +905,30 @@
         },
         "pdf": {
             "title": "Facture {{number}} - PDF"
+        },
+        "deposit": {
+            "title": "Émettre une facture d'acompte",
+            "description": "Créer une facture d'acompte standalone.",
+            "form": {
+                "amount": {
+                    "label": "Montant de l'acompte",
+                    "placeholder": "Saisir le montant de l'acompte",
+                    "errors": {
+                        "required": "Le montant est requis",
+                        "min": "Le montant doit être supérieur à 0"
+                    }
+                },
+                "notes": {
+                    "placeholder": "Notes optionnelles pour la facture d'acompte"
+                }
+            },
+            "actions": {
+                "create": "Créer la facture d'acompte"
+            },
+            "messages": {
+                "success": "Facture d'acompte créée",
+                "error": "Échec de la création de la facture d'acompte"
+            }
         }
     },
     "recurringInvoices": {
@@ -845,17 +952,33 @@
             "item": {
                 "client": "Client",
                 "payment": "Paiement",
+                "frequency": "Fréquence",
                 "totalHT": "Total HT",
-                "totalTTC": "Total TTC"
+                "totalTTC": "Total TTC",
+                "nextRun": "Prochaine exécution",
+                "lastRun": "Dernière exécution",
+                "generatedCount": "Générées",
+                "paused": "En pause",
+                "autoIssue": "Émission auto",
+                "autoSend": "Envoi auto",
+                "skipNext": "Sauter le prochain"
             },
             "tooltips": {
                 "view": "Voir les détails",
                 "edit": "Modifier",
+                "pause": "Mettre en pause",
+                "resume": "Reprendre",
+                "skipNext": "Sauter le prochain cycle",
+                "endNow": "Arrêter maintenant",
                 "delete": "Supprimer"
             },
             "messages": {
                 "manual_process_success": "Processus de génération déclenché avec succès",
-                "manual_process_error": "Erreur lors du déclenchement du processus"
+                "manual_process_error": "Erreur lors du déclenchement du processus",
+                "pauseSuccess": "Facture récurrente mise en pause",
+                "resumeSuccess": "Facture récurrente reprise",
+                "skipNextSuccess": "Le prochain cycle sera ignoré",
+                "endNowSuccess": "Facture récurrente arrêtée"
             }
         },
         "emptyState": {
@@ -919,6 +1042,10 @@
                     "placeholder": "Sélectionner la date de fin",
                     "description": "Date jusqu'à laquelle les factures seront générées (vide pour illimité)"
                 },
+                "autoIssue": {
+                    "label": "Émission automatique",
+                    "description": "Attribuer automatiquement un numéro et émettre la facture lors de la génération (DRAFT → ÉMISE)"
+                },
                 "autoSend": {
                     "label": "Envoi automatique",
                     "description": "Envoyer automatiquement les factures par email aux clients après leur création"
@@ -977,6 +1104,23 @@
                 "cancel": "Annuler",
                 "create": "Créer la facture récurrente",
                 "save": "Enregistrer les modifications"
+            }
+        },
+        "view": {
+            "title": "Détails de la facture récurrente",
+            "description": "Aperçu de ce modèle de facture récurrente",
+            "fields": {
+                "client": "Client",
+                "paymentMethod": "Méthode de paiement",
+                "frequency": "Fréquence",
+                "nextRun": "Prochaine exécution",
+                "lastRun": "Dernière exécution",
+                "generatedCount": "Factures générées",
+                "totalHT": "Total HT",
+                "totalVAT": "TVA",
+                "totalTTC": "Total TTC",
+                "notes": "Notes",
+                "generatedInvoices": "Factures générées"
             }
         }
     },
@@ -1442,6 +1586,9 @@
                 "exemptVat": {
                     "label": "TVA non applicable (art. 293 B du CGI)",
                     "description": "Afficher la mention légale 'TVA non applicable, art. 293 B du CGI' sur les prochains documents lorsque activé et si le pays de l'entreprise est la France."
+                },
+                "identifiers": {
+                    "label": "Identifiants spécifiques au pays"
                 },
                 "saving": "Enregistrement...",
                 "saveSettings": "Enregistrer les paramètres"

@@ -174,7 +174,7 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                                         <FormLabel required>{t("payments.upsert.form.invoice.label")}</FormLabel>
                                         <FormControl>
                                             <SearchSelect
-                                                options={invoiceList.map((invoice) => ({ label: invoice.rawNumber || invoice.number.toString(), value: invoice.id }))}
+                                                options={invoiceList.map((invoice) => ({ label: invoice.rawNumber || invoice.number?.toString() || invoice.id.slice(0, 8), value: invoice.id }))}
                                                 value={field.value ?? ""}
                                                 onValueChange={(val) => { field.onChange(val || null); const inv = invoiceList.find(inv => inv.id === val) || null; setSelectedInvoice(inv); redistribute(inv, Number(form.getValues("amount")) || 0); }}
                                                 onSearchChange={setSearchTerm}
@@ -196,10 +196,10 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                                         <FormLabel>{t("payments.upsert.form.paymentMethod.label")}</FormLabel>
                                         <FormControl>
                                             <Select value={field.value ?? ""} onValueChange={(val) => field.onChange(val || "")}>
-                                                <SelectTrigger className="w-full" aria-label={t("payments.upsert.form.paymentMethod.label") as string}>
+                                                <SelectTrigger className="w-full" aria-label={t("payments.upsert.form.paymentMethod.label") as string} dataCy="payment-method-trigger">
                                                     <SelectValue placeholder={t("payments.upsert.form.paymentMethod.placeholder")} />
                                                 </SelectTrigger>
-                                                <SelectContent>
+                                                <SelectContent dataCy="payment-method-options">
                                                     {(paymentMethods || []).map((pm: PaymentMethod) => (
                                                         <SelectItem key={pm.id} value={pm.id}>
                                                             {pm.name} - {pm.type == PaymentMethodType.BANK_TRANSFER ? t("paymentMethods.fields.type.bank_transfer") : pm.type == PaymentMethodType.PAYPAL ? t("paymentMethods.fields.type.paypal") : pm.type == PaymentMethodType.CHECK ? t("paymentMethods.fields.type.check") : pm.type == PaymentMethodType.CASH ? t("paymentMethods.fields.type.cash") : pm.type == PaymentMethodType.OTHER ? t("paymentMethods.fields.type.other") : pm.type}

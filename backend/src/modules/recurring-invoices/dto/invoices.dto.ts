@@ -8,6 +8,7 @@ export class UpsertInvoicesDto {
     frequency: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'BIMONTHLY' | 'QUARTERLY' | 'QUADMONTHLY' | 'SEMIANNUALLY' | 'ANNUALLY';
     count?: number;
     until?: Date;
+    autoIssue?: boolean;
     autoSend?: boolean;
     currency?: string;
     items: {

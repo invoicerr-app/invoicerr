@@ -30,5 +30,11 @@ declare namespace Cypress {
          * @example cy.selectCountry('client-country-select', 'France')
          */
         selectCountry(dataCy: string, countryName: string): Chainable<void>
+
+        /**
+         * Custom command to ensure a test client exists (creates one via API if none found)
+         * @example cy.ensureClient()
+         */
+        ensureClient(): Chainable<void>
     }
 }

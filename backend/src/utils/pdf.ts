@@ -2,66 +2,6 @@ import 'dotenv/config'
 
 import * as puppeteer from 'puppeteer';
 
-import { BadRequestException } from '@nestjs/common';
-import { PrismaClient } from '../../prisma/generated/prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-
-type PatternType = "payment" | "invoice" | "quote";
-
-export async function formatPattern(type: PatternType, number: number, date: Date = new Date()): Promise<string> {
-    const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
-    const prisma = new PrismaClient({ adapter });
-    const company = await prisma.company.findFirst();
-    if (!company) {
-        throw new BadRequestException('No company found. Please create a company first.');
-    }
-    prisma.$disconnect();
-    let pattern = '';
-    let startingNumber = 1;
-    switch (type) {
-        case "payment":
-            pattern = company.paymentNumberFormat;
-            startingNumber = company.paymentStartingNumber;
-            break;
-        case "invoice":
-            pattern = company.invoiceNumberFormat;
-            startingNumber = company.invoiceStartingNumber;
-            break;
-        case "quote":
-            pattern = company.quoteNumberFormat;
-            startingNumber = company.quoteStartingNumber;
-            break;
-    }
-    return pattern.replace(/\{(\w+)(?::(\d+))?\}/g, (_, key, padding) => {
-        let value: number | string;
-
-        switch (key) {
-            case "year":
-                value = date.getFullYear();
-                break;
-            case "month":
-                value = date.getMonth() + 1;
-                break;
-            case "day":
-                value = date.getDate();
-                break;
-            case "number":
-                value = number + startingNumber - 1; // Use the starting number from the company
-                break;
-            default:
-                return key;
-        }
-
-        const padLength = padding !== undefined
-            ? parseInt(padding, 10)
-            : key === "number"
-                ? 4
-                : 0;
-
-        return value.toString().padStart(padLength, "0");
-    });
-}
-
 export function getInvertColor(hex: string): string {
     let cleanHex = hex.replace(/^#/, '');
     if (cleanHex.length === 3) {

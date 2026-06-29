@@ -6,7 +6,8 @@
     "builder": "tsc",
     "deleteOutDir": true,
     "assets": [
-      "**/*.json"
+      "**/*.json",
+      "**/*.pem"
     ],
     "plugins": [
       "@nestjs/swagger"

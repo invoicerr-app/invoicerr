@@ -4,7 +4,7 @@ import { InvoiceProgression } from "@/pages/(app)/invoices/_components/invoice-p
 import { InvoiceTable } from "@/pages/(app)/invoices/_components/invoice-table"
 import { InvoiceViewDialog } from "@/pages/(app)/invoices/_components/invoice-view"
 import { useEffect, useRef, useState } from "react"
-import { useGetRaw, usePost } from "@/hooks/use-fetch"
+import { useGetRaw, usePost, authenticatedFetch } from "@/hooks/use-fetch"
 import { useInvoices, useRecurringInvoices } from "@/hooks/queries"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
@@ -67,7 +67,7 @@ export default function Invoices() {
             return updated
         })
     }
-    const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilterKey[]>(["draft", "sent", "paid"])
+    const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilterKey[]>(["draft", "issued", "sent", "paid"])
 
     const toggleStatusFilter = (key: InvoiceStatusFilterKey) => {
         setStatusFilter((current) => (current.includes(key) ? current.filter((k) => k !== key) : [...current, key]))
@@ -75,8 +75,13 @@ export default function Invoices() {
 
     const getStatusFilterKey = (invoice: Invoice): InvoiceStatusFilterKey =>
         invoice.status === InvoiceStatus.DRAFT ? "draft" :
+        invoice.status === InvoiceStatus.ISSUED ? "issued" :
         invoice.status === InvoiceStatus.ARCHIVED ? "archived" :
         invoice.status === InvoiceStatus.PAID ? "paid" :
+        invoice.status === InvoiceStatus.CANCELLED ? "cancelled" :
+        invoice.status === InvoiceStatus.CORRECTED ? "corrected" :
+        invoice.status === InvoiceStatus.PENDING_CLEARANCE ? "pending_clearance" :
+        invoice.status === InvoiceStatus.CLEARED ? "cleared" :
         "sent"
 
     const matchesSearch = (invoice: Invoice) =>
@@ -125,9 +130,12 @@ export default function Invoices() {
 
     const invoiceStatusCounts = {
         draft: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "draft").length || 0,
+        issued: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "issued").length || 0,
         sent: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "sent").length || 0,
         paid: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "paid").length || 0,
         archived: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "archived").length || 0,
+        cancelled: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "cancelled").length || 0,
+        corrected: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "corrected").length || 0,
     }
 
     usePageHeader(t("sidebar.navigation.invoices"))
@@ -144,6 +152,18 @@ export default function Invoices() {
             })
             .catch(() => {
                 toast.error(t("invoices.list.messages.sendByEmailError"))
+            })
+    }
+
+    const handleIssueInvoice = (invoice: Invoice) => {
+        authenticatedFetch(`/api/invoices/${invoice.id}/issue`, { method: 'POST' })
+            .then(async (res) => {
+                if (!res.ok) throw new Error('Issue failed')
+                toast.success(t("invoices.list.messages.issueSuccess"))
+                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
+            })
+            .catch(() => {
+                toast.error(t("invoices.list.messages.issueError"))
             })
     }
 
@@ -220,6 +240,7 @@ export default function Invoices() {
                 <>
                     <InvoiceProgression
                         invoices={filteredInvoices.filter((invoice) => invoice.status !== InvoiceStatus.UPCOMING)}
+                    onIssue={handleIssueInvoice}
                     onSend={handleSendInvoice}
                     onResend={handleSendInvoice}
                     onArchive={handleArchiveInvoice}
@@ -230,6 +251,7 @@ export default function Invoices() {
                         onOpenChange={(open: boolean) => {
                             if (!open) setViewInvoiceDialog(null)
                         }}
+                        onMutate={() => queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })}
                     />
                 </>
             ) : view === "table" ? (

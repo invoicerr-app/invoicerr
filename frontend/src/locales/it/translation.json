@@ -40,5 +40,94 @@
                 "create": "Aggiungi Nuovo Cliente"
             }
         }
+    },
+    "invoices": {
+        "view": {
+            "fields": {
+                "correctsInvoice": "Corrects Invoice",
+                "corrections": "Corrections",
+                "linkedDeposits": "Linked Deposit Invoices",
+                "totalDeposited": "Total Deposited"
+            },
+            "messages": {
+                "cancellationNotAllowed": "Cancellation not allowed"
+            },
+            "correctionOf": "Corrects #{{number}}",
+            "actions": {
+                "edit": "Edit Draft",
+                "creditNote": "Credit Note",
+                "correctiveInvoice": "Corrective Invoice",
+                "cancel": "Cancel",
+                "cancelAndReplace": "Cancel & Replace",
+                "send": "Send",
+                "correctSuccess": "Correction issued",
+                "correctError": "Failed to issue correction",
+                "cancelSuccess": "Invoice cancelled",
+                "cancelError": "Failed to cancel invoice",
+                "cancelAndReplaceSuccess": "Invoice cancelled and replaced",
+                "cancelAndReplaceError": "Failed to cancel and replace",
+                "sendSuccess": "Invoice sent",
+                "sendError": "Failed to send invoice",
+                "convertToInvoice": "Convert to Invoice",
+                "convertToInvoiceSuccess": "Proforma converted to invoice",
+                "deposit": "Issue Deposit Invoice"
+            }
+        },
+        "list": {
+            "tooltips": {
+                "creditNote": "Issue credit note",
+                "cancel": "Cancel invoice",
+                "cancelAndReplace": "Cancel and replace"
+            },
+            "messages": {
+                "correctSuccess": "Credit note issued",
+                "correctError": "Failed to issue credit note",
+                "cancelSuccess": "Invoice cancelled",
+                "cancelError": "Failed to cancel invoice"
+            }
+        },
+        "deposit": {
+            "title": "Issue Deposit Invoice",
+            "description": "Create a standalone deposit invoice (facture d'acompte).",
+            "form": {
+                "amount": {
+                    "label": "Deposit Amount",
+                    "placeholder": "Enter deposit amount",
+                    "errors": {
+                        "required": "Amount is required",
+                        "min": "Amount must be greater than 0"
+                    }
+                },
+                "notes": {
+                    "placeholder": "Optional notes for the deposit invoice"
+                }
+            },
+            "actions": {
+                "create": "Create Deposit Invoice"
+            },
+            "messages": {
+                "success": "Deposit invoice created",
+                "error": "Failed to create deposit invoice"
+            }
+        }
+    },
+    "recurringInvoices": {
+        "view": {
+            "title": "Recurring Invoice Details",
+            "description": "Overview of this recurring invoice template",
+            "fields": {
+                "client": "Client",
+                "paymentMethod": "Payment Method",
+                "frequency": "Frequency",
+                "nextRun": "Next Run",
+                "lastRun": "Last Run",
+                "generatedCount": "Generated Invoices",
+                "totalHT": "Total (excl. VAT)",
+                "totalVAT": "VAT",
+                "totalTTC": "Total (incl. VAT)",
+                "notes": "Notes",
+                "generatedInvoices": "Generated Invoices"
+            }
+        }
     }
 }

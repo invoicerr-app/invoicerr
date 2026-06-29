@@ -1,0 +1,86 @@
+name: Business Scenarios
+
+on:
+  pull_request:
+
+jobs:
+  scenario:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [fr-be, de-fr, it-it, es-pt, mx-us, us-us]
+    services:
+      postgres-test:
+        image: postgres:16
+        env:
+          POSTGRES_USER: invoicerr
+          POSTGRES_PASSWORD: invoicerr
+          POSTGRES_DB: invoicerr_db
+        ports:
+          - "5433:5432"
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-retries 10
+      mailpit:
+        image: axllent/mailpit
+        ports:
+          - "8025:8025"
+          - "1025:1025"
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+          DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma generate
+          DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma migrate deploy
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Install e2e dependencies
+        run: |
+          cd e2e
+          npm ci
+
+      - name: Wait for DB
+        run: |
+          npx wait-on tcp:5433 --timeout 60
+          npx wait-on tcp:8025 --timeout 60
+          npx wait-on tcp:1025 --timeout 60
+
+      - name: Run backend, frontend & scenario
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/logs
+          npm install -D dotenv-cli
+          (cd $GITHUB_WORKSPACE/backend && npx dotenv -e .env.test -- node node_modules/.bin/prisma migrate dev 2>&1)
+          (cd $GITHUB_WORKSPACE/backend && npm run start:test > $GITHUB_WORKSPACE/logs/backend-${{ matrix.scenario }}.log 2>&1 &)
+          (cd $GITHUB_WORKSPACE/frontend && npm run start:test > /dev/null 2>&1 &)
+          (cd $GITHUB_WORKSPACE/e2e && CYPRESS_scenario=${{ matrix.scenario }} npx cypress run --spec "cypress/e2e/scenarios/full-lifecycle.cy.ts")
+
+      - name: Upload backend logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-logs-${{ matrix.scenario }}
+          path: ${{ github.workspace }}/logs/backend-${{ matrix.scenario }}.log
+
+      - name: Upload Cypress videos and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scenario-${{ matrix.scenario }}-artifacts
+          path: |
+            ${{ github.workspace }}/e2e/cypress/videos
+            ${{ github.workspace }}/e2e/cypress/screenshots

@@ -26,6 +26,14 @@ interface UseLookupSiretOptions {
     messages: UseLookupSiretMessages
 }
 
+function setIdentifier(form: UseFormReturn<FieldValues>, scheme: string, value: string) {
+    const identifiers: { scheme: string; value: string }[] = form.getValues("identifiers") || []
+    const idx = identifiers.findIndex((i) => i.scheme === scheme)
+    if (idx >= 0) {
+        form.setValue(`identifiers.${idx}.value`, value)
+    }
+}
+
 export function useLookupSiret<T extends FieldValues>(form: UseFormReturn<T>, { messages }: UseLookupSiretOptions) {
     const [isLoading, setIsLoading] = useState(false)
 
@@ -56,14 +64,16 @@ export function useLookupSiret<T extends FieldValues>(form: UseFormReturn<T>, { 
             }
 
             setIfExists("name", company.name)
-            setIfExists("VAT", company.VAT)
             setIfExists("address", company.address)
             setIfExists("postalCode", company.postalCode)
             setIfExists("city", company.city)
             setIfExists("state", company.state)
             setIfExists("country", company.country)
             if (company.foundedAt) setIfExists("foundedAt", new Date(company.foundedAt))
-            setIfExists("legalId", company.legalId || siret)
+
+            // Update identifiers array entries for LEGAL_ID and VAT
+            setIdentifier(form as any, "LEGAL_ID", company.legalId || siret)
+            if (company.VAT) setIdentifier(form as any, "VAT", company.VAT)
 
             toast.success(messages.success)
         } catch (err) {

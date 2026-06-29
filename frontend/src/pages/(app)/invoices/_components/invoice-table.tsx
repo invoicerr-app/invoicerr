@@ -47,7 +47,7 @@ export function InvoiceTable() {
         ]
 
         const lines = rows.map((invoice) => [
-            invoice.rawNumber || invoice.number.toString(),
+            invoice.rawNumber || (invoice.number?.toString() ?? ""),
             invoice.client?.name || "",
             getStatusLabel(invoice.status),
             invoice.totalTTC.toFixed(2),

@@ -9,6 +9,9 @@ export default defineConfig({
     baseUrl: process.env.FRONTEND_URL || "http://localhost:6284",
     specPattern: "cypress/e2e/**/*.cy.{js,ts}",
     supportFile: "cypress/support/e2e.ts",
+    env: {
+      apiUrl: process.env.VITE_BACKEND_URL || "http://localhost:4000",
+    },
     setupNodeEvents(on) {
       on('task', {
         resetDatabase() {

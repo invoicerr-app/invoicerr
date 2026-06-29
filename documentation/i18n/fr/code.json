@@ -397,5 +397,158 @@
   },
   "compliance.page.intro": {
     "message": "Choisissez un pays ci-dessous pour consulter ses notes de conformité en facturation électronique — statut de l'obligation, autorité, plateforme et flux technique."
+  },
+  "compliance.page.eu.heading": {
+    "message": "Réglementation européenne"
+  },
+  "compliance.page.eu.intro": {
+    "message": "L'Union européenne généralise la facturation électronique structurée dans tous les États membres. Voici ce que cela signifie concrètement, en trois grands domaines."
+  },
+  "compliance.page.eu.card.vida.title": {
+    "message": "La réforme ViDA"
+  },
+  "compliance.page.eu.card.vida.body": {
+    "message": "La réforme ViDA (VAT in the Digital Age) généralise les contrôles transactionnels continus (CTC) dans toute l'UE, avec des obligations qui entrent en vigueur progressivement à partir de 2026."
+  },
+  "compliance.page.eu.card.lifecycle.title": {
+    "message": "Cycle de vie de la facture"
+  },
+  "compliance.page.eu.card.lifecycle.body": {
+    "message": "Chaque facture porte un statut qui se met à jour automatiquement au fil de son parcours :"
+  },
+  "compliance.page.eu.card.transmission.title": {
+    "message": "Formats structurés"
+  },
+  "compliance.page.eu.card.transmission.body": {
+    "message": "Au-delà du PDF visible, chaque facture contient des données structurées, lisibles automatiquement par les administrations fiscales et les logiciels :"
+  },
+  "compliance.page.eu.timeline": {
+    "message": "2026 → 2030"
+  },
+  "compliance.page.status.draft": {
+    "message": "Brouillon"
+  },
+  "compliance.page.status.issued": {
+    "message": "Émise"
+  },
+  "compliance.page.status.pending": {
+    "message": "En attente"
+  },
+  "compliance.page.status.validated": {
+    "message": "Validée"
+  },
+  "compliance.page.status.paid": {
+    "message": "Payée"
+  },
+  "compliance.page.status.refused": {
+    "message": "Refusée / Annulée"
+  },
+  "compliance.page.pdp.cta": {
+    "message": "En savoir plus"
+  },
+  "compliance.page.pdp.country": {
+    "message": "Pour la France"
+  },
+  "compliance.page.countries.heading": {
+    "message": "Réglementation par pays"
+  },
+  "compliance.page.filter.region": {
+    "message": "Région"
+  },
+  "compliance.page.filter.status": {
+    "message": "Statut"
+  },
+  "compliance.page.filter.formats": {
+    "message": "Formats"
+  },
+  "compliance.page.filter.scope": {
+    "message": "Périmètre"
+  },
+  "compliance.page.filter.priority": {
+    "message": "Priorité"
+  },
+  "compliance.page.filter.count": {
+    "message": "{count} pays"
+  },
+  "compliance.page.filter.reset": {
+    "message": "Réinitialiser"
+  },
+  "compliance.page.region.europe": {
+    "message": "Europe"
+  },
+  "compliance.page.region.americas": {
+    "message": "Amériques"
+  },
+  "compliance.page.region.africa": {
+    "message": "Afrique"
+  },
+  "compliance.page.region.middleEast": {
+    "message": "Moyen-Orient"
+  },
+  "compliance.page.region.asiaPacific": {
+    "message": "Asie-Pacifique"
+  },
+  "compliance.page.statusValue.mandatory": {
+    "message": "Obligatoire"
+  },
+  "compliance.page.statusValue.phased": {
+    "message": "Progressif"
+  },
+  "compliance.page.statusValue.voluntary": {
+    "message": "Volontaire"
+  },
+  "compliance.page.statusValue.planned": {
+    "message": "Planifié"
+  },
+  "compliance.page.statusValue.postAudit": {
+    "message": "Post-audit"
+  },
+  "compliance.page.priorityValue.high": {
+    "message": "Haute"
+  },
+  "compliance.page.priorityValue.medium": {
+    "message": "Moyenne"
+  },
+  "compliance.page.priorityValue.low": {
+    "message": "Basse"
+  },
+  "compliance.page.mentions.heading": {
+    "message": "Nouvelles mentions obligatoires sur les factures"
+  },
+  "compliance.page.mentions.siren": {
+    "message": "Le numéro SIREN du client"
+  },
+  "compliance.page.mentions.category": {
+    "message": "La catégorie de l'opération (ex : livraison de biens, prestation de services)"
+  },
+  "compliance.page.mentions.vatOption": {
+    "message": "L'option éventuelle de paiement de la TVA sur les débits"
+  },
+  "compliance.page.mentions.deliveryAddress": {
+    "message": "L'adresse de livraison (si elle diffère de l'adresse de facturation)"
+  },
+  "compliance.page.criteria.heading": {
+    "message": "Ce que met en place Invoicerr"
+  },
+  "compliance.page.criteria.formats": {
+    "message": "Intégrer les formats structurés (EN 16931, XRechnung, ZUGFeRD, etc.)."
+  },
+  "compliance.page.criteria.pdp": {
+    "message": "Permettre l'envoi/réception via des PDP agréées."
+  },
+  "compliance.page.criteria.mentions": {
+    "message": "Ajouter les nouvelles mentions obligatoires dans les factures générées."
+  },
+  "compliance.page.criteria.archiving": {
+    "message": "Assurer l'archivage légal pendant 10 ans."
+  },
+  "compliance.page.criteria.ereporting": {
+    "message": "Faciliter l'e-reporting vers l'administration fiscale."
+  },
+  "compliance.page.criteria.directory": {
+    "message": "Se connecter à l'annuaire central pour la vérification des adresses de facturation électroniques."
+  },
+  "compliance.page.eu.card.transmission.pdp": {
+    "message": "Invoicerr assure la conformité via {link}, une Plateforme de Dématérialisation Partenaire (PDP) agréée, qui gère la transmission et la validation pour votre compte."
   }
 }

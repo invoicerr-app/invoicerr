@@ -3,6 +3,11 @@ import { Currency, WebhookEvent } from '../../../prisma/generated/prisma/client'
 
 import { UpsertInvoicesDto } from '@/modules/recurring-invoices/dto/invoices.dto';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
+import { guessCountryCode } from '@/utils/country-name-to-iso';
+import { resolveInvoiceTax } from '@/compliance/integration/invoice-tax';
+import { toMinor } from '@/utils/financial';
+import type { SupplyType } from '@/compliance/types';
+import { getIdentifier } from '@/utils/entity-identifiers';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
@@ -23,9 +28,10 @@ export class RecurringInvoicesService {
             skip,
             take: pageSize,
             include: {
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
                 items: true,
+                _count: { select: { generatedInvoices: true } },
             },
         });
 
@@ -47,30 +53,46 @@ export class RecurringInvoicesService {
     }
 
     async createRecurringInvoice(data: UpsertInvoicesDto) {
-        const company = await prisma.company.findFirst();
-        const isVatExemptFrance = !!(company?.exemptVat && (company?.country || '').toUpperCase() === 'FRANCE');
+        const company = await prisma.company.findFirst({
+            include: { partyIdentifiers: true },
+        });
 
-        // Calculate totals
-        let totalHT = 0;
-        let totalVAT = 0;
-        let totalTTC = 0;
-
-        for (const item of data.items) {
-            const itemHT = item.quantity * item.unitPrice;
-            const vatRate = isVatExemptFrance ? 0 : (item.vatRate || 0);
-            const itemVAT = itemHT * (vatRate / 100);
-            totalHT += itemHT;
-            totalVAT += itemVAT;
+        const client = await prisma.client.findUnique({
+            where: { id: data.clientId },
+            include: { partyIdentifiers: true },
+        });
+        if (!client) {
+            logger.error('Client not found', { category: 'recurring-invoice' });
+            throw new BadRequestException('Client not found');
         }
-        totalTTC = isVatExemptFrance ? totalHT : (totalHT + totalVAT);
+
+        const taxResult = resolveInvoiceTax({
+            supplierCountryCode: company?.countryCode ?? guessCountryCode(company?.country),
+            supplierExemptVat: !!company?.exemptVat,
+            supplierVatNumber: getIdentifier(company, 'VAT'),
+            buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
+            buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+            buyerVatNumber: getIdentifier(client, 'VAT'),
+            currency: (data.currency as string) || client.currency || company?.currency || 'EUR',
+            issueDate: new Date(),
+            discountRate: 0,
+            items: data.items.map(item => ({
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                vatRate: item.vatRate,
+                supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
+            })),
+        });
+
+        if (taxResult.warnings.length > 0) {
+            logger.warn('Tax resolution warnings', { category: 'recurring-invoice', details: { warnings: taxResult.warnings } });
+        }
 
         const today = new Date();
-        const nextMonday = new Date(today);
-        const dayOfWeek = today.getDay();
-        const daysUntilNextMonday = (dayOfWeek === 0 ? 1 : 8) - dayOfWeek;
-        nextMonday.setDate(today.getDate() + daysUntilNextMonday);
+        today.setHours(0, 0, 0, 0);
 
-        const nextInvoiceDate = this.calculateNextInvoiceDate(nextMonday, data.frequency);
+        // First occurrence is the next cycle from today (no force-to-Monday)
+        const nextInvoiceDate = this.calculateNextInvoiceDate(today, data.frequency);
 
         const recurringInvoice = await prisma.recurringInvoice.create({
             data: {
@@ -83,27 +105,32 @@ export class RecurringInvoicesService {
                 frequency: data.frequency,
                 count: data.count,
                 until: data.until,
+                autoIssue: data.autoIssue || false,
                 autoSend: data.autoSend || false,
                 nextInvoiceDate,
                 currency: (data.currency as Currency) || Currency.USD,
-                totalHT,
-                totalVAT,
-                totalTTC,
+                totalHT: taxResult.totalHT,
+                totalHTMinor: taxResult.totalsMinor.netMinor,
+                totalVAT: taxResult.totalVAT,
+                totalVATMinor: taxResult.totalsMinor.taxMinor,
+                totalTTC: taxResult.totalTTC,
+                totalTTCMinor: taxResult.totalsMinor.grossMinor,
                 items: {
                     create: data.items.map((item, index) => ({
                         name: item.name,
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
-                        vatRate: isVatExemptFrance ? 0 : item.vatRate,
+                        unitPriceMinor: toMinor(item.unitPrice, (data.currency as string) || client.currency || company?.currency || 'EUR'),
+                        vatRate: taxResult.itemVatRates[index],
                         type: item.type,
                         order: item.order || index,
                     })),
                 },
             },
             include: {
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
                 items: true,
             },
         });
@@ -124,22 +151,44 @@ export class RecurringInvoicesService {
     }
 
     async updateRecurringInvoice(id: string, data: UpsertInvoicesDto) {
-        const company = await prisma.company.findFirst();
-        const isVatExemptFrance = !!(company?.exemptVat && (company?.country || '').toUpperCase() === 'FRANCE');
+        const company = await prisma.company.findFirst({
+            include: { partyIdentifiers: true },
+        });
 
-        // Calculate totals
-        let totalHT = 0;
-        let totalVAT = 0;
-        let totalTTC = 0;
-
-        for (const item of data.items) {
-            const itemHT = item.quantity * item.unitPrice;
-            const vatRate = isVatExemptFrance ? 0 : (item.vatRate || 0);
-            const itemVAT = itemHT * (vatRate / 100);
-            totalHT += itemHT;
-            totalVAT += itemVAT;
+        const client = await prisma.client.findUnique({
+            where: { id: data.clientId },
+            include: { partyIdentifiers: true },
+        });
+        if (!client) {
+            logger.error('Client not found', { category: 'recurring-invoice' });
+            throw new BadRequestException('Client not found');
         }
-        totalTTC = isVatExemptFrance ? totalHT : (totalHT + totalVAT);
+
+        const taxResult = resolveInvoiceTax({
+            supplierCountryCode: company?.countryCode ?? guessCountryCode(company?.country),
+            supplierExemptVat: !!company?.exemptVat,
+            supplierVatNumber: getIdentifier(company, 'VAT'),
+            buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
+            buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
+            buyerVatNumber: getIdentifier(client, 'VAT'),
+            currency: (data.currency as string) || client.currency || company?.currency || 'EUR',
+            issueDate: new Date(),
+            discountRate: 0,
+            items: data.items.map(item => ({
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                vatRate: item.vatRate,
+                supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
+            })),
+        });
+
+        if (taxResult.warnings.length > 0) {
+            logger.warn('Tax resolution warnings', { category: 'recurring-invoice', details: { warnings: taxResult.warnings } });
+        }
+
+        // Only recalculate nextInvoiceDate if frequency actually changed
+        const existing = await prisma.recurringInvoice.findUnique({ where: { id } });
+        const frequencyChanged = existing && existing.frequency !== data.frequency;
 
         // Update recurring invoice
         const recurringInvoice = await prisma.recurringInvoice.update({
@@ -149,15 +198,19 @@ export class RecurringInvoicesService {
                 paymentMethod: data.paymentMethod,
                 paymentMethodId: data.paymentMethodId,
                 paymentDetails: data.paymentDetails,
-                nextInvoiceDate: this.calculateNextInvoiceDate(new Date(), data.frequency),
+                ...(frequencyChanged ? { nextInvoiceDate: this.calculateNextInvoiceDate(new Date(), data.frequency) } : {}),
                 frequency: data.frequency,
                 count: data.count,
                 until: data.until,
+                autoIssue: data.autoIssue || false,
                 autoSend: data.autoSend || false,
                 currency: (data.currency as Currency) || Currency.USD,
-                totalHT,
-                totalVAT,
-                totalTTC,
+                totalHT: taxResult.totalHT,
+                totalHTMinor: taxResult.totalsMinor.netMinor,
+                totalVAT: taxResult.totalVAT,
+                totalVATMinor: taxResult.totalsMinor.taxMinor,
+                totalTTC: taxResult.totalTTC,
+                totalTTCMinor: taxResult.totalsMinor.grossMinor,
                 items: {
                     deleteMany: {},
                     create: data.items.map((item, index) => ({
@@ -165,15 +218,16 @@ export class RecurringInvoicesService {
                         description: item.description,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
-                        vatRate: isVatExemptFrance ? 0 : item.vatRate,
+                        unitPriceMinor: toMinor(item.unitPrice, (data.currency as string) || client.currency || company?.currency || 'EUR'),
+                        vatRate: taxResult.itemVatRates[index],
                         type: item.type,
                         order: item.order || index,
                     })),
                 },
             },
             include: {
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
                 items: true,
             },
         });
@@ -197,9 +251,24 @@ export class RecurringInvoicesService {
         const recurringInvoice = await prisma.recurringInvoice.findUnique({
             where: { id },
             include: {
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
                 items: true,
+                generatedInvoices: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 50,
+                    select: {
+                        id: true,
+                        number: true,
+                        rawNumber: true,
+                        status: true,
+                        totalTTC: true,
+                        currency: true,
+                        createdAt: true,
+                        issuedAt: true,
+                    },
+                },
+                _count: { select: { generatedInvoices: true } },
             },
         });
 
@@ -222,8 +291,8 @@ export class RecurringInvoicesService {
         const existingRecurringInvoice = await prisma.recurringInvoice.findUnique({
             where: { id },
             include: {
-                client: true,
-                company: true,
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
                 items: true,
             }
         });
@@ -256,6 +325,180 @@ export class RecurringInvoicesService {
         return deletedRecurringInvoice;
     }
 
+    async pauseRecurringInvoice(id: string) {
+        const existing = await prisma.recurringInvoice.findUnique({ where: { id } });
+        if (!existing) {
+            throw new BadRequestException('Recurring invoice not found');
+        }
+
+        const updated = await prisma.recurringInvoice.update({
+            where: { id },
+            data: { paused: true },
+            include: {
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
+                items: true,
+            },
+        });
+
+        try {
+            await this.webhookDispatcher.dispatch(WebhookEvent.RECURRING_INVOICE_UPDATED, {
+                recurringInvoice: updated,
+                client: updated.client,
+                company: updated.company,
+            });
+        } catch (error) {
+            this.logger.error('Failed to dispatch RECURRING_INVOICE_UPDATED webhook', error);
+        }
+
+        logger.info('Recurring invoice paused', { category: 'recurring-invoice', details: { invoiceId: id } });
+        return updated;
+    }
+
+    async resumeRecurringInvoice(id: string) {
+        const existing = await prisma.recurringInvoice.findUnique({ where: { id } });
+        if (!existing) {
+            throw new BadRequestException('Recurring invoice not found');
+        }
+
+        const updated = await prisma.recurringInvoice.update({
+            where: { id },
+            data: { paused: false },
+            include: {
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
+                items: true,
+            },
+        });
+
+        try {
+            await this.webhookDispatcher.dispatch(WebhookEvent.RECURRING_INVOICE_UPDATED, {
+                recurringInvoice: updated,
+                client: updated.client,
+                company: updated.company,
+            });
+        } catch (error) {
+            this.logger.error('Failed to dispatch RECURRING_INVOICE_UPDATED webhook', error);
+        }
+
+        logger.info('Recurring invoice resumed', { category: 'recurring-invoice', details: { invoiceId: id } });
+        return updated;
+    }
+
+    async skipNextRecurringInvoice(id: string) {
+        const existing = await prisma.recurringInvoice.findUnique({ where: { id } });
+        if (!existing) {
+            throw new BadRequestException('Recurring invoice not found');
+        }
+
+        const updated = await prisma.recurringInvoice.update({
+            where: { id },
+            data: { skipNext: true },
+            include: {
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
+                items: true,
+            },
+        });
+
+        try {
+            await this.webhookDispatcher.dispatch(WebhookEvent.RECURRING_INVOICE_UPDATED, {
+                recurringInvoice: updated,
+                client: updated.client,
+                company: updated.company,
+            });
+        } catch (error) {
+            this.logger.error('Failed to dispatch RECURRING_INVOICE_UPDATED webhook', error);
+        }
+
+        logger.info('Recurring invoice skip-next set', { category: 'recurring-invoice', details: { invoiceId: id } });
+        return updated;
+    }
+
+    async endNowRecurringInvoice(id: string) {
+        const existing = await prisma.recurringInvoice.findUnique({ where: { id } });
+        if (!existing) {
+            throw new BadRequestException('Recurring invoice not found');
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Set until = yesterday so the cron won't pick it up anymore
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        const updated = await prisma.recurringInvoice.update({
+            where: { id },
+            data: {
+                paused: true,
+                until: yesterday,
+            },
+            include: {
+                client: { include: { partyIdentifiers: true } },
+                company: { include: { partyIdentifiers: true } },
+                items: true,
+            },
+        });
+
+        try {
+            await this.webhookDispatcher.dispatch(WebhookEvent.RECURRING_INVOICE_UPDATED, {
+                recurringInvoice: updated,
+                client: updated.client,
+                company: updated.company,
+            });
+        } catch (error) {
+            this.logger.error('Failed to dispatch RECURRING_INVOICE_UPDATED webhook', error);
+        }
+
+        logger.info('Recurring invoice ended now', { category: 'recurring-invoice', details: { invoiceId: id } });
+        return updated;
+    }
+
+    /**
+     * Compute a deterministic period key from a planned date + frequency.
+     * Exported for testing and consistency with cron.service.ts.
+     */
+    computePeriodKey(date: Date, frequency: string): string {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+
+        switch (frequency) {
+            case 'WEEKLY':
+            case 'BIWEEKLY': {
+                const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+                const dayNum = d.getUTCDay() || 7;
+                d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+                const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+                const weekNum = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+                return `${y}-W${String(weekNum).padStart(2, '0')}`;
+            }
+            case 'MONTHLY':
+                return `${y}-${m}`;
+            case 'BIMONTHLY':
+                return `${y}-${m}`;
+            case 'QUARTERLY': {
+                const quarter = Math.floor(date.getMonth() / 3) + 1;
+                return `${y}-Q${quarter}`;
+            }
+            case 'QUADMONTHLY':
+                return `${y}-${m}`;
+            case 'SEMIANNUALLY': {
+                const half = date.getMonth() < 6 ? 'H1' : 'H2';
+                return `${y}-${half}`;
+            }
+            case 'ANNUALLY':
+                return `${y}`;
+            default:
+                return `${y}-${m}`;
+        }
+    }
+
+    /**
+     * Calculate the next invoice date from a given date + frequency.
+     * Anchors on the day of month (monthly+) or day of week (weekly/biweekly).
+     * Handles month overflow (e.g., Jan 31 → Feb gives Feb 28/29).
+     */
     private calculateNextInvoiceDate(from: Date, frequency: string): Date {
         const nextDate = new Date(from);
 
@@ -266,26 +509,56 @@ export class RecurringInvoicesService {
             case 'BIWEEKLY':
                 nextDate.setDate(nextDate.getDate() + 14);
                 break;
-            case 'MONTHLY':
+            case 'MONTHLY': {
+                const targetDay = from.getDate();
                 nextDate.setMonth(nextDate.getMonth() + 1);
+                if (nextDate.getDate() !== targetDay) {
+                    nextDate.setDate(0); // last day of previous month
+                }
                 break;
-            case 'BIMONTHLY':
+            }
+            case 'BIMONTHLY': {
+                const targetDay = from.getDate();
                 nextDate.setMonth(nextDate.getMonth() + 2);
+                if (nextDate.getDate() !== targetDay) {
+                    nextDate.setDate(0);
+                }
                 break;
-            case 'QUARTERLY':
+            }
+            case 'QUARTERLY': {
+                const targetDay = from.getDate();
                 nextDate.setMonth(nextDate.getMonth() + 3);
+                if (nextDate.getDate() !== targetDay) {
+                    nextDate.setDate(0);
+                }
                 break;
-            case 'QUADMONTHLY':
+            }
+            case 'QUADMONTHLY': {
+                const targetDay = from.getDate();
                 nextDate.setMonth(nextDate.getMonth() + 4);
+                if (nextDate.getDate() !== targetDay) {
+                    nextDate.setDate(0);
+                }
                 break;
-            case 'SEMIANNUALLY':
+            }
+            case 'SEMIANNUALLY': {
+                const targetDay = from.getDate();
                 nextDate.setMonth(nextDate.getMonth() + 6);
+                if (nextDate.getDate() !== targetDay) {
+                    nextDate.setDate(0);
+                }
                 break;
-            case 'ANNUALLY':
+            }
+            case 'ANNUALLY': {
+                const targetDay = from.getDate();
                 nextDate.setFullYear(nextDate.getFullYear() + 1);
+                if (nextDate.getDate() !== targetDay) {
+                    nextDate.setDate(0);
+                }
                 break;
+            }
             default:
-                nextDate.setMonth(nextDate.getMonth() + 1); // Default to monthly
+                nextDate.setMonth(nextDate.getMonth() + 1);
         }
 
         return nextDate;

@@ -1,13 +1,11 @@
-import * as Handlebars from 'handlebars';
-
-import { getInvertColor, getPDF } from '@/utils/pdf';
-
 import { BadRequestException } from '@nestjs/common';
+import * as Handlebars from "handlebars";
 import { baseTemplate } from '@/modules/quotes/templates/base.template';
-import { formatDate } from '@/utils/date';
-import prisma from '@/prisma/prisma.service';
+import prisma from "@/prisma/prisma.service";
+import { formatDate } from "@/utils/date";
 import { clampDiscountRate } from '@/utils/financial';
 import { formatItemDescription } from '@/utils/format-text';
+import { getInvertColor, getPDF } from "@/utils/pdf";
 
 export async function generateQuotePdf(id: string): Promise<Uint8Array> {
     const quote = await prisma.quote.findUnique({
@@ -29,9 +27,9 @@ export async function generateQuotePdf(id: string): Promise<Uint8Array> {
     const templateHtml = baseTemplate;
     const template = Handlebars.compile(templateHtml);
 
-    if (quote.client.name.length == 0) {
-        quote.client.name = quote.client.contactFirstname + " " + quote.client.contactLastname
-    }
+    if (quote.client.name.length === 0) {
+					quote.client.name = `${quote.client.contactFirstname} ${quote.client.contactLastname}`;
+				}
 
     // Map payment method enum -> PDFConfig label
     const paymentMethodLabels: Record<string, string> = {
@@ -68,8 +66,8 @@ export async function generateQuotePdf(id: string): Promise<Uint8Array> {
     const hasDiscount = normalizedDiscountRate > 0 && discountAmountValue > 0;
 
     const html = template({
-        number: quote.rawNumber || quote.number.toString(),
-        date: formatDate(quote.company, quote.createdAt),
+        number: quote.rawNumber || quote.number?.toString() || 'DRAFT',
+        date: formatDate(quote.company, quote.issuedAt ?? quote.createdAt),
         validUntil: formatDate(quote.company, quote.validUntil),
         company: quote.company,
         client: quote.client,

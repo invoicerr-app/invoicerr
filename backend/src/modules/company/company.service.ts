@@ -1,5 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { EditCompanyDto, PDFConfigDto } from '@/modules/company/dto/company.dto';
+import { BadRequestException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { EditCompanyDto, IdentifierEntry, PDFConfigDto } from '@/modules/company/dto/company.dto';
 import { MailTemplate, MailTemplateType, WebhookEvent } from '../../../prisma/generated/prisma/client'
 
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
@@ -7,6 +7,8 @@ import { createHash } from 'crypto';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 import { randomUUID } from 'crypto';
+
+
 
 export interface EmailTemplate {
     dbId: string
@@ -37,7 +39,7 @@ export class CompanyService {
     }
 
     async getCompanyInfo() {
-        const company = await prisma.company.findFirst({ include: { emailTemplates: true } });
+        const company = await prisma.company.findFirst({ include: { emailTemplates: true, partyIdentifiers: true } });
         if (!company) {
             logger.warn('No company found', { category: 'company' });
             return null;
@@ -102,7 +104,7 @@ export class CompanyService {
             this.lastCompanyHash = hash;
             logger.info('Company fetched data changed', { category: 'company', details: { companyId: company.id, hash } });
         }
-        return await prisma.company.findFirst();
+        return await prisma.company.findFirst({ include: { partyIdentifiers: true } });
     }
 
     async getPDFTemplateConfig(): Promise<PDFConfigDto> {
@@ -255,8 +257,37 @@ export class CompanyService {
     }
 
 
+    private async upsertPartyIdentifiers(
+        companyId: string,
+        identifiers: IdentifierEntry[] | undefined,
+    ) {
+        if (!identifiers) return;
+
+        const existing = await prisma.partyIdentifier.findMany({
+            where: { companyId },
+        });
+
+        const incomingSchemes = new Set(identifiers.map((i) => i.scheme));
+
+        // Delete rows whose scheme is no longer present
+        for (const row of existing) {
+            if (!incomingSchemes.has(row.scheme)) {
+                await prisma.partyIdentifier.delete({ where: { id: row.id } });
+            }
+        }
+
+        // Upsert each submitted entry
+        for (const entry of identifiers) {
+            await prisma.partyIdentifier.upsert({
+                where: { companyId_scheme: { companyId, scheme: entry.scheme } },
+                create: { companyId, scheme: entry.scheme, value: entry.value },
+                update: { value: entry.value },
+            });
+        }
+    }
+
     async editCompanyInfo(editCompanyDto: EditCompanyDto) {
-        const data = { ...editCompanyDto };
+        const { identifiers, ...data } = editCompanyDto;
         const existingCompany = await prisma.company.findFirst();
 
         if (existingCompany) {
@@ -268,6 +299,8 @@ export class CompanyService {
                     ...rest
                 }
             });
+
+            await this.upsertPartyIdentifiers(updatedCompany.id, identifiers);
 
             logger.info('Company info updated', { category: 'company', details: { companyId: updatedCompany.id } });
 
@@ -318,6 +351,8 @@ export class CompanyService {
                     }
                 }
             });
+
+            await this.upsertPartyIdentifiers(newCompany.id, identifiers);
 
             try {
                 await this.webhookDispatcher.dispatch(WebhookEvent.COMPANY_CREATED, {

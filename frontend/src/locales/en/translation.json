@@ -513,20 +513,32 @@
             "emptyState": "No invoices to display in progression.",
             "steps": {
                 "draft": "Draft",
+                "issued": "Issued",
+                "pendingClearance": "Pending clearance",
+                "cleared": "Cleared",
+                "delivered": "Delivered",
                 "sent": "Sent",
                 "paid": "Paid",
                 "archived": "Archived",
-                "partiallyPaid": "Partially paid"
+                "partiallyPaid": "Partially paid",
+                "cancelled": "Cancelled",
+                "corrected": "Corrected"
             },
             "percentPaid": "{{percent}}% paid",
             "stepLabel": "Step {{current}} / {{total}}",
+            "noNumberYet": "No number yet",
             "actions": {
+                "issue": "Issue",
                 "send": "Send",
                 "resend": "Resend",
                 "paymentReceived": "Payment received",
                 "archive": "Archive"
             },
             "confirmations": {
+                "issue": {
+                    "title": "Issue invoice",
+                    "description": "Are you sure you want to issue invoice {{number}}? The document will be locked and a legal number will be assigned."
+                },
                 "send": {
                     "title": "Send invoice",
                     "description": "Are you sure you want to send invoice {{number}} to {{client}}?"
@@ -583,9 +595,14 @@
         "statusFilters": {
             "all": "All",
             "draft": "Draft",
+            "issued": "Issued",
             "sent": "Sent",
             "paid": "Paid",
-            "archived": "Archived"
+            "archived": "Archived",
+            "cancelled": "Cancelled",
+            "corrected": "Corrected",
+            "pending_clearance": "Pending Clearance",
+            "cleared": "Cleared"
         },
         "emptyState": {
             "noInvoices": "No invoices yet",
@@ -598,12 +615,17 @@
             "description": "Manage and view all your invoices in one place.",
             "status": {
                 "draft": "Draft",
+                "issued": "Issued",
                 "sent": "Sent",
                 "unpaid": "Unpaid",
                 "overdue": "Overdue",
                 "paid": "Paid",
                 "upcoming": "Upcoming",
-                "archived": "Archived"
+                "archived": "Archived",
+                "cancelled": "Cancelled",
+                "corrected": "Corrected",
+                "pending_clearance": "Pending Clearance",
+                "cleared": "Cleared"
             },
             "item": {
                 "title": "Invoice {{number}} {{title}}",
@@ -621,7 +643,11 @@
                 "downloadPdf": "Download PDF",
                 "edit": "Edit invoice",
                 "delete": "Delete invoice",
-                "sendByEmail": "Send invoice by email"
+                "sendByEmail": "Send invoice by email",
+                "issue": "Issue invoice",
+                "creditNote": "Issue credit note",
+                "cancel": "Cancel invoice",
+                "cancelAndReplace": "Cancel and replace"
             },
             "actions": {
                 "addNew": "Add New Invoice",
@@ -641,7 +667,13 @@
                 "markAsPaidError": "Failed to mark invoice as paid",
                 "sendByEmailSuccess": "Invoice has been sent to customer",
                 "archiveSuccess": "Invoice archived successfully",
-                "archiveError": "Failed to archive invoice"
+                "archiveError": "Failed to archive invoice",
+                "issueSuccess": "Invoice issued successfully",
+                "issueError": "Failed to issue invoice",
+                "correctSuccess": "Credit note issued",
+                "correctError": "Failed to issue credit note",
+                "cancelSuccess": "Invoice cancelled",
+                "cancelError": "Failed to cancel invoice"
             }
         },
         "upsert": {
@@ -651,7 +683,9 @@
             },
             "tabs": {
                 "invoice": "Invoice",
-                "recurring": "Recurring Invoice"
+                "recurring": "Recurring Invoice",
+                "proforma": "Proforma",
+                "final": "Final Invoice"
             },
             "form": {
                 "quote": {
@@ -748,12 +782,20 @@
                     "label": "Payment Details",
                     "placeholder": "Enter payment details",
                     "description": "Additional information for payment (e.g., IBAN, instructions, etc.)"
+                },
+                "deposits": {
+                    "label": "Linked Deposits",
+                    "description": "Select deposit invoices to deduct from this final invoice.",
+                    "selected": "{{count}} deposit(s) selected — total: {{total}}",
+                    "none": "No unlinked deposit invoices found for this client."
                 }
             },
             "actions": {
                 "cancel": "Cancel",
                 "create": "Create Invoice",
-                "save": "Save Changes"
+                "save": "Save Changes",
+                "createProforma": "Create Proforma",
+                "createFinal": "Create Final Invoice"
             }
         },
         "view": {
@@ -761,11 +803,16 @@
             "description": "View all details of this invoice.",
             "status": {
                 "draft": "Draft",
+                "issued": "Issued",
                 "sent": "Sent",
                 "unpaid": "Unpaid",
                 "overdue": "Overdue",
                 "paid": "Paid",
-                "archived": "Archived"
+                "archived": "Archived",
+                "cancelled": "Cancelled",
+                "corrected": "Corrected",
+                "pending_clearance": "Pending Clearance",
+                "cleared": "Cleared"
             },
             "fields": {
                 "number": "Invoice Number",
@@ -782,7 +829,43 @@
                 "totalHT": "Total (excl. VAT)",
                 "totalVAT": "VAT Amount",
                 "totalTTC": "Total (incl. VAT)",
-                "notes": "Notes"
+                "notes": "Notes",
+                "complianceStatus": "Compliance Status",
+                "correctsInvoice": "Corrects Invoice",
+                "corrections": "Corrections",
+                "linkedDeposits": "Linked Deposit Invoices",
+                "totalDeposited": "Total Deposited"
+            },
+            "messages": {
+                "cancellationNotAllowed": "Cancellation not allowed"
+            },
+            "correctionOf": "Corrects #{{number}}",
+            "actions": {
+                "edit": "Edit Draft",
+                "creditNote": "Credit Note",
+                "correctiveInvoice": "Corrective Invoice",
+                "cancel": "Cancel",
+                "cancelAndReplace": "Cancel & Replace",
+                "send": "Send",
+                "convertToInvoice": "Convert to Invoice",
+                "convertToInvoiceSuccess": "Proforma converted to invoice",
+                "deposit": "Issue Deposit Invoice",
+                "correctSuccess": "Correction issued",
+                "correctError": "Failed to issue correction",
+                "cancelSuccess": "Invoice cancelled",
+                "cancelError": "Failed to cancel invoice",
+                "cancelAndReplaceSuccess": "Invoice cancelled and replaced",
+                "cancelAndReplaceError": "Failed to cancel and replace",
+                "sendSuccess": "Invoice sent",
+                "sendError": "Failed to send invoice",
+                "sendByEmail": "Send by email",
+                "submitClearance": "Submit for clearance",
+                "sendViaPeppol": "Send via Peppol",
+                "sendToPortal": "Send to portal",
+                "print": "Print",
+                "awaitingClearance": "Awaiting clearance from the authority",
+                "awaitingBuyerResponse": "Awaiting buyer response",
+                "awaitingDelivery": "Awaiting delivery confirmation"
             }
         },
         "sendConfirmation": {
@@ -821,6 +904,30 @@
         },
         "pdf": {
             "title": "Invoice {{number}} - PDF"
+        },
+        "deposit": {
+            "title": "Issue Deposit Invoice",
+            "description": "Create a standalone deposit invoice (facture d'acompte).",
+            "form": {
+                "amount": {
+                    "label": "Deposit Amount",
+                    "placeholder": "Enter deposit amount",
+                    "errors": {
+                        "required": "Amount is required",
+                        "min": "Amount must be greater than 0"
+                    }
+                },
+                "notes": {
+                    "placeholder": "Optional notes for the deposit invoice"
+                }
+            },
+            "actions": {
+                "create": "Create Deposit Invoice"
+            },
+            "messages": {
+                "success": "Deposit invoice created",
+                "error": "Failed to create deposit invoice"
+            }
         }
     },
     "recurringInvoices": {
@@ -843,17 +950,33 @@
             "item": {
                 "client": "Client",
                 "payment": "Payment Method",
+                "frequency": "Frequency",
                 "totalHT": "Total (excl. VAT)",
-                "totalTTC": "Total (incl. VAT)"
+                "totalTTC": "Total (incl. VAT)",
+                "nextRun": "Next Run",
+                "lastRun": "Last Run",
+                "generatedCount": "Generated",
+                "paused": "Paused",
+                "autoIssue": "Auto-Issue",
+                "autoSend": "Auto-Send",
+                "skipNext": "Skip Next"
             },
             "tooltips": {
                 "view": "View Details",
                 "edit": "Edit",
+                "pause": "Pause",
+                "resume": "Resume",
+                "skipNext": "Skip Next Cycle",
+                "endNow": "End Now",
                 "delete": "Delete"
             },
             "messages": {
                 "manual_process_success": "Manual process triggered successfully",
-                "manual_process_error": "Error triggering manual process"
+                "manual_process_error": "Error triggering manual process",
+                "pauseSuccess": "Recurring invoice paused",
+                "resumeSuccess": "Recurring invoice resumed",
+                "skipNextSuccess": "Next cycle will be skipped",
+                "endNowSuccess": "Recurring invoice ended"
             }
         },
         "emptyState": {
@@ -916,6 +1039,10 @@
                     "placeholder": "Select end date",
                     "description": "Date when the recurring invoice will stop being generated (leave empty for infinite recurrence)"
                 },
+                "autoIssue": {
+                    "label": "Auto Issue",
+                    "description": "Automatically assign a number and issue the invoice when generated (DRAFT → ISSUED)"
+                },
                 "autoSend": {
                     "label": "Auto Send",
                     "description": "Automatically send the recurring invoice to the client when generated"
@@ -974,6 +1101,23 @@
                 "cancel": "Cancel",
                 "create": "Create Recurring Invoice",
                 "save": "Save Changes"
+            }
+        },
+        "view": {
+            "title": "Recurring Invoice Details",
+            "description": "Overview of this recurring invoice template",
+            "fields": {
+                "client": "Client",
+                "paymentMethod": "Payment Method",
+                "frequency": "Frequency",
+                "nextRun": "Next Run",
+                "lastRun": "Last Run",
+                "generatedCount": "Generated Invoices",
+                "totalHT": "Total (excl. VAT)",
+                "totalVAT": "VAT",
+                "totalTTC": "Total (incl. VAT)",
+                "notes": "Notes",
+                "generatedInvoices": "Generated Invoices"
             }
         }
     },
@@ -1438,6 +1582,9 @@
                 "exemptVat": {
                     "label": "TVA unapplicable",
                     "description": "Display the legal notice 'VAT not applicable, art. 293 B of the CGI' on future documents when enabled and if the company's country is France."
+                },
+                "identifiers": {
+                    "label": "Country-specific identifiers"
                 },
                 "saving": "Saving...",
                 "saveSettings": "Save Settings"

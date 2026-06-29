@@ -182,6 +182,7 @@ export class SignaturesService {
                 quote: {
                     select: {
                         number: true,
+                        rawNumber: true,
                         company: true,
                         client: {
                             select: {
@@ -217,7 +218,7 @@ export class SignaturesService {
             APP_URL: process.env.APP_URL,
             SIGNATURE_URL: `${process.env.APP_URL}/signature/${signature.id}`,
             SIGNATURE_ID: signature.id,
-            SIGNATURE_NUMBER: signature.quote.number,
+            SIGNATURE_NUMBER: signature.quote.rawNumber || (signature.quote.number?.toString() ?? 'DRAFT'),
         };
 
         const mailOptions = {

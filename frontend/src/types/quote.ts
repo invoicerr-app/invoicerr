@@ -12,9 +12,23 @@ export enum QuoteStatus {
 
 export interface Quote {
     id: string;
-    number: number; // Ex: "Q-2025-0001"
+    number?: number; // Assigned at sign (null for DRAFT)
     rawNumber?: string; // Optional raw number for custom formats
     title?: string;
+    buyerReference?: string;
+    purchaseOrder?: string;
+    deliveryDate?: string;
+    deliveryAddress?: string;
+    deliveryAddressLine2?: string;
+    deliveryPostalCode?: string;
+    deliveryCity?: string;
+    deliveryState?: string;
+    deliveryCountry?: string;
+    paymentTerms?: string;
+    paymentMeansCode?: string;
+    fxRate?: number;
+    fxTaxAmount?: number;
+    ttcPricing?: boolean;
     clientId: string;
     client: Client;
     companyId: string;
@@ -55,4 +69,9 @@ export interface QuoteItem {
     unitPrice: number;
     vatRate: number; // 20 for 20%
     order: number; // For sorting items in the quote PDF
+    discountRate?: number;
+    discountAmount?: number;
+    chargeAmount?: number;
+    chargeDescription?: string;
+    unitOfMeasure?: string;
 }

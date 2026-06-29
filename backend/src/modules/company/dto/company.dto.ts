@@ -1,4 +1,3 @@
-import { finance } from "@fin.cx/einvoice/dist_ts/plugins"
 
 export interface PDFConfigDto {
     fontFamily: string
@@ -56,15 +55,16 @@ export interface PDFConfigDto {
     }
 }
 
+export interface IdentifierEntry {
+    scheme: string;
+    value: string;
+}
+
 export class EditCompanyDto {
     description?: string
-    legalId?: string
-    // Optional: the simplified onboarding only sends name + country; the rest is
-    // filled in later via Settings. The backend supplies blank defaults on creation.
     foundedAt?: Date
     name: string
-    currency: finance.TCurrency
-    VAT?: string
+    currency: import('../../../../prisma/generated/prisma/client').Currency
     exemptVat?: boolean
     address?: string
     addressLine2?: string
@@ -72,6 +72,7 @@ export class EditCompanyDto {
     city?: string
     state?: string
     country: string
+    countryCode?: string
     phone?: string
     email?: string
     pdfConfig: PDFConfigDto
@@ -81,4 +82,5 @@ export class EditCompanyDto {
     invoiceNumberFormat: string
     paymentStartingNumber: number
     paymentNumberFormat: string
+    identifiers?: IdentifierEntry[]
 }

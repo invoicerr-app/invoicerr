@@ -1,168 +1,25 @@
-import 'dotenv/config'
+import "dotenv/config";
 
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { Prisma, PrismaClient } from '../../prisma/generated/prisma/client';
+import { Injectable } from "@nestjs/common";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../../prisma/generated/prisma/client";
 
-import { PrismaPg } from '@prisma/adapter-pg';
-import { formatPattern } from '@/utils/pdf';
-
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
-
-const prisma = new PrismaClient({ adapter }).$extends({
-    query: {
-        $allModels: {
-            async findMany({ model, operation, args, query }) {
-                if (
-                    ['Quote', 'Invoice', 'Payment'].includes(model) &&
-                    args?.where &&
-                    (args.where as Prisma.QuoteWhereInput | Prisma.InvoiceWhereInput | Prisma.PaymentWhereInput).rawNumber! === null
-                ) {
-                    return query(args);
-                }
-
-                // Exécution de la requête
-                const result = await query(args);
-
-                // Mise à jour automatique des rawNumber manquants
-                if (['Quote', 'Invoice', 'Payment'].includes(model)) {
-                    if (model === 'Quote') {
-                        const toUpdate = await prisma.quote.findMany({
-                            where: { rawNumber: null },
-                            include: { company: true },
-                        });
-                        await Promise.all(
-                            toUpdate.map(async (quote) => {
-                                const formattedNumber = await formatPattern(
-                                    'quote',
-                                    quote.number,
-                                    quote.createdAt,
-                                );
-                                await prisma.quote.update({
-                                    where: { id: quote.id },
-                                    data: { rawNumber: formattedNumber },
-                                });
-                            }),
-                        );
-                    }
-
-                    if (model === 'Invoice') {
-                        const toUpdate = await prisma.invoice.findMany({
-                            where: { rawNumber: null },
-                            include: { company: true },
-                        });
-                        await Promise.all(
-                            toUpdate.map(async (invoice) => {
-                                const formattedNumber = await formatPattern(
-                                    'invoice',
-                                    invoice.number,
-                                    invoice.createdAt,
-                                );
-                                await prisma.invoice.update({
-                                    where: { id: invoice.id },
-                                    data: { rawNumber: formattedNumber },
-                                });
-                            }),
-                        );
-                    }
-
-                    if (model === 'Payment') {
-                        const toUpdate = await prisma.payment.findMany({
-                            where: { rawNumber: null },
-                            include: { invoice: { include: { company: true } } },
-                        });
-                        await Promise.all(
-                            toUpdate.map(async (payment) => {
-                                const formattedNumber = await formatPattern(
-                                    'payment',
-                                    payment.number,
-                                    payment.createdAt,
-                                );
-                                await prisma.payment.update({
-                                    where: { id: payment.id },
-                                    data: { rawNumber: formattedNumber },
-                                });
-                            }),
-                        );
-                    }
-                }
-
-                return result;
-            },
-
-            async create({ model, args, query }) {
-                const result = (await query(args));
-
-                if (['Quote', 'Invoice', 'Payment'].includes(model)) {
-                    const typedResult = result as Prisma.QuoteGetPayload<{}> | Prisma.InvoiceGetPayload<{}> | Prisma.PaymentGetPayload<{}>;
-                    if (!typedResult.rawNumber) {
-                        const formattedNumber = await formatPattern(
-                            (model.toLowerCase() as 'quote' | 'invoice' | 'payment'),
-                            typedResult.number,
-                            typedResult.createdAt,
-                        );
-                        await prisma[model.toLowerCase()].update({
-                            where: { id: result.id },
-                            data: { rawNumber: formattedNumber },
-                        });
-                    }
-                }
-
-                return result;
-            },
-
-            async update({ model, args, query }) {
-                const result = await query(args);
-
-                if (['Quote', 'Invoice', 'Payment'].includes(model)) {
-                    const typedResult = result as Prisma.QuoteGetPayload<{}> | Prisma.InvoiceGetPayload<{}> | Prisma.PaymentGetPayload<{}>;
-                    if (!typedResult.rawNumber) {
-                        const formattedNumber = await formatPattern(
-                            (model.toLowerCase() as 'quote' | 'invoice' | 'payment'),
-                            typedResult.number,
-                            typedResult.createdAt,
-                        );
-                        await prisma[model.toLowerCase()].update({
-                            where: { id: result.id },
-                            data: { rawNumber: formattedNumber },
-                        });
-                    }
-                }
-
-                return result;
-            },
-        },
-    },
-});
-
-export default prisma;
-
-// Injectable PrismaService for NestJS dependency injection
 @Injectable()
-export class PrismaService implements OnModuleInit, OnModuleDestroy {
-    private readonly client = prisma;
-
-    async onModuleInit() {
-        // Connection is handled by the client automatically
-    }
-
-    async onModuleDestroy() {
-        await this.client.$disconnect();
-    }
-
-    // Expose all Prisma models
-    get user() { return this.client.user; }
-    get session() { return this.client.session; }
-    get account() { return this.client.account; }
-    get verification() { return this.client.verification; }
-    get invitationCode() { return this.client.invitationCode; }
-    get company() { return this.client.company; }
-    get client_model() { return this.client.client; }
-    get quote() { return this.client.quote; }
-    get invoice() { return this.client.invoice; }
-    get payment() { return this.client.payment; }
-    get paymentItem() { return this.client.paymentItem; }
-    get recurringInvoice() { return this.client.recurringInvoice; }
-    get paymentMethod() { return this.client.paymentMethod; }
-    get webhook() { return this.client.webhook; }
-    get plugin() { return this.client.plugin; }
+export class PrismaService extends PrismaClient {
+	constructor() {
+		const adapter = new PrismaPg({
+			connectionString: process.env.DATABASE_URL as string,
+		});
+		super({ adapter });
+	}
 }
+
+/**
+ * Module-level singleton for legacy consumers that do
+ *   `import prisma from '@/prisma/prisma.service'`
+ * The DI class above is the canonical path for NestJS modules;
+ * this default export exists solely to keep non-DI callers working
+ * without a mass migration.
+ */
+const prisma = new PrismaService();
+export default prisma;
