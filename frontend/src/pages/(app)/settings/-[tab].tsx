@@ -1,4 +1,4 @@
-import { AlertTriangle, Building2, FileText, KeyRound, Mail, Plug, Radio, TicketIcon, User, Webhook } from "lucide-react"
+import { AlertTriangle, Building2, FileText, KeyRound, Mail, Plug, Radio, ShieldCheck, TicketIcon, User, Webhook } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useNavigate, useParams } from "react-router"
 
@@ -11,6 +11,7 @@ import EmailTemplatesSettings from "./_components/templates.settings"
 import InvitationsSettings from "./_components/invitations.settings"
 import PDFTemplatesSettings from "./_components/pdf.settings"
 import PluginsSettings from "./_components/plugins.settings"
+import SigningCertificatesSettings from "./_components/signing-certificates.settings"
 import WebhooksSettings from "./_components/webhooks.settings"
 import { cn } from "@/lib/utils"
 import { usePageHeader } from "@/hooks/use-page-header"
@@ -22,7 +23,7 @@ export default function Settings() {
     const { tab } = useParams()
     const navigate = useNavigate()
 
-    const validTabs = ["company", "template", "email", "webhooks", "apiKeys", "logs", "account", "invitations", "plugins", "channels", "danger"]
+    const validTabs = ["company", "template", "email", "webhooks", "apiKeys", "logs", "account", "invitations", "plugins", "channels", "signing", "danger"]
     const currentTab = validTabs.includes(tab!) ? tab! : "company"
 
     const handleTabChange = (newTab: string) => {
@@ -81,6 +82,11 @@ export default function Settings() {
             icon: Radio,
         },
         {
+            value: "signing",
+            label: t("settings.tabs.signing", "Signing certs"),
+            icon: ShieldCheck,
+        },
+        {
             value: "danger",
             label: t("settings.tabs.dangerZone"),
             icon: AlertTriangle,
@@ -113,6 +119,8 @@ export default function Settings() {
                 return <PluginsSettings />
             case "channels":
                 return <ChannelsSettings />
+            case "signing":
+                return <SigningCertificatesSettings />
             case "danger":
                 return <DangerZoneSettings />
             default:
