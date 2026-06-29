@@ -1265,6 +1265,29 @@ model ComplianceInboundMessage {
   // on (channel, rawRef) WHERE rawRef IS NOT NULL is a nice-to-have via raw SQL in the migration.
 }
 
+// ======= COMPLIANCE REPORTING PERSISTENCE ======= //
+
+/// One row per (kind × period × company × invoice). Idempotence key on the unique index.
+/// status: PENDING → SUBMITTED → FILED (proof stored in submittedRef + payload.receipt).
+model ComplianceReport {
+  id           String    @id @default(uuid())
+  kind         String    // ReportingKind (E_REPORTING | SAFT | OSS | IOSS | EC_SALES_LIST | …)
+  periodKey    String    // "2026-06" (monthly) | "2026-Q2" (quarterly)
+  companyId    String?   // supplierCompanyId from TransactionContext
+  invoiceRef   String?   // externalRef (invoice id) — null for period-aggregate records
+  status       String    @default("PENDING") // PENDING | SUBMITTED | FILED
+  payload      Json      // generated report payload (kind-specific structured object or XML string)
+  submittedRef String?   // authority reference returned on submission (proof of filing)
+  submittedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  /// Exactly one record per (kind, period, company, invoice) — idempotence guard.
+  @@unique([kind, periodKey, companyId, invoiceRef])
+  @@index([kind, periodKey, companyId])
+  @@index([companyId, status])
+}
+
 // ======= END OF COMPLIANCE LIFECYCLE PERSISTENCE ======= //
 
 // ======= CHANNEL CONFIG (per-company credentials, encrypted) ======= //
