@@ -1471,6 +1471,371 @@ export const EG_B2B: FormatFixture = {
 };
 
 // ---------------------------------------------------------------------------
+// LATAM fixtures — §1.3 scaffold (format builders, portal tests) — live-deferred
+// ---------------------------------------------------------------------------
+
+// Fixture: UY B2B — Uruguay CFE/DFE (DGI)
+export const UY_B2B: FormatFixture = {
+  slug: 'uy-b2b',
+  description: 'Uruguayan B2B, Comprobante Fiscal Electrónico (DGI)',
+  data: {
+    rawNumber: 'CFE-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Tecnología Uruguay SRL',
+      description: 'Software & consulting',
+      foundedAt: new Date('2016-07-12'),
+      currency: 'UYU',
+      address: 'Av. 18 de Julio 1300',
+      city: 'Montevideo',
+      postalCode: '11200',
+      country: 'Uruguay',
+      partyIdentifiers: [{ scheme: 'VAT', value: '21-400-234-0010' }],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Comercial Rioplatense SA',
+      description: 'Trading company',
+      foundedAt: new Date('2008-03-10'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Calle Colonia 890',
+      city: 'Montevideo',
+      postalCode: '11100',
+      country: 'Uruguay',
+      partyIdentifiers: [{ scheme: 'VAT', value: '21-500-123-0011' }],
+    },
+    items: [
+      { name: 'Consultoría tecnológica', quantity: 30, unitPrice: 5000, vatRate: 22, type: 'SERVICE' },
+      { name: 'Licencias anuales', quantity: 5, unitPrice: 8000, vatRate: 10, type: 'GOODS' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture: PY B2B — Paraguay e-Kuatia DE (SIFEN)
+export const PY_B2B: FormatFixture = {
+  slug: 'py-b2b',
+  description: 'Paraguayan B2B, e-Kuatia Documento Electrónico (SIFEN)',
+  data: {
+    rawNumber: 'DE-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Servicios TI Paraguay SA',
+      description: 'IT services',
+      foundedAt: new Date('2018-01-20'),
+      currency: 'PYG',
+      address: 'Av. España 1234',
+      city: 'Asunción',
+      postalCode: '1001',
+      country: 'Paraguay',
+      partyIdentifiers: [{ scheme: 'VAT', value: '80012345-6' }],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Importadora Guaraní SRL',
+      description: 'Import company',
+      foundedAt: new Date('2010-06-05'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Calle Palma 500',
+      city: 'Asunción',
+      postalCode: '1001',
+      country: 'Paraguay',
+      partyIdentifiers: [{ scheme: 'VAT', value: '80098765-4' }],
+    },
+    items: [
+      { name: 'Desarrollo de sistema', quantity: 1, unitPrice: 15000000, vatRate: 10, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture: CR B2B — Costa Rica FE v4.4 (Hacienda)
+export const CR_B2B: FormatFixture = {
+  slug: 'cr-b2b',
+  description: 'Costa Rican B2B, Factura Electrónica v4.4 (Hacienda)',
+  data: {
+    rawNumber: 'FE-CR-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Soluciones Digitales CR SA',
+      description: 'IT consulting',
+      foundedAt: new Date('2015-09-15'),
+      currency: 'CRC',
+      address: 'Av. Central, Edificio Torre Mercedes',
+      city: 'San José',
+      postalCode: '10101',
+      country: 'Costa Rica',
+      partyIdentifiers: [{ scheme: 'VAT', value: '3101234567' }],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Comercial Pacífico SRL',
+      description: 'Distribution',
+      foundedAt: new Date('2012-04-20'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Calle 10, Av. 5',
+      city: 'San José',
+      postalCode: '10102',
+      country: 'Costa Rica',
+      partyIdentifiers: [{ scheme: 'VAT', value: '3101987654' }],
+    },
+    items: [
+      { name: 'Servicios de consultoría', quantity: 20, unitPrice: 75000, vatRate: 13, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture: DO B2B — Dominican Republic e-CF (DGII)
+export const DO_B2B: FormatFixture = {
+  slug: 'do-b2b',
+  description: 'Dominican B2B, e-Comprobante Fiscal Electrónico (DGII)',
+  data: {
+    rawNumber: 'ECF-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Tecnología Caribe SRL',
+      description: 'Software services',
+      foundedAt: new Date('2017-05-10'),
+      currency: 'DOP',
+      address: 'Av. Winston Churchill 1099',
+      city: 'Santo Domingo',
+      postalCode: '10103',
+      country: 'Dominican Republic',
+      partyIdentifiers: [{ scheme: 'VAT', value: '130123456-7' }],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Distribuidora Hispaniola SA',
+      description: 'Distribution',
+      foundedAt: new Date('2005-08-20'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Av. Tiradentes 12',
+      city: 'Santo Domingo',
+      postalCode: '10208',
+      country: 'Dominican Republic',
+      partyIdentifiers: [{ scheme: 'VAT', value: '130987654-3' }],
+    },
+    items: [
+      { name: 'Desarrollo de aplicaciones', quantity: 50, unitPrice: 3000, vatRate: 18, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture: GT B2B — Guatemala FEL (SAT)
+export const GT_B2B: FormatFixture = {
+  slug: 'gt-b2b',
+  description: 'Guatemalan B2B, FEL (SAT)',
+  data: {
+    rawNumber: 'FEL-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Tecnología Maya SA',
+      description: 'IT services',
+      foundedAt: new Date('2014-11-03'),
+      currency: 'GTQ',
+      address: 'Diagonal 6, 10-01 Zona 10',
+      city: 'Guatemala City',
+      postalCode: '01010',
+      country: 'Guatemala',
+      partyIdentifiers: [{ scheme: 'VAT', value: '12345678' }],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Comercial Quetzal SRL',
+      description: 'Trading',
+      foundedAt: new Date('2009-02-14'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: '4a. Calle 7-53 Zona 1',
+      city: 'Guatemala City',
+      postalCode: '01001',
+      country: 'Guatemala',
+      partyIdentifiers: [{ scheme: 'VAT', value: '87654321' }],
+    },
+    items: [
+      { name: 'Consultoría de sistemas', quantity: 40, unitPrice: 800, vatRate: 12, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture: PA B2B — Panama FE/CF (DGI)
+export const PA_B2B: FormatFixture = {
+  slug: 'pa-b2b',
+  description: 'Panamanian B2B, Factura Electrónica (DGI)',
+  data: {
+    rawNumber: 'FE-PA-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Servicios Canaleros SA',
+      description: 'Consulting',
+      foundedAt: new Date('2016-04-21'),
+      currency: 'PAB',
+      address: 'Av. Balboa, Torre Balboa',
+      city: 'Panama City',
+      postalCode: '0816',
+      country: 'Panama',
+      partyIdentifiers: [{ scheme: 'VAT', value: '12345-678-90' }],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Importadora Istmo SRL',
+      description: 'Import',
+      foundedAt: new Date('2011-07-08'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Calle 50, Edificio Global',
+      city: 'Panama City',
+      postalCode: '0819',
+      country: 'Panama',
+      partyIdentifiers: [{ scheme: 'VAT', value: '98765-432-10' }],
+    },
+    items: [
+      { name: 'Servicios de TI', quantity: 15, unitPrice: 2500, vatRate: 7, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture: SV B2B — El Salvador DTE JSON (MH)
+export const SV_B2B: FormatFixture = {
+  slug: 'sv-b2b',
+  description: 'Salvadoran B2B, DTE JSON (Ministerio de Hacienda)',
+  data: {
+    rawNumber: 'DTE-SV-001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'TechSalvador SA de CV',
+      description: 'Technology services',
+      foundedAt: new Date('2018-08-22'),
+      currency: 'USD',
+      address: 'Blvd. del Hipódromo 516, Col. San Benito',
+      city: 'San Salvador',
+      postalCode: '1101',
+      country: 'El Salvador',
+      partyIdentifiers: [{ scheme: 'VAT', value: '0614-220818-101-1' }],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Comercial Mayan SA de CV',
+      description: 'Commerce',
+      foundedAt: new Date('2007-03-12'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Av. Juan Pablo II, Local 5',
+      city: 'San Salvador',
+      postalCode: '1102',
+      country: 'El Salvador',
+      partyIdentifiers: [{ scheme: 'VAT', value: '0614-120307-202-3' }],
+    },
+    items: [
+      { name: 'Desarrollo de software', quantity: 100, unitPrice: 50, vatRate: 13, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture: VE B2B — Venezuela Factura Electrónica (SENIAT)
+export const VE_B2B: FormatFixture = {
+  slug: 've-b2b',
+  description: 'Venezuelan B2B, Factura Electrónica (SENIAT)',
+  data: {
+    rawNumber: 'FE-VE-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Tecnología Bolívar CA',
+      description: 'IT services',
+      foundedAt: new Date('2013-06-10'),
+      currency: 'VES',
+      address: 'Av. Francisco de Miranda, Torre HP',
+      city: 'Caracas',
+      postalCode: '1060',
+      country: 'Venezuela',
+      partyIdentifiers: [{ scheme: 'VAT', value: 'J-12345678-9' }],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Distribuidora Carabobo SRL',
+      description: 'Distribution',
+      foundedAt: new Date('2005-11-20'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Calle Carabobo 123',
+      city: 'Valencia',
+      postalCode: '2001',
+      country: 'Venezuela',
+      partyIdentifiers: [{ scheme: 'VAT', value: 'J-98765432-1' }],
+    },
+    items: [
+      { name: 'Servicios técnicos', quantity: 25, unitPrice: 500, vatRate: 16, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// Fixture: BO B2B — Bolivia Facturación Electrónica (SIN)
+export const BO_B2B: FormatFixture = {
+  slug: 'bo-b2b',
+  description: 'Bolivian B2B, Facturación Electrónica SIN',
+  data: {
+    rawNumber: 'FE-BO-0001',
+    number: null,
+    issuedAt: NOW,
+    createdAt: NOW,
+    company: {
+      name: 'Tecnología Andina SRL',
+      description: 'IT services',
+      foundedAt: new Date('2019-02-14'),
+      currency: 'BOB',
+      address: 'Av. 6 de Agosto 2170',
+      city: 'La Paz',
+      postalCode: '0101',
+      country: 'Bolivia',
+      partyIdentifiers: [{ scheme: 'VAT', value: '1023456789' }],
+    },
+    client: {
+      type: 'COMPANY',
+      name: 'Importadora Altiplano SA',
+      description: 'Import',
+      foundedAt: new Date('2006-09-30'),
+      contactFirstname: null, contactLastname: null, salutation: null, sex: null, title: null,
+      isActive: true,
+      address: 'Calle Colón 456',
+      city: 'La Paz',
+      postalCode: '0102',
+      country: 'Bolivia',
+      partyIdentifiers: [{ scheme: 'VAT', value: '9087654321' }],
+    },
+    items: [
+      { name: 'Consultoría de sistemas', quantity: 10, unitPrice: 5000, vatRate: 13, type: 'SERVICE' },
+    ],
+  },
+  formats: {},
+};
+
+// ---------------------------------------------------------------------------
 // All fixtures — ordered for the harness
 // ---------------------------------------------------------------------------
 export const FIXTURES: FormatFixture[] = [
