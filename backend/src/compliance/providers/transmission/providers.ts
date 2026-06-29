@@ -496,7 +496,7 @@ export class PdpTransmissionProvider implements TransmissionProvider {
           flowSyntax: 'Factur-X',
           flowProfile: 'Extended-CTC-FR',
           name: ctx.externalRef ?? `invoice-${key}`,
-          processingRule: 'B2B',
+          // processingRule omitted: superpdp's AFNOR Flux sandbox rejects it (501 not yet supported).
           trackingId: key,
         });
 

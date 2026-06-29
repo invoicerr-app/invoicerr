@@ -367,13 +367,16 @@ export class PdpClient {
     const ext = flowInfo.flowSyntax === 'Factur-X' ? 'pdf' : 'xml';
     const mime = ext === 'pdf' ? 'application/pdf' : 'application/xml';
     form.append('file', new Blob([buf], { type: mime }), `${flowInfo.name}.${ext}`);
-    form.append('flowInfo', new Blob([JSON.stringify({
+    // Only emit optional args when explicitly set: superpdp's AFNOR Flux sandbox returns
+    // `501 — processingRule are not yet supported as argument` if processingRule is present.
+    const flowInfoPayload: Record<string, unknown> = {
       flowSyntax: flowInfo.flowSyntax,
       flowProfile: flowInfo.flowProfile ?? 'Extended-CTC-FR',
       name: flowInfo.name,
-      processingRule: flowInfo.processingRule ?? 'B2B',
-      trackingId: flowInfo.trackingId,
-    })], { type: 'application/json' }));
+    };
+    if (flowInfo.processingRule !== undefined) flowInfoPayload.processingRule = flowInfo.processingRule;
+    if (flowInfo.trackingId !== undefined) flowInfoPayload.trackingId = flowInfo.trackingId;
+    form.append('flowInfo', new Blob([JSON.stringify(flowInfoPayload)], { type: 'application/json' }));
 
     return this.request<AfnorFlowInfo>('POST', '/afnor-flow/v1/flows', {
       formData: form,
