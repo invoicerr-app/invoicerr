@@ -162,7 +162,7 @@
 - [x] **SAF‑T** — XML OECD SAF‑T 1.04 (xmlbuilder2), structurellement valide. [ ] variantes pays (PL/NO) + XSD.
 - [x] **OSS/IOSS/EC_SALES_LIST/INTRASTAT/SALES_PURCHASE_LEDGER/CUSTOMS_EXPORT** — agrégation structurée. [ ] Intrastat `commodityCode` (catalogue produits).
 - [x] **Idempotence** (kind, period, company, invoiceRef) — 2e run = no‑op + preuve de dépôt (`markSubmitted` ref). Period key mensuel/trimestriel par kind.
-- [ ] **Planification batch** (clôture de période via cron) — seam prêt, cron pas encore ; soumission autorité réelle (mockée).
+- [x] **Planification batch** — `@Cron('0 2 * * *')` `tickReportingClose` : clôture les périodes échues, soumet les `ComplianceReport` PENDING (idempotent, comparaison lexicographique periodKey), sous cron‑lock. [ ] soumission autorité réelle (mockée).
 
 ---
 
@@ -172,7 +172,7 @@
 - [ ] **Routing acheteur** via annuaire (AFNOR Directory / Peppol SMP) plutôt qu'en config société.
 - [x] **Validation identifiants — checksums offline** : SIREN/SIRET (Luhn), NIP (mod‑11), VAT FR (mod‑97)/IT/DE (ISO 7064)/ES NIF‑NIE (mod‑23)/PL, Codice Fiscale (mod‑26). `validateContextIdentifiers` câblé en step 0 de l'executor (warnings, non bloquant). 74 tests (valides+invalides cités). RFC/CIF/clé alpha FR = structurel.
 - [x] **Existence distante (port)** : `ViesExistenceClient` (VIES REST, sans creds) + `SireneExistenceClient` (INSEE, Bearer) derrière `IdentifierExistencePort` ; défaut `Null` (offline‑safe), tests mockés. Live deferred.
-- [ ] Brancher l'existence VIES/SIRENE dans le flux + cache ; durcir clé alpha FR VAT + CIF ES.
+- [x] Existence VIES/SIRENE branchée (executor step 0b, warnings `[existence]` non bloquants) + `CachedExistenceClient` (TTL 24h) ; défaut `Null` (offline‑safe). [ ] durcir clé alpha FR VAT + CIF ES.
 - [ ] Champs manquants au modèle : EndpointID/Peppol ID par client, tel/email vendeur, code moyen de paiement, NIC.
 - [ ] Table + lookup + cache **annuaire** des participants.
 
@@ -238,7 +238,7 @@
 - [x] `xmllint-wasm` + `maxWorkers:4` jest.
 - [x] Env : `COMPLIANCE_RECONCILE_HOURS` (défaut 12) — câblé au sweep périodique.
 - [ ] Env : PEM KSeF **prod**, clés/URL par défaut.
-- [ ] Verrou cron multi‑instances (éviter le double‑poll : lock distribué / leader).
+- [x] Verrou cron multi‑instances — **lease table** `CronLock` (upsert atomique `ON CONFLICT … WHERE lockedUntil < NOW()`), TTL par tick, fail‑open ; enveloppe poll/timer/reconcile/reporting‑close. Migration `add_cron_lock`.
 
 ---
 
