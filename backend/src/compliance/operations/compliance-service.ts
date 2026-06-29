@@ -416,7 +416,7 @@ export class ComplianceService {
   async report(id: string): Promise<ReportResult> {
     const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
-    const results = this.reporting.reportAll(rec.ctx, plan, this.log);
+    const results = await this.reporting.reportAll(rec.ctx, plan, this.log);
     const next = new ComplianceStateMachine(rec.status).can('REPORT') ? await this.transition(rec, 'REPORT') : rec;
     return { document: next, results };
   }

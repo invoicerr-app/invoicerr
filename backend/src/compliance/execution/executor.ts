@@ -117,8 +117,8 @@ export class ComplianceExecutor {
     // 7. Archive the authoritative artifact (retention + residency routing).
     const archive = this.archive.store(signed, plan.archival, log);
 
-    // 8. Reporting side-effects.
-    const reporting = this.reporting.reportAll(ctx, plan, log);
+    // 8. Reporting side-effects (async — store-backed idempotence).
+    const reporting = await this.reporting.reportAll(ctx, plan, log);
 
     // 9. Open the bidirectional response window when the profile mandates statuses.
     if (plan.lifecycle.response) {

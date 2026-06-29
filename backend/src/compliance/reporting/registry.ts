@@ -14,20 +14,22 @@ import {
   SaftReportingHandler,
   SalesPurchaseLedgerReportingHandler,
 } from './handlers';
+import { NullReportingStore, ReportingStore } from './reporting-store';
 
 export class ReportingRegistry {
   private readonly byKind = new Map<ReportingKind, ReportingHandler>();
 
-  constructor(handlers?: ReportingHandler[]) {
+  constructor(handlers?: ReportingHandler[], store?: ReportingStore) {
+    const s = store ?? new NullReportingStore();
     const list = handlers ?? [
-      new EcSalesListReportingHandler(),
-      new IntrastatReportingHandler(),
-      new OssReportingHandler(),
-      new IossReportingHandler(),
-      new SaftReportingHandler(),
-      new EReportingReportingHandler(),
-      new SalesPurchaseLedgerReportingHandler(),
-      new CustomsExportReportingHandler(),
+      new EcSalesListReportingHandler(s),
+      new IntrastatReportingHandler(s),
+      new OssReportingHandler(s),
+      new IossReportingHandler(s),
+      new SaftReportingHandler(s),
+      new EReportingReportingHandler(s),
+      new SalesPurchaseLedgerReportingHandler(s),
+      new CustomsExportReportingHandler(s),
     ];
     for (const h of list) this.byKind.set(h.kind, h);
   }
@@ -36,19 +38,22 @@ export class ReportingRegistry {
     return this.byKind.get(kind) ?? null;
   }
 
-  reportAll(
+  async reportAll(
     ctx: TransactionContext,
     plan: CompliancePlan,
     log: ComplianceLogger = defaultLogger,
-  ): ReportingResult[] {
-    return plan.reporting.map((kind) => {
+  ): Promise<ReportingResult[]> {
+    const results: ReportingResult[] = [];
+    for (const kind of plan.reporting) {
       const handler = this.get(kind);
       if (!handler) {
         log.warn('reporting', `no handler for ${kind}`);
-        return { kind, status: 'SKIPPED' as const };
+        results.push({ kind, status: 'SKIPPED' as const });
+      } else {
+        results.push(await handler.report(ctx, plan, log));
       }
-      return handler.report(ctx, plan, log);
-    });
+    }
+    return results;
   }
 }
 

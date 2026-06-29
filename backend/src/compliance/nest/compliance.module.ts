@@ -3,6 +3,8 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { PrismaComplianceDocumentStore } from '../persistence/prisma-document-store';
 import { PrismaPollJobStore, PrismaTimerJobStore } from '../persistence/prisma-scheduled-job-store';
 import { PrismaCallbackStore } from '../persistence/prisma-callback-store';
+import { PrismaReportingStore } from '../reporting/prisma-reporting-store';
+import { ReportingRegistry } from '../reporting/registry';
 import { PollScheduler } from '../lifecycle/drivers/poll-scheduler';
 import { TimerScheduler } from '../lifecycle/drivers/timer-scheduler';
 import { InboundRouter } from '../lifecycle/drivers/inbound-router';
@@ -103,12 +105,24 @@ import { RequiredFieldsController } from './required-fields.controller';
         new TransmissionProviderRegistry({ mail, credentials }),
       inject: [InvoiceMailGateway, ChannelCredentialsService],
     },
-    // ComplianceExecutor with wired format + transmission registries
+    // PrismaReportingStore — idempotence + proof-of-filing persistence
+    {
+      provide: PrismaReportingStore,
+      useFactory: (prisma: PrismaService) => new PrismaReportingStore(prisma),
+      inject: [PrismaService],
+    },
+    // ReportingRegistry wired with the persistent store
+    {
+      provide: ReportingRegistry,
+      useFactory: (store: PrismaReportingStore) => new ReportingRegistry(undefined, store),
+      inject: [PrismaReportingStore],
+    },
+    // ComplianceExecutor with wired format + transmission + reporting registries
     {
       provide: ComplianceExecutor,
-      useFactory: (formats: FormatProviderRegistry, transmission: TransmissionProviderRegistry) =>
-        new ComplianceExecutor({ formats, transmission }),
-      inject: [FormatProviderRegistry, TransmissionProviderRegistry],
+      useFactory: (formats: FormatProviderRegistry, transmission: TransmissionProviderRegistry, reporting: ReportingRegistry) =>
+        new ComplianceExecutor({ formats, transmission, reporting }),
+      inject: [FormatProviderRegistry, TransmissionProviderRegistry, ReportingRegistry],
     },
     // ComplianceService (facade) with Prisma store + wired executor
     {

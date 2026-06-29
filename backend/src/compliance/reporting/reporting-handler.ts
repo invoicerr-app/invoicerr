@@ -4,8 +4,8 @@ import { ComplianceLogger } from '../execution/logger';
 import { ReportingResult } from '../execution/types';
 import { ReportingKind } from '../types';
 
-/** Emits one reporting side-effect (EC Sales List, OSS, SAF-T, e-reporting…) (§10/§12). */
+/** Emits one reporting side-effect (EC Sales List, OSS, SAF-T, e-reporting…) (§6). */
 export interface ReportingHandler {
   readonly kind: ReportingKind;
-  report(ctx: TransactionContext, plan: CompliancePlan, log: ComplianceLogger): ReportingResult;
+  report(ctx: TransactionContext, plan: CompliancePlan, log: ComplianceLogger): Promise<ReportingResult>;
 }
