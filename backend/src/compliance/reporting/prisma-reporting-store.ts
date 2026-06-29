@@ -4,6 +4,8 @@
  */
 import { PrismaService } from '@/prisma/prisma.service';
 import { ReportRecord, ReportingStore } from './reporting-store';
+import { frequencyForKind, getPeriodKey } from './period';
+import { ReportingKind } from '../types';
 
 function rowToRecord(row: any): ReportRecord {
   return {
@@ -63,5 +65,27 @@ export class PrismaReportingStore implements ReportingStore {
       where: { id },
       data: { status: 'SUBMITTED', submittedRef: ref, submittedAt },
     });
+  }
+
+  /**
+   * Returns all PENDING records whose period is closed relative to `now`.
+   * "Closed" = periodKey < current period for the kind's frequency.
+   * String comparison works because period keys sort lexicographically in
+   * chronological order ("2026-05" < "2026-06"; "2026-Q1" < "2026-Q2").
+   */
+  async findPendingForClosedPeriods(now: Date): Promise<ReportRecord[]> {
+    const rows = await this.prisma.complianceReport.findMany({
+      where: { status: 'PENDING' },
+    });
+
+    return rows
+      .filter((row) => {
+        const kind = row.kind as ReportingKind;
+        const frequency = frequencyForKind(kind);
+        const currentPeriod = getPeriodKey(now, frequency);
+        // Strictly less-than: current period is still open; anything before is closed.
+        return row.periodKey < currentPeriod;
+      })
+      .map(rowToRecord);
   }
 }

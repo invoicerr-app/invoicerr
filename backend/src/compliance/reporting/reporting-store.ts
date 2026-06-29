@@ -32,6 +32,13 @@ export interface ReportingStore {
 
   /** Records the authority submission reference + transitions status to SUBMITTED. */
   markSubmitted(id: string, ref: string, submittedAt?: Date): Promise<void>;
+
+  /**
+   * Returns all PENDING records whose period closed before `now`.
+   * "Closed" means the periodKey is strictly less than the current period for
+   * that frequency (monthly: "2026-06" < current month; quarterly: "2026-Q2" < current quarter).
+   */
+  findPendingForClosedPeriods(now: Date): Promise<ReportRecord[]>;
 }
 
 /** No-op store — used in unit tests and as the default when Prisma is not wired. */
@@ -44,5 +51,8 @@ export class NullReportingStore implements ReportingStore {
   }
   async markSubmitted(): Promise<void> {
     // no-op
+  }
+  async findPendingForClosedPeriods(): Promise<ReportRecord[]> {
+    return [];
   }
 }
