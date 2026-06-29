@@ -28,7 +28,7 @@
 - [x] Refactor `Controller → Service → PrismaService` (pas de Prisma/`any` dans les controllers) ; DI vérifiée au boot.
 - [x] Hygiène libs : builder `@fin.cx/einvoice` → `@e-invoice-eu/core` ; validateur saxon/compilateur maison
   → `node-schematron` ; XSD `xmllint` subprocess → `xmllint-wasm` ; `pdf-lib` déclarée ; Prisma singleton + `$transaction`.
-- [ ] **Reconcile au boot + sweep 12h** (cf. §4) — ⛔ le gros manque.
+- [x] **Reconcile au boot + sweep 12h** (cf. §4) — fait (`onApplicationBootstrap` + `@Interval(12h)`).
 
 ---
 
@@ -124,12 +124,13 @@
 
 - [x] Drivers poll(30s)/timer(60s) ; inbound‑router (pur) ; webhook `/compliance/inbound/:channel` ; `applySignal`.
 - [x] PollJob/TimerJob persistés (les polls dus reprennent au prochain tick après un downtime).
-- [ ] **Reconcile au boot** ⛔ — `onApplicationBootstrap` : balayer tous les `ComplianceDocument` non terminaux,
-  forcer un `poll()` immédiat, ré‑armer les jobs échus, rejouer les `InboundMessage` non appliqués (dedup, batché).
-- [ ] **Sweep 12h** ⛔ — `@Cron('0 */12 * * *')` : re‑`poll()` tous les docs non terminaux même sans job dû
-  (filet anti‑webhook‑manqué). Intervalle configurable (`COMPLIANCE_RECONCILE_HOURS`=12). Métriques.
-- [ ] Câbler **toutes** les sources de statut : poll (pull), webhook (push, par canal), polling d'inbox
-  (SdI SFTP/mailbox), action UI « rafraîchir ».
+- [x] **Reconcile au boot** — `ComplianceCron.onApplicationBootstrap` (fire‑and‑forget, non bloquant) →
+  `PollScheduler.reconcile()` poll **tous** les jobs en cours (rattrape downtime + push manqués) + tick timers.
+- [x] **Sweep 12h** — `@Interval(COMPLIANCE_RECONCILE_HOURS|12 h)` `reconcile()` (filet anti‑webhook‑manqué),
+  garde anti‑chevauchement, erreurs catchées. `PollJobStore.pending()` ajouté (jobs en cours, hors filtre due).
+- [ ] Rejouer les `InboundMessage` reçus mais non appliqués au boot (dedup) — pas encore.
+- [ ] Câbler **toutes** les sources de statut : poll (pull) ✅, webhook (push, par canal) 🔴, polling d'inbox
+  (SdI SFTP/mailbox) 🔴, action UI « rafraîchir » 🔴.
 - [ ] Compléter le lifecycle par juridiction (statuts/transitions) ; FR push `encaissée` réel ; régimes bloquants MX.
 
 ---
@@ -221,13 +222,14 @@
 
 - [x] `CREDENTIALS_ENCRYPTION_KEY` (générée localement, gitignored) ; PEM KSeF copiés au build (`**/*.pem`).
 - [x] `xmllint-wasm` + `maxWorkers:4` jest.
-- [ ] Env : `COMPLIANCE_RECONCILE_HOURS`=12, PEM KSeF **prod**, clés/URL par défaut.
+- [x] Env : `COMPLIANCE_RECONCILE_HOURS` (défaut 12) — câblé au sweep périodique.
+- [ ] Env : PEM KSeF **prod**, clés/URL par défaut.
 - [ ] Verrou cron multi‑instances (éviter le double‑poll : lock distribué / leader).
 
 ---
 
 ## Ordre conseillé
-1. [ ] **Lifecycle freshness** (§4 : boot + sweep 12h) — socle de fiabilité.
+1. [x] **Lifecycle freshness** (§4 : boot + sweep 12h) — fait (reste : replay inbound + webhooks push par canal).
 2. [ ] **Signature réelle** (§2) — débloque SdI (.p7m), Facturae, KSA, LATAM.
 3. [ ] **Prouver PDP‑AFNOR** + **Email réel** (§3.1) — rapides, creds dispo.
 4. [ ] **SdI live** puis **Peppol live** (§3.2) — dès creds/AP.
