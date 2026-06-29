@@ -59,7 +59,13 @@ export const FR: CountryComplianceProfile = {
 		{
 			validFrom: "2026-09-01",
 			value: {
-				channels: [{ type: "PDP" }, { type: "PEPPOL" }, { type: "EMAIL" }],
+				// B2B (DECENTRALIZED_CTC): PDP is the mandatory channel.
+				// B2G: Chorus Pro (GOV_PORTAL_API/choruspro) is mandatory for government buyers.
+				// NOTE: TransmissionRule has no appliesTo; role-based selection (B2B→PDP,
+				// B2G→choruspro) is future engine work. In practice, companies configure only the
+				// channel relevant to their trade: B2B companies have PDP credentials (ChorusPro
+				// is skipped for lack of credentials), B2G suppliers configure ChorusPro.
+				channels: [{ type: "PDP" }, { type: "GOV_PORTAL_API", providerId: "choruspro" }, { type: "PEPPOL" }, { type: "EMAIL" }],
 			},
 		},
 	],

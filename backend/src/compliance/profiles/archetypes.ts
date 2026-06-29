@@ -244,13 +244,18 @@ export function realTime(
   };
 }
 
-/** Periodic reporting (SAF-T / ledgers): AO/MZ style. */
+/**
+ * Periodic reporting (SAF-T / ledgers): AO/MZ/PT style.
+ * Invoice *transmission* is via email/Peppol (no per-invoice clearance mandate).
+ * The SAF-T upload is a separate reporting obligation tracked in the `reporting` field.
+ * GOV_PORTAL_API is intentionally absent here — SAF-T is batch-filed, not invoice-level.
+ */
 export function periodic(cc: string, name: string, o: CommonOpts = {}): CountryComplianceProfile {
   return {
     ...meta(cc, name, o.confidence ?? 'BEST_EFFORT'),
     regime: [{ validFrom: OPEN, value: { model: 'PERIODIC_REPORTING', blocking: false } }],
     formats: [{ validFrom: OPEN, value: { primary: { syntax: 'EN16931_UBL' }, human: { syntax: 'PLAIN_PDF' }, buyerNegotiable: true } }],
-    transmission: [{ validFrom: OPEN, value: { channels: [{ type: 'GOV_PORTAL_API' }, { type: 'EMAIL' }] } }],
+    transmission: [{ validFrom: OPEN, value: { channels: [{ type: 'PEPPOL' }, { type: 'EMAIL' }] } }],
     taxSystem: o.tax ?? vat(20),
     lifecycle: lifecycle('ISSUE'),
     archival: archival(o.retentionYears ?? 10, o.residency, 'NONE'),

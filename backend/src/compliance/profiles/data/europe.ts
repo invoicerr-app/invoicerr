@@ -48,8 +48,8 @@ export const EUROPE_PROFILES: CountryComplianceProfile[] = [
   postAudit('NO', 'Norway', { tax: vat(25, [15, 12]) }), // EEA; EHF/Peppol + SAF-T
   noMandate('CH', 'Switzerland', { tax: vat(8.1, [3.8, 2.6]) }), // no e-invoicing mandate (QR-bill domestic)
   periodic('PT', 'Portugal', { tax: vat(23, [13, 6]) }), // SAF-T PT + ATCUD/QR ("smart invoice")
-  realTime('GR', 'Greece', { from: '2021-01-01', tax: vat(24, [13, 6]) }), // myDATA
-  realTime('HU', 'Hungary', { from: '2018-07-01', tax: vat(27, [18, 5]) }), // Online Számla (RTIR)
+  realTime('GR', 'Greece', { from: '2021-01-01', syntax: 'NATIONAL_XML', providerId: 'gr-aade', tax: vat(24, [13, 6]) }), // AADE myDATA
+  realTime('HU', 'Hungary', { from: '2018-07-01', syntax: 'NATIONAL_XML', providerId: 'hu-nav', tax: vat(27, [18, 5]) }), // NAV Online Számla (RTIR)
   clearance('RO', 'Romania', { from: '2024-01-01', syntax: 'EN16931_UBL', providerId: 'anaf', tax: vat(19, [9, 5]) }), // RO e-Factura (UBL/RO_CIUS, SPV)
   clearance('RS', 'Serbia', { syntax: 'EN16931_UBL', providerId: 'rs-sef', tax: vat(20, [10]) }), // SEF (UBL/SRBEFN)
 ];

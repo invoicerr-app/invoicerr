@@ -381,18 +381,6 @@ export class SdiTransmissionProvider implements TransmissionProvider {
   }
 }
 
-/** Generic government portal/API. Use a dedicated provider (below) when the system has specifics. */
-export class GovPortalTransmissionProvider implements TransmissionProvider {
-  readonly id = 'gov-portal';
-  readonly channel: ChannelType = 'GOV_PORTAL_API';
-  readonly feedback = 'ASYNC_POLL' as const;
-  readonly pollPolicy = { everySeconds: 60, timeoutHours: 48, backoff: 'EXPONENTIAL' as const };
-  async transmit(_artifacts: SignedArtifact[], _ctx: TransactionContext, _plan: CompliancePlan, key: string, log: ComplianceLogger): Promise<TransmissionResult> {
-    log.todo('transmission/gov-portal', `submit to government clearance/reporting API (key ${key})`);
-    return { channel: 'GOV_PORTAL_API', status: 'PENDING', notes: ['stub: integrate the national portal'] };
-  }
-}
-
 /** Poland — Krajowy System e-Faktur. A GOV_PORTAL_API system selected via ChannelSpec.providerId='ksef'. */
 export class KsefTransmissionProvider implements TransmissionProvider {
   readonly id = 'ksef';

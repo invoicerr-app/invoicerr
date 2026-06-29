@@ -9,7 +9,6 @@ import { InvoiceMailPort } from './invoice-mail-port';
 import { TransmissionProvider } from './transmission-provider';
 import {
   EmailTransmissionProvider,
-  GovPortalTransmissionProvider,
   KsefTransmissionProvider,
   OseTransmissionProvider,
   PacTransmissionProvider,
@@ -38,12 +37,12 @@ export class TransmissionProviderRegistry {
         new PdpTransmissionProvider(providers?.credentials),
         new PacTransmissionProvider(),
         new SdiTransmissionProvider(),
-        new GovPortalTransmissionProvider(),
         new KsefTransmissionProvider(providers?.credentials),
         new OseTransmissionProvider(),
         new PrintTransmissionProvider(),
-        // Dedicated national portals — selected by ChannelSpec.providerId. Registered AFTER the
-        // generics so 'gov-portal' stays the default for a bare GOV_PORTAL_API channel.
+        // Dedicated national portals — selected by ChannelSpec.providerId.
+        // There is NO generic GOV_PORTAL_API default: every GOV_PORTAL_API channel MUST carry a
+        // providerId pointing at a named portal (ksef, sefaz, zatca, choruspro, …).
         ...NATIONAL_PORTAL_PROVIDERS,
       ];
     }
@@ -67,12 +66,22 @@ export class TransmissionProviderRegistry {
     return Array.from(this.byId.values());
   }
 
-  /** Exact provider id wins over the generic channel default (e.g. 'ksef' vs GOV_PORTAL_API). */
+  /**
+   * Resolve a ChannelSpec to a provider.
+   * - An explicit providerId always wins (e.g. 'ksef', 'choruspro', 'sefaz').
+   * - GOV_PORTAL_API has NO generic channel default: a providerId is mandatory.
+   *   A bare { type: 'GOV_PORTAL_API' } or an unknown providerId returns null → SKIPPED.
+   * - All other channel types fall back to their first-registered provider.
+   */
   resolve(spec: ChannelSpec): TransmissionProvider | null {
     if (spec.providerId) {
       const byId = this.byId.get(spec.providerId);
       if (byId) return byId;
+      // Unknown providerId: for GOV_PORTAL_API there is no channel fallback — return null.
+      if (spec.type === 'GOV_PORTAL_API') return null;
     }
+    // GOV_PORTAL_API always requires an explicit providerId; never use byChannel for it.
+    if (spec.type === 'GOV_PORTAL_API') return null;
     return this.byChannel.get(spec.type) ?? null;
   }
 
@@ -88,8 +97,13 @@ export class TransmissionProviderRegistry {
       const spec = plan.channels[i];
       const provider = this.resolve(spec);
       if (!provider) {
-        log.warn('transmission', `no provider for channel ${spec.type}${spec.providerId ? `/${spec.providerId}` : ''}`);
-        results.push({ channel: spec.type, status: 'SKIPPED', notes: ['no provider'] });
+        if (spec.type === 'GOV_PORTAL_API' && !spec.providerId) {
+          log.warn('transmission', 'GOV_PORTAL_API requires a providerId (named portal) — skipping');
+          results.push({ channel: spec.type, status: 'SKIPPED', notes: ['GOV_PORTAL_API requires a providerId (named portal)'] });
+        } else {
+          log.warn('transmission', `no provider for channel ${spec.type}${spec.providerId ? `/${spec.providerId}` : ''}`);
+          results.push({ channel: spec.type, status: 'SKIPPED', notes: ['no provider'] });
+        }
         continue;
       }
 

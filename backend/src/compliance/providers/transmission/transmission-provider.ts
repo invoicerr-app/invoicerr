@@ -1,3 +1,23 @@
+/**
+ * Transmission-provider taxonomy
+ * ================================
+ * ChannelType = the transmission *topology / feedback family*:
+ *   EMAIL      — plain SMTP delivery, no structured feedback.
+ *   PEPPOL     — 4-corner AS4 (access-point network), Peppol Invoice Response / MLR.
+ *   PDP        — France decentralized CTC (Y-model): PDP pushes lifecycle statuses.
+ *   SDI        — Italy Sistema di Interscambio hub: notifiche callbacks.
+ *   PAC        — Mexico Proveedor Autorizado de Certificación: blocking SAT clearance.
+ *   OSE        — Peru Operador de Servicios Electrónicos: CDR poll.
+ *   GOV_PORTAL_API — centralized national authority API / clearance portal; almost always
+ *                    polled (ASYNC_POLL). SDI/PDP are KEPT as distinct types because their
+ *                    topology and feedback model genuinely differ from a plain portal.
+ *   PRINT      — physical print / simplified receipt (fire-and-forget).
+ *
+ * Concrete authority = always a *named* provider selected by ChannelSpec.providerId.
+ *   Examples: 'ksef' (PL), 'sefaz' (BR), 'zatca' (SA), 'choruspro' (FR B2G).
+ *   GOV_PORTAL_API ALWAYS requires a providerId — there is no generic fallback.
+ *   A bare { type: 'GOV_PORTAL_API' } (no providerId) resolves to null → SKIPPED.
+ */
 import { TransactionContext } from '../../canonical/canonical-document';
 import { CompliancePlan } from '../../engine/compliance-engine';
 import { ComplianceLogger } from '../../execution/logger';

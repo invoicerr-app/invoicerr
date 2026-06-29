@@ -102,6 +102,23 @@ describe('profile data integrity', () => {
     }
   });
 
+  it('every GOV_PORTAL_API channel in every profile carries a providerId (no bare generic portals)', () => {
+    // Rule: GOV_PORTAL_API = centralized national portal topology. The *concrete* authority is
+    // always named via providerId (ksef, sefaz, choruspro, …). A bare { type: GOV_PORTAL_API }
+    // without a providerId is a configuration error — it resolves to null and is SKIPPED.
+    const offenders: { country: string; rule: string }[] = [];
+    for (const p of concrete) {
+      for (const t of p.transmission) {
+        for (const ch of t.value.channels) {
+          if (ch.type === 'GOV_PORTAL_API' && !ch.providerId) {
+            offenders.push({ country: p.countryCode, rule: `validFrom=${t.validFrom}` });
+          }
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
   it('bespoke profiles win over archetype duplicates (FR/US/MX/IT/PL OFFICIAL)', () => {
     for (const cc of ['FR', 'US', 'MX', 'IT', 'PL']) {
       expect(defaultRegistry.resolve(cc).profile.confidence).toBe('OFFICIAL');
