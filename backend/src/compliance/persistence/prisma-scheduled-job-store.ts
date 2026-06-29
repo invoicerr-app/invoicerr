@@ -26,6 +26,13 @@ export class PrismaPollJobStore implements PollJobStore {
     return rowToPollJob(row as any);
   }
 
+  async pending(): Promise<PollJob[]> {
+    const rows = await this.prisma.scheduledJob.findMany({
+      where: { kind: 'POLL', status: { in: POLL_STATUSES as any } },
+    });
+    return rows.map((r) => rowToPollJob(r as any));
+  }
+
   async due(now: Date): Promise<PollJob[]> {
     const rows = await this.prisma.scheduledJob.findMany({
       where: { kind: 'POLL', status: { in: POLL_STATUSES as any }, nextRunAt: { lte: now } },

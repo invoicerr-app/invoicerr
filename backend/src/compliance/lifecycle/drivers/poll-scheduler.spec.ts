@@ -103,6 +103,27 @@ describe('PollScheduler', () => {
     expect((await store.forDocument('doc1'))[0].status).toBe('DONE');
   });
 
+  it('reconcile(): polls a NOT-yet-due job (boot/12h catch-up) — tick() would skip it', async () => {
+    const { reg, setStatus } = fakeRegistry();
+    setStatus('CLEARED'); // authority resolved it while we were offline / we missed the push
+    const clock = clockFrom('2027-01-15T00:00:00Z');
+    const store = new InMemoryPollJobStore();
+    const signals: Array<[string, LifecycleSignal]> = [];
+    const scheduler = new PollScheduler({ applySignal: (id, s) => { signals.push([id, s]); }, store, txRegistry: reg, now: clock.now });
+
+    await scheduler.schedule('doc1', EFFECT, 'UUID-1'); // nextRunAt = +30s, NOT due now
+
+    // tick() sees nothing due:
+    expect(await scheduler.tick()).toMatchObject({ due: 0, polled: 0 });
+    expect(signals).toHaveLength(0);
+
+    // reconcile() polls it anyway and resolves:
+    const report = await scheduler.reconcile();
+    expect(report).toMatchObject({ due: 1, polled: 1, resolved: 1 });
+    expect(signals).toEqual([['doc1', { type: 'POLL_RESULT', status: 'CLEARED' }]]);
+    expect((await store.forDocument('doc1'))[0].status).toBe('DONE');
+  });
+
   it('tick(): a job past its timeout expires and calls onExpire', async () => {
     const { reg, setStatus } = fakeRegistry();
     setStatus('PENDING');

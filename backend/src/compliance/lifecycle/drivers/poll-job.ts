@@ -96,6 +96,8 @@ export interface PollJobStore {
   get(id: string): Promise<PollJob | null>;
   /** PENDING jobs whose nextRunAt is at/before `now`. */
   due(now: Date): Promise<PollJob[]>;
+  /** All still-pending jobs regardless of nextRunAt — for boot/periodic reconciliation. */
+  pending(): Promise<PollJob[]>;
   forDocument(documentId: string): Promise<PollJob[]>;
   cancelForDocument(documentId: string): Promise<void>;
 }
@@ -121,6 +123,9 @@ export class InMemoryPollJobStore implements PollJobStore {
         (j) => j.status === 'PENDING' && new Date(j.nextRunAt).getTime() <= t,
       ),
     );
+  }
+  pending(): Promise<PollJob[]> {
+    return Promise.resolve([...this.jobs.values()].filter((j) => j.status === 'PENDING'));
   }
   forDocument(documentId: string): Promise<PollJob[]> {
     return Promise.resolve([...this.jobs.values()].filter((j) => j.documentId === documentId));

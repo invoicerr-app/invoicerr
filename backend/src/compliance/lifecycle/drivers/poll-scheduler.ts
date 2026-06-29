@@ -97,35 +97,54 @@ export class PollScheduler {
   async tick(): Promise<TickReport> {
     const now = this.now();
     const report: TickReport = { due: 0, polled: 0, resolved: 0, rescheduled: 0, expired: 0 };
-
     for (const job of await this.store.due(now)) {
       report.due++;
-      const provider = this.txRegistry.getById(job.providerId);
-      if (!provider?.poll) {
-        this.log.warn('lifecycle/poll-scheduler', `provider "${job.providerId}" cannot poll; cancelling job ${job.id}`);
-        await this.store.save({ ...job, status: 'CANCELLED' });
-        continue;
-      }
-
-      const result = await provider.poll(job.ref ?? job.documentId, this.log);
-      report.polled++;
-      const decision = decidePoll(job, outcomeFromTransmission(result.status), now);
-      await this.store.save(decision.job);
-
-      switch (decision.kind) {
-        case 'RESOLVE':
-          await this.applySignal(job.documentId, { type: 'POLL_RESULT', status: decision.outcome }, this.log);
-          report.resolved++;
-          break;
-        case 'RESCHEDULE':
-          report.rescheduled++;
-          break;
-        case 'EXPIRED':
-          this.onExpire(decision.job, this.log);
-          report.expired++;
-          break;
-      }
+      await this.pollJobOnce(job, now, report);
     }
     return report;
+  }
+
+  /**
+   * Reconciliation sweep: poll EVERY still-pending job regardless of its nextRunAt. Used at boot
+   * (catch up statuses the authority resolved while we were offline) and periodically (a safety net
+   * for missed webhook/push notifications). Idempotent — a still-pending result just reschedules.
+   */
+  async reconcile(): Promise<TickReport> {
+    const now = this.now();
+    const report: TickReport = { due: 0, polled: 0, resolved: 0, rescheduled: 0, expired: 0 };
+    for (const job of await this.store.pending()) {
+      report.due++;
+      await this.pollJobOnce(job, now, report);
+    }
+    return report;
+  }
+
+  /** Poll a single job and feed the outcome back into the document's runtime. */
+  private async pollJobOnce(job: PollJob, now: Date, report: TickReport): Promise<void> {
+    const provider = this.txRegistry.getById(job.providerId);
+    if (!provider?.poll) {
+      this.log.warn('lifecycle/poll-scheduler', `provider "${job.providerId}" cannot poll; cancelling job ${job.id}`);
+      await this.store.save({ ...job, status: 'CANCELLED' });
+      return;
+    }
+
+    const result = await provider.poll(job.ref ?? job.documentId, this.log);
+    report.polled++;
+    const decision = decidePoll(job, outcomeFromTransmission(result.status), now);
+    await this.store.save(decision.job);
+
+    switch (decision.kind) {
+      case 'RESOLVE':
+        await this.applySignal(job.documentId, { type: 'POLL_RESULT', status: decision.outcome }, this.log);
+        report.resolved++;
+        break;
+      case 'RESCHEDULE':
+        report.rescheduled++;
+        break;
+      case 'EXPIRED':
+        this.onExpire(decision.job, this.log);
+        report.expired++;
+        break;
+    }
   }
 }
