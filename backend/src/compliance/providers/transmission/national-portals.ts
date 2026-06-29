@@ -29,6 +29,7 @@ import { SMALL_ASIA_PROVIDERS } from './asia/smaller-portals';
 import { AnafTransmissionProvider } from './europe/anaf-transmission';
 import { EUROPE_PORTAL_PROVIDERS } from './europe/europe-smaller-portals';
 import { AfipTransmissionProvider } from './latam/afip-transmission';
+import { DianTransmissionProvider } from './latam/dian-client';
 import { SefazTransmissionProvider } from './latam/sefaz-transmission';
 import { SiiTransmissionProvider } from './latam/sii-transmission';
 import { SMALL_LATAM_PROVIDERS } from './latam/smaller-portals';
@@ -83,7 +84,7 @@ export const NATIONAL_PORTAL_PROVIDERS: TransmissionProvider[] = [
   new AfipTransmissionProvider(),       // AR — ARCA/AFIP WSFE
   new SefazTransmissionProvider(),      // BR — SEFAZ NF-e (async, 2-phase)
   new SiiTransmissionProvider(),        // CL — SII DTE (seed→token→EnvioDTE→poll)
-  nationalPortal({ id: 'dian', channel: GP, label: 'Colombia DIAN', hint: 'submit UBL 2.1 to DIAN for validación previa, await CUFE acknowledgement', async: true }),
+  new DianTransmissionProvider(),       // CO — DIAN validación previa (UBL 2.1 → trackId/CUFE)
   new SriTransmissionProvider(),        // EC — SRI comprobante (submit→claveAcceso→poll)
   new UyDgiTransmissionProvider(),      // UY — DGI CFE (enviarCfe→idEnvio→poll)
   // CR, DO, GT, PA, PY, SV, VE, BO — generic scaffold with configSchema + injectable HTTP
