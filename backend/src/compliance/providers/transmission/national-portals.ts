@@ -26,12 +26,17 @@ import { IdCoretaxTransmissionProvider } from './asia/id-coretax-transmission';
 import { InIrpTransmissionProvider } from './asia/in-irp-transmission';
 import { MyInvoisTransmissionProvider } from './asia/myinvois-transmission';
 import { SMALL_ASIA_PROVIDERS } from './asia/smaller-portals';
+import { AnafTransmissionProvider } from './europe/anaf-transmission';
+import { EUROPE_PORTAL_PROVIDERS } from './europe/europe-smaller-portals';
 import { AfipTransmissionProvider } from './latam/afip-transmission';
 import { SefazTransmissionProvider } from './latam/sefaz-transmission';
 import { SiiTransmissionProvider } from './latam/sii-transmission';
 import { SMALL_LATAM_PROVIDERS } from './latam/smaller-portals';
 import { SriTransmissionProvider } from './latam/sri-transmission';
 import { UyDgiTransmissionProvider } from './latam/uy-dgi-transmission';
+import { EgEtaTransmissionProvider } from './mena/eg-eta-transmission';
+import { GibTransmissionProvider } from './mena/gib-transmission';
+import { SMALL_MENA_PROVIDERS } from './mena/mena-smaller-portals';
 import { TransmissionProvider } from './transmission-provider';
 
 interface NationalPortalSpec {
@@ -85,8 +90,12 @@ export const NATIONAL_PORTAL_PROVIDERS: TransmissionProvider[] = [
   ...SMALL_LATAM_PROVIDERS,
   // --- MENA ---
   nationalPortal({ id: 'zatca', channel: GP, label: 'Saudi Arabia ZATCA FATOORA', hint: 'report/clear via FATOORA (B2B clearance, B2C reporting ≤24h), await ZATCA hash/UUID', async: true }),
-  nationalPortal({ id: 'jofotara', channel: GP, label: 'Jordan JoFotara', hint: 'submit to JoFotara national platform, await acknowledgement', async: true }),
-  nationalPortal({ id: 'tn-ttn', channel: GP, label: 'Tunisia TTN / El Fatoura', hint: 'submit TEIF via TradeNet (TTN), await clearance', async: true }),
+  // JO (jofotara) + TN (tn-ttn) — scaffolded clients with configSchema + injectable HTTP
+  ...SMALL_MENA_PROVIDERS,
+  // TR GİB — deeper scaffold: UBL-TR envelope + auth/submit/poll + configSchema
+  new GibTransmissionProvider(),
+  // EG ETA — deeper scaffold: UUID/hash/sign seam + OAuth2 + submit/poll
+  new EgEtaTransmissionProvider(),
   // --- Sub-Saharan Africa — scaffolded clients with injectable HTTP port + configSchema ---
   new FirsTransmissionProvider(),   // NG — FIRS MBS e-invoice (IRN + QR, async clearance)
   new KeKraTransmissionProvider(),  // KE — KRA eTIMS OSCU/VSCU (real-time fiscal)
@@ -101,22 +110,9 @@ export const NATIONAL_PORTAL_PROVIDERS: TransmissionProvider[] = [
   // --- Europe (national) ---
   // France B2G: Chorus Pro is the mandatory government-invoicing platform (AIFE / DGFiP).
   // B2B invoices go via PDP (channel type PDP); B2G invoices go here (GOV_PORTAL_API/choruspro).
-  // Role-based channel selection (B2B→PDP, B2G→choruspro) is future engine work; for now both
-  // channels are listed in the FR transmission rule and the unused one is skipped via credentials.
   nationalPortal({ id: 'choruspro', channel: GP, label: 'France Chorus Pro (B2G — AIFE/DGFiP)', hint: 'submit invoice to Chorus Pro (UBL/Factur-X), await validation and processing confirmation', async: true }),
-  nationalPortal({ id: 'gr-aade', channel: GP, label: 'Greece AADE myDATA', hint: 'push the invoice to AADE myDATA (RTIR), await acceptance mark' }),
-  nationalPortal({ id: 'hu-nav', channel: GP, label: 'Hungary NAV Online Számla (RTIR)', hint: 'push the invoice XML to NAV Online Számla in real time, await token/status' }),
-  nationalPortal({ id: 'es-aeat', channel: GP, label: 'Spain AEAT SII/Verifactu', hint: 'push the SII/Verifactu ledger record to AEAT (near-real-time)' }),
-  nationalPortal({ id: 'ua-dps', channel: GP, label: 'Ukraine DPS', hint: 'register the tax invoice in ЄРПН via DPS, handle blocking/unblocking', async: true }),
-  nationalPortal({ id: 'me-fiscal', channel: GP, label: 'Montenegro fiscalization', hint: 'fiscalize in real time, await IKOF/JIKR' }),
-  nationalPortal({ id: 'hr-fiskalizacija', channel: GP, label: 'Croatia Fiskalizacija 2.0', hint: 'fiscalize/clear via the CIS, await acknowledgement', async: true }),
-  nationalPortal({ id: 'al-cis', channel: GP, label: 'Albania CIS', hint: 'fiscalize via the Central Information System, await NIVF/NSLF', async: true }),
-  nationalPortal({ id: 'lv-vid', channel: GP, label: 'Latvia VID', hint: 'submit to VID / eAddress (mandate from 2026)' }),
-  nationalPortal({ id: 'sk-financnasprava', channel: GP, label: 'Slovakia Finančná správa', hint: 'submit to the Financial Administration e-invoice system' }),
-  // --- Europe / Other (new clearance majors from dev docs merge) ---
-  // Note: cn-sta, in-irp, vn-gdt, myinvois now live in the Asia providers above.
-  nationalPortal({ id: 'anaf', channel: GP, label: 'Romania ANAF (SPV / RO e-Factura)', hint: 'upload UBL/RO_CIUS to the SPV, await the ministry signature/index', async: true }),
-  nationalPortal({ id: 'rs-sef', channel: GP, label: 'Serbia SEF', hint: 'submit UBL/SRBEFN to the SEF, await acceptance', async: true }),
-  nationalPortal({ id: 'gib', channel: GP, label: 'Turkey GİB', hint: 'submit UBL-TR e-Fatura/e-Arşiv via GİB or a private integrator, await the envelope status', async: true }),
-  nationalPortal({ id: 'eg-eta', channel: GP, label: 'Egypt ETA', hint: 'submit the signed document to the ETA, await UUID/validation', async: true }),
+  // RO ANAF — deeper scaffold: OAuth2 + PUT upload + stareMesaj poll + UBL/RO_CIUS
+  new AnafTransmissionProvider(),
+  // UA, ME, HR, AL, LV, SK, RS, ES, GR, HU — scaffolded clients with configSchema + injectable HTTP
+  ...EUROPE_PORTAL_PROVIDERS,
 ];
