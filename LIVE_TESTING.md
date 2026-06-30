@@ -35,7 +35,7 @@ Hard-success contract (enforced per-spec):
 KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> [KSEF_NIP=<nip>] \
   npx jest ksef-live --no-coverage --runInBand
 
-# PDP superpdp (FR) — proven live against sandbox.superpdp.com
+# PDP superpdp (FR) — proven live against https://api.superpdp.tech
 set -a; . .env.pdp.local; set +a
 PDP_LIVE=1 npx jest pdp-live --no-coverage --runInBand
 
