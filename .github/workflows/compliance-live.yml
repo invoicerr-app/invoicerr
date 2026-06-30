@@ -38,8 +38,8 @@ jobs:
       PDP_BASE_URL:      ${{ secrets.PDP_BASE_URL }}
       PDP_CLIENT_ID:     ${{ secrets.PDP_CLIENT_ID }}
       PDP_CLIENT_SECRET: ${{ secrets.PDP_CLIENT_SECRET }}
-      PDP_API_STYLE:     ${{ secrets.PDP_API_STYLE }}
-      PDP_SELLER_ROUTING:${{ secrets.PDP_SELLER_ROUTING }}
+      PDP_API_STYLE: ${{ secrets.PDP_API_STYLE }}
+      PDP_SELLER_ROUTING: ${{ secrets.PDP_SELLER_ROUTING }}
       PDP_BUYER_ROUTING: ${{ secrets.PDP_BUYER_ROUTING }}
 
       # --- IT SdI (SDI_CERTIFICATE is the PFX encoded base64, passed directly — no file) ---
