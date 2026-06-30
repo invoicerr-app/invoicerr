@@ -24,7 +24,7 @@ Hard-success contract (enforced per-spec):
 | Email SMTP | `EMAIL_LIVE=1` | _(none — Ethereal auto-creates account)_ | `email-live.spec.ts` | ✅ Proven live |
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdi-live.spec.ts` | 🔴 Deferred (AdE accreditation) |
 | Peppol | `PEPPOL_LIVE=1` | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | `peppol/peppol-live.spec.ts` | 🔴 Deferred (AP required) |
-| National portal | `PORTAL_LIVE=1` | `PORTAL_ID` + portal-specific vars | `portal-live.spec.ts` | 🟡 Parametrized (per-portal creds) |
+| National portals | `<PREFIX>_LIVE=1` (per portal) | `<PREFIX>_*` namespaced creds | `portal-live.spec.ts` | 🟡 Parametrized (per-portal namespaced creds) |
 | Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET` | `europe/choruspro-live.spec.ts` | 🔴 Deferred (PISTE account required) |
 | RFC 3161 TSA (-T signing) | `TSA_LIVE=1` | `TSA_URL` | `signing/tsa-live.spec.ts` | 🟡 Wired (run to prove FreeTSA) |
 
@@ -58,9 +58,10 @@ PEPPOL_LIVE=1 PEPPOL_PARTICIPANT_ID=0009:12345678900011 PEPPOL_AP_URL=https://ap
   PEPPOL_API_KEY=<key> PEPPOL_RECEIVER_ID=0009:98765432100022 [PEPPOL_ENV=TEST] \
   npx jest peppol-live --no-coverage --runInBand
 
-# National portal (parametrized)
-PORTAL_LIVE=1 PORTAL_ID=anaf PORTAL_AUTH_TOKEN=<token> PORTAL_TAXPAYER_ID=<cui> \
-  npx jest portal-live --no-coverage --runInBand
+# National portal — namespaced per-provider (see "National portals" section below)
+# Example: ANAF (RO)
+ANAF_LIVE=1 ANAF_AUTH_TOKEN=<token> ANAF_TAXPAYER_ID=<cui> \
+  npx jest portal-live --no-coverage --runInBand --testNamePattern=anaf
 
 # RFC 3161 TSA — level-T signing via real TSA (e.g. FreeTSA)
 TSA_LIVE=1 TSA_URL=https://freetsa.org/tsr \
@@ -77,7 +78,7 @@ cd backend
 npx jest ksef-live --no-coverage
 # Expected: Test Suites: 1 skipped | Tests: 0 (suite skipped)
 
-npx jest pdp-live pdp-afnor-live email-live sdi-live peppol-live portal-live tsa-live --no-coverage
+npx jest pdp-live pdp-afnor-live email-live sdi-live peppol-live portal-live tsa-live choruspro-live --no-coverage
 # Expected: all suites skipped
 ```
 
@@ -154,30 +155,110 @@ CHORUSPRO_LIVE=1 \
 
 ---
 
-# National portal env vars
+# National portals (namespaced per-provider convention)
 
-| Env var | Purpose |
+## `portalPrefix` — how the prefix is derived
+
+```
+prefix = providerId.toUpperCase().replace(/[^A-Z0-9]+/g, '_')
+```
+
+| Provider id | Derived prefix |
 |---|---|
-| `PORTAL_ID` | Provider id (e.g. `sefaz`, `anaf`, `choruspro`, `zatca`, `myinvois`, …) |
-| `PORTAL_BASE_URL` | Portal API base URL (if required) |
-| `PORTAL_AUTH_TOKEN` | Bearer token / session token |
-| `PORTAL_API_KEY` | API key |
-| `PORTAL_CLIENT_ID` | OAuth2 client ID |
-| `PORTAL_CLIENT_SECRET` | OAuth2 client secret |
-| `PORTAL_TAXPAYER_ID` | Taxpayer / company identifier on the portal |
-| `PORTAL_CERTIFICATE` | PFX/P12 certificate (base64) |
-| `PORTAL_CERT_PASSWORD` | Certificate password |
-| `PORTAL_ENVIRONMENT` | `TEST` or `PROD` (default: `TEST`) |
-| `PORTAL_SYNTAX` | Artifact syntax to submit (default: `EN16931_UBL`) |
-| `PORTAL_XML_PATH` | Path to a pre-built XML file (skips auto-generation) |
-| `PORTAL_SELLER_NAME` | Seller company name |
-| `PORTAL_SELLER_VAT` | Seller VAT number |
-| `PORTAL_BUYER_NAME` | Buyer company name |
-| `PORTAL_BUYER_VAT` | Buyer VAT number |
-| `PORTAL_COUNTRY` | Seller country code (2-letter) |
-| `PORTAL_BUYER_COUNTRY` | Buyer country code (2-letter) |
-| `PORTAL_CURRENCY` | Invoice currency code (default: `EUR`) |
-| `PORTAL_CONFIG_<FIELD>` | Arbitrary portal-specific config field (camelCase converted) |
+| `choruspro` | `CHORUSPRO` |
+| `anaf` | `ANAF` |
+| `zatca` | `ZATCA` |
+| `gib` | `GIB` |
+| `eg-eta` | `EG_ETA` |
+| `in-irp` | `IN_IRP` |
+| `myinvois` | `MYINVOIS` |
+| `id-coretax` | `ID_CORETAX` |
+| `firs` | `FIRS` |
+| `ke-kra` | `KE_KRA` |
+| `afip` | `AFIP` |
+| `sefaz` | `SEFAZ` |
+| `sii` | `SII` |
+| `sri` | `SRI` |
+| `uy-dgi` | `UY_DGI` |
+
+## Standard `<PREFIX>_*` variables
+
+Each portal self-gates on `<PREFIX>_LIVE=1` and reads its own namespaced creds.
+Empty vars are ignored — only those with values are passed to the provider.
+
+| Suffix | Full example | Purpose |
+|---|---|---|
+| `_LIVE` | `ANAF_LIVE=1` | Opt-in gate — must be exactly `1` |
+| `_BASE_URL` | `ANAF_BASE_URL=https://api.anaf.ro` | Portal API base URL |
+| `_ENVIRONMENT` | `ANAF_ENVIRONMENT=TEST` | `TEST` or `PROD` (default: `TEST`) |
+| `_API_KEY` | `ZATCA_API_KEY=<key>` | API key |
+| `_AUTH_TOKEN` | `ANAF_AUTH_TOKEN=<token>` | Bearer / session token |
+| `_CLIENT_ID` | `CHORUSPRO_CLIENT_ID=<id>` | OAuth2 client ID |
+| `_CLIENT_SECRET` | `CHORUSPRO_CLIENT_SECRET=<sec>` | OAuth2 client secret |
+| `_CERTIFICATE` | `SEFAZ_CERTIFICATE=<b64-pfx>` | PFX certificate, base64-encoded |
+| `_CERT_PASSWORD` | `SEFAZ_CERT_PASSWORD=<pass>` | Certificate password |
+| `_TAXPAYER_ID` | `ANAF_TAXPAYER_ID=<cui>` | Taxpayer / company identifier |
+| `_SELLER_VAT` | `ANAF_SELLER_VAT=RO12345678` | Seller VAT (fixture) |
+| `_BUYER_VAT` | `ANAF_BUYER_VAT=RO00000001` | Buyer VAT (fixture) |
+| `_SELLER_NAME` | `CHORUSPRO_SELLER_NAME=…` | Seller company name (fixture) |
+| `_BUYER_NAME` | `CHORUSPRO_BUYER_NAME=…` | Buyer company name (fixture) |
+| `_COUNTRY` | `ZATCA_COUNTRY=SA` | Seller country 2-letter ISO (fixture) |
+| `_BUYER_COUNTRY` | `ZATCA_BUYER_COUNTRY=SA` | Buyer country (fixture) |
+| `_CURRENCY` | `ZATCA_CURRENCY=SAR` | Invoice currency (default: `EUR`) |
+| `_XML_PATH` | `ANAF_XML_PATH=/path/to/invoice.xml` | Pre-built XML (skips auto-generation) |
+| `_SYNTAX` | `ZATCA_SYNTAX=EN16931_UBL` | Artifact syntax (default: `EN16931_UBL`) |
+
+Provider-specific extras (e.g. `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD`) are picked up
+automatically — any `<PREFIX>_*` key not listed above is also camelCased and forwarded.
+
+## Per-portal examples
+
+### Chorus Pro (FR B2G)
+
+```bash
+CHORUSPRO_LIVE=1 \
+  CHORUSPRO_CLIENT_ID=<piste_client_id> \
+  CHORUSPRO_CLIENT_SECRET=<piste_client_secret> \
+  CHORUSPRO_TECH_LOGIN=<compte_technique_login> \
+  CHORUSPRO_TECH_PASSWORD=<compte_technique_password> \
+  CHORUSPRO_ENVIRONMENT=SANDBOX \
+  npx jest portal-live --no-coverage --runInBand --testNamePattern=choruspro
+```
+
+### ZATCA (SA — FATOORA)
+
+```bash
+ZATCA_LIVE=1 \
+  ZATCA_API_KEY=<key> \
+  ZATCA_CERTIFICATE=<base64-pfx> \
+  ZATCA_CERT_PASSWORD=<pass> \
+  ZATCA_TAXPAYER_ID=<tin> \
+  ZATCA_ENVIRONMENT=TEST \
+  ZATCA_COUNTRY=SA \
+  ZATCA_CURRENCY=SAR \
+  npx jest portal-live --no-coverage --runInBand --testNamePattern=zatca
+```
+
+### ANAF (RO — SPV e-factura)
+
+```bash
+ANAF_LIVE=1 \
+  ANAF_AUTH_TOKEN=<token> \
+  ANAF_TAXPAYER_ID=<cui> \
+  ANAF_ENVIRONMENT=TEST \
+  ANAF_COUNTRY=RO \
+  ANAF_SELLER_VAT=RO12345678 \
+  ANAF_BUYER_VAT=RO00000001 \
+  npx jest portal-live --no-coverage --runInBand --testNamePattern=anaf
+```
+
+### Running multiple portals in one invocation
+
+```bash
+ZATCA_LIVE=1 ZATCA_API_KEY=<key> ZATCA_TAXPAYER_ID=<tin> \
+ANAF_LIVE=1  ANAF_AUTH_TOKEN=<tok> ANAF_TAXPAYER_ID=<cui> \
+  npx jest portal-live --no-coverage --runInBand
+```
 
 ---
 
@@ -202,8 +283,10 @@ CHORUSPRO_LIVE=1 \
 ## Running in GitHub Actions
 
 Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch` + nightly cron).
-It sets every `<CHANNEL>_LIVE=1` and maps each secret as env; a channel whose secrets are empty
-**self-skips**, so you can fill them in one channel at a time.
+- The `live` job handles proven channels (KSeF, PDP, SdI, Peppol, email, TSA).
+- The `national-portals-live` job runs `portal-live.spec.ts` with all namespaced `<PREFIX>_*`
+  secrets mapped. Each portal self-gates on `<PREFIX>_LIVE=1`; a portal whose secrets are empty
+  **self-skips**, so you can fill them in one portal at a time.
 
 **Where to add the secrets:** repo → **Settings → Secrets and variables → Actions → New repository secret**.
 - GitLab equivalent: *Settings → CI/CD → Variables*.
@@ -227,7 +310,7 @@ It sets every `<CHANNEL>_LIVE=1` and maps each secret as env; a channel whose se
 | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` (+ `PDP_API_STYLE`, `PDP_SELLER_ROUTING`, `PDP_BUYER_ROUTING`) | FR PDP + AFNOR | PDP developer portal. Sandbox = **superpdp**. Real PDP list (annuaire): **impots.gouv.fr**. AFNOR uses the same creds + `PDP_API_STYLE=afnor`. |
 | `SDI_ID_TRASMITTENTE`, `SDI_CERTIFICATE` (b64 PFX), `SDI_CERT_PASSWORD`, `SDI_CHANNEL` | IT SdI | **Agenzia delle Entrate** intermediary accreditation (fatturapa.gov.it) + qualified PFX from an eIDAS TSP (Aruba, InfoCert, Namirial). |
 | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID`, `PEPPOL_ENV` | Peppol | A connected **Access Point** (Storecove, Ecosio, Pagero/Tickstar, Unimaze…) or self-hosted; membership via **OpenPeppol** (peppol.org). |
-| `PORTAL_ID` + `PORTAL_*` | National portals | Each authority's dev portal: AFIP (afip.gob.ar), SEFAZ (BR), SII (sii.cl), DIAN (dian.gov.co), **ZATCA Fatoora** (zatca.gov.sa), ANAF SPV (anaf.ro), **MyInvois** (myinvois.hasil.gov.my), India IRP (einvoice1.gst.gov.in)… |
+| `<PREFIX>_LIVE` + `<PREFIX>_*` (per portal) | National portals | Each authority's dev portal: AFIP (afip.gob.ar), SEFAZ (BR), SII (sii.cl), DIAN (dian.gov.co), **ZATCA Fatoora** (zatca.gov.sa), ANAF SPV (anaf.ro), **MyInvois** (myinvois.hasil.gov.my), India IRP (einvoice1.gst.gov.in)… See the "National portals" section for the full prefix table and variable list. |
 | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` | FR Chorus Pro B2G | **PISTE developer portal** (piste.gouv.fr) — subscribe to "API Dépôt flux G2B", then create a Chorus Pro "compte technique" in the sandbox. |
 | `CREDENTIALS_ENCRYPTION_KEY` | (shared) | `openssl rand -hex 32` — same value used by the app's credential store. |
 | _(none)_ | Email | Ethereal auto-creates a throwaway account — no secret needed. ✅ proven. |
