@@ -153,3 +153,41 @@ No `*_LIVE=1` flag is set in CI. All gated suites remain skipped.
 3. Implement `PeppolApPort` for the AP vendor's REST/SOAP gateway.
 4. The receiver (`PEPPOL_RECEIVER_ID`) must be registered in the SMP/SML.
 5. Set `PEPPOL_LIVE=1` + creds and run the live spec.
+
+---
+
+## Running in GitHub Actions
+
+Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch` + nightly cron).
+It sets every `<CHANNEL>_LIVE=1` and maps each secret as env; a channel whose secrets are empty
+**self-skips**, so you can fill them in one channel at a time.
+
+**Where to add the secrets:** repo → **Settings → Secrets and variables → Actions → New repository secret**.
+- GitLab equivalent: *Settings → CI/CD → Variables*.
+- Forgejo/Gitea equivalent: *Settings → Actions → Secrets* (same `${{ secrets.X }}` syntax).
+
+**3 GitHub-specific gotchas:**
+1. **Never run live tests `on: pull_request`** — GitHub does not expose repository secrets to workflows
+   triggered by PRs from forks, so the secrets would be empty. Use `workflow_dispatch` / `schedule`
+   (as the provided workflow does).
+2. **PFX certificates** (`SDI_CERTIFICATE`, `PORTAL_CERTIFICATE`) are passed **base64-encoded, directly**
+   as the secret value (the specs read the base64 string — no file decode needed). Generate with
+   `base64 -w0 cert.pfx | pbcopy` (or `| xclip`).
+3. Optional: create a GitHub **Environment** named `live-tests` (Settings → Environments) with a
+   *required reviewer* to gate each run before spending an authority call.
+
+**Secret names + where each credential comes from:**
+
+| Secret(s) | Channel | Where to obtain |
+|---|---|---|
+| `KSEF_AUTH_TOKEN`, `KSEF_NIP` | PL KSeF | KSeF app **ksef.mf.gov.pl** (test: ksef-test.mf.gov.pl) → log in (NIP + trusted profile/qualified sig) → *Tokens*. Prod also needs the MF prod public PEM keys. |
+| `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` (+ `PDP_API_STYLE`, `PDP_SELLER_ROUTING`, `PDP_BUYER_ROUTING`) | FR PDP + AFNOR | PDP developer portal. Sandbox = **superpdp**. Real PDP list (annuaire): **impots.gouv.fr**. AFNOR uses the same creds + `PDP_API_STYLE=afnor`. |
+| `SDI_ID_TRASMITTENTE`, `SDI_CERTIFICATE` (b64 PFX), `SDI_CERT_PASSWORD`, `SDI_CHANNEL` | IT SdI | **Agenzia delle Entrate** intermediary accreditation (fatturapa.gov.it) + qualified PFX from an eIDAS TSP (Aruba, InfoCert, Namirial). |
+| `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID`, `PEPPOL_ENV` | Peppol | A connected **Access Point** (Storecove, Ecosio, Pagero/Tickstar, Unimaze…) or self-hosted; membership via **OpenPeppol** (peppol.org). |
+| `PORTAL_ID` + `PORTAL_*` | National portals | Each authority's dev portal: AFIP (afip.gob.ar), SEFAZ (BR), SII (sii.cl), DIAN (dian.gov.co), **ZATCA Fatoora** (zatca.gov.sa), ANAF SPV (anaf.ro), **MyInvois** (myinvois.hasil.gov.my), India IRP (einvoice1.gst.gov.in)… |
+| `CREDENTIALS_ENCRYPTION_KEY` | (shared) | `openssl rand -hex 32` — same value used by the app's credential store. |
+| _(none)_ | Email | Ethereal auto-creates a throwaway account — no secret needed. ✅ proven. |
+
+> CFDI/MX needs a **PAC** account (SAT-certified: Finkok, Facturama, SW Sapien…) + a **CSD** cert from
+> **sat.gob.mx** — wired through the `pac` provider, not the gated portal harness.
+> Facturae / national **XSD** files (not secrets) come from **facturae.gob.es** + each authority.

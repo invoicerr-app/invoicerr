@@ -1,0 +1,108 @@
+name: Compliance live tests
+
+# Live (real-API) e-invoicing round-trips. SKIPPED by default everywhere — each spec self-gates on
+# its <CHANNEL>_LIVE flag AND the presence of its credential env vars (see live-gate.ts / LIVE_TESTING.md).
+#
+# NOT run on pull_request: GitHub does NOT expose repository secrets to workflows triggered by PRs from
+# forks, so live secrets would be empty there. Run it manually (workflow_dispatch) or on a schedule.
+#
+# Secrets live in: repo Settings → Secrets and variables → Actions → "New repository secret".
+# (GitLab equivalent: Settings → CI/CD → Variables. Forgejo/Gitea: Settings → Actions → Secrets.)
+# A channel with no secrets set is silently skipped — fill them in channel by channel.
+
+on:
+  workflow_dispatch:        # manual button in the Actions tab
+  schedule:
+    - cron: '0 3 * * *'     # nightly 03:00 UTC — optional, remove if undesired
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    # Optional: a GitHub Environment named "live-tests" lets you require a reviewer before each run.
+    environment: live-tests
+    env:
+      # Flags ON — the per-spec credential gate decides what actually runs.
+      KSEF_LIVE: '1'
+      PDP_LIVE: '1'
+      PDP_AFNOR_LIVE: '1'
+      EMAIL_LIVE: '1'         # no creds needed (Ethereal)
+      SDI_LIVE: '1'
+      PEPPOL_LIVE: '1'
+      # PORTAL_LIVE intentionally left to the manual portal run below.
+
+      # --- PL KSeF ---
+      KSEF_AUTH_TOKEN:   ${{ secrets.KSEF_AUTH_TOKEN }}
+      KSEF_NIP:          ${{ secrets.KSEF_NIP }}
+
+      # --- FR PDP (superpdp + AFNOR share these) ---
+      PDP_BASE_URL:      ${{ secrets.PDP_BASE_URL }}
+      PDP_CLIENT_ID:     ${{ secrets.PDP_CLIENT_ID }}
+      PDP_CLIENT_SECRET: ${{ secrets.PDP_CLIENT_SECRET }}
+      PDP_API_STYLE:     ${{ secrets.PDP_API_STYLE }}
+      PDP_SELLER_ROUTING:${{ secrets.PDP_SELLER_ROUTING }}
+      PDP_BUYER_ROUTING: ${{ secrets.PDP_BUYER_ROUTING }}
+
+      # --- IT SdI (SDI_CERTIFICATE is the PFX encoded base64, passed directly — no file) ---
+      SDI_ID_TRASMITTENTE: ${{ secrets.SDI_ID_TRASMITTENTE }}
+      SDI_CERTIFICATE:     ${{ secrets.SDI_CERTIFICATE }}
+      SDI_CERT_PASSWORD:   ${{ secrets.SDI_CERT_PASSWORD }}
+      SDI_CHANNEL:         ${{ secrets.SDI_CHANNEL }}
+
+      # --- Peppol ---
+      PEPPOL_PARTICIPANT_ID: ${{ secrets.PEPPOL_PARTICIPANT_ID }}
+      PEPPOL_AP_URL:         ${{ secrets.PEPPOL_AP_URL }}
+      PEPPOL_API_KEY:        ${{ secrets.PEPPOL_API_KEY }}
+      PEPPOL_RECEIVER_ID:    ${{ secrets.PEPPOL_RECEIVER_ID }}
+      PEPPOL_ENV:            ${{ secrets.PEPPOL_ENV }}
+
+      # Encryption key for any credential-store round-trip the specs may touch.
+      CREDENTIALS_ENCRYPTION_KEY: ${{ secrets.CREDENTIALS_ENCRYPTION_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Generate Prisma client
+        run: cd backend && DATABASE_URL="postgresql://unused:unused@localhost:5432/unused" npx prisma generate
+
+      - name: Run gated live specs
+        run: cd backend && npx jest live --no-coverage --ci
+
+  # National portals: run one country at a time (set PORTAL_ID + that authority's creds as secrets).
+  # Trigger manually; if PORTAL_ID secret is empty the spec self-skips.
+  portal-live:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    environment: live-tests
+    env:
+      PORTAL_LIVE: '1'
+      PORTAL_ID:            ${{ secrets.PORTAL_ID }}
+      PORTAL_BASE_URL:      ${{ secrets.PORTAL_BASE_URL }}
+      PORTAL_ENVIRONMENT:   ${{ secrets.PORTAL_ENVIRONMENT }}
+      PORTAL_API_KEY:       ${{ secrets.PORTAL_API_KEY }}
+      PORTAL_AUTH_TOKEN:    ${{ secrets.PORTAL_AUTH_TOKEN }}
+      PORTAL_CLIENT_ID:     ${{ secrets.PORTAL_CLIENT_ID }}
+      PORTAL_CLIENT_SECRET: ${{ secrets.PORTAL_CLIENT_SECRET }}
+      PORTAL_CERTIFICATE:   ${{ secrets.PORTAL_CERTIFICATE }}   # base64 PFX, passed directly
+      PORTAL_CERT_PASSWORD: ${{ secrets.PORTAL_CERT_PASSWORD }}
+      PORTAL_TAXPAYER_ID:   ${{ secrets.PORTAL_TAXPAYER_ID }}
+      PORTAL_XML_PATH:      ${{ secrets.PORTAL_XML_PATH }}      # path to a UTF-8 XML file in the repo/runner
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: cd backend && npm ci
+      - run: cd backend && DATABASE_URL="postgresql://unused:unused@localhost:5432/unused" npx prisma generate
+      - run: cd backend && npx jest portal-live --no-coverage --ci
