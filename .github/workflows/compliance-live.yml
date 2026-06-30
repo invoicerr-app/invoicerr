@@ -28,7 +28,11 @@ jobs:
       EMAIL_LIVE: '1'         # no creds needed (Ethereal)
       SDI_LIVE: '1'
       PEPPOL_LIVE: '1'
+      TSA_LIVE: '1'           # RFC 3161 -T timestamping (e.g. FreeTSA)
       # PORTAL_LIVE intentionally left to the manual portal run below.
+
+      # --- TSA (RFC 3161) — e.g. https://freetsa.org/tsr ---
+      TSA_URL: ${{ secrets.TSA_URL }}
 
       # --- PL KSeF ---
       KSEF_AUTH_TOKEN:   ${{ secrets.KSEF_AUTH_TOKEN }}
