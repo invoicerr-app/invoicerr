@@ -252,3 +252,39 @@
 4. [ ] **SdI live** puis **Peppol live** (§3.2) — dès creds/AP.
 5. [x] **Entrant statuts** (§5) + **sendStatus** (§3.5) — boucle de statut complète (mockée). Reste : réception de factures fournisseurs + inbox SdI + durcissement webhook.
 6. [ ] **Reporting** (§6) + élargissement formats/portails nationaux (§1.3, §3.4) par marché.
+
+---
+
+## 14. BLOCAGES & REPRISE (handoff)
+
+> **Tout le travail implémentable hors‑ligne est fait** (build back+front clean, **1330 tests verts**, boot OK,
+> tout poussé sur `feat/compliance-architecture`). Les **10 items `[ ]` restants sont TOUS bloqués sur du
+> externe** : credentials/accréditation autorité, endpoint live, ou XSD officiel introuvable hors‑ligne.
+> Aucun n'est faisable sans apport extérieur — ne pas les « simuler » (cf. leçon mock = fausse confiance).
+>
+> **Pour reprendre depuis un nouveau Claude Code :** ce fichier est la source de vérité. Le harnais de preuve
+> live est prêt (`LIVE_TESTING.md`), gated par `<CANAL>_LIVE=1` + creds en env/`.env*` (gitignored). Fournir
+> les creds ci‑dessous puis lancer le spec live correspondant ; il **échoue dur** sur REJECTED/SKIPPED.
+> (Le §5 réception avait été fait en double avec la session concurrente ; ma version est sauvegardée dans un
+> ref local `backup-local-receiving-*` — non nécessaire, la version distante a été retenue.)
+
+### Ce qu'il faut fournir, item par item
+
+| # | Item (§) | Blocage exact | Requis pour débloquer | Action + env quand dispo |
+|---|---|---|---|---|
+| 1 | **CFDI timbrado** (§1.2/§52, MX) | Pas de compte PAC ni de CSD | **Compte PAC** (provider certifié SAT) + **CSD** (`.cer`/`.key` SAT + mot de passe) + URL/clé API PAC | Implémenter l'appel timbrado → `UUID`/`TimbreFiscalDigital` + sceau CSD ; câbler au provider `pac` (configSchema déjà là) |
+| 2 | **Facturae XSD + XSD nationaux** (§1.4/§70) | XSD officiels **404 hors‑ligne** (facturae.gob.es + miroirs GitHub) | Récupérer les **XSD officiels** (Facturae 3.2.2 ; + par format national) depuis un réseau qui y accède | Vendoriser sous `backend/.../schemas/` + câbler `xmllint-wasm`/`node-schematron` (2 tests `todo` à activer) |
+| 3 | **PDP API Annuaire** (§3.1/§94, FR) | Pas d'accès live à l'annuaire AFNOR/PDP | **Mêmes creds PDP** (`PDP_BASE_URL`/`PDP_CLIENT_ID`/`PDP_CLIENT_SECRET`) + endpoint annuaire actif | Le lookup (`afnor-directory-lookup.ts` + `CachedBuyerDirectory`) existe ; brancher l'appel réel pour résoudre `buyerEndpointId` |
+| 4 | **SdI transport live** (§3.2/§100, IT) | Pas d'accréditation ni de cert | **Accréditation intermédiaire AdE** + **PFX qualifié** (SDICoop SOAP / SFTP) | `SDI_LIVE=1` + `SDI_ID_TRASMITTENTE`/`SDI_CERTIFICATE`/`SDI_CERT_PASSWORD` ; signature **CAdES .p7m déjà faite** (§2) |
+| 5 | **Peppol live** (§3.2/§102) | Pas d'Access Point connecté | **Access Point Peppol** hébergé (participant ID, URL AP, clé API) + **cert AP** | `PEPPOL_LIVE=1` + `PEPPOL_PARTICIPANT_ID`/`PEPPOL_AP_URL`/`PEPPOL_API_KEY`/`PEPPOL_RECEIVER_ID` ; câbler MLR/Invoice Response → lifecycle |
+| 6 | **Portails nationaux — auth réelle** (§3.4/§112) | Scaffolds mockés, pas de creds par autorité | **Creds par pays** (afip/sefaz/sii/dian/zatca/anaf/myinvois/in‑irp… : clé API, cert, taxpayer ID, OAuth) | `PORTAL_LIVE=1` + `PORTAL_ID=<id>` + `PORTAL_*` (api/clé/cert/IDs) — spec live paramétré prêt |
+| 7 | **`poll()` réel pour tous les ASYNC_POLL** (§3.5/§126) | Endpoints live indisponibles | Creds live des canaux concernés (cf. lignes 4‑6) | Structurellement présent ; le poll réel s'active avec les creds par canal |
+| 8 | **Certificats canal** (§8/§187) | Certs non fournis | **PFX qualifié SdI** + **cert AP Peppol** (KSeF token ✅ / PDP OAuth ✅ déjà ok) | Charger via le store cert chiffré (UI « Signing certs » / config canal) |
+| 9 | **Round‑trips live restants** (§11/§219) | Creds + (AFNOR) contenu | **PDP‑AFNOR** : transport prouvé (`flowId i_90103`) mais **ack=Error** → itérer le **payload AFNOR** contre le live (creds PDP + spec Flux) ; SdI/Peppol/KSeF prod/portails : creds | Lancer le `*_LIVE` du canal ; pour AFNOR : `PDP_AFNOR_LIVE=1` + corriger le mapping jusqu'à `ack=OK` |
+| 10 | **KSeF prod** (§13/§243) | Clés MF prod absentes | **PEM publics MF KSeF prod** + URLs prod | Vendoriser `certs/ksef/prod/*.pem` + `KSEF_*` prod ; `KSEF_LIVE=1` sur l'env prod |
+
+### Récap creds à demander à l'utilisateur (par priorité marché FR/PL/IT)
+- **FR** : creds PDP (annuaire + AFNOR contenu) — *le plus proche d'être bouclé* (transport déjà prouvé).
+- **PL** : clés MF **KSeF prod** (test déjà prouvé).
+- **IT** : accréditation **AdE** + **PFX qualifié** (SdI).
+- **Transverse** : Access Point **Peppol** ; **PAC + CSD** (MX) ; XSD officiels (Facturae/nationaux).
