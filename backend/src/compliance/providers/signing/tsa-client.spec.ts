@@ -32,6 +32,7 @@ import {
   buildTsq,
   extractTokenFromTsr,
 } from './tsa-client';
+import { SigningProviderRegistry } from './registry';
 
 // ---------------------------------------------------------------------------
 // Engine setup (mirrors providers.spec.ts)
@@ -440,6 +441,61 @@ describe('CadesSigningProvider with signatureLevel=T', () => {
     const lastChildT = (siT.value as forge.asn1.Asn1[])[(siT.value as forge.asn1.Asn1[]).length - 1];
     // Last child should be OCTET STRING (sig value), not [1]
     expect(lastChildT.type).toBe(forge.asn1.Type.OCTETSTRING);
+  }, 30_000);
+});
+
+// ---------------------------------------------------------------------------
+// Registry env-wiring — no network: mocked fetch returns a valid TSR
+// ---------------------------------------------------------------------------
+describe('SigningProviderRegistry — TSA_URL env wiring (mocked fetch, no network)', () => {
+  let bundle: TestCertBundle;
+  const originalFetch = globalThis.fetch;
+
+  beforeAll(() => { bundle = generateTestCert(); });
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  it('XAdES provider embeds SignatureTimeStamp when registry built with TSA_URL env', async () => {
+    // Wire fetch to return a valid TSR so the HttpTsaClient succeeds.
+    globalThis.fetch = async (_url, _init) => {
+      const digest = Buffer.alloc(32, 0xab);
+      const tst = buildMockTst(digest);
+      const tsr = buildMockTsr(tst);
+      return new Response(new Uint8Array(tsr));
+    };
+
+    // Create registry via the env override — this wires HttpTsaClient internally.
+    const registry = new SigningProviderRegistry(
+      undefined,
+      fixedCredentials(bundle.material),
+      { TSA_URL: 'http://fake-tsa.invalid' },
+    );
+    const log = new RecordingComplianceLogger();
+    const signed = await registry.get('XAdES').sign(xmlArtifact, 'test-cert', log);
+
+    const xml = Buffer.from(signed.bytes).toString('utf-8');
+    expect(xml).toContain('SignatureTimeStamp');
+    expect(xml).toContain('EncapsulatedTimeStamp');
+
+    const infoEntry = log.entries.find((e) => e.level === 'info' && e.scope === 'signing/xades');
+    expect(infoEntry?.message).toContain('-T');
+  }, 30_000);
+
+  it('XAdES provider produces BES (no SignatureTimeStamp) when registry built without TSA_URL', async () => {
+    // No fetch mock — any accidental network call would be caught by the absence of TSA_URL.
+    const registry = new SigningProviderRegistry(
+      undefined,
+      fixedCredentials(bundle.material),
+      {}, // no TSA_URL
+    );
+    const log = new RecordingComplianceLogger();
+    const signed = await registry.get('XAdES').sign(xmlArtifact, 'test-cert', log);
+
+    const xml = Buffer.from(signed.bytes).toString('utf-8');
+    expect(xml).toContain('ds:Signature');
+    expect(xml).not.toContain('SignatureTimeStamp');
+
+    const infoEntry = log.entries.find((e) => e.level === 'info' && e.scope === 'signing/xades');
+    expect(infoEntry?.message).toContain('-BES');
   }, 30_000);
 });
 

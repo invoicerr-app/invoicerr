@@ -25,6 +25,7 @@ Hard-success contract (enforced per-spec):
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdi-live.spec.ts` | 🔴 Deferred (AdE accreditation) |
 | Peppol | `PEPPOL_LIVE=1` | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | `peppol/peppol-live.spec.ts` | 🔴 Deferred (AP required) |
 | National portal | `PORTAL_LIVE=1` | `PORTAL_ID` + portal-specific vars | `portal-live.spec.ts` | 🟡 Parametrized (per-portal creds) |
+| RFC 3161 TSA (-T signing) | `TSA_LIVE=1` | `TSA_URL` | `signing/tsa-live.spec.ts` | 🟡 Wired (run to prove FreeTSA) |
 
 ---
 
@@ -59,6 +60,10 @@ PEPPOL_LIVE=1 PEPPOL_PARTICIPANT_ID=0009:12345678900011 PEPPOL_AP_URL=https://ap
 # National portal (parametrized)
 PORTAL_LIVE=1 PORTAL_ID=anaf PORTAL_AUTH_TOKEN=<token> PORTAL_TAXPAYER_ID=<cui> \
   npx jest portal-live --no-coverage --runInBand
+
+# RFC 3161 TSA — level-T signing via real TSA (e.g. FreeTSA)
+TSA_LIVE=1 TSA_URL=https://freetsa.org/tsr \
+  npx jest tsa-live --no-coverage --runInBand
 ```
 
 ---
@@ -71,7 +76,7 @@ cd backend
 npx jest ksef-live --no-coverage
 # Expected: Test Suites: 1 skipped | Tests: 0 (suite skipped)
 
-npx jest pdp-live pdp-afnor-live email-live sdi-live peppol-live portal-live --no-coverage
+npx jest pdp-live pdp-afnor-live email-live sdi-live peppol-live portal-live tsa-live --no-coverage
 # Expected: all suites skipped
 ```
 
