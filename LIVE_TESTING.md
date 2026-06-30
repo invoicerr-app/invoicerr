@@ -25,6 +25,7 @@ Hard-success contract (enforced per-spec):
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdi-live.spec.ts` | 🔴 Deferred (AdE accreditation) |
 | Peppol | `PEPPOL_LIVE=1` | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | `peppol/peppol-live.spec.ts` | 🔴 Deferred (AP required) |
 | National portal | `PORTAL_LIVE=1` | `PORTAL_ID` + portal-specific vars | `portal-live.spec.ts` | 🟡 Parametrized (per-portal creds) |
+| Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET` | `europe/choruspro-live.spec.ts` | 🔴 Deferred (PISTE account required) |
 | RFC 3161 TSA (-T signing) | `TSA_LIVE=1` | `TSA_URL` | `signing/tsa-live.spec.ts` | 🟡 Wired (run to prove FreeTSA) |
 
 ---
@@ -116,7 +117,44 @@ No `*_LIVE=1` flag is set in CI. All gated suites remain skipped.
 
 ---
 
-## National portal env vars
+### Chorus Pro (FR B2G) — PISTE gateway
+
+```bash
+# Chorus Pro PISTE sandbox
+CHORUSPRO_LIVE=1 \
+  CHORUSPRO_CLIENT_ID=<piste_client_id> \
+  CHORUSPRO_CLIENT_SECRET=<piste_client_secret> \
+  CHORUSPRO_TECH_LOGIN=<compte_technique_login> \
+  CHORUSPRO_TECH_PASSWORD=<compte_technique_password> \
+  [CHORUSPRO_ENV=SANDBOX] \
+  [CHORUSPRO_XML_PATH=/path/to/invoice.xml] \
+  npx jest choruspro-live --no-coverage --runInBand
+```
+
+| Env var | Purpose |
+|---|---|
+| `CHORUSPRO_CLIENT_ID` | PISTE OAuth2 `client_id` (from PISTE developer portal) |
+| `CHORUSPRO_CLIENT_SECRET` | PISTE OAuth2 `client_secret` |
+| `CHORUSPRO_TECH_LOGIN` | Chorus Pro "compte technique" login (required for deposerFlux) |
+| `CHORUSPRO_TECH_PASSWORD` | Chorus Pro "compte technique" password |
+| `CHORUSPRO_ENV` | `SANDBOX` (default) or `PROD` |
+| `CHORUSPRO_XML_PATH` | Path to a pre-built Factur-X/UBL XML file (skips auto-generation) |
+
+**How to obtain credentials:**
+1. Create an account on **[piste.gouv.fr](https://piste.gouv.fr)**.
+2. Subscribe to the API "Factures" (or "API Dépôt flux G2B" v5.2.0) in the PISTE sandbox catalog.
+3. Obtain `client_id` + `client_secret` from the PISTE API key manager.
+4. In the Chorus Pro sandbox, create a "compte technique" (technical account) linked to your SIRET.
+5. Use the sandbox hosts: `sandbox-oauth.piste.gouv.fr` / `sandbox-api.piste.gouv.fr`.
+
+**What the test verifies:**
+- Step 1: OAuth2 client_credentials → Bearer token reachable.
+- Step 2 (if compte technique provided): `POST /cpro/factures/v1/deposer/flux` → real `numeroFluxDepot` returned.
+- Step 3: `POST /cpro/factures/v1/consulter/cr` → statutFlux = DEPOSE/EN_COURS_DE_TRAITEMENT/VALIDE.
+
+---
+
+# National portal env vars
 
 | Env var | Purpose |
 |---|---|
@@ -190,6 +228,7 @@ It sets every `<CHANNEL>_LIVE=1` and maps each secret as env; a channel whose se
 | `SDI_ID_TRASMITTENTE`, `SDI_CERTIFICATE` (b64 PFX), `SDI_CERT_PASSWORD`, `SDI_CHANNEL` | IT SdI | **Agenzia delle Entrate** intermediary accreditation (fatturapa.gov.it) + qualified PFX from an eIDAS TSP (Aruba, InfoCert, Namirial). |
 | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID`, `PEPPOL_ENV` | Peppol | A connected **Access Point** (Storecove, Ecosio, Pagero/Tickstar, Unimaze…) or self-hosted; membership via **OpenPeppol** (peppol.org). |
 | `PORTAL_ID` + `PORTAL_*` | National portals | Each authority's dev portal: AFIP (afip.gob.ar), SEFAZ (BR), SII (sii.cl), DIAN (dian.gov.co), **ZATCA Fatoora** (zatca.gov.sa), ANAF SPV (anaf.ro), **MyInvois** (myinvois.hasil.gov.my), India IRP (einvoice1.gst.gov.in)… |
+| `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` | FR Chorus Pro B2G | **PISTE developer portal** (piste.gouv.fr) — subscribe to "API Dépôt flux G2B", then create a Chorus Pro "compte technique" in the sandbox. |
 | `CREDENTIALS_ENCRYPTION_KEY` | (shared) | `openssl rand -hex 32` — same value used by the app's credential store. |
 | _(none)_ | Email | Ethereal auto-creates a throwaway account — no secret needed. ✅ proven. |
 

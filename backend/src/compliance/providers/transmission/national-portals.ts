@@ -27,6 +27,7 @@ import { InIrpTransmissionProvider } from './asia/in-irp-transmission';
 import { MyInvoisTransmissionProvider } from './asia/myinvois-transmission';
 import { SMALL_ASIA_PROVIDERS } from './asia/smaller-portals';
 import { AnafTransmissionProvider } from './europe/anaf-transmission';
+import { ChorusProTransmissionProvider } from './europe/choruspro-transmission';
 import { EUROPE_PORTAL_PROVIDERS } from './europe/europe-smaller-portals';
 import { AfipTransmissionProvider } from './latam/afip-transmission';
 import { DianTransmissionProvider } from './latam/dian-client';
@@ -111,7 +112,7 @@ export const NATIONAL_PORTAL_PROVIDERS: TransmissionProvider[] = [
   // --- Europe (national) ---
   // France B2G: Chorus Pro is the mandatory government-invoicing platform (AIFE / DGFiP).
   // B2B invoices go via PDP (channel type PDP); B2G invoices go here (GOV_PORTAL_API/choruspro).
-  nationalPortal({ id: 'choruspro', channel: GP, label: 'France Chorus Pro (B2G — AIFE/DGFiP)', hint: 'submit invoice to Chorus Pro (UBL/Factur-X), await validation and processing confirmation', async: true }),
+  new ChorusProTransmissionProvider(), // real PISTE OAuth2 + deposerFlux + consulterCr
   // RO ANAF — deeper scaffold: OAuth2 + PUT upload + stareMesaj poll + UBL/RO_CIUS
   new AnafTransmissionProvider(),
   // UA, ME, HR, AL, LV, SK, RS, ES, GR, HU — scaffolded clients with configSchema + injectable HTTP
