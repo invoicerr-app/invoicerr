@@ -1,7 +1,7 @@
 /**
  * Unit tests for portal-live-env helpers: portalPrefix + readNamespacedConfig.
  */
-import { portalPrefix, readNamespacedConfig } from './portal-live-env';
+import { portalPrefix, readNamespacedConfig, portalHasCreds, PORTAL_CRED_SUFFIXES } from './portal-live-env';
 
 describe('portalPrefix', () => {
   it('lowercases a simple id to uppercase', () => {
@@ -101,7 +101,7 @@ describe('readNamespacedConfig', () => {
 describe('gate behaviour (smoke)', () => {
   it('all portal live suites are skipped when no <PREFIX>_LIVE=1 is set', () => {
     // This test verifies the gate contract indirectly: no portal flag is set in this
-    // process, so liveDescribe returns describe.skip for every portal.
+    // process, so the two-tier gate (flagOn && hasCreds) fires describe.skip for every portal.
     // The parametrized loop in portal-live.spec.ts covers them.
     // We just assert the helper itself never throws for any id in the registry.
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -114,5 +114,75 @@ describe('gate behaviour (smoke)', () => {
       // No portal LIVE flag set in this test run.
       expect(process.env[`${prefix}_LIVE`]).toBeUndefined();
     }
+  });
+});
+
+describe('portalHasCreds', () => {
+  it('returns false when no env vars are present', () => {
+    expect(portalHasCreds('ANAF', {})).toBe(false);
+  });
+
+  it('returns false when only the LIVE gate flag is present (not a credential)', () => {
+    // <PREFIX>_LIVE=1 is a constant in the workflow — it must NOT satisfy the cred gate.
+    expect(portalHasCreds('ANAF', { ANAF_LIVE: '1' })).toBe(false);
+  });
+
+  it('returns true when _AUTH_TOKEN is present', () => {
+    expect(portalHasCreds('ANAF', { ANAF_AUTH_TOKEN: 'tok123' })).toBe(true);
+  });
+
+  it('returns true when _API_KEY is present', () => {
+    expect(portalHasCreds('ZATCA', { ZATCA_API_KEY: 'key' })).toBe(true);
+  });
+
+  it('returns true when _CLIENT_ID is present', () => {
+    expect(portalHasCreds('CHORUSPRO', { CHORUSPRO_CLIENT_ID: 'cid' })).toBe(true);
+  });
+
+  it('returns true when _CLIENT_SECRET is present', () => {
+    expect(portalHasCreds('CHORUSPRO', { CHORUSPRO_CLIENT_SECRET: 'csec' })).toBe(true);
+  });
+
+  it('returns true when _CERTIFICATE is present', () => {
+    expect(portalHasCreds('SEFAZ', { SEFAZ_CERTIFICATE: 'base64pfx==' })).toBe(true);
+  });
+
+  it('returns false when only non-credential vars are set (BASE_URL, TAXPAYER_ID, etc.)', () => {
+    const env = {
+      ANAF_LIVE: '1',
+      ANAF_BASE_URL: 'https://api.anaf.ro',
+      ANAF_ENVIRONMENT: 'TEST',
+      ANAF_TAXPAYER_ID: 'RO12345678',
+      ANAF_SELLER_VAT: 'RO12345678',
+      ANAF_BUYER_VAT: 'RO00000001',
+      ANAF_COUNTRY: 'RO',
+    };
+    expect(portalHasCreds('ANAF', env)).toBe(false);
+  });
+
+  it('PORTAL_CRED_SUFFIXES does not include _LIVE or _ENVIRONMENT', () => {
+    expect(PORTAL_CRED_SUFFIXES).not.toContain('_LIVE');
+    expect(PORTAL_CRED_SUFFIXES).not.toContain('_ENVIRONMENT');
+  });
+});
+
+describe('portal gate: LIVE=1 but no creds → would be skipped', () => {
+  it('demonstrates the two-tier gate: flag only → hasCreds=false → skip', () => {
+    // This is the key guard: workflow sets <PREFIX>_LIVE='1' as a constant.
+    // If no credentials are configured, hasCreds returns false → describe.skip fires.
+    // No transmit() is called, no SKIPPED hard-fail occurs.
+    const env = { ANAF_LIVE: '1' };
+    const flagOn = env['ANAF_LIVE'] === '1';
+    const hasCreds = portalHasCreds('ANAF', env);
+    expect(flagOn).toBe(true);
+    expect(hasCreds).toBe(false); // → describe.skip, not describe
+  });
+
+  it('demonstrates the two-tier gate: flag + cred → hasCreds=true → would run', () => {
+    const env = { ANAF_LIVE: '1', ANAF_AUTH_TOKEN: 'real-token' };
+    const flagOn = env['ANAF_LIVE'] === '1';
+    const hasCreds = portalHasCreds('ANAF', env);
+    expect(flagOn).toBe(true);
+    expect(hasCreds).toBe(true); // → describe runs
   });
 });

@@ -47,6 +47,32 @@ export function portalPrefix(id: string): string {
 }
 
 /**
+ * Credential suffixes checked by the portal gate.
+ * A suite runs only when the LIVE flag is set *and* at least one of these is non-empty.
+ * This prevents a flagged-but-uncredentialed portal from reaching transmit() with an
+ * empty config, producing a SKIPPED status, and hard-failing the test.
+ */
+export const PORTAL_CRED_SUFFIXES = [
+  '_CLIENT_ID',
+  '_CLIENT_SECRET',
+  '_API_KEY',
+  '_AUTH_TOKEN',
+  '_CERTIFICATE',
+  '_TOKEN',
+] as const;
+
+/**
+ * Returns true when at least one real credential env var is present for the given prefix.
+ * The gate key (`<PREFIX>_LIVE`) is intentionally excluded.
+ */
+export function portalHasCreds(
+  prefix: string,
+  env: Record<string, string | undefined> = process.env as Record<string, string | undefined>,
+): boolean {
+  return PORTAL_CRED_SUFFIXES.some((s) => !!env[`${prefix}${s}`]);
+}
+
+/**
  * Standard namespaced credential keys (suffix after `<PREFIX>_`).
  * All optional — the presence gate is left to the caller / liveDescribe.
  */

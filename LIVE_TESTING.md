@@ -285,8 +285,15 @@ ANAF_LIVE=1  ANAF_AUTH_TOKEN=<tok> ANAF_TAXPAYER_ID=<cui> \
 Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch` + nightly cron).
 - The `live` job handles proven channels (KSeF, PDP, SdI, Peppol, email, TSA).
 - The `national-portals-live` job runs `portal-live.spec.ts` with all namespaced `<PREFIX>_*`
-  secrets mapped. Each portal self-gates on `<PREFIX>_LIVE=1`; a portal whose secrets are empty
-  **self-skips**, so you can fill them in one portal at a time.
+  secrets mapped. Each portal self-skips unless at least one real credential is present
+  (checked: `_CLIENT_ID`, `_CLIENT_SECRET`, `_API_KEY`, `_AUTH_TOKEN`, `_CERTIFICATE`, `_TOKEN`).
+  You can fill in one portal's credentials at a time.
+
+> **`*_LIVE` and `*_ENVIRONMENT` are constants in the workflow — do NOT add them as GitHub secrets.**
+> They are set as literal values directly in the YAML (`ANAF_LIVE: '1'`, `ANAF_ENVIRONMENT: 'SANDBOX'`, etc.).
+> Only real credentials (`*_CLIENT_ID`, `*_CLIENT_SECRET`, `*_API_KEY`, `*_AUTH_TOKEN`,
+> `*_CERTIFICATE`, `*_CERT_PASSWORD`, `*_TAXPAYER_ID`, `*_BASE_URL`,
+> `*_SELLER_VAT`, `*_BUYER_VAT`, `*_COUNTRY`) belong in secrets.
 
 **Where to add the secrets:** repo → **Settings → Secrets and variables → Actions → New repository secret**.
 - GitLab equivalent: *Settings → CI/CD → Variables*.
@@ -309,8 +316,8 @@ Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch
 | `KSEF_AUTH_TOKEN`, `KSEF_NIP` | PL KSeF | KSeF app **ksef.mf.gov.pl** (test: ksef-test.mf.gov.pl) → log in (NIP + trusted profile/qualified sig) → *Tokens*. Prod also needs the MF prod public PEM keys. |
 | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` (+ `PDP_API_STYLE`, `PDP_SELLER_ROUTING`, `PDP_BUYER_ROUTING`) | FR PDP + AFNOR | PDP developer portal. Sandbox = **superpdp**. Real PDP list (annuaire): **impots.gouv.fr**. AFNOR uses the same creds + `PDP_API_STYLE=afnor`. |
 | `SDI_ID_TRASMITTENTE`, `SDI_CERTIFICATE` (b64 PFX), `SDI_CERT_PASSWORD`, `SDI_CHANNEL` | IT SdI | **Agenzia delle Entrate** intermediary accreditation (fatturapa.gov.it) + qualified PFX from an eIDAS TSP (Aruba, InfoCert, Namirial). |
-| `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID`, `PEPPOL_ENV` | Peppol | A connected **Access Point** (Storecove, Ecosio, Pagero/Tickstar, Unimaze…) or self-hosted; membership via **OpenPeppol** (peppol.org). |
-| `<PREFIX>_LIVE` + `<PREFIX>_*` (per portal) | National portals | Each authority's dev portal: AFIP (afip.gob.ar), SEFAZ (BR), SII (sii.cl), DIAN (dian.gov.co), **ZATCA Fatoora** (zatca.gov.sa), ANAF SPV (anaf.ro), **MyInvois** (myinvois.hasil.gov.my), India IRP (einvoice1.gst.gov.in)… See the "National portals" section for the full prefix table and variable list. |
+| `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | Peppol | A connected **Access Point** (Storecove, Ecosio, Pagero/Tickstar, Unimaze…) or self-hosted; membership via **OpenPeppol** (peppol.org). `PEPPOL_ENV` is a constant (`'TEST'`) in the workflow — not a secret. |
+| `<PREFIX>_CLIENT_ID`, `<PREFIX>_CLIENT_SECRET`, `<PREFIX>_API_KEY`, `<PREFIX>_AUTH_TOKEN`, `<PREFIX>_CERTIFICATE`, `<PREFIX>_CERT_PASSWORD`, `<PREFIX>_TAXPAYER_ID`, `<PREFIX>_BASE_URL`, `<PREFIX>_SELLER_VAT`, `<PREFIX>_BUYER_VAT`, `<PREFIX>_COUNTRY` (per portal) | National portals | Each authority's dev portal: AFIP (afip.gob.ar), SEFAZ (BR), SII (sii.cl), DIAN (dian.gov.co), **ZATCA Fatoora** (zatca.gov.sa), ANAF SPV (anaf.ro), **MyInvois** (myinvois.hasil.gov.my), India IRP (einvoice1.gst.gov.in)… `<PREFIX>_LIVE` and `<PREFIX>_ENVIRONMENT` are constants in the workflow YAML — **not secrets**. |
 | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` | FR Chorus Pro B2G | **PISTE developer portal** (piste.gouv.fr) — subscribe to "API Dépôt flux G2B", then create a Chorus Pro "compte technique" in the sandbox. |
 | `CREDENTIALS_ENCRYPTION_KEY` | (shared) | `openssl rand -hex 32` — same value used by the app's credential store. |
 | _(none)_ | Email | Ethereal auto-creates a throwaway account — no secret needed. ✅ proven. |

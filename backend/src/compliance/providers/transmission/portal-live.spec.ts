@@ -6,9 +6,10 @@
  * convention — see LIVE_TESTING.md for full documentation.
  *
  * Gate convention (see portal-live-env.ts for full detail):
- *   prefix = portalPrefix(provider.id)   e.g. 'choruspro' → 'CHORUSPRO'
- *   <PREFIX>_LIVE=1                      opt-in flag
- *   <PREFIX>_BASE_URL / _API_KEY / …     namespaced credentials
+ *   prefix = portalPrefix(provider.id)      e.g. 'choruspro' → 'CHORUSPRO'
+ *   <PREFIX>_LIVE=1                          master opt-in flag (constant in the workflow)
+ *   <PREFIX>_CLIENT_ID / _API_KEY / …        at least one real credential must be present
+ *   <PREFIX>_BASE_URL / _ENVIRONMENT / …     namespaced config
  *
  * Example — run the ANAF (RO) suite:
  *   ANAF_LIVE=1 ANAF_AUTH_TOKEN=<tok> ANAF_TAXPAYER_ID=<cui> \
@@ -28,8 +29,7 @@
  */
 export {}; // module marker
 
-import { liveDescribe } from './live-gate.js';
-import { portalPrefix, readNamespacedConfig } from './portal-live-env.js';
+import { portalPrefix, portalHasCreds, readNamespacedConfig } from './portal-live-env.js';
 
 // ─── lazy imports (deferred until the suite body runs) ───────────────────────
 async function loadDeps() {
@@ -54,12 +54,32 @@ for (const portal of NATIONAL_PORTAL_PROVIDERS) {
   const prefix = portalPrefix(portal.id);
   const flagVar = `${prefix}_LIVE`;
 
-  // Each provider registers its own gated describe block.
-  // Minimum required vars: the LIVE flag alone (no mandatory creds at gate time).
-  // Missing creds surface as test failures inside beforeAll/it, giving precise messages.
-  const describeLive = liveDescribe(flagVar, []);
+  // Two-tier gate:
+  //   1. Master switch: <PREFIX>_LIVE must be exactly '1' (set as a constant in the workflow).
+  //   2. Credential presence: at least one of _CLIENT_ID, _CLIENT_SECRET, _API_KEY,
+  //      _AUTH_TOKEN, _CERTIFICATE, or _TOKEN must be non-empty.
+  // A portal that is flagged but has no creds self-skips with a warning instead of
+  // reaching transmit() with an empty config and hard-failing on SKIPPED status.
+  const flagOn = process.env[flagVar] === '1';
+  const hasCreds = portalHasCreds(prefix);
 
-  describeLive(`National portal live — ${portal.id} (${prefix}_*)`, () => {
+  let describeFn: typeof describe;
+  if (!flagOn) {
+    // eslint-disable-next-line no-restricted-properties
+    describeFn = describe.skip;
+  } else if (!hasCreds) {
+    process.stderr.write(
+      `[portal-live] ${flagVar}=1 but no credentials found for ${prefix}` +
+        ` — add at least one of ${prefix}_CLIENT_ID / _CLIENT_SECRET / _API_KEY /` +
+        ` _AUTH_TOKEN / _CERTIFICATE / _TOKEN to run this suite.\n`,
+    );
+    // eslint-disable-next-line no-restricted-properties
+    describeFn = describe.skip;
+  } else {
+    describeFn = describe;
+  }
+
+  describeFn(`National portal live — ${portal.id} (${prefix}_*)`, () => {
     let config: Record<string, string>;
 
     beforeAll(() => {

@@ -21,6 +21,7 @@ jobs:
     # Optional: a GitHub Environment named "live-tests" lets you require a reviewer before each run.
     environment: live-tests
     env:
+      # *_LIVE / *_ENV / *_CHANNEL are constants set here, NOT secrets — only credentials are secrets.
       # Flags ON — the per-spec credential gate decides what actually runs.
       KSEF_LIVE: '1'
       PDP_LIVE: '1'
@@ -49,14 +50,14 @@ jobs:
       SDI_ID_TRASMITTENTE: ${{ secrets.SDI_ID_TRASMITTENTE }}
       SDI_CERTIFICATE:     ${{ secrets.SDI_CERTIFICATE }}
       SDI_CERT_PASSWORD:   ${{ secrets.SDI_CERT_PASSWORD }}
-      SDI_CHANNEL:         ${{ secrets.SDI_CHANNEL }}
+      SDI_CHANNEL:         'SDICoop'
 
       # --- Peppol ---
       PEPPOL_PARTICIPANT_ID: ${{ secrets.PEPPOL_PARTICIPANT_ID }}
       PEPPOL_AP_URL:         ${{ secrets.PEPPOL_AP_URL }}
       PEPPOL_API_KEY:        ${{ secrets.PEPPOL_API_KEY }}
       PEPPOL_RECEIVER_ID:    ${{ secrets.PEPPOL_RECEIVER_ID }}
-      PEPPOL_ENV:            ${{ secrets.PEPPOL_ENV }}
+      PEPPOL_ENV:            'TEST'
 
       # Encryption key for any credential-store round-trip the specs may touch.
       CREDENTIALS_ENCRYPTION_KEY: ${{ secrets.CREDENTIALS_ENCRYPTION_KEY }}
@@ -88,34 +89,35 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
     environment: live-tests
     env:
+      # *_LIVE / *_ENVIRONMENT are constants set here, NOT secrets — only credentials are secrets.
       CREDENTIALS_ENCRYPTION_KEY: ${{ secrets.CREDENTIALS_ENCRYPTION_KEY }}
 
       # ─── France B2G — Chorus Pro (PISTE OAuth2) ──────────────────────────
-      CHORUSPRO_LIVE: ${{ secrets.CHORUSPRO_LIVE }}
+      CHORUSPRO_LIVE: '1'
       CHORUSPRO_CLIENT_ID: ${{ secrets.CHORUSPRO_CLIENT_ID }}
       CHORUSPRO_CLIENT_SECRET: ${{ secrets.CHORUSPRO_CLIENT_SECRET }}
       CHORUSPRO_TECH_LOGIN: ${{ secrets.CHORUSPRO_TECH_LOGIN }}
       CHORUSPRO_TECH_PASSWORD: ${{ secrets.CHORUSPRO_TECH_PASSWORD }}
-      CHORUSPRO_ENVIRONMENT: ${{ secrets.CHORUSPRO_ENVIRONMENT }}
+      CHORUSPRO_ENVIRONMENT: 'SANDBOX'
       CHORUSPRO_TAXPAYER_ID: ${{ secrets.CHORUSPRO_TAXPAYER_ID }}
       CHORUSPRO_SELLER_VAT: ${{ secrets.CHORUSPRO_SELLER_VAT }}
       CHORUSPRO_BUYER_VAT: ${{ secrets.CHORUSPRO_BUYER_VAT }}
       CHORUSPRO_COUNTRY: ${{ secrets.CHORUSPRO_COUNTRY }}
 
       # ─── Romania — ANAF SPV ───────────────────────────────────────────────
-      ANAF_LIVE: ${{ secrets.ANAF_LIVE }}
+      ANAF_LIVE: '1'
       ANAF_BASE_URL: ${{ secrets.ANAF_BASE_URL }}
       ANAF_AUTH_TOKEN: ${{ secrets.ANAF_AUTH_TOKEN }}
       ANAF_CLIENT_ID: ${{ secrets.ANAF_CLIENT_ID }}
       ANAF_CLIENT_SECRET: ${{ secrets.ANAF_CLIENT_SECRET }}
       ANAF_TAXPAYER_ID: ${{ secrets.ANAF_TAXPAYER_ID }}
-      ANAF_ENVIRONMENT: ${{ secrets.ANAF_ENVIRONMENT }}
+      ANAF_ENVIRONMENT: 'SANDBOX'
       ANAF_SELLER_VAT: ${{ secrets.ANAF_SELLER_VAT }}
       ANAF_BUYER_VAT: ${{ secrets.ANAF_BUYER_VAT }}
       ANAF_COUNTRY: ${{ secrets.ANAF_COUNTRY }}
 
       # ─── Saudi Arabia — ZATCA FATOORA ────────────────────────────────────
-      ZATCA_LIVE: ${{ secrets.ZATCA_LIVE }}
+      ZATCA_LIVE: '1'
       ZATCA_BASE_URL: ${{ secrets.ZATCA_BASE_URL }}
       ZATCA_API_KEY: ${{ secrets.ZATCA_API_KEY }}
       ZATCA_CLIENT_ID: ${{ secrets.ZATCA_CLIENT_ID }}
@@ -123,13 +125,13 @@ jobs:
       ZATCA_CERTIFICATE: ${{ secrets.ZATCA_CERTIFICATE }}
       ZATCA_CERT_PASSWORD: ${{ secrets.ZATCA_CERT_PASSWORD }}
       ZATCA_TAXPAYER_ID: ${{ secrets.ZATCA_TAXPAYER_ID }}
-      ZATCA_ENVIRONMENT: ${{ secrets.ZATCA_ENVIRONMENT }}
+      ZATCA_ENVIRONMENT: 'SANDBOX'
       ZATCA_SELLER_VAT: ${{ secrets.ZATCA_SELLER_VAT }}
       ZATCA_BUYER_VAT: ${{ secrets.ZATCA_BUYER_VAT }}
       ZATCA_COUNTRY: ${{ secrets.ZATCA_COUNTRY }}
 
       # ─── Turkey — GİB (e-fatura / e-arşiv) ──────────────────────────────
-      GIB_LIVE: ${{ secrets.GIB_LIVE }}
+      GIB_LIVE: '1'
       GIB_BASE_URL: ${{ secrets.GIB_BASE_URL }}
       GIB_API_KEY: ${{ secrets.GIB_API_KEY }}
       GIB_CLIENT_ID: ${{ secrets.GIB_CLIENT_ID }}
@@ -137,18 +139,18 @@ jobs:
       GIB_CERTIFICATE: ${{ secrets.GIB_CERTIFICATE }}
       GIB_CERT_PASSWORD: ${{ secrets.GIB_CERT_PASSWORD }}
       GIB_TAXPAYER_ID: ${{ secrets.GIB_TAXPAYER_ID }}
-      GIB_ENVIRONMENT: ${{ secrets.GIB_ENVIRONMENT }}
+      GIB_ENVIRONMENT: 'SANDBOX'
       GIB_SELLER_VAT: ${{ secrets.GIB_SELLER_VAT }}
       GIB_BUYER_VAT: ${{ secrets.GIB_BUYER_VAT }}
       GIB_COUNTRY: ${{ secrets.GIB_COUNTRY }}
 
       # ─── Egypt — ETA (e-invoice) ──────────────────────────────────────────
-      EG_ETA_LIVE: ${{ secrets.EG_ETA_LIVE }}
+      EG_ETA_LIVE: '1'
       EG_ETA_BASE_URL: ${{ secrets.EG_ETA_BASE_URL }}
       EG_ETA_CLIENT_ID: ${{ secrets.EG_ETA_CLIENT_ID }}
       EG_ETA_CLIENT_SECRET: ${{ secrets.EG_ETA_CLIENT_SECRET }}
       EG_ETA_TAXPAYER_ID: ${{ secrets.EG_ETA_TAXPAYER_ID }}
-      EG_ETA_ENVIRONMENT: ${{ secrets.EG_ETA_ENVIRONMENT }}
+      EG_ETA_ENVIRONMENT: 'SANDBOX'
       EG_ETA_CERTIFICATE: ${{ secrets.EG_ETA_CERTIFICATE }}
       EG_ETA_CERT_PASSWORD: ${{ secrets.EG_ETA_CERT_PASSWORD }}
       EG_ETA_SELLER_VAT: ${{ secrets.EG_ETA_SELLER_VAT }}
@@ -156,120 +158,120 @@ jobs:
       EG_ETA_COUNTRY: ${{ secrets.EG_ETA_COUNTRY }}
 
       # ─── India — IRP (GST e-invoice) ──────────────────────────────────────
-      IN_IRP_LIVE: ${{ secrets.IN_IRP_LIVE }}
+      IN_IRP_LIVE: '1'
       IN_IRP_BASE_URL: ${{ secrets.IN_IRP_BASE_URL }}
       IN_IRP_CLIENT_ID: ${{ secrets.IN_IRP_CLIENT_ID }}
       IN_IRP_CLIENT_SECRET: ${{ secrets.IN_IRP_CLIENT_SECRET }}
       IN_IRP_API_KEY: ${{ secrets.IN_IRP_API_KEY }}
       IN_IRP_TAXPAYER_ID: ${{ secrets.IN_IRP_TAXPAYER_ID }}
-      IN_IRP_ENVIRONMENT: ${{ secrets.IN_IRP_ENVIRONMENT }}
+      IN_IRP_ENVIRONMENT: 'SANDBOX'
       IN_IRP_SELLER_VAT: ${{ secrets.IN_IRP_SELLER_VAT }}
       IN_IRP_BUYER_VAT: ${{ secrets.IN_IRP_BUYER_VAT }}
       IN_IRP_COUNTRY: ${{ secrets.IN_IRP_COUNTRY }}
 
       # ─── Malaysia — MyInvois (LHDNM) ─────────────────────────────────────
-      MYINVOIS_LIVE: ${{ secrets.MYINVOIS_LIVE }}
+      MYINVOIS_LIVE: '1'
       MYINVOIS_BASE_URL: ${{ secrets.MYINVOIS_BASE_URL }}
       MYINVOIS_CLIENT_ID: ${{ secrets.MYINVOIS_CLIENT_ID }}
       MYINVOIS_CLIENT_SECRET: ${{ secrets.MYINVOIS_CLIENT_SECRET }}
       MYINVOIS_TAXPAYER_ID: ${{ secrets.MYINVOIS_TAXPAYER_ID }}
-      MYINVOIS_ENVIRONMENT: ${{ secrets.MYINVOIS_ENVIRONMENT }}
+      MYINVOIS_ENVIRONMENT: 'SANDBOX'
       MYINVOIS_SELLER_VAT: ${{ secrets.MYINVOIS_SELLER_VAT }}
       MYINVOIS_BUYER_VAT: ${{ secrets.MYINVOIS_BUYER_VAT }}
       MYINVOIS_COUNTRY: ${{ secrets.MYINVOIS_COUNTRY }}
 
       # ─── Indonesia — DGT Coretax (e-Faktur) ──────────────────────────────
-      ID_CORETAX_LIVE: ${{ secrets.ID_CORETAX_LIVE }}
+      ID_CORETAX_LIVE: '1'
       ID_CORETAX_BASE_URL: ${{ secrets.ID_CORETAX_BASE_URL }}
       ID_CORETAX_CLIENT_ID: ${{ secrets.ID_CORETAX_CLIENT_ID }}
       ID_CORETAX_CLIENT_SECRET: ${{ secrets.ID_CORETAX_CLIENT_SECRET }}
       ID_CORETAX_CERTIFICATE: ${{ secrets.ID_CORETAX_CERTIFICATE }}
       ID_CORETAX_CERT_PASSWORD: ${{ secrets.ID_CORETAX_CERT_PASSWORD }}
       ID_CORETAX_TAXPAYER_ID: ${{ secrets.ID_CORETAX_TAXPAYER_ID }}
-      ID_CORETAX_ENVIRONMENT: ${{ secrets.ID_CORETAX_ENVIRONMENT }}
+      ID_CORETAX_ENVIRONMENT: 'SANDBOX'
       ID_CORETAX_SELLER_VAT: ${{ secrets.ID_CORETAX_SELLER_VAT }}
       ID_CORETAX_BUYER_VAT: ${{ secrets.ID_CORETAX_BUYER_VAT }}
       ID_CORETAX_COUNTRY: ${{ secrets.ID_CORETAX_COUNTRY }}
 
       # ─── Nigeria — FIRS MBS ───────────────────────────────────────────────
-      FIRS_LIVE: ${{ secrets.FIRS_LIVE }}
+      FIRS_LIVE: '1'
       FIRS_BASE_URL: ${{ secrets.FIRS_BASE_URL }}
       FIRS_CLIENT_ID: ${{ secrets.FIRS_CLIENT_ID }}
       FIRS_CLIENT_SECRET: ${{ secrets.FIRS_CLIENT_SECRET }}
       FIRS_API_KEY: ${{ secrets.FIRS_API_KEY }}
       FIRS_TAXPAYER_ID: ${{ secrets.FIRS_TAXPAYER_ID }}
-      FIRS_ENVIRONMENT: ${{ secrets.FIRS_ENVIRONMENT }}
+      FIRS_ENVIRONMENT: 'SANDBOX'
       FIRS_SELLER_VAT: ${{ secrets.FIRS_SELLER_VAT }}
       FIRS_BUYER_VAT: ${{ secrets.FIRS_BUYER_VAT }}
       FIRS_COUNTRY: ${{ secrets.FIRS_COUNTRY }}
 
       # ─── Kenya — KRA eTIMS ────────────────────────────────────────────────
-      KE_KRA_LIVE: ${{ secrets.KE_KRA_LIVE }}
+      KE_KRA_LIVE: '1'
       KE_KRA_BASE_URL: ${{ secrets.KE_KRA_BASE_URL }}
       KE_KRA_API_KEY: ${{ secrets.KE_KRA_API_KEY }}
       KE_KRA_CLIENT_ID: ${{ secrets.KE_KRA_CLIENT_ID }}
       KE_KRA_CLIENT_SECRET: ${{ secrets.KE_KRA_CLIENT_SECRET }}
       KE_KRA_TAXPAYER_ID: ${{ secrets.KE_KRA_TAXPAYER_ID }}
-      KE_KRA_ENVIRONMENT: ${{ secrets.KE_KRA_ENVIRONMENT }}
+      KE_KRA_ENVIRONMENT: 'SANDBOX'
       KE_KRA_SELLER_VAT: ${{ secrets.KE_KRA_SELLER_VAT }}
       KE_KRA_BUYER_VAT: ${{ secrets.KE_KRA_BUYER_VAT }}
       KE_KRA_COUNTRY: ${{ secrets.KE_KRA_COUNTRY }}
 
       # ─── Argentina — ARCA/AFIP WSFE ──────────────────────────────────────
-      AFIP_LIVE: ${{ secrets.AFIP_LIVE }}
+      AFIP_LIVE: '1'
       AFIP_BASE_URL: ${{ secrets.AFIP_BASE_URL }}
       AFIP_CERTIFICATE: ${{ secrets.AFIP_CERTIFICATE }}
       AFIP_CERT_PASSWORD: ${{ secrets.AFIP_CERT_PASSWORD }}
       AFIP_TAXPAYER_ID: ${{ secrets.AFIP_TAXPAYER_ID }}
-      AFIP_ENVIRONMENT: ${{ secrets.AFIP_ENVIRONMENT }}
+      AFIP_ENVIRONMENT: 'SANDBOX'
       AFIP_SELLER_VAT: ${{ secrets.AFIP_SELLER_VAT }}
       AFIP_BUYER_VAT: ${{ secrets.AFIP_BUYER_VAT }}
       AFIP_COUNTRY: ${{ secrets.AFIP_COUNTRY }}
 
       # ─── Brazil — SEFAZ NF-e ─────────────────────────────────────────────
-      SEFAZ_LIVE: ${{ secrets.SEFAZ_LIVE }}
+      SEFAZ_LIVE: '1'
       SEFAZ_BASE_URL: ${{ secrets.SEFAZ_BASE_URL }}
       SEFAZ_CERTIFICATE: ${{ secrets.SEFAZ_CERTIFICATE }}
       SEFAZ_CERT_PASSWORD: ${{ secrets.SEFAZ_CERT_PASSWORD }}
       SEFAZ_TAXPAYER_ID: ${{ secrets.SEFAZ_TAXPAYER_ID }}
-      SEFAZ_ENVIRONMENT: ${{ secrets.SEFAZ_ENVIRONMENT }}
+      SEFAZ_ENVIRONMENT: 'SANDBOX'
       SEFAZ_SELLER_VAT: ${{ secrets.SEFAZ_SELLER_VAT }}
       SEFAZ_BUYER_VAT: ${{ secrets.SEFAZ_BUYER_VAT }}
       SEFAZ_COUNTRY: ${{ secrets.SEFAZ_COUNTRY }}
 
       # ─── Chile — SII DTE ──────────────────────────────────────────────────
-      SII_LIVE: ${{ secrets.SII_LIVE }}
+      SII_LIVE: '1'
       SII_BASE_URL: ${{ secrets.SII_BASE_URL }}
       SII_CLIENT_ID: ${{ secrets.SII_CLIENT_ID }}
       SII_CLIENT_SECRET: ${{ secrets.SII_CLIENT_SECRET }}
       SII_CERTIFICATE: ${{ secrets.SII_CERTIFICATE }}
       SII_CERT_PASSWORD: ${{ secrets.SII_CERT_PASSWORD }}
       SII_TAXPAYER_ID: ${{ secrets.SII_TAXPAYER_ID }}
-      SII_ENVIRONMENT: ${{ secrets.SII_ENVIRONMENT }}
+      SII_ENVIRONMENT: 'SANDBOX'
       SII_SELLER_VAT: ${{ secrets.SII_SELLER_VAT }}
       SII_BUYER_VAT: ${{ secrets.SII_BUYER_VAT }}
       SII_COUNTRY: ${{ secrets.SII_COUNTRY }}
 
       # ─── Ecuador — SRI comprobante ────────────────────────────────────────
-      SRI_LIVE: ${{ secrets.SRI_LIVE }}
+      SRI_LIVE: '1'
       SRI_BASE_URL: ${{ secrets.SRI_BASE_URL }}
       SRI_CERTIFICATE: ${{ secrets.SRI_CERTIFICATE }}
       SRI_CERT_PASSWORD: ${{ secrets.SRI_CERT_PASSWORD }}
       SRI_TAXPAYER_ID: ${{ secrets.SRI_TAXPAYER_ID }}
-      SRI_ENVIRONMENT: ${{ secrets.SRI_ENVIRONMENT }}
+      SRI_ENVIRONMENT: 'SANDBOX'
       SRI_SELLER_VAT: ${{ secrets.SRI_SELLER_VAT }}
       SRI_BUYER_VAT: ${{ secrets.SRI_BUYER_VAT }}
       SRI_COUNTRY: ${{ secrets.SRI_COUNTRY }}
 
       # ─── Uruguay — DGI CFE ────────────────────────────────────────────────
-      UY_DGI_LIVE: ${{ secrets.UY_DGI_LIVE }}
+      UY_DGI_LIVE: '1'
       UY_DGI_BASE_URL: ${{ secrets.UY_DGI_BASE_URL }}
       UY_DGI_CERTIFICATE: ${{ secrets.UY_DGI_CERTIFICATE }}
       UY_DGI_CERT_PASSWORD: ${{ secrets.UY_DGI_CERT_PASSWORD }}
       UY_DGI_CLIENT_ID: ${{ secrets.UY_DGI_CLIENT_ID }}
       UY_DGI_CLIENT_SECRET: ${{ secrets.UY_DGI_CLIENT_SECRET }}
       UY_DGI_TAXPAYER_ID: ${{ secrets.UY_DGI_TAXPAYER_ID }}
-      UY_DGI_ENVIRONMENT: ${{ secrets.UY_DGI_ENVIRONMENT }}
+      UY_DGI_ENVIRONMENT: 'SANDBOX'
       UY_DGI_SELLER_VAT: ${{ secrets.UY_DGI_SELLER_VAT }}
       UY_DGI_BUYER_VAT: ${{ secrets.UY_DGI_BUYER_VAT }}
       UY_DGI_COUNTRY: ${{ secrets.UY_DGI_COUNTRY }}
