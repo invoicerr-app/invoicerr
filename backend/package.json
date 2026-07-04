@@ -43,10 +43,13 @@
 		"@types/pdfkit": "^0.14.0",
 		"@types/qrcode": "^1.5.6",
 		"@xmldom/xmldom": "^0.9.10",
+		"asn1js": "^3.0.10",
 		"better-auth": "^1.4.5",
+		"body-parser": "^2.3.0",
 		"cookie-parser": "^1.4.7",
 		"date-fns": "^4.1.0",
 		"dotenv": "^17.2.3",
+		"fontoxpath": "^3.34.0",
 		"handlebars": "^4.7.9",
 		"node-forge": "^1.4.0",
 		"node-schematron": "^2.1.0",
@@ -54,6 +57,7 @@
 		"pdf-lib": "^1.17.1",
 		"pdfkit": "^0.17.1",
 		"pg": "^8.16.3",
+		"pkijs": "^3.4.0",
 		"puppeteer": "^24.11.0",
 		"qrcode": "^1.5.4",
 		"reflect-metadata": "^0.2.2",
@@ -71,6 +75,7 @@
 		"@nestjs/testing": "^11.0.1",
 		"@prisma/adapter-pg": "^7.2.0",
 		"@prisma/client": "^7.8.0",
+		"@signpdf/utils": "^3.3.0",
 		"@types/cookie-parser": "^1.4.9",
 		"@types/express": "^5.0.0",
 		"@types/jest": "^29.5.14",
@@ -91,7 +96,8 @@
 		"tsconfig-paths": "^4.2.0",
 		"tsx": "^4.21.0",
 		"typescript": "^5.7.3",
-		"typescript-eslint": "^8.20.0"
+		"typescript-eslint": "^8.20.0",
+		"xmldsigjs": "^2.8.7"
 	},
 	"overrides": {
 		"hono": "^4.11.4"
