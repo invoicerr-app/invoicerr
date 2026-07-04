@@ -25,6 +25,8 @@
  * Credentials live in the channel-credentials store (never in source).
  */
 
+import { SimpleHttpPort } from '../generic-portal';
+
 export interface GibClientConfig {
   baseUrl: string;
   vkn: string;         // VKN (Vergi Kimlik Numarası, 10 digits) — seller tax ID
@@ -33,10 +35,8 @@ export interface GibClientConfig {
   integrator?: string; // optional: integrator code if using özel entegratör
 }
 
-export interface GibHttpPort {
-  post(url: string, body: unknown, headers: Record<string, string>): Promise<{ status: number; data: unknown }>;
-  get(url: string, headers: Record<string, string>): Promise<{ status: number; data: unknown }>;
-}
+/** Same post/get shape as the generic-portal HTTP port. */
+export type GibHttpPort = SimpleHttpPort;
 
 export interface GibSubmitResult {
   /** GİB-assigned UUID for the document (36-char UUID v4). */

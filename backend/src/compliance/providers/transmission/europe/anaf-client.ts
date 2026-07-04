@@ -21,6 +21,8 @@
  *   4. On 'ok': download indexed document with ANAF Ministry signature.
  */
 
+import { SimpleHttpPort } from '../generic-portal';
+
 export interface AnafClientConfig {
   baseUrl: string;          // e.g. https://api.anaf.ro/test or /prod/FCTEL/rest
   tokenUrl: string;         // OAuth2 token endpoint
@@ -29,9 +31,8 @@ export interface AnafClientConfig {
   cif: string;              // CUI/CIF (Romanian tax ID, digits only, no 'RO' prefix for API)
 }
 
-export interface AnafHttpPort {
-  post(url: string, body: unknown, headers: Record<string, string>): Promise<{ status: number; data: unknown }>;
-  get(url: string, headers: Record<string, string>): Promise<{ status: number; data: unknown }>;
+/** Generic-portal HTTP port + PUT (ANAF uploads the UBL via PUT /upload). */
+export interface AnafHttpPort extends SimpleHttpPort {
   put(url: string, body: unknown, headers: Record<string, string>): Promise<{ status: number; data: unknown }>;
 }
 

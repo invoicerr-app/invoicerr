@@ -21,6 +21,8 @@
  * Sandbox: taxpayer.eta.gov.eg/portal (test environment).
  */
 
+import { SimpleHttpPort } from '../generic-portal';
+
 export interface EtaClientConfig {
   baseUrl: string;
   tokenUrl: string;
@@ -29,10 +31,8 @@ export interface EtaClientConfig {
   taxRegistrationNumber: string; // seller TIN (RIN) from ETA
 }
 
-export interface EtaHttpPort {
-  post(url: string, body: unknown, headers: Record<string, string>): Promise<{ status: number; data: unknown }>;
-  get(url: string, headers: Record<string, string>): Promise<{ status: number; data: unknown }>;
-}
+/** Same post/get shape as the generic-portal HTTP port. */
+export type EtaHttpPort = SimpleHttpPort;
 
 export interface EtaSubmitResult {
   /** UUID of the submitted document (derived from content hash by ETA). */
