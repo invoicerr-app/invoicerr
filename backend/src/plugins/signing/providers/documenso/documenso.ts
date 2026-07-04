@@ -301,5 +301,3 @@ export class DocumensoProvider implements ISigningProvider {
         return true;
     }
 }
-
-export const documensoProvider = new DocumensoProvider();

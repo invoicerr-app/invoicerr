@@ -24,8 +24,6 @@ import {
     buildZmSmartInvoice, buildZwFdms, buildCiFne, buildBjMecef,
 } from './africa-builders';
 
-export { buildGenericNationalXml } from './generic-builder';
-
 /** Country-code → national XML skeleton builder (pure `data → string` functions). */
 export const NATIONAL_XML_BUILDERS: Record<string, (d: InvoiceRenderData) => string> = {
     CL: buildClDte,

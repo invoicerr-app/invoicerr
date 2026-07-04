@@ -72,31 +72,6 @@ export function portalHasCreds(
   return PORTAL_CRED_SUFFIXES.some((s) => !!env[`${prefix}${s}`]);
 }
 
-/**
- * Standard namespaced credential keys (suffix after `<PREFIX>_`).
- * All optional — the presence gate is left to the caller / liveDescribe.
- */
-export const NAMESPACED_KEYS = [
-  'BASE_URL',
-  'ENVIRONMENT',
-  'API_KEY',
-  'AUTH_TOKEN',
-  'CLIENT_ID',
-  'CLIENT_SECRET',
-  'CERTIFICATE',
-  'CERT_PASSWORD',
-  'TAXPAYER_ID',
-  'SELLER_VAT',
-  'BUYER_VAT',
-  'SELLER_NAME',
-  'BUYER_NAME',
-  'COUNTRY',
-  'BUYER_COUNTRY',
-  'CURRENCY',
-  'XML_PATH',
-  'SYNTAX',
-] as const;
-
 /** Camel-case a screaming-snake suffix: 'CLIENT_ID' → 'clientId'. */
 function toCamel(suffix: string): string {
   return suffix

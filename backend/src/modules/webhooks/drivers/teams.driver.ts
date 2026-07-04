@@ -3,11 +3,6 @@ import { WebhookEvent, WebhookType } from "../../../../prisma/generated/prisma/c
 
 import { WebhookDriver } from "./webhook-driver.interface";
 
-export interface TeamsField {
-  name: string;
-  value: string;
-}
-
 export class TeamsAdaptiveCard {
   private data: Record<string, any> = {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
