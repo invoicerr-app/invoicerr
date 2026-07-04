@@ -192,7 +192,7 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('Invoices')) errors.push('missing Invoices');
       if (!xml.includes('InvoiceHeader')) errors.push('missing InvoiceHeader');
       if (!xml.includes('InvoiceTotals')) errors.push('missing InvoiceTotals');
-      if (!xml.includes('InvoiceItems')) errors.push('missing InvoiceItems');
+      if (!xml.includes('<Items>')) errors.push('missing Items (invoice line items)');
       if (!xml.includes('ES12345678A')) errors.push('missing seller VAT');
 
       results.push({

@@ -4,7 +4,7 @@
  * Tests the real schema gates wired into each FormatProvider.validate():
  *   - FatturaPA 1.2  → XSD (Schema_VFPR12.xsd vendored from @digitalia/fatturapa + xmldsig)
  *   - CFDI 4.0       → XSD (cfdv40.xsd + catCFDI.xsd + tdCFDI.xsd vendored from SAT)
- *   - Facturae 3.2.2 → structural only (XSD not publicly reachable — honest TODO)
+ *   - Facturae 3.2.2 → XSD (Facturaev3_2_2.xsd vendored from facturae.gob.es, 2026-07-04)
  *   - Peppol BIS 3.0 → Schematron (PEPPOL-EN16931-UBL.sch from OpenPEPPOL)
  *   - FA_VAT (PL)    → XSD (schemat_FA2.xsd — already proven live via KSeF)
  *
@@ -154,9 +154,13 @@ describe('CFDI 4.0 — XSD gate (cfdv40.xsd + catCFDI.xsd + tdCFDI.xsd)', () => 
   });
 });
 
-// ── Facturae 3.2.2 (ES) — XSD not vendored ─────────────────────────────────
+// ── Facturae 3.2.2 (ES) — XSD gate ────────────────────────────────────────
+// Facturaev3_2_2.xsd vendored from:
+//   https://www.facturae.gob.es/content/dam/facturae/formato/versiones/Facturaev3_2_2.xml
+// Official Ministerio de Hacienda / facturae.gob.es schema, fetched 2026-07-04.
+// targetNamespace: http://www.facturae.gob.es/formato/Versiones/Facturaev3_2_2.xml
 
-describe('Facturae 3.2.2 — structural only (XSD not publicly available)', () => {
+describe('Facturae 3.2.2 — XSD gate (Facturaev3_2_2.xsd)', () => {
   const service = new InvoiceRenderingService();
   const provider = new FacturaeFormatProvider();
   const log = new RecordingComplianceLogger();
@@ -168,24 +172,51 @@ describe('Facturae 3.2.2 — structural only (XSD not publicly available)', () =
     expect(xml).toContain('SellerParty');
     expect(xml).toContain('BuyerParty');
     expect(xml).toContain('InvoiceTotals');
-    expect(xml).toContain('http://www.facturae.es/Facturae/2014/v3.2.2/Facturae');
+    // Official Facturae 3.2.2 namespace (fe: prefix, elementFormDefault="unqualified")
+    expect(xml).toContain('http://www.facturae.gob.es/formato/Versiones/Facturaev3_2_2.xml');
   });
 
-  it('[stub-ok] provider.validate() returns valid (XSD TODO — no schema available)', async () => {
+  it('[positive] ES_B2B builder output validates against Facturaev3_2_2.xsd', async () => {
+    const xml = await service.buildFacturae(ES_B2B.data);
+    const result = await validateXsd(xml, 'es/Facturaev3_2_2.xsd');
+    if (!result.valid) {
+      console.error('Facturae XSD errors:', result.errors);
+    }
+    expect(result.valid).toBe(true);
+  });
+
+  it('[positive] provider.validate() on ES_B2B returns valid', async () => {
     const xml = await service.buildFacturae(ES_B2B.data);
     const artifact = artifactFrom(xml, 'ES_FACTURAE');
     const report = await provider.validate(artifact, log);
-    // Schema unavailable → stub returns valid with warning
     expect(report.valid).toBe(true);
-    // Provider logs a TODO for the missing XSD
+    expect(report.errors).toHaveLength(0);
+    // Provider logs info on success
     expect(log.hasScope('format/es-facturae')).toBe(true);
   });
 
-  // NOTE: Facturaev3_2_2.xsd is not publicly reachable as of 2026-06-29.
-  // The official source (facturae.gob.es) returns 403, and GitHub mirrors do not carry it.
-  // XSD gate will be added when the schema is obtained from AEAT/FACe official channel.
-  it.todo('XSD positive test — add when Facturaev3_2_2.xsd is vendored');
-  it.todo('XSD negative test — add when Facturaev3_2_2.xsd is vendored');
+  it('[negative] provider.validate() on XML with wrong namespace returns invalid', async () => {
+    const xml = await service.buildFacturae(ES_B2B.data);
+    // Replace the official namespace with a wrong one — XSD validation must reject the root element
+    const broken = xml.replace(
+      /xmlns:fe="http:\/\/www\.facturae\.gob\.es\/formato\/Versiones\/Facturaev3_2_2\.xml"/,
+      'xmlns:fe="http://www.facturae.es/Facturae/WRONG/v3.2.2"',
+    );
+    const artifact = artifactFrom(broken, 'ES_FACTURAE');
+    const brokenLog = new RecordingComplianceLogger();
+    const report = await provider.validate(artifact, brokenLog);
+    expect(report.valid).toBe(false);
+    expect(report.errors.length).toBeGreaterThan(0);
+  });
+
+  it('[negative] validateXsd() on XML missing required InvoiceHeader returns invalid', async () => {
+    const xml = await service.buildFacturae(ES_B2B.data);
+    // Remove the InvoiceHeader element — required by InvoiceType XSD sequence
+    const broken = xml.replace(/<InvoiceHeader>[\s\S]*?<\/InvoiceHeader>/, '');
+    const result = await validateXsd(broken, 'es/Facturaev3_2_2.xsd');
+    expect(result.valid).toBe(false);
+    expect(result.errors.length).toBeGreaterThan(0);
+  });
 });
 
 // ── Peppol BIS Billing 3.0 — Schematron gate ────────────────────────────────

@@ -47,7 +47,7 @@
 ### 1.2 Formats nationaux majeurs
 - [x] **FA_VAT** (PL, FA(2)) — `buildFaVat()` ✅ (prouvé KSeF).
 - [x] **FATTURAPA** (IT, 1.2) — build + **XSD validé** (`Schema_VFPR12.xsd`) — transmission SdI à finir (§3).
-- [x] **ES_FACTURAE** (3.2.2) — builder + ns/SchemaVersion corrects + **XAdES câblé** (nœud Signature vérifié). [ ] XSD officiel non bundlé (validation structurelle) ; [ ] SII/Verifactu.
+- [x] **ES_FACTURAE** (3.2.2) — builder XSD-valide (namespace corrigé `facturae.gob.es/formato/Versiones/Facturaev3_2_2.xml`, FileHeader/Batch/Parties/Invoice complets) + **XAdES câblé** + **XSD officiel vendorisé** (`Facturaev3_2_2.xsd` depuis facturae.gob.es, 2026-07-04) + 2 tests XSD activés. [ ] SII/Verifactu.
 - [~] **KSA_UBL** (ZATCA FATOORA) — UBL 2.1 + QR TLV 5 champs + CustomizationID + **invoice hash SHA‑256 (base64) + chaîne PIH** (BR‑KSA‑26, `ZATCA_PIH_INIT`) offline, 8 tests. [ ] sceau tag‑6 + clearance (live) + XSD.
 - [ ] 🟡 **CFDI** (MX 4.0) — ns `cfd/4` + seam Sello/Certificado (faux NoCertificado retiré). [ ] timbrado PAC (UUID/TimbreFiscalDigital) + sceau CSD + complément/addenda + XSD.
 
@@ -65,9 +65,9 @@
 - [x] `NATIONAL_XML` placeholder → builders dédiés par pays (LATAM/Asie/Afrique/MENA/Europe) via `buildNationalXml()`.
 
 ### 1.4 Transverse formats
-- [x] Validation **XSD FatturaPA 1.2** (`Schema_VFPR12.xsd`) + **XSD CFDI 4.0** (`cfdv40.xsd`+catalogues, 128 MB) + **Schematron Peppol BIS** (`PEPPOL-EN16931-UBL.sch`) vendorisés + câblés (xmllint‑wasm/node‑schematron), tests positifs+négatifs. Builders FatturaPA/CFDI/UBL corrigés pour passer le XSD réel.
+- [x] Validation **XSD FatturaPA 1.2** (`Schema_VFPR12.xsd`) + **XSD CFDI 4.0** (`cfdv40.xsd`+catalogues) + **XSD Facturae 3.2.2** (`Facturaev3_2_2.xsd`) + **Schematron Peppol BIS** (`PEPPOL-EN16931-UBL.sch`) vendorisés + câblés (xmllint‑wasm/node‑schematron), tests positifs+négatifs. Builders FatturaPA/CFDI/UBL/Facturae corrigés pour passer le XSD réel.
 - [x] **Allowances document + ligne** — `discountRate`/items négatifs → `AllowanceCharge` doc (BG‑20) + `allowances[]` par ligne (BG‑27) ; **`BR‑27` fermé** (plus de prix net négatif ; `CII_KNOWN_SCHEMATRON_GAPS` vide).
-- [ ] Facturae XSD — **introuvable hors‑ligne** (facturae.gob.es + miroirs GitHub 404) ; 2 tests `todo` honnêtes. [ ] XSD/Schematron de chaque format national.
+- [x] **Facturae XSD** — `Facturaev3_2_2.xsd` vendorisé depuis `https://www.facturae.gob.es/content/dam/facturae/formato/versiones/Facturaev3_2_2.xml` (2026-07-04) ; câblé dans `FacturaeFormatProvider.validate()` via `xmllint-wasm` ; 2 tests `todo` activés (positif + négatif). [ ] XSD/Schematron autres formats nationaux.
 
 ---
 
@@ -206,7 +206,7 @@
 ## 10. VALIDATION & QUALITÉ
 
 - [x] Validateur EN16931 (`node-schematron`) + XSD (`xmllint-wasm`).
-- [x] XSD/Schematron : **FatturaPA + CFDI + Peppol BIS** vendorisés+câblés (cf. §1.4) ; FA(2) PL + EN16931 CII déjà. [ ] Facturae (introuvable) + formats nationaux.
+- [x] XSD/Schematron : **FatturaPA + CFDI + Facturae 3.2.2 + Peppol BIS** vendorisés+câblés (cf. §1.4) ; FA(2) PL + EN16931 CII déjà. [ ] XSD autres formats nationaux.
 - [x] Gap `BR‑27` (allowances EN16931) **fermé** (cf. §1.4).
 - [x] Harnais de validation par format (XSD/Schematron via lib, docs construits par les vrais builders) : EN16931 CII + FA(2) + FatturaPA + CFDI + Peppol BIS couverts (positif + négatif).
 
@@ -273,7 +273,7 @@
 | # | Item (§) | Blocage exact | Requis pour débloquer | Action + env quand dispo |
 |---|---|---|---|---|
 | 1 | **CFDI timbrado** (§1.2/§52, MX) | Pas de compte PAC ni de CSD | **Compte PAC** (provider certifié SAT) + **CSD** (`.cer`/`.key` SAT + mot de passe) + URL/clé API PAC | Implémenter l'appel timbrado → `UUID`/`TimbreFiscalDigital` + sceau CSD ; câbler au provider `pac` (configSchema déjà là) |
-| 2 | **Facturae XSD + XSD nationaux** (§1.4/§70) | XSD officiels **404 hors‑ligne** (facturae.gob.es + miroirs GitHub) | Récupérer les **XSD officiels** (Facturae 3.2.2 ; + par format national) depuis un réseau qui y accède | Vendoriser sous `backend/.../schemas/` + câbler `xmllint-wasm`/`node-schematron` (2 tests `todo` à activer) |
+| 2 | **XSD nationaux restants** (§1.4/§70) | ~~Facturae XSD 404~~ → **✅ résolu** (facturae.gob.es accessible, 2026-07-04) | XSD/Schematron des autres formats nationaux (KSA, CFDI complet, etc.) | Vendoriser sous `backend/.../schemas/` + câbler `xmllint-wasm`/`node-schematron` |
 | 3 | **PDP API Annuaire** (§3.1/§94, FR) | Pas d'accès live à l'annuaire AFNOR/PDP | **Mêmes creds PDP** (`PDP_BASE_URL`/`PDP_CLIENT_ID`/`PDP_CLIENT_SECRET`) + endpoint annuaire actif | Le lookup (`afnor-directory-lookup.ts` + `CachedBuyerDirectory`) existe ; brancher l'appel réel pour résoudre `buyerEndpointId` |
 | 4 | **SdI transport live** (§3.2/§100, IT) | Pas d'accréditation ni de cert | **Accréditation intermédiaire AdE** + **PFX qualifié** (SDICoop SOAP / SFTP) | `SDI_LIVE=1` + `SDI_ID_TRASMITTENTE`/`SDI_CERTIFICATE`/`SDI_CERT_PASSWORD` ; signature **CAdES .p7m déjà faite** (§2) |
 | 5 | **Peppol live** (§3.2/§102) | Pas d'Access Point connecté | **Access Point Peppol** hébergé (participant ID, URL AP, clé API) + **cert AP** | `PEPPOL_LIVE=1` + `PEPPOL_PARTICIPANT_ID`/`PEPPOL_AP_URL`/`PEPPOL_API_KEY`/`PEPPOL_RECEIVER_ID` ; câbler MLR/Invoice Response → lifecycle |
@@ -287,4 +287,4 @@
 - **FR** : creds PDP (annuaire + AFNOR contenu) — *le plus proche d'être bouclé* (transport déjà prouvé).
 - **PL** : clés MF **KSeF prod** (test déjà prouvé).
 - **IT** : accréditation **AdE** + **PFX qualifié** (SdI).
-- **Transverse** : Access Point **Peppol** ; **PAC + CSD** (MX) ; XSD officiels (Facturae/nationaux).
+- **Transverse** : Access Point **Peppol** ; **PAC + CSD** (MX) ; XSD officiels (Facturae ✅ ; autres formats nationaux).

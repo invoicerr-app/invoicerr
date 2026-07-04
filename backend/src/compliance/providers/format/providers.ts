@@ -278,12 +278,17 @@ export class FacturaeFormatProvider implements FormatProvider {
     log.todo('format/es-facturae', 'build Facturae 3.2.x XML (XAdES-BES) for Spain — no externalRef in context');
     return { ...rendered(artifact), mime: 'application/xml' };
   }
-  async validate(_rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport> {
-    // TODO: vendor Facturaev3_2_2.xsd — the official schema from facturae.gob.es is not publicly
-    // reachable via direct HTTP at this time (HTTP 403 from all attempted mirrors as of 2026-06-29).
-    // Keeping structural validation only until the XSD can be obtained from the official AEAT/FACe
-    // channel or via the ZIP download at https://www.facturae.gob.es/formato/Documents/.
-    log.todo('format/es-facturae', 'validate against Facturae 3.2.x XSD (schema not yet vendored — see TODO)');
-    return okValidation('Facturae XSD not available (see TODO in FacturaeFormatProvider.validate)');
+  async validate(rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport> {
+    // Facturaev3_2_2.xsd vendored from https://www.facturae.gob.es/content/dam/facturae/formato/versiones/Facturaev3_2_2.xml
+    // (official Ministerio de Hacienda / facturae.gob.es schema, fetched 2026-07-04).
+    // xmldsig-core-schema.xsd co-vendored for xsd:import resolution.
+    const xml = new TextDecoder().decode(rendered.bytes);
+    const result = await validateXsd(xml, 'es/Facturaev3_2_2.xsd');
+    if (!result.valid) {
+      log.warn('format/es-facturae', `Facturae XSD validation failed: ${result.errors[0] ?? 'unknown'}`);
+      return { valid: false, errors: result.errors, warnings: [] };
+    }
+    log.info('format/es-facturae', 'Facturae 3.2.2 XSD validation passed');
+    return { valid: true, errors: [], warnings: [] };
   }
 }
