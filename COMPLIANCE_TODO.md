@@ -29,6 +29,9 @@
 - [x] Hygiène libs : builder `@fin.cx/einvoice` → `@e-invoice-eu/core` ; validateur saxon/compilateur maison
   → `node-schematron` ; XSD `xmllint` subprocess → `xmllint-wasm` ; `pdf-lib` déclarée ; Prisma singleton + `$transaction`.
 - [x] **Reconcile au boot + sweep 12h** (cf. §4) — fait (`onApplicationBootstrap` + `@Interval(12h)`).
+- [x] **Nettoyage duplication** (2026‑07‑04) : les 5 factories régionales `smaller-portals` (copies quasi identiques
+  écrites par des agents indépendants) fusionnées en **`generic-portal.ts`** (spec data + heuristiques par région
+  préservées verbatim) — **−906 lignes**, comportement identique, couverture approfondie (`generic-portal.spec.ts`).
 
 ---
 
