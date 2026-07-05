@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Edit, Eye, Pause, Play, SkipForward, StopCircle, Plus, ReceiptText as PaymentText, Trash2 } from "lucide-react"
+import { Edit, Eye, Loader2, Pause, Play, SkipForward, StopCircle, Plus, ReceiptText as PaymentText, Trash2 } from "lucide-react"
 import { forwardRef, useImperativeHandle, useState } from "react"
+import { authenticatedFetch } from "@/hooks/use-fetch"
 
 import BetterPagination from "@/components/pagination"
 import { Button } from "@/components/ui/button"
@@ -41,30 +42,54 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
         const [editRecurringInvoiceDialog, setEditRecurringInvoiceDialog] = useState<RecurringInvoice | null>(null)
         const [viewRecurringInvoiceDialog, setViewRecurringInvoiceDialog] = useState<RecurringInvoice | null>(null)
         const [deleteRecurringInvoiceDialog, setDeleteRecurringInvoiceDialog] = useState<RecurringInvoice | null>(null)
+        const [pendingAction, setPendingAction] = useState<string | null>(null)
 
-        const handlePause = async (ri: RecurringInvoice) => {
-            await fetch(`/api/recurring-invoices/${ri.id}/pause`, { method: 'POST' })
-            toast.success(t("recurringInvoices.list.messages.pauseSuccess"))
-            mutate?.()
+        const runLifecycleAction = async (
+            ri: RecurringInvoice,
+            action: "pause" | "resume" | "skip-next" | "end-now",
+            successMessage: string,
+            errorMessage: string,
+        ) => {
+            setPendingAction(`${ri.id}:${action}`)
+            try {
+                const res = await authenticatedFetch(`/api/recurring-invoices/${ri.id}/${action}`, { method: 'POST' })
+                if (!res.ok) throw new Error(`POST /api/recurring-invoices/${ri.id}/${action} failed`)
+                toast.success(successMessage)
+                mutate?.()
+            } catch {
+                toast.error(errorMessage)
+            } finally {
+                setPendingAction(null)
+            }
         }
 
-        const handleResume = async (ri: RecurringInvoice) => {
-            await fetch(`/api/recurring-invoices/${ri.id}/resume`, { method: 'POST' })
-            toast.success(t("recurringInvoices.list.messages.resumeSuccess"))
-            mutate?.()
-        }
+        const handlePause = (ri: RecurringInvoice) => runLifecycleAction(
+            ri,
+            "pause",
+            t("recurringInvoices.list.messages.pauseSuccess"),
+            t("recurringInvoices.list.messages.pauseError", "Failed to pause recurring invoice"),
+        )
 
-        const handleSkipNext = async (ri: RecurringInvoice) => {
-            await fetch(`/api/recurring-invoices/${ri.id}/skip-next`, { method: 'POST' })
-            toast.success(t("recurringInvoices.list.messages.skipNextSuccess"))
-            mutate?.()
-        }
+        const handleResume = (ri: RecurringInvoice) => runLifecycleAction(
+            ri,
+            "resume",
+            t("recurringInvoices.list.messages.resumeSuccess"),
+            t("recurringInvoices.list.messages.resumeError", "Failed to resume recurring invoice"),
+        )
 
-        const handleEndNow = async (ri: RecurringInvoice) => {
-            await fetch(`/api/recurring-invoices/${ri.id}/end-now`, { method: 'POST' })
-            toast.success(t("recurringInvoices.list.messages.endNowSuccess"))
-            mutate?.()
-        }
+        const handleSkipNext = (ri: RecurringInvoice) => runLifecycleAction(
+            ri,
+            "skip-next",
+            t("recurringInvoices.list.messages.skipNextSuccess"),
+            t("recurringInvoices.list.messages.skipNextError", "Failed to skip next cycle"),
+        )
+
+        const handleEndNow = (ri: RecurringInvoice) => runLifecycleAction(
+            ri,
+            "end-now",
+            t("recurringInvoices.list.messages.endNowSuccess"),
+            t("recurringInvoices.list.messages.endNowError", "Failed to end recurring invoice"),
+        )
 
         useImperativeHandle(ref, () => ({
             handleAddClick() {
@@ -210,10 +235,13 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
                                                         variant="ghost"
                                                         size="icon"
                                                         onClick={() => handlePause(recurringInvoice)}
+                                                        disabled={pendingAction !== null}
                                                         className="text-gray-600 hover:text-yellow-600"
                                                         data-cy="recurring-invoice-pause"
                                                     >
-                                                        <Pause className="h-4 w-4" />
+                                                        {pendingAction === `${recurringInvoice.id}:pause`
+                                                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                                                            : <Pause className="h-4 w-4" />}
                                                     </Button>
                                                 ) : (
                                                     <Button
@@ -221,10 +249,13 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
                                                         variant="ghost"
                                                         size="icon"
                                                         onClick={() => handleResume(recurringInvoice)}
+                                                        disabled={pendingAction !== null}
                                                         className="text-gray-600 hover:text-green-600"
                                                         data-cy="recurring-invoice-resume"
                                                     >
-                                                        <Play className="h-4 w-4" />
+                                                        {pendingAction === `${recurringInvoice.id}:resume`
+                                                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                                                            : <Play className="h-4 w-4" />}
                                                     </Button>
                                                 )}
 
@@ -233,10 +264,13 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
                                                     variant="ghost"
                                                     size="icon"
                                                     onClick={() => handleSkipNext(recurringInvoice)}
+                                                    disabled={pendingAction !== null}
                                                     className="text-gray-600 hover:text-orange-600"
                                                     data-cy="recurring-invoice-skip-next"
                                                 >
-                                                    <SkipForward className="h-4 w-4" />
+                                                    {pendingAction === `${recurringInvoice.id}:skip-next`
+                                                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                                                        : <SkipForward className="h-4 w-4" />}
                                                 </Button>
 
                                                 <Button
@@ -244,10 +278,13 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
                                                     variant="ghost"
                                                     size="icon"
                                                     onClick={() => handleEndNow(recurringInvoice)}
+                                                    disabled={pendingAction !== null}
                                                     className="text-gray-600 hover:text-red-600"
                                                     data-cy="recurring-invoice-end-now"
                                                 >
-                                                    <StopCircle className="h-4 w-4" />
+                                                    {pendingAction === `${recurringInvoice.id}:end-now`
+                                                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                                                        : <StopCircle className="h-4 w-4" />}
                                                 </Button>
 
                                                 <Button
