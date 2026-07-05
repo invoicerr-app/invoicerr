@@ -1,25 +1,20 @@
 import type { Client, PaymentMethod, Quote, RecurringInvoice } from "@/types"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { DndContext, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { GripVertical, Plus, Trash2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
-import { useEffect, useState } from "react"
-import { useFieldArray } from "react-hook-form"
+import { useState } from "react"
 import { useGet } from "@/hooks/use-fetch"
 import { useDocumentUpsert } from "@/hooks/use-document-upsert"
 import { createLineItemSchema } from "@/lib/line-item-schema"
 
 import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
-import { CSS } from "@dnd-kit/utilities"
+import { ClientSelectField } from "@/components/document-form/client-select-field"
 import { ClientUpsert } from "../../../clients/_components/client-upsert"
-import CurrencySelect from "@/components/currency-select"
+import { CurrencyField } from "@/components/document-form/currency-field"
 import { DatePicker } from "@/components/date-picker"
-import { Input } from "@/components/ui/input"
-import { PaymentMethodType } from "@/types"
-import type React from "react"
+import { LineItemsEditor } from "@/components/document-form/line-items-editor"
+import { PaymentMethodField } from "@/components/document-form/payment-method-field"
 import SearchSelect from "@/components/search-input"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
@@ -106,36 +101,7 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
         onSuccess: () => onOpenChange(false),
     })
 
-    const { control, handleSubmit, setValue } = form
-    const { fields, append, move, remove } = useFieldArray({
-        control,
-        name: "items",
-    })
-
-    const sensors = useSensors(useSensor(MouseSensor), useSensor(TouchSensor))
-
-    const onDragEnd = (event: any) => {
-        const { active, over } = event
-        if (active.id !== over?.id) {
-            const oldIndex = fields.findIndex((f) => f.id === active.id)
-            const newIndex = fields.findIndex((f) => f.id === over.id)
-            move(oldIndex, newIndex)
-            const reordered = arrayMove(fields, oldIndex, newIndex)
-            reordered.forEach((_, index) => {
-                setValue(`items.${index}.order`, index)
-            })
-        }
-    }
-
-    useEffect(() => {
-        fields.forEach((_, i) => {
-            setValue(`items.${i}.order`, i)
-        })
-    }, [fields, setValue])
-
-    const onRemove = (index: number) => {
-        remove(index)
-    }
+    const { control, handleSubmit } = form
 
     const handleClose = (open: boolean) => {
         onOpenChange(!!open)
@@ -200,48 +166,15 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
                                 )}
                             />
 
-                            <FormField
-                                control={control}
-                                name="clientId"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel required>{t("recurringInvoices.upsert.form.client.label")}</FormLabel>
-                                        <FormControl>
-                                            <SearchSelect
-                                                options={(clients || []).map((c) => ({ label: c.name || c.contactFirstname + " " + c.contactLastname, value: c.id }))}
-                                                value={field.value ?? ""}
-                                                onValueChange={(val) => field.onChange(val || null)}
-                                                onSearchChange={setClientsSearchTerm}
-                                                placeholder={t("recurringInvoices.upsert.form.client.placeholder")}
-                                                data-cy="recurring-invoice-client-select"
-                                                noResultsComponent={
-                                                    <Button
-                                                        variant="link"
-                                                        onClick={() => setClientDialogOpen(true)}
-                                                    >
-                                                        {t("recurringInvoices.upsert.form.client.noOptions")}
-                                                    </Button>
-                                                }
-                                            />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
+                            <ClientSelectField
+                                translationPrefix="recurringInvoices"
+                                dataCy="recurring-invoice-client-select"
+                                clients={clients || []}
+                                onSearchChange={setClientsSearchTerm}
+                                onRequestCreateClient={() => setClientDialogOpen(true)}
                             />
 
-                            <FormField
-                                control={form.control}
-                                name="currency"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{t("recurringInvoices.upsert.form.currency.label")}</FormLabel>
-                                        <FormControl>
-                                            <CurrencySelect value={field.value} onChange={(value) => field.onChange(value)} data-cy="recurring-invoice-currency-select" />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                            <CurrencyField translationPrefix="recurringInvoices" dataCy="recurring-invoice-currency-select" />
 
                             <FormField
                                 control={control}
@@ -258,33 +191,7 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
                             />
 
                             <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField
-                                    control={control}
-                                    name="paymentMethodId"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel required>{t("recurringInvoices.upsert.form.paymentMethod.label")}</FormLabel>
-                                            <FormControl>
-                                                <Select value={field.value ?? ""} onValueChange={(val) => field.onChange(val || "")}>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder={t("recurringInvoices.upsert.form.paymentMethod.placeholder")} />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {paymentMethods?.map((pm: PaymentMethod) => (
-                                                            <SelectItem key={pm.id} value={pm.id}>
-                                                                {pm.name} - {pm.type == PaymentMethodType.BANK_TRANSFER ? t("paymentMethods.fields.type.bank_transfer") : pm.type == PaymentMethodType.PAYPAL ? t("paymentMethods.fields.type.paypal") : pm.type == PaymentMethodType.CHECK ? t("paymentMethods.fields.type.check") : pm.type == PaymentMethodType.CASH ? t("paymentMethods.fields.type.cash") : pm.type == PaymentMethodType.OTHER ? t("paymentMethods.fields.type.other") : pm.type}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </FormControl>
-                                            <FormDescription>
-                                                {t("recurringInvoices.upsert.form.paymentMethod.description")}
-                                            </FormDescription>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
+                                <PaymentMethodField translationPrefix="recurringInvoices" paymentMethods={paymentMethods} required />
                             </section>
 
                             <Separator className="my-4" />
@@ -377,168 +284,7 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
 
                             <Separator className="my-4" />
 
-                            <FormItem>
-                                <FormLabel>{t("recurringInvoices.upsert.form.items.label")}</FormLabel>
-                                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-                                    <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
-                                        <div className="space-y-2">
-                                            {fields.map((fieldItem, index) => (
-                                                <SortableItem
-                                                    key={fieldItem.id}
-                                                    id={fieldItem.id}
-                                                    dragHandle={<GripVertical className="cursor-grab text-muted-foreground" />}
-                                                >
-                                                    <div className="flex gap-2 items-center">
-                                                        <FormField
-                                                            control={control}
-                                                            name={`items.${index}.description`}
-                                                            render={({ field }) => (
-                                                                <FormItem>
-                                                                    <FormControl>
-                                                                        <Input
-                                                                            {...field}
-                                                                            placeholder={t(
-                                                                                "recurringInvoices.upsert.form.items.description.placeholder",
-                                                                            )}
-                                                                        />
-                                                                    </FormControl>
-                                                                    <FormMessage />
-                                                                </FormItem>
-                                                            )}
-                                                        />
-
-                                                        <FormField
-                                                            control={control}
-                                                            name={`items.${index}.type`}
-                                                            render={({ field }) => (
-                                                                <FormItem>
-                                                                    <FormControl>
-                                                                        <Select value={field.value ?? 'SERVICE'} onValueChange={(val) => field.onChange(val as any)}>
-                                                                            <SelectTrigger className="w-32" size="sm" aria-label={t("recurringInvoices.upsert.form.items.type.label") as string}>
-                                                                                <SelectValue />
-                                                                            </SelectTrigger>
-                                                                            <SelectContent>
-                                                                                <SelectItem value="HOUR">{t("recurringInvoices.upsert.form.items.type.hour")}</SelectItem>
-                                                                                <SelectItem value="DAY">{t("recurringInvoices.upsert.form.items.type.day")}</SelectItem>
-                                                                                <SelectItem value="DEPOSIT">{t("recurringInvoices.upsert.form.items.type.deposit")}</SelectItem>
-                                                                                <SelectItem value="SERVICE">{t("recurringInvoices.upsert.form.items.type.service")}</SelectItem>
-                                                                                <SelectItem value="PRODUCT">{t("recurringInvoices.upsert.form.items.type.product")}</SelectItem>
-                                                                            </SelectContent>
-                                                                        </Select>
-                                                                    </FormControl>
-                                                                    <FormMessage />
-                                                                </FormItem>
-                                                            )}
-                                                        />
-
-                                                        <FormField
-                                                            control={control}
-                                                            name={`items.${index}.quantity`}
-                                                            render={({ field }) => (
-                                                                <FormItem>
-                                                                    <FormControl>
-                                                                        <BetterInput
-                                                                            {...field}
-                                                                            defaultValue={field.value || ""}
-                                                                            postAdornment={t("recurringInvoices.upsert.form.items.quantity.unit")}
-                                                                            type="number"
-                                                                            step="0.001"
-                                                                            placeholder={t(
-                                                                                "recurringInvoices.upsert.form.items.quantity.placeholder",
-                                                                            )}
-                                                                            onChange={(e) =>
-                                                                                field.onChange(e.target.value === "" ? undefined : Number(e.target.value))
-                                                                            }
-                                                                        />
-                                                                    </FormControl>
-                                                                    <FormMessage />
-                                                                </FormItem>
-                                                            )}
-                                                        />
-
-                                                        <FormField
-                                                            control={control}
-                                                            name={`items.${index}.unitPrice`}
-                                                            render={({ field }) => (
-                                                                <FormItem>
-                                                                    <FormControl>
-                                                                        <BetterInput
-                                                                            {...field}
-                                                                            defaultValue={field.value || ""}
-                                                                            postAdornment="$"
-                                                                            type="number"
-                                                                            step="0.01"
-                                                                            placeholder={t(
-                                                                                "recurringInvoices.upsert.form.items.unitPrice.placeholder",
-                                                                            )}
-                                                                            onChange={(e) =>
-                                                                                field.onChange(e.target.value === "" ? undefined : Number(e.target.value))
-                                                                            }
-                                                                        />
-                                                                    </FormControl>
-                                                                    <FormMessage />
-                                                                </FormItem>
-                                                            )}
-                                                        />
-
-                                                        <FormField
-                                                            control={control}
-                                                            name={`items.${index}.vatRate`}
-                                                            render={({ field }) => (
-                                                                <FormItem>
-                                                                    <FormControl>
-                                                                        <BetterInput
-                                                                            {...field}
-                                                                            defaultValue={field.value || 0}
-                                                                            postAdornment="%"
-                                                                            type="number"
-                                                                            step="0.01"
-                                                                            placeholder={t(
-                                                                                "recurringInvoices.upsert.form.items.vatRate.placeholder",
-                                                                            )}
-                                                                            onChange={(e) =>
-                                                                                field.onChange(
-                                                                                    e.target.value === ""
-                                                                                        ? undefined
-                                                                                        : Number.parseFloat(e.target.value.replace(",", ".")),
-                                                                                )
-                                                                            }
-                                                                        />
-                                                                    </FormControl>
-                                                                    <FormMessage />
-                                                                </FormItem>
-                                                            )}
-                                                        />
-
-                                                        <Button type="button" variant={"outline"} onClick={() => onRemove(index)}>
-                                                            <Trash2 className="h-4 w-4 text-red-700" />
-                                                        </Button>
-                                                    </div>
-                                                </SortableItem>
-                                            ))}
-                                        </div>
-                                    </SortableContext>
-                                </DndContext>
-
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() =>
-                                        append({
-                                            name: "",
-                                            description: "",
-                                            type: "HOUR",
-                                            quantity: Number.NaN,
-                                            unitPrice: Number.NaN,
-                                            vatRate: Number.NaN,
-                                            order: fields.length,
-                                        })
-                                    }
-                                >
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    {t("recurringInvoices.upsert.form.items.addItem")}
-                                </Button>
-                            </FormItem>
+                            <LineItemsEditor translationPrefix="recurringInvoices" defaultItemType="HOUR" />
 
                             <Separator className="my-4" />
 
@@ -604,28 +350,3 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
     )
 }
 
-function SortableItem({
-    id,
-    children,
-    dragHandle,
-}: {
-    id: string
-    children: React.ReactNode
-    dragHandle: React.ReactNode
-}) {
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id })
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-    }
-
-    return (
-        <div ref={setNodeRef} style={style} className="flex items-center gap-2">
-            {children}
-            <div {...attributes} {...listeners}>
-                {dragHandle}
-            </div>
-        </div>
-    )
-}

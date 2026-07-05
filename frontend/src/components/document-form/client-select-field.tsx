@@ -3,11 +3,12 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/comp
 import type { Client } from "@/types"
 import { Button } from "@/components/ui/button"
 import SearchSelect from "@/components/search-input"
+import type { LineItemTranslationPrefix } from "@/lib/line-item-schema"
 import { useFormContext } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
 interface ClientSelectFieldProps {
-    translationPrefix: "invoices" | "recurringInvoices"
+    translationPrefix: LineItemTranslationPrefix
     dataCy: string
     clients: Client[]
     onSearchChange: (term: string) => void
@@ -35,6 +36,7 @@ export function ClientSelectField({ translationPrefix, dataCy, clients, onSearch
                             data-cy={dataCy}
                             noResultsComponent={
                                 <Button
+                                    type="button"
                                     variant="link"
                                     onClick={onRequestCreateClient}
                                 >

@@ -1,4 +1,4 @@
-import type { Client, Invoice, PaymentMethod } from "@/types"
+import type { Client, Invoice } from "@/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -14,12 +14,13 @@ import { useQueryClient } from "@tanstack/react-query"
 
 import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
-import { ClientSelectField } from "./client-select-field"
+import { ClientSelectField } from "@/components/document-form/client-select-field"
 import { ClientUpsert } from "../../clients/_components/client-upsert"
-import CurrencySelect from "@/components/currency-select"
+import { CurrencyField } from "@/components/document-form/currency-field"
 import { DatePicker } from "@/components/date-picker"
-import { InvoiceLineItemsEditor } from "./invoice-line-items-editor"
-import { PaymentMethodType } from "@/types"
+import { DiscountRateField } from "@/components/document-form/discount-rate-field"
+import { LineItemsEditor } from "@/components/document-form/line-items-editor"
+import { PaymentMethodField } from "@/components/document-form/payment-method-field"
 import SearchSelect from "@/components/search-input"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
@@ -301,50 +302,9 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                         onRequestCreateClient={() => setClientDialogOpen(true)}
                                     />
 
-                                    <FormField
-                                        control={form.control}
-                                        name="currency"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>{t("invoices.upsert.form.currency.label")}</FormLabel>
-                                                <FormControl>
-                                                    <CurrencySelect value={field.value} onChange={(value) => field.onChange(value)} data-cy="invoice-currency-select" />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                                    <CurrencyField translationPrefix="invoices" dataCy="invoice-currency-select" />
 
-                                    <FormField
-                                        control={control}
-                                        name="discountRate"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>{t("invoices.upsert.form.discountRate.label")}</FormLabel>
-                                                <FormControl>
-                                                    <BetterInput
-                                                        {...field}
-                                                        defaultValue={field.value ?? 0}
-                                                        postAdornment="%"
-                                                        type="number"
-                                                        step="0.01"
-                                                        placeholder={t("invoices.upsert.form.discountRate.placeholder")}
-                                                        onChange={(e) =>
-                                                            field.onChange(
-                                                                e.target.value === ""
-                                                                    ? 0
-                                                                    : Number.parseFloat(e.target.value.replace(",", ".")),
-                                                            )
-                                                        }
-                                                    />
-                                                </FormControl>
-                                                <FormDescription>
-                                                    {t("invoices.upsert.form.discountRate.description")}
-                                                </FormDescription>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                                    <DiscountRateField translationPrefix="invoices" />
 
                                     <FormField
                                         control={control}
@@ -379,39 +339,9 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                         )}
                                     />
 
-                                    <FormField
-                                        control={control}
-                                        name="paymentMethodId"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>{t("invoices.upsert.form.paymentMethod.label")}</FormLabel>
-                                                <FormControl>
-                                                    <Select value={field.value ?? ""} onValueChange={(val) => {
-                                                        const v = val || "";
-                                                        field.onChange(v);
-                                                    }}>
-                                                        <SelectTrigger className="w-full" aria-label={t("invoices.upsert.form.paymentMethod.label") as string}>
-                                                            <SelectValue placeholder={t("invoices.upsert.form.paymentMethod.placeholder")} />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {(paymentMethods || []).map((pm: PaymentMethod) => (
-                                                                <SelectItem key={pm.id} value={pm.id}>
-                                                                    {pm.name} - {pm.type == PaymentMethodType.BANK_TRANSFER ? t("paymentMethods.fields.type.bank_transfer") : pm.type == PaymentMethodType.PAYPAL ? t("paymentMethods.fields.type.paypal") : pm.type == PaymentMethodType.CHECK ? t("paymentMethods.fields.type.check") : pm.type == PaymentMethodType.CASH ? t("paymentMethods.fields.type.cash") : pm.type == PaymentMethodType.OTHER ? t("paymentMethods.fields.type.other") : pm.type}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </FormControl>
-                                                <FormDescription>
-                                                    {t("invoices.upsert.form.paymentMethod.description")}
-                                                </FormDescription>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                                    <PaymentMethodField translationPrefix="invoices" paymentMethods={paymentMethods} triggerClassName="w-full" />
 
-
-                                    <InvoiceLineItemsEditor translationPrefix="invoices" defaultItemType="SERVICE" />
+                                    <LineItemsEditor translationPrefix="invoices" defaultItemType="SERVICE" />
                                 </form>
                             </Form>
                         ) : mode === "recurring" ? (
@@ -467,19 +397,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                         onRequestCreateClient={() => setClientDialogOpen(true)}
                                     />
 
-                                    <FormField
-                                        control={recurringControl}
-                                        name="currency"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>{t("recurringInvoices.upsert.form.currency.label")}</FormLabel>
-                                                <FormControl>
-                                                    <CurrencySelect value={field.value} onChange={(value) => field.onChange(value)} data-cy="recurring-invoice-currency-select" />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                                    <CurrencyField translationPrefix="recurringInvoices" dataCy="recurring-invoice-currency-select" />
 
                                     <FormField
                                         control={recurringControl}
@@ -496,33 +414,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                     />
 
                                     <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <FormField
-                                            control={recurringControl}
-                                            name="paymentMethodId"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel required>{t("recurringInvoices.upsert.form.paymentMethod.label")}</FormLabel>
-                                                    <FormControl>
-                                                        <Select value={field.value ?? ""} onValueChange={(val) => field.onChange(val || "")}>
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder={t("recurringInvoices.upsert.form.paymentMethod.placeholder")} />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {paymentMethods?.map((pm: PaymentMethod) => (
-                                                                    <SelectItem key={pm.id} value={pm.id}>
-                                                                        {pm.name} - {pm.type == PaymentMethodType.BANK_TRANSFER ? t("paymentMethods.fields.type.bank_transfer") : pm.type == PaymentMethodType.PAYPAL ? t("paymentMethods.fields.type.paypal") : pm.type == PaymentMethodType.CHECK ? t("paymentMethods.fields.type.check") : pm.type == PaymentMethodType.CASH ? t("paymentMethods.fields.type.cash") : pm.type == PaymentMethodType.OTHER ? t("paymentMethods.fields.type.other") : pm.type}
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </FormControl>
-                                                    <FormDescription>
-                                                        {t("recurringInvoices.upsert.form.paymentMethod.description")}
-                                                    </FormDescription>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
+                                        <PaymentMethodField translationPrefix="recurringInvoices" paymentMethods={paymentMethods} required />
                                     </section>
 
                                     <Separator className="my-4" />
@@ -615,7 +507,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
 
                                     <Separator className="my-4" />
 
-                                    <InvoiceLineItemsEditor translationPrefix="recurringInvoices" defaultItemType="HOUR" />
+                                    <LineItemsEditor translationPrefix="recurringInvoices" defaultItemType="HOUR" />
 
                                     <Separator className="my-4" />
 
@@ -652,19 +544,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                     />
 
                                     <div className="grid grid-cols-2 gap-4">
-                                        <FormField
-                                            control={control}
-                                            name="currency"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>{t("invoices.upsert.form.currency.label")}</FormLabel>
-                                                    <FormControl>
-                                                        <CurrencySelect value={field.value} onChange={field.onChange} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
+                                        <CurrencyField translationPrefix="invoices" />
 
                                         <FormField
                                             control={control}
@@ -697,7 +577,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
 
                                     <Separator className="my-4" />
 
-                                    <InvoiceLineItemsEditor translationPrefix="invoices" defaultItemType="SERVICE" />
+                                    <LineItemsEditor translationPrefix="invoices" defaultItemType="SERVICE" />
 
                                     <Separator className="my-4" />
 
@@ -767,19 +647,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                     )}
 
                                     <div className="grid grid-cols-2 gap-4">
-                                        <FormField
-                                            control={control}
-                                            name="currency"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>{t("invoices.upsert.form.currency.label")}</FormLabel>
-                                                    <FormControl>
-                                                        <CurrencySelect value={field.value} onChange={field.onChange} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
+                                        <CurrencyField translationPrefix="invoices" />
 
                                         <FormField
                                             control={control}
@@ -812,7 +680,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
 
                                     <Separator className="my-4" />
 
-                                    <InvoiceLineItemsEditor translationPrefix="invoices" defaultItemType="SERVICE" />
+                                    <LineItemsEditor translationPrefix="invoices" defaultItemType="SERVICE" />
 
                                     <Separator className="my-4" />
 

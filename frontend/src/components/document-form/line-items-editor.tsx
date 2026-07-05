@@ -1,4 +1,4 @@
-import { DndContext, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core"
+import { DndContext, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core"
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { GripVertical, Plus, Trash2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -11,18 +11,25 @@ import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
 import { CSS } from "@dnd-kit/utilities"
 import { Input } from "@/components/ui/input"
+import type { LineItemTranslationPrefix } from "@/lib/line-item-schema"
 import { Textarea } from "@/components/ui/textarea"
 import type React from "react"
 import { useTranslation } from "react-i18next"
 
 type ItemType = "HOUR" | "DAY" | "DEPOSIT" | "SERVICE" | "PRODUCT"
 
-interface InvoiceLineItemsEditorProps {
-    translationPrefix: "invoices" | "recurringInvoices"
+interface LineItemsEditorProps {
+    translationPrefix: LineItemTranslationPrefix
+    /**
+     * i18n namespace for the item-type select labels. Quotes reuse the
+     * invoices labels (`quotes.upsert.form.items.type.*` is not defined),
+     * hence the separate parameter. Defaults to `translationPrefix`.
+     */
+    typeLabelPrefix?: LineItemTranslationPrefix
     defaultItemType: ItemType
 }
 
-export function InvoiceLineItemsEditor({ translationPrefix, defaultItemType }: InvoiceLineItemsEditorProps) {
+export function LineItemsEditor({ translationPrefix, typeLabelPrefix = translationPrefix, defaultItemType }: LineItemsEditorProps) {
     const { t } = useTranslation()
     const { control, setValue } = useFormContext()
     const { fields, append, move, remove } = useFieldArray({
@@ -32,9 +39,9 @@ export function InvoiceLineItemsEditor({ translationPrefix, defaultItemType }: I
 
     const sensors = useSensors(useSensor(MouseSensor), useSensor(TouchSensor))
 
-    const onDragEnd = (event: any) => {
+    const onDragEnd = (event: DragEndEvent) => {
         const { active, over } = event
-        if (active.id !== over?.id) {
+        if (over && active.id !== over.id) {
             const oldIndex = fields.findIndex((f) => f.id === active.id)
             const newIndex = fields.findIndex((f) => f.id === over.id)
             move(oldIndex, newIndex)
@@ -89,16 +96,16 @@ export function InvoiceLineItemsEditor({ translationPrefix, defaultItemType }: I
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormControl>
-                                                    <Select value={field.value ?? 'SERVICE'} onValueChange={(val) => field.onChange(val as any)}>
-                                                        <SelectTrigger className="w-32" size="sm" aria-label={t(`${translationPrefix}.upsert.form.items.type.label`) as string}>
+                                                    <Select value={field.value ?? 'SERVICE'} onValueChange={(val) => field.onChange(val)}>
+                                                        <SelectTrigger className="w-32" size="sm" aria-label={t(`${typeLabelPrefix}.upsert.form.items.type.label`) as string}>
                                                             <SelectValue />
                                                         </SelectTrigger>
                                                         <SelectContent>
-                                                            <SelectItem value="HOUR">{t(`${translationPrefix}.upsert.form.items.type.hour`)}</SelectItem>
-                                                            <SelectItem value="DAY">{t(`${translationPrefix}.upsert.form.items.type.day`)}</SelectItem>
-                                                            <SelectItem value="DEPOSIT">{t(`${translationPrefix}.upsert.form.items.type.deposit`)}</SelectItem>
-                                                            <SelectItem value="SERVICE">{t(`${translationPrefix}.upsert.form.items.type.service`)}</SelectItem>
-                                                            <SelectItem value="PRODUCT">{t(`${translationPrefix}.upsert.form.items.type.product`)}</SelectItem>
+                                                            <SelectItem value="HOUR">{t(`${typeLabelPrefix}.upsert.form.items.type.hour`)}</SelectItem>
+                                                            <SelectItem value="DAY">{t(`${typeLabelPrefix}.upsert.form.items.type.day`)}</SelectItem>
+                                                            <SelectItem value="DEPOSIT">{t(`${typeLabelPrefix}.upsert.form.items.type.deposit`)}</SelectItem>
+                                                            <SelectItem value="SERVICE">{t(`${typeLabelPrefix}.upsert.form.items.type.service`)}</SelectItem>
+                                                            <SelectItem value="PRODUCT">{t(`${typeLabelPrefix}.upsert.form.items.type.product`)}</SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                 </FormControl>
@@ -186,7 +193,7 @@ export function InvoiceLineItemsEditor({ translationPrefix, defaultItemType }: I
                                         )}
                                     />
 
-                                    <Button variant={"outline"} onClick={() => remove(index)}>
+                                    <Button type="button" variant={"outline"} onClick={() => remove(index)} dataCy={`remove-item-${index}`}>
                                         <Trash2 className="h-4 w-4 text-red-700" />
                                     </Button>
                                 </div>
