@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Webhook, WebhookEvent, WebhookType } from '../../../prisma/generated/prisma/client';
 
 import { DiscordDriver } from './drivers/discord.driver';
@@ -14,6 +14,16 @@ import { WebhookDriver } from './drivers/webhook-driver.interface';
 import { ZapierDriver } from './drivers/zapier.driver';
 import prisma from '@/prisma/prisma.service';
 import { logger } from '@/logger/logger.service';
+
+/** HTTP body for creating a webhook (route contract: only `url` is required). */
+export interface WebhookCreateInput {
+    url: string;
+    type?: WebhookType;
+    events?: WebhookEvent[];
+    secret?: string;
+}
+
+export type WebhookUpdateInput = Partial<WebhookCreateInput>;
 
 @Injectable()
 export class WebhooksService {
@@ -96,6 +106,85 @@ export class WebhooksService {
         return driver;
     }
 
+
+    /**
+     * Get a single webhook scoped to the current company, without its secret.
+     * Throws 404 when the webhook does not exist or belongs to another company.
+     */
+    async findOne(id: string) {
+        const wh = await prisma.webhook.findUnique({ where: { id } });
+        if (!wh) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
+
+        const company = await prisma.company.findFirst();
+        if (!company || wh.companyId !== company.id) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
+
+        return { ...wh, secret: undefined };
+    }
+
+    /** List all webhooks of the current company, secrets excluded. */
+    async list() {
+        const company = await prisma.company.findFirst();
+        if (!company) return [];
+
+        const webhooks = await prisma.webhook.findMany({ where: { companyId: company.id } });
+
+        // Remove secret from response
+        return webhooks.map(w => ({ ...w, secret: undefined }));
+    }
+
+    /** Create a webhook for the current company. Returns the full row (incl. secret) + company for event dispatch. */
+    async create(body: WebhookCreateInput) {
+        const company = await prisma.company.findFirst();
+        if (!company) throw new HttpException('No company found', HttpStatus.BAD_REQUEST);
+
+        const secret = body.secret ?? '';
+
+        const webhook = await prisma.webhook.create({
+            data: {
+                url: body.url,
+                type: body.type ?? 'GENERIC',
+                events: body.events ?? [],
+                secret,
+                companyId: company.id,
+            }
+        });
+
+        return { webhook, company };
+    }
+
+    /** Update a webhook (company-scoped, 404 otherwise). Returns the full updated row + company for event dispatch. */
+    async update(id: string, body: WebhookUpdateInput) {
+        const existing = await prisma.webhook.findUnique({ where: { id } });
+        if (!existing) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
+
+        const company = await prisma.company.findFirst();
+        if (!company || existing.companyId !== company.id) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
+
+        const webhook = await prisma.webhook.update({
+            where: { id },
+            data: {
+                url: body.url ?? existing.url,
+                type: body.type ?? existing.type,
+                events: body.events ?? existing.events,
+                secret: body.secret ?? existing.secret,
+            }
+        });
+
+        return { webhook, company };
+    }
+
+    /** Delete a webhook (company-scoped, 404 otherwise). Returns the deleted row + company for event dispatch. */
+    async remove(id: string) {
+        const existing = await prisma.webhook.findUnique({ where: { id } });
+        if (!existing) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
+
+        const company = await prisma.company.findFirst();
+        if (!company || existing.companyId !== company.id) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
+
+        await prisma.webhook.delete({ where: { id } });
+
+        return { webhook: existing, company };
+    }
 
     /**
      * Send a webhook to a specified URL with HMAC signature

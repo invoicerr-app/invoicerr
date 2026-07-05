@@ -1,9 +1,8 @@
-import { Controller, Post, Param, Body, Req, Res, Logger, HttpException, HttpStatus, Get, Delete, UseGuards, Patch } from '@nestjs/common';
+import { Controller, Post, Param, Body, Req, Res, Logger, HttpStatus, Get, Delete, UseGuards, Patch } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
 import { WebhooksService } from './webhooks.service';
-import prisma from '@/prisma/prisma.service';
 import { AuthGuard } from '@/guards/auth.guard';
 import { WebhookEvent, WebhookType } from '../../../prisma/generated/prisma/client';
 import { WebhookDispatcherService } from './webhook-dispatcher.service';
@@ -36,13 +35,7 @@ export class WebhooksController {
     @ApiResponse({ status: 200, description: 'Webhook retrieved' })
     @ApiResponse({ status: 404, description: 'Webhook not found' })
     async findOne(@Param('id') id: string) {
-        const wh = await prisma.webhook.findUnique({ where: { id } });
-        if (!wh) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
-
-        const company = await prisma.company.findFirst();
-        if (!company || wh.companyId !== company.id) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
-
-        return { ...wh, secret: undefined };
+        return this.webhooksService.findOne(id);
     }
 
     @Post(':uuid')
@@ -82,13 +75,7 @@ export class WebhooksController {
     @ApiOperation({ summary: 'List all webhooks', description: 'Returns all webhook configurations for the current company (secrets are excluded).' })
     @ApiResponse({ status: 200, description: 'Webhooks retrieved' })
     async list() {
-        const company = await prisma.company.findFirst();
-        if (!company) return [];
-
-        const webhooks = await prisma.webhook.findMany({ where: { companyId: company.id } });
-
-        // Remove secret from response
-        return webhooks.map(w => ({ ...w, secret: undefined }));
+        return this.webhooksService.list();
     }
 
     @Post()
@@ -97,29 +84,16 @@ export class WebhooksController {
     @ApiBody({ schema: { type: 'object', properties: { url: { type: 'string' }, type: { type: 'string', description: 'Webhook type, e.g. GENERIC' }, events: { type: 'array', items: { type: 'string' }, description: 'List of event types to subscribe to' }, secret: { type: 'string', description: 'Optional pre-set secret; generated if omitted' } }, required: ['url'] } })
     @ApiResponse({ status: 201, description: 'Webhook created' })
     async create(@Body() body: any) {
-        const company = await prisma.company.findFirst();
-        if (!company) throw new HttpException('No company found', HttpStatus.BAD_REQUEST);
-
-        const secret = body.secret ?? '';
-
-        const created = await prisma.webhook.create({
-            data: {
-                url: body.url,
-                type: body.type ?? 'GENERIC',
-                events: body.events ?? [],
-                secret,
-                companyId: company.id,
-            }
-        });
+        const { webhook, company } = await this.webhooksService.create(body);
 
         try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_CREATED, { webhook: created, company });
+            await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_CREATED, { webhook, company });
         } catch (err) {
             this.logger.error('Failed to dispatch WEBHOOK_CREATED', err);
         }
 
         // Return the secret only once
-        return { success: true, data: { ...created, secret } };
+        return { success: true, data: { ...webhook } };
     }
 
     @Patch(':id')
@@ -130,29 +104,15 @@ export class WebhooksController {
     @ApiResponse({ status: 200, description: 'Webhook updated' })
     @ApiResponse({ status: 404, description: 'Webhook not found' })
     async update(@Param('id') id: string, @Body() body: any) {
-        const existing = await prisma.webhook.findUnique({ where: { id } });
-        if (!existing) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
-
-        const company = await prisma.company.findFirst();
-        if (!company || existing.companyId !== company.id) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
-
-        const updated = await prisma.webhook.update({
-            where: { id },
-            data: {
-                url: body.url ?? existing.url,
-                type: body.type ?? existing.type,
-                events: body.events ?? existing.events,
-                secret: body.secret ?? existing.secret,
-            }
-        });
+        const { webhook, company } = await this.webhooksService.update(id, body);
 
         try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_UPDATED, { webhook: updated, company });
+            await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_UPDATED, { webhook, company });
         } catch (err) {
             this.logger.error('Failed to dispatch WEBHOOK_UPDATED', err);
         }
 
-        return { success: true, data: { ...updated, secret: undefined } };
+        return { success: true, data: { ...webhook, secret: undefined } };
     }
 
     @Delete(':id')
@@ -162,16 +122,10 @@ export class WebhooksController {
     @ApiResponse({ status: 200, description: 'Webhook deleted' })
     @ApiResponse({ status: 404, description: 'Webhook not found' })
     async remove(@Param('id') id: string) {
-        const existing = await prisma.webhook.findUnique({ where: { id } });
-        if (!existing) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
-
-        const company = await prisma.company.findFirst();
-        if (!company || existing.companyId !== company.id) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
-
-        await prisma.webhook.delete({ where: { id } });
+        const { webhook, company } = await this.webhooksService.remove(id);
 
         try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_DELETED, { webhook: existing, company });
+            await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_DELETED, { webhook, company });
         } catch (err) {
             this.logger.error('Failed to dispatch WEBHOOK_DELETED', err);
         }
