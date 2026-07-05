@@ -7,10 +7,7 @@ import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service
 import { Prisma, WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
-import { guessCountryCode } from '@/utils/country-name-to-iso';
-import { resolveInvoiceTax } from '@/compliance/integration/invoice-tax';
 import { ComplianceService } from '@/compliance/operations/compliance-service';
-import type { TransactionContext } from '@/compliance/canonical/canonical-document';
 import { assembleLifecycle, phaseContextFromPlan } from '@/compliance/lifecycle/assembler';
 import { LifecycleRuntime } from '@/compliance/lifecycle/runtime';
 import type { CompliancePlan } from '@/compliance/engine/compliance-engine';
@@ -19,8 +16,8 @@ import { defaultTransmissionRegistry } from '@/compliance/providers/transmission
 import { describeFlow } from '@/compliance/lifecycle/flow-descriptor';
 import { clampDiscountRate, toMinor } from '@/utils/financial';
 import type { SupplyType, DocumentKind } from '@/compliance/types';
-import { getIdentifier } from '@/utils/entity-identifiers';
 import { enrichWithPaymentMethod, enrichWithPaymentMethods } from '@/utils/enrich-payment-methods';
+import { buildComplianceContext, invoiceItemData, resolveTax, toComplianceLines } from './invoices.helpers';
 import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
 
 @Injectable()
@@ -211,22 +208,10 @@ export class InvoicesService {
         }
 
         const discountRate = clampDiscountRate(body.discountRate);
-        const taxResult = resolveInvoiceTax({
-            supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
-            supplierExemptVat: !!company.exemptVat,
-            supplierVatNumber: getIdentifier(company, 'VAT'),
-            buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
-            buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
-            buyerVatNumber: getIdentifier(client, 'VAT'),
+        const taxResult = resolveTax(company, client, {
             currency: body.currency || client.currency || company.currency,
-            issueDate: new Date(),
             discountRate,
-            items: items.map(item => ({
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                vatRate: item.vatRate,
-                supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
-            })),
+            items,
         });
 
         if (taxResult.warnings.length > 0) {
@@ -253,21 +238,8 @@ export class InvoicesService {
                 totalTTCMinor: taxResult.totalsMinor.grossMinor,
                 items: {
                     create: items.map((item, i) => ({
+                        ...invoiceItemData(item, body.currency || client.currency || company.currency, taxResult.itemVatRates[i]),
                         name: item.name ?? item.description,
-                        description: item.description,
-                        quantity: item.quantity,
-                        unitPrice: item.unitPrice,
-                        unitPriceMinor: toMinor(item.unitPrice, body.currency || client.currency || company.currency),
-                        vatRate: taxResult.itemVatRates[i],
-                        type: item.type,
-                        order: item.order || 0,
-                        discountRate: item.discountRate ?? 0,
-                        discountAmount: item.discountAmount ?? null,
-                        discountAmountMinor: item.discountAmount ? toMinor(item.discountAmount, body.currency || client.currency || company.currency) : null,
-                        chargeAmount: item.chargeAmount ?? null,
-                        chargeAmountMinor: item.chargeAmount ? toMinor(item.chargeAmount, body.currency || client.currency || company.currency) : null,
-                        chargeDescription: item.chargeDescription ?? null,
-                        unitOfMeasure: item.unitOfMeasure ?? 'C62',
                         quoteItemId: item.quoteItemId,
                     })),
                 },
@@ -284,31 +256,12 @@ export class InvoicesService {
 
         // Wire ComplianceService: create a draft compliance document linked to this invoice
         try {
-            const complianceCtx: TransactionContext = {
-                supplier: {
-                    legalName: company.name,
-                    countryCode: company.countryCode ?? guessCountryCode(company.country) ?? 'FR',
-                    role: 'B2B',
-                    identifiers: (company as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
-                },
-                buyer: {
-                    legalName: client.name,
-                    countryCode: client.countryCode ?? guessCountryCode(client.country) ?? 'FR',
-                    role: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
-                    identifiers: (client as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
-                },
-                lines: items.map((item) => ({
-                    id: `item-${item.order ?? 0}`,
-                    description: (item.description ?? '') as string,
-                    quantity: item.quantity,
-                    unitNetMinor: toMinor(item.unitPrice, body.currency || client.currency || company.currency),
-                    supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
-                })),
+            const complianceCtx = buildComplianceContext(company, client, {
+                lines: toComplianceLines(items, body.currency || client.currency || company.currency),
                 issueDate: new Date(),
                 currency: body.currency || client.currency || company.currency,
-                supplierCompanyId: company.id,
                 externalRef: invoice.id,
-            };
+            });
             await this.complianceService.createDraft(complianceCtx, 'INVOICE', invoice.id);
         } catch (error) {
             logger.warn('ComplianceService.createDraft failed (non-blocking)', { category: 'invoice', details: { error: String(error) } });
@@ -452,8 +405,6 @@ export class InvoicesService {
                 unitOfMeasure: item.unitOfMeasure,
             }));
 
-            const toMinorFn = (v: number | null | undefined) => v != null ? v : null;
-
             if (correctionModel === 'CANCEL_AND_REPLACE') {
                 correctionKind = 'INVOICE';
                 correctionItems = copyItems(false);
@@ -534,33 +485,12 @@ export class InvoicesService {
 
             // Wire ComplianceService for the correction (non-blocking)
             try {
-                const company = invoice.company;
-                const client = invoice.client;
-            const complianceCtx: TransactionContext = {
-                supplier: {
-                    legalName: company.name,
-                    countryCode: company.countryCode ?? guessCountryCode(company.country) ?? 'FR',
-                    role: 'B2B',
-                    identifiers: (company as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
-                },
-                buyer: {
-                    legalName: client.name,
-                    countryCode: client.countryCode ?? guessCountryCode(client.country) ?? 'FR',
-                    role: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
-                    identifiers: (client as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
-                },
-                lines: correctionInvoice.items.map((item: any) => ({
-                    id: `item-${item.order ?? 0}`,
-                    description: (item.description ?? '') as string,
-                    quantity: item.quantity,
-                    unitNetMinor: toMinor(item.unitPrice, invoice.currency),
-                    supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
-                })),
-                issueDate: new Date(),
-                currency: invoice.currency,
-                externalRef: invoice.id,
-                supplierCompanyId: company.id,
-            };
+                const complianceCtx = buildComplianceContext(invoice.company, invoice.client, {
+                    lines: toComplianceLines(correctionInvoice.items, invoice.currency),
+                    issueDate: new Date(),
+                    currency: invoice.currency,
+                    externalRef: invoice.id,
+                });
                 const correctionDoc = await this.complianceService.createDraft(complianceCtx, correctionKind as any, correctionInvoice.id);
                 await this.complianceService.issue(correctionDoc.id);
             } catch (error) {
@@ -711,21 +641,9 @@ export class InvoicesService {
 
             // Wire ComplianceService for the replacement (non-blocking)
             try {
-                const company = invoice.company;
-                const client = invoice.client;
-                const complianceCtx: TransactionContext = {
-                    supplier: {
-                        legalName: company.name,
-                        countryCode: company.countryCode ?? guessCountryCode(company.country) ?? 'FR',
-                        role: 'B2B',
-                        identifiers: (company as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
-                    },
-                    buyer: {
-                        legalName: client.name,
-                        countryCode: client.countryCode ?? guessCountryCode(client.country) ?? 'FR',
-                        role: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
-                        identifiers: (client as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
-                    },
+                // NOTE: unlike the other flows, replacement lines prefer the stored
+                // unitPriceMinor over a fresh toMinor() conversion — keep inline.
+                const complianceCtx = buildComplianceContext(invoice.company, invoice.client, {
                     lines: invoice.items.map((item) => ({
                         id: `item-${item.order ?? 0}`,
                         description: (item.description ?? '') as string,
@@ -735,9 +653,8 @@ export class InvoicesService {
                     })),
                     issueDate,
                     currency: invoice.currency,
-                    supplierCompanyId: company.id,
                     externalRef: replacement.id,
-                };
+                });
                 const replacementDoc = await this.complianceService.createDraft(complianceCtx, 'INVOICE', replacement.id);
                 await this.complianceService.issue(replacementDoc.id);
             } catch (error) {
@@ -818,22 +735,10 @@ export class InvoicesService {
         const itemIdsToDelete = existingItemIds.filter(id => !incomingItemIds.includes(id));
 
         const normalizedDiscountRate = clampDiscountRate(discountRate ?? existingInvoice.discountRate);
-        const taxResult = resolveInvoiceTax({
-            supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
-            supplierExemptVat: !!company.exemptVat,
-            supplierVatNumber: getIdentifier(company, 'VAT'),
-            buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
-            buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
-            buyerVatNumber: getIdentifier(client, 'VAT'),
+        const taxResult = resolveTax(company, client, {
             currency: body.currency || client.currency || company.currency,
-            issueDate: new Date(),
             discountRate: normalizedDiscountRate,
-            items: items.map(item => ({
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                vatRate: item.vatRate,
-                supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
-            })),
+            items,
         });
 
         if (taxResult.warnings.length > 0) {
@@ -869,42 +774,16 @@ export class InvoicesService {
                         .map(({ i, originalIdx }) => ({
                             where: { id: i.id! },
                             data: {
+                                ...invoiceItemData(i, body.currency || client.currency || company.currency, taxResult.itemVatRates[originalIdx]),
                                 name: i.name,
-                                description: i.description,
-                                quantity: i.quantity,
-                                unitPrice: i.unitPrice,
-                                unitPriceMinor: toMinor(i.unitPrice, body.currency || client.currency || company.currency),
-                                vatRate: taxResult.itemVatRates[originalIdx],
-                                type: i.type,
-                                order: i.order || 0,
-                                discountRate: i.discountRate ?? 0,
-                                discountAmount: i.discountAmount ?? null,
-                                discountAmountMinor: i.discountAmount ? toMinor(i.discountAmount, body.currency || client.currency || company.currency) : null,
-                                chargeAmount: i.chargeAmount ?? null,
-                                chargeAmountMinor: i.chargeAmount ? toMinor(i.chargeAmount, body.currency || client.currency || company.currency) : null,
-                                chargeDescription: i.chargeDescription ?? null,
-                                unitOfMeasure: i.unitOfMeasure ?? 'C62',
                             },
                         })),
                     create: items
                         .map((i, originalIdx) => ({ i, originalIdx }))
                         .filter(({ i }) => !i.id)
                         .map(({ i, originalIdx }) => ({
+                            ...invoiceItemData(i, body.currency || client.currency || company.currency, taxResult.itemVatRates[originalIdx]),
                             name: i.name ?? i.description,
-                            description: i.description,
-                            quantity: i.quantity,
-                            unitPrice: i.unitPrice,
-                            unitPriceMinor: toMinor(i.unitPrice, body.currency || client.currency || company.currency),
-                            vatRate: taxResult.itemVatRates[originalIdx],
-                            type: i.type,
-                            order: i.order || 0,
-                            discountRate: i.discountRate ?? 0,
-                            discountAmount: i.discountAmount ?? null,
-                            discountAmountMinor: i.discountAmount ? toMinor(i.discountAmount, body.currency || client.currency || company.currency) : null,
-                            chargeAmount: i.chargeAmount ?? null,
-                            chargeAmountMinor: i.chargeAmount ? toMinor(i.chargeAmount, body.currency || client.currency || company.currency) : null,
-                            chargeDescription: i.chargeDescription ?? null,
-                            unitOfMeasure: i.unitOfMeasure ?? 'C62',
                         })),
                 },
             },
@@ -1286,22 +1165,10 @@ export class InvoicesService {
         if (!client) throw new BadRequestException('Client not found');
 
         const discountRate = clampDiscountRate(body.discountRate);
-        const taxResult = resolveInvoiceTax({
-            supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
-            supplierExemptVat: !!company.exemptVat,
-            supplierVatNumber: getIdentifier(company, 'VAT'),
-            buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
-            buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
-            buyerVatNumber: getIdentifier(client, 'VAT'),
+        const taxResult = resolveTax(company, client, {
             currency: body.currency || client.currency || company.currency,
-            issueDate: new Date(),
             discountRate,
-            items: items.map(item => ({
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                vatRate: item.vatRate,
-                supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
-            })),
+            items,
         });
 
         if (taxResult.warnings.length > 0) {
@@ -1325,21 +1192,8 @@ export class InvoicesService {
                 totalTTCMinor: taxResult.totalsMinor.grossMinor,
                 items: {
                     create: items.map((item, i) => ({
+                        ...invoiceItemData(item, body.currency || client.currency || company.currency, taxResult.itemVatRates[i]),
                         name: item.name,
-                        description: item.description,
-                        quantity: item.quantity,
-                        unitPrice: item.unitPrice,
-                        unitPriceMinor: toMinor(item.unitPrice, body.currency || client.currency || company.currency),
-                        vatRate: taxResult.itemVatRates[i],
-                        type: item.type,
-                        order: item.order || 0,
-                        discountRate: item.discountRate ?? 0,
-                        discountAmount: item.discountAmount ?? null,
-                        discountAmountMinor: item.discountAmount ? toMinor(item.discountAmount, body.currency || client.currency || company.currency) : null,
-                        chargeAmount: item.chargeAmount ?? null,
-                        chargeAmountMinor: item.chargeAmount ? toMinor(item.chargeAmount, body.currency || client.currency || company.currency) : null,
-                        chargeDescription: item.chargeDescription ?? null,
-                        unitOfMeasure: item.unitOfMeasure ?? 'C62',
                     })),
                 },
                 dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
@@ -1353,31 +1207,12 @@ export class InvoicesService {
 
         // Non-blocking: compliance draft (tracking only — proforma is never issued)
         try {
-            const complianceCtx: TransactionContext = {
-                supplier: {
-                    legalName: company.name,
-                    countryCode: company.countryCode ?? guessCountryCode(company.country) ?? 'FR',
-                    role: 'B2B',
-                    identifiers: (company as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
-                },
-                buyer: {
-                    legalName: client.name,
-                    countryCode: client.countryCode ?? guessCountryCode(client.country) ?? 'FR',
-                    role: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
-                    identifiers: (client as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
-                },
-                lines: items.map((item) => ({
-                    id: `item-${item.order ?? 0}`,
-                    description: (item.description ?? '') as string,
-                    quantity: item.quantity,
-                    unitNetMinor: toMinor(item.unitPrice, body.currency || client.currency || company.currency),
-                    supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
-                })),
+            const complianceCtx = buildComplianceContext(company, client, {
+                lines: toComplianceLines(items, body.currency || client.currency || company.currency),
                 issueDate: new Date(),
                 currency: body.currency || client.currency || company.currency,
-                supplierCompanyId: company.id,
                 externalRef: invoice.id,
-            };
+            });
             await this.complianceService.createDraft(complianceCtx, 'PROFORMA', invoice.id);
         } catch (error) {
             logger.warn('ComplianceService.createDraft failed for proforma (non-blocking)', { category: 'invoice', details: { error: String(error) } });
@@ -1478,15 +1313,8 @@ export class InvoicesService {
         const depositHT = depositTTC / (1 + vatRate / 100);
         const depositVAT = depositTTC - depositHT;
 
-        const taxResult = resolveInvoiceTax({
-            supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
-            supplierExemptVat: !!company.exemptVat,
-            supplierVatNumber: getIdentifier(company, 'VAT'),
-            buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
-            buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
-            buyerVatNumber: getIdentifier(client, 'VAT'),
+        const taxResult = resolveTax(company, client, {
             currency: body.currency || client.currency || company.currency,
-            issueDate: new Date(),
             discountRate,
             items: [{ quantity: 1, unitPrice: depositHT, vatRate, supplyType: 'SERVICES' }],
         });
@@ -1541,19 +1369,7 @@ export class InvoicesService {
 
         // Non-blocking: ComplianceService createDraft + issue
         try {
-            const complianceCtx: TransactionContext = {
-                supplier: {
-                    legalName: company.name,
-                    countryCode: company.countryCode ?? guessCountryCode(company.country) ?? 'FR',
-                    role: 'B2B',
-                    identifiers: (company as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
-                },
-                buyer: {
-                    legalName: client.name,
-                    countryCode: client.countryCode ?? guessCountryCode(client.country) ?? 'FR',
-                    role: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
-                    identifiers: (client as any).partyIdentifiers?.map((pi: any) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
-                },
+            const complianceCtx = buildComplianceContext(company, client, {
                 lines: [{
                     id: 'deposit-line',
                     description: 'Deposit payment',
@@ -1563,9 +1379,8 @@ export class InvoicesService {
                 }],
                 issueDate,
                 currency,
-                supplierCompanyId: company.id,
                 externalRef: depositInvoice.id,
-            };
+            });
             const doc = await this.complianceService.createDraft(complianceCtx, 'DEPOSIT', depositInvoice.id);
             await this.complianceService.issue(doc.id);
         } catch (error) {
@@ -1624,15 +1439,8 @@ export class InvoicesService {
         const deductionHT = -totalDeposited / (1 + depositVatRate / 100);
         const deductionVAT = -totalDeposited - deductionHT;
 
-        const deductionTaxResult = resolveInvoiceTax({
-            supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
-            supplierExemptVat: !!company.exemptVat,
-            supplierVatNumber: getIdentifier(company, 'VAT'),
-            buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
-            buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
-            buyerVatNumber: getIdentifier(client, 'VAT'),
+        const deductionTaxResult = resolveTax(company, client, {
             currency,
-            issueDate: new Date(),
             discountRate: 0,
             items: [{ quantity: 1, unitPrice: deductionHT, vatRate: depositVatRate, supplyType: 'SERVICES' }],
         });
@@ -1651,41 +1459,17 @@ export class InvoicesService {
 
         const allItems = [
             ...(items ?? []).map((item: any, i: number) => ({
-                description: item.description,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                unitPriceMinor: toMinor(item.unitPrice, currency),
-                vatRate: item.vatRate,
-                type: item.type,
+                ...invoiceItemData(item, currency, item.vatRate),
                 order: i,
-                discountRate: item.discountRate ?? 0,
-                discountAmount: item.discountAmount ?? null,
-                discountAmountMinor: item.discountAmount ? toMinor(item.discountAmount, currency) : null,
-                chargeAmount: item.chargeAmount ?? null,
-                chargeAmountMinor: item.chargeAmount ? toMinor(item.chargeAmount, currency) : null,
-                chargeDescription: item.chargeDescription ?? null,
-                unitOfMeasure: item.unitOfMeasure ?? 'C62',
             })),
             deductionLine,
         ];
 
         // Tax resolution for the full set (work items + deduction line)
-        const fullTaxResult = resolveInvoiceTax({
-            supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
-            supplierExemptVat: !!company.exemptVat,
-            supplierVatNumber: getIdentifier(company, 'VAT'),
-            buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
-            buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
-            buyerVatNumber: getIdentifier(client, 'VAT'),
+        const fullTaxResult = resolveTax(company, client, {
             currency,
-            issueDate: new Date(),
             discountRate: clampDiscountRate(body.discountRate),
-            items: allItems.map(item => ({
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                vatRate: item.vatRate,
-                supplyType: (item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType,
-            })),
+            items: allItems,
         });
 
         if (fullTaxResult.warnings.length > 0) {
