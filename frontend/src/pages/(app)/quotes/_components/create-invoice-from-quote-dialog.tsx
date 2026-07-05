@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog"
 import { Spinner } from "@/components/ui/spinner"
 import { useGet, usePost } from "@/hooks/use-fetch"
+import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 import { useEffect, useMemo, useState } from "react"
@@ -49,7 +50,10 @@ export function CreateInvoiceFromQuoteDialog({ quote, onOpenChange }: CreateInvo
         quote ? `/api/quotes/${quote.id}/invoicing-status` : null,
     )
 
-    const { trigger: triggerCreateInvoice, loading: creating } = usePost<Invoice>(`/api/invoices/create-from-quote`)
+    const { trigger: triggerCreateInvoice, loading: creating } = useMutationWithToast(
+        usePost<Invoice>(`/api/invoices/create-from-quote`),
+        t("quotes.list.messages.invoiceCreateError"),
+    )
 
     const [quantities, setQuantities] = useState<Record<string, number>>({})
     const [percentInput, setPercentInput] = useState<string>("")
@@ -160,16 +164,12 @@ export function CreateInvoiceFromQuoteDialog({ quote, onOpenChange }: CreateInvo
 
         triggerCreateInvoice({ quoteId: quote.id, items })
             .then((newInvoice) => {
+                if (!newInvoice) return
                 toast.success(t("quotes.list.messages.invoiceCreated"))
                 queryClient.invalidateQueries({ queryKey: queryKeys.quotes.listsAll() })
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 onOpenChange(false)
-                if (newInvoice) {
-                    navigate(`/invoices/pdf/${newInvoice.id}`, { state: { invoice: newInvoice } })
-                }
-            })
-            .catch(() => {
-                toast.error(t("quotes.list.messages.invoiceCreateError"))
+                navigate(`/invoices/pdf/${newInvoice.id}`, { state: { invoice: newInvoice } })
             })
     }
 

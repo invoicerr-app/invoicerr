@@ -6,6 +6,7 @@ import type { Invoice, PaymentMethod, Payment } from "@/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useEffect, useState } from "react"
 import { usePatch, usePost } from "@/hooks/use-fetch"
+import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { useInvoiceSearch, usePaymentMethods } from "@/hooks/queries"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
@@ -56,8 +57,9 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
     const invoiceList = (Array.isArray(invoices) ? invoices : [])
         .filter(inv => inv.status !== InvoiceStatus.DRAFT && inv.status !== InvoiceStatus.ARCHIVED)
     const { data: paymentMethods } = usePaymentMethods()
-    const { trigger: createTrigger, loading: createLoading } = usePost("/api/payments")
-    const { trigger: updateTrigger, loading: updateLoading } = usePatch(`/api/payments/${payment?.id}`)
+    const saveErrorMessage = t("payments.upsert.messages.saveError", "Failed to save payment")
+    const { trigger: createTrigger, loading: createLoading } = useMutationWithToast(usePost("/api/payments"), saveErrorMessage)
+    const { trigger: updateTrigger, loading: updateLoading } = useMutationWithToast(usePatch(`/api/payments/${payment?.id}`), saveErrorMessage)
 
     const form = useForm<z.infer<typeof paymentSchema>>({
         resolver: zodResolver(paymentSchema),
@@ -136,14 +138,14 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
                 paymentId: payment?.id || ""
             }))
         })
-            .then(() => {
+            .then((result) => {
+                if (!result) return
                 queryClient.invalidateQueries({ queryKey: queryKeys.payments.listsAll() })
                 // A payment change can update the invoice's paid amount/status, so refetch invoices.
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 onOpenChange(false)
                 form.reset()
             })
-            .catch((err) => console.error(err))
     }
 
     useEffect(() => {

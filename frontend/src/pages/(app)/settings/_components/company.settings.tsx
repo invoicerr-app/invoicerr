@@ -37,6 +37,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useCountryToCurrency } from "@/hooks/use-country-to-currency";
 import { useGet, usePost } from "@/hooks/use-fetch";
+import { useMutationWithToast } from "@/hooks/use-mutation-with-toast";
 import { useLookupSiret } from "@/hooks/use-lookup-siret";
 import { useRequiredIdentifiers } from "@/hooks/use-required-identifiers";
 import type { Company } from "@/types";
@@ -192,7 +193,10 @@ export default function CompanySettings() {
 	});
 
 	const { data } = useGet<Company>("/api/company/info");
-	const { trigger } = usePost<Company>("/api/company/info");
+	const { trigger } = useMutationWithToast(
+		usePost<Company>("/api/company/info"),
+		t("settings.company.messages.updateError"),
+	);
 	const [isLoading, setIsLoading] = useState(false);
 
 	const form = useForm<z.infer<typeof companySchema>>({
@@ -342,12 +346,11 @@ export default function CompanySettings() {
 			],
 		};
 		trigger(payload)
-			.then(() => {
-				toast.success(t("settings.company.messages.updateSuccess"));
-			})
-			.catch((error) => {
-				console.error("Error updating company settings:", error);
-				toast.error(t("settings.company.messages.updateError"));
+			.then((result) => {
+				// The trigger resolves null on failure (error already toasted).
+				if (result) {
+					toast.success(t("settings.company.messages.updateSuccess"));
+				}
 			})
 			.finally(() => {
 				setIsLoading(false);

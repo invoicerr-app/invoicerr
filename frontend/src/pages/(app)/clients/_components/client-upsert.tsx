@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { usePatch, usePost } from "@/hooks/use-fetch"
+import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 
@@ -33,8 +34,9 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
     const isEditing = !!client
     const queryClient = useQueryClient()
 
-    const { trigger: createClient } = usePost("/api/clients")
-    const { trigger: updateClient } = usePatch(`/api/clients/${client?.id}`)
+    const saveErrorMessage = t("clients.upsert.messages.saveError", "Failed to save client")
+    const { trigger: createClient, loading: createLoading } = useMutationWithToast(usePost("/api/clients"), saveErrorMessage)
+    const { trigger: updateClient, loading: updateLoading } = useMutationWithToast(usePatch(`/api/clients/${client?.id}`), saveErrorMessage)
 
     const clientSchema = z.object({
         type: z.enum(['INDIVIDUAL', 'COMPANY']),
@@ -253,6 +255,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
 
         trigger(payload)
             .then((createdClient) => {
+                if (!createdClient) return
                 queryClient.invalidateQueries({ queryKey: queryKeys.clients.listsAll() })
                 if (!isEditing && onCreate) {
                     onCreate(createdClient)
@@ -260,7 +263,6 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                 onOpenChange(false)
                 form.reset()
             })
-            .catch((err) => console.error(err))
     }
 
     return (
@@ -615,7 +617,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)} dataCy="client-cancel">
                                     {t("clients.upsert.actions.cancel")}
                                 </Button>
-                                <Button type="submit" dataCy="client-submit">
+                                <Button type="submit" loading={createLoading || updateLoading} dataCy="client-submit">
                                     {isEditing ? t("clients.upsert.actions.save") : t("clients.upsert.actions.create")}
                                 </Button>
                             </div>

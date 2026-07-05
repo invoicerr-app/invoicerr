@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button"
 import type { Quote } from "@/types"
 import { useDelete } from "@/hooks/use-fetch"
+import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
@@ -22,18 +23,19 @@ interface QuoteDeleteDialogProps {
 export function QuoteDeleteDialog({ quote, onOpenChange }: QuoteDeleteDialogProps) {
     const { t } = useTranslation()
     const queryClient = useQueryClient()
-    const { trigger } = useDelete(`/api/quotes/${quote?.id}`)
+    const { trigger, loading } = useMutationWithToast(
+        useDelete(`/api/quotes/${quote?.id}`),
+        t("quotes.delete.messages.error", "Failed to delete quote"),
+    )
 
     const handleDelete = () => {
         if (!quote) return
 
         trigger()
-            .then(() => {
+            .then((result) => {
+                if (!result) return
                 queryClient.invalidateQueries({ queryKey: queryKeys.quotes.listsAll() })
                 onOpenChange(false)
-            })
-            .catch((error) => {
-                console.error("Failed to delete quote:", error)
             })
     }
 
@@ -45,10 +47,10 @@ export function QuoteDeleteDialog({ quote, onOpenChange }: QuoteDeleteDialogProp
                     <DialogDescription>{t("quotes.delete.description")}</DialogDescription>
                 </DialogHeader>
                 <DialogFooter className="flex !flex-col-reverse gap-2 justify-end">
-                    <Button variant="outline" className="w-full bg-transparent" onClick={() => onOpenChange(false)}>
+                    <Button variant="outline" className="w-full bg-transparent" onClick={() => onOpenChange(false)} disabled={loading}>
                         {t("quotes.delete.actions.cancel")}
                     </Button>
-                    <Button variant="destructive" className="w-full" onClick={handleDelete}>
+                    <Button variant="destructive" className="w-full" onClick={handleDelete} loading={loading}>
                         {t("quotes.delete.actions.delete")}
                     </Button>
                 </DialogFooter>

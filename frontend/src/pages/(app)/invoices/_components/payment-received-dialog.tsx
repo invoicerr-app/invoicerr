@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useEffect, useState } from "react"
 import { usePost } from "@/hooks/use-fetch"
+import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 
@@ -29,7 +30,10 @@ export function PaymentReceivedDialog({ invoice, onOpenChange }: PaymentReceived
     const { t } = useTranslation()
     const navigate = useNavigate()
     const queryClient = useQueryClient()
-    const { trigger: createPaymentFromInvoice, loading } = usePost<Payment>("/api/payments/create-from-invoice")
+    const { trigger: createPaymentFromInvoice, loading } = useMutationWithToast(
+        usePost<Payment>("/api/payments/create-from-invoice"),
+        t("invoices.list.messages.markAsPaidError"),
+    )
 
     const alreadyPaid = invoice?.payments?.reduce((sum, p) => sum + p.totalPaid, 0) ?? 0
     const remaining = Math.max(0, (invoice?.totalTTC ?? 0) - alreadyPaid)
@@ -92,14 +96,12 @@ export function PaymentReceivedDialog({ invoice, onOpenChange }: PaymentReceived
             items: items.map(item => ({ invoiceItemId: item.invoiceItemId, amountPaid: item.amountPaid })),
         })
             .then((payment) => {
+                if (!payment) return
                 toast.success(t("invoices.list.messages.markAsPaidSuccess"))
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 queryClient.invalidateQueries({ queryKey: queryKeys.payments.listsAll() })
                 handleOpenChange(false)
-                if (payment) navigate(`/payments/pdf/${payment.id}`, { state: { payment } })
-            })
-            .catch(() => {
-                toast.error(t("invoices.list.messages.markAsPaidError"))
+                navigate(`/payments/pdf/${payment.id}`, { state: { payment } })
             })
     }
 

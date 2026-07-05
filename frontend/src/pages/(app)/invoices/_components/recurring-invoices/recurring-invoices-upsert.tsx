@@ -8,6 +8,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { useEffect, useState } from "react"
 import { useFieldArray, useForm } from "react-hook-form"
 import { useGet, usePatch, usePost } from "@/hooks/use-fetch"
+import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 
 import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
@@ -100,8 +101,12 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
     const { data: quotes } = useGet<Quote[]>(`/api/quotes/search?query=${quoteSearchTerm}`)
     const { data: paymentMethods } = useGet<PaymentMethod[]>(`/api/payment-methods`)
 
-    const { trigger: createTrigger } = usePost("/api/recurring-invoices")
-    const { trigger: updateTrigger } = usePatch(`/api/recurring-invoices/${recurringInvoice?.id}`)
+    const saveErrorMessage = t("recurringInvoices.upsert.messages.saveError", "Failed to save recurring invoice")
+    const { trigger: createTrigger, loading: createLoading } = useMutationWithToast(usePost("/api/recurring-invoices"), saveErrorMessage)
+    const { trigger: updateTrigger, loading: updateLoading } = useMutationWithToast(
+        usePatch(`/api/recurring-invoices/${recurringInvoice?.id}`),
+        saveErrorMessage,
+    )
 
     const form = useForm<z.infer<typeof recurringInvoiceSchema>>({
         resolver: zodResolver(recurringInvoiceSchema),
@@ -188,11 +193,11 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
         const trigger = isEdit ? updateTrigger : createTrigger
 
         trigger(data)
-            .then(() => {
+            .then((result) => {
+                if (!result) return
                 onOpenChange(false)
                 form.reset()
             })
-            .catch((err) => console.error(err))
     }
 
     const handleClose = (open: boolean) => {
@@ -644,7 +649,7 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
                                 <Button variant="outline" onClick={() => handleClose(false)}>
                                     {t("recurringInvoices.upsert.actions.cancel")}
                                 </Button>
-                                <Button type="submit" dataCy="recurring-invoice-submit">
+                                <Button type="submit" loading={createLoading || updateLoading} dataCy="recurring-invoice-submit">
                                     {t(`recurringInvoices.upsert.actions.${isEdit ? "save" : "create"}`)}
                                 </Button>
                             </DialogFooter>

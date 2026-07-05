@@ -4,7 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { authenticatedFetch, useGet, usePost } from "@/hooks/use-fetch"
+import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,11 +25,16 @@ interface Webhook {
 export default function WebhooksSettings() {
     const { t } = useTranslation()
     const { data: webhooks, mutate } = useGet<Webhook[]>('/api/webhooks')
-    const { trigger: createWebhook, loading: creating } = usePost('/api/webhooks')
+    const { trigger: createWebhook, loading: creating } = useMutationWithToast(
+        usePost('/api/webhooks'),
+        t('settings.webhooks.messages.createError', 'Failed to create webhook'),
+    )
     const { data: options } = useGet<{ types: string[]; events: string[] }>('/api/webhooks/options')
 
     const [createdSecret, setCreatedSecret] = useState<string | null>(null)
     const [multiResetKey, setMultiResetKey] = useState(0)
+    const [deletingId, setDeletingId] = useState<string | null>(null)
+    const [editingId, setEditingId] = useState<string | null>(null)
 
     // options.events will be populated from the backend
 
@@ -43,49 +50,59 @@ export default function WebhooksSettings() {
 
     const handleCreate = form.handleSubmit(async (values) => {
         if (!values.url?.trim()) return
-        try {
-            const res = await createWebhook(values)
-            if (res && (res as any).success) {
-                const secret = (res as any).data?.secret
-                if (secret) setCreatedSecret(secret)
-                form.reset({ url: '', type: options?.types?.[0] ?? 'GENERIC', events: [] })
-                // force remount of MultiSelect so it picks up cleared value
-                setMultiResetKey(k => k + 1)
-                mutate()
-            }
-        } catch (e) {
-            console.error('Error creating webhook:', e)
+        const res = await createWebhook(values)
+        if (!res) return // error already toasted by the wrapper
+        if ((res as any).success) {
+            const secret = (res as any).data?.secret
+            if (secret) setCreatedSecret(secret)
+            form.reset({ url: '', type: options?.types?.[0] ?? 'GENERIC', events: [] })
+            // force remount of MultiSelect so it picks up cleared value
+            setMultiResetKey(k => k + 1)
+            mutate()
+        } else {
+            toast.error(t('settings.webhooks.messages.createError', 'Failed to create webhook'))
         }
     })
 
     const handleDelete = async (id: string) => {
+        setDeletingId(id)
         try {
             const backendUrl = import.meta.env.VITE_BACKEND_URL || ''
             const res = await authenticatedFetch(`${backendUrl}/api/webhooks/${id}`, { method: 'DELETE' })
-            if (!res.ok) return
-            const json = await res.json()
-            if (json && json.success) mutate()
-        } catch { }
+            const json = res.ok ? await res.json() : null
+            if (json && json.success) {
+                mutate()
+            } else {
+                toast.error(t('settings.webhooks.messages.deleteError', 'Failed to delete webhook'))
+            }
+        } catch {
+            toast.error(t('settings.webhooks.messages.deleteError', 'Failed to delete webhook'))
+        } finally {
+            setDeletingId(null)
+        }
     }
 
     const handleEdit = async (id: string, currentUrl: string) => {
+        const newUrl = window.prompt(t('settings.webhooks.card.editPrompt') || 'New webhook URL', currentUrl)
+        if (!newUrl) return
+        setEditingId(id)
         try {
-            const newUrl = window.prompt(t('settings.webhooks.card.editPrompt') || 'New webhook URL', currentUrl)
-            if (!newUrl) return
             const backendUrl = import.meta.env.VITE_BACKEND_URL || ''
             const res = await authenticatedFetch(`${backendUrl}/api/webhooks/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url: newUrl })
             })
-            if (!res.ok) {
-                console.error('Failed to update webhook', res.status)
-                return
+            const json = res.ok ? await res.json() : null
+            if (json && json.success) {
+                mutate()
+            } else {
+                toast.error(t('settings.webhooks.messages.updateError', 'Failed to update webhook'))
             }
-            const json = await res.json()
-            if (json && json.success) mutate()
-        } catch (e) {
-            console.error('Error updating webhook:', e)
+        } catch {
+            toast.error(t('settings.webhooks.messages.updateError', 'Failed to update webhook'))
+        } finally {
+            setEditingId(null)
         }
     }
 
@@ -123,10 +140,10 @@ export default function WebhooksSettings() {
                             </CardHeader>
                             <CardContent>
                                 <div className="w-full flex items-center gap-2">
-                                    <Button variant="outline" size="sm" onClick={() => handleEdit(wh.id, wh.url)}>
+                                    <Button variant="outline" size="sm" onClick={() => handleEdit(wh.id, wh.url)} loading={editingId === wh.id}>
                                         {t('settings.webhooks.card.edit') || 'Edit'}
                                     </Button>
-                                    <Button variant="destructive" size="sm" onClick={() => handleDelete(wh.id)}>
+                                    <Button variant="destructive" size="sm" onClick={() => handleDelete(wh.id)} loading={deletingId === wh.id}>
                                         {t('settings.webhooks.card.delete') || 'Delete'}
                                     </Button>
                                 </div>
@@ -196,7 +213,7 @@ export default function WebhooksSettings() {
                                     />
 
                                     <div className="flex justify-end">
-                                        <Button type="submit" disabled={creating}>{t("settings.webhooks.create.button")}</Button>
+                                        <Button type="submit" loading={creating}>{t("settings.webhooks.create.button")}</Button>
                                     </div>
                                 </form>
                             </Form>

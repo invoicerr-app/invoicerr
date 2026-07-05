@@ -3,6 +3,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
 import { usePost } from "@/hooks/use-fetch"
+import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
@@ -26,7 +27,10 @@ interface DepositDialogProps {
 export function DepositDialog({ open, onOpenChange, defaultClientId, defaultCurrency }: DepositDialogProps) {
     const { t } = useTranslation()
     const queryClient = useQueryClient()
-    const { trigger: createDeposit } = usePost("/api/invoices/deposit")
+    const { trigger: createDeposit, loading: creating } = useMutationWithToast(
+        usePost("/api/invoices/deposit"),
+        t("invoices.deposit.messages.error"),
+    )
 
     const [clientSearchTerm, setClientsSearchTerm] = useState("")
     const { data: clients } = useClientSearch(clientSearchTerm)
@@ -52,15 +56,12 @@ export function DepositDialog({ open, onOpenChange, defaultClientId, defaultCurr
 
     const onSubmit = (data: z.infer<typeof depositSchema>) => {
         createDeposit({ ...data, kind: 'DEPOSIT' })
-            .then(() => {
+            .then((result) => {
+                if (!result) return
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 toast.success(t("invoices.deposit.messages.success"))
                 onOpenChange(false)
                 form.reset()
-            })
-            .catch((err) => {
-                toast.error(t("invoices.deposit.messages.error"))
-                console.error(err)
             })
     }
 
@@ -137,7 +138,7 @@ export function DepositDialog({ open, onOpenChange, defaultClientId, defaultCurr
                                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                                     {t("invoices.upsert.actions.cancel")}
                                 </Button>
-                                <Button type="submit" data-cy="deposit-submit">
+                                <Button type="submit" loading={creating} data-cy="deposit-submit">
                                     {t("invoices.deposit.actions.create")}
                                 </Button>
                             </DialogFooter>

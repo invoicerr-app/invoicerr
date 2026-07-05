@@ -228,7 +228,11 @@ function createMethodHook(method: string) {
 
                 if (!res.ok) throw new Error(`${method} ${url} failed`);
 
-                const json: T = await res.json();
+                // Some endpoints reply 200 with an empty body; treat that as
+                // success instead of letting res.json() throw and make the
+                // mutation look like a failure (trigger resolves null on error).
+                const text = await res.text();
+                const json: T = text ? JSON.parse(text) : ({} as T);
                 setData(json);
                 return json;
             } catch (err: any) {

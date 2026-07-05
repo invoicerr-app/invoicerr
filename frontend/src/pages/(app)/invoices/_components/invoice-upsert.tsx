@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { usePatch, usePost } from "@/hooks/use-fetch"
+import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { useClientSearch, usePaymentMethods, useQuoteSearch, useUnlinkedDeposits } from "@/hooks/queries"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
@@ -138,11 +139,27 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
     const { data: quotes } = useQuoteSearch(quoteSearchTerm)
     const { data: paymentMethods } = usePaymentMethods()
 
-    const { trigger: createTrigger } = usePost("/api/invoices")
-    const { trigger: createProformaTrigger } = usePost("/api/invoices/proforma")
-    const { trigger: createFinalTrigger } = usePost("/api/invoices/final")
-    const { trigger: updateTrigger } = usePatch(`/api/invoices/${invoice?.id}`)
-    const { trigger: createRecurringTrigger } = usePost("/api/recurring-invoices")
+    const saveErrorMessage = t("invoices.upsert.messages.saveError", "Failed to save invoice")
+    const { trigger: createTrigger, loading: createLoading } = useMutationWithToast(usePost("/api/invoices"), saveErrorMessage)
+    const { trigger: createProformaTrigger, loading: proformaLoading } = useMutationWithToast(
+        usePost("/api/invoices/proforma"),
+        t("invoices.upsert.messages.proformaError", "Failed to create proforma invoice"),
+    )
+    const { trigger: createFinalTrigger, loading: finalLoading } = useMutationWithToast(
+        usePost("/api/invoices/final"),
+        t("invoices.upsert.messages.finalError", "Failed to create final invoice"),
+    )
+    const { trigger: updateTrigger, loading: updateLoading } = useMutationWithToast(usePatch(`/api/invoices/${invoice?.id}`), saveErrorMessage)
+    const { trigger: createRecurringTrigger, loading: recurringLoading } = useMutationWithToast(
+        usePost("/api/recurring-invoices"),
+        t("recurringInvoices.upsert.messages.saveError", "Failed to save recurring invoice"),
+    )
+
+    const submitLoading =
+        mode === "proforma" ? proformaLoading
+        : mode === "final" ? finalLoading
+        : mode === "recurring" ? recurringLoading
+        : isEdit ? updateLoading : createLoading
 
     const form = useForm<z.infer<typeof invoiceSchema>>({
         resolver: zodResolver(invoiceSchema),
@@ -226,43 +243,43 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
         const trigger = isEdit ? updateTrigger : createTrigger
 
         trigger(data)
-            .then(() => {
+            .then((result) => {
+                if (!result) return
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 onOpenChange(false)
                 form.reset()
             })
-            .catch((err) => console.error(err))
     }
 
     const onSubmitRecurring = (data: z.infer<typeof recurringInvoiceSchema>) => {
         createRecurringTrigger(data)
-            .then(() => {
+            .then((result) => {
+                if (!result) return
                 queryClient.invalidateQueries({ queryKey: queryKeys.recurringInvoices.listsAll() })
                 onOpenChange(false)
                 recurringForm.reset()
             })
-            .catch((err) => console.error(err))
     }
 
     const onSubmitProforma = (data: z.infer<typeof invoiceSchema>) => {
         createProformaTrigger({ ...data, kind: 'PROFORMA' })
-            .then(() => {
+            .then((result) => {
+                if (!result) return
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 onOpenChange(false)
                 form.reset()
             })
-            .catch((err) => console.error(err))
     }
 
     const onSubmitFinal = (data: z.infer<typeof invoiceSchema>) => {
         createFinalTrigger({ ...data, kind: 'FINAL', depositInvoiceIds: selectedDepositIds })
-            .then(() => {
+            .then((result) => {
+                if (!result) return
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
                 onOpenChange(false)
                 form.reset()
                 setSelectedDepositIds([])
             })
-            .catch((err) => console.error(err))
     }
 
     const handleClientCreate = (newClient: Client) => {
@@ -903,6 +920,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                         <Button
                             type="submit"
                             form={mode === "invoice" ? "invoice-form" : mode === "proforma" ? "proforma-form" : mode === "final" ? "final-form" : "recurring-invoice-form"}
+                            loading={submitLoading}
                             dataCy="invoice-submit"
                         >
                             {mode === "proforma"

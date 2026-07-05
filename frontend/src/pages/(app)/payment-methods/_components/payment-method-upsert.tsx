@@ -64,7 +64,10 @@ export function PaymentMethodUpsert({ paymentMethod, open, onOpenChange }: Payme
     try {
       if (isEdit) {
         if (updateTrigger) {
-          await updateTrigger({ ...data });
+          // The trigger resolves null on failure instead of throwing, so the
+          // result must be checked explicitly.
+          const result = await updateTrigger({ ...data });
+          if (!result) throw new Error("Update failed");
         } else {
           const res = await authenticatedFetch(`${import.meta.env.VITE_BACKEND_URL || ""}/api/payment-methods/${paymentMethod?.id}`, {
             method: "PUT",
@@ -76,7 +79,8 @@ export function PaymentMethodUpsert({ paymentMethod, open, onOpenChange }: Payme
         queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.list() });
         toast.success(t("paymentMethods.upsert.messages.updateSuccess") || "Payment method updated");
       } else {
-        await createTrigger(data);
+        const result = await createTrigger(data);
+        if (!result) throw new Error("Create failed");
         queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.list() });
         toast.success(t("paymentMethods.upsert.messages.addSuccess") || "Payment method added");
       }
@@ -159,7 +163,7 @@ export function PaymentMethodUpsert({ paymentMethod, open, onOpenChange }: Payme
               <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
                 {t("paymentMethods.actions.cancel") || "Cancel"}
               </Button>
-              <Button type="submit" disabled={creating || updating} dataCy="payment-method-submit">
+              <Button type="submit" loading={creating || updating} dataCy="payment-method-submit">
                 {isEdit ? t("paymentMethods.actions.save") || "Save" : t("paymentMethods.actions.add") || "Add"}
               </Button>
             </div>

@@ -10,6 +10,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { useEffect, useState } from "react"
 import { useFieldArray, useForm } from "react-hook-form"
 import { usePatch, usePost } from "@/hooks/use-fetch"
+import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { useClientSearch, usePaymentMethods } from "@/hooks/queries"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
@@ -97,8 +98,9 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
     const { data: clients } = useClientSearch(searchTerm)
     const { data: paymentMethods } = usePaymentMethods()
 
-    const { trigger: createTrigger } = usePost("/api/quotes")
-    const { trigger: updateTrigger } = usePatch(`/api/quotes/${quote?.id}`)
+    const saveErrorMessage = t("quotes.upsert.messages.saveError", "Failed to save quote")
+    const { trigger: createTrigger, loading: createLoading } = useMutationWithToast(usePost("/api/quotes"), saveErrorMessage)
+    const { trigger: updateTrigger, loading: updateLoading } = useMutationWithToast(usePatch(`/api/quotes/${quote?.id}`), saveErrorMessage)
 
     const form = useForm<z.infer<typeof quoteSchema>>({
         resolver: zodResolver(quoteSchema),
@@ -184,12 +186,12 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
         const trigger = isEdit ? updateTrigger : createTrigger
 
         trigger(data)
-            .then(() => {
+            .then((result) => {
+                if (!result) return
                 queryClient.invalidateQueries({ queryKey: queryKeys.quotes.listsAll() })
                 onOpenChange(false)
                 form.reset()
             })
-            .catch((err) => console.error(err))
     }
 
     const handleClientCreate = (newClient: Client) => {
@@ -573,7 +575,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                             {t("quotes.upsert.actions.cancel")}
                         </Button>
-                        <Button type="submit" form="quote-form" dataCy="quote-submit">
+                        <Button type="submit" form="quote-form" loading={createLoading || updateLoading} dataCy="quote-submit">
                             {t(`quotes.upsert.actions.${isEdit ? "save" : "create"}`)}
                         </Button>
                     </div>

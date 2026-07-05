@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button"
 import type { RecurringInvoice } from "@/types"
 import { useDelete } from "@/hooks/use-fetch"
+import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { useTranslation } from "react-i18next"
 
 interface RecurringInvoiceDeleteDialogProps {
@@ -19,17 +20,18 @@ interface RecurringInvoiceDeleteDialogProps {
 
 export function RecurringInvoiceDeleteDialog({ recurringInvoice, onOpenChange }: RecurringInvoiceDeleteDialogProps) {
     const { t } = useTranslation()
-    const { trigger } = useDelete(`/api/recurring-invoices/${recurringInvoice?.id}`)
+    const { trigger, loading } = useMutationWithToast(
+        useDelete(`/api/recurring-invoices/${recurringInvoice?.id}`),
+        t("recurringInvoices.delete.messages.error", "Failed to delete recurring invoice"),
+    )
 
     const handleDelete = () => {
         if (!recurringInvoice) return
 
         trigger()
-            .then(() => {
+            .then((result) => {
+                if (!result) return
                 onOpenChange(false)
-            })
-            .catch((error) => {
-                console.error("Failed to delete recurringInvoice:", error)
             })
     }
 
@@ -41,10 +43,10 @@ export function RecurringInvoiceDeleteDialog({ recurringInvoice, onOpenChange }:
                     <DialogDescription>{t("recurringInvoices.delete.description")}</DialogDescription>
                 </DialogHeader>
                 <DialogFooter className="flex !flex-col-reverse gap-2 justify-end">
-                    <Button variant="outline" className="w-full bg-transparent" onClick={() => onOpenChange(false)}>
+                    <Button variant="outline" className="w-full bg-transparent" onClick={() => onOpenChange(false)} disabled={loading}>
                         {t("recurringInvoices.delete.actions.cancel")}
                     </Button>
-                    <Button variant="destructive" className="w-full" onClick={handleDelete}>
+                    <Button variant="destructive" className="w-full" onClick={handleDelete} loading={loading}>
                         {t("recurringInvoices.delete.actions.delete")}
                     </Button>
                 </DialogFooter>
