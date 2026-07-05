@@ -3,11 +3,12 @@
  * Each row is keyed by (kind, periodKey, companyId, invoiceRef) — unique in the DB.
  */
 import { PrismaService } from '@/prisma/prisma.service';
+import { ComplianceReport, Prisma } from '../../../prisma/generated/prisma/client';
 import { ReportRecord, ReportingStore } from './reporting-store';
 import { frequencyForKind, getPeriodKey } from './period';
 import { ReportingKind } from '../types';
 
-function rowToRecord(row: any): ReportRecord {
+function rowToRecord(row: ComplianceReport): ReportRecord {
   return {
     id: row.id,
     kind: row.kind,
@@ -52,7 +53,8 @@ export class PrismaReportingStore implements ReportingStore {
         companyId: record.companyId,
         invoiceRef: record.invoiceRef,
         status: record.status,
-        payload: record.payload as any,
+        // Invariant: report payloads are generated JSON-serializable objects (or XML strings), never null/undefined.
+        payload: record.payload as Prisma.InputJsonValue,
         submittedRef: record.submittedRef,
         submittedAt: record.submittedAt,
       },

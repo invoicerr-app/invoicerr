@@ -1,23 +1,40 @@
-import { Prisma } from '../../../prisma/generated/prisma/client';
+import {
+  ComplianceCallbackRegistration as CallbackRegistrationRow,
+  ComplianceInboundMessage as InboundMessageRow,
+  Prisma,
+  ScheduledJob as ScheduledJobRow,
+} from '../../../prisma/generated/prisma/client';
 import { TransactionContext } from '../canonical/canonical-document';
 import { ComplianceDocumentEvent, ComplianceDocumentRecord } from '../operations/types';
 import { PollJob } from '../lifecycle/drivers/poll-job';
 import { TimerJob } from '../lifecycle/drivers/timer-job';
 import { CallbackRegistration, InboundMessage } from '../lifecycle/drivers/inbound-job';
+import { PollPolicy } from '../providers/transmission/transmission-provider';
+import { ChannelType } from '../types';
 
 type DocumentRow = Prisma.ComplianceDocumentGetPayload<{ include: { events: true; authorityIds: true } }>;
 
-function rehydrateCtx(raw: any): TransactionContext {
-  return { ...raw, issueDate: new Date(raw.issueDate) };
+/**
+ * Nullable Json column write. Invariant: the stores have always passed plain JS `null` (not
+ * Prisma.JsonNull) for absent values — this helper keeps that runtime behavior byte-identical.
+ */
+function toNullableJson(value: unknown): Prisma.InputJsonValue {
+  return (value ?? null) as unknown as Prisma.InputJsonValue;
+}
+
+function rehydrateCtx(raw: Prisma.JsonValue): TransactionContext {
+  // Invariant: the ctx Json column always stores a serialized TransactionContext (issueDate as ISO string).
+  const ctx = raw as unknown as TransactionContext;
+  return { ...ctx, issueDate: new Date(ctx.issueDate) };
 }
 
 export function documentToRecord(row: DocumentRow): ComplianceDocumentRecord {
   return {
     id: row.id,
-    kind: row.kind as ComplianceDocumentRecord['kind'],
-    direction: row.direction as ComplianceDocumentRecord['direction'],
+    kind: row.kind,
+    direction: row.direction,
     status: row.status as ComplianceDocumentRecord['status'],
-    ctx: rehydrateCtx(row.ctx as any),
+    ctx: rehydrateCtx(row.ctx),
     plan: (row.plan ?? undefined) as ComplianceDocumentRecord['plan'],
     number: row.number ?? undefined,
     immutableHash: row.immutableHash ?? undefined,
@@ -44,8 +61,9 @@ export function documentToCreateInput(record: ComplianceDocumentRecord): Prisma.
     kind: record.kind,
     direction: record.direction,
     status: record.status,
-    ctx: record.ctx as any,
-    plan: record.plan as any ?? null,
+    // Invariant: TransactionContext is JSON-serializable (issueDate persists as an ISO string).
+    ctx: record.ctx as unknown as Prisma.InputJsonValue,
+    plan: toNullableJson(record.plan),
     number: record.number ?? null,
     immutableHash: record.immutableHash ?? null,
     previousHash: record.previousHash ?? null,
@@ -59,7 +77,7 @@ export function documentToCreateInput(record: ComplianceDocumentRecord): Prisma.
         at: new Date(e.at),
         actor: e.actor ?? null,
         detail: e.detail ?? null,
-        payload: (e.payload as any) ?? null,
+        payload: toNullableJson(e.payload),
       })),
     },
     authorityIds: {
@@ -75,8 +93,9 @@ export function documentToUpdateInput(record: ComplianceDocumentRecord): Prisma.
     kind: record.kind,
     direction: record.direction,
     status: record.status,
-    ctx: record.ctx as any,
-    plan: record.plan as any ?? null,
+    // Invariant: TransactionContext is JSON-serializable (issueDate persists as an ISO string).
+    ctx: record.ctx as unknown as Prisma.InputJsonValue,
+    plan: toNullableJson(record.plan),
     number: record.number ?? null,
     immutableHash: record.immutableHash ?? null,
     previousHash: record.previousHash ?? null,
@@ -95,7 +114,7 @@ export function pollJobToRow(job: PollJob, kind: 'POLL'): Prisma.ScheduledJobCre
   return {
     id: job.id,
     kind,
-    status: job.status as any,
+    status: job.status,
     awaiting: job.awaiting,
     providerId: job.providerId,
     channel: job.channel,
@@ -103,25 +122,45 @@ export function pollJobToRow(job: PollJob, kind: 'POLL'): Prisma.ScheduledJobCre
     attempts: job.attempts,
     nextRunAt: new Date(job.nextRunAt),
     expiresAt: new Date(job.expiresAt),
-    policy: job.policy as any,
+    // Invariant: PollPolicy is a plain JSON-serializable object.
+    policy: job.policy as unknown as Prisma.InputJsonValue,
     createdAt: new Date(job.createdAt),
     document: { connect: { id: job.documentId } },
   };
 }
 
-export function rowToPollJob(row: { id: string; documentId: string; kind: string; status: string; awaiting: string; providerId: string | null; channel: string | null; ref: string | null; attempts: number; nextRunAt: Date | null; expiresAt: Date | null; policy: any; createdAt: Date }): PollJob {
+/** Full-row save of a PollJob — same fields the store previously wrote by passing the job through. */
+export function pollJobToUpdateRow(job: PollJob): Prisma.ScheduledJobUncheckedUpdateInput {
+  return {
+    documentId: job.documentId,
+    status: job.status,
+    awaiting: job.awaiting,
+    providerId: job.providerId,
+    channel: job.channel,
+    ref: job.ref,
+    attempts: job.attempts,
+    nextRunAt: new Date(job.nextRunAt),
+    expiresAt: new Date(job.expiresAt),
+    // Invariant: PollPolicy is a plain JSON-serializable object.
+    policy: job.policy as unknown as Prisma.InputJsonValue,
+    createdAt: new Date(job.createdAt),
+  };
+}
+
+export function rowToPollJob(row: ScheduledJobRow): PollJob {
   return {
     id: row.id,
     documentId: row.documentId,
     providerId: row.providerId!,
-    channel: row.channel as any,
+    channel: row.channel as ChannelType,
     ref: row.ref ?? undefined,
     awaiting: row.awaiting as PollJob['awaiting'],
     attempts: row.attempts,
     nextRunAt: row.nextRunAt!.toISOString(),
     expiresAt: row.expiresAt!.toISOString(),
     status: row.status as PollJob['status'],
-    policy: row.policy as any,
+    // Invariant: POLL rows always persist a PollPolicy in the policy Json column.
+    policy: row.policy as unknown as PollPolicy,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -130,7 +169,7 @@ export function timerJobToRow(job: TimerJob, kind: 'TIMER'): Prisma.ScheduledJob
   return {
     id: job.id,
     kind,
-    status: job.status as any,
+    status: job.status,
     awaiting: job.awaiting,
     onElapse: job.onElapse,
     fireAt: new Date(job.fireAt),
@@ -139,7 +178,19 @@ export function timerJobToRow(job: TimerJob, kind: 'TIMER'): Prisma.ScheduledJob
   };
 }
 
-export function rowToTimerJob(row: { id: string; documentId: string; kind: string; status: string; awaiting: string; onElapse: string | null; fireAt: Date | null; createdAt: Date }): TimerJob {
+/** Full-row save of a TimerJob — same fields the store previously wrote by passing the job through. */
+export function timerJobToUpdateRow(job: TimerJob): Prisma.ScheduledJobUncheckedUpdateInput {
+  return {
+    documentId: job.documentId,
+    status: job.status,
+    awaiting: job.awaiting,
+    onElapse: job.onElapse,
+    fireAt: new Date(job.fireAt),
+    createdAt: new Date(job.createdAt),
+  };
+}
+
+export function rowToTimerJob(row: ScheduledJobRow): TimerJob {
   return {
     id: row.id,
     documentId: row.documentId,
@@ -157,20 +208,32 @@ export function callbackRegToRow(reg: CallbackRegistration): Prisma.ComplianceCa
     channel: reg.channel,
     correlationKey: reg.correlationKey,
     awaiting: reg.awaiting,
-    status: reg.status as any,
+    status: reg.status,
     createdAt: new Date(reg.createdAt),
     document: { connect: { id: reg.documentId } },
   };
 }
 
-export function rowToCallbackReg(row: { id: string; documentId: string; channel: string; correlationKey: string; awaiting: string; status: string; createdAt: Date }): CallbackRegistration {
+/** Full-row save of a CallbackRegistration — same fields the store previously wrote by passing the registration through. */
+export function callbackRegToUpdateRow(reg: CallbackRegistration): Prisma.ComplianceCallbackRegistrationUncheckedUpdateInput {
+  return {
+    documentId: reg.documentId,
+    channel: reg.channel,
+    correlationKey: reg.correlationKey,
+    awaiting: reg.awaiting,
+    status: reg.status,
+    createdAt: new Date(reg.createdAt),
+  };
+}
+
+export function rowToCallbackReg(row: CallbackRegistrationRow): CallbackRegistration {
   return {
     id: row.id,
     documentId: row.documentId,
-    channel: row.channel as any,
+    channel: row.channel as ChannelType,
     correlationKey: row.correlationKey,
     awaiting: row.awaiting as CallbackRegistration['awaiting'],
-    status: row.status as CallbackRegistration['status'],
+    status: row.status,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -186,10 +249,10 @@ export function inboundMsgToRow(msg: InboundMessage): Prisma.ComplianceInboundMe
   };
 }
 
-export function rowToInboundMsg(row: { id: string; channel: string; correlationKey: string; status: string; rawRef: string | null; receivedAt: Date }): InboundMessage {
+export function rowToInboundMsg(row: InboundMessageRow): InboundMessage {
   return {
     id: row.id,
-    channel: row.channel as any,
+    channel: row.channel as ChannelType,
     correlationKey: row.correlationKey,
     status: row.status,
     rawRef: row.rawRef ?? undefined,
