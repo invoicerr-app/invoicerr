@@ -30,6 +30,8 @@
  * No public sandbox credentials available — live proof deferred.
  */
 
+import { TokenCache, tokenExpiry } from '../token-cache';
+
 export type MyInvoisEnvironment = 'preprod' | 'prod';
 
 const AUTH_URLS: Record<MyInvoisEnvironment, string> = {
@@ -162,7 +164,7 @@ export interface MyInvoisClientConfig {
 export class MyInvoisClient {
   private readonly authUrl: string;
   private readonly apiBase: string;
-  private cachedToken?: { token: string; expiresAt: number };
+  private readonly tokenCache = new TokenCache();
 
   constructor(
     private readonly http: MyInvoisHttpPort,
@@ -177,21 +179,16 @@ export class MyInvoisClient {
    * Caches the token for its lifetime (~1h) to avoid redundant auth calls.
    */
   async getToken(): Promise<string> {
-    const now = Date.now();
-    if (this.cachedToken && now < this.cachedToken.expiresAt) {
-      return this.cachedToken.token;
-    }
-    const resp = await this.http.getToken(
-      this.authUrl,
-      this.config.clientId,
-      this.config.clientSecret,
-      'InvoicingAPI',
-    );
-    this.cachedToken = {
-      token: resp.access_token,
-      expiresAt: now + (resp.expires_in - 60) * 1000, // 1-min grace period
-    };
-    return resp.access_token;
+    return this.tokenCache.get(async () => {
+      const now = Date.now(); // TTL anchored at auth-call start (1-min grace via skew)
+      const resp = await this.http.getToken(
+        this.authUrl,
+        this.config.clientId,
+        this.config.clientSecret,
+        'InvoicingAPI',
+      );
+      return { token: resp.access_token, expiresAt: tokenExpiry(resp.expires_in, { now }) };
+    });
   }
 
   /**

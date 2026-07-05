@@ -22,6 +22,7 @@
  */
 
 import { SimpleHttpPort } from '../generic-portal';
+import { TokenCache, tokenExpiry } from '../token-cache';
 
 export interface AnafClientConfig {
   baseUrl: string;          // e.g. https://api.anaf.ro/test or /prod/FCTEL/rest
@@ -58,7 +59,7 @@ export interface AnafStatusResult {
  * The stub throws unless the HTTP port is replaced (in tests or live).
  */
 export class AnafClient {
-  private _cachedToken?: { token: string; expiresAt: number };
+  private readonly _tokenCache = new TokenCache();
 
   constructor(
     private readonly config: AnafClientConfig,
@@ -118,25 +119,23 @@ export class AnafClient {
    * TODO: implement real ANAF OAuth2 Authorization Code + PKCE + qualified cert.
    */
   private async _getToken(): Promise<string> {
-    if (this._cachedToken && Date.now() < this._cachedToken.expiresAt) {
-      return this._cachedToken.token;
-    }
-    const body = new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: this.config.clientId,
-      client_secret: this.config.clientSecret,
+    return this._tokenCache.get(async () => {
+      const body = new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: this.config.clientId,
+        client_secret: this.config.clientSecret,
+      });
+      const resp = await this.http.post(
+        `${this.config.tokenUrl}/token`,
+        body.toString(),
+        { 'Content-Type': 'application/x-www-form-urlencoded' },
+      );
+      if (resp.status >= 400) throw new Error(`ANAF authentication failed (HTTP ${resp.status})`);
+      const data = resp.data as Record<string, unknown>;
+      const token = (data['access_token'] ?? '') as string;
+      const expiresIn = (data['expires_in'] ?? 3600) as number;
+      return { token, expiresAt: tokenExpiry(expiresIn) };
     });
-    const resp = await this.http.post(
-      `${this.config.tokenUrl}/token`,
-      body.toString(),
-      { 'Content-Type': 'application/x-www-form-urlencoded' },
-    );
-    if (resp.status >= 400) throw new Error(`ANAF authentication failed (HTTP ${resp.status})`);
-    const data = resp.data as Record<string, unknown>;
-    const token = (data['access_token'] ?? '') as string;
-    const expiresIn = (data['expires_in'] ?? 3600) as number;
-    this._cachedToken = { token, expiresAt: Date.now() + expiresIn * 1000 - 60_000 };
-    return token;
   }
 }
 

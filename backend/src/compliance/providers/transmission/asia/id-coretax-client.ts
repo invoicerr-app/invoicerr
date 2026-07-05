@@ -26,6 +26,8 @@
  * No public sandbox credentials available — live proof deferred.
  */
 
+import { TokenCache, tokenExpiry } from '../token-cache';
+
 export type IdCoretaxEnvironment = 'preprod' | 'prod';
 
 const CORETAX_BASE_URLS: Record<IdCoretaxEnvironment, string> = {
@@ -167,7 +169,7 @@ export interface IdCoretaxClientConfig {
  */
 export class IdCoretaxClient {
   private readonly baseUrl: string;
-  private cachedToken?: { token: string; expiresAt: number };
+  private readonly tokenCache = new TokenCache();
 
   constructor(
     private readonly http: IdCoretaxHttpPort,
@@ -178,17 +180,12 @@ export class IdCoretaxClient {
 
   /** Authenticate with Coretax and return/cache a bearer token. */
   async authenticate(): Promise<string> {
-    const now = Date.now();
-    if (this.cachedToken && now < this.cachedToken.expiresAt) {
-      return this.cachedToken.token;
-    }
-    const passphrase = this.config.passphrase ?? '<!-- TODO: Coretax passphrase -->';
-    const resp = await this.http.authenticate(this.baseUrl, this.config.npwp, passphrase);
-    this.cachedToken = {
-      token: resp.token,
-      expiresAt: now + (resp.expiresIn - 60) * 1000,
-    };
-    return resp.token;
+    return this.tokenCache.get(async () => {
+      const now = Date.now(); // TTL anchored at auth-call start (1-min grace via skew)
+      const passphrase = this.config.passphrase ?? '<!-- TODO: Coretax passphrase -->';
+      const resp = await this.http.authenticate(this.baseUrl, this.config.npwp, passphrase);
+      return { token: resp.token, expiresAt: tokenExpiry(resp.expiresIn, { now }) };
+    });
   }
 
   /**
