@@ -1,7 +1,8 @@
 import { Edit, Mail, Plus, ReceiptText as PaymentText, Search, Trash2, Stamp, RotateCcw, XCircle, Printer, UploadCloud } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { forwardRef, useImperativeHandle, useState } from "react"
+import { forwardRef } from "react"
 import { usePost, authenticatedFetch } from "@/hooks/use-fetch"
+import { useDocumentListDialogs, type DocumentListHandle } from "@/hooks/use-document-list-dialogs"
 
 import BetterPagination from "../../../../components/pagination"
 import { Badge } from "@/components/ui/badge"
@@ -36,9 +37,7 @@ interface InvoiceListProps {
     onAddClick?: () => void
 }
 
-export interface InvoiceListHandle {
-    handleAddClick: () => void
-}
+export type InvoiceListHandle = DocumentListHandle
 
 export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
     (
@@ -49,17 +48,18 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         const navigate = useNavigate()
         const { trigger: triggerSendInvoiceByEmail, loading: sendInvoiceByEmailLoading } = usePost(`/api/invoices/send`)
 
-        const [createInvoiceDialog, setCreateInvoiceDialog] = useState<boolean>(false)
-        const [editInvoiceDialog, setEditInvoiceDialog] = useState<Invoice | null>(null)
-        const [viewInvoiceDialog, setViewInvoiceDialog] = useState<Invoice | null>(null)
-        const [deleteInvoiceDialog, setDeleteInvoiceDialog] = useState<Invoice | null>(null)
-        const [sendInvoiceDialog, setSendInvoiceDialog] = useState<Invoice | null>(null)
-
-        useImperativeHandle(ref, () => ({
-            handleAddClick() {
-                setCreateInvoiceDialog(true)
-            },
-        }))
+        const {
+            createDialog: createInvoiceDialog,
+            setCreateDialog: setCreateInvoiceDialog,
+            editDialog: editInvoiceDialog,
+            setEditDialog: setEditInvoiceDialog,
+            viewDialog: viewInvoiceDialog,
+            setViewDialog: setViewInvoiceDialog,
+            deleteDialog: deleteInvoiceDialog,
+            setDeleteDialog: setDeleteInvoiceDialog,
+            sendDialog: sendInvoiceDialog,
+            setSendDialog: setSendInvoiceDialog,
+        } = useDocumentListDialogs<Invoice>(ref)
 
         const flowOf = (inv: Invoice) => inv.complianceDocuments?.[0]?.flow
         const can = (inv: Invoice, a: string) => flowOf(inv)?.manualActions?.includes(a) ?? false

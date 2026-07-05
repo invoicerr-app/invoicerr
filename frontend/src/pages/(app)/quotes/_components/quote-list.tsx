@@ -1,7 +1,8 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Edit, FileText, Plus, Search, Signature, Trash2 } from "lucide-react"
-import { forwardRef, useImperativeHandle, useState } from "react"
+import { forwardRef, useState } from "react"
 import { usePost } from "@/hooks/use-fetch"
+import { useDocumentListDialogs, type DocumentListHandle } from "@/hooks/use-document-list-dialogs"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 
@@ -40,9 +41,7 @@ interface QuoteListProps {
     invoicingStatuses?: Record<string, number>
 }
 
-export interface QuoteListHandle {
-    handleAddClick: () => void
-}
+export type QuoteListHandle = DocumentListHandle
 
 export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
     (
@@ -56,19 +55,20 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
             `/api/signatures`,
         )
 
-        const [createQuoteDialog, setCreateQuoteDialog] = useState<boolean>(false)
+        const {
+            createDialog: createQuoteDialog,
+            setCreateDialog: setCreateQuoteDialog,
+            editDialog: editQuoteDialog,
+            setEditDialog: setEditQuoteDialog,
+            viewDialog: viewQuoteDialog,
+            setViewDialog: setViewQuoteDialog,
+            deleteDialog: deleteQuoteDialog,
+            setDeleteDialog: setDeleteQuoteDialog,
+            sendDialog: sendQuoteDialog,
+            setSendDialog: setSendQuoteDialog,
+        } = useDocumentListDialogs<Quote>(ref)
         const [quoteIdForSignature, setQuoteIdForSignature] = useState<string | null>(null)
-        const [editQuoteDialog, setEditQuoteDialog] = useState<Quote | null>(null)
-        const [viewQuoteDialog, setViewQuoteDialog] = useState<Quote | null>(null)
-        const [deleteQuoteDialog, setDeleteQuoteDialog] = useState<Quote | null>(null)
-        const [sendQuoteDialog, setSendQuoteDialog] = useState<Quote | null>(null)
         const [createInvoiceQuote, setCreateInvoiceQuote] = useState<Quote | null>(null)
-
-        useImperativeHandle(ref, () => ({
-            handleAddClick() {
-                setCreateQuoteDialog(true)
-            },
-        }))
 
         function handleAddClick() {
             setCreateQuoteDialog(true)
