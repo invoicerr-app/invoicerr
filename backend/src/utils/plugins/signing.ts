@@ -7,7 +7,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { StorageUploadService } from "@/utils/storage-upload";
 import { WebhookDispatcherService } from "@/modules/webhooks/webhook-dispatcher.service";
 import { WebhooksService } from "@/modules/webhooks/webhooks.service";
-import { generateQuotePdf } from "@/utils/generate-quote-pdf";
+import { generateQuotePdf } from "@/utils/quote-pdf";
 
 export async function markQuoteAs(quoteId: string, status: QuoteStatus) {
     const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });

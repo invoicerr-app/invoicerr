@@ -22,6 +22,7 @@ import type { TransactionContext } from '@/compliance/canonical/canonical-docume
 import { clampDiscountRate, toMinor, calculateDiscountedTotals } from '@/utils/financial';
 import type { SupplyType } from '@/compliance/types';
 import { augmentWithIdentifiers, getIdentifier } from '@/utils/entity-identifiers';
+import { enrichWithPaymentMethods } from '@/utils/enrich-payment-methods';
 import { formatItemDescription } from '@/utils/format-text';
 
 @Injectable()
@@ -60,13 +61,7 @@ export class QuotesService {
         const totalQuotes = await prisma.quote.count();
 
         // Attach payment method object when available so frontend can consume quote.paymentMethod as an object
-        const quotesWithPM = await Promise.all(quotes.map(async (q: any) => {
-            if (q.paymentMethodId) {
-                const pm = await prisma.paymentMethod.findUnique({ where: { id: q.paymentMethodId } });
-                return { ...q, paymentMethod: pm ?? q.paymentMethod };
-            }
-            return q;
-        }));
+        const quotesWithPM = await enrichWithPaymentMethods(quotes);
 
         return { pageCount: Math.ceil(totalQuotes / pageSize), quotes: quotesWithPM };
     }
@@ -108,15 +103,7 @@ export class QuotesService {
             },
         });
 
-        const quotesWithPM = await Promise.all(quotes.map(async (q: any) => {
-            if (q.paymentMethodId) {
-                const pm = await prisma.paymentMethod.findUnique({ where: { id: q.paymentMethodId } });
-                return { ...q, paymentMethod: pm ?? q.paymentMethod };
-            }
-            return q;
-        }));
-
-        return quotesWithPM;
+        return enrichWithPaymentMethods(quotes);
     }
 
     async searchQuotes(query: string) {
@@ -133,15 +120,7 @@ export class QuotesService {
                 },
             });
 
-            const resultsWithPM = await Promise.all(results.map(async (q: any) => {
-                if (q.paymentMethodId) {
-                    const pm = await prisma.paymentMethod.findUnique({ where: { id: q.paymentMethodId } });
-                    return { ...q, paymentMethod: pm ?? q.paymentMethod };
-                }
-                return q;
-            }));
-
-            return resultsWithPM;
+            return enrichWithPaymentMethods(results);
         }
 
         const results = await prisma.quote.findMany({
@@ -163,15 +142,7 @@ export class QuotesService {
             },
         });
 
-        const resultsWithPM = await Promise.all(results.map(async (q: any) => {
-            if (q.paymentMethodId) {
-                const pm = await prisma.paymentMethod.findUnique({ where: { id: q.paymentMethodId } });
-                return { ...q, paymentMethod: pm ?? q.paymentMethod };
-            }
-            return q;
-        }));
-
-        return resultsWithPM;
+        return enrichWithPaymentMethods(results);
     }
 
     async createQuote(body: CreateQuoteDto) {

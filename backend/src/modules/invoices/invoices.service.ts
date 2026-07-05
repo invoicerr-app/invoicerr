@@ -20,6 +20,7 @@ import { describeFlow } from '@/compliance/lifecycle/flow-descriptor';
 import { clampDiscountRate, toMinor } from '@/utils/financial';
 import type { SupplyType, DocumentKind } from '@/compliance/types';
 import { getIdentifier } from '@/utils/entity-identifiers';
+import { enrichWithPaymentMethod, enrichWithPaymentMethods } from '@/utils/enrich-payment-methods';
 import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
 
 @Injectable()
@@ -65,11 +66,7 @@ export class InvoicesService {
         });
         if (!invoice) throw new BadRequestException('Invoice not found');
 
-        if (invoice.paymentMethodId) {
-            const pm = await prisma.paymentMethod.findUnique({ where: { id: invoice.paymentMethodId } });
-            if (pm) return { ...invoice, paymentMethod: pm ?? invoice.paymentMethod };
-        }
-        return invoice;
+        return enrichWithPaymentMethod(invoice);
     }
 
     async getInvoices(page: string) {
@@ -106,13 +103,7 @@ export class InvoicesService {
         const totalInvoices = await prisma.invoice.count();
 
         // Attach payment method object when available so frontend can consume invoice.paymentMethod as an object
-        const invoicesWithPM = await Promise.all(invoices.map(async (inv: any) => {
-            if (inv.paymentMethodId) {
-                const pm = await prisma.paymentMethod.findUnique({ where: { id: inv.paymentMethodId } });
-                return { ...inv, paymentMethod: pm ?? inv.paymentMethod };
-            }
-            return inv;
-        }));
+        const invoicesWithPM = await enrichWithPaymentMethods(invoices);
 
         const mapped = invoicesWithPM.map((inv: any) => {
             const doc = inv.complianceDocuments?.[0];
@@ -169,15 +160,7 @@ export class InvoicesService {
             },
         });
 
-        const invoicesWithPM = await Promise.all(invoices.map(async (inv: any) => {
-            if (inv.paymentMethodId) {
-                const pm = await prisma.paymentMethod.findUnique({ where: { id: inv.paymentMethodId } });
-                return { ...inv, paymentMethod: pm ?? inv.paymentMethod };
-            }
-            return inv;
-        }));
-
-        return invoicesWithPM;
+        return enrichWithPaymentMethods(invoices);
     }
 
     async searchInvoices(query: string) {
@@ -204,15 +187,7 @@ export class InvoicesService {
             },
         });
 
-        const resultsWithPM = await Promise.all(results.map(async (inv: any) => {
-            if (inv.paymentMethodId) {
-                const pm = await prisma.paymentMethod.findUnique({ where: { id: inv.paymentMethodId } });
-                return { ...inv, paymentMethod: pm ?? inv.paymentMethod };
-            }
-            return inv;
-        }));
-
-        return resultsWithPM;
+        return enrichWithPaymentMethods(results);
     }
 
     async createInvoice(body: CreateInvoiceDto) {

@@ -15,6 +15,7 @@ import prisma from '@/prisma/prisma.service';
 import { randomUUID } from 'crypto';
 import { ComplianceService } from '@/compliance/operations/compliance-service';
 import { clampDiscountRate, toMinor } from '@/utils/financial';
+import { enrichWithPaymentMethods } from '@/utils/enrich-payment-methods';
 
 @Injectable()
 export class PaymentsService {
@@ -82,13 +83,7 @@ export class PaymentsService {
 
         const totalPayments = await prisma.payment.count();
 
-        const paymentsWithPM = await Promise.all(payments.map(async (r: any) => {
-            if (r.paymentMethodId) {
-                const pm = await prisma.paymentMethod.findUnique({ where: { id: r.paymentMethodId } });
-                return { ...r, paymentMethod: pm ?? r.paymentMethod };
-            }
-            return r;
-        }));
+        const paymentsWithPM = await enrichWithPaymentMethods(payments);
 
         return { pageCount: Math.ceil(totalPayments / pageSize), payments: paymentsWithPM };
     }
@@ -112,15 +107,7 @@ export class PaymentsService {
                 },
             });
 
-            const resultsWithPM = await Promise.all(results.map(async (r: any) => {
-                if (r.paymentMethodId) {
-                    const pm = await prisma.paymentMethod.findUnique({ where: { id: r.paymentMethodId } });
-                    return { ...r, paymentMethod: pm ?? r.paymentMethod };
-                }
-                return r;
-            }));
-
-            return resultsWithPM;
+            return enrichWithPaymentMethods(results);
         }
 
         const results = await prisma.payment.findMany({
@@ -146,15 +133,7 @@ export class PaymentsService {
             },
         });
 
-        const resultsWithPM = await Promise.all(results.map(async (r: any) => {
-            if (r.paymentMethodId) {
-                const pm = await prisma.paymentMethod.findUnique({ where: { id: r.paymentMethodId } });
-                return { ...r, paymentMethod: pm ?? r.paymentMethod };
-            }
-            return r;
-        }));
-
-        return resultsWithPM;
+        return enrichWithPaymentMethods(results);
     }
 
     async getPaymentsTable(filters: { invoiceId?: string; clientId?: string; year?: string; month?: string; sort?: 'asc' | 'desc' }) {
@@ -204,15 +183,7 @@ export class PaymentsService {
             },
         });
 
-        const paymentsWithPM = await Promise.all(payments.map(async (r: any) => {
-            if (r.paymentMethodId) {
-                const pm = await prisma.paymentMethod.findUnique({ where: { id: r.paymentMethodId } });
-                return { ...r, paymentMethod: pm ?? r.paymentMethod };
-            }
-            return r;
-        }));
-
-        return paymentsWithPM;
+        return enrichWithPaymentMethods(payments);
     }
 
     private async checkInvoiceAfterPayment(invoiceId: string) {

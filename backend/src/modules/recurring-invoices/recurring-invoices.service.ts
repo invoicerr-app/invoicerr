@@ -10,6 +10,7 @@ import type { SupplyType } from '@/compliance/types';
 import { getIdentifier } from '@/utils/entity-identifiers';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
+import { enrichWithPaymentMethod, enrichWithPaymentMethods } from '@/utils/enrich-payment-methods';
 
 @Injectable()
 export class RecurringInvoicesService {
@@ -38,13 +39,7 @@ export class RecurringInvoicesService {
         const totalCount = await prisma.recurringInvoice.count();
 
         // Attach payment method object if available so frontend can consume recurringInvoice.paymentMethod as an object
-        const recurringInvoicesWithPM = await Promise.all(recurringInvoices.map(async (ri: any) => {
-            if (ri.paymentMethodId) {
-                const pm = await prisma.paymentMethod.findUnique({ where: { id: ri.paymentMethodId } });
-                return { ...ri, paymentMethod: pm ?? ri.paymentMethod };
-            }
-            return ri;
-        }));
+        const recurringInvoicesWithPM = await enrichWithPaymentMethods(recurringInvoices);
 
         return {
             pageCount: Math.ceil(totalCount / pageSize),
@@ -277,14 +272,7 @@ export class RecurringInvoicesService {
             throw new BadRequestException('Recurring invoice not found');
         }
 
-        if (recurringInvoice.paymentMethodId) {
-            const pm = await prisma.paymentMethod.findUnique({ where: { id: recurringInvoice.paymentMethodId } });
-            if (pm) {
-                (recurringInvoice as any).paymentMethod = pm;
-            }
-        }
-
-        return recurringInvoice;
+        return enrichWithPaymentMethod(recurringInvoice);
     }
 
     async deleteRecurringInvoice(id: string) {
