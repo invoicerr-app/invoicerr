@@ -1,23 +1,13 @@
-import { ArrowDown, ArrowUp, Download, X } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ArrowDown, ArrowUp } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useMemo, useState } from "react"
+import { TableFilterBar, TableSearchFilter } from "@/components/table-filter-bar"
+import { useState } from "react"
 
-import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import SearchSelect from "@/components/search-input"
 import { Spinner } from "@/components/ui/spinner"
 import { useClientSearch, useInvoiceSearch, usePaymentsTable } from "@/hooks/queries"
+import { useTableExport } from "@/hooks/use-table-export"
 import { useTranslation } from "react-i18next"
-
-const ALL = "__all__"
-
-function csvEscape(value: string) {
-    if (/[",\n]/.test(value)) {
-        return `"${value.replace(/"/g, '""')}"`
-    }
-    return value
-}
 
 export function PaymentTable() {
     const { t } = useTranslation()
@@ -48,174 +38,54 @@ export function PaymentTable() {
         return (pm as { name?: string }).name ?? ""
     }
 
-    const handleExport = () => {
-        const header = [
-            t("payments.table.columns.number"),
-            t("payments.table.columns.invoice"),
-            t("payments.table.columns.client"),
-            t("payments.table.columns.totalPaid"),
-            t("payments.table.columns.paidAt"),
-            t("payments.table.columns.paymentMethod"),
-        ]
-
-        const lines = rows.map((payment) => [
-            payment.rawNumber || (payment.number?.toString() ?? ""),
-            payment.invoice?.rawNumber || payment.invoice?.number?.toString() || "",
-            payment.invoice?.client?.name || "",
-            payment.totalPaid.toFixed(2),
-            payment.paidAt ? new Date(payment.paidAt).toLocaleDateString() : "",
-            paymentMethodLabel(payment),
-        ])
-
-        const csv = [header, ...lines]
-            .map((line) => line.map((cell) => csvEscape(String(cell))).join(","))
-            .join("\n")
-
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" })
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement("a")
-        link.href = url
-        link.download = "payments.csv"
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        URL.revokeObjectURL(url)
-    }
-
-    const months = useMemo(
-        () => Array.from({ length: 12 }, (_, i) => i + 1),
-        [],
-    )
-
-    const currentYear = new Date().getFullYear()
-    const years = useMemo(
-        () => Array.from({ length: currentYear - 2000 + 1 }, (_, i) => currentYear - i),
-        [currentYear],
-    )
+    const { handleExport } = useTableExport(rows, [
+        { header: t("payments.table.columns.number"), cell: (payment) => payment.rawNumber || (payment.number?.toString() ?? "") },
+        { header: t("payments.table.columns.invoice"), cell: (payment) => payment.invoice?.rawNumber || payment.invoice?.number?.toString() || "" },
+        { header: t("payments.table.columns.client"), cell: (payment) => payment.invoice?.client?.name || "" },
+        { header: t("payments.table.columns.totalPaid"), cell: (payment) => payment.totalPaid.toFixed(2) },
+        { header: t("payments.table.columns.paidAt"), cell: (payment) => payment.paidAt ? new Date(payment.paidAt).toLocaleDateString() : "" },
+        { header: t("payments.table.columns.paymentMethod"), cell: (payment) => paymentMethodLabel(payment) },
+    ], "payments.csv")
 
     return (
         <Card className="gap-0">
             <CardContent className="p-4 sm:p-6 space-y-4">
-                <div className="flex flex-wrap items-end gap-3">
-                    <div className="flex flex-col gap-2 min-w-[220px]">
-                        <label className="text-sm font-medium">{t("payments.table.filters.invoice")}</label>
-                        <div className="flex items-center gap-1">
-                            <SearchSelect
-                                options={(invoiceOptions ?? []).map((invoice) => ({
-                                    label: invoice.rawNumber || (invoice.number?.toString() ?? ""),
-                                    value: invoice.id,
-                                }))}
-                                value={invoiceId ?? ""}
-                                onValueChange={(val) => setInvoiceId((val as string) || undefined)}
-                                onSearchChange={setInvoiceSearchTerm}
-                                placeholder={t("payments.table.filters.invoicePlaceholder")}
-                                noResultsText={t("payments.table.filters.invoiceNoResults")}
-                                data-cy="payment-table-invoice-filter"
-                            />
-                            {invoiceId && (
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="shrink-0"
-                                    onClick={() => setInvoiceId(undefined)}
-                                >
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2 min-w-[220px]">
-                        <label className="text-sm font-medium">{t("payments.table.filters.client")}</label>
-                        <div className="flex items-center gap-1">
-                            <SearchSelect
-                                options={(clientOptions ?? []).map((client) => ({
-                                    label: client.name || `${client.contactFirstname} ${client.contactLastname}`,
-                                    value: client.id,
-                                }))}
-                                value={clientId ?? ""}
-                                onValueChange={(val) => setClientId((val as string) || undefined)}
-                                onSearchChange={setClientSearchTerm}
-                                placeholder={t("payments.table.filters.clientPlaceholder")}
-                                noResultsText={t("payments.table.filters.clientNoResults")}
-                                data-cy="payment-table-client-filter"
-                            />
-                            {clientId && (
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="shrink-0"
-                                    onClick={() => setClientId(undefined)}
-                                >
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium">{t("payments.table.filters.year")}</label>
-                        <Select
-                            value={year !== undefined ? String(year) : ALL}
-                            onValueChange={(val) => {
-                                if (val === ALL) {
-                                    setYear(undefined)
-                                    setMonth(undefined)
-                                } else {
-                                    setYear(Number(val))
-                                }
-                            }}
-                        >
-                            <SelectTrigger size="sm" className="w-[160px]">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={ALL}>{t("payments.table.filters.allYears")}</SelectItem>
-                                {years.map((y) => (
-                                    <SelectItem key={y} value={String(y)}>
-                                        {y}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    {year !== undefined && (
-                        <div className="flex flex-col gap-2">
-                            <label className="text-sm font-medium">{t("payments.table.filters.month")}</label>
-                            <Select
-                                value={month !== undefined ? String(month) : ALL}
-                                onValueChange={(val) => setMonth(val === ALL ? undefined : Number(val))}
-                            >
-                                <SelectTrigger size="sm" className="w-[160px]">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={ALL}>{t("payments.table.filters.allMonths")}</SelectItem>
-                                    {months.map((m) => (
-                                        <SelectItem key={m} value={String(m)}>
-                                            {new Date(2000, m - 1, 1).toLocaleDateString(undefined, { month: "long" })}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
-
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleExport}
-                        disabled={rows.length === 0}
-                        className="ml-auto"
-                    >
-                        <Download className="h-4 w-4 mr-2" />
-                        {t("payments.table.actions.export")}
-                    </Button>
-                </div>
+                <TableFilterBar
+                    translationPrefix="payments"
+                    year={year}
+                    onYearChange={setYear}
+                    month={month}
+                    onMonthChange={setMonth}
+                    onExport={handleExport}
+                    exportDisabled={rows.length === 0}
+                >
+                    <TableSearchFilter
+                        label={t("payments.table.filters.invoice")}
+                        options={(invoiceOptions ?? []).map((invoice) => ({
+                            label: invoice.rawNumber || (invoice.number?.toString() ?? ""),
+                            value: invoice.id,
+                        }))}
+                        value={invoiceId}
+                        onValueChange={setInvoiceId}
+                        onSearchChange={setInvoiceSearchTerm}
+                        placeholder={t("payments.table.filters.invoicePlaceholder")}
+                        noResultsText={t("payments.table.filters.invoiceNoResults")}
+                        dataCy="payment-table-invoice-filter"
+                    />
+                    <TableSearchFilter
+                        label={t("payments.table.filters.client")}
+                        options={(clientOptions ?? []).map((client) => ({
+                            label: client.name || `${client.contactFirstname} ${client.contactLastname}`,
+                            value: client.id,
+                        }))}
+                        value={clientId}
+                        onValueChange={setClientId}
+                        onSearchChange={setClientSearchTerm}
+                        placeholder={t("payments.table.filters.clientPlaceholder")}
+                        noResultsText={t("payments.table.filters.clientNoResults")}
+                        dataCy="payment-table-client-filter"
+                    />
+                </TableFilterBar>
 
                 {isLoading ? (
                     <div className="flex items-center justify-center py-12">
