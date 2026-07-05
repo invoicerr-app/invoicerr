@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { CartesianGrid, Line, LineChart, XAxis } from "recharts"
+import type { NameType, Payload, ValueType } from "recharts/types/component/DefaultTooltipContent"
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { InvoiceList } from "@/pages/(app)/invoices/_components/invoice-list"
 import { QuoteList } from "@/pages/(app)/quotes/_components/quote-list"
@@ -56,7 +57,7 @@ export default function Dashboard() {
     const chartCurrency = dashboardData?.company?.currency || "USD"
 
     // Tooltip row: colored dot + series label, then the amount with the currency on the right.
-    const formatTooltipItem = (value: any, name: any, item: any) => {
+    const formatTooltipItem = (value: ValueType | undefined, name: NameType | undefined, item: Payload<ValueType, NameType>) => {
         const label = chartConfig[name as keyof typeof chartConfig]?.label ?? name
         const amount = new Intl.NumberFormat(i18n.language || "en-US", {
             minimumFractionDigits: 2,

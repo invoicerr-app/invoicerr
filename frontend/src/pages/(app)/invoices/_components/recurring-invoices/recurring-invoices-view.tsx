@@ -77,7 +77,7 @@ export function RecurringInvoiceViewDialog({ recurringInvoice, onOpenChange }: R
 
                         <div>
                             <p className="text-sm text-muted-foreground">{t("recurringInvoices.view.fields.generatedCount")}</p>
-                            <p className="font-medium">{(recurringInvoice as any)._count?.generatedInvoices ?? "0"}</p>
+                            <p className="font-medium">{recurringInvoice._count?.generatedInvoices ?? "0"}</p>
                         </div>
                     </div>
 
@@ -106,11 +106,11 @@ export function RecurringInvoiceViewDialog({ recurringInvoice, onOpenChange }: R
                     )}
 
                     {/* Generated invoices list */}
-                    {(recurringInvoice as any).generatedInvoices && (recurringInvoice as any).generatedInvoices.length > 0 && (
+                    {recurringInvoice.generatedInvoices && recurringInvoice.generatedInvoices.length > 0 && (
                         <div className="bg-muted/50 p-4 rounded-lg">
                             <p className="text-sm text-muted-foreground mb-2">{t("recurringInvoices.view.fields.generatedInvoices")}</p>
                             <div className="divide-y rounded border bg-background">
-                                {(recurringInvoice as any).generatedInvoices.map((inv: any) => (
+                                {recurringInvoice.generatedInvoices.map((inv) => (
                                     <div key={inv.id} className="flex items-center justify-between px-3 py-2 text-sm">
                                         <span className="font-medium">{inv.rawNumber || `#${inv.number || 'DRAFT'}`}</span>
                                         <span className="text-muted-foreground">{inv.status}</span>

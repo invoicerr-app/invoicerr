@@ -175,7 +175,7 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
                                                                     <span className="font-medium text-foreground">
                                                                         {t("recurringInvoices.list.item.payment")}:
                                                                     </span>{" "}
-                                                                    {((recurringInvoice.paymentMethod as any)?.name ?? (recurringInvoice.paymentMethod as any)?.type) ?? "-"}
+                                                                    {(recurringInvoice.paymentMethod?.name ?? recurringInvoice.paymentMethod?.type) ?? "-"}
                                                                 </span>
                                                             )}
                                                             <span>
@@ -199,7 +199,7 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
                                                             </span>
                                                             <span>
                                                                 <span className="font-medium text-foreground">{t("recurringInvoices.list.item.generatedCount")}:</span>{" "}
-                                                                {(recurringInvoice as any)._count?.generatedInvoices ?? "0"}
+                                                                {recurringInvoice._count?.generatedInvoices ?? "0"}
                                                             </span>
                                                         </div>
                                                     </div>

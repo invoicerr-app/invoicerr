@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
-import type { Invoice, PaymentMethod } from "@/types"
+import type { Invoice } from "@/types"
 import { DocumentKind, PaymentMethodType, getDisplayInvoiceStatus, getInvoiceKindLabel, getInvoiceKindColor } from "@/types"
 import { format } from "date-fns"
 import { languageToLocale } from "@/lib/i18n"
@@ -237,7 +237,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                             <p className="text-sm text-muted-foreground">{t("invoices.view.fields.paymentMethod")}</p>
                             <p className="font-medium">
                                 {(() => {
-                                    const pm: any = invoice.paymentMethod as PaymentMethod;
+                                    const pm = invoice.paymentMethod;
                                     if (pm) {
                                         return pm.name + " - " + (pm.type==PaymentMethodType.BANK_TRANSFER?t("paymentMethods.fields.type.bank_transfer"):pm.type==PaymentMethodType.PAYPAL?t("paymentMethods.fields.type.paypal"):pm.type==PaymentMethodType.CHECK?t("paymentMethods.fields.type.check"):pm.type==PaymentMethodType.CASH?t("paymentMethods.fields.type.cash"):pm.type==PaymentMethodType.OTHER?t("paymentMethods.fields.type.other"):pm.type)
                                     }

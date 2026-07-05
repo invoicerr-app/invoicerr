@@ -196,6 +196,21 @@ export interface RecurringInvoiceItem {
     order: number;
 }
 
+/**
+ * Lightweight summary of an invoice generated from a recurring invoice
+ * (shape of the backend `getRecurringInvoice` include).
+ */
+export interface GeneratedInvoiceSummary {
+    id: string;
+    number?: number | null;
+    rawNumber?: string | null;
+    status: InvoiceStatus | string;
+    totalTTC: number;
+    currency: string;
+    createdAt: string;
+    issuedAt?: string | null;
+}
+
 export interface RecurringInvoice {
     id: string;
     clientId: string;
@@ -221,4 +236,6 @@ export interface RecurringInvoice {
     lastInvoiceDate?: Date | string; // Date of the last generated invoice
     createdAt: string; // ISO date string
     updatedAt: string; // ISO date string
+    generatedInvoices?: GeneratedInvoiceSummary[]; // Present on the detail endpoint
+    _count?: { generatedInvoices: number }; // Prisma count include
 }

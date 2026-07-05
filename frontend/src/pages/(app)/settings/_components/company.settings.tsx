@@ -232,7 +232,7 @@ export default function CompanySettings() {
 	useEffect(() => {
 		if (data && Object.keys(data).length > 0) {
 			// Parse Peppol endpoint from partyIdentifiers (format: 'schemeId:value')
-			const peppolEntry = (data.partyIdentifiers || []).find((pi: any) => pi.scheme === 'PEPPOL_ENDPOINT');
+			const peppolEntry = (data.partyIdentifiers || []).find((pi) => pi.scheme === 'PEPPOL_ENDPOINT');
 			const peppolRaw: string = peppolEntry?.value || '';
 			const colonIdx = peppolRaw.indexOf(':');
 			const parsedPeppolSchemeId = colonIdx >= 0 ? peppolRaw.slice(0, colonIdx) : '0088';
@@ -246,8 +246,8 @@ export default function CompanySettings() {
 				foundedAt: new Date(data.foundedAt),
 				exemptVat: !!data.exemptVat,
 				identifiers: (data.partyIdentifiers || [])
-					.filter((pi: any) => pi.scheme !== 'PEPPOL_ENDPOINT')
-					.map((pi: any) => ({
+					.filter((pi) => pi.scheme !== 'PEPPOL_ENDPOINT')
+					.map((pi) => ({
 						scheme: pi.scheme,
 						value: pi.value,
 					})),
@@ -258,7 +258,7 @@ export default function CompanySettings() {
 	}, [data, form]);
 
 	const identifiers = form.watch("identifiers") || [];
-	const legalIdEntry = identifiers.find((i: any) => i.scheme === "LEGAL_ID");
+	const legalIdEntry = identifiers.find((i) => i.scheme === "LEGAL_ID");
 	const legalIdValue = legalIdEntry?.value || "";
 	const countryValue = form.watch("country");
 	const isFranceOrUnset =
@@ -322,7 +322,7 @@ export default function CompanySettings() {
 						const idx = (values.identifiers || []).findIndex(
 							(i) => i.scheme === req.scheme,
 						);
-						form.setError(`identifiers.${idx}.value` as any, {
+						form.setError(`identifiers.${idx}.value`, {
 							message: `${req.label} is required`,
 						});
 						toast.error(`${req.label} is required`);

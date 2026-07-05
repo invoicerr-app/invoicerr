@@ -118,33 +118,32 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
 
     useEffect(() => {
         if (isEditing && client) {
-            const c: any = client as any;
             // Parse Peppol endpoint from partyIdentifiers (format: 'schemeId:value')
-            const peppolEntry = (c.partyIdentifiers || []).find((pi: any) => pi.scheme === 'PEPPOL_ENDPOINT');
+            const peppolEntry = (client.partyIdentifiers || []).find((pi) => pi.scheme === 'PEPPOL_ENDPOINT');
             const peppolRaw: string = peppolEntry?.value || '';
             const colonIdx = peppolRaw.indexOf(':');
             const parsedPeppolSchemeId = colonIdx >= 0 ? peppolRaw.slice(0, colonIdx) : '0088';
             const parsedPeppolEndpointId = colonIdx >= 0 ? peppolRaw.slice(colonIdx + 1) : '';
             form.reset({
-                type: c.type || 'COMPANY',
-                name: c.name || "",
-                description: c.description || "",
-                currency: c.currency || null,
-                foundedAt: c.foundedAt ? new Date(c.foundedAt) : undefined,
-                contactFirstname: c.contactFirstname || "",
-                contactLastname: c.contactLastname || "",
-                contactPhone: c.contactPhone || "",
-                contactEmail: c.contactEmail || "",
-                address: c.address || "",
-                addressLine2: c.addressLine2 || "",
-                postalCode: c.postalCode || "",
-                city: c.city || "",
-                state: c.state || "",
-                country: c.country || "",
-                countryCode: c.countryCode || "",
-                identifiers: (c.partyIdentifiers || [])
-                    .filter((pi: any) => pi.scheme !== 'PEPPOL_ENDPOINT')
-                    .map((pi: any) => ({ scheme: pi.scheme, value: pi.value })),
+                type: client.type || 'COMPANY',
+                name: client.name || "",
+                description: client.description || "",
+                currency: client.currency || null,
+                foundedAt: client.foundedAt ? new Date(client.foundedAt) : undefined,
+                contactFirstname: client.contactFirstname || "",
+                contactLastname: client.contactLastname || "",
+                contactPhone: client.contactPhone || "",
+                contactEmail: client.contactEmail || "",
+                address: client.address || "",
+                addressLine2: client.addressLine2 || "",
+                postalCode: client.postalCode || "",
+                city: client.city || "",
+                state: client.state || "",
+                country: client.country || "",
+                countryCode: client.countryCode || "",
+                identifiers: (client.partyIdentifiers || [])
+                    .filter((pi) => pi.scheme !== 'PEPPOL_ENDPOINT')
+                    .map((pi) => ({ scheme: pi.scheme, value: pi.value })),
                 peppolSchemeId: parsedPeppolSchemeId,
                 peppolEndpointId: parsedPeppolEndpointId,
             })
@@ -174,7 +173,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
     }, [client, isEditing, form])
 
     const identifiers = form.watch("identifiers") || []
-    const legalIdEntry = identifiers.find((i: any) => i.scheme === "LEGAL_ID")
+    const legalIdEntry = identifiers.find((i) => i.scheme === "LEGAL_ID")
     const legalIdValue = legalIdEntry?.value || ""
     const countryValue = form.watch("country")
     const isFranceOrUnset = !countryValue || /^fr(ance)?$/i.test(countryValue.trim())
@@ -230,7 +229,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                     const val = (data.identifiers || []).find((i) => i.scheme === req.scheme)?.value
                     if (!val || val.trim() === '') {
                         const idx = (data.identifiers || []).findIndex((i) => i.scheme === req.scheme)
-                        form.setError(`identifiers.${idx}.value` as any, { message: `${req.label} is required` })
+                        form.setError(`identifiers.${idx}.value`, { message: `${req.label} is required` })
                         return
                     }
                 }
@@ -381,7 +380,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {requiredIdentifiers.map((req) => {
                                             const current = form.watch("identifiers") || []
-                                            const formIndex = current.findIndex((i: any) => i.scheme === req.scheme)
+                                            const formIndex = current.findIndex((i) => i.scheme === req.scheme)
                                             if (formIndex < 0) return null
                                             const isLegalId = req.scheme === "LEGAL_ID"
                                             return (

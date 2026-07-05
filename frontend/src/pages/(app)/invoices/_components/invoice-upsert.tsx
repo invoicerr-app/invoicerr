@@ -270,10 +270,10 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                                                 const selectedQuote = quotes?.find((q) => q.id === val)
                                                                 form.setValue("clientId", selectedQuote?.clientId || "")
                                                                 form.setValue("notes", selectedQuote?.notes || "")
-                                                                form.setValue("paymentMethodId", (selectedQuote as any)?.paymentMethodId || "")
+                                                                form.setValue("paymentMethodId", selectedQuote?.paymentMethodId || "")
                                                                 form.setValue("currency", selectedQuote?.currency || "")
                                                                 form.setValue("discountRate", selectedQuote?.discountRate ?? 0)
-                                                                form.setValue('items', (selectedQuote?.items || []).map((item: any, index) => ({
+                                                                form.setValue('items', (selectedQuote?.items || []).map((item, index) => ({
                                                                     id: item.id,
                                                                     name: item.name || "",
                                                                     description: item.description || "",

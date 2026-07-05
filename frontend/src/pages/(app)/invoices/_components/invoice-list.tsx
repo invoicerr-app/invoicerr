@@ -369,7 +369,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                                     <span className="font-medium text-foreground">
                                                                         {t("invoices.list.item.payment")}:
                                                                     </span>{" "}
-                                                                    {((invoice.paymentMethod as any)?.name ?? (invoice.paymentMethod as any)?.type) ?? "-"}
+                                                                    {(invoice.paymentMethod?.name ?? invoice.paymentMethod?.type) ?? "-"}
                                                                 </span>
                                                             )}
                                                             <span>

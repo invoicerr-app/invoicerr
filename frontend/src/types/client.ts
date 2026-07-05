@@ -7,7 +7,7 @@ export interface Client {
     id: string;
     name: string;
     description?: string;
-    type: string;
+    type: 'INDIVIDUAL' | 'COMPANY';
     foundedAt?: Date;
     contactFirstname?: string;
     contactLastname?: string;

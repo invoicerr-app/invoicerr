@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
-import { PaymentMethodType, type PaymentMethod, type Quote } from "@/types"
+import { PaymentMethodType, type Quote } from "@/types"
 import { format } from "date-fns"
 import { languageToLocale } from "@/lib/i18n"
 import { useTranslation } from "react-i18next"
@@ -72,7 +72,7 @@ export function QuoteViewDialog({ quote, onOpenChange }: QuoteViewDialogProps) {
                             <p className="text-sm text-muted-foreground">{t("invoices.view.fields.paymentMethod")}</p>
                             <p className="font-medium">
                                 {(() => {
-                                    const pm: any = quote.paymentMethod as PaymentMethod;
+                                    const pm = quote.paymentMethod;
                                     if (pm) {
                                         return pm.name + " - " + (pm.type==PaymentMethodType.BANK_TRANSFER?t("paymentMethods.fields.type.bank_transfer"):pm.type==PaymentMethodType.PAYPAL?t("paymentMethods.fields.type.paypal"):pm.type==PaymentMethodType.CHECK?t("paymentMethods.fields.type.check"):pm.type==PaymentMethodType.CASH?t("paymentMethods.fields.type.cash"):pm.type==PaymentMethodType.OTHER?t("paymentMethods.fields.type.other"):pm.type)
                                     }

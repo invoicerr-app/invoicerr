@@ -75,7 +75,7 @@ export function PaymentUpsert({ payment, open, onOpenChange }: PaymentUpsertDial
         if (isEdit && payment) {
             form.reset({
                 invoiceId: payment.invoiceId || "",
-                paymentMethodId: (payment as any).paymentMethodId || "",
+                paymentMethodId: payment.paymentMethodId || "",
                 paidAt: payment.paidAt ? new Date(payment.paidAt) : new Date(),
                 amount: payment.items.reduce((sum, item) => sum + item.amountPaid, 0),
             })
