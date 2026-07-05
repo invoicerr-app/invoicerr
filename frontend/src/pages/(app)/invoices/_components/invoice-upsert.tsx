@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form"
 import { usePatch, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { useClientSearch, usePaymentMethods, useQuoteSearch, useUnlinkedDeposits } from "@/hooks/queries"
+import { createLineItemSchema } from "@/lib/line-item-schema"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 
@@ -34,42 +35,6 @@ interface InvoiceUpsertDialogProps {
 }
 
 type CreationMode = "invoice" | "recurring" | "proforma" | "final"
-
-function createItemSchema(t: (key: string) => string, translationPrefix: "invoices" | "recurringInvoices", typeSchema: z.ZodTypeAny) {
-    return z.object({
-        id: z.string().optional(),
-        name: z
-            .string()
-            .min(1, t(`${translationPrefix}.upsert.form.items.name.errors.required`))
-            .refine((val) => val !== "", {
-                message: t(`${translationPrefix}.upsert.form.items.name.errors.required`),
-            }),
-        description: z.string().optional(),
-        type: typeSchema,
-        quantity: z
-            .number({
-                invalid_type_error: t(`${translationPrefix}.upsert.form.items.quantity.errors.required`),
-            })
-            .min(0.001, t(`${translationPrefix}.upsert.form.items.quantity.errors.min`))
-            .refine((val) => !isNaN(val), {
-                message: t(`${translationPrefix}.upsert.form.items.quantity.errors.invalid`),
-            }),
-        unitPrice: z
-            .number({
-                invalid_type_error: t(`${translationPrefix}.upsert.form.items.unitPrice.errors.required`),
-            })
-            .min(0, t(`${translationPrefix}.upsert.form.items.unitPrice.errors.min`))
-            .refine((val) => !isNaN(val), {
-                message: t(`${translationPrefix}.upsert.form.items.unitPrice.errors.invalid`),
-            }),
-        vatRate: z
-            .number({
-                invalid_type_error: t(`${translationPrefix}.upsert.form.items.vatRate.errors.required`),
-            })
-            .min(0, t(`${translationPrefix}.upsert.form.items.vatRate.errors.min`)),
-        order: z.number(),
-    })
-}
 
 export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDialogProps) {
     const { t } = useTranslation()
@@ -103,7 +68,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
             .min(0, t("invoices.upsert.form.discountRate.errors.min"))
             .max(100, t("invoices.upsert.form.discountRate.errors.max")),
         items: z.array(
-            createItemSchema(t, "invoices", z.enum(['HOUR', 'DAY', 'DEPOSIT', 'SERVICE', 'PRODUCT']).optional()),
+            createLineItemSchema(t, "invoices", z.enum(['HOUR', 'DAY', 'DEPOSIT', 'SERVICE', 'PRODUCT']).optional()),
         ),
     })
 
@@ -127,7 +92,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
         currency: z.string().optional(),
         autoSend: z.boolean().optional(),
         items: z.array(
-            createItemSchema(t, "recurringInvoices", z.string()),
+            createLineItemSchema(t, "recurringInvoices", z.string()),
         ),
     })
 

@@ -12,6 +12,7 @@ import { useFieldArray, useForm } from "react-hook-form"
 import { usePatch, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { useClientSearch, usePaymentMethods } from "@/hooks/queries"
+import { createLineItemSchema } from "@/lib/line-item-schema"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 
@@ -61,37 +62,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
         validUntil: z.date().optional(),
         notes: z.string().optional(),
         paymentMethodId: z.string().optional(),
-        items: z.array(
-            z.object({
-                id: z.string().optional(),
-                name: z
-                    .string()
-                    .min(1, t("quotes.upsert.form.items.name.errors.required"))
-                    .refine((val) => val !== "", {
-                        message: t("quotes.upsert.form.items.name.errors.required"),
-                    }),
-                description: z.string().optional(),
-                type: z.string(),
-                quantity: z
-                    .number({ invalid_type_error: t("quotes.upsert.form.items.quantity.errors.required") })
-                    .min(0.001, t("quotes.upsert.form.items.quantity.errors.min"))
-                    .refine((val) => !isNaN(val), {
-                        message: t("quotes.upsert.form.items.quantity.errors.invalid"),
-                    }),
-                unitPrice: z
-                    .number({
-                        invalid_type_error: t("quotes.upsert.form.items.unitPrice.errors.required"),
-                    })
-                    .min(0, t("quotes.upsert.form.items.unitPrice.errors.min"))
-                    .refine((val) => !isNaN(val), {
-                        message: t("quotes.upsert.form.items.unitPrice.errors.invalid"),
-                    }),
-                vatRate: z
-                    .number({ invalid_type_error: t("quotes.upsert.form.items.vatRate.errors.required") })
-                    .min(0, t("quotes.upsert.form.items.vatRate.errors.min")),
-                order: z.number(),
-            }),
-        ),
+        items: z.array(createLineItemSchema(t, "quotes", z.string())),
     })
 
     const [searchTerm, setSearchTerm] = useState("")

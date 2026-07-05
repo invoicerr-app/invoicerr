@@ -9,6 +9,7 @@ import { useEffect, useState } from "react"
 import { useFieldArray, useForm } from "react-hook-form"
 import { useGet, usePatch, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
+import { createLineItemSchema } from "@/lib/line-item-schema"
 
 import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
@@ -57,41 +58,7 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
         currency: z.string().optional(),
         autoIssue: z.boolean().optional(),
         autoSend: z.boolean().optional(),
-        items: z.array(
-            z.object({
-                id: z.string().optional(),
-                name: z
-                    .string()
-                    .min(1, t("recurringInvoices.upsert.form.items.name.errors.required"))
-                    .refine((val) => val !== "", {
-                        message: t("recurringInvoices.upsert.form.items.name.errors.required"),
-                    }),
-                description: z.string().optional(),
-                type: z.string(),
-                quantity: z
-                    .number({
-                        invalid_type_error: t("recurringInvoices.upsert.form.items.quantity.errors.required"),
-                    })
-                    .min(0.001, t("recurringInvoices.upsert.form.items.quantity.errors.min"))
-                    .refine((val) => !isNaN(val), {
-                        message: t("recurringInvoices.upsert.form.items.quantity.errors.invalid"),
-                    }),
-                unitPrice: z
-                    .number({
-                        invalid_type_error: t("recurringInvoices.upsert.form.items.unitPrice.errors.required"),
-                    })
-                    .min(0, t("recurringInvoices.upsert.form.items.unitPrice.errors.min"))
-                    .refine((val) => !isNaN(val), {
-                        message: t("recurringInvoices.upsert.form.items.unitPrice.errors.invalid"),
-                    }),
-                vatRate: z
-                    .number({
-                        invalid_type_error: t("recurringInvoices.upsert.form.items.vatRate.errors.required"),
-                    })
-                    .min(0, t("recurringInvoices.upsert.form.items.vatRate.errors.min")),
-                order: z.number(),
-            }),
-        ),
+        items: z.array(createLineItemSchema(t, "recurringInvoices", z.string())),
     })
 
     const [clientSearchTerm, setClientsSearchTerm] = useState("")
