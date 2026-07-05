@@ -6,9 +6,9 @@ import { GripVertical, Plus, Trash2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { useEffect, useState } from "react"
-import { useFieldArray, useForm } from "react-hook-form"
-import { useGet, usePatch, usePost } from "@/hooks/use-fetch"
-import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
+import { useFieldArray } from "react-hook-form"
+import { useGet } from "@/hooks/use-fetch"
+import { useDocumentUpsert } from "@/hooks/use-document-upsert"
 import { createLineItemSchema } from "@/lib/line-item-schema"
 
 import { BetterInput } from "@/components/better-input"
@@ -26,7 +26,6 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
-import { zodResolver } from "@hookform/resolvers/zod"
 
 interface RecurringInvoiceUpsertDialogProps {
     recurringInvoice?: RecurringInvoice | null
@@ -68,60 +67,44 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
     const { data: quotes } = useGet<Quote[]>(`/api/quotes/search?query=${quoteSearchTerm}`)
     const { data: paymentMethods } = useGet<PaymentMethod[]>(`/api/payment-methods`)
 
-    const saveErrorMessage = t("recurringInvoices.upsert.messages.saveError", "Failed to save recurring invoice")
-    const { trigger: createTrigger, loading: createLoading } = useMutationWithToast(usePost("/api/recurring-invoices"), saveErrorMessage)
-    const { trigger: updateTrigger, loading: updateLoading } = useMutationWithToast(
-        usePatch(`/api/recurring-invoices/${recurringInvoice?.id}`),
-        saveErrorMessage,
-    )
-
-    const form = useForm<z.infer<typeof recurringInvoiceSchema>>({
-        resolver: zodResolver(recurringInvoiceSchema),
+    const { form, submit, submitLoading } = useDocumentUpsert({
+        entity: recurringInvoice,
+        schema: recurringInvoiceSchema,
         defaultValues: {
             quoteId: undefined,
             clientId: "",
             items: [],
             notes: "",
             frequency: "MONTHLY",
+            autoIssue: false,
             autoSend: false,
         },
+        createUrl: "/api/recurring-invoices",
+        updateUrl: `/api/recurring-invoices/${recurringInvoice?.id}`,
+        errorMessage: t("recurringInvoices.upsert.messages.saveError", "Failed to save recurring invoice"),
+        mapEntityToForm: (recurringInvoice) => ({
+            notes: recurringInvoice.notes || "",
+            paymentMethodId: (recurringInvoice.paymentMethodId ?? recurringInvoice.paymentMethod?.id) || "",
+            frequency: recurringInvoice.frequency || "MONTHLY",
+            count: recurringInvoice.count,
+            until: recurringInvoice.until ? new Date(recurringInvoice.until) : undefined,
+            autoIssue: recurringInvoice.autoIssue || false,
+            autoSend: recurringInvoice.autoSend || false,
+            items: recurringInvoice.items
+                .sort((a, b) => a.order - b.order)
+                .map((item) => ({
+                    id: item.id,
+                    type: item.type,
+                    name: item.name || "",
+                    description: item.description || "",
+                    quantity: item.quantity || 1,
+                    unitPrice: item.unitPrice || 0,
+                    vatRate: item.vatRate || 0,
+                    order: item.order || 0,
+                })),
+        }),
+        onSuccess: () => onOpenChange(false),
     })
-
-    useEffect(() => {
-        if (isEdit && recurringInvoice) {
-            form.reset({
-                notes: recurringInvoice.notes || "",
-                paymentMethodId: (recurringInvoice.paymentMethodId ?? recurringInvoice.paymentMethod?.id) || "",
-                frequency: recurringInvoice.frequency || "MONTHLY",
-                count: recurringInvoice.count,
-                until: recurringInvoice.until ? new Date(recurringInvoice.until) : undefined,
-                autoIssue: recurringInvoice.autoIssue || false,
-                autoSend: recurringInvoice.autoSend || false,
-                items: recurringInvoice.items
-                    .sort((a, b) => a.order - b.order)
-                    .map((item) => ({
-                        id: item.id,
-                        type: item.type,
-                        name: item.name || "",
-                        description: item.description || "",
-                        quantity: item.quantity || 1,
-                        unitPrice: item.unitPrice || 0,
-                        vatRate: item.vatRate || 0,
-                        order: item.order || 0,
-                    })),
-            })
-        } else {
-            form.reset({
-                quoteId: undefined,
-                clientId: "",
-                items: [],
-                notes: "",
-                frequency: "MONTHLY",
-                autoIssue: false,
-                autoSend: false,
-            })
-        }
-    }, [recurringInvoice, form, isEdit])
 
     const { control, handleSubmit, setValue } = form
     const { fields, append, move, remove } = useFieldArray({
@@ -154,19 +137,6 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
         remove(index)
     }
 
-    const onSubmit = (data: z.infer<typeof recurringInvoiceSchema>) => {
-        console.debug("Submitting recurringInvoice data:", data)
-
-        const trigger = isEdit ? updateTrigger : createTrigger
-
-        trigger(data)
-            .then((result) => {
-                if (!result) return
-                onOpenChange(false)
-                form.reset()
-            })
-    }
-
     const handleClose = (open: boolean) => {
         onOpenChange(!!open)
         form.reset()
@@ -187,7 +157,7 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
                         <DialogTitle>{t(`recurringInvoices.upsert.title.${isEdit ? "edit" : "create"}`)}</DialogTitle>
                     </DialogHeader>
                     <Form {...form}>
-                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 overflow-auto mt-2 flex-1" data-cy="recurring-invoice-form">
+                        <form onSubmit={handleSubmit(submit)} className="space-y-4 overflow-auto mt-2 flex-1" data-cy="recurring-invoice-form">
                             <FormField
                                 control={control}
                                 name="quoteId"
@@ -616,7 +586,7 @@ export function RecurringInvoiceUpsert({ recurringInvoice, open, onOpenChange }:
                                 <Button variant="outline" onClick={() => handleClose(false)}>
                                     {t("recurringInvoices.upsert.actions.cancel")}
                                 </Button>
-                                <Button type="submit" loading={createLoading || updateLoading} dataCy="recurring-invoice-submit">
+                                <Button type="submit" loading={submitLoading} dataCy="recurring-invoice-submit">
                                     {t(`recurringInvoices.upsert.actions.${isEdit ? "save" : "create"}`)}
                                 </Button>
                             </DialogFooter>

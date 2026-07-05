@@ -8,13 +8,11 @@ import { GripVertical, Plus, Trash2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { useEffect, useState } from "react"
-import { useFieldArray, useForm } from "react-hook-form"
-import { usePatch, usePost } from "@/hooks/use-fetch"
-import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
+import { useFieldArray } from "react-hook-form"
 import { useClientSearch, usePaymentMethods } from "@/hooks/queries"
+import { useDocumentUpsert } from "@/hooks/use-document-upsert"
 import { createLineItemSchema } from "@/lib/line-item-schema"
 import { queryKeys } from "@/lib/query-keys"
-import { useQueryClient } from "@tanstack/react-query"
 
 import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
@@ -30,7 +28,6 @@ import SearchSelect from "@/components/search-input"
 import { Textarea } from "@/components/ui/textarea"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
-import { zodResolver } from "@hookform/resolvers/zod"
 
 interface QuoteUpsertDialogProps {
     quote?: Quote | null
@@ -41,7 +38,6 @@ interface QuoteUpsertDialogProps {
 export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProps) {
     const { t } = useTranslation()
     const isEdit = !!quote
-    const queryClient = useQueryClient()
 
     const [clientDialogOpen, setClientDialogOpen] = useState(false)
 
@@ -69,56 +65,44 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
     const { data: clients } = useClientSearch(searchTerm)
     const { data: paymentMethods } = usePaymentMethods()
 
-    const saveErrorMessage = t("quotes.upsert.messages.saveError", "Failed to save quote")
-    const { trigger: createTrigger, loading: createLoading } = useMutationWithToast(usePost("/api/quotes"), saveErrorMessage)
-    const { trigger: updateTrigger, loading: updateLoading } = useMutationWithToast(usePatch(`/api/quotes/${quote?.id}`), saveErrorMessage)
-
-    const form = useForm<z.infer<typeof quoteSchema>>({
-        resolver: zodResolver(quoteSchema),
+    const { form, submit, submitLoading } = useDocumentUpsert({
+        entity: quote,
+        schema: quoteSchema,
         defaultValues: {
             title: "",
             clientId: "",
             validUntil: undefined,
-             discountRate: 0,
+            discountRate: 0,
             notes: "",
             items: [],
         },
+        createUrl: "/api/quotes",
+        updateUrl: `/api/quotes/${quote?.id}`,
+        errorMessage: t("quotes.upsert.messages.saveError", "Failed to save quote"),
+        invalidateKeys: [queryKeys.quotes.listsAll()],
+        mapEntityToForm: (quote) => ({
+            title: quote.title || "",
+            clientId: quote.clientId || "",
+            validUntil: quote.validUntil ? new Date(quote.validUntil) : undefined,
+            currency: quote.currency,
+            discountRate: quote.discountRate ?? 0,
+            notes: quote.notes || "",
+            paymentMethodId: quote.paymentMethodId || "",
+            items: quote.items
+                .sort((a, b) => a.order - b.order)
+                .map((item) => ({
+                    id: item.id,
+                    type: item.type,
+                    name: item.name || "",
+                    description: item.description || "",
+                    quantity: item.quantity || 1,
+                    unitPrice: item.unitPrice || 0,
+                    vatRate: item.vatRate || 0,
+                    order: item.order || 0,
+                })),
+        }),
+        onSuccess: () => onOpenChange(false),
     })
-
-    useEffect(() => {
-        if (isEdit && quote) {
-            form.reset({
-                title: quote.title || "",
-                clientId: quote.clientId || "",
-                validUntil: quote.validUntil ? new Date(quote.validUntil) : undefined,
-                currency: quote.currency,
-                discountRate: quote.discountRate ?? 0,
-                notes: quote.notes || "",
-                paymentMethodId: (quote as any).paymentMethodId || "",
-                items: quote.items
-                    .sort((a, b) => a.order - b.order)
-                    .map((item) => ({
-                        id: item.id,
-                        type: item.type,
-                        name: item.name || "",
-                        description: item.description || "",
-                        quantity: item.quantity || 1,
-                        unitPrice: item.unitPrice || 0,
-                        vatRate: item.vatRate || 0,
-                        order: item.order || 0,
-                    })),
-            })
-        } else {
-            form.reset({
-                title: "",
-                clientId: "",
-                validUntil: undefined,
-                discountRate: 0,
-                notes: "",
-                items: [],
-            })
-        }
-    }, [quote, form, isEdit])
 
     const { control, handleSubmit, setValue } = form
     const { fields, append, move, remove } = useFieldArray({
@@ -151,20 +135,6 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
         remove(index)
     }
 
-    const onSubmit = (data: z.infer<typeof quoteSchema>) => {
-        console.debug("Submitting quote data:", data)
-
-        const trigger = isEdit ? updateTrigger : createTrigger
-
-        trigger(data)
-            .then((result) => {
-                if (!result) return
-                queryClient.invalidateQueries({ queryKey: queryKeys.quotes.listsAll() })
-                onOpenChange(false)
-                form.reset()
-            })
-    }
-
     const handleClientCreate = (newClient: Client) => {
         setSearchTerm("")
         form.setValue("clientId", newClient.id)
@@ -184,7 +154,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                     </DialogHeader>
                     <div className="flex-1 overflow-y-auto px-6 py-4">
                     <Form {...form}>
-                        <form id="quote-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4" data-cy="quote-form">
+                        <form id="quote-form" onSubmit={handleSubmit(submit)} className="space-y-4" data-cy="quote-form">
                             <FormField
                                 control={control}
                                 name="title"
@@ -546,7 +516,7 @@ export function QuoteUpsert({ quote, open, onOpenChange }: QuoteUpsertDialogProp
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                             {t("quotes.upsert.actions.cancel")}
                         </Button>
-                        <Button type="submit" form="quote-form" loading={createLoading || updateLoading} dataCy="quote-submit">
+                        <Button type="submit" form="quote-form" loading={submitLoading} dataCy="quote-submit">
                             {t(`quotes.upsert.actions.${isEdit ? "save" : "create"}`)}
                         </Button>
                     </div>
