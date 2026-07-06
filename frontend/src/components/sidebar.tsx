@@ -11,6 +11,7 @@ import {
     Receipt,
     ReceiptText,
     Settings,
+    ShieldCheck,
     Sun,
     TrendingUp,
     User,
@@ -119,6 +120,12 @@ export function Sidebar() {
             icon: <Inbox className="w-4 h-4" />,
             url: "/received-invoices",
             dataCy: "sidebar-received-invoices-link",
+        },
+        {
+            title: t("sidebar.navigation.compliance", "Compliance"),
+            icon: <ShieldCheck className="w-4 h-4" />,
+            url: "/compliance",
+            dataCy: "sidebar-compliance-link",
         },
         {
             title: t("sidebar.navigation.stats"),

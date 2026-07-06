@@ -10,6 +10,7 @@ export type Path =
   | `/auth/sign-out`
   | `/auth/sign-up`
   | `/clients`
+  | `/compliance`
   | `/dashboard`
   | `/invoices`
   | `/invoices/pdf/:id`
