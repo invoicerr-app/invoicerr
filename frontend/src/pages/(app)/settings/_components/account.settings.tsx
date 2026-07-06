@@ -1,5 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from "@/lib/i18n"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -12,7 +14,16 @@ import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 
 export default function AccountSettings() {
-    const { t } = useTranslation()
+    const { t, i18n } = useTranslation()
+
+    const currentLanguage = SUPPORTED_LANGUAGES.some((l) => l.code === i18n.resolvedLanguage)
+        ? i18n.resolvedLanguage
+        : "en"
+
+    const handleLanguageChange = (code: string) => {
+        localStorage.setItem(LANGUAGE_STORAGE_KEY, code)
+        i18n.changeLanguage(code)
+    }
 
     const [updateUserLoading, setUpdateUserLoading] = useState(false)
     const [updatePasswordLoading, setUpdatePasswordLoading] = useState(false)
@@ -306,6 +317,28 @@ export default function AccountSettings() {
                                 </Form>
                             </>
                         )}
+                    </CardContent>
+                </Card>
+
+                <Card className="h-fit">
+                    <CardHeader>
+                        <CardTitle>{t("settings.account.language.title", "Language")}</CardTitle>
+                        <CardDescription>{t("settings.account.language.description", "Choose the language of the interface. Languages marked (beta) are partially or machine translated.")}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Select value={currentLanguage} onValueChange={handleLanguageChange}>
+                            <SelectTrigger className="w-full">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {SUPPORTED_LANGUAGES.map((language) => (
+                                    <SelectItem key={language.code} value={language.code}>
+                                        {language.label}
+                                        {language.beta ? " (beta)" : ""}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </CardContent>
                 </Card>
             </div>

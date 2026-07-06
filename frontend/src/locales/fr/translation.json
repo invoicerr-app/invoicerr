@@ -1569,6 +1569,10 @@
                 "profileUpdateError": "Échec de la mise à jour du profil",
                 "passwordUpdateSuccess": "Mot de passe mis à jour avec succès",
                 "passwordUpdateError": "Échec de la mise à jour du mot de passe"
+            },
+            "language": {
+                "title": "Langue",
+                "description": "Choisissez la langue de l'interface. Les langues marquées (beta) sont partiellement traduites ou traduites automatiquement."
             }
         },
         "dangerZone": {

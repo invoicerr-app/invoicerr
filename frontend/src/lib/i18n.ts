@@ -20,10 +20,42 @@ for (const path in translations) {
     }
 }
 
+/**
+ * Languages exposed to users (language picker + navigator detection).
+ *
+ * Locales whose catalog is still a ~50-key bootstrap stub (da, he, ja, ko,
+ * pt-BR, ru, sv, uk, zh-Hans) are intentionally NOT listed: their files are
+ * kept for future work, but users falling in those locales get English
+ * instead of a 96%-English "translation". `beta` marks partially or
+ * machine-translated catalogs.
+ */
+export interface SupportedLanguage {
+    code: string
+    /** Native display name. */
+    label: string
+    /** Incomplete or machine-translated catalog — shown with a "(beta)" hint. */
+    beta?: boolean
+}
+
+export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
+    { code: 'en', label: 'English' },
+    { code: 'fr', label: 'Français' },
+    { code: 'it', label: 'Italiano', beta: true },
+    { code: 'pl', label: 'Polski', beta: true },
+    { code: 'ar', label: 'العربية', beta: true },
+    { code: 'cs', label: 'Čeština', beta: true },
+    { code: 'de', label: 'Deutsch', beta: true },
+    { code: 'es', label: 'Español', beta: true },
+    { code: 'nl', label: 'Nederlands', beta: true }
+]
+
+export const LANGUAGE_STORAGE_KEY = 'i18nextLng'
+
 i18n
     .use(
         new LanguageDetector(null, {
-            order: ['navigator'],
+            order: ['localStorage', 'navigator'],
+            lookupLocalStorage: LANGUAGE_STORAGE_KEY,
             caches: []
         })
     )
@@ -31,6 +63,8 @@ i18n
     .init({
         resources,
         fallbackLng: 'en',
+        supportedLngs: SUPPORTED_LANGUAGES.map((l) => l.code),
+        nonExplicitSupportedLngs: true,
         interpolation: {
             escapeValue: false
         },

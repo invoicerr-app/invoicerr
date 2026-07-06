@@ -1569,6 +1569,10 @@
                 "profileUpdateError": "Failed to update profile",
                 "passwordUpdateSuccess": "Password updated successfully",
                 "passwordUpdateError": "Failed to update password"
+            },
+            "language": {
+                "title": "Language",
+                "description": "Choose the language of the interface. Languages marked (beta) are partially or machine translated."
             }
         },
         "dangerZone": {
