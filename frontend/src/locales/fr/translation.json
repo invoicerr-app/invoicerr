@@ -96,6 +96,20 @@
                 },
                 "country": {
                     "label": "Pays"
+                },
+                "identifiers": {
+                    "label": "Identifiants spécifiques au pays"
+                },
+                "peppol": {
+                    "label": "Peppol / Routage électronique (optionnel)"
+                },
+                "peppolEndpointId": {
+                    "helpText": "Laissez vide si ce client n'est pas sur le réseau Peppol",
+                    "label": "Identifiant de point d'accès Peppol",
+                    "placeholder": "ex. 7300010000001"
+                },
+                "peppolSchemeId": {
+                    "label": "Schéma Peppol"
                 }
             },
             "validation": {
@@ -144,7 +158,8 @@
                 "siretSuccess": "Informations récupérées avec succès.",
                 "siretNotFound": "Entreprise non trouvée. Vous pouvez saisir les informations manuellement.",
                 "siretInvalid": "Le numéro de SIRET semble invalide.",
-                "siretError": "Impossible de contacter l'annuaire des entreprises."
+                "siretError": "Impossible de contacter l'annuaire des entreprises.",
+                "saveError": "Échec de l'enregistrement du client"
             }
         },
         "view": {
@@ -169,6 +184,9 @@
             "actions": {
                 "cancel": "Annuler",
                 "delete": "Supprimer le client"
+            },
+            "messages": {
+                "error": "Échec de la suppression du client"
             }
         }
     },
@@ -386,6 +404,9 @@
                 "cancel": "Annuler",
                 "create": "Créer le devis",
                 "save": "Enregistrer les modifications"
+            },
+            "messages": {
+                "saveError": "Échec de l'enregistrement du devis"
             }
         },
         "view": {
@@ -426,6 +447,9 @@
             "actions": {
                 "cancel": "Annuler",
                 "delete": "Supprimer le devis"
+            },
+            "messages": {
+                "error": "Échec de la suppression du devis"
             }
         },
         "pdf": {
@@ -589,7 +613,8 @@
                 "correctSuccess": "Avoir émis",
                 "correctError": "Échec de l'émission de l'avoir",
                 "cancelSuccess": "Facture annulée",
-                "cancelError": "Échec de l'annulation de la facture"
+                "cancelError": "Échec de l'annulation de la facture",
+                "sendByEmailError": "Échec de l'envoi de la facture par e-mail"
             }
         },
         "upsert": {
@@ -701,6 +726,11 @@
                 "save": "Enregistrer les modifications",
                 "createProforma": "Créer le proforma",
                 "createFinal": "Créer la facture finale"
+            },
+            "messages": {
+                "finalError": "Échec de la création de la facture définitive",
+                "proformaError": "Échec de la création de la facture proforma",
+                "saveError": "Échec de l'enregistrement de la facture"
             }
         },
         "view": {
@@ -769,7 +799,10 @@
                 "print": "Imprimer",
                 "awaitingClearance": "En attente de validation par l'administration",
                 "awaitingBuyerResponse": "En attente de réponse de l'acheteur",
-                "awaitingDelivery": "En attente de confirmation de livraison"
+                "awaitingDelivery": "En attente de confirmation de livraison",
+                "refreshStatus": "Actualiser le statut",
+                "refreshStatusError": "Échec de l'actualisation du statut",
+                "refreshStatusSuccess": "Statut actualisé"
             }
         },
         "sendConfirmation": {
@@ -804,6 +837,9 @@
             "actions": {
                 "cancel": "Annuler",
                 "delete": "Supprimer la facture"
+            },
+            "messages": {
+                "error": "Échec de la suppression de la facture"
             }
         },
         "pdf": {
@@ -875,7 +911,11 @@
                 "pauseSuccess": "Facture récurrente mise en pause",
                 "resumeSuccess": "Facture récurrente reprise",
                 "skipNextSuccess": "Le prochain cycle sera ignoré",
-                "endNowSuccess": "Facture récurrente arrêtée"
+                "endNowSuccess": "Facture récurrente arrêtée",
+                "endNowError": "Échec de l'arrêt de la facture récurrente",
+                "pauseError": "Échec de la mise en pause de la facture récurrente",
+                "resumeError": "Échec de la reprise de la facture récurrente",
+                "skipNextError": "Échec du saut de la prochaine échéance"
             }
         },
         "upsert": {
@@ -985,6 +1025,9 @@
                 "cancel": "Annuler",
                 "create": "Créer la facture récurrente",
                 "save": "Enregistrer les modifications"
+            },
+            "messages": {
+                "saveError": "Échec de l'enregistrement de la facture récurrente"
             }
         },
         "view": {
@@ -1003,6 +1046,17 @@
                 "notes": "Notes",
                 "generatedInvoices": "Factures générées"
             }
+        },
+        "delete": {
+            "actions": {
+                "cancel": "Annuler",
+                "delete": "Supprimer la facture récurrente"
+            },
+            "description": "Êtes-vous sûr de vouloir supprimer cette facture récurrente ? Cette action est irréversible.",
+            "messages": {
+                "error": "Échec de la suppression de la facture récurrente"
+            },
+            "title": "Supprimer la facture récurrente"
         }
     },
     "dashboard": {
@@ -1168,7 +1222,10 @@
         "delete": {
             "description": "Êtes-vous sûr de vouloir supprimer \"{{name}}\" ? Cette action ne peut pas être annulée."
         },
-        "empty": "Aucun moyen de paiement disponible pour le moment."
+        "empty": "Aucun moyen de paiement disponible pour le moment.",
+        "add": {
+            "title": "Ajouter un moyen de paiement"
+        }
     },
     "settings": {
         "title": "Paramètres",
@@ -1181,7 +1238,10 @@
             "invitations": "Invitations",
             "dangerZone": "Zone de danger",
             "plugins": "Plugins",
-            "webhooks": "Webhooks"
+            "webhooks": "Webhooks",
+            "apiKeys": "Clés API",
+            "channels": "Facturation électronique",
+            "signing": "Certificats de signature"
         },
         "invitations": {
             "create": {
@@ -1394,6 +1454,9 @@
                         "xrechnung": "XRechnung",
                         "ubl": "UBL",
                         "cii": "CII"
+                    },
+                    "errors": {
+                        "format": "Format de PDF de facture invalide"
                     }
                 },
                 "dateFormat": {
@@ -1401,7 +1464,9 @@
                     "placeholder": "Sélectionner le format de date",
                     "description": "Le format de date utilisé dans les devis et factures",
                     "errors": {
-                        "required": "Le format de date est requis"
+                        "required": "Le format de date est requis",
+                        "format": "Format de date invalide",
+                        "maxLength": "Le format de date ne peut pas dépasser 50 caractères"
                     }
                 },
                 "exemptVat": {
@@ -1412,7 +1477,18 @@
                     "label": "Identifiants spécifiques au pays"
                 },
                 "saving": "Enregistrement...",
-                "saveSettings": "Enregistrer les paramètres"
+                "saveSettings": "Enregistrer les paramètres",
+                "peppol": {
+                    "label": "Peppol / Routage électronique (optionnel)"
+                },
+                "peppolEndpointId": {
+                    "helpText": "Laissez vide si votre entreprise n'est pas enregistrée sur le réseau Peppol",
+                    "label": "Identifiant de point d'accès Peppol",
+                    "placeholder": "ex. 7300010000001"
+                },
+                "peppolSchemeId": {
+                    "label": "Schéma Peppol"
+                }
             },
             "messages": {
                 "updateSuccess": "Paramètres de l'entreprise mis à jour avec succès",
@@ -1667,7 +1743,8 @@
                 "service": "Service",
                 "product": "Produit",
                 "type": "Type",
-                "legalId": "SIRET/SIREN"
+                "legalId": "SIRET/SIREN",
+                "VATId": "N° de TVA"
             },
             "preview": {
                 "title": "Aperçu",
@@ -1718,8 +1795,94 @@
                 "button": "Créer le webhook"
             },
             "card": {
-                "events": "Écoute les événements : {{events}}"
+                "events": "Écoute les événements : {{events}}",
+                "edit": "Modifier",
+                "delete": "Supprimer",
+                "editPrompt": "Saisissez la nouvelle URL du webhook"
+            },
+            "createdSecretNotice": "Ce secret ne sera affiché qu'une seule fois. Conservez-le en lieu sûr.",
+            "createdSecretTitle": "Secret du webhook",
+            "messages": {
+                "createError": "Échec de la création du webhook",
+                "deleteError": "Échec de la suppression du webhook",
+                "updateError": "Échec de la mise à jour du webhook"
             }
+        },
+        "apiKeys": {
+            "title": "Clés API",
+            "description": "Gérez les clés API pour authentifier la CLI ou des clients tiers auprès de l'API",
+            "swaggerLink": "Documentation de l'API",
+            "createdKeyTitle": "Clé API créée",
+            "createdKeyNotice": "Cette clé ne sera affichée qu'une seule fois. Conservez-la en lieu sûr.",
+            "create": {
+                "title": "Créer une clé API",
+                "description": "Générer une nouvelle clé API",
+                "name": "Nom",
+                "namePlaceholder": "ex. CLI sur mon ordinateur portable",
+                "button": "Créer une clé API"
+            },
+            "card": {
+                "lastUsed": "Dernière utilisation : {{date}}",
+                "neverUsed": "Jamais utilisée",
+                "revoke": "Révoquer"
+            }
+        },
+        "audit": {
+            "export": "Exporter l'audit",
+            "exportError": "Échec de l'export de la piste d'audit"
+        },
+        "channels": {
+            "actions": {
+                "connect": "Connecter",
+                "documentation": "Documentation",
+                "edit": "Modifier"
+            },
+            "availableFrom": "Disponible à partir du {{date}}",
+            "configure": "Configurer",
+            "configureDesc": "Définir les identifiants pour",
+            "description": "Connectez les canaux de transmission requis par le pays de votre entreprise. Les secrets sont chiffrés au repos.",
+            "emptyState": "Aucun canal de transmission requis pour votre pays",
+            "messages": {
+                "deleteError": "Échec de la déconnexion",
+                "deleteSuccess": "Canal déconnecté",
+                "saveError": "Échec de l'enregistrement de la configuration",
+                "saveSuccess": "Canal configuré"
+            },
+            "status": {
+                "connected": "Connecté",
+                "notConfigured": "Non configuré"
+            },
+            "title": "Canaux de facturation électronique"
+        },
+        "signing": {
+            "deleteError": "Échec de la suppression du certificat",
+            "deleteSuccess": "Certificat supprimé",
+            "description": "Téléversez les certificats de signature PKCS#12 de votre entreprise pour les signatures électroniques XAdES, CAdES et PAdES. Les fichiers et mots de passe sont chiffrés au repos et ne sont jamais renvoyés.",
+            "emptyState": "Aucun certificat de signature configuré. Les factures seront transmises non signées.",
+            "expires": "Expire le",
+            "serial": "N° de série",
+            "status": {
+                "expired": "Expiré",
+                "inactive": "Inactif"
+            },
+            "title": "Certificats de signature",
+            "upload": {
+                "applicability": "S'applique à",
+                "applicabilityAll": "Tous les formats (*)",
+                "description": "Téléversez un certificat PKCS#12 (.pfx / .p12). Le fichier et le mot de passe sont chiffrés au repos et ne sont jamais renvoyés.",
+                "environment": "Environnement",
+                "error": "Échec du téléversement",
+                "file": "Fichier PFX / P12",
+                "label": "Libellé",
+                "labelPlaceholder": "ex. Certificat de production FR 2025",
+                "noPfx": "Veuillez sélectionner un fichier .pfx / .p12",
+                "password": "Mot de passe du PFX",
+                "passwordPlaceholder": "Mot de passe du certificat",
+                "submit": "Téléverser",
+                "success": "Certificat téléversé",
+                "title": "Téléverser un certificat de signature"
+            },
+            "uploadButton": "Téléverser un certificat"
         }
     },
     "sidebar": {
@@ -1732,7 +1895,9 @@
             "articles": "Articles",
             "paymentMethods": "Méthodes de paiement",
             "stats": "Statistiques",
-            "settings": "Paramètres"
+            "settings": "Paramètres",
+            "receivedInvoices": "Factures reçues",
+            "compliance": "Conformité"
         },
         "company": {
             "plan": "Entreprise"
@@ -1836,7 +2001,8 @@
     "common": {
         "loading": "Chargement...",
         "finish": "Terminer",
-        "valueWithCurrency": "{{amount}} {{currency}}"
+        "valueWithCurrency": "{{amount}} {{currency}}",
+        "cancel": "Annuler"
     },
     "payments": {
         "breakdown": {
@@ -1859,7 +2025,8 @@
                 "title": "Paiement {{number}}",
                 "invoice": "Facture",
                 "totalItemCount": "Nombre total d'articles",
-                "totalPaid": "Total payé"
+                "totalPaid": "Total payé",
+                "noInvoice": "Aucune facture"
             },
             "tooltips": {
                 "viewPdf": "Voir le PDF",
@@ -1935,6 +2102,9 @@
                 "save": "Enregistrer les modifications",
                 "create": "Créer un paiement",
                 "edit": "Modifier le paiement"
+            },
+            "messages": {
+                "saveError": "Échec de l'enregistrement du paiement"
             }
         },
         "sendConfirmation": {
@@ -1950,6 +2120,9 @@
             "actions": {
                 "cancel": "Annuler",
                 "delete": "Supprimer"
+            },
+            "messages": {
+                "error": "Échec de la suppression du paiement"
             }
         },
         "pdf": {
@@ -2041,5 +2214,104 @@
         "selectThisFolder": "Sélectionner ce dossier",
         "noSubdirectories": "Aucun sous-dossier trouvé",
         "loading": "Chargement des répertoires..."
+    },
+    "receivedInvoices": {
+        "title": "Factures reçues",
+        "description": "Factures fournisseurs reçues via les canaux de facturation électronique.",
+        "emptyState": {
+            "title": "Aucune facture reçue",
+            "description": "Les factures fournisseurs reçues via PDP, SdI, Peppol ou KSeF apparaîtront ici."
+        },
+        "columns": {
+            "date": "Date",
+            "sender": "Expéditeur",
+            "number": "N° de facture",
+            "amount": "Montant",
+            "status": "Statut",
+            "channel": "Canal",
+            "actions": "Actions"
+        },
+        "status": {
+            "RECEIVED": "Reçue",
+            "PARSED": "Analysée",
+            "ACCEPTED": "Acceptée",
+            "REJECTED": "Refusée"
+        },
+        "actions": {
+            "accept": "Accepter",
+            "reject": "Refuser",
+            "view": "Voir",
+            "acceptSuccess": "Facture acceptée",
+            "acceptError": "Échec de l'acceptation de la facture",
+            "rejectSuccess": "Facture refusée",
+            "rejectError": "Échec du refus de la facture"
+        },
+        "detail": {
+            "title": "Détail de la facture",
+            "invoiceNumber": "Numéro de facture",
+            "issueDate": "Date d'émission",
+            "sellerName": "Vendeur",
+            "sellerTaxId": "Identifiant fiscal du vendeur",
+            "buyerTaxId": "Identifiant fiscal de l'acheteur",
+            "currency": "Devise",
+            "totalNet": "Montant HT",
+            "totalTax": "Montant de la taxe",
+            "totalGross": "Montant TTC",
+            "channel": "Canal",
+            "externalId": "Identifiant externe",
+            "receivedAt": "Reçue le",
+            "downloadRaw": "Télécharger le fichier brut"
+        }
+    },
+    "actions": {
+        "add": "Ajouter"
+    },
+    "compliance": {
+        "description": "Suivez les soumissions de facturation électronique et les déclarations fiscales périodiques sur tous les canaux.",
+        "pipeline": {
+            "actions": {
+                "refresh": "Actualiser"
+            },
+            "columns": {
+                "actions": "Actions",
+                "authorityRefs": "Réf. administration",
+                "channel": "Canal",
+                "document": "Document",
+                "kind": "Nature",
+                "lastEvent": "Dernier événement",
+                "status": "Statut"
+            },
+            "description": "Chaque soumission de facture électronique avec son canal, ses références auprès de l'administration et son dernier événement de cycle de vie.",
+            "direction": {
+                "inbound": "Entrant"
+            },
+            "emptyState": {
+                "description": "Émettez une facture pour commencer à suivre sa soumission ici.",
+                "title": "Aucun document de conformité"
+            },
+            "filters": {
+                "allChannels": "Tous les canaux",
+                "allStatuses": "Tous les statuts"
+            },
+            "messages": {
+                "refreshError": "Échec de l'actualisation du statut",
+                "refreshSuccess": "Statut actualisé"
+            },
+            "title": "File de soumission"
+        },
+        "reports": {
+            "columns": {
+                "createdAt": "Créé le",
+                "kind": "Nature",
+                "period": "Période",
+                "status": "Statut",
+                "submittedAt": "Soumis le",
+                "submittedRef": "Réf. de soumission"
+            },
+            "description": "Déclarations périodiques générées pour les administrations fiscales (e-reporting, SAF-T, OSS…).",
+            "emptyState": "Aucun rapport de conformité généré pour le moment.",
+            "title": "Déclarations"
+        },
+        "title": "Conformité"
     }
 }
