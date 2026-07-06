@@ -1,5 +1,14 @@
 # Invoicerr — PLAN DE NETTOYAGE & RACCORDEMENT COMPLET
 
+> ✅ **EXÉCUTÉ — Lots 1 à 5 terminés le 2026‑07‑06** (commits `d8af9abc`…`63bec955`).
+> Lot 1 : erreurs de mutation surfacées (bug racine `trigger` ne rejetait jamais) + loading + layering webhooks + 53→0 `as any` persistence.
+> Lot 2 : §2.1→§2.6 complets (quote‑pdf dédupliqué, enrichment×4→1, drivers webhook unifiés, TokenCache×6→1, handlers reporting factory, `providers.ts` 1709→15 l. éclaté par provider, helpers invoices extraits).
+> Lot 3 : §3.1→§3.4 (createLineItemSchema, useDocumentUpsert, champs partagés, useTableExport+TableFilterBar, useDocumentListDialogs, hotspots `any` typés).
+> Lot 4 : export audit câblé, actions pilotées backend dans invoice‑list, **page /compliance** (pipeline + reporting, nouveaux endpoints paginés + 7 tests), receipts déprécié supprimé. (§4.2 routes : constat obsolète, redirect déjà en place.)
+> Lot 5 : EN+120 clés, −165 clés mortes, **FR/PL/IT 100%** (PL/IT beta), sélecteur de langue créé (9 stubs masqués), `i18n:check` en CI.
+> Restes assumés : fusion des ~134 clés à valeur dupliquée (risque sémantique, reportée) ; **Lot 6 (hygiène) non exécuté** — opportuniste.
+> Vérifié : build back+front clean · suite **1380/0** · boot OK · i18n‑check vert · YAML CI valide.
+
 > Établi le 2026‑07‑04 sur la base : détecteur de copier‑coller **jscpd** (backend : 152 clones / 2 488 lignes ; frontend : 87 clones / 2 627 lignes) + 5 audits de zone parallèles (modules backend, compliance, frontend, raccordement API exhaustif routes×appels, i18n). Chaque affirmation ci‑dessous a été vérifiée (les faux positifs des audits ont été écartés — voir §8).
 >
 > **Périmètre déjà nettoyé (ne pas refaire)** : les 5 factories portails → `generic-portal.ts` (−906 l.) ; `invoice-rendering.service.ts` 3861→743 l. (builders extraits sous `national/`, sortie byte‑identique) ; sweep code mort (−277 l., 4 fichiers, 6 exports) ; 15 deps npm retirées + 6 transitives déclarées.
