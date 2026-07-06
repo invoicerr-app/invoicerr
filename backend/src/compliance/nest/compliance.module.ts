@@ -31,6 +31,8 @@ import { ApplySignalService } from './apply-signal';
 import { ComplianceCron } from './compliance.cron';
 import { AuditExportController } from './audit-export.controller';
 import { ComplianceController } from './compliance.controller';
+import { CompliancePipelineController } from './compliance-pipeline.controller';
+import { CompliancePipelineService } from './compliance-pipeline.service';
 import { RequiredFieldsController } from './required-fields.controller';
 import { InboundInvoiceController } from './inbound-invoice.controller';
 import { InboundInvoiceService } from '../reception/inbound-invoice.service';
@@ -39,7 +41,7 @@ import { NullInboxPort } from '../lifecycle/drivers/inbox-port';
 
 @Module({
   imports: [InvoiceRenderingModule, ChannelCredentialsModule, SigningCertificatesModule],
-  controllers: [ComplianceController, RequiredFieldsController, AuditExportController, ChannelCredentialsController, SigningCertificatesController, InboundInvoiceController],
+  controllers: [ComplianceController, CompliancePipelineController, RequiredFieldsController, AuditExportController, ChannelCredentialsController, SigningCertificatesController, InboundInvoiceController],
   providers: [
     // Stores
     {
@@ -156,6 +158,8 @@ import { NullInboxPort } from '../lifecycle/drivers/inbox-port';
     },
     // Channel settings (backs ChannelCredentialsController: company config CRUD + required channels)
     ChannelSettingsService,
+    // Pipeline summaries (backs CompliancePipelineController: documents + reports read models)
+    CompliancePipelineService,
     // CronLockService — distributed lease lock for multi-instance deployments (§13)
     {
       provide: CronLockService,
