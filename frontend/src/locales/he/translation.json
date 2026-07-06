@@ -1,9 +1,4 @@
 {
-    "clients": {
-        "header": {
-            "subtitle": "ניהול לקוחות"
-        }
-    },
     "invoices": {
         "view": {
             "fields": {
@@ -15,7 +10,6 @@
             "messages": {
                 "cancellationNotAllowed": "Cancellation not allowed"
             },
-            "correctionOf": "Corrects #{{number}}",
             "actions": {
                 "edit": "Edit Draft",
                 "creditNote": "Credit Note",
@@ -39,8 +33,7 @@
         "list": {
             "tooltips": {
                 "creditNote": "Issue credit note",
-                "cancel": "Cancel invoice",
-                "cancelAndReplace": "Cancel and replace"
+                "cancel": "Cancel invoice"
             },
             "messages": {
                 "correctSuccess": "Credit note issued",

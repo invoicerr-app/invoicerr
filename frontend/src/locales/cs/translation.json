@@ -1,10 +1,5 @@
 {
     "clients": {
-        "header": {
-            "subtitle": "Správa klientů",
-            "count": "Klienty",
-            "found": "nalezeno"
-        },
         "search": {
             "placeholder": "Vyhledat klienty..."
         },
@@ -12,7 +7,6 @@
             "addNew": "Přidat nového klienta"
         },
         "stats": {
-            "total": "Celkový počet klientů",
             "active": "Aktivní",
             "inactive": "Neaktivní"
         },
@@ -23,8 +17,6 @@
             "tryDifferentSearch": "Zkuste upravit hledané výrazy."
         },
         "list": {
-            "title": "Všichni klienti",
-            "description": "Spravujte a prohlížejte si všechny své klienty na jednom místě.",
             "status": {
                 "active": "Aktivní",
                 "inactive": "Neaktivní"
@@ -56,14 +48,6 @@
                 "description": {
                     "label": "Popis",
                     "placeholder": "Zadejte popis společnosti"
-                },
-                "legalId": {
-                    "label": "Ičo",
-                    "placeholder": "Zadejte Ičo"
-                },
-                "vat": {
-                    "label": "DIČ",
-                    "placeholder": "Zadejte DIČ (např. CZ12345678901)"
                 },
                 "currency": {
                     "label": "Měna"
@@ -103,12 +87,10 @@
                 "type": {
                     "label": "Typ klienta",
                     "company": "Společnost",
-                    "individual": "Fyzická osoba",
-                    "description": "Vyberte, zda je klientem jednotlivec nebo firma"
+                    "individual": "Fyzická osoba"
                 },
                 "country": {
-                    "label": "Země",
-                    "placeholder": "Zadejte zemi"
+                    "label": "Země"
                 }
             },
             "validation": {
@@ -116,19 +98,7 @@
                     "required": "Název společnosti je povinný"
                 },
                 "description": {
-                    "required": "Popis je povinný",
                     "maxLength": "Popis musí být kratší než 500 znaků"
-                },
-                "legalId": {
-                    "required": "Ičo vyžadováno",
-                    "empty": "Pole pro ičo nesmí být prázdné",
-                    "maxLength": "Ičo musí být kratší než 50 znaků"
-                },
-                "vat": {
-                    "required": "Je vyžadováno DIČ",
-                    "empty": "DIČ nesmí být prázdné",
-                    "maxLength": "DIČ musí mít méně než 15 znaků",
-                    "format": "Formát DIČ je neplatný (např. CZ12345678901)"
                 },
                 "foundedAt": {
                     "future": "Datum založení nemůže být v budoucnosti"
@@ -140,7 +110,6 @@
                     "required": "Příjmení je povinné"
                 },
                 "contactPhone": {
-                    "minLength": "Telefonní číslo musí mít alespoň 8 znaků",
                     "format": "Formát telefonního čísla je neplatný"
                 },
                 "contactEmail": {
@@ -192,20 +161,11 @@
         }
     },
     "quotes": {
-        "header": {
-            "subtitle": "Spravujte své nabídky",
-            "count": "Cenové nabídky",
-            "found": "Založeno"
-        },
         "search": {
             "placeholder": "Vyhledat cenové nabídky..."
         },
         "actions": {
             "addNew": "Vytvořit novou nabídku"
-        },
-        "stats": {
-            "total": "Celkový počet nabídek",
-            "draft": "Návrh"
         }
     },
     "invoices": {
@@ -219,7 +179,6 @@
             "messages": {
                 "cancellationNotAllowed": "Cancellation not allowed"
             },
-            "correctionOf": "Corrects #{{number}}",
             "actions": {
                 "edit": "Edit Draft",
                 "creditNote": "Credit Note",
@@ -243,8 +202,7 @@
         "list": {
             "tooltips": {
                 "creditNote": "Issue credit note",
-                "cancel": "Cancel invoice",
-                "cancelAndReplace": "Cancel and replace"
+                "cancel": "Cancel invoice"
             },
             "messages": {
                 "correctSuccess": "Credit note issued",

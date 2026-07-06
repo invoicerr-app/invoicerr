@@ -1,10 +1,5 @@
 {
     "clients": {
-        "header": {
-            "subtitle": "Gestisci i tuoi clienti",
-            "found": "trovato",
-            "count": "{{count}} clienti {{found}}"
-        },
         "search": {
             "placeholder": "Cerca clienti..."
         },
@@ -12,7 +7,6 @@
             "addNew": "Aggiungi Nuovi Clienti"
         },
         "stats": {
-            "total": "Clienti Totali",
             "active": "Attivo",
             "inactive": "Inattivo"
         },
@@ -23,8 +17,6 @@
             "tryDifferentSearch": "Prova a modificare i termini di ricerca."
         },
         "list": {
-            "title": "Tutti i Clienti",
-            "description": "Gestisci e visualizza tutti i tuoi clienti in un unico posto.",
             "status": {
                 "active": "Attivo",
                 "inactive": "Inattivo"
@@ -52,7 +44,6 @@
             "messages": {
                 "cancellationNotAllowed": "Cancellation not allowed"
             },
-            "correctionOf": "Corrects #{{number}}",
             "actions": {
                 "edit": "Edit Draft",
                 "creditNote": "Credit Note",
@@ -76,8 +67,7 @@
         "list": {
             "tooltips": {
                 "creditNote": "Issue credit note",
-                "cancel": "Cancel invoice",
-                "cancelAndReplace": "Cancel and replace"
+                "cancel": "Cancel invoice"
             },
             "messages": {
                 "correctSuccess": "Credit note issued",

@@ -5,11 +5,6 @@
         "reload": "Recharger la page"
     },
     "clients": {
-        "header": {
-            "subtitle": "Gérez vos clients",
-            "count": "{{count}} clients {{found}}",
-            "found": "trouvés"
-        },
         "search": {
             "placeholder": "Rechercher des clients..."
         },
@@ -17,7 +12,6 @@
             "addNew": "Ajouter un nouveau client"
         },
         "stats": {
-            "total": "Total des clients",
             "active": "Actifs",
             "inactive": "Inactifs"
         },
@@ -28,8 +22,6 @@
             "tryDifferentSearch": "Essayez d'ajuster vos termes de recherche."
         },
         "list": {
-            "title": "Tous les clients",
-            "description": "Gérez et consultez tous vos clients en un seul endroit.",
             "status": {
                 "active": "Actif",
                 "inactive": "Inactif"
@@ -61,14 +53,6 @@
                 "description": {
                     "label": "Description",
                     "placeholder": "Saisir la description de l'entreprise"
-                },
-                "legalId": {
-                    "label": "SIREN/SIRET",
-                    "placeholder": "Saisir le SIREN/SIRET de l'entreprise"
-                },
-                "vat": {
-                    "label": "Numéro de TVA",
-                    "placeholder": "Saisir le numéro de TVA (ex: FR12345678901)"
                 },
                 "currency": {
                     "label": "Devise"
@@ -108,12 +92,10 @@
                 "type": {
                     "label": "Type de client",
                     "company": "Entreprise",
-                    "individual": "Particulier",
-                    "description": "Sélectionnez si le client est une personne physique (particulier) ou une entreprise"
+                    "individual": "Particulier"
                 },
                 "country": {
-                    "label": "Pays",
-                    "placeholder": "Saisir le pays"
+                    "label": "Pays"
                 }
             },
             "validation": {
@@ -121,19 +103,7 @@
                     "required": "Le nom de l'entreprise est requis"
                 },
                 "description": {
-                    "required": "La description est requise",
                     "maxLength": "La description doit faire moins de 500 caractères"
-                },
-                "legalId": {
-                    "required": "L'identifiant légal est requis",
-                    "empty": "L'identifiant légal ne peut pas être vide",
-                    "maxLength": "L'identifiant légal doit faire moins de 50 caractères"
-                },
-                "vat": {
-                    "required": "Le numéro de TVA est requis",
-                    "empty": "Le numéro de TVA ne peut pas être vide",
-                    "maxLength": "Le numéro de TVA doit faire moins de 15 caractères",
-                    "format": "Le format du numéro de TVA est invalide (ex: FR12345678901)"
                 },
                 "foundedAt": {
                     "future": "La date de création ne peut pas être dans le futur"
@@ -145,7 +115,6 @@
                     "required": "Le nom est requis"
                 },
                 "contactPhone": {
-                    "minLength": "Le numéro de téléphone doit faire au moins 8 caractères",
                     "format": "Le format du numéro de téléphone est invalide"
                 },
                 "contactEmail": {
@@ -201,28 +170,16 @@
                 "cancel": "Annuler",
                 "delete": "Supprimer le client"
             }
-        },
-        "noOptions": "Aucune option disponible. Créez un nouveau client."
+        }
     },
     "quotes": {
-        "header": {
-            "subtitle": "Gérez vos devis",
-            "count": "{{count}} devis {{found}}",
-            "found": "trouvés"
-        },
         "search": {
             "placeholder": "Rechercher des devis..."
         },
         "actions": {
             "addNew": "Ajouter un nouveau devis"
         },
-        "stats": {
-            "total": "Total des devis",
-            "draft": "Brouillon",
-            "signed": "Signés"
-        },
         "filters": {
-            "all": "Tous",
             "draft": "Brouillon",
             "sent": "Envoyé",
             "signed": "Signés"
@@ -234,8 +191,6 @@
             "tryDifferentSearch": "Essayez d'ajuster vos termes de recherche."
         },
         "list": {
-            "title": "Tous les devis",
-            "description": "Gérez et consultez tous vos devis en un seul endroit.",
             "status": {
                 "draft": "Brouillon",
                 "sent": "Envoyé",
@@ -251,7 +206,6 @@
                 "totalTTC": "Total TTC"
             },
             "tooltips": {
-                "view": "Voir les détails du devis",
                 "viewPdf": "Voir le PDF",
                 "downloadPdf": "Télécharger le PDF",
                 "edit": "Modifier le devis",
@@ -331,11 +285,6 @@
             "percentageLabel": "Pourcentage à facturer",
             "amountLabel": "Montant à facturer",
             "maxPercentageHint": "Il reste {{percent}} % du devis facturable.",
-            "fields": {
-                "quantity": {
-                    "label": "Quantité"
-                }
-            },
             "alreadyInvoicedBadge": "Déjà facturé",
             "remainingLabel": "Reste à facturer : {{remaining}}",
             "remainingTotalLabel": "{{amount}} {{currency}} restants",
@@ -347,8 +296,7 @@
                 "cancel": "Annuler"
             },
             "errors": {
-                "quoteFullyInvoiced": "Ce devis a déjà été entièrement facturé.",
-                "quantityExceedsRemaining": "La quantité demandée dépasse la quantité restant à facturer."
+                "quoteFullyInvoiced": "Ce devis a déjà été entièrement facturé."
             }
         },
         "upsert": {
@@ -397,9 +345,6 @@
                     },
                     "description": {
                         "placeholder": "Description de l'article",
-                        "errors": {
-                            "required": "La description est requise"
-                        },
                         "hint": "Astuce : utilisez **gras** et *italique* pour mettre en valeur."
                     },
                     "quantity": {
@@ -435,11 +380,6 @@
                     "label": "Méthode de paiement",
                     "placeholder": "Sélectionner la méthode de paiement",
                     "description": "La méthode de paiement préférée pour ce devis (Ex: Virement bancaire, Chèque, etc.)"
-                },
-                "paymentDetails": {
-                    "label": "Détails de paiement",
-                    "placeholder": "Saisir les détails de paiement",
-                    "description": "Informations supplémentaires pour le paiement (Ex: IBAN, instructions, etc.)"
                 }
             },
             "actions": {
@@ -493,11 +433,6 @@
         }
     },
     "invoices": {
-        "header": {
-            "subtitle": "Gérez vos factures",
-            "count": "{{count}} factures {{found}}",
-            "found": "trouvées"
-        },
         "search": {
             "placeholder": "Rechercher des factures..."
         },
@@ -588,22 +523,14 @@
             },
             "emptyState": "Aucune facture ne correspond à ces filtres."
         },
-        "stats": {
-            "total": "Total des factures",
-            "sent": "Envoyées",
-            "paid": "Payées"
-        },
         "statusFilters": {
-            "all": "Toutes",
             "draft": "Brouillon",
             "sent": "Envoyé",
             "paid": "Payé",
             "archived": "Archivé",
             "issued": "Émise",
             "cancelled": "Annulée",
-            "corrected": "Corrigée",
-            "pending_clearance": "En attente de dégrément",
-            "cleared": "Dégrée"
+            "corrected": "Corrigée"
         },
         "emptyState": {
             "noInvoices": "Aucune facture pour le moment",
@@ -612,8 +539,6 @@
             "tryDifferentSearch": "Essayez d'ajuster vos termes de recherche."
         },
         "list": {
-            "title": "Toutes les factures",
-            "description": "Gérez et consultez toutes vos factures en un seul endroit.",
             "status": {
                 "draft": "Brouillon",
                 "sent": "Envoyée",
@@ -644,24 +569,14 @@
                 "downloadPdf": "Télécharger le PDF",
                 "edit": "Modifier la facture",
                 "delete": "Supprimer la facture",
-                "sendByEmail": "Envoyer la facture par email",
                 "issue": "Émettre la facture",
                 "creditNote": "Émettre un avoir",
-                "cancel": "Annuler la facture",
-                "cancelAndReplace": "Annuler et remplacer"
+                "cancel": "Annuler la facture"
             },
             "actions": {
                 "addNew": "Ajouter une nouvelle facture",
                 "downloadPdf": "Télécharger le PDF",
                 "downloadXml": "Télécharger le XML"
-            },
-            "downloadFormats": {
-                "pdf": "PDF standard",
-                "facturx": "Factur-X",
-                "zugferd": "ZUGFeRD",
-                "xrechnung": "XRechnung",
-                "ubl": "UBL",
-                "cii": "CII"
             },
             "messages": {
                 "markAsPaidSuccess": "Facture marquée comme payée avec succès",
@@ -691,10 +606,7 @@
             "form": {
                 "quote": {
                     "label": "À partir d'un devis",
-                    "placeholder": "Sélectionner un devis",
-                    "errors": {
-                        "required": "Veuillez sélectionner un devis"
-                    }
+                    "placeholder": "Sélectionner un devis"
                 },
                 "client": {
                     "label": "Client",
@@ -719,9 +631,6 @@
                     },
                     "description": {
                         "placeholder": "Description de l'article",
-                        "errors": {
-                            "required": "La description est requise"
-                        },
                         "hint": "Astuce : utilisez **gras** et *italique* pour mettre en valeur."
                     },
                     "quantity": {
@@ -765,11 +674,6 @@
                     "label": "Méthode de paiement",
                     "placeholder": "Sélectionner la méthode de paiement",
                     "description": "La méthode de paiement préférée pour ce devis (Ex: Virement bancaire, Chèque, etc.)"
-                },
-                "paymentDetails": {
-                    "label": "Détails de paiement",
-                    "placeholder": "Saisir les détails de paiement",
-                    "description": "Informations supplémentaires pour le paiement (Ex: IBAN, instructions, etc.)"
                 },
                 "currency": {
                     "label": "Devise"
@@ -840,7 +744,6 @@
             "messages": {
                 "cancellationNotAllowed": "Annulation non autorisée"
             },
-            "correctionOf": "Correcte la facture #{{number}}",
             "actions": {
                 "edit": "Modifier le brouillon",
                 "creditNote": "Avoir",
@@ -943,17 +846,13 @@
             "annually": "Chaque année"
         },
         "list": {
-            "title": "Factures récurrentes",
-            "description": "Gérez vos factures récurrentes pour automatiser la facturation",
             "actions": {
-                "addNew": "Ajouter une nouvelle facture récurrente",
-                "triggerManual": "Déclencher génération"
+                "addNew": "Ajouter une nouvelle facture récurrente"
             },
             "item": {
                 "client": "Client",
                 "payment": "Paiement",
                 "frequency": "Fréquence",
-                "totalHT": "Total HT",
                 "totalTTC": "Total TTC",
                 "nextRun": "Prochaine exécution",
                 "lastRun": "Dernière exécution",
@@ -973,21 +872,11 @@
                 "delete": "Supprimer"
             },
             "messages": {
-                "manual_process_success": "Processus de génération déclenché avec succès",
-                "manual_process_error": "Erreur lors du déclenchement du processus",
                 "pauseSuccess": "Facture récurrente mise en pause",
                 "resumeSuccess": "Facture récurrente reprise",
                 "skipNextSuccess": "Le prochain cycle sera ignoré",
                 "endNowSuccess": "Facture récurrente arrêtée"
             }
-        },
-        "emptyState": {
-            "noInvoices": "Aucune facture récurrente pour le moment",
-            "noResults": "Aucune facture récurrente trouvée",
-            "startAdding": "Commencez par créer votre première facture récurrente."
-        },
-        "actions": {
-            "addNew": "Ajouter une nouvelle facture récurrente"
         },
         "upsert": {
             "title": {
@@ -1018,11 +907,6 @@
                     "label": "Méthode de paiement",
                     "placeholder": "Sélectionner la méthode de paiement",
                     "description": "La méthode de paiement préférée pour cette facture récurrente (Ex: Virement bancaire, Chèque, etc.)"
-                },
-                "paymentDetails": {
-                    "label": "Détails de paiement",
-                    "placeholder": "Saisir les détails de paiement",
-                    "description": "Informations supplémentaires pour le paiement (Ex: IBAN, instructions, etc.)"
                 },
                 "frequency": {
                     "label": "Fréquence",
@@ -1061,9 +945,6 @@
                     },
                     "description": {
                         "placeholder": "Description de l'article",
-                        "errors": {
-                            "required": "La description est requise"
-                        },
                         "hint": "Astuce : utilisez **gras** et *italique* pour mettre en valeur."
                     },
                     "quantity": {
@@ -1162,7 +1043,6 @@
         }
     },
     "articles": {
-        "title": "Articles",
         "description": "Gérez un catalogue réutilisable de produits et services.",
         "empty": "Aucun article pour le moment",
         "actions": {
@@ -1244,7 +1124,6 @@
             "empty": "Aucune méthode de paiement pour le moment"
         },
         "stats": {
-            "total": "Total des méthodes de paiement",
             "active": "Actives",
             "inactive": "Inactives"
         },
@@ -1274,26 +1153,6 @@
                 "create": "Ajouter une méthode de paiement",
                 "edit": "Modifier la méthode de paiement"
             },
-            "form": {
-                "name": {
-                    "label": "Nom",
-                    "placeholder": "ex: Virement bancaire (pro)"
-                },
-                "details": {
-                    "label": "Détails",
-                    "placeholder": "IBAN, email PayPal, ..."
-                },
-                "type": {
-                    "label": "Type",
-                    "options": {
-                        "bank_transfer": "Virement bancaire",
-                        "paypal": "PayPal",
-                        "check": "Chèque",
-                        "cash": "Espèces",
-                        "other": "Autre"
-                    }
-                }
-            },
             "messages": {
                 "addSuccess": "Méthode de paiement ajoutée",
                 "addError": "Échec de l'ajout de la méthode de paiement",
@@ -1303,19 +1162,8 @@
                 "deleteError": "Échec de la suppression de la méthode de paiement"
             }
         },
-        "messages": {
-            "nameRequired": "Le nom est requis",
-            "addSuccess": "Méthode de paiement ajoutée",
-            "addError": "Échec de l'ajout de la méthode de paiement",
-            "updateSuccess": "Méthode de paiement mise à jour",
-            "updateError": "Échec de la mise à jour de la méthode de paiement",
-            "deleteSuccess": "Méthode de paiement supprimée",
-            "deleteError": "Échec de la suppression de la méthode de paiement"
-        },
         "tooltips": {
-            "view": "Voir",
-            "edit": "Modifier",
-            "delete": "Supprimer"
+            "view": "Voir"
         },
         "delete": {
             "description": "Êtes-vous sûr de vouloir supprimer \"{{name}}\" ? Cette action ne peut pas être annulée."
@@ -1362,7 +1210,6 @@
                 "expired": "Expiré"
             },
             "messages": {
-                "fetchError": "Échec du chargement des codes d'invitation",
                 "createSuccess": "Code d'invitation créé avec succès",
                 "createError": "Échec de la création du code d'invitation",
                 "deleteSuccess": "Code d'invitation supprimé",
@@ -1410,27 +1257,6 @@
                         "maxLength": "La description doit faire moins de 500 caractères"
                     }
                 },
-                "legalId": {
-                    "label": "SIREN/SIRET",
-                    "placeholder": "Saisir le SIREN/SIRET de l'entreprise",
-                    "description": "Le numéro d'identification légal de votre entreprise",
-                    "errors": {
-                        "required": "L'identifiant légal est requis",
-                        "empty": "L'identifiant légal ne peut pas être vide",
-                        "maxLength": "L'identifiant légal doit faire moins de 50 caractères"
-                    }
-                },
-                "vat": {
-                    "label": "Numéro de TVA",
-                    "placeholder": "Saisir le numéro de TVA (ex: FR12345678901)",
-                    "description": "Le numéro d'identification TVA de votre entreprise",
-                    "errors": {
-                        "required": "Le numéro de TVA est requis",
-                        "empty": "Le numéro de TVA ne peut pas être vide",
-                        "maxLength": "Le numéro de TVA doit faire moins de 15 caractères",
-                        "format": "Le format du numéro de TVA est invalide (ex: FR12345678901)"
-                    }
-                },
                 "foundedAt": {
                     "label": "Date de création",
                     "placeholder": "Sélectionner la date de création",
@@ -1476,12 +1302,10 @@
                 },
                 "state": {
                     "label": "État/Province (Optionnel)",
-                    "placeholder": "Saisir l'état ou la province",
-                    "description": "État ou province (par ex. CA, TX, Québec)"
+                    "placeholder": "Saisir l'état ou la province"
                 },
                 "country": {
                     "label": "Pays",
-                    "placeholder": "Saisir le pays",
                     "description": "Utilisé pour déterminer la recherche d'entreprise disponible (ex. SIRET pour la France)",
                     "errors": {
                         "empty": "Le pays est requis"
@@ -1570,9 +1394,6 @@
                         "xrechnung": "XRechnung",
                         "ubl": "UBL",
                         "cii": "CII"
-                    },
-                    "errors": {
-                        "required": "Le format du PDF de la facture est requis"
                     }
                 },
                 "dateFormat": {
@@ -1737,9 +1558,6 @@
                 "toggleError": "Erreur lors du basculement du plugin",
                 "configureSuccess": "Plugin configuré avec succès",
                 "configureError": "Erreur lors de la configuration du plugin"
-            },
-            "webhook": {
-                "secretPlaceholder": "Validez cette popup pour générer un secret sécurisé"
             }
         },
         "pdfTemplates": {
@@ -1774,7 +1592,6 @@
                 "padding": "Espacement"
             },
             "labels": {
-                "title": "Libellés et texte",
                 "invoice": "Facture",
                 "quote": "Devis",
                 "payment": "Paiement",
@@ -1850,8 +1667,7 @@
                 "service": "Service",
                 "product": "Produit",
                 "type": "Type",
-                "legalId": "SIRET/SIREN",
-                "vatId": "Numéro de TVA"
+                "legalId": "SIRET/SIREN"
             },
             "preview": {
                 "title": "Aperçu",
@@ -1931,11 +1747,6 @@
         "userMenu": {
             "account": "Compte",
             "logout": "Se déconnecter"
-        },
-        "companyDialog": {
-            "title": "Terminer la configuration de l'entreprise",
-            "description": "Veuillez compléter les informations de votre entreprise pour continuer à utiliser l'application.",
-            "goButton": "Aller aux paramètres de l'entreprise"
         }
     },
     "auth": {
@@ -1958,10 +1769,6 @@
             },
             "noAccount": "Vous n'avez pas de compte ?",
             "signUpLink": "S'inscrire",
-            "errors": {
-                "invalidEmail": "Veuillez saisir une adresse email valide",
-                "passwordRequired": "Le mot de passe est requis"
-            },
             "messages": {
                 "loginSuccess": "Connexion réussie",
                 "loginError": "Identifiants invalides"
@@ -2001,22 +1808,13 @@
             "hasAccount": "Vous avez déjà un compte ?",
             "signInLink": "Se connecter",
             "errors": {
-                "firstnameMinLength": "Le prénom doit faire au moins 2 caractères",
-                "lastnameMinLength": "Le nom doit faire au moins 2 caractères",
-                "invalidEmail": "Veuillez saisir une adresse email valide",
-                "passwordMinLength": "Le mot de passe doit faire au moins 8 caractères",
-                "passwordLetter": "Le mot de passe doit contenir au moins une lettre",
-                "passwordNumber": "Le mot de passe doit contenir au moins un chiffre",
-                "passwordSpecial": "Le mot de passe doit contenir au moins un caractère spécial",
                 "invitationCodeRequired": "Un code d'invitation est requis pour s'inscrire",
                 "invalidInvitationCode": "Code d'invitation invalide ou expiré",
                 "genericError": "Une erreur s'est produite lors de la création de votre compte"
             },
             "messages": {
                 "accountCreated": "Compte créé avec succès"
-            },
-            "oidc": "Créer un compte avec OIDC.",
-            "oidcLink": "Inscription OIDC"
+            }
         }
     },
     "unavailable": {
@@ -2036,24 +1834,11 @@
         }
     },
     "common": {
-        "previous": "Précédent",
-        "next": "Suivant",
         "loading": "Chargement...",
         "finish": "Terminer",
-        "units": {
-            "day": "Jour",
-            "week": "Semaine",
-            "month": "Mois",
-            "year": "Année"
-        },
         "valueWithCurrency": "{{amount}} {{currency}}"
     },
     "payments": {
-        "header": {
-            "subtitle": "Gérez vos paiements",
-            "count": "{{count}} paiements {{found}}",
-            "found": "trouvés"
-        },
         "breakdown": {
             "label": "Répartition par article"
         },
@@ -2063,12 +1848,6 @@
         "actions": {
             "addNew": "Ajouter un nouveau paiement"
         },
-        "stats": {
-            "total": "Total des paiements",
-            "draft": "Brouillon",
-            "sent": "Envoyé",
-            "signed": "Signé"
-        },
         "emptyState": {
             "noPayments": "Aucun paiement pour le moment",
             "noResults": "Aucun paiement trouvé",
@@ -2076,26 +1855,13 @@
             "tryDifferentSearch": "Essayez d'ajuster vos termes de recherche."
         },
         "list": {
-            "title": "Tous les paiements",
-            "description": "Gérez et consultez tous vos paiements en un seul endroit.",
-            "status": {
-                "draft": "Brouillon",
-                "sent": "Envoyé",
-                "signed": "Signé"
-            },
             "item": {
                 "title": "Paiement {{number}}",
-                "client": "Client",
-                "issued": "Émis",
-                "validUntil": "Valide jusqu'à",
-                "totalHT": "Total (HT)",
-                "totalTTC": "Total (TTC)",
                 "invoice": "Facture",
                 "totalItemCount": "Nombre total d'articles",
                 "totalPaid": "Total payé"
             },
             "tooltips": {
-                "view": "Voir le paiement",
                 "viewPdf": "Voir le PDF",
                 "downloadPdf": "Télécharger le PDF",
                 "edit": "Modifier le paiement",
@@ -2117,10 +1883,7 @@
             },
             "form": {
                 "client": {
-                    "label": "Client",
-                    "errors": {
-                        "required": "Le client est requis."
-                    }
+                    "label": "Client"
                 },
                 "amount": {
                     "label": "Montant total",
@@ -2128,14 +1891,6 @@
                 },
                 "items": {
                     "label": "Articles",
-                    "placeholder": "Ajoutez un article",
-                    "noResults": "Aucun article ajouté",
-                    "addButton": "Ajouter un article",
-                    "description": {
-                        "errors": {
-                            "required": "La description est requise."
-                        }
-                    },
                     "quantity": {
                         "errors": {
                             "required": "La quantité est requise.",
@@ -2169,11 +1924,6 @@
                     "label": "Méthode de paiement",
                     "placeholder": "Entrez la méthode de paiement",
                     "description": "La méthode utilisée pour effectuer le paiement"
-                },
-                "paymentDetails": {
-                    "label": "Détails du paiement",
-                    "placeholder": "Entrez les détails du paiement",
-                    "description": "Informations supplémentaires sur le paiement"
                 },
                 "paidAt": {
                     "label": "Date du paiement",
@@ -2283,7 +2033,6 @@
     },
     "folderSelect": {
         "placeholder": "Sélectionnez un dossier...",
-        "browse": "Parcourir",
         "title": "Sélectionner un dossier",
         "newFolder": "Nouveau dossier",
         "folderName": "Nom du dossier...",
@@ -2292,6 +2041,5 @@
         "selectThisFolder": "Sélectionner ce dossier",
         "noSubdirectories": "Aucun sous-dossier trouvé",
         "loading": "Chargement des répertoires..."
-    },
-    "noOptions": "Aucune option disponible. Créer un nouveau client."
+    }
 }

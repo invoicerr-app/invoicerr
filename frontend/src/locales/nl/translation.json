@@ -1,10 +1,5 @@
 {
     "clients": {
-        "header": {
-            "subtitle": "Onderhoud klantenbestand",
-            "found": "gevonden",
-            "count": "{{count}} klanten {{found}}"
-        },
         "search": {
             "placeholder": "Zoek klanten..."
         },
@@ -13,8 +8,7 @@
         },
         "stats": {
             "active": "Actief",
-            "inactive": "Inactief",
-            "total": "Aantal Klanten"
+            "inactive": "Inactief"
         },
         "emptyState": {
             "noClients": "Nog geen klanten",
@@ -23,8 +17,6 @@
             "tryDifferentSearch": "Probeer uw zoekopdracht aan te passen."
         },
         "list": {
-            "title": "Alle Klanten",
-            "description": "Bekijk en onderhoud en al uw klanten in één plaats.",
             "status": {
                 "active": "Actief",
                 "inactive": "Inactief"
@@ -57,10 +49,6 @@
                     "label": "Omschrijving",
                     "placeholder": "Vul bedrijfsomschrijving in"
                 },
-                "vat": {
-                    "label": "BTW-nummer",
-                    "placeholder": "Vul BTW-nummer in (bvb. NL123456789B01)"
-                },
                 "currency": {
                     "label": "Valuta"
                 },
@@ -91,12 +79,10 @@
                 "type": {
                     "label": "Type Klant",
                     "company": "Bedrijf",
-                    "individual": "Individu",
-                    "description": "Selecteer of de klant een individu of bedrijf is"
+                    "individual": "Individu"
                 },
                 "country": {
-                    "label": "Land",
-                    "placeholder": "Vul land in"
+                    "label": "Land"
                 },
                 "addressLine2": {
                     "label": "Adresregel 2 (Optioneel)"
@@ -104,10 +90,6 @@
                 "state": {
                     "label": "Staat/Provincie (Optioneel)",
                     "placeholder": "Voer staat of provincie in"
-                },
-                "legalId": {
-                    "label": "KVK-nummer",
-                    "placeholder": "Voer KVK-nummer in"
                 }
             },
             "validation": {
@@ -115,14 +97,7 @@
                     "required": "Bedrijfsnaam is verplicht"
                 },
                 "description": {
-                    "required": "Omschrijving is verplicht",
                     "maxLength": "Omschrijving moet minder dan 500 karakters tellen"
-                },
-                "vat": {
-                    "required": "BTW-nummer is verplicht",
-                    "empty": "BTW-nummer kan niet leeg zijn",
-                    "maxLength": "BTW-nummer moet minder dan 15 karakters bevatten",
-                    "format": "BTW-nummer is ongeldig (vb. FR12345678901)"
                 },
                 "foundedAt": {
                     "future": "Opstartdatum kan niet in de toekomst zijn"
@@ -134,7 +109,6 @@
                     "required": "Familienaam is verplicht"
                 },
                 "contactPhone": {
-                    "minLength": "Telefoonnummer moet op zijn minst 8 karakters bevatten",
                     "format": "Ongeldig telefoonnummer"
                 },
                 "contactEmail": {
@@ -152,11 +126,6 @@
                 },
                 "country": {
                     "required": "Land is verplicht"
-                },
-                "legalId": {
-                    "required": "BSN nummer is vereist",
-                    "empty": "BSN nummer mag niet leeg zijn",
-                    "maxLength": "BSN moet minimaal 50 karakters lang zijn"
                 }
             },
             "actions": {
@@ -191,21 +160,11 @@
         }
     },
     "quotes": {
-        "header": {
-            "subtitle": "Beheer uw offertes",
-            "count": "{{count}} offertes {{found}}",
-            "found": "gevonden"
-        },
         "search": {
             "placeholder": "Zoek offertes..."
         },
         "actions": {
             "addNew": "Voeg een nieuwe Offerte toe"
-        },
-        "stats": {
-            "total": "Aantal Offertes",
-            "draft": "Ontwerp",
-            "signed": "Getekend"
         },
         "emptyState": {
             "noQuotes": "Nog geen offertes",
@@ -214,8 +173,6 @@
             "tryDifferentSearch": "Pas uw zoekopdracht aan."
         },
         "list": {
-            "title": "Alle offertes",
-            "description": "Beheer en bekijk al uw offertes in één plaats.",
             "status": {
                 "draft": "Ontwerp",
                 "sent": "Verzonden",
@@ -231,7 +188,6 @@
                 "totalTTC": "Totaal (incl. BTW)"
             },
             "tooltips": {
-                "view": "Bekijk offerte details",
                 "viewPdf": "Bekijk PDF",
                 "downloadPdf": "Download PDF",
                 "edit": "Offerte bewerken",
@@ -290,9 +246,6 @@
                         }
                     },
                     "description": {
-                        "errors": {
-                            "required": "Omschrijving is vereist"
-                        },
                         "hint": "Tip: gebruik **vet** en *cursief* om te benadrukken."
                     },
                     "quantity": {
@@ -328,11 +281,6 @@
                     "label": "Betaalmethode",
                     "placeholder": "Selecteer betaalmethode",
                     "description": "Voorkeur betaalmethode voor deze offerte (bijv. bankoverschrijving, cheque, etc.)"
-                },
-                "paymentDetails": {
-                    "label": "Betaalgegevens",
-                    "placeholder": "Voer betaalgegevens in",
-                    "description": "Additionele informatie voor betaling ( zoals IBAN, instructies, etc.)"
                 }
             },
             "actions": {
@@ -366,12 +314,6 @@
             }
         }
     },
-    "auth": {
-        "signup": {
-            "oidc": "Registreet met OIDC.",
-            "oidcLink": "OIDC Registratie"
-        }
-    },
     "unavailable": {
         "title": "Niet beschikbaar op Mobiel/Tablet",
         "description": "Deze functie is alleen beschikbaar op desktop apparaten voor een optimale gebruikerservaring."
@@ -379,14 +321,6 @@
     "common": {
         "finish": "Klaar",
         "loading": "Laden...",
-        "next": "Volgende",
-        "previous": "Vorige",
-        "units": {
-            "day": "Dag",
-            "month": "Maand",
-            "year": "Jaar",
-            "week": "Week"
-        },
         "valueWithCurrency": "{{amount}}{{currency}}"
     },
     "component": {
@@ -396,24 +330,12 @@
             "noResults": "Geen valuta gevonden"
         }
     },
-    "noOptions": "Geen opties beschikbaar. Maak een nieuwe klant aan.",
     "payments": {
-        "header": {
-            "subtitle": "Beheer je bonnen",
-            "count": "{{count}} bonnen {{found}}",
-            "found": "Gevonden"
-        },
         "search": {
             "placeholder": "Zoek bonnen..."
         },
         "actions": {
             "addNew": "Voeg Nieuwe Bon Toe"
-        },
-        "stats": {
-            "total": "Totale Bonnen",
-            "draft": "Concept",
-            "sent": "Verzonden",
-            "signed": "Ondertekend"
         },
         "emptyState": {
             "noPayments": "Nog geen betalingen",
@@ -422,26 +344,13 @@
             "tryDifferentSearch": "Pas uw zoekopdracht aan."
         },
         "list": {
-            "title": "Alle bonnen",
-            "description": "Beheers alle bonnen op één plek.",
-            "status": {
-                "draft": "Concept",
-                "sent": "Verzonden",
-                "signed": "Ondertekend"
-            },
             "item": {
                 "title": "Bonnummer {{number}}",
-                "client": "Klant",
-                "issued": "Uitgegeven",
-                "validUntil": "Geldig Tot",
-                "totalHT": "Totaal (excl. BTW)",
-                "totalTTC": "Totaal (incl. BTW)",
                 "invoice": "Factuur",
                 "totalItemCount": "Totaal aantal items",
                 "totalPaid": "Totaal betaald"
             },
             "tooltips": {
-                "view": "Bekijk bon",
                 "viewPdf": "Bekijk PDF",
                 "downloadPdf": "Download PDF",
                 "edit": "Pas bon aan",
@@ -463,10 +372,7 @@
             },
             "form": {
                 "client": {
-                    "label": "Klant",
-                    "errors": {
-                        "required": "Klant is vereist."
-                    }
+                    "label": "Klant"
                 }
             }
         }
@@ -482,7 +388,6 @@
             "messages": {
                 "cancellationNotAllowed": "Cancellation not allowed"
             },
-            "correctionOf": "Corrects #{{number}}",
             "actions": {
                 "edit": "Edit Draft",
                 "creditNote": "Credit Note",
@@ -506,8 +411,7 @@
         "list": {
             "tooltips": {
                 "creditNote": "Issue credit note",
-                "cancel": "Cancel invoice",
-                "cancelAndReplace": "Cancel and replace"
+                "cancel": "Cancel invoice"
             },
             "messages": {
                 "correctSuccess": "Credit note issued",
