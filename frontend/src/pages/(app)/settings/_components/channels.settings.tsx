@@ -7,7 +7,7 @@ import { DynamicFormModal } from "@/components/form-modal"
 import type { FormConfig } from "@/components/form-modal"
 import { useGet, usePut, authenticatedFetch } from "@/hooks/use-fetch"
 import { useCompany } from "@/hooks/queries/use-company"
-import { CheckCircle2, Clock, ExternalLink, Loader2, Radio, Settings2, Trash2, XCircle } from "lucide-react"
+import { CheckCircle2, Clock, Download, ExternalLink, Loader2, Radio, Settings2, Trash2, XCircle } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
@@ -49,6 +49,29 @@ export default function ChannelsSettings() {
 
   const [configModalOpen, setConfigModalOpen] = useState(false)
   const [editingChannel, setEditingChannel] = useState<RequiredChannel | null>(null)
+  const [exportingAudit, setExportingAudit] = useState(false)
+
+  /** Download the compliance audit trail (GET /compliance/audit-export → CSV blob). */
+  const handleExportAudit = async () => {
+    setExportingAudit(true)
+    try {
+      const res = await authenticatedFetch("/api/compliance/audit-export")
+      if (!res.ok) throw new Error("Audit export failed")
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "compliance-audit-export.csv"
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch {
+      toast.error(t("settings.audit.exportError", "Failed to export the audit trail"))
+    } finally {
+      setExportingAudit(false)
+    }
+  }
 
   const handleConfigure = (ch: RequiredChannel) => {
     setEditingChannel(ch)
@@ -144,11 +167,27 @@ export default function ChannelsSettings() {
             )}
           </p>
         </div>
-        {countryCode && (
-          <Badge variant="outline" className="text-base px-3 py-1 shrink-0 mt-1">
-            {countryFlag} {country}
-          </Badge>
-        )}
+        <div className="flex items-center gap-2 shrink-0 mt-1">
+          {countryCode && (
+            <Badge variant="outline" className="text-base px-3 py-1">
+              {countryFlag} {country}
+            </Badge>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportAudit}
+            disabled={exportingAudit}
+            data-cy="audit-export-button"
+          >
+            {exportingAudit ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-1" />
+            )}
+            {t("settings.audit.export", "Export audit")}
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-4">
