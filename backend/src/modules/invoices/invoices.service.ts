@@ -17,7 +17,7 @@ import { describeFlow } from '@/compliance/lifecycle/flow-descriptor';
 import { clampDiscountRate, toMinor } from '@/utils/financial';
 import type { SupplyType, DocumentKind } from '@/compliance/types';
 import { enrichWithPaymentMethod, enrichWithPaymentMethods } from '@/utils/enrich-payment-methods';
-import { buildComplianceContext, invoiceItemData, resolveTax, toComplianceLines } from './invoices.helpers';
+import { buildComplianceContext, deriveInvoiceActions, invoiceItemData, resolveTax, toComplianceLines } from './invoices.helpers';
 import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
 
 @Injectable()
@@ -104,10 +104,14 @@ export class InvoicesService {
 
         const mapped = invoicesWithPM.map((inv: any) => {
             const doc = inv.complianceDocuments?.[0];
-            if (!doc?.plan) return inv;
-            const flow = describeFlow(doc.plan as unknown as CompliancePlan, doc.status as ComplianceStatus);
+            // `actions` mirrors GET /invoices/:id/available-actions (same helper) so the
+            // list UI can rely on backend-driven flags without an N+1 per-row fetch.
+            if (!doc?.plan) return { ...inv, actions: deriveInvoiceActions(inv, null) };
+            const plan = doc.plan as unknown as CompliancePlan;
+            const flow = describeFlow(plan, doc.status as ComplianceStatus);
             return {
                 ...inv,
+                actions: deriveInvoiceActions(inv, new Set(flow.manualActions), plan.lifecycle?.correctionModel),
                 complianceDocuments: [{
                     id: doc.id,
                     status: doc.status,
@@ -1532,12 +1536,6 @@ export class InvoicesService {
             orderBy: { createdAt: 'desc' },
         });
 
-        const isDraft = invoice.status === 'DRAFT';
-        const isProforma = invoice.kind === 'PROFORMA';
-        const isDeposit = invoice.kind === 'DEPOSIT';
-        const isPlainInvoice = !invoice.kind || invoice.kind === 'INVOICE';
-        const isIssued = invoice.status === 'ISSUED' || invoice.status === 'SENT';
-
         if (!complianceDoc || !complianceDoc.plan) {
             return {
                 invoiceId: id,
@@ -1546,16 +1544,7 @@ export class InvoicesService {
                 immutableAfter: 'ISSUE',
                 correctionModel: 'CREDIT_NOTE',
                 cancellation: { allowed: false },
-                actions: {
-                    edit: isDraft && !isDeposit,
-                    issue: isDraft && !isProforma,
-                    correct: false,
-                    cancel: false,
-                    cancelAndReplace: false,
-                    send: isIssued,
-                    convertToInvoice: isProforma && isDraft,
-                    deposit: isPlainInvoice && isIssued,
-                },
+                actions: deriveInvoiceActions(invoice, null),
                 correctionKinds: ['CREDIT_NOTE'],
                 flow: null,
             };
@@ -1600,16 +1589,7 @@ export class InvoicesService {
                 allowed: manualActions.has('cancel'),
                 reason: cancelReason,
             },
-            actions: {
-                edit: isDraft && !isDeposit,
-                issue: isDraft && !isProforma,
-                correct: manualActions.has('correct'),
-                cancel: manualActions.has('cancel'),
-                cancelAndReplace: manualActions.has('cancel') && lifecycle.correctionModel === 'CANCEL_AND_REPLACE',
-                send: isIssued,
-                convertToInvoice: isProforma && isDraft,
-                deposit: isPlainInvoice && isIssued,
-            },
+            actions: deriveInvoiceActions(invoice, manualActions, lifecycle.correctionModel),
             correctionKinds,
             flow: describeFlow(plan, complianceDoc.status as ComplianceStatus),
         };

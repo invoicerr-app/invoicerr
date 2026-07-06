@@ -156,3 +156,51 @@ export function invoiceItemData<TType>(
         unitOfMeasure: item.unitOfMeasure ?? 'C62',
     };
 }
+
+/** Backend-driven per-invoice action flags (single source of truth for list + detail UIs). */
+export interface InvoiceActionFlags {
+    edit: boolean;
+    issue: boolean;
+    correct: boolean;
+    cancel: boolean;
+    cancelAndReplace: boolean;
+    send: boolean;
+    convertToInvoice: boolean;
+    deposit: boolean;
+}
+
+/**
+ * Derive the action flags exposed by GET /invoices/:id/available-actions.
+ *
+ * Shared between the detail endpoint and the GET /invoices list mapping so the
+ * invoice list never re-implements action availability client-side.
+ *
+ * @param invoice        status/kind of the invoice row
+ * @param manualActions  MANUAL trigger actions available on the lifecycle runtime
+ *                       (from LifecycleRuntime.availableActions() or FlowDescriptor.manualActions);
+ *                       `null` when the invoice has no compliance plan yet.
+ * @param correctionModel lifecycle correction model (e.g. 'CANCEL_AND_REPLACE'), when a plan exists.
+ */
+export function deriveInvoiceActions(
+    invoice: { status: string; kind?: string | null },
+    manualActions: ReadonlySet<string> | null,
+    correctionModel?: string,
+): InvoiceActionFlags {
+    const isDraft = invoice.status === 'DRAFT';
+    const isProforma = invoice.kind === 'PROFORMA';
+    const isDeposit = invoice.kind === 'DEPOSIT';
+    const isPlainInvoice = !invoice.kind || invoice.kind === 'INVOICE';
+    const isIssued = invoice.status === 'ISSUED' || invoice.status === 'SENT';
+    const canCancel = manualActions?.has('cancel') ?? false;
+
+    return {
+        edit: isDraft && !isDeposit,
+        issue: isDraft && !isProforma,
+        correct: manualActions?.has('correct') ?? false,
+        cancel: canCancel,
+        cancelAndReplace: canCancel && correctionModel === 'CANCEL_AND_REPLACE',
+        send: isIssued,
+        convertToInvoice: isProforma && isDraft,
+        deposit: isPlainInvoice && isIssued,
+    };
+}

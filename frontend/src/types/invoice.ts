@@ -156,6 +156,21 @@ export interface Invoice {
     payments?: { id: string; totalPaid: number }[];
     correctedBy?: Invoice[];
     depositInvoices?: Invoice[];
+    /**
+     * Backend-driven action flags (GET /invoices list mapping — same helper as
+     * GET /invoices/:id/available-actions). Absent on lightweight payloads
+     * (e.g. dashboard latestInvoices).
+     */
+    actions?: {
+        edit: boolean;
+        issue: boolean;
+        correct: boolean;
+        cancel: boolean;
+        cancelAndReplace: boolean;
+        send: boolean;
+        convertToInvoice: boolean;
+        deposit: boolean;
+    };
     complianceDocuments?: {
         id: string;
         status: string;

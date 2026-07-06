@@ -64,6 +64,21 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         const flowOf = (inv: Invoice) => inv.complianceDocuments?.[0]?.flow
         const can = (inv: Invoice, a: string) => flowOf(inv)?.manualActions?.includes(a) ?? false
 
+        /**
+         * Backend-driven action flags: GET /invoices attaches `actions` per row (same
+         * helper as /invoices/:id/available-actions), so the list never re-implements
+         * availability rules. The fallback only covers lightweight payloads without
+         * `actions` (dashboard latestInvoices) and mirrors the legacy list behaviour.
+         */
+        const actionsOf = (inv: Invoice) =>
+            inv.actions ?? {
+                edit: inv.status === InvoiceStatus.DRAFT,
+                issue: inv.status === InvoiceStatus.DRAFT,
+                correct: flowOf(inv) ? can(inv, "correct") : inv.status === InvoiceStatus.ISSUED || inv.status === InvoiceStatus.SENT,
+                cancel: flowOf(inv) ? can(inv, "cancel") : inv.status === InvoiceStatus.ISSUED || inv.status === InvoiceStatus.SENT,
+                send: inv.status !== InvoiceStatus.PAID,
+            }
+
         function handleEdit(invoice: Invoice) {
             setEditInvoiceDialog(invoice)
         }
@@ -403,7 +418,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                     <PaymentText className="h-4 w-4" />
                                                 </Button>
 
-                                                {invoice.status === InvoiceStatus.DRAFT && (
+                                                {actionsOf(invoice).edit && (
                                                     <Button
                                                         data-cy="invoice-edit-button"
                                                         tooltip={t("invoices.list.tooltips.edit")}
@@ -416,7 +431,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                     </Button>
                                                 )}
 
-                                                {invoice.status === InvoiceStatus.DRAFT && (
+                                                {actionsOf(invoice).issue && (
                                                     <Button
                                                         data-cy="invoice-issue-button"
                                                         tooltip={t("invoices.list.tooltips.issue")}
@@ -430,7 +445,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                 )}
 
                                                 {/* Correction actions for issued invoices */}
-                                                {(flowOf(invoice) ? can(invoice, 'correct') : (invoice.status === InvoiceStatus.ISSUED || invoice.status === InvoiceStatus.SENT)) && (
+                                                {actionsOf(invoice).correct && (
                                                     <Button
                                                         data-cy="invoice-correct-button"
                                                         tooltip={t("invoices.list.tooltips.creditNote")}
@@ -443,7 +458,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                     </Button>
                                                 )}
 
-                                                {(flowOf(invoice) ? can(invoice, 'cancel') : (invoice.status === InvoiceStatus.ISSUED || invoice.status === InvoiceStatus.SENT)) && (
+                                                {actionsOf(invoice).cancel && (
                                                     <Button
                                                         data-cy="invoice-cancel-button"
                                                         tooltip={t("invoices.list.tooltips.cancel")}
@@ -456,7 +471,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                     </Button>
                                                 )}
 
-                                                {invoice.status !== "PAID" && (() => {
+                                                {actionsOf(invoice).send && (() => {
                                                     const cc = flowOf(invoice)?.channelClass
                                                     const sendLabelKey = flowOf(invoice)?.sendLabelKey ?? 'send'
                                                     const SendIcon = cc === 'PRINT' ? Printer : cc === 'CLEARANCE' || cc === 'PORTAL' ? UploadCloud : Mail
