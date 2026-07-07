@@ -52,6 +52,11 @@ const V1_4_4A_BASELINE_MIGRATIONS = [
 // (entrypoint.sh `cd`s into backend/src before starting node).
 const BACKEND_ROOT = join(__dirname, '..', '..');
 const SCHEMA_PATH = join(BACKEND_ROOT, 'prisma', 'schema.prisma');
+// Frozen full schema as it shipped in v1.4.4a. Only used to level a legacy
+// `db push`-era instance (which may be *below* v1.4.4a) up to the exact
+// v1.4.4a state before we baseline the v1.4.4a migrations as applied — see
+// baselineIfNeeded(). Never pushed against an already-migrated DB.
+const V1_4_4A_SCHEMA_PATH = join(BACKEND_ROOT, 'prisma', 'schema-v1.4.4a.prisma');
 
 function runPrisma(args: string[]): void {
   // `prisma.config.ts`'s `migrations.path` is resolved relative to the
@@ -90,6 +95,19 @@ async function databaseHasExistingData(): Promise<boolean> {
  * live (V1_4_4A_BASELINE_MIGRATIONS) as already applied, then let
  * `migrate deploy` actually run everything newer — for real, backfills
  * included.
+ *
+ * Before baselining, we level the schema up to v1.4.4a with a one-off
+ * `db push` against the frozen v1.4.4a schema. A legacy instance may be
+ * running a version *below* v1.4.4a, so its DB can be a subset of v1.4.4a;
+ * marking the 23 v1.4.4a migrations "applied" on such a DB would otherwise
+ * be a lie (their changes aren't all there) and cause drift. The push only
+ * adds what's missing (their descriptions are still non-NULL — the
+ * NULL-clearing migration is post-v1.4.4a), and this whole branch is gated
+ * on `!migrationsTableExists()`, so it never runs against a DB already on
+ * the migrate-deploy system (where pushing back to v1.4.4a would drop every
+ * newer table/column). This used to live in entrypoint.sh but ran
+ * unconditionally there, wrongly converging already-migrated instances back
+ * down to v1.4.4a on every boot.
  */
 async function baselineIfNeeded(): Promise<void> {
   if (await migrationsTableExists()) {
@@ -102,7 +120,16 @@ async function baselineIfNeeded(): Promise<void> {
   }
 
   console.log(
-    '[sync-schema] Existing database with no migration history detected — baselining migrations confirmed already live as applied.',
+    '[sync-schema] Legacy db-push instance detected — leveling schema up to v1.4.4a before baselining.',
+  );
+  execFileSync(
+    'npx',
+    ['prisma', 'db', 'push', '--accept-data-loss', '--schema', V1_4_4A_SCHEMA_PATH],
+    { stdio: 'inherit', cwd: BACKEND_ROOT },
+  );
+
+  console.log(
+    '[sync-schema] Baselining migrations confirmed already live as applied.',
   );
 
   for (const migration of V1_4_4A_BASELINE_MIGRATIONS) {
