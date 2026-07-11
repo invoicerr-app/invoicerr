@@ -4,6 +4,23 @@ on:
   pull_request:
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Biome is the only linter/formatter (eslint+prettier removed). biome ci = check without writes.
+      - name: Lint backend (biome ci)
+        run: cd backend && npx --yes @biomejs/biome@2.5.2 ci .
+
+      - name: Lint frontend (biome ci)
+        run: cd frontend && npx --yes @biomejs/biome@2.5.2 ci .
+
   i18n-check:
     runs-on: ubuntu-latest
     steps:
