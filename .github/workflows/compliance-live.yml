@@ -53,6 +53,10 @@ jobs:
       SDI_CHANNEL:         'SDICoop'
 
       # --- Peppol ---
+      # peppol.sh path: ZERO secrets — the spec self-signs-up on the sandbox (Ethereal pattern).
+      # PEPPOL_AP_PROVIDER is a constant, not a secret. Proven live 2026-07-11.
+      PEPPOL_AP_PROVIDER:    'peppol-sh'
+      # Generic-AP path (peppol-live.spec.ts) still needs the secrets below; it self-skips without them.
       PEPPOL_PARTICIPANT_ID: ${{ secrets.PEPPOL_PARTICIPANT_ID }}
       PEPPOL_AP_URL:         ${{ secrets.PEPPOL_AP_URL }}
       PEPPOL_API_KEY:        ${{ secrets.PEPPOL_API_KEY }}

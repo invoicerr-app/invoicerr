@@ -23,7 +23,9 @@ Hard-success contract (enforced per-spec):
 | PDP AFNOR (FR) | `PDP_AFNOR_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp-afnor-live.spec.ts` | ✅ Transport proven (content TBD) |
 | Email SMTP | `EMAIL_LIVE=1` | _(none — Ethereal auto-creates account)_ | `email-live.spec.ts` | ✅ Proven live |
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdi-live.spec.ts` | 🔴 Deferred (AdE accreditation) |
-| Peppol | `PEPPOL_LIVE=1` | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | `peppol/peppol-live.spec.ts` | 🔴 Deferred (AP required) |
+| Peppol via peppol.sh | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — spec self-signs-up on the peppol.sh sandbox)_ | `peppol/peppol-sh-live.spec.ts` | ✅ Proven live (sandbox round-trip 2026-07-11) |
+| Peppol generic AP | `PEPPOL_LIVE=1` | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | `peppol/peppol-live.spec.ts` | 🔴 Deferred (connected AP required) |
+| Peppol via Storecove | _(mocked only)_ | `apProvider=storecove` config: `apiKey`, `legalEntityId` | `peppol/storecove-client.spec.ts` | 🔴 Deferred (30-day manual trial, no self-serve signup) |
 | National portals | `<PREFIX>_LIVE=1` (per portal) | `<PREFIX>_*` namespaced creds | `portal-live.spec.ts` | 🟡 Parametrized (per-portal namespaced creds) |
 | Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET` | `europe/choruspro-live.spec.ts` | 🔴 Deferred (PISTE account required) |
 | RFC 3161 TSA (-T signing) | `TSA_LIVE=1` | `TSA_URL` | `signing/tsa-live.spec.ts` | 🟡 Wired (run to prove FreeTSA) |
@@ -53,7 +55,13 @@ SDI_LIVE=1 SDI_ID_TRASMITTENTE=IT01234567890 SDI_CERTIFICATE=<base64-pfx> \
   SDI_CERT_PASSWORD=<pass> [SDI_CHANNEL=SDICoop] \
   npx jest sdi-live --no-coverage --runInBand
 
-# Peppol — requires a connected Access Point
+# Peppol via peppol.sh — ZERO SECRETS (self-signup, like Ethereal email)
+PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh \
+  npx jest peppol-sh-live --no-coverage --runInBand
+# Optional: reuse an existing sandbox account instead of self-signup
+#   PEPPOL_SH_API_KEY=ps_test_… PEPPOL_SH_COMPANY_ID=com_… [PEPPOL_RECEIVER_ID=<scheme:id>]
+
+# Peppol generic AP — requires a connected Access Point
 PEPPOL_LIVE=1 PEPPOL_PARTICIPANT_ID=0009:12345678900011 PEPPOL_AP_URL=https://ap.example.com \
   PEPPOL_API_KEY=<key> PEPPOL_RECEIVER_ID=0009:98765432100022 [PEPPOL_ENV=TEST] \
   npx jest peppol-live --no-coverage --runInBand
@@ -114,6 +122,7 @@ No `*_LIVE=1` flag is set in CI. All gated suites remain skipped.
   - `.env.pdp.local` — `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET`
   - `.env.sdi.local` — `SDI_ID_TRASMITTENTE`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD`
   - `.env.peppol.local` — `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID`
+    (generic AP only — the peppol.sh path needs no local secrets at all)
 - Load with: `set -a; . .env.<channel>.local; set +a`
 
 ---
@@ -270,13 +279,40 @@ ANAF_LIVE=1  ANAF_AUTH_TOKEN=<tok> ANAF_TAXPAYER_ID=<cui> \
 4. Inject the implementation into `SdiTransmissionProvider` constructor.
 5. Set `SDI_LIVE=1` + creds and run the live spec.
 
-## Peppol prerequisites (currently deferred)
+## Peppol — multi-provider Access Point support
 
-1. Connect to a Peppol Access Point provider (e.g. Basware, Pagero, Qvalia, or self-hosted oxalis-ng).
+One port (`PeppolApPort`), several adapters, chosen per company via the `apProvider` channel
+config field (`peppol/ap-adapters.ts`): `generic` (default, backward-compatible REST gateway),
+`peppol-sh`, `storecove`.
+
+### peppol.sh — ✅ PROVEN, zero secrets (the recommended sandbox path)
+
+The `peppol-sh-live.spec.ts` flow is fully self-bootstrapping (Ethereal pattern):
+
+1. `POST https://api.peppol.sh/v1/signup {email}` → instant `ps_test_` API key (no KYC, no card).
+2. `POST https://sandbox.peppol.sh/v1/companies` → sending company (`com_…`).
+   ⚠ Verified live: `ps_test_` keys are **rejected on api.peppol.sh** (403 `wrong_environment`) —
+   all authed sandbox calls go to `sandbox.peppol.sh`.
+3. `POST /v1/documents` (JSON document extracted from our builder-generated UBL) → `doc_…` id.
+4. `GET /v1/documents/{id}?company_id=com_…` (the query param is required — verified live) →
+   `queued → sending → delivered` (sandbox delivers by email; statuses are real).
+
+Run: `PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh npx jest peppol-sh-live --no-coverage --runInBand`
+Proven 2026-07-11: document `doc_2yb9TJka7US3hBwz4rnDW` → CLEARED in ~13 s.
+Production later: pass KYC → `ps_live_` key → `environment: PROD` (routes via their certified AP).
+
+### Generic AP gateway (deferred)
+
+1. Connect to a Peppol Access Point provider (e.g. Basware, Pagero, Qvalia, or self-hosted phase4/oxalis-ng).
 2. Obtain an AP certificate (C1/C2) registered with OpenPeppol or the national Peppol Authority.
-3. Implement `PeppolApPort` for the AP vendor's REST/SOAP gateway.
-4. The receiver (`PEPPOL_RECEIVER_ID`) must be registered in the SMP/SML.
-5. Set `PEPPOL_LIVE=1` + creds and run the live spec.
+3. The receiver (`PEPPOL_RECEIVER_ID`) must be registered in the SMP/SML.
+4. Set `PEPPOL_LIVE=1` + creds and run `peppol-live.spec.ts`.
+
+### Storecove (deferred)
+
+Adapter implemented against the public API reference (`POST /api/v2/document_submissions` with
+base64 raw UBL + `parseStrategy: 'ubl'`; evidence endpoint for status) — mocked tests only.
+Live proof needs a trial account (manual request, 30-day sandbox; no self-serve signup API).
 
 ---
 
@@ -316,7 +352,8 @@ Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch
 | `KSEF_AUTH_TOKEN`, `KSEF_NIP` | PL KSeF | KSeF app **ksef.mf.gov.pl** (test: ksef-test.mf.gov.pl) → log in (NIP + trusted profile/qualified sig) → *Tokens*. Prod also needs the MF prod public PEM keys. |
 | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` (+ `PDP_API_STYLE`, `PDP_SELLER_ROUTING`, `PDP_BUYER_ROUTING`) | FR PDP + AFNOR | PDP developer portal. Sandbox = **superpdp**. Real PDP list (annuaire): **impots.gouv.fr**. AFNOR uses the same creds + `PDP_API_STYLE=afnor`. |
 | `SDI_ID_TRASMITTENTE`, `SDI_CERTIFICATE` (b64 PFX), `SDI_CERT_PASSWORD`, `SDI_CHANNEL` | IT SdI | **Agenzia delle Entrate** intermediary accreditation (fatturapa.gov.it) + qualified PFX from an eIDAS TSP (Aruba, InfoCert, Namirial). |
-| `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | Peppol | A connected **Access Point** (Storecove, Ecosio, Pagero/Tickstar, Unimaze…) or self-hosted; membership via **OpenPeppol** (peppol.org). `PEPPOL_ENV` is a constant (`'TEST'`) in the workflow — not a secret. |
+| _(none)_ | Peppol via peppol.sh | Self-signup in the spec — no secret needed. `PEPPOL_AP_PROVIDER` is a constant (`'peppol-sh'`) in the workflow — not a secret. ✅ proven. |
+| `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | Peppol generic AP | A connected **Access Point** (Storecove, Ecosio, Pagero/Tickstar, Unimaze…) or self-hosted; membership via **OpenPeppol** (peppol.org). `PEPPOL_ENV` is a constant (`'TEST'`) in the workflow — not a secret. |
 | `<PREFIX>_CLIENT_ID`, `<PREFIX>_CLIENT_SECRET`, `<PREFIX>_API_KEY`, `<PREFIX>_AUTH_TOKEN`, `<PREFIX>_CERTIFICATE`, `<PREFIX>_CERT_PASSWORD`, `<PREFIX>_TAXPAYER_ID`, `<PREFIX>_BASE_URL`, `<PREFIX>_SELLER_VAT`, `<PREFIX>_BUYER_VAT`, `<PREFIX>_COUNTRY` (per portal) | National portals | Each authority's dev portal: AFIP (afip.gob.ar), SEFAZ (BR), SII (sii.cl), DIAN (dian.gov.co), **ZATCA Fatoora** (zatca.gov.sa), ANAF SPV (anaf.ro), **MyInvois** (myinvois.hasil.gov.my), India IRP (einvoice1.gst.gov.in)… `<PREFIX>_LIVE` and `<PREFIX>_ENVIRONMENT` are constants in the workflow YAML — **not secrets**. |
 | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` | FR Chorus Pro B2G | **PISTE developer portal** (piste.gouv.fr) — subscribe to "API Dépôt flux G2B", then create a Chorus Pro "compte technique" in the sandbox. |
 | `CREDENTIALS_ENCRYPTION_KEY` | (shared) | `openssl rand -hex 32` — same value used by the app's credential store. |

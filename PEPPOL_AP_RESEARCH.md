@@ -146,10 +146,18 @@ The "free unlimited self-hosted sandbox against test SML with free test cert" pa
 
 ### peppol.sh
 
+> **2026-07-11 UPDATE — API v2.0.0 verified live (adapter implemented + round-trip PROVEN).**
+> The endpoints below were superseded: send is `POST /v1/documents` (needs a `company_id` from
+> `POST /v1/companies`), status is `GET /v1/documents/:id?company_id=…` (query param required),
+> and `ps_test_` keys only work on `https://sandbox.peppol.sh` (403 `wrong_environment` on
+> api.peppol.sh). Statuses: `queued → sending → delivered | failed`. Raw UBL is NOT accepted on
+> send (JSON model only; UBL upload exists only on `POST /v1/validate`). See
+> `backend/src/compliance/providers/transmission/peppol/peppol-sh-client.ts` + LIVE_TESTING.md.
+
 - **Sandbox:** Free, unlimited test invoices. Every account starts in sandbox mode. No time limit, no credit card, no KYC required for sandbox.
 - **Sign-up:** `POST https://api.peppol.sh/v1/signup` → returns `ps_test_*` API key immediately. No UI.
-- **Send endpoint:** `POST /v1/invoices` (JSON invoice payload, handles UBL/CII generation + routing).
-- **Status endpoint:** `GET /v1/invoices/:id` (delivery status polling).
+- **Send endpoint:** ~~`POST /v1/invoices`~~ → `POST /v1/documents` (JSON document payload, handles UBL generation + routing).
+- **Status endpoint:** ~~`GET /v1/invoices/:id`~~ → `GET /v1/documents/:id?company_id=com_…`.
 - **Auth:** Bearer token (`Authorization: Bearer ps_test_xxx`).
 - **Production pricing:** €0.10/invoice, no monthly minimum, credits don't expire.
 - **Peppol network:** Routed via their certified AP on production; sandbox invoices delivered by email.
