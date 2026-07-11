@@ -128,7 +128,9 @@ export default function Settings() {
       icon: AlertTriangle,
     },
   ].filter(
-    (item) => !isMember || !["invitations", "members", "apiKeys", "webhooks", "danger"].includes(item.value),
+    (item) =>
+      !isMember ||
+      !["invitations", "members", "apiKeys", "webhooks", "danger", "channels", "signing"].includes(item.value),
   )
 
   const currentMenuItem = menuItems.find((item) => item.value === currentTab)

@@ -1338,7 +1338,8 @@
                 "updateSuccess": "Méthode de paiement mise à jour",
                 "updateError": "Échec de la mise à jour de la méthode de paiement",
                 "deleteSuccess": "Méthode de paiement supprimée",
-                "deleteError": "Échec de la suppression de la méthode de paiement"
+                "deleteError": "Échec de la suppression de la méthode de paiement",
+                "nameRequired": "Le nom est requis"
             },
             "form": {
                 "name": {
@@ -1357,8 +1358,21 @@
                         "check": "Chèque",
                         "cash": "Espèces",
                         "other": "Autre"
-                    }
+                    },
+                    "bank_transfer": "Virement bancaire",
+                    "paypal": "PayPal",
+                    "check": "Chèque",
+                    "cash": "Espèces",
+                    "other": "Autre"
                 }
+            },
+            "actions": {
+                "cancel": "Annuler",
+                "add": "Ajouter",
+                "save": "Enregistrer",
+                "edit": "Modifier",
+                "delete": "Supprimer",
+                "deleting": "Suppression..."
             }
         },
         "tooltips": {
@@ -1397,7 +1411,8 @@
             "webhooks": "Webhooks",
             "apiKeys": "Clés API",
             "channels": "Facturation électronique",
-            "signing": "Certificats de signature"
+            "signing": "Certificats de signature",
+            "members": "Membres"
         },
         "invitations": {
             "create": {
@@ -1406,7 +1421,8 @@
                 "expiresIn": "Expire dans (jours)",
                 "expiresPlaceholder": "Laisser vide pour pas d'expiration",
                 "button": "Générer le code",
-                "creating": "Génération..."
+                "creating": "Génération...",
+                "role": "Rôle"
             },
             "list": {
                 "title": "Vos codes d'invitation",
@@ -1418,7 +1434,8 @@
                 "usedBy": "Utilisé par",
                 "actions": "Actions",
                 "empty": "Vous n'avez pas encore créé de codes d'invitation",
-                "noExpiry": "Jamais"
+                "noExpiry": "Jamais",
+                "role": "Rôle"
             },
             "status": {
                 "active": "Actif",
@@ -1432,6 +1449,11 @@
                 "deleteError": "Échec de la suppression du code d'invitation",
                 "codeCopied": "Code copié dans le presse-papiers",
                 "fetchError": "Échec du chargement des codes d'invitation"
+            },
+            "roles": {
+                "owner": "Propriétaire",
+                "admin": "Administrateur",
+                "member": "Membre"
             }
         },
         "company": {
@@ -2009,12 +2031,14 @@
                 "description": "Générer une nouvelle clé API",
                 "name": "Nom",
                 "namePlaceholder": "ex. CLI sur mon ordinateur portable",
-                "button": "Créer une clé API"
+                "button": "Créer une clé API",
+                "scopes": "Scopes"
             },
             "card": {
                 "lastUsed": "Dernière utilisation : {{date}}",
                 "neverUsed": "Jamais utilisée",
-                "revoke": "Révoquer"
+                "revoke": "Révoquer",
+                "noScopes": "Aucun scope accordé"
             }
         },
         "audit": {
@@ -2073,6 +2097,23 @@
                 "title": "Téléverser un certificat de signature"
             },
             "uploadButton": "Téléverser un certificat"
+        },
+        "members": {
+            "title": "Membres de l'entreprise",
+            "description": "Gérez qui a accès à cette entreprise et son rôle",
+            "empty": "Aucun membre pour le moment",
+            "list": {
+                "name": "Nom",
+                "email": "E-mail",
+                "role": "Rôle",
+                "actions": "Actions"
+            },
+            "messages": {
+                "roleUpdateSuccess": "Rôle du membre mis à jour",
+                "roleUpdateError": "Échec de la mise à jour du rôle du membre",
+                "removeSuccess": "Membre retiré",
+                "removeError": "Échec du retrait du membre"
+            }
         }
     },
     "sidebar": {
@@ -2091,7 +2132,10 @@
             "expenses": "Dépenses"
         },
         "company": {
-            "plan": "Entreprise"
+            "plan": "Entreprise",
+            "switcherLabel": "Vos entreprises",
+            "createNew": "Créer une nouvelle entreprise",
+            "manage": "Gérer l'entreprise"
         },
         "menu": "Menu",
         "theme": {
