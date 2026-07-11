@@ -48,14 +48,28 @@ describe('Company Settings E2E', () => {
             cy.visit('/');
             cy.wait(5000);
 
-            // Check if onboarding dialog appeared; if not, company already exists
+            // Check if onboarding dialog appeared; if not, company already exists.
+            // Note: don't gate on offsetParent — DialogContent is `position: fixed`,
+            // which makes offsetParent null in every browser regardless of visibility.
+            // Radix unmounts the dialog from the DOM when closed, so presence alone
+            // is a reliable signal here (same check as scenarios/full-lifecycle.cy.ts).
             cy.document().then((doc) => {
                 const dialog = doc.querySelector('[data-cy="onboarding-dialog"]');
-                if (dialog && (dialog as HTMLElement).offsetParent !== null) {
+                if (dialog) {
                     cy.get('[data-cy="onboarding-company-name-input"]').clear().type('Acme Corp');
                     cy.selectCountry('onboarding-company-country-input', 'France');
+                    // France requires a LEGAL_ID (SIRET) identifier — the input appears
+                    // once the country is picked (compliance required-fields lookup) and
+                    // the dialog refuses to submit without it.
+                    cy.get('[data-cy="onboarding-legalid-input"]', { timeout: 10000 })
+                        .clear({ force: true })
+                        .type('73282932000074', { force: true });
                     cy.get('[data-cy="onboarding-submit-btn"]').click();
-                    cy.url({ timeout: 15000 }).should('not.include', '/auth');
+                    // Company creation switches to the new company and reloads the page —
+                    // wait for the dialog to be gone and the reloaded app to settle before
+                    // moving on, otherwise later steps race the reload.
+                    cy.get('[data-cy="onboarding-dialog"]', { timeout: 20000 }).should('not.exist');
+                    cy.wait(3000);
                 } else {
                     cy.log('Onboarding dialog not visible — company already exists');
                 }
@@ -69,15 +83,20 @@ describe('Company Settings E2E', () => {
                 if (!val) {
                     cy.get('[data-cy="company-name-input"]').clear().type('Acme Corp');
                     cy.selectCountry('company-country-input', 'France');
-                    cy.get('[data-cy="company-legalid-input"]').scrollIntoView().clear({ force: true }).type('73282932000074', { force: true });
+                    cy.get('[data-cy="company-legalid-input"]', { timeout: 10000 }).scrollIntoView().clear({ force: true }).type('73282932000074', { force: true });
                     cy.get('[data-cy="company-address-input"]').clear().type('123 Rue de Rivoli');
                     cy.get('[data-cy="company-city-input"]').clear().type('Paris');
                     cy.get('[data-cy="company-postalcode-input"]').clear().type('75001');
                     cy.get('[data-cy="company-submit-btn"]').click();
                     cy.wait(5000);
+                    // Re-fetch from the server rather than trusting the still-typed
+                    // local form state, so this assertion can't false-positive on a
+                    // submit that actually failed server-side.
+                    cy.visit('/settings/company');
+                    cy.wait(3000);
                 }
             });
-            cy.get('[data-cy="company-name-input"]').should('have.value', 'Acme Corp');
+            cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should('have.value', 'Acme Corp');
         });
     });
 

@@ -15,7 +15,10 @@ describe('Clients E2E', () => {
             cy.selectCountry('client-country-select', 'United States');
             cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type('US12345678901');
 
-            cy.get('[data-cy="client-currency-select"] button').click();
+            // The country-specific identifiers section (EIN, above) pushes this
+            // select further down the scrollable dialog — scroll it into view first
+            // or the opened options panel renders clipped by the dialog's overflow.
+            cy.get('[data-cy="client-currency-select"] button').scrollIntoView().click();
             cy.get('[data-cy="client-currency-select-options"]').should('be.visible');
             cy.get('[data-cy="client-currency-select"] input').type('Euro');
             cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();

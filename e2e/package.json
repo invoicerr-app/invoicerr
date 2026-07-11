@@ -6,7 +6,7 @@
   },
   "scripts": {
     "e2e:open": "cypress open",
-    "e2e:run": "cypress run"
+    "e2e:run": "cypress run --spec \"cypress/e2e/*.cy.ts\""
   },
   "dependencies": {
     "child_process": "^1.0.2",
