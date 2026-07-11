@@ -17,8 +17,11 @@
  *   The receiver's AP returns an MLR (BIS 36a v3) or Invoice Response (BIS 3 CIUS) as an
  *   async callback or polled status. We model the AP gateway's status poll for simplicity.
  *
- * LIVE PROOF: DEFERRED — requires a Peppol-connected Access Point (e.g. Basware, Pagero,
- * Qvalia, or a self-hosted oxalis-ng). All tests use a mocked PeppolApPort.
+ * LIVE PROOF: the PEPPOL channel is PROVEN via the peppol.sh adapter (see
+ * peppol-sh-client.ts / peppol-sh-live.spec.ts, real sandbox round-trip 2026-07-11).
+ * THIS generic gateway client remains live-deferred — it models the common REST
+ * denominator and needs a concrete connected AP (e.g. Basware, Pagero, Qvalia, or a
+ * self-hosted phase4/oxalis-ng). Vendor adapters live in ap-adapters.ts.
  *
  * Supported document types (primary markets FR/PL/IT per primary-markets memory):
  *   - urn:oasis:names:specification:ubl:schema:xsd:Invoice-2 (UBL Invoice BIS 3)

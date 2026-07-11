@@ -10,16 +10,23 @@ import type { SmpLookupPort } from './peppol/smp-client';
 import type { BuyerDirectoryPort } from './buyer-directory-port';
 
 /**
- * Peppol 4-corner transmission provider.
+ * Peppol 4-corner transmission provider — multi-vendor Access Point support.
  *
- * LIVE PROOF: DEFERRED — requires a Peppol-connected Access Point (production or
- * OpenPeppol AccAP test environment) with a valid AP certificate and network agreement.
- * All unit tests use a mocked PeppolApPort and SmpLookupPort.
+ * One port (PeppolApPort), several adapters, per-company choice: the `apProvider`
+ * config field selects the corner-2 vendor (see peppol/ap-adapters.ts):
+ *   - 'generic'   (default) — REST gateway model (accessPointUrl + apiKey); SMP pre-check here.
+ *   - 'peppol-sh' — hosted AP, free sandbox, zero-secret self-signup; vendor resolves routing.
+ *   - 'storecove' — hosted AP, raw-UBL submission; vendor resolves routing.
+ *
+ * LIVE PROOF: PROVEN via peppol.sh sandbox (2026-07-11) — real round-trip
+ * transmit → doc_… id → poll → CLEARED (peppol-sh-live.spec.ts, zero secrets:
+ * the spec self-signs-up). Generic gateway + Storecove remain live-deferred
+ * (need a connected AP / trial credentials). Invoice Response push is live-deferred.
  *
  * Transmission flow:
- *   1. SMP/SML lookup: DNS → SMP → receiver's AP endpoint URL (mocked in tests).
- *   2. AP HTTP send: POST document to configured AP gateway (wraps AS4/ebMS3).
- *   3. poll(): GET status from AP gateway → map delivery/MLR to lifecycle.
+ *   1. SMP/SML lookup (generic only): DNS → SMP → receiver's AP endpoint URL.
+ *   2. AP send via the resolved adapter (wraps AS4/ebMS3 at the vendor).
+ *   3. poll(): adapter status → map delivery/MLR to lifecycle.
  *
  * Ref format: "{companyId}|{messageId}"
  */
@@ -36,10 +43,24 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
         label: 'Environment',
         required: true,
         options: [
-          { label: 'Test (OpenPeppol AccAP)', value: 'TEST' },
+          { label: 'Test (sandbox)', value: 'TEST' },
           { label: 'Production', value: 'PROD' },
         ],
         default: 'TEST',
+      },
+      // Which Access-Point vendor fulfils the PeppolApPort (mirrors PDP's apiStyle switch).
+      // Absent/empty → 'generic' so pre-existing configs keep working unchanged.
+      {
+        type: 'select',
+        name: 'apProvider',
+        label: 'Access Point provider',
+        required: false,
+        options: [
+          { label: 'Generic AP gateway (REST)', value: 'generic' },
+          { label: 'peppol.sh (hosted, free sandbox)', value: 'peppol-sh' },
+          { label: 'Storecove (hosted)', value: 'storecove' },
+        ],
+        default: 'generic',
       },
       {
         type: 'text',
@@ -48,14 +69,30 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
         placeholder: '0009:12345678900011',
         required: true,
       },
+      // Required for 'generic'; optional base-URL override for hosted vendors.
       {
         type: 'text',
         name: 'accessPointUrl',
-        label: 'Access Point gateway URL',
+        label: 'Access Point gateway URL (generic; optional override for hosted)',
         placeholder: 'https://ap.example.com',
-        required: true,
+        required: false,
       },
       { type: 'text', name: 'apiKey', label: 'Access Point API key', required: true, secret: true },
+      // peppol.sh only: the com_… company id documents are sent through.
+      {
+        type: 'text',
+        name: 'apCompanyId',
+        label: 'peppol.sh company ID',
+        placeholder: 'com_…',
+        required: false,
+      },
+      // Storecove only: the LegalEntity id documents are sent on behalf of.
+      {
+        type: 'text',
+        name: 'legalEntityId',
+        label: 'Storecove legal entity ID',
+        required: false,
+      },
     ],
   };
 
@@ -86,16 +123,19 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
     }
 
     const { config } = resolvedConfig;
-    const senderParticipantId = config.participantId as string;
-    const accessPointUrl = config.accessPointUrl as string;
-    const apiKey = config.apiKey as string;
+    const senderParticipantId = (config.participantId as string) ?? '';
     const environment = ((config.environment as string) ?? 'TEST') as 'TEST' | 'PROD';
 
-    if (!senderParticipantId || !accessPointUrl || !apiKey) {
+    // Multi-vendor AP support: the per-company config selects the corner-2 adapter.
+    const { apProviderOf, apProviderHandlesRouting, missingPeppolConfig, resolvePeppolAdapter } =
+      await import('./peppol/ap-adapters.js');
+    const apProvider = apProviderOf(config);
+    const missing = missingPeppolConfig(config);
+    if (missing.length > 0) {
       return {
         channel: 'PEPPOL',
         status: 'SKIPPED',
-        notes: ['peppol: incomplete config (participantId, accessPointUrl, apiKey required)'],
+        notes: [`peppol: incomplete config for apProvider '${apProvider}' (${missing.join(', ')} required)`],
       };
     }
 
@@ -126,7 +166,9 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
       }
     }
 
-    if (!receiverPeppolId) {
+    // peppol.sh can route from the tax id embedded in the document; every other vendor
+    // needs an explicit receiver participant id.
+    if (!receiverPeppolId && apProvider !== 'peppol-sh') {
       return {
         channel: 'PEPPOL',
         status: 'SKIPPED',
@@ -154,41 +196,49 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
     }
 
     try {
-      const { PeppolApHttpClient, PEPPOL_BILLING_PROCESS_ID, PEPPOL_DOC_TYPES } = await import(
-        './peppol/peppol-client.js'
-      );
-      const { DnsSmpLookup } = await import('./peppol/smp-client.js');
-
-      // Parse receiver participant ID: icd:identifier
-      const [receiverIcd, receiverIdentifier] = receiverPeppolId.split(':');
-      if (!receiverIcd || !receiverIdentifier) {
-        return {
-          channel: 'PEPPOL',
-          status: 'SKIPPED',
-          notes: [`peppol: invalid receiverPeppolId format (expected icd:identifier): ${receiverPeppolId}`],
-        };
-      }
-
-      // SMP lookup to confirm the receiver is registered and find their AP endpoint
-      const smp = this.smpPort ?? new DnsSmpLookup();
+      const { PEPPOL_BILLING_PROCESS_ID, PEPPOL_DOC_TYPES } = await import('./peppol/peppol-client.js');
       const docTypeId = PEPPOL_DOC_TYPES.INVOICE_UBL;
 
-      log.info('transmission/peppol', `SMP lookup for receiver ${receiverPeppolId} (key ${key})`);
-      const smpResult = await smp.lookup(
-        { icd: receiverIcd, identifier: receiverIdentifier },
-        docTypeId,
-        environment,
-      );
+      // SMP/SML pre-check only for the generic gateway: hosted vendors (peppol.sh,
+      // Storecove) resolve the receiver themselves at corner 2.
+      if (!apProviderHandlesRouting(apProvider)) {
+        const { DnsSmpLookup } = await import('./peppol/smp-client.js');
 
-      if (!smpResult) {
-        return {
-          channel: 'PEPPOL',
-          status: 'SKIPPED',
-          notes: [`peppol: receiver ${receiverPeppolId} not found in SMP — not registered on Peppol`],
-        };
+        // Parse receiver participant ID: icd:identifier
+        const [receiverIcd, receiverIdentifier] = (receiverPeppolId ?? '').split(':');
+        if (!receiverIcd || !receiverIdentifier) {
+          return {
+            channel: 'PEPPOL',
+            status: 'SKIPPED',
+            notes: [`peppol: invalid receiverPeppolId format (expected icd:identifier): ${receiverPeppolId}`],
+          };
+        }
+
+        // SMP lookup to confirm the receiver is registered and find their AP endpoint
+        const smp = this.smpPort ?? new DnsSmpLookup();
+
+        log.info('transmission/peppol', `SMP lookup for receiver ${receiverPeppolId} (key ${key})`);
+        const smpResult = await smp.lookup(
+          { icd: receiverIcd, identifier: receiverIdentifier },
+          docTypeId,
+          environment,
+        );
+
+        if (!smpResult) {
+          return {
+            channel: 'PEPPOL',
+            status: 'SKIPPED',
+            notes: [`peppol: receiver ${receiverPeppolId} not found in SMP — not registered on Peppol`],
+          };
+        }
+
+        log.info('transmission/peppol', `SMP resolved → AP endpoint: ${smpResult.endpoint.url} (key ${key})`);
+      } else {
+        log.info(
+          'transmission/peppol',
+          `apProvider '${apProvider}' resolves the receiver itself — skipping local SMP pre-check (key ${key})`,
+        );
       }
-
-      log.info('transmission/peppol', `SMP resolved → AP endpoint: ${smpResult.endpoint.url} (key ${key})`);
 
       const documentBytes =
         typeof documentArtifact.bytes === 'string'
@@ -197,12 +247,12 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
             ? documentArtifact.bytes
             : Buffer.from(documentArtifact.bytes);
 
-      // Submit via AP gateway
-      const ap = this.apPort ?? new PeppolApHttpClient({ accessPointUrl, apiKey, environment });
-      log.info('transmission/peppol', `submitting to AP gateway ${accessPointUrl} (key ${key})`);
+      // Submit via the configured AP adapter (injected port wins — tests/live specs)
+      const ap = this.apPort ?? resolvePeppolAdapter(config);
+      log.info('transmission/peppol', `submitting via AP adapter '${apProvider}' (key ${key})`);
       const sendResult = await ap.send({
         senderParticipantId,
-        receiverParticipantId: receiverPeppolId,
+        receiverParticipantId: receiverPeppolId ?? '',
         documentTypeId: docTypeId,
         processId: PEPPOL_BILLING_PROCESS_ID,
         documentBytes,
@@ -259,17 +309,20 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
     }
 
     const { config } = resolved;
-    const senderParticipantId = config.participantId as string;
-    const accessPointUrl = config.accessPointUrl as string;
-    const apiKey = config.apiKey as string;
-    const environment = ((config.environment as string) ?? 'TEST') as 'TEST' | 'PROD';
+    const senderParticipantId = (config.participantId as string) ?? '';
 
-    if (!senderParticipantId || !accessPointUrl || !apiKey) {
+    const { apProviderOf, missingPeppolConfig, resolvePeppolAdapter } = await import(
+      './peppol/ap-adapters.js'
+    );
+    const missing = missingPeppolConfig(config);
+    if (missing.length > 0) {
       return {
         channel: 'PEPPOL',
         status: 'QUEUED',
         ref,
-        notes: ['peppol: incomplete config for sendStatus'],
+        notes: [
+          `peppol: incomplete config for sendStatus (apProvider '${apProviderOf(config)}': ${missing.join(', ')} required)`,
+        ],
       };
     }
 
@@ -296,8 +349,7 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
           : 'AP';
 
     try {
-      const { PeppolApHttpClient } = await import('./peppol/peppol-client.js');
-      const ap = this.apPort ?? new PeppolApHttpClient({ accessPointUrl, apiKey, environment });
+      const ap = this.apPort ?? resolvePeppolAdapter(config);
 
       log.info(
         'transmission/peppol',
@@ -344,12 +396,23 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
       }
 
       const { config } = resolved;
-      const accessPointUrl = config.accessPointUrl as string;
-      const apiKey = config.apiKey as string;
-      const environment = ((config.environment as string) ?? 'TEST') as 'TEST' | 'PROD';
 
-      const { PeppolApHttpClient } = await import('./peppol/peppol-client.js');
-      const ap = this.apPort ?? new PeppolApHttpClient({ accessPointUrl, apiKey, environment });
+      const { apProviderOf, missingPeppolConfig, resolvePeppolAdapter } = await import(
+        './peppol/ap-adapters.js'
+      );
+      const missing = missingPeppolConfig(config);
+      if (missing.length > 0) {
+        return {
+          channel: 'PEPPOL',
+          status: 'PENDING',
+          ref,
+          notes: [
+            `peppol: incomplete config for poll (apProvider '${apProviderOf(config)}': ${missing.join(', ')} required)`,
+          ],
+        };
+      }
+
+      const ap = this.apPort ?? resolvePeppolAdapter(config);
 
       const status = await ap.getStatus(messageId);
 
