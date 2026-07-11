@@ -13,8 +13,8 @@ interface SessionWithCompanies {
 // extra request needed.
 export function useCompanies() {
   const session = authClient.useSession()
-  // @ts-expect-error — additionalFields aren't reflected in the client's session type
-  const data = session.data as SessionWithCompanies | null | undefined
+  // additionalFields aren't reflected in the client's session type — widen through unknown.
+  const data = session.data as unknown as SessionWithCompanies | null | undefined
 
   return {
     companies: data?.companies ?? [],
