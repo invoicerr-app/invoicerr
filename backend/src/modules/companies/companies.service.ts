@@ -8,7 +8,7 @@ import prisma from '@/prisma/prisma.service';
 
 @Injectable()
 export class CompaniesService {
-  constructor(private readonly companyService: CompanyService) { }
+  constructor(private readonly companyService: CompanyService) {}
 
   async createCompany(userId: string, dto: EditCompanyDto) {
     return this.companyService.createCompany(userId, dto);

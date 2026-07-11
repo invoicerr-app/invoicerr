@@ -54,7 +54,11 @@ export class ClientsController {
   @ApiOperation({ summary: 'Update a client', description: 'Updates an existing client by ID.' })
   @ApiParam({ name: 'id', type: String, description: 'Client ID' })
   @ApiResponse({ status: 200, description: 'Client updated' })
-  async editClientsInfo(@ActiveCompany() companyId: string, @Param('id') id: string, @Body() body: EditClientsDto) {
+  async editClientsInfo(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Body() body: EditClientsDto,
+  ) {
     return this.clientsService.editClientsInfo(companyId, { ...body, id });
   }
 

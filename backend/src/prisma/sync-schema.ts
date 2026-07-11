@@ -122,15 +122,12 @@ async function baselineIfNeeded(): Promise<void> {
   console.log(
     '[sync-schema] Legacy db-push instance detected — leveling schema up to v1.4.4a before baselining.',
   );
-  execFileSync(
-    'npx',
-    ['prisma', 'db', 'push', '--accept-data-loss', '--schema', V1_4_4A_SCHEMA_PATH],
-    { stdio: 'inherit', cwd: BACKEND_ROOT },
-  );
+  execFileSync('npx', ['prisma', 'db', 'push', '--accept-data-loss', '--schema', V1_4_4A_SCHEMA_PATH], {
+    stdio: 'inherit',
+    cwd: BACKEND_ROOT,
+  });
 
-  console.log(
-    '[sync-schema] Baselining migrations confirmed already live as applied.',
-  );
+  console.log('[sync-schema] Baselining migrations confirmed already live as applied.');
 
   for (const migration of V1_4_4A_BASELINE_MIGRATIONS) {
     console.log(`[sync-schema] Resolving ${migration} as applied...`);

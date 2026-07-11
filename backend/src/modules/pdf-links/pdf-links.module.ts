@@ -5,9 +5,9 @@ import { PdfLinksService } from './pdf-links.service';
 import { QuotesModule } from '@/modules/quotes/quotes.module';
 
 @Module({
-    imports: [QuotesModule, InvoicesModule],
-    controllers: [PdfLinksController],
-    providers: [PdfLinksService],
-    exports: [PdfLinksService],
+  imports: [QuotesModule, InvoicesModule],
+  controllers: [PdfLinksController],
+  providers: [PdfLinksService],
+  exports: [PdfLinksService],
 })
-export class PdfLinksModule { }
+export class PdfLinksModule {}

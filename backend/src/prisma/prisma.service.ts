@@ -188,6 +188,7 @@ class PrismaServiceToken {
   constructor() {
     // Substitute the DI instance with the shared extended singleton so every
     // injection point gets the SAME client (numbering hooks + one pool).
+    // biome-ignore lint/correctness/noConstructorReturn: deliberate instance substitution — the token class must hand out the extended singleton
     return prisma as unknown as PrismaServiceToken;
   }
 }

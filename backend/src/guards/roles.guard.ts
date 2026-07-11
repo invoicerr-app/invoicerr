@@ -9,7 +9,7 @@ import { RequestWithUser } from '@/types/request';
 // so it can safely assume request.role is set whenever this guard runs.
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) { }
+  constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<CompanyRole[]>(ROLES_KEY, [

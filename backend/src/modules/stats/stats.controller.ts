@@ -46,7 +46,11 @@ export class StatsController {
     description: 'End year of the range. Defaults to the current year.',
   })
   @ApiResponse({ status: 200, description: 'Yearly stats retrieved' })
-  async getYearlyStats(@ActiveCompany() companyId: string, @Query('start') start?: string, @Query('end') end?: string) {
+  async getYearlyStats(
+    @ActiveCompany() companyId: string,
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
     const current = new Date().getFullYear();
     const s = start ? parseInt(start, 10) : current - 5;
     const e = end ? parseInt(end, 10) : current;
