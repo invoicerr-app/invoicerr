@@ -10,9 +10,9 @@ function escapeHtml(text: string): string {
 /**
  * Escapes free text then converts a small markdown-like subset to HTML:
  * **text** becomes bold, *text* becomes italic. Used for item descriptions
- * so users can emphasize text without allowing arbitrary HTML injection.
+ * and notes so users can emphasize text without allowing arbitrary HTML injection.
  */
-export function formatItemDescription(text?: string | null): string {
+export function formatRichText(text?: string | null): string {
   if (!text) return '';
 
   const escaped = escapeHtml(text);

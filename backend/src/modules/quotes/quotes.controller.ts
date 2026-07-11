@@ -5,6 +5,9 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res } from '@
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { Response } from 'express';
+import { ActiveCompany } from '@/decorators/active-company.decorator';
+import { CompanyRole } from '../../../prisma/generated/prisma/client';
+import { Roles } from '@/decorators/roles.decorator';
 
 @ApiTags('quotes')
 @Controller('quotes')
@@ -23,8 +26,8 @@ export class QuotesController {
     description: 'Page number (1-indexed) of the paginated quote list. Defaults to 1.',
   })
   @ApiResponse({ status: 200, description: 'Quotes retrieved' })
-  async getQuotes(@Query('page') page: string) {
-    return this.quotesService.getQuotes(page);
+  async getQuotes(@ActiveCompany() companyId: string, @Query('page') page: string) {
+    return this.quotesService.getQuotes(companyId, page);
   }
 
   @Get('search')
@@ -39,8 +42,8 @@ export class QuotesController {
     description: 'Free-text search term matched against client name and quote number.',
   })
   @ApiResponse({ status: 200, description: 'Search results retrieved' })
-  async searchClients(@Query('query') query: string) {
-    return await this.quotesService.searchQuotes(query);
+  async searchClients(@ActiveCompany() companyId: string, @Query('query') query: string) {
+    return await this.quotesService.searchQuotes(companyId, query);
   }
 
   @Get('table')
@@ -70,12 +73,13 @@ export class QuotesController {
   })
   @ApiResponse({ status: 200, description: 'Quotes retrieved' })
   async getQuotesTable(
+    @ActiveCompany() companyId: string,
     @Query('clientId') clientId?: string,
     @Query('year') year?: string,
     @Query('month') month?: string,
     @Query('sort') sort?: 'asc' | 'desc',
   ) {
-    return await this.quotesService.getQuotesTable({ clientId, year, month, sort });
+    return await this.quotesService.getQuotesTable(companyId, { clientId, year, month, sort });
   }
 
   @Get(':id/invoicing-status')
@@ -87,8 +91,8 @@ export class QuotesController {
   @ApiParam({ name: 'id', type: String, description: 'Quote ID' })
   @ApiResponse({ status: 200, description: 'Invoicing status retrieved' })
   @ApiResponse({ status: 404, description: 'Quote not found' })
-  async getQuoteInvoicingStatus(@Param('id') id: string) {
-    return this.invoicesService.getQuoteInvoicingStatus(id);
+  async getQuoteInvoicingStatus(@ActiveCompany() companyId: string, @Param('id') id: string) {
+    return this.invoicesService.getQuoteInvoicingStatus(companyId, id);
   }
 
   @Get(':id/pdf')
@@ -96,9 +100,9 @@ export class QuotesController {
   @ApiParam({ name: 'id', type: String, description: 'Quote ID' })
   @ApiResponse({ status: 200, description: 'PDF retrieved' })
   @ApiResponse({ status: 404, description: 'Quote not found' })
-  async getQuotePdf(@Param('id') id: string, @Res() res: Response) {
+  async getQuotePdf(@ActiveCompany() companyId: string, @Param('id') id: string, @Res() res: Response) {
     if (id === 'undefined') return res.status(400).send('Invalid quote ID');
-    const pdfBuffer = await this.quotesService.getQuotePdf(id);
+    const pdfBuffer = await this.quotesService.getQuotePdf(id, companyId);
     if (!pdfBuffer) {
       res.status(404).send('Quote not found or PDF generation failed');
       return;
@@ -117,23 +121,24 @@ export class QuotesController {
     description: 'Creates a new quote with items, client, and pricing information.',
   })
   @ApiResponse({ status: 201, description: 'Quote created' })
-  postQuotesInfo(@Body() body: CreateQuoteDto) {
-    return this.quotesService.createQuote(body);
+  postQuotesInfo(@ActiveCompany() companyId: string, @Body() body: CreateQuoteDto) {
+    return this.quotesService.createQuote(companyId, body);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a quote', description: 'Updates an existing quote by ID.' })
   @ApiParam({ name: 'id', type: String, description: 'Quote ID' })
   @ApiResponse({ status: 200, description: 'Quote updated' })
-  editQuotesInfo(@Param('id') id: string, @Body() body: EditQuotesDto) {
-    return this.quotesService.editQuote({ ...body, id });
+  editQuotesInfo(@ActiveCompany() companyId: string, @Param('id') id: string, @Body() body: EditQuotesDto) {
+    return this.quotesService.editQuote(companyId, { ...body, id });
   }
 
   @Delete(':id')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @ApiOperation({ summary: 'Delete a quote', description: 'Permanently removes a quote by ID.' })
   @ApiParam({ name: 'id', type: String, description: 'Quote ID' })
   @ApiResponse({ status: 200, description: 'Quote deleted' })
-  deleteQuote(@Param('id') id: string) {
-    return this.quotesService.deleteQuote(id);
+  deleteQuote(@ActiveCompany() companyId: string, @Param('id') id: string) {
+    return this.quotesService.deleteQuote(companyId, id);
   }
 }

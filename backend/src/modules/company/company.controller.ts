@@ -1,6 +1,9 @@
+import { ActiveCompany } from '@/decorators/active-company.decorator';
+import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { CompanyService } from '@/modules/company/company.service';
 import { EditCompanyDto, PDFConfigDto } from '@/modules/company/dto/company.dto';
 import { Body, Controller, Get, Post, Put } from '@nestjs/common';
+import { Roles } from '@/decorators/roles.decorator';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('company')
@@ -14,20 +17,21 @@ export class CompanyController {
     description: 'Returns the company name, address, contact details, and numbering configuration.',
   })
   @ApiResponse({ status: 200, description: 'Company info retrieved' })
-  async getCompanyInfo() {
-    const data = await this.companyService.getCompanyInfo();
+  async getCompanyInfo(@ActiveCompany() companyId: string) {
+    const data = await this.companyService.getCompanyInfo(companyId);
     return data || {};
   }
 
   @Post('info')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @ApiOperation({
-    summary: 'Create or update company info',
+    summary: 'Update company info',
     description:
       'Saves the company profile including name, address, contact details, currency, numbering formats, and PDF config.',
   })
   @ApiResponse({ status: 201, description: 'Company info saved' })
-  async postCompanyInfo(@Body() body: EditCompanyDto) {
-    const data = await this.companyService.editCompanyInfo(body);
+  async postCompanyInfo(@ActiveCompany() companyId: string, @Body() body: EditCompanyDto) {
+    const data = await this.companyService.editCompanyInfo(companyId, body);
     return data || {};
   }
 
@@ -37,19 +41,20 @@ export class CompanyController {
     description: 'Returns the PDF styling config: fonts, colors, padding, logo, and label translations.',
   })
   @ApiResponse({ status: 200, description: 'PDF template config retrieved' })
-  async getPDFTemplateConfig() {
-    const data = await this.companyService.getPDFTemplateConfig();
+  async getPDFTemplateConfig(@ActiveCompany() companyId: string) {
+    const data = await this.companyService.getPDFTemplateConfig(companyId);
     return data || {};
   }
 
   @Post('pdf-template')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @ApiOperation({
     summary: 'Update PDF template configuration',
     description: 'Updates the PDF styling config: fonts, colors, padding, logo, and label translations.',
   })
   @ApiResponse({ status: 201, description: 'PDF template config saved' })
-  async postPDFTemplateConfig(@Body() body: PDFConfigDto) {
-    const data = await this.companyService.editPDFTemplateConfig(body);
+  async postPDFTemplateConfig(@ActiveCompany() companyId: string, @Body() body: PDFConfigDto) {
+    const data = await this.companyService.editPDFTemplateConfig(companyId, body);
     return data || {};
   }
 
@@ -60,12 +65,13 @@ export class CompanyController {
       'Returns all customizable email templates used for sending documents (invoices, quotes, receipts).',
   })
   @ApiResponse({ status: 200, description: 'Email templates retrieved' })
-  async getEmailTemplates() {
-    const data = await this.companyService.getEmailTemplates();
+  async getEmailTemplates(@ActiveCompany() companyId: string) {
+    const data = await this.companyService.getEmailTemplates(companyId);
     return data || {};
   }
 
   @Put('email-templates')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @ApiOperation({
     summary: 'Update an email template',
     description: 'Updates the subject and body of a specific email template identified by its database ID.',
@@ -82,8 +88,11 @@ export class CompanyController {
     },
   })
   @ApiResponse({ status: 200, description: 'Email template updated' })
-  async updateEmailTemplate(@Body() body: { dbId: string; subject: string; body: string }) {
-    const data = await this.companyService.updateEmailTemplate(body.dbId, body.subject, body.body);
+  async updateEmailTemplate(
+    @ActiveCompany() companyId: string,
+    @Body() body: { dbId: string; subject: string; body: string },
+  ) {
+    const data = await this.companyService.updateEmailTemplate(companyId, body.dbId, body.subject, body.body);
     return data || {};
   }
 }

@@ -13,6 +13,7 @@ import { useGet, useGetRaw } from "@/hooks/use-fetch"
 import { Button } from "@/components/ui/button"
 import { Code, Download, FileText } from "lucide-react"
 import type { Invoice } from "@/types"
+import { slugifyFilename } from "@/lib/utils"
 import { useTranslation } from "react-i18next"
 
 type InvoicePdfModalProps = {
@@ -60,7 +61,8 @@ export function InvoicePdfModal({ invoice, onOpenChange }: InvoicePdfModalProps)
           const url = URL.createObjectURL(blob)
           const link = document.createElement("a")
           link.href = url
-          link.download = `invoice-${invoice.number}-${downloadTrigger.format}.${downloadTrigger.file_format}`
+          const baseName = (invoice.title && slugifyFilename(invoice.title)) || `invoice-${invoice.number}`
+          link.download = `${baseName}-${downloadTrigger.format}.${downloadTrigger.file_format}`
           document.body.appendChild(link)
           link.click()
           document.body.removeChild(link)

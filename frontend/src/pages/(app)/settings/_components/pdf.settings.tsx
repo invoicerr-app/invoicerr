@@ -172,7 +172,7 @@ const defaultQuoteTemplate = `
     <meta charset="utf-8">
     <title>Quote {{number}}</title>
     <style>
-        body { font-family: {{fontFamily}}, sans-serif; margin: {{padding}}px; color: #333; }
+        body { font-family: {{fontFamily}}, sans-serif; margin: {{padding}}px; color: #333; font-size: 13px; }
         .header { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; row-gap: 10px; margin-bottom: 30px; }
                 .quote-info { text-align: right; }
         .header p { margin: 0; line-height: 1.4; }
@@ -406,7 +406,7 @@ const defaultPaymentTemplate = `
 </body>
 </html>
 `
-interface TemplateSettings {
+export interface TemplateSettings {
   templateType: "invoice" | "quote" | "payment"
   fontFamily: string
   primaryColor: string

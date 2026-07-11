@@ -1,12 +1,14 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CopyIcon, PlusIcon, RefreshCwIcon, TrashIcon } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { authenticatedFetch, useGet, usePost } from "@/hooks/use-fetch"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import type { CompanyRole } from "@/types"
 import { toast } from "sonner"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -14,6 +16,7 @@ import { useTranslation } from "react-i18next"
 type InvitationCode = {
   id: string
   code: string
+  role: CompanyRole
   createdAt: string
   expiresAt: string | null
   usedAt: string | null
@@ -28,12 +31,13 @@ type InvitationCode = {
 export default function InvitationsSettings() {
   const { t } = useTranslation()
   const [expiresInDays, setExpiresInDays] = useState<number | "">("")
+  const [role, setRole] = useState<CompanyRole>("MEMBER")
 
   const { data: invitations, loading, mutate } = useGet<InvitationCode[]>("/api/invitations")
   const { trigger: createInvitationApi, loading: creating } = usePost<InvitationCode>("/api/invitations")
 
   const createInvitation = async () => {
-    const result = await createInvitationApi({ expiresInDays: expiresInDays || undefined })
+    const result = await createInvitationApi({ expiresInDays: expiresInDays || undefined, role })
     if (result) {
       toast.success(t("settings.invitations.messages.createSuccess"))
       setExpiresInDays("")
@@ -108,6 +112,19 @@ export default function InvitationsSettings() {
                 onChange={(e) => setExpiresInDays(e.target.value ? parseInt(e.target.value) : "")}
               />
             </div>
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="role">{t("settings.invitations.create.role")}</Label>
+              <Select value={role} onValueChange={(value) => setRole(value as CompanyRole)}>
+                <SelectTrigger id="role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="MEMBER">{t("settings.invitations.roles.member")}</SelectItem>
+                  <SelectItem value="ADMIN">{t("settings.invitations.roles.admin")}</SelectItem>
+                  <SelectItem value="OWNER">{t("settings.invitations.roles.owner")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button onClick={createInvitation} disabled={creating}>
               <PlusIcon className="h-4 w-4 mr-2" />
               {creating ? t("settings.invitations.create.creating") : t("settings.invitations.create.button")}
@@ -140,6 +157,7 @@ export default function InvitationsSettings() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("settings.invitations.list.code")}</TableHead>
+                  <TableHead>{t("settings.invitations.list.role")}</TableHead>
                   <TableHead>{t("settings.invitations.list.status")}</TableHead>
                   <TableHead>{t("settings.invitations.list.createdAt")}</TableHead>
                   <TableHead>{t("settings.invitations.list.expiresAt")}</TableHead>
@@ -164,6 +182,9 @@ export default function InvitationsSettings() {
                             <CopyIcon className="h-3 w-3" />
                           </Button>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{invitation.role}</Badge>
                       </TableCell>
                       <TableCell>
                         <Badge variant={status.variant}>{status.label}</Badge>

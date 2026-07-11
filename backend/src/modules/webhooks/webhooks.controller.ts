@@ -17,8 +17,10 @@ import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/s
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
 import { WebhooksService } from './webhooks.service';
 import { AuthGuard } from '@/guards/auth.guard';
-import { WebhookEvent, WebhookType } from '../../../prisma/generated/prisma/client';
+import { WebhookEvent, WebhookType, CompanyRole } from '../../../prisma/generated/prisma/client';
 import { WebhookDispatcherService } from './webhook-dispatcher.service';
+import { ActiveCompany } from '@/decorators/active-company.decorator';
+import { Roles } from '@/decorators/roles.decorator';
 
 @ApiTags('webhooks')
 @Controller('webhooks')
@@ -53,8 +55,8 @@ export class WebhooksController {
   @ApiParam({ name: 'id', type: String, description: 'Webhook ID' })
   @ApiResponse({ status: 200, description: 'Webhook retrieved' })
   @ApiResponse({ status: 404, description: 'Webhook not found' })
-  async findOne(@Param('id') id: string) {
-    return this.webhooksService.findOne(id);
+  async findOne(@ActiveCompany() companyId: string, @Param('id') id: string) {
+    return this.webhooksService.findOne(companyId, id);
   }
 
   @Post(':uuid')
@@ -100,12 +102,13 @@ export class WebhooksController {
     description: 'Returns all webhook configurations for the current company (secrets are excluded).',
   })
   @ApiResponse({ status: 200, description: 'Webhooks retrieved' })
-  async list() {
-    return this.webhooksService.list();
+  async list(@ActiveCompany() companyId: string) {
+    return this.webhooksService.list(companyId);
   }
 
   @Post()
   @UseGuards(AuthGuard)
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @ApiOperation({
     summary: 'Create a webhook',
     description: 'Creates a new webhook configuration. The secret is returned only in this response.',
@@ -127,8 +130,8 @@ export class WebhooksController {
     },
   })
   @ApiResponse({ status: 201, description: 'Webhook created' })
-  async create(@Body() body: any) {
-    const { webhook, company } = await this.webhooksService.create(body);
+  async create(@ActiveCompany() companyId: string, @Body() body: any) {
+    const { webhook, company } = await this.webhooksService.create(companyId, body);
 
     try {
       await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_CREATED, { webhook, company });
@@ -142,6 +145,7 @@ export class WebhooksController {
 
   @Patch(':id')
   @UseGuards(AuthGuard)
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @ApiOperation({
     summary: 'Update a webhook',
     description: 'Updates the URL, type, events, or secret of an existing webhook configuration.',
@@ -160,8 +164,8 @@ export class WebhooksController {
   })
   @ApiResponse({ status: 200, description: 'Webhook updated' })
   @ApiResponse({ status: 404, description: 'Webhook not found' })
-  async update(@Param('id') id: string, @Body() body: any) {
-    const { webhook, company } = await this.webhooksService.update(id, body);
+  async update(@ActiveCompany() companyId: string, @Param('id') id: string, @Body() body: any) {
+    const { webhook, company } = await this.webhooksService.update(companyId, id, body);
 
     try {
       await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_UPDATED, { webhook, company });
@@ -174,12 +178,13 @@ export class WebhooksController {
 
   @Delete(':id')
   @UseGuards(AuthGuard)
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @ApiOperation({ summary: 'Delete a webhook', description: 'Permanently removes a webhook configuration.' })
   @ApiParam({ name: 'id', type: String, description: 'Webhook ID' })
   @ApiResponse({ status: 200, description: 'Webhook deleted' })
   @ApiResponse({ status: 404, description: 'Webhook not found' })
-  async remove(@Param('id') id: string) {
-    const { webhook, company } = await this.webhooksService.remove(id);
+  async remove(@ActiveCompany() companyId: string, @Param('id') id: string) {
+    const { webhook, company } = await this.webhooksService.remove(companyId, id);
 
     try {
       await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_DELETED, { webhook, company });

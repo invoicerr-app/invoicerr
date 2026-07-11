@@ -8,5 +8,6 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
   imports: [WebhooksModule],
   controllers: [CompanyController],
   providers: [CompanyService, JwtService],
+  exports: [CompanyService],
 })
 export class CompanyModule {}

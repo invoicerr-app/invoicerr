@@ -147,7 +147,7 @@ describe('PrintTransmissionProvider — real PDF + QR', () => {
 // ---------------------------------------------------------------------------
 describe('PacTransmissionProvider — scaffold', () => {
   it('returns SKIPPED when no resolved config', async () => {
-    const { PacTransmissionProvider } = await import('./providers');
+    const { PacTransmissionProvider } = await import('./providers.js');
     const log = new RecordingComplianceLogger();
     const p = new PacTransmissionProvider();
     const r = await p.transmit([], {} as never, {} as never, 'k', log, undefined);
@@ -156,7 +156,7 @@ describe('PacTransmissionProvider — scaffold', () => {
   });
 
   it('returns SKIPPED when CFDI artifact is missing', async () => {
-    const { PacTransmissionProvider } = await import('./providers');
+    const { PacTransmissionProvider } = await import('./providers.js');
     const log = new RecordingComplianceLogger();
     const p = new PacTransmissionProvider();
     const r = await p.transmit([], { supplierCompanyId: 'c1' } as never, {} as never, 'k', log, {
@@ -171,7 +171,7 @@ describe('PacTransmissionProvider — scaffold', () => {
   });
 
   it('calls PAC timbrar and returns CLEARED with UUID when port is injected', async () => {
-    const { PacTransmissionProvider } = await import('./providers');
+    const { PacTransmissionProvider } = await import('./providers.js');
     const log = new RecordingComplianceLogger();
     const mockPort = {
       timbrar: jest.fn().mockResolvedValue({
@@ -208,7 +208,7 @@ describe('PacTransmissionProvider — scaffold', () => {
 // ---------------------------------------------------------------------------
 describe('OseTransmissionProvider — scaffold', () => {
   it('returns SKIPPED when no resolved config', async () => {
-    const { OseTransmissionProvider } = await import('./providers');
+    const { OseTransmissionProvider } = await import('./providers.js');
     const log = new RecordingComplianceLogger();
     const p = new OseTransmissionProvider();
     const r = await p.transmit([], {} as never, {} as never, 'k', log, undefined);
@@ -217,7 +217,7 @@ describe('OseTransmissionProvider — scaffold', () => {
   });
 
   it('returns SKIPPED when PE_UBL artifact is missing', async () => {
-    const { OseTransmissionProvider } = await import('./providers');
+    const { OseTransmissionProvider } = await import('./providers.js');
     const log = new RecordingComplianceLogger();
     const p = new OseTransmissionProvider();
     const r = await p.transmit([], { supplierCompanyId: 'c1' } as never, {} as never, 'k', log, {
@@ -232,7 +232,7 @@ describe('OseTransmissionProvider — scaffold', () => {
   });
 
   it('calls OSE enviarComprobante and returns CLEARED when CDR is immediate', async () => {
-    const { OseTransmissionProvider } = await import('./providers');
+    const { OseTransmissionProvider } = await import('./providers.js');
     const log = new RecordingComplianceLogger();
     const mockPort = {
       enviarComprobante: jest.fn().mockResolvedValue({
@@ -262,7 +262,7 @@ describe('OseTransmissionProvider — scaffold', () => {
   });
 
   it('returns PENDING with ticket when OSE is async', async () => {
-    const { OseTransmissionProvider } = await import('./providers');
+    const { OseTransmissionProvider } = await import('./providers.js');
     const log = new RecordingComplianceLogger();
     const mockPort = {
       enviarComprobante: jest.fn().mockResolvedValue({

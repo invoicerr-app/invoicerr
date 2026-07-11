@@ -28,6 +28,7 @@ FROM ghcr.io/invoicerr-app/server-image:latest
 
 ENV PLUGIN_DIR=/usr/share/nginx/plugins
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV NODE_ENV=production
 
 COPY --from=frontend-builder /app/dist /usr/share/nginx/html
 

@@ -1,6 +1,7 @@
 import { Controller, Get, Query, BadRequestException } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { StatsService } from './stats.service';
+import { ActiveCompany } from '@/decorators/active-company.decorator';
 
 @ApiTags('stats')
 @Controller('stats')
@@ -19,12 +20,12 @@ export class StatsController {
     description: 'Year to get monthly stats for. Defaults to the current year.',
   })
   @ApiResponse({ status: 200, description: 'Monthly stats retrieved' })
-  async getMonthlyStats(@Query('year') year?: string) {
+  async getMonthlyStats(@ActiveCompany() companyId: string, @Query('year') year?: string) {
     const y = year ? parseInt(year, 10) : new Date().getFullYear();
     if (isNaN(y)) {
       throw new BadRequestException('Invalid year');
     }
-    return this.statsService.getMonthlyStats(y);
+    return this.statsService.getMonthlyStats(companyId, y);
   }
 
   @Get('yearly')
@@ -45,13 +46,13 @@ export class StatsController {
     description: 'End year of the range. Defaults to the current year.',
   })
   @ApiResponse({ status: 200, description: 'Yearly stats retrieved' })
-  async getYearlyStats(@Query('start') start?: string, @Query('end') end?: string) {
+  async getYearlyStats(@ActiveCompany() companyId: string, @Query('start') start?: string, @Query('end') end?: string) {
     const current = new Date().getFullYear();
     const s = start ? parseInt(start, 10) : current - 5;
     const e = end ? parseInt(end, 10) : current;
     if (isNaN(s) || isNaN(e) || s > e) {
       throw new BadRequestException('Invalid year range');
     }
-    return this.statsService.getYearlyStats(s, e);
+    return this.statsService.getYearlyStats(companyId, s, e);
   }
 }

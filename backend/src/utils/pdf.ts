@@ -2,6 +2,67 @@ import 'dotenv/config';
 
 import * as puppeteer from 'puppeteer';
 
+import { BadRequestException } from '@nestjs/common';
+import { PrismaClient } from '../../prisma/generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+
+type PatternType = 'payment' | 'invoice' | 'quote';
+
+export async function formatPattern(
+  type: PatternType,
+  number: number,
+  date: Date = new Date(),
+  companyId: string,
+): Promise<string> {
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+  const prisma = new PrismaClient({ adapter });
+  const company = await prisma.company.findUnique({ where: { id: companyId } });
+  if (!company) {
+    throw new BadRequestException('No company found. Please create a company first.');
+  }
+  prisma.$disconnect();
+  let pattern = '';
+  let startingNumber = 1;
+  switch (type) {
+    case 'payment':
+      pattern = company.paymentNumberFormat;
+      startingNumber = company.paymentStartingNumber;
+      break;
+    case 'invoice':
+      pattern = company.invoiceNumberFormat;
+      startingNumber = company.invoiceStartingNumber;
+      break;
+    case 'quote':
+      pattern = company.quoteNumberFormat;
+      startingNumber = company.quoteStartingNumber;
+      break;
+  }
+  return pattern.replace(/\{(\w+)(?::(\d+))?\}/g, (_, key, padding) => {
+    let value: number | string;
+
+    switch (key) {
+      case 'year':
+        value = date.getFullYear();
+        break;
+      case 'month':
+        value = date.getMonth() + 1;
+        break;
+      case 'day':
+        value = date.getDate();
+        break;
+      case 'number':
+        value = number + startingNumber - 1; // Use the starting number from the company
+        break;
+      default:
+        return key;
+    }
+
+    const padLength = padding !== undefined ? parseInt(padding, 10) : key === 'number' ? 4 : 0;
+
+    return value.toString().padStart(padLength, '0');
+  });
+}
+
 export function getInvertColor(hex: string): string {
   let cleanHex = hex.replace(/^#/, '');
   if (cleanHex.length === 3) {
@@ -20,7 +81,7 @@ export function getInvertColor(hex: string): string {
   return luminance > 186 ? '#000000' : '#ffffff';
 }
 
-export const getPDF = async (html: string) => {
+export const getPDF = async (html: string, marginPx = 0) => {
   let browser: puppeteer.Browser;
   if (!process.env.PUPPETEER_EXECUTABLE_PATH) {
     browser = await puppeteer.launch({
@@ -37,7 +98,16 @@ export const getPDF = async (html: string) => {
   const page = await browser.newPage();
   await page.setContent(html, { waitUntil: 'load' });
 
-  const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+  // Page margins must come from Puppeteer's own option, not CSS body margin:
+  // a CSS margin only applies once at the start/end of the document flow, so
+  // it's missing at the top of every page after the first when content spans
+  // multiple pages.
+  const margin = `${marginPx}px`;
+  const pdfBuffer = await page.pdf({
+    format: 'A4',
+    printBackground: true,
+    margin: { top: margin, right: margin, bottom: margin, left: margin },
+  });
 
   await browser.close();
 

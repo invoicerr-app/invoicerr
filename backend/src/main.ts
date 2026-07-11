@@ -1,5 +1,5 @@
 import * as bodyParser from 'body-parser';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -7,8 +7,18 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
+import { syncDatabaseSchema } from './prisma/sync-schema';
 
 async function bootstrap() {
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      await syncDatabaseSchema();
+    } catch (err) {
+      console.error('[bootstrap] database sync failed, aborting startup:', err);
+      process.exit(1);
+    }
+  }
+
   const app = await NestFactory.create(AppModule, { bodyParser: false });
   app.enableCors({
     credentials: true,
@@ -35,7 +45,18 @@ async function bootstrap() {
     next();
   });
 
-  const { version } = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf-8'));
+  // Resolve relative to this file, not cwd: entrypoint.sh `cd`s into
+  // backend/src before starting node, but package.json only ever lives at
+  // the backend root. With tsc output at dist/src/, __dirname can be
+  // either src/ (ts-node) or dist/src/ (compiled), so try both depths.
+  const { version } = JSON.parse(
+    readFileSync(
+      [join(__dirname, '..', '..', 'package.json'), join(__dirname, '..', 'package.json')]
+        .find(existsSync)!
+        .replace(/\\/g, '/'),
+      'utf-8',
+    ),
+  );
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Invoicerr API')

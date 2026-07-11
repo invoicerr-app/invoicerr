@@ -1479,7 +1479,7 @@ describe('National Format — structural validation', () => {
       );
       const certDer = Buffer.from(forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes(), 'binary');
 
-      const { XadesSigningProvider } = await import('../signing/providers');
+      const { XadesSigningProvider } = await import('../signing/providers.js');
       const { setNodeDependencies } = await import('xadesjs');
       const { Application: XmldsigApp } = await import('xmldsigjs');
       const { DOMParser: Dom, XMLSerializer: Ser } = await import('@xmldom/xmldom');
@@ -1504,7 +1504,7 @@ describe('National Format — structural validation', () => {
         bytes: xmlBytes,
       };
 
-      const { RecordingComplianceLogger } = await import('../../execution/logger');
+      const { RecordingComplianceLogger } = await import('../../execution/logger.js');
       const log = new RecordingComplianceLogger();
       const signed = await provider.sign(artifact, 'es-cert', log);
 

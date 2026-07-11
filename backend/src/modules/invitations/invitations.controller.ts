@@ -1,6 +1,9 @@
 import { Controller, Get, Post, Delete, Body, Param, Query, BadRequestException } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { InvitationsService } from './invitations.service';
+import { ActiveCompany } from '@/decorators/active-company.decorator';
+import { CompanyRole } from '../../../prisma/generated/prisma/client';
+import { Roles } from '@/decorators/roles.decorator';
 import { User } from '@/decorators/user.decorator';
 import { CurrentUser } from '@/types/user';
 import { Public } from '@thallesp/nestjs-better-auth';
@@ -60,30 +63,43 @@ export class InvitationsController {
   }
 
   @Post()
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @ApiOperation({
     summary: 'Create an invitation',
-    description: 'Generates a new invitation link/code for inviting a user to the company.',
+    description:
+      'Generates a new invitation link/code for inviting a user to the active company with a given role.',
   })
   @ApiResponse({ status: 201, description: 'Invitation created' })
-  async createInvitation(@User() user: CurrentUser, @Body() body: { expiresInDays?: number }) {
-    return this.invitationsService.createInvitation(user.id, body.expiresInDays);
+  async createInvitation(
+    @User() user: CurrentUser,
+    @ActiveCompany() companyId: string,
+    @Body() body: { expiresInDays?: number; role?: CompanyRole },
+  ) {
+    return this.invitationsService.createInvitation(
+      user.id,
+      companyId,
+      body.role || CompanyRole.MEMBER,
+      body.expiresInDays,
+    );
   }
 
   @Get()
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @ApiOperation({
     summary: 'List invitations',
-    description: 'Returns all pending invitations created by the current user.',
+    description: 'Returns all pending invitations for the active company.',
   })
   @ApiResponse({ status: 200, description: 'Invitations retrieved' })
-  async listInvitations(@User() user: CurrentUser) {
-    return this.invitationsService.listInvitations(user.id);
+  async listInvitations(@ActiveCompany() companyId: string) {
+    return this.invitationsService.listInvitations(companyId);
   }
 
   @Delete(':id')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @ApiOperation({ summary: 'Delete an invitation', description: 'Revokes a pending invitation by its ID.' })
   @ApiParam({ name: 'id', type: String, description: 'Invitation ID' })
   @ApiResponse({ status: 200, description: 'Invitation deleted' })
-  async deleteInvitation(@Param('id') id: string, @User() user: CurrentUser) {
-    return this.invitationsService.deleteInvitation(id, user.id);
+  async deleteInvitation(@Param('id') id: string, @ActiveCompany() companyId: string) {
+    return this.invitationsService.deleteInvitation(id, companyId);
   }
 }

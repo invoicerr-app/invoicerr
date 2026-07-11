@@ -1,5 +1,5 @@
 import { Article, ItemType } from '../../../prisma/generated/prisma/client';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
@@ -24,63 +24,58 @@ export interface EditArticleDto {
 
 @Injectable()
 export class ArticlesService {
-  async create(dto: CreateArticleDto): Promise<Article> {
-    const company = await prisma.company.findFirst();
+  private async getCompanyCurrency(companyId: string): Promise<string> {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { currency: true },
+    });
     if (!company) {
-      logger.error('No company found. Please create a company first.', { category: 'article' });
-      throw new BadRequestException('No company found. Please create a company first.');
+      logger.error('Company not found', { category: 'article', details: { companyId } });
+      throw new NotFoundException('Company not found');
     }
+    return company.currency;
+  }
 
+  async create(companyId: string, dto: CreateArticleDto): Promise<Article> {
+    const currency = await this.getCompanyCurrency(companyId);
     const article = await prisma.article.create({
       data: {
-        companyId: company.id,
+        companyId,
         name: dto.name,
         description: dto.description ?? null,
         type: dto.type ?? ItemType.SERVICE,
         unitPrice: dto.unitPrice ?? 0,
-        unitPriceMinor: toMinor(dto.unitPrice ?? 0, company.currency),
+        unitPriceMinor: toMinor(dto.unitPrice ?? 0, currency),
         vatRate: dto.vatRate ?? 0,
       },
     });
 
     logger.info('Article created', {
       category: 'article',
-      details: { articleId: article.id, companyId: company.id },
+      details: { articleId: article.id, companyId },
     });
     return article;
   }
 
-  async findAll(): Promise<Article[]> {
-    const company = await prisma.company.findFirst();
-    if (!company) {
-      logger.error('No company found. Please create a company first.', { category: 'article' });
-      throw new BadRequestException('No company found. Please create a company first.');
-    }
-
+  async findAll(companyId: string): Promise<Article[]> {
     return prisma.article.findMany({
-      where: { companyId: company.id, isActive: true },
+      where: { companyId, isActive: true },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findOne(id: string): Promise<Article | null> {
-    const article = await prisma.article.findUnique({ where: { id } });
-    if (!article) return null;
-    const company = await prisma.company.findFirst();
-    if (!company || article.companyId !== company.id) {
-      return null;
-    }
-    return article;
+  async findOne(companyId: string, id: string): Promise<Article | null> {
+    return prisma.article.findFirst({ where: { id, companyId } });
   }
 
-  async update(id: string, dto: EditArticleDto): Promise<Article> {
-    const existing = await prisma.article.findUnique({ where: { id } });
-    const company = await prisma.company.findFirst();
-    if (!existing || !company || existing.companyId !== company.id) {
+  async update(companyId: string, id: string, dto: EditArticleDto): Promise<Article> {
+    const existing = await prisma.article.findFirst({ where: { id, companyId } });
+    if (!existing) {
       logger.error('Article not found', { category: 'article', details: { id } });
-      throw new BadRequestException('Article not found');
+      throw new NotFoundException('Article not found');
     }
 
+    const currency = await this.getCompanyCurrency(companyId);
     const updatedUnitPrice = dto.unitPrice ?? existing.unitPrice;
     const updated = await prisma.article.update({
       where: { id },
@@ -89,7 +84,7 @@ export class ArticlesService {
         description: dto.description !== undefined ? dto.description : existing.description,
         type: dto.type ?? existing.type,
         unitPrice: updatedUnitPrice,
-        unitPriceMinor: toMinor(updatedUnitPrice, company.currency),
+        unitPriceMinor: toMinor(updatedUnitPrice, currency),
         vatRate: dto.vatRate ?? existing.vatRate,
         isActive: dto.isActive ?? existing.isActive,
       },
@@ -97,17 +92,16 @@ export class ArticlesService {
 
     logger.info('Article updated', {
       category: 'article',
-      details: { articleId: updated.id, companyId: company.id },
+      details: { articleId: updated.id, companyId },
     });
     return updated;
   }
 
-  async softDelete(id: string): Promise<Article> {
-    const existing = await prisma.article.findUnique({ where: { id } });
-    const company = await prisma.company.findFirst();
-    if (!existing || !company || existing.companyId !== company.id) {
+  async softDelete(companyId: string, id: string): Promise<Article> {
+    const existing = await prisma.article.findFirst({ where: { id, companyId } });
+    if (!existing) {
       logger.error('Article not found', { category: 'article', details: { id } });
-      throw new BadRequestException('Article not found');
+      throw new NotFoundException('Article not found');
     }
 
     const deleted = await prisma.article.update({
@@ -117,7 +111,7 @@ export class ArticlesService {
 
     logger.info('Article deactivated', {
       category: 'article',
-      details: { articleId: existing.id, companyId: company.id },
+      details: { articleId: existing.id, companyId },
     });
     return deleted;
   }

@@ -265,6 +265,13 @@ enum PaymentMethodType {
   OTHER
 }
 
+// Role of a user within a company (multi-tenancy)
+enum CompanyRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
 // PDF Configuration
 model PDFConfig {
   id      String   @id @default(cuid())
@@ -348,6 +355,8 @@ model Company {
 
   dateFormat String @default("dd/MM/yyyy") // Date format for quotes and invoices
 
+  createdAt DateTime @default(now())
+
   pDFConfigId      String             @unique
   pdfConfig        PDFConfig          @relation(fields: [pDFConfigId], references: [id])
   Quote            Quote[]
@@ -361,11 +370,35 @@ model Company {
   NumberSeries     NumberSeries[]
   channelConfigs      CompanyChannelConfig[]
   signingCertificates CompanySigningCertificate[]
+  Client           Client[]
+  members          UserCompany[]
+  apiKeys          ApiKey[]
+  invitationCodes  InvitationCode[]
+  Expense          Expense[]
+  pdfDownloadTokens PdfDownloadToken[]
+}
+
+// Join table linking users to the companies they belong to, with a role
+model UserCompany {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role      CompanyRole @default(MEMBER)
+  createdAt DateTime    @default(now())
+
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
+  @@map("user_company")
 }
 
 // Client model
 model Client {
   id               String             @id @default(cuid())
+  company          Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId        String
   name             String
   description      String?
   foundedAt        DateTime? // Date when the client company was founded
@@ -390,6 +423,8 @@ model Client {
   Invoice          Invoice[]
   RecurringInvoice RecurringInvoice[]
   partyIdentifiers PartyIdentifier[]
+
+  @@index([companyId])
 }
 
 // Per-country required identifiers (LEGAL_ID, VAT, RFC, CURP, REGON, …)
@@ -681,6 +716,19 @@ model PaymentMethod {
   updatedAt DateTime          @updatedAt
 }
 
+model Expense {
+  id          String   @id @default(cuid())
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId   String
+  description String
+  amount      Float
+  currency    Currency @default(EUR)
+  date        DateTime @default(now())
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model Article {
   id          String   @id @default(cuid())
   company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -706,6 +754,27 @@ model Signature {
   otpUsed   Boolean   @default(false)
   quote     Quote     @relation(fields: [quoteId], references: [id])
   isActive  Boolean   @default(true)
+}
+
+enum PdfDocumentType {
+  QUOTE
+  INVOICE
+}
+
+// Short-lived, unauthenticated download link for a quote/invoice PDF — minted
+// by the MCP PDF tools so a chat client (e.g. OpenWebUI) that can't render an
+// embedded MCP resource block can still offer the user a clickable URL.
+model PdfDownloadToken {
+  id           String          @id @default(cuid())
+  tokenHash    String          @unique
+  documentType PdfDocumentType
+  documentId   String
+  companyId    String
+  company      Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  expiresAt    DateTime
+  createdAt    DateTime        @default(now())
+
+  @@index([documentId])
 }
 
 // Currency conversion model
@@ -966,18 +1035,22 @@ model Webhook {
 // ======= INVITATION SYSTEM ======= //
 
 model InvitationCode {
-  id          String    @id @default(uuid())
-  code        String    @unique
-  createdAt   DateTime  @default(now())
+  id          String      @id @default(uuid())
+  code        String      @unique
+  createdAt   DateTime    @default(now())
   expiresAt   DateTime?
   usedAt      DateTime?
   createdById String
-  createdBy   User      @relation("CreatedInvitations", fields: [createdById], references: [id], onDelete: Cascade)
-  usedById    String?   @unique
-  usedBy      User?     @relation("UsedInvitation", fields: [usedById], references: [id], onDelete: SetNull)
+  createdBy   User        @relation("CreatedInvitations", fields: [createdById], references: [id], onDelete: Cascade)
+  usedById    String?     @unique
+  usedBy      User?       @relation("UsedInvitation", fields: [usedById], references: [id], onDelete: SetNull)
+  companyId   String
+  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role        CompanyRole @default(MEMBER)
 
   @@index([code])
   @@index([createdById])
+  @@index([companyId])
   @@map("invitation_code")
 }
 
@@ -996,6 +1069,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   apiKeys       ApiKey[]
+  companies     UserCompany[]
 
   // Invitation relations
   createdInvitations InvitationCode[] @relation("CreatedInvitations")
@@ -1012,23 +1086,28 @@ model ApiKey {
   keyHash    String    @unique
   userId     String
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  scopes     String[]  @default([])
   lastUsedAt DateTime?
   createdAt  DateTime  @default(now())
 
   @@index([userId])
+  @@index([companyId])
   @@map("api_key")
 }
 
 model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String   @id
+  expiresAt       DateTime
+  token           String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  ipAddress       String?
+  userAgent       String?
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeCompanyId String?
 
   @@unique([token])
   @@index([userId])

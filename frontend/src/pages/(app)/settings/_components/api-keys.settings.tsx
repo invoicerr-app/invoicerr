@@ -4,8 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { authenticatedFetch, useGet, usePost } from "@/hooks/use-fetch"
 
+import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { ExternalLink } from "lucide-react"
+import { MultiSelect } from "@/components/ui/multi-select"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { useForm } from "react-hook-form"
@@ -16,6 +18,7 @@ interface ApiKey {
   id: string
   name: string
   keyPrefix: string
+  scopes: string[]
   createdAt: string
   lastUsedAt: string | null
 }
@@ -24,11 +27,13 @@ export default function ApiKeysSettings() {
   const { t } = useTranslation()
   const { data: apiKeys, mutate } = useGet<ApiKey[]>("/api/api-keys")
   const { trigger: createApiKey, loading: creating } = usePost("/api/api-keys")
+  const { data: options } = useGet<{ scopes: string[] }>("/api/api-keys/options")
 
   const [createdKey, setCreatedKey] = useState<string | null>(null)
+  const [multiResetKey, setMultiResetKey] = useState(0)
 
-  const form = useForm<{ name: string }>({
-    defaultValues: { name: "" },
+  const form = useForm<{ name: string; scopes: string[] }>({
+    defaultValues: { name: "", scopes: [] },
   })
 
   const handleCreate = form.handleSubmit(async (values) => {
@@ -37,7 +42,9 @@ export default function ApiKeysSettings() {
       const res = (await createApiKey(values)) as any
       if (res?.key) {
         setCreatedKey(res.key)
-        form.reset({ name: "" })
+        form.reset({ name: "", scopes: [] })
+        // force remount of MultiSelect so it picks up cleared value
+        setMultiResetKey((k) => k + 1)
         mutate()
       }
     } catch (e) {
@@ -102,6 +109,19 @@ export default function ApiKeysSettings() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {key.scopes.length > 0 ? (
+                    key.scopes.map((scope) => (
+                      <Badge key={scope} variant="outline" className="text-[10px]">
+                        {scope}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">
+                      {t("settings.apiKeys.card.noScopes")}
+                    </span>
+                  )}
+                </div>
                 <Button variant="destructive" size="sm" onClick={() => handleDelete(key.id)}>
                   {t("settings.apiKeys.card.revoke")}
                 </Button>
@@ -132,6 +152,25 @@ export default function ApiKeysSettings() {
                       <FormLabel>{t("settings.apiKeys.create.name")}</FormLabel>
                       <FormControl>
                         <Input {...field} placeholder={t("settings.apiKeys.create.namePlaceholder")} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  name="scopes"
+                  control={form.control}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("settings.apiKeys.create.scopes")}</FormLabel>
+                      <FormControl>
+                        <MultiSelect
+                          key={multiResetKey}
+                          defaultValue={field.value || []}
+                          options={(options?.scopes || []).map((scope) => ({ label: scope, value: scope }))}
+                          onValueChange={field.onChange}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

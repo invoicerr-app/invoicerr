@@ -3,19 +3,24 @@ import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { ArticlesModule } from './modules/articles/articles.module';
 import { AuthExtendedModule } from './modules/auth-extended/auth-extended.module';
 import { AuthGuard } from '@/guards/auth.guard';
+import { RolesGuard } from '@/guards/roles.guard';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { ClientsModule } from './modules/clients/clients.module';
+import { CompaniesModule } from './modules/companies/companies.module';
 import { CompanyModule } from './modules/company/company.module';
 import { ConfigModule } from '@nestjs/config';
 import { DangerModule } from './modules/danger/danger.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { DirectoryModule } from './modules/directory/directory.module';
+import { ExpensesModule } from './modules/expenses/expenses.module';
 import { HealthModule } from './modules/health/health.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { MailService } from './mail/mail.service';
+import { McpModule } from './modules/mcp/mcp.module';
 import { Module } from '@nestjs/common';
 import { PaymentMethodsModule } from './modules/payment-methods/payment-methods.module';
+import { PdfLinksModule } from './modules/pdf-links/pdf-links.module';
 import { PluginsModule } from './modules/plugins/plugins.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { QuotesModule } from './modules/quotes/quotes.module';
@@ -47,6 +52,7 @@ import { auth } from './lib/auth';
     AuthExtendedModule,
     ApiKeysModule,
     ArticlesModule,
+    CompaniesModule,
     CompanyModule,
     ClientsModule,
     QuotesModule,
@@ -60,6 +66,7 @@ import { auth } from './lib/auth';
     PluginsModule,
     RecurringInvoicesModule,
     PaymentMethodsModule,
+    ExpensesModule,
     StatsModule,
     WebhooksModule,
     InvitationsModule,
@@ -67,6 +74,8 @@ import { auth } from './lib/auth';
     HealthModule,
     PrismaModule,
     LoggerModule,
+    PdfLinksModule,
+    McpModule,
   ],
   controllers: [],
   providers: [
@@ -74,6 +83,10 @@ import { auth } from './lib/auth';
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
   ],
 })

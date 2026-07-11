@@ -2,6 +2,9 @@ import { UpsertInvoicesDto } from '@/modules/recurring-invoices/dto/invoices.dto
 import { RecurringInvoicesService } from '@/modules/recurring-invoices/recurring-invoices.service';
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ActiveCompany } from '@/decorators/active-company.decorator';
+import { CompanyRole } from '../../../prisma/generated/prisma/client';
+import { Roles } from '@/decorators/roles.decorator';
 
 @ApiTags('recurring-invoices')
 @Controller('recurring-invoices')
@@ -20,8 +23,8 @@ export class RecurringInvoicesController {
     description: 'Page number (1-indexed) of the paginated recurring invoice list. Defaults to 1.',
   })
   @ApiResponse({ status: 200, description: 'Recurring invoices retrieved' })
-  async getRecurringInvoices(@Query('page') page: string) {
-    return this.recurringInvoicesService.getRecurringInvoices(page);
+  async getRecurringInvoices(@ActiveCompany() companyId: string, @Query('page') page: string) {
+    return this.recurringInvoicesService.getRecurringInvoices(companyId, page);
   }
 
   @Get(':id')
@@ -31,8 +34,8 @@ export class RecurringInvoicesController {
   })
   @ApiParam({ name: 'id', type: String, description: 'Recurring invoice ID' })
   @ApiResponse({ status: 200, description: 'Recurring invoice retrieved' })
-  async getRecurringInvoice(@Param('id') id: string) {
-    return this.recurringInvoicesService.getRecurringInvoice(id);
+  async getRecurringInvoice(@ActiveCompany() companyId: string, @Param('id') id: string) {
+    return this.recurringInvoicesService.getRecurringInvoice(companyId, id);
   }
 
   @Post()
@@ -41,8 +44,8 @@ export class RecurringInvoicesController {
     description: 'Creates a new recurring invoice schedule with items, client, and pricing information.',
   })
   @ApiResponse({ status: 201, description: 'Recurring invoice created' })
-  async createRecurringInvoice(@Body() body: UpsertInvoicesDto) {
-    return this.recurringInvoicesService.createRecurringInvoice(body);
+  async createRecurringInvoice(@ActiveCompany() companyId: string, @Body() body: UpsertInvoicesDto) {
+    return this.recurringInvoicesService.createRecurringInvoice(companyId, body);
   }
 
   @Patch(':id')
@@ -52,19 +55,24 @@ export class RecurringInvoicesController {
   })
   @ApiParam({ name: 'id', type: String, description: 'Recurring invoice ID' })
   @ApiResponse({ status: 200, description: 'Recurring invoice updated' })
-  async updateRecurringInvoice(@Param('id') id: string, @Body() body: UpsertInvoicesDto) {
-    return this.recurringInvoicesService.updateRecurringInvoice(id, body);
+  async updateRecurringInvoice(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Body() body: UpsertInvoicesDto,
+  ) {
+    return this.recurringInvoicesService.updateRecurringInvoice(companyId, id, body);
   }
 
   @Delete(':id')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @ApiOperation({
     summary: 'Delete a recurring invoice',
     description: 'Permanently removes a recurring invoice schedule by ID.',
   })
   @ApiParam({ name: 'id', type: String, description: 'Recurring invoice ID' })
   @ApiResponse({ status: 200, description: 'Recurring invoice deleted' })
-  async deleteRecurringInvoice(@Param('id') id: string) {
-    return this.recurringInvoicesService.deleteRecurringInvoice(id);
+  async deleteRecurringInvoice(@ActiveCompany() companyId: string, @Param('id') id: string) {
+    return this.recurringInvoicesService.deleteRecurringInvoice(companyId, id);
   }
 
   @Post(':id/pause')
@@ -75,8 +83,8 @@ export class RecurringInvoicesController {
   })
   @ApiParam({ name: 'id', type: String, description: 'Recurring invoice ID' })
   @ApiResponse({ status: 200, description: 'Recurring invoice paused' })
-  async pauseRecurringInvoice(@Param('id') id: string) {
-    return this.recurringInvoicesService.pauseRecurringInvoice(id);
+  async pauseRecurringInvoice(@ActiveCompany() companyId: string, @Param('id') id: string) {
+    return this.recurringInvoicesService.pauseRecurringInvoice(companyId, id);
   }
 
   @Post(':id/resume')
@@ -86,8 +94,8 @@ export class RecurringInvoicesController {
   })
   @ApiParam({ name: 'id', type: String, description: 'Recurring invoice ID' })
   @ApiResponse({ status: 200, description: 'Recurring invoice resumed' })
-  async resumeRecurringInvoice(@Param('id') id: string) {
-    return this.recurringInvoicesService.resumeRecurringInvoice(id);
+  async resumeRecurringInvoice(@ActiveCompany() companyId: string, @Param('id') id: string) {
+    return this.recurringInvoicesService.resumeRecurringInvoice(companyId, id);
   }
 
   @Post(':id/skip-next')
@@ -97,8 +105,8 @@ export class RecurringInvoicesController {
   })
   @ApiParam({ name: 'id', type: String, description: 'Recurring invoice ID' })
   @ApiResponse({ status: 200, description: 'Next cycle will be skipped' })
-  async skipNextRecurringInvoice(@Param('id') id: string) {
-    return this.recurringInvoicesService.skipNextRecurringInvoice(id);
+  async skipNextRecurringInvoice(@ActiveCompany() companyId: string, @Param('id') id: string) {
+    return this.recurringInvoicesService.skipNextRecurringInvoice(companyId, id);
   }
 
   @Post(':id/end-now')
@@ -108,7 +116,7 @@ export class RecurringInvoicesController {
   })
   @ApiParam({ name: 'id', type: String, description: 'Recurring invoice ID' })
   @ApiResponse({ status: 200, description: 'Recurring invoice ended' })
-  async endNowRecurringInvoice(@Param('id') id: string) {
-    return this.recurringInvoicesService.endNowRecurringInvoice(id);
+  async endNowRecurringInvoice(@ActiveCompany() companyId: string, @Param('id') id: string) {
+    return this.recurringInvoicesService.endNowRecurringInvoice(companyId, id);
   }
 }

@@ -1,6 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 
+import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { logger } from '@/logger/logger.service';
 
@@ -65,25 +66,38 @@ export class InvitationsService {
     return userCount === 0;
   }
 
-  async createInvitation(createdById: string, expiresInDays?: number) {
+  async createInvitation(createdById: string, companyId: string, role: CompanyRole, expiresInDays?: number) {
+    // Only an OWNER can mint an invitation that would create a peer OWNER.
+    if (role === CompanyRole.OWNER) {
+      const creatorMembership = await this.prisma.userCompany.findUnique({
+        where: { userId_companyId: { userId: createdById, companyId } },
+      });
+      if (creatorMembership?.role !== CompanyRole.OWNER) {
+        throw new ForbiddenException('Only an owner can invite another owner');
+      }
+    }
+
     const code = this.generateCode();
 
     const invitation = await this.prisma.invitationCode.create({
       data: {
         code,
         createdById,
+        companyId,
+        role,
         expiresAt: expiresInDays ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000) : null,
       },
     });
 
     logger.info('Invitation created', {
       category: 'invitation',
-      details: { id: invitation.id, code: invitation.code, createdById },
+      details: { id: invitation.id, code: invitation.code, createdById, companyId, role },
     });
 
     return {
       id: invitation.id,
       code: invitation.code,
+      role: invitation.role,
       createdAt: invitation.createdAt,
       expiresAt: invitation.expiresAt,
     };
@@ -111,22 +125,31 @@ export class InvitationsService {
 
     logger.info('Invitation code used', { category: 'invitation', details: { code, userId } });
 
-    return this.prisma.invitationCode.update({
+    const updatedInvitation = await this.prisma.invitationCode.update({
       where: { id: invitation.id },
       data: {
         usedAt: new Date(),
         usedById: userId,
       },
     });
+
+    await this.prisma.userCompany.upsert({
+      where: { userId_companyId: { userId, companyId: invitation.companyId } },
+      create: { userId, companyId: invitation.companyId, role: invitation.role },
+      update: {},
+    });
+
+    return updatedInvitation;
   }
 
-  async listInvitations(userId: string) {
+  async listInvitations(companyId: string) {
     return this.prisma.invitationCode.findMany({
-      where: { createdById: userId },
+      where: { companyId },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
         code: true,
+        role: true,
         createdAt: true,
         expiresAt: true,
         usedAt: true,
@@ -142,11 +165,11 @@ export class InvitationsService {
     });
   }
 
-  async deleteInvitation(id: string, userId: string) {
+  async deleteInvitation(id: string, companyId: string) {
     const invitation = await this.prisma.invitationCode.findFirst({
       where: {
         id,
-        createdById: userId,
+        companyId,
         usedAt: null,
       },
     });
@@ -154,7 +177,7 @@ export class InvitationsService {
     if (!invitation) {
       logger.warn('Invitation not found or already used', {
         category: 'invitation',
-        details: { id, userId },
+        details: { id, companyId },
       });
       throw new NotFoundException('Invitation not found or already used');
     }
@@ -163,7 +186,7 @@ export class InvitationsService {
       where: { id },
     });
 
-    logger.info('Invitation deleted', { category: 'invitation', details: { id, userId } });
+    logger.info('Invitation deleted', { category: 'invitation', details: { id, companyId } });
 
     return { success: true };
   }

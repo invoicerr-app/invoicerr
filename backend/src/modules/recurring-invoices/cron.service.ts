@@ -88,7 +88,7 @@ export class RecurringInvoicesCronService {
 
             // Idempotence: try to create; unique constraint catches duplicates
             try {
-              const invoice = await this.invoicesService.createInvoice({
+              const invoice = await this.invoicesService.createInvoice(recurringInvoice.companyId, {
                 clientId: recurringInvoice.clientId,
                 recurringInvoiceId: recurringInvoice.id,
                 recurringPeriodKey: periodKey,
@@ -113,7 +113,10 @@ export class RecurringInvoicesCronService {
               let issuedInvoice = invoice;
               if (recurringInvoice.autoIssue) {
                 try {
-                  issuedInvoice = await this.invoicesService.issueInvoice(invoice.id);
+                  issuedInvoice = await this.invoicesService.issueInvoice(
+                    recurringInvoice.companyId,
+                    invoice.id,
+                  );
                 } catch (issueError) {
                   this.logger.error(
                     `Failed to auto-issue invoice ${invoice.id} for period ${periodKey}:`,
@@ -128,7 +131,7 @@ export class RecurringInvoicesCronService {
               // autoSend: send email (only if issued)
               if (recurringInvoice.autoSend && issuedInvoice.status === 'ISSUED') {
                 try {
-                  await this.invoicesService.sendInvoiceByEmail(issuedInvoice.id);
+                  await this.invoicesService.sendInvoiceByEmail(recurringInvoice.companyId, issuedInvoice.id);
                 } catch (emailError) {
                   this.logger.error(`Failed to auto-send invoice ${invoice.id}:`, emailError);
                   // Invoice stays ISSUED — send should be retried via outbox (PART IX)

@@ -54,9 +54,9 @@ export class SignaturesService {
     return signature;
   }
 
-  async createSignature(quoteId: string) {
-    const quote = await prisma.quote.findUnique({
-      where: { id: quoteId },
+  async createSignature(companyId: string, quoteId: string) {
+    const quote = await prisma.quote.findFirst({
+      where: { id: quoteId, companyId },
       select: {
         id: true,
         client: {

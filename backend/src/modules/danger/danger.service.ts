@@ -44,7 +44,7 @@ export class DangerService {
     return isValid;
   }
 
-  async resetApp(user: CurrentUser, otp: string) {
+  async resetApp(user: CurrentUser, companyId: string, otp: string) {
     if (!this.isOtpValid(otp)) {
       logger.warn('Invalid or expired OTP for resetApp', {
         category: 'danger',
@@ -53,22 +53,25 @@ export class DangerService {
       throw new BadRequestException('Invalid or expired OTP');
     }
 
-    // Reset everything but the user data
-    await prisma.company.deleteMany();
-    await prisma.pDFConfig.deleteMany();
-    await prisma.mailTemplate.deleteMany();
-    await prisma.client.deleteMany();
-    await prisma.quoteItem.deleteMany();
-    await prisma.quote.deleteMany();
-    await prisma.invoiceItem.deleteMany();
-    await prisma.invoice.deleteMany();
-    await prisma.signature.deleteMany();
+    // Reset everything for this company only, but the user data
+    await prisma.company.deleteMany({ where: { id: companyId } });
+    await prisma.pDFConfig.deleteMany({ where: { Company: { id: companyId } } });
+    await prisma.mailTemplate.deleteMany({ where: { companyId } });
+    await prisma.client.deleteMany({ where: { companyId } });
+    await prisma.quoteItem.deleteMany({ where: { quote: { companyId } } });
+    await prisma.quote.deleteMany({ where: { companyId } });
+    await prisma.invoiceItem.deleteMany({ where: { invoice: { companyId } } });
+    await prisma.invoice.deleteMany({ where: { companyId } });
+    await prisma.signature.deleteMany({ where: { quote: { companyId } } });
 
-    logger.info('Application reset successfully', { category: 'danger', details: { userId: user.id } });
+    logger.info('Application reset successfully', {
+      category: 'danger',
+      details: { userId: user.id, companyId },
+    });
     return { message: 'Application reset successfully' };
   }
 
-  async resetAll(user: CurrentUser, otp: string) {
+  async resetAll(user: CurrentUser, companyId: string, otp: string) {
     if (!this.isOtpValid(otp)) {
       logger.warn('Invalid or expired OTP for resetAll', {
         category: 'danger',

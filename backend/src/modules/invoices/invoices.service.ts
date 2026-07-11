@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   CreateInvoiceDto,
   CreateInvoiceFromQuoteDto,
@@ -39,9 +39,9 @@ export class InvoicesService {
     private readonly rendering: InvoiceRenderingService,
   ) {}
 
-  async getInvoice(id: string) {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id },
+  async getInvoice(companyId: string, id: string) {
+    const invoice = await prisma.invoice.findFirst({
+      where: { id, companyId },
       include: {
         items: true,
         client: { include: { partyIdentifiers: true } },
@@ -76,12 +76,12 @@ export class InvoicesService {
         },
       },
     });
-    if (!invoice) throw new BadRequestException('Invoice not found');
+    if (!invoice) throw new NotFoundException('Invoice not found');
 
     return enrichWithPaymentMethod(invoice);
   }
 
-  async getInvoices(page: string) {
+  async getInvoices(companyId: string, page: string) {
     const pageNumber = parseInt(page, 10) || 1;
     const pageSize = 10;
     const skip = (pageNumber - 1) * pageSize;
@@ -90,6 +90,7 @@ export class InvoicesService {
       skip,
       take: pageSize,
       where: {
+        companyId,
         isActive: true,
       },
       orderBy: {
@@ -120,7 +121,7 @@ export class InvoicesService {
       },
     });
 
-    const totalInvoices = await prisma.invoice.count();
+    const totalInvoices = await prisma.invoice.count({ where: { companyId } });
 
     // Attach payment method object when available so frontend can consume invoice.paymentMethod as an object
     const invoicesWithPM = await enrichWithPaymentMethods(invoices);
@@ -154,13 +155,16 @@ export class InvoicesService {
     return { pageCount: Math.ceil(totalInvoices / pageSize), invoices: mapped };
   }
 
-  async getInvoicesTable(filters: {
-    clientId?: string;
-    year?: string;
-    month?: string;
-    sort?: 'asc' | 'desc';
-  }) {
-    const where: Record<string, any> = { isActive: true };
+  async getInvoicesTable(
+    companyId: string,
+    filters: {
+      clientId?: string;
+      year?: string;
+      month?: string;
+      sort?: 'asc' | 'desc';
+    },
+  ) {
+    const where: Record<string, any> = { companyId, isActive: true };
 
     if (filters.clientId) {
       where.clientId = filters.clientId;
@@ -200,13 +204,14 @@ export class InvoicesService {
     return enrichWithPaymentMethods(invoices);
   }
 
-  async searchInvoices(query: string) {
+  async searchInvoices(companyId: string, query: string) {
     if (query === '') {
-      return this.getInvoices('1'); // Return first page if query is empty
+      return this.getInvoices(companyId, '1'); // Return first page if query is empty
     }
 
     const results = await prisma.invoice.findMany({
       where: {
+        companyId,
         OR: [{ client: { name: { contains: query } } }, { items: { some: { name: { contains: query } } } }],
       },
       include: {
@@ -232,19 +237,16 @@ export class InvoicesService {
     return enrichWithPaymentMethods(results);
   }
 
-  async createInvoice(body: CreateInvoiceDto) {
+  async createInvoice(companyId: string, body: CreateInvoiceDto) {
     const { items, ...data } = body;
 
-    const company = await prisma.company.findFirst({
+    const company = await prisma.company.findUniqueOrThrow({
+      where: { id: companyId },
       include: { partyIdentifiers: true },
     });
-    if (!company) {
-      logger.error('No company found. Please create a company first.', { category: 'invoice' });
-      throw new BadRequestException('No company found. Please create a company first.');
-    }
 
-    const client = await prisma.client.findUnique({
-      where: { id: body.clientId },
+    const client = await prisma.client.findFirst({
+      where: { id: body.clientId, companyId },
       include: { partyIdentifiers: true },
     });
     if (!client) {
@@ -338,15 +340,15 @@ export class InvoicesService {
     return invoice;
   }
 
-  async issueInvoice(id: string) {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id },
+  async issueInvoice(companyId: string, id: string) {
+    const invoice = await prisma.invoice.findFirst({
+      where: { id, companyId },
       include: { client: true, company: true },
     });
 
     if (!invoice) {
       logger.error('Invoice not found', { category: 'invoice' });
-      throw new BadRequestException('Invoice not found');
+      throw new NotFoundException('Invoice not found');
     }
 
     if (invoice.status !== 'DRAFT') {
@@ -429,16 +431,16 @@ export class InvoicesService {
     return updated;
   }
 
-  async correctInvoice(id: string, reason?: string) {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id },
+  async correctInvoice(companyId: string, id: string, reason?: string) {
+    const invoice = await prisma.invoice.findFirst({
+      where: { id, companyId },
       include: {
         items: true,
         client: { include: { partyIdentifiers: true } },
         company: { include: { partyIdentifiers: true } },
       },
     });
-    if (!invoice) throw new BadRequestException('Invoice not found');
+    if (!invoice) throw new NotFoundException('Invoice not found');
     if (invoice.status === 'DRAFT') throw new BadRequestException('Only issued invoices can be corrected');
 
     try {
@@ -604,9 +606,9 @@ export class InvoicesService {
     }
   }
 
-  async cancelInvoice(id: string, reason?: string) {
-    const invoice = await prisma.invoice.findUnique({ where: { id } });
-    if (!invoice) throw new BadRequestException('Invoice not found');
+  async cancelInvoice(companyId: string, id: string, reason?: string) {
+    const invoice = await prisma.invoice.findFirst({ where: { id, companyId } });
+    if (!invoice) throw new NotFoundException('Invoice not found');
     if (invoice.status === 'DRAFT') throw new BadRequestException('Only issued invoices can be cancelled');
 
     try {
@@ -636,16 +638,16 @@ export class InvoicesService {
     }
   }
 
-  async cancelAndReplaceInvoice(id: string, reason?: string) {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id },
+  async cancelAndReplaceInvoice(companyId: string, id: string, reason?: string) {
+    const invoice = await prisma.invoice.findFirst({
+      where: { id, companyId },
       include: {
         items: true,
         client: { include: { partyIdentifiers: true } },
         company: { include: { partyIdentifiers: true } },
       },
     });
-    if (!invoice) throw new BadRequestException('Invoice not found');
+    if (!invoice) throw new NotFoundException('Invoice not found');
     if (invoice.status === 'DRAFT') throw new BadRequestException('Only issued invoices can be cancelled');
 
     try {
@@ -782,7 +784,7 @@ export class InvoicesService {
     }
   }
 
-  async editInvoice(body: EditInvoicesDto) {
+  async editInvoice(companyId: string, body: EditInvoicesDto) {
     const { items, id, discountRate, ...data } = body;
 
     if (!id) {
@@ -790,16 +792,13 @@ export class InvoicesService {
       throw new BadRequestException('Invoice ID is required for editing');
     }
 
-    const company = await prisma.company.findFirst({
+    const company = await prisma.company.findUniqueOrThrow({
+      where: { id: companyId },
       include: { partyIdentifiers: true },
     });
-    if (!company) {
-      logger.error('No company found. Please create a company first.', { category: 'invoice' });
-      throw new BadRequestException('No company found. Please create a company first.');
-    }
 
-    const client = await prisma.client.findUnique({
-      where: { id: data.clientId },
+    const client = await prisma.client.findFirst({
+      where: { id: data.clientId, companyId },
       include: { partyIdentifiers: true },
     });
     if (!client) {
@@ -807,14 +806,14 @@ export class InvoicesService {
       throw new BadRequestException('Client not found');
     }
 
-    const existingInvoice = await prisma.invoice.findUnique({
-      where: { id },
+    const existingInvoice = await prisma.invoice.findFirst({
+      where: { id, companyId },
       include: { items: true },
     });
 
     if (!existingInvoice) {
       logger.error('Invoice not found', { category: 'invoice' });
-      throw new BadRequestException('Invoice not found');
+      throw new NotFoundException('Invoice not found');
     }
 
     if (existingInvoice.status !== 'DRAFT') {
@@ -950,9 +949,9 @@ export class InvoicesService {
     return updateInvoice;
   }
 
-  async deleteInvoice(id: string) {
-    const existingInvoice = await prisma.invoice.findUnique({
-      where: { id },
+  async deleteInvoice(companyId: string, id: string) {
+    const existingInvoice = await prisma.invoice.findFirst({
+      where: { id, companyId },
       include: {
         items: true,
         client: { include: { partyIdentifiers: true } },
@@ -962,7 +961,7 @@ export class InvoicesService {
 
     if (!existingInvoice) {
       logger.error('Invoice not found', { category: 'invoice' });
-      throw new BadRequestException('Invoice not found');
+      throw new NotFoundException('Invoice not found');
     }
 
     if (existingInvoice.status !== 'DRAFT') {
@@ -1011,21 +1010,40 @@ export class InvoicesService {
     return deletedInvoice;
   }
 
-  async getInvoicePdf(id: string): Promise<Uint8Array> {
+  /** Tenancy guard: rendering delegates look up by id only, so assert ownership first. */
+  private async assertInvoiceInCompany(companyId: string, id: string): Promise<void> {
+    const invoice = await prisma.invoice.findFirst({
+      where: { id, companyId },
+      select: { id: true },
+    });
+    if (!invoice) {
+      logger.error('Invoice not found', { category: 'invoice', details: { invoiceId: id } });
+      throw new NotFoundException('Invoice not found');
+    }
+  }
+
+  async getInvoicePdf(companyId: string, id: string): Promise<Uint8Array> {
+    await this.assertInvoiceInCompany(companyId, id);
     return this.rendering.renderPdf(id);
   }
 
-  async getInvoiceXMLFormat(id: string) {
+  async getInvoiceXMLFormat(companyId: string, id: string) {
+    await this.assertInvoiceInCompany(companyId, id);
     return this.rendering.renderXml(id);
   }
 
-  async getInvoicePDFFormat(invoiceId: string, format: '' | 'pdf' | ExportFormat): Promise<Uint8Array> {
+  async getInvoicePDFFormat(
+    companyId: string,
+    invoiceId: string,
+    format: '' | 'pdf' | ExportFormat,
+  ): Promise<Uint8Array> {
+    await this.assertInvoiceInCompany(companyId, invoiceId);
     return this.rendering.renderPdfFormat(invoiceId, format);
   }
 
-  async createInvoiceFromQuote(body: CreateInvoiceFromQuoteDto) {
-    const quote = await prisma.quote.findUnique({
-      where: { id: body.quoteId },
+  async createInvoiceFromQuote(companyId: string, body: CreateInvoiceFromQuoteDto) {
+    const quote = await prisma.quote.findFirst({
+      where: { id: body.quoteId, companyId },
       include: {
         items: true,
         client: { include: { partyIdentifiers: true } },
@@ -1038,10 +1056,10 @@ export class InvoicesService {
         category: 'invoice',
         details: { quoteId: body.quoteId },
       });
-      throw new BadRequestException('Quote not found');
+      throw new NotFoundException('Quote not found');
     }
 
-    const invoicingStatus = await this.getQuoteInvoicingStatus(body.quoteId);
+    const invoicingStatus = await this.getQuoteInvoicingStatus(companyId, body.quoteId);
 
     if (invoicingStatus.remainingPercent <= 0) {
       logger.error('Quote has already been fully invoiced', {
@@ -1096,7 +1114,7 @@ export class InvoicesService {
       throw new BadRequestException('No items selected to invoice');
     }
 
-    const newInvoice = await this.createInvoice({
+    const newInvoice = await this.createInvoice(companyId, {
       clientId: quote.clientId,
       quoteId: quote.id,
       dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
@@ -1134,9 +1152,9 @@ export class InvoicesService {
    * Computes how much of each quote item has already been invoiced across
    * all invoices created from this quote, and the remaining invoicable total.
    */
-  async getQuoteInvoicingStatus(quoteId: string) {
-    const quote = await prisma.quote.findUnique({
-      where: { id: quoteId },
+  async getQuoteInvoicingStatus(companyId: string, quoteId: string) {
+    const quote = await prisma.quote.findFirst({
+      where: { id: quoteId, companyId },
       include: {
         items: {
           include: {
@@ -1154,7 +1172,7 @@ export class InvoicesService {
         category: 'invoice',
         details: { quoteId },
       });
-      throw new BadRequestException('Quote not found');
+      throw new NotFoundException('Quote not found');
     }
 
     const discountFactor = 1 - clampDiscountRate(quote.discountRate) / 100;
@@ -1187,9 +1205,9 @@ export class InvoicesService {
     };
   }
 
-  async archiveInvoice(invoiceId: string) {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
+  async archiveInvoice(companyId: string, invoiceId: string) {
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
       include: {
         client: { include: { partyIdentifiers: true } },
         company: { include: { partyIdentifiers: true } },
@@ -1201,7 +1219,7 @@ export class InvoicesService {
         category: 'invoice',
         details: { invoiceId },
       });
-      throw new BadRequestException('Invoice not found');
+      throw new NotFoundException('Invoice not found');
     }
 
     if (invoice.status !== 'PAID') {
@@ -1253,9 +1271,9 @@ export class InvoicesService {
     return archivedInvoice;
   }
 
-  async sendInvoiceByEmail(invoiceId: string) {
-    let invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
+  async sendInvoiceByEmail(companyId: string, invoiceId: string) {
+    let invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
       include: {
         client: { include: { partyIdentifiers: true } },
         company: { include: { partyIdentifiers: true } },
@@ -1265,12 +1283,12 @@ export class InvoicesService {
 
     if (!invoice) {
       logger.error('Invoice not found', { category: 'invoice' });
-      throw new BadRequestException('Invoice not found');
+      throw new NotFoundException('Invoice not found');
     }
 
     // If the invoice is still a DRAFT, issue it first
     if (invoice.status === 'DRAFT' || invoice.number === null) {
-      invoice = await this.issueInvoice(invoiceId);
+      invoice = await this.issueInvoice(companyId, invoiceId);
     }
 
     // If client has no email, skip sending and return an informative message
@@ -1324,16 +1342,16 @@ export class InvoicesService {
   //  III.4 — Proforma
   // ──────────────────────────────────────────────────────────────────────
 
-  async createProformaInvoice(body: CreateInvoiceDto) {
+  async createProformaInvoice(companyId: string, body: CreateInvoiceDto) {
     const { items, ...data } = body;
 
-    const company = await prisma.company.findFirst({
+    const company = await prisma.company.findUniqueOrThrow({
+      where: { id: companyId },
       include: { partyIdentifiers: true },
     });
-    if (!company) throw new BadRequestException('No company found. Please create a company first.');
 
-    const client = await prisma.client.findUnique({
-      where: { id: body.clientId },
+    const client = await prisma.client.findFirst({
+      where: { id: body.clientId, companyId },
       include: { partyIdentifiers: true },
     });
     if (!client) throw new BadRequestException('Client not found');
@@ -1406,17 +1424,17 @@ export class InvoicesService {
     return invoice;
   }
 
-  async convertProformaToInvoice(proformaId: string) {
-    const proforma = await prisma.invoice.findUnique({
-      where: { id: proformaId },
+  async convertProformaToInvoice(companyId: string, proformaId: string) {
+    const proforma = await prisma.invoice.findFirst({
+      where: { id: proformaId, companyId },
       include: { items: true },
     });
 
-    if (!proforma) throw new BadRequestException('Invoice not found');
+    if (!proforma) throw new NotFoundException('Invoice not found');
     if (proforma.kind !== 'PROFORMA')
       throw new BadRequestException('Only PROFORMA invoices can be converted');
 
-    const newInvoice = await this.createInvoice({
+    const newInvoice = await this.createInvoice(companyId, {
       clientId: proforma.clientId,
       items: proforma.items.map((item) => ({
         name: item.name,
@@ -1453,9 +1471,10 @@ export class InvoicesService {
   //  III.4 — Deposit (standalone)
   // ──────────────────────────────────────────────────────────────────────
 
-  async getUnlinkedDeposits(clientId: string) {
+  async getUnlinkedDeposits(companyId: string, clientId: string) {
     return prisma.invoice.findMany({
       where: {
+        companyId,
         clientId,
         kind: 'DEPOSIT',
         depositOfInvoiceId: null,
@@ -1466,16 +1485,19 @@ export class InvoicesService {
     });
   }
 
-  async createDepositInvoice(body: CreateInvoiceDto & { amount?: number; percentage?: number }) {
+  async createDepositInvoice(
+    companyId: string,
+    body: CreateInvoiceDto & { amount?: number; percentage?: number },
+  ) {
     const { items: _ignoredItems, amount, percentage, ...rest } = body as any;
 
-    const company = await prisma.company.findFirst({
+    const company = await prisma.company.findUniqueOrThrow({
+      where: { id: companyId },
       include: { partyIdentifiers: true },
     });
-    if (!company) throw new BadRequestException('No company found. Please create a company first.');
 
-    const client = await prisma.client.findUnique({
-      where: { id: body.clientId },
+    const client = await prisma.client.findFirst({
+      where: { id: body.clientId, companyId },
       include: { partyIdentifiers: true },
     });
     if (!client) throw new BadRequestException('Client not found');
@@ -1600,27 +1622,27 @@ export class InvoicesService {
   //  III.4 — Final invoice (with deposit deduction)
   // ──────────────────────────────────────────────────────────────────────
 
-  async createFinalInvoice(body: CreateInvoiceDto & { depositInvoiceIds: string[] }) {
+  async createFinalInvoice(companyId: string, body: CreateInvoiceDto & { depositInvoiceIds: string[] }) {
     const { depositInvoiceIds, items, ...data } = body as any;
 
     if (!depositInvoiceIds?.length) {
       throw new BadRequestException('A final invoice must reference at least one deposit invoice.');
     }
 
-    const company = await prisma.company.findFirst({
+    const company = await prisma.company.findUniqueOrThrow({
+      where: { id: companyId },
       include: { partyIdentifiers: true },
     });
-    if (!company) throw new BadRequestException('No company found. Please create a company first.');
 
-    const client = await prisma.client.findUnique({
-      where: { id: body.clientId },
+    const client = await prisma.client.findFirst({
+      where: { id: body.clientId, companyId },
       include: { partyIdentifiers: true },
     });
     if (!client) throw new BadRequestException('Client not found');
 
     // Fetch all deposit invoices and validate
     const deposits = await prisma.invoice.findMany({
-      where: { id: { in: depositInvoiceIds } },
+      where: { id: { in: depositInvoiceIds }, companyId },
       include: { items: true },
     });
 
@@ -1737,9 +1759,9 @@ export class InvoicesService {
     return finalInvoice;
   }
 
-  async getAvailableActions(id: string) {
-    const invoice = await prisma.invoice.findUnique({ where: { id } });
-    if (!invoice) throw new BadRequestException('Invoice not found');
+  async getAvailableActions(companyId: string, id: string) {
+    const invoice = await prisma.invoice.findFirst({ where: { id, companyId } });
+    if (!invoice) throw new NotFoundException('Invoice not found');
 
     const complianceDoc = await prisma.complianceDocument.findFirst({
       where: { invoiceId: id },

@@ -455,8 +455,8 @@ describe('generateCustomsExportPayload', () => {
 
 describe('Idempotence via NullReportingStore in handlers', () => {
   it('second call returns SKIPPED when store already has record', async () => {
-    const { EReportingReportingHandler } = await import('./handlers');
-    const { RecordingComplianceLogger } = await import('../execution/logger');
+    const { EReportingReportingHandler } = await import('./handlers.js');
+    const { RecordingComplianceLogger } = await import('../execution/logger.js');
 
     const existingRecord = {
       id: 'already-filed',
@@ -490,8 +490,8 @@ describe('Idempotence via NullReportingStore in handlers', () => {
   });
 
   it('first call creates record and returns EMITTED', async () => {
-    const { EReportingReportingHandler } = await import('./handlers');
-    const { RecordingComplianceLogger } = await import('../execution/logger');
+    const { EReportingReportingHandler } = await import('./handlers.js');
+    const { RecordingComplianceLogger } = await import('../execution/logger.js');
 
     const createdRecord = {
       id: 'new-record',

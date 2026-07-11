@@ -127,35 +127,27 @@ export class WebhooksService {
   }
 
   /**
-   * Get a single webhook scoped to the current company, without its secret.
+   * Get a single webhook scoped to the active company, without its secret.
    * Throws 404 when the webhook does not exist or belongs to another company.
    */
-  async findOne(id: string) {
-    const wh = await prisma.webhook.findUnique({ where: { id } });
+  async findOne(companyId: string, id: string) {
+    const wh = await prisma.webhook.findFirst({ where: { id, companyId } });
     if (!wh) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
-
-    const company = await prisma.company.findFirst();
-    if (!company || wh.companyId !== company.id)
-      throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
 
     return { ...wh, secret: undefined };
   }
 
-  /** List all webhooks of the current company, secrets excluded. */
-  async list() {
-    const company = await prisma.company.findFirst();
-    if (!company) return [];
-
-    const webhooks = await prisma.webhook.findMany({ where: { companyId: company.id } });
+  /** List all webhooks of the active company, secrets excluded. */
+  async list(companyId: string) {
+    const webhooks = await prisma.webhook.findMany({ where: { companyId } });
 
     // Remove secret from response
     return webhooks.map((w) => ({ ...w, secret: undefined }));
   }
 
-  /** Create a webhook for the current company. Returns the full row (incl. secret) + company for event dispatch. */
-  async create(body: WebhookCreateInput) {
-    const company = await prisma.company.findFirst();
-    if (!company) throw new HttpException('No company found', HttpStatus.BAD_REQUEST);
+  /** Create a webhook for the active company. Returns the full row (incl. secret) + company for event dispatch. */
+  async create(companyId: string, body: WebhookCreateInput) {
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
 
     const secret = body.secret ?? '';
 
@@ -165,7 +157,7 @@ export class WebhooksService {
         type: body.type ?? 'GENERIC',
         events: body.events ?? [],
         secret,
-        companyId: company.id,
+        companyId,
       },
     });
 
@@ -173,13 +165,11 @@ export class WebhooksService {
   }
 
   /** Update a webhook (company-scoped, 404 otherwise). Returns the full updated row + company for event dispatch. */
-  async update(id: string, body: WebhookUpdateInput) {
-    const existing = await prisma.webhook.findUnique({ where: { id } });
+  async update(companyId: string, id: string, body: WebhookUpdateInput) {
+    const existing = await prisma.webhook.findFirst({ where: { id, companyId } });
     if (!existing) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
 
-    const company = await prisma.company.findFirst();
-    if (!company || existing.companyId !== company.id)
-      throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
 
     const webhook = await prisma.webhook.update({
       where: { id },
@@ -195,13 +185,11 @@ export class WebhooksService {
   }
 
   /** Delete a webhook (company-scoped, 404 otherwise). Returns the deleted row + company for event dispatch. */
-  async remove(id: string) {
-    const existing = await prisma.webhook.findUnique({ where: { id } });
+  async remove(companyId: string, id: string) {
+    const existing = await prisma.webhook.findFirst({ where: { id, companyId } });
     if (!existing) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
 
-    const company = await prisma.company.findFirst();
-    if (!company || existing.companyId !== company.id)
-      throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
 
     await prisma.webhook.delete({ where: { id } });
 

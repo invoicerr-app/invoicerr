@@ -7,7 +7,7 @@ import { logger } from '@/logger/logger.service';
 import { getInvertColor, getPDF } from '@/utils/pdf';
 import { baseTemplate } from '@/modules/invoices/templates/base.template';
 import { formatDate } from '@/utils/date';
-import { formatItemDescription } from '@/utils/format-text';
+import { formatRichText } from '@/utils/format-text';
 import { clampDiscountRate } from '@/utils/financial';
 import { getDraftWatermarkLabel } from '@/utils/watermark';
 import { augmentWithIdentifiers, getIdentifier } from '@/utils/entity-identifiers';
@@ -195,7 +195,7 @@ export class InvoiceRenderingService {
       currency: invoice.currency,
       items: invoice.items.map((i) => ({
         name: i.name,
-        description: formatItemDescription(i.description),
+        description: formatRichText(i.description),
         quantity: Number.isInteger(i.quantity)
           ? i.quantity.toString()
           : i.quantity.toFixed(3).replace(/\.?0+$/, ''),

@@ -1,6 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
-import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 import { toMinor, fromMinor } from '@/utils/financial';
 
@@ -9,18 +8,13 @@ type YearStat = { year: number; invoiced: number; revenue: number; deposits: num
 
 @Injectable()
 export class StatsService {
-  async getMonthlyStats(year: number) {
-    const company = await prisma.company.findFirst();
-    if (!company) {
-      logger.error('No company found. Please create a company first.', { category: 'stats' });
-      throw new BadRequestException('No company found. Please create a company first.');
-    }
-
+  async getMonthlyStats(companyId: string, year: number) {
     const startOfYear = new Date(year, 0, 1);
     const endOfYear = new Date(year, 11, 31, 23, 59, 59, 999);
 
     const invoicesInYear = await prisma.invoice.findMany({
       where: {
+        companyId,
         isActive: true,
         createdAt: {
           gte: startOfYear,
@@ -32,6 +26,7 @@ export class StatsService {
 
     const paymentsInYear = await prisma.payment.findMany({
       where: {
+        invoice: { companyId },
         createdAt: {
           gte: startOfYear,
           lte: endOfYear,
@@ -44,7 +39,7 @@ export class StatsService {
     });
 
     const invoicesWithPayments = await prisma.invoice.findMany({
-      where: { isActive: true, payments: { some: {} } },
+      where: { companyId, isActive: true, payments: { some: {} } },
       include: { payments: { orderBy: { createdAt: 'asc' } } },
     });
 
@@ -134,18 +129,13 @@ export class StatsService {
     return { currencies };
   }
 
-  async getYearlyStats(startYear: number, endYear: number) {
-    const company = await prisma.company.findFirst();
-    if (!company) {
-      logger.error('No company found. Please create a company first.', { category: 'stats' });
-      throw new BadRequestException('No company found. Please create a company first.');
-    }
-
+  async getYearlyStats(companyId: string, startYear: number, endYear: number) {
     const startDate = new Date(startYear, 0, 1);
     const endDate = new Date(endYear, 11, 31, 23, 59, 59, 999);
 
     const invoicesInRange = await prisma.invoice.findMany({
       where: {
+        companyId,
         isActive: true,
         createdAt: {
           gte: startDate,
@@ -156,6 +146,7 @@ export class StatsService {
 
     const paymentsInRange = await prisma.payment.findMany({
       where: {
+        invoice: { companyId },
         createdAt: {
           gte: startDate,
           lte: endDate,
@@ -168,7 +159,7 @@ export class StatsService {
     });
 
     const invoicesWithPayments = await prisma.invoice.findMany({
-      where: { isActive: true, payments: { some: {} } },
+      where: { companyId, isActive: true, payments: { some: {} } },
       include: { payments: { orderBy: { createdAt: 'asc' } } },
     });
 

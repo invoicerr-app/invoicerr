@@ -29,18 +29,25 @@ interface OnBoardingProps {
   isLoading?: boolean
   isOpen?: boolean
   onOpenChange?: (open: boolean) => void
+  // Reused both for first-run onboarding (POST /api/company/info, the
+  // singleton "no company yet" flow) and for creating an additional company
+  // from the switcher (POST /api/companies) — same form, different target.
+  endpoint?: string
+  onSuccess?: (company: Company) => void
 }
 
 export default function OnBoarding({
   isLoading: externalLoading,
   isOpen = true,
   onOpenChange,
+  endpoint = "/api/company/info",
+  onSuccess,
 }: OnBoardingProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(false)
 
-  const { trigger } = usePost<Company>("/api/company/info")
+  const { trigger } = usePost<Company>(endpoint)
 
   const companySchema = z.object({
     name: z
@@ -111,10 +118,18 @@ export default function OnBoarding({
         ...values,
         identifiers: (values.identifiers || []).filter((i) => i.value.trim() !== ""),
       }
-      await trigger(payload)
+      const created = await trigger(payload)
+      if (!created) {
+        toast.error(t("settings.company.messages.updateError"))
+        return
+      }
       toast.success(t("settings.company.messages.updateSuccess"))
       onOpenChange?.(false)
-      navigate("/settings/company")
+      if (onSuccess) {
+        onSuccess(created)
+      } else {
+        navigate("/settings/company")
+      }
     } catch (error) {
       console.error("Error during onboarding:", error)
       toast.error(t("settings.company.messages.updateError"))

@@ -1,6 +1,6 @@
 import 'dotenv/config';
 
-import { GenericOAuthConfig, genericOAuth } from 'better-auth/plugins';
+import { GenericOAuthConfig, customSession, genericOAuth } from 'better-auth/plugins';
 
 import { PrismaClient } from '../../prisma/generated/prisma/client.js';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -71,12 +71,22 @@ const markInvitationAsUsed = async (email: string, userId: string) => {
   const invitationCode = pendingInvitationCodes.get(email);
   if (invitationCode) {
     try {
-      await prisma.invitationCode.update({
+      const invitation = await prisma.invitationCode.update({
         where: { code: invitationCode },
         data: {
           usedAt: new Date(),
           usedById: userId,
         },
+      });
+
+      // Attach the new user to the company/role the invitation was
+      // issued for. Upsert: re-using an invitation link for a user who
+      // somehow already belongs to that company should be a no-op,
+      // not a unique-constraint failure.
+      await prisma.userCompany.upsert({
+        where: { userId_companyId: { userId, companyId: invitation.companyId } },
+        create: { userId, companyId: invitation.companyId, role: invitation.role },
+        update: {},
       });
     } catch (error) {
       console.warn(`Could not mark invitation code as used: ${error}`);
@@ -89,12 +99,12 @@ const userHookFunction = async (user) => {
   const data = user;
 
   if (user.given_name && user.family_name) {
-    data.firstname = user.given_name;
-    data.lastname = user.family_name;
+    data['firstname'] = user.given_name;
+    data['lastname'] = user.family_name;
   }
 
   if (user.firstname && user.lastname) {
-    data.name = `${user.firstname} ${user.lastname}`;
+    data['name'] = `${user.firstname} ${user.lastname}`;
   }
 
   if (user.email) {
@@ -147,6 +157,18 @@ export const auth = betterAuth({
       },
     },
   },
+  session: {
+    additionalFields: {
+      // Which company (of the ones the user belongs to) is currently
+      // active. Server-managed only — never accepted as client input,
+      // set exclusively via POST /api/companies/switch.
+      activeCompanyId: {
+        type: 'string',
+        required: false,
+        input: false,
+      },
+    },
+  },
   databaseHooks: {
     user: {
       create: {
@@ -155,5 +177,35 @@ export const auth = betterAuth({
       },
     },
   },
-  plugins: process.env.OIDC_CLIENT_ID ? [genericOAuth({ config: createOidcConfig() })] : [],
+  plugins: [
+    ...(process.env.OIDC_CLIENT_ID ? [genericOAuth({ config: createOidcConfig() })] : []),
+    // Enriches every session with the caller's company memberships and
+    // resolves which one is active, so `AuthGuard` can thread a
+    // companyId/role through every request without an extra query.
+    customSession(async ({ user, session }) => {
+      const memberships = await prisma.userCompany.findMany({
+        where: { userId: user.id },
+        include: { company: { select: { id: true, name: true } } },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      const companies = memberships.map((m) => ({
+        id: m.companyId,
+        name: m.company.name,
+        role: m.role,
+      }));
+
+      const storedActiveCompanyId = (session as { activeCompanyId?: string | null }).activeCompanyId;
+      const activeMembership =
+        memberships.find((m) => m.companyId === storedActiveCompanyId) ?? memberships[0];
+
+      return {
+        user,
+        session,
+        companies,
+        activeCompanyId: activeMembership?.companyId ?? null,
+        activeRole: activeMembership?.role ?? null,
+      };
+    }),
+  ],
 });

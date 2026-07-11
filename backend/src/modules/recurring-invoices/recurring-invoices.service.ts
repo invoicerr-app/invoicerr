@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Currency, WebhookEvent } from '../../../prisma/generated/prisma/client';
 
 import { UpsertInvoicesDto } from '@/modules/recurring-invoices/dto/invoices.dto';
@@ -20,12 +20,13 @@ export class RecurringInvoicesService {
     this.logger = new Logger(RecurringInvoicesService.name);
   }
 
-  async getRecurringInvoices(page: string = '1') {
+  async getRecurringInvoices(companyId: string, page: string = '1') {
     const pageNumber = parseInt(page, 10) || 1;
     const pageSize = 10;
     const skip = (pageNumber - 1) * pageSize;
 
     const recurringInvoices = await prisma.recurringInvoice.findMany({
+      where: { companyId },
       skip,
       take: pageSize,
       include: {
@@ -36,7 +37,7 @@ export class RecurringInvoicesService {
       },
     });
 
-    const totalCount = await prisma.recurringInvoice.count();
+    const totalCount = await prisma.recurringInvoice.count({ where: { companyId } });
 
     // Attach payment method object if available so frontend can consume recurringInvoice.paymentMethod as an object
     const recurringInvoicesWithPM = await enrichWithPaymentMethods(recurringInvoices);
@@ -47,13 +48,14 @@ export class RecurringInvoicesService {
     };
   }
 
-  async createRecurringInvoice(data: UpsertInvoicesDto) {
-    const company = await prisma.company.findFirst({
+  async createRecurringInvoice(companyId: string, data: UpsertInvoicesDto) {
+    const company = await prisma.company.findUniqueOrThrow({
+      where: { id: companyId },
       include: { partyIdentifiers: true },
     });
 
-    const client = await prisma.client.findUnique({
-      where: { id: data.clientId },
+    const client = await prisma.client.findFirst({
+      where: { id: data.clientId, companyId },
       include: { partyIdentifiers: true },
     });
     if (!client) {
@@ -95,7 +97,7 @@ export class RecurringInvoicesService {
     const recurringInvoice = await prisma.recurringInvoice.create({
       data: {
         clientId: data.clientId,
-        companyId: company?.id || '1',
+        companyId,
         notes: data.notes,
         paymentMethod: data.paymentMethod,
         paymentMethodId: data.paymentMethodId,
@@ -154,13 +156,20 @@ export class RecurringInvoicesService {
     return recurringInvoice;
   }
 
-  async updateRecurringInvoice(id: string, data: UpsertInvoicesDto) {
-    const company = await prisma.company.findFirst({
+  async updateRecurringInvoice(companyId: string, id: string, data: UpsertInvoicesDto) {
+    const existing = await prisma.recurringInvoice.findFirst({ where: { id, companyId } });
+    if (!existing) {
+      logger.error('Recurring invoice not found', { category: 'recurring-invoice' });
+      throw new NotFoundException('Recurring invoice not found');
+    }
+
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
       include: { partyIdentifiers: true },
     });
 
-    const client = await prisma.client.findUnique({
-      where: { id: data.clientId },
+    const client = await prisma.client.findFirst({
+      where: { id: data.clientId, companyId },
       include: { partyIdentifiers: true },
     });
     if (!client) {
@@ -194,8 +203,7 @@ export class RecurringInvoicesService {
     }
 
     // Only recalculate nextInvoiceDate if frequency actually changed
-    const existing = await prisma.recurringInvoice.findUnique({ where: { id } });
-    const frequencyChanged = existing && existing.frequency !== data.frequency;
+    const frequencyChanged = existing.frequency !== data.frequency;
 
     // Update recurring invoice
     const recurringInvoice = await prisma.recurringInvoice.update({
@@ -262,9 +270,9 @@ export class RecurringInvoicesService {
     return recurringInvoice;
   }
 
-  async getRecurringInvoice(id: string) {
-    const recurringInvoice = await prisma.recurringInvoice.findUnique({
-      where: { id },
+  async getRecurringInvoice(companyId: string, id: string) {
+    const recurringInvoice = await prisma.recurringInvoice.findFirst({
+      where: { id, companyId },
       include: {
         client: { include: { partyIdentifiers: true } },
         company: { include: { partyIdentifiers: true } },
@@ -289,15 +297,15 @@ export class RecurringInvoicesService {
 
     if (!recurringInvoice) {
       logger.error('Recurring invoice not found', { category: 'recurring-invoice' });
-      throw new BadRequestException('Recurring invoice not found');
+      throw new NotFoundException('Recurring invoice not found');
     }
 
     return enrichWithPaymentMethod(recurringInvoice);
   }
 
-  async deleteRecurringInvoice(id: string) {
-    const existingRecurringInvoice = await prisma.recurringInvoice.findUnique({
-      where: { id },
+  async deleteRecurringInvoice(companyId: string, id: string) {
+    const existingRecurringInvoice = await prisma.recurringInvoice.findFirst({
+      where: { id, companyId },
       include: {
         client: { include: { partyIdentifiers: true } },
         company: { include: { partyIdentifiers: true } },
@@ -307,7 +315,7 @@ export class RecurringInvoicesService {
 
     if (!existingRecurringInvoice) {
       logger.error('Recurring invoice not found', { category: 'recurring-invoice' });
-      throw new BadRequestException('Recurring invoice not found');
+      throw new NotFoundException('Recurring invoice not found');
     }
 
     await prisma.recurringInvoiceItem.deleteMany({
@@ -333,10 +341,10 @@ export class RecurringInvoicesService {
     return deletedRecurringInvoice;
   }
 
-  async pauseRecurringInvoice(id: string) {
-    const existing = await prisma.recurringInvoice.findUnique({ where: { id } });
+  async pauseRecurringInvoice(companyId: string, id: string) {
+    const existing = await prisma.recurringInvoice.findFirst({ where: { id, companyId } });
     if (!existing) {
-      throw new BadRequestException('Recurring invoice not found');
+      throw new NotFoundException('Recurring invoice not found');
     }
 
     const updated = await prisma.recurringInvoice.update({
@@ -363,10 +371,10 @@ export class RecurringInvoicesService {
     return updated;
   }
 
-  async resumeRecurringInvoice(id: string) {
-    const existing = await prisma.recurringInvoice.findUnique({ where: { id } });
+  async resumeRecurringInvoice(companyId: string, id: string) {
+    const existing = await prisma.recurringInvoice.findFirst({ where: { id, companyId } });
     if (!existing) {
-      throw new BadRequestException('Recurring invoice not found');
+      throw new NotFoundException('Recurring invoice not found');
     }
 
     const updated = await prisma.recurringInvoice.update({
@@ -393,10 +401,10 @@ export class RecurringInvoicesService {
     return updated;
   }
 
-  async skipNextRecurringInvoice(id: string) {
-    const existing = await prisma.recurringInvoice.findUnique({ where: { id } });
+  async skipNextRecurringInvoice(companyId: string, id: string) {
+    const existing = await prisma.recurringInvoice.findFirst({ where: { id, companyId } });
     if (!existing) {
-      throw new BadRequestException('Recurring invoice not found');
+      throw new NotFoundException('Recurring invoice not found');
     }
 
     const updated = await prisma.recurringInvoice.update({
@@ -426,10 +434,10 @@ export class RecurringInvoicesService {
     return updated;
   }
 
-  async endNowRecurringInvoice(id: string) {
-    const existing = await prisma.recurringInvoice.findUnique({ where: { id } });
+  async endNowRecurringInvoice(companyId: string, id: string) {
+    const existing = await prisma.recurringInvoice.findFirst({ where: { id, companyId } });
     if (!existing) {
-      throw new BadRequestException('Recurring invoice not found');
+      throw new NotFoundException('Recurring invoice not found');
     }
 
     const today = new Date();

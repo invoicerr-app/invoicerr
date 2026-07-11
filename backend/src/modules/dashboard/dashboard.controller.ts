@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
+import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { DashboardService } from '@/modules/dashboard/dashboard.service';
 
 @ApiTags('dashboard')
@@ -14,7 +15,7 @@ export class DashboardController {
     description: 'Returns aggregated dashboard data (counts, revenue, etc.).',
   })
   @ApiResponse({ status: 200, description: 'Dashboard data retrieved' })
-  async getDashboardInfo() {
-    return this.dashboardService.getDashboardData();
+  async getDashboardInfo(@ActiveCompany() companyId: string) {
+    return this.dashboardService.getDashboardData(companyId);
   }
 }

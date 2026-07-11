@@ -58,7 +58,10 @@ export function useApiMutation<TVariables = unknown, TData = unknown>(
       const url = typeof urlOrFn === "function" ? urlOrFn(variables) : urlOrFn
       return apiFetch<TData>(url, {
         method,
-        body: variables !== undefined ? JSON.stringify(variables) : undefined,
+        // DELETE requests never carry a body in this codebase's convention; a bare
+        // JSON primitive (e.g. just an id string) as the whole body is also rejected
+        // outright by body-parser's default strict mode (only objects/arrays allowed).
+        body: method !== "DELETE" && variables !== undefined ? JSON.stringify(variables) : undefined,
       })
     },
     ...mutationOptions,
