@@ -312,7 +312,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                 <p className="text-sm text-muted-foreground">{t("invoices.view.fields.client")}</p>
                 <p className="font-medium">
                   {invoice.client?.name ||
-                    invoice.client?.contactFirstname + " " + invoice.client?.contactLastname ||
+                    `${invoice.client?.contactFirstname} ${invoice.client?.contactLastname}` ||
                     invoice.clientId}
                 </p>
               </div>

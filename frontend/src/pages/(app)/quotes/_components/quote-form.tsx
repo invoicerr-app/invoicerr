@@ -225,7 +225,7 @@ export function QuoteFormFields({ form, formId, onSubmit }: QuoteFormFieldsProps
                 <FormControl>
                   <SearchSelect
                     options={(clients || []).map((c) => ({
-                      label: c.name || c.contactFirstname + " " + c.contactLastname,
+                      label: c.name || `${c.contactFirstname} ${c.contactLastname}`,
                       value: c.id,
                     }))}
                     value={field.value ?? ""}

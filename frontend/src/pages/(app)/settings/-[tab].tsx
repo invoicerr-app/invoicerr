@@ -130,7 +130,9 @@ export default function Settings() {
   ].filter(
     (item) =>
       !isMember ||
-      !["invitations", "members", "apiKeys", "webhooks", "danger", "channels", "signing"].includes(item.value),
+      !["invitations", "members", "apiKeys", "webhooks", "danger", "channels", "signing"].includes(
+        item.value,
+      ),
   )
 
   const currentMenuItem = menuItems.find((item) => item.value === currentTab)

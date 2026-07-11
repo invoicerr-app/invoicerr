@@ -428,7 +428,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                   {t("invoices.list.item.client")}:
                                 </span>{" "}
                                 {invoice.client.name ||
-                                  invoice.client.contactFirstname + " " + invoice.client.contactLastname}
+                                  `${invoice.client.contactFirstname} ${invoice.client.contactLastname}`}
                               </span>
                               {invoice.status === InvoiceStatus.UPCOMING ? (
                                 <span>

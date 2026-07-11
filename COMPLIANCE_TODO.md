@@ -102,7 +102,7 @@
 - [x] **SdI** (IT) 🟢 — client + mapping des 6 notifiche (RC/NS/MC/NE/DT/AT) + tests.
 - [ ] SdI : transport réel **SDICoop (SOAP)**/**SFTP** + **accréditation AdE** + **PFX qualifié** ; signature **CAdES .p7m** ; entrant ; preuve live.
 - [x] **Peppol** 🟢 — lookup SMP/SML + envoi passerelle AP + mapping + tests.
-- [ ] Peppol : **Access Point** réel + cert AP + lookup SML/SMP réel + MLR/Invoice Response → lifecycle ; preuve live.
+- [x] Peppol : **✅ PROUVÉ LIVE via peppol.sh** (2026‑07‑11 : self‑signup sandbox zéro secret → envoi UBL BIS 3.0 → poll `queued→sending→delivered` → CLEARED en ~13 s). **Multi‑AP** : registre d'adaptateurs `apProvider` (generic | peppol-sh | storecove) choisi par config société ; Storecove mocké (trial 30 j, live‑deferred) ; le nightly CI prouve Peppol **sans aucun secret**. [ ] AP générique/cert AP propre (option OpenPeppol) ; [ ] MLR/Invoice Response → lifecycle ; [ ] prod peppol.sh (0,10 €/facture).
 
 ### 3.3 PRINT réel · PAC/OSE scaffoldés
 - [x] **PRINT** — **réel** : PDF A4 (pdfkit) + QR (qrcode) embarqué, offline ; `transmit`→SENT, fallback universel. Test : magic `%PDF` + QR décodé (jsQR round‑trip).
@@ -219,7 +219,7 @@
 
 - [x] Round‑trips live : **KSeF** ✅, **PDP‑superpdp** ✅.
 - [x] Round‑trips live : **Email** (Ethereal SMTP, messageId réel) ✅ · **PDP‑AFNOR transport** (flowId i_90103) ✅.
-- [ ] Round‑trips live restants : PDP‑AFNOR contenu (ack=Error), SdI, Peppol, KSeF prod, chaque portail national (creds).
+- [ ] Round‑trips live restants : PDP‑AFNOR contenu (ack=Error), SdI, KSeF prod, chaque portail national (creds). **Peppol ✅ prouvé** (peppol.sh sandbox, zéro secret, dans le nightly).
 - [x] Tests d'intégration mockés (filets) : PDP, KSeF, Email, SdI, Peppol, executor‑e2e. **635 tests verts.**
 - [x] Discipline « boot test » (l'app démarre, DI/routes OK).
 - [x] Tests gated `*_LIVE=1` par canal, assertions dures (pas de REJECTED/SKIPPED toléré) — `live-gate.ts` + 7 specs (KSeF✅/PDP✅/AFNOR✅/Email✅/SdI🔴/Peppol🔴/Portal🟡), tous skippés par défaut.
