@@ -5,7 +5,12 @@
   "compilerOptions": {
     "builder": "tsc",
     "deleteOutDir": true,
-    "assets": ["**/*.json", "**/*.pem", "**/*.xsd", "**/*.sch"],
+    "assets": [
+      { "include": "**/*.json", "outDir": "dist/src" },
+      { "include": "**/*.pem", "outDir": "dist/src" },
+      { "include": "**/*.xsd", "outDir": "dist/src" },
+      { "include": "**/*.sch", "outDir": "dist/src" }
+    ],
     "plugins": ["@nestjs/swagger"]
   }
 }
