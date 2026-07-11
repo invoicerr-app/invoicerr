@@ -13,7 +13,8 @@
         },
         "stats": {
             "active": "Aktywni",
-            "inactive": "Nieaktywni"
+            "inactive": "Nieaktywni",
+            "total": "Łączna liczba klientów"
         },
         "emptyState": {
             "noClients": "Brak klientów",
@@ -30,7 +31,9 @@
                 "view": "Zobacz szczegóły klienta",
                 "edit": "Edytuj klienta",
                 "delete": "Usuń klienta"
-            }
+            },
+            "title": "Wszyscy klienci",
+            "description": "Zarządzaj wszystkimi klientami i przeglądaj ich w jednym miejscu."
         },
         "upsert": {
             "title": {
@@ -92,10 +95,12 @@
                 "type": {
                     "label": "Typ klienta",
                     "company": "Firma",
-                    "individual": "Osoba fizyczna"
+                    "individual": "Osoba fizyczna",
+                    "description": "Wybierz, czy klient jest osobą fizyczną, czy firmą"
                 },
                 "country": {
-                    "label": "Kraj"
+                    "label": "Kraj",
+                    "placeholder": "Wpisz kraj"
                 },
                 "identifiers": {
                     "label": "Identyfikatory specyficzne dla kraju"
@@ -110,6 +115,14 @@
                 },
                 "peppolSchemeId": {
                     "label": "Schemat Peppol"
+                },
+                "legalId": {
+                    "label": "Identyfikator prawny",
+                    "placeholder": "Wpisz identyfikator prawny"
+                },
+                "vat": {
+                    "label": "Numer VAT",
+                    "placeholder": "Wpisz numer VAT (np. PL1234567890)"
                 }
             },
             "validation": {
@@ -117,7 +130,8 @@
                     "required": "Nazwa firmy jest wymagana"
                 },
                 "description": {
-                    "maxLength": "Opis nie może przekraczać 500 znaków"
+                    "maxLength": "Opis nie może przekraczać 500 znaków",
+                    "required": "Opis jest wymagany"
                 },
                 "foundedAt": {
                     "future": "Data założenia nie może być w przyszłości"
@@ -129,7 +143,8 @@
                     "required": "Nazwisko jest wymagane"
                 },
                 "contactPhone": {
-                    "format": "Nieprawidłowy format numeru telefonu"
+                    "format": "Nieprawidłowy format numeru telefonu",
+                    "minLength": "Numer telefonu musi mieć co najmniej 8 znaków"
                 },
                 "contactEmail": {
                     "required": "E-mail jest wymagany",
@@ -146,6 +161,17 @@
                 },
                 "country": {
                     "required": "Kraj jest wymagany"
+                },
+                "legalId": {
+                    "required": "Identyfikator prawny jest wymagany",
+                    "empty": "Identyfikator prawny nie może być pusty",
+                    "maxLength": "Identyfikator prawny musi mieć mniej niż 50 znaków"
+                },
+                "vat": {
+                    "required": "Numer VAT jest wymagany",
+                    "empty": "Numer VAT nie może być pusty",
+                    "maxLength": "Numer VAT musi mieć mniej niż 15 znaków",
+                    "format": "Format numeru VAT jest nieprawidłowy (np. PL1234567890)"
                 }
             },
             "actions": {
@@ -188,6 +214,11 @@
             "messages": {
                 "error": "Nie udało się usunąć klienta"
             }
+        },
+        "header": {
+            "subtitle": "Zarządzaj swoimi klientami",
+            "count": "{{count}} klientów {{found}}",
+            "found": "znalezionych"
         }
     },
     "quotes": {
@@ -200,7 +231,8 @@
         "filters": {
             "draft": "Szkic",
             "sent": "Wysłana",
-            "signed": "Podpisana"
+            "signed": "Podpisana",
+            "all": "Wszystkie"
         },
         "emptyState": {
             "noQuotes": "Brak ofert",
@@ -230,7 +262,8 @@
                 "sendSignature": "Wyślij do podpisu",
                 "resendSignature": "Wyślij ponownie do podpisu",
                 "createInvoice": "Utwórz fakturę z oferty",
-                "delete": "Usuń ofertę"
+                "delete": "Usuń ofertę",
+                "view": "Zobacz szczegóły oferty"
             },
             "actions": {
                 "addNew": "Dodaj nową ofertę"
@@ -240,7 +273,9 @@
                 "sendSignatureSuccess": "Oferta została wysłana do podpisu",
                 "invoiceCreated": "Faktura z oferty została utworzona",
                 "invoiceCreateError": "Nie udało się utworzyć faktury z oferty"
-            }
+            },
+            "title": "Wszystkie oferty",
+            "description": "Zarządzaj wszystkimi ofertami i przeglądaj je w jednym miejscu."
         },
         "progression": {
             "title": "Postęp",
@@ -314,7 +349,13 @@
                 "cancel": "Anuluj"
             },
             "errors": {
-                "quoteFullyInvoiced": "Ta oferta została już w całości zafakturowana."
+                "quoteFullyInvoiced": "Ta oferta została już w całości zafakturowana.",
+                "quantityExceedsRemaining": "Żądana ilość przekracza pozostałą ilość do zafakturowania."
+            },
+            "fields": {
+                "quantity": {
+                    "label": "Ilość"
+                }
             }
         },
         "upsert": {
@@ -363,7 +404,10 @@
                     },
                     "description": {
                         "placeholder": "Opis pozycji",
-                        "hint": "Wskazówka: użyj **pogrubienia** i *kursywy* dla wyróżnienia."
+                        "hint": "Wskazówka: użyj **pogrubienia** i *kursywy* dla wyróżnienia.",
+                        "errors": {
+                            "required": "Opis jest wymagany"
+                        }
                     },
                     "quantity": {
                         "placeholder": "Ilość",
@@ -398,6 +442,11 @@
                     "label": "Metoda płatności",
                     "placeholder": "Wybierz metodę płatności",
                     "description": "Preferowana metoda płatności dla tej oferty (np. przelew bankowy, czek itp.)"
+                },
+                "paymentDetails": {
+                    "label": "Szczegóły płatności",
+                    "placeholder": "Wpisz szczegóły płatności",
+                    "description": "Dodatkowe informacje dotyczące płatności (np. IBAN, instrukcje itp.)"
                 }
             },
             "actions": {
@@ -406,7 +455,9 @@
                 "save": "Zapisz zmiany"
             },
             "messages": {
-                "saveError": "Nie udało się zapisać oferty"
+                "saveError": "Nie udało się zapisać oferty",
+                "updateSuccess": "Oferta została zaktualizowana",
+                "updateError": "Nie udało się zaktualizować oferty"
             }
         },
         "view": {
@@ -453,7 +504,23 @@
             }
         },
         "pdf": {
-            "title": "Oferta {{number}} - PDF"
+            "title": "Oferta {{number}} - PDF",
+            "edit": {
+                "toggle": "Edytuj",
+                "saveQuote": "Zapisz ofertę",
+                "saveSettings": "Zapisz ustawienia",
+                "fitToWidth": "Dopasuj do szerokości"
+            }
+        },
+        "header": {
+            "subtitle": "Zarządzaj swoimi ofertami",
+            "count": "{{count}} ofert {{found}}",
+            "found": "znalezionych"
+        },
+        "stats": {
+            "total": "Łączna liczba ofert",
+            "draft": "Szkice",
+            "signed": "Podpisane"
         }
     },
     "invoices": {
@@ -554,7 +621,8 @@
             "paid": "Opłacona",
             "archived": "Zarchiwizowana",
             "cancelled": "Anulowana",
-            "corrected": "Skorygowana"
+            "corrected": "Skorygowana",
+            "all": "Wszystkie"
         },
         "emptyState": {
             "noInvoices": "Brak faktur",
@@ -595,7 +663,8 @@
                 "delete": "Usuń fakturę",
                 "issue": "Wystaw fakturę",
                 "creditNote": "Wystaw fakturę korygującą",
-                "cancel": "Anuluj fakturę"
+                "cancel": "Anuluj fakturę",
+                "sendByEmail": "Wyślij fakturę e-mailem"
             },
             "actions": {
                 "addNew": "Dodaj nową fakturę",
@@ -615,6 +684,16 @@
                 "cancelSuccess": "Faktura anulowana",
                 "cancelError": "Nie udało się anulować faktury",
                 "sendByEmailError": "Nie udało się wysłać faktury e-mailem"
+            },
+            "title": "Wszystkie faktury",
+            "description": "Zarządzaj wszystkimi fakturami i przeglądaj je w jednym miejscu.",
+            "downloadFormats": {
+                "pdf": "Standardowy PDF",
+                "facturx": "Factur-X",
+                "zugferd": "ZUGFeRD",
+                "xrechnung": "XRechnung",
+                "ubl": "UBL",
+                "cii": "CII"
             }
         },
         "upsert": {
@@ -631,7 +710,10 @@
             "form": {
                 "quote": {
                     "label": "Z oferty",
-                    "placeholder": "Wybierz ofertę"
+                    "placeholder": "Wybierz ofertę",
+                    "errors": {
+                        "required": "Wybierz ofertę"
+                    }
                 },
                 "client": {
                     "label": "Klient",
@@ -669,7 +751,10 @@
                     },
                     "description": {
                         "placeholder": "Opis pozycji",
-                        "hint": "Wskazówka: użyj **pogrubienia** i *kursywy* dla wyróżnienia."
+                        "hint": "Wskazówka: użyj **pogrubienia** i *kursywy* dla wyróżnienia.",
+                        "errors": {
+                            "required": "Opis jest wymagany"
+                        }
                     },
                     "quantity": {
                         "placeholder": "Ilość",
@@ -718,6 +803,11 @@
                     "description": "Wybierz faktury zaliczkowe do odliczenia od tej faktury końcowej.",
                     "selected": "Wybrano zaliczek: {{count}} — suma: {{total}}",
                     "none": "Brak niepowiązanych faktur zaliczkowych dla tego klienta."
+                },
+                "paymentDetails": {
+                    "label": "Szczegóły płatności",
+                    "placeholder": "Wpisz szczegóły płatności",
+                    "description": "Dodatkowe informacje dotyczące płatności (np. IBAN, instrukcje itp.)"
                 }
             },
             "actions": {
@@ -868,6 +958,16 @@
                 "success": "Faktura zaliczkowa utworzona",
                 "error": "Nie udało się utworzyć faktury zaliczkowej"
             }
+        },
+        "header": {
+            "subtitle": "Zarządzaj swoimi fakturami",
+            "count": "{{count}} faktur {{found}}",
+            "found": "znalezionych"
+        },
+        "stats": {
+            "total": "Łączna liczba faktur",
+            "sent": "Wysłane",
+            "paid": "Opłacone"
         }
     },
     "recurringInvoices": {
@@ -896,7 +996,8 @@
                 "paused": "Wstrzymana",
                 "autoIssue": "Automatyczne wystawianie",
                 "autoSend": "Automatyczna wysyłka",
-                "skipNext": "Pomiń następną"
+                "skipNext": "Pomiń następną",
+                "totalHT": "Suma netto"
             },
             "tooltips": {
                 "view": "Zobacz szczegóły",
@@ -915,8 +1016,12 @@
                 "endNowError": "Nie udało się zakończyć faktury cyklicznej",
                 "pauseError": "Nie udało się wstrzymać faktury cyklicznej",
                 "resumeError": "Nie udało się wznowić faktury cyklicznej",
-                "skipNextError": "Nie udało się pominąć następnego cyklu"
-            }
+                "skipNextError": "Nie udało się pominąć następnego cyklu",
+                "manual_process_success": "Ręczne przetwarzanie zostało uruchomione",
+                "manual_process_error": "Nie udało się uruchomić ręcznego przetwarzania"
+            },
+            "title": "Faktury cykliczne",
+            "description": "Zarządzaj fakturami cyklicznymi i automatyzuj fakturowanie."
         },
         "upsert": {
             "title": {
@@ -985,7 +1090,10 @@
                     },
                     "description": {
                         "placeholder": "Opis pozycji",
-                        "hint": "Wskazówka: użyj **pogrubienia** i *kursywy* dla wyróżnienia."
+                        "hint": "Wskazówka: użyj **pogrubienia** i *kursywy* dla wyróżnienia.",
+                        "errors": {
+                            "required": "Opis jest wymagany"
+                        }
                     },
                     "quantity": {
                         "placeholder": "Ilość",
@@ -1019,6 +1127,11 @@
                         "service": "Usługa",
                         "product": "Produkt"
                     }
+                },
+                "paymentDetails": {
+                    "label": "Szczegóły płatności",
+                    "placeholder": "Wpisz szczegóły płatności",
+                    "description": "Dodatkowe informacje dotyczące płatności (np. IBAN, instrukcje itp.)"
                 }
             },
             "actions": {
@@ -1057,6 +1170,13 @@
                 "error": "Nie udało się usunąć faktury cyklicznej"
             },
             "title": "Usuń fakturę cykliczną"
+        },
+        "emptyState": {
+            "noInvoices": "Brak faktur cyklicznych",
+            "startAdding": "Zacznij od utworzenia pierwszej faktury cyklicznej."
+        },
+        "actions": {
+            "addNew": "Dodaj nową fakturę cykliczną"
         }
     },
     "dashboard": {
@@ -1157,7 +1277,8 @@
         },
         "delete": {
             "description": "Czy na pewno chcesz usunąć \"{{name}}\"? Tej operacji nie można cofnąć."
-        }
+        },
+        "title": "Artykuły"
     },
     "paymentMethods": {
         "title": "Metody płatności",
@@ -1180,7 +1301,8 @@
         },
         "stats": {
             "active": "Aktywne",
-            "inactive": "Nieaktywne"
+            "inactive": "Nieaktywne",
+            "total": "Łączna liczba metod płatności"
         },
         "fields": {
             "name": {
@@ -1214,11 +1336,40 @@
                 "updateSuccess": "Metoda płatności zaktualizowana",
                 "updateError": "Nie udało się zaktualizować metody płatności",
                 "deleteSuccess": "Metoda płatności usunięta",
-                "deleteError": "Nie udało się usunąć metody płatności"
+                "deleteError": "Nie udało się usunąć metody płatności",
+                "nameRequired": "Nazwa jest wymagana"
+            },
+            "form": {
+                "name": {
+                    "label": "Nazwa",
+                    "placeholder": "np. Przelew bankowy (firmowy)"
+                },
+                "details": {
+                    "label": "Szczegóły",
+                    "placeholder": "IBAN / szczegóły"
+                },
+                "type": {
+                    "label": "Typ",
+                    "bank_transfer": "Przelew bankowy",
+                    "paypal": "PayPal",
+                    "check": "Czek",
+                    "cash": "Gotówka",
+                    "other": "Inne"
+                }
+            },
+            "actions": {
+                "cancel": "Anuluj",
+                "add": "Dodaj",
+                "save": "Zapisz",
+                "edit": "Edytuj",
+                "delete": "Usuń",
+                "deleting": "Usuwanie..."
             }
         },
         "tooltips": {
-            "view": "Zobacz"
+            "view": "Zobacz",
+            "edit": "Edytuj",
+            "delete": "Usuń"
         },
         "delete": {
             "description": "Czy na pewno chcesz usunąć \"{{name}}\"? Tej operacji nie można cofnąć."
@@ -1241,7 +1392,8 @@
             "webhooks": "Webhooki",
             "apiKeys": "Klucze API",
             "channels": "E-fakturowanie",
-            "signing": "Certyfikaty podpisu"
+            "signing": "Certyfikaty podpisu",
+            "members": "Członkowie"
         },
         "invitations": {
             "create": {
@@ -1250,7 +1402,8 @@
                 "expiresIn": "Wygasa za (dni)",
                 "expiresPlaceholder": "Pozostaw puste, aby kod nie wygasał",
                 "button": "Wygeneruj kod",
-                "creating": "Generowanie..."
+                "creating": "Generowanie...",
+                "role": "Rola"
             },
             "list": {
                 "title": "Twoje kody zaproszeń",
@@ -1262,7 +1415,8 @@
                 "usedBy": "Użyty przez",
                 "actions": "Akcje",
                 "empty": "Nie utworzono jeszcze żadnych kodów zaproszeń",
-                "noExpiry": "Nigdy"
+                "noExpiry": "Nigdy",
+                "role": "Rola"
             },
             "status": {
                 "active": "Aktywny",
@@ -1274,7 +1428,13 @@
                 "createError": "Nie udało się utworzyć kodu zaproszenia",
                 "deleteSuccess": "Kod zaproszenia usunięty",
                 "deleteError": "Nie udało się usunąć kodu zaproszenia",
-                "codeCopied": "Kod skopiowany do schowka"
+                "codeCopied": "Kod skopiowany do schowka",
+                "fetchError": "Nie udało się załadować kodów zaproszeń"
+            },
+            "roles": {
+                "owner": "Właściciel",
+                "admin": "Administrator",
+                "member": "Członek"
             }
         },
         "company": {
@@ -1362,14 +1522,16 @@
                 },
                 "state": {
                     "label": "Województwo/region (opcjonalnie)",
-                    "placeholder": "Wpisz województwo lub region"
+                    "placeholder": "Wpisz województwo lub region",
+                    "description": "Stan lub województwo (np. CA, TX, Ontario)"
                 },
                 "country": {
                     "label": "Kraj",
                     "description": "Określa dostępną wyszukiwarkę firm (np. SIRET dla Francji)",
                     "errors": {
                         "empty": "Kraj jest wymagany"
-                    }
+                    },
+                    "placeholder": "Wpisz kraj"
                 },
                 "phone": {
                     "label": "Telefon",
@@ -1456,7 +1618,8 @@
                         "cii": "CII"
                     },
                     "errors": {
-                        "format": "Nieprawidłowy format PDF faktury"
+                        "format": "Nieprawidłowy format PDF faktury",
+                        "required": "Format PDF faktury jest wymagany"
                     }
                 },
                 "dateFormat": {
@@ -1488,6 +1651,27 @@
                 },
                 "peppolSchemeId": {
                     "label": "Schemat Peppol"
+                },
+                "legalId": {
+                    "label": "Identyfikator prawny",
+                    "placeholder": "Wpisz identyfikator prawny",
+                    "description": "Numer rejestrowy Twojej firmy",
+                    "errors": {
+                        "required": "Identyfikator prawny jest wymagany",
+                        "empty": "Identyfikator prawny nie może być pusty",
+                        "maxLength": "Identyfikator prawny musi mieć mniej niż 50 znaków"
+                    }
+                },
+                "vat": {
+                    "label": "Numer VAT",
+                    "placeholder": "Wpisz numer VAT (np. PL1234567890)",
+                    "description": "Numer identyfikacyjny VAT Twojej firmy",
+                    "errors": {
+                        "required": "Numer VAT jest wymagany",
+                        "empty": "Numer VAT nie może być pusty",
+                        "maxLength": "Numer VAT musi mieć mniej niż 15 znaków",
+                        "format": "Format numeru VAT jest nieprawidłowy (np. PL1234567890)"
+                    }
                 }
             },
             "messages": {
@@ -1638,6 +1822,9 @@
                 "toggleError": "Nie udało się zmienić stanu wtyczki",
                 "configureSuccess": "Wtyczka została skonfigurowana",
                 "configureError": "Nie udało się skonfigurować wtyczki"
+            },
+            "webhook": {
+                "secretPlaceholder": "Zatwierdź to okno, aby wygenerować bezpieczny sekret"
             }
         },
         "pdfTemplates": {
@@ -1709,7 +1896,8 @@
                 "product": "Produkt",
                 "type": "Typ",
                 "legalId": "Identyfikator prawny",
-                "vatId": "NIP"
+                "vatId": "NIP",
+                "title": "Etykiety i tekst"
             },
             "defaultLabels": {
                 "invoice": "Faktura",
@@ -1748,7 +1936,8 @@
                 "product": "Produkt",
                 "type": "Typ",
                 "legalId": "Identyfikator prawny",
-                "VATId": "NIP"
+                "VATId": "NIP",
+                "vatId": "Numer VAT"
             },
             "preview": {
                 "title": "Podgląd",
@@ -1823,12 +2012,14 @@
                 "description": "Wygeneruj nowy klucz API",
                 "name": "Nazwa",
                 "namePlaceholder": "np. CLI na moim laptopie",
-                "button": "Utwórz klucz API"
+                "button": "Utwórz klucz API",
+                "scopes": "Zakresy uprawnień"
             },
             "card": {
                 "lastUsed": "Ostatnio użyty: {{date}}",
                 "neverUsed": "Nigdy nie użyty",
-                "revoke": "Unieważnij"
+                "revoke": "Unieważnij",
+                "noScopes": "Nie przyznano żadnych zakresów uprawnień"
             }
         },
         "audit": {
@@ -1887,6 +2078,23 @@
                 "title": "Prześlij certyfikat podpisu"
             },
             "uploadButton": "Prześlij certyfikat"
+        },
+        "members": {
+            "title": "Członkowie firmy",
+            "description": "Zarządzaj dostępem do tej firmy i rolami członków",
+            "empty": "Brak członków",
+            "list": {
+                "name": "Imię i nazwisko",
+                "email": "E-mail",
+                "role": "Rola",
+                "actions": "Akcje"
+            },
+            "messages": {
+                "roleUpdateSuccess": "Rola członka została zaktualizowana",
+                "roleUpdateError": "Nie udało się zaktualizować roli członka",
+                "removeSuccess": "Członek został usunięty",
+                "removeError": "Nie udało się usunąć członka"
+            }
         }
     },
     "sidebar": {
@@ -1901,10 +2109,14 @@
             "stats": "Statystyki",
             "settings": "Ustawienia",
             "receivedInvoices": "Faktury otrzymane",
-            "compliance": "Zgodność"
+            "compliance": "Zgodność",
+            "expenses": "Wydatki"
         },
         "company": {
-            "plan": "Entreprise"
+            "plan": "Entreprise",
+            "switcherLabel": "Twoje firmy",
+            "createNew": "Utwórz nową firmę",
+            "manage": "Zarządzaj firmą"
         },
         "menu": "Menu",
         "theme": {
@@ -1916,6 +2128,11 @@
         "userMenu": {
             "account": "Konto",
             "logout": "Wyloguj się"
+        },
+        "companyDialog": {
+            "title": "Uzupełnij dane firmy",
+            "description": "Uzupełnij informacje o swojej firmie, aby dalej korzystać z aplikacji.",
+            "goButton": "Przejdź do ustawień firmy"
         }
     },
     "auth": {
@@ -1943,7 +2160,11 @@
                 "loginError": "Nieprawidłowe dane logowania"
             },
             "oidc": "Zaloguj się przez OIDC.",
-            "oidcLink": "Logowanie OIDC"
+            "oidcLink": "Logowanie OIDC",
+            "errors": {
+                "invalidEmail": "Wpisz prawidłowy adres e-mail",
+                "passwordRequired": "Hasło jest wymagane"
+            }
         },
         "signup": {
             "title": "Utwórz konto",
@@ -1979,11 +2200,20 @@
             "errors": {
                 "invitationCodeRequired": "Do rejestracji wymagany jest kod zaproszenia",
                 "invalidInvitationCode": "Nieprawidłowy lub wygasły kod zaproszenia",
-                "genericError": "Wystąpił błąd podczas tworzenia konta"
+                "genericError": "Wystąpił błąd podczas tworzenia konta",
+                "firstnameMinLength": "Imię musi mieć co najmniej 2 znaki",
+                "lastnameMinLength": "Nazwisko musi mieć co najmniej 2 znaki",
+                "invalidEmail": "Wpisz prawidłowy adres e-mail",
+                "passwordMinLength": "Hasło musi mieć co najmniej 8 znaków",
+                "passwordLetter": "Hasło musi zawierać co najmniej jedną literę",
+                "passwordNumber": "Hasło musi zawierać co najmniej jedną cyfrę",
+                "passwordSpecial": "Hasło musi zawierać co najmniej jeden znak specjalny"
             },
             "messages": {
                 "accountCreated": "Konto zostało utworzone"
-            }
+            },
+            "oidc": "Zarejestruj się przez OIDC.",
+            "oidcLink": "Rejestracja OIDC"
         }
     },
     "unavailable": {
@@ -2006,7 +2236,15 @@
         "loading": "Ładowanie...",
         "finish": "Zakończ",
         "valueWithCurrency": "{{amount}}{{currency}}",
-        "cancel": "Anuluj"
+        "cancel": "Anuluj",
+        "previous": "Wstecz",
+        "next": "Dalej",
+        "units": {
+            "day": "Dzień",
+            "week": "Tydzień",
+            "month": "Miesiąc",
+            "year": "Rok"
+        }
     },
     "payments": {
         "breakdown": {
@@ -2030,14 +2268,20 @@
                 "invoice": "Faktura",
                 "totalItemCount": "Łączna liczba pozycji",
                 "totalPaid": "Łącznie zapłacono",
-                "noInvoice": "Brak faktury"
+                "noInvoice": "Brak faktury",
+                "client": "Klient",
+                "issued": "Wystawiono",
+                "validUntil": "Ważna do",
+                "totalHT": "Suma netto",
+                "totalTTC": "Suma brutto"
             },
             "tooltips": {
                 "viewPdf": "Zobacz PDF",
                 "downloadPdf": "Pobierz PDF",
                 "edit": "Edytuj płatność",
                 "sendToClient": "Wyślij do klienta",
-                "delete": "Usuń płatność"
+                "delete": "Usuń płatność",
+                "view": "Zobacz płatność"
             },
             "messages": {
                 "emailSent": "Płatność została wysłana do klienta.",
@@ -2045,6 +2289,13 @@
             },
             "actions": {
                 "addNew": "Dodaj nową płatność"
+            },
+            "title": "Wszystkie płatności",
+            "description": "Zarządzaj wszystkimi płatnościami i przeglądaj je w jednym miejscu.",
+            "status": {
+                "draft": "Szkic",
+                "sent": "Wysłana",
+                "signed": "Podpisana"
             }
         },
         "upsert": {
@@ -2054,7 +2305,10 @@
             },
             "form": {
                 "client": {
-                    "label": "Klient"
+                    "label": "Klient",
+                    "errors": {
+                        "required": "Klient jest wymagany."
+                    }
                 },
                 "amount": {
                     "label": "Łączna kwota",
@@ -2084,6 +2338,14 @@
                     },
                     "errors": {
                         "negativeTotal": "Suma płatności za tę fakturę nie może być ujemna"
+                    },
+                    "placeholder": "Dodaj pozycje do płatności",
+                    "noResults": "Nie znaleziono pozycji",
+                    "addButton": "Dodaj pozycję",
+                    "description": {
+                        "errors": {
+                            "required": "Opis jest wymagany."
+                        }
                     }
                 },
                 "invoice": {
@@ -2099,6 +2361,11 @@
                 "paidAt": {
                     "label": "Data płatności",
                     "placeholder": "Wybierz datę płatności"
+                },
+                "paymentDetails": {
+                    "label": "Szczegóły płatności",
+                    "placeholder": "Wpisz szczegóły płatności",
+                    "description": "Dodatkowe informacje o płatności"
                 }
             },
             "actions": {
@@ -2161,6 +2428,17 @@
                 "export": "Eksportuj"
             },
             "emptyState": "Żadna płatność nie pasuje do tych filtrów."
+        },
+        "header": {
+            "subtitle": "Zarządzaj swoimi płatnościami",
+            "count": "{{count}} płatności {{found}}",
+            "found": "znalezionych"
+        },
+        "stats": {
+            "total": "Łączna liczba płatności",
+            "draft": "Szkice",
+            "sent": "Wysłane",
+            "signed": "Podpisane"
         }
     },
     "stats": {
@@ -2265,7 +2543,8 @@
         "cancel": "Anuluj",
         "selectThisFolder": "Wybierz ten folder",
         "noSubdirectories": "Nie znaleziono podfolderów",
-        "loading": "Ładowanie folderów..."
+        "loading": "Ładowanie folderów...",
+        "browse": "Przeglądaj"
     },
     "actions": {
         "add": "Dodaj"
@@ -2317,5 +2596,80 @@
             "title": "Raportowanie"
         },
         "title": "Zgodność"
-    }
+    },
+    "expenses": {
+        "search": {
+            "placeholder": "Szukaj wydatków..."
+        },
+        "actions": {
+            "add": "Dodaj wydatek",
+            "export": "Eksportuj CSV",
+            "cancel": "Anuluj",
+            "save": "Zapisz",
+            "delete": "Usuń"
+        },
+        "table": {
+            "emptyState": "Brak wydatków w tym miesiącu",
+            "columns": {
+                "description": "Opis",
+                "amount": "Kwota",
+                "date": "Data",
+                "notes": "Notatki",
+                "actions": "Akcje"
+            },
+            "tooltips": {
+                "duplicate": "Duplikuj wydatek",
+                "edit": "Edytuj wydatek",
+                "delete": "Usuń wydatek"
+            }
+        },
+        "upsert": {
+            "title": {
+                "create": "Dodaj wydatek",
+                "edit": "Edytuj wydatek"
+            },
+            "form": {
+                "description": {
+                    "label": "Opis",
+                    "placeholder": "np. Artykuły biurowe",
+                    "errors": {
+                        "required": "Opis jest wymagany"
+                    }
+                },
+                "amount": {
+                    "label": "Kwota",
+                    "placeholder": "0.00",
+                    "errors": {
+                        "required": "Kwota jest wymagana",
+                        "min": "Kwota musi być dodatnia"
+                    }
+                },
+                "currency": {
+                    "label": "Waluta"
+                },
+                "date": {
+                    "label": "Data"
+                },
+                "notes": {
+                    "label": "Notatki",
+                    "placeholder": "Notatki (opcjonalnie)"
+                }
+            },
+            "messages": {
+                "addSuccess": "Wydatek został dodany",
+                "addError": "Nie udało się dodać wydatku",
+                "updateSuccess": "Wydatek został zaktualizowany",
+                "updateError": "Nie udało się zaktualizować wydatku",
+                "deleteSuccess": "Wydatek został usunięty",
+                "deleteError": "Nie udało się usunąć wydatku",
+                "duplicateSuccess": "Wydatek zduplikowano z dzisiejszą datą",
+                "duplicateError": "Nie udało się zduplikować wydatku"
+            }
+        },
+        "delete": {
+            "title": "Usuń wydatek",
+            "description": "Czy na pewno chcesz usunąć „{{description}}”? Tej operacji nie można cofnąć."
+        }
+    },
+    "noOptions": "Brak dostępnych opcji. Utwórz nowego klienta."
 }
