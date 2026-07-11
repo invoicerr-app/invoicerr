@@ -1,4 +1,16 @@
-import { AlertTriangle, Building2, FileText, KeyRound, Mail, Plug, Radio, ShieldCheck, TicketIcon, User, Webhook } from "lucide-react"
+import {
+  AlertTriangle,
+  Building2,
+  FileText,
+  KeyRound,
+  Mail,
+  Plug,
+  Radio,
+  ShieldCheck,
+  TicketIcon,
+  User,
+  Webhook,
+} from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useNavigate, useParams } from "react-router"
 
@@ -19,168 +31,179 @@ import { useTranslation } from "react-i18next"
 import { LogsSettings } from "./_components/logs.settings"
 
 export default function Settings() {
-    const { t } = useTranslation()
-    const { tab } = useParams()
-    const navigate = useNavigate()
+  const { t } = useTranslation()
+  const { tab } = useParams()
+  const navigate = useNavigate()
 
-    const validTabs = ["company", "template", "email", "webhooks", "apiKeys", "logs", "account", "invitations", "plugins", "channels", "signing", "danger"]
-    const currentTab = validTabs.includes(tab!) ? tab! : "company"
+  const validTabs = [
+    "company",
+    "template",
+    "email",
+    "webhooks",
+    "apiKeys",
+    "logs",
+    "account",
+    "invitations",
+    "plugins",
+    "channels",
+    "signing",
+    "danger",
+  ]
+  const currentTab = validTabs.includes(tab!) ? tab! : "company"
 
-    const handleTabChange = (newTab: string) => {
-        navigate(`/settings/${newTab}`)
+  const handleTabChange = (newTab: string) => {
+    navigate(`/settings/${newTab}`)
+  }
+
+  const menuItems = [
+    {
+      value: "company",
+      label: t("settings.tabs.company"),
+      icon: Building2,
+    },
+    {
+      value: "template",
+      label: t("settings.tabs.pdfTemplates"),
+      icon: FileText,
+    },
+    {
+      value: "email",
+      label: t("settings.tabs.emailTemplates"),
+      icon: Mail,
+    },
+    {
+      value: "webhooks",
+      label: t("settings.tabs.webhooks"),
+      icon: Webhook,
+    },
+    {
+      value: "apiKeys",
+      label: t("settings.tabs.apiKeys"),
+      icon: KeyRound,
+    },
+    {
+      value: "logs",
+      label: t("settings.tabs.logs"),
+      icon: FileText,
+    },
+    {
+      value: "account",
+      label: t("settings.tabs.account"),
+      icon: User,
+    },
+    {
+      value: "invitations",
+      label: t("settings.tabs.invitations"),
+      icon: TicketIcon,
+    },
+    {
+      value: "plugins",
+      label: t("settings.tabs.plugins"),
+      icon: Plug,
+    },
+    {
+      value: "channels",
+      label: t("settings.tabs.channels", "E-invoicing"),
+      icon: Radio,
+    },
+    {
+      value: "signing",
+      label: t("settings.tabs.signing", "Signing certs"),
+      icon: ShieldCheck,
+    },
+    {
+      value: "danger",
+      label: t("settings.tabs.dangerZone"),
+      icon: AlertTriangle,
+    },
+  ]
+
+  const currentMenuItem = menuItems.find((item) => item.value === currentTab)
+
+  usePageHeader(t("settings.title"))
+
+  const renderContent = () => {
+    switch (currentTab) {
+      case "company":
+        return <CompanySettings />
+      case "template":
+        return <PDFTemplatesSettings />
+      case "email":
+        return <EmailTemplatesSettings />
+      case "webhooks":
+        return <WebhooksSettings />
+      case "apiKeys":
+        return <ApiKeysSettings />
+      case "logs":
+        return <LogsSettings />
+      case "account":
+        return <AccountSettings />
+      case "invitations":
+        return <InvitationsSettings />
+      case "plugins":
+        return <PluginsSettings />
+      case "channels":
+        return <ChannelsSettings />
+      case "signing":
+        return <SigningCertificatesSettings />
+      case "danger":
+        return <DangerZoneSettings />
+      default:
+        return <CompanySettings />
     }
+  }
 
-    const menuItems = [
-        {
-            value: "company",
-            label: t("settings.tabs.company"),
-            icon: Building2,
-        },
-        {
-            value: "template",
-            label: t("settings.tabs.pdfTemplates"),
-            icon: FileText,
-        },
-        {
-            value: "email",
-            label: t("settings.tabs.emailTemplates"),
-            icon: Mail,
-        },
-        {
-            value: "webhooks",
-            label: t("settings.tabs.webhooks"),
-            icon: Webhook,
-        },
-        {
-            value: "apiKeys",
-            label: t("settings.tabs.apiKeys"),
-            icon: KeyRound,
-        },
-        {
-            value: "logs",
-            label: t("settings.tabs.logs"),
-            icon: FileText,
-        },
-        {
-            value: "account",
-            label: t("settings.tabs.account"),
-            icon: User,
-        },
-        {
-            value: "invitations",
-            label: t("settings.tabs.invitations"),
-            icon: TicketIcon,
-        },
-        {
-            value: "plugins",
-            label: t("settings.tabs.plugins"),
-            icon: Plug,
-        },
-        {
-            value: "channels",
-            label: t("settings.tabs.channels", "E-invoicing"),
-            icon: Radio,
-        },
-        {
-            value: "signing",
-            label: t("settings.tabs.signing", "Signing certs"),
-            icon: ShieldCheck,
-        },
-        {
-            value: "danger",
-            label: t("settings.tabs.dangerZone"),
-            icon: AlertTriangle,
-        },
-    ]
-
-    const currentMenuItem = menuItems.find((item) => item.value === currentTab)
-
-    usePageHeader(t("settings.title"))
-
-    const renderContent = () => {
-        switch (currentTab) {
-            case "company":
-                return <CompanySettings />
-            case "template":
-                return <PDFTemplatesSettings />
-            case "email":
-                return <EmailTemplatesSettings />
-            case "webhooks":
-                return <WebhooksSettings />
-            case "apiKeys":
-                return <ApiKeysSettings />
-            case "logs":
-                return <LogsSettings />
-            case "account":
-                return <AccountSettings />
-            case "invitations":
-                return <InvitationsSettings />
-            case "plugins":
-                return <PluginsSettings />
-            case "channels":
-                return <ChannelsSettings />
-            case "signing":
-                return <SigningCertificatesSettings />
-            case "danger":
-                return <DangerZoneSettings />
-            default:
-                return <CompanySettings />
-        }
-    }
-
-    return (
-        <div className="h-full flex flex-col lg:flex-row">
-            <div className="lg:hidden p-4">
-                <Select value={currentTab} onValueChange={handleTabChange}>
-                    <SelectTrigger className="w-full h-12">
-                        <SelectValue>
-                            <div className="flex items-center gap-2">
-                                {currentMenuItem?.icon && <currentMenuItem.icon className="h-4 w-4" />}
-                                {currentMenuItem?.label}
-                            </div>
-                        </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                        {menuItems.map((item) => (
-                            <SelectItem key={item.value} value={item.value}>
-                                <div className="flex items-center gap-2">
-                                    <item.icon className="h-4 w-4" />
-                                    {item.label}
-                                </div>
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
-
-            <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r bg-muted/30">
-                <nav className="flex-1 px-3 pb-6 pt-6">
-                    <ul className="space-y-1">
-                        {menuItems.map((item) => (
-                            <li key={item.value}>
-                                <button
-                                    onClick={() => handleTabChange(item.value)}
-                                    className={cn(
-                                        "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                                        currentTab === item.value
-                                            ? "bg-primary text-primary-foreground"
-                                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    )}
-                                >
-                                    <item.icon className="h-4 w-4" />
-                                    {item.label}
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                </nav>
-            </aside>
-
-            <main className="flex-1 overflow-auto p-6">
-                <div className="max-w-4xl mx-auto">
-                    {renderContent()}
+  return (
+    <div className="h-full flex flex-col lg:flex-row">
+      <div className="lg:hidden p-4">
+        <Select value={currentTab} onValueChange={handleTabChange}>
+          <SelectTrigger className="w-full h-12">
+            <SelectValue>
+              <div className="flex items-center gap-2">
+                {currentMenuItem?.icon && <currentMenuItem.icon className="h-4 w-4" />}
+                {currentMenuItem?.label}
+              </div>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {menuItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                <div className="flex items-center gap-2">
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
                 </div>
-            </main>
-        </div>
-    )
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r bg-muted/30">
+        <nav className="flex-1 px-3 pb-6 pt-6">
+          <ul className="space-y-1">
+            {menuItems.map((item) => (
+              <li key={item.value}>
+                <button
+                  onClick={() => handleTabChange(item.value)}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                    currentTab === item.value
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </aside>
+
+      <main className="flex-1 overflow-auto p-6">
+        <div className="max-w-4xl mx-auto">{renderContent()}</div>
+      </main>
+    </div>
+  )
 }

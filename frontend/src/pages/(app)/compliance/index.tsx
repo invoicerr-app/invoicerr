@@ -3,21 +3,8 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useGet, authenticatedFetch } from "@/hooks/use-fetch"
 import { usePageHeader } from "@/hooks/use-page-header"
 import { FileCheck2, Loader2, RefreshCw, ShieldCheck } from "lucide-react"
@@ -124,7 +111,9 @@ const STATUS_COLORS: Record<string, string> = {
 function DocumentStatusBadge({ status }: { status: string }) {
   const color = STATUS_COLORS[status] ?? "text-slate-500 bg-slate-50"
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${color}`}>
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${color}`}
+    >
       {status.replace(/_/g, " ")}
     </span>
   )
@@ -165,7 +154,11 @@ function PipelineSection() {
   if (statusFilter !== ALL) params.set("status", statusFilter)
   if (channelFilter !== ALL) params.set("channel", channelFilter)
 
-  const { data, loading, mutate: refetch } = useGet<DocumentsResponse>(`/api/compliance/documents?${params.toString()}`)
+  const {
+    data,
+    loading,
+    mutate: refetch,
+  } = useGet<DocumentsResponse>(`/api/compliance/documents?${params.toString()}`)
 
   const handleRefreshStatus = async (doc: PipelineDocument) => {
     setRefreshingId(doc.id)
@@ -207,7 +200,9 @@ function PipelineSection() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ALL}>{t("compliance.pipeline.filters.allStatuses", "All statuses")}</SelectItem>
+              <SelectItem value={ALL}>
+                {t("compliance.pipeline.filters.allStatuses", "All statuses")}
+              </SelectItem>
               {STATUS_OPTIONS.map((s) => (
                 <SelectItem key={s} value={s}>
                   {s.replace(/_/g, " ")}
@@ -226,7 +221,9 @@ function PipelineSection() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ALL}>{t("compliance.pipeline.filters.allChannels", "All channels")}</SelectItem>
+              <SelectItem value={ALL}>
+                {t("compliance.pipeline.filters.allChannels", "All channels")}
+              </SelectItem>
               {CHANNEL_OPTIONS.map((c) => (
                 <SelectItem key={c} value={c}>
                   {c.replace(/_/g, " ")}
@@ -246,7 +243,9 @@ function PipelineSection() {
           <CardContent className="flex flex-col items-center justify-center py-12 gap-4">
             <ShieldCheck className="h-12 w-12 text-muted-foreground" />
             <div className="text-center">
-              <p className="font-medium">{t("compliance.pipeline.emptyState.title", "No compliance documents")}</p>
+              <p className="font-medium">
+                {t("compliance.pipeline.emptyState.title", "No compliance documents")}
+              </p>
               <p className="text-sm text-muted-foreground mt-1">
                 {t(
                   "compliance.pipeline.emptyState.description",
@@ -268,7 +267,9 @@ function PipelineSection() {
                   <TableHead>{t("compliance.pipeline.columns.channel", "Channel")}</TableHead>
                   <TableHead>{t("compliance.pipeline.columns.authorityRefs", "Authority refs")}</TableHead>
                   <TableHead>{t("compliance.pipeline.columns.lastEvent", "Last event")}</TableHead>
-                  <TableHead className="text-right">{t("compliance.pipeline.columns.actions", "Actions")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("compliance.pipeline.columns.actions", "Actions")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -331,7 +332,9 @@ function PipelineSection() {
                         onClick={() => handleRefreshStatus(doc)}
                         data-cy="compliance-refresh-button"
                       >
-                        <RefreshCw className={`h-4 w-4 mr-1 ${refreshingId === doc.id ? "animate-spin" : ""}`} />
+                        <RefreshCw
+                          className={`h-4 w-4 mr-1 ${refreshingId === doc.id ? "animate-spin" : ""}`}
+                        />
                         {t("compliance.pipeline.actions.refresh", "Refresh")}
                       </Button>
                     </TableCell>
@@ -404,13 +407,19 @@ function ReportsSection() {
               <TableBody>
                 {reports.map((report) => (
                   <TableRow key={report.id} data-cy="compliance-report-row">
-                    <TableCell className="font-medium whitespace-nowrap">{report.kind.replace(/_/g, " ")}</TableCell>
+                    <TableCell className="font-medium whitespace-nowrap">
+                      {report.kind.replace(/_/g, " ")}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap">{report.periodKey}</TableCell>
                     <TableCell>
                       <ReportStatusBadge status={report.status} />
                     </TableCell>
-                    <TableCell className="text-xs font-mono break-all">{report.submittedRef ?? "—"}</TableCell>
-                    <TableCell className="text-sm whitespace-nowrap">{formatDateTime(report.submittedAt)}</TableCell>
+                    <TableCell className="text-xs font-mono break-all">
+                      {report.submittedRef ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">
+                      {formatDateTime(report.submittedAt)}
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                       {formatDateTime(report.createdAt)}
                     </TableCell>

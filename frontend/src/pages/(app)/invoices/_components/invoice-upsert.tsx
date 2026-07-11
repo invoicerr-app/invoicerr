@@ -1,6 +1,14 @@
 import type { Client, Invoice } from "@/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEffect, useState } from "react"
@@ -29,706 +37,840 @@ import { useTranslation } from "react-i18next"
 import { z } from "zod"
 
 interface InvoiceUpsertDialogProps {
-    invoice?: Invoice | null
-    open: boolean
-    onOpenChange: (open: boolean) => void
+  invoice?: Invoice | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 type CreationMode = "invoice" | "recurring" | "proforma" | "final"
 
 export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDialogProps) {
-    const { t } = useTranslation()
-    const isEdit = !!invoice
-    const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const isEdit = !!invoice
+  const queryClient = useQueryClient()
 
-    const [mode, setMode] = useState<CreationMode>("invoice")
+  const [mode, setMode] = useState<CreationMode>("invoice")
 
-    useEffect(() => {
-        if (open) {
-            setMode("invoice")
-        }
-    }, [open])
+  useEffect(() => {
+    if (open) {
+      setMode("invoice")
+    }
+  }, [open])
 
-    const invoiceSchema = z.object({
-        quoteId: z
-            .string()
-            .optional(),
-        clientId: z
-            .string()
-            .min(1, t("invoices.upsert.form.client.errors.required"))
-            .refine((val) => val !== "", {
-                message: t("invoices.upsert.form.client.errors.required"),
-            }),
-        dueDate: z.date().optional(),
-        notes: z.string().optional(),
-        paymentMethodId: z.string().optional(),
-        currency: z.string().optional(),
-        discountRate: z
-            .number({ invalid_type_error: t("invoices.upsert.form.discountRate.errors.required") })
-            .min(0, t("invoices.upsert.form.discountRate.errors.min"))
-            .max(100, t("invoices.upsert.form.discountRate.errors.max")),
-        items: z.array(
-            createLineItemSchema(t, "invoices", z.enum(['HOUR', 'DAY', 'DEPOSIT', 'SERVICE', 'PRODUCT']).optional()),
-        ),
-    })
+  const invoiceSchema = z.object({
+    quoteId: z.string().optional(),
+    clientId: z
+      .string()
+      .min(1, t("invoices.upsert.form.client.errors.required"))
+      .refine((val) => val !== "", {
+        message: t("invoices.upsert.form.client.errors.required"),
+      }),
+    dueDate: z.date().optional(),
+    notes: z.string().optional(),
+    paymentMethodId: z.string().optional(),
+    currency: z.string().optional(),
+    discountRate: z
+      .number({ invalid_type_error: t("invoices.upsert.form.discountRate.errors.required") })
+      .min(0, t("invoices.upsert.form.discountRate.errors.min"))
+      .max(100, t("invoices.upsert.form.discountRate.errors.max")),
+    items: z.array(
+      createLineItemSchema(
+        t,
+        "invoices",
+        z.enum(["HOUR", "DAY", "DEPOSIT", "SERVICE", "PRODUCT"]).optional(),
+      ),
+    ),
+  })
 
-    const recurringInvoiceSchema = z.object({
-        quoteId: z.string().optional(),
-        clientId: z
-            .string()
-            .min(1, t("recurringInvoices.upsert.form.client.errors.required"))
-            .refine((val) => val !== "", {
-                message: t("recurringInvoices.upsert.form.client.errors.required"),
-            }),
-        notes: z.string().optional(),
-        paymentMethodId: z.string().optional(),
-        frequency: z.enum(["WEEKLY", "BIWEEKLY", "MONTHLY", "BIMONTHLY", "QUARTERLY", "QUADMONTHLY", "SEMIANNUALLY", "ANNUALLY"], {
-            errorMap: () => ({
-                message: t("recurringInvoices.upsert.form.frequency.errors.required"),
-            }),
+  const recurringInvoiceSchema = z.object({
+    quoteId: z.string().optional(),
+    clientId: z
+      .string()
+      .min(1, t("recurringInvoices.upsert.form.client.errors.required"))
+      .refine((val) => val !== "", {
+        message: t("recurringInvoices.upsert.form.client.errors.required"),
+      }),
+    notes: z.string().optional(),
+    paymentMethodId: z.string().optional(),
+    frequency: z.enum(
+      ["WEEKLY", "BIWEEKLY", "MONTHLY", "BIMONTHLY", "QUARTERLY", "QUADMONTHLY", "SEMIANNUALLY", "ANNUALLY"],
+      {
+        errorMap: () => ({
+          message: t("recurringInvoices.upsert.form.frequency.errors.required"),
         }),
-        count: z.number().optional(),
-        until: z.date().optional(),
-        currency: z.string().optional(),
-        autoSend: z.boolean().optional(),
-        items: z.array(
-            createLineItemSchema(t, "recurringInvoices", z.string()),
-        ),
+      },
+    ),
+    count: z.number().optional(),
+    until: z.date().optional(),
+    currency: z.string().optional(),
+    autoSend: z.boolean().optional(),
+    items: z.array(createLineItemSchema(t, "recurringInvoices", z.string())),
+  })
+
+  const [clientSearchTerm, setClientsSearchTerm] = useState("")
+  const [quoteSearchTerm, setQuoteSearchTerm] = useState("")
+  const [clientDialogOpen, setClientDialogOpen] = useState(false)
+  const [selectedDepositIds, setSelectedDepositIds] = useState<string[]>([])
+  const { data: clients } = useClientSearch(clientSearchTerm)
+  const { data: quotes } = useQuoteSearch(quoteSearchTerm)
+  const { data: paymentMethods } = usePaymentMethods()
+
+  const { trigger: createProformaTrigger, loading: proformaLoading } = useMutationWithToast(
+    usePost("/api/invoices/proforma"),
+    t("invoices.upsert.messages.proformaError", "Failed to create proforma invoice"),
+  )
+  const { trigger: createFinalTrigger, loading: finalLoading } = useMutationWithToast(
+    usePost("/api/invoices/final"),
+    t("invoices.upsert.messages.finalError", "Failed to create final invoice"),
+  )
+
+  const {
+    form,
+    submit: submitInvoice,
+    submitLoading: invoiceSubmitLoading,
+  } = useDocumentUpsert({
+    entity: invoice,
+    schema: invoiceSchema,
+    defaultValues: {
+      quoteId: undefined,
+      clientId: "",
+      dueDate: undefined,
+      paymentMethodId: "",
+      currency: undefined,
+      discountRate: 0,
+      items: [],
+      notes: "",
+    },
+    createUrl: "/api/invoices",
+    updateUrl: `/api/invoices/${invoice?.id}`,
+    errorMessage: t("invoices.upsert.messages.saveError", "Failed to save invoice"),
+    invalidateKeys: [queryKeys.invoices.listsAll()],
+    mapEntityToForm: (invoice) => ({
+      quoteId: invoice.quoteId || "",
+      clientId: invoice.clientId || "",
+      dueDate: invoice.dueDate ? new Date(invoice.dueDate) : undefined,
+      notes: invoice.notes || "",
+      paymentMethodId: invoice.paymentMethodId || "",
+      currency: invoice.currency || "",
+      discountRate: invoice.discountRate ?? 0,
+      items: (invoice.items || [])
+        .sort((a, b) => a.order - b.order)
+        .map((item) => ({
+          id: item.id,
+          name: item.name || "",
+          description: item.description || "",
+          quantity: item.quantity || 1,
+          unitPrice: item.unitPrice || 0,
+          vatRate: item.vatRate || 0,
+          type: item.type || "SERVICE",
+          order: item.order || 0,
+        })),
+    }),
+    onSuccess: () => onOpenChange(false),
+  })
+
+  const {
+    form: recurringForm,
+    submit: submitRecurring,
+    submitLoading: recurringLoading,
+  } = useDocumentUpsert({
+    entity: null,
+    schema: recurringInvoiceSchema,
+    defaultValues: {
+      quoteId: undefined,
+      clientId: "",
+      items: [],
+      notes: "",
+      frequency: "MONTHLY",
+      autoSend: false,
+    },
+    createUrl: "/api/recurring-invoices",
+    errorMessage: t("recurringInvoices.upsert.messages.saveError", "Failed to save recurring invoice"),
+    invalidateKeys: [queryKeys.recurringInvoices.listsAll()],
+    onSuccess: () => onOpenChange(false),
+  })
+
+  const submitLoading =
+    mode === "proforma"
+      ? proformaLoading
+      : mode === "final"
+        ? finalLoading
+        : mode === "recurring"
+          ? recurringLoading
+          : invoiceSubmitLoading
+
+  const { control, handleSubmit, watch } = form
+  const { control: recurringControl, handleSubmit: handleRecurringSubmit } = recurringForm
+
+  const watchedClientId = watch("clientId")
+  const { data: unlinkedDeposits } = useUnlinkedDeposits(mode === "final" ? watchedClientId : null)
+
+  const onSubmitProforma = (data: z.infer<typeof invoiceSchema>) => {
+    createProformaTrigger({ ...data, kind: "PROFORMA" }).then((result) => {
+      if (!result) return
+      queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
+      onOpenChange(false)
+      form.reset()
     })
+  }
 
-    const [clientSearchTerm, setClientsSearchTerm] = useState("")
-    const [quoteSearchTerm, setQuoteSearchTerm] = useState("")
-    const [clientDialogOpen, setClientDialogOpen] = useState(false)
-    const [selectedDepositIds, setSelectedDepositIds] = useState<string[]>([])
-    const { data: clients } = useClientSearch(clientSearchTerm)
-    const { data: quotes } = useQuoteSearch(quoteSearchTerm)
-    const { data: paymentMethods } = usePaymentMethods()
-
-    const { trigger: createProformaTrigger, loading: proformaLoading } = useMutationWithToast(
-        usePost("/api/invoices/proforma"),
-        t("invoices.upsert.messages.proformaError", "Failed to create proforma invoice"),
-    )
-    const { trigger: createFinalTrigger, loading: finalLoading } = useMutationWithToast(
-        usePost("/api/invoices/final"),
-        t("invoices.upsert.messages.finalError", "Failed to create final invoice"),
-    )
-
-    const { form, submit: submitInvoice, submitLoading: invoiceSubmitLoading } = useDocumentUpsert({
-        entity: invoice,
-        schema: invoiceSchema,
-        defaultValues: {
-            quoteId: undefined,
-            clientId: "",
-            dueDate: undefined,
-            paymentMethodId: "",
-            currency: undefined,
-            discountRate: 0,
-            items: [],
-            notes: "",
-        },
-        createUrl: "/api/invoices",
-        updateUrl: `/api/invoices/${invoice?.id}`,
-        errorMessage: t("invoices.upsert.messages.saveError", "Failed to save invoice"),
-        invalidateKeys: [queryKeys.invoices.listsAll()],
-        mapEntityToForm: (invoice) => ({
-            quoteId: invoice.quoteId || "",
-            clientId: invoice.clientId || "",
-            dueDate: invoice.dueDate ? new Date(invoice.dueDate) : undefined,
-            notes: invoice.notes || "",
-            paymentMethodId: invoice.paymentMethodId || "",
-            currency: invoice.currency || "",
-            discountRate: invoice.discountRate ?? 0,
-            items: (invoice.items || [])
-                .sort((a, b) => a.order - b.order)
-                .map((item) => ({
-                    id: item.id,
-                    name: item.name || "",
-                    description: item.description || "",
-                    quantity: item.quantity || 1,
-                    unitPrice: item.unitPrice || 0,
-                    vatRate: item.vatRate || 0,
-                    type: item.type || 'SERVICE',
-                    order: item.order || 0,
-                })),
-        }),
-        onSuccess: () => onOpenChange(false),
+  const onSubmitFinal = (data: z.infer<typeof invoiceSchema>) => {
+    createFinalTrigger({ ...data, kind: "FINAL", depositInvoiceIds: selectedDepositIds }).then((result) => {
+      if (!result) return
+      queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
+      onOpenChange(false)
+      form.reset()
+      setSelectedDepositIds([])
     })
+  }
 
-    const { form: recurringForm, submit: submitRecurring, submitLoading: recurringLoading } = useDocumentUpsert({
-        entity: null,
-        schema: recurringInvoiceSchema,
-        defaultValues: {
-            quoteId: undefined,
-            clientId: "",
-            items: [],
-            notes: "",
-            frequency: "MONTHLY",
-            autoSend: false,
-        },
-        createUrl: "/api/recurring-invoices",
-        errorMessage: t("recurringInvoices.upsert.messages.saveError", "Failed to save recurring invoice"),
-        invalidateKeys: [queryKeys.recurringInvoices.listsAll()],
-        onSuccess: () => onOpenChange(false),
-    })
-
-    const submitLoading =
-        mode === "proforma" ? proformaLoading
-        : mode === "final" ? finalLoading
-        : mode === "recurring" ? recurringLoading
-        : invoiceSubmitLoading
-
-    const { control, handleSubmit, watch } = form
-    const { control: recurringControl, handleSubmit: handleRecurringSubmit } = recurringForm
-
-    const watchedClientId = watch("clientId")
-    const { data: unlinkedDeposits } = useUnlinkedDeposits(mode === "final" ? watchedClientId : null)
-
-    const onSubmitProforma = (data: z.infer<typeof invoiceSchema>) => {
-        createProformaTrigger({ ...data, kind: 'PROFORMA' })
-            .then((result) => {
-                if (!result) return
-                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
-                onOpenChange(false)
-                form.reset()
-            })
+  const handleClientCreate = (newClient: Client) => {
+    setClientsSearchTerm("")
+    clients?.push(newClient)
+    if (mode === "invoice") {
+      form.setValue("clientId", newClient.id)
+      form.trigger("clientId")
+    } else {
+      recurringForm.setValue("clientId", newClient.id)
+      recurringForm.trigger("clientId")
     }
+  }
 
-    const onSubmitFinal = (data: z.infer<typeof invoiceSchema>) => {
-        createFinalTrigger({ ...data, kind: 'FINAL', depositInvoiceIds: selectedDepositIds })
-            .then((result) => {
-                if (!result) return
-                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
-                onOpenChange(false)
-                form.reset()
-                setSelectedDepositIds([])
-            })
-    }
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          className="max-w-sm lg:max-w-4xl h-[85dvh] max-h-[85dvh] p-0 gap-0 flex flex-col overflow-hidden"
+          dataCy="invoice-dialog"
+        >
+          <DialogHeader className="shrink-0 border-b px-6 py-4 space-y-3">
+            <DialogTitle>{t(`invoices.upsert.title.${isEdit ? "edit" : "create"}`)}</DialogTitle>
+            {!isEdit && (
+              <Tabs value={mode} onValueChange={(value) => setMode(value as CreationMode)}>
+                <TabsList>
+                  <TabsTrigger value="invoice" data-cy="invoice-tab-invoice">
+                    {t("invoices.upsert.tabs.invoice")}
+                  </TabsTrigger>
+                  <TabsTrigger value="recurring" data-cy="invoice-tab-recurring">
+                    {t("invoices.upsert.tabs.recurring")}
+                  </TabsTrigger>
+                  <TabsTrigger value="proforma" data-cy="invoice-tab-proforma">
+                    {t("invoices.upsert.tabs.proforma")}
+                  </TabsTrigger>
+                  <TabsTrigger value="final" data-cy="invoice-tab-final">
+                    {t("invoices.upsert.tabs.final")}
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
+          </DialogHeader>
 
-    const handleClientCreate = (newClient: Client) => {
-        setClientsSearchTerm("")
-        clients?.push(newClient)
-        if (mode === "invoice") {
-            form.setValue("clientId", newClient.id)
-            form.trigger("clientId")
-        } else {
-            recurringForm.setValue("clientId", newClient.id)
-            recurringForm.trigger("clientId")
-        }
-    }
-
-    return (
-        <>
-            <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent
-                    className="max-w-sm lg:max-w-4xl h-[85dvh] max-h-[85dvh] p-0 gap-0 flex flex-col overflow-hidden"
-                    dataCy="invoice-dialog"
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            {mode === "invoice" ? (
+              <Form {...form} key="invoice-form-mode">
+                <form
+                  id="invoice-form"
+                  onSubmit={handleSubmit(submitInvoice)}
+                  className="space-y-4"
+                  data-cy="invoice-form"
                 >
-                    <DialogHeader className="shrink-0 border-b px-6 py-4 space-y-3">
-                        <DialogTitle>
-                            {t(`invoices.upsert.title.${isEdit ? "edit" : "create"}`)}
-                        </DialogTitle>
-                        {!isEdit && (
-                            <Tabs value={mode} onValueChange={(value) => setMode(value as CreationMode)}>
-                                <TabsList>
-                                    <TabsTrigger value="invoice" data-cy="invoice-tab-invoice">
-                                        {t("invoices.upsert.tabs.invoice")}
-                                    </TabsTrigger>
-                                    <TabsTrigger value="recurring" data-cy="invoice-tab-recurring">
-                                        {t("invoices.upsert.tabs.recurring")}
-                                    </TabsTrigger>
-                                    <TabsTrigger value="proforma" data-cy="invoice-tab-proforma">
-                                        {t("invoices.upsert.tabs.proforma")}
-                                    </TabsTrigger>
-                                    <TabsTrigger value="final" data-cy="invoice-tab-final">
-                                        {t("invoices.upsert.tabs.final")}
-                                    </TabsTrigger>
-                                </TabsList>
-                            </Tabs>
-                        )}
-                    </DialogHeader>
+                  <FormField
+                    control={control}
+                    name="quoteId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("invoices.upsert.form.quote.label")}</FormLabel>
+                        <FormControl>
+                          <SearchSelect
+                            options={(quotes || []).map((c) => ({
+                              label: `${c.number}${c.title ? ` (${c.title})` : ""}`,
+                              value: c.id,
+                            }))}
+                            value={field.value ?? ""}
+                            onValueChange={(val) => {
+                              field.onChange(val || null)
+                              if (val) {
+                                const selectedQuote = quotes?.find((q) => q.id === val)
+                                form.setValue("clientId", selectedQuote?.clientId || "")
+                                form.setValue("notes", selectedQuote?.notes || "")
+                                form.setValue("paymentMethodId", selectedQuote?.paymentMethodId || "")
+                                form.setValue("currency", selectedQuote?.currency || "")
+                                form.setValue("discountRate", selectedQuote?.discountRate ?? 0)
+                                form.setValue(
+                                  "items",
+                                  (selectedQuote?.items || []).map((item, index) => ({
+                                    id: item.id,
+                                    name: item.name || "",
+                                    description: item.description || "",
+                                    quantity: item.quantity || 1,
+                                    unitPrice: item.unitPrice || 0,
+                                    vatRate: item.vatRate || 0,
+                                    type: item.type || "SERVICE",
+                                    order: index,
+                                  })),
+                                )
+                              }
+                            }}
+                            onSearchChange={setQuoteSearchTerm}
+                            placeholder={t("invoices.upsert.form.quote.placeholder")}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                    <div className="flex-1 overflow-y-auto px-6 py-4">
-                        {mode === "invoice" ? (
-                            <Form {...form} key="invoice-form-mode">
-                                <form id="invoice-form" onSubmit={handleSubmit(submitInvoice)} className="space-y-4" data-cy="invoice-form">
-                                    <FormField
-                                        control={control}
-                                        name="quoteId"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>{t("invoices.upsert.form.quote.label")}</FormLabel>
-                                                <FormControl>
-                                                    <SearchSelect
-                                                        options={(quotes || []).map((c) => ({
-                                                            label: `${c.number}${c.title ? ` (${c.title})` : ""}`,
-                                                            value: c.id,
-                                                        }))}
-                                                        value={field.value ?? ""}
-                                                        onValueChange={(val) => {
-                                                            field.onChange(val || null)
-                                                            if (val) {
-                                                                const selectedQuote = quotes?.find((q) => q.id === val)
-                                                                form.setValue("clientId", selectedQuote?.clientId || "")
-                                                                form.setValue("notes", selectedQuote?.notes || "")
-                                                                form.setValue("paymentMethodId", selectedQuote?.paymentMethodId || "")
-                                                                form.setValue("currency", selectedQuote?.currency || "")
-                                                                form.setValue("discountRate", selectedQuote?.discountRate ?? 0)
-                                                                form.setValue('items', (selectedQuote?.items || []).map((item, index) => ({
-                                                                    id: item.id,
-                                                                    name: item.name || "",
-                                                                    description: item.description || "",
-                                                                    quantity: item.quantity || 1,
-                                                                    unitPrice: item.unitPrice || 0,
-                                                                    vatRate: item.vatRate || 0,
-                                                                    type: item.type || 'SERVICE',
-                                                                    order: index,
-                                                                })))
-                                                            }
-                                                        }}
-                                                        onSearchChange={setQuoteSearchTerm}
-                                                        placeholder={t("invoices.upsert.form.quote.placeholder")}
-                                                    />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                  <ClientSelectField
+                    translationPrefix="invoices"
+                    dataCy="invoice-client-select"
+                    clients={clients || []}
+                    onSearchChange={setClientsSearchTerm}
+                    onRequestCreateClient={() => setClientDialogOpen(true)}
+                  />
 
-                                    <ClientSelectField
-                                        translationPrefix="invoices"
-                                        dataCy="invoice-client-select"
-                                        clients={clients || []}
-                                        onSearchChange={setClientsSearchTerm}
-                                        onRequestCreateClient={() => setClientDialogOpen(true)}
-                                    />
+                  <CurrencyField translationPrefix="invoices" dataCy="invoice-currency-select" />
 
-                                    <CurrencyField translationPrefix="invoices" dataCy="invoice-currency-select" />
+                  <DiscountRateField translationPrefix="invoices" />
 
-                                    <DiscountRateField translationPrefix="invoices" />
+                  <FormField
+                    control={control}
+                    name="dueDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("invoices.upsert.form.dueDate.label")}</FormLabel>
+                        <FormControl>
+                          <DatePicker
+                            className="w-full"
+                            value={field.value || null}
+                            onChange={field.onChange}
+                            placeholder={t("invoices.upsert.form.dueDate.placeholder")}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                                    <FormField
-                                        control={control}
-                                        name="dueDate"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>{t("invoices.upsert.form.dueDate.label")}</FormLabel>
-                                                <FormControl>
-                                                    <DatePicker
-                                                        className="w-full"
-                                                        value={field.value || null}
-                                                        onChange={field.onChange}
-                                                        placeholder={t("invoices.upsert.form.dueDate.placeholder")}
-                                                    />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                  <FormField
+                    control={control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("invoices.upsert.form.notes.label")}</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            {...field}
+                            placeholder={t("invoices.upsert.form.notes.placeholder")}
+                            className="max-h-40"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                                    <FormField
-                                        control={control}
-                                        name="notes"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>{t("invoices.upsert.form.notes.label")}</FormLabel>
-                                                <FormControl>
-                                                    <Textarea {...field} placeholder={t("invoices.upsert.form.notes.placeholder")} className="max-h-40" />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                  <PaymentMethodField
+                    translationPrefix="invoices"
+                    paymentMethods={paymentMethods}
+                    triggerClassName="w-full"
+                  />
 
-                                    <PaymentMethodField translationPrefix="invoices" paymentMethods={paymentMethods} triggerClassName="w-full" />
+                  <LineItemsEditor translationPrefix="invoices" defaultItemType="SERVICE" />
+                </form>
+              </Form>
+            ) : mode === "recurring" ? (
+              <Form {...recurringForm} key="recurring-form-mode">
+                <form
+                  id="recurring-invoice-form"
+                  onSubmit={handleRecurringSubmit(submitRecurring)}
+                  className="space-y-4"
+                  data-cy="recurring-invoice-form"
+                >
+                  <FormField
+                    control={recurringControl}
+                    name="quoteId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("recurringInvoices.upsert.form.quote.label")}</FormLabel>
+                        <FormControl>
+                          <SearchSelect
+                            options={(quotes || []).map((c) => ({
+                              label: `${c.number}${c.title ? ` (${c.title})` : ""}`,
+                              value: c.id,
+                            }))}
+                            value={field.value ?? ""}
+                            onValueChange={(val) => {
+                              field.onChange(val || null)
+                              if (val) {
+                                const quote = quotes?.find((q) => q.id === val)
+                                if (!quote) return
+                                recurringForm.setValue("clientId", quote.clientId)
+                                recurringForm.setValue("notes", quote.notes)
+                                recurringForm.setValue(
+                                  "paymentMethodId",
+                                  quote.paymentMethodId ?? quote.paymentMethod?.id ?? "",
+                                )
+                                recurringForm.setValue("currency", quote.currency || "")
+                                recurringForm.setValue(
+                                  "items",
+                                  quote.items.map((item) => ({
+                                    id: item.id,
+                                    type: item.type,
+                                    name: item.name || "",
+                                    description: item.description || "",
+                                    quantity: item.quantity || 1,
+                                    unitPrice: item.unitPrice || 0,
+                                    vatRate: item.vatRate ?? 0,
+                                    order: item.order || 0,
+                                  })),
+                                )
+                              }
+                            }}
+                            onSearchChange={setQuoteSearchTerm}
+                            placeholder={t("recurringInvoices.upsert.form.quote.placeholder")}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
 
-                                    <LineItemsEditor translationPrefix="invoices" defaultItemType="SERVICE" />
-                                </form>
-                            </Form>
-                        ) : mode === "recurring" ? (
-                            <Form {...recurringForm} key="recurring-form-mode">
-                                <form id="recurring-invoice-form" onSubmit={handleRecurringSubmit(submitRecurring)} className="space-y-4" data-cy="recurring-invoice-form">
-                                    <FormField
-                                        control={recurringControl}
-                                        name="quoteId"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>{t("recurringInvoices.upsert.form.quote.label")}</FormLabel>
-                                                <FormControl>
-                                                    <SearchSelect
-                                                        options={(quotes || []).map((c) => ({
-                                                            label: `${c.number}${c.title ? ` (${c.title})` : ""}`,
-                                                            value: c.id,
-                                                        }))}
-                                                        value={field.value ?? ""}
-                                                        onValueChange={(val) => {
-                                                            field.onChange(val || null)
-                                                            if (val) {
-                                                                const quote = quotes?.find((q) => q.id === val)
-                                                                if (!quote) return
-                                                                recurringForm.setValue("clientId", quote.clientId)
-                                                                recurringForm.setValue("notes", quote.notes)
-                                                                recurringForm.setValue("paymentMethodId", quote.paymentMethodId ?? quote.paymentMethod?.id ?? "")
-                                                                recurringForm.setValue("currency", quote.currency || "")
-                                                                recurringForm.setValue('items', quote.items.map((item) => ({
-                                                                    id: item.id,
-                                                                    type: item.type,
-                                                                    name: item.name || "",
-                                                                    description: item.description || "",
-                                                                    quantity: item.quantity || 1,
-                                                                    unitPrice: item.unitPrice || 0,
-                                                                    vatRate: item.vatRate ?? 0,
-                                                                    order: item.order || 0,
-                                                                })))
-                                                            }
-                                                        }}
-                                                        onSearchChange={setQuoteSearchTerm}
-                                                        placeholder={t("recurringInvoices.upsert.form.quote.placeholder")}
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
+                  <ClientSelectField
+                    translationPrefix="recurringInvoices"
+                    dataCy="recurring-invoice-client-select"
+                    clients={clients || []}
+                    onSearchChange={setClientsSearchTerm}
+                    onRequestCreateClient={() => setClientDialogOpen(true)}
+                  />
 
-                                    <ClientSelectField
-                                        translationPrefix="recurringInvoices"
-                                        dataCy="recurring-invoice-client-select"
-                                        clients={clients || []}
-                                        onSearchChange={setClientsSearchTerm}
-                                        onRequestCreateClient={() => setClientDialogOpen(true)}
-                                    />
+                  <CurrencyField
+                    translationPrefix="recurringInvoices"
+                    dataCy="recurring-invoice-currency-select"
+                  />
 
-                                    <CurrencyField translationPrefix="recurringInvoices" dataCy="recurring-invoice-currency-select" />
+                  <FormField
+                    control={recurringControl}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("recurringInvoices.upsert.form.notes.label")}</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            {...field}
+                            placeholder={t("recurringInvoices.upsert.form.notes.placeholder")}
+                            className="max-h-40"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                                    <FormField
-                                        control={recurringControl}
-                                        name="notes"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>{t("recurringInvoices.upsert.form.notes.label")}</FormLabel>
-                                                <FormControl>
-                                                    <Textarea {...field} placeholder={t("recurringInvoices.upsert.form.notes.placeholder")} className="max-h-40" />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                  <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <PaymentMethodField
+                      translationPrefix="recurringInvoices"
+                      paymentMethods={paymentMethods}
+                      required
+                    />
+                  </section>
 
-                                    <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <PaymentMethodField translationPrefix="recurringInvoices" paymentMethods={paymentMethods} required />
-                                    </section>
+                  <Separator className="my-4" />
 
-                                    <Separator className="my-4" />
+                  <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField
+                      control={recurringControl}
+                      name="frequency"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel required>{t("recurringInvoices.upsert.form.frequency.label")}</FormLabel>
+                          <FormControl>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <SelectTrigger>
+                                <SelectValue
+                                  placeholder={t("recurringInvoices.upsert.form.frequency.placeholder")}
+                                />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="WEEKLY">
+                                  {t("recurringInvoices.frequency.weekly")}
+                                </SelectItem>
+                                <SelectItem value="BIWEEKLY">
+                                  {t("recurringInvoices.frequency.biweekly")}
+                                </SelectItem>
+                                <SelectItem value="MONTHLY">
+                                  {t("recurringInvoices.frequency.monthly")}
+                                </SelectItem>
+                                <SelectItem value="BIMONTHLY">
+                                  {t("recurringInvoices.frequency.bimonthly")}
+                                </SelectItem>
+                                <SelectItem value="QUARTERLY">
+                                  {t("recurringInvoices.frequency.quarterly")}
+                                </SelectItem>
+                                <SelectItem value="QUADMONTHLY">
+                                  {t("recurringInvoices.frequency.quadmonthly")}
+                                </SelectItem>
+                                <SelectItem value="SEMIANNUALLY">
+                                  {t("recurringInvoices.frequency.semiannually")}
+                                </SelectItem>
+                                <SelectItem value="ANNUALLY">
+                                  {t("recurringInvoices.frequency.annually")}
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FormControl>
+                          <FormMessage />
+                          <FormDescription>
+                            {t("recurringInvoices.upsert.form.frequency.description")}
+                          </FormDescription>
+                        </FormItem>
+                      )}
+                    />
 
-                                    <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <FormField
-                                            control={recurringControl}
-                                            name="frequency"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel required>
-                                                        {t("recurringInvoices.upsert.form.frequency.label")}
-                                                    </FormLabel>
-                                                    <FormControl>
-                                                        <Select value={field.value} onValueChange={field.onChange}>
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder={t("recurringInvoices.upsert.form.frequency.placeholder")} />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="WEEKLY">{t("recurringInvoices.frequency.weekly")}</SelectItem>
-                                                                <SelectItem value="BIWEEKLY">{t("recurringInvoices.frequency.biweekly")}</SelectItem>
-                                                                <SelectItem value="MONTHLY">{t("recurringInvoices.frequency.monthly")}</SelectItem>
-                                                                <SelectItem value="BIMONTHLY">{t("recurringInvoices.frequency.bimonthly")}</SelectItem>
-                                                                <SelectItem value="QUARTERLY">{t("recurringInvoices.frequency.quarterly")}</SelectItem>
-                                                                <SelectItem value="QUADMONTHLY">{t("recurringInvoices.frequency.quadmonthly")}</SelectItem>
-                                                                <SelectItem value="SEMIANNUALLY">{t("recurringInvoices.frequency.semiannually")}</SelectItem>
-                                                                <SelectItem value="ANNUALLY">{t("recurringInvoices.frequency.annually")}</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                    <FormDescription>
-                                                        {t("recurringInvoices.upsert.form.frequency.description")}
-                                                    </FormDescription>
-                                                </FormItem>
-                                            )}
-                                        />
+                    <FormField
+                      control={recurringControl}
+                      name="count"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("recurringInvoices.upsert.form.count.label")}</FormLabel>
+                          <FormControl>
+                            <BetterInput
+                              {...field}
+                              type="number"
+                              placeholder={t("recurringInvoices.upsert.form.count.placeholder")}
+                              onChange={(e) =>
+                                field.onChange(e.target.value === "" ? undefined : Number(e.target.value))
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                          <FormDescription>
+                            {t("recurringInvoices.upsert.form.count.description")}
+                          </FormDescription>
+                        </FormItem>
+                      )}
+                    />
 
-                                        <FormField
-                                            control={recurringControl}
-                                            name="count"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>
-                                                        {t("recurringInvoices.upsert.form.count.label")}
-                                                    </FormLabel>
-                                                    <FormControl>
-                                                        <BetterInput
-                                                            {...field}
-                                                            type="number"
-                                                            placeholder={t("recurringInvoices.upsert.form.count.placeholder")}
-                                                            onChange={(e) =>
-                                                                field.onChange(e.target.value === "" ? undefined : Number(e.target.value))
-                                                            }
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                    <FormDescription>
-                                                        {t("recurringInvoices.upsert.form.count.description")}
-                                                    </FormDescription>
-                                                </FormItem>
-                                            )}
-                                        />
+                    <FormField
+                      control={recurringControl}
+                      name="until"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("recurringInvoices.upsert.form.until.label")}</FormLabel>
+                          <FormControl>
+                            <DatePicker
+                              {...field}
+                              className="w-full"
+                              placeholder={t("recurringInvoices.upsert.form.until.placeholder")}
+                              value={field.value || null}
+                              onChange={field.onChange}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                          <FormDescription>
+                            {t("recurringInvoices.upsert.form.until.description")}
+                          </FormDescription>
+                        </FormItem>
+                      )}
+                    />
+                  </section>
 
-                                        <FormField
-                                            control={recurringControl}
-                                            name="until"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>
-                                                        {t("recurringInvoices.upsert.form.until.label")}
-                                                    </FormLabel>
-                                                    <FormControl>
-                                                        <DatePicker
-                                                            {...field}
-                                                            className="w-full"
-                                                            placeholder={t("recurringInvoices.upsert.form.until.placeholder")}
-                                                            value={field.value || null}
-                                                            onChange={field.onChange}
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                    <FormDescription>
-                                                        {t("recurringInvoices.upsert.form.until.description")}
-                                                    </FormDescription>
-                                                </FormItem>
-                                            )}
-                                        />
-                                    </section>
+                  <Separator className="my-4" />
 
-                                    <Separator className="my-4" />
+                  <LineItemsEditor translationPrefix="recurringInvoices" defaultItemType="HOUR" />
 
-                                    <LineItemsEditor translationPrefix="recurringInvoices" defaultItemType="HOUR" />
+                  <Separator className="my-4" />
 
-                                    <Separator className="my-4" />
+                  <FormField
+                    control={recurringControl}
+                    name="autoSend"
+                    render={({ field }) => (
+                      <FormItem className="mt-4">
+                        <Switch id="autoSend" checked={field.value} onCheckedChange={field.onChange} />
+                        <FormLabel className="ml-2" htmlFor="autoSend">
+                          {t("recurringInvoices.upsert.form.autoSend.label")}
+                        </FormLabel>
+                        <FormDescription>
+                          {t("recurringInvoices.upsert.form.autoSend.description")}
+                        </FormDescription>
+                      </FormItem>
+                    )}
+                  />
+                </form>
+              </Form>
+            ) : mode === "proforma" ? (
+              <Form {...form} key="proforma-form-mode">
+                <form
+                  id="proforma-form"
+                  onSubmit={handleSubmit(onSubmitProforma)}
+                  className="space-y-4"
+                  data-cy="proforma-form"
+                >
+                  <ClientSelectField
+                    translationPrefix="invoices"
+                    dataCy="proforma-client-select"
+                    clients={clients || []}
+                    onSearchChange={setClientsSearchTerm}
+                    onRequestCreateClient={() => setClientDialogOpen(true)}
+                  />
 
-                                    <FormField
-                                        control={recurringControl}
-                                        name="autoSend"
-                                        render={({ field }) => (
-                                            <FormItem className="mt-4">
-                                                <Switch
-                                                    id="autoSend"
-                                                    checked={field.value}
-                                                    onCheckedChange={field.onChange}
-                                                />
-                                                <FormLabel className="ml-2" htmlFor="autoSend">
-                                                    {t("recurringInvoices.upsert.form.autoSend.label")}
-                                                </FormLabel>
-                                                <FormDescription>
-                                                    {t("recurringInvoices.upsert.form.autoSend.description")}
-                                                </FormDescription>
-                                            </FormItem>
-                                        )}
-                                    />
-                                </form>
-                            </Form>
-                        ) : mode === "proforma" ? (
-                            <Form {...form} key="proforma-form-mode">
-                                <form id="proforma-form" onSubmit={handleSubmit(onSubmitProforma)} className="space-y-4" data-cy="proforma-form">
-                                    <ClientSelectField
-                                        translationPrefix="invoices"
-                                        dataCy="proforma-client-select"
-                                        clients={clients || []}
-                                        onSearchChange={setClientsSearchTerm}
-                                        onRequestCreateClient={() => setClientDialogOpen(true)}
-                                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <CurrencyField translationPrefix="invoices" />
 
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <CurrencyField translationPrefix="invoices" />
+                    <FormField
+                      control={control}
+                      name="discountRate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("invoices.upsert.form.discountRate.label")}</FormLabel>
+                          <FormControl>
+                            <BetterInput
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max="100"
+                              placeholder={t("invoices.upsert.form.discountRate.placeholder")}
+                              {...field}
+                              value={field.value ?? ""}
+                              onChange={(e) =>
+                                field.onChange(e.target.value === "" ? null : parseFloat(e.target.value))
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
-                                        <FormField
-                                            control={control}
-                                            name="discountRate"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>{t("invoices.upsert.form.discountRate.label")}</FormLabel>
-                                                    <FormControl>
-                                                        <BetterInput type="number" step="0.01" min="0" max="100" placeholder={t("invoices.upsert.form.discountRate.placeholder")} {...field} value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? null : parseFloat(e.target.value))} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                    </div>
+                  <FormField
+                    control={control}
+                    name="dueDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("invoices.upsert.form.dueDate.label")}</FormLabel>
+                        <FormControl>
+                          <DatePicker
+                            className="w-full"
+                            placeholder={t("invoices.upsert.form.dueDate.placeholder")}
+                            value={field.value || null}
+                            onChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                                    <FormField
-                                        control={control}
-                                        name="dueDate"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>{t("invoices.upsert.form.dueDate.label")}</FormLabel>
-                                                <FormControl>
-                                                    <DatePicker className="w-full" placeholder={t("invoices.upsert.form.dueDate.placeholder")} value={field.value || null} onChange={field.onChange} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                  <Separator className="my-4" />
 
-                                    <Separator className="my-4" />
+                  <LineItemsEditor translationPrefix="invoices" defaultItemType="SERVICE" />
 
-                                    <LineItemsEditor translationPrefix="invoices" defaultItemType="SERVICE" />
+                  <Separator className="my-4" />
 
-                                    <Separator className="my-4" />
+                  <FormField
+                    control={control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("invoices.upsert.form.notes.label")}</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder={t("invoices.upsert.form.notes.placeholder")}
+                            className="resize-none"
+                            {...field}
+                            value={field.value ?? ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </form>
+              </Form>
+            ) : mode === "final" ? (
+              <Form {...form} key="final-form-mode">
+                <form
+                  id="final-form"
+                  onSubmit={handleSubmit(onSubmitFinal)}
+                  className="space-y-4"
+                  data-cy="final-form"
+                >
+                  <ClientSelectField
+                    translationPrefix="invoices"
+                    dataCy="final-client-select"
+                    clients={clients || []}
+                    onSearchChange={setClientsSearchTerm}
+                    onRequestCreateClient={() => setClientDialogOpen(true)}
+                  />
 
-                                    <FormField
-                                        control={control}
-                                        name="notes"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>{t("invoices.upsert.form.notes.label")}</FormLabel>
-                                                <FormControl>
-                                                    <Textarea placeholder={t("invoices.upsert.form.notes.placeholder")} className="resize-none" {...field} value={field.value ?? ""} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                </form>
-                            </Form>
-                        ) : mode === "final" ? (
-                            <Form {...form} key="final-form-mode">
-                                <form id="final-form" onSubmit={handleSubmit(onSubmitFinal)} className="space-y-4" data-cy="final-form">
-                                    <ClientSelectField
-                                        translationPrefix="invoices"
-                                        dataCy="final-client-select"
-                                        clients={clients || []}
-                                        onSearchChange={setClientsSearchTerm}
-                                        onRequestCreateClient={() => setClientDialogOpen(true)}
-                                    />
-
-                                    {/* Deposit selection */}
-                                    {unlinkedDeposits && unlinkedDeposits.length > 0 && (
-                                        <div className="space-y-2">
-                                            <p className="text-sm font-medium">{t("invoices.upsert.form.deposits.label")}</p>
-                                            <p className="text-xs text-muted-foreground">{t("invoices.upsert.form.deposits.description")}</p>
-                                            <div className="border rounded-md divide-y max-h-48 overflow-y-auto" data-cy="deposit-selection">
-                                                {unlinkedDeposits.map((dep) => (
-                                                    <label key={dep.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/50">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={selectedDepositIds.includes(dep.id)}
-                                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                                                                setSelectedDepositIds(prev =>
-                                                                    e.target.checked ? [...prev, dep.id] : prev.filter(id => id !== dep.id)
-                                                                )
-                                                            }}
-                                                            className="h-4 w-4"
-                                                            data-cy={`deposit-checkbox-${dep.id}`}
-                                                        />
-                                                        <div className="flex-1 min-w-0">
-                                                            <span className="text-sm font-medium">{dep.rawNumber || dep.number?.toString()}</span>
-                                                            <span className="text-xs text-muted-foreground ml-2">
-                                                                {dep.totalTTC.toFixed(2)} {dep.currency}
-                                                            </span>
-                                                        </div>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                            {selectedDepositIds.length > 0 && (
-                                                <p className="text-sm text-muted-foreground">
-                                                    {t("invoices.upsert.form.deposits.selected", { count: selectedDepositIds.length, total: unlinkedDeposits.filter(d => selectedDepositIds.includes(d.id)).reduce((s, d) => s + d.totalTTC, 0).toFixed(2) })}
-                                                </p>
-                                            )}
-                                        </div>
-                                    )}
-                                    {watchedClientId && unlinkedDeposits && unlinkedDeposits.length === 0 && (
-                                        <p className="text-sm text-muted-foreground italic">{t("invoices.upsert.form.deposits.none")}</p>
-                                    )}
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <CurrencyField translationPrefix="invoices" />
-
-                                        <FormField
-                                            control={control}
-                                            name="discountRate"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>{t("invoices.upsert.form.discountRate.label")}</FormLabel>
-                                                    <FormControl>
-                                                        <BetterInput type="number" step="0.01" min="0" max="100" placeholder={t("invoices.upsert.form.discountRate.placeholder")} {...field} value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? null : parseFloat(e.target.value))} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                    </div>
-
-                                    <FormField
-                                        control={control}
-                                        name="dueDate"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>{t("invoices.upsert.form.dueDate.label")}</FormLabel>
-                                                <FormControl>
-                                                    <DatePicker className="w-full" placeholder={t("invoices.upsert.form.dueDate.placeholder")} value={field.value || null} onChange={field.onChange} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-
-                                    <Separator className="my-4" />
-
-                                    <LineItemsEditor translationPrefix="invoices" defaultItemType="SERVICE" />
-
-                                    <Separator className="my-4" />
-
-                                    <FormField
-                                        control={control}
-                                        name="notes"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>{t("invoices.upsert.form.notes.label")}</FormLabel>
-                                                <FormControl>
-                                                    <Textarea placeholder={t("invoices.upsert.form.notes.placeholder")} className="resize-none" {...field} value={field.value ?? ""} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                </form>
-                            </Form>
-                        ) : null}
+                  {/* Deposit selection */}
+                  {unlinkedDeposits && unlinkedDeposits.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">{t("invoices.upsert.form.deposits.label")}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t("invoices.upsert.form.deposits.description")}
+                      </p>
+                      <div
+                        className="border rounded-md divide-y max-h-48 overflow-y-auto"
+                        data-cy="deposit-selection"
+                      >
+                        {unlinkedDeposits.map((dep) => (
+                          <label
+                            key={dep.id}
+                            className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/50"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedDepositIds.includes(dep.id)}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                setSelectedDepositIds((prev) =>
+                                  e.target.checked ? [...prev, dep.id] : prev.filter((id) => id !== dep.id),
+                                )
+                              }}
+                              className="h-4 w-4"
+                              data-cy={`deposit-checkbox-${dep.id}`}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm font-medium">
+                                {dep.rawNumber || dep.number?.toString()}
+                              </span>
+                              <span className="text-xs text-muted-foreground ml-2">
+                                {dep.totalTTC.toFixed(2)} {dep.currency}
+                              </span>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                      {selectedDepositIds.length > 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          {t("invoices.upsert.form.deposits.selected", {
+                            count: selectedDepositIds.length,
+                            total: unlinkedDeposits
+                              .filter((d) => selectedDepositIds.includes(d.id))
+                              .reduce((s, d) => s + d.totalTTC, 0)
+                              .toFixed(2),
+                          })}
+                        </p>
+                      )}
                     </div>
+                  )}
+                  {watchedClientId && unlinkedDeposits && unlinkedDeposits.length === 0 && (
+                    <p className="text-sm text-muted-foreground italic">
+                      {t("invoices.upsert.form.deposits.none")}
+                    </p>
+                  )}
 
-                    <div className="shrink-0 border-t px-6 py-4 flex justify-end space-x-2">
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                            {t("invoices.upsert.actions.cancel")}
-                        </Button>
-                        <Button
-                            type="submit"
-                            form={mode === "invoice" ? "invoice-form" : mode === "proforma" ? "proforma-form" : mode === "final" ? "final-form" : "recurring-invoice-form"}
-                            loading={submitLoading}
-                            dataCy="invoice-submit"
-                        >
-                            {mode === "proforma"
-                                ? t("invoices.upsert.actions.createProforma")
-                                : mode === "final"
-                                ? t("invoices.upsert.actions.createFinal")
-                                : mode === "invoice"
-                                ? t(`invoices.upsert.actions.${isEdit ? "save" : "create"}`)
-                                : t("recurringInvoices.upsert.actions.create")}
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                  <div className="grid grid-cols-2 gap-4">
+                    <CurrencyField translationPrefix="invoices" />
 
-            <ClientUpsert
-                open={clientDialogOpen}
-                onOpenChange={setClientDialogOpen}
-                onCreate={handleClientCreate}
-            />
-        </>
-    )
+                    <FormField
+                      control={control}
+                      name="discountRate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("invoices.upsert.form.discountRate.label")}</FormLabel>
+                          <FormControl>
+                            <BetterInput
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max="100"
+                              placeholder={t("invoices.upsert.form.discountRate.placeholder")}
+                              {...field}
+                              value={field.value ?? ""}
+                              onChange={(e) =>
+                                field.onChange(e.target.value === "" ? null : parseFloat(e.target.value))
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={control}
+                    name="dueDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("invoices.upsert.form.dueDate.label")}</FormLabel>
+                        <FormControl>
+                          <DatePicker
+                            className="w-full"
+                            placeholder={t("invoices.upsert.form.dueDate.placeholder")}
+                            value={field.value || null}
+                            onChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Separator className="my-4" />
+
+                  <LineItemsEditor translationPrefix="invoices" defaultItemType="SERVICE" />
+
+                  <Separator className="my-4" />
+
+                  <FormField
+                    control={control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("invoices.upsert.form.notes.label")}</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder={t("invoices.upsert.form.notes.placeholder")}
+                            className="resize-none"
+                            {...field}
+                            value={field.value ?? ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </form>
+              </Form>
+            ) : null}
+          </div>
+
+          <div className="shrink-0 border-t px-6 py-4 flex justify-end space-x-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              {t("invoices.upsert.actions.cancel")}
+            </Button>
+            <Button
+              type="submit"
+              form={
+                mode === "invoice"
+                  ? "invoice-form"
+                  : mode === "proforma"
+                    ? "proforma-form"
+                    : mode === "final"
+                      ? "final-form"
+                      : "recurring-invoice-form"
+              }
+              loading={submitLoading}
+              dataCy="invoice-submit"
+            >
+              {mode === "proforma"
+                ? t("invoices.upsert.actions.createProforma")
+                : mode === "final"
+                  ? t("invoices.upsert.actions.createFinal")
+                  : mode === "invoice"
+                    ? t(`invoices.upsert.actions.${isEdit ? "save" : "create"}`)
+                    : t("recurringInvoices.upsert.actions.create")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <ClientUpsert
+        open={clientDialogOpen}
+        onOpenChange={setClientDialogOpen}
+        onCreate={handleClientCreate}
+      />
+    </>
+  )
 }

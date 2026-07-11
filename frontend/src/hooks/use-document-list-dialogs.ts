@@ -2,7 +2,7 @@ import { useImperativeHandle, useState, type Ref } from "react"
 
 /** Imperative handle exposed by the document list components. */
 export interface DocumentListHandle {
-    handleAddClick: () => void
+  handleAddClick: () => void
 }
 
 /**
@@ -14,28 +14,28 @@ export interface DocumentListHandle {
  * dialog) stays in the list component.
  */
 export function useDocumentListDialogs<T>(ref: Ref<DocumentListHandle>) {
-    const [createDialog, setCreateDialog] = useState<boolean>(false)
-    const [editDialog, setEditDialog] = useState<T | null>(null)
-    const [viewDialog, setViewDialog] = useState<T | null>(null)
-    const [deleteDialog, setDeleteDialog] = useState<T | null>(null)
-    const [sendDialog, setSendDialog] = useState<T | null>(null)
+  const [createDialog, setCreateDialog] = useState<boolean>(false)
+  const [editDialog, setEditDialog] = useState<T | null>(null)
+  const [viewDialog, setViewDialog] = useState<T | null>(null)
+  const [deleteDialog, setDeleteDialog] = useState<T | null>(null)
+  const [sendDialog, setSendDialog] = useState<T | null>(null)
 
-    useImperativeHandle(ref, () => ({
-        handleAddClick() {
-            setCreateDialog(true)
-        },
-    }))
+  useImperativeHandle(ref, () => ({
+    handleAddClick() {
+      setCreateDialog(true)
+    },
+  }))
 
-    return {
-        createDialog,
-        setCreateDialog,
-        editDialog,
-        setEditDialog,
-        viewDialog,
-        setViewDialog,
-        deleteDialog,
-        setDeleteDialog,
-        sendDialog,
-        setSendDialog,
-    }
+  return {
+    createDialog,
+    setCreateDialog,
+    editDialog,
+    setEditDialog,
+    viewDialog,
+    setViewDialog,
+    deleteDialog,
+    setDeleteDialog,
+    sendDialog,
+    setSendDialog,
+  }
 }

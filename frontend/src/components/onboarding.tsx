@@ -1,7 +1,15 @@
 "use client"
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 
 import { Button } from "@/components/ui/button"
 import type { Company } from "@/types"
@@ -88,7 +96,7 @@ export default function OnBoarding({
       for (const req of requiredIdentifiers) {
         if (req.required) {
           const val = (values.identifiers || []).find((i) => i.scheme === req.scheme)?.value
-          if (!val || val.trim() === '') {
+          if (!val || val.trim() === "") {
             const idx = (values.identifiers || []).findIndex((i) => i.scheme === req.scheme)
             form.setError(`identifiers.${idx}.value` as any, { message: `${req.label} is required` })
             return
@@ -138,7 +146,11 @@ export default function OnBoarding({
                 <FormItem>
                   <FormLabel required>{t("settings.company.form.company.label")}</FormLabel>
                   <FormControl>
-                    <Input placeholder={t("settings.company.form.company.placeholder")} {...field} data-cy="onboarding-company-name-input" />
+                    <Input
+                      placeholder={t("settings.company.form.company.placeholder")}
+                      {...field}
+                      data-cy="onboarding-company-name-input"
+                    />
                   </FormControl>
                   <FormDescription>{t("settings.company.form.company.description")}</FormDescription>
                   <FormMessage />
@@ -153,7 +165,12 @@ export default function OnBoarding({
                 <FormItem>
                   <FormLabel required>{t("settings.company.form.country.label")}</FormLabel>
                   <FormControl>
-                    <CountrySelect value={field.value} onChange={(value) => field.onChange(value)} onCountryCodeChange={(code) => form.setValue('countryCode', code)} data-cy="onboarding-company-country-input" />
+                    <CountrySelect
+                      value={field.value}
+                      onChange={(value) => field.onChange(value)}
+                      onCountryCodeChange={(code) => form.setValue("countryCode", code)}
+                      data-cy="onboarding-company-country-input"
+                    />
                   </FormControl>
                   <FormDescription>{t("settings.company.form.country.description")}</FormDescription>
                   <FormMessage />
@@ -163,7 +180,9 @@ export default function OnBoarding({
 
             {requiredIdentifiers?.length ? (
               <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
-                <p className="text-sm font-medium text-muted-foreground">{t("settings.company.form.identifiers.label") || "Country-specific identifiers"}</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  {t("settings.company.form.identifiers.label") || "Country-specific identifiers"}
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {requiredIdentifiers.map((req) => {
                     const current = form.watch("identifiers") || []
@@ -178,11 +197,19 @@ export default function OnBoarding({
                           <FormItem>
                             <FormLabel required={req.required}>{req.label}</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder={req.label} data-cy={req.scheme === "LEGAL_ID" ? "onboarding-legalid-input" : req.scheme === "VAT" ? "onboarding-vat-input" : undefined} />
+                              <Input
+                                {...field}
+                                placeholder={req.label}
+                                data-cy={
+                                  req.scheme === "LEGAL_ID"
+                                    ? "onboarding-legalid-input"
+                                    : req.scheme === "VAT"
+                                      ? "onboarding-vat-input"
+                                      : undefined
+                                }
+                              />
                             </FormControl>
-                            {req.helpText && (
-                              <p className="text-xs text-muted-foreground">{req.helpText}</p>
-                            )}
+                            {req.helpText && <p className="text-xs text-muted-foreground">{req.helpText}</p>}
                             <FormMessage />
                           </FormItem>
                         )}

@@ -1,20 +1,20 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { useTranslation } from "react-i18next";
-import type { PaymentMethod } from "@/types";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { useTranslation } from "react-i18next"
+import type { PaymentMethod } from "@/types"
 
 export function PaymentMethodViewDialog({
   paymentMethod,
   onOpenChange,
 }: {
-  paymentMethod?: PaymentMethod | null;
-  onOpenChange: (open: boolean) => void;
+  paymentMethod?: PaymentMethod | null
+  onOpenChange: (open: boolean) => void
 }) {
-  const { t } = useTranslation();
-  const open = !!paymentMethod;
+  const { t } = useTranslation()
+  const open = !!paymentMethod
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -32,12 +32,16 @@ export function PaymentMethodViewDialog({
           <div>
             <Label className="text-xs text-muted-foreground">{t("paymentMethods.fields.type.label")}</Label>
             <div className="mt-1 text-foreground">
-              {(paymentMethod?.type && t(`paymentMethods.fields.type.${paymentMethod.type.toLowerCase()}`)) || paymentMethod?.type || "-"}
+              {(paymentMethod?.type && t(`paymentMethods.fields.type.${paymentMethod.type.toLowerCase()}`)) ||
+                paymentMethod?.type ||
+                "-"}
             </div>
           </div>
 
           <div>
-            <Label className="text-xs text-muted-foreground">{t("paymentMethods.fields.details.label")}</Label>
+            <Label className="text-xs text-muted-foreground">
+              {t("paymentMethods.fields.details.label")}
+            </Label>
             <div className="mt-1 text-muted-foreground break-words">{paymentMethod?.details || "-"}</div>
           </div>
 
@@ -64,7 +68,7 @@ export function PaymentMethodViewDialog({
         </div>
       </DialogContent>
     </Dialog>
-  );
+  )
 }
 
 export default PaymentMethodViewDialog

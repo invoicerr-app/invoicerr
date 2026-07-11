@@ -69,7 +69,11 @@ export function LogsTable({ logs, onSelectLog }: LogsTableProps) {
               </TableRow>
             ) : (
               currentLogs.map((log) => (
-                <TableRow key={log.id} className="cursor-pointer hover:bg-accent" onClick={() => onSelectLog(log)}>
+                <TableRow
+                  key={log.id}
+                  className="cursor-pointer hover:bg-accent"
+                  onClick={() => onSelectLog(log)}
+                >
                   <TableCell className="font-mono text-sm">
                     <div className="flex flex-col">
                       <span className="text-foreground">{formatTime(log.timestamp)}</span>
@@ -83,8 +87,12 @@ export function LogsTable({ logs, onSelectLog }: LogsTableProps) {
                   </TableCell>
                   <TableCell className="font-medium text-foreground">{log.category}</TableCell>
                   <TableCell className="max-w-[400px] truncate text-foreground">{log.message}</TableCell>
-                  <TableCell className="font-mono text-sm text-muted-foreground">{log.userId || "-"}</TableCell>
-                  <TableCell className="font-mono text-sm text-muted-foreground truncate">{log.path || "-"}</TableCell>
+                  <TableCell className="font-mono text-sm text-muted-foreground">
+                    {log.userId || "-"}
+                  </TableCell>
+                  <TableCell className="font-mono text-sm text-muted-foreground truncate">
+                    {log.path || "-"}
+                  </TableCell>
                 </TableRow>
               ))
             )}

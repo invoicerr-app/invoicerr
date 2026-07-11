@@ -1,22 +1,22 @@
-import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover"
 
-import { Button } from "./ui/button";
-import { Calendar } from "./ui/calendar";
-import { CalendarIcon } from "lucide-react";
-import { FormControl } from "./ui/form";
-import React from "react";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { languageToLocale } from "@/lib/i18n";
-import { useTranslation } from "react-i18next";
+import { Button } from "./ui/button"
+import { Calendar } from "./ui/calendar"
+import { CalendarIcon } from "lucide-react"
+import { FormControl } from "./ui/form"
+import type React from "react"
+import { cn } from "@/lib/utils"
+import { format } from "date-fns"
+import { languageToLocale } from "@/lib/i18n"
+import { useTranslation } from "react-i18next"
 
 interface DatePickerProps {
-  value: Date | null;
-  onChange: (date: Date | null) => void;
-  placeholder?: string;
-  className?: string;
-  showOutsideDays?: boolean;
-  'data-cy'?: string;
+  value: Date | null
+  onChange: (date: Date | null) => void
+  placeholder?: string
+  className?: string
+  showOutsideDays?: boolean
+  "data-cy"?: string
 }
 
 const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
@@ -31,13 +31,13 @@ const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
             className={cn(
               "w-[240px] pl-3 text-left font-normal",
               !field.value && "text-muted-foreground",
-              field.className
+              field.className,
             )}
-            data-cy={field['data-cy']}
+            data-cy={field["data-cy"]}
           >
             {field.value ? (
               format(field.value, "PPP", {
-                locale: languageToLocale(i18n.language)
+                locale: languageToLocale(i18n.language),
               })
             ) : (
               <span>{field.placeholder || "Pick a date"}</span>
@@ -57,7 +57,7 @@ const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
         />
       </PopoverContent>
     </Popover>
-  );
-};
+  )
+}
 
-export { DatePicker };
+export { DatePicker }

@@ -4,85 +4,88 @@ import { toast } from "sonner"
 import { useState } from "react"
 
 interface SireneCompany {
-    name?: string
-    legalId?: string
-    VAT?: string
-    address?: string
-    postalCode?: string
-    city?: string
-    state?: string
-    country?: string
-    foundedAt?: string
+  name?: string
+  legalId?: string
+  VAT?: string
+  address?: string
+  postalCode?: string
+  city?: string
+  state?: string
+  country?: string
+  foundedAt?: string
 }
 
 interface UseLookupSiretMessages {
-    invalid: string
-    notFound: string
-    success: string
-    error: string
+  invalid: string
+  notFound: string
+  success: string
+  error: string
 }
 
 interface UseLookupSiretOptions {
-    messages: UseLookupSiretMessages
+  messages: UseLookupSiretMessages
 }
 
 function setIdentifier(form: UseFormReturn<FieldValues>, scheme: string, value: string) {
-    const identifiers: { scheme: string; value: string }[] = form.getValues("identifiers") || []
-    const idx = identifiers.findIndex((i) => i.scheme === scheme)
-    if (idx >= 0) {
-        form.setValue(`identifiers.${idx}.value`, value)
-    }
+  const identifiers: { scheme: string; value: string }[] = form.getValues("identifiers") || []
+  const idx = identifiers.findIndex((i) => i.scheme === scheme)
+  if (idx >= 0) {
+    form.setValue(`identifiers.${idx}.value`, value)
+  }
 }
 
-export function useLookupSiret<T extends FieldValues>(form: UseFormReturn<T>, { messages }: UseLookupSiretOptions) {
-    const [isLoading, setIsLoading] = useState(false)
+export function useLookupSiret<T extends FieldValues>(
+  form: UseFormReturn<T>,
+  { messages }: UseLookupSiretOptions,
+) {
+  const [isLoading, setIsLoading] = useState(false)
 
-    const lookup = async (rawSiret: string | undefined) => {
-        const siret = (rawSiret || "").replace(/\D/g, "")
-        if (siret.length !== 14) {
-            toast.error(messages.invalid)
-            return
-        }
-
-        setIsLoading(true)
-        try {
-            const backendUrl = import.meta.env.VITE_BACKEND_URL || ""
-            const res = await authenticatedFetch(`${backendUrl}/api/sirene/siret/${siret}`)
-            if (!res.ok) throw new Error(`Sirene lookup failed with status ${res.status}`)
-
-            const { found, company } = (await res.json()) as { found: boolean; company: SireneCompany | null }
-            if (!found || !company) {
-                toast.error(messages.notFound)
-                return
-            }
-
-            const formValues = form.getValues()
-            const setIfExists = (key: string, value: unknown) => {
-                if (value !== undefined && key in formValues) {
-                    form.setValue(key as any, value as any)
-                }
-            }
-
-            setIfExists("name", company.name)
-            setIfExists("address", company.address)
-            setIfExists("postalCode", company.postalCode)
-            setIfExists("city", company.city)
-            setIfExists("state", company.state)
-            setIfExists("country", company.country)
-            if (company.foundedAt) setIfExists("foundedAt", new Date(company.foundedAt))
-
-            // Update identifiers array entries for LEGAL_ID and VAT
-            setIdentifier(form as any, "LEGAL_ID", company.legalId || siret)
-            if (company.VAT) setIdentifier(form as any, "VAT", company.VAT)
-
-            toast.success(messages.success)
-        } catch (err) {
-            console.error(err)
-            toast.error(messages.error)
-        } finally {
-            setIsLoading(false)
-        }
+  const lookup = async (rawSiret: string | undefined) => {
+    const siret = (rawSiret || "").replace(/\D/g, "")
+    if (siret.length !== 14) {
+      toast.error(messages.invalid)
+      return
     }
 
-    return { lookup, isLoading }
+    setIsLoading(true)
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || ""
+      const res = await authenticatedFetch(`${backendUrl}/api/sirene/siret/${siret}`)
+      if (!res.ok) throw new Error(`Sirene lookup failed with status ${res.status}`)
+
+      const { found, company } = (await res.json()) as { found: boolean; company: SireneCompany | null }
+      if (!found || !company) {
+        toast.error(messages.notFound)
+        return
+      }
+
+      const formValues = form.getValues()
+      const setIfExists = (key: string, value: unknown) => {
+        if (value !== undefined && key in formValues) {
+          form.setValue(key as any, value as any)
+        }
+      }
+
+      setIfExists("name", company.name)
+      setIfExists("address", company.address)
+      setIfExists("postalCode", company.postalCode)
+      setIfExists("city", company.city)
+      setIfExists("state", company.state)
+      setIfExists("country", company.country)
+      if (company.foundedAt) setIfExists("foundedAt", new Date(company.foundedAt))
+
+      // Update identifiers array entries for LEGAL_ID and VAT
+      setIdentifier(form as any, "LEGAL_ID", company.legalId || siret)
+      if (company.VAT) setIdentifier(form as any, "VAT", company.VAT)
+
+      toast.success(messages.success)
+    } catch (err) {
+      console.error(err)
+      toast.error(messages.error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return { lookup, isLoading }
 }

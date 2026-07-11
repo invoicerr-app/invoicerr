@@ -4,14 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useGet, authenticatedFetch } from "@/hooks/use-fetch"
 import { useCompany } from "@/hooks/queries/use-company"
 import { usePageHeader } from "@/hooks/use-page-header"
@@ -74,7 +67,9 @@ const STATUS_COLORS: Record<InboundStatus, string> = {
 function StatusBadge({ status }: { status: InboundStatus }) {
   const { t } = useTranslation()
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${STATUS_COLORS[status] ?? "bg-gray-100 text-gray-700"}`}>
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${STATUS_COLORS[status] ?? "bg-gray-100 text-gray-700"}`}
+    >
       {t(`receivedInvoices.status.${status}`, status)}
     </span>
   )
@@ -105,7 +100,9 @@ function InboundDetailDialog({
   const handleDownloadRaw = () => {
     if (!invoice) return
     const ext = invoice.rawPayload.trimStart().startsWith("{") ? "json" : "xml"
-    const blob = new Blob([invoice.rawPayload], { type: ext === "json" ? "application/json" : "application/xml" })
+    const blob = new Blob([invoice.rawPayload], {
+      type: ext === "json" ? "application/json" : "application/xml",
+    })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
@@ -118,7 +115,10 @@ function InboundDetailDialog({
 
   const handleAccept = async () => {
     if (!invoice) return
-    const res = await authenticatedFetch(`/api/compliance/received-invoices/${companyId}/${invoice.id}/accept`, { method: "POST" })
+    const res = await authenticatedFetch(
+      `/api/compliance/received-invoices/${companyId}/${invoice.id}/accept`,
+      { method: "POST" },
+    )
     if (res.ok) {
       toast.success(t("receivedInvoices.actions.acceptSuccess", "Invoice accepted"))
       onAction()
@@ -130,10 +130,13 @@ function InboundDetailDialog({
 
   const handleReject = async () => {
     if (!invoice) return
-    const res = await authenticatedFetch(`/api/compliance/received-invoices/${companyId}/${invoice.id}/reject`, {
-      method: "POST",
-      body: JSON.stringify({}),
-    })
+    const res = await authenticatedFetch(
+      `/api/compliance/received-invoices/${companyId}/${invoice.id}/reject`,
+      {
+        method: "POST",
+        body: JSON.stringify({}),
+      },
+    )
     if (res.ok) {
       toast.success(t("receivedInvoices.actions.rejectSuccess", "Invoice rejected"))
       onAction()
@@ -160,11 +163,15 @@ function InboundDetailDialog({
           <div className="overflow-auto flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-4 bg-muted/50 p-4 rounded-lg text-sm">
               <div>
-                <p className="text-muted-foreground">{t("receivedInvoices.detail.invoiceNumber", "Invoice number")}</p>
+                <p className="text-muted-foreground">
+                  {t("receivedInvoices.detail.invoiceNumber", "Invoice number")}
+                </p>
                 <p className="font-medium">{invoice.invoiceNumber ?? "—"}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">{t("receivedInvoices.detail.issueDate", "Issue date")}</p>
+                <p className="text-muted-foreground">
+                  {t("receivedInvoices.detail.issueDate", "Issue date")}
+                </p>
                 <p className="font-medium">{invoice.issueDate ?? "—"}</p>
               </div>
               <div>
@@ -172,11 +179,15 @@ function InboundDetailDialog({
                 <p className="font-medium">{invoice.sellerName ?? "—"}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">{t("receivedInvoices.detail.sellerTaxId", "Seller tax ID")}</p>
+                <p className="text-muted-foreground">
+                  {t("receivedInvoices.detail.sellerTaxId", "Seller tax ID")}
+                </p>
                 <p className="font-medium">{invoice.sellerTaxId ?? "—"}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">{t("receivedInvoices.detail.buyerTaxId", "Buyer tax ID")}</p>
+                <p className="text-muted-foreground">
+                  {t("receivedInvoices.detail.buyerTaxId", "Buyer tax ID")}
+                </p>
                 <p className="font-medium">{invoice.buyerTaxId ?? "—"}</p>
               </div>
               <div>
@@ -188,29 +199,50 @@ function InboundDetailDialog({
             <div className="grid grid-cols-3 gap-4 bg-muted/50 p-4 rounded-lg text-sm">
               <div>
                 <p className="text-muted-foreground">{t("receivedInvoices.detail.totalNet", "Net amount")}</p>
-                <p className="font-medium">{invoice.totalNet != null ? `${invoice.totalNet.toFixed(2)} ${invoice.currency ?? ""}`.trim() : "—"}</p>
+                <p className="font-medium">
+                  {invoice.totalNet != null
+                    ? `${invoice.totalNet.toFixed(2)} ${invoice.currency ?? ""}`.trim()
+                    : "—"}
+                </p>
               </div>
               <div>
                 <p className="text-muted-foreground">{t("receivedInvoices.detail.totalTax", "Tax amount")}</p>
-                <p className="font-medium">{invoice.totalTax != null ? `${invoice.totalTax.toFixed(2)} ${invoice.currency ?? ""}`.trim() : "—"}</p>
+                <p className="font-medium">
+                  {invoice.totalTax != null
+                    ? `${invoice.totalTax.toFixed(2)} ${invoice.currency ?? ""}`.trim()
+                    : "—"}
+                </p>
               </div>
               <div>
-                <p className="text-muted-foreground">{t("receivedInvoices.detail.totalGross", "Gross amount")}</p>
-                <p className="font-medium font-bold">{invoice.totalGross != null ? `${invoice.totalGross.toFixed(2)} ${invoice.currency ?? ""}`.trim() : "—"}</p>
+                <p className="text-muted-foreground">
+                  {t("receivedInvoices.detail.totalGross", "Gross amount")}
+                </p>
+                <p className="font-medium font-bold">
+                  {invoice.totalGross != null
+                    ? `${invoice.totalGross.toFixed(2)} ${invoice.currency ?? ""}`.trim()
+                    : "—"}
+                </p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 bg-muted/50 p-4 rounded-lg text-sm">
               <div>
                 <p className="text-muted-foreground">{t("receivedInvoices.detail.channel", "Channel")}</p>
-                <p className="font-medium">{invoice.channel}{invoice.providerId ? ` (${invoice.providerId})` : ""}</p>
+                <p className="font-medium">
+                  {invoice.channel}
+                  {invoice.providerId ? ` (${invoice.providerId})` : ""}
+                </p>
               </div>
               <div>
-                <p className="text-muted-foreground">{t("receivedInvoices.detail.externalId", "External ID")}</p>
+                <p className="text-muted-foreground">
+                  {t("receivedInvoices.detail.externalId", "External ID")}
+                </p>
                 <p className="font-medium font-mono text-xs break-all">{invoice.externalId}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">{t("receivedInvoices.detail.receivedAt", "Received at")}</p>
+                <p className="text-muted-foreground">
+                  {t("receivedInvoices.detail.receivedAt", "Received at")}
+                </p>
                 <p className="font-medium">{format(new Date(invoice.receivedAt), "PPP p")}</p>
               </div>
               <div>
@@ -226,11 +258,21 @@ function InboundDetailDialog({
               </Button>
               {canAct && (
                 <>
-                  <Button variant="outline" size="sm" className="text-emerald-700 hover:text-emerald-700" onClick={handleAccept}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-emerald-700 hover:text-emerald-700"
+                    onClick={handleAccept}
+                  >
                     <ThumbsUp className="h-4 w-4 mr-1.5" />
                     {t("receivedInvoices.actions.accept", "Accept")}
                   </Button>
-                  <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={handleReject}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={handleReject}
+                  >
                     <ThumbsDown className="h-4 w-4 mr-1.5" />
                     {t("receivedInvoices.actions.reject", "Reject")}
                   </Button>
@@ -318,7 +360,9 @@ export default function ReceivedInvoices() {
                   <TableHead>{t("receivedInvoices.columns.amount", "Amount")}</TableHead>
                   <TableHead>{t("receivedInvoices.columns.channel", "Channel")}</TableHead>
                   <TableHead>{t("receivedInvoices.columns.status", "Status")}</TableHead>
-                  <TableHead className="text-right">{t("receivedInvoices.columns.actions", "Actions")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("receivedInvoices.columns.actions", "Actions")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -328,25 +372,34 @@ export default function ReceivedInvoices() {
                       {inv.issueDate ?? format(new Date(inv.receivedAt), "yyyy-MM-dd")}
                     </TableCell>
                     <TableCell className="font-medium">
-                      {inv.invoiceNumber ?? <span className="text-muted-foreground text-xs">{inv.externalId.slice(0, 16)}</span>}
+                      {inv.invoiceNumber ?? (
+                        <span className="text-muted-foreground text-xs">{inv.externalId.slice(0, 16)}</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div>
                         <p className="font-medium text-sm">{inv.sellerName ?? inv.senderId ?? "—"}</p>
-                        {inv.sellerTaxId && <p className="text-xs text-muted-foreground">{inv.sellerTaxId}</p>}
+                        {inv.sellerTaxId && (
+                          <p className="text-xs text-muted-foreground">{inv.sellerTaxId}</p>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {inv.totalGross != null ? (
                         <span>
                           {inv.totalGross.toFixed(2)}
-                          {inv.currency ? <span className="text-xs text-muted-foreground ml-1">{inv.currency}</span> : null}
+                          {inv.currency ? (
+                            <span className="text-xs text-muted-foreground ml-1">{inv.currency}</span>
+                          ) : null}
                         </span>
-                      ) : "—"}
+                      ) : (
+                        "—"
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs">
-                        {inv.channel}{inv.providerId ? `/${inv.providerId}` : ""}
+                        {inv.channel}
+                        {inv.providerId ? `/${inv.providerId}` : ""}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -365,11 +418,7 @@ export default function ReceivedInvoices() {
           </div>
 
           {(listData?.pageCount ?? 1) > 1 && (
-            <Pagination
-              page={page}
-              pageCount={listData?.pageCount ?? 1}
-              setPage={setPage}
-            />
+            <Pagination page={page} pageCount={listData?.pageCount ?? 1} setPage={setPage} />
           )}
         </>
       )}

@@ -13,10 +13,11 @@ export default function ArticlesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const { data: articles = [] } = useArticles()
 
-  const filtered = (articles || []).filter((a) =>
-    (a.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (a.description || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (a.type || "").toLowerCase().includes(searchTerm.toLowerCase()),
+  const filtered = (articles || []).filter(
+    (a) =>
+      (a.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (a.description || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (a.type || "").toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
   usePageHeader(t("sidebar.navigation.articles"))

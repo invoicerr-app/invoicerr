@@ -14,24 +14,10 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useGet, authenticatedFetch } from "@/hooks/use-fetch"
 import { useCompany } from "@/hooks/queries/use-company"
-import {
-  CheckCircle2,
-  Loader2,
-  ShieldAlert,
-  ShieldCheck,
-  Trash2,
-  Upload,
-  XCircle,
-} from "lucide-react"
+import { CheckCircle2, Loader2, ShieldAlert, ShieldCheck, Trash2, Upload, XCircle } from "lucide-react"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 
@@ -64,11 +50,11 @@ interface UploadModalProps {
 function UploadCertModal({ open, companyId, onClose, onUploaded }: UploadModalProps) {
   const { t } = useTranslation()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [label, setLabel]               = useState("")
+  const [label, setLabel] = useState("")
   const [applicability, setApplicability] = useState("*")
-  const [environment, setEnvironment]   = useState("TEST")
-  const [password, setPassword]         = useState("")
-  const [loading, setLoading]           = useState(false)
+  const [environment, setEnvironment] = useState("TEST")
+  const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
 
   const reset = () => {
     setLabel("")
@@ -78,7 +64,10 @@ function UploadCertModal({ open, companyId, onClose, onUploaded }: UploadModalPr
     if (fileRef.current) fileRef.current.value = ""
   }
 
-  const handleClose = () => { reset(); onClose() }
+  const handleClose = () => {
+    reset()
+    onClose()
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -93,13 +82,10 @@ function UploadCertModal({ open, companyId, onClose, onUploaded }: UploadModalPr
       const arrayBuffer = await file.arrayBuffer()
       const pfxBase64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
 
-      const res = await authenticatedFetch(
-        `/api/compliance/signing-certificates/companies/${companyId}`,
-        {
-          method: "POST",
-          body: JSON.stringify({ label, applicability, environment, pfxBase64, pfxPassword: password }),
-        },
-      )
+      const res = await authenticatedFetch(`/api/compliance/signing-certificates/companies/${companyId}`, {
+        method: "POST",
+        body: JSON.stringify({ label, applicability, environment, pfxBase64, pfxPassword: password }),
+      })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         throw new Error((err as any).message ?? "Upload failed")
@@ -115,7 +101,12 @@ function UploadCertModal({ open, companyId, onClose, onUploaded }: UploadModalPr
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose() }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) handleClose()
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t("settings.signing.upload.title", "Upload signing certificate")}</DialogTitle>
@@ -140,9 +131,7 @@ function UploadCertModal({ open, companyId, onClose, onUploaded }: UploadModalPr
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="cert-file">
-              {t("settings.signing.upload.file", "PFX / P12 file")}
-            </Label>
+            <Label htmlFor="cert-file">{t("settings.signing.upload.file", "PFX / P12 file")}</Label>
             <Input
               id="cert-file"
               ref={fileRef}
@@ -154,9 +143,7 @@ function UploadCertModal({ open, companyId, onClose, onUploaded }: UploadModalPr
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="cert-password">
-              {t("settings.signing.upload.password", "PFX password")}
-            </Label>
+            <Label htmlFor="cert-password">{t("settings.signing.upload.password", "PFX password")}</Label>
             <Input
               id="cert-password"
               type="password"
@@ -175,7 +162,9 @@ function UploadCertModal({ open, companyId, onClose, onUploaded }: UploadModalPr
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="*">{t("settings.signing.upload.applicabilityAll", "All formats (*)")}</SelectItem>
+                  <SelectItem value="*">
+                    {t("settings.signing.upload.applicabilityAll", "All formats (*)")}
+                  </SelectItem>
                   <SelectItem value="XAdES">XAdES</SelectItem>
                   <SelectItem value="CAdES">CAdES</SelectItem>
                   <SelectItem value="PAdES">PAdES</SelectItem>
@@ -202,7 +191,11 @@ function UploadCertModal({ open, companyId, onClose, onUploaded }: UploadModalPr
               {t("common.cancel", "Cancel")}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Upload className="h-4 w-4 mr-2" />
+              )}
               {t("settings.signing.upload.submit", "Upload")}
             </Button>
           </DialogFooter>
@@ -271,9 +264,7 @@ function CertCard({ cert, onDelete, deleting }: CertCardProps) {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0 ml-4">
-          {cert.isActive && !expired && (
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-          )}
+          {cert.isActive && !expired && <CheckCircle2 className="h-4 w-4 text-green-500" />}
           <Button
             variant="ghost"
             size="sm"
@@ -300,12 +291,10 @@ export default function SigningCertificatesSettings() {
     data: certs,
     loading,
     mutate: refetch,
-  } = useGet<CertMeta[]>(
-    companyId ? `/api/compliance/signing-certificates/companies/${companyId}` : null,
-  )
+  } = useGet<CertMeta[]>(companyId ? `/api/compliance/signing-certificates/companies/${companyId}` : null)
 
   const [uploadOpen, setUploadOpen] = useState(false)
-  const [deleting, setDeleting]     = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
 
   const handleDelete = async (certId: string) => {
     if (!companyId) return
@@ -329,9 +318,7 @@ export default function SigningCertificatesSettings() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold mb-2">
-            {t("settings.signing.title", "Signing Certificates")}
-          </h1>
+          <h1 className="text-2xl font-bold mb-2">{t("settings.signing.title", "Signing Certificates")}</h1>
           <p className="text-muted-foreground">
             {t(
               "settings.signing.description",
@@ -355,12 +342,7 @@ export default function SigningCertificatesSettings() {
         <div className="space-y-3">
           {certs && certs.length > 0 ? (
             certs.map((cert) => (
-              <CertCard
-                key={cert.id}
-                cert={cert}
-                onDelete={handleDelete}
-                deleting={deleting === cert.id}
-              />
+              <CertCard key={cert.id} cert={cert} onDelete={handleDelete} deleting={deleting === cert.id} />
             ))
           ) : (
             <Card>
@@ -383,7 +365,10 @@ export default function SigningCertificatesSettings() {
           open={uploadOpen}
           companyId={companyId}
           onClose={() => setUploadOpen(false)}
-          onUploaded={() => { setUploadOpen(false); refetch() }}
+          onUploaded={() => {
+            setUploadOpen(false)
+            refetch()
+          }}
         />
       )}
     </div>

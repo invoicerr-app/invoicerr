@@ -1,10 +1,10 @@
 import { toast } from "sonner"
 
 export type MutationResult<T> = {
-    trigger: (body?: any, extraOptions?: RequestInit) => Promise<T | null>
-    data: T | null
-    loading: boolean
-    error: Error | null
+  trigger: (body?: any, extraOptions?: RequestInit) => Promise<T | null>
+  data: T | null
+  loading: boolean
+  error: Error | null
 }
 
 /**
@@ -24,19 +24,22 @@ export type MutationResult<T> = {
  *     const created = await trigger(body)
  *     if (!created) return // error already toasted
  */
-export function useMutationWithToast<T>(mutation: MutationResult<T>, errorMessage: string): MutationResult<T> {
-    const trigger = async (body?: any, extraOptions?: RequestInit): Promise<T | null> => {
-        let result: T | null = null
-        try {
-            result = await mutation.trigger(body, extraOptions)
-        } catch {
-            result = null
-        }
-        if (result === null) {
-            toast.error(errorMessage)
-        }
-        return result
+export function useMutationWithToast<T>(
+  mutation: MutationResult<T>,
+  errorMessage: string,
+): MutationResult<T> {
+  const trigger = async (body?: any, extraOptions?: RequestInit): Promise<T | null> => {
+    let result: T | null = null
+    try {
+      result = await mutation.trigger(body, extraOptions)
+    } catch {
+      result = null
     }
+    if (result === null) {
+      toast.error(errorMessage)
+    }
+    return result
+  }
 
-    return { ...mutation, trigger }
+  return { ...mutation, trigger }
 }
