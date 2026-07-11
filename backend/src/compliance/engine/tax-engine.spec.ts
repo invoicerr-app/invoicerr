@@ -66,14 +66,27 @@ describe('TaxEngine — domestic VAT (France)', () => {
   });
 
   it('uses a reduced-rate hint when provided', () => {
-    const t = determineLineTax(party('FR', 'B2C'), party('FR', 'B2C'), line('GOODS', { rate: 5.5 }), FR, vat, FR);
+    const t = determineLineTax(
+      party('FR', 'B2C'),
+      party('FR', 'B2C'),
+      line('GOODS', { rate: 5.5 }),
+      FR,
+      vat,
+      FR,
+    );
     expect(t.components[0].rate).toBe(5.5);
   });
 });
 
 describe('TaxEngine — cross-border within the EU', () => {
   it('FR→IT B2B services (valid VAT): reverse charge, 0%, EC Sales List', () => {
-    const t = determineLineTax(party('FR', 'B2B'), party('IT', 'B2B', { vat: 'valid' }), line('SERVICES'), FR, vat);
+    const t = determineLineTax(
+      party('FR', 'B2B'),
+      party('IT', 'B2B', { vat: 'valid' }),
+      line('SERVICES'),
+      FR,
+      vat,
+    );
     expect(t.components[0].category).toBe('AE');
     expect(t.components[0].rate).toBe(0);
     expect(t.components[0].jurisdiction).toBe('IT');
@@ -83,14 +96,26 @@ describe('TaxEngine — cross-border within the EU', () => {
   });
 
   it('FR→IT B2B goods (valid VAT): intra-Community supply, EC Sales List + Intrastat', () => {
-    const t = determineLineTax(party('FR', 'B2B'), party('IT', 'B2B', { vat: 'valid' }), line('GOODS'), FR, vat);
+    const t = determineLineTax(
+      party('FR', 'B2B'),
+      party('IT', 'B2B', { vat: 'valid' }),
+      line('GOODS'),
+      FR,
+      vat,
+    );
     expect(t.components[0].category).toBe('K');
     expect(t.reportingFlags).toEqual(expect.arrayContaining(['EC_SALES_LIST', 'INTRASTAT']));
     expect(t.mentions.map((m) => m.code)).toContain('INTRA_COMMUNITY');
   });
 
   it('FR→IT B2B services with UNVALIDATED VAT: safe default charges domestic VAT', () => {
-    const t = determineLineTax(party('FR', 'B2B'), party('IT', 'B2B', { vat: 'invalid' }), line('SERVICES'), FR, vat);
+    const t = determineLineTax(
+      party('FR', 'B2B'),
+      party('IT', 'B2B', { vat: 'invalid' }),
+      line('SERVICES'),
+      FR,
+      vat,
+    );
     expect(t.components[0].category).toBe('S');
     expect(t.components[0].rate).toBe(20);
     expect(t.buyerSelfAssess).toBe(false);
@@ -116,7 +141,14 @@ describe('TaxEngine — export out of the EU (FR→US)', () => {
 
 describe('TaxEngine — United States sales tax (no VAT)', () => {
   it('US→FR B2B services: no US tax on export, FR buyer self-assesses import VAT', () => {
-    const t = determineLineTax(party('US', 'B2B', { state: 'CA' }), party('FR', 'B2B'), line('SERVICES'), US, vat, FR);
+    const t = determineLineTax(
+      party('US', 'B2B', { state: 'CA' }),
+      party('FR', 'B2B'),
+      line('SERVICES'),
+      US,
+      vat,
+      FR,
+    );
     expect(t.components[0].taxSystem).toBe('SALES_TAX');
     expect(t.components[0].category).toBe('O');
     expect(t.components[0].rate).toBe(0);
@@ -125,7 +157,14 @@ describe('TaxEngine — United States sales tax (no VAT)', () => {
   });
 
   it('US→US domestic with nexus (CA): destination state rate applied', () => {
-    const t = determineLineTax(party('US', 'B2B'), party('US', 'B2B', { state: 'CA' }), line('GOODS'), US, vat, US);
+    const t = determineLineTax(
+      party('US', 'B2B'),
+      party('US', 'B2B', { state: 'CA' }),
+      line('GOODS'),
+      US,
+      vat,
+      US,
+    );
     expect(t.components[0].taxSystem).toBe('SALES_TAX');
     expect(t.components[0].category).toBe('S');
     expect(t.components[0].rate).toBe(7.25);
@@ -133,7 +172,14 @@ describe('TaxEngine — United States sales tax (no VAT)', () => {
   });
 
   it('US→US domestic without nexus (OR): no tax collected, use-tax note', () => {
-    const t = determineLineTax(party('US', 'B2B'), party('US', 'B2B', { state: 'OR' }), line('GOODS'), US, vat, US);
+    const t = determineLineTax(
+      party('US', 'B2B'),
+      party('US', 'B2B', { state: 'OR' }),
+      line('GOODS'),
+      US,
+      vat,
+      US,
+    );
     expect(t.components[0].category).toBe('O');
     expect(t.components[0].rate).toBe(0);
     expect(t.mentions.map((m) => m.code)).toContain('US_NO_NEXUS');

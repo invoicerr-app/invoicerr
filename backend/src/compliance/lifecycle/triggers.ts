@@ -41,9 +41,6 @@ export function triggerForFeedback(
       return { kind: 'POLL', poll: opts.poll ?? DEFAULT_POLL, channelProviderId: opts.providerId };
     case 'ASYNC_CALLBACK':
       return { kind: 'CALLBACK' };
-    case 'SYNC':
-    case 'NONE':
-    case undefined:
     default:
       return { kind: 'IMMEDIATE' };
   }

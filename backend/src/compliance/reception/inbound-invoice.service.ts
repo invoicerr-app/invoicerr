@@ -67,7 +67,9 @@ export class InboundInvoiceService {
     const status: InboundInvoiceStatus = hasParsed ? 'PARSED' : 'RECEIVED';
 
     if (parsed.parseErrors.length > 0) {
-      this.logger.warn(`InboundInvoice: parse errors for ${channel}:${externalId}: ${parsed.parseErrors.join('; ')}`);
+      this.logger.warn(
+        `InboundInvoice: parse errors for ${channel}:${externalId}: ${parsed.parseErrors.join('; ')}`,
+      );
     }
 
     const row = await this.prisma.inboundInvoice.create({
@@ -156,12 +158,7 @@ export class InboundInvoiceService {
    * The actual buyer-status transmission (Peppol Invoice Response, SdI esito) is
    * a TODO seam: emitBuyerStatus() below logs a todo until the channel is live.
    */
-  async acceptOrReject(
-    id: string,
-    companyId: string,
-    action: 'accept' | 'reject',
-    reason?: string,
-  ) {
+  async acceptOrReject(id: string, companyId: string, action: 'accept' | 'reject', reason?: string) {
     const row = await this.prisma.inboundInvoice.findFirst({ where: { id, companyId } });
     if (!row) throw new HttpException('Inbound invoice not found', HttpStatus.NOT_FOUND);
     if (row.status === 'ACCEPTED' || row.status === 'REJECTED') {
@@ -178,7 +175,12 @@ export class InboundInvoiceService {
     this.emitBuyerStatusSeam(row.channel, row.externalId, action, reason);
 
     this.logger.log(`InboundInvoice: ${action} id=${id} channel=${row.channel} externalId=${row.externalId}`);
-    return { id: updated.id, status: updated.status, channel: updated.channel, externalId: updated.externalId };
+    return {
+      id: updated.id,
+      status: updated.status,
+      channel: updated.channel,
+      externalId: updated.externalId,
+    };
   }
 
   /**
@@ -186,7 +188,12 @@ export class InboundInvoiceService {
    * Per COMPLIANCE_TODO.md §5: SdI esito EC01/EC02 + Peppol Invoice Response are
    * structurally implemented in sendStatus but deferred to live credentials.
    */
-  private emitBuyerStatusSeam(channel: string, externalId: string, action: 'accept' | 'reject', reason?: string): void {
+  private emitBuyerStatusSeam(
+    channel: string,
+    externalId: string,
+    action: 'accept' | 'reject',
+    reason?: string,
+  ): void {
     const status = action === 'accept' ? 'ACCEPTED' : 'REJECTED';
     this.logger.log(
       `[TODO] emit buyer ack for ${channel}:${externalId} → ${status}${reason ? ` (reason: ${reason})` : ''}`,

@@ -18,7 +18,11 @@ export const PL: CountryComplianceProfile = {
   ],
 
   formats: [
-    { validFrom: '1900-01-01', validTo: '2026-02-01', value: { primary: { syntax: 'PLAIN_PDF' }, buyerNegotiable: true } },
+    {
+      validFrom: '1900-01-01',
+      validTo: '2026-02-01',
+      value: { primary: { syntax: 'PLAIN_PDF' }, buyerNegotiable: true },
+    },
     {
       validFrom: '2026-02-01',
       value: { primary: { syntax: 'FA_VAT' }, human: { syntax: 'PLAIN_PDF' }, buyerNegotiable: false },

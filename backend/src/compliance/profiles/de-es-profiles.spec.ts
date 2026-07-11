@@ -81,7 +81,9 @@ describe('ES bespoke profile', () => {
 
   it('transmission includes GOV_PORTAL_API with es-aeat after SII mandate', () => {
     const latest = ES.transmission[ES.transmission.length - 1]?.value;
-    expect(latest?.channels.some((c) => c.type === 'GOV_PORTAL_API' && c.providerId === 'es-aeat')).toBe(true);
+    expect(latest?.channels.some((c) => c.type === 'GOV_PORTAL_API' && c.providerId === 'es-aeat')).toBe(
+      true,
+    );
   });
 
   it('archival has SIGNED integrity (XAdES requirement)', () => {

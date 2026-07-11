@@ -41,26 +41,46 @@ const ETA_URLS = {
 const ETA_CONFIG_SCHEMA: ChannelConfigSchema = {
   fields: [
     {
-      type: 'select', name: 'environment', label: 'ETA environment', required: true,
-      options: [{ label: 'Pre-production (Test)', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+      type: 'select',
+      name: 'environment',
+      label: 'ETA environment',
+      required: true,
+      options: [
+        { label: 'Pre-production (Test)', value: 'test' },
+        { label: 'Production', value: 'prod' },
+      ],
+      default: 'test',
     },
-    { type: 'text', name: 'taxRegistrationNumber', label: 'Tax Registration Number (TIN/RIN)', required: true },
+    {
+      type: 'text',
+      name: 'taxRegistrationNumber',
+      label: 'Tax Registration Number (TIN/RIN)',
+      required: true,
+    },
     { type: 'text', name: 'clientId', label: 'ETA OAuth2 Client ID', required: true },
     { type: 'text', name: 'clientSecret', label: 'ETA OAuth2 Client Secret', required: true, secret: true },
     {
-      type: 'select', name: 'signatureType', label: 'Signature algorithm', required: true,
+      type: 'select',
+      name: 'signatureType',
+      label: 'Signature algorithm',
+      required: true,
       options: [
         { label: 'Ed25519 (resident taxpayer)', value: 'ed25519' },
         { label: 'RSA-2048 (non-resident)', value: 'rsa' },
-      ], default: 'ed25519',
+      ],
+      default: 'ed25519',
     },
   ],
 };
 
 /** Stub HTTP port — replaced by a real client or a mock in tests. */
 const STUB_HTTP: EtaHttpPort = {
-  post: async () => { throw new Error('ETA HTTP port not implemented — provide real credentials + HTTP client'); },
-  get: async () => { throw new Error('ETA HTTP port not implemented'); },
+  post: async () => {
+    throw new Error('ETA HTTP port not implemented — provide real credentials + HTTP client');
+  },
+  get: async () => {
+    throw new Error('ETA HTTP port not implemented');
+  },
 };
 
 export class EgEtaTransmissionProvider implements TransmissionProvider {
@@ -81,7 +101,11 @@ export class EgEtaTransmissionProvider implements TransmissionProvider {
     resolvedConfig?: ResolvedChannelConfig,
   ): Promise<TransmissionResult> {
     if (!resolvedConfig) {
-      return { channel: GP, status: 'SKIPPED', notes: ['eg-eta: no resolved config — configure ETA credentials'] };
+      return {
+        channel: GP,
+        status: 'SKIPPED',
+        notes: ['eg-eta: no resolved config — configure ETA credentials'],
+      };
     }
     const { config, environment } = resolvedConfig;
     const isTest = ((config.environment as string) ?? environment ?? 'test').toLowerCase() !== 'prod';
@@ -101,7 +125,9 @@ export class EgEtaTransmissionProvider implements TransmissionProvider {
     // TODO: deserialize the artifact bytes to an ETA JSON document.
     // TODO: call etaCanonicalize() → computeEtaUuid() → sign via signing port.
     // For now, build a minimal scaffold document:
-    const rawContent = Buffer.isBuffer(art.bytes) ? art.bytes.toString('utf-8') : new TextDecoder().decode(art.bytes);
+    const rawContent = Buffer.isBuffer(art.bytes)
+      ? art.bytes.toString('utf-8')
+      : new TextDecoder().decode(art.bytes);
     let docPayload: Record<string, unknown>;
     try {
       docPayload = JSON.parse(rawContent) as Record<string, unknown>;
@@ -143,7 +169,8 @@ export class EgEtaTransmissionProvider implements TransmissionProvider {
     }
     try {
       const resolved = await this.credentials.resolveActive(companyId, 'eg-eta');
-      if (!resolved?.isActive) return { channel: GP, status: 'PENDING', ref, notes: ['eg-eta: credentials inactive'] };
+      if (!resolved?.isActive)
+        return { channel: GP, status: 'PENDING', ref, notes: ['eg-eta: credentials inactive'] };
       const { config, environment } = resolved;
       const isTest = ((config.environment as string) ?? environment ?? 'test').toLowerCase() !== 'prod';
       const urls = isTest ? ETA_URLS.test : ETA_URLS.prod;
@@ -151,7 +178,13 @@ export class EgEtaTransmissionProvider implements TransmissionProvider {
       const clientSecret = (config.clientSecret ?? '') as string;
       const tin = (config.taxRegistrationNumber ?? '') as string;
       const client = new EtaClient(
-        { baseUrl: urls.baseUrl, tokenUrl: urls.tokenUrl, clientId, clientSecret, taxRegistrationNumber: tin },
+        {
+          baseUrl: urls.baseUrl,
+          tokenUrl: urls.tokenUrl,
+          clientId,
+          clientSecret,
+          taxRegistrationNumber: tin,
+        },
         STUB_HTTP,
       );
       const resp = await client.getDocumentStatus(uuid);

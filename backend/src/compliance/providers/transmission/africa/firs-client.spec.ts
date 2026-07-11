@@ -3,7 +3,15 @@
  *
  * Live integration deferred — no FIRS MBS sandbox credentials available.
  */
-import { computeFirsIrn, FirsClient, FirsAuthResponse, FirsIrnResponse, FirsSubmitResponse, FirsStatusResponse, FirsHttpPort } from './firs-client';
+import {
+  computeFirsIrn,
+  FirsClient,
+  FirsAuthResponse,
+  FirsIrnResponse,
+  FirsSubmitResponse,
+  FirsStatusResponse,
+  FirsHttpPort,
+} from './firs-client';
 import { FirsTransmissionProvider } from './firs-transmission';
 import { RecordingComplianceLogger } from '../../../execution/logger';
 
@@ -60,16 +68,18 @@ describe('FirsClient (scaffold — mocked HTTP)', () => {
     invoiceDate: '2026-06-29',
     currency: 'NGN',
     serviceId: '08-00-02-00',
-    lines: [{
-      lineId: 1,
-      productDescription: 'Consulting services',
-      quantity: 1,
-      unitPrice: 100000,
-      taxableAmount: 100000,
-      vatRate: 7.5,
-      vatAmount: 7500,
-      totalAmount: 107500,
-    }],
+    lines: [
+      {
+        lineId: 1,
+        productDescription: 'Consulting services',
+        quantity: 1,
+        unitPrice: 100000,
+        taxableAmount: 100000,
+        vatRate: 7.5,
+        vatAmount: 7500,
+        totalAmount: 107500,
+      },
+    ],
     taxableAmount: 100000,
     totalVat: 7500,
     totalAmount: 107500,

@@ -11,10 +11,14 @@ import { User } from '@/decorators/user.decorator';
 @Controller('api-keys')
 @UseGuards(AuthGuard)
 export class ApiKeysController {
-  constructor(private readonly apiKeysService: ApiKeysService) { }
+  constructor(private readonly apiKeysService: ApiKeysService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a new API key', description: 'The plaintext key is only ever returned in this response — it cannot be retrieved again afterwards.' })
+  @ApiOperation({
+    summary: 'Create a new API key',
+    description:
+      'The plaintext key is only ever returned in this response — it cannot be retrieved again afterwards.',
+  })
   @ApiResponse({ status: 201, description: 'API key created' })
   async create(@User() user: CurrentUser, @Body() dto: CreateApiKeyDto) {
     return this.apiKeysService.create(user.id, dto.name);

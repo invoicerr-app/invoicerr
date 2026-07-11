@@ -1,4 +1,4 @@
-import { generateKeyPairSync } from 'crypto';
+import { generateKeyPairSync } from 'node:crypto';
 import { KsefClient, KsefHttpClient, HttpRequest, HttpResponse } from './ksef-client';
 
 // Generate test RSA keys for the client config
@@ -31,7 +31,7 @@ const TEST_CONFIG = {
 describe('KsefClient', () => {
   describe('authChallenge()', () => {
     it('POSTs to /auth/challenge with no body', async () => {
-      const http = mockHttp((req) => ({
+      const http = mockHttp((_req) => ({
         status: 200,
         body: {
           challenge: '20260628-CR-2FDC223000-C2BFC98A9C-4E',
@@ -58,11 +58,14 @@ describe('KsefClient', () => {
 
   describe('authKsefToken()', () => {
     it('POSTs to /auth/ksef-token with NIP context identifier (returns 202)', async () => {
-      const http = mockHttp((req) => ({
+      const http = mockHttp((_req) => ({
         status: 202,
         body: {
           referenceNumber: '20260628-AU-2FDC223000-C2BFC98A9C-4E',
-          authenticationToken: { token: 'eyJhbGciOiJSUzI1NiJ9.auth-tok', validUntil: '2026-06-28T12:30:00.000Z' },
+          authenticationToken: {
+            token: 'eyJhbGciOiJSUzI1NiJ9.auth-tok',
+            validUntil: '2026-06-28T12:30:00.000Z',
+          },
         },
       }));
       const client = new KsefClient(http, TEST_CONFIG);
@@ -141,9 +144,12 @@ describe('KsefClient', () => {
 
   describe('openOnlineSession()', () => {
     it('POSTs to /sessions/online with formCode and encryption (returns 201)', async () => {
-      const http = mockHttp((req) => ({
+      const http = mockHttp((_req) => ({
         status: 201,
-        body: { referenceNumber: '20260628-SN-ABCDEF1234-567890AB-CDEF', validUntil: '2026-06-28T14:00:00.000Z' },
+        body: {
+          referenceNumber: '20260628-SN-ABCDEF1234-567890AB-CDEF',
+          validUntil: '2026-06-28T14:00:00.000Z',
+        },
       }));
       const client = new KsefClient(http, TEST_CONFIG);
       const key = { aesKey: Buffer.alloc(32, 0x42), iv: Buffer.alloc(16, 0x24) };
@@ -161,7 +167,7 @@ describe('KsefClient', () => {
 
   describe('sendInvoice()', () => {
     it('POSTs to /sessions/online/{ref}/invoices with 5 required fields (returns 202)', async () => {
-      const http = mockHttp((req) => ({
+      const http = mockHttp((_req) => ({
         status: 202,
         body: { referenceNumber: '20260628-IN-INV123456-ABCDEF01-23' },
       }));
@@ -212,7 +218,10 @@ describe('KsefClient', () => {
       expect(result.status.code).toBe(200);
       expect(result.ksefNumber).toBe('20260628-FA-123456789-20260628-1A2B3C-DEF456-78');
       expect(http.request).toHaveBeenCalledWith(
-        expect.objectContaining({ method: 'GET', path: expect.stringContaining('/sessions/session-ref/invoices/inv-ref') }),
+        expect.objectContaining({
+          method: 'GET',
+          path: expect.stringContaining('/sessions/session-ref/invoices/inv-ref'),
+        }),
       );
     });
   });

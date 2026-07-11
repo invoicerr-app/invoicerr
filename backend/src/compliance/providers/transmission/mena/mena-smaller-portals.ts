@@ -35,10 +35,24 @@ export const SMALL_MENA_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/invoices/status',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'JoFotara environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'JoFotara environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
-      { type: 'text', name: 'tin', label: 'Jordan TIN (10 digits)', required: true, minLength: 10, maxLength: 10 },
+      {
+        type: 'text',
+        name: 'tin',
+        label: 'Jordan TIN (10 digits)',
+        required: true,
+        minLength: 10,
+        maxLength: 10,
+      },
       { type: 'text', name: 'merchantId', label: 'JoFotara Merchant ID', required: true },
       { type: 'text', name: 'apiToken', label: 'JoFotara API key', required: true, secret: true },
     ],
@@ -58,8 +72,15 @@ export const SMALL_MENA_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/factures/statut',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'TTN environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'TTN environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
       { type: 'text', name: 'matriculeFiscal', label: 'Matricule Fiscal (MF)', required: true },
       { type: 'text', name: 'ttnSubscriberId', label: 'TTN Subscriber ID', required: true },
@@ -70,4 +91,7 @@ export const SMALL_MENA_PORTAL_SPECS: GenericPortalSpec[] = [
 ];
 
 // Static list for registry use (no credentials needed at the stub layer)
-export const SMALL_MENA_PROVIDERS = buildGenericPortalProviders(SMALL_MENA_PORTAL_SPECS, MENA_PORTAL_HEURISTICS);
+export const SMALL_MENA_PROVIDERS = buildGenericPortalProviders(
+  SMALL_MENA_PORTAL_SPECS,
+  MENA_PORTAL_HEURISTICS,
+);

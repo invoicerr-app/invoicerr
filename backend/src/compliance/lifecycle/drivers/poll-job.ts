@@ -119,9 +119,7 @@ export class InMemoryPollJobStore implements PollJobStore {
   due(now: Date): Promise<PollJob[]> {
     const t = now.getTime();
     return Promise.resolve(
-      [...this.jobs.values()].filter(
-        (j) => j.status === 'PENDING' && new Date(j.nextRunAt).getTime() <= t,
-      ),
+      [...this.jobs.values()].filter((j) => j.status === 'PENDING' && new Date(j.nextRunAt).getTime() <= t),
     );
   }
   pending(): Promise<PollJob[]> {

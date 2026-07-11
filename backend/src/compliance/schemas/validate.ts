@@ -8,12 +8,11 @@
  * Schematron uses node-schematron (runs .sch directly, no compile step).
  * XSD uses xmllint-wasm (no native binary dependency).
  */
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 // ─── Schematron (EN16931 CII + Peppol BIS UBL via node-schematron) ─────────
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { Schema } = require('node-schematron');
 
 // Register the Peppol BIS `u:slack` custom function with fontoxpath.
@@ -24,7 +23,6 @@ const { Schema } = require('node-schematron');
 // xsl:function declarations inside the .sch file.
 // Registration is idempotent (same key → no-op on re-import via module cache).
 try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const fontoxpath = require('fontoxpath');
   // Peppol BIS calls u:slack with numeric values that fontoxpath evaluates as xs:double.
   // Use xs:anyAtomicType to accept both xs:decimal and xs:double without a cast error.
@@ -74,8 +72,7 @@ export interface SchematronError {
  */
 export function validateSchematron(xml: string, schRelPath: string): SchematronResult {
   const schema = loadSchema(schRelPath);
-  const results: Array<{ assertId: string; isReport: boolean; message: string }> =
-    schema.validateString(xml);
+  const results: Array<{ assertId: string; isReport: boolean; message: string }> = schema.validateString(xml);
 
   // Only count failed assertions (isReport=false); reports are informational
   const errors: SchematronError[] = results
@@ -98,7 +95,6 @@ export function validateSchematron(xml: string, schRelPath: string): SchematronR
 // All XSD files in the schema directory are preloaded into the WASM VFS so that
 // xsd:include and xsd:import chains resolve correctly.
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { validateXML } = require('xmllint-wasm');
 
 export interface XsdResult {
@@ -124,15 +120,18 @@ export async function validateXsd(
   // Load all .xsd files in the directory for xsd:include / xsd:import chain resolution.
   // The MAIN schema is passed as `schema`; all others are passed as `preload` (VFS-mounted
   // so xmllint can resolve imports, but not used as the primary validation schema).
-  const allXsdFiles = fs.readdirSync(xsdDir)
+  const allXsdFiles = fs
+    .readdirSync(xsdDir)
     .filter((f) => f.endsWith('.xsd'))
     .map((f) => ({
       fileName: f,
       contents: fs.readFileSync(path.join(xsdDir, f), 'utf-8'),
     }));
 
-  const mainSchema = allXsdFiles.find((f) => f.fileName === mainXsdName)
-    ?? { fileName: mainXsdName, contents: fs.readFileSync(xsdAbsPath, 'utf-8') };
+  const mainSchema = allXsdFiles.find((f) => f.fileName === mainXsdName) ?? {
+    fileName: mainXsdName,
+    contents: fs.readFileSync(xsdAbsPath, 'utf-8'),
+  };
   const preloadFiles = allXsdFiles.filter((f) => f.fileName !== mainXsdName);
 
   const result = await validateXML({

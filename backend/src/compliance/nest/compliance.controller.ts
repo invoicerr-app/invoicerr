@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, HttpCode, HttpException, HttpStatus, Logger, Param, Post, Req } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, Logger, Param, Post, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { Public } from '@/decorators/public.decorator';
 import { InboundRouter } from '../lifecycle/drivers/inbound-router';
@@ -32,7 +32,6 @@ interface GenericInboundBody {
  * providers that normalise JSON whitespace before signing).
  */
 function getRawBody(req: Request, parsedBody: unknown): Buffer {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const raw = (req as any).rawBody;
   if (raw instanceof Buffer) return raw;
   return Buffer.from(JSON.stringify(parsedBody) ?? '', 'utf-8');
@@ -126,7 +125,9 @@ export class ComplianceController {
 
     const input: InboundInput = parsePdpWebhook(body);
     const result = await this.inboundRouter.receive(input);
-    this.logger.debug(`inbound/pdp webhook invoice_id=${body.invoice_id} status=${body.status_code}: ${result.kind}`);
+    this.logger.debug(
+      `inbound/pdp webhook invoice_id=${body.invoice_id} status=${body.status_code}: ${result.kind}`,
+    );
     return result;
   }
 
@@ -200,7 +201,9 @@ export class ComplianceController {
 
     const input: InboundInput = parsePeppolMlr(body);
     const result = await this.inboundRouter.receive(input);
-    this.logger.debug(`inbound/peppol MLR messageId=${body.messageId} code=${body.responseCode}: ${result.kind}`);
+    this.logger.debug(
+      `inbound/peppol MLR messageId=${body.messageId} code=${body.responseCode}: ${result.kind}`,
+    );
     return result;
   }
 }

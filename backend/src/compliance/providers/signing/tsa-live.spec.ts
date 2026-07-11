@@ -40,10 +40,8 @@ const describeLive = liveDescribe('TSA_LIVE', ['TSA_URL']);
 beforeAll(() => {
   const xmlDomDeps = { DOMParser, XMLSerializer } as Parameters<typeof setNodeDependencies>[0];
   setNodeDependencies(xmlDomDeps);
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const path = require('path') as typeof import('path');
+  const path = require('node:path') as typeof import('path');
   const xmldsigDir = path.dirname(require.resolve('xmldsigjs'));
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const xmlCoreInXmldsig = require(require.resolve('xml-core', { paths: [xmldsigDir] })) as {
     setNodeDependencies: typeof setNodeDependencies;
   };
@@ -86,10 +84,7 @@ function generateTestCert(): TestCertBundle {
   const privateKeyPem = forge.pki.privateKeyInfoToPem(
     forge.pki.wrapRsaPrivateKey(forge.pki.privateKeyToAsn1(keys.privateKey)),
   );
-  const certDer = Buffer.from(
-    forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes(),
-    'binary',
-  );
+  const certDer = Buffer.from(forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes(), 'binary');
 
   return { material: { certDer, privateKeyPem, certPem } };
 }
@@ -119,7 +114,7 @@ const xmlArtifact: RenderedArtifact = {
 // Live suite
 // ---------------------------------------------------------------------------
 describeLive('TSA live round-trip against real TSA_URL', () => {
-  const tsaUrl = process.env['TSA_URL']!;
+  const tsaUrl = process.env.TSA_URL!;
   let bundle: TestCertBundle;
 
   beforeAll(() => {
@@ -143,10 +138,10 @@ describeLive('TSA live round-trip against real TSA_URL', () => {
   }, 30_000);
 
   it('XadesSigningProvider at level-T embeds SignatureTimeStamp from real TSA', async () => {
-    const provider = new XadesSigningProvider(
-      fixedCredentials(bundle.material),
-      { signatureLevel: 'T', tsa: new HttpTsaClient(tsaUrl) },
-    );
+    const provider = new XadesSigningProvider(fixedCredentials(bundle.material), {
+      signatureLevel: 'T',
+      tsa: new HttpTsaClient(tsaUrl),
+    });
     const log = new RecordingComplianceLogger();
     const signed = await provider.sign(xmlArtifact, 'test-cert', log);
 
@@ -180,11 +175,9 @@ describeLive('TSA live round-trip against real TSA_URL', () => {
 
   it('SigningProviderRegistry built from TSA_URL env produces XAdES-T with real TSA', async () => {
     // Full wiring path: env override → HttpTsaClient → -T provider → real TSA call.
-    const registry = new SigningProviderRegistry(
-      undefined,
-      fixedCredentials(bundle.material),
-      { TSA_URL: tsaUrl },
-    );
+    const registry = new SigningProviderRegistry(undefined, fixedCredentials(bundle.material), {
+      TSA_URL: tsaUrl,
+    });
     const log = new RecordingComplianceLogger();
     const signed = await registry.get('XAdES').sign(xmlArtifact, 'test-cert', log);
 

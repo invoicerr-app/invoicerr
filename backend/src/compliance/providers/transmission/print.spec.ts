@@ -32,9 +32,7 @@ function makeCtx(overrides?: Partial<TransactionContext>): TransactionContext {
 
 /** Decode a QR code PNG buffer using jsQR (pure JS, no native deps). */
 async function decodeQrPng(pngBuffer: Buffer): Promise<string | null> {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const Jimp = require('jimp'); // jimp v0.22 — CJS, compatible with Jest without vm-modules flag
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const jsQR = require('jsqr');
 
   const img = await Jimp.read(pngBuffer);
@@ -161,14 +159,13 @@ describe('PacTransmissionProvider — scaffold', () => {
     const { PacTransmissionProvider } = await import('./providers');
     const log = new RecordingComplianceLogger();
     const p = new PacTransmissionProvider();
-    const r = await p.transmit(
-      [],
-      { supplierCompanyId: 'c1' } as never,
-      {} as never,
-      'k',
-      log,
-      { providerId: 'pac', channel: 'PAC', environment: 'TEST', config: { baseUrl: 'https://srv', apiKey: 'k', rfc: 'AAA010101AAA' }, isActive: true },
-    );
+    const r = await p.transmit([], { supplierCompanyId: 'c1' } as never, {} as never, 'k', log, {
+      providerId: 'pac',
+      channel: 'PAC',
+      environment: 'TEST',
+      config: { baseUrl: 'https://srv', apiKey: 'k', rfc: 'AAA010101AAA' },
+      isActive: true,
+    });
     expect(r.status).toBe('SKIPPED');
     expect(r.notes[0]).toContain('no CFDI artifact');
   });
@@ -193,14 +190,13 @@ describe('PacTransmissionProvider — scaffold', () => {
       mime: 'application/xml',
       bytes: Buffer.from('<?xml version="1.0"?><cfdi:Comprobante/>', 'utf-8'),
     };
-    const r = await p.transmit(
-      [cfdiArtifact],
-      { supplierCompanyId: 'c1' } as never,
-      {} as never,
-      'k',
-      log,
-      { providerId: 'pac', channel: 'PAC', environment: 'TEST', config: { baseUrl: 'https://srv', apiKey: 'k', rfc: 'AAA010101AAA', environment: 'test' }, isActive: true },
-    );
+    const r = await p.transmit([cfdiArtifact], { supplierCompanyId: 'c1' } as never, {} as never, 'k', log, {
+      providerId: 'pac',
+      channel: 'PAC',
+      environment: 'TEST',
+      config: { baseUrl: 'https://srv', apiKey: 'k', rfc: 'AAA010101AAA', environment: 'test' },
+      isActive: true,
+    });
     expect(r.status).toBe('CLEARED');
     expect(r.authorityIds).toEqual([{ scheme: 'UUID', value: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' }]);
     expect(mockPort.timbrar).toHaveBeenCalledTimes(1);
@@ -224,14 +220,13 @@ describe('OseTransmissionProvider — scaffold', () => {
     const { OseTransmissionProvider } = await import('./providers');
     const log = new RecordingComplianceLogger();
     const p = new OseTransmissionProvider();
-    const r = await p.transmit(
-      [],
-      { supplierCompanyId: 'c1' } as never,
-      {} as never,
-      'k',
-      log,
-      { providerId: 'ose', channel: 'OSE', environment: 'TEST', config: { baseUrl: 'https://ose', apiKey: 'k', ruc: '20123456789' }, isActive: true },
-    );
+    const r = await p.transmit([], { supplierCompanyId: 'c1' } as never, {} as never, 'k', log, {
+      providerId: 'ose',
+      channel: 'OSE',
+      environment: 'TEST',
+      config: { baseUrl: 'https://ose', apiKey: 'k', ruc: '20123456789' },
+      isActive: true,
+    });
     expect(r.status).toBe('SKIPPED');
     expect(r.notes[0]).toContain('no PE_UBL artifact');
   });
@@ -255,14 +250,13 @@ describe('OseTransmissionProvider — scaffold', () => {
       mime: 'application/zip',
       bytes: Buffer.from('PK\x03\x04XML_CONTENT'),
     };
-    const r = await p.transmit(
-      [peArtifact],
-      { supplierCompanyId: 'c1' } as never,
-      {} as never,
-      'k',
-      log,
-      { providerId: 'ose', channel: 'OSE', environment: 'TEST', config: { baseUrl: 'https://ose', apiKey: 'k', ruc: '20123456789', environment: 'test' }, isActive: true },
-    );
+    const r = await p.transmit([peArtifact], { supplierCompanyId: 'c1' } as never, {} as never, 'k', log, {
+      providerId: 'ose',
+      channel: 'OSE',
+      environment: 'TEST',
+      config: { baseUrl: 'https://ose', apiKey: 'k', ruc: '20123456789', environment: 'test' },
+      isActive: true,
+    });
     expect(r.status).toBe('CLEARED');
     expect(mockPort.enviarComprobante).toHaveBeenCalledTimes(1);
   });
@@ -284,14 +278,13 @@ describe('OseTransmissionProvider — scaffold', () => {
       mime: 'application/zip',
       bytes: Buffer.from('PK\x03\x04XML_CONTENT'),
     };
-    const r = await p.transmit(
-      [peArtifact],
-      { supplierCompanyId: 'c1' } as never,
-      {} as never,
-      'k',
-      log,
-      { providerId: 'ose', channel: 'OSE', environment: 'TEST', config: { baseUrl: 'https://ose', apiKey: 'k', ruc: '20123456789', environment: 'test' }, isActive: true },
-    );
+    const r = await p.transmit([peArtifact], { supplierCompanyId: 'c1' } as never, {} as never, 'k', log, {
+      providerId: 'ose',
+      channel: 'OSE',
+      environment: 'TEST',
+      config: { baseUrl: 'https://ose', apiKey: 'k', ruc: '20123456789', environment: 'test' },
+      isActive: true,
+    });
     expect(r.status).toBe('PENDING');
     expect(r.ref).toContain('TICKET-001');
   });

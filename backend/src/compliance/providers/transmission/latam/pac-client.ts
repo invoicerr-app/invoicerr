@@ -56,12 +56,7 @@ export interface PacHttpPort {
    * POST CFDI XML (base64-encoded) to the PAC stamping endpoint.
    * Returns the TimbreFiscalDigital fields synchronously.
    */
-  timbrar(
-    baseUrl: string,
-    cfdiXmlBase64: string,
-    apiKey: string,
-    rfc: string,
-  ): Promise<PacTimbreResponse>;
+  timbrar(baseUrl: string, cfdiXmlBase64: string, apiKey: string, rfc: string): Promise<PacTimbreResponse>;
 
   /**
    * Consult the SAT registration status of a stamped CFDI by UUID.
@@ -116,23 +111,14 @@ export class PacClient {
   async timbrar(cfdiXml: Buffer | string): Promise<PacTimbreResponse> {
     const xmlStr = typeof cfdiXml === 'string' ? cfdiXml : cfdiXml.toString('utf-8');
     const xmlBase64 = Buffer.from(xmlStr, 'utf-8').toString('base64');
-    return this.http.timbrar(
-      this.config.baseUrl,
-      xmlBase64,
-      this.config.apiKey,
-      this.config.rfc,
-    );
+    return this.http.timbrar(this.config.baseUrl, xmlBase64, this.config.apiKey, this.config.rfc);
   }
 
   /**
    * Consult the SAT status of a previously stamped CFDI by UUID.
    * Returns 'vigente' (active), 'cancelado', or 'no_encontrado'.
    */
-  async consultaEstado(
-    uuid: string,
-    rfcReceptor: string,
-    total: string,
-  ): Promise<PacConsultaResponse> {
+  async consultaEstado(uuid: string, rfcReceptor: string, total: string): Promise<PacConsultaResponse> {
     return this.http.consultaEstado(
       this.config.baseUrl,
       uuid,

@@ -107,7 +107,12 @@ export interface SdiHttpPort {
    * Corresponds to the SOAP service RiceviNotificaService on the intermediary's SDICoop endpoint.
    * DEFERRED: requires AdE intermediary accreditation + qualified PFX certificate.
    */
-  sendEsito(idSdI: number, idTrasmittente: string, esito: 'EC01' | 'EC02', descrizione?: string): Promise<void>;
+  sendEsito(
+    idSdI: number,
+    idTrasmittente: string,
+    esito: 'EC01' | 'EC02',
+    descrizione?: string,
+  ): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -175,7 +180,11 @@ export class SdiClient {
    *   AT (Avvenuta Trasmissione)  → CLEARED  (SdI successfully transmitted)
    */
   static mapNotifica(notifica: SdiNotifica, ref: string): TransmissionResult {
-    const notes: string[] = [`idSdI: ${notifica.idSdI}`, `notifica: ${notifica.type}`, `data: ${notifica.dataOraRicezione}`];
+    const notes: string[] = [
+      `idSdI: ${notifica.idSdI}`,
+      `notifica: ${notifica.type}`,
+      `data: ${notifica.dataOraRicezione}`,
+    ];
 
     switch (notifica.type) {
       case 'RC':
@@ -186,7 +195,12 @@ export class SdiClient {
         return { channel: 'SDI', status: 'REJECTED', ref, notes };
 
       case 'MC':
-        return { channel: 'SDI', status: 'PENDING', ref, notes: [...notes, 'mancata consegna: SdI will retry for 15 days'] };
+        return {
+          channel: 'SDI',
+          status: 'PENDING',
+          ref,
+          notes: [...notes, 'mancata consegna: SdI will retry for 15 days'],
+        };
 
       case 'NE':
         if (notifica.esitoCommittente === 'EC01') {
@@ -198,13 +212,23 @@ export class SdiClient {
         return { channel: 'SDI', status: 'PENDING', ref, notes: [...notes, 'NE outcome pending'] };
 
       case 'DT':
-        return { channel: 'SDI', status: 'CLEARED', ref, notes: [...notes, 'decorrenza termini: 15 days elapsed, deemed delivered'] };
+        return {
+          channel: 'SDI',
+          status: 'CLEARED',
+          ref,
+          notes: [...notes, 'decorrenza termini: 15 days elapsed, deemed delivered'],
+        };
 
       case 'AT':
         return { channel: 'SDI', status: 'CLEARED', ref, notes: [...notes, 'avvenuta trasmissione'] };
 
       default:
-        return { channel: 'SDI', status: 'PENDING', ref, notes: [...notes, `unknown notifica type: ${notifica.type}`] };
+        return {
+          channel: 'SDI',
+          status: 'PENDING',
+          ref,
+          notes: [...notes, `unknown notifica type: ${notifica.type}`],
+        };
     }
   }
 }

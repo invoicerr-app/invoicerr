@@ -36,7 +36,11 @@ export const ES: CountryComplianceProfile = {
 
   formats: [
     // Pre-B2G mandate: PDF / plain
-    { validFrom: '1900-01-01', validTo: '2015-01-15', value: { primary: { syntax: 'PLAIN_PDF' }, buyerNegotiable: true } },
+    {
+      validFrom: '1900-01-01',
+      validTo: '2015-01-15',
+      value: { primary: { syntax: 'PLAIN_PDF' }, buyerNegotiable: true },
+    },
     // B2G mandate (Ley 25/2013): Facturae 3.2.2 for public administration invoices
     {
       validFrom: '2015-01-15',
@@ -51,7 +55,11 @@ export const ES: CountryComplianceProfile = {
 
   transmission: [
     // Pre-SII: email / Peppol
-    { validFrom: '1900-01-01', validTo: '2017-07-01', value: { channels: [{ type: 'PEPPOL' }, { type: 'EMAIL' }] } },
+    {
+      validFrom: '1900-01-01',
+      validTo: '2017-07-01',
+      value: { channels: [{ type: 'PEPPOL' }, { type: 'EMAIL' }] },
+    },
     // SII era: B2G via FACe portal; B2B via AEAT SII real-time ledger upload (GOV_PORTAL_API)
     {
       validFrom: '2017-07-01',

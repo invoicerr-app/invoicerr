@@ -45,9 +45,12 @@ const TERMINAL_STATUSES: ComplianceStatus[] = ['CANCELLED', 'CORRECTED', 'REJECT
 export function channelClassOf(plan: CompliancePlan): ChannelClass {
   const type = plan.channels?.[0]?.type ?? 'EMAIL';
   switch (type) {
-    case 'EMAIL': return 'EMAIL';
-    case 'PRINT': return 'PRINT';
-    case 'PEPPOL': return 'PEPPOL';
+    case 'EMAIL':
+      return 'EMAIL';
+    case 'PRINT':
+      return 'PRINT';
+    case 'PEPPOL':
+      return 'PEPPOL';
     case 'SDI':
     case 'PAC':
     case 'OSE':
@@ -75,10 +78,10 @@ export function describeFlow(plan: CompliancePlan, status: ComplianceStatus): Fl
   else if (status === 'ISSUED' && hasAsyncDriver) awaiting = 'DELIVERY';
 
   const terminal =
-    TERMINAL_STATUSES.includes(status) ||
-    (runtime.availableActions().length === 0 && drivers.length === 0);
+    TERMINAL_STATUSES.includes(status) || (runtime.availableActions().length === 0 && drivers.length === 0);
 
-  const manualActions = runtime.availableActions()
+  const manualActions = runtime
+    .availableActions()
     .map((tr) => (tr.trigger.kind === 'MANUAL' ? tr.trigger.action : null))
     .filter((a): a is string => a !== null);
 

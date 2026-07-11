@@ -29,9 +29,11 @@ describe('III.4 — deposit VAT invariant (amount = TTC)', () => {
     const vatRate = 20;
     const expectedHT = amountTTC / (1 + vatRate / 100);
 
-    const result = resolveInvoiceTax(baseInput({
-      items: [{ quantity: 1, unitPrice: expectedHT, vatRate, supplyType: 'SERVICES' }],
-    }));
+    const result = resolveInvoiceTax(
+      baseInput({
+        items: [{ quantity: 1, unitPrice: expectedHT, vatRate, supplyType: 'SERVICES' }],
+      }),
+    );
 
     // Core invariant: HT + VAT === TTC
     expect(result.totalHT + result.totalVAT).toBeCloseTo(result.totalTTC, 10);
@@ -45,9 +47,11 @@ describe('III.4 — deposit VAT invariant (amount = TTC)', () => {
     const vatRate = 10;
     const expectedHT = amountTTC / (1 + vatRate / 100);
 
-    const result = resolveInvoiceTax(baseInput({
-      items: [{ quantity: 1, unitPrice: expectedHT, vatRate, supplyType: 'SERVICES' }],
-    }));
+    const result = resolveInvoiceTax(
+      baseInput({
+        items: [{ quantity: 1, unitPrice: expectedHT, vatRate, supplyType: 'SERVICES' }],
+      }),
+    );
 
     expect(result.totalHT + result.totalVAT).toBeCloseTo(result.totalTTC, 10);
     expect(Math.abs(result.totalTTC - amountTTC)).toBeLessThanOrEqual(0.02);
@@ -58,9 +62,11 @@ describe('III.4 — deposit VAT invariant (amount = TTC)', () => {
     const vatRate = 5.5;
     const expectedHT = amountTTC / (1 + vatRate / 100);
 
-    const result = resolveInvoiceTax(baseInput({
-      items: [{ quantity: 1, unitPrice: expectedHT, vatRate, supplyType: 'SERVICES' }],
-    }));
+    const result = resolveInvoiceTax(
+      baseInput({
+        items: [{ quantity: 1, unitPrice: expectedHT, vatRate, supplyType: 'SERVICES' }],
+      }),
+    );
 
     expect(result.totalHT + result.totalVAT).toBeCloseTo(result.totalTTC, 10);
     expect(Math.abs(result.totalTTC - amountTTC)).toBeLessThanOrEqual(0.02);
@@ -71,9 +77,11 @@ describe('III.4 — deposit VAT invariant (amount = TTC)', () => {
     const vatRate = 20;
     const expectedHT = amountTTC / (1 + vatRate / 100);
 
-    const result = resolveInvoiceTax(baseInput({
-      items: [{ quantity: 1, unitPrice: expectedHT, vatRate, supplyType: 'SERVICES' }],
-    }));
+    const result = resolveInvoiceTax(
+      baseInput({
+        items: [{ quantity: 1, unitPrice: expectedHT, vatRate, supplyType: 'SERVICES' }],
+      }),
+    );
 
     expect(result.totalHT + result.totalVAT).toBeCloseTo(result.totalTTC, 10);
   });
@@ -85,12 +93,14 @@ describe('III.4 — final invoice deduction line VAT invariant', () => {
     const vatRate = 20;
     const deductionHT = -totalDeposited / (1 + vatRate / 100);
 
-    const result = resolveInvoiceTax(baseInput({
-      items: [{ quantity: 1, unitPrice: deductionHT, vatRate, supplyType: 'SERVICES' }],
-    }));
+    const result = resolveInvoiceTax(
+      baseInput({
+        items: [{ quantity: 1, unitPrice: deductionHT, vatRate, supplyType: 'SERVICES' }],
+      }),
+    );
 
     expect(result.totalHT + result.totalVAT).toBeCloseTo(result.totalTTC, 10);
-    expect(Math.abs(result.totalTTC - (-totalDeposited))).toBeLessThanOrEqual(0.02);
+    expect(Math.abs(result.totalTTC - -totalDeposited)).toBeLessThanOrEqual(0.02);
   });
 
   it('deduction with mixed items: work line + deduction line → overall invariant', () => {
@@ -101,12 +111,14 @@ describe('III.4 — final invoice deduction line VAT invariant', () => {
 
     const deductionHT = -totalDeposited / (1 + depositVatRate / 100);
 
-    const result = resolveInvoiceTax(baseInput({
-      items: [
-        { quantity: 1, unitPrice: workHT, vatRate: workVatRate, supplyType: 'SERVICES' },
-        { quantity: 1, unitPrice: deductionHT, vatRate: depositVatRate, supplyType: 'SERVICES' },
-      ],
-    }));
+    const result = resolveInvoiceTax(
+      baseInput({
+        items: [
+          { quantity: 1, unitPrice: workHT, vatRate: workVatRate, supplyType: 'SERVICES' },
+          { quantity: 1, unitPrice: deductionHT, vatRate: depositVatRate, supplyType: 'SERVICES' },
+        ],
+      }),
+    );
 
     expect(result.totalHT + result.totalVAT).toBeCloseTo(result.totalTTC, 10);
   });

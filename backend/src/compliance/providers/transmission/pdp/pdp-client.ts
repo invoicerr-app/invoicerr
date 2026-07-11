@@ -207,11 +207,15 @@ export class PdpClient {
   // Generic HTTP
   // -----------------------------------------------------------------------
 
-  async request<T>(method: string, path: string, opts?: {
-    body?: unknown;
-    contentType?: string;
-    formData?: FormData;
-  }): Promise<T> {
+  async request<T>(
+    method: string,
+    path: string,
+    opts?: {
+      body?: unknown;
+      contentType?: string;
+      formData?: FormData;
+    },
+  ): Promise<T> {
     let lastError: unknown;
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       if (attempt > 0) {
@@ -254,10 +258,11 @@ export class PdpClient {
         }
 
         if (!res.ok) {
-          const msg = (respBody as { errorMessage?: string })?.errorMessage
-            ?? (respBody as { error?: string })?.error
-            ?? (respBody as { message?: string })?.message
-            ?? res.statusText;
+          const msg =
+            (respBody as { errorMessage?: string })?.errorMessage ??
+            (respBody as { error?: string })?.error ??
+            (respBody as { message?: string })?.message ??
+            res.statusText;
           throw new PdpApiError(msg, res.status, respBody, path);
         }
 
@@ -284,11 +289,14 @@ export class PdpClient {
    * Send an invoice via the SuperPDP proprietary API.
    * Accepts XML (CII/UBL) or PDF (Factur-X) bytes.
    */
-  async sendInvoice(content: Buffer | Uint8Array, opts?: {
-    externalId?: string;
-    contentType?: string;
-    disablePreCheck?: boolean;
-  }): Promise<SuperPdpInvoice> {
+  async sendInvoice(
+    content: Buffer | Uint8Array,
+    opts?: {
+      externalId?: string;
+      contentType?: string;
+      disablePreCheck?: boolean;
+    },
+  ): Promise<SuperPdpInvoice> {
     const mime = opts?.contentType ?? guessMime(content);
     const buf = toUint8Array(content);
 
@@ -307,7 +315,10 @@ export class PdpClient {
     });
   }
 
-  async getInvoice(id: number, format?: 'en16931' | 'original' | 'cii' | 'ubl' | 'factur-x'): Promise<SuperPdpInvoice> {
+  async getInvoice(
+    id: number,
+    format?: 'en16931' | 'original' | 'cii' | 'ubl' | 'factur-x',
+  ): Promise<SuperPdpInvoice> {
     const params = format ? `?format=${format}` : '';
     return this.request<SuperPdpInvoice>('GET', `/v1.beta/invoices/${id}${params}`);
   }
@@ -383,13 +394,16 @@ export class PdpClient {
     });
   }
 
-  async searchFlows(filters: {
-    flowType?: string;
-    flowDirection?: 'In' | 'Out';
-    trackingId?: string;
-    ackStatus?: 'Pending' | 'Ok' | 'Error';
-    updatedAfter?: string;
-  }, limit = 10): Promise<AfnorFlowSearchResult> {
+  async searchFlows(
+    filters: {
+      flowType?: string;
+      flowDirection?: 'In' | 'Out';
+      trackingId?: string;
+      ackStatus?: 'Pending' | 'Ok' | 'Error';
+      updatedAfter?: string;
+    },
+    limit = 10,
+  ): Promise<AfnorFlowSearchResult> {
     return this.request<AfnorFlowSearchResult>('POST', '/afnor-flow/v1/flows/search', {
       body: { where: filters, limit },
     });
@@ -422,11 +436,14 @@ export class PdpClient {
   // AFNOR Directory Service (XP Z12-013 standard)
   // -----------------------------------------------------------------------
 
-  async searchDirectoryLines(filters: {
-    siret?: string;
-    siren?: string;
-    addressingIdentifier?: string;
-  }, limit = 10): Promise<DirectoryLineSearchResult> {
+  async searchDirectoryLines(
+    filters: {
+      siret?: string;
+      siren?: string;
+      addressingIdentifier?: string;
+    },
+    limit = 10,
+  ): Promise<DirectoryLineSearchResult> {
     return this.request<DirectoryLineSearchResult>('POST', '/afnor-directory/v1/directory-line/search', {
       body: {
         filters: Object.fromEntries(
@@ -471,7 +488,9 @@ function sleep(ms: number): Promise<void> {
 
 function toUint8Array(data: Buffer | Uint8Array): Uint8Array<ArrayBuffer> {
   // Copy into a fresh ArrayBuffer to guarantee ArrayBuffer (not SharedArrayBuffer)
-  const src = Buffer.isBuffer(data) ? data : Buffer.from(data.buffer, srcByteOffset(data), srcByteLength(data));
+  const src = Buffer.isBuffer(data)
+    ? data
+    : Buffer.from(data.buffer, srcByteOffset(data), srcByteLength(data));
   const ab = new ArrayBuffer(src.byteLength);
   new Uint8Array(ab).set(src);
   return new Uint8Array(ab);

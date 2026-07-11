@@ -66,7 +66,11 @@ export interface PortalResponseHeuristics {
 // ---------------------------------------------------------------------------
 
 export type SimpleHttpPort = {
-  post(url: string, body: unknown, headers: Record<string, string>): Promise<{ status: number; data: unknown }>;
+  post(
+    url: string,
+    body: unknown,
+    headers: Record<string, string>,
+  ): Promise<{ status: number; data: unknown }>;
   get(url: string, headers: Record<string, string>): Promise<{ status: number; data: unknown }>;
 };
 
@@ -87,7 +91,9 @@ export class GenericPortalClient {
   ) {}
 
   async submit(endpoint: string, body: unknown, token: string): Promise<{ id: string; raw: unknown }> {
-    const resp = await this.http.post(`${this.baseUrl}${endpoint}`, body, { Authorization: `Bearer ${token}` });
+    const resp = await this.http.post(`${this.baseUrl}${endpoint}`, body, {
+      Authorization: `Bearer ${token}`,
+    });
     if (resp.status >= 400) throw new Error(`${this.label}: submission failed (HTTP ${resp.status})`);
     const data = resp.data as Record<string, unknown>;
     const id = pickField(data, this.heuristics.idFields) ?? `tx-${Date.now()}`;
@@ -95,8 +101,9 @@ export class GenericPortalClient {
   }
 
   async pollStatus(endpoint: string, id: string, token: string): Promise<{ status: string; raw: unknown }> {
-    const resp = await this.http.get(`${this.baseUrl}${endpoint}/${encodeURIComponent(id)}`,
-      { Authorization: `Bearer ${token}` });
+    const resp = await this.http.get(`${this.baseUrl}${endpoint}/${encodeURIComponent(id)}`, {
+      Authorization: `Bearer ${token}`,
+    });
     if (resp.status >= 400) throw new Error(`${this.label}: poll failed (HTTP ${resp.status})`);
     const data = resp.data as Record<string, unknown>;
     const status = pickField(data, this.heuristics.statusFields) ?? this.heuristics.statusFallback;
@@ -129,8 +136,12 @@ export function buildGenericPortalProvider(
   httpPort?: SimpleHttpPort,
 ): TransmissionProvider {
   const stub: SimpleHttpPort = {
-    post: async () => { throw new Error(`${spec.label} HTTP port not implemented — ${spec.authHint}`); },
-    get: async () => { throw new Error(`${spec.label} HTTP port not implemented`); },
+    post: async () => {
+      throw new Error(`${spec.label} HTTP port not implemented — ${spec.authHint}`);
+    },
+    get: async () => {
+      throw new Error(`${spec.label} HTTP port not implemented`);
+    },
   };
   const http = httpPort ?? stub;
 
@@ -138,9 +149,8 @@ export function buildGenericPortalProvider(
     id: spec.id,
     channel: GP,
     feedback: spec.isAsync !== false ? 'ASYNC_POLL' : 'NONE',
-    pollPolicy: spec.isAsync !== false
-      ? { everySeconds: 60, timeoutHours: 48, backoff: 'EXPONENTIAL' }
-      : undefined,
+    pollPolicy:
+      spec.isAsync !== false ? { everySeconds: 60, timeoutHours: 48, backoff: 'EXPONENTIAL' } : undefined,
     configSchema: { fields: spec.configFields },
 
     async transmit(
@@ -160,15 +170,22 @@ export function buildGenericPortalProvider(
       const token = (config.apiToken ?? config.token ?? config.accessToken ?? '') as string;
 
       const art = artifacts.find((a) => a.syntax === spec.artifact);
-      if (!art) return { channel: GP, status: 'SKIPPED', notes: [`${spec.id}: no ${spec.artifact} artifact`] };
+      if (!art)
+        return { channel: GP, status: 'SKIPPED', notes: [`${spec.id}: no ${spec.artifact} artifact`] };
       const companyId = ctx.supplierCompanyId;
       if (!companyId) return { channel: GP, status: 'SKIPPED', notes: [`${spec.id}: no supplierCompanyId`] };
 
       try {
         const client = new GenericPortalClient(http, baseUrl, spec.label, heuristics);
-        const xmlStr = Buffer.isBuffer(art.bytes) ? art.bytes.toString('utf-8') : new TextDecoder().decode(art.bytes);
+        const xmlStr = Buffer.isBuffer(art.bytes)
+          ? art.bytes.toString('utf-8')
+          : new TextDecoder().decode(art.bytes);
         log.info(`transmission/${spec.id}`, `submitting to ${spec.label} (key ${key})`);
-        const result = await client.submit(spec.submitEndpoint, { document: xmlStr, idempotencyKey: key }, token);
+        const result = await client.submit(
+          spec.submitEndpoint,
+          { document: xmlStr, idempotencyKey: key },
+          token,
+        );
         const ref = `${companyId}|${result.id}`;
         log.info(`transmission/${spec.id}`, `submitted → id ${result.id} (key ${key})`);
         if (spec.isAsync === false) {
@@ -182,33 +199,37 @@ export function buildGenericPortalProvider(
       }
     },
 
-    poll: spec.isAsync !== false
-      ? async function (ref: string, log: ComplianceLogger): Promise<TransmissionResult> {
-          const parts = ref.split('|');
-          if (parts.length !== 2) return { channel: GP, status: 'PENDING', ref, notes: [`${spec.id}: invalid ref`] };
-          const [companyId, id] = parts;
-          if (!credentials) {
-            log.todo(`transmission/${spec.id}`, `poll ${id}`);
-            return { channel: GP, status: 'PENDING', ref, notes: [`${spec.id}: no credentials port`] };
+    poll:
+      spec.isAsync !== false
+        ? async (ref: string, log: ComplianceLogger): Promise<TransmissionResult> => {
+            const parts = ref.split('|');
+            if (parts.length !== 2)
+              return { channel: GP, status: 'PENDING', ref, notes: [`${spec.id}: invalid ref`] };
+            const [companyId, id] = parts;
+            if (!credentials) {
+              log.todo(`transmission/${spec.id}`, `poll ${id}`);
+              return { channel: GP, status: 'PENDING', ref, notes: [`${spec.id}: no credentials port`] };
+            }
+            try {
+              const resolved = await credentials.resolveActive(companyId, spec.id);
+              if (!resolved?.isActive)
+                return { channel: GP, status: 'PENDING', ref, notes: [`${spec.id}: credentials inactive`] };
+              const { config, environment } = resolved;
+              const isTest =
+                ((config.environment as string) ?? environment ?? 'test').toLowerCase() !== 'prod';
+              const baseUrl = isTest ? spec.baseUrls.test : spec.baseUrls.prod;
+              const token = (config.apiToken ?? config.token ?? config.accessToken ?? '') as string;
+              const client = new GenericPortalClient(http, baseUrl, spec.label, heuristics);
+              const resp = await client.pollStatus(spec.pollEndpoint, id, token);
+              const status = mapPortalStatus(resp.status, heuristics);
+              return { channel: GP, status, ref, notes: [`${spec.id}: ${resp.status}`] };
+            } catch (err: unknown) {
+              const msg = err instanceof Error ? err.message : String(err);
+              log.warn(`transmission/${spec.id}`, `poll failed: ${msg}`);
+              return { channel: GP, status: 'PENDING', ref, notes: [`${spec.id}: poll error: ${msg}`] };
+            }
           }
-          try {
-            const resolved = await credentials.resolveActive(companyId, spec.id);
-            if (!resolved?.isActive) return { channel: GP, status: 'PENDING', ref, notes: [`${spec.id}: credentials inactive`] };
-            const { config, environment } = resolved;
-            const isTest = ((config.environment as string) ?? environment ?? 'test').toLowerCase() !== 'prod';
-            const baseUrl = isTest ? spec.baseUrls.test : spec.baseUrls.prod;
-            const token = (config.apiToken ?? config.token ?? config.accessToken ?? '') as string;
-            const client = new GenericPortalClient(http, baseUrl, spec.label, heuristics);
-            const resp = await client.pollStatus(spec.pollEndpoint, id, token);
-            const status = mapPortalStatus(resp.status, heuristics);
-            return { channel: GP, status, ref, notes: [`${spec.id}: ${resp.status}`] };
-          } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : String(err);
-            log.warn(`transmission/${spec.id}`, `poll failed: ${msg}`);
-            return { channel: GP, status: 'PENDING', ref, notes: [`${spec.id}: poll error: ${msg}`] };
-          }
-        }
-      : undefined,
+        : undefined,
   };
 }
 

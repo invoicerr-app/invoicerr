@@ -29,9 +29,9 @@ import { SimpleHttpPort } from '../generic-portal';
 
 export interface GibClientConfig {
   baseUrl: string;
-  vkn: string;         // VKN (Vergi Kimlik Numarası, 10 digits) — seller tax ID
-  username: string;    // GİB portal username
-  password: string;    // GİB portal password (secret, encrypted at rest)
+  vkn: string; // VKN (Vergi Kimlik Numarası, 10 digits) — seller tax ID
+  username: string; // GİB portal username
+  password: string; // GİB portal password (secret, encrypted at rest)
   integrator?: string; // optional: integrator code if using özel entegratör
 }
 
@@ -77,23 +77,25 @@ export class GibClient {
    *
    * TODO: implement real SOAP/REST envelope per GİB WebService spec (WSDL available).
    */
-  async sendInvoice(signedUblTrXml: string, invoiceType: 'SATIS' | 'IADE' = 'SATIS'): Promise<GibSubmitResult> {
+  async sendInvoice(
+    signedUblTrXml: string,
+    invoiceType: 'SATIS' | 'IADE' = 'SATIS',
+  ): Promise<GibSubmitResult> {
     const token = await this._authenticate();
     const body = {
       vkn: this.config.vkn,
       invoiceContent: Buffer.from(signedUblTrXml, 'utf-8').toString('base64'),
       invoiceType,
     };
-    const resp = await this.http.post(
-      `${this.config.baseUrl}/sendInvoice`,
-      body,
-      { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    );
+    const resp = await this.http.post(`${this.config.baseUrl}/sendInvoice`, body, {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    });
     if (resp.status >= 400) {
       throw new Error(`GİB sendInvoice failed (HTTP ${resp.status})`);
     }
     const data = resp.data as Record<string, unknown>;
-    const uuid = (data['uuid'] ?? data['invoiceUUID'] ?? data['id'] ?? '') as string;
+    const uuid = (data.uuid ?? data.invoiceUUID ?? data.id ?? '') as string;
     return { uuid: String(uuid), httpStatus: resp.status, raw: data };
   }
 
@@ -114,7 +116,7 @@ export class GibClient {
       throw new Error(`GİB getInvoiceStatus failed (HTTP ${resp.status})`);
     }
     const data = resp.data as Record<string, unknown>;
-    const status = (data['status'] ?? data['invoiceStatus'] ?? 'WAITING') as string;
+    const status = (data.status ?? data.invoiceStatus ?? 'WAITING') as string;
     return { status: String(status), uuid, raw: data };
   }
 
@@ -134,7 +136,7 @@ export class GibClient {
     );
     if (resp.status >= 400) throw new Error(`GİB authentication failed (HTTP ${resp.status})`);
     const data = resp.data as Record<string, unknown>;
-    return (data['token'] ?? data['access_token'] ?? '') as string;
+    return (data.token ?? data.access_token ?? '') as string;
   }
 }
 

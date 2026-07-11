@@ -128,7 +128,7 @@ describe('TransmissionProviderRegistry — send idempotency', () => {
 
     // Simulate TTL expiry: back-date the stored timestamp beyond the window.
     // Access the private map via bracket notation (test-only escape hatch).
-    const seenKeys = (reg as unknown as Record<string, Map<string, number>>)['_seenKeys'];
+    const seenKeys = (reg as unknown as Record<string, Map<string, number>>)._seenKeys;
     const iKey = [...seenKeys.keys()][0];
     seenKeys.set(iKey, Date.now() - 6 * 60 * 1000); // 6 minutes ago (> 5-min TTL)
 

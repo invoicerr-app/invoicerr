@@ -20,70 +20,91 @@ import type { InvoiceRenderData } from '../render-data';
  * XAdES-BES signature block is NOT included here — the signing port adds it.
  */
 export async function buildFacturae(data: InvoiceRenderData): Promise<string> {
-        const NS = 'http://www.facturae.gob.es/formato/Versiones/Facturaev3_2_2.xml';
-        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
-        const currency = data.company.currency || 'EUR';
-        const vatId = getIdentifier(data.company, 'VAT') || '';
-        const clientVatId = getIdentifier(data.client, 'VAT') || '';
-        const invoiceNumber = (data.rawNumber || data.number?.toString() || 'DRAFT').substring(0, 20);
+  const NS = 'http://www.facturae.gob.es/formato/Versiones/Facturaev3_2_2.xml';
+  const issueDate = (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+  const currency = data.company.currency || 'EUR';
+  const vatId = getIdentifier(data.company, 'VAT') || '';
+  const clientVatId = getIdentifier(data.client, 'VAT') || '';
+  const invoiceNumber = (data.rawNumber || data.number?.toString() || 'DRAFT').substring(0, 20);
 
-        // Totals
-        const totalNet = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-        const totalVat = data.items.reduce(
-            (s, i) => s + i.quantity * i.unitPrice * (i.vatRate || 0) / 100, 0,
-        );
-        const invoiceTotal = totalNet + totalVat;
+  // Totals
+  const totalNet = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+  const totalVat = data.items.reduce((s, i) => s + (i.quantity * i.unitPrice * (i.vatRate || 0)) / 100, 0);
+  const invoiceTotal = totalNet + totalVat;
 
-        // Aggregate invoice-level taxes by VAT rate
-        const taxByRate = new Map<number, number>();
-        for (const item of data.items) {
-            const rate = item.vatRate || 0;
-            const base = item.quantity * item.unitPrice;
-            taxByRate.set(rate, (taxByRate.get(rate) ?? 0) + base);
-        }
+  // Aggregate invoice-level taxes by VAT rate
+  const taxByRate = new Map<number, number>();
+  for (const item of data.items) {
+    const rate = item.vatRate || 0;
+    const base = item.quantity * item.unitPrice;
+    taxByRate.set(rate, (taxByRate.get(rate) ?? 0) + base);
+  }
 
-        /** Escape XML special characters in element text content. */
-        const esc = (s: string | null | undefined): string =>
-            (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  /** Escape XML special characters in element text content. */
+  const esc = (s: string | null | undefined): string =>
+    (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-        /**
-         * Detect if country is Spain → AddressInSpain; otherwise → OverseasAddress.
-         * Facturae AddressInSpain requires CountryCode="ESP" (ISO 3166-1 alpha-3).
-         */
-        const isSpain = (country: string | null | undefined): boolean =>
-            /^(spain|españa|es|esp)$/i.test((country ?? '').trim());
+  /**
+   * Detect if country is Spain → AddressInSpain; otherwise → OverseasAddress.
+   * Facturae AddressInSpain requires CountryCode="ESP" (ISO 3166-1 alpha-3).
+   */
+  const isSpain = (country: string | null | undefined): boolean =>
+    /^(spain|españa|es|esp)$/i.test((country ?? '').trim());
 
-        /** Map ISO-2 or common country names to ISO 3166-1 alpha-3 (best-effort). */
-        const toAlpha3 = (country: string | null | undefined): string => {
-            const c = (country ?? '').trim().toUpperCase();
-            const map: Record<string, string> = {
-                SPAIN: 'ESP', ESPAÑA: 'ESP', ES: 'ESP', ESP: 'ESP',
-                FRANCE: 'FRA', FRANCIA: 'FRA', FR: 'FRA', FRA: 'FRA',
-                GERMANY: 'DEU', DE: 'DEU', DEU: 'DEU',
-                ITALY: 'ITA', IT: 'ITA', ITA: 'ITA',
-                PORTUGAL: 'PRT', PT: 'PRT', PRT: 'PRT',
-                'UNITED KINGDOM': 'GBR', UK: 'GBR', GB: 'GBR', GBR: 'GBR',
-                'UNITED STATES': 'USA', US: 'USA', USA: 'USA',
-                MEXICO: 'MEX', MX: 'MEX', MEX: 'MEX',
-                POLAND: 'POL', PL: 'POL', POL: 'POL',
-            };
-            return map[c] ?? 'ESP'; // default to ESP for unknown countries
-        };
+  /** Map ISO-2 or common country names to ISO 3166-1 alpha-3 (best-effort). */
+  const toAlpha3 = (country: string | null | undefined): string => {
+    const c = (country ?? '').trim().toUpperCase();
+    const map: Record<string, string> = {
+      SPAIN: 'ESP',
+      ESPAÑA: 'ESP',
+      ES: 'ESP',
+      ESP: 'ESP',
+      FRANCE: 'FRA',
+      FRANCIA: 'FRA',
+      FR: 'FRA',
+      FRA: 'FRA',
+      GERMANY: 'DEU',
+      DE: 'DEU',
+      DEU: 'DEU',
+      ITALY: 'ITA',
+      IT: 'ITA',
+      ITA: 'ITA',
+      PORTUGAL: 'PRT',
+      PT: 'PRT',
+      PRT: 'PRT',
+      'UNITED KINGDOM': 'GBR',
+      UK: 'GBR',
+      GB: 'GBR',
+      GBR: 'GBR',
+      'UNITED STATES': 'USA',
+      US: 'USA',
+      USA: 'USA',
+      MEXICO: 'MEX',
+      MX: 'MEX',
+      MEX: 'MEX',
+      POLAND: 'POL',
+      PL: 'POL',
+      POL: 'POL',
+    };
+    return map[c] ?? 'ESP'; // default to ESP for unknown countries
+  };
 
-        /** Build the XML block for a party address (AddressInSpain or OverseasAddress). */
-        const buildAddress = (
-            address: string | null, city: string | null,
-            postalCode: string | null, country: string | null,
-        ): string => {
-            const addr = esc(address || 'N/A').substring(0, 80);
-            const town = esc(city || 'N/A').substring(0, 50);
-            const province = esc(city || 'N/A').substring(0, 20);
-            const countryCode = toAlpha3(country);
+  /** Build the XML block for a party address (AddressInSpain or OverseasAddress). */
+  const buildAddress = (
+    address: string | null,
+    city: string | null,
+    postalCode: string | null,
+    country: string | null,
+  ): string => {
+    const addr = esc(address || 'N/A').substring(0, 80);
+    const town = esc(city || 'N/A').substring(0, 50);
+    const province = esc(city || 'N/A').substring(0, 20);
+    const countryCode = toAlpha3(country);
 
-            if (isSpain(country)) {
-                // PostCodeType: exactly 5 numeric digits
-                const postCode = (postalCode ?? '').replace(/\D/g, '').padStart(5, '0').substring(0, 5);
-                return `
+    if (isSpain(country)) {
+      // PostCodeType: exactly 5 numeric digits
+      const postCode = (postalCode ?? '').replace(/\D/g, '').padStart(5, '0').substring(0, 5);
+      return `
             <AddressInSpain>
               <Address>${addr}</Address>
               <PostCode>${postCode}</PostCode>
@@ -91,26 +112,30 @@ export async function buildFacturae(data: InvoiceRenderData): Promise<string> {
               <Province>${province}</Province>
               <CountryCode>${countryCode}</CountryCode>
             </AddressInSpain>`;
-            }
-            const postCodeAndTown = esc(`${postalCode ?? ''} ${city ?? ''}`.trim() || 'N/A').substring(0, 50);
-            return `
+    }
+    const postCodeAndTown = esc(`${postalCode ?? ''} ${city ?? ''}`.trim() || 'N/A').substring(0, 50);
+    return `
             <OverseasAddress>
               <Address>${addr}</Address>
               <PostCodeAndTown>${postCodeAndTown}</PostCodeAndTown>
               <Province>${province}</Province>
               <CountryCode>${countryCode}</CountryCode>
             </OverseasAddress>`;
-        };
+  };
 
-        /** Build a Facturae party block (BusinessType: TaxIdentification + LegalEntity). */
-        const buildParty = (
-            name: string | null, vatIdStr: string, personType: 'J' | 'F',
-            address: string | null, city: string | null,
-            postalCode: string | null, country: string | null,
-        ): string => {
-            const corpName = esc(name || 'N/A').substring(0, 80);
-            const addrXml = buildAddress(address, city, postalCode, country);
-            return `
+  /** Build a Facturae party block (BusinessType: TaxIdentification + LegalEntity). */
+  const buildParty = (
+    name: string | null,
+    vatIdStr: string,
+    personType: 'J' | 'F',
+    address: string | null,
+    city: string | null,
+    postalCode: string | null,
+    country: string | null,
+  ): string => {
+    const corpName = esc(name || 'N/A').substring(0, 80);
+    const addrXml = buildAddress(address, city, postalCode, country);
+    return `
         <TaxIdentification>
           <PersonTypeCode>${personType}</PersonTypeCode>
           <ResidenceTypeCode>R</ResidenceTypeCode>
@@ -119,26 +144,29 @@ export async function buildFacturae(data: InvoiceRenderData): Promise<string> {
         <LegalEntity>
           <CorporateName>${corpName}</CorporateName>${addrXml}
         </LegalEntity>`;
-        };
+  };
 
-        // Invoice-level TaxesOutputs (one Tax entry per unique VAT rate)
-        const invoiceTaxesXml = Array.from(taxByRate.entries()).map(([rate, base]) => {
-            const taxAmt = base * rate / 100;
-            return `
+  // Invoice-level TaxesOutputs (one Tax entry per unique VAT rate)
+  const invoiceTaxesXml = Array.from(taxByRate.entries())
+    .map(([rate, base]) => {
+      const taxAmt = (base * rate) / 100;
+      return `
         <Tax>
           <TaxTypeCode>01</TaxTypeCode>
           <TaxRate>${rate}</TaxRate>
           <TaxableBase><TotalAmount>${base}</TotalAmount></TaxableBase>
           <TaxAmount><TotalAmount>${taxAmt}</TotalAmount></TaxAmount>
         </Tax>`;
-        }).join('');
+    })
+    .join('');
 
-        // Line items
-        const itemsXml = data.items.map((item) => {
-            const gross = item.quantity * item.unitPrice;
-            const taxAmt = gross * (item.vatRate || 0) / 100;
-            const desc = esc(item.name || 'Service').substring(0, 2500);
-            return `
+  // Line items
+  const itemsXml = data.items
+    .map((item) => {
+      const gross = item.quantity * item.unitPrice;
+      const taxAmt = (gross * (item.vatRate || 0)) / 100;
+      const desc = esc(item.name || 'Service').substring(0, 2500);
+      return `
         <InvoiceLine>
           <ItemDescription>${desc}</ItemDescription>
           <Quantity>${item.quantity}</Quantity>
@@ -154,15 +182,16 @@ export async function buildFacturae(data: InvoiceRenderData): Promise<string> {
             </Tax>
           </TaxesOutputs>
         </InvoiceLine>`;
-        }).join('');
+    })
+    .join('');
 
-        const clientName = data.client.name ||
-            `${data.client.contactFirstname ?? ''} ${data.client.contactLastname ?? ''}`.trim();
-        const personType: 'J' | 'F' = data.client.type === 'COMPANY' ? 'J' : 'F';
+  const clientName =
+    data.client.name || `${data.client.contactFirstname ?? ''} ${data.client.contactLastname ?? ''}`.trim();
+  const personType: 'J' | 'F' = data.client.type === 'COMPANY' ? 'J' : 'F';
 
-        // Facturae XSD has elementFormDefault="unqualified" — only the root element is
-        // namespace-qualified (fe: prefix). All child elements are in no-namespace.
-        return `<?xml version="1.0" encoding="UTF-8"?>
+  // Facturae XSD has elementFormDefault="unqualified" — only the root element is
+  // namespace-qualified (fe: prefix). All child elements are in no-namespace.
+  return `<?xml version="1.0" encoding="UTF-8"?>
 <fe:Facturae xmlns:fe="${NS}" xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
   <FileHeader>
     <SchemaVersion>3.2.2</SchemaVersion>
@@ -179,14 +208,24 @@ export async function buildFacturae(data: InvoiceRenderData): Promise<string> {
   </FileHeader>
   <Parties>
     <SellerParty>${buildParty(
-            data.company.name, vatId, 'J',
-            data.company.address, data.company.city, data.company.postalCode, data.company.country,
-        )}
+      data.company.name,
+      vatId,
+      'J',
+      data.company.address,
+      data.company.city,
+      data.company.postalCode,
+      data.company.country,
+    )}
     </SellerParty>
     <BuyerParty>${buildParty(
-            clientName, clientVatId, personType,
-            data.client.address, data.client.city, data.client.postalCode, data.client.country,
-        )}
+      clientName,
+      clientVatId,
+      personType,
+      data.client.address,
+      data.client.city,
+      data.client.postalCode,
+      data.client.country,
+    )}
     </BuyerParty>
   </Parties>
   <Invoices>

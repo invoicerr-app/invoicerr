@@ -1,4 +1,4 @@
-import { generateKeyPairSync } from 'crypto';
+import { generateKeyPairSync } from 'node:crypto';
 import {
   encryptKsefToken,
   generateSessionKey,
@@ -17,7 +17,7 @@ const { publicKey, privateKey } = generateKeyPairSync('rsa', {
 describe('KSeF crypto helpers', () => {
   describe('encryptKsefToken', () => {
     it('produces a base64 string that decrypts to "{token}|{timestampMs}"', () => {
-      const { privateDecrypt } = require('crypto');
+      const { privateDecrypt } = require('node:crypto');
       const token = 'test-ksef-token-abc123';
       const timestampMs = 1719600000000;
 
@@ -65,7 +65,7 @@ describe('KSeF crypto helpers', () => {
 
   describe('encryptXmlContent', () => {
     it('round-trips via decrypt', () => {
-      const { createDecipheriv } = require('crypto');
+      const { createDecipheriv } = require('node:crypto');
       const xml = '<?xml version="1.0"?><Faktura>test</Faktura>';
       const aesKey = Buffer.alloc(32, 0x42);
       const iv = Buffer.alloc(16, 0x24);
@@ -75,10 +75,7 @@ describe('KSeF crypto helpers', () => {
 
       // Decrypt
       const decipher = createDecipheriv('aes-256-cbc', aesKey, iv);
-      const decrypted = Buffer.concat([
-        decipher.update(Buffer.from(encrypted, 'base64')),
-        decipher.final(),
-      ]);
+      const decrypted = Buffer.concat([decipher.update(Buffer.from(encrypted, 'base64')), decipher.final()]);
       expect(decrypted.toString('utf8')).toBe(xml);
     });
 

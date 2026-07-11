@@ -11,7 +11,12 @@ import { createPollJob, decidePoll, InMemoryPollJobStore, nextDelaySeconds, Poll
 import { PollScheduler, SchedulePollEffect } from './poll-scheduler';
 
 const POLICY = { everySeconds: 30, timeoutHours: 24, backoff: 'EXPONENTIAL' as const };
-const EFFECT: SchedulePollEffect = { kind: 'SCHEDULE_POLL', poll: POLICY, channelProviderId: 'pac', awaiting: 'PENDING_CLEARANCE' };
+const EFFECT: SchedulePollEffect = {
+  kind: 'SCHEDULE_POLL',
+  poll: POLICY,
+  channelProviderId: 'pac',
+  awaiting: 'PENDING_CLEARANCE',
+};
 
 /** A controllable pollable provider standing in for a PAC/portal. */
 function fakeRegistry() {
@@ -24,7 +29,10 @@ function fakeRegistry() {
     transmit: () => ({ channel: 'PAC', status: 'PENDING', notes: [] }),
     poll: () => ({ channel: 'PAC', status, notes: [] }),
   };
-  return { reg: new TransmissionProviderRegistry([provider]), setStatus: (s: TransmissionStatus) => (status = s) };
+  return {
+    reg: new TransmissionProviderRegistry([provider]),
+    setStatus: (s: TransmissionStatus) => (status = s),
+  };
 }
 function clockFrom(iso: string) {
   let d = new Date(iso);
@@ -41,7 +49,17 @@ describe('poll-job — pure decision/backoff logic', () => {
   });
 
   it('decidePoll: resolves on CLEARED/REJECTED, reschedules while PENDING, expires past timeout', () => {
-    const job = createPollJob({ id: 'j', documentId: 'd', providerId: 'pac', channel: 'PAC', awaiting: 'PENDING_CLEARANCE', policy: POLICY }, new Date('2027-01-15T00:00:00Z'));
+    const job = createPollJob(
+      {
+        id: 'j',
+        documentId: 'd',
+        providerId: 'pac',
+        channel: 'PAC',
+        awaiting: 'PENDING_CLEARANCE',
+        policy: POLICY,
+      },
+      new Date('2027-01-15T00:00:00Z'),
+    );
 
     const cleared = decidePoll(job, 'CLEARED', new Date('2027-01-15T00:01:00Z'));
     expect(cleared).toMatchObject({ kind: 'RESOLVE', outcome: 'CLEARED' });
@@ -75,7 +93,14 @@ describe('PollScheduler', () => {
     const clock = clockFrom('2027-01-15T00:00:00Z');
     const store = new InMemoryPollJobStore();
     const signals: Array<[string, LifecycleSignal]> = [];
-    const scheduler = new PollScheduler({ applySignal: (id, s) => { signals.push([id, s]); }, store, txRegistry: reg, now: clock.now });
+    const scheduler = new PollScheduler({
+      applySignal: (id, s) => {
+        signals.push([id, s]);
+      },
+      store,
+      txRegistry: reg,
+      now: clock.now,
+    });
 
     await scheduler.schedule('doc1', EFFECT);
     clock.advance(31_000); // job becomes due
@@ -92,7 +117,14 @@ describe('PollScheduler', () => {
     const clock = clockFrom('2027-01-15T00:00:00Z');
     const store = new InMemoryPollJobStore();
     const signals: Array<[string, LifecycleSignal]> = [];
-    const scheduler = new PollScheduler({ applySignal: (id, s) => { signals.push([id, s]); }, store, txRegistry: reg, now: clock.now });
+    const scheduler = new PollScheduler({
+      applySignal: (id, s) => {
+        signals.push([id, s]);
+      },
+      store,
+      txRegistry: reg,
+      now: clock.now,
+    });
 
     await scheduler.schedule('doc1', EFFECT);
     clock.advance(31_000);
@@ -109,7 +141,14 @@ describe('PollScheduler', () => {
     const clock = clockFrom('2027-01-15T00:00:00Z');
     const store = new InMemoryPollJobStore();
     const signals: Array<[string, LifecycleSignal]> = [];
-    const scheduler = new PollScheduler({ applySignal: (id, s) => { signals.push([id, s]); }, store, txRegistry: reg, now: clock.now });
+    const scheduler = new PollScheduler({
+      applySignal: (id, s) => {
+        signals.push([id, s]);
+      },
+      store,
+      txRegistry: reg,
+      now: clock.now,
+    });
 
     await scheduler.schedule('doc1', EFFECT, 'UUID-1'); // nextRunAt = +30s, NOT due now
 
@@ -130,7 +169,13 @@ describe('PollScheduler', () => {
     const clock = clockFrom('2027-01-15T00:00:00Z');
     const store = new InMemoryPollJobStore();
     const expired: PollJob[] = [];
-    const scheduler = new PollScheduler({ applySignal: () => {}, store, txRegistry: reg, now: clock.now, onExpire: (j) => expired.push(j) });
+    const scheduler = new PollScheduler({
+      applySignal: () => {},
+      store,
+      txRegistry: reg,
+      now: clock.now,
+      onExpire: (j) => expired.push(j),
+    });
 
     await scheduler.schedule('doc1', EFFECT); // expiresAt = +24h
     clock.advance(25 * 3_600_000); // past timeout (and due)
@@ -144,10 +189,21 @@ describe('PollScheduler', () => {
 
 describe('PollScheduler × LifecycleRuntime — end-to-end clearance (MX)', () => {
   function party(country: string, role: PartyRole): PartyTaxProfile {
-    return { legalName: `${country} Co`, countryCode: country, role, identifiers: [{ scheme: 'VAT', value: `${country}1`, validated: true }] };
+    return {
+      legalName: `${country} Co`,
+      countryCode: country,
+      role,
+      identifiers: [{ scheme: 'VAT', value: `${country}1`, validated: true }],
+    };
   }
   function tx(s: string, b: string, role: PartyRole, supply: SupplyType, date: string): TransactionContext {
-    return { supplier: party(s, 'B2B'), buyer: party(b, role), lines: [{ id: 'l1', description: 'x', quantity: 1, unitNetMinor: 10000, supplyType: supply }], issueDate: new Date(date), currency: 'EUR' };
+    return {
+      supplier: party(s, 'B2B'),
+      buyer: party(b, role),
+      lines: [{ id: 'l1', description: 'x', quantity: 1, unitNetMinor: 10000, supplyType: supply }],
+      issueDate: new Date(date),
+      currency: 'EUR',
+    };
   }
 
   it('SUBMIT_CLEARANCE arms a poll; a polled CLEARED drives PENDING_CLEARANCE → CLEARED', async () => {
@@ -167,7 +223,9 @@ describe('PollScheduler × LifecycleRuntime — end-to-end clearance (MX)', () =
     setStatus('CLEARED');
     const clock = clockFrom('2027-01-15T00:00:00Z');
     const scheduler = new PollScheduler({
-      applySignal: (_id, signal) => { runtime.dispatch(signal); }, // feed the outcome back into the runtime
+      applySignal: (_id, signal) => {
+        runtime.dispatch(signal);
+      }, // feed the outcome back into the runtime
       store: new InMemoryPollJobStore(),
       txRegistry: reg,
       now: clock.now,

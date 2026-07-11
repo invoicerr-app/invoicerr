@@ -8,9 +8,9 @@
  * Optional: a runtime cache can refresh keys from the live endpoint (e.g. for
  * key rotation after 2027-09-29 expiry). Falls back to vendorized on fetch failure.
  */
-import { createPublicKey } from 'crypto';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { createPublicKey } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { KsefEnvironment } from './ksef-client';
 import type { KsefHttpClient } from './ksef-client';
 
@@ -109,10 +109,7 @@ export async function refreshKeysFromApi(
 function derToPem(base64Der: string): string {
   // Reconstruct the full certificate PEM, then extract the public key
   const lines = base64Der.match(/.{1,64}/g) ?? [base64Der];
-  const certPem =
-    '-----BEGIN CERTIFICATE-----\n' +
-    lines.join('\n') +
-    '\n-----END CERTIFICATE-----';
+  const certPem = '-----BEGIN CERTIFICATE-----\n' + lines.join('\n') + '\n-----END CERTIFICATE-----';
 
   const keyObj = createPublicKey({ key: Buffer.from(certPem, 'utf8'), format: 'pem', type: 'spki' });
   return keyObj.export({ type: 'spki', format: 'pem' }) as string;

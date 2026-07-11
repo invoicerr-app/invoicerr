@@ -1,17 +1,3 @@
-/**
- * PDP (France) live round-trip test — REAL superpdp sandbox, REAL credentials, never in CI.
- *
- * Guard: PDP_LIVE=1 PDP_BASE_URL=<url> PDP_CLIENT_ID=<id> PDP_CLIENT_SECRET=<secret> \
- *          npx jest pdp-live --no-coverage
- *   (or: `set -a; . ./.env.pdp.local; set +a` then run)
- *
- * Proves: buildEInvoice → Factur-X (CII) → transmit to superpdp → real invoice id → poll fr:* status.
- * Never logs the client secret or the access token.
- *
- * See LIVE_TESTING.md for full env var documentation.
- */
-export {}; // make this file a module (dynamic imports only → otherwise treated as a global script)
-
 import { liveDescribe } from '../live-gate.js';
 
 const describeLive = liveDescribe('PDP_LIVE', ['PDP_BASE_URL', 'PDP_CLIENT_ID', 'PDP_CLIENT_SECRET']);
@@ -33,13 +19,16 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
   });
 
   it('buildEInvoice → Factur-X → submit → poll fr:* status', async () => {
-    process.env.CREDENTIALS_ENCRYPTION_KEY ??= '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    process.env.CREDENTIALS_ENCRYPTION_KEY ??=
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
     const timestamp = Date.now();
     const companyId = 'live_pdp_' + timestamp;
 
     // ── Generate a Factur-X (CII) invoice via the production renderer (DB-free) ──
-    const { InvoiceRenderingService } = await import('../../../../modules/invoice-rendering/invoice-rendering.service.js');
+    const { InvoiceRenderingService } = await import(
+      '../../../../modules/invoice-rendering/invoice-rendering.service.js'
+    );
     const service = new InvoiceRenderingService();
     const now = new Date();
     // Sandbox test companies (superpdp sandbox — Burger Queen=seller, Tricatel=buyer)
@@ -65,7 +54,10 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
         phone: '+33100000000',
         email: 'seller@example.fr',
         // Sandbox SIREN 000000002 — must match the authenticated company in superpdp
-        partyIdentifiers: [{ scheme: 'VAT', value: 'FR18000000002' }, { scheme: 'LEGAL_ID', value: '000000002' }],
+        partyIdentifiers: [
+          { scheme: 'VAT', value: 'FR18000000002' },
+          { scheme: 'LEGAL_ID', value: '000000002' },
+        ],
       },
       client: {
         type: 'COMPANY',
@@ -85,17 +77,23 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
         postalCode: '75001',
         country: 'France',
         // Sandbox buyer SIREN 000000001
-        partyIdentifiers: [{ scheme: 'VAT', value: 'FR15000000001' }, { scheme: 'LEGAL_ID', value: '000000001' }],
+        partyIdentifiers: [
+          { scheme: 'VAT', value: 'FR15000000001' },
+          { scheme: 'LEGAL_ID', value: '000000001' },
+        ],
       },
-      items: [
-        { name: 'Prestation de test', quantity: 1, unitPrice: 100, vatRate: 20, type: 'SERVICE' },
-      ],
+      items: [{ name: 'Prestation de test', quantity: 1, unitPrice: 100, vatRate: 20, type: 'SERVICE' }],
     } as any);
 
     // Mirror the REAL executor path: FR profile primary = EN16931_CII → exportXml('cii').
     const facturxXml = await inv.exportXml('cii');
     console.log('Factur-X XML length:', facturxXml.length);
-    console.log('XML has SIREN 315143296:', facturxXml.includes('315143296'), '| has SpecifiedLegalOrganization:', facturxXml.includes('SpecifiedLegalOrganization'));
+    console.log(
+      'XML has SIREN 315143296:',
+      facturxXml.includes('315143296'),
+      '| has SpecifiedLegalOrganization:',
+      facturxXml.includes('SpecifiedLegalOrganization'),
+    );
     expect(facturxXml).toContain('CrossIndustryInvoice');
 
     // Verify post-processing would inject SpecifiedLegalOrganization
@@ -104,7 +102,10 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
       sellerRouting: SELLER_ROUTING,
       buyerRouting: BUYER_ROUTING,
     });
-    console.log('Post-processed has SpecifiedLegalOrganization:', patched.includes('SpecifiedLegalOrganization'));
+    console.log(
+      'Post-processed has SpecifiedLegalOrganization:',
+      patched.includes('SpecifiedLegalOrganization'),
+    );
     expect(patched).toContain('SpecifiedLegalOrganization');
     // After namespace normalization, tags use xmlns= style (no ram: prefix)
     expect(patched).toContain('schemeID="0002">000000002<');
@@ -118,13 +119,25 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
       providerId: 'pdp',
       channel: 'PDP',
       environment: 'sandbox',
-      config: { baseUrl, clientId, clientSecret, apiStyle, sellerEndpointId: SELLER_ROUTING, buyerEndpointId: BUYER_ROUTING },
+      config: {
+        baseUrl,
+        clientId,
+        clientSecret,
+        apiStyle,
+        sellerEndpointId: SELLER_ROUTING,
+        buyerEndpointId: BUYER_ROUTING,
+      },
       isActive: true,
     };
 
     // Stub credentials port so poll() can re-resolve + re-authenticate (mirrors prod registry).
-    const stubCredentials = { resolve: async () => fakeResolvedConfig, resolveActive: async () => fakeResolvedConfig };
-    const reg = new TransmissionProviderRegistry([new PdpTransmissionProvider(stubCredentials as any) as any]);
+    const stubCredentials = {
+      resolve: async () => fakeResolvedConfig,
+      resolveActive: async () => fakeResolvedConfig,
+    };
+    const reg = new TransmissionProviderRegistry([
+      new PdpTransmissionProvider(stubCredentials as any) as any,
+    ]);
     const pdp = reg.getById('pdp')!;
 
     const artifact = {
@@ -136,15 +149,32 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
 
     const log = new RecordingComplianceLogger();
     const ctx = {
-      supplier: { legalName: 'Burger Queen', countryCode: 'FR', role: 'B2B', identifiers: [{ scheme: 'VAT', value: 'FR18000000002', validated: true }] },
-      buyer: { legalName: 'Tricatel', countryCode: 'FR', role: 'B2B', identifiers: [{ scheme: 'VAT', value: 'FR15000000001', validated: true }] },
-      lines: [], issueDate: now, currency: 'EUR', supplierCompanyId: companyId, externalRef: `INV-${timestamp}`,
+      supplier: {
+        legalName: 'Burger Queen',
+        countryCode: 'FR',
+        role: 'B2B',
+        identifiers: [{ scheme: 'VAT', value: 'FR18000000002', validated: true }],
+      },
+      buyer: {
+        legalName: 'Tricatel',
+        countryCode: 'FR',
+        role: 'B2B',
+        identifiers: [{ scheme: 'VAT', value: 'FR15000000001', validated: true }],
+      },
+      lines: [],
+      issueDate: now,
+      currency: 'EUR',
+      supplierCompanyId: companyId,
+      externalRef: `INV-${timestamp}`,
     } as any;
 
     const transmitResult = await pdp.transmit!(
-      [artifact], ctx,
+      [artifact],
+      ctx,
       { channels: [{ type: 'PDP', providerId: 'pdp' }] } as any,
-      'pdp-live-key', log, fakeResolvedConfig as any,
+      'pdp-live-key',
+      log,
+      fakeResolvedConfig as any,
     );
     console.log('Transmit result:', JSON.stringify(transmitResult, null, 2));
 

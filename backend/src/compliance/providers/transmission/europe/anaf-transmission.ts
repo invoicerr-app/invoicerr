@@ -43,20 +43,49 @@ const ANAF_URLS = {
 const ANAF_CONFIG_SCHEMA: ChannelConfigSchema = {
   fields: [
     {
-      type: 'select', name: 'environment', label: 'ANAF environment', required: true,
-      options: [{ label: 'Test (SPV sandbox)', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+      type: 'select',
+      name: 'environment',
+      label: 'ANAF environment',
+      required: true,
+      options: [
+        { label: 'Test (SPV sandbox)', value: 'test' },
+        { label: 'Production', value: 'prod' },
+      ],
+      default: 'test',
     },
-    { type: 'text', name: 'cif', label: 'CUI/CIF (Romanian tax ID, digits only — no "RO" prefix)', required: true },
-    { type: 'text', name: 'clientId', label: 'OAuth2 Client ID (from ANAF SPV portal registration)', required: true },
-    { type: 'text', name: 'clientSecret', label: 'OAuth2 Client Secret (ANAF SPV)', required: true, secret: true },
+    {
+      type: 'text',
+      name: 'cif',
+      label: 'CUI/CIF (Romanian tax ID, digits only — no "RO" prefix)',
+      required: true,
+    },
+    {
+      type: 'text',
+      name: 'clientId',
+      label: 'OAuth2 Client ID (from ANAF SPV portal registration)',
+      required: true,
+    },
+    {
+      type: 'text',
+      name: 'clientSecret',
+      label: 'OAuth2 Client Secret (ANAF SPV)',
+      required: true,
+      secret: true,
+    },
   ],
 };
 
 /** Stub HTTP port — replace with real httpclient or mock in tests. */
 const STUB_HTTP: AnafHttpPort = {
-  post: async () => { throw new Error('ANAF HTTP port not implemented — provide real credentials + HTTP client'); },
-  get: async () => { throw new Error('ANAF HTTP port not implemented'); },
-  put: async () => { throw new Error('ANAF HTTP port not implemented'); },
+  post: async () => {
+    throw new Error('ANAF HTTP port not implemented — provide real credentials + HTTP client');
+  },
+  get: async () => {
+    throw new Error('ANAF HTTP port not implemented');
+  },
+  put: async () => {
+    throw new Error('ANAF HTTP port not implemented');
+  },
 };
 
 export class AnafTransmissionProvider implements TransmissionProvider {
@@ -77,7 +106,11 @@ export class AnafTransmissionProvider implements TransmissionProvider {
     resolvedConfig?: ResolvedChannelConfig,
   ): Promise<TransmissionResult> {
     if (!resolvedConfig) {
-      return { channel: GP, status: 'SKIPPED', notes: ['anaf: no resolved config — configure CIF + OAuth2 credentials'] };
+      return {
+        channel: GP,
+        status: 'SKIPPED',
+        notes: ['anaf: no resolved config — configure CIF + OAuth2 credentials'],
+      };
     }
     const { config, environment } = resolvedConfig;
     const isTest = ((config.environment as string) ?? environment ?? 'test').toLowerCase() !== 'prod';
@@ -93,7 +126,9 @@ export class AnafTransmissionProvider implements TransmissionProvider {
     if (!companyId) return { channel: GP, status: 'SKIPPED', notes: ['anaf: no supplierCompanyId'] };
 
     log.info('transmission/anaf', `uploading e-Factura to ANAF SPV (CIF ${cif}, key ${key})`);
-    const xmlStr = Buffer.isBuffer(art.bytes) ? art.bytes.toString('utf-8') : new TextDecoder().decode(art.bytes);
+    const xmlStr = Buffer.isBuffer(art.bytes)
+      ? art.bytes.toString('utf-8')
+      : new TextDecoder().decode(art.bytes);
 
     const client = new AnafClient(
       { baseUrl: urls.baseUrl, tokenUrl: urls.tokenUrl, clientId, clientSecret, cif },
@@ -121,7 +156,8 @@ export class AnafTransmissionProvider implements TransmissionProvider {
     }
     try {
       const resolved = await this.credentials.resolveActive(companyId, 'anaf');
-      if (!resolved?.isActive) return { channel: GP, status: 'PENDING', ref, notes: ['anaf: credentials inactive'] };
+      if (!resolved?.isActive)
+        return { channel: GP, status: 'PENDING', ref, notes: ['anaf: credentials inactive'] };
       const { config, environment } = resolved;
       const isTest = ((config.environment as string) ?? environment ?? 'test').toLowerCase() !== 'prod';
       const urls = isTest ? ANAF_URLS.test : ANAF_URLS.prod;

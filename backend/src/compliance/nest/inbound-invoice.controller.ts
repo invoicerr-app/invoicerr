@@ -89,21 +89,13 @@ export class InboundInvoiceController {
 
   @Post('compliance/received-invoices/:companyId/:id/accept')
   @HttpCode(200)
-  accept(
-    @Param('companyId') companyId: string,
-    @Param('id') id: string,
-    @Body() body: RejectBody,
-  ) {
+  accept(@Param('companyId') companyId: string, @Param('id') id: string, @Body() body: RejectBody) {
     return this.inboundInvoices.acceptOrReject(id, companyId, 'accept', body?.reason);
   }
 
   @Post('compliance/received-invoices/:companyId/:id/reject')
   @HttpCode(200)
-  reject(
-    @Param('companyId') companyId: string,
-    @Param('id') id: string,
-    @Body() body: RejectBody,
-  ) {
+  reject(@Param('companyId') companyId: string, @Param('id') id: string, @Body() body: RejectBody) {
     return this.inboundInvoices.acceptOrReject(id, companyId, 'reject', body?.reason);
   }
 

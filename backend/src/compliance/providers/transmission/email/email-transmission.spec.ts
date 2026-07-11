@@ -127,14 +127,7 @@ describe('EmailTransmissionProvider — per-company SMTP overrides', () => {
     const provider = new EmailTransmissionProvider(mail);
     const log = new RecordingComplianceLogger();
 
-    const result = await provider.transmit(
-      NO_ARTIFACTS,
-      makeCtx(),
-      {} as any,
-      'key-2',
-      log,
-      undefined,
-    );
+    const result = await provider.transmit(NO_ARTIFACTS, makeCtx(), {} as any, 'key-2', log, undefined);
 
     expect(result.status).toBe('SENT');
     expect(mail.sendInvoiceEmail).toHaveBeenCalledWith('INV-2026-001', undefined);
@@ -156,7 +149,13 @@ describe('EmailTransmissionProvider — per-company SMTP overrides', () => {
     mail.sendInvoiceEmail.mockResolvedValueOnce({ sent: false, skipped: true, reason: 'no email on client' });
     const provider = new EmailTransmissionProvider(mail);
 
-    const result = await provider.transmit(NO_ARTIFACTS, makeCtx(), {} as any, 'key-4', new RecordingComplianceLogger());
+    const result = await provider.transmit(
+      NO_ARTIFACTS,
+      makeCtx(),
+      {} as any,
+      'key-4',
+      new RecordingComplianceLogger(),
+    );
 
     expect(result.status).toBe('SKIPPED');
     expect(result.notes).toContain('no email on client');
@@ -254,7 +253,6 @@ describe('MailService — per-call SMTP transport from SmtpOverrides', () => {
   });
 
   it('builds a per-call transport with per-company credentials', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { MailService } = require('@/mail/mail.service');
     const svc = new MailService();
 
@@ -297,7 +295,6 @@ describe('MailService — per-call SMTP transport from SmtpOverrides', () => {
     mockCreateTransport.mockClear();
     mockSendMail.mockClear();
 
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { MailService } = require('@/mail/mail.service');
     const svc = new MailService();
 

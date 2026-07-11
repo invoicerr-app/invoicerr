@@ -23,11 +23,11 @@ import { HttpTsaClient, NullTsaClient } from './tsa-client';
 export function resolveTimestampOptions(
   env: Record<string, string | undefined> = process.env,
 ): TimestampOptions {
-  const tsaUrl = env['TSA_URL']?.trim();
+  const tsaUrl = env.TSA_URL?.trim();
   if (!tsaUrl) {
     return { signatureLevel: 'BES', tsa: new NullTsaClient() };
   }
-  const level = (env['SIGNATURE_LEVEL'] as SignatureLevel | undefined) ?? 'T';
+  const level = (env.SIGNATURE_LEVEL as SignatureLevel | undefined) ?? 'T';
   return { signatureLevel: level, tsa: new HttpTsaClient(tsaUrl) };
 }
 

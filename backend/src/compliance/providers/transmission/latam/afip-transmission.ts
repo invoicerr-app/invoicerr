@@ -23,17 +23,41 @@ export class AfipTransmissionProvider implements TransmissionProvider {
   readonly pollPolicy = { everySeconds: 60, timeoutHours: 48, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {
     fields: [
-      { type: 'select', name: 'environment', label: 'AFIP environment', required: true,
-        options: [{ label: 'Homologación (test)', value: 'test' }, { label: 'Producción', value: 'prod' }],
-        default: 'test' },
-      { type: 'text', name: 'cuit', label: 'CUIT (digits only, no dashes)', placeholder: '30712345679',
-        required: true, minLength: 11, maxLength: 11 },
-      { type: 'text', name: 'puntoVenta', label: 'Punto de Venta (1-9999)',
-        placeholder: '1', required: true },
-      { type: 'text', name: 'certBase64', label: 'Certificate PKCS#12 (base64)',
-        required: false, secret: true },
-      { type: 'text', name: 'certPassword', label: 'Certificate password',
-        required: false, secret: true },
+      {
+        type: 'select',
+        name: 'environment',
+        label: 'AFIP environment',
+        required: true,
+        options: [
+          { label: 'Homologación (test)', value: 'test' },
+          { label: 'Producción', value: 'prod' },
+        ],
+        default: 'test',
+      },
+      {
+        type: 'text',
+        name: 'cuit',
+        label: 'CUIT (digits only, no dashes)',
+        placeholder: '30712345679',
+        required: true,
+        minLength: 11,
+        maxLength: 11,
+      },
+      {
+        type: 'text',
+        name: 'puntoVenta',
+        label: 'Punto de Venta (1-9999)',
+        placeholder: '1',
+        required: true,
+      },
+      {
+        type: 'text',
+        name: 'certBase64',
+        label: 'Certificate PKCS#12 (base64)',
+        required: false,
+        secret: true,
+      },
+      { type: 'text', name: 'certPassword', label: 'Certificate password', required: false, secret: true },
     ],
   };
 
@@ -86,7 +110,8 @@ export class AfipTransmissionProvider implements TransmissionProvider {
       });
 
       log.info('transmission/afip', `authenticating WSAA (CUIT ${cuit}, key ${key})`);
-      const issueDate = ctx.issueDate?.toISOString().split('T')[0].replace(/-/g, '') ??
+      const issueDate =
+        ctx.issueDate?.toISOString().split('T')[0].replace(/-/g, '') ??
         new Date().toISOString().split('T')[0].replace(/-/g, '');
 
       // Build a minimal CAE request from the transaction context
@@ -103,7 +128,9 @@ export class AfipTransmissionProvider implements TransmissionProvider {
         importeIva: parseFloat(iva.toFixed(2)),
         importeTotal: parseFloat((total + iva).toFixed(2)),
         cuitReceptor: ctx.buyer.identifiers.find((i) => i.scheme === 'VAT')?.value?.replace(/\D/g, '') ?? '0',
-        ivaItems: [{ id: 5, baseImponible: parseFloat(total.toFixed(2)), importe: parseFloat(iva.toFixed(2)) }],
+        ivaItems: [
+          { id: 5, baseImponible: parseFloat(total.toFixed(2)), importe: parseFloat(iva.toFixed(2)) },
+        ],
       });
 
       if (caeResp.resultado === 'R') {
@@ -113,7 +140,10 @@ export class AfipTransmissionProvider implements TransmissionProvider {
 
       // AFIP returns CAE synchronously — CLEARED immediately
       const ref = `${companyId}|${caeResp.cbteDesde}|${puntoVenta}|6`;
-      log.info('transmission/afip', `CAE ${caeResp.cae} issued, valid until ${caeResp.vencimientoCAE} (key ${key})`);
+      log.info(
+        'transmission/afip',
+        `CAE ${caeResp.cae} issued, valid until ${caeResp.vencimientoCAE} (key ${key})`,
+      );
       return {
         channel: 'GOV_PORTAL_API',
         status: 'CLEARED',
@@ -133,7 +163,12 @@ export class AfipTransmissionProvider implements TransmissionProvider {
     // but provides a re-check path for edge cases (partial authorization).
     // Ref: "{companyId}|{cbteDesde}|{puntoVenta}|{tipoComprobante}"
     log.todo('transmission/afip', `poll AFIP comprobante status for ref ${ref} — use FECompConsultar`);
-    return { channel: 'GOV_PORTAL_API', status: 'PENDING', ref, notes: ['afip: poll deferred (use FECompConsultar)'] };
+    return {
+      channel: 'GOV_PORTAL_API',
+      status: 'PENDING',
+      ref,
+      notes: ['afip: poll deferred (use FECompConsultar)'],
+    };
   }
 }
 

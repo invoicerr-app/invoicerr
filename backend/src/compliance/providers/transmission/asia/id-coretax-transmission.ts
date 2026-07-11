@@ -32,7 +32,10 @@ export class IdCoretaxTransmissionProvider implements TransmissionProvider {
   readonly configSchema: ChannelConfigSchema = {
     fields: [
       {
-        type: 'select', name: 'environment', label: 'Coretax environment', required: true,
+        type: 'select',
+        name: 'environment',
+        label: 'Coretax environment',
+        required: true,
         options: [
           { label: 'Pre-production (sandbox)', value: 'preprod' },
           { label: 'Production', value: 'prod' },
@@ -58,11 +61,17 @@ export class IdCoretaxTransmissionProvider implements TransmissionProvider {
     resolvedConfig?: ResolvedChannelConfig,
   ): Promise<TransmissionResult> {
     if (!resolvedConfig) {
-      return { channel: GP, status: 'SKIPPED', notes: ['id-coretax: no resolved config (NPWP + passphrase required)'] };
+      return {
+        channel: GP,
+        status: 'SKIPPED',
+        notes: ['id-coretax: no resolved config (NPWP + passphrase required)'],
+      };
     }
 
     const { config, environment } = resolvedConfig;
-    const env = ((config.environment as string) ?? environment ?? 'preprod').toLowerCase() as 'preprod' | 'prod';
+    const env = ((config.environment as string) ?? environment ?? 'preprod').toLowerCase() as
+      | 'preprod'
+      | 'prod';
     const npwp = config.npwp as string;
     if (!npwp) return { channel: GP, status: 'SKIPPED', notes: ['id-coretax: NPWP required'] };
 
@@ -94,7 +103,9 @@ export class IdCoretaxTransmissionProvider implements TransmissionProvider {
         nsfp,
         tanggalFaktur: dateStr,
         npwpPenjual: npwp,
-        npwpPembeli: ctx.buyer.identifiers.find((i) => i.scheme === 'VAT')?.value?.replace(/\D/g, '') ?? '000000000000000',
+        npwpPembeli:
+          ctx.buyer.identifiers.find((i) => i.scheme === 'VAT')?.value?.replace(/\D/g, '') ??
+          '000000000000000',
         namaPembeli: ctx.buyer.legalName,
         alamatPembeli: ctx.buyer.address?.line1 ?? ctx.buyer.countryCode ?? 'TODO: address',
         dpp: Math.round(total),
@@ -125,7 +136,11 @@ export class IdCoretaxTransmissionProvider implements TransmissionProvider {
         return { channel: GP, status: 'REJECTED', notes: ['id-coretax: no result in response'] };
       }
       if (result.status === 'REJECTED') {
-        return { channel: GP, status: 'REJECTED', notes: [`id-coretax: ${result.errorCode}: ${result.errorMessage}`] };
+        return {
+          channel: GP,
+          status: 'REJECTED',
+          notes: [`id-coretax: ${result.errorCode}: ${result.errorMessage}`],
+        };
       }
       if (result.status === 'APPROVED' && result.kodeOtorisasi) {
         const ref = `${companyId}|${nsfp}`;
@@ -153,17 +168,26 @@ export class IdCoretaxTransmissionProvider implements TransmissionProvider {
 
   async poll(ref: string, log: ComplianceLogger): Promise<TransmissionResult> {
     const parts = ref.split('|');
-    if (parts.length !== 2) return { channel: GP, status: 'PENDING', ref, notes: ['id-coretax: invalid ref'] };
+    if (parts.length !== 2)
+      return { channel: GP, status: 'PENDING', ref, notes: ['id-coretax: invalid ref'] };
     const [companyId, nsfp] = parts;
     if (!this.credentials) {
       log.todo('transmission/id-coretax', `poll Coretax NSFP ${nsfp}`);
-      return { channel: GP, status: 'PENDING', ref, notes: ['id-coretax: poll deferred (use /efaktur/status/{nsfp})'] };
+      return {
+        channel: GP,
+        status: 'PENDING',
+        ref,
+        notes: ['id-coretax: poll deferred (use /efaktur/status/{nsfp})'],
+      };
     }
     try {
       const resolved = await this.credentials.resolveActive(companyId, 'id-coretax');
-      if (!resolved?.isActive) return { channel: GP, status: 'PENDING', ref, notes: ['id-coretax: credentials inactive'] };
+      if (!resolved?.isActive)
+        return { channel: GP, status: 'PENDING', ref, notes: ['id-coretax: credentials inactive'] };
       const { config, environment } = resolved;
-      const env = ((config.environment as string) ?? environment ?? 'preprod').toLowerCase() as 'preprod' | 'prod';
+      const env = ((config.environment as string) ?? environment ?? 'preprod').toLowerCase() as
+        | 'preprod'
+        | 'prod';
       const http = this.httpPort ?? buildStubHttpPort();
       const client = new IdCoretaxClient(http, {
         environment: env,
@@ -173,7 +197,9 @@ export class IdCoretaxTransmissionProvider implements TransmissionProvider {
       const status = await client.getStatus(nsfp);
       if (status.status === 'APPROVED' && status.kodeOtorisasi) {
         return {
-          channel: GP, status: 'CLEARED', ref,
+          channel: GP,
+          status: 'CLEARED',
+          ref,
           authorityIds: [
             { scheme: 'NSFP', value: nsfp },
             { scheme: 'KODE_OTORISASI', value: status.kodeOtorisasi },
@@ -182,7 +208,12 @@ export class IdCoretaxTransmissionProvider implements TransmissionProvider {
         };
       }
       if (status.status === 'REJECTED') {
-        return { channel: GP, status: 'REJECTED', ref, notes: [`id-coretax: REJECTED — ${status.errorMessage}`] };
+        return {
+          channel: GP,
+          status: 'REJECTED',
+          ref,
+          notes: [`id-coretax: REJECTED — ${status.errorMessage}`],
+        };
       }
       return { channel: GP, status: 'PENDING', ref, notes: ['id-coretax: PENDING'] };
     } catch (err: unknown) {
@@ -195,8 +226,14 @@ export class IdCoretaxTransmissionProvider implements TransmissionProvider {
 
 function buildStubHttpPort(): IdCoretaxHttpPort {
   return {
-    authenticate: async () => { throw new Error('IdCoretaxHttpPort not implemented — NPWP + passphrase required'); },
-    submitFaktur: async () => { throw new Error('IdCoretaxHttpPort not implemented — live Coretax credentials required'); },
-    getStatus: async () => { throw new Error('IdCoretaxHttpPort not implemented'); },
+    authenticate: async () => {
+      throw new Error('IdCoretaxHttpPort not implemented — NPWP + passphrase required');
+    },
+    submitFaktur: async () => {
+      throw new Error('IdCoretaxHttpPort not implemented — live Coretax credentials required');
+    },
+    getStatus: async () => {
+      throw new Error('IdCoretaxHttpPort not implemented');
+    },
   };
 }

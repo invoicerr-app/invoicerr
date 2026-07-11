@@ -24,7 +24,7 @@ function okValidation(warning: string): ValidationReport {
 const SYNTAX_TO_PDF_FORMAT: Partial<Record<DocumentSyntax, ExportFormat>> = {
   FACTURX: 'facturx',
   ZUGFERD: 'zugferd',
-  PDF_A3: 'facturx',     // PDF/A-3 hybrid → Factur-X profile by default
+  PDF_A3: 'facturx', // PDF/A-3 hybrid → Factur-X profile by default
 };
 
 /** Pure XML formats — use `exportXml()` (no PDF container). */
@@ -56,7 +56,12 @@ export class En16931FormatProvider implements FormatProvider {
   supports(syntax: DocumentSyntax): boolean {
     return En16931FormatProvider.SYNTAXES.includes(syntax);
   }
-  async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
+  async build(
+    artifact: PlannedArtifact,
+    ctx: TransactionContext,
+    _plan: CompliancePlan,
+    log: ComplianceLogger,
+  ): Promise<RenderedArtifact> {
     if (this.artifacts && ctx.externalRef) {
       const syntax = artifact.syntax as DocumentSyntax;
       // 1. Try hybrid PDF/A-3 (embedInPdf)
@@ -72,7 +77,10 @@ export class En16931FormatProvider implements FormatProvider {
         // Peppol BIS Billing 3.0 requires specific CustomizationID/ProfileID distinct from generic EN16931.
         if (syntax === 'PEPPOL_BIS') {
           xml = xml.replace('urn:cen.eu:en16931:2017', PEPPOL_BIS_CUSTOMIZATION_ID);
-          xml = xml.replace('<cbc:ProfileID>M1</cbc:ProfileID>', `<cbc:ProfileID>${PEPPOL_BIS_PROFILE_ID}</cbc:ProfileID>`);
+          xml = xml.replace(
+            '<cbc:ProfileID>M1</cbc:ProfileID>',
+            `<cbc:ProfileID>${PEPPOL_BIS_PROFILE_ID}</cbc:ProfileID>`,
+          );
         }
         const bytes = new TextEncoder().encode(xml);
         return { role: artifact.role as ArtifactRole, syntax, mime: 'application/xml', bytes };
@@ -82,7 +90,10 @@ export class En16931FormatProvider implements FormatProvider {
       return { ...rendered(artifact), mime: syntax === 'PDF_A3' ? 'application/pdf' : 'application/xml' };
     }
     log.todo('format/en16931', `build ${artifact.syntax} via BuiltEInvoice (embedInPdf/exportXml)`);
-    return { ...rendered(artifact), mime: artifact.syntax === 'PDF_A3' ? 'application/pdf' : 'application/xml' };
+    return {
+      ...rendered(artifact),
+      mime: artifact.syntax === 'PDF_A3' ? 'application/pdf' : 'application/xml',
+    };
   }
   async validate(rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport> {
     if (rendered.syntax !== 'PEPPOL_BIS') {
@@ -95,7 +106,10 @@ export class En16931FormatProvider implements FormatProvider {
     const result = validateSchematron(xml, 'peppol/PEPPOL-EN16931-UBL.sch');
     const errors = result.errors.map((e) => `[${e.id}] ${e.message}`);
     if (!result.valid) {
-      log.warn('format/peppol-bis', `Peppol BIS Schematron: ${result.errorCount} error(s) — ${errors.slice(0, 3).join('; ')}`);
+      log.warn(
+        'format/peppol-bis',
+        `Peppol BIS Schematron: ${result.errorCount} error(s) — ${errors.slice(0, 3).join('; ')}`,
+      );
     }
     return { valid: result.valid, errors, warnings: [] };
   }
@@ -107,10 +121,20 @@ export class PlainPdfFormatProvider implements FormatProvider {
   supports(syntax: DocumentSyntax): boolean {
     return syntax === 'PLAIN_PDF';
   }
-  async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
+  async build(
+    artifact: PlannedArtifact,
+    ctx: TransactionContext,
+    _plan: CompliancePlan,
+    log: ComplianceLogger,
+  ): Promise<RenderedArtifact> {
     if (this.artifacts && ctx.externalRef) {
       const bytes = await this.artifacts.renderPdf(ctx.externalRef);
-      return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/pdf', bytes };
+      return {
+        role: artifact.role as ArtifactRole,
+        syntax: artifact.syntax as DocumentSyntax,
+        mime: 'application/pdf',
+        bytes,
+      };
     }
     log.todo('format/plain-pdf', 'render PDF (no externalRef / no port) — stub');
     return { ...rendered(artifact), mime: 'application/pdf' };
@@ -126,13 +150,26 @@ export class CfdiFormatProvider implements FormatProvider {
   supports(syntax: DocumentSyntax): boolean {
     return syntax === 'CFDI';
   }
-  async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
+  async build(
+    artifact: PlannedArtifact,
+    ctx: TransactionContext,
+    _plan: CompliancePlan,
+    log: ComplianceLogger,
+  ): Promise<RenderedArtifact> {
     if (this.artifacts && ctx.externalRef) {
       const xml = await this.artifacts.renderCfdi(ctx.externalRef);
       const bytes = new TextEncoder().encode(xml);
-      return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/xml', bytes };
+      return {
+        role: artifact.role as ArtifactRole,
+        syntax: artifact.syntax as DocumentSyntax,
+        mime: 'application/xml',
+        bytes,
+      };
     }
-    log.todo('format/cfdi', 'build SAT CFDI 4.0 XML (Comprobante, Conceptos, Impuestos, UsoCFDI) — no externalRef in context');
+    log.todo(
+      'format/cfdi',
+      'build SAT CFDI 4.0 XML (Comprobante, Conceptos, Impuestos, UsoCFDI) — no externalRef in context',
+    );
     return { ...rendered(artifact), mime: 'application/xml' };
   }
   async validate(rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport> {
@@ -167,11 +204,21 @@ export class FatturaPaFormatProvider implements FormatProvider {
   supports(syntax: DocumentSyntax): boolean {
     return syntax === 'FATTURAPA';
   }
-  async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
+  async build(
+    artifact: PlannedArtifact,
+    ctx: TransactionContext,
+    _plan: CompliancePlan,
+    log: ComplianceLogger,
+  ): Promise<RenderedArtifact> {
     if (this.artifacts && ctx.externalRef) {
       const xml = await this.artifacts.renderFatturaPa(ctx.externalRef);
       const bytes = new TextEncoder().encode(xml);
-      return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/xml', bytes };
+      return {
+        role: artifact.role as ArtifactRole,
+        syntax: artifact.syntax as DocumentSyntax,
+        mime: 'application/xml',
+        bytes,
+      };
     }
     log.todo('format/fatturapa', 'build FatturaPA 1.2 XML for SdI — no externalRef in context');
     return { ...rendered(artifact), mime: 'application/xml' };
@@ -195,13 +242,26 @@ export class KsaUblFormatProvider implements FormatProvider {
   supports(syntax: DocumentSyntax): boolean {
     return syntax === 'KSA_UBL';
   }
-  async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
+  async build(
+    artifact: PlannedArtifact,
+    ctx: TransactionContext,
+    _plan: CompliancePlan,
+    log: ComplianceLogger,
+  ): Promise<RenderedArtifact> {
     if (this.artifacts && ctx.externalRef) {
       const xml = await this.artifacts.renderKsaUbl(ctx.externalRef);
       const bytes = new TextEncoder().encode(xml);
-      return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/xml', bytes };
+      return {
+        role: artifact.role as ArtifactRole,
+        syntax: artifact.syntax as DocumentSyntax,
+        mime: 'application/xml',
+        bytes,
+      };
     }
-    log.todo('format/ksa-ubl', 'build ZATCA UBL 2.1 + KSA extension and QR payload — no externalRef in context');
+    log.todo(
+      'format/ksa-ubl',
+      'build ZATCA UBL 2.1 + KSA extension and QR payload — no externalRef in context',
+    );
     return { ...rendered(artifact), mime: 'application/xml' };
   }
   async validate(_rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport> {
@@ -218,13 +278,26 @@ export class NationalXmlFormatProvider implements FormatProvider {
   supports(syntax: DocumentSyntax): boolean {
     return syntax === 'NATIONAL_XML';
   }
-  async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
+  async build(
+    artifact: PlannedArtifact,
+    ctx: TransactionContext,
+    _plan: CompliancePlan,
+    log: ComplianceLogger,
+  ): Promise<RenderedArtifact> {
     if (this.artifacts && ctx.externalRef) {
       const xml = await this.artifacts.renderNationalXml(ctx.externalRef, ctx.supplier.countryCode || 'XX');
       const bytes = new TextEncoder().encode(xml);
-      return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/xml', bytes };
+      return {
+        role: artifact.role as ArtifactRole,
+        syntax: artifact.syntax as DocumentSyntax,
+        mime: 'application/xml',
+        bytes,
+      };
     }
-    log.todo('format/national-xml', `build the national clearance XML for ${ctx.supplier.countryCode} (no externalRef in context)`);
+    log.todo(
+      'format/national-xml',
+      `build the national clearance XML for ${ctx.supplier.countryCode} (no externalRef in context)`,
+    );
     return { ...rendered(artifact), mime: 'application/xml' };
   }
   async validate(_rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport> {
@@ -240,11 +313,21 @@ export class FaVatFormatProvider implements FormatProvider {
   supports(syntax: DocumentSyntax): boolean {
     return syntax === 'FA_VAT';
   }
-  async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
+  async build(
+    artifact: PlannedArtifact,
+    ctx: TransactionContext,
+    _plan: CompliancePlan,
+    log: ComplianceLogger,
+  ): Promise<RenderedArtifact> {
     if (this.artifacts && ctx.externalRef) {
       const xml = await this.artifacts.renderFaVat(ctx.externalRef);
       const bytes = new TextEncoder().encode(xml);
-      return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/xml', bytes };
+      return {
+        role: artifact.role as ArtifactRole,
+        syntax: artifact.syntax as DocumentSyntax,
+        mime: 'application/xml',
+        bytes,
+      };
     }
     log.todo('format/fa-vat', 'build Polish FA_VAT (FA(2)/FA(3)) XML for KSeF — no externalRef in context');
     return { ...rendered(artifact), mime: 'application/xml' };
@@ -269,13 +352,26 @@ export class FacturaeFormatProvider implements FormatProvider {
   supports(syntax: DocumentSyntax): boolean {
     return syntax === 'ES_FACTURAE';
   }
-  async build(artifact: PlannedArtifact, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<RenderedArtifact> {
+  async build(
+    artifact: PlannedArtifact,
+    ctx: TransactionContext,
+    _plan: CompliancePlan,
+    log: ComplianceLogger,
+  ): Promise<RenderedArtifact> {
     if (this.artifacts && ctx.externalRef) {
       const xml = await this.artifacts.renderFacturae(ctx.externalRef);
       const bytes = new TextEncoder().encode(xml);
-      return { role: artifact.role as ArtifactRole, syntax: artifact.syntax as DocumentSyntax, mime: 'application/xml', bytes };
+      return {
+        role: artifact.role as ArtifactRole,
+        syntax: artifact.syntax as DocumentSyntax,
+        mime: 'application/xml',
+        bytes,
+      };
     }
-    log.todo('format/es-facturae', 'build Facturae 3.2.x XML (XAdES-BES) for Spain — no externalRef in context');
+    log.todo(
+      'format/es-facturae',
+      'build Facturae 3.2.x XML (XAdES-BES) for Spain — no externalRef in context',
+    );
     return { ...rendered(artifact), mime: 'application/xml' };
   }
   async validate(rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport> {

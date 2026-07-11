@@ -53,10 +53,7 @@ export class CachedExistenceClient implements IdentifierExistencePort {
     }
   }
 
-  private async cached(
-    key: string,
-    fn: () => Promise<ExistenceCheckResult>,
-  ): Promise<ExistenceCheckResult> {
+  private async cached(key: string, fn: () => Promise<ExistenceCheckResult>): Promise<ExistenceCheckResult> {
     const now = Date.now();
     const entry = this.cache.get(key);
     if (entry && entry.expiresAt > now) {

@@ -15,8 +15,12 @@ import { TransactionContext } from '../../../canonical/canonical-document';
 const COMPANY_ID = 'company_pdp_test';
 const TEST_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
-beforeAll(() => { process.env.CREDENTIALS_ENCRYPTION_KEY = TEST_KEY; });
-afterAll(() => { delete process.env.CREDENTIALS_ENCRYPTION_KEY; });
+beforeAll(() => {
+  process.env.CREDENTIALS_ENCRYPTION_KEY = TEST_KEY;
+});
+afterAll(() => {
+  delete process.env.CREDENTIALS_ENCRYPTION_KEY;
+});
 
 function mockCredentials(resolved: ResolvedChannelConfig | null): ChannelCredentialsPort {
   return {
@@ -29,7 +33,10 @@ const CII_ARTIFACT: SignedArtifact = {
   role: 'AUTHORITATIVE',
   syntax: 'EN16931_CII',
   mime: 'application/xml',
-  bytes: Buffer.from('<?xml version="1.0"?><CrossIndustryInvoice xmlns="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"/>', 'utf8'),
+  bytes: Buffer.from(
+    '<?xml version="1.0"?><CrossIndustryInvoice xmlns="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"/>',
+    'utf8',
+  ),
 };
 
 function makeCtx(companyId: string): TransactionContext {
@@ -46,7 +53,9 @@ function makeCtx(companyId: string): TransactionContext {
       role: 'B2B',
       identifiers: [{ scheme: 'SIREN', value: '987654321', validated: true }],
     },
-    lines: [{ id: 'l1', description: 'test service', quantity: 1, unitNetMinor: 10000, supplyType: 'SERVICES' }],
+    lines: [
+      { id: 'l1', description: 'test service', quantity: 1, unitNetMinor: 10000, supplyType: 'SERVICES' },
+    ],
     issueDate: new Date('2026-07-01'),
     currency: 'EUR',
     supplierCompanyId: companyId,

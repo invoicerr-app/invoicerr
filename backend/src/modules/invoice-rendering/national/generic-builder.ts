@@ -6,10 +6,10 @@ import type { InvoiceRenderData } from '../render-data';
 import { sumNet, sumVat, isoDate } from './xml-helpers';
 
 export function buildGenericNationalXml(data: InvoiceRenderData, cc: string): string {
-        const issueDate = isoDate(data);
-        const total = sumNet(data.items);
-        const totalIVA = sumVat(data.items);
-        return `<!-- TODO: ${cc} national e-invoice — schema and submission service TBD -->
+  const issueDate = isoDate(data);
+  const total = sumNet(data.items);
+  const totalIVA = sumVat(data.items);
+  return `<!-- TODO: ${cc} national e-invoice — schema and submission service TBD -->
 <NationalInvoice>
   <Header><CountryCode>${cc}</CountryCode><InvoiceNumber>${data.rawNumber || 'DRAFT'}</InvoiceNumber><IssueDate>${issueDate}</IssueDate><Currency>${data.company.currency}</Currency></Header>
   <Seller><Name>${data.company.name}</Name><Identifier>${getIdentifier(data.company, 'VAT') || ''}</Identifier><Country>${data.company.country || ''}</Country></Seller>

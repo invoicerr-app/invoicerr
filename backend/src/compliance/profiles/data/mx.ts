@@ -23,11 +23,19 @@ export const MX: CountryComplianceProfile = {
     {
       validFrom: '2014-01-01',
       validTo: '2023-04-01',
-      value: { primary: { syntax: 'CFDI', version: '3.3' }, human: { syntax: 'PLAIN_PDF' }, buyerNegotiable: false },
+      value: {
+        primary: { syntax: 'CFDI', version: '3.3' },
+        human: { syntax: 'PLAIN_PDF' },
+        buyerNegotiable: false,
+      },
     },
     {
       validFrom: '2023-04-01',
-      value: { primary: { syntax: 'CFDI', version: '4.0' }, human: { syntax: 'PLAIN_PDF' }, buyerNegotiable: false },
+      value: {
+        primary: { syntax: 'CFDI', version: '4.0' },
+        human: { syntax: 'PLAIN_PDF' },
+        buyerNegotiable: false,
+      },
     },
   ],
 

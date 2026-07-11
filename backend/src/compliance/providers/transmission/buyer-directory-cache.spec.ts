@@ -15,7 +15,10 @@ import type { BuyerDirectoryPort, BuyerDirectoryQuery, BuyerDirectoryResult } fr
 
 const RESULT: BuyerDirectoryResult = { endpointId: '315143296_1422', metadata: {} };
 
-function makeDelegate(result: BuyerDirectoryResult | null, delayMs = 0): {
+function makeDelegate(
+  result: BuyerDirectoryResult | null,
+  delayMs = 0,
+): {
   delegate: BuyerDirectoryPort;
   calls: number[];
 } {
@@ -70,13 +73,9 @@ describe('CachedBuyerDirectory', () => {
     const cache = new CachedBuyerDirectory(delegate, 60_000);
 
     // Fire three concurrent lookups before the first resolves.
-    const [r1, r2, r3] = await Promise.all([
-      cache.lookup(Q),
-      cache.lookup(Q),
-      cache.lookup(Q),
-    ]);
+    const [r1, r2, r3] = await Promise.all([cache.lookup(Q), cache.lookup(Q), cache.lookup(Q)]);
 
-    expect(calls.length).toBe(1);   // only ONE delegate call despite 3 concurrent requests
+    expect(calls.length).toBe(1); // only ONE delegate call despite 3 concurrent requests
     expect(r1).toEqual(RESULT);
     expect(r2).toEqual(RESULT);
     expect(r3).toEqual(RESULT);
@@ -140,7 +139,10 @@ describe('CachedBuyerDirectory', () => {
   });
 
   it('resolved endpoint flows into returned result (endpointId available to caller)', async () => {
-    const endpoint = { endpointId: '0009:12345678900011', metadata: { apEndpointUrl: 'https://ap.example.com' } };
+    const endpoint = {
+      endpointId: '0009:12345678900011',
+      metadata: { apEndpointUrl: 'https://ap.example.com' },
+    };
     const { delegate } = makeDelegate(endpoint);
     const cache = new CachedBuyerDirectory(delegate, 60_000);
 

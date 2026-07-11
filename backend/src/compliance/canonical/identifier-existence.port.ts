@@ -60,7 +60,13 @@ export class ViesExistenceClient implements IdentifierExistencePort {
   async checkVat(vatNumber: string): Promise<ExistenceCheckResult> {
     const clean = vatNumber.replace(/[\s-]/g, '').toUpperCase();
     if (clean.length < 4) {
-      return { scheme: 'VAT', value: vatNumber, exists: null, source: 'vies', error: 'VAT number too short (need country prefix + digits)' };
+      return {
+        scheme: 'VAT',
+        value: vatNumber,
+        exists: null,
+        source: 'vies',
+        error: 'VAT number too short (need country prefix + digits)',
+      };
     }
     const country = clean.slice(0, 2);
     const vat = clean.slice(2);
@@ -75,11 +81,17 @@ export class ViesExistenceClient implements IdentifierExistencePort {
         clearTimeout(timer);
       }
       if (!res.ok) {
-        return { scheme: 'VAT', value: vatNumber, exists: null, source: 'vies', error: `HTTP ${res.status} ${res.statusText}` };
+        return {
+          scheme: 'VAT',
+          value: vatNumber,
+          exists: null,
+          source: 'vies',
+          error: `HTTP ${res.status} ${res.statusText}`,
+        };
       }
       // Response shape: { "isValid": true|false, "userError": "VALID"|... }
-      const data = await res.json() as Record<string, unknown>;
-      const exists = typeof data['isValid'] === 'boolean' ? data['isValid'] : null;
+      const data = (await res.json()) as Record<string, unknown>;
+      const exists = typeof data.isValid === 'boolean' ? data.isValid : null;
       return { scheme: 'VAT', value: vatNumber, exists, source: 'vies' };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -89,7 +101,13 @@ export class ViesExistenceClient implements IdentifierExistencePort {
 
   /** VIES does not provide SIRET lookup; always returns error. */
   async checkSiret(siret: string): Promise<ExistenceCheckResult> {
-    return { scheme: 'SIRET', value: siret, exists: null, source: 'vies', error: 'Use SireneExistenceClient for SIRET lookups' };
+    return {
+      scheme: 'SIRET',
+      value: siret,
+      exists: null,
+      source: 'vies',
+      error: 'Use SireneExistenceClient for SIRET lookups',
+    };
   }
 }
 
@@ -106,17 +124,32 @@ export class SireneExistenceClient implements IdentifierExistencePort {
    * @param apiKey  Bearer token from the INSEE API portal.
    * @param timeoutMs  Per-request timeout (default 8 s).
    */
-  constructor(private readonly apiKey: string, private readonly timeoutMs = 8000) {}
+  constructor(
+    private readonly apiKey: string,
+    private readonly timeoutMs = 8000,
+  ) {}
 
   /** SIRENE does not provide VAT lookup; always returns error. */
   async checkVat(vatNumber: string): Promise<ExistenceCheckResult> {
-    return { scheme: 'VAT', value: vatNumber, exists: null, source: 'sirene', error: 'Use ViesExistenceClient for VAT lookups' };
+    return {
+      scheme: 'VAT',
+      value: vatNumber,
+      exists: null,
+      source: 'sirene',
+      error: 'Use ViesExistenceClient for VAT lookups',
+    };
   }
 
   async checkSiret(siret: string): Promise<ExistenceCheckResult> {
     const clean = siret.replace(/[\s-]/g, '');
     if (!/^\d{14}$/.test(clean)) {
-      return { scheme: 'SIRET', value: siret, exists: null, source: 'sirene', error: 'SIRET must be 14 digits' };
+      return {
+        scheme: 'SIRET',
+        value: siret,
+        exists: null,
+        source: 'sirene',
+        error: 'SIRET must be 14 digits',
+      };
     }
     const url = `${SIRENE_SIRET_URL}/${clean}`;
     try {
@@ -138,7 +171,13 @@ export class SireneExistenceClient implements IdentifierExistencePort {
         return { scheme: 'SIRET', value: siret, exists: false, source: 'sirene' };
       }
       if (!res.ok) {
-        return { scheme: 'SIRET', value: siret, exists: null, source: 'sirene', error: `HTTP ${res.status} ${res.statusText}` };
+        return {
+          scheme: 'SIRET',
+          value: siret,
+          exists: null,
+          source: 'sirene',
+          error: `HTTP ${res.status} ${res.statusText}`,
+        };
       }
       // 200 = establishment found
       return { scheme: 'SIRET', value: siret, exists: true, source: 'sirene' };

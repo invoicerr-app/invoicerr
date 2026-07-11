@@ -21,12 +21,12 @@ import { Logger } from '@nestjs/common';
 
 /** Every action that touches a stored credential or signing certificate. */
 export type CredentialAccessAction =
-  | 'RESOLVE'           // single-env credential lookup
-  | 'RESOLVE_ACTIVE'    // active-env credential lookup
-  | 'UPLOAD'            // new credential or cert uploaded
-  | 'DEACTIVATE'        // credential or cert deactivated (soft-delete)
-  | 'DELETE'            // hard delete
-  | 'ROTATE';           // re-encrypt under new key / replace cert
+  | 'RESOLVE' // single-env credential lookup
+  | 'RESOLVE_ACTIVE' // active-env credential lookup
+  | 'UPLOAD' // new credential or cert uploaded
+  | 'DEACTIVATE' // credential or cert deactivated (soft-delete)
+  | 'DELETE' // hard delete
+  | 'ROTATE'; // re-encrypt under new key / replace cert
 
 /** Outcome of the action. */
 export type CredentialAccessOutcome = 'HIT' | 'MISS' | 'ERROR';

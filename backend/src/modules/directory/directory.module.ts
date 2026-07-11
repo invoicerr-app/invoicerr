@@ -3,8 +3,8 @@ import { DirectoryService } from './directory.service';
 import { Module } from '@nestjs/common';
 
 @Module({
-    controllers: [DirectoryController],
-    providers: [DirectoryService],
-    exports: [DirectoryService],
+  controllers: [DirectoryController],
+  providers: [DirectoryService],
+  exports: [DirectoryService],
 })
-export class DirectoryModule { }
+export class DirectoryModule {}

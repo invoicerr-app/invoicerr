@@ -16,7 +16,13 @@ function party(country: string, role: PartyRole): PartyTaxProfile {
   };
 }
 
-function ctx(supplier: string, buyer: string, role: PartyRole, supply: SupplyType, date: string): TransactionContext {
+function ctx(
+  supplier: string,
+  buyer: string,
+  role: PartyRole,
+  supply: SupplyType,
+  date: string,
+): TransactionContext {
   return {
     supplier: party(supplier, 'B2B'),
     buyer: party(buyer, role),

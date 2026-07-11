@@ -14,7 +14,13 @@ export class IssuancePhase implements PhaseContributor {
     return {
       states: ['DRAFT', 'ISSUED'],
       transitions: [
-        { on: 'ISSUE', from: 'DRAFT', to: 'ISSUED', trigger: { kind: 'MANUAL', action: 'issue' }, description: 'number, hash-chain, freeze canonical snapshot' },
+        {
+          on: 'ISSUE',
+          from: 'DRAFT',
+          to: 'ISSUED',
+          trigger: { kind: 'MANUAL', action: 'issue' },
+          description: 'number, hash-chain, freeze canonical snapshot',
+        },
       ],
     };
   }
@@ -25,15 +31,48 @@ export class ClearancePhase implements PhaseContributor {
   readonly id = 'clearance';
   contributes(plan: CompliancePlan, pctx: PhaseContext): PhaseFragment | null {
     if (!plan.regime.blocking) return null;
-    const driver = triggerForFeedback(pctx.channelFeedback, { poll: pctx.pollPolicy, providerId: pctx.channelProviderId });
+    const driver = triggerForFeedback(pctx.channelFeedback, {
+      poll: pctx.pollPolicy,
+      providerId: pctx.channelProviderId,
+    });
     return {
       states: ['PENDING_CLEARANCE', 'CLEARED', 'REJECTED', 'CONTINGENCY'],
       transitions: [
-        { on: 'SUBMIT_CLEARANCE', from: 'ISSUED', to: 'PENDING_CLEARANCE', trigger: { kind: 'IMMEDIATE' }, description: 'submit to the authority via the outbox' },
-        { on: 'CLEAR', from: 'PENDING_CLEARANCE', to: 'CLEARED', trigger: driver, description: 'authority authorises (UUID/folio/protocol)' },
-        { on: 'REJECT', from: 'PENDING_CLEARANCE', to: 'REJECTED', trigger: driver, description: 'authority rejects → fix → re-issue as new doc' },
-        { on: 'ENTER_CONTINGENCY', from: 'PENDING_CLEARANCE', to: 'CONTINGENCY', trigger: { kind: 'CONTINGENCY' }, description: 'authority down → offline issue (e.g. BR EPEC)' },
-        { on: 'CLEAR', from: 'CONTINGENCY', to: 'CLEARED', trigger: driver, description: 'late submission accepted once the authority is back' },
+        {
+          on: 'SUBMIT_CLEARANCE',
+          from: 'ISSUED',
+          to: 'PENDING_CLEARANCE',
+          trigger: { kind: 'IMMEDIATE' },
+          description: 'submit to the authority via the outbox',
+        },
+        {
+          on: 'CLEAR',
+          from: 'PENDING_CLEARANCE',
+          to: 'CLEARED',
+          trigger: driver,
+          description: 'authority authorises (UUID/folio/protocol)',
+        },
+        {
+          on: 'REJECT',
+          from: 'PENDING_CLEARANCE',
+          to: 'REJECTED',
+          trigger: driver,
+          description: 'authority rejects → fix → re-issue as new doc',
+        },
+        {
+          on: 'ENTER_CONTINGENCY',
+          from: 'PENDING_CLEARANCE',
+          to: 'CONTINGENCY',
+          trigger: { kind: 'CONTINGENCY' },
+          description: 'authority down → offline issue (e.g. BR EPEC)',
+        },
+        {
+          on: 'CLEAR',
+          from: 'CONTINGENCY',
+          to: 'CLEARED',
+          trigger: driver,
+          description: 'late submission accepted once the authority is back',
+        },
       ],
     };
   }
@@ -48,10 +87,15 @@ export class DeliveryPhase implements PhaseContributor {
     // (email = IMMEDIATE, Peppol = CALLBACK confirmation, a polled portal = POLL).
     const driver = plan.regime.blocking
       ? ({ kind: 'IMMEDIATE' } as const)
-      : triggerForFeedback(pctx.channelFeedback, { poll: pctx.pollPolicy, providerId: pctx.channelProviderId });
+      : triggerForFeedback(pctx.channelFeedback, {
+          poll: pctx.pollPolicy,
+          providerId: pctx.channelProviderId,
+        });
     return {
       states: ['DELIVERED'],
-      transitions: [{ on: 'DELIVER', from, to: 'DELIVERED', trigger: driver, description: 'transmit to the recipient' }],
+      transitions: [
+        { on: 'DELIVER', from, to: 'DELIVERED', trigger: driver, description: 'transmit to the recipient' },
+      ],
     };
   }
 }
@@ -69,10 +113,37 @@ export class BuyerResponsePhase implements PhaseContributor {
     return {
       states: ['AWAITING_RESPONSE', 'ACCEPTED', 'REFUSED', 'DISPUTED'],
       transitions: [
-        { on: 'OPEN_RESPONSE', from: 'DELIVERED', to: 'AWAITING_RESPONSE', trigger: { kind: 'IMMEDIATE' }, description: 'open the response window' },
-        { on: 'ACCEPT', from: 'AWAITING_RESPONSE', to: 'ACCEPTED', trigger: accept, description: resp.defaultOnSilence === 'ACCEPT' ? 'buyer accept OR silence-timer elapses' : 'buyer/authority accept (status message)' },
-        { on: 'REFUSE', from: 'AWAITING_RESPONSE', to: 'REFUSED', trigger: { kind: 'CALLBACK' }, description: 'buyer/authority refuse → correction path' },
-        { on: 'DISPUTE', from: 'AWAITING_RESPONSE', to: 'DISPUTED', trigger: { kind: 'CALLBACK' }, description: 'buyer dispute (FR "en litige")' },
+        {
+          on: 'OPEN_RESPONSE',
+          from: 'DELIVERED',
+          to: 'AWAITING_RESPONSE',
+          trigger: { kind: 'IMMEDIATE' },
+          description: 'open the response window',
+        },
+        {
+          on: 'ACCEPT',
+          from: 'AWAITING_RESPONSE',
+          to: 'ACCEPTED',
+          trigger: accept,
+          description:
+            resp.defaultOnSilence === 'ACCEPT'
+              ? 'buyer accept OR silence-timer elapses'
+              : 'buyer/authority accept (status message)',
+        },
+        {
+          on: 'REFUSE',
+          from: 'AWAITING_RESPONSE',
+          to: 'REFUSED',
+          trigger: { kind: 'CALLBACK' },
+          description: 'buyer/authority refuse → correction path',
+        },
+        {
+          on: 'DISPUTE',
+          from: 'AWAITING_RESPONSE',
+          to: 'DISPUTED',
+          trigger: { kind: 'CALLBACK' },
+          description: 'buyer dispute (FR "en litige")',
+        },
       ],
     };
   }
@@ -88,10 +159,22 @@ export class ReportingPhase implements PhaseContributor {
         ? ({ kind: 'TIMER', onElapse: 'REPORT' } as const) // filed on a period close
         : ({ kind: 'IMMEDIATE' } as const); // real-time / CTC e-reporting
     const transitions: PhaseFragment['transitions'] = [
-      { on: 'REPORT', from: 'DELIVERED', to: 'REPORTED', trigger, description: `report: ${plan.reporting.join(', ')}` },
+      {
+        on: 'REPORT',
+        from: 'DELIVERED',
+        to: 'REPORTED',
+        trigger,
+        description: `report: ${plan.reporting.join(', ')}`,
+      },
     ];
     if (plan.lifecycle.response) {
-      transitions.push({ on: 'REPORT', from: 'ACCEPTED', to: 'REPORTED', trigger, description: 'report after acceptance' });
+      transitions.push({
+        on: 'REPORT',
+        from: 'ACCEPTED',
+        to: 'REPORTED',
+        trigger,
+        description: 'report after acceptance',
+      });
     }
     return { states: ['REPORTED'], transitions };
   }
@@ -115,18 +198,46 @@ export class CorrectionsPhase implements PhaseContributor {
           ? 'authorityAck'
           : undefined;
       if (plan.regime.blocking) {
-        transitions.push({ on: 'CANCEL', from: 'CLEARED', to: 'CANCELLED', trigger: { kind: 'MANUAL', action: 'cancel' }, guardKey });
+        transitions.push({
+          on: 'CANCEL',
+          from: 'CLEARED',
+          to: 'CANCELLED',
+          trigger: { kind: 'MANUAL', action: 'cancel' },
+          guardKey,
+        });
       }
-      transitions.push({ on: 'CANCEL', from: 'DELIVERED', to: 'CANCELLED', trigger: { kind: 'MANUAL', action: 'cancel' }, guardKey });
+      transitions.push({
+        on: 'CANCEL',
+        from: 'DELIVERED',
+        to: 'CANCELLED',
+        trigger: { kind: 'MANUAL', action: 'cancel' },
+        guardKey,
+      });
     }
 
     // Correction is always a NEW document referencing the original (correctionModel decides the shape).
-    transitions.push({ on: 'CORRECT', from: 'DELIVERED', to: 'CORRECTED', trigger: { kind: 'MANUAL', action: 'correct' }, description: lc.correctionModel });
+    transitions.push({
+      on: 'CORRECT',
+      from: 'DELIVERED',
+      to: 'CORRECTED',
+      trigger: { kind: 'MANUAL', action: 'correct' },
+      description: lc.correctionModel,
+    });
     if (plan.lifecycle.response) {
-      transitions.push({ on: 'CORRECT', from: 'ACCEPTED', to: 'CORRECTED', trigger: { kind: 'MANUAL', action: 'correct' } });
+      transitions.push({
+        on: 'CORRECT',
+        from: 'ACCEPTED',
+        to: 'CORRECTED',
+        trigger: { kind: 'MANUAL', action: 'correct' },
+      });
     }
     if (plan.reporting && plan.reporting.length > 0) {
-      transitions.push({ on: 'CORRECT', from: 'REPORTED', to: 'CORRECTED', trigger: { kind: 'MANUAL', action: 'correct' } });
+      transitions.push({
+        on: 'CORRECT',
+        from: 'REPORTED',
+        to: 'CORRECTED',
+        trigger: { kind: 'MANUAL', action: 'correct' },
+      });
     }
     return { states, transitions };
   }

@@ -37,7 +37,7 @@ export class TransmissionProviderRegistry {
    * hours later is not suppressed.
    */
   private readonly _seenKeys = new Map<string, number>(); // key → timestamp ms
-  private readonly _idempotencyTtlMs = 5 * 60 * 1000;   // 5 minutes
+  private readonly _idempotencyTtlMs = 5 * 60 * 1000; // 5 minutes
 
   private _isDuplicate(key: string): boolean {
     const ts = this._seenKeys.get(key);
@@ -53,12 +53,16 @@ export class TransmissionProviderRegistry {
     this._seenKeys.set(key, Date.now());
   }
 
-  constructor(providers?: TransmissionProvider[] | {
-    mail?: InvoiceMailPort;
-    credentials?: ChannelCredentialsPort;
-    /** §179 — optional directory for buyer routing resolution (cached externally). */
-    buyerDirectory?: BuyerDirectoryPort;
-  }) {
+  constructor(
+    providers?:
+      | TransmissionProvider[]
+      | {
+          mail?: InvoiceMailPort;
+          credentials?: ChannelCredentialsPort;
+          /** §179 — optional directory for buyer routing resolution (cached externally). */
+          buyerDirectory?: BuyerDirectoryPort;
+        },
+  ) {
     let list: TransmissionProvider[];
     if (Array.isArray(providers)) {
       list = providers;
@@ -134,9 +138,16 @@ export class TransmissionProviderRegistry {
       if (!provider) {
         if (spec.type === 'GOV_PORTAL_API' && !spec.providerId) {
           log.warn('transmission', 'GOV_PORTAL_API requires a providerId (named portal) — skipping');
-          results.push({ channel: spec.type, status: 'SKIPPED', notes: ['GOV_PORTAL_API requires a providerId (named portal)'] });
+          results.push({
+            channel: spec.type,
+            status: 'SKIPPED',
+            notes: ['GOV_PORTAL_API requires a providerId (named portal)'],
+          });
         } else {
-          log.warn('transmission', `no provider for channel ${spec.type}${spec.providerId ? `/${spec.providerId}` : ''}`);
+          log.warn(
+            'transmission',
+            `no provider for channel ${spec.type}${spec.providerId ? `/${spec.providerId}` : ''}`,
+          );
           results.push({ channel: spec.type, status: 'SKIPPED', notes: ['no provider'] });
         }
         continue;
@@ -153,7 +164,11 @@ export class TransmissionProviderRegistry {
             log.info('transmission', `no per-company config for ${providerId} — using global default`);
           } else {
             log.info('transmission', `channel not configured for company (${providerId}) — skipping`);
-            results.push({ channel: spec.type, status: 'SKIPPED', notes: [`channel ${providerId} not configured for company`] });
+            results.push({
+              channel: spec.type,
+              status: 'SKIPPED',
+              notes: [`channel ${providerId} not configured for company`],
+            });
             continue;
           }
         } else {
@@ -164,7 +179,11 @@ export class TransmissionProviderRegistry {
       const iKey = `${idempotencyKeyBase}:${provider.id}:${i}`;
       if (this._isDuplicate(iKey)) {
         log.info('transmission', `idempotency: duplicate send suppressed (key=${iKey})`);
-        results.push({ channel: spec.type, status: 'SKIPPED', notes: [`idempotency: duplicate send suppressed (key=${iKey})`] });
+        results.push({
+          channel: spec.type,
+          status: 'SKIPPED',
+          notes: [`idempotency: duplicate send suppressed (key=${iKey})`],
+        });
         continue;
       }
       this._markSeen(iKey);

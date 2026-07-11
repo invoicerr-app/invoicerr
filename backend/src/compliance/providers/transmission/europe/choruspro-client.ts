@@ -92,9 +92,9 @@ export interface ChorusProCrResult {
 const SYNTAX_MAP: Record<string, string> = {
   EN16931_UBL: 'IN_DP_E1_UBL_201',
   EN16931_CII: 'IN_DP_E2_CII_16B',
-  FACTURX:     'IN_DP_E3_FACTUR_X_10',
+  FACTURX: 'IN_DP_E3_FACTUR_X_10',
   // Fallback to UBL 2.1 for generic UBL
-  UBL:         'IN_DP_E1_UBL_201',
+  UBL: 'IN_DP_E1_UBL_201',
 };
 
 export function resolveChorusProSyntax(artifactSyntax: string): string {
@@ -106,9 +106,9 @@ export function resolveChorusProSyntax(artifactSyntax: string): string {
 // ---------------------------------------------------------------------------
 /** @internal — exported for test assertions */
 export const CHORUSPRO_PATHS = {
-  token:        '/api/oauth/token',                // on oauthBaseUrl
-  deposerFlux:  '/cpro/factures/v1/deposer/flux',  // on apiBaseUrl
-  consulterCr:  '/cpro/factures/v1/consulter/cr',  // on apiBaseUrl
+  token: '/api/oauth/token', // on oauthBaseUrl
+  deposerFlux: '/cpro/factures/v1/deposer/flux', // on apiBaseUrl
+  consulterCr: '/cpro/factures/v1/consulter/cr', // on apiBaseUrl
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -157,8 +157,8 @@ export class ChorusProClient {
       throw new Error(`Chorus Pro deposerFlux failed (HTTP ${resp.status})`);
     }
     const data = resp.data as Record<string, unknown>;
-    const numeroFluxDepot = String(data['numeroFluxDepot'] ?? data['numero_flux_depot'] ?? '');
-    const statut = String(data['statut'] ?? 'DEPOSE');
+    const numeroFluxDepot = String(data.numeroFluxDepot ?? data.numero_flux_depot ?? '');
+    const statut = String(data.statut ?? 'DEPOSE');
     return { numeroFluxDepot, statut, httpStatus: resp.status, raw: data };
   }
 
@@ -184,9 +184,7 @@ export class ChorusProClient {
       throw new Error(`Chorus Pro consulterCr failed (HTTP ${resp.status})`);
     }
     const data = resp.data as Record<string, unknown>;
-    const statutFlux = String(
-      data['statutFlux'] ?? data['statut_flux'] ?? data['statut'] ?? 'EN_COURS_DE_TRAITEMENT',
-    );
+    const statutFlux = String(data.statutFlux ?? data.statut_flux ?? data.statut ?? 'EN_COURS_DE_TRAITEMENT');
     return { numeroFluxDepot, statutFlux, raw: data };
   }
 
@@ -220,8 +218,8 @@ export class ChorusProClient {
       throw new Error(`Chorus Pro PISTE authentication failed (HTTP ${resp.status})`);
     }
     const data = resp.data as Record<string, unknown>;
-    const token = String(data['access_token'] ?? '');
-    const expiresIn = Number(data['expires_in'] ?? 3600);
+    const token = String(data.access_token ?? '');
+    const expiresIn = Number(data.expires_in ?? 3600);
     // Cache with 60 s safety margin; never log the token value.
     this._cachedToken = { token, expiresAt: Date.now() + expiresIn * 1000 - 60_000 };
     return token;
@@ -260,16 +258,9 @@ export class ChorusProClient {
  * Terminal rejection: REJETE → REJECTED
  * In-flight: DEPOSE, EN_COURS_DE_TRAITEMENT, SUSPENDU → PENDING
  */
-export function mapChorusProStatus(
-  statutFlux: string,
-): 'CLEARED' | 'REJECTED' | 'PENDING' {
+export function mapChorusProStatus(statutFlux: string): 'CLEARED' | 'REJECTED' | 'PENDING' {
   const s = statutFlux.toUpperCase();
-  if (
-    s === 'VALIDE' ||
-    s === 'MISE_EN_PAIEMENT' ||
-    s === 'MANDATEE' ||
-    s === 'COMPTABILISEE'
-  ) {
+  if (s === 'VALIDE' || s === 'MISE_EN_PAIEMENT' || s === 'MANDATEE' || s === 'COMPTABILISEE') {
     return 'CLEARED';
   }
   if (s === 'REJETE') return 'REJECTED';

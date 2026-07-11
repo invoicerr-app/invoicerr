@@ -136,7 +136,7 @@ export interface InIrpIrnResponse {
   Status: string;
   /** Info/warning messages from IRP. */
   InfoDtls?: Array<{ InfCd: string; Desc: string }>;
-  EwbNo?: string;   // E-way bill number (when e-way bill is bundled)
+  EwbNo?: string; // E-way bill number (when e-way bill is bundled)
   EwbDt?: string;
   EwbValidTill?: string;
 }
@@ -204,8 +204,13 @@ export interface InIrpClientConfig {
  * SCAFFOLD: uses Node's crypto — real IRP also verifies uniqueness server-side.
  * The actual IRN returned by the IRP overrides this client-side value.
  */
-export function computeIrn(gstin: string, docDate: Date, docType: 'INV' | 'CRN' | 'DBN', docNo: string): string {
-  const { createHash } = require('crypto') as typeof import('crypto');
+export function computeIrn(
+  gstin: string,
+  docDate: Date,
+  docType: 'INV' | 'CRN' | 'DBN',
+  docNo: string,
+): string {
+  const { createHash } = require('node:crypto') as typeof import('crypto');
   const month = docDate.getMonth() + 1; // 1-based
   const year = docDate.getFullYear();
   // Financial year in India runs Apr–Mar; so Jan–Mar belong to "prevYear-currYear"
@@ -260,7 +265,12 @@ export class InIrpClient {
   }
 
   /** Cancel an existing IRN. Only possible within 24h of issue. */
-  async cancelIrn(authToken: string, irn: string, reason: '1' | '2' | '3' | '4', remarks: string): Promise<InIrpCancelResponse> {
+  async cancelIrn(
+    authToken: string,
+    irn: string,
+    reason: '1' | '2' | '3' | '4',
+    remarks: string,
+  ): Promise<InIrpCancelResponse> {
     return this.http.cancelIrn(this.baseUrl, authToken, { Irn: irn, CnlRsn: reason, CnlRem: remarks });
   }
 

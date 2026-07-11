@@ -14,10 +14,17 @@ export class KsefTransmissionProvider implements TransmissionProvider {
   readonly pollPolicy = { everySeconds: 30, timeoutHours: 24, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {
     fields: [
-      { type: 'select', name: 'environment', label: 'KSeF environment', required: true, options: [
-        { label: 'Test', value: 'TEST' },
-        { label: 'Production', value: 'PROD' },
-      ], default: 'TEST' },
+      {
+        type: 'select',
+        name: 'environment',
+        label: 'KSeF environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'TEST' },
+          { label: 'Production', value: 'PROD' },
+        ],
+        default: 'TEST',
+      },
       { type: 'text', name: 'authToken', label: 'KSeF token', required: true, secret: true },
       // NIP is NOT asked here — it's a required company identifier, auto-filled at save time.
     ],
@@ -45,7 +52,11 @@ export class KsefTransmissionProvider implements TransmissionProvider {
     const ksefToken = config.authToken as string;
 
     if (!nip || !ksefToken) {
-      return { channel: 'GOV_PORTAL_API', status: 'SKIPPED', notes: ['ksef: incomplete config (nip and authToken required)'] };
+      return {
+        channel: 'GOV_PORTAL_API',
+        status: 'SKIPPED',
+        notes: ['ksef: incomplete config (nip and authToken required)'],
+      };
     }
 
     // Find the FA_VAT artifact
@@ -56,7 +67,11 @@ export class KsefTransmissionProvider implements TransmissionProvider {
 
     const companyId = _ctx.supplierCompanyId;
     if (!companyId) {
-      return { channel: 'GOV_PORTAL_API', status: 'SKIPPED', notes: ['ksef: no supplierCompanyId in context'] };
+      return {
+        channel: 'GOV_PORTAL_API',
+        status: 'SKIPPED',
+        notes: ['ksef: no supplierCompanyId in context'],
+      };
     }
 
     try {
@@ -77,9 +92,10 @@ export class KsefTransmissionProvider implements TransmissionProvider {
         symmetricKeyPem: keys.symmetricKeyPem,
       });
 
-      const xmlContent = typeof faVatArtifact.bytes === 'string'
-        ? faVatArtifact.bytes
-        : new TextDecoder('utf-8').decode(faVatArtifact.bytes);
+      const xmlContent =
+        typeof faVatArtifact.bytes === 'string'
+          ? faVatArtifact.bytes
+          : new TextDecoder('utf-8').decode(faVatArtifact.bytes);
 
       // 1. Auth: challenge → ksef-token → poll status → redeem
       log.info('transmission/ksef', `auth challenge (key ${key})`);
@@ -91,19 +107,30 @@ export class KsefTransmissionProvider implements TransmissionProvider {
       // Poll auth status (max 5 attempts, 2s interval)
       let authSuccess = false;
       for (let i = 0; i < 5; i++) {
-        const authStatus = await client.authStatus(authResponse.referenceNumber, authResponse.authenticationToken.token);
+        const authStatus = await client.authStatus(
+          authResponse.referenceNumber,
+          authResponse.authenticationToken.token,
+        );
         if (authStatus.status.code === 200) {
           authSuccess = true;
           break;
         }
         if (authStatus.status.code >= 400) {
-          return { channel: 'GOV_PORTAL_API', status: 'REJECTED', notes: [`ksef: auth failed (code ${authStatus.status.code}: ${authStatus.status.description})`] };
+          return {
+            channel: 'GOV_PORTAL_API',
+            status: 'REJECTED',
+            notes: [`ksef: auth failed (code ${authStatus.status.code}: ${authStatus.status.description})`],
+          };
         }
         // Still processing (100) — wait and retry
         await new Promise((r) => setTimeout(r, 2000));
       }
       if (!authSuccess) {
-        return { channel: 'GOV_PORTAL_API', status: 'PENDING', notes: ['ksef: auth still processing after retries'] };
+        return {
+          channel: 'GOV_PORTAL_API',
+          status: 'PENDING',
+          notes: ['ksef: auth still processing after retries'],
+        };
       }
 
       log.info('transmission/ksef', `auth token redeem (key ${key})`);
@@ -129,7 +156,10 @@ export class KsefTransmissionProvider implements TransmissionProvider {
 
       // Build ref: companyId|sessionRef|invoiceRef
       const ref = `${companyId}|${session.referenceNumber}|${invoiceResult.referenceNumber}`;
-      log.info('transmission/ksef', `submitted → session ${session.referenceNumber}, invoice ${invoiceResult.referenceNumber} (key ${key})`);
+      log.info(
+        'transmission/ksef',
+        `submitted → session ${session.referenceNumber}, invoice ${invoiceResult.referenceNumber} (key ${key})`,
+      );
 
       return { channel: 'GOV_PORTAL_API', status: 'PENDING', ref, notes: [] };
     } catch (err: unknown) {
@@ -155,7 +185,12 @@ export class KsefTransmissionProvider implements TransmissionProvider {
       // Re-resolve credentials from persisted config (survives restarts)
       const resolved = await this.credentials.resolveActive(companyId, 'ksef');
       if (!resolved || !resolved.isActive) {
-        return { channel: 'GOV_PORTAL_API', status: 'PENDING', ref, notes: ['ksef: credentials no longer active'] };
+        return {
+          channel: 'GOV_PORTAL_API',
+          status: 'PENDING',
+          ref,
+          notes: ['ksef: credentials no longer active'],
+        };
       }
 
       const { config, environment } = resolved;
@@ -184,15 +219,31 @@ export class KsefTransmissionProvider implements TransmissionProvider {
 
       let authSuccess = false;
       for (let i = 0; i < 5; i++) {
-        const authStatus = await client.authStatus(authResponse.referenceNumber, authResponse.authenticationToken.token);
-        if (authStatus.status.code === 200) { authSuccess = true; break; }
+        const authStatus = await client.authStatus(
+          authResponse.referenceNumber,
+          authResponse.authenticationToken.token,
+        );
+        if (authStatus.status.code === 200) {
+          authSuccess = true;
+          break;
+        }
         if (authStatus.status.code >= 400) {
-          return { channel: 'GOV_PORTAL_API', status: 'PENDING', ref, notes: [`ksef: poll auth failed (code ${authStatus.status.code})`] };
+          return {
+            channel: 'GOV_PORTAL_API',
+            status: 'PENDING',
+            ref,
+            notes: [`ksef: poll auth failed (code ${authStatus.status.code})`],
+          };
         }
         await new Promise((r) => setTimeout(r, 2000));
       }
       if (!authSuccess) {
-        return { channel: 'GOV_PORTAL_API', status: 'PENDING', ref, notes: ['ksef: poll auth still processing'] };
+        return {
+          channel: 'GOV_PORTAL_API',
+          status: 'PENDING',
+          ref,
+          notes: ['ksef: poll auth still processing'],
+        };
       }
 
       const tokens = await client.authRedeem(authResponse.authenticationToken.token);
@@ -243,7 +294,12 @@ export class KsefTransmissionProvider implements TransmissionProvider {
       }
       if (code >= 400) {
         // Rejected / semantic error
-        return { channel: 'GOV_PORTAL_API', status: 'REJECTED', ref, notes: [`ksef: code ${code}: ${status.status.description}`] };
+        return {
+          channel: 'GOV_PORTAL_API',
+          status: 'REJECTED',
+          ref,
+          notes: [`ksef: code ${code}: ${status.status.description}`],
+        };
       }
 
       // Default: pending

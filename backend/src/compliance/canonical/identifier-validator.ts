@@ -44,7 +44,10 @@ function luhn(digits: string): boolean {
   let alt = false;
   for (let i = digits.length - 1; i >= 0; i--) {
     let n = parseInt(digits[i], 10);
-    if (alt) { n *= 2; if (n > 9) n -= 9; }
+    if (alt) {
+      n *= 2;
+      if (n > 9) n -= 9;
+    }
     sum += n;
     alt = !alt;
   }
@@ -58,10 +61,22 @@ function luhn(digits: string): boolean {
 export function validateSiren(value: string): IdentifierValidationResult {
   const clean = value.replace(/[\s-]/g, '');
   if (!/^\d{9}$/.test(clean)) {
-    return { scheme: 'SIREN', value, valid: false, reason: 'Must be exactly 9 digits', checksumValidated: false };
+    return {
+      scheme: 'SIREN',
+      value,
+      valid: false,
+      reason: 'Must be exactly 9 digits',
+      checksumValidated: false,
+    };
   }
   const valid = luhn(clean);
-  return { scheme: 'SIREN', value, valid, reason: valid ? undefined : 'Luhn checksum failed', checksumValidated: true };
+  return {
+    scheme: 'SIREN',
+    value,
+    valid,
+    reason: valid ? undefined : 'Luhn checksum failed',
+    checksumValidated: true,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -72,13 +87,31 @@ export function validateSiren(value: string): IdentifierValidationResult {
 export function validateSiret(value: string): IdentifierValidationResult {
   const clean = value.replace(/[\s-]/g, '');
   if (!/^\d{14}$/.test(clean)) {
-    return { scheme: 'SIRET', value, valid: false, reason: 'Must be exactly 14 digits', checksumValidated: false };
+    return {
+      scheme: 'SIRET',
+      value,
+      valid: false,
+      reason: 'Must be exactly 14 digits',
+      checksumValidated: false,
+    };
   }
   if (!luhn(clean.slice(0, 9))) {
-    return { scheme: 'SIRET', value, valid: false, reason: 'Embedded SIREN Luhn checksum failed', checksumValidated: true };
+    return {
+      scheme: 'SIRET',
+      value,
+      valid: false,
+      reason: 'Embedded SIREN Luhn checksum failed',
+      checksumValidated: true,
+    };
   }
   const valid = luhn(clean);
-  return { scheme: 'SIRET', value, valid, reason: valid ? undefined : 'SIRET Luhn checksum failed', checksumValidated: true };
+  return {
+    scheme: 'SIRET',
+    value,
+    valid,
+    reason: valid ? undefined : 'SIRET Luhn checksum failed',
+    checksumValidated: true,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -92,15 +125,33 @@ const NIP_WEIGHTS = [6, 5, 7, 2, 3, 4, 5, 6, 7] as const;
 export function validateNip(value: string): IdentifierValidationResult {
   const clean = value.replace(/[\s-]/g, '');
   if (!/^\d{10}$/.test(clean)) {
-    return { scheme: 'NIP', value, valid: false, reason: 'Must be exactly 10 digits', checksumValidated: false };
+    return {
+      scheme: 'NIP',
+      value,
+      valid: false,
+      reason: 'Must be exactly 10 digits',
+      checksumValidated: false,
+    };
   }
   const sum = NIP_WEIGHTS.reduce((acc, w, i) => acc + w * parseInt(clean[i], 10), 0);
   const check = sum % 11;
   if (check === 10) {
-    return { scheme: 'NIP', value, valid: false, reason: 'Check digit 10 is reserved (invalid NIP)', checksumValidated: true };
+    return {
+      scheme: 'NIP',
+      value,
+      valid: false,
+      reason: 'Check digit 10 is reserved (invalid NIP)',
+      checksumValidated: true,
+    };
   }
   const valid = check === parseInt(clean[9], 10);
-  return { scheme: 'NIP', value, valid, reason: valid ? undefined : 'NIP weighted checksum failed', checksumValidated: true };
+  return {
+    scheme: 'NIP',
+    value,
+    valid,
+    reason: valid ? undefined : 'NIP weighted checksum failed',
+    checksumValidated: true,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -132,7 +183,13 @@ export function validateFrVat(value: string): IdentifierValidationResult {
   const clean = value.replace(/[\s-]/g, '').toUpperCase();
   // Key chars may be digits or uppercase letters except I and O
   if (!/^FR[0-9A-HJ-NP-Z]{2}\d{9}$/.test(clean)) {
-    return { scheme: 'VAT', value, valid: false, reason: 'FR VAT: expected FRxx + 9 digits (x = digit or uppercase letter ≠ I/O)', checksumValidated: false };
+    return {
+      scheme: 'VAT',
+      value,
+      valid: false,
+      reason: 'FR VAT: expected FRxx + 9 digits (x = digit or uppercase letter ≠ I/O)',
+      checksumValidated: false,
+    };
   }
   const key = clean.slice(2, 4);
   const siren = clean.slice(4);
@@ -143,8 +200,12 @@ export function validateFrVat(value: string): IdentifierValidationResult {
     const actual = parseInt(key, 10);
     const valid = actual === expected;
     return {
-      scheme: 'VAT', value, valid,
-      reason: valid ? undefined : `FR VAT key mismatch (expected ${String(expected).padStart(2, '0')}, got ${key})`,
+      scheme: 'VAT',
+      value,
+      valid,
+      reason: valid
+        ? undefined
+        : `FR VAT key mismatch (expected ${String(expected).padStart(2, '0')}, got ${key})`,
       checksumValidated: true,
     };
   }
@@ -154,10 +215,10 @@ export function validateFrVat(value: string): IdentifierValidationResult {
   const actual = frVatCharVal(key[0]) * 34 + frVatCharVal(key[1]);
   const valid = actual === expected;
   return {
-    scheme: 'VAT', value, valid,
-    reason: valid
-      ? undefined
-      : `FR VAT alpha key mismatch (base-34 value ${actual} ≠ expected ${expected})`,
+    scheme: 'VAT',
+    value,
+    valid,
+    reason: valid ? undefined : `FR VAT alpha key mismatch (base-34 value ${actual} ≠ expected ${expected})`,
     checksumValidated: true,
   };
 }
@@ -173,9 +234,16 @@ export function validateFrVat(value: string): IdentifierValidationResult {
 export function validateItVat(value: string): IdentifierValidationResult {
   const clean = value.replace(/[\s-]/g, '');
   if (!/^\d{11}$/.test(clean)) {
-    return { scheme: 'VAT', value, valid: false, reason: 'IT Partita IVA must be exactly 11 digits', checksumValidated: false };
+    return {
+      scheme: 'VAT',
+      value,
+      valid: false,
+      reason: 'IT Partita IVA must be exactly 11 digits',
+      checksumValidated: false,
+    };
   }
-  let s1 = 0, s2 = 0;
+  let s1 = 0,
+    s2 = 0;
   for (let i = 0; i < 10; i++) {
     const d = parseInt(clean[i], 10);
     if (i % 2 === 0) {
@@ -185,9 +253,15 @@ export function validateItVat(value: string): IdentifierValidationResult {
       s2 += dbl > 9 ? dbl - 9 : dbl;
     }
   }
-  const expected = (10 - (s1 + s2) % 10) % 10;
+  const expected = (10 - ((s1 + s2) % 10)) % 10;
   const valid = expected === parseInt(clean[10], 10);
-  return { scheme: 'VAT', value, valid, reason: valid ? undefined : 'IT P.IVA checksum failed', checksumValidated: true };
+  return {
+    scheme: 'VAT',
+    value,
+    valid,
+    reason: valid ? undefined : 'IT P.IVA checksum failed',
+    checksumValidated: true,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -198,15 +272,81 @@ export function validateItVat(value: string): IdentifierValidationResult {
 
 // Values for characters at ODD positions (1,3,5,… in 1-indexed — i.e., 0,2,4,… in 0-indexed).
 const CF_ODD: Record<string, number> = {
-  '0':1,'1':0,'2':5,'3':7,'4':9,'5':13,'6':15,'7':17,'8':19,'9':21,
-  A:1,B:0,C:5,D:7,E:9,F:13,G:15,H:17,I:19,J:21,K:2,L:4,M:18,N:20,
-  O:11,P:3,Q:6,R:8,S:12,T:14,U:16,V:10,W:22,X:25,Y:24,Z:23,
+  '0': 1,
+  '1': 0,
+  '2': 5,
+  '3': 7,
+  '4': 9,
+  '5': 13,
+  '6': 15,
+  '7': 17,
+  '8': 19,
+  '9': 21,
+  A: 1,
+  B: 0,
+  C: 5,
+  D: 7,
+  E: 9,
+  F: 13,
+  G: 15,
+  H: 17,
+  I: 19,
+  J: 21,
+  K: 2,
+  L: 4,
+  M: 18,
+  N: 20,
+  O: 11,
+  P: 3,
+  Q: 6,
+  R: 8,
+  S: 12,
+  T: 14,
+  U: 16,
+  V: 10,
+  W: 22,
+  X: 25,
+  Y: 24,
+  Z: 23,
 };
 // Values for characters at EVEN positions (2,4,6,… in 1-indexed — i.e., 1,3,5,… in 0-indexed).
 const CF_EVEN: Record<string, number> = {
-  '0':0,'1':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,
-  A:0,B:1,C:2,D:3,E:4,F:5,G:6,H:7,I:8,J:9,K:10,L:11,M:12,N:13,
-  O:14,P:15,Q:16,R:17,S:18,T:19,U:20,V:21,W:22,X:23,Y:24,Z:25,
+  '0': 0,
+  '1': 1,
+  '2': 2,
+  '3': 3,
+  '4': 4,
+  '5': 5,
+  '6': 6,
+  '7': 7,
+  '8': 8,
+  '9': 9,
+  A: 0,
+  B: 1,
+  C: 2,
+  D: 3,
+  E: 4,
+  F: 5,
+  G: 6,
+  H: 7,
+  I: 8,
+  J: 9,
+  K: 10,
+  L: 11,
+  M: 12,
+  N: 13,
+  O: 14,
+  P: 15,
+  Q: 16,
+  R: 17,
+  S: 18,
+  T: 19,
+  U: 20,
+  V: 21,
+  W: 22,
+  X: 23,
+  Y: 24,
+  Z: 25,
 };
 const CF_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -218,7 +358,13 @@ export function validateCodiceFiscale(value: string): IdentifierValidationResult
     return { ...r, scheme: 'CF' };
   }
   if (!/^[A-Z0-9]{16}$/.test(clean)) {
-    return { scheme: 'CF', value, valid: false, reason: 'Codice Fiscale must be 16 alphanumeric chars (or 11-digit P.IVA)', checksumValidated: false };
+    return {
+      scheme: 'CF',
+      value,
+      valid: false,
+      reason: 'Codice Fiscale must be 16 alphanumeric chars (or 11-digit P.IVA)',
+      checksumValidated: false,
+    };
   }
   let sum = 0;
   for (let i = 0; i < 15; i++) {
@@ -229,7 +375,9 @@ export function validateCodiceFiscale(value: string): IdentifierValidationResult
   const expected = CF_ALPHABET[sum % 26];
   const valid = clean[15] === expected;
   return {
-    scheme: 'CF', value, valid,
+    scheme: 'CF',
+    value,
+    valid,
     reason: valid ? undefined : `Codice Fiscale check char mismatch (expected ${expected}, got ${clean[15]})`,
     checksumValidated: true,
   };
@@ -244,7 +392,13 @@ export function validateCodiceFiscale(value: string): IdentifierValidationResult
 export function validateDeVat(value: string): IdentifierValidationResult {
   const clean = value.replace(/[\s-]/g, '').toUpperCase();
   if (!/^DE\d{9}$/.test(clean)) {
-    return { scheme: 'VAT', value, valid: false, reason: 'DE VAT must be DE + 9 digits', checksumValidated: false };
+    return {
+      scheme: 'VAT',
+      value,
+      valid: false,
+      reason: 'DE VAT must be DE + 9 digits',
+      checksumValidated: false,
+    };
   }
   const digits = clean.slice(2);
   let p = 10;
@@ -256,7 +410,9 @@ export function validateDeVat(value: string): IdentifierValidationResult {
   const expected = 11 - p === 10 ? 0 : 11 - p;
   const valid = expected === parseInt(digits[8], 10);
   return {
-    scheme: 'VAT', value, valid,
+    scheme: 'VAT',
+    value,
+    valid,
     reason: valid ? undefined : 'DE VAT ISO 7064 Mod 11,10 checksum failed',
     checksumValidated: true,
   };
@@ -303,13 +459,19 @@ function cifControlDigit(digits: string): number {
     const d = parseInt(digits[i], 10) * 2;
     sumEven += d > 9 ? d - 9 : d;
   }
-  return (10 - (sumOdd + sumEven) % 10) % 10;
+  return (10 - ((sumOdd + sumEven) % 10)) % 10;
 }
 
 export function validateEsVat(value: string): IdentifierValidationResult {
   const clean = value.replace(/[\s-]/g, '').toUpperCase();
   if (!/^ES[A-Z0-9]{9}$/.test(clean)) {
-    return { scheme: 'VAT', value, valid: false, reason: 'ES VAT must be ES + 9 alphanumeric chars', checksumValidated: false };
+    return {
+      scheme: 'VAT',
+      value,
+      valid: false,
+      reason: 'ES VAT must be ES + 9 alphanumeric chars',
+      checksumValidated: false,
+    };
   }
   const body = clean.slice(2);
   // NIF: 8 digits + letter
@@ -317,7 +479,13 @@ export function validateEsVat(value: string): IdentifierValidationResult {
     const num = parseInt(body.slice(0, 8), 10);
     const expected = ES_NIF_LETTERS[num % 23];
     const valid = body[8] === expected;
-    return { scheme: 'VAT', value, valid, reason: valid ? undefined : `ES NIF letter mismatch (expected ${expected})`, checksumValidated: true };
+    return {
+      scheme: 'VAT',
+      value,
+      valid,
+      reason: valid ? undefined : `ES NIF letter mismatch (expected ${expected})`,
+      checksumValidated: true,
+    };
   }
   // NIE: X/Y/Z + 7 digits + letter
   if (/^[XYZ]\d{7}[A-Z]$/.test(body)) {
@@ -325,7 +493,13 @@ export function validateEsVat(value: string): IdentifierValidationResult {
     const num = parseInt(prefix + body.slice(1, 8), 10);
     const expected = ES_NIF_LETTERS[num % 23];
     const valid = body[8] === expected;
-    return { scheme: 'VAT', value, valid, reason: valid ? undefined : `ES NIE letter mismatch (expected ${expected})`, checksumValidated: true };
+    return {
+      scheme: 'VAT',
+      value,
+      valid,
+      reason: valid ? undefined : `ES NIE letter mismatch (expected ${expected})`,
+      checksumValidated: true,
+    };
   }
   // CIF: org-type letter + 7 digits + control char (digit or letter)
   if (/^[A-Z]\d{7}[A-Z0-9]$/.test(body)) {
@@ -339,18 +513,27 @@ export function validateEsVat(value: string): IdentifierValidationResult {
     let reason: string | undefined;
     if (CIF_DIGIT_ONLY_ORG.has(orgType)) {
       valid = ctrl === String(ctrlDigit);
-      if (!valid) reason = `ES CIF control char mismatch for org type ${orgType} (expected digit '${ctrlDigit}', got '${ctrl}')`;
+      if (!valid)
+        reason = `ES CIF control char mismatch for org type ${orgType} (expected digit '${ctrlDigit}', got '${ctrl}')`;
     } else if (CIF_LETTER_ONLY_ORG.has(orgType)) {
       valid = ctrl === ctrlLetter;
-      if (!valid) reason = `ES CIF control char mismatch for org type ${orgType} (expected letter '${ctrlLetter}', got '${ctrl}')`;
+      if (!valid)
+        reason = `ES CIF control char mismatch for org type ${orgType} (expected letter '${ctrlLetter}', got '${ctrl}')`;
     } else {
       valid = ctrl === String(ctrlDigit) || ctrl === ctrlLetter;
-      if (!valid) reason = `ES CIF control char mismatch (expected '${ctrlDigit}' or '${ctrlLetter}', got '${ctrl}')`;
+      if (!valid)
+        reason = `ES CIF control char mismatch (expected '${ctrlDigit}' or '${ctrlLetter}', got '${ctrl}')`;
     }
     return { scheme: 'VAT', value, valid, reason, checksumValidated: true };
   }
   // Unrecognised ES pattern — structural only
-  return { scheme: 'VAT', value, valid: true, reason: 'Structural check only (unrecognised ES pattern)', checksumValidated: false };
+  return {
+    scheme: 'VAT',
+    value,
+    valid: true,
+    reason: 'Structural check only (unrecognised ES pattern)',
+    checksumValidated: false,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -369,7 +552,9 @@ export function validateRfc(value: string): IdentifierValidationResult {
   const clean = value.replace(/[\s-]/g, '').toUpperCase();
   const valid = RFC_PERSON_RE.test(clean) || RFC_COMPANY_RE.test(clean);
   return {
-    scheme: 'RFC', value, valid,
+    scheme: 'RFC',
+    value,
+    valid,
     reason: valid ? undefined : 'RFC must be 3–4 letters/& + 6 digits (YYMMDD) + 3 alphanumeric chars',
     checksumValidated: false,
   };
@@ -383,7 +568,8 @@ export function validateVat(value: string, countryHint?: string): IdentifierVali
   const clean = value.replace(/[\s-]/g, '').toUpperCase();
   const country = (countryHint?.toUpperCase() ?? clean.slice(0, 2)) as string;
   switch (country) {
-    case 'FR': return validateFrVat(clean);
+    case 'FR':
+      return validateFrVat(clean);
     case 'IT': {
       // IT EU VAT: IT + 11 digits
       if (/^IT\d{11}$/.test(clean)) {
@@ -393,21 +579,37 @@ export function validateVat(value: string, countryHint?: string): IdentifierVali
       if (/^\d{11}$/.test(clean)) {
         return validateItVat(clean);
       }
-      return { scheme: 'VAT', value, valid: false, reason: 'IT VAT must be IT + 11 digits', checksumValidated: false };
+      return {
+        scheme: 'VAT',
+        value,
+        valid: false,
+        reason: 'IT VAT must be IT + 11 digits',
+        checksumValidated: false,
+      };
     }
-    case 'DE': return validateDeVat(clean);
-    case 'ES': return validateEsVat(clean);
+    case 'DE':
+      return validateDeVat(clean);
+    case 'ES':
+      return validateEsVat(clean);
     case 'PL': {
       // PL EU VAT = PL + 10-digit NIP
       if (/^PL\d{10}$/.test(clean)) {
         const r = validateNip(clean.slice(2));
         return { ...r, scheme: 'VAT', value };
       }
-      return { scheme: 'VAT', value, valid: false, reason: 'PL VAT must be PL + 10 digits (NIP)', checksumValidated: false };
+      return {
+        scheme: 'VAT',
+        value,
+        valid: false,
+        reason: 'PL VAT must be PL + 10 digits (NIP)',
+        checksumValidated: false,
+      };
     }
     default:
       return {
-        scheme: 'VAT', value, valid: true,
+        scheme: 'VAT',
+        value,
+        valid: true,
         reason: `Structural only — country "${country}" not covered by offline checksum`,
         checksumValidated: false,
       };
@@ -424,14 +626,26 @@ export function validateIdentifier(
   countryCode?: string,
 ): IdentifierValidationResult {
   switch (scheme.toUpperCase()) {
-    case 'SIREN':  return validateSiren(value);
-    case 'SIRET':  return validateSiret(value);
-    case 'NIP':    return validateNip(value);
-    case 'CF':     return validateCodiceFiscale(value);
-    case 'RFC':    return validateRfc(value);
-    case 'VAT':    return validateVat(value, countryCode);
+    case 'SIREN':
+      return validateSiren(value);
+    case 'SIRET':
+      return validateSiret(value);
+    case 'NIP':
+      return validateNip(value);
+    case 'CF':
+      return validateCodiceFiscale(value);
+    case 'RFC':
+      return validateRfc(value);
+    case 'VAT':
+      return validateVat(value, countryCode);
     default:
-      return { scheme, value, valid: true, reason: `Scheme "${scheme}" not covered by offline validator`, checksumValidated: false };
+      return {
+        scheme,
+        value,
+        valid: true,
+        reason: `Scheme "${scheme}" not covered by offline validator`,
+        checksumValidated: false,
+      };
   }
 }
 
@@ -495,7 +709,7 @@ export function validateContextIdentifiers(ctx: TransactionContext): ValidatedCo
     ctx: {
       ...ctx,
       supplier: { ...ctx.supplier, identifiers: supplier.identifiers },
-      buyer:    { ...ctx.buyer,    identifiers: buyer.identifiers },
+      buyer: { ...ctx.buyer, identifiers: buyer.identifiers },
     },
     warnings: allWarnings,
   };

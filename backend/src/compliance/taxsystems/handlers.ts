@@ -26,7 +26,10 @@ export class GstTaxSystemHandler implements TaxSystemHandler {
 export class SalesTaxSystemHandler implements TaxSystemHandler {
   readonly kind: TaxSystemKind = 'SALES_TAX';
   computeTotals(ctx: TransactionContext, tax: DocumentTaxResult, log: ComplianceLogger): MoneyTotals {
-    log.todo('taxsystem/sales-tax', 'add county/city/special-district rate stacking on top of the state rate');
+    log.todo(
+      'taxsystem/sales-tax',
+      'add county/city/special-district rate stacking on top of the state rate',
+    );
     return accumulateTotals(ctx, tax);
   }
 }
@@ -45,6 +48,10 @@ export class NoTaxSystemHandler implements TaxSystemHandler {
   readonly kind: TaxSystemKind = 'NONE';
   computeTotals(ctx: TransactionContext): MoneyTotals {
     const netMinor = ctx.lines.reduce((s, l) => s + Math.round(l.unitNetMinor * l.quantity), 0);
-    return { net: money(netMinor, ctx.currency), tax: money(0, ctx.currency), gross: money(netMinor, ctx.currency) };
+    return {
+      net: money(netMinor, ctx.currency),
+      tax: money(0, ctx.currency),
+      gross: money(netMinor, ctx.currency),
+    };
   }
 }

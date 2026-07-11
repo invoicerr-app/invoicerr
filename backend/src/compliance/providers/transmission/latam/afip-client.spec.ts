@@ -3,7 +3,14 @@
  * All HTTP calls go through the injectable AfipHttpPort — no real network.
  * Live integration proof deferred (no public sandbox credentials available).
  */
-import { AfipClient, AfipClientConfig, AfipHttpPort, AfipTicketAcceso, AfipCaeResponse, AfipStatusResponse } from './afip-client';
+import {
+  AfipClient,
+  AfipClientConfig,
+  AfipHttpPort,
+  AfipTicketAcceso,
+  AfipCaeResponse,
+  AfipStatusResponse,
+} from './afip-client';
 
 const TEST_CONFIG: AfipClientConfig = {
   environment: 'test',
@@ -55,11 +62,11 @@ describe('AfipClient (mocked HTTP — live-deferred)', () => {
       tipoComprobante: 6, // Factura B
       numero: 1,
       fechaComprobante: '20260101',
-      importeGravado: 1000.00,
-      importeIva: 210.00,
-      importeTotal: 1210.00,
+      importeGravado: 1000.0,
+      importeIva: 210.0,
+      importeTotal: 1210.0,
       cuitReceptor: '20345678901',
-      ivaItems: [{ id: 5, baseImponible: 1000.00, importe: 210.00 }],
+      ivaItems: [{ id: 5, baseImponible: 1000.0, importe: 210.0 }],
     });
     expect(http.fecaeSolicitar).toHaveBeenCalledWith(
       expect.stringContaining('wswhomo.afip.gov.ar'),
@@ -130,9 +137,16 @@ describe('AfipClient (mocked HTTP — live-deferred)', () => {
     const client = new AfipClient(http, TEST_CONFIG);
     const ta = await client.authenticate();
     const resp = await client.requestCae(ta, {
-      cuit: '30712345679', puntoVenta: 9999, tipoComprobante: 1, numero: 1,
-      fechaComprobante: '20260101', importeGravado: 100, importeIva: 21, importeTotal: 121,
-      cuitReceptor: '20000000001', ivaItems: [{ id: 5, baseImponible: 100, importe: 21 }],
+      cuit: '30712345679',
+      puntoVenta: 9999,
+      tipoComprobante: 1,
+      numero: 1,
+      fechaComprobante: '20260101',
+      importeGravado: 100,
+      importeIva: 21,
+      importeTotal: 121,
+      cuitReceptor: '20000000001',
+      ivaItems: [{ id: 5, baseImponible: 100, importe: 21 }],
     });
     expect(resp.resultado).toBe('R');
     expect(resp.errores?.[0].code).toBe(10016);

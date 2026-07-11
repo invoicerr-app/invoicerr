@@ -36,11 +36,11 @@ import {
 // ---------------------------------------------------------------------------
 
 const BASE_CONFIG: ChorusProClientConfig = {
-  oauthBaseUrl:             'https://sandbox-oauth.piste.gouv.fr',
-  apiBaseUrl:               'https://sandbox-api.piste.gouv.fr',
-  clientId:                 'test-client-id',
-  clientSecret:             'test-client-secret',
-  technicalAccountLogin:    'login_technique',
+  oauthBaseUrl: 'https://sandbox-oauth.piste.gouv.fr',
+  apiBaseUrl: 'https://sandbox-api.piste.gouv.fr',
+  clientId: 'test-client-id',
+  clientSecret: 'test-client-secret',
+  technicalAccountLogin: 'login_technique',
   technicalAccountPassword: 'password_technique',
 };
 
@@ -161,7 +161,7 @@ describe('ChorusProClient — authentication', () => {
   it('caches token — does not call /token twice within TTL', async () => {
     let tokenCallCount = 0;
     const http = makeHttp({
-      post: async (url, body) => {
+      post: async (url, _body) => {
         if (String(url).includes('/token')) {
           tokenCallCount++;
           return TOKEN_RESPONSE;
@@ -192,9 +192,7 @@ describe('ChorusProClient — deposerFlux', () => {
     });
     const client = new ChorusProClient(BASE_CONFIG, http);
     await client.deposerFlux('<Invoice/>', 'test.xml');
-    expect(capturedUrl).toBe(
-      'https://sandbox-api.piste.gouv.fr/cpro/factures/v1/deposer/flux',
-    );
+    expect(capturedUrl).toBe('https://sandbox-api.piste.gouv.fr/cpro/factures/v1/deposer/flux');
   });
 
   it('includes Authorization Bearer + cpro-account in headers', async () => {
@@ -209,7 +207,7 @@ describe('ChorusProClient — deposerFlux', () => {
     const client = new ChorusProClient(BASE_CONFIG, http);
     await client.deposerFlux('<Invoice/>', 'test.xml');
 
-    expect(capturedHeaders['Authorization']).toBe('Bearer tok123');
+    expect(capturedHeaders.Authorization).toBe('Bearer tok123');
     expect(capturedHeaders['cpro-account']).toBeDefined();
     // cpro-account must be base64(login:password)
     const expected = Buffer.from('login_technique:password_technique', 'utf-8').toString('base64');
@@ -236,11 +234,11 @@ describe('ChorusProClient — deposerFlux', () => {
     const client = new ChorusProClient(BASE_CONFIG, http);
     await client.deposerFlux('<Invoice/>', 'invoice.xml', 'IN_DP_E3_FACTUR_X_10');
 
-    expect(capturedBody['syntaxeFlux']).toBe('IN_DP_E3_FACTUR_X_10');
-    expect(capturedBody['nomFichier']).toBe('invoice.xml');
+    expect(capturedBody.syntaxeFlux).toBe('IN_DP_E3_FACTUR_X_10');
+    expect(capturedBody.nomFichier).toBe('invoice.xml');
     // fichierFlux must be base64 of the XML
     const expectedBase64 = Buffer.from('<Invoice/>', 'utf-8').toString('base64');
-    expect(capturedBody['fichierFlux']).toBe(expectedBase64);
+    expect(capturedBody.fichierFlux).toBe(expectedBase64);
   });
 
   it('extracts numeroFluxDepot from response', async () => {
@@ -281,7 +279,7 @@ describe('ChorusProClient — deposerFlux', () => {
     });
     const client = new ChorusProClient(BASE_CONFIG, http);
     await client.deposerFlux('<Invoice/>', 'test.xml');
-    expect(capturedBody['syntaxeFlux']).toBe('IN_DP_E1_UBL_201');
+    expect(capturedBody.syntaxeFlux).toBe('IN_DP_E1_UBL_201');
   });
 });
 
@@ -300,9 +298,7 @@ describe('ChorusProClient — consulterCr', () => {
     });
     const client = new ChorusProClient(BASE_CONFIG, http);
     await client.consulterCr('42');
-    expect(capturedUrl).toBe(
-      'https://sandbox-api.piste.gouv.fr/cpro/factures/v1/consulter/cr',
-    );
+    expect(capturedUrl).toBe('https://sandbox-api.piste.gouv.fr/cpro/factures/v1/consulter/cr');
   });
 
   it('sends numeroFluxDepot in the body', async () => {
@@ -316,7 +312,7 @@ describe('ChorusProClient — consulterCr', () => {
     });
     const client = new ChorusProClient(BASE_CONFIG, http);
     await client.consulterCr('42');
-    expect(capturedBody['numeroFluxDepot']).toBe('42');
+    expect(capturedBody.numeroFluxDepot).toBe('42');
   });
 
   it('returns statutFlux from response', async () => {
@@ -340,8 +336,6 @@ describe('ChorusProClient — consulterCr', () => {
       },
     });
     const client = new ChorusProClient(BASE_CONFIG, http);
-    await expect(client.consulterCr('missing')).rejects.toThrow(
-      'Chorus Pro consulterCr failed (HTTP 404)',
-    );
+    await expect(client.consulterCr('missing')).rejects.toThrow('Chorus Pro consulterCr failed (HTTP 404)');
   });
 });

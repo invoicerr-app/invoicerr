@@ -82,9 +82,7 @@ export class SigningCertificatesController {
     try {
       return await this.certs.upload(companyId, body);
     } catch (err) {
-      throw new BadRequestException(
-        `Failed to store signing certificate: ${(err as Error).message}`,
-      );
+      throw new BadRequestException(`Failed to store signing certificate: ${(err as Error).message}`);
     }
   }
 
@@ -98,10 +96,7 @@ export class SigningCertificatesController {
   @ApiParam({ name: 'id', type: String, description: 'Company ID' })
   @ApiParam({ name: 'certId', type: String, description: 'Certificate record ID' })
   @ApiResponse({ status: 204, description: 'Certificate deleted' })
-  async deleteCert(
-    @Param('id') companyId: string,
-    @Param('certId') certId: string,
-  ): Promise<void> {
+  async deleteCert(@Param('id') companyId: string, @Param('certId') certId: string): Promise<void> {
     return this.certs.delete(companyId, certId);
   }
 }

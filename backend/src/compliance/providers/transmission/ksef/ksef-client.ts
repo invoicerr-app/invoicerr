@@ -19,7 +19,13 @@
  * Status flow:
  *   8. GET /sessions/{sRef}/invoices/{iRef} → invoice status + ksefNumber
  */
-import { encryptKsefToken, encryptSymmetricKey, encryptXmlContent, sha256base64, SessionKey } from './ksef-crypto';
+import {
+  encryptKsefToken,
+  encryptSymmetricKey,
+  encryptXmlContent,
+  sha256base64,
+  SessionKey,
+} from './ksef-crypto';
 
 // ---------------------------------------------------------------------------
 // Types (aligned to live OpenAPI spec at api-test.ksef.mf.gov.pl/v2)
@@ -92,7 +98,10 @@ export interface InvoiceStatusResponse {
     code: number;
     description: string;
     details?: string[] | null;
-    extensions?: { originalSessionReferenceNumber?: string | null; originalKsefNumber?: string | null } | null;
+    extensions?: {
+      originalSessionReferenceNumber?: string | null;
+      originalKsefNumber?: string | null;
+    } | null;
   };
   acquisitionDate?: string | null;
   permanentStorageDate?: string | null;
@@ -215,11 +224,9 @@ export class KsefClient {
 
   /** Step 4: Redeem tokens (one-time!). Returns access + refresh tokens. */
   async authRedeem(authenticationToken: string): Promise<AuthRedeemResponse> {
-    return this.post<AuthRedeemResponse>(
-      '/auth/token/redeem',
-      undefined,
-      { Authorization: `Bearer ${authenticationToken}` },
-    );
+    return this.post<AuthRedeemResponse>('/auth/token/redeem', undefined, {
+      Authorization: `Bearer ${authenticationToken}`,
+    });
   }
 
   // ── online session ─────────────────────────────────────────────────────────
@@ -285,11 +292,12 @@ export class KsefClient {
   // ── status / UPO ───────────────────────────────────────────────────────────
 
   /** Get invoice status within a session. */
-  async invoiceStatus(sessionRef: string, invoiceRef: string, accessToken: string): Promise<InvoiceStatusResponse> {
-    return this.get<InvoiceStatusResponse>(
-      `/sessions/${sessionRef}/invoices/${invoiceRef}`,
-      accessToken,
-    );
+  async invoiceStatus(
+    sessionRef: string,
+    invoiceRef: string,
+    accessToken: string,
+  ): Promise<InvoiceStatusResponse> {
+    return this.get<InvoiceStatusResponse>(`/sessions/${sessionRef}/invoices/${invoiceRef}`, accessToken);
   }
 
   /** Get session status (including UPO pages when available). */
@@ -301,7 +309,10 @@ export class KsefClient {
 
   /** Fetch MF public key certificates (no auth required). */
   async publicKeyCertificates(): Promise<PublicKeyCertificate[]> {
-    const res = await this.http.request({ method: 'GET', path: this.baseUrl + '/security/public-key-certificates' });
+    const res = await this.http.request({
+      method: 'GET',
+      path: this.baseUrl + '/security/public-key-certificates',
+    });
     if (res.status >= 400) throw ksefError(res);
     return res.body as PublicKeyCertificate[];
   }
@@ -313,8 +324,11 @@ export class KsefClient {
 
 function ksefError(res: HttpResponse): KsefError {
   let bodyStr: string;
-  try { bodyStr = typeof res.body === 'string' ? res.body : JSON.stringify(res.body); }
-  catch { bodyStr = String(res.body); }
+  try {
+    bodyStr = typeof res.body === 'string' ? res.body : JSON.stringify(res.body);
+  } catch {
+    bodyStr = String(res.body);
+  }
   return Object.assign(new Error(`KSeF API error ${res.status}: ${bodyStr}`), {
     status: res.status,
     body: res.body,

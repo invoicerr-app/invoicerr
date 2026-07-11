@@ -26,7 +26,11 @@ const BASE_MSG: InboxMessage = {
 
 describe('InboxPoller.tick()', () => {
   it('routes a new message and returns routed=1', async () => {
-    const router = mockRouter({ kind: 'ROUTED', documentId: 'doc-1', signal: { type: 'INBOUND_STATUS', status: 'notifica RC - consegnata (delivery receipt)' } });
+    const router = mockRouter({
+      kind: 'ROUTED',
+      documentId: 'doc-1',
+      signal: { type: 'INBOUND_STATUS', status: 'notifica RC - consegnata (delivery receipt)' },
+    });
     const port: InboxPort = {
       id: 'sftp:sdi',
       poll: jest.fn().mockResolvedValue([BASE_MSG]),
@@ -77,7 +81,11 @@ describe('InboxPoller.tick()', () => {
   });
 
   it('is a no-op when NullInboxPort is used', async () => {
-    const router = mockRouter({ kind: 'ROUTED', documentId: 'doc-x', signal: { type: 'INBOUND_STATUS', status: '' } });
+    const router = mockRouter({
+      kind: 'ROUTED',
+      documentId: 'doc-x',
+      signal: { type: 'INBOUND_STATUS', status: '' },
+    });
     const poller = new InboxPoller({
       ports: [new NullInboxPort()],
       router: router as unknown as InboundRouter,
@@ -90,7 +98,11 @@ describe('InboxPoller.tick()', () => {
   });
 
   it('is a no-op when no ports are configured', async () => {
-    const router = mockRouter({ kind: 'ROUTED', documentId: 'doc-x', signal: { type: 'INBOUND_STATUS', status: '' } });
+    const router = mockRouter({
+      kind: 'ROUTED',
+      documentId: 'doc-x',
+      signal: { type: 'INBOUND_STATUS', status: '' },
+    });
     const poller = new InboxPoller({ ports: [], router: router as unknown as InboundRouter });
     const report = await poller.tick();
 
@@ -107,7 +119,11 @@ describe('InboxPoller.tick()', () => {
       id: 'sftp:ok',
       poll: jest.fn().mockResolvedValue([BASE_MSG]),
     };
-    const router = mockRouter({ kind: 'ROUTED', documentId: 'doc-1', signal: { type: 'INBOUND_STATUS', status: '' } });
+    const router = mockRouter({
+      kind: 'ROUTED',
+      documentId: 'doc-1',
+      signal: { type: 'INBOUND_STATUS', status: '' },
+    });
 
     const poller = new InboxPoller({
       ports: [failingPort, okPort],
@@ -115,13 +131,17 @@ describe('InboxPoller.tick()', () => {
     });
     const report = await poller.tick();
 
-    expect(report.errors).toBe(1);    // failing port counted
-    expect(report.routed).toBe(1);    // ok port still processed
+    expect(report.errors).toBe(1); // failing port counted
+    expect(report.routed).toBe(1); // ok port still processed
     expect(report.fetched).toBe(1);
   });
 
   it('uses messageId as rawRef when rawRef is not provided', async () => {
-    const router = mockRouter({ kind: 'ROUTED', documentId: 'doc-2', signal: { type: 'INBOUND_STATUS', status: '' } });
+    const router = mockRouter({
+      kind: 'ROUTED',
+      documentId: 'doc-2',
+      signal: { type: 'INBOUND_STATUS', status: '' },
+    });
     const msg: InboxMessage = { ...BASE_MSG, rawRef: undefined };
     const port: InboxPort = {
       id: 'sftp:sdi',
@@ -131,8 +151,6 @@ describe('InboxPoller.tick()', () => {
     const poller = new InboxPoller({ ports: [port], router: router as unknown as InboundRouter });
     await poller.tick();
 
-    expect(router.receive).toHaveBeenCalledWith(
-      expect.objectContaining({ rawRef: 'sftp-0001' }),
-    );
+    expect(router.receive).toHaveBeenCalledWith(expect.objectContaining({ rawRef: 'sftp-0001' }));
   });
 });

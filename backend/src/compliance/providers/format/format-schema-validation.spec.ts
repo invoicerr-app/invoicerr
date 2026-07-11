@@ -17,13 +17,7 @@ import { RecordingComplianceLogger } from '../../execution/logger';
 import { RenderedArtifact } from '../../execution/types';
 import { validateXsd, validateSchematron } from '../../schemas/validate';
 import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
-import {
-  IT_B2B,
-  MX_B2B,
-  ES_B2B,
-  PL_B2B,
-  FR_B2B_STANDARD,
-} from './__fixtures__/invoices';
+import { IT_B2B, MX_B2B, ES_B2B, PL_B2B, FR_B2B_STANDARD } from './__fixtures__/invoices';
 import {
   FatturaPaFormatProvider,
   CfdiFormatProvider,
@@ -48,11 +42,17 @@ function artifactFrom(xml: string, syntax: RenderedArtifact['syntax']): Rendered
 }
 
 /** Build a Peppol BIS UBL XML from an EN16931 fixture, applying the BIS IDs. */
-async function buildPeppolBisXml(service: InvoiceRenderingService, data: typeof FR_B2B_STANDARD['data']): Promise<string> {
+async function buildPeppolBisXml(
+  service: InvoiceRenderingService,
+  data: (typeof FR_B2B_STANDARD)['data'],
+): Promise<string> {
   const inv = service.buildEInvoice(data);
   let xml = await inv.exportXml('ubl');
   xml = xml.replace('urn:cen.eu:en16931:2017', PEPPOL_BIS_CUSTOMIZATION_ID);
-  xml = xml.replace('<cbc:ProfileID>M1</cbc:ProfileID>', `<cbc:ProfileID>${PEPPOL_BIS_PROFILE_ID}</cbc:ProfileID>`);
+  xml = xml.replace(
+    '<cbc:ProfileID>M1</cbc:ProfileID>',
+    `<cbc:ProfileID>${PEPPOL_BIS_PROFILE_ID}</cbc:ProfileID>`,
+  );
   return xml;
 }
 
@@ -333,7 +333,10 @@ describe('EN16931 CII — Schematron gate (EN16931-CII-validation-preprocessed.s
     const inv = service.buildEInvoice(FR_B2B_STANDARD.data);
     const xml = await inv.exportXml('cii');
     // Corrupt line amounts: replace all ram:LineTotalAmount with 0 (while header totals unchanged)
-    const broken = xml.replace(/<ram:LineTotalAmount>[^<]+<\/ram:LineTotalAmount>/g, '<ram:LineTotalAmount>0</ram:LineTotalAmount>');
+    const broken = xml.replace(
+      /<ram:LineTotalAmount>[^<]+<\/ram:LineTotalAmount>/g,
+      '<ram:LineTotalAmount>0</ram:LineTotalAmount>',
+    );
     const result = validateSchematron(broken, CII_SCH);
     // EN16931 arithmetic consistency rules (BR-CO-*) should fire
     expect(result.errorCount).toBeGreaterThan(0);

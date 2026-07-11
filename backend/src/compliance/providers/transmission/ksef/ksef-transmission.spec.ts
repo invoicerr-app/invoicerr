@@ -7,14 +7,18 @@
 import { TransmissionProviderRegistry } from '../registry';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from '../channel-credentials-port';
 import { RecordingComplianceLogger } from '../../../execution/logger';
-import { SignedArtifact, TransmissionResult } from '../../../execution/types';
+import { SignedArtifact } from '../../../execution/types';
 import { TransactionContext } from '../../../canonical/canonical-document';
 
 const COMPANY_ID = 'company_ksef_test';
 const TEST_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
-beforeAll(() => { process.env.CREDENTIALS_ENCRYPTION_KEY = TEST_KEY; });
-afterAll(() => { delete process.env.CREDENTIALS_ENCRYPTION_KEY; });
+beforeAll(() => {
+  process.env.CREDENTIALS_ENCRYPTION_KEY = TEST_KEY;
+});
+afterAll(() => {
+  delete process.env.CREDENTIALS_ENCRYPTION_KEY;
+});
 
 /** Minimal mock of ChannelCredentialsPort that returns a pre-built config. */
 function mockCredentials(resolved: ResolvedChannelConfig | null): ChannelCredentialsPort {

@@ -1,27 +1,3 @@
-/**
- * SdI (Sistema di Interscambio) live round-trip test — REAL AdE API, never in CI.
- *
- * Guard:
- *   SDI_LIVE=1 SDI_ID_TRASMITTENTE=<IT+11digits> SDI_CERTIFICATE=<base64-pfx> \
- *     SDI_CERT_PASSWORD=<pass> [SDI_CHANNEL=SDICoop|PEC] \
- *     npx jest sdi-live --no-coverage
- *
- * Prerequisites (currently deferred):
- *   - AdE (Agenzia delle Entrate) intermediary accreditation
- *   - A qualified PFX/P12 digital certificate issued to the intermediary
- *   - A real SdiHttpPort implementation (SDICoop SOAP or PEC transport)
- *   See: backend/src/compliance/providers/transmission/sdi/sdi-client.ts
- *
- * Hard assertions:
- *   - transmit status MUST be PENDING (not REJECTED/SKIPPED)
- *   - ref MUST contain a non-empty idSdI (real SdI identifier)
- *   - poll MUST eventually reach CLEARED (RC notifica from SdI) within 5 min
- *   - REJECTED or SKIPPED outcomes fail the test — NOT tolerated
- *
- * See LIVE_TESTING.md for full env var documentation.
- */
-export {}; // module marker
-
 import { liveDescribe } from '../live-gate.js';
 
 const describeLive = liveDescribe('SDI_LIVE', [
@@ -37,21 +13,24 @@ describeLive('SdI live round-trip (AdE SDICoop)', () => {
   let transmitChannel: string;
 
   beforeAll(() => {
-    idTrasmittente   = process.env.SDI_ID_TRASMITTENTE!;
-    certificate      = process.env.SDI_CERTIFICATE!;
-    certPassword     = process.env.SDI_CERT_PASSWORD!;
-    transmitChannel  = process.env.SDI_CHANNEL ?? 'SDICoop';
+    idTrasmittente = process.env.SDI_ID_TRASMITTENTE!;
+    certificate = process.env.SDI_CERTIFICATE!;
+    certPassword = process.env.SDI_CERT_PASSWORD!;
+    transmitChannel = process.env.SDI_CHANNEL ?? 'SDICoop';
     console.log('idTrasmittente:', idTrasmittente, '/ channel:', transmitChannel);
   });
 
   it('buildFatturaPa → FatturaPA XML → submit to SdI → PENDING + idSdI → poll → CLEARED', async () => {
-    process.env.CREDENTIALS_ENCRYPTION_KEY ??= '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    process.env.CREDENTIALS_ENCRYPTION_KEY ??=
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
     const timestamp = Date.now();
     const companyId = 'live_sdi_' + timestamp;
 
     // ── Generate a FatturaPA 1.2 XML (DB-free) ──
-    const { InvoiceRenderingService } = await import('../../../../modules/invoice-rendering/invoice-rendering.service.js');
+    const { InvoiceRenderingService } = await import(
+      '../../../../modules/invoice-rendering/invoice-rendering.service.js'
+    );
     const service = new InvoiceRenderingService();
     const now = new Date();
 
@@ -93,9 +72,7 @@ describeLive('SdI live round-trip (AdE SDICoop)', () => {
         country: 'Italy',
         partyIdentifiers: [{ scheme: 'VAT', value: 'IT98765432100' }],
       },
-      items: [
-        { name: 'Servizio test SdI', quantity: 1, unitPrice: 100, vatRate: 22, type: 'SERVICE' },
-      ],
+      items: [{ name: 'Servizio test SdI', quantity: 1, unitPrice: 100, vatRate: 22, type: 'SERVICE' }],
     } as any);
 
     console.log('FatturaPA XML length:', fatturapaXml.length);
@@ -130,7 +107,9 @@ describeLive('SdI live round-trip (AdE SDICoop)', () => {
     // made available as the default (the current default stub throws clearly).
     // If no real httpPort is injected, the transmit will return REJECTED — which FAILS
     // this test intentionally: it signals that the implementation is incomplete.
-    const reg = new TransmissionProviderRegistry([new SdiTransmissionProvider(stubCredentials as any) as any]);
+    const reg = new TransmissionProviderRegistry([
+      new SdiTransmissionProvider(stubCredentials as any) as any,
+    ]);
     const sdi = reg.getById('sdi')!;
 
     const artifact = {
@@ -161,9 +140,12 @@ describeLive('SdI live round-trip (AdE SDICoop)', () => {
     } as any;
 
     const transmitResult = await sdi.transmit!(
-      [artifact], ctx,
+      [artifact],
+      ctx,
       { channels: [{ type: 'SDI', providerId: 'sdi' }] } as any,
-      'sdi-live-key', log, fakeResolvedConfig as any,
+      'sdi-live-key',
+      log,
+      fakeResolvedConfig as any,
     );
 
     console.log('SdI transmit result:', JSON.stringify(transmitResult, null, 2));

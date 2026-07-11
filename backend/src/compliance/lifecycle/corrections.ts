@@ -39,8 +39,15 @@ export class CorrectiveInvoiceStrategy implements CorrectionStrategy {
 export class CancelAndReplaceStrategy implements CorrectionStrategy {
   readonly model: CorrectionModel = 'CANCEL_AND_REPLACE';
   correct(originalRef: string, _ctx: TransactionContext, log: ComplianceLogger): CorrectionOutcome {
-    log.todo('lifecycle/corrections/cancel-replace', `cancel ${originalRef} with the authority and issue a replacement`);
-    return { newKind: 'INVOICE', correctsRef: originalRef, notes: ['original cancelled, replacement issued'] };
+    log.todo(
+      'lifecycle/corrections/cancel-replace',
+      `cancel ${originalRef} with the authority and issue a replacement`,
+    );
+    return {
+      newKind: 'INVOICE',
+      correctsRef: originalRef,
+      notes: ['original cancelled, replacement issued'],
+    };
   }
 }
 

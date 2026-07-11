@@ -98,7 +98,9 @@ describe('GibClient (scaffold, mocked)', () => {
         get: async () => ({ status: 404, data: {} }),
       });
       const client = new GibClient(BASE_CONFIG, http);
-      await expect(client.getInvoiceStatus('missing-uuid')).rejects.toThrow('GİB getInvoiceStatus failed (HTTP 404)');
+      await expect(client.getInvoiceStatus('missing-uuid')).rejects.toThrow(
+        'GİB getInvoiceStatus failed (HTTP 404)',
+      );
     });
   });
 });

@@ -68,8 +68,14 @@ export class InvoiceMailGateway implements InvoiceMailPort {
 
     const mailOptions = {
       to: invoice.client.contactEmail,
-      subject: mailTemplate.subject.replace(/{{(\w+)}}/g, (_, key: string) => envVariables[key as keyof typeof envVariables] || ''),
-      html: mailTemplate.body.replace(/{{(\w+)}}/g, (_, key: string) => envVariables[key as keyof typeof envVariables] || ''),
+      subject: mailTemplate.subject.replace(
+        /{{(\w+)}}/g,
+        (_, key: string) => envVariables[key as keyof typeof envVariables] || '',
+      ),
+      html: mailTemplate.body.replace(
+        /{{(\w+)}}/g,
+        (_, key: string) => envVariables[key as keyof typeof envVariables] || '',
+      ),
       attachments: [
         {
           filename: `invoice-${invoice.rawNumber || invoice.number || 'draft'}.pdf`,

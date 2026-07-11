@@ -27,13 +27,34 @@ export class PacTransmissionProvider implements TransmissionProvider {
   readonly pollPolicy = { everySeconds: 30, timeoutHours: 24, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {
     fields: [
-      { type: 'select', name: 'environment', label: 'PAC environment', required: true, options: [
-        { label: 'Test (sandbox)', value: 'test' },
-        { label: 'Producción', value: 'prod' },
-      ], default: 'test' },
-      { type: 'text', name: 'baseUrl', label: 'PAC API base URL', placeholder: 'https://services.test.sw.com.mx', required: true },
+      {
+        type: 'select',
+        name: 'environment',
+        label: 'PAC environment',
+        required: true,
+        options: [
+          { label: 'Test (sandbox)', value: 'test' },
+          { label: 'Producción', value: 'prod' },
+        ],
+        default: 'test',
+      },
+      {
+        type: 'text',
+        name: 'baseUrl',
+        label: 'PAC API base URL',
+        placeholder: 'https://services.test.sw.com.mx',
+        required: true,
+      },
       { type: 'text', name: 'apiKey', label: 'PAC API key', required: true, secret: true },
-      { type: 'text', name: 'rfc', label: 'Emisor RFC', placeholder: 'AAA010101AAA', required: true, minLength: 12, maxLength: 13 },
+      {
+        type: 'text',
+        name: 'rfc',
+        label: 'Emisor RFC',
+        placeholder: 'AAA010101AAA',
+        required: true,
+        minLength: 12,
+        maxLength: 13,
+      },
     ],
   };
 
@@ -62,7 +83,11 @@ export class PacTransmissionProvider implements TransmissionProvider {
     const environment = ((config.environment as string) ?? 'test').toLowerCase() as 'test' | 'prod';
 
     if (!baseUrl || !apiKey || !rfc) {
-      return { channel: 'PAC', status: 'SKIPPED', notes: ['pac: incomplete config (baseUrl, apiKey, rfc required)'] };
+      return {
+        channel: 'PAC',
+        status: 'SKIPPED',
+        notes: ['pac: incomplete config (baseUrl, apiKey, rfc required)'],
+      };
     }
 
     // Find CFDI artifact
@@ -81,17 +106,24 @@ export class PacTransmissionProvider implements TransmissionProvider {
 
       // Inject test HTTP port or use a stub that throws clearly for missing live credentials.
       const http: PacHttpPort = this.httpPort ?? {
-        timbrar: async () => { throw new Error('PAC transport not implemented — provide a PacHttpPort for your PAC (e.g. SW Sapien, Finkok, Facturapi)'); },
-        consultaEstado: async () => { throw new Error('PAC transport not implemented — provide a PacHttpPort'); },
+        timbrar: async () => {
+          throw new Error(
+            'PAC transport not implemented — provide a PacHttpPort for your PAC (e.g. SW Sapien, Finkok, Facturapi)',
+          );
+        },
+        consultaEstado: async () => {
+          throw new Error('PAC transport not implemented — provide a PacHttpPort');
+        },
       };
 
       const client = new PacClient(http, { environment, baseUrl, apiKey, rfc });
 
-      const cfdiBytes = typeof cfdiArtifact.bytes === 'string'
-        ? Buffer.from(cfdiArtifact.bytes, 'utf-8')
-        : cfdiArtifact.bytes instanceof Buffer
-          ? cfdiArtifact.bytes
-          : Buffer.from(cfdiArtifact.bytes);
+      const cfdiBytes =
+        typeof cfdiArtifact.bytes === 'string'
+          ? Buffer.from(cfdiArtifact.bytes, 'utf-8')
+          : cfdiArtifact.bytes instanceof Buffer
+            ? cfdiArtifact.bytes
+            : Buffer.from(cfdiArtifact.bytes);
 
       log.info('transmission/pac', `timbrado via PAC (rfc ${rfc}, key ${key})`);
       const timbre = await client.timbrar(cfdiBytes);
@@ -139,8 +171,12 @@ export class PacTransmissionProvider implements TransmissionProvider {
 
       const { PacClient } = await import('./latam/pac-client.js');
       const http: PacHttpPort = this.httpPort ?? {
-        timbrar: async () => { throw new Error('PAC transport not implemented'); },
-        consultaEstado: async () => { throw new Error('PAC transport not implemented'); },
+        timbrar: async () => {
+          throw new Error('PAC transport not implemented');
+        },
+        consultaEstado: async () => {
+          throw new Error('PAC transport not implemented');
+        },
       };
       const client = new PacClient(http, { environment, baseUrl, apiKey, rfc });
 
@@ -150,7 +186,12 @@ export class PacTransmissionProvider implements TransmissionProvider {
       const mapped = PacClient.mapEstado(estado.status);
       const notes: string[] = [`uuid: ${uuid}`, `estado: ${estado.status}`];
       if (estado.acuse) notes.push(`acuse: ${estado.acuse}`);
-      return { channel: 'PAC', status: mapped === 'CLEARED' ? 'CLEARED' : mapped === 'REJECTED' ? 'REJECTED' : 'PENDING', ref, notes };
+      return {
+        channel: 'PAC',
+        status: mapped === 'CLEARED' ? 'CLEARED' : mapped === 'REJECTED' ? 'REJECTED' : 'PENDING',
+        ref,
+        notes,
+      };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       log.warn('transmission/pac', `poll failed: ${msg}`);

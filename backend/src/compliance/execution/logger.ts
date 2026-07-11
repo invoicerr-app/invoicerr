@@ -12,7 +12,6 @@ export interface ComplianceLogger {
 }
 
 export class ConsoleComplianceLogger implements ComplianceLogger {
-  /* eslint-disable no-console */
   todo(scope: string, message: string): void {
     console.warn(`[compliance:TODO] ${scope}: ${message}`);
   }
@@ -22,7 +21,6 @@ export class ConsoleComplianceLogger implements ComplianceLogger {
   warn(scope: string, message: string): void {
     console.warn(`[compliance:WARN] ${scope}: ${message}`);
   }
-  /* eslint-enable no-console */
 }
 
 export interface LogEntry {

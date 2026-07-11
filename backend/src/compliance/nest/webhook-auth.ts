@@ -21,7 +21,7 @@
  * Never log secrets.
  */
 
-import * as crypto from 'crypto';
+import * as crypto from 'node:crypto';
 import { HttpException, HttpStatus, Logger } from '@nestjs/common';
 
 const logger = new Logger('WebhookAuth');
@@ -42,7 +42,10 @@ function channelAllowlist(channel: string): string[] {
   const key = channel.toUpperCase().replace(/[^A-Z0-9]/g, '_');
   const raw = process.env[`WEBHOOK_ALLOWLIST_${key}`];
   if (!raw) return [];
-  return raw.split(',').map((s) => s.trim()).filter(Boolean);
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 // ---------------------------------------------------------------------------
@@ -129,8 +132,8 @@ export function assertWebhookAuth(opts: WebhookAuthOpts): void {
     if (!warnedChannels.has(channel)) {
       logger.warn(
         `[${channel}] No webhook secret configured ` +
-        `(WEBHOOK_SECRET_${channel.toUpperCase()} or COMPLIANCE_WEBHOOK_SECRET). ` +
-        `Accepting without signature verification — configure a secret in production.`,
+          `(WEBHOOK_SECRET_${channel.toUpperCase()} or COMPLIANCE_WEBHOOK_SECRET). ` +
+          `Accepting without signature verification — configure a secret in production.`,
       );
       warnedChannels.add(channel);
     }
@@ -150,9 +153,7 @@ export function assertWebhookAuth(opts: WebhookAuthOpts): void {
     // Constant-time compare to prevent timing attacks even on the legacy path.
     const secretBuf = Buffer.from(secret, 'utf-8');
     const providedBuf = Buffer.from(sharedSecretHeader, 'utf-8');
-    const match =
-      secretBuf.length === providedBuf.length &&
-      crypto.timingSafeEqual(secretBuf, providedBuf);
+    const match = secretBuf.length === providedBuf.length && crypto.timingSafeEqual(secretBuf, providedBuf);
     if (!match) {
       throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
     }
@@ -160,5 +161,8 @@ export function assertWebhookAuth(opts: WebhookAuthOpts): void {
   }
 
   // Neither header present
-  throw new HttpException('Forbidden: missing X-Signature or X-Compliance-Secret header', HttpStatus.FORBIDDEN);
+  throw new HttpException(
+    'Forbidden: missing X-Signature or X-Compliance-Secret header',
+    HttpStatus.FORBIDDEN,
+  );
 }

@@ -1,19 +1,13 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Res,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { Response } from 'express';
 import { ExportFormat } from '@/compliance/providers/format/invoice-artifact-port';
-import { CreateInvoiceDto, CreateInvoiceFromQuoteDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
+import {
+  CreateInvoiceDto,
+  CreateInvoiceFromQuoteDto,
+  EditInvoicesDto,
+} from '@/modules/invoices/dto/invoices.dto';
 import { InvoicesService } from '@/modules/invoices/invoices.service';
 import { PluginsService } from '@/modules/plugins/plugins.service';
 
@@ -23,26 +17,42 @@ export class InvoicesController {
   constructor(
     private readonly invoicesService: InvoicesService,
     private readonly pluginService: PluginsService,
-  ) { }
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List invoices', description: 'Returns a paginated list of invoices.' })
-  @ApiQuery({ name: 'page', required: false, type: String, description: 'Page number (1-indexed) of the paginated invoice list. Defaults to 1.' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: String,
+    description: 'Page number (1-indexed) of the paginated invoice list. Defaults to 1.',
+  })
   @ApiResponse({ status: 200, description: 'Invoices retrieved' })
   async getInvoices(@Query('page') page: string) {
     return this.invoicesService.getInvoices(page);
   }
 
   @Get('search')
-  @ApiOperation({ summary: 'Search invoices', description: 'Searches invoices by query string (client name, invoice number, etc.).' })
-  @ApiQuery({ name: 'query', required: true, type: String, description: 'Free-text search term matched against client name and item descriptions.' })
+  @ApiOperation({
+    summary: 'Search invoices',
+    description: 'Searches invoices by query string (client name, invoice number, etc.).',
+  })
+  @ApiQuery({
+    name: 'query',
+    required: true,
+    type: String,
+    description: 'Free-text search term matched against client name and item descriptions.',
+  })
   @ApiResponse({ status: 200, description: 'Search results retrieved' })
   async searchInvoices(@Query('query') query: string) {
     return await this.invoicesService.searchInvoices(query);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get a single invoice', description: 'Returns a single invoice by ID with items, client, company, and correction links.' })
+  @ApiOperation({
+    summary: 'Get a single invoice',
+    description: 'Returns a single invoice by ID with items, client, company, and correction links.',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
   @ApiResponse({ status: 200, description: 'Invoice retrieved' })
   @ApiResponse({ status: 404, description: 'Invoice not found' })
@@ -51,11 +61,30 @@ export class InvoicesController {
   }
 
   @Get('table')
-  @ApiOperation({ summary: 'List invoices for table view', description: 'Returns the full (unpaginated) list of invoices matching the given filters, sorted by creation date. Used by the invoices table view and its export.' })
+  @ApiOperation({
+    summary: 'List invoices for table view',
+    description:
+      'Returns the full (unpaginated) list of invoices matching the given filters, sorted by creation date. Used by the invoices table view and its export.',
+  })
   @ApiQuery({ name: 'clientId', required: false, type: String, description: 'Filter invoices by client ID.' })
-  @ApiQuery({ name: 'year', required: false, type: String, description: 'Filter invoices created during this year.' })
-  @ApiQuery({ name: 'month', required: false, type: String, description: 'Filter invoices created during this month (1-12). Ignored unless "year" is also provided.' })
-  @ApiQuery({ name: 'sort', required: false, enum: ['asc', 'desc'], description: 'Sort order on creation date. Defaults to "desc".' })
+  @ApiQuery({
+    name: 'year',
+    required: false,
+    type: String,
+    description: 'Filter invoices created during this year.',
+  })
+  @ApiQuery({
+    name: 'month',
+    required: false,
+    type: String,
+    description: 'Filter invoices created during this month (1-12). Ignored unless "year" is also provided.',
+  })
+  @ApiQuery({
+    name: 'sort',
+    required: false,
+    enum: ['asc', 'desc'],
+    description: 'Sort order on creation date. Defaults to "desc".',
+  })
   @ApiResponse({ status: 200, description: 'Invoices retrieved' })
   async getInvoicesTable(
     @Query('clientId') clientId?: string,
@@ -67,9 +96,19 @@ export class InvoicesController {
   }
 
   @Get(':id/pdf')
-  @ApiOperation({ summary: 'Get invoice PDF', description: 'Downloads the PDF version of a specific invoice, optionally in a different format (e.g. ZUGFeRD).' })
+  @ApiOperation({
+    summary: 'Get invoice PDF',
+    description:
+      'Downloads the PDF version of a specific invoice, optionally in a different format (e.g. ZUGFeRD).',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
-  @ApiQuery({ name: 'format', required: false, enum: ['facturx', 'zugferd', 'xrechnung', 'ubl', 'cii'], description: 'E-invoicing format to render the PDF in. Defaults to the invoice/company configured format.' })
+  @ApiQuery({
+    name: 'format',
+    required: false,
+    enum: ['facturx', 'zugferd', 'xrechnung', 'ubl', 'cii'],
+    description:
+      'E-invoicing format to render the PDF in. Defaults to the invoice/company configured format.',
+  })
   @ApiResponse({ status: 200, description: 'PDF retrieved' })
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async getInvoicePdf(
@@ -97,9 +136,17 @@ export class InvoicesController {
   }
 
   @Get(':id/download/xml')
-  @ApiOperation({ summary: 'Download invoice as XML', description: 'Downloads an invoice in an XML e-invoicing format (e.g. XRechnung, Factur-X).' })
+  @ApiOperation({
+    summary: 'Download invoice as XML',
+    description: 'Downloads an invoice in an XML e-invoicing format (e.g. XRechnung, Factur-X).',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
-  @ApiQuery({ name: 'format', required: true, enum: ['facturx', 'zugferd', 'xrechnung', 'ubl', 'cii'], description: 'E-invoicing XML format to export.' })
+  @ApiQuery({
+    name: 'format',
+    required: true,
+    enum: ['facturx', 'zugferd', 'xrechnung', 'ubl', 'cii'],
+    description: 'E-invoicing XML format to export.',
+  })
   @ApiResponse({ status: 200, description: 'XML retrieved' })
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async downloadInvoiceXml(
@@ -132,9 +179,19 @@ export class InvoicesController {
   }
 
   @Get(':id/download/pdf')
-  @ApiOperation({ summary: 'Download invoice PDF', description: 'Downloads an invoice PDF, optionally in a specific format. Similar to GET :id/pdf but with a download-friendly Content-Disposition.' })
+  @ApiOperation({
+    summary: 'Download invoice PDF',
+    description:
+      'Downloads an invoice PDF, optionally in a specific format. Similar to GET :id/pdf but with a download-friendly Content-Disposition.',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
-  @ApiQuery({ name: 'format', required: false, enum: ['facturx', 'zugferd', 'xrechnung', 'ubl', 'cii'], description: 'E-invoicing format to render the PDF in. Defaults to the invoice/company configured format.' })
+  @ApiQuery({
+    name: 'format',
+    required: false,
+    enum: ['facturx', 'zugferd', 'xrechnung', 'ubl', 'cii'],
+    description:
+      'E-invoicing format to render the PDF in. Defaults to the invoice/company configured format.',
+  })
   @ApiResponse({ status: 200, description: 'PDF retrieved' })
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async downloadInvoicePdf(
@@ -162,29 +219,57 @@ export class InvoicesController {
   }
 
   @Post('create-from-quote')
-  @ApiOperation({ summary: 'Create invoice from quote', description: 'Generates a new invoice based on an existing quote, with a partial selection of items and quantities.' })
+  @ApiOperation({
+    summary: 'Create invoice from quote',
+    description:
+      'Generates a new invoice based on an existing quote, with a partial selection of items and quantities.',
+  })
   @ApiResponse({ status: 201, description: 'Invoice created from quote' })
-  @ApiBody({ schema: { type: 'object', properties: { quoteId: { type: 'string', description: 'ID of the quote to convert to an invoice' }, items: { type: 'array', items: { type: 'object', properties: { quoteItemId: { type: 'string' }, quantity: { type: 'number' } } }, description: 'Quote items to invoice with their requested quantities' } } } })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        quoteId: { type: 'string', description: 'ID of the quote to convert to an invoice' },
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: { quoteItemId: { type: 'string' }, quantity: { type: 'number' } },
+          },
+          description: 'Quote items to invoice with their requested quantities',
+        },
+      },
+    },
+  })
   createInvoiceFromQuote(@Body() body: CreateInvoiceFromQuoteDto) {
     return this.invoicesService.createInvoiceFromQuote(body);
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create an invoice', description: 'Creates a new invoice with items, client, and pricing information.' })
+  @ApiOperation({
+    summary: 'Create an invoice',
+    description: 'Creates a new invoice with items, client, and pricing information.',
+  })
   @ApiResponse({ status: 201, description: 'Invoice created' })
   postInvoicesInfo(@Body() body: CreateInvoiceDto) {
     return this.invoicesService.createInvoice(body);
   }
 
   @Post('proforma')
-  @ApiOperation({ summary: 'Create a proforma', description: 'Creates a non-legal proforma document (no number, not in the gapless series).' })
+  @ApiOperation({
+    summary: 'Create a proforma',
+    description: 'Creates a non-legal proforma document (no number, not in the gapless series).',
+  })
   @ApiResponse({ status: 201, description: 'Proforma created' })
   createProforma(@Body() body: CreateInvoiceDto) {
     return this.invoicesService.createProformaInvoice(body);
   }
 
   @Post(':id/convert-to-invoice')
-  @ApiOperation({ summary: 'Convert proforma to invoice', description: 'Creates a DRAFT invoice from a proforma document.' })
+  @ApiOperation({
+    summary: 'Convert proforma to invoice',
+    description: 'Creates a DRAFT invoice from a proforma document.',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Proforma invoice ID' })
   @ApiResponse({ status: 201, description: 'Invoice created from proforma' })
   convertProformaToInvoice(@Param('id') id: string) {
@@ -192,14 +277,20 @@ export class InvoicesController {
   }
 
   @Post('deposit')
-  @ApiOperation({ summary: 'Create a deposit invoice', description: 'Creates a standalone numbered deposit invoice (facture d\'acompte).' })
+  @ApiOperation({
+    summary: 'Create a deposit invoice',
+    description: "Creates a standalone numbered deposit invoice (facture d'acompte).",
+  })
   @ApiResponse({ status: 201, description: 'Deposit invoice created' })
   createDepositInvoice(@Body() body: CreateInvoiceDto & { amount?: number; percentage?: number }) {
     return this.invoicesService.createDepositInvoice(body);
   }
 
   @Get('deposits')
-  @ApiOperation({ summary: 'List unlinked deposits', description: 'Returns unlinked deposit invoices for a client (for final invoice creation).' })
+  @ApiOperation({
+    summary: 'List unlinked deposits',
+    description: 'Returns unlinked deposit invoices for a client (for final invoice creation).',
+  })
   @ApiQuery({ name: 'clientId', required: true, type: String, description: 'Client ID' })
   @ApiResponse({ status: 200, description: 'Unlinked deposits retrieved' })
   getUnlinkedDeposits(@Query('clientId') clientId: string) {
@@ -207,7 +298,11 @@ export class InvoicesController {
   }
 
   @Post('final')
-  @ApiOperation({ summary: 'Create a final invoice', description: 'Creates a final invoice with deposit deductions. Links deposit invoices and adds a deduction line.' })
+  @ApiOperation({
+    summary: 'Create a final invoice',
+    description:
+      'Creates a final invoice with deposit deductions. Links deposit invoices and adds a deduction line.',
+  })
   @ApiResponse({ status: 201, description: 'Final invoice created' })
   createFinalInvoice(@Body() body: CreateInvoiceDto & { depositInvoiceIds: string[] }) {
     return this.invoicesService.createFinalInvoice(body);
@@ -216,13 +311,21 @@ export class InvoicesController {
   @Post('archive')
   @ApiOperation({ summary: 'Archive invoice', description: 'Archives a paid invoice.' })
   @ApiResponse({ status: 201, description: 'Invoice archived' })
-  @ApiBody({ schema: { type: 'object', properties: { invoiceId: { type: 'string', description: 'ID of the invoice to archive' } } } })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { invoiceId: { type: 'string', description: 'ID of the invoice to archive' } },
+    },
+  })
   archiveInvoice(@Body('invoiceId') invoiceId: string) {
     return this.invoicesService.archiveInvoice(invoiceId);
   }
 
   @Post(':id/issue')
-  @ApiOperation({ summary: 'Issue an invoice', description: 'Assigns a gapless legal number to a DRAFT invoice and transitions it to ISSUED.' })
+  @ApiOperation({
+    summary: 'Issue an invoice',
+    description: 'Assigns a gapless legal number to a DRAFT invoice and transitions it to ISSUED.',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
   @ApiResponse({ status: 201, description: 'Invoice issued' })
   issueInvoice(@Param('id') id: string) {
@@ -230,7 +333,10 @@ export class InvoicesController {
   }
 
   @Post(':id/correct')
-  @ApiOperation({ summary: 'Correct an invoice', description: 'Issues a credit note / corrective invoice per the country correction model.' })
+  @ApiOperation({
+    summary: 'Correct an invoice',
+    description: 'Issues a credit note / corrective invoice per the country correction model.',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
   @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } } }, required: false })
   @ApiResponse({ status: 201, description: 'Correction initiated' })
@@ -239,7 +345,10 @@ export class InvoicesController {
   }
 
   @Post(':id/cancel')
-  @ApiOperation({ summary: 'Cancel an invoice', description: 'Cancels an issued invoice per the country cancellation policy.' })
+  @ApiOperation({
+    summary: 'Cancel an invoice',
+    description: 'Cancels an issued invoice per the country cancellation policy.',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
   @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } } }, required: false })
   @ApiResponse({ status: 201, description: 'Cancellation processed' })
@@ -248,7 +357,11 @@ export class InvoicesController {
   }
 
   @Post(':id/cancel-and-replace')
-  @ApiOperation({ summary: 'Cancel and replace an invoice', description: 'Cancels the original and issues a replacement invoice (clearance systems with substitution).' })
+  @ApiOperation({
+    summary: 'Cancel and replace an invoice',
+    description:
+      'Cancels the original and issues a replacement invoice (clearance systems with substitution).',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
   @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } } }, required: false })
   @ApiResponse({ status: 201, description: 'Invoice cancelled and replaced' })
@@ -257,7 +370,11 @@ export class InvoicesController {
   }
 
   @Get(':id/available-actions')
-  @ApiOperation({ summary: 'Get available actions for an invoice', description: 'Returns the actions permitted by the country compliance plan (edit, correct, cancel, etc.).' })
+  @ApiOperation({
+    summary: 'Get available actions for an invoice',
+    description:
+      'Returns the actions permitted by the country compliance plan (edit, correct, cancel, etc.).',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
   @ApiResponse({ status: 200, description: 'Available actions retrieved' })
   getAvailableActions(@Param('id') id: string) {
@@ -265,9 +382,17 @@ export class InvoicesController {
   }
 
   @Post('send')
-  @ApiOperation({ summary: 'Send invoice by email', description: 'Sends an invoice as a PDF attachment via email to the client.' })
+  @ApiOperation({
+    summary: 'Send invoice by email',
+    description: 'Sends an invoice as a PDF attachment via email to the client.',
+  })
   @ApiResponse({ status: 201, description: 'Invoice sent' })
-  @ApiBody({ schema: { type: 'object', properties: { id: { type: 'string', description: 'ID of the invoice to send' } } } })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { id: { type: 'string', description: 'ID of the invoice to send' } },
+    },
+  })
   sendInvoiceByEmail(@Body('id') id: string) {
     return this.invoicesService.sendInvoiceByEmail(id);
   }

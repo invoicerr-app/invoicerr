@@ -54,10 +54,12 @@ export class PrismaComplianceDocumentStore implements ComplianceDocumentStore {
 
     // Append-only events: only create events whose IDs are not yet persisted
     if ('events' in patch && patch.events) {
-      const existingIds = (await this.prisma.complianceEvent.findMany({
-        where: { documentId: id },
-        select: { id: true },
-      })).map((e) => e.id);
+      const existingIds = (
+        await this.prisma.complianceEvent.findMany({
+          where: { documentId: id },
+          select: { id: true },
+        })
+      ).map((e) => e.id);
       const newEvents = patch.events.filter((e) => !existingIds.includes(e.id));
       if (newEvents.length > 0) {
         await this.prisma.complianceEvent.createMany({

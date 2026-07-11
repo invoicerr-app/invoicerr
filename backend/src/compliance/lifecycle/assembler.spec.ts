@@ -6,9 +6,20 @@ import { assembleFromPlan } from './assembler';
 import { LifecycleRuntime } from './runtime';
 
 function party(country: string, role: PartyRole): PartyTaxProfile {
-  return { legalName: `${country} Co`, countryCode: country, role, identifiers: [{ scheme: 'VAT', value: `${country}1`, validated: true }] };
+  return {
+    legalName: `${country} Co`,
+    countryCode: country,
+    role,
+    identifiers: [{ scheme: 'VAT', value: `${country}1`, validated: true }],
+  };
 }
-function tx(supplier: string, buyer: string, role: PartyRole, supply: SupplyType, date: string): TransactionContext {
+function tx(
+  supplier: string,
+  buyer: string,
+  role: PartyRole,
+  supply: SupplyType,
+  date: string,
+): TransactionContext {
   return {
     supplier: party(supplier, 'B2B'),
     buyer: party(buyer, role),
@@ -17,7 +28,8 @@ function tx(supplier: string, buyer: string, role: PartyRole, supply: SupplyType
     currency: 'EUR',
   };
 }
-const graphOf = (s: string, b: string, r: PartyRole, sup: SupplyType, d: string) => assembleFromPlan(resolve(tx(s, b, r, sup, d)));
+const graphOf = (s: string, b: string, r: PartyRole, sup: SupplyType, d: string) =>
+  assembleFromPlan(resolve(tx(s, b, r, sup, d)));
 const findOn = (g: ReturnType<typeof assembleFromPlan>, on: string) => g.transitions.find((t) => t.on === on);
 
 describe('Lifecycle assembly — composed per (issuer, recipient, channel)', () => {
@@ -56,8 +68,14 @@ describe('Lifecycle runtime — event-sourced interpretation', () => {
 
     const effects = rt.dispatch({ type: 'POLL_RESULT', status: 'CLEARED' });
     expect(rt.status).toBe('CLEARED');
-    expect(effects).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'APPLIED', to: 'CLEARED' })]));
-    expect(rt.availableActions().some((t) => t.trigger.kind === 'MANUAL' && (t.trigger as { action: string }).action === 'cancel')).toBe(true);
+    expect(effects).toEqual(
+      expect.arrayContaining([expect.objectContaining({ kind: 'APPLIED', to: 'CLEARED' })]),
+    );
+    expect(
+      rt
+        .availableActions()
+        .some((t) => t.trigger.kind === 'MANUAL' && (t.trigger as { action: string }).action === 'cancel'),
+    ).toBe(true);
   });
 
   it('immutability: an illegal COMMAND throws', () => {

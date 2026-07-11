@@ -4,7 +4,7 @@
  *
  * All functions are side-effect-free and independently testable.
  */
-import { createCipheriv, createDecipheriv, createHash, publicEncrypt, randomBytes } from 'crypto';
+import { createCipheriv, createHash, publicEncrypt, randomBytes } from 'node:crypto';
 
 // ---------------------------------------------------------------------------
 // RSA token encryption (KSeF auth flow)
@@ -37,7 +37,7 @@ export function encryptKsefToken(token: string, timestampMs: number, publicKeyPe
 
 export interface SessionKey {
   aesKey: Buffer; // 32 bytes (256 bits)
-  iv: Buffer;     // 16 bytes (128 bits)
+  iv: Buffer; // 16 bytes (128 bits)
 }
 
 /** Generate a fresh AES-256 key and IV for encrypting invoice content. */

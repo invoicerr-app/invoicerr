@@ -38,8 +38,7 @@ export const US: CountryComplianceProfile = {
     },
     // States where this seller is registered / has nexus and must collect.
     nexusSubdivisions: ['CA', 'NY', 'TX', 'WA'],
-    economicNexusNote:
-      'Economic nexus thresholds vary by state (commonly $100k or 200 transactions/yr).',
+    economicNexusNote: 'Economic nexus thresholds vary by state (commonly $100k or 200 transactions/yr).',
   },
 
   lifecycle: [

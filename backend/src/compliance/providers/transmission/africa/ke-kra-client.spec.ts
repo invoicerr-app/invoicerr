@@ -3,7 +3,13 @@
  *
  * Live integration deferred — no KRA eTIMS sandbox credentials available.
  */
-import { KeKraClient, KeKraAuthResponse, KeKraInvoiceResponse, KeKraStatusResponse, KeKraHttpPort } from './ke-kra-client';
+import {
+  KeKraClient,
+  KeKraAuthResponse,
+  KeKraInvoiceResponse,
+  KeKraStatusResponse,
+  KeKraHttpPort,
+} from './ke-kra-client';
 import { KeKraTransmissionProvider } from './ke-kra-transmission';
 import { RecordingComplianceLogger } from '../../../execution/logger';
 
@@ -56,20 +62,22 @@ const samplePayload = {
   invTypCd: '1',
   pymtTyCd: '02',
   validDt: '20260629',
-  items: [{
-    itemSeq: 1,
-    itemNm: 'Consulting services',
-    itemClsCd: '20101601',
-    itemTyCd: '2',
-    qty: 1,
-    prc: 100000,
-    splyAmt: 100000,
-    dcAmt: 0,
-    taxblAmt: 100000,
-    taxTyCd: 'A' as const,
-    taxAmt: 16000,
-    totAmt: 116000,
-  }],
+  items: [
+    {
+      itemSeq: 1,
+      itemNm: 'Consulting services',
+      itemClsCd: '20101601',
+      itemTyCd: '2',
+      qty: 1,
+      prc: 100000,
+      splyAmt: 100000,
+      dcAmt: 0,
+      taxblAmt: 100000,
+      taxTyCd: 'A' as const,
+      taxAmt: 16000,
+      totAmt: 116000,
+    },
+  ],
   totItemCnt: 1,
   taxblAmtA: 100000,
   taxblAmtB: 0,

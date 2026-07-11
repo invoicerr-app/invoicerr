@@ -6,7 +6,7 @@
  * where an external integration or DB is still required. A NestJS service will wrap this and back the
  * store with Prisma.
  */
-import { randomUUID, createHash } from 'crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { TransactionContext } from '../canonical/canonical-document';
 import { resolve } from '../engine/compliance-engine';
 import { ComplianceExecutor, defaultExecutor } from '../execution/executor';
@@ -18,7 +18,10 @@ import { defaultResponseTracker, ResponseTracker } from '../lifecycle/response';
 import { ComplianceEvent, ComplianceStateMachine, ComplianceStatus } from '../lifecycle/state-machine';
 import { defaultArchiveRegistry, ArchiveProviderRegistry } from '../providers/archive/registry';
 import { defaultFormatRegistry, FormatProviderRegistry } from '../providers/format/registry';
-import { defaultTransmissionRegistry, TransmissionProviderRegistry } from '../providers/transmission/registry';
+import {
+  defaultTransmissionRegistry,
+  TransmissionProviderRegistry,
+} from '../providers/transmission/registry';
 import { defaultReportingRegistry, ReportingRegistry } from '../reporting/registry';
 import { defaultReceptionService, ReceptionService } from '../reception/reception-service';
 import { ChannelType, DocumentKind } from '../types';
@@ -124,7 +127,12 @@ export class ComplianceService {
     return rec;
   }
 
-  private async transition(rec: ComplianceDocumentRecord, event: ComplianceEvent, detail?: string, actor?: string): Promise<ComplianceDocumentRecord> {
+  private async transition(
+    rec: ComplianceDocumentRecord,
+    event: ComplianceEvent,
+    detail?: string,
+    actor?: string,
+  ): Promise<ComplianceDocumentRecord> {
     const sm = new ComplianceStateMachine(rec.status);
     sm.apply(event); // throws on illegal transition
     return this.store.update(rec.id, {
@@ -141,7 +149,11 @@ export class ComplianceService {
   // ─────────────────────────── issuance ───────────────────────────
 
   /** Create an editable draft (no compliance obligations attached yet). */
-  async createDraft(ctx: TransactionContext, kind: DocumentKind = 'INVOICE', invoiceId?: string): Promise<ComplianceDocumentRecord> {
+  async createDraft(
+    ctx: TransactionContext,
+    kind: DocumentKind = 'INVOICE',
+    invoiceId?: string,
+  ): Promise<ComplianceDocumentRecord> {
     return this.createRecord(ctx, kind, 'OUTBOUND', undefined, invoiceId);
   }
 
@@ -151,7 +163,10 @@ export class ComplianceService {
     if (!new ComplianceStateMachine(rec.status).canEdit()) {
       throw new Error(`Cannot edit document "${id}" in status ${rec.status}; issue a correction instead.`);
     }
-    return this.store.update(id, { ctx, events: [...rec.events, { id: randomUUID(), type: 'EDITED', at: now(), actor: 'system' }] });
+    return this.store.update(id, {
+      ctx,
+      events: [...rec.events, { id: randomUUID(), type: 'EDITED', at: now(), actor: 'system' }],
+    });
   }
 
   /** Freeze the draft: resolve the plan, assign the number, hash-chain, transition DRAFT → ISSUED. */
@@ -238,7 +253,7 @@ export class ComplianceService {
   async sendViaChannel(id: string, channel: ChannelType): Promise<TransmitResult> {
     const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
-    const artifacts = await this.formats.buildAll(rec.ctx, plan, this.log) as SignedArtifact[];
+    const artifacts = (await this.formats.buildAll(rec.ctx, plan, this.log)) as SignedArtifact[];
     const provider = this.transmission.get(channel);
     if (!provider) {
       this.log.warn('operations/sendViaChannel', `no provider for channel ${channel}`);
@@ -288,12 +303,18 @@ export class ComplianceService {
   }
 
   async enterContingency(id: string): Promise<ComplianceDocumentRecord> {
-    this.log.todo('operations/contingency', `issue offline (e.g. BR EPEC) and queue late submission for ${id}`);
+    this.log.todo(
+      'operations/contingency',
+      `issue offline (e.g. BR EPEC) and queue late submission for ${id}`,
+    );
     return this.transition(await this.require(id), 'ENTER_CONTINGENCY');
   }
 
   async resubmitFromContingency(id: string): Promise<ClearanceResult> {
-    this.log.todo('operations/contingency', `submit the contingency document ${id} now the authority is back`);
+    this.log.todo(
+      'operations/contingency',
+      `submit the contingency document ${id} now the authority is back`,
+    );
     const cleared = await this.transition(await this.require(id), 'CLEAR');
     return { document: cleared, authorityIds: cleared.authorityIds };
   }
@@ -306,9 +327,17 @@ export class ComplianceService {
     const plan = original.plan ?? resolve(original.ctx);
     const strategy = this.corrections.get(plan.lifecycle.correctionModel);
     const outcome = strategy.correct(original.id, original.ctx, this.log);
-    const correction = await this.createRecord(original.ctx, req.kind ?? outcome.newKind, 'OUTBOUND', original.id);
+    const correction = await this.createRecord(
+      original.ctx,
+      req.kind ?? outcome.newKind,
+      'OUTBOUND',
+      original.id,
+    );
     const updatedOriginal = await this.store.update(original.id, {
-      events: [...original.events, { id: randomUUID(), type: 'CORRECTION_INITIATED', at: now(), actor: 'system', detail: correction.id }],
+      events: [
+        ...original.events,
+        { id: randomUUID(), type: 'CORRECTION_INITIATED', at: now(), actor: 'system', detail: correction.id },
+      ],
     });
     return { original: updatedOriginal, correction };
   }
@@ -346,7 +375,12 @@ export class ComplianceService {
   /** Cancel the original and issue a replacement (clearance systems with substitution). */
   async cancelAndReplace(id: string, req: CancellationRequest = {}): Promise<CorrectionResult> {
     const cancelled = await this.cancel(id, { ...req, buyerConsent: true });
-    const replacement = await this.createRecord(cancelled.document.ctx, cancelled.document.kind, 'OUTBOUND', id);
+    const replacement = await this.createRecord(
+      cancelled.document.ctx,
+      cancelled.document.kind,
+      'OUTBOUND',
+      id,
+    );
     return { original: cancelled.document, correction: replacement };
   }
 
@@ -367,7 +401,12 @@ export class ComplianceService {
     if (!transition) {
       // National status with no state change (e.g. FR "encaissée") — record it only.
       const rec = await this.require(id);
-      return this.store.update(id, { events: [...rec.events, { id: randomUUID(), type: `STATUS:${event.status}`, at: now(), actor: event.source.toLowerCase() }] });
+      return this.store.update(id, {
+        events: [
+          ...rec.events,
+          { id: randomUUID(), type: `STATUS:${event.status}`, at: now(), actor: event.source.toLowerCase() },
+        ],
+      });
     }
     return this.transition(await this.require(id), transition, event.status);
   }
@@ -407,7 +446,9 @@ export class ComplianceService {
   async acknowledgeInbound(id: string, status: string): Promise<ComplianceDocumentRecord> {
     const rec = await this.require(id);
     this.reception.emitBuyerStatus(status, this.log);
-    return this.store.update(id, { events: [...rec.events, { id: randomUUID(), type: `ACK:${status}`, at: now(), actor: 'system' }] });
+    return this.store.update(id, {
+      events: [...rec.events, { id: randomUUID(), type: `ACK:${status}`, at: now(), actor: 'system' }],
+    });
   }
 
   // ─────────────────────────── reporting / payment / archive ───────────────────────────
@@ -417,7 +458,9 @@ export class ComplianceService {
     const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
     const results = await this.reporting.reportAll(rec.ctx, plan, this.log);
-    const next = new ComplianceStateMachine(rec.status).can('REPORT') ? await this.transition(rec, 'REPORT') : rec;
+    const next = new ComplianceStateMachine(rec.status).can('REPORT')
+      ? await this.transition(rec, 'REPORT')
+      : rec;
     return { document: next, results };
   }
 
@@ -437,7 +480,10 @@ export class ComplianceService {
       try {
         await this.transmitStatus(id, 'encaissée');
       } catch (e) {
-        this.log.warn('operations/markPaid', `status transmission skipped for ${id}: ${(e as Error).message}`);
+        this.log.warn(
+          'operations/markPaid',
+          `status transmission skipped for ${id}: ${(e as Error).message}`,
+        );
       }
     }
 
@@ -448,7 +494,7 @@ export class ComplianceService {
   async archiveDocument(id: string): Promise<ArchiveResult> {
     const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
-    const artifacts = await this.formats.buildAll(rec.ctx, plan, this.log) as SignedArtifact[];
+    const artifacts = (await this.formats.buildAll(rec.ctx, plan, this.log)) as SignedArtifact[];
     const receipt = this.archive.store(artifacts, plan.archival, this.log);
     return { document: rec, receipt };
   }
@@ -463,7 +509,12 @@ export class ComplianceService {
   }
 
   /** Append a custom audit event to a document without any state machine transition. */
-  async recordAuditEvent(id: string, type: string, detail?: string, actor?: string): Promise<ComplianceDocumentRecord> {
+  async recordAuditEvent(
+    id: string,
+    type: string,
+    detail?: string,
+    actor?: string,
+  ): Promise<ComplianceDocumentRecord> {
     const rec = await this.require(id);
     return this.store.update(id, {
       events: [...rec.events, { id: randomUUID(), type, at: now(), actor: actor ?? 'system', detail }],

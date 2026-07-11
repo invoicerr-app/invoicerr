@@ -15,9 +15,9 @@ const RECONCILE_INTERVAL_MS = (Number(process.env.COMPLIANCE_RECONCILE_HOURS) ||
 /** TTL margins: lock TTL should be slightly less than the tick interval to allow re-acquisition
  *  after a clean release, but long enough to cover the entire tick duration. */
 const LOCK_TTL = {
-  polls: 25_000,        // 25 s  (tick is 30 s)
-  timers: 55_000,       // 55 s  (tick is 60 s)
-  inbox: 55_000,        // 55 s  (tick is 60 s)
+  polls: 25_000, // 25 s  (tick is 30 s)
+  timers: 55_000, // 55 s  (tick is 60 s)
+  inbox: 55_000, // 55 s  (tick is 60 s)
   reconcile: 11 * 60 * 60 * 1000, // 11 h (tick is 12 h)
   reportingClose: 23 * 60 * 60 * 1000, // 23 h (tick is daily)
 };
@@ -112,7 +112,9 @@ export class ComplianceCron implements OnApplicationBootstrap {
   async tickPolls(): Promise<void> {
     // In-process guard
     if (this.pollInFlight) {
-      this.logger.warn('poll tick skipped: previous tick still running (interval too short or a poll is hanging)');
+      this.logger.warn(
+        'poll tick skipped: previous tick still running (interval too short or a poll is hanging)',
+      );
       return;
     }
     // Distributed lock guard (§13)
@@ -126,7 +128,9 @@ export class ComplianceCron implements OnApplicationBootstrap {
     try {
       const report = await this.pollScheduler.tick();
       if (report.due > 0) {
-        this.logger.debug(`poll tick: ${report.polled} polled, ${report.resolved} resolved, ${report.rescheduled} rescheduled, ${report.expired} expired`);
+        this.logger.debug(
+          `poll tick: ${report.polled} polled, ${report.resolved} resolved, ${report.rescheduled} rescheduled, ${report.expired} expired`,
+        );
       }
     } finally {
       this.pollInFlight = false;

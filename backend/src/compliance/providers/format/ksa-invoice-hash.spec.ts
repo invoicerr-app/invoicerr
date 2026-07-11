@@ -12,7 +12,11 @@
  *   - The computed hash is never empty and is valid base64.
  */
 
-import { InvoiceRenderingService, computeKsaInvoiceHash, ZATCA_PIH_INIT } from '@/modules/invoice-rendering/invoice-rendering.service';
+import {
+  InvoiceRenderingService,
+  computeKsaInvoiceHash,
+  ZATCA_PIH_INIT,
+} from '@/modules/invoice-rendering/invoice-rendering.service';
 import { SA_B2B } from './__fixtures__/invoices';
 
 // ---------------------------------------------------------------------------

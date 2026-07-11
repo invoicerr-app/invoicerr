@@ -114,9 +114,7 @@ describe('DianTransmissionProvider.transmit() unconfigured', () => {
   it('returns SKIPPED when no credentials are configured', async () => {
     const provider = new DianTransmissionProvider(makeCredentials(null));
     const log = new RecordingComplianceLogger();
-    const result = await provider.transmit(
-      [EN16931_UBL_ARTIFACT], makeCtx(), {} as any, 'key-1', log,
-    );
+    const result = await provider.transmit([EN16931_UBL_ARTIFACT], makeCtx(), {} as any, 'key-1', log);
     expect(result.status).toBe('SKIPPED');
     expect(result.notes.join(' ')).toMatch(/no resolved config/);
   });
@@ -126,10 +124,13 @@ describe('DianTransmissionProvider.transmit() unconfigured', () => {
       makeCredentials({ nit: '9000123456' }), // missing softwareId, clientId, clientSecret
     );
     const log = new RecordingComplianceLogger();
-    const result = await provider.transmit(
-      [EN16931_UBL_ARTIFACT], makeCtx(), {} as any, 'key-2', log,
-      { providerId: 'dian', channel: 'GOV_PORTAL_API', environment: 'test', config: { nit: '9000123456' }, isActive: true },
-    );
+    const result = await provider.transmit([EN16931_UBL_ARTIFACT], makeCtx(), {} as any, 'key-2', log, {
+      providerId: 'dian',
+      channel: 'GOV_PORTAL_API',
+      environment: 'test',
+      config: { nit: '9000123456' },
+      isActive: true,
+    });
     expect(result.status).toBe('SKIPPED');
     expect(result.notes.join(' ')).toMatch(/incomplete config/);
   });
@@ -137,10 +138,13 @@ describe('DianTransmissionProvider.transmit() unconfigured', () => {
   it('returns SKIPPED when no EN16931_UBL artifact is present', async () => {
     const provider = new DianTransmissionProvider(makeCredentials(DIAN_CONFIG));
     const log = new RecordingComplianceLogger();
-    const result = await provider.transmit(
-      [], makeCtx(), {} as any, 'key-3', log,
-      { providerId: 'dian', channel: 'GOV_PORTAL_API', environment: 'test', config: DIAN_CONFIG, isActive: true },
-    );
+    const result = await provider.transmit([], makeCtx(), {} as any, 'key-3', log, {
+      providerId: 'dian',
+      channel: 'GOV_PORTAL_API',
+      environment: 'test',
+      config: DIAN_CONFIG,
+      isActive: true,
+    });
     expect(result.status).toBe('SKIPPED');
     expect(result.notes.join(' ')).toMatch(/no EN16931_UBL artifact/);
   });
@@ -161,15 +165,21 @@ describe('DianTransmissionProvider.transmit() with mock HTTP port', () => {
     const provider = new DianTransmissionProvider(makeCredentials(DIAN_CONFIG), mockHttp);
     const log = new RecordingComplianceLogger();
 
-    const result = await provider.transmit(
-      [EN16931_UBL_ARTIFACT], makeCtx(), {} as any, 'key-4', log,
-      { providerId: 'dian', channel: 'GOV_PORTAL_API', environment: 'test', config: DIAN_CONFIG, isActive: true },
-    );
+    const result = await provider.transmit([EN16931_UBL_ARTIFACT], makeCtx(), {} as any, 'key-4', log, {
+      providerId: 'dian',
+      channel: 'GOV_PORTAL_API',
+      environment: 'test',
+      config: DIAN_CONFIG,
+      isActive: true,
+    });
 
     expect(result.status).toBe('PENDING');
     expect(result.ref).toContain('TRK-001');
     expect(result.notes.join(' ')).toContain('trackId: TRK-001');
-    expect(result.authorityIds?.find((a) => a.scheme === 'CUFE')).toEqual({ scheme: 'CUFE', value: 'abc123cufe' });
+    expect(result.authorityIds?.find((a) => a.scheme === 'CUFE')).toEqual({
+      scheme: 'CUFE',
+      value: 'abc123cufe',
+    });
     expect(mockHttp.getToken).toHaveBeenCalledTimes(1);
     expect(mockHttp.sendDocument).toHaveBeenCalledTimes(1);
   });
@@ -184,10 +194,13 @@ describe('DianTransmissionProvider.transmit() with mock HTTP port', () => {
     const provider = new DianTransmissionProvider(makeCredentials(DIAN_CONFIG), mockHttp);
     const log = new RecordingComplianceLogger();
 
-    const result = await provider.transmit(
-      [EN16931_UBL_ARTIFACT], makeCtx(), {} as any, 'key-5', log,
-      { providerId: 'dian', channel: 'GOV_PORTAL_API', environment: 'test', config: DIAN_CONFIG, isActive: true },
-    );
+    const result = await provider.transmit([EN16931_UBL_ARTIFACT], makeCtx(), {} as any, 'key-5', log, {
+      providerId: 'dian',
+      channel: 'GOV_PORTAL_API',
+      environment: 'test',
+      config: DIAN_CONFIG,
+      isActive: true,
+    });
 
     expect(result.status).toBe('CLEARED');
     expect(result.authorityIds?.find((a) => a.scheme === 'CUFE')?.value).toBe('cufe-xyz');

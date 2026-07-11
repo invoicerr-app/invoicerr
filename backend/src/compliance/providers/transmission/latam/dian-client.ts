@@ -35,11 +35,25 @@ import { ChannelConfigSchema, TransmissionProvider } from '../transmission-provi
 
 export interface DianHttpPort {
   /** POST /oauth/token — client_credentials grant. Returns Bearer access_token. */
-  getToken(baseUrl: string, clientId: string, clientSecret: string): Promise<{ access_token: string; expires_in: number }>;
+  getToken(
+    baseUrl: string,
+    clientId: string,
+    clientSecret: string,
+  ): Promise<{ access_token: string; expires_in: number }>;
   /** POST /einvoicing/send — submit UBL 2.1 XML document. */
-  sendDocument(baseUrl: string, token: string, xmlBytes: Buffer, nit: string, softwareId: string): Promise<{ trackId: string; cufe?: string; estado?: string | undefined }>;
+  sendDocument(
+    baseUrl: string,
+    token: string,
+    xmlBytes: Buffer,
+    nit: string,
+    softwareId: string,
+  ): Promise<{ trackId: string; cufe?: string; estado?: string | undefined }>;
   /** GET /einvoicing/status/{trackId} — poll clearance status. */
-  getStatus(baseUrl: string, token: string, trackId: string): Promise<{ estado: string; cufe?: string; errors?: string[] }>;
+  getStatus(
+    baseUrl: string,
+    token: string,
+    trackId: string,
+  ): Promise<{ estado: string; cufe?: string; errors?: string[] }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -48,10 +62,10 @@ export interface DianHttpPort {
 
 export interface DianClientConfig {
   environment: 'test' | 'prod';
-  nit: string;            // NIT (10 digits) del emisor — no DV suffix
-  softwareId: string;     // DIAN software-ID for the invoicing application
-  clientId: string;       // OAuth2 client_id
-  clientSecret: string;   // OAuth2 client_secret
+  nit: string; // NIT (10 digits) del emisor — no DV suffix
+  softwareId: string; // DIAN software-ID for the invoicing application
+  clientId: string; // OAuth2 client_id
+  clientSecret: string; // OAuth2 client_secret
 }
 
 const BASE_URLS: Record<'test' | 'prod', string> = {
@@ -74,11 +88,17 @@ export class DianClient {
     return resp.access_token;
   }
 
-  async sendDocument(token: string, xmlBytes: Buffer): Promise<{ trackId: string; cufe?: string; estado?: string }> {
+  async sendDocument(
+    token: string,
+    xmlBytes: Buffer,
+  ): Promise<{ trackId: string; cufe?: string; estado?: string }> {
     return this.http.sendDocument(this.baseUrl, token, xmlBytes, this.config.nit, this.config.softwareId);
   }
 
-  async pollStatus(token: string, trackId: string): Promise<{ estado: string; cufe?: string; errors?: string[] }> {
+  async pollStatus(
+    token: string,
+    trackId: string,
+  ): Promise<{ estado: string; cufe?: string; errors?: string[] }> {
     return this.http.getStatus(this.baseUrl, token, trackId);
   }
 
@@ -104,14 +124,23 @@ export class DianTransmissionProvider implements TransmissionProvider {
   readonly configSchema: ChannelConfigSchema = {
     fields: [
       {
-        type: 'select', name: 'environment', label: 'DIAN environment', required: true,
+        type: 'select',
+        name: 'environment',
+        label: 'DIAN environment',
+        required: true,
         options: [
           { label: 'Habilitación (test)', value: 'test' },
           { label: 'Producción', value: 'prod' },
         ],
         default: 'test',
       },
-      { type: 'text', name: 'nit', label: 'NIT del emisor (10 dígitos)', required: true, pattern: '^\\d{10}$' },
+      {
+        type: 'text',
+        name: 'nit',
+        label: 'NIT del emisor (10 dígitos)',
+        required: true,
+        pattern: '^\\d{10}$',
+      },
       { type: 'text', name: 'softwareId', label: 'Software-ID (DIAN)', required: true },
       { type: 'text', name: 'clientId', label: 'Client ID (OAuth2)', required: true },
       { type: 'text', name: 'clientSecret', label: 'Client secret (OAuth2)', required: true, secret: true },
@@ -126,9 +155,17 @@ export class DianTransmissionProvider implements TransmissionProvider {
 
   private get stubHttp(): DianHttpPort {
     return {
-      getToken: async () => { throw new Error('DIAN HTTP transport not implemented — inject a DianHttpPort for production (DIAN vpfe API)'); },
-      sendDocument: async () => { throw new Error('DIAN HTTP transport not implemented'); },
-      getStatus: async () => { throw new Error('DIAN HTTP transport not implemented'); },
+      getToken: async () => {
+        throw new Error(
+          'DIAN HTTP transport not implemented — inject a DianHttpPort for production (DIAN vpfe API)',
+        );
+      },
+      sendDocument: async () => {
+        throw new Error('DIAN HTTP transport not implemented');
+      },
+      getStatus: async () => {
+        throw new Error('DIAN HTTP transport not implemented');
+      },
     };
   }
 
@@ -153,7 +190,11 @@ export class DianTransmissionProvider implements TransmissionProvider {
     const environment = ((config.environment as string) ?? 'test').toLowerCase() as 'test' | 'prod';
 
     if (!nit || !softwareId || !clientId || !clientSecret) {
-      return { channel: this.channel, status: 'SKIPPED', notes: ['dian: incomplete config (nit, softwareId, clientId, clientSecret required)'] };
+      return {
+        channel: this.channel,
+        status: 'SKIPPED',
+        notes: ['dian: incomplete config (nit, softwareId, clientId, clientSecret required)'],
+      };
     }
 
     // DIAN requires EN16931 UBL 2.1 document
@@ -171,11 +212,12 @@ export class DianTransmissionProvider implements TransmissionProvider {
       const http = this.httpPort ?? this.stubHttp;
       const client = new DianClient(http, { environment, nit, softwareId, clientId, clientSecret });
 
-      const xmlBytes = typeof ublArtifact.bytes === 'string'
-        ? Buffer.from(ublArtifact.bytes, 'utf-8')
-        : ublArtifact.bytes instanceof Buffer
-          ? ublArtifact.bytes
-          : Buffer.from(ublArtifact.bytes);
+      const xmlBytes =
+        typeof ublArtifact.bytes === 'string'
+          ? Buffer.from(ublArtifact.bytes, 'utf-8')
+          : ublArtifact.bytes instanceof Buffer
+            ? ublArtifact.bytes
+            : Buffer.from(ublArtifact.bytes);
 
       log.info('transmission/dian', `authenticating (nit: ${nit}, key ${key})`);
       const token = await client.authenticate();
@@ -184,7 +226,10 @@ export class DianTransmissionProvider implements TransmissionProvider {
       const result = await client.sendDocument(token, xmlBytes);
 
       const ref = `${companyId}|${result.trackId}`;
-      log.info('transmission/dian', `submitted → trackId ${result.trackId}${result.cufe ? `, cufe: ${result.cufe}` : ''} (key ${key})`);
+      log.info(
+        'transmission/dian',
+        `submitted → trackId ${result.trackId}${result.cufe ? `, cufe: ${result.cufe}` : ''} (key ${key})`,
+      );
 
       const notes: string[] = [`trackId: ${result.trackId}`];
       if (result.cufe) notes.push(`cufe: ${result.cufe}`);
@@ -217,7 +262,12 @@ export class DianTransmissionProvider implements TransmissionProvider {
     try {
       const resolved = await this.credentials.resolveActive(companyId, 'dian');
       if (!resolved || !resolved.isActive) {
-        return { channel: this.channel, status: 'PENDING', ref, notes: ['dian: credentials no longer active'] };
+        return {
+          channel: this.channel,
+          status: 'PENDING',
+          ref,
+          notes: ['dian: credentials no longer active'],
+        };
       }
 
       const { config } = resolved;

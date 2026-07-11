@@ -41,13 +41,15 @@ function makePrismaMock() {
       if (row && row.owner === where.owner) store.delete(where.name);
       return { count: 1 };
     }),
-    updateMany: jest.fn(async ({ where, data }: { where: { name: string; owner: string }; data: { lockedUntil: Date } }) => {
-      const row = store.get(where.name);
-      if (row && row.owner === where.owner) {
-        store.set(where.name, { ...row, lockedUntil: data.lockedUntil });
-      }
-      return { count: 1 };
-    }),
+    updateMany: jest.fn(
+      async ({ where, data }: { where: { name: string; owner: string }; data: { lockedUntil: Date } }) => {
+        const row = store.get(where.name);
+        if (row && row.owner === where.owner) {
+          store.set(where.name, { ...row, lockedUntil: data.lockedUntil });
+        }
+        return { count: 1 };
+      },
+    ),
   };
 
   return {

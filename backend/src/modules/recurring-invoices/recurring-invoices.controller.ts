@@ -1,34 +1,34 @@
 import { UpsertInvoicesDto } from '@/modules/recurring-invoices/dto/invoices.dto';
 import { RecurringInvoicesService } from '@/modules/recurring-invoices/recurring-invoices.service';
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('recurring-invoices')
 @Controller('recurring-invoices')
 export class RecurringInvoicesController {
-  constructor(
-    private readonly recurringInvoicesService: RecurringInvoicesService,
-  ) { }
+  constructor(private readonly recurringInvoicesService: RecurringInvoicesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List recurring invoices', description: 'Returns a paginated list of recurring invoices.' })
-  @ApiQuery({ name: 'page', required: false, type: String, description: 'Page number (1-indexed) of the paginated recurring invoice list. Defaults to 1.' })
+  @ApiOperation({
+    summary: 'List recurring invoices',
+    description: 'Returns a paginated list of recurring invoices.',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: String,
+    description: 'Page number (1-indexed) of the paginated recurring invoice list. Defaults to 1.',
+  })
   @ApiResponse({ status: 200, description: 'Recurring invoices retrieved' })
   async getRecurringInvoices(@Query('page') page: string) {
     return this.recurringInvoicesService.getRecurringInvoices(page);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get a recurring invoice', description: 'Returns a single recurring invoice by ID.' })
+  @ApiOperation({
+    summary: 'Get a recurring invoice',
+    description: 'Returns a single recurring invoice by ID.',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Recurring invoice ID' })
   @ApiResponse({ status: 200, description: 'Recurring invoice retrieved' })
   async getRecurringInvoice(@Param('id') id: string) {
@@ -36,25 +36,31 @@ export class RecurringInvoicesController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create a recurring invoice', description: 'Creates a new recurring invoice schedule with items, client, and pricing information.' })
+  @ApiOperation({
+    summary: 'Create a recurring invoice',
+    description: 'Creates a new recurring invoice schedule with items, client, and pricing information.',
+  })
   @ApiResponse({ status: 201, description: 'Recurring invoice created' })
   async createRecurringInvoice(@Body() body: UpsertInvoicesDto) {
     return this.recurringInvoicesService.createRecurringInvoice(body);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update a recurring invoice', description: 'Updates an existing recurring invoice schedule by ID.' })
+  @ApiOperation({
+    summary: 'Update a recurring invoice',
+    description: 'Updates an existing recurring invoice schedule by ID.',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Recurring invoice ID' })
   @ApiResponse({ status: 200, description: 'Recurring invoice updated' })
-  async updateRecurringInvoice(
-    @Param('id') id: string,
-    @Body() body: UpsertInvoicesDto,
-  ) {
+  async updateRecurringInvoice(@Param('id') id: string, @Body() body: UpsertInvoicesDto) {
     return this.recurringInvoicesService.updateRecurringInvoice(id, body);
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete a recurring invoice', description: 'Permanently removes a recurring invoice schedule by ID.' })
+  @ApiOperation({
+    summary: 'Delete a recurring invoice',
+    description: 'Permanently removes a recurring invoice schedule by ID.',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Recurring invoice ID' })
   @ApiResponse({ status: 200, description: 'Recurring invoice deleted' })
   async deleteRecurringInvoice(@Param('id') id: string) {
@@ -62,7 +68,11 @@ export class RecurringInvoicesController {
   }
 
   @Post(':id/pause')
-  @ApiOperation({ summary: 'Pause a recurring invoice', description: 'Pauses invoice generation for this template. No new invoices will be generated until resumed.' })
+  @ApiOperation({
+    summary: 'Pause a recurring invoice',
+    description:
+      'Pauses invoice generation for this template. No new invoices will be generated until resumed.',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Recurring invoice ID' })
   @ApiResponse({ status: 200, description: 'Recurring invoice paused' })
   async pauseRecurringInvoice(@Param('id') id: string) {
@@ -70,7 +80,10 @@ export class RecurringInvoicesController {
   }
 
   @Post(':id/resume')
-  @ApiOperation({ summary: 'Resume a recurring invoice', description: 'Resumes invoice generation for a paused template.' })
+  @ApiOperation({
+    summary: 'Resume a recurring invoice',
+    description: 'Resumes invoice generation for a paused template.',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Recurring invoice ID' })
   @ApiResponse({ status: 200, description: 'Recurring invoice resumed' })
   async resumeRecurringInvoice(@Param('id') id: string) {
@@ -78,7 +91,10 @@ export class RecurringInvoicesController {
   }
 
   @Post(':id/skip-next')
-  @ApiOperation({ summary: 'Skip next cycle', description: 'Skips the next scheduled cycle for this template.' })
+  @ApiOperation({
+    summary: 'Skip next cycle',
+    description: 'Skips the next scheduled cycle for this template.',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Recurring invoice ID' })
   @ApiResponse({ status: 200, description: 'Next cycle will be skipped' })
   async skipNextRecurringInvoice(@Param('id') id: string) {
@@ -86,7 +102,10 @@ export class RecurringInvoicesController {
   }
 
   @Post(':id/end-now')
-  @ApiOperation({ summary: 'End recurring invoice now', description: 'Stops this recurring invoice template. No more cycles will be generated.' })
+  @ApiOperation({
+    summary: 'End recurring invoice now',
+    description: 'Stops this recurring invoice template. No more cycles will be generated.',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Recurring invoice ID' })
   @ApiResponse({ status: 200, description: 'Recurring invoice ended' })
   async endNowRecurringInvoice(@Param('id') id: string) {

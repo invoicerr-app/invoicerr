@@ -17,187 +17,218 @@ import { logger } from '@/logger/logger.service';
 
 /** HTTP body for creating a webhook (route contract: only `url` is required). */
 export interface WebhookCreateInput {
-    url: string;
-    type?: WebhookType;
-    events?: WebhookEvent[];
-    secret?: string;
+  url: string;
+  type?: WebhookType;
+  events?: WebhookEvent[];
+  secret?: string;
 }
 
 export type WebhookUpdateInput = Partial<WebhookCreateInput>;
 
 @Injectable()
 export class WebhooksService {
-    private readonly logger = new Logger(WebhooksService.name);
+  private readonly logger = new Logger(WebhooksService.name);
 
-    private drivers: WebhookDriver[] = [
-        new DiscordDriver(),
-        new GenericDriver(),
-        new MattermostDriver(),
-        new RocketChatDriver(),
-        new SlackDriver(),
-        new TeamsDriver(),
-        new ZapierDriver(),
-    ];
+  private drivers: WebhookDriver[] = [
+    new DiscordDriver(),
+    new GenericDriver(),
+    new MattermostDriver(),
+    new RocketChatDriver(),
+    new SlackDriver(),
+    new TeamsDriver(),
+    new ZapierDriver(),
+  ];
 
-    constructor(private readonly pluginsService: PluginsService) { }
+  constructor(private readonly pluginsService: PluginsService) {}
 
-    /**
-     * Handle a received webhook for a specific plugin
-     */
-    async handlePluginWebhook(pluginId: string, body: any, req: Request): Promise<any> {
-        logger.info(`Processing webhook for plugin: ${pluginId}`, { category: 'webhook', details: { pluginId } });
-        // Vérifier que le plugin existe et est actif
-        const plugin = await prisma.plugin.findFirst({
-            where: {
-                id: pluginId,
-                isActive: true,
-                webhookUrl: {
-                    not: null
-                }
-            }
-        });
+  /**
+   * Handle a received webhook for a specific plugin
+   */
+  async handlePluginWebhook(pluginId: string, body: any, req: Request): Promise<any> {
+    logger.info(`Processing webhook for plugin: ${pluginId}`, { category: 'webhook', details: { pluginId } });
+    // Vérifier que le plugin existe et est actif
+    const plugin = await prisma.plugin.findFirst({
+      where: {
+        id: pluginId,
+        isActive: true,
+        webhookUrl: {
+          not: null,
+        },
+      },
+    });
 
-        if (!plugin) {
-            logger.warn(`Active plugin with UUID ${pluginId} not found or has no webhook configured`, { category: 'webhook', details: { pluginId } });
-            throw new NotFoundException(`Active plugin with UUID ${pluginId} not found or has no webhook configured`);
-        }
-
-        logger.info(`Found plugin: ${plugin.name} (${plugin.type})`, { category: 'webhook', details: { pluginId, pluginType: plugin.type } });
-
-        // Récupérer le provider du plugin
-        const provider = await this.pluginsService.getProviderByType<IWebhookProvider>(plugin.type.toLowerCase());
-
-        if (!provider) {
-            logger.warn(`No provider found for plugin type: ${plugin.type}`, { category: 'webhook', details: { pluginType: plugin.type } });
-            throw new NotFoundException(`No provider found for plugin type: ${plugin.type}`);
-        }
-
-        // Vérifier que le provider a une méthode handleWebhook
-        if (typeof provider.handleWebhook !== 'function') {
-            logger.warn(`Provider for plugin ${plugin.name} does not implement handleWebhook method`, { category: 'webhook', details: { pluginName: plugin.name } });
-            return { message: 'Webhook received but not handled by provider' };
-        }
-
-        // Appeler la méthode handleWebhook du provider
-        try {
-            const result = await provider.handleWebhook(req, body);
-            logger.info(`Webhook processed successfully for plugin ${plugin.name}`, { category: 'webhook', details: { pluginName: plugin.name } });
-            return result;
-        } catch (error) {
-            logger.error(`Error in provider webhook handler for plugin ${plugin.name}`, { category: 'webhook', details: { pluginName: plugin.name, error } });
-            throw error;
-        }
+    if (!plugin) {
+      logger.warn(`Active plugin with UUID ${pluginId} not found or has no webhook configured`, {
+        category: 'webhook',
+        details: { pluginId },
+      });
+      throw new NotFoundException(
+        `Active plugin with UUID ${pluginId} not found or has no webhook configured`,
+      );
     }
 
-    /**
-     * Generate a webhook URL for a given plugin ID
-     */
-    generateWebhookUrl(pluginId: string): string {
-        const baseUrl = process.env.APP_URL || 'http://localhost:3000';
-        return `${baseUrl}/api/webhooks/${pluginId}`;
+    logger.info(`Found plugin: ${plugin.name} (${plugin.type})`, {
+      category: 'webhook',
+      details: { pluginId, pluginType: plugin.type },
+    });
+
+    // Récupérer le provider du plugin
+    const provider = await this.pluginsService.getProviderByType<IWebhookProvider>(plugin.type.toLowerCase());
+
+    if (!provider) {
+      logger.warn(`No provider found for plugin type: ${plugin.type}`, {
+        category: 'webhook',
+        details: { pluginType: plugin.type },
+      });
+      throw new NotFoundException(`No provider found for plugin type: ${plugin.type}`);
     }
 
-    private getDriver(type: WebhookType): WebhookDriver {
-        const driver = this.drivers.find((d) => d.supports(type));
-        if (!driver) {
-            this.logger.warn(`No webhook driver found for type: ${type}, using GenericDriver as fallback`);
-            return new GenericDriver();
-        }
-        return driver;
+    // Vérifier que le provider a une méthode handleWebhook
+    if (typeof provider.handleWebhook !== 'function') {
+      logger.warn(`Provider for plugin ${plugin.name} does not implement handleWebhook method`, {
+        category: 'webhook',
+        details: { pluginName: plugin.name },
+      });
+      return { message: 'Webhook received but not handled by provider' };
     }
 
-
-    /**
-     * Get a single webhook scoped to the current company, without its secret.
-     * Throws 404 when the webhook does not exist or belongs to another company.
-     */
-    async findOne(id: string) {
-        const wh = await prisma.webhook.findUnique({ where: { id } });
-        if (!wh) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
-
-        const company = await prisma.company.findFirst();
-        if (!company || wh.companyId !== company.id) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
-
-        return { ...wh, secret: undefined };
+    // Appeler la méthode handleWebhook du provider
+    try {
+      const result = await provider.handleWebhook(req, body);
+      logger.info(`Webhook processed successfully for plugin ${plugin.name}`, {
+        category: 'webhook',
+        details: { pluginName: plugin.name },
+      });
+      return result;
+    } catch (error) {
+      logger.error(`Error in provider webhook handler for plugin ${plugin.name}`, {
+        category: 'webhook',
+        details: { pluginName: plugin.name, error },
+      });
+      throw error;
     }
+  }
 
-    /** List all webhooks of the current company, secrets excluded. */
-    async list() {
-        const company = await prisma.company.findFirst();
-        if (!company) return [];
+  /**
+   * Generate a webhook URL for a given plugin ID
+   */
+  generateWebhookUrl(pluginId: string): string {
+    const baseUrl = process.env.APP_URL || 'http://localhost:3000';
+    return `${baseUrl}/api/webhooks/${pluginId}`;
+  }
 
-        const webhooks = await prisma.webhook.findMany({ where: { companyId: company.id } });
-
-        // Remove secret from response
-        return webhooks.map(w => ({ ...w, secret: undefined }));
+  private getDriver(type: WebhookType): WebhookDriver {
+    const driver = this.drivers.find((d) => d.supports(type));
+    if (!driver) {
+      this.logger.warn(`No webhook driver found for type: ${type}, using GenericDriver as fallback`);
+      return new GenericDriver();
     }
+    return driver;
+  }
 
-    /** Create a webhook for the current company. Returns the full row (incl. secret) + company for event dispatch. */
-    async create(body: WebhookCreateInput) {
-        const company = await prisma.company.findFirst();
-        if (!company) throw new HttpException('No company found', HttpStatus.BAD_REQUEST);
+  /**
+   * Get a single webhook scoped to the current company, without its secret.
+   * Throws 404 when the webhook does not exist or belongs to another company.
+   */
+  async findOne(id: string) {
+    const wh = await prisma.webhook.findUnique({ where: { id } });
+    if (!wh) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
 
-        const secret = body.secret ?? '';
+    const company = await prisma.company.findFirst();
+    if (!company || wh.companyId !== company.id)
+      throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
 
-        const webhook = await prisma.webhook.create({
-            data: {
-                url: body.url,
-                type: body.type ?? 'GENERIC',
-                events: body.events ?? [],
-                secret,
-                companyId: company.id,
-            }
-        });
+    return { ...wh, secret: undefined };
+  }
 
-        return { webhook, company };
-    }
+  /** List all webhooks of the current company, secrets excluded. */
+  async list() {
+    const company = await prisma.company.findFirst();
+    if (!company) return [];
 
-    /** Update a webhook (company-scoped, 404 otherwise). Returns the full updated row + company for event dispatch. */
-    async update(id: string, body: WebhookUpdateInput) {
-        const existing = await prisma.webhook.findUnique({ where: { id } });
-        if (!existing) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
+    const webhooks = await prisma.webhook.findMany({ where: { companyId: company.id } });
 
-        const company = await prisma.company.findFirst();
-        if (!company || existing.companyId !== company.id) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
+    // Remove secret from response
+    return webhooks.map((w) => ({ ...w, secret: undefined }));
+  }
 
-        const webhook = await prisma.webhook.update({
-            where: { id },
-            data: {
-                url: body.url ?? existing.url,
-                type: body.type ?? existing.type,
-                events: body.events ?? existing.events,
-                secret: body.secret ?? existing.secret,
-            }
-        });
+  /** Create a webhook for the current company. Returns the full row (incl. secret) + company for event dispatch. */
+  async create(body: WebhookCreateInput) {
+    const company = await prisma.company.findFirst();
+    if (!company) throw new HttpException('No company found', HttpStatus.BAD_REQUEST);
 
-        return { webhook, company };
-    }
+    const secret = body.secret ?? '';
 
-    /** Delete a webhook (company-scoped, 404 otherwise). Returns the deleted row + company for event dispatch. */
-    async remove(id: string) {
-        const existing = await prisma.webhook.findUnique({ where: { id } });
-        if (!existing) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
+    const webhook = await prisma.webhook.create({
+      data: {
+        url: body.url,
+        type: body.type ?? 'GENERIC',
+        events: body.events ?? [],
+        secret,
+        companyId: company.id,
+      },
+    });
 
-        const company = await prisma.company.findFirst();
-        if (!company || existing.companyId !== company.id) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
+    return { webhook, company };
+  }
 
-        await prisma.webhook.delete({ where: { id } });
+  /** Update a webhook (company-scoped, 404 otherwise). Returns the full updated row + company for event dispatch. */
+  async update(id: string, body: WebhookUpdateInput) {
+    const existing = await prisma.webhook.findUnique({ where: { id } });
+    if (!existing) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
 
-        return { webhook: existing, company };
-    }
+    const company = await prisma.company.findFirst();
+    if (!company || existing.companyId !== company.id)
+      throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
 
-    /**
-     * Send a webhook to a specified URL with HMAC signature
-     */
-    async send(webhooks: Webhook[], event: WebhookEvent, payload: any) {
-        const results = await Promise.all(webhooks.map(async (webhook) => {
-            const driver = this.getDriver(webhook.type);
-            return await driver.send(webhook.url, {
-                event,
-                ...payload,
-            }, webhook.secret ?? null);
-        }));
-        logger.info(`Webhooks sent for event: ${event}`, { category: 'webhook', details: { event, count: results.length } });
-        return results;
-    }
+    const webhook = await prisma.webhook.update({
+      where: { id },
+      data: {
+        url: body.url ?? existing.url,
+        type: body.type ?? existing.type,
+        events: body.events ?? existing.events,
+        secret: body.secret ?? existing.secret,
+      },
+    });
+
+    return { webhook, company };
+  }
+
+  /** Delete a webhook (company-scoped, 404 otherwise). Returns the deleted row + company for event dispatch. */
+  async remove(id: string) {
+    const existing = await prisma.webhook.findUnique({ where: { id } });
+    if (!existing) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
+
+    const company = await prisma.company.findFirst();
+    if (!company || existing.companyId !== company.id)
+      throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
+
+    await prisma.webhook.delete({ where: { id } });
+
+    return { webhook: existing, company };
+  }
+
+  /**
+   * Send a webhook to a specified URL with HMAC signature
+   */
+  async send(webhooks: Webhook[], event: WebhookEvent, payload: any) {
+    const results = await Promise.all(
+      webhooks.map(async (webhook) => {
+        const driver = this.getDriver(webhook.type);
+        return await driver.send(
+          webhook.url,
+          {
+            event,
+            ...payload,
+          },
+          webhook.secret ?? null,
+        );
+      }),
+    );
+    logger.info(`Webhooks sent for event: ${event}`, {
+      category: 'webhook',
+      details: { event, count: results.length },
+    });
+    return results;
+  }
 }

@@ -1,34 +1,3 @@
-/**
- * National portal live round-trip tests — parametrized over NATIONAL_PORTAL_PROVIDERS.
- *
- * Each provider self-gates on `<PREFIX>_LIVE=1` (never set in CI).  All suites are
- * SKIPPED by default.  Configure one or many portals at once with the namespaced
- * convention — see LIVE_TESTING.md for full documentation.
- *
- * Gate convention (see portal-live-env.ts for full detail):
- *   prefix = portalPrefix(provider.id)      e.g. 'choruspro' → 'CHORUSPRO'
- *   <PREFIX>_LIVE=1                          master opt-in flag (constant in the workflow)
- *   <PREFIX>_CLIENT_ID / _API_KEY / …        at least one real credential must be present
- *   <PREFIX>_BASE_URL / _ENVIRONMENT / …     namespaced config
- *
- * Example — run the ANAF (RO) suite:
- *   ANAF_LIVE=1 ANAF_AUTH_TOKEN=<tok> ANAF_TAXPAYER_ID=<cui> \
- *     npx jest portal-live --no-coverage --runInBand
- *
- * Example — run ZATCA + ANAF in the same invocation:
- *   ZATCA_LIVE=1 ZATCA_API_KEY=<key> ZATCA_TAXPAYER_ID=<tin> \
- *   ANAF_LIVE=1  ANAF_AUTH_TOKEN=<tok> ANAF_TAXPAYER_ID=<cui> \
- *     npx jest portal-live --no-coverage --runInBand
- *
- * Hard assertions (REJECTED / SKIPPED outcomes fail the test):
- *   - transmit status MUST be PENDING, SENT, or CLEARED.
- *   - ref MUST be truthy (real authority identifier returned).
- *   - Async portals (ASYNC_POLL) polled until CLEARED within 5 min.
- *
- * See LIVE_TESTING.md → "National portals (namespaced)" for the full env-var table.
- */
-export {}; // module marker
-
 import { portalPrefix, portalHasCreds, readNamespacedConfig } from './portal-live-env.js';
 
 // ─── lazy imports (deferred until the suite body runs) ───────────────────────
@@ -45,7 +14,6 @@ async function loadDeps() {
 
 // We need to enumerate providers at module load so Jest discovers the describe blocks.
 // Use a dynamic require synchronously to avoid top-level await (Jest doesn't support it yet).
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { NATIONAL_PORTAL_PROVIDERS } = require('./national-portals.js') as {
   NATIONAL_PORTAL_PROVIDERS: Array<{ id: string; channel: string; feedback?: string; poll?: unknown }>;
 };
@@ -65,7 +33,6 @@ for (const portal of NATIONAL_PORTAL_PROVIDERS) {
 
   let describeFn: typeof describe;
   if (!flagOn) {
-    // eslint-disable-next-line no-restricted-properties
     describeFn = describe.skip;
   } else if (!hasCreds) {
     process.stderr.write(
@@ -73,7 +40,6 @@ for (const portal of NATIONAL_PORTAL_PROVIDERS) {
         ` — add at least one of ${prefix}_CLIENT_ID / _CLIENT_SECRET / _API_KEY /` +
         ` _AUTH_TOKEN / _CERTIFICATE / _TOKEN to run this suite.\n`,
     );
-    // eslint-disable-next-line no-restricted-properties
     describeFn = describe.skip;
   } else {
     describeFn = describe;
@@ -108,7 +74,7 @@ for (const portal of NATIONAL_PORTAL_PROVIDERS) {
       const xmlPath = config.xmlPath;
 
       if (xmlPath) {
-        const { readFileSync } = await import('fs');
+        const { readFileSync } = await import('node:fs');
         xmlBytes = readFileSync(xmlPath);
         console.log(`[portal-live/${portal.id}] Loaded XML from`, xmlPath, '—', xmlBytes.length, 'bytes');
       } else {
@@ -172,17 +138,13 @@ for (const portal of NATIONAL_PORTAL_PROVIDERS) {
           legalName: config.sellerName ?? 'Test Seller',
           countryCode: config.country ?? 'DE',
           role: 'B2B',
-          identifiers: [
-            { scheme: 'VAT', value: config.sellerVat ?? 'DE000000000', validated: true },
-          ],
+          identifiers: [{ scheme: 'VAT', value: config.sellerVat ?? 'DE000000000', validated: true }],
         },
         buyer: {
           legalName: config.buyerName ?? 'Test Buyer',
           countryCode: config.buyerCountry ?? 'DE',
           role: 'B2B',
-          identifiers: [
-            { scheme: 'VAT', value: config.buyerVat ?? 'DE000000001', validated: true },
-          ],
+          identifiers: [{ scheme: 'VAT', value: config.buyerVat ?? 'DE000000001', validated: true }],
         },
         lines: [],
         issueDate: new Date(),
@@ -212,7 +174,9 @@ for (const portal of NATIONAL_PORTAL_PROVIDERS) {
       // Hard assertions — REJECTED or SKIPPED are NOT tolerated.
       if (transmitResult.status === 'REJECTED' || transmitResult.status === 'SKIPPED') {
         const notes = (transmitResult.notes ?? []).join(' | ');
-        fail(`Portal '${portal.id}' transmit returned ${transmitResult.status} — hard failure. Notes: ${notes}`);
+        fail(
+          `Portal '${portal.id}' transmit returned ${transmitResult.status} — hard failure. Notes: ${notes}`,
+        );
       }
 
       expect(['PENDING', 'SENT', 'CLEARED']).toContain(transmitResult.status);

@@ -14,16 +14,9 @@
  * CI gate: deterministic, no network, no Java.
  */
 
-import {
-	type SchematronResult,
-	validateSchematron,
-} from "@/compliance/schemas/validate";
+import { type SchematronResult, validateSchematron } from '@/compliance/schemas/validate';
 import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
-import {
-	type ExpectedResult,
-	type ExportableFormat,
-	FIXTURES,
-} from "./__fixtures__/invoices";
+import { type ExpectedResult, type ExportableFormat, FIXTURES } from './__fixtures__/invoices';
 
 /** CII structural sections that must appear in every CII-family export. */
 const CII_REQUIRED_SECTIONS = [
@@ -87,7 +80,10 @@ describe('L1 — Format validation harness', () => {
 
   for (const fixture of FIXTURES) {
     describe(fixture.slug, () => {
-      for (const [fmt, _expected] of Object.entries(fixture.formats) as [ExportableFormat, ExpectedResult][]) {
+      for (const [fmt, _expected] of Object.entries(fixture.formats) as [
+        ExportableFormat,
+        ExpectedResult,
+      ][]) {
         it(`${fixture.slug} → ${fmt}`, async () => {
           const inv = service.buildEInvoice(fixture.data);
 

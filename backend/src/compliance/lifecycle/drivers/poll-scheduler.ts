@@ -27,7 +27,11 @@ import {
 export type SchedulePollEffect = Extract<Effect, { kind: 'SCHEDULE_POLL' }>;
 
 /** Feeds a signal back into the document's runtime (load → dispatch → persist → re-arm). */
-export type ApplySignal = (documentId: string, signal: LifecycleSignal, log: ComplianceLogger) => void | Promise<void>;
+export type ApplySignal = (
+  documentId: string,
+  signal: LifecycleSignal,
+  log: ComplianceLogger,
+) => void | Promise<void>;
 
 export interface PollSchedulerDeps {
   applySignal: ApplySignal;
@@ -69,14 +73,20 @@ export class PollScheduler {
     this.onExpire =
       deps.onExpire ??
       ((job, log) =>
-        log.todo('lifecycle/poll-scheduler', `job ${job.id} for ${job.documentId} timed out — enter contingency / alert`));
+        log.todo(
+          'lifecycle/poll-scheduler',
+          `job ${job.id} for ${job.documentId} timed out — enter contingency / alert`,
+        ));
   }
 
   /** Enqueue a poll job from a runtime SCHEDULE_POLL effect. `ref` is the transmit() authority ref. */
   async schedule(documentId: string, effect: SchedulePollEffect, ref?: string): Promise<PollJob> {
     const provider = effect.channelProviderId ? this.txRegistry.getById(effect.channelProviderId) : null;
     if (!provider) {
-      this.log.warn('lifecycle/poll-scheduler', `scheduling poll with unknown provider "${effect.channelProviderId}"`);
+      this.log.warn(
+        'lifecycle/poll-scheduler',
+        `scheduling poll with unknown provider "${effect.channelProviderId}"`,
+      );
     }
     const job = createPollJob(
       {
@@ -123,7 +133,10 @@ export class PollScheduler {
   private async pollJobOnce(job: PollJob, now: Date, report: TickReport): Promise<void> {
     const provider = this.txRegistry.getById(job.providerId);
     if (!provider?.poll) {
-      this.log.warn('lifecycle/poll-scheduler', `provider "${job.providerId}" cannot poll; cancelling job ${job.id}`);
+      this.log.warn(
+        'lifecycle/poll-scheduler',
+        `provider "${job.providerId}" cannot poll; cancelling job ${job.id}`,
+      );
       await this.store.save({ ...job, status: 'CANCELLED' });
       return;
     }

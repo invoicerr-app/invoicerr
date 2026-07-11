@@ -43,7 +43,7 @@ describe('readNamespacedConfig', () => {
       environment: 'TEST',
       // ANAF_LIVE is the gate key — must be stripped
     });
-    expect(config['live']).toBeUndefined();
+    expect(config.live).toBeUndefined();
   });
 
   it('skips empty / undefined values', () => {
@@ -79,7 +79,7 @@ describe('readNamespacedConfig', () => {
     expect(config.clientSecret).toBe('csec');
     expect(config.techLogin).toBe('login@example.com');
     expect(config.techPassword).toBe('pass');
-    expect(config['live']).toBeUndefined();
+    expect(config.live).toBeUndefined();
   });
 
   it('uses process.env by default (smoke test — gate key absent means empty result)', () => {
@@ -104,7 +104,6 @@ describe('gate behaviour (smoke)', () => {
     // process, so the two-tier gate (flagOn && hasCreds) fires describe.skip for every portal.
     // The parametrized loop in portal-live.spec.ts covers them.
     // We just assert the helper itself never throws for any id in the registry.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { NATIONAL_PORTAL_PROVIDERS } = require('./national-portals') as {
       NATIONAL_PORTAL_PROVIDERS: Array<{ id: string }>;
     };
@@ -172,7 +171,7 @@ describe('portal gate: LIVE=1 but no creds → would be skipped', () => {
     // If no credentials are configured, hasCreds returns false → describe.skip fires.
     // No transmit() is called, no SKIPPED hard-fail occurs.
     const env = { ANAF_LIVE: '1' };
-    const flagOn = env['ANAF_LIVE'] === '1';
+    const flagOn = env.ANAF_LIVE === '1';
     const hasCreds = portalHasCreds('ANAF', env);
     expect(flagOn).toBe(true);
     expect(hasCreds).toBe(false); // → describe.skip, not describe
@@ -180,7 +179,7 @@ describe('portal gate: LIVE=1 but no creds → would be skipped', () => {
 
   it('demonstrates the two-tier gate: flag + cred → hasCreds=true → would run', () => {
     const env = { ANAF_LIVE: '1', ANAF_AUTH_TOKEN: 'real-token' };
-    const flagOn = env['ANAF_LIVE'] === '1';
+    const flagOn = env.ANAF_LIVE === '1';
     const hasCreds = portalHasCreds('ANAF', env);
     expect(flagOn).toBe(true);
     expect(hasCreds).toBe(true); // → describe runs

@@ -7,6 +7,6 @@ import { PluginsService } from '@/modules/plugins/plugins.service';
 @Module({
   controllers: [PluginsController],
   providers: [PluginsService, MailService, JwtService],
-  exports: [PluginsService]
+  exports: [PluginsService],
 })
-export class PluginsModule { }
+export class PluginsModule {}

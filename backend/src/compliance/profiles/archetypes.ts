@@ -44,7 +44,11 @@ interface CommonOpts {
 }
 
 // --- small typed builders for the temporal sub-lists ---
-function archival(years: number, residency: string | undefined, integrity: ArchivalPolicy['integrity']): Temporal<ArchivalPolicy>[] {
+function archival(
+  years: number,
+  residency: string | undefined,
+  integrity: ArchivalPolicy['integrity'],
+): Temporal<ArchivalPolicy>[] {
   return [
     {
       validFrom: OPEN,
@@ -97,7 +101,16 @@ export function postAudit(
   return {
     ...meta(cc, name, o.confidence ?? 'BEST_EFFORT'),
     regime: [{ validFrom: OPEN, value: { model: 'POST_AUDIT', blocking: false } }],
-    formats: [{ validFrom: OPEN, value: { primary: { syntax: o.primary ?? 'EN16931_UBL' }, human: { syntax: 'PLAIN_PDF' }, buyerNegotiable: true } }],
+    formats: [
+      {
+        validFrom: OPEN,
+        value: {
+          primary: { syntax: o.primary ?? 'EN16931_UBL' },
+          human: { syntax: 'PLAIN_PDF' },
+          buyerNegotiable: true,
+        },
+      },
+    ],
     transmission: [{ validFrom: OPEN, value: { channels: [{ type: 'PEPPOL' }, { type: 'EMAIL' }] } }],
     taxSystem: o.tax ?? vat(20),
     lifecycle: lifecycle('ISSUE'),
@@ -114,7 +127,12 @@ export function noMandate(cc: string, name: string, o: CommonOpts = {}): Country
   return {
     ...meta(cc, name, o.confidence ?? 'OFFICIAL'),
     regime: [{ validFrom: OPEN, value: { model: 'POST_AUDIT', blocking: false } }],
-    formats: [{ validFrom: OPEN, value: { primary: { syntax: 'PLAIN_PDF' }, human: { syntax: 'EN16931_UBL' }, buyerNegotiable: true } }],
+    formats: [
+      {
+        validFrom: OPEN,
+        value: { primary: { syntax: 'PLAIN_PDF' }, human: { syntax: 'EN16931_UBL' }, buyerNegotiable: true },
+      },
+    ],
     transmission: [{ validFrom: OPEN, value: { channels: [{ type: 'EMAIL' }] } }],
     taxSystem: o.tax ?? vat(20),
     lifecycle: lifecycle('ISSUE'),
@@ -138,16 +156,30 @@ export function peppolCtc(
 ): CountryComplianceProfile {
   const regime: Temporal<RegimeRule>[] = [
     { validFrom: OPEN, validTo: o.ctcFrom, value: { model: 'POST_AUDIT', blocking: false } },
-    { validFrom: o.ctcFrom, value: { model: 'DECENTRALIZED_CTC', appliesTo: { roles: ['B2B', 'B2G'] }, blocking: false } },
-    { validFrom: o.ctcFrom, value: { model: 'REAL_TIME_REPORTING', appliesTo: { roles: ['B2C'] }, blocking: false } },
+    {
+      validFrom: o.ctcFrom,
+      value: { model: 'DECENTRALIZED_CTC', appliesTo: { roles: ['B2B', 'B2G'] }, blocking: false },
+    },
+    {
+      validFrom: o.ctcFrom,
+      value: { model: 'REAL_TIME_REPORTING', appliesTo: { roles: ['B2C'] }, blocking: false },
+    },
   ];
   const reporting: Temporal<ReportingObligation>[] = [
-    { validFrom: o.ctcFrom, value: { kinds: ['E_REPORTING'] as ReportingKind[], appliesTo: { roles: ['B2C'] } } },
+    {
+      validFrom: o.ctcFrom,
+      value: { kinds: ['E_REPORTING'] as ReportingKind[], appliesTo: { roles: ['B2C'] } },
+    },
   ];
   return {
     ...meta(cc, name, o.confidence ?? 'BEST_EFFORT'),
     regime,
-    formats: [{ validFrom: OPEN, value: { primary: { syntax: 'PEPPOL_BIS' }, human: { syntax: 'PLAIN_PDF' }, buyerNegotiable: true } }],
+    formats: [
+      {
+        validFrom: OPEN,
+        value: { primary: { syntax: 'PEPPOL_BIS' }, human: { syntax: 'PLAIN_PDF' }, buyerNegotiable: true },
+      },
+    ],
     transmission: [{ validFrom: OPEN, value: { channels: [{ type: 'PEPPOL' }, { type: 'EMAIL' }] } }],
     taxSystem: o.tax ?? vat(20),
     lifecycle: lifecycle('ISSUE'),
@@ -187,10 +219,22 @@ export function clearance(
         ];
   const formats: Temporal<FormatRule>[] =
     from === OPEN
-      ? [{ validFrom: OPEN, value: { primary: { syntax }, human: { syntax: 'PLAIN_PDF' }, buyerNegotiable: false } }]
+      ? [
+          {
+            validFrom: OPEN,
+            value: { primary: { syntax }, human: { syntax: 'PLAIN_PDF' }, buyerNegotiable: false },
+          },
+        ]
       : [
-          { validFrom: OPEN, validTo: from, value: { primary: { syntax: 'PLAIN_PDF' }, buyerNegotiable: true } },
-          { validFrom: from, value: { primary: { syntax }, human: { syntax: 'PLAIN_PDF' }, buyerNegotiable: false } },
+          {
+            validFrom: OPEN,
+            validTo: from,
+            value: { primary: { syntax: 'PLAIN_PDF' }, buyerNegotiable: true },
+          },
+          {
+            validFrom: from,
+            value: { primary: { syntax }, human: { syntax: 'PLAIN_PDF' }, buyerNegotiable: false },
+          },
         ];
   const transmission: Temporal<TransmissionRule>[] =
     from === OPEN
@@ -233,7 +277,12 @@ export function realTime(
   return {
     ...meta(cc, name, o.confidence ?? 'BEST_EFFORT'),
     regime,
-    formats: [{ validFrom: OPEN, value: { primary: { syntax }, human: { syntax: 'PLAIN_PDF' }, buyerNegotiable: false } }],
+    formats: [
+      {
+        validFrom: OPEN,
+        value: { primary: { syntax }, human: { syntax: 'PLAIN_PDF' }, buyerNegotiable: false },
+      },
+    ],
     transmission: [{ validFrom: OPEN, value: { channels: [{ type: channel, providerId: o.providerId }] } }],
     taxSystem: o.tax ?? vat(20),
     lifecycle: lifecycle('ISSUE'),
@@ -254,7 +303,12 @@ export function periodic(cc: string, name: string, o: CommonOpts = {}): CountryC
   return {
     ...meta(cc, name, o.confidence ?? 'BEST_EFFORT'),
     regime: [{ validFrom: OPEN, value: { model: 'PERIODIC_REPORTING', blocking: false } }],
-    formats: [{ validFrom: OPEN, value: { primary: { syntax: 'EN16931_UBL' }, human: { syntax: 'PLAIN_PDF' }, buyerNegotiable: true } }],
+    formats: [
+      {
+        validFrom: OPEN,
+        value: { primary: { syntax: 'EN16931_UBL' }, human: { syntax: 'PLAIN_PDF' }, buyerNegotiable: true },
+      },
+    ],
     transmission: [{ validFrom: OPEN, value: { channels: [{ type: 'PEPPOL' }, { type: 'EMAIL' }] } }],
     taxSystem: o.tax ?? vat(20),
     lifecycle: lifecycle('ISSUE'),

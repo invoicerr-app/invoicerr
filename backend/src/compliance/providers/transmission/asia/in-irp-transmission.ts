@@ -34,11 +34,24 @@ export class InIrpTransmissionProvider implements TransmissionProvider {
   readonly configSchema: ChannelConfigSchema = {
     fields: [
       {
-        type: 'select', name: 'environment', label: 'IRP environment', required: true,
-        options: [{ label: 'Sandbox (NIC)', value: 'sandbox' }, { label: 'Production', value: 'prod' }],
+        type: 'select',
+        name: 'environment',
+        label: 'IRP environment',
+        required: true,
+        options: [
+          { label: 'Sandbox (NIC)', value: 'sandbox' },
+          { label: 'Production', value: 'prod' },
+        ],
         default: 'sandbox',
       },
-      { type: 'text', name: 'gstin', label: 'GSTIN (15 chars)', required: true, minLength: 15, maxLength: 15 },
+      {
+        type: 'text',
+        name: 'gstin',
+        label: 'GSTIN (15 chars)',
+        required: true,
+        minLength: 15,
+        maxLength: 15,
+      },
       { type: 'text', name: 'appKey', label: 'IRP App Key (from GSP/NIC)', required: false, secret: true },
       { type: 'text', name: 'clientId', label: 'GSP Client ID', required: false },
       { type: 'text', name: 'clientSecret', label: 'GSP Client Secret', required: false, secret: true },
@@ -59,11 +72,17 @@ export class InIrpTransmissionProvider implements TransmissionProvider {
     resolvedConfig?: ResolvedChannelConfig,
   ): Promise<TransmissionResult> {
     if (!resolvedConfig) {
-      return { channel: GP, status: 'SKIPPED', notes: ['in-irp: no resolved config (GSTIN + app_key required)'] };
+      return {
+        channel: GP,
+        status: 'SKIPPED',
+        notes: ['in-irp: no resolved config (GSTIN + app_key required)'],
+      };
     }
 
     const { config, environment } = resolvedConfig;
-    const env = ((config.environment as string) ?? environment ?? 'sandbox').toLowerCase() as 'sandbox' | 'prod';
+    const env = ((config.environment as string) ?? environment ?? 'sandbox').toLowerCase() as
+      | 'sandbox'
+      | 'prod';
     const gstin = config.gstin as string;
     if (!gstin) {
       return { channel: GP, status: 'SKIPPED', notes: ['in-irp: GSTIN required'] };
@@ -187,11 +206,17 @@ export class InIrpTransmissionProvider implements TransmissionProvider {
     if (!irn) return { channel: GP, status: 'PENDING', ref, notes: ['in-irp: invalid ref'] };
     if (!this.credentials) {
       log.todo('transmission/in-irp', `poll IRN ${irn} for company ${companyId}`);
-      return { channel: GP, status: 'PENDING', ref, notes: ['in-irp: poll deferred (use IRP /Invoice/irn endpoint)'] };
+      return {
+        channel: GP,
+        status: 'PENDING',
+        ref,
+        notes: ['in-irp: poll deferred (use IRP /Invoice/irn endpoint)'],
+      };
     }
     try {
       const resolved = await this.credentials.resolveActive(companyId, 'in-irp');
-      if (!resolved?.isActive) return { channel: GP, status: 'PENDING', ref, notes: ['in-irp: credentials inactive'] };
+      if (!resolved?.isActive)
+        return { channel: GP, status: 'PENDING', ref, notes: ['in-irp: credentials inactive'] };
       log.todo('transmission/in-irp', `poll IRN ${irn} via IRP /Invoice/irn?irn=... (live-deferred)`);
       return { channel: GP, status: 'PENDING', ref, notes: ['in-irp: poll live-deferred'] };
     } catch (err: unknown) {
@@ -203,9 +228,17 @@ export class InIrpTransmissionProvider implements TransmissionProvider {
 
 function buildStubHttpPort(): InIrpHttpPort {
   return {
-    authenticate: async () => { throw new Error('InIrpHttpPort not implemented — IRP GSTIN + app_key required'); },
-    generateIrn: async () => { throw new Error('InIrpHttpPort not implemented — live IRP credentials required'); },
-    cancelIrn: async () => { throw new Error('InIrpHttpPort not implemented'); },
-    ping: async () => { throw new Error('InIrpHttpPort not implemented'); },
+    authenticate: async () => {
+      throw new Error('InIrpHttpPort not implemented — IRP GSTIN + app_key required');
+    },
+    generateIrn: async () => {
+      throw new Error('InIrpHttpPort not implemented — live IRP credentials required');
+    },
+    cancelIrn: async () => {
+      throw new Error('InIrpHttpPort not implemented');
+    },
+    ping: async () => {
+      throw new Error('InIrpHttpPort not implemented');
+    },
   };
 }

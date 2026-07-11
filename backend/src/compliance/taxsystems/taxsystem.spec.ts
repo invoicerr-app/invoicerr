@@ -7,12 +7,29 @@ import { defaultTaxSystemRegistry } from './registry';
 const log = new RecordingComplianceLogger();
 
 function ctx(quantity: number, unitNetMinor: number, currency = 'EUR'): TransactionContext {
-  return { currency, lines: [{ id: 'l1', description: 'x', quantity, unitNetMinor, supplyType: 'GOODS' }] } as TransactionContext;
+  return {
+    currency,
+    lines: [{ id: 'l1', description: 'x', quantity, unitNetMinor, supplyType: 'GOODS' }],
+  } as TransactionContext;
 }
 function taxAt(rate: number, category = 'S'): DocumentTaxResult {
   return {
-    lines: [{ lineId: 'l1', treatment: { components: [{ taxSystem: 'VAT', name: 'VAT', category: category as never, rate, jurisdiction: 'FR' }], buyerSelfAssess: false, reportingFlags: [], mentions: [] } }],
-    reportingFlags: [], mentions: [], buyerSelfAssess: false,
+    lines: [
+      {
+        lineId: 'l1',
+        treatment: {
+          components: [
+            { taxSystem: 'VAT', name: 'VAT', category: category as never, rate, jurisdiction: 'FR' },
+          ],
+          buyerSelfAssess: false,
+          reportingFlags: [],
+          mentions: [],
+        },
+      },
+    ],
+    reportingFlags: [],
+    mentions: [],
+    buyerSelfAssess: false,
   };
 }
 
@@ -50,7 +67,13 @@ describe('TaxSystemRegistry — money totals', () => {
   });
 
   it('NONE: gross equals net', () => {
-    const totals = defaultTaxSystemRegistry.get('NONE').computeTotals(ctx(3, 5000), { lines: [], reportingFlags: [], mentions: [], buyerSelfAssess: false }, log);
+    const totals = defaultTaxSystemRegistry
+      .get('NONE')
+      .computeTotals(
+        ctx(3, 5000),
+        { lines: [], reportingFlags: [], mentions: [], buyerSelfAssess: false },
+        log,
+      );
     expect(totals.net.minor).toBe(15000);
     expect(totals.tax.minor).toBe(0);
     expect(totals.gross.minor).toBe(15000);

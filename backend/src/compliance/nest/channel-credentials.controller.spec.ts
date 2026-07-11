@@ -6,8 +6,12 @@ import type { PrismaService } from '@/prisma/prisma.service';
 const COMPANY_ID = 'comp_test_001';
 const TEST_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
-beforeAll(() => { process.env.CREDENTIALS_ENCRYPTION_KEY = TEST_KEY; });
-afterAll(() => { delete process.env.CREDENTIALS_ENCRYPTION_KEY; });
+beforeAll(() => {
+  process.env.CREDENTIALS_ENCRYPTION_KEY = TEST_KEY;
+});
+afterAll(() => {
+  delete process.env.CREDENTIALS_ENCRYPTION_KEY;
+});
 
 const ksefProvider = {
   id: 'ksef',
@@ -26,9 +30,7 @@ function mockPrisma(rows: any[]): PrismaService {
   return {
     companyChannelConfig: {
       findMany: jest.fn().mockResolvedValue(rows),
-      upsert: jest.fn().mockImplementation(({ create }: any) =>
-        Promise.resolve({ id: 'row_1', ...create }),
-      ),
+      upsert: jest.fn().mockImplementation(({ create }: any) => Promise.resolve({ id: 'row_1', ...create })),
       deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
   } as unknown as PrismaService;

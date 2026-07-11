@@ -31,11 +31,24 @@ export class KeKraTransmissionProvider implements TransmissionProvider {
   readonly configSchema: ChannelConfigSchema = {
     fields: [
       {
-        type: 'select', name: 'environment', label: 'KRA eTIMS environment', required: true,
-        options: [{ label: 'Sandbox', value: 'sandbox' }, { label: 'Production', value: 'prod' }],
+        type: 'select',
+        name: 'environment',
+        label: 'KRA eTIMS environment',
+        required: true,
+        options: [
+          { label: 'Sandbox', value: 'sandbox' },
+          { label: 'Production', value: 'prod' },
+        ],
         default: 'sandbox',
       },
-      { type: 'text', name: 'taxpayerPin', label: 'KRA Taxpayer PIN (11 chars)', required: true, minLength: 11, maxLength: 11 },
+      {
+        type: 'text',
+        name: 'taxpayerPin',
+        label: 'KRA Taxpayer PIN (11 chars)',
+        required: true,
+        minLength: 11,
+        maxLength: 11,
+      },
       { type: 'text', name: 'deviceSerial', label: 'OSCU/VSCU Device Serial Number', required: true },
       { type: 'text', name: 'branchId', label: 'Branch ID (default "00")', required: false },
     ],
@@ -55,11 +68,17 @@ export class KeKraTransmissionProvider implements TransmissionProvider {
     resolvedConfig?: ResolvedChannelConfig,
   ): Promise<TransmissionResult> {
     if (!resolvedConfig) {
-      return { channel: GP, status: 'SKIPPED', notes: ['ke-kra: no resolved config (KRA taxpayerPin + deviceSerial required)'] };
+      return {
+        channel: GP,
+        status: 'SKIPPED',
+        notes: ['ke-kra: no resolved config (KRA taxpayerPin + deviceSerial required)'],
+      };
     }
 
     const { config, environment } = resolvedConfig;
-    const env = ((config.environment as string) ?? environment ?? 'sandbox').toLowerCase() as 'sandbox' | 'prod';
+    const env = ((config.environment as string) ?? environment ?? 'sandbox').toLowerCase() as
+      | 'sandbox'
+      | 'prod';
     const taxpayerPin = config.taxpayerPin as string;
     if (!taxpayerPin) {
       return { channel: GP, status: 'SKIPPED', notes: ['ke-kra: taxpayerPin required'] };
@@ -144,7 +163,11 @@ export class KeKraTransmissionProvider implements TransmissionProvider {
       const resp = await client.submitInvoice(payload);
 
       if (resp.resultCd !== '000') {
-        return { channel: GP, status: 'REJECTED', notes: [`ke-kra: eTIMS error ${resp.resultCd}: ${resp.resultMsg}`] };
+        return {
+          channel: GP,
+          status: 'REJECTED',
+          notes: [`ke-kra: eTIMS error ${resp.resultCd}: ${resp.resultMsg}`],
+        };
       }
 
       const rcptNo = resp.data?.rcptNo ?? 0;
@@ -176,8 +199,14 @@ export class KeKraTransmissionProvider implements TransmissionProvider {
 
 function buildStubHttpPort(): KeKraHttpPort {
   return {
-    authenticate: async () => { throw new Error('KeKraHttpPort not implemented — KRA taxpayerPin + deviceSerial required'); },
-    saveTrns: async () => { throw new Error('KeKraHttpPort not implemented — live KRA eTIMS credentials required'); },
-    selectTrns: async () => { throw new Error('KeKraHttpPort not implemented'); },
+    authenticate: async () => {
+      throw new Error('KeKraHttpPort not implemented — KRA taxpayerPin + deviceSerial required');
+    },
+    saveTrns: async () => {
+      throw new Error('KeKraHttpPort not implemented — live KRA eTIMS credentials required');
+    },
+    selectTrns: async () => {
+      throw new Error('KeKraHttpPort not implemented');
+    },
   };
 }

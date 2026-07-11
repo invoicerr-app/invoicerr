@@ -74,9 +74,7 @@ export function portalHasCreds(
 
 /** Camel-case a screaming-snake suffix: 'CLIENT_ID' → 'clientId'. */
 function toCamel(suffix: string): string {
-  return suffix
-    .toLowerCase()
-    .replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
+  return suffix.toLowerCase().replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
 }
 
 /**
@@ -95,8 +93,8 @@ export function readNamespacedConfig(
   const gateKey = `${prefix}_LIVE`;
   for (const [key, val] of Object.entries(env)) {
     if (!key.startsWith(`${prefix}_`)) continue;
-    if (key === gateKey) continue;     // skip the gate flag itself
-    if (!val) continue;                // skip empty / undefined
+    if (key === gateKey) continue; // skip the gate flag itself
+    if (!val) continue; // skip empty / undefined
     const suffix = key.slice(prefix.length + 1); // strip 'PREFIX_'
     result[toCamel(suffix)] = val;
   }

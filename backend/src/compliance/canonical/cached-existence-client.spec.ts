@@ -44,8 +44,18 @@ class SpyClient implements IdentifierExistencePort {
   siretCalls = 0;
 
   constructor(
-    private readonly vatResult: ExistenceCheckResult = { scheme: 'VAT', value: 'FR123', exists: true, source: 'vies' },
-    private readonly siretResult: ExistenceCheckResult = { scheme: 'SIRET', value: '73282932000074', exists: true, source: 'sirene' },
+    private readonly vatResult: ExistenceCheckResult = {
+      scheme: 'VAT',
+      value: 'FR123',
+      exists: true,
+      source: 'vies',
+    },
+    private readonly siretResult: ExistenceCheckResult = {
+      scheme: 'SIRET',
+      value: '73282932000074',
+      exists: true,
+      source: 'sirene',
+    },
   ) {}
 
   async checkVat(vatNumber: string): Promise<ExistenceCheckResult> {
@@ -188,7 +198,15 @@ function tx(): TransactionContext {
   return {
     supplier: party('FR', 'B2B'),
     buyer: party('DE', 'B2B'),
-    lines: [{ id: 'l1', description: 'Test', quantity: 1, unitNetMinor: 10000, supplyType: 'SERVICES' as SupplyType }],
+    lines: [
+      {
+        id: 'l1',
+        description: 'Test',
+        quantity: 1,
+        unitNetMinor: 10000,
+        supplyType: 'SERVICES' as SupplyType,
+      },
+    ],
     issueDate: new Date('2026-06-01'),
     currency: 'EUR',
   };
@@ -228,8 +246,12 @@ describe('Executor §7 — existence wiring', () => {
 
   it('existence check never blocks transmission (result still has transmissions)', async () => {
     const alwaysNotFound: IdentifierExistencePort = {
-      async checkVat(v) { return { scheme: 'VAT', value: v, exists: false, source: 'vies' }; },
-      async checkSiret(s) { return { scheme: 'SIRET', value: s, exists: false, source: 'sirene' }; },
+      async checkVat(v) {
+        return { scheme: 'VAT', value: v, exists: false, source: 'vies' };
+      },
+      async checkSiret(s) {
+        return { scheme: 'SIRET', value: s, exists: false, source: 'sirene' };
+      },
     };
     const executor = new ComplianceExecutor({
       numbering: new NumberingRegistry(),

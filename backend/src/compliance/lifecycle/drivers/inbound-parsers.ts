@@ -107,19 +107,32 @@ export function parseSdiNotifica(body: SdiNotificaWebhookPayload): InboundInput 
 
   let status: string;
   switch (body.type) {
-    case 'RC': status = 'notifica RC - consegnata (delivery receipt)'; break;
-    case 'NS': status = `notifica NS - scartata${body.descrizioneErrore ? `: ${body.descrizioneErrore}` : ''}`; break;
-    case 'MC': status = 'notifica MC - mancata consegna (retry pending)'; break;
-    case 'NE':
-      status = body.esitoCommittente === 'EC01'
-        ? 'notifica NE - esito accettazione EC01'
-        : body.esitoCommittente === 'EC02'
-          ? 'notifica NE - esito rifiuto EC02'
-          : 'notifica NE - esito sconosciuto';
+    case 'RC':
+      status = 'notifica RC - consegnata (delivery receipt)';
       break;
-    case 'DT': status = 'notifica DT - decorrenza termini (consegnata - deemed delivered)'; break;
-    case 'AT': status = 'notifica AT - avvenuta trasmissione (consegnata)'; break;
-    default: status = `notifica ${body.type}`; break;
+    case 'NS':
+      status = `notifica NS - scartata${body.descrizioneErrore ? `: ${body.descrizioneErrore}` : ''}`;
+      break;
+    case 'MC':
+      status = 'notifica MC - mancata consegna (retry pending)';
+      break;
+    case 'NE':
+      status =
+        body.esitoCommittente === 'EC01'
+          ? 'notifica NE - esito accettazione EC01'
+          : body.esitoCommittente === 'EC02'
+            ? 'notifica NE - esito rifiuto EC02'
+            : 'notifica NE - esito sconosciuto';
+      break;
+    case 'DT':
+      status = 'notifica DT - decorrenza termini (consegnata - deemed delivered)';
+      break;
+    case 'AT':
+      status = 'notifica AT - avvenuta trasmissione (consegnata)';
+      break;
+    default:
+      status = `notifica ${body.type}`;
+      break;
   }
 
   return {
@@ -166,13 +179,27 @@ export interface PeppolMlrWebhookPayload {
 export function parsePeppolMlr(body: PeppolMlrWebhookPayload): InboundInput {
   let status: string;
   switch (body.responseCode) {
-    case 'DELIVERED': status = 'peppol AS4 delivered - consegnata'; break;
-    case 'AB':        status = 'peppol invoice response AB - accepted'; break;
-    case 'RE':        status = `peppol invoice response RE - rejected${body.description ? `: ${body.description}` : ''}`; break;
-    case 'UQ':        status = 'peppol invoice response UQ - under query'; break;
-    case 'AP':        status = 'peppol invoice response AP - in process'; break;
-    case 'FAILED':    status = `peppol delivery failed${body.description ? `: ${body.description}` : ''}`; break;
-    default:          status = `peppol status: ${body.responseCode}`; break;
+    case 'DELIVERED':
+      status = 'peppol AS4 delivered - consegnata';
+      break;
+    case 'AB':
+      status = 'peppol invoice response AB - accepted';
+      break;
+    case 'RE':
+      status = `peppol invoice response RE - rejected${body.description ? `: ${body.description}` : ''}`;
+      break;
+    case 'UQ':
+      status = 'peppol invoice response UQ - under query';
+      break;
+    case 'AP':
+      status = 'peppol invoice response AP - in process';
+      break;
+    case 'FAILED':
+      status = `peppol delivery failed${body.description ? `: ${body.description}` : ''}`;
+      break;
+    default:
+      status = `peppol status: ${body.responseCode}`;
+      break;
   }
 
   return {

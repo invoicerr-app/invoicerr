@@ -28,13 +28,31 @@ export class SdiTransmissionProvider implements TransmissionProvider {
   readonly pollPolicy = { everySeconds: 60, timeoutHours: 72, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {
     fields: [
-      { type: 'text', name: 'idTrasmittente', label: 'IdTrasmittente', placeholder: 'IT01234567890', required: true },
-      { type: 'select', name: 'transmitChannel', label: 'Transmission channel', required: true, options: [
-        { label: 'SDI Cooperativa (web service)', value: 'SDICoop' },
-        { label: 'PEC (Posta Elettronica Certificata)', value: 'PEC' },
-      ]},
+      {
+        type: 'text',
+        name: 'idTrasmittente',
+        label: 'IdTrasmittente',
+        placeholder: 'IT01234567890',
+        required: true,
+      },
+      {
+        type: 'select',
+        name: 'transmitChannel',
+        label: 'Transmission channel',
+        required: true,
+        options: [
+          { label: 'SDI Cooperativa (web service)', value: 'SDICoop' },
+          { label: 'PEC (Posta Elettronica Certificata)', value: 'PEC' },
+        ],
+      },
       { type: 'text', name: 'certificate', label: 'PFX certificate (base64)', required: true, secret: true },
-      { type: 'text', name: 'certificatePassword', label: 'Certificate password', required: true, secret: true },
+      {
+        type: 'text',
+        name: 'certificatePassword',
+        label: 'Certificate password',
+        required: true,
+        secret: true,
+      },
     ],
   };
 
@@ -63,7 +81,11 @@ export class SdiTransmissionProvider implements TransmissionProvider {
     const certificatePassword = config.certificatePassword as string | undefined;
 
     if (!idTrasmittente) {
-      return { channel: 'SDI', status: 'SKIPPED', notes: ['sdi: incomplete config (idTrasmittente required)'] };
+      return {
+        channel: 'SDI',
+        status: 'SKIPPED',
+        notes: ['sdi: incomplete config (idTrasmittente required)'],
+      };
     }
 
     // Find FatturaPA artifact
@@ -80,11 +102,12 @@ export class SdiTransmissionProvider implements TransmissionProvider {
     try {
       const { SdiClient } = await import('./sdi/sdi-client.js');
 
-      const xmlBytes = typeof fatturapaArtifact.bytes === 'string'
-        ? Buffer.from(fatturapaArtifact.bytes, 'utf-8')
-        : fatturapaArtifact.bytes instanceof Buffer
-          ? fatturapaArtifact.bytes
-          : Buffer.from(fatturapaArtifact.bytes);
+      const xmlBytes =
+        typeof fatturapaArtifact.bytes === 'string'
+          ? Buffer.from(fatturapaArtifact.bytes, 'utf-8')
+          : fatturapaArtifact.bytes instanceof Buffer
+            ? fatturapaArtifact.bytes
+            : Buffer.from(fatturapaArtifact.bytes);
 
       // Derive canonical SdI filename: IT{idTrasmittente}_{progr}.xml (simplified from key)
       const filename = `${idTrasmittente}_${key.slice(-5).replace(/[^a-zA-Z0-9]/g, '0')}.xml`;
@@ -92,9 +115,17 @@ export class SdiTransmissionProvider implements TransmissionProvider {
       // Use injected HTTP port (test mock) or fall back to a stub that throws clearly.
       // A real SDICoop SOAP client requires AdE intermediary accreditation + PFX certificate.
       const http = this.httpPort ?? {
-        submit: async () => { throw new Error('SdI SDICoop transport not implemented — AdE intermediary accreditation and PFX certificate required'); },
-        getStatus: async () => { throw new Error('SdI SDICoop transport not implemented — AdE intermediary accreditation required'); },
-        sendEsito: async () => { throw new Error('SdI sendEsito not implemented — AdE intermediary accreditation required'); },
+        submit: async () => {
+          throw new Error(
+            'SdI SDICoop transport not implemented — AdE intermediary accreditation and PFX certificate required',
+          );
+        },
+        getStatus: async () => {
+          throw new Error('SdI SDICoop transport not implemented — AdE intermediary accreditation required');
+        },
+        sendEsito: async () => {
+          throw new Error('SdI sendEsito not implemented — AdE intermediary accreditation required');
+        },
       };
 
       const client = new SdiClient(http, { idTrasmittente, certificate, certificatePassword });
@@ -104,7 +135,12 @@ export class SdiTransmissionProvider implements TransmissionProvider {
 
       const ref = `${companyId}|${result.idSdI}|${idTrasmittente}`;
       log.info('transmission/sdi', `submitted → idSdI ${result.idSdI} (key ${key})`);
-      return { channel: 'SDI', status: 'PENDING', ref, notes: [`idSdI: ${result.idSdI}`, `file: ${result.filename}`] };
+      return {
+        channel: 'SDI',
+        status: 'PENDING',
+        ref,
+        notes: [`idSdI: ${result.idSdI}`, `file: ${result.filename}`],
+      };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       log.warn('transmission/sdi', `transmit failed: ${msg} (key ${key})`);
@@ -112,7 +148,13 @@ export class SdiTransmissionProvider implements TransmissionProvider {
     }
   }
 
-  async sendStatus(ref: string, status: string, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<TransmissionResult> {
+  async sendStatus(
+    ref: string,
+    status: string,
+    _ctx: TransactionContext,
+    _plan: CompliancePlan,
+    log: ComplianceLogger,
+  ): Promise<TransmissionResult> {
     // Emit the esito committente (NE notifica) — buyer acceptance/refusal — to SdI.
     // Called when WE are the buyer receiving a FatturaPA and emitting our response.
     //
@@ -138,8 +180,11 @@ export class SdiTransmissionProvider implements TransmissionProvider {
     }
 
     const sl = status.toLowerCase();
-    const esito: 'EC01' | 'EC02' =
-      ['accept', 'approv', 'consegn', 'cleared', 'autoriz'].some((w) => sl.includes(w)) ? 'EC01' : 'EC02';
+    const esito: 'EC01' | 'EC02' = ['accept', 'approv', 'consegn', 'cleared', 'autoriz'].some((w) =>
+      sl.includes(w),
+    )
+      ? 'EC01'
+      : 'EC02';
 
     if (!this.credentials) {
       return { channel: 'SDI', status: 'QUEUED', ref, notes: ['sdi: no credentials port for sendStatus'] };
@@ -160,14 +205,23 @@ export class SdiTransmissionProvider implements TransmissionProvider {
       // Use injected port (test mock) or fall back to a stub that throws clearly.
       // A real SOAP SDICoop client with sendEsito() requires AdE accreditation.
       const http = this.httpPort ?? {
-        submit: async () => { throw new Error('SdI SDICoop transport not implemented'); },
-        getStatus: async () => { throw new Error('SdI SDICoop transport not implemented'); },
-        sendEsito: async () => { throw new Error('SdI sendEsito not implemented — AdE intermediary accreditation required'); },
+        submit: async () => {
+          throw new Error('SdI SDICoop transport not implemented');
+        },
+        getStatus: async () => {
+          throw new Error('SdI SDICoop transport not implemented');
+        },
+        sendEsito: async () => {
+          throw new Error('SdI sendEsito not implemented — AdE intermediary accreditation required');
+        },
       };
 
       const client = new SdiClient(http, { idTrasmittente, certificate, certificatePassword });
 
-      log.info('transmission/sdi', `sendStatus: sending esito ${esito} (${status}) for idSdI ${idSdI} (ref ${ref})`);
+      log.info(
+        'transmission/sdi',
+        `sendStatus: sending esito ${esito} (${status}) for idSdI ${idSdI} (ref ${ref})`,
+      );
       await client.sendEsito(idSdI, esito);
       return {
         channel: 'SDI',
@@ -212,9 +266,15 @@ export class SdiTransmissionProvider implements TransmissionProvider {
       const { SdiClient } = await import('./sdi/sdi-client.js');
 
       const http = this.httpPort ?? {
-        submit: async () => { throw new Error('SdI transport not implemented'); },
-        getStatus: async () => { throw new Error('SdI SDICoop transport not implemented — AdE accreditation required'); },
-        sendEsito: async () => { throw new Error('SdI sendEsito not implemented — AdE intermediary accreditation required'); },
+        submit: async () => {
+          throw new Error('SdI transport not implemented');
+        },
+        getStatus: async () => {
+          throw new Error('SdI SDICoop transport not implemented — AdE accreditation required');
+        },
+        sendEsito: async () => {
+          throw new Error('SdI sendEsito not implemented — AdE intermediary accreditation required');
+        },
       };
 
       const client = new SdiClient(http, { idTrasmittente, certificate, certificatePassword });

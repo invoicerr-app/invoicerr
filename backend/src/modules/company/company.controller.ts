@@ -3,14 +3,16 @@ import { EditCompanyDto, PDFConfigDto } from '@/modules/company/dto/company.dto'
 import { Body, Controller, Get, Post, Put } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
-
 @ApiTags('company')
 @Controller('company')
 export class CompanyController {
-  constructor(private readonly companyService: CompanyService) { }
+  constructor(private readonly companyService: CompanyService) {}
 
   @Get('info')
-  @ApiOperation({ summary: 'Get company info', description: 'Returns the company name, address, contact details, and numbering configuration.' })
+  @ApiOperation({
+    summary: 'Get company info',
+    description: 'Returns the company name, address, contact details, and numbering configuration.',
+  })
   @ApiResponse({ status: 200, description: 'Company info retrieved' })
   async getCompanyInfo() {
     const data = await this.companyService.getCompanyInfo();
@@ -18,7 +20,11 @@ export class CompanyController {
   }
 
   @Post('info')
-  @ApiOperation({ summary: 'Create or update company info', description: 'Saves the company profile including name, address, contact details, currency, numbering formats, and PDF config.' })
+  @ApiOperation({
+    summary: 'Create or update company info',
+    description:
+      'Saves the company profile including name, address, contact details, currency, numbering formats, and PDF config.',
+  })
   @ApiResponse({ status: 201, description: 'Company info saved' })
   async postCompanyInfo(@Body() body: EditCompanyDto) {
     const data = await this.companyService.editCompanyInfo(body);
@@ -26,7 +32,10 @@ export class CompanyController {
   }
 
   @Get('pdf-template')
-  @ApiOperation({ summary: 'Get PDF template configuration', description: 'Returns the PDF styling config: fonts, colors, padding, logo, and label translations.' })
+  @ApiOperation({
+    summary: 'Get PDF template configuration',
+    description: 'Returns the PDF styling config: fonts, colors, padding, logo, and label translations.',
+  })
   @ApiResponse({ status: 200, description: 'PDF template config retrieved' })
   async getPDFTemplateConfig() {
     const data = await this.companyService.getPDFTemplateConfig();
@@ -34,7 +43,10 @@ export class CompanyController {
   }
 
   @Post('pdf-template')
-  @ApiOperation({ summary: 'Update PDF template configuration', description: 'Updates the PDF styling config: fonts, colors, padding, logo, and label translations.' })
+  @ApiOperation({
+    summary: 'Update PDF template configuration',
+    description: 'Updates the PDF styling config: fonts, colors, padding, logo, and label translations.',
+  })
   @ApiResponse({ status: 201, description: 'PDF template config saved' })
   async postPDFTemplateConfig(@Body() body: PDFConfigDto) {
     const data = await this.companyService.editPDFTemplateConfig(body);
@@ -42,7 +54,11 @@ export class CompanyController {
   }
 
   @Get('email-templates')
-  @ApiOperation({ summary: 'Get email templates', description: 'Returns all customizable email templates used for sending documents (invoices, quotes, receipts).' })
+  @ApiOperation({
+    summary: 'Get email templates',
+    description:
+      'Returns all customizable email templates used for sending documents (invoices, quotes, receipts).',
+  })
   @ApiResponse({ status: 200, description: 'Email templates retrieved' })
   async getEmailTemplates() {
     const data = await this.companyService.getEmailTemplates();
@@ -50,17 +66,24 @@ export class CompanyController {
   }
 
   @Put('email-templates')
-  @ApiOperation({ summary: 'Update an email template', description: 'Updates the subject and body of a specific email template identified by its database ID.' })
-  @ApiBody({ schema: { type: 'object', properties: { dbId: { type: 'string', description: 'Database ID of the email template' }, subject: { type: 'string' }, body: { type: 'string' } }, required: ['dbId', 'subject', 'body'] } })
+  @ApiOperation({
+    summary: 'Update an email template',
+    description: 'Updates the subject and body of a specific email template identified by its database ID.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        dbId: { type: 'string', description: 'Database ID of the email template' },
+        subject: { type: 'string' },
+        body: { type: 'string' },
+      },
+      required: ['dbId', 'subject', 'body'],
+    },
+  })
   @ApiResponse({ status: 200, description: 'Email template updated' })
-  async updateEmailTemplate(
-    @Body() body: { dbId: string; subject: string; body: string },
-  ) {
-    const data = await this.companyService.updateEmailTemplate(
-      body.dbId,
-      body.subject,
-      body.body,
-    );
+  async updateEmailTemplate(@Body() body: { dbId: string; subject: string; body: string }) {
+    const data = await this.companyService.updateEmailTemplate(body.dbId, body.subject, body.body);
     return data || {};
   }
 }

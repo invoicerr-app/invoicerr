@@ -22,20 +22,20 @@ type RenderDates = Pick<InvoiceRenderData, 'issuedAt' | 'createdAt'>;
 
 /** Net total: Σ quantity × unitPrice (no VAT). */
 export function sumNet(items: RenderItems): number {
-    return items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+  return items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
 }
 
 /** VAT total: Σ quantity × unitPrice × (vatRate || defaultRate) / 100. */
 export function sumVat(items: RenderItems, defaultRate = 0): number {
-    return items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate || defaultRate) / 100, 0);
+  return items.reduce((s, i) => s + (i.quantity * i.unitPrice * (i.vatRate || defaultRate)) / 100, 0);
 }
 
 /** Issue date as YYYY-MM-DD (issuedAt, falling back to createdAt). */
 export function isoDate(data: RenderDates): string {
-    return (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
+  return (data.issuedAt ?? data.createdAt).toISOString().split('T')[0];
 }
 
 /** Issue datetime as YYYY-MM-DDTHH:mm:ss (no milliseconds, no zone suffix). */
 export function isoDateTimeSeconds(data: RenderDates): string {
-    return (data.issuedAt ?? data.createdAt).toISOString().split('.')[0];
+  return (data.issuedAt ?? data.createdAt).toISOString().split('.')[0];
 }

@@ -30,12 +30,31 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
   readonly pollPolicy = { everySeconds: 60, timeoutHours: 48, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {
     fields: [
-      { type: 'select', name: 'environment', label: 'Environment', required: true, options: [
-        { label: 'Test (OpenPeppol AccAP)', value: 'TEST' },
-        { label: 'Production', value: 'PROD' },
-      ], default: 'TEST' },
-      { type: 'text', name: 'participantId', label: 'Your Peppol ID', placeholder: '0009:12345678900011', required: true },
-      { type: 'text', name: 'accessPointUrl', label: 'Access Point gateway URL', placeholder: 'https://ap.example.com', required: true },
+      {
+        type: 'select',
+        name: 'environment',
+        label: 'Environment',
+        required: true,
+        options: [
+          { label: 'Test (OpenPeppol AccAP)', value: 'TEST' },
+          { label: 'Production', value: 'PROD' },
+        ],
+        default: 'TEST',
+      },
+      {
+        type: 'text',
+        name: 'participantId',
+        label: 'Your Peppol ID',
+        placeholder: '0009:12345678900011',
+        required: true,
+      },
+      {
+        type: 'text',
+        name: 'accessPointUrl',
+        label: 'Access Point gateway URL',
+        placeholder: 'https://ap.example.com',
+        required: true,
+      },
       { type: 'text', name: 'apiKey', label: 'Access Point API key', required: true, secret: true },
     ],
   };
@@ -70,10 +89,14 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
     const senderParticipantId = config.participantId as string;
     const accessPointUrl = config.accessPointUrl as string;
     const apiKey = config.apiKey as string;
-    const environment = (config.environment as string ?? 'TEST') as 'TEST' | 'PROD';
+    const environment = ((config.environment as string) ?? 'TEST') as 'TEST' | 'PROD';
 
     if (!senderParticipantId || !accessPointUrl || !apiKey) {
-      return { channel: 'PEPPOL', status: 'SKIPPED', notes: ['peppol: incomplete config (participantId, accessPointUrl, apiKey required)'] };
+      return {
+        channel: 'PEPPOL',
+        status: 'SKIPPED',
+        notes: ['peppol: incomplete config (participantId, accessPointUrl, apiKey required)'],
+      };
     }
 
     // Determine receiver participant ID from ctx.
@@ -92,7 +115,10 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
           });
           if (dirResult) {
             receiverPeppolId = dirResult.endpointId;
-            log.info('transmission/peppol', `directory resolved buyer ${peppolIdentifier.value} → ${receiverPeppolId} (key ${key})`);
+            log.info(
+              'transmission/peppol',
+              `directory resolved buyer ${peppolIdentifier.value} → ${receiverPeppolId} (key ${key})`,
+            );
           }
         } catch {
           // Directory unavailable — proceed without peppolId (non-blocking).
@@ -101,16 +127,25 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
     }
 
     if (!receiverPeppolId) {
-      return { channel: 'PEPPOL', status: 'SKIPPED', notes: ['peppol: buyer has no peppolId — cannot route'] };
+      return {
+        channel: 'PEPPOL',
+        status: 'SKIPPED',
+        notes: ['peppol: buyer has no peppolId — cannot route'],
+      };
     }
 
     // Find UBL or CII artifact (PEPPOL_BIS preferred, then EN16931_UBL, then EN16931_CII)
-    const documentArtifact = artifacts.find((a) => a.syntax === 'PEPPOL_BIS')
-      ?? artifacts.find((a) => a.syntax === 'EN16931_UBL')
-      ?? artifacts.find((a) => a.syntax === 'EN16931_CII');
+    const documentArtifact =
+      artifacts.find((a) => a.syntax === 'PEPPOL_BIS') ??
+      artifacts.find((a) => a.syntax === 'EN16931_UBL') ??
+      artifacts.find((a) => a.syntax === 'EN16931_CII');
 
     if (!documentArtifact) {
-      return { channel: 'PEPPOL', status: 'SKIPPED', notes: ['peppol: no PEPPOL_BIS, EN16931_UBL, or EN16931_CII artifact'] };
+      return {
+        channel: 'PEPPOL',
+        status: 'SKIPPED',
+        notes: ['peppol: no PEPPOL_BIS, EN16931_UBL, or EN16931_CII artifact'],
+      };
     }
 
     const companyId = ctx.supplierCompanyId;
@@ -119,13 +154,19 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
     }
 
     try {
-      const { PeppolApHttpClient, PEPPOL_BILLING_PROCESS_ID, PEPPOL_DOC_TYPES } = await import('./peppol/peppol-client.js');
+      const { PeppolApHttpClient, PEPPOL_BILLING_PROCESS_ID, PEPPOL_DOC_TYPES } = await import(
+        './peppol/peppol-client.js'
+      );
       const { DnsSmpLookup } = await import('./peppol/smp-client.js');
 
       // Parse receiver participant ID: icd:identifier
       const [receiverIcd, receiverIdentifier] = receiverPeppolId.split(':');
       if (!receiverIcd || !receiverIdentifier) {
-        return { channel: 'PEPPOL', status: 'SKIPPED', notes: [`peppol: invalid receiverPeppolId format (expected icd:identifier): ${receiverPeppolId}`] };
+        return {
+          channel: 'PEPPOL',
+          status: 'SKIPPED',
+          notes: [`peppol: invalid receiverPeppolId format (expected icd:identifier): ${receiverPeppolId}`],
+        };
       }
 
       // SMP lookup to confirm the receiver is registered and find their AP endpoint
@@ -140,16 +181,21 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
       );
 
       if (!smpResult) {
-        return { channel: 'PEPPOL', status: 'SKIPPED', notes: [`peppol: receiver ${receiverPeppolId} not found in SMP — not registered on Peppol`] };
+        return {
+          channel: 'PEPPOL',
+          status: 'SKIPPED',
+          notes: [`peppol: receiver ${receiverPeppolId} not found in SMP — not registered on Peppol`],
+        };
       }
 
       log.info('transmission/peppol', `SMP resolved → AP endpoint: ${smpResult.endpoint.url} (key ${key})`);
 
-      const documentBytes = typeof documentArtifact.bytes === 'string'
-        ? Buffer.from(documentArtifact.bytes, 'utf-8')
-        : documentArtifact.bytes instanceof Buffer
-          ? documentArtifact.bytes
-          : Buffer.from(documentArtifact.bytes);
+      const documentBytes =
+        typeof documentArtifact.bytes === 'string'
+          ? Buffer.from(documentArtifact.bytes, 'utf-8')
+          : documentArtifact.bytes instanceof Buffer
+            ? documentArtifact.bytes
+            : Buffer.from(documentArtifact.bytes);
 
       // Submit via AP gateway
       const ap = this.apPort ?? new PeppolApHttpClient({ accessPointUrl, apiKey, environment });
@@ -173,7 +219,13 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
     }
   }
 
-  async sendStatus(ref: string, status: string, ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<TransmissionResult> {
+  async sendStatus(
+    ref: string,
+    status: string,
+    ctx: TransactionContext,
+    _plan: CompliancePlan,
+    log: ComplianceLogger,
+  ): Promise<TransmissionResult> {
     // Peppol Invoice Response (IMR / BIS 3 CIUS / BIS 36a MLR).
     // Called when WE are the buyer confirming acceptance/rejection of a received invoice,
     // OR when the seller's AP relays our response back through the 4-corner network.
@@ -193,7 +245,12 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
     const [companyId, originalMessageId] = parts;
 
     if (!this.credentials) {
-      return { channel: 'PEPPOL', status: 'QUEUED', ref, notes: ['peppol: no credentials port for sendStatus'] };
+      return {
+        channel: 'PEPPOL',
+        status: 'QUEUED',
+        ref,
+        notes: ['peppol: no credentials port for sendStatus'],
+      };
     }
 
     const resolved = await this.credentials.resolveActive(companyId, 'peppol');
@@ -205,30 +262,47 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
     const senderParticipantId = config.participantId as string;
     const accessPointUrl = config.accessPointUrl as string;
     const apiKey = config.apiKey as string;
-    const environment = (config.environment as string ?? 'TEST') as 'TEST' | 'PROD';
+    const environment = ((config.environment as string) ?? 'TEST') as 'TEST' | 'PROD';
 
     if (!senderParticipantId || !accessPointUrl || !apiKey) {
-      return { channel: 'PEPPOL', status: 'QUEUED', ref, notes: ['peppol: incomplete config for sendStatus'] };
+      return {
+        channel: 'PEPPOL',
+        status: 'QUEUED',
+        ref,
+        notes: ['peppol: incomplete config for sendStatus'],
+      };
     }
 
     const receiverPeppolId = ctx.buyer.peppolId ?? ctx.supplier.peppolId;
     if (!receiverPeppolId) {
       log.todo('transmission/peppol', `sendStatus: no peppolId on counterpart (ref ${ref})`);
-      return { channel: 'PEPPOL', status: 'QUEUED', ref, notes: ['peppol: no counterpart peppolId for Invoice Response'] };
+      return {
+        channel: 'PEPPOL',
+        status: 'QUEUED',
+        ref,
+        notes: ['peppol: no counterpart peppolId for Invoice Response'],
+      };
     }
 
     const sl = status.toLowerCase();
-    const responseCode: 'AB' | 'RE' | 'UQ' | 'AP' =
-      ['accept', 'approv', 'cleared', 'consegn'].some((w) => sl.includes(w)) ? 'AB' :
-      ['refus', 'reject', 'rechaz', 'scart'].some((w) => sl.includes(w)) ? 'RE' :
-      ['litige', 'disput', 'query'].some((w) => sl.includes(w)) ? 'UQ' :
-      'AP';
+    const responseCode: 'AB' | 'RE' | 'UQ' | 'AP' = ['accept', 'approv', 'cleared', 'consegn'].some((w) =>
+      sl.includes(w),
+    )
+      ? 'AB'
+      : ['refus', 'reject', 'rechaz', 'scart'].some((w) => sl.includes(w))
+        ? 'RE'
+        : ['litige', 'disput', 'query'].some((w) => sl.includes(w))
+          ? 'UQ'
+          : 'AP';
 
     try {
       const { PeppolApHttpClient } = await import('./peppol/peppol-client.js');
       const ap = this.apPort ?? new PeppolApHttpClient({ accessPointUrl, apiKey, environment });
 
-      log.info('transmission/peppol', `sendStatus: sending Invoice Response "${responseCode}" for originalMessageId ${originalMessageId}`);
+      log.info(
+        'transmission/peppol',
+        `sendStatus: sending Invoice Response "${responseCode}" for originalMessageId ${originalMessageId}`,
+      );
       const result = await ap.sendInvoiceResponse({
         senderParticipantId,
         receiverParticipantId: receiverPeppolId,
@@ -272,7 +346,7 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
       const { config } = resolved;
       const accessPointUrl = config.accessPointUrl as string;
       const apiKey = config.apiKey as string;
-      const environment = (config.environment as string ?? 'TEST') as 'TEST' | 'PROD';
+      const environment = ((config.environment as string) ?? 'TEST') as 'TEST' | 'PROD';
 
       const { PeppolApHttpClient } = await import('./peppol/peppol-client.js');
       const ap = this.apPort ?? new PeppolApHttpClient({ accessPointUrl, apiKey, environment });
@@ -302,10 +376,6 @@ export class PeppolTransmissionProvider implements TransmissionProvider {
 
       case 'FAILED':
         return { channel: 'PEPPOL', status: 'REJECTED', ref, notes };
-
-      case 'SENT':
-      case 'QUEUED':
-      case 'UNKNOWN':
       default:
         return { channel: 'PEPPOL', status: 'PENDING', ref, notes };
     }

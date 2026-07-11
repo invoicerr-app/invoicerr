@@ -1,7 +1,6 @@
 import { PartyRole, SupplyType } from '../types';
 import { PartyTaxProfile, TransactionContext } from '../canonical/canonical-document';
 import { resolve } from '../engine/compliance-engine';
-import { ComplianceStatus } from './state-machine';
 import { channelClassOf, describeFlow } from './flow-descriptor';
 
 function party(country: string, role: PartyRole, validatedVat = role === 'B2B'): PartyTaxProfile {

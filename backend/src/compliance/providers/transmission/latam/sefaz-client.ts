@@ -21,11 +21,14 @@
 
 export type SefazEnvironment = 'hom' | 'prod';
 
-const SEFAZ_URLS: Record<SefazEnvironment, {
-  autorizacao: string;
-  retAutorizacao: string;
-  consultaProtocolo: string;
-}> = {
+const SEFAZ_URLS: Record<
+  SefazEnvironment,
+  {
+    autorizacao: string;
+    retAutorizacao: string;
+    consultaProtocolo: string;
+  }
+> = {
   hom: {
     autorizacao: 'https://hom.nfe.fazenda.gov.br/NFeAutorizacao4/NFeAutorizacao4.asmx',
     retAutorizacao: 'https://hom.nfe.fazenda.gov.br/NFeRetAutorizacao4/NFeRetAutorizacao4.asmx',
@@ -126,7 +129,7 @@ export interface SefazClientConfig {
 // ---------------------------------------------------------------------------
 
 export class SefazClient {
-  private readonly urls: typeof SEFAZ_URLS[SefazEnvironment];
+  private readonly urls: (typeof SEFAZ_URLS)[SefazEnvironment];
 
   constructor(
     private readonly http: SefazHttpPort,

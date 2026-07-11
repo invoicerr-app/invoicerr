@@ -58,7 +58,10 @@ function makeUblArtifact(): SignedArtifact {
     role: 'AUTHORITATIVE',
     syntax: 'PEPPOL_BIS',
     mime: 'application/xml',
-    bytes: Buffer.from('<?xml version="1.0"?><Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"/>', 'utf8'),
+    bytes: Buffer.from(
+      '<?xml version="1.0"?><Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"/>',
+      'utf8',
+    ),
   };
 }
 
@@ -77,7 +80,9 @@ function makeCtx(receiverPeppolId = RECEIVER_PARTICIPANT_ID): TransactionContext
       identifiers: [{ scheme: 'NO:ORG', value: '987654321', validated: true }],
       peppolId: receiverPeppolId,
     },
-    lines: [{ id: 'l1', description: 'Consulting', quantity: 1, unitNetMinor: 500000, supplyType: 'SERVICES' }],
+    lines: [
+      { id: 'l1', description: 'Consulting', quantity: 1, unitNetMinor: 500000, supplyType: 'SERVICES' },
+    ],
     issueDate: new Date('2026-07-01'),
     currency: 'EUR',
     supplierCompanyId: COMPANY_ID,
@@ -335,7 +340,9 @@ describe('PeppolTransmissionProvider.poll() — delivery status mapping', () => 
   it('maps DELIVERED → CLEARED', async () => {
     const ap: PeppolApPort = {
       send: jest.fn(),
-      getStatus: jest.fn().mockResolvedValue({ messageId: 'msg-1', status: 'DELIVERED' } satisfies PeppolStatusResult),
+      getStatus: jest
+        .fn()
+        .mockResolvedValue({ messageId: 'msg-1', status: 'DELIVERED' } satisfies PeppolStatusResult),
       sendInvoiceResponse: jest.fn().mockResolvedValue({ messageId: 'ir-1', status: 'QUEUED' }),
     };
     const credentials = mockCredentials(makeResolvedConfig());
@@ -350,7 +357,12 @@ describe('PeppolTransmissionProvider.poll() — delivery status mapping', () => 
   it('maps FAILED → REJECTED', async () => {
     const ap: PeppolApPort = {
       send: jest.fn(),
-      getStatus: jest.fn().mockResolvedValue({ messageId: 'msg-2', status: 'FAILED', mlrCode: 'ERR001', mlrDescription: 'Invalid document' } satisfies PeppolStatusResult),
+      getStatus: jest.fn().mockResolvedValue({
+        messageId: 'msg-2',
+        status: 'FAILED',
+        mlrCode: 'ERR001',
+        mlrDescription: 'Invalid document',
+      } satisfies PeppolStatusResult),
       sendInvoiceResponse: jest.fn().mockResolvedValue({ messageId: 'ir-2', status: 'QUEUED' }),
     };
     const credentials = mockCredentials(makeResolvedConfig());
@@ -365,7 +377,9 @@ describe('PeppolTransmissionProvider.poll() — delivery status mapping', () => 
   it('maps QUEUED → PENDING', async () => {
     const ap: PeppolApPort = {
       send: jest.fn(),
-      getStatus: jest.fn().mockResolvedValue({ messageId: 'msg-3', status: 'QUEUED' } satisfies PeppolStatusResult),
+      getStatus: jest
+        .fn()
+        .mockResolvedValue({ messageId: 'msg-3', status: 'QUEUED' } satisfies PeppolStatusResult),
       sendInvoiceResponse: jest.fn().mockResolvedValue({ messageId: 'ir-3', status: 'QUEUED' }),
     };
     const credentials = mockCredentials(makeResolvedConfig());

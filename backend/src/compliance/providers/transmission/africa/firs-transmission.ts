@@ -32,13 +32,31 @@ export class FirsTransmissionProvider implements TransmissionProvider {
   readonly configSchema: ChannelConfigSchema = {
     fields: [
       {
-        type: 'select', name: 'environment', label: 'FIRS MBS environment', required: true,
-        options: [{ label: 'Sandbox', value: 'sandbox' }, { label: 'Production', value: 'prod' }],
+        type: 'select',
+        name: 'environment',
+        label: 'FIRS MBS environment',
+        required: true,
+        options: [
+          { label: 'Sandbox', value: 'sandbox' },
+          { label: 'Production', value: 'prod' },
+        ],
         default: 'sandbox',
       },
-      { type: 'text', name: 'clientId', label: 'FIRS MBS Client ID (TIN)', required: true, minLength: 12, maxLength: 12 },
+      {
+        type: 'text',
+        name: 'clientId',
+        label: 'FIRS MBS Client ID (TIN)',
+        required: true,
+        minLength: 12,
+        maxLength: 12,
+      },
       { type: 'text', name: 'clientSecret', label: 'FIRS MBS Client Secret', required: true, secret: true },
-      { type: 'text', name: 'serviceId', label: 'Service/Activity ID (from FIRS MBS catalogue)', required: false },
+      {
+        type: 'text',
+        name: 'serviceId',
+        label: 'Service/Activity ID (from FIRS MBS catalogue)',
+        required: false,
+      },
     ],
   };
 
@@ -56,11 +74,17 @@ export class FirsTransmissionProvider implements TransmissionProvider {
     resolvedConfig?: ResolvedChannelConfig,
   ): Promise<TransmissionResult> {
     if (!resolvedConfig) {
-      return { channel: GP, status: 'SKIPPED', notes: ['firs: no resolved config (FIRS MBS clientId + clientSecret required)'] };
+      return {
+        channel: GP,
+        status: 'SKIPPED',
+        notes: ['firs: no resolved config (FIRS MBS clientId + clientSecret required)'],
+      };
     }
 
     const { config, environment } = resolvedConfig;
-    const env = ((config.environment as string) ?? environment ?? 'sandbox').toLowerCase() as 'sandbox' | 'prod';
+    const env = ((config.environment as string) ?? environment ?? 'sandbox').toLowerCase() as
+      | 'sandbox'
+      | 'prod';
     const clientId = config.clientId as string;
     if (!clientId) {
       return { channel: GP, status: 'SKIPPED', notes: ['firs: clientId (TIN) required'] };
@@ -151,13 +175,21 @@ export class FirsTransmissionProvider implements TransmissionProvider {
     if (!irn) return { channel: GP, status: 'PENDING', ref, notes: ['firs: invalid ref format'] };
     if (!this.credentials) {
       log.todo('transmission/firs', `poll IRN ${irn} for company ${companyId}`);
-      return { channel: GP, status: 'PENDING', ref, notes: ['firs: poll deferred (use FIRS MBS /api/v1/invoice/status/{irn})'] };
+      return {
+        channel: GP,
+        status: 'PENDING',
+        ref,
+        notes: ['firs: poll deferred (use FIRS MBS /api/v1/invoice/status/{irn})'],
+      };
     }
     try {
       const resolved = await this.credentials.resolveActive(companyId, 'firs');
-      if (!resolved?.isActive) return { channel: GP, status: 'PENDING', ref, notes: ['firs: credentials inactive'] };
+      if (!resolved?.isActive)
+        return { channel: GP, status: 'PENDING', ref, notes: ['firs: credentials inactive'] };
       const { config, environment } = resolved;
-      const env = ((config.environment as string) ?? environment ?? 'sandbox').toLowerCase() as 'sandbox' | 'prod';
+      const env = ((config.environment as string) ?? environment ?? 'sandbox').toLowerCase() as
+        | 'sandbox'
+        | 'prod';
       const http = this.httpPort ?? buildStubHttpPort();
       const client = new FirsClient(http, {
         environment: env,
@@ -165,7 +197,12 @@ export class FirsTransmissionProvider implements TransmissionProvider {
         clientSecret: config.clientSecret as string | undefined,
       });
       log.todo('transmission/firs', `poll IRN ${irn} via FIRS MBS status endpoint (live-deferred)`);
-      return { channel: GP, status: 'PENDING', ref, notes: ['firs: poll live-deferred — no FIRS MBS credentials available'] };
+      return {
+        channel: GP,
+        status: 'PENDING',
+        ref,
+        notes: ['firs: poll live-deferred — no FIRS MBS credentials available'],
+      };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       return { channel: GP, status: 'PENDING', ref, notes: [`firs: poll error: ${msg}`] };
@@ -175,10 +212,18 @@ export class FirsTransmissionProvider implements TransmissionProvider {
 
 function buildStubHttpPort(): FirsHttpPort {
   return {
-    authenticate: async () => { throw new Error('FirsHttpPort not implemented — FIRS MBS clientId + clientSecret required'); },
-    generateIrn: async () => { throw new Error('FirsHttpPort not implemented — live FIRS MBS credentials required'); },
-    submitInvoice: async () => { throw new Error('FirsHttpPort not implemented'); },
-    getStatus: async () => { throw new Error('FirsHttpPort not implemented'); },
+    authenticate: async () => {
+      throw new Error('FirsHttpPort not implemented — FIRS MBS clientId + clientSecret required');
+    },
+    generateIrn: async () => {
+      throw new Error('FirsHttpPort not implemented — live FIRS MBS credentials required');
+    },
+    submitInvoice: async () => {
+      throw new Error('FirsHttpPort not implemented');
+    },
+    getStatus: async () => {
+      throw new Error('FirsHttpPort not implemented');
+    },
   };
 }
 

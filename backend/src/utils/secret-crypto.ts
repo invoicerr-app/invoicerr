@@ -11,18 +11,18 @@
  * false and the channel-credentials feature disables itself gracefully (no crash,
  * no save of secrets).
  */
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
+import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 
 const ALGO = 'aes-256-gcm';
-const IV_LEN = 12;   // 96 bits — recommended for GCM
-const TAG_LEN = 16;  // 128-bit auth tag
+const IV_LEN = 12; // 96 bits — recommended for GCM
+const TAG_LEN = 16; // 128-bit auth tag
 const FORMAT_VERSION = 1;
 
 interface EncryptedBlob {
-  v: number;   // format version
-  iv: string;  // base64
+  v: number; // format version
+  iv: string; // base64
   tag: string; // base64
-  ct: string;  // base64
+  ct: string; // base64
 }
 
 // ---------------------------------------------------------------------------
@@ -65,7 +65,7 @@ export function encryptJson(obj: unknown): string {
   if (!key) {
     throw new Error(
       'CREDENTIALS_ENCRYPTION_KEY is missing or invalid (must be 32 bytes hex or base64). ' +
-      'Generate one with: openssl rand -hex 32',
+        'Generate one with: openssl rand -hex 32',
     );
   }
 
@@ -91,9 +91,7 @@ export function encryptJson(obj: unknown): string {
 export function decryptJson<T = unknown>(encrypted: string): T {
   const key = resolveKey();
   if (!key) {
-    throw new Error(
-      'CREDENTIALS_ENCRYPTION_KEY is missing or invalid — cannot decrypt.',
-    );
+    throw new Error('CREDENTIALS_ENCRYPTION_KEY is missing or invalid — cannot decrypt.');
   }
 
   let blob: EncryptedBlob;

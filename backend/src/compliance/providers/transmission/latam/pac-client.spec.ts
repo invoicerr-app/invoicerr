@@ -16,7 +16,8 @@ const MOCK_TIMBRE: PacTimbreResponse = {
   selloCfd: 'base64SelloCfd==',
   selloSat: 'base64SelloSat==',
   noCertificadoSat: '20001000000300022323',
-  cfdiXmlStamped: '<?xml version="1.0"?><cfdi:Comprobante><cfdi:Complemento><tfd:TimbreFiscalDigital UUID="6128396f-c09b-4ec6-8699-43c5f7e3b230"/></cfdi:Complemento></cfdi:Comprobante>',
+  cfdiXmlStamped:
+    '<?xml version="1.0"?><cfdi:Comprobante><cfdi:Complemento><tfd:TimbreFiscalDigital UUID="6128396f-c09b-4ec6-8699-43c5f7e3b230"/></cfdi:Complemento></cfdi:Comprobante>',
 };
 
 function mockHttp(overrides?: Partial<PacHttpPort>): PacHttpPort {

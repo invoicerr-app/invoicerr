@@ -27,13 +27,34 @@ export class OseTransmissionProvider implements TransmissionProvider {
   readonly pollPolicy = { everySeconds: 60, timeoutHours: 24, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {
     fields: [
-      { type: 'select', name: 'environment', label: 'OSE environment', required: true, options: [
-        { label: 'Homologación (test)', value: 'test' },
-        { label: 'Producción', value: 'prod' },
-      ], default: 'test' },
-      { type: 'text', name: 'baseUrl', label: 'OSE API base URL', placeholder: 'https://ose.example.pe', required: true },
+      {
+        type: 'select',
+        name: 'environment',
+        label: 'OSE environment',
+        required: true,
+        options: [
+          { label: 'Homologación (test)', value: 'test' },
+          { label: 'Producción', value: 'prod' },
+        ],
+        default: 'test',
+      },
+      {
+        type: 'text',
+        name: 'baseUrl',
+        label: 'OSE API base URL',
+        placeholder: 'https://ose.example.pe',
+        required: true,
+      },
       { type: 'text', name: 'apiKey', label: 'OSE API key', required: true, secret: true },
-      { type: 'text', name: 'ruc', label: 'RUC del emisor (11 dígitos)', placeholder: '20123456789', required: true, minLength: 11, maxLength: 11 },
+      {
+        type: 'text',
+        name: 'ruc',
+        label: 'RUC del emisor (11 dígitos)',
+        placeholder: '20123456789',
+        required: true,
+        minLength: 11,
+        maxLength: 11,
+      },
     ],
   };
 
@@ -62,7 +83,11 @@ export class OseTransmissionProvider implements TransmissionProvider {
     const environment = ((config.environment as string) ?? 'test').toLowerCase() as 'test' | 'prod';
 
     if (!baseUrl || !apiKey || !ruc) {
-      return { channel: 'OSE', status: 'SKIPPED', notes: ['ose: incomplete config (baseUrl, apiKey, ruc required)'] };
+      return {
+        channel: 'OSE',
+        status: 'SKIPPED',
+        notes: ['ose: incomplete config (baseUrl, apiKey, ruc required)'],
+      };
     }
 
     // Find PE comprobante artifact (UBL 2.1 ZIP or signed XML ZIP)
@@ -80,24 +105,34 @@ export class OseTransmissionProvider implements TransmissionProvider {
       const { OseClient } = await import('./latam/ose-client.js');
 
       const http: OseHttpPort = this.httpPort ?? {
-        enviarComprobante: async () => { throw new Error('OSE transport not implemented — provide an OseHttpPort for your OSE (e.g. Nubefact, Facturalo.pe)'); },
-        obtenerCdr: async () => { throw new Error('OSE transport not implemented — provide an OseHttpPort'); },
+        enviarComprobante: async () => {
+          throw new Error(
+            'OSE transport not implemented — provide an OseHttpPort for your OSE (e.g. Nubefact, Facturalo.pe)',
+          );
+        },
+        obtenerCdr: async () => {
+          throw new Error('OSE transport not implemented — provide an OseHttpPort');
+        },
       };
 
       const client = new OseClient(http, { environment, baseUrl, apiKey, ruc });
 
-      const xmlZip = typeof comprobanteArtifact.bytes === 'string'
-        ? Buffer.from(comprobanteArtifact.bytes, 'utf-8')
-        : comprobanteArtifact.bytes instanceof Buffer
-          ? comprobanteArtifact.bytes
-          : Buffer.from(comprobanteArtifact.bytes);
+      const xmlZip =
+        typeof comprobanteArtifact.bytes === 'string'
+          ? Buffer.from(comprobanteArtifact.bytes, 'utf-8')
+          : comprobanteArtifact.bytes instanceof Buffer
+            ? comprobanteArtifact.bytes
+            : Buffer.from(comprobanteArtifact.bytes);
 
       // Derive tipoDoc / serie / correlativo from key (placeholder; real derivation needs doc metadata)
       const tipoDoc: OseTipoDoc = '01'; // Factura — TODO derive from artifact metadata
       const serie = 'F001'; // TODO derive from invoice number
       const correlativo = key.slice(-6).replace(/\D/g, '0');
 
-      log.info('transmission/ose', `submitting to OSE (ruc ${ruc}, ${tipoDoc}-${serie}-${correlativo}, key ${key})`);
+      log.info(
+        'transmission/ose',
+        `submitting to OSE (ruc ${ruc}, ${tipoDoc}-${serie}-${correlativo}, key ${key})`,
+      );
       const resp = await client.enviarComprobante(tipoDoc, serie, correlativo, xmlZip);
 
       if (resp.estado === 'ACEPTADO') {
@@ -107,14 +142,21 @@ export class OseTransmissionProvider implements TransmissionProvider {
           channel: 'OSE',
           status: 'CLEARED',
           ref,
-          notes: [`codigoRespuesta: ${resp.codigoRespuesta ?? '0'}`, resp.descripcion ?? 'Aceptado'].filter(Boolean),
+          notes: [`codigoRespuesta: ${resp.codigoRespuesta ?? '0'}`, resp.descripcion ?? 'Aceptado'].filter(
+            Boolean,
+          ),
         };
       }
 
       const ticket = resp.ticket;
       const ref = `${companyId}|${tipoDoc}|${serie}|${correlativo}${ticket ? `|${ticket}` : ''}`;
       log.info('transmission/ose', `submitted → ticket ${ticket ?? '(none)'} (key ${key})`);
-      return { channel: 'OSE', status: 'PENDING', ref, notes: [`estado: ${resp.estado}`, `ticket: ${ticket}`].filter(Boolean) };
+      return {
+        channel: 'OSE',
+        status: 'PENDING',
+        ref,
+        notes: [`estado: ${resp.estado}`, `ticket: ${ticket}`].filter(Boolean),
+      };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       log.warn('transmission/ose', `transmit failed: ${msg} (key ${key})`);
@@ -148,22 +190,30 @@ export class OseTransmissionProvider implements TransmissionProvider {
 
       const { OseClient } = await import('./latam/ose-client.js');
       const http: OseHttpPort = this.httpPort ?? {
-        enviarComprobante: async () => { throw new Error('OSE transport not implemented'); },
-        obtenerCdr: async () => { throw new Error('OSE transport not implemented'); },
+        enviarComprobante: async () => {
+          throw new Error('OSE transport not implemented');
+        },
+        obtenerCdr: async () => {
+          throw new Error('OSE transport not implemented');
+        },
       };
 
       const client = new OseClient(http, { environment, baseUrl, apiKey, ruc });
 
-      log.info('transmission/ose', `polling CDR (${tipoDoc}-${serie}-${correlativo}, ticket: ${ticket ?? 'none'})`);
+      log.info(
+        'transmission/ose',
+        `polling CDR (${tipoDoc}-${serie}-${correlativo}, ticket: ${ticket ?? 'none'})`,
+      );
       const cdr = await client.obtenerCdr(tipoDoc as OseTipoDoc, serie, correlativo, ticket);
 
-      const lifecycle = OseClient.mapEstado(cdr.estado) === 'CLEARED'
-        ? 'CLEARED'
-        : OseClient.mapCodigo(cdr.codigoRespuesta) === 'CLEARED'
+      const lifecycle =
+        OseClient.mapEstado(cdr.estado) === 'CLEARED'
           ? 'CLEARED'
-          : OseClient.mapEstado(cdr.estado) === 'REJECTED'
-            ? 'REJECTED'
-            : 'PENDING';
+          : OseClient.mapCodigo(cdr.codigoRespuesta) === 'CLEARED'
+            ? 'CLEARED'
+            : OseClient.mapEstado(cdr.estado) === 'REJECTED'
+              ? 'REJECTED'
+              : 'PENDING';
 
       const notes: string[] = [`codigoRespuesta: ${cdr.codigoRespuesta}`, cdr.descripcion];
       if (cdr.detalles?.length) {

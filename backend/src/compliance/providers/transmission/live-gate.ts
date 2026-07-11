@@ -31,13 +31,9 @@
  *   PEPPOL_LIVE=1       Peppol AP round-trip (requires connected Access Point)
  *   PORTAL_LIVE=1       National portal round-trip (requires PORTAL_ID + portal-specific creds)
  */
-export function liveDescribe(
-  flagVar: string,
-  requiredEnvVars: string[] = [],
-): typeof describe {
+export function liveDescribe(flagVar: string, requiredEnvVars: string[] = []): typeof describe {
   // Primary gate: opt-in flag must be explicitly '1'.
   if (process.env[flagVar] !== '1') {
-    // eslint-disable-next-line no-restricted-properties
     return describe.skip;
   }
 
@@ -47,7 +43,6 @@ export function liveDescribe(
     process.stderr.write(
       `[live-gate] ${flagVar}=1 but missing env vars: ${missing.join(', ')} — suite will be skipped.\n`,
     );
-    // eslint-disable-next-line no-restricted-properties
     return describe.skip;
   }
 

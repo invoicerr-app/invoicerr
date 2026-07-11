@@ -8,8 +8,8 @@ import { ComplianceModule } from '@/compliance/nest/compliance.module';
 import { NumberingService } from '@/utils/numbering';
 
 @Module({
-    imports: [WebhooksModule, ComplianceModule],
-    controllers: [PaymentsController],
-    providers: [PaymentsService, MailService, JwtService, NumberingService]
+  imports: [WebhooksModule, ComplianceModule],
+  controllers: [PaymentsController],
+  providers: [PaymentsService, MailService, JwtService, NumberingService],
 })
-export class PaymentsModule { }
+export class PaymentsModule {}

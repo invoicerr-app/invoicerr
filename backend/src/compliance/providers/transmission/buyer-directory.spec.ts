@@ -165,11 +165,7 @@ describe('SmpBuyerDirectory', () => {
     const dir = new SmpBuyerDirectory(smp);
 
     await dir.lookup({ identifier: '0009:12345678900011', environment: 'PROD' });
-    expect(smp.lookup).toHaveBeenCalledWith(
-      expect.any(Object),
-      expect.any(String),
-      'PROD',
-    );
+    expect(smp.lookup).toHaveBeenCalledWith(expect.any(Object), expect.any(String), 'PROD');
   });
 });
 

@@ -42,7 +42,7 @@ import {
 async function handleReport<P>(
   kind: ReportingKind,
   ctx: TransactionContext,
-  plan: CompliancePlan,
+  _plan: CompliancePlan,
   log: ComplianceLogger,
   store: ReportingStore,
   generatePayload: () => P,
@@ -55,7 +55,10 @@ async function handleReport<P>(
   // Idempotence check: one record per (kind, period, company, invoice)
   const existing = await store.find(kind, periodKey, companyId, invoiceRef);
   if (existing) {
-    log.info(`reporting/${kind}`, `idempotent skip: record ${existing.id} already ${existing.status} for period ${periodKey}`);
+    log.info(
+      `reporting/${kind}`,
+      `idempotent skip: record ${existing.id} already ${existing.status} for period ${periodKey}`,
+    );
     return { kind, status: 'SKIPPED', ref: existing.id };
   }
 
@@ -98,9 +101,17 @@ function makeReportingHandler(
     readonly kind: ReportingKind = kind;
     constructor(private readonly store: ReportingStore = new NullReportingStore()) {}
 
-    async report(ctx: TransactionContext, plan: CompliancePlan, log: ComplianceLogger): Promise<ReportingResult> {
+    async report(
+      ctx: TransactionContext,
+      plan: CompliancePlan,
+      log: ComplianceLogger,
+    ): Promise<ReportingResult> {
       return handleReport(
-        kind, ctx, plan, log, this.store,
+        kind,
+        ctx,
+        plan,
+        log,
+        this.store,
         () => {
           const periodKey = getPeriodKey(ctx.issueDate, frequencyForKind(kind));
           return generate(ctx, plan, periodKey);
@@ -116,25 +127,49 @@ function makeReportingHandler(
 // ---------------------------------------------------------------------------
 
 export const EReportingReportingHandler = makeReportingHandler(
-  'E_REPORTING', generateEReportingPayload, 'push e-reporting transaction to FR PDP/PPF (mocked)');
+  'E_REPORTING',
+  generateEReportingPayload,
+  'push e-reporting transaction to FR PDP/PPF (mocked)',
+);
 
 export const SaftReportingHandler = makeReportingHandler(
-  'SAFT', generateSaftEntry, 'append SAF-T SalesInvoice entry to monthly batch (mocked)');
+  'SAFT',
+  generateSaftEntry,
+  'append SAF-T SalesInvoice entry to monthly batch (mocked)',
+);
 
 export const OssReportingHandler = makeReportingHandler(
-  'OSS', generateOssEntry, 'add line to OSS quarterly VAT return (mocked)');
+  'OSS',
+  generateOssEntry,
+  'add line to OSS quarterly VAT return (mocked)',
+);
 
 export const IossReportingHandler = makeReportingHandler(
-  'IOSS', generateIossEntry, 'add line to IOSS quarterly return for imported goods (mocked)');
+  'IOSS',
+  generateIossEntry,
+  'add line to IOSS quarterly return for imported goods (mocked)',
+);
 
 export const EcSalesListReportingHandler = makeReportingHandler(
-  'EC_SALES_LIST', generateEcSalesListEntry, 'add line to EC Sales List / recapitulative statement (mocked)');
+  'EC_SALES_LIST',
+  generateEcSalesListEntry,
+  'add line to EC Sales List / recapitulative statement (mocked)',
+);
 
 export const IntrastatReportingHandler = makeReportingHandler(
-  'INTRASTAT', generateIntrastatEntry, 'add movement to monthly Intrastat declaration (mocked)');
+  'INTRASTAT',
+  generateIntrastatEntry,
+  'add movement to monthly Intrastat declaration (mocked)',
+);
 
 export const SalesPurchaseLedgerReportingHandler = makeReportingHandler(
-  'SALES_PURCHASE_LEDGER', generateSalesPurchaseLedgerEntry, 'append entry to sales/purchase register (mocked)');
+  'SALES_PURCHASE_LEDGER',
+  generateSalesPurchaseLedgerEntry,
+  'append entry to sales/purchase register (mocked)',
+);
 
 export const CustomsExportReportingHandler = makeReportingHandler(
-  'CUSTOMS_EXPORT', (ctx, plan) => generateCustomsExportPayload(ctx, plan), 'attach customs/export evidence for zero-rating (mocked)');
+  'CUSTOMS_EXPORT',
+  (ctx, plan) => generateCustomsExportPayload(ctx, plan),
+  'attach customs/export evidence for zero-rating (mocked)',
+);

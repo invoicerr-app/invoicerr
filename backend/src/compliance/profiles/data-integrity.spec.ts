@@ -61,8 +61,13 @@ describe('profile data integrity', () => {
       }
     };
     for (const p of concrete) {
-      check(p.regime); check(p.formats); check(p.transmission);
-      check(p.lifecycle); check(p.archival); check(p.numbering); check(p.reporting);
+      check(p.regime);
+      check(p.formats);
+      check(p.transmission);
+      check(p.lifecycle);
+      check(p.archival);
+      check(p.numbering);
+      check(p.reporting);
     }
   });
 
@@ -77,7 +82,11 @@ describe('profile data integrity', () => {
         const syntaxes = [f.value.primary.syntax];
         if (f.value.human) syntaxes.push(f.value.human.syntax);
         for (const s of syntaxes) {
-          expect({ country: p.countryCode, syntax: s, provider: defaultFormatRegistry.resolve(s)?.id ?? null }).toMatchObject({
+          expect({
+            country: p.countryCode,
+            syntax: s,
+            provider: defaultFormatRegistry.resolve(s)?.id ?? null,
+          }).toMatchObject({
             provider: expect.any(String),
           });
         }
@@ -93,7 +102,12 @@ describe('profile data integrity', () => {
       for (const t of p.transmission) {
         for (const ch of t.value.channels) {
           const provider = defaultTransmissionRegistry.resolve(ch);
-          expect({ country: p.countryCode, channel: ch.type, providerId: ch.providerId, resolved: provider?.id ?? null }).toMatchObject({
+          expect({
+            country: p.countryCode,
+            channel: ch.type,
+            providerId: ch.providerId,
+            resolved: provider?.id ?? null,
+          }).toMatchObject({
             resolved: expect.any(String),
           });
           if (ch.providerId) expect(provider!.id).toBe(ch.providerId);

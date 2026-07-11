@@ -117,13 +117,22 @@ export interface MyInvoisHttpPort {
    * OAuth2 client_credentials grant — returns bearer token.
    * POST /connect/token with application/x-www-form-urlencoded.
    */
-  getToken(authUrl: string, clientId: string, clientSecret: string, scope: string): Promise<MyInvoisTokenResponse>;
+  getToken(
+    authUrl: string,
+    clientId: string,
+    clientSecret: string,
+    scope: string,
+  ): Promise<MyInvoisTokenResponse>;
 
   /**
    * Submit documents for validation and clearance.
    * POST /api/v1.0/documentsubmissions
    */
-  submitDocuments(apiBase: string, token: string, req: MyInvoisSubmissionRequest): Promise<MyInvoisSubmissionResponse>;
+  submitDocuments(
+    apiBase: string,
+    token: string,
+    req: MyInvoisSubmissionRequest,
+  ): Promise<MyInvoisSubmissionResponse>;
 
   /**
    * Poll document validation status by UUID.
@@ -198,7 +207,7 @@ export class MyInvoisClient {
    * BEFORE base64-encoding — consistent with MyInvois spec §3.1.
    */
   static computeDocumentHash(documentBytes: Uint8Array): string {
-    const { createHash } = require('crypto') as typeof import('crypto');
+    const { createHash } = require('node:crypto') as typeof import('crypto');
     return createHash('sha256').update(Buffer.from(documentBytes)).digest('hex');
   }
 
@@ -225,10 +234,7 @@ export class MyInvoisClient {
    * Full flow: authenticate → submit → return submission result.
    * Caller should then poll getStatus(uuid) until status === "Valid".
    */
-  async submitInvoice(
-    ublBytes: Uint8Array,
-    invoiceNumber: string,
-  ): Promise<MyInvoisSubmissionResponse> {
+  async submitInvoice(ublBytes: Uint8Array, invoiceNumber: string): Promise<MyInvoisSubmissionResponse> {
     const docHash = MyInvoisClient.computeDocumentHash(ublBytes);
     const docBase64 = Buffer.from(ublBytes).toString('base64');
     return this.submit([

@@ -49,13 +49,7 @@ export interface ResolveDeps {
   vat?: VatValidator;
 }
 
-const CONFIDENCE_ORDER: Confidence[] = [
-  'OFFICIAL',
-  'BEST_EFFORT',
-  'PLANNED',
-  'FALLBACK',
-  'UNVERIFIED',
-];
+const CONFIDENCE_ORDER: Confidence[] = ['OFFICIAL', 'BEST_EFFORT', 'PLANNED', 'FALLBACK', 'UNVERIFIED'];
 
 function minConfidence(a: Confidence, b: Confidence): Confidence {
   return CONFIDENCE_ORDER.indexOf(a) >= CONFIDENCE_ORDER.indexOf(b) ? a : b;
@@ -88,22 +82,18 @@ export function resolve(ctx: TransactionContext, deps: ResolveDeps = {}): Compli
       `No compliance profile for supplier country "${ctx.supplier.countryCode}" — using FALLBACK.`,
     );
   if (b.isFallback)
-    warnings.push(
-      `No compliance profile for buyer country "${ctx.buyer.countryCode}" — using FALLBACK.`,
-    );
+    warnings.push(`No compliance profile for buyer country "${ctx.buyer.countryCode}" — using FALLBACK.`);
 
   const buyerRole = ctx.buyer.role;
   const supplyTypes = [...new Set(ctx.lines.map((l) => l.supplyType))];
-  const crossBorder =
-    ctx.supplier.countryCode.toUpperCase() !== ctx.buyer.countryCode.toUpperCase();
+  const crossBorder = ctx.supplier.countryCode.toUpperCase() !== ctx.buyer.countryCode.toUpperCase();
 
   // Tax — the only step that reads both profiles deeply.
   const tax = determineTax(ctx, sp, vat, bp);
 
   // Regime — supplier-driven, by date AND classification.
   const regime =
-    pickWithSelector(sp.regime, ctx.issueDate, buyerRole, supplyTypes) ??
-    fallbackRegime(sp, warnings);
+    pickWithSelector(sp.regime, ctx.issueDate, buyerRole, supplyTypes) ?? fallbackRegime(sp, warnings);
 
   // Formats — supplier primary (+ human) plus buyer-mandated receive syntax when negotiable.
   const fmt = pickWithSelector(sp.formats, ctx.issueDate, buyerRole, supplyTypes);
@@ -152,9 +142,7 @@ function pickWithSelector<T extends { appliesTo?: ClassificationSelector }>(
   buyerRole: PartyRole,
   supplyTypes: SupplyType[],
 ): T | null {
-  const inForce = allByDate(rules, date).filter((v) =>
-    selectorMatches(v.appliesTo, buyerRole, supplyTypes),
-  );
+  const inForce = allByDate(rules, date).filter((v) => selectorMatches(v.appliesTo, buyerRole, supplyTypes));
   if (inForce.length === 0) return null;
   // Prefer a selector-specific rule over a wildcard one.
   const specific = inForce.find((v) => !!v.appliesTo);

@@ -148,7 +148,11 @@ describe('parseSdiNotifica', () => {
   });
 
   it('rawRef includes type and timestamp for dedup', () => {
-    const body: SdiNotificaWebhookPayload = { type: 'RC', idSdI: 1, dataOraRicezione: '2026-07-01T00:00:00Z' };
+    const body: SdiNotificaWebhookPayload = {
+      type: 'RC',
+      idSdI: 1,
+      dataOraRicezione: '2026-07-01T00:00:00Z',
+    };
     const input = parseSdiNotifica(body);
     expect(input.rawRef).toBe('sdi:1:RC:2026-07-01T00:00:00Z');
   });
@@ -202,15 +206,21 @@ describe('InboundRouter.replayUnapplied — boot replay', () => {
     const store = new InMemoryCallbackStore();
     const signals: Array<[string, LifecycleSignal]> = [];
     const router = new InboundRouter({
-      applySignal: (id, s) => { signals.push([id, s]); },
+      applySignal: (id, s) => {
+        signals.push([id, s]);
+      },
       store,
     });
 
     // Register a callback
-    await router.register('doc-1', { kind: 'AWAIT_CALLBACK', awaiting: 'PENDING_CLEARANCE' }, {
-      channel: 'PDP',
-      correlationKey: 'pdp-invoice-1',
-    });
+    await router.register(
+      'doc-1',
+      { kind: 'AWAIT_CALLBACK', awaiting: 'PENDING_CLEARANCE' },
+      {
+        channel: 'PDP',
+        correlationKey: 'pdp-invoice-1',
+      },
+    );
 
     // Store a message in the DB (simulates: webhook arrived, recorded, but applySignal crashed)
     await store.recordMessage({
@@ -234,14 +244,20 @@ describe('InboundRouter.replayUnapplied — boot replay', () => {
     const store = new InMemoryCallbackStore();
     const signals: Array<[string, LifecycleSignal]> = [];
     const router = new InboundRouter({
-      applySignal: (id, s) => { signals.push([id, s]); },
+      applySignal: (id, s) => {
+        signals.push([id, s]);
+      },
       store,
     });
 
-    await router.register('doc-2', { kind: 'AWAIT_CALLBACK', awaiting: 'AWAITING_RESPONSE' }, {
-      channel: 'SDI',
-      correlationKey: 'sdi-42',
-    });
+    await router.register(
+      'doc-2',
+      { kind: 'AWAIT_CALLBACK', awaiting: 'AWAITING_RESPONSE' },
+      {
+        channel: 'SDI',
+        correlationKey: 'sdi-42',
+      },
+    );
 
     // No stored messages for this registration
 
@@ -256,17 +272,37 @@ describe('InboundRouter.replayUnapplied — boot replay', () => {
     const store = new InMemoryCallbackStore();
     const signals: Array<[string, LifecycleSignal]> = [];
     const router = new InboundRouter({
-      applySignal: (id, s) => { signals.push([id, s]); },
+      applySignal: (id, s) => {
+        signals.push([id, s]);
+      },
       store,
     });
 
-    await router.register('doc-3', { kind: 'AWAIT_CALLBACK', awaiting: 'PENDING_CLEARANCE' }, {
+    await router.register(
+      'doc-3',
+      { kind: 'AWAIT_CALLBACK', awaiting: 'PENDING_CLEARANCE' },
+      {
+        channel: 'PEPPOL',
+        correlationKey: 'peppol-msg-1',
+      },
+    );
+
+    await store.recordMessage({
+      id: 'msg-a',
       channel: 'PEPPOL',
       correlationKey: 'peppol-msg-1',
+      status: 'AP',
+      rawRef: 'r1',
+      receivedAt: new Date().toISOString(),
     });
-
-    await store.recordMessage({ id: 'msg-a', channel: 'PEPPOL', correlationKey: 'peppol-msg-1', status: 'AP', rawRef: 'r1', receivedAt: new Date().toISOString() });
-    await store.recordMessage({ id: 'msg-b', channel: 'PEPPOL', correlationKey: 'peppol-msg-1', status: 'AB', rawRef: 'r2', receivedAt: new Date().toISOString() });
+    await store.recordMessage({
+      id: 'msg-b',
+      channel: 'PEPPOL',
+      correlationKey: 'peppol-msg-1',
+      status: 'AB',
+      rawRef: 'r2',
+      receivedAt: new Date().toISOString(),
+    });
 
     await router.replayUnapplied();
 
@@ -279,15 +315,28 @@ describe('InboundRouter.replayUnapplied — boot replay', () => {
     const store = new InMemoryCallbackStore();
     let applyCount = 0;
     const router = new InboundRouter({
-      applySignal: () => { applyCount++; },
+      applySignal: () => {
+        applyCount++;
+      },
       store,
     });
 
-    await router.register('doc-4', { kind: 'AWAIT_CALLBACK', awaiting: 'PENDING_CLEARANCE' }, {
+    await router.register(
+      'doc-4',
+      { kind: 'AWAIT_CALLBACK', awaiting: 'PENDING_CLEARANCE' },
+      {
+        channel: 'SDI',
+        correlationKey: 'sdi-99',
+      },
+    );
+    await store.recordMessage({
+      id: 'msg-c',
       channel: 'SDI',
       correlationKey: 'sdi-99',
+      status: 'consegnata',
+      rawRef: 'r3',
+      receivedAt: new Date().toISOString(),
     });
-    await store.recordMessage({ id: 'msg-c', channel: 'SDI', correlationKey: 'sdi-99', status: 'consegnata', rawRef: 'r3', receivedAt: new Date().toISOString() });
 
     await router.replayUnapplied();
     await router.replayUnapplied(); // second call
@@ -301,21 +350,37 @@ describe('InboundRouter.replayUnapplied — boot replay', () => {
     const store = new InMemoryCallbackStore();
     const signals: Array<[string, LifecycleSignal]> = [];
     const router = new InboundRouter({
-      applySignal: (id, s) => { signals.push([id, s]); },
+      applySignal: (id, s) => {
+        signals.push([id, s]);
+      },
       store,
     });
 
-    await router.register('doc-5', { kind: 'AWAIT_CALLBACK', awaiting: 'PENDING_CLEARANCE' }, {
-      channel: 'PDP',
-      correlationKey: 'pdp-2',
-    });
+    await router.register(
+      'doc-5',
+      { kind: 'AWAIT_CALLBACK', awaiting: 'PENDING_CLEARANCE' },
+      {
+        channel: 'PDP',
+        correlationKey: 'pdp-2',
+      },
+    );
 
     // First receive: stored + routed
-    const r1 = await router.receive({ channel: 'PDP', correlationKey: 'pdp-2', status: 'fr:205', rawRef: 'pdp:2:fr:205:ts' });
+    const r1 = await router.receive({
+      channel: 'PDP',
+      correlationKey: 'pdp-2',
+      status: 'fr:205',
+      rawRef: 'pdp:2:fr:205:ts',
+    });
     expect(r1.kind).toBe('ROUTED');
 
     // Duplicate receive: dedup returns DUPLICATE, no re-apply
-    const r2 = await router.receive({ channel: 'PDP', correlationKey: 'pdp-2', status: 'fr:205', rawRef: 'pdp:2:fr:205:ts' });
+    const r2 = await router.receive({
+      channel: 'PDP',
+      correlationKey: 'pdp-2',
+      status: 'fr:205',
+      rawRef: 'pdp:2:fr:205:ts',
+    });
     expect(r2.kind).toBe('DUPLICATE');
     expect(signals).toHaveLength(1);
   });

@@ -42,20 +42,24 @@ export function documentToRecord(row: DocumentRow): ComplianceDocumentRecord {
     authorityIds: row.authorityIds.map((a) => ({ scheme: a.scheme, value: a.value })),
     correctsId: row.correctsId ?? undefined,
     invoiceId: row.invoiceId ?? undefined,
-    events: row.events.map((e): ComplianceDocumentEvent => ({
-      id: e.id,
-      type: e.type,
-      at: e.at.toISOString(),
-      actor: e.actor ?? undefined,
-      detail: e.detail ?? undefined,
-      payload: e.payload ?? undefined,
-    })),
+    events: row.events.map(
+      (e): ComplianceDocumentEvent => ({
+        id: e.id,
+        type: e.type,
+        at: e.at.toISOString(),
+        actor: e.actor ?? undefined,
+        detail: e.detail ?? undefined,
+        payload: e.payload ?? undefined,
+      }),
+    ),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
 }
 
-export function documentToCreateInput(record: ComplianceDocumentRecord): Prisma.ComplianceDocumentCreateInput {
+export function documentToCreateInput(
+  record: ComplianceDocumentRecord,
+): Prisma.ComplianceDocumentCreateInput {
   return {
     id: record.id,
     kind: record.kind,
@@ -87,7 +91,9 @@ export function documentToCreateInput(record: ComplianceDocumentRecord): Prisma.
   };
 }
 
-export function documentToUpdateInput(record: ComplianceDocumentRecord): Prisma.ComplianceDocumentUpdateInput {
+export function documentToUpdateInput(
+  record: ComplianceDocumentRecord,
+): Prisma.ComplianceDocumentUpdateInput {
   return {
     id: record.id,
     kind: record.kind,
@@ -202,7 +208,9 @@ export function rowToTimerJob(row: ScheduledJobRow): TimerJob {
   };
 }
 
-export function callbackRegToRow(reg: CallbackRegistration): Prisma.ComplianceCallbackRegistrationCreateInput {
+export function callbackRegToRow(
+  reg: CallbackRegistration,
+): Prisma.ComplianceCallbackRegistrationCreateInput {
   return {
     id: reg.id,
     channel: reg.channel,
@@ -215,7 +223,9 @@ export function callbackRegToRow(reg: CallbackRegistration): Prisma.ComplianceCa
 }
 
 /** Full-row save of a CallbackRegistration — same fields the store previously wrote by passing the registration through. */
-export function callbackRegToUpdateRow(reg: CallbackRegistration): Prisma.ComplianceCallbackRegistrationUncheckedUpdateInput {
+export function callbackRegToUpdateRow(
+  reg: CallbackRegistration,
+): Prisma.ComplianceCallbackRegistrationUncheckedUpdateInput {
   return {
     documentId: reg.documentId,
     channel: reg.channel,

@@ -4,7 +4,16 @@ import { ComplianceStatus } from '../lifecycle/state-machine';
 import { PollJob } from '../lifecycle/drivers/poll-job';
 import { TimerJob } from '../lifecycle/drivers/timer-job';
 import { CallbackRegistration, InboundMessage } from '../lifecycle/drivers/inbound-job';
-import { rowToPollJob, pollJobToRow, rowToTimerJob, timerJobToRow, rowToCallbackReg, callbackRegToRow, rowToInboundMsg, inboundMsgToRow } from './mappers';
+import {
+  rowToPollJob,
+  pollJobToRow,
+  rowToTimerJob,
+  timerJobToRow,
+  rowToCallbackReg,
+  callbackRegToRow,
+  rowToInboundMsg,
+  inboundMsgToRow,
+} from './mappers';
 
 function now() {
   return new Date().toISOString();
@@ -14,8 +23,18 @@ const ts = () => new Date().toISOString();
 
 describe('document mappers', () => {
   const ctx = {
-    supplier: { legalName: 'FR Co', countryCode: 'FR', role: 'B2B' as const, identifiers: [{ scheme: 'VAT', value: 'FR1', validated: true }] },
-    buyer: { legalName: 'IT Co', countryCode: 'IT', role: 'B2B' as const, identifiers: [{ scheme: 'VAT', value: 'IT1', validated: true }] },
+    supplier: {
+      legalName: 'FR Co',
+      countryCode: 'FR',
+      role: 'B2B' as const,
+      identifiers: [{ scheme: 'VAT', value: 'FR1', validated: true }],
+    },
+    buyer: {
+      legalName: 'IT Co',
+      countryCode: 'IT',
+      role: 'B2B' as const,
+      identifiers: [{ scheme: 'VAT', value: 'IT1', validated: true }],
+    },
     lines: [{ id: 'l1', description: 'x', quantity: 1, unitNetMinor: 10000, supplyType: 'GOODS' as const }],
     issueDate: new Date('2027-01-15T10:00:00Z'),
     currency: 'EUR',
@@ -27,12 +46,34 @@ describe('document mappers', () => {
     direction: 'OUTBOUND',
     status: 'ISSUED' as ComplianceStatus,
     ctx: ctx as any,
-    plan: { supplier: { country: 'FR', confidence: 'OFFICIAL' }, buyer: { country: 'IT', confidence: 'OFFICIAL' }, classification: { buyerRole: 'B2B', crossBorder: true, supplyTypes: ['GOODS'] } as any, tax: { lines: [], reportingFlags: [], mentions: [], buyerSelfAssess: false }, taxSystemKind: 'VAT', regime: { model: 'POST_AUDIT', blocking: false }, artifacts: [], channels: [{ type: 'PEPPOL' }], numbering: { model: 'GAPLESS_SELF' }, lifecycle: { immutableAfter: 'ISSUE', correctionModel: 'CREDIT_NOTE', cancellation: { allowed: true, requiresAuthorityAck: false } }, archival: { retentionYears: 10, archivedForm: 'HYBRID_PDF', integrity: 'NONE' }, reporting: [], confidence: 'OFFICIAL', warnings: [] },
+    plan: {
+      supplier: { country: 'FR', confidence: 'OFFICIAL' },
+      buyer: { country: 'IT', confidence: 'OFFICIAL' },
+      classification: { buyerRole: 'B2B', crossBorder: true, supplyTypes: ['GOODS'] } as any,
+      tax: { lines: [], reportingFlags: [], mentions: [], buyerSelfAssess: false },
+      taxSystemKind: 'VAT',
+      regime: { model: 'POST_AUDIT', blocking: false },
+      artifacts: [],
+      channels: [{ type: 'PEPPOL' }],
+      numbering: { model: 'GAPLESS_SELF' },
+      lifecycle: {
+        immutableAfter: 'ISSUE',
+        correctionModel: 'CREDIT_NOTE',
+        cancellation: { allowed: true, requiresAuthorityAck: false },
+      },
+      archival: { retentionYears: 10, archivedForm: 'HYBRID_PDF', integrity: 'NONE' },
+      reporting: [],
+      confidence: 'OFFICIAL',
+      warnings: [],
+    },
     number: 'INV-001',
     immutableHash: 'sha256:123',
     correctsId: undefined,
     authorityIds: [{ scheme: 'UUID', value: 'abc-123' }],
-    events: [{ id: 'e1', type: 'CREATED', at: now(), actor: 'system' }, { id: 'e2', type: 'ISSUE', at: now(), actor: 'system' }],
+    events: [
+      { id: 'e1', type: 'CREATED', at: now(), actor: 'system' },
+      { id: 'e2', type: 'ISSUE', at: now(), actor: 'system' },
+    ],
     createdAt: ts(),
     updatedAt: ts(),
   };
@@ -63,12 +104,26 @@ describe('document mappers', () => {
       createdAt: now2,
       updatedAt: now2,
       events: [
-        { id: 'e1', documentId: record.id, type: 'CREATED', at: new Date(record.events[0].at), actor: null, detail: null, payload: null },
-        { id: 'e2', documentId: record.id, type: 'ISSUE', at: new Date(record.events[1].at), actor: null, detail: null, payload: null },
+        {
+          id: 'e1',
+          documentId: record.id,
+          type: 'CREATED',
+          at: new Date(record.events[0].at),
+          actor: null,
+          detail: null,
+          payload: null,
+        },
+        {
+          id: 'e2',
+          documentId: record.id,
+          type: 'ISSUE',
+          at: new Date(record.events[1].at),
+          actor: null,
+          detail: null,
+          payload: null,
+        },
       ],
-      authorityIds: [
-        { id: 'a1', documentId: record.id, scheme: 'UUID', value: 'abc-123', issuedAt: now2 },
-      ],
+      authorityIds: [{ id: 'a1', documentId: record.id, scheme: 'UUID', value: 'abc-123', issuedAt: now2 }],
     };
 
     const roundtrip = documentToRecord(fakeRow);
@@ -99,11 +154,20 @@ describe('document mappers', () => {
     expect(data.number).toBeNull();
     expect(data.immutableHash).toBeNull();
     const fake: any = {
-      id: minimal.id, kind: minimal.kind, direction: minimal.direction,
-      status: minimal.status, ctx: data.ctx, plan: null, number: null,
-      immutableHash: null, previousHash: null, correctsId: null,
-      createdAt: new Date(), updatedAt: new Date(),
-      events: [], authorityIds: [],
+      id: minimal.id,
+      kind: minimal.kind,
+      direction: minimal.direction,
+      status: minimal.status,
+      ctx: data.ctx,
+      plan: null,
+      number: null,
+      immutableHash: null,
+      previousHash: null,
+      correctsId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      events: [],
+      authorityIds: [],
     };
     const back = documentToRecord(fake);
     expect(back.id).toBe('doc-2');
@@ -133,11 +197,21 @@ describe('pollJob mappers', () => {
     expect(row.id).toBe('pj-1');
     expect(row.kind).toBe('POLL');
     const fake: any = {
-      id: 'pj-1', documentId: 'doc-1', kind: 'POLL', status: 'PENDING',
-      awaiting: 'PENDING_CLEARANCE', providerId: 'pac', channel: 'PAC', ref: 'UUID-1',
-      attempts: 0, nextRunAt: new Date(job.nextRunAt), expiresAt: new Date(job.expiresAt),
-      policy: job.policy, createdAt: new Date(job.createdAt),
-      onElapse: null, fireAt: null,
+      id: 'pj-1',
+      documentId: 'doc-1',
+      kind: 'POLL',
+      status: 'PENDING',
+      awaiting: 'PENDING_CLEARANCE',
+      providerId: 'pac',
+      channel: 'PAC',
+      ref: 'UUID-1',
+      attempts: 0,
+      nextRunAt: new Date(job.nextRunAt),
+      expiresAt: new Date(job.expiresAt),
+      policy: job.policy,
+      createdAt: new Date(job.createdAt),
+      onElapse: null,
+      fireAt: null,
     };
     const back = rowToPollJob(fake);
     expect(back.id).toBe(job.id);
@@ -166,11 +240,21 @@ describe('timerJob mappers', () => {
     expect(row.kind).toBe('TIMER');
     expect(row.onElapse).toBe('ACCEPT');
     const fake: any = {
-      id: 'tj-1', documentId: 'doc-1', kind: 'TIMER', status: 'ARMED',
-      awaiting: 'AWAITING_RESPONSE', onElapse: 'ACCEPT', fireAt: new Date(job.fireAt),
+      id: 'tj-1',
+      documentId: 'doc-1',
+      kind: 'TIMER',
+      status: 'ARMED',
+      awaiting: 'AWAITING_RESPONSE',
+      onElapse: 'ACCEPT',
+      fireAt: new Date(job.fireAt),
       createdAt: new Date(job.createdAt),
-      providerId: null, channel: null, ref: null, attempts: 0,
-      nextRunAt: null, expiresAt: null, policy: null,
+      providerId: null,
+      channel: null,
+      ref: null,
+      attempts: 0,
+      nextRunAt: null,
+      expiresAt: null,
+      policy: null,
     };
     const back = rowToTimerJob(fake);
     expect(back.id).toBe(job.id);
@@ -182,15 +266,23 @@ describe('timerJob mappers', () => {
 describe('callback mappers', () => {
   it('round-trips CallbackRegistration', () => {
     const reg: CallbackRegistration = {
-      id: 'cb-1', documentId: 'doc-1', channel: 'SDI' as any,
-      correlationKey: 'ref-1', awaiting: 'PENDING_CLEARANCE',
-      status: 'WAITING', createdAt: new Date().toISOString(),
+      id: 'cb-1',
+      documentId: 'doc-1',
+      channel: 'SDI' as any,
+      correlationKey: 'ref-1',
+      awaiting: 'PENDING_CLEARANCE',
+      status: 'WAITING',
+      createdAt: new Date().toISOString(),
     };
     const row = callbackRegToRow(reg);
     const fake: any = {
-      id: 'cb-1', documentId: 'doc-1', channel: 'SDI',
-      correlationKey: 'ref-1', awaiting: 'PENDING_CLEARANCE',
-      status: 'WAITING', createdAt: new Date(reg.createdAt),
+      id: 'cb-1',
+      documentId: 'doc-1',
+      channel: 'SDI',
+      correlationKey: 'ref-1',
+      awaiting: 'PENDING_CLEARANCE',
+      status: 'WAITING',
+      createdAt: new Date(reg.createdAt),
     };
     const back = rowToCallbackReg(fake);
     expect(back.id).toBe(reg.id);
@@ -200,8 +292,12 @@ describe('callback mappers', () => {
 
   it('round-trips InboundMessage', () => {
     const msg: InboundMessage = {
-      id: 'im-1', channel: 'SDI' as any, correlationKey: 'ref-1',
-      status: 'consegnata', rawRef: 'm1', receivedAt: new Date().toISOString(),
+      id: 'im-1',
+      channel: 'SDI' as any,
+      correlationKey: 'ref-1',
+      status: 'consegnata',
+      rawRef: 'm1',
+      receivedAt: new Date().toISOString(),
     };
     const row = inboundMsgToRow(msg);
     const fake: any = { ...row, receivedAt: new Date(msg.receivedAt) };
@@ -213,8 +309,11 @@ describe('callback mappers', () => {
 
   it('round-trips InboundMessage without rawRef', () => {
     const msg: InboundMessage = {
-      id: 'im-2', channel: 'SDI' as any, correlationKey: 'ref-2',
-      status: 'consegnata', receivedAt: new Date().toISOString(),
+      id: 'im-2',
+      channel: 'SDI' as any,
+      correlationKey: 'ref-2',
+      status: 'consegnata',
+      receivedAt: new Date().toISOString(),
     };
     const row = inboundMsgToRow(msg);
     expect(row.rawRef).toBeNull();

@@ -44,11 +44,7 @@ export class SmpBuyerDirectory implements BuyerDirectoryPort {
     if (!icd || !id) return null;
 
     try {
-      const result = await this.smp.lookup(
-        { icd, identifier: id },
-        this.documentTypeId,
-        environment,
-      );
+      const result = await this.smp.lookup({ icd, identifier: id }, this.documentTypeId, environment);
       if (!result) return null;
 
       return {

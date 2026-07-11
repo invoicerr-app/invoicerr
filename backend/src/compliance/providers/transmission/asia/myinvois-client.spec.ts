@@ -28,9 +28,7 @@ const MOCK_TOKEN: MyInvoisTokenResponse = {
 
 const MOCK_SUBMISSION: MyInvoisSubmissionResponse = {
   submissionUID: 'SUBM-2025-0001',
-  acceptedDocuments: [
-    { uuid: 'doc-uuid-1234', invoiceCodeNumber: 'INV-MY-001' },
-  ],
+  acceptedDocuments: [{ uuid: 'doc-uuid-1234', invoiceCodeNumber: 'INV-MY-001' }],
   rejectedDocuments: [],
 };
 
@@ -104,12 +102,14 @@ describe('MyInvoisClient (mocked HTTP — live-deferred)', () => {
   it('submit() calls submitDocuments with bearer token and document list', async () => {
     const http = mockHttp();
     const client = new MyInvoisClient(http, TEST_CONFIG);
-    const docs = [{
-      format: 'XML' as const,
-      documentHash: 'abc123',
-      codeNumber: 'INV-MY-001',
-      document: 'PHhtbD4...',
-    }];
+    const docs = [
+      {
+        format: 'XML' as const,
+        documentHash: 'abc123',
+        codeNumber: 'INV-MY-001',
+        document: 'PHhtbD4...',
+      },
+    ];
     const resp = await client.submit(docs);
     expect(http.submitDocuments).toHaveBeenCalledWith(
       expect.stringContaining('preprod.myinvois.hasil.gov.my/api/v1.0'),
@@ -137,7 +137,9 @@ describe('MyInvoisClient (mocked HTTP — live-deferred)', () => {
   it('submitInvoice() hashes UBL bytes and submits with correct structure', async () => {
     const http = mockHttp();
     const client = new MyInvoisClient(http, TEST_CONFIG);
-    const ublBytes = new TextEncoder().encode('<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2">');
+    const ublBytes = new TextEncoder().encode(
+      '<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2">',
+    );
     const resp = await client.submitInvoice(ublBytes, 'INV-MY-001');
     expect(http.submitDocuments).toHaveBeenCalledWith(
       expect.any(String),
@@ -193,16 +195,12 @@ describe('MyInvoisClient.computeDocumentHash()', () => {
 
   it('is deterministic for the same bytes', () => {
     const bytes = new TextEncoder().encode('hello');
-    expect(MyInvoisClient.computeDocumentHash(bytes)).toBe(
-      MyInvoisClient.computeDocumentHash(bytes),
-    );
+    expect(MyInvoisClient.computeDocumentHash(bytes)).toBe(MyInvoisClient.computeDocumentHash(bytes));
   });
 
   it('differs for different document content', () => {
     const a = new TextEncoder().encode('<Invoice>1</Invoice>');
     const b = new TextEncoder().encode('<Invoice>2</Invoice>');
-    expect(MyInvoisClient.computeDocumentHash(a)).not.toBe(
-      MyInvoisClient.computeDocumentHash(b),
-    );
+    expect(MyInvoisClient.computeDocumentHash(a)).not.toBe(MyInvoisClient.computeDocumentHash(b));
   });
 });

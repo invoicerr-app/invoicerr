@@ -61,9 +61,13 @@ describe('normalizeCiiNamespaces', () => {
   it('converts rsm:/ram:/udt: prefixes to default xmlns= per element', () => {
     const result = normalizeCiiNamespaces(PREFIX_CII);
     // Root element uses default rsm namespace
-    expect(result).toContain('<CrossIndustryInvoice xmlns="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"');
+    expect(result).toContain(
+      '<CrossIndustryInvoice xmlns="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"',
+    );
     // ram: elements use default ram namespace
-    expect(result).toContain('<ID xmlns="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100" schemeID="0002">000000002<');
+    expect(result).toContain(
+      '<ID xmlns="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100" schemeID="0002">000000002<',
+    );
     // Closing tags have no prefix
     expect(result).not.toContain('</rsm:');
     expect(result).not.toContain('</ram:');

@@ -79,7 +79,7 @@ export interface SriClientConfig {
 // ---------------------------------------------------------------------------
 
 export class SriClient {
-  private readonly urls: typeof SRI_URLS[SriEnvironment];
+  private readonly urls: (typeof SRI_URLS)[SriEnvironment];
 
   constructor(
     private readonly http: SriHttpPort,

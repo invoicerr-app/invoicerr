@@ -9,7 +9,7 @@ import {
 @ApiTags('payment-methods')
 @Controller('payment-methods')
 export class PaymentMethodsController {
-  constructor(private readonly paymentMethodService: PaymentMethodsService) { }
+  constructor(private readonly paymentMethodService: PaymentMethodsService) {}
 
   @Get()
   @ApiOperation({ summary: 'List payment methods', description: 'Returns all configured payment methods.' })
@@ -32,14 +32,20 @@ export class PaymentMethodsController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create a payment method', description: 'Adds a new payment method (bank transfer, PayPal, etc.).' })
+  @ApiOperation({
+    summary: 'Create a payment method',
+    description: 'Adds a new payment method (bank transfer, PayPal, etc.).',
+  })
   @ApiResponse({ status: 201, description: 'Payment method created' })
   async create(@Body() dto: CreatePaymentMethodDto) {
     return this.paymentMethodService.create(dto);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update a payment method', description: 'Updates an existing payment method by ID.' })
+  @ApiOperation({
+    summary: 'Update a payment method',
+    description: 'Updates an existing payment method by ID.',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Payment method ID' })
   @ApiResponse({ status: 200, description: 'Payment method updated' })
   async update(@Param('id') id: string, @Body() dto: EditPaymentMethodDto) {

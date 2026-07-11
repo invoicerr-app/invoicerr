@@ -6,7 +6,10 @@
 import { ComplianceExecutor } from './executor';
 import { FormatProviderRegistry } from '../providers/format/registry';
 import { TransmissionProviderRegistry } from '../providers/transmission/registry';
-import { ChannelCredentialsPort, ResolvedChannelConfig } from '../providers/transmission/channel-credentials-port';
+import {
+  ChannelCredentialsPort,
+  ResolvedChannelConfig,
+} from '../providers/transmission/channel-credentials-port';
 import { TransmissionProvider } from '../providers/transmission/transmission-provider';
 import { TransactionContext } from '../canonical/canonical-document';
 import { CompliancePlan } from '../engine/compliance-engine';
@@ -15,7 +18,7 @@ import { CompliancePlan } from '../engine/compliance-engine';
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function makeFrPlan(companyId: string): CompliancePlan {
+function makeFrPlan(_companyId: string): CompliancePlan {
   return {
     supplier: { country: 'FR', confidence: 'OFFICIAL' },
     buyer: { country: 'FR', confidence: 'OFFICIAL' },
@@ -29,7 +32,11 @@ function makeFrPlan(companyId: string): CompliancePlan {
     ],
     channels: [{ type: 'PDP', providerId: 'pdp' }],
     numbering: { model: 'GAPLESS_SELF', seriesScope: 'ENTITY' },
-    lifecycle: { immutableAfter: 'ISSUE', correctionModel: 'CREDIT_NOTE', cancellation: { allowed: true, requiresAuthorityAck: false } },
+    lifecycle: {
+      immutableAfter: 'ISSUE',
+      correctionModel: 'CREDIT_NOTE',
+      cancellation: { allowed: true, requiresAuthorityAck: false },
+    },
     archival: { retentionYears: 10, archivedForm: 'BOTH', integrity: 'HASH_CHAIN' },
     reporting: [],
     confidence: 'OFFICIAL',
@@ -37,7 +44,7 @@ function makeFrPlan(companyId: string): CompliancePlan {
   };
 }
 
-function makePlPlan(companyId: string): CompliancePlan {
+function makePlPlan(_companyId: string): CompliancePlan {
   return {
     supplier: { country: 'PL', confidence: 'OFFICIAL' },
     buyer: { country: 'PL', confidence: 'OFFICIAL' },
@@ -51,7 +58,11 @@ function makePlPlan(companyId: string): CompliancePlan {
     ],
     channels: [{ type: 'GOV_PORTAL_API', providerId: 'ksef' }],
     numbering: { model: 'GAPLESS_SELF', seriesScope: 'ENTITY' },
-    lifecycle: { immutableAfter: 'CLEARANCE', correctionModel: 'CORRECTIVE_INVOICE', cancellation: { allowed: false, requiresAuthorityAck: true } },
+    lifecycle: {
+      immutableAfter: 'CLEARANCE',
+      correctionModel: 'CORRECTIVE_INVOICE',
+      cancellation: { allowed: false, requiresAuthorityAck: true },
+    },
     archival: { retentionYears: 10, archivedForm: 'BOTH', integrity: 'SIGNED' },
     reporting: [],
     confidence: 'OFFICIAL',
@@ -80,7 +91,11 @@ function makeMockFormatProvider(syntax: string, bytes: Buffer) {
   };
 }
 
-function makeMockTransmitProvider(id: string, channel: string, transmitResult: any): TransmissionProvider & { transmit: jest.Mock } {
+function makeMockTransmitProvider(
+  id: string,
+  channel: string,
+  transmitResult: any,
+): TransmissionProvider & { transmit: jest.Mock } {
   return {
     id,
     channel: channel as any,
@@ -110,7 +125,12 @@ const FR_PDP_CONFIG: ResolvedChannelConfig = {
   providerId: 'pdp',
   channel: 'PDP',
   environment: 'sandbox',
-  config: { baseUrl: 'https://api.superpdp.tech', clientId: 'id', clientSecret: 'secret', apiStyle: 'superpdp' },
+  config: {
+    baseUrl: 'https://api.superpdp.tech',
+    clientId: 'id',
+    clientSecret: 'secret',
+    apiStyle: 'superpdp',
+  },
   isActive: true,
 };
 
@@ -138,7 +158,12 @@ describe('ComplianceExecutor — end-to-end channel routing', () => {
       const facturxProvider = makeMockFormatProvider('FACTURX', PDF_BYTES);
       const formatRegistry = new FormatProviderRegistry([ciiProvider as any, facturxProvider as any]);
 
-      const pdpMock = makeMockTransmitProvider('pdp', 'PDP', { channel: 'PDP', status: 'PENDING', ref: `${COMPANY_FR}|99999`, notes: [] });
+      const pdpMock = makeMockTransmitProvider('pdp', 'PDP', {
+        channel: 'PDP',
+        status: 'PENDING',
+        ref: `${COMPANY_FR}|99999`,
+        notes: [],
+      });
       const credentials = mockCredentials(FR_PDP_CONFIG);
 
       const txRegistry = new TransmissionProviderRegistry({ credentials });
@@ -148,7 +173,9 @@ describe('ComplianceExecutor — end-to-end channel routing', () => {
 
       const executor = new ComplianceExecutor({ formats: formatRegistry, transmission: txRegistry });
 
-      const result = await executor.execute(makeCtx(COMPANY_FR, 'FR'), makeFrPlan(COMPANY_FR), { idempotencyKey: 'test-fr' });
+      const result = await executor.execute(makeCtx(COMPANY_FR, 'FR'), makeFrPlan(COMPANY_FR), {
+        idempotencyKey: 'test-fr',
+      });
 
       // credentials resolved for company + provider
       expect(credentials.resolveActive).toHaveBeenCalledWith(COMPANY_FR, 'pdp');
@@ -194,7 +221,12 @@ describe('ComplianceExecutor — end-to-end channel routing', () => {
       const pdfProvider = makeMockFormatProvider('PLAIN_PDF', PDF_PLAIN_BYTES);
       const formatRegistry = new FormatProviderRegistry([faVatProvider as any, pdfProvider as any]);
 
-      const ksefMock = makeMockTransmitProvider('ksef', 'GOV_PORTAL_API', { channel: 'GOV_PORTAL_API', status: 'PENDING', ref: `${COMPANY_PL}|session|inv`, notes: [] });
+      const ksefMock = makeMockTransmitProvider('ksef', 'GOV_PORTAL_API', {
+        channel: 'GOV_PORTAL_API',
+        status: 'PENDING',
+        ref: `${COMPANY_PL}|session|inv`,
+        notes: [],
+      });
       const credentials = mockCredentials(PL_KSEF_CONFIG);
 
       const txRegistry = new TransmissionProviderRegistry({ credentials });
@@ -202,7 +234,9 @@ describe('ComplianceExecutor — end-to-end channel routing', () => {
 
       const executor = new ComplianceExecutor({ formats: formatRegistry, transmission: txRegistry });
 
-      const result = await executor.execute(makeCtx(COMPANY_PL, 'PL'), makePlPlan(COMPANY_PL), { idempotencyKey: 'test-pl' });
+      const result = await executor.execute(makeCtx(COMPANY_PL, 'PL'), makePlPlan(COMPANY_PL), {
+        idempotencyKey: 'test-pl',
+      });
 
       expect(credentials.resolveActive).toHaveBeenCalledWith(COMPANY_PL, 'ksef');
       expect(ksefMock.transmit).toHaveBeenCalledTimes(1);

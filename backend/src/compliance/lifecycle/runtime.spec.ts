@@ -6,14 +6,36 @@ const POLL = { everySeconds: 30, timeoutHours: 24 } as const;
 
 const graph: LifecycleGraph = {
   initial: 'DRAFT',
-  states: ['ISSUED', 'PENDING_CLEARANCE', 'CLEARED', 'REJECTED', 'DELIVERED', 'AWAITING_RESPONSE', 'ACCEPTED', 'REFUSED', 'DISPUTED', 'CANCELLED'],
+  states: [
+    'ISSUED',
+    'PENDING_CLEARANCE',
+    'CLEARED',
+    'REJECTED',
+    'DELIVERED',
+    'AWAITING_RESPONSE',
+    'ACCEPTED',
+    'REFUSED',
+    'DISPUTED',
+    'CANCELLED',
+  ],
   transitions: [
     { on: 'SUBMIT_CLEARANCE', from: 'ISSUED', to: 'PENDING_CLEARANCE', trigger: { kind: 'IMMEDIATE' } },
     { on: 'CLEAR', from: 'PENDING_CLEARANCE', to: 'CLEARED', trigger: { kind: 'POLL', poll: POLL } },
     { on: 'REJECT', from: 'PENDING_CLEARANCE', to: 'REJECTED', trigger: { kind: 'POLL', poll: POLL } },
-    { on: 'CANCEL', from: 'CLEARED', to: 'CANCELLED', trigger: { kind: 'MANUAL', action: 'cancel' }, guardKey: 'buyerConsent' },
+    {
+      on: 'CANCEL',
+      from: 'CLEARED',
+      to: 'CANCELLED',
+      trigger: { kind: 'MANUAL', action: 'cancel' },
+      guardKey: 'buyerConsent',
+    },
     { on: 'OPEN_RESPONSE', from: 'DELIVERED', to: 'AWAITING_RESPONSE', trigger: { kind: 'IMMEDIATE' } },
-    { on: 'ACCEPT', from: 'AWAITING_RESPONSE', to: 'ACCEPTED', trigger: { kind: 'TIMER', deadlineHours: 192, onElapse: 'ACCEPT' } },
+    {
+      on: 'ACCEPT',
+      from: 'AWAITING_RESPONSE',
+      to: 'ACCEPTED',
+      trigger: { kind: 'TIMER', deadlineHours: 192, onElapse: 'ACCEPT' },
+    },
     { on: 'REFUSE', from: 'AWAITING_RESPONSE', to: 'REFUSED', trigger: { kind: 'CALLBACK' } },
     { on: 'DISPUTE', from: 'AWAITING_RESPONSE', to: 'DISPUTED', trigger: { kind: 'CALLBACK' } },
   ],
@@ -27,7 +49,9 @@ describe('LifecycleRuntime — projections', () => {
   it('pendingDrivers returns the armed non-manual triggers', () => {
     const r = new LifecycleRuntime(graph, 'PENDING_CLEARANCE', new RecordingComplianceLogger());
     expect(r.pendingDrivers().map((t) => t.kind)).toContain('POLL');
-    expect(new LifecycleRuntime(graph, 'CLEARED', new RecordingComplianceLogger()).pendingDrivers()).toHaveLength(0);
+    expect(
+      new LifecycleRuntime(graph, 'CLEARED', new RecordingComplianceLogger()).pendingDrivers(),
+    ).toHaveLength(0);
   });
 });
 

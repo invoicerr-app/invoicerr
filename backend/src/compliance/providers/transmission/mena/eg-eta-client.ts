@@ -86,21 +86,17 @@ export class EtaClient {
     const body = {
       documents: [canonicalDocument],
     };
-    const resp = await this.http.post(
-      `${this.config.baseUrl}/api/v1/documentsubmissions`,
-      body,
-      {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'Accept-Language': 'ar',
-      },
-    );
+    const resp = await this.http.post(`${this.config.baseUrl}/api/v1/documentsubmissions`, body, {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept-Language': 'ar',
+    });
     if (resp.status >= 400) throw new Error(`ETA submitDocument failed (HTTP ${resp.status})`);
     const data = resp.data as Record<string, unknown>;
     // ETA returns { submissionId, acceptedDocuments: [{ uuid, ... }], rejectedDocuments: [] }
-    const accepted = (data['acceptedDocuments'] as Array<Record<string, unknown>> | undefined) ?? [];
-    const uuid = (accepted[0]?.['uuid'] ?? '') as string;
-    const submissionId = (data['submissionId'] ?? '') as string;
+    const accepted = (data.acceptedDocuments as Array<Record<string, unknown>> | undefined) ?? [];
+    const uuid = (accepted[0]?.uuid ?? '') as string;
+    const submissionId = (data.submissionId ?? '') as string;
     return { uuid: String(uuid), submissionId: String(submissionId), httpStatus: resp.status, raw: data };
   }
 
@@ -119,7 +115,7 @@ export class EtaClient {
     );
     if (resp.status >= 400) throw new Error(`ETA getDocumentStatus failed (HTTP ${resp.status})`);
     const data = resp.data as Record<string, unknown>;
-    const status = (data['status'] ?? 'Submitted') as string;
+    const status = (data.status ?? 'Submitted') as string;
     return { status: String(status), uuid, raw: data };
   }
 
@@ -139,15 +135,13 @@ export class EtaClient {
         client_id: this.config.clientId,
         client_secret: this.config.clientSecret,
       });
-      const resp = await this.http.post(
-        `${this.config.tokenUrl}/connect/token`,
-        body.toString(),
-        { 'Content-Type': 'application/x-www-form-urlencoded' },
-      );
+      const resp = await this.http.post(`${this.config.tokenUrl}/connect/token`, body.toString(), {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      });
       if (resp.status >= 400) throw new Error(`ETA authentication failed (HTTP ${resp.status})`);
       const data = resp.data as Record<string, unknown>;
-      const token = (data['access_token'] ?? '') as string;
-      const expiresIn = (data['expires_in'] ?? 3600) as number;
+      const token = (data.access_token ?? '') as string;
+      const expiresIn = (data.expires_in ?? 3600) as number;
       return { token, expiresAt: tokenExpiry(expiresIn) };
     });
   }

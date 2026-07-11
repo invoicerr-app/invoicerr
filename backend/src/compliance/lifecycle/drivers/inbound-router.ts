@@ -21,7 +21,11 @@ import {
 
 export type AwaitCallbackEffect = Extract<Effect, { kind: 'AWAIT_CALLBACK' }>;
 
-export type ApplySignal = (documentId: string, signal: LifecycleSignal, log: ComplianceLogger) => void | Promise<void>;
+export type ApplySignal = (
+  documentId: string,
+  signal: LifecycleSignal,
+  log: ComplianceLogger,
+) => void | Promise<void>;
 
 export interface InboundRouterDeps {
   applySignal: ApplySignal;
@@ -61,9 +65,19 @@ export class InboundRouter {
   }
 
   /** Register that a document awaits callbacks. `correlationKey` is the transmit/authority ref. */
-  async register(documentId: string, effect: AwaitCallbackEffect, opts: { channel: ChannelType; correlationKey: string }): Promise<CallbackRegistration> {
+  async register(
+    documentId: string,
+    effect: AwaitCallbackEffect,
+    opts: { channel: ChannelType; correlationKey: string },
+  ): Promise<CallbackRegistration> {
     const reg = createRegistration(
-      { id: this.idgen(), documentId, channel: opts.channel, correlationKey: opts.correlationKey, awaiting: effect.awaiting },
+      {
+        id: this.idgen(),
+        documentId,
+        channel: opts.channel,
+        correlationKey: opts.correlationKey,
+        awaiting: effect.awaiting,
+      },
       this.now(),
     );
     return this.store.register(reg);
@@ -104,11 +118,17 @@ export class InboundRouter {
       const signal: LifecycleSignal = { type: 'INBOUND_STATUS', status: latest.status };
       try {
         await this.applySignal(reg.documentId, signal, this.log);
-        this.log.info('lifecycle/inbound-router', `boot-replay: applied "${latest.status}" to document ${reg.documentId} (reg ${reg.id})`);
+        this.log.info(
+          'lifecycle/inbound-router',
+          `boot-replay: applied "${latest.status}" to document ${reg.documentId} (reg ${reg.id})`,
+        );
         replayed++;
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        this.log.warn('lifecycle/inbound-router', `boot-replay: applySignal failed for document ${reg.documentId}: ${msg}`);
+        this.log.warn(
+          'lifecycle/inbound-router',
+          `boot-replay: applySignal failed for document ${reg.documentId}: ${msg}`,
+        );
         skipped++;
       }
     }
@@ -135,7 +155,10 @@ export class InboundRouter {
 
     const reg = await this.store.findByCorrelation(input.channel, input.correlationKey);
     if (!reg) {
-      this.log.warn('lifecycle/inbound-router', `unmatched inbound ${input.channel}:${input.correlationKey} ("${input.status}")`);
+      this.log.warn(
+        'lifecycle/inbound-router',
+        `unmatched inbound ${input.channel}:${input.correlationKey} ("${input.status}")`,
+      );
       return { kind: 'UNMATCHED', correlationKey: input.correlationKey };
     }
 

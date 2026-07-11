@@ -32,20 +32,46 @@ export class PdpTransmissionProvider implements TransmissionProvider {
   readonly pollPolicy = { everySeconds: 30, timeoutHours: 24, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {
     fields: [
-      { type: 'text', name: 'baseUrl', label: 'API base URL', placeholder: 'https://api.superpdp.tech', required: true },
+      {
+        type: 'text',
+        name: 'baseUrl',
+        label: 'API base URL',
+        placeholder: 'https://api.superpdp.tech',
+        required: true,
+      },
       { type: 'text', name: 'clientId', label: 'Client ID', required: true },
       { type: 'text', name: 'clientSecret', label: 'Client secret', required: true, secret: true },
-      { type: 'select', name: 'environment', label: 'Environment', required: true, options: [
-        { label: 'Test (sandbox)', value: 'TEST' },
-        { label: 'Production', value: 'PROD' },
-      ], default: 'TEST' },
-      { type: 'select', name: 'apiStyle', label: 'API style', required: false, options: [
-        { label: 'SuperPDP (proprietary)', value: 'superpdp' },
-        { label: 'AFNOR Flow (XP Z12-013)', value: 'afnor' },
-      ], default: 'superpdp' },
+      {
+        type: 'select',
+        name: 'environment',
+        label: 'Environment',
+        required: true,
+        options: [
+          { label: 'Test (sandbox)', value: 'TEST' },
+          { label: 'Production', value: 'PROD' },
+        ],
+        default: 'TEST',
+      },
+      {
+        type: 'select',
+        name: 'apiStyle',
+        label: 'API style',
+        required: false,
+        options: [
+          { label: 'SuperPDP (proprietary)', value: 'superpdp' },
+          { label: 'AFNOR Flow (XP Z12-013)', value: 'afnor' },
+        ],
+        default: 'superpdp',
+      },
       // The company's OWN routing address on its PDP: {pdp_siren}_{account_id}. The buyer's
       // endpoint is resolved per-invoice from the client/annuaire — not configured here.
-      { type: 'text', name: 'sellerEndpointId', label: 'Your PDP routing ID', placeholder: '315143296_1422', required: false },
+      {
+        type: 'text',
+        name: 'sellerEndpointId',
+        label: 'Your PDP routing ID',
+        placeholder: '315143296_1422',
+        required: false,
+      },
     ],
   };
 
@@ -75,7 +101,11 @@ export class PdpTransmissionProvider implements TransmissionProvider {
     const apiStyle = (config.apiStyle as string) ?? 'superpdp';
 
     if (!baseUrl || !clientId || !clientSecret) {
-      return { channel: 'PDP', status: 'SKIPPED', notes: ['pdp: incomplete config (baseUrl, clientId, clientSecret required)'] };
+      return {
+        channel: 'PDP',
+        status: 'SKIPPED',
+        notes: ['pdp: incomplete config (baseUrl, clientId, clientSecret required)'],
+      };
     }
 
     // Prefer EN16931_CII (raw CII XML for CTC) over FACTURX (may be PDF/A-3)
@@ -100,11 +130,12 @@ export class PdpTransmissionProvider implements TransmissionProvider {
         apiStyle: apiStyle as 'superpdp' | 'afnor',
       });
 
-      let rawBytes = typeof facturxArtifact.bytes === 'string'
-        ? Buffer.from(facturxArtifact.bytes, 'utf-8')
-        : facturxArtifact.bytes instanceof Buffer
-          ? facturxArtifact.bytes
-          : Buffer.from(facturxArtifact.bytes);
+      let rawBytes =
+        typeof facturxArtifact.bytes === 'string'
+          ? Buffer.from(facturxArtifact.bytes, 'utf-8')
+          : facturxArtifact.bytes instanceof Buffer
+            ? facturxArtifact.bytes
+            : Buffer.from(facturxArtifact.bytes);
 
       // CTC FR post-processing: inject SpecifiedLegalOrganization/ID into CII XML
       // @e-invoice-eu/core emits SpecifiedLegalOrganization when cbc:CompanyID@schemeID='0002' is set.
@@ -127,7 +158,10 @@ export class PdpTransmissionProvider implements TransmissionProvider {
               const dirResult = await this.buyerDirectory.lookup({ identifier: buyerSiren });
               if (dirResult) {
                 buyerRouting = dirResult.endpointId;
-                log.info('transmission/pdp', `AFNOR directory resolved buyer ${buyerSiren} → ${buyerRouting} (key ${key})`);
+                log.info(
+                  'transmission/pdp',
+                  `AFNOR directory resolved buyer ${buyerSiren} → ${buyerRouting} (key ${key})`,
+                );
               }
             } catch {
               // Directory lookup failed — proceed without buyer routing (non-blocking).
@@ -137,7 +171,10 @@ export class PdpTransmissionProvider implements TransmissionProvider {
 
         const patched = postProcessCiiForCtc(originalXml, { sellerRouting, buyerRouting });
         if (patched !== originalXml) {
-          log.info('transmission/pdp', `CTC post-processing: injected SpecifiedLegalOrganization (key ${key})`);
+          log.info(
+            'transmission/pdp',
+            `CTC post-processing: injected SpecifiedLegalOrganization (key ${key})`,
+          );
           rawBytes = Buffer.from(patched, 'utf-8');
         }
       }
@@ -178,7 +215,13 @@ export class PdpTransmissionProvider implements TransmissionProvider {
     }
   }
 
-  async sendStatus(ref: string, status: string, _ctx: TransactionContext, _plan: CompliancePlan, log: ComplianceLogger): Promise<TransmissionResult> {
+  async sendStatus(
+    ref: string,
+    status: string,
+    _ctx: TransactionContext,
+    _plan: CompliancePlan,
+    log: ComplianceLogger,
+  ): Promise<TransmissionResult> {
     // Push a lifecycle status (XP Z12-012 lifecycle code) to the PDP for a previously deposited
     // invoice. Typical callers: markPaid() emitting "encaissée" (fr:212 = paiement reçu).
     //
@@ -229,17 +272,33 @@ export class PdpTransmissionProvider implements TransmissionProvider {
 
       if (apiStyle === 'afnor') {
         // AFNOR Flow does not define a seller-side lifecycle push endpoint in the v1 spec.
-        log.todo('transmission/pdp', `sendStatus AFNOR: flow "${invoiceIdOrFlowId}" status "${status}" (code ${pdpCode}) — no standard endpoint yet`);
-        return { channel: 'PDP', status: 'QUEUED', ref, notes: [`pdp: AFNOR sendStatus deferred (no v1 endpoint); would push ${pdpCode}`] };
+        log.todo(
+          'transmission/pdp',
+          `sendStatus AFNOR: flow "${invoiceIdOrFlowId}" status "${status}" (code ${pdpCode}) — no standard endpoint yet`,
+        );
+        return {
+          channel: 'PDP',
+          status: 'QUEUED',
+          ref,
+          notes: [`pdp: AFNOR sendStatus deferred (no v1 endpoint); would push ${pdpCode}`],
+        };
       }
 
       // SuperPDP: POST /v1.beta/invoices/{id}/lifecycle_events { code }
       const invoiceId = parseInt(invoiceIdOrFlowId, 10);
       if (Number.isNaN(invoiceId)) {
-        return { channel: 'PDP', status: 'QUEUED', ref, notes: [`pdp: invalid invoiceId in ref: ${invoiceIdOrFlowId}`] };
+        return {
+          channel: 'PDP',
+          status: 'QUEUED',
+          ref,
+          notes: [`pdp: invalid invoiceId in ref: ${invoiceIdOrFlowId}`],
+        };
       }
 
-      log.info('transmission/pdp', `sendStatus: pushing "${pdpCode}" for invoiceId ${invoiceId} (ref ${ref})`);
+      log.info(
+        'transmission/pdp',
+        `sendStatus: pushing "${pdpCode}" for invoiceId ${invoiceId} (ref ${ref})`,
+      );
       await client.pushLifecycleStatus(invoiceId, pdpCode);
       return {
         channel: 'PDP',
@@ -326,7 +385,12 @@ export class PdpTransmissionProvider implements TransmissionProvider {
   }
 
   private async pollAfnor(
-    client: { getFlow(flowId: string): Promise<{ flowId: string; acknowledgement?: { status: string; details?: Array<{ reasonCode: string; reasonMessage: string }> } }> },
+    client: {
+      getFlow(flowId: string): Promise<{
+        flowId: string;
+        acknowledgement?: { status: string; details?: Array<{ reasonCode: string; reasonMessage: string }> };
+      }>;
+    },
     flowId: string,
     ref: string,
     _log: ComplianceLogger,
@@ -338,8 +402,14 @@ export class PdpTransmissionProvider implements TransmissionProvider {
       return { channel: 'PDP', status: 'CLEARED', ref, notes: [`flowId: ${flowId}`] };
     }
     if (ack === 'Error') {
-      const details = flow.acknowledgement?.details?.map((d) => `${d.reasonCode}: ${d.reasonMessage}`).join('; ') ?? '';
-      return { channel: 'PDP', status: 'REJECTED', ref, notes: [`pdp: flow rejected${details ? ` — ${details}` : ''}`] };
+      const details =
+        flow.acknowledgement?.details?.map((d) => `${d.reasonCode}: ${d.reasonMessage}`).join('; ') ?? '';
+      return {
+        channel: 'PDP',
+        status: 'REJECTED',
+        ref,
+        notes: [`pdp: flow rejected${details ? ` — ${details}` : ''}`],
+      };
     }
     // Pending or unknown
     return { channel: 'PDP', status: 'PENDING', ref, notes: [`ack: ${ack ?? 'unknown'}`] };

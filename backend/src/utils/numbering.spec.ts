@@ -1,4 +1,4 @@
-import { NumberingService, DocType } from './numbering';
+import { NumberingService } from './numbering';
 
 // Mock Prisma transaction client
 const makeTx = () => {
@@ -16,7 +16,7 @@ const makeTx = () => {
         paymentStartingNumber: 1,
       }),
     },
-    $queryRawUnsafe: jest.fn().mockImplementation(async (sql: string, ...params: any[]) => {
+    $queryRawUnsafe: jest.fn().mockImplementation(async (_sql: string, ...params: any[]) => {
       const key = `${params[0]}-${params[1]}-${params[2]}`;
       const existing = store.get(key);
       if (existing) {

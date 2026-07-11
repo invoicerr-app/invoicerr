@@ -4,7 +4,7 @@
  * Tests: valid HMAC passes / tampered body fails / missing-sig falls back-or-rejects
  * per config, IP allowlist.
  */
-import * as crypto from 'crypto';
+import * as crypto from 'node:crypto';
 import { verifyHmacSignature, isIpAllowed, assertWebhookAuth } from './webhook-auth';
 
 // ---------------------------------------------------------------------------
@@ -94,18 +94,16 @@ describe('assertWebhookAuth', () => {
   it('passes with a valid HMAC signature and per-channel secret', () => {
     process.env.WEBHOOK_SECRET_PDP = PDP_SECRET;
     const sig = sign(payload, PDP_SECRET);
-    expect(() =>
-      assertWebhookAuth({ channel: 'PDP', rawBody: payload, signatureHeader: sig }),
-    ).not.toThrow();
+    expect(() => assertWebhookAuth({ channel: 'PDP', rawBody: payload, signatureHeader: sig })).not.toThrow();
   });
 
   it('rejects with a tampered body (invalid HMAC)', () => {
     process.env.WEBHOOK_SECRET_PDP = PDP_SECRET;
     const sig = sign(payload, PDP_SECRET);
     const tampered = Buffer.from('{"tampered":true}');
-    expect(() =>
-      assertWebhookAuth({ channel: 'PDP', rawBody: tampered, signatureHeader: sig }),
-    ).toThrow(/403|Forbidden|invalid webhook signature/i);
+    expect(() => assertWebhookAuth({ channel: 'PDP', rawBody: tampered, signatureHeader: sig })).toThrow(
+      /403|Forbidden|invalid webhook signature/i,
+    );
   });
 
   it('falls back to shared-secret header when no X-Signature', () => {
@@ -124,24 +122,18 @@ describe('assertWebhookAuth', () => {
 
   it('rejects when secret is configured but neither header is present', () => {
     process.env.WEBHOOK_SECRET_PDP = PDP_SECRET;
-    expect(() =>
-      assertWebhookAuth({ channel: 'PDP', rawBody: payload }),
-    ).toThrow(/403|Forbidden/i);
+    expect(() => assertWebhookAuth({ channel: 'PDP', rawBody: payload })).toThrow(/403|Forbidden/i);
   });
 
   it('allows (with warning) when no secret is configured at all', () => {
     // no env vars set
-    expect(() =>
-      assertWebhookAuth({ channel: 'NOCHANNEL', rawBody: payload }),
-    ).not.toThrow();
+    expect(() => assertWebhookAuth({ channel: 'NOCHANNEL', rawBody: payload })).not.toThrow();
   });
 
   it('uses COMPLIANCE_WEBHOOK_SECRET as fallback when no per-channel secret', () => {
     process.env.COMPLIANCE_WEBHOOK_SECRET = 'global-secret';
     const sig = sign(payload, 'global-secret');
-    expect(() =>
-      assertWebhookAuth({ channel: 'PDP', rawBody: payload, signatureHeader: sig }),
-    ).not.toThrow();
+    expect(() => assertWebhookAuth({ channel: 'PDP', rawBody: payload, signatureHeader: sig })).not.toThrow();
   });
 
   it('rejects a request from a blocked IP (IP allowlist)', () => {

@@ -51,21 +51,39 @@ function mockPort(): SdiHttpPort {
 describe('SdiTransmissionProvider.sendStatus — mocked', () => {
   it('returns QUEUED when ref is malformed (not 3 parts)', async () => {
     const provider = new SdiTransmissionProvider(mockCredentials(makeResolvedConfig()), mockPort());
-    const result = await provider.sendStatus('bad|ref', 'accepted', {} as any, {} as any, new RecordingComplianceLogger());
+    const result = await provider.sendStatus(
+      'bad|ref',
+      'accepted',
+      {} as any,
+      {} as any,
+      new RecordingComplianceLogger(),
+    );
     expect(result.status).toBe('QUEUED');
     expect(result.notes.join(' ')).toMatch(/invalid ref/);
   });
 
   it('returns QUEUED when no credentials port', async () => {
     const provider = new SdiTransmissionProvider(); // no credentials
-    const result = await provider.sendStatus(REF, 'accepted', {} as any, {} as any, new RecordingComplianceLogger());
+    const result = await provider.sendStatus(
+      REF,
+      'accepted',
+      {} as any,
+      {} as any,
+      new RecordingComplianceLogger(),
+    );
     expect(result.status).toBe('QUEUED');
     expect(result.notes.join(' ')).toMatch(/no credentials port/);
   });
 
   it('returns QUEUED when credentials no longer active', async () => {
     const provider = new SdiTransmissionProvider(mockCredentials(null), mockPort());
-    const result = await provider.sendStatus(REF, 'accepted', {} as any, {} as any, new RecordingComplianceLogger());
+    const result = await provider.sendStatus(
+      REF,
+      'accepted',
+      {} as any,
+      {} as any,
+      new RecordingComplianceLogger(),
+    );
     expect(result.status).toBe('QUEUED');
     expect(result.notes.join(' ')).toMatch(/no longer active/);
   });
@@ -87,21 +105,39 @@ describe('SdiTransmissionProvider.sendStatus — mocked', () => {
   it('maps "consegnata" → EC01', async () => {
     const port = mockPort();
     const provider = new SdiTransmissionProvider(mockCredentials(makeResolvedConfig()), port);
-    await provider.sendStatus(REF, 'notifica consegnata', {} as any, {} as any, new RecordingComplianceLogger());
+    await provider.sendStatus(
+      REF,
+      'notifica consegnata',
+      {} as any,
+      {} as any,
+      new RecordingComplianceLogger(),
+    );
     expect(port.sendEsito).toHaveBeenCalledWith(ID_SDI, ID_TRASMITTENTE, 'EC01', undefined);
   });
 
   it('maps "refused" → EC02', async () => {
     const port = mockPort();
     const provider = new SdiTransmissionProvider(mockCredentials(makeResolvedConfig()), port);
-    await provider.sendStatus(REF, 'buyer refused the invoice', {} as any, {} as any, new RecordingComplianceLogger());
+    await provider.sendStatus(
+      REF,
+      'buyer refused the invoice',
+      {} as any,
+      {} as any,
+      new RecordingComplianceLogger(),
+    );
     expect(port.sendEsito).toHaveBeenCalledWith(ID_SDI, ID_TRASMITTENTE, 'EC02', undefined);
   });
 
   it('maps "scartata" → EC02', async () => {
     const port = mockPort();
     const provider = new SdiTransmissionProvider(mockCredentials(makeResolvedConfig()), port);
-    await provider.sendStatus(REF, 'notifica scartata', {} as any, {} as any, new RecordingComplianceLogger());
+    await provider.sendStatus(
+      REF,
+      'notifica scartata',
+      {} as any,
+      {} as any,
+      new RecordingComplianceLogger(),
+    );
     expect(port.sendEsito).toHaveBeenCalledWith(ID_SDI, ID_TRASMITTENTE, 'EC02', undefined);
   });
 
@@ -110,7 +146,13 @@ describe('SdiTransmissionProvider.sendStatus — mocked', () => {
     (port.sendEsito as jest.MockedFunction<any>).mockRejectedValueOnce(new Error('SOAP connection refused'));
     const provider = new SdiTransmissionProvider(mockCredentials(makeResolvedConfig()), port);
 
-    const result = await provider.sendStatus(REF, 'accepted', {} as any, {} as any, new RecordingComplianceLogger());
+    const result = await provider.sendStatus(
+      REF,
+      'accepted',
+      {} as any,
+      {} as any,
+      new RecordingComplianceLogger(),
+    );
 
     expect(result.status).toBe('QUEUED');
     expect(result.notes.join(' ')).toMatch(/sendStatus error/);
@@ -119,7 +161,13 @@ describe('SdiTransmissionProvider.sendStatus — mocked', () => {
   it('deferred: sendEsito fails without injection (no AdE accreditation)', async () => {
     // No httpPort injected → falls through to the stub that throws
     const provider = new SdiTransmissionProvider(mockCredentials(makeResolvedConfig()));
-    const result = await provider.sendStatus(REF, 'accepted', {} as any, {} as any, new RecordingComplianceLogger());
+    const result = await provider.sendStatus(
+      REF,
+      'accepted',
+      {} as any,
+      {} as any,
+      new RecordingComplianceLogger(),
+    );
     // Should return QUEUED (caught the throw) with a clear message
     expect(result.status).toBe('QUEUED');
     expect(result.notes.join(' ')).toMatch(/not implemented|AdE|deferred/i);

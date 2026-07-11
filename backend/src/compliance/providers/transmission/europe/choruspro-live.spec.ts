@@ -1,58 +1,18 @@
-/**
- * Chorus Pro PISTE live round-trip test.
- *
- * Gated: CHORUSPRO_LIVE=1 — never runs in CI.
- *
- * Required env vars:
- *   CHORUSPRO_LIVE=1
- *   CHORUSPRO_CLIENT_ID        PISTE OAuth2 client_id
- *   CHORUSPRO_CLIENT_SECRET    PISTE OAuth2 client_secret
- *
- * Optional env vars (required for a full deposit round-trip):
- *   CHORUSPRO_TECH_LOGIN       Chorus Pro technical account login
- *   CHORUSPRO_TECH_PASSWORD    Chorus Pro technical account password
- *   CHORUSPRO_ENV              SANDBOX | PROD  (default: SANDBOX)
- *   CHORUSPRO_XML_PATH         Path to a pre-built Factur-X / UBL XML file (UTF-8)
- *                              If absent, a minimal UBL invoice is generated.
- *
- * Hard-success contract:
- *   - transmit status MUST be PENDING (not REJECTED / SKIPPED).
- *   - ref MUST be truthy (real numeroFluxDepot returned).
- *   - A subsequent consulterCr poll MUST return a non-error status.
- *
- * Run:
- *   cd backend
- *   CHORUSPRO_LIVE=1 \
- *     CHORUSPRO_CLIENT_ID=<id> \
- *     CHORUSPRO_CLIENT_SECRET=<secret> \
- *     CHORUSPRO_TECH_LOGIN=<login> \
- *     CHORUSPRO_TECH_PASSWORD=<password> \
- *     npx jest choruspro-live --no-coverage --runInBand
- */
-export {};
-
 import { liveDescribe } from '../live-gate.js';
 
-const describeLive = liveDescribe('CHORUSPRO_LIVE', [
-  'CHORUSPRO_CLIENT_ID',
-  'CHORUSPRO_CLIENT_SECRET',
-]);
+const describeLive = liveDescribe('CHORUSPRO_LIVE', ['CHORUSPRO_CLIENT_ID', 'CHORUSPRO_CLIENT_SECRET']);
 
 describeLive('Chorus Pro PISTE live round-trip', () => {
   it('deposits an invoice flux and receives a real numeroFluxDepot', async () => {
-    const clientId         = process.env.CHORUSPRO_CLIENT_ID!;
-    const clientSecret     = process.env.CHORUSPRO_CLIENT_SECRET!;
-    const techLogin        = process.env.CHORUSPRO_TECH_LOGIN    ?? '';
-    const techPassword     = process.env.CHORUSPRO_TECH_PASSWORD ?? '';
-    const envStr           = (process.env.CHORUSPRO_ENV ?? 'SANDBOX').toUpperCase();
-    const isSandbox        = envStr !== 'PROD';
+    const clientId = process.env.CHORUSPRO_CLIENT_ID!;
+    const clientSecret = process.env.CHORUSPRO_CLIENT_SECRET!;
+    const techLogin = process.env.CHORUSPRO_TECH_LOGIN ?? '';
+    const techPassword = process.env.CHORUSPRO_TECH_PASSWORD ?? '';
+    const envStr = (process.env.CHORUSPRO_ENV ?? 'SANDBOX').toUpperCase();
+    const isSandbox = envStr !== 'PROD';
 
-    const oauthBaseUrl = isSandbox
-      ? 'https://sandbox-oauth.piste.gouv.fr'
-      : 'https://oauth.piste.gouv.fr';
-    const apiBaseUrl = isSandbox
-      ? 'https://sandbox-api.piste.gouv.fr'
-      : 'https://api.piste.gouv.fr';
+    const oauthBaseUrl = isSandbox ? 'https://sandbox-oauth.piste.gouv.fr' : 'https://oauth.piste.gouv.fr';
+    const apiBaseUrl = isSandbox ? 'https://sandbox-api.piste.gouv.fr' : 'https://api.piste.gouv.fr';
 
     console.log('[choruspro-live] Environment:', isSandbox ? 'SANDBOX' : 'PROD');
     console.log('[choruspro-live] OAuth base:', oauthBaseUrl);
@@ -62,7 +22,7 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
     let xmlBytes: Buffer;
     const xmlPath = process.env.CHORUSPRO_XML_PATH;
     if (xmlPath) {
-      const { readFileSync } = await import('fs');
+      const { readFileSync } = await import('node:fs');
       xmlBytes = readFileSync(xmlPath);
       console.log('[choruspro-live] Loaded XML from', xmlPath, '—', xmlBytes.length, 'bytes');
     } else {
@@ -107,7 +67,9 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
           country: 'France',
           partyIdentifiers: [{ scheme: 'SIRET', value: '98765432100022' }],
         },
-        items: [{ name: 'Prestations de service', quantity: 1, unitPrice: 1000, vatRate: 20, type: 'SERVICE' }],
+        items: [
+          { name: 'Prestations de service', quantity: 1, unitPrice: 1000, vatRate: 20, type: 'SERVICE' },
+        ],
       } as any);
       const xml = await inv.exportXml('ubl');
       xmlBytes = Buffer.from(xml, 'utf8');
@@ -126,7 +88,11 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
           body: isForm ? String(body) : JSON.stringify(body),
         });
         let data: unknown;
-        try { data = await res.json(); } catch { data = await res.text(); }
+        try {
+          data = await res.json();
+        } catch {
+          data = await res.text();
+        }
         return { status: res.status, data };
       },
     };
@@ -137,7 +103,7 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
         apiBaseUrl,
         clientId,
         clientSecret,
-        technicalAccountLogin:    techLogin,
+        technicalAccountLogin: techLogin,
         technicalAccountPassword: techPassword,
       },
       realHttp,
@@ -157,7 +123,9 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
 
     // Step 2: deposit flux (only if compte technique credentials are provided)
     if (!techLogin || !techPassword) {
-      console.warn('[choruspro-live] CHORUSPRO_TECH_LOGIN / CHORUSPRO_TECH_PASSWORD not set — skipping deposerFlux');
+      console.warn(
+        '[choruspro-live] CHORUSPRO_TECH_LOGIN / CHORUSPRO_TECH_PASSWORD not set — skipping deposerFlux',
+      );
       return;
     }
 

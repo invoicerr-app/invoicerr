@@ -18,8 +18,8 @@
  * OpenPeppol AccAP (test environment) credentials. All tests use a mocked SmpLookupPort.
  */
 
-import * as dns from 'dns';
-import * as crypto from 'crypto';
+import * as dns from 'node:dns';
+import * as crypto from 'node:crypto';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -125,7 +125,7 @@ export class DnsSmpLookup implements SmpLookupPort {
     documentTypeId: string,
     environment: 'TEST' | 'PROD',
   ): Promise<SmpLookupResult | null> {
-    const zone = SML_ZONES[environment] ?? SML_ZONES['PROD'];
+    const zone = SML_ZONES[environment] ?? SML_ZONES.PROD;
     const hostname = smlDnsHostname(participant, zone);
 
     // Step 1: DNS NAPTR lookup to find the SMP host

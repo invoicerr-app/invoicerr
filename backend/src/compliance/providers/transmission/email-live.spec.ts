@@ -25,16 +25,22 @@ describeLive('Email live round-trip (Ethereal SMTP)', () => {
   it('sends an invoice email via MailService.sendMail() with Ethereal SmtpOverrides', async () => {
     // 1. Create an ephemeral Ethereal test account (real SMTP, public test server).
     const testAccount = await nodemailer.createTestAccount();
-    console.log('Ethereal account:', testAccount.user, '/ SMTP:', testAccount.smtp.host, testAccount.smtp.port);
+    console.log(
+      'Ethereal account:',
+      testAccount.user,
+      '/ SMTP:',
+      testAccount.smtp.host,
+      testAccount.smtp.port,
+    );
 
     // 2. Build SmtpOverrides mirroring what EmailTransmissionProvider does from channel config.
     const smtpOverrides = {
-      host: testAccount.smtp.host,       // smtp.ethereal.email
-      port: testAccount.smtp.port,       // 587
-      secure: testAccount.smtp.secure,   // false
-      username: testAccount.user,        // ephemeral user
-      password: testAccount.pass,        // ephemeral password
-      fromAddress: testAccount.user,     // from = test account
+      host: testAccount.smtp.host, // smtp.ethereal.email
+      port: testAccount.smtp.port, // 587
+      secure: testAccount.smtp.secure, // false
+      username: testAccount.user, // ephemeral user
+      password: testAccount.pass, // ephemeral password
+      fromAddress: testAccount.user, // from = test account
     };
 
     // 3. Build a minimal MailOptions payload (same shape as InvoiceMailGateway uses).

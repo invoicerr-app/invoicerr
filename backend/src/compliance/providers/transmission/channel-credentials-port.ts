@@ -27,18 +27,11 @@ export interface ChannelCredentialsPort {
    * Resolve the decrypted, active channel config for a given company+provider+environment.
    * Returns null when no matching row exists or isActive=false.
    */
-  resolve(
-    companyId: string,
-    providerId: string,
-    environment: string,
-  ): Promise<ResolvedChannelConfig | null>;
+  resolve(companyId: string, providerId: string, environment: string): Promise<ResolvedChannelConfig | null>;
 
   /**
    * Resolve the single active config for a company+provider across all environments.
    * Returns null when zero or 2+ active configs exist (caller must not guess).
    */
-  resolveActive(
-    companyId: string,
-    providerId: string,
-  ): Promise<ResolvedChannelConfig | null>;
+  resolveActive(companyId: string, providerId: string): Promise<ResolvedChannelConfig | null>;
 }

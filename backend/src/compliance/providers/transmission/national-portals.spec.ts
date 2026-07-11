@@ -25,7 +25,9 @@ describe('national transmission portals', () => {
       expect(p.pollPolicy).toBeDefined();
       // Stub portals return PENDING unconditionally; portals with a real client SKIP when the
       // company has no credentials configured (empty args here) — both are valid not-yet-failed states.
-      expect(['PENDING', 'SKIPPED']).toContain((await p.transmit([], {} as never, {} as never, 'k', log)).status);
+      expect(['PENDING', 'SKIPPED']).toContain(
+        (await p.transmit([], {} as never, {} as never, 'k', log)).status,
+      );
       expect(p.poll).toBeDefined();
       expect(['PENDING', 'SKIPPED']).toContain((await p.poll!('ref', log)).status);
     }

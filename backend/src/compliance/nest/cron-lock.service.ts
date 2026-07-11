@@ -14,7 +14,7 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
-import * as os from 'os';
+import * as os from 'node:os';
 
 /** Stable instance identity within this process lifetime. */
 export const CRON_OWNER = `${os.hostname()}:${process.pid}`;
@@ -58,7 +58,9 @@ export class CronLockService {
     } catch (err) {
       // If the lock table is unavailable (e.g. migration not yet applied in a
       // rolling deploy), fail open so the cron still runs rather than halting.
-      this.logger.warn(`cron lock "${name}" DB error (failing open): ${err instanceof Error ? err.message : String(err)}`);
+      this.logger.warn(
+        `cron lock "${name}" DB error (failing open): ${err instanceof Error ? err.message : String(err)}`,
+      );
       return true;
     }
   }

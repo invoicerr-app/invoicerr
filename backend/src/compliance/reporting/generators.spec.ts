@@ -40,7 +40,13 @@ function makeCtx(overrides: Partial<TransactionContext> = {}): TransactionContex
       identifiers: [{ scheme: 'VAT', value: 'DE123456789' }],
     },
     lines: [
-      { id: 'L1', description: 'Consulting services', quantity: 10, unitNetMinor: 10000, supplyType: 'SERVICES' },
+      {
+        id: 'L1',
+        description: 'Consulting services',
+        quantity: 10,
+        unitNetMinor: 10000,
+        supplyType: 'SERVICES',
+      },
     ],
     issueDate: new Date('2026-06-15T00:00:00Z'),
     currency: 'EUR',
@@ -60,7 +66,16 @@ function makePlan(overrides: Partial<CompliancePlan> = {}): CompliancePlan {
         {
           lineId: 'L1',
           treatment: {
-            components: [{ taxSystem: 'VAT', name: 'VAT', category: 'AE', rate: 0, jurisdiction: 'DE', reason: 'VATEX-EU-AE' }],
+            components: [
+              {
+                taxSystem: 'VAT',
+                name: 'VAT',
+                category: 'AE',
+                rate: 0,
+                jurisdiction: 'DE',
+                reason: 'VATEX-EU-AE',
+              },
+            ],
             buyerSelfAssess: true,
             reportingFlags: ['EC_SALES_LIST'],
             mentions: [],
@@ -76,7 +91,11 @@ function makePlan(overrides: Partial<CompliancePlan> = {}): CompliancePlan {
     artifacts: [{ role: 'AUTHORITATIVE', syntax: 'EN16931_CII' }],
     channels: [{ type: 'PDP' }],
     numbering: { model: 'GAPLESS_SELF' },
-    lifecycle: { immutableAfter: 'ISSUE', correctionModel: 'CREDIT_NOTE', cancellation: { allowed: true, requiresAuthorityAck: false } },
+    lifecycle: {
+      immutableAfter: 'ISSUE',
+      correctionModel: 'CREDIT_NOTE',
+      cancellation: { allowed: true, requiresAuthorityAck: false },
+    },
     archival: { retentionYears: 10, archivedForm: 'BOTH', integrity: 'HASH_CHAIN' },
     reporting: ['EC_SALES_LIST'],
     confidence: 'OFFICIAL',
@@ -125,11 +144,23 @@ describe('frequencyForKind', () => {
 
 describe('generateEReportingPayload', () => {
   it('produces a structured FR e-reporting payload', () => {
-    const ctx = makeCtx({ buyer: { legalName: 'Marie Dupont', countryCode: 'FR', role: 'B2C', identifiers: [] } });
+    const ctx = makeCtx({
+      buyer: { legalName: 'Marie Dupont', countryCode: 'FR', role: 'B2C', identifiers: [] },
+    });
     const plan = makePlan({
       classification: { buyerRole: 'B2C', crossBorder: false, supplyTypes: ['SERVICES'] },
       tax: {
-        lines: [{ lineId: 'L1', treatment: { components: [{ taxSystem: 'VAT', name: 'VAT', category: 'S', rate: 20, jurisdiction: 'FR' }], buyerSelfAssess: false, reportingFlags: [], mentions: [] } }],
+        lines: [
+          {
+            lineId: 'L1',
+            treatment: {
+              components: [{ taxSystem: 'VAT', name: 'VAT', category: 'S', rate: 20, jurisdiction: 'FR' }],
+              buyerSelfAssess: false,
+              reportingFlags: [],
+              mentions: [],
+            },
+          },
+        ],
         reportingFlags: [],
         mentions: [],
         buyerSelfAssess: false,
@@ -203,8 +234,24 @@ describe('generateSaftEntry', () => {
     const plan = makePlan({
       tax: {
         lines: [
-          { lineId: 'L1', treatment: { components: [{ taxSystem: 'VAT', name: 'VAT', category: 'S', rate: 20, jurisdiction: 'FR' }], buyerSelfAssess: false, reportingFlags: [], mentions: [] } },
-          { lineId: 'L2', treatment: { components: [{ taxSystem: 'VAT', name: 'VAT', category: 'S', rate: 20, jurisdiction: 'FR' }], buyerSelfAssess: false, reportingFlags: [], mentions: [] } },
+          {
+            lineId: 'L1',
+            treatment: {
+              components: [{ taxSystem: 'VAT', name: 'VAT', category: 'S', rate: 20, jurisdiction: 'FR' }],
+              buyerSelfAssess: false,
+              reportingFlags: [],
+              mentions: [],
+            },
+          },
+          {
+            lineId: 'L2',
+            treatment: {
+              components: [{ taxSystem: 'VAT', name: 'VAT', category: 'S', rate: 20, jurisdiction: 'FR' }],
+              buyerSelfAssess: false,
+              reportingFlags: [],
+              mentions: [],
+            },
+          },
         ],
         reportingFlags: [],
         mentions: [],
@@ -222,11 +269,25 @@ describe('generateSaftEntry', () => {
 
 describe('generateOssEntry', () => {
   it('produces a structured OSS entry for B2C cross-border services', () => {
-    const ctx = makeCtx({ buyer: { legalName: 'B2C Client', countryCode: 'IT', role: 'B2C', identifiers: [] } });
+    const ctx = makeCtx({
+      buyer: { legalName: 'B2C Client', countryCode: 'IT', role: 'B2C', identifiers: [] },
+    });
     const plan = makePlan({
       classification: { buyerRole: 'B2C', crossBorder: true, supplyTypes: ['DIGITAL'] },
       tax: {
-        lines: [{ lineId: 'L1', treatment: { components: [{ taxSystem: 'VAT', name: 'VAT (OSS)', category: 'S', rate: 22, jurisdiction: 'IT' }], buyerSelfAssess: false, reportingFlags: ['OSS'], mentions: [] } }],
+        lines: [
+          {
+            lineId: 'L1',
+            treatment: {
+              components: [
+                { taxSystem: 'VAT', name: 'VAT (OSS)', category: 'S', rate: 22, jurisdiction: 'IT' },
+              ],
+              buyerSelfAssess: false,
+              reportingFlags: ['OSS'],
+              mentions: [],
+            },
+          },
+        ],
         reportingFlags: ['OSS'],
         mentions: [],
         buyerSelfAssess: false,
@@ -275,7 +336,9 @@ describe('generateEcSalesListEntry', () => {
   });
 
   it('reports GOODS type when supplyType contains GOODS', () => {
-    const plan = makePlan({ classification: { buyerRole: 'B2B', crossBorder: true, supplyTypes: ['GOODS'] } });
+    const plan = makePlan({
+      classification: { buyerRole: 'B2B', crossBorder: true, supplyTypes: ['GOODS'] },
+    });
     const entry = generateEcSalesListEntry(makeCtx(), plan, '2026-Q2');
     expect(entry.transactionType).toBe('GOODS');
   });
@@ -289,7 +352,26 @@ describe('generateIntrastatEntry', () => {
   it('produces a structured Intrastat entry as DISPATCH for K-category goods', () => {
     const plan = makePlan({
       tax: {
-        lines: [{ lineId: 'L1', treatment: { components: [{ taxSystem: 'VAT', name: 'VAT', category: 'K', rate: 0, jurisdiction: 'FR', reason: 'VATEX-EU-IC' }], buyerSelfAssess: false, reportingFlags: ['EC_SALES_LIST', 'INTRASTAT'], mentions: [] } }],
+        lines: [
+          {
+            lineId: 'L1',
+            treatment: {
+              components: [
+                {
+                  taxSystem: 'VAT',
+                  name: 'VAT',
+                  category: 'K',
+                  rate: 0,
+                  jurisdiction: 'FR',
+                  reason: 'VATEX-EU-IC',
+                },
+              ],
+              buyerSelfAssess: false,
+              reportingFlags: ['EC_SALES_LIST', 'INTRASTAT'],
+              mentions: [],
+            },
+          },
+        ],
         reportingFlags: ['EC_SALES_LIST', 'INTRASTAT'],
         mentions: [],
         buyerSelfAssess: false,
@@ -328,7 +410,26 @@ describe('generateCustomsExportPayload', () => {
   it('produces a customs export entry with ZERO_RATED_EXPORT for G-category', () => {
     const plan = makePlan({
       tax: {
-        lines: [{ lineId: 'L1', treatment: { components: [{ taxSystem: 'VAT', name: 'VAT', category: 'G', rate: 0, jurisdiction: 'FR', reason: 'VATEX-EU-G' }], buyerSelfAssess: false, reportingFlags: ['CUSTOMS_EXPORT'], mentions: [] } }],
+        lines: [
+          {
+            lineId: 'L1',
+            treatment: {
+              components: [
+                {
+                  taxSystem: 'VAT',
+                  name: 'VAT',
+                  category: 'G',
+                  rate: 0,
+                  jurisdiction: 'FR',
+                  reason: 'VATEX-EU-G',
+                },
+              ],
+              buyerSelfAssess: false,
+              reportingFlags: ['CUSTOMS_EXPORT'],
+              mentions: [],
+            },
+          },
+        ],
         reportingFlags: ['CUSTOMS_EXPORT'],
         mentions: [],
         buyerSelfAssess: false,

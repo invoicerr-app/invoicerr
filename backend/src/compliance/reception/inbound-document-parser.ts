@@ -13,7 +13,7 @@
 
 export interface ParsedInboundDocument {
   invoiceNumber?: string;
-  issueDate?: string;        // "YYYY-MM-DD"
+  issueDate?: string; // "YYYY-MM-DD"
   sellerName?: string;
   sellerTaxId?: string;
   buyerTaxId?: string;
@@ -110,12 +110,25 @@ function parseCii(xml: string): ParsedInboundDocument {
   // Amounts — SpecifiedTradeSettlementHeaderMonetarySummation
   const summBlock = extractBlock(xml, 'SpecifiedTradeSettlementHeaderMonetarySummation');
   const totalNet = toFloat(
-    summBlock ? (extractText(summBlock, 'LineTotalAmount') ?? extractText(summBlock, 'TaxBasisTotalAmount')) : undefined,
+    summBlock
+      ? (extractText(summBlock, 'LineTotalAmount') ?? extractText(summBlock, 'TaxBasisTotalAmount'))
+      : undefined,
   );
   const totalTax = toFloat(summBlock ? extractText(summBlock, 'TaxTotalAmount') : undefined);
   const totalGross = toFloat(summBlock ? extractText(summBlock, 'GrandTotalAmount') : undefined);
 
-  return { invoiceNumber, issueDate, sellerName, sellerTaxId, buyerTaxId, currency, totalNet, totalTax, totalGross, parseErrors: [] };
+  return {
+    invoiceNumber,
+    issueDate,
+    sellerName,
+    sellerTaxId,
+    buyerTaxId,
+    currency,
+    totalNet,
+    totalTax,
+    totalGross,
+    parseErrors: [],
+  };
 }
 
 /** UBL 2.1 (EN16931_UBL / PEPPOL_BIS) */
@@ -126,25 +139,40 @@ function parseUbl(xml: string): ParsedInboundDocument {
 
   const supplierBlock = extractBlock(xml, 'AccountingSupplierParty');
   const sellerName = supplierBlock
-    ? extractText(supplierBlock, 'Name') ?? extractText(supplierBlock, 'RegistrationName')
+    ? (extractText(supplierBlock, 'Name') ?? extractText(supplierBlock, 'RegistrationName'))
     : undefined;
   const sellerTaxId = supplierBlock
-    ? extractText(supplierBlock, 'CompanyID') ?? extractText(supplierBlock, 'EndpointID')
+    ? (extractText(supplierBlock, 'CompanyID') ?? extractText(supplierBlock, 'EndpointID'))
     : undefined;
 
   const customerBlock = extractBlock(xml, 'AccountingCustomerParty');
   const buyerTaxId = customerBlock
-    ? extractText(customerBlock, 'CompanyID') ?? extractText(customerBlock, 'EndpointID')
+    ? (extractText(customerBlock, 'CompanyID') ?? extractText(customerBlock, 'EndpointID'))
     : undefined;
 
   const legalBlock = extractBlock(xml, 'LegalMonetaryTotal');
   const totalNet = toFloat(legalBlock ? extractText(legalBlock, 'TaxExclusiveAmount') : undefined);
-  const totalGross = toFloat(legalBlock ? extractText(legalBlock, 'PayableAmount') ?? extractText(legalBlock, 'TaxInclusiveAmount') : undefined);
+  const totalGross = toFloat(
+    legalBlock
+      ? (extractText(legalBlock, 'PayableAmount') ?? extractText(legalBlock, 'TaxInclusiveAmount'))
+      : undefined,
+  );
 
   const taxBlock = extractBlock(xml, 'TaxTotal');
   const totalTax = toFloat(taxBlock ? extractText(taxBlock, 'TaxAmount') : undefined);
 
-  return { invoiceNumber, issueDate, sellerName, sellerTaxId, buyerTaxId, currency, totalNet, totalTax, totalGross, parseErrors: [] };
+  return {
+    invoiceNumber,
+    issueDate,
+    sellerName,
+    sellerTaxId,
+    buyerTaxId,
+    currency,
+    totalNet,
+    totalTax,
+    totalGross,
+    parseErrors: [],
+  };
 }
 
 /** FatturaPA 1.2 (IT SdI) */
@@ -157,7 +185,9 @@ function parseFatturaPA(xml: string): ParsedInboundDocument {
   let sellerTaxId: string | undefined;
   if (cedenteBlock) {
     const denominazione = extractText(cedenteBlock, 'Denominazione');
-    const nomeCognome = [extractText(cedenteBlock, 'Nome'), extractText(cedenteBlock, 'Cognome')].filter(Boolean).join(' ') || undefined;
+    const nomeCognome =
+      [extractText(cedenteBlock, 'Nome'), extractText(cedenteBlock, 'Cognome')].filter(Boolean).join(' ') ||
+      undefined;
     sellerName = denominazione ?? nomeCognome;
     sellerTaxId = extractText(cedenteBlock, 'IdCodice') ?? extractText(cedenteBlock, 'CodiceFiscale');
   }
@@ -165,7 +195,7 @@ function parseFatturaPA(xml: string): ParsedInboundDocument {
   // Buyer — CessionarioCommittente
   const cessionarioBlock = extractBlock(xml, 'CessionarioCommittente');
   const buyerTaxId = cessionarioBlock
-    ? extractText(cessionarioBlock, 'IdCodice') ?? extractText(cessionarioBlock, 'CodiceFiscale')
+    ? (extractText(cessionarioBlock, 'IdCodice') ?? extractText(cessionarioBlock, 'CodiceFiscale'))
     : undefined;
 
   // Body — first DatiGeneraliDocumento
@@ -178,7 +208,8 @@ function parseFatturaPA(xml: string): ParsedInboundDocument {
   // Totals from DatiRiepilogo blocks (may be multiple — sum them)
   let totalNet: number | undefined;
   let totalTax: number | undefined;
-  const datiRiepilogoRe = /<(?:[A-Za-z_][A-Za-z0-9_.]*:)?DatiRiepilogo(?:\s[^>]*)?>[\s\S]*?<\/(?:[A-Za-z_][A-Za-z0-9_.]*:)?DatiRiepilogo>/gi;
+  const datiRiepilogoRe =
+    /<(?:[A-Za-z_][A-Za-z0-9_.]*:)?DatiRiepilogo(?:\s[^>]*)?>[\s\S]*?<\/(?:[A-Za-z_][A-Za-z0-9_.]*:)?DatiRiepilogo>/gi;
   for (const match of xml.matchAll(datiRiepilogoRe)) {
     const block = match[0];
     const imp = toFloat(extractText(block, 'ImponibileImporto'));
@@ -189,7 +220,18 @@ function parseFatturaPA(xml: string): ParsedInboundDocument {
 
   if (!invoiceNumber) errors.push('FatturaPA: DatiGeneraliDocumento/Numero not found');
 
-  return { invoiceNumber, issueDate, sellerName, sellerTaxId, buyerTaxId, currency, totalNet, totalTax, totalGross, parseErrors: errors };
+  return {
+    invoiceNumber,
+    issueDate,
+    sellerName,
+    sellerTaxId,
+    buyerTaxId,
+    currency,
+    totalNet,
+    totalTax,
+    totalGross,
+    parseErrors: errors,
+  };
 }
 
 /** FA(2) / FA_VAT — KSeF Polish e-invoice (JSON) */
@@ -198,17 +240,22 @@ function parseFaVat(raw: string): ParsedInboundDocument {
     const obj: Record<string, unknown> = JSON.parse(raw);
     // KSeF wraps in { Faktura: { ... } } at the top level
     const root = (obj?.Faktura ?? obj) as Record<string, unknown>;
-    const podmiot1 = (root?.Podmiot1 as Record<string, unknown>)?.DaneIdentyfikacyjne as Record<string, unknown> | undefined;
-    const podmiot2 = (root?.Podmiot2 as Record<string, unknown>)?.DaneIdentyfikacyjne as Record<string, unknown> | undefined;
+    const podmiot1 = (root?.Podmiot1 as Record<string, unknown>)?.DaneIdentyfikacyjne as
+      | Record<string, unknown>
+      | undefined;
+    const podmiot2 = (root?.Podmiot2 as Record<string, unknown>)?.DaneIdentyfikacyjne as
+      | Record<string, unknown>
+      | undefined;
     const fa = root?.Fa as Record<string, unknown> | undefined;
 
-    const sellerName = podmiot1?.PelnaNazwa as string | undefined ?? podmiot1?.ImieNazwisko as string | undefined;
+    const sellerName =
+      (podmiot1?.PelnaNazwa as string | undefined) ?? (podmiot1?.ImieNazwisko as string | undefined);
     const sellerTaxId = podmiot1?.NIP as string | undefined;
     const buyerTaxId = podmiot2?.NIP as string | undefined;
 
-    const invoiceNumber = fa?.P_2 as string | undefined ?? fa?.NrFa as string | undefined;
+    const invoiceNumber = (fa?.P_2 as string | undefined) ?? (fa?.NrFa as string | undefined);
     const issueDate = fa?.P_1 as string | undefined;
-    const currency = fa?.KodWaluty as string | undefined ?? 'PLN';
+    const currency = (fa?.KodWaluty as string | undefined) ?? 'PLN';
 
     // FA(2) totals: P_13_x = net per rate, P_14_x = tax, P_15 = gross
     const totalGross = toFloat(String(fa?.P_15 ?? ''));
@@ -224,7 +271,18 @@ function parseFaVat(raw: string): ParsedInboundDocument {
       }
     }
 
-    return { invoiceNumber, issueDate, sellerName, sellerTaxId, buyerTaxId, currency, totalNet, totalTax, totalGross, parseErrors: [] };
+    return {
+      invoiceNumber,
+      issueDate,
+      sellerName,
+      sellerTaxId,
+      buyerTaxId,
+      currency,
+      totalNet,
+      totalTax,
+      totalGross,
+      parseErrors: [],
+    };
   } catch (e) {
     return { parseErrors: [`FA_VAT JSON parse error: ${e instanceof Error ? e.message : String(e)}`] };
   }
@@ -245,7 +303,11 @@ export function detectSyntax(raw: string): InboundSyntax {
     trimmed.includes('urn:un:unece:uncefact:data:standard:CrossIndustryInvoice')
   )
     return 'CII';
-  if (trimmed.includes('FatturaElettronica') || trimmed.includes('CedentePrestatore') || trimmed.includes('FatturaPA'))
+  if (
+    trimmed.includes('FatturaElettronica') ||
+    trimmed.includes('CedentePrestatore') ||
+    trimmed.includes('FatturaPA')
+  )
     return 'FATTURAPA';
   if (
     trimmed.includes('urn:oasis:names:specification:ubl') ||
@@ -280,10 +342,14 @@ export function parseInboundDocument(raw: string, syntaxHint?: string | null): P
   }
 
   switch (syntax) {
-    case 'CII':      return parseCii(raw);
-    case 'UBL':      return parseUbl(raw);
-    case 'FATTURAPA':return parseFatturaPA(raw);
-    case 'FA_VAT':   return parseFaVat(raw);
+    case 'CII':
+      return parseCii(raw);
+    case 'UBL':
+      return parseUbl(raw);
+    case 'FATTURAPA':
+      return parseFatturaPA(raw);
+    case 'FA_VAT':
+      return parseFaVat(raw);
     default: {
       // Best-effort fallback: try CII first (most prevalent in EU), then UBL
       const ciiResult = parseCii(raw);

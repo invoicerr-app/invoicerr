@@ -14,12 +14,10 @@ const live = process.env.COMPLIANCE_LIVE_DB_TESTS ? describe : describe.skip;
 live('LIVE: ApplySignalService against Postgres', () => {
   // Imported lazily, inside the gated block, so merely collecting this file never touches Prisma
   // when the live suite is skipped (no accidental connection attempt in the default test run).
-  /* eslint-disable @typescript-eslint/no-var-requires */
   const { PrismaService } = require('@/prisma/prisma.service');
   const { ApplySignalService } = require('./apply-signal');
   const { PrismaComplianceDocumentStore } = require('../persistence/prisma-document-store');
   const { resolve } = require('../engine/compliance-engine');
-  /* eslint-enable @typescript-eslint/no-var-requires */
 
   const prisma = new PrismaService();
   const docStore = new PrismaComplianceDocumentStore(prisma);
@@ -59,8 +57,16 @@ live('LIVE: ApplySignalService against Postgres', () => {
     const plan = resolve(ctx);
     const id = 'live-mx-1';
     await docStore.save({
-      id, kind: 'INVOICE', direction: 'OUTBOUND', status: 'ISSUED', ctx, plan,
-      authorityIds: [], events: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      id,
+      kind: 'INVOICE',
+      direction: 'OUTBOUND',
+      status: 'ISSUED',
+      ctx,
+      plan,
+      authorityIds: [],
+      events: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     });
 
     await applySignal.apply(id, { type: 'COMMAND', event: 'SUBMIT_CLEARANCE' });
@@ -88,8 +94,16 @@ live('LIVE: ApplySignalService against Postgres', () => {
     const plan = resolve(ctx);
     const id = 'live-mx-2';
     await docStore.save({
-      id, kind: 'INVOICE', direction: 'OUTBOUND', status: 'CLEARED', ctx, plan,
-      authorityIds: [], events: [{ id: 'evt-issue', type: 'ISSUE', at: new Date().toISOString(), actor: 'system' }], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      id,
+      kind: 'INVOICE',
+      direction: 'OUTBOUND',
+      status: 'CLEARED',
+      ctx,
+      plan,
+      authorityIds: [],
+      events: [{ id: 'evt-issue', type: 'ISSUE', at: new Date().toISOString(), actor: 'system' }],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     });
 
     // CLEARED has no outgoing POLL transition, so this is a runtime NOOP.
@@ -112,8 +126,16 @@ live('LIVE: ApplySignalService against Postgres', () => {
     const plan = resolve(itCtx);
     const id = 'live-it-1';
     await docStore.save({
-      id, kind: 'INVOICE', direction: 'OUTBOUND', status: 'ISSUED', ctx: itCtx, plan,
-      authorityIds: [], events: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      id,
+      kind: 'INVOICE',
+      direction: 'OUTBOUND',
+      status: 'ISSUED',
+      ctx: itCtx,
+      plan,
+      authorityIds: [],
+      events: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     });
 
     await applySignal.apply(id, { type: 'COMMAND', event: 'SUBMIT_CLEARANCE' });

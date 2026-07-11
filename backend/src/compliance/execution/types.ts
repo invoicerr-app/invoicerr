@@ -29,13 +29,7 @@ export interface SignedArtifact extends RenderedArtifact {
   signature?: SignatureInfo;
 }
 
-export type TransmissionStatus =
-  | 'SENT'
-  | 'QUEUED'
-  | 'PENDING'
-  | 'CLEARED'
-  | 'REJECTED'
-  | 'SKIPPED';
+export type TransmissionStatus = 'SENT' | 'QUEUED' | 'PENDING' | 'CLEARED' | 'REJECTED' | 'SKIPPED';
 
 export interface TransmissionResult {
   channel: ChannelType;

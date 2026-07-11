@@ -15,7 +15,7 @@ import { TransmissionProviderRegistry } from '../registry';
 import { SdiTransmissionProvider } from '../providers';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from '../channel-credentials-port';
 import { RecordingComplianceLogger } from '../../../execution/logger';
-import { SignedArtifact, TransmissionResult } from '../../../execution/types';
+import { SignedArtifact } from '../../../execution/types';
 import { TransactionContext } from '../../../canonical/canonical-document';
 
 // ---------------------------------------------------------------------------
@@ -53,7 +53,10 @@ function makeFatturapaArtifact(): SignedArtifact {
     role: 'AUTHORITATIVE',
     syntax: 'FATTURAPA',
     mime: 'application/xml',
-    bytes: Buffer.from('<?xml version="1.0"?><FatturaElettronica versione="FPR12"><FatturaElettronicaHeader/></FatturaElettronica>', 'utf8'),
+    bytes: Buffer.from(
+      '<?xml version="1.0"?><FatturaElettronica versione="FPR12"><FatturaElettronicaHeader/></FatturaElettronica>',
+      'utf8',
+    ),
   };
 }
 
@@ -132,19 +135,13 @@ describe('SdiClient.mapNotifica — all SdI notifica types', () => {
   });
 
   it('NE EC01 (buyer accepted) → CLEARED', () => {
-    const result = SdiClient.mapNotifica(
-      makeNotifica('NE', { esitoCommittente: 'EC01' }),
-      REF,
-    );
+    const result = SdiClient.mapNotifica(makeNotifica('NE', { esitoCommittente: 'EC01' }), REF);
     expect(result.status).toBe('CLEARED');
     expect(result.notes.join(' ')).toContain('EC01');
   });
 
   it('NE EC02 (buyer refused) → REJECTED', () => {
-    const result = SdiClient.mapNotifica(
-      makeNotifica('NE', { esitoCommittente: 'EC02' }),
-      REF,
-    );
+    const result = SdiClient.mapNotifica(makeNotifica('NE', { esitoCommittente: 'EC02' }), REF);
     expect(result.status).toBe('REJECTED');
     expect(result.notes.join(' ')).toContain('EC02');
   });
@@ -312,7 +309,10 @@ describe('SdiTransmissionProvider.poll() — ref parsing and credential resoluti
 
   it('returns PENDING when no credentials port', async () => {
     const provider = new SdiTransmissionProvider(); // no credentials
-    const result = await provider.poll(`${COMPANY_ID}|99|${ID_TRASMITTENTE}`, new RecordingComplianceLogger());
+    const result = await provider.poll(
+      `${COMPANY_ID}|99|${ID_TRASMITTENTE}`,
+      new RecordingComplianceLogger(),
+    );
 
     expect(result.status).toBe('PENDING');
     expect(result.notes.join(' ')).toMatch(/no credentials port/);
@@ -331,7 +331,10 @@ describe('SdiTransmissionProvider.poll() — ref parsing and credential resoluti
     const credentials = mockCredentials(null);
     const provider = new SdiTransmissionProvider(credentials);
 
-    const result = await provider.poll(`${COMPANY_ID}|99|${ID_TRASMITTENTE}`, new RecordingComplianceLogger());
+    const result = await provider.poll(
+      `${COMPANY_ID}|99|${ID_TRASMITTENTE}`,
+      new RecordingComplianceLogger(),
+    );
 
     expect(result.status).toBe('PENDING');
     expect(result.notes.join(' ')).toMatch(/credentials no longer active|accreditation|poll error/);
@@ -353,7 +356,10 @@ describe('SdiTransmissionProvider.poll() — ref parsing and credential resoluti
     const credentials = mockCredentials(makeResolvedConfig());
     const provider = new SdiTransmissionProvider(credentials, http);
 
-    const result = await provider.poll(`${COMPANY_ID}|99|${ID_TRASMITTENTE}`, new RecordingComplianceLogger());
+    const result = await provider.poll(
+      `${COMPANY_ID}|99|${ID_TRASMITTENTE}`,
+      new RecordingComplianceLogger(),
+    );
 
     expect(result.status).toBe('CLEARED');
     expect(http.getStatus).toHaveBeenCalledWith(99, ID_TRASMITTENTE);
@@ -371,7 +377,10 @@ describe('SdiTransmissionProvider.poll() — ref parsing and credential resoluti
     const credentials = mockCredentials(makeResolvedConfig());
     const provider = new SdiTransmissionProvider(credentials, http);
 
-    const result = await provider.poll(`${COMPANY_ID}|99|${ID_TRASMITTENTE}`, new RecordingComplianceLogger());
+    const result = await provider.poll(
+      `${COMPANY_ID}|99|${ID_TRASMITTENTE}`,
+      new RecordingComplianceLogger(),
+    );
 
     expect(result.status).toBe('PENDING');
     expect(result.notes.join(' ')).toContain('no notifica');

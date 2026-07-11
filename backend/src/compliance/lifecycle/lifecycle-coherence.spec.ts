@@ -161,16 +161,23 @@ describe('MX clearance-blocking regime — state-machine guards', () => {
  * contributor emitting orphaned nodes — a data-quality error that would confuse UI badge logic.
  */
 describe('per-profile lifecycle coherence — no dangling (unreachable) states', () => {
-  const PRIMARY_MARKETS: Array<{ label: string; s: string; b: string; r: PartyRole; sup: SupplyType; d: string }> = [
+  const PRIMARY_MARKETS: Array<{
+    label: string;
+    s: string;
+    b: string;
+    r: PartyRole;
+    sup: SupplyType;
+    d: string;
+  }> = [
     { label: 'FR B2B post-mandate', s: 'FR', b: 'FR', r: 'B2B', sup: 'SERVICES', d: '2027-01-15' },
     { label: 'FR B2C post-mandate', s: 'FR', b: 'FR', r: 'B2C', sup: 'SERVICES', d: '2027-01-15' },
-    { label: 'PL KSeF era',         s: 'PL', b: 'PL', r: 'B2B', sup: 'GOODS',    d: '2027-01-15' },
-    { label: 'PL pre-KSeF',         s: 'PL', b: 'PL', r: 'B2B', sup: 'GOODS',    d: '2025-01-01' },
-    { label: 'IT SdI era',          s: 'IT', b: 'IT', r: 'B2B', sup: 'GOODS',    d: '2027-01-15' },
-    { label: 'IT pre-SdI',          s: 'IT', b: 'IT', r: 'B2B', sup: 'GOODS',    d: '2018-01-01' },
-    { label: 'DE XRechnung',        s: 'DE', b: 'DE', r: 'B2B', sup: 'GOODS',    d: '2027-01-15' },
-    { label: 'ES SII era',          s: 'ES', b: 'ES', r: 'B2B', sup: 'GOODS',    d: '2027-01-15' },
-    { label: 'MX CFDI 4.0',        s: 'MX', b: 'MX', r: 'B2B', sup: 'GOODS',    d: '2027-01-15' },
+    { label: 'PL KSeF era', s: 'PL', b: 'PL', r: 'B2B', sup: 'GOODS', d: '2027-01-15' },
+    { label: 'PL pre-KSeF', s: 'PL', b: 'PL', r: 'B2B', sup: 'GOODS', d: '2025-01-01' },
+    { label: 'IT SdI era', s: 'IT', b: 'IT', r: 'B2B', sup: 'GOODS', d: '2027-01-15' },
+    { label: 'IT pre-SdI', s: 'IT', b: 'IT', r: 'B2B', sup: 'GOODS', d: '2018-01-01' },
+    { label: 'DE XRechnung', s: 'DE', b: 'DE', r: 'B2B', sup: 'GOODS', d: '2027-01-15' },
+    { label: 'ES SII era', s: 'ES', b: 'ES', r: 'B2B', sup: 'GOODS', d: '2027-01-15' },
+    { label: 'MX CFDI 4.0', s: 'MX', b: 'MX', r: 'B2B', sup: 'GOODS', d: '2027-01-15' },
   ];
 
   for (const { label, s, b, r, sup, d } of PRIMARY_MARKETS) {

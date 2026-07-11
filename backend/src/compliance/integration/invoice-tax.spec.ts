@@ -98,7 +98,12 @@ describe('resolveInvoiceTax', () => {
     const result = resolveInvoiceTax(
       makeInput({
         discountRate,
-        items: items.map((i) => ({ quantity: i.quantity, unitPrice: i.unitPrice, vatRate: i.vatRate, supplyType: i.supplyType })),
+        items: items.map((i) => ({
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+          vatRate: i.vatRate,
+          supplyType: i.supplyType,
+        })),
       }),
     );
 

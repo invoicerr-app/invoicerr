@@ -127,7 +127,11 @@ export interface FirsHttpPort {
   /** Generate IRN for the invoice. Returns irn + QR code. */
   generateIrn(baseUrl: string, accessToken: string, payload: FirsInvoicePayload): Promise<FirsIrnResponse>;
   /** Submit the signed invoice payload to FIRS. */
-  submitInvoice(baseUrl: string, accessToken: string, payload: FirsInvoicePayload & { irn: string }): Promise<FirsSubmitResponse>;
+  submitInvoice(
+    baseUrl: string,
+    accessToken: string,
+    payload: FirsInvoicePayload & { irn: string },
+  ): Promise<FirsSubmitResponse>;
   /** Poll for the invoice status by IRN. */
   getStatus(baseUrl: string, accessToken: string, irn: string): Promise<FirsStatusResponse>;
 }
@@ -165,7 +169,7 @@ export function computeFirsIrn(
   serviceId: string,
   invoiceDate: string,
 ): string {
-  const { createHash } = require('crypto') as typeof import('crypto');
+  const { createHash } = require('node:crypto') as typeof import('crypto');
   const raw = `${tinSupplier}|${invoiceNumber}|${serviceId}|${invoiceDate}`;
   return createHash('sha256').update(raw, 'utf8').digest('hex');
 }

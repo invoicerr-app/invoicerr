@@ -152,7 +152,13 @@ describe('PdpTransmissionProvider.sendStatus — mocked', () => {
     const provider = new PdpTransmissionProvider(mockCredentials(makeResolvedConfig({ apiStyle: 'afnor' })));
     const log = new RecordingComplianceLogger();
 
-    const result = await provider.sendStatus(`${COMPANY_ID}|flow-abc`, 'encaissée', {} as any, {} as any, log);
+    const result = await provider.sendStatus(
+      `${COMPANY_ID}|flow-abc`,
+      'encaissée',
+      {} as any,
+      {} as any,
+      log,
+    );
 
     expect(result.status).toBe('QUEUED');
     expect(result.notes.join(' ')).toMatch(/AFNOR sendStatus deferred/);

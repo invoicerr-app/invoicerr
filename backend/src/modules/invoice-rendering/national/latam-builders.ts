@@ -9,11 +9,11 @@ import type { InvoiceRenderData } from '../render-data';
 import { sumNet, sumVat, isoDate, isoDateTimeSeconds } from './xml-helpers';
 
 export function buildClDte(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const rut = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const totalIVA = sumVat(data.items);
-        return `<!-- TODO: Chile DTE (SII) — requires Folio電子 + Digital Signature -->
+  const issueDate = isoDate(data);
+  const rut = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const totalIVA = sumVat(data.items);
+  return `<!-- TODO: Chile DTE (SII) — requires Folio電子 + Digital Signature -->
 <ClaveDTE>
   <Encabezado>
     <IdDoc><TipoDTE>33</TipoDTE><Folio>1</Folio><FchEmis>${issueDate}</FchEmis></IdDoc>
@@ -27,11 +27,11 @@ export function buildClDte(data: InvoiceRenderData): string {
 }
 
 export function buildArFe(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const cuit = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const totalIVA = sumVat(data.items);
-        return `<!-- TODO: Argentina Factura Electronica (AFIP/ARCA) — requires CAE + Digital Signature -->
+  const issueDate = isoDate(data);
+  const cuit = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const totalIVA = sumVat(data.items);
+  return `<!-- TODO: Argentina Factura Electronica (AFIP/ARCA) — requires CAE + Digital Signature -->
 <Factura>
   <Cabecera>
     <TipoComprobante>1</TipoComprobante>
@@ -46,11 +46,11 @@ export function buildArFe(data: InvoiceRenderData): string {
 }
 
 export function buildEcFe(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const ruc = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const totalIVA = sumVat(data.items);
-        return `<!-- TODO: Ecuador Factura Electronica (SRI) — requires ClaveAcceso + Digital Signature -->
+  const issueDate = isoDate(data);
+  const ruc = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const totalIVA = sumVat(data.items);
+  return `<!-- TODO: Ecuador Factura Electronica (SRI) — requires ClaveAcceso + Digital Signature -->
 <Factura>
   <InfoTributaria><Ambiente>1</Ambiente><TipoEmision>1</TipoEmision><Ruc>${ruc}</Ruc></InfoTributaria>
   <InfoFactura><FechaEmision>${issueDate}</FechaEmision><TotalSinImpuestos>${total.toFixed(2)}</TotalSinImpuestos><ImporteTotal>${(total + totalIVA).toFixed(2)}</ImporteTotal></InfoFactura>
@@ -60,11 +60,11 @@ export function buildEcFe(data: InvoiceRenderData): string {
 }
 
 export function buildBrNfe(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const cnpj = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const totalIVA = sumVat(data.items);
-        return `<!-- TODO: Brazil NF-e/NFS-e (SEFAZ) — requires ChaveAcesso + Digital Signature + Lote -->
+  const issueDate = isoDate(data);
+  const cnpj = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const totalIVA = sumVat(data.items);
+  return `<!-- TODO: Brazil NF-e/NFS-e (SEFAZ) — requires ChaveAcesso + Digital Signature + Lote -->
 <nfeProc>
   <NFe>
     <infNFe versao="4.00">
@@ -85,11 +85,11 @@ export function buildBrNfe(data: InvoiceRenderData): string {
  *   https://api-sandbox.comprobanteselectronicos.go.cr/recepcion/v1/hacienda
  */
 export function buildCrFe(data: InvoiceRenderData): string {
-        const issueDate = isoDateTimeSeconds(data);
-        const ruc = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const totalIVA = sumVat(data.items);
-        return `<!-- TODO: Costa Rica FE v4.4 (Hacienda) — requires 50-digit Clave + BCCR qualified signature -->
+  const issueDate = isoDateTimeSeconds(data);
+  const ruc = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const totalIVA = sumVat(data.items);
+  return `<!-- TODO: Costa Rica FE v4.4 (Hacienda) — requires 50-digit Clave + BCCR qualified signature -->
 <FacturaElectronica xmlns="https://cdn.comprobanteselectronicos.go.cr/xml-schemas/v4.4/facturaElectronica"
   xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
   <Clave>TODO-50-DIGIT-CLAVE</Clave>
@@ -107,7 +107,9 @@ export function buildCrFe(data: InvoiceRenderData): string {
   </Receptor>
   <CondicionVenta>01</CondicionVenta>
   <MedioPago>01</MedioPago>
-  <DetalleServicio>${data.items.map((item, i) => `
+  <DetalleServicio>${data.items
+    .map(
+      (item, i) => `
     <LineaDetalle>
       <NumeroLinea>${i + 1}</NumeroLinea>
       <Cantidad>${item.quantity}</Cantidad>
@@ -118,10 +120,12 @@ export function buildCrFe(data: InvoiceRenderData): string {
         <Codigo>01</Codigo>
         <CodigoTarifa>${item.vatRate === 13 ? '08' : item.vatRate === 4 ? '02' : '01'}</CodigoTarifa>
         <Tarifa>${item.vatRate || 0}</Tarifa>
-        <Monto>${(item.quantity * item.unitPrice * (item.vatRate || 0) / 100).toFixed(5)}</Monto>
+        <Monto>${((item.quantity * item.unitPrice * (item.vatRate || 0)) / 100).toFixed(5)}</Monto>
       </Impuesto>
       <MontoTotalLinea>${(item.quantity * item.unitPrice * (1 + (item.vatRate || 0) / 100)).toFixed(5)}</MontoTotalLinea>
-    </LineaDetalle>`).join('')}
+    </LineaDetalle>`,
+    )
+    .join('')}
   </DetalleServicio>
   <ResumenFactura>
     <CodigoTipoMoneda><CodigoMoneda>${data.company.currency || 'CRC'}</CodigoMoneda><TipoCambio>1</TipoCambio></CodigoTipoMoneda>
@@ -142,11 +146,11 @@ export function buildCrFe(data: InvoiceRenderData): string {
  *   https://ecf.dgii.gov.do/ecf/emisorreceptor (prod)
  */
 export function buildDoEcf(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const rnc = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const totalIVA = sumVat(data.items);
-        return `<!-- TODO: Dominican Republic e-CF (DGII) — requires e-NCF number series + digital signature -->
+  const issueDate = isoDate(data);
+  const rnc = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const totalIVA = sumVat(data.items);
+  return `<!-- TODO: Dominican Republic e-CF (DGII) — requires e-NCF number series + digital signature -->
 <FCCE xmlns="http://www.dgii.gov.do/xml/ecf">
   <Encabezado>
     <Version>1.0</Version>
@@ -176,7 +180,9 @@ export function buildDoEcf(data: InvoiceRenderData): string {
       <MontoTotal>${(total + totalIVA).toFixed(2)}</MontoTotal>
     </Totales>
   </Encabezado>
-  <DetallesItems>${data.items.map((item, i) => `
+  <DetallesItems>${data.items
+    .map(
+      (item, i) => `
     <Item>
       <NumeroLinea>${i + 1}</NumeroLinea>
       <NombreItem>${item.name}</NombreItem>
@@ -185,7 +191,9 @@ export function buildDoEcf(data: InvoiceRenderData): string {
       <PrecioUnitarioItem>${item.unitPrice.toFixed(2)}</PrecioUnitarioItem>
       <TablaSubDescuento><SubDescuento><TipoSubDescuento>01</TipoSubDescuento><PorcentajeSubDescuento>0.00</PorcentajeSubDescuento><MontoSubDescuento>0.00</MontoSubDescuento></SubDescuento></TablaSubDescuento>
       <MontoItem>${(item.quantity * item.unitPrice).toFixed(2)}</MontoItem>
-    </Item>`).join('')}
+    </Item>`,
+    )
+    .join('')}
   </DetallesItems>
 </FCCE>
 <!-- TODO: e-NCF numbering via DGII + XAdES-BES signature + POST to DGII -->`;
@@ -198,11 +206,11 @@ export function buildDoEcf(data: InvoiceRenderData): string {
  *   (e.g. INFILE, G4S, Megaprint); SAT assigns UUID on certification.
  */
 export function buildGtFel(data: InvoiceRenderData): string {
-        const issueDate = (data.issuedAt ?? data.createdAt).toISOString().replace('.000', '');
-        const nit = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const totalIVA = sumVat(data.items);
-        return `<!-- TODO: Guatemala FEL (SAT) — requires certificador authorization; SAT assigns UUID -->
+  const issueDate = (data.issuedAt ?? data.createdAt).toISOString().replace('.000', '');
+  const nit = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const totalIVA = sumVat(data.items);
+  return `<!-- TODO: Guatemala FEL (SAT) — requires certificador authorization; SAT assigns UUID -->
 <DTE xmlns="http://www.sat.gob.gt/dte/fel/0.1.0"
      xmlns:ds="http://www.w3.org/2000/09/xmldsig#"
      xmlns:xsd="http://www.w3.org/2001/XMLSchema">
@@ -241,7 +249,9 @@ export function buildGtFel(data: InvoiceRenderData): string {
     <Frases>
       <Frase CodigoEscenario="1" TipoFrase="1"/>
     </Frases>
-    <Items>${data.items.map((item, i) => `
+    <Items>${data.items
+      .map(
+        (item, i) => `
       <Item BienOServicio="S" NumeroLinea="${i + 1}">
         <Cantidad>${item.quantity}</Cantidad>
         <UnidadMedida>UNI</UnidadMedida>
@@ -254,11 +264,13 @@ export function buildGtFel(data: InvoiceRenderData): string {
             <NombreCorto>IVA</NombreCorto>
             <CodigoUnidadGravable>1</CodigoUnidadGravable>
             <MontoGravable>${item.unitPrice.toFixed(6)}</MontoGravable>
-            <MontoImpuesto>${(item.unitPrice * (item.vatRate || 0) / 100).toFixed(6)}</MontoImpuesto>
+            <MontoImpuesto>${((item.unitPrice * (item.vatRate || 0)) / 100).toFixed(6)}</MontoImpuesto>
           </Impuesto>
         </Impuestos>
         <Total>${(item.quantity * item.unitPrice * (1 + (item.vatRate || 0) / 100)).toFixed(6)}</Total>
-      </Item>`).join('')}
+      </Item>`,
+      )
+      .join('')}
     </Items>
     <Totales>
       <TotalImpuestos>
@@ -278,11 +290,11 @@ export function buildGtFel(data: InvoiceRenderData): string {
  *   https://sfep.mef.gob.pa/api/v1 (prod) or sandbox equivalent.
  */
 export function buildPaFe(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const ruc = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const totalIVA = sumVat(data.items);
-        return `<!-- TODO: Panama FE/CF (DGI) — requires CUFE + digital signature + PAC submission -->
+  const issueDate = isoDate(data);
+  const ruc = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const totalIVA = sumVat(data.items);
+  return `<!-- TODO: Panama FE/CF (DGI) — requires CUFE + digital signature + PAC submission -->
 <DocumentoFiscal xmlns="http://www.dgi.gob.pa/ns/v1/fe">
   <Encabezado>
     <TipoDocumento>01</TipoDocumento>
@@ -302,16 +314,20 @@ export function buildPaFe(data: InvoiceRenderData): string {
     <RUCReceptor>${getIdentifier(data.client, 'VAT') || ''}</RUCReceptor>
     <NombreReceptor>${data.client.name}</NombreReceptor>
   </Receptor>
-  <DetalleItems>${data.items.map((item, i) => `
+  <DetalleItems>${data.items
+    .map(
+      (item, i) => `
     <Item>
       <Numero>${i + 1}</Numero>
       <Descripcion>${item.name}</Descripcion>
       <Cantidad>${item.quantity}</Cantidad>
       <PrecioUnitario>${item.unitPrice.toFixed(2)}</PrecioUnitario>
       <Subtotal>${(item.quantity * item.unitPrice).toFixed(2)}</Subtotal>
-      <ITBMS>${(item.quantity * item.unitPrice * (item.vatRate || 0) / 100).toFixed(2)}</ITBMS>
+      <ITBMS>${((item.quantity * item.unitPrice * (item.vatRate || 0)) / 100).toFixed(2)}</ITBMS>
       <Total>${(item.quantity * item.unitPrice * (1 + (item.vatRate || 0) / 100)).toFixed(2)}</Total>
-    </Item>`).join('')}
+    </Item>`,
+    )
+    .join('')}
   </DetalleItems>
   <Totales>
     <SubtotalSinITBMS>${total.toFixed(2)}</SubtotalSinITBMS>
@@ -329,11 +345,11 @@ export function buildPaFe(data: InvoiceRenderData): string {
  *   POST to https://sifen.set.gov.py/de/ws/sync/recibe.wsdl (SOAP).
  */
 export function buildPyDe(data: InvoiceRenderData): string {
-        const issueDt = isoDateTimeSeconds(data);
-        const ruc = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const totalIVA = sumVat(data.items);
-        return `<!-- TODO: Paraguay e-Kuatia DE (SIFEN) — requires CDC + digital signature + SIFEN SOAP -->
+  const issueDt = isoDateTimeSeconds(data);
+  const ruc = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const totalIVA = sumVat(data.items);
+  return `<!-- TODO: Paraguay e-Kuatia DE (SIFEN) — requires CDC + digital signature + SIFEN SOAP -->
 <DE xmlns="http://ekuatia.set.gov.py/sifen/xsd"
     xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
   <Id>TODO-CDC-44-CHARS</Id>
@@ -373,7 +389,9 @@ export function buildPyDe(data: InvoiceRenderData): string {
     <gCamFE>
       <iIndPres>1</iIndPres>
     </gCamFE>
-    <gCamItem>${data.items.map((item, i) => `
+    <gCamItem>${data.items
+      .map(
+        (item, i) => `
       <cUniMed>77</cUniMed>
       <dDesProSer>${item.name}</dDesProSer>
       <dCantProSer>${item.quantity}</dCantProSer>
@@ -399,8 +417,10 @@ export function buildPyDe(data: InvoiceRenderData): string {
         <dPropIVA>100</dPropIVA>
         <dTasaIVA>${item.vatRate || 0}</dTasaIVA>
         <dBasGravIVA>${(item.quantity * item.unitPrice).toFixed(8)}</dBasGravIVA>
-        <dLiqIVAItem>${(item.quantity * item.unitPrice * (item.vatRate || 0) / 100).toFixed(8)}</dLiqIVAItem>
-      </gCamIVA>`).join('')}
+        <dLiqIVAItem>${((item.quantity * item.unitPrice * (item.vatRate || 0)) / 100).toFixed(8)}</dLiqIVAItem>
+      </gCamIVA>`,
+      )
+      .join('')}
     </gCamItem>
   </gDtipDEFe>
   <gTotSub>
@@ -433,102 +453,110 @@ export function buildPyDe(data: InvoiceRenderData): string {
  * NOTE: SV DTE is JSON — this method returns a JSON string, not XML.
  */
 export function buildSvDte(data: InvoiceRenderData): string {
-        const issueDt = isoDateTimeSeconds(data);
-        const issueDate = issueDt.split('T')[0];
-        const issueTime = issueDt.split('T')[1] || '00:00:00';
-        const nit = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const totalIVA = sumVat(data.items);
-        const dte = {
-            nit,
-            activo: true,
-            passwordPri: 'TODO-PRIVATE-KEY-HASH',
-            dteJson: {
-                identificacion: {
-                    version: 1,
-                    ambiente: '00', // 00=test, 01=prod
-                    tipoDte: '01', // 01=Factura
-                    numeroControl: `DTE-01-${data.rawNumber || 'DRAFT'}-${String(Date.now()).slice(-15)}`,
-                    codigoGeneracion: 'TODO-UUID-V4',
-                    tipoModelo: 1,
-                    tipoOperacion: 1,
-                    tipoContingencia: null,
-                    motivoContigencia: null,
-                    fecEmi: issueDate,
-                    horEmi: issueTime,
-                    tipoMoneda: data.company.currency || 'USD',
-                },
-                emisor: {
-                    nit,
-                    nrc: 'TODO-NRC',
-                    nombre: data.company.name,
-                    codActividad: '620100',
-                    descActividad: 'Servicios de TI',
-                    nombreComercial: data.company.name,
-                    tipoEstablecimiento: '01',
-                    direccion: { departamento: '06', municipio: '23', complemento: data.company.address || '' },
-                    telefono: (data.company as any).phone || '2200-0000',
-                    correo: (data.company as any).email || 'info@empresa.sv',
-                },
-                receptor: {
-                    tipoDocumento: '36',
-                    numDocumento: getIdentifier(data.client, 'VAT') || '',
-                    nrc: null,
-                    nombre: data.client.name,
-                    codActividad: null,
-                    descActividad: null,
-                    direccion: null,
-                    telefono: null,
-                    correo: null,
-                },
-                cuerpoDocumento: data.items.map((item, i) => ({
-                    numItem: i + 1,
-                    tipoItem: 2, // 2=servicio
-                    numeroDocumento: null,
-                    cantidad: item.quantity,
-                    codigo: String(i + 1).padStart(6, '0'),
-                    codTributo: null,
-                    uniMedida: 59, // 59=unidad
-                    descripcion: item.name,
-                    precioUni: item.unitPrice,
-                    montoDescu: 0,
-                    ventaNoSuj: 0,
-                    ventaExenta: 0,
-                    ventaGravada: parseFloat((item.quantity * item.unitPrice).toFixed(2)),
-                    tributos: ['20'], // 20=IVA
-                    psv: 0,
-                    noGravado: 0,
-                    ivaItem: parseFloat((item.quantity * item.unitPrice * (item.vatRate || 0) / 100).toFixed(2)),
-                })),
-                resumen: {
-                    totalNoSuj: 0,
-                    totalExenta: 0,
-                    totalGravada: parseFloat(total.toFixed(2)),
-                    subTotalVentas: parseFloat(total.toFixed(2)),
-                    descuNoSuj: 0,
-                    descuExenta: 0,
-                    descuGravada: 0,
-                    porcentajeDescuento: 0,
-                    totalDescu: 0,
-                    tributos: [{ codigo: '20', descripcion: 'IVA', valor: parseFloat(totalIVA.toFixed(2)) }],
-                    subTotal: parseFloat(total.toFixed(2)),
-                    ivaRete1: 0,
-                    reteRenta: 0,
-                    montoTotalOperacion: parseFloat((total + totalIVA).toFixed(2)),
-                    totalNoGravado: 0,
-                    totalPagar: parseFloat((total + totalIVA).toFixed(2)),
-                    totalLetras: 'TODO',
-                    totalIva: parseFloat(totalIVA.toFixed(2)),
-                    saldoFavor: 0,
-                    condicionOperacion: 1,
-                    pagos: [{ codigo: '01', montoPago: parseFloat((total + totalIVA).toFixed(2)), referencia: null, plazo: null, periodo: null }],
-                    numPagoElectronico: null,
-                },
-                extension: null,
-                apendice: null,
-            },
-        };
-        return `<!-- TODO: El Salvador DTE (MH) — JSON format; requires JWS signature + MH submission -->
+  const issueDt = isoDateTimeSeconds(data);
+  const issueDate = issueDt.split('T')[0];
+  const issueTime = issueDt.split('T')[1] || '00:00:00';
+  const nit = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const totalIVA = sumVat(data.items);
+  const dte = {
+    nit,
+    activo: true,
+    passwordPri: 'TODO-PRIVATE-KEY-HASH',
+    dteJson: {
+      identificacion: {
+        version: 1,
+        ambiente: '00', // 00=test, 01=prod
+        tipoDte: '01', // 01=Factura
+        numeroControl: `DTE-01-${data.rawNumber || 'DRAFT'}-${String(Date.now()).slice(-15)}`,
+        codigoGeneracion: 'TODO-UUID-V4',
+        tipoModelo: 1,
+        tipoOperacion: 1,
+        tipoContingencia: null,
+        motivoContigencia: null,
+        fecEmi: issueDate,
+        horEmi: issueTime,
+        tipoMoneda: data.company.currency || 'USD',
+      },
+      emisor: {
+        nit,
+        nrc: 'TODO-NRC',
+        nombre: data.company.name,
+        codActividad: '620100',
+        descActividad: 'Servicios de TI',
+        nombreComercial: data.company.name,
+        tipoEstablecimiento: '01',
+        direccion: { departamento: '06', municipio: '23', complemento: data.company.address || '' },
+        telefono: (data.company as any).phone || '2200-0000',
+        correo: (data.company as any).email || 'info@empresa.sv',
+      },
+      receptor: {
+        tipoDocumento: '36',
+        numDocumento: getIdentifier(data.client, 'VAT') || '',
+        nrc: null,
+        nombre: data.client.name,
+        codActividad: null,
+        descActividad: null,
+        direccion: null,
+        telefono: null,
+        correo: null,
+      },
+      cuerpoDocumento: data.items.map((item, i) => ({
+        numItem: i + 1,
+        tipoItem: 2, // 2=servicio
+        numeroDocumento: null,
+        cantidad: item.quantity,
+        codigo: String(i + 1).padStart(6, '0'),
+        codTributo: null,
+        uniMedida: 59, // 59=unidad
+        descripcion: item.name,
+        precioUni: item.unitPrice,
+        montoDescu: 0,
+        ventaNoSuj: 0,
+        ventaExenta: 0,
+        ventaGravada: parseFloat((item.quantity * item.unitPrice).toFixed(2)),
+        tributos: ['20'], // 20=IVA
+        psv: 0,
+        noGravado: 0,
+        ivaItem: parseFloat(((item.quantity * item.unitPrice * (item.vatRate || 0)) / 100).toFixed(2)),
+      })),
+      resumen: {
+        totalNoSuj: 0,
+        totalExenta: 0,
+        totalGravada: parseFloat(total.toFixed(2)),
+        subTotalVentas: parseFloat(total.toFixed(2)),
+        descuNoSuj: 0,
+        descuExenta: 0,
+        descuGravada: 0,
+        porcentajeDescuento: 0,
+        totalDescu: 0,
+        tributos: [{ codigo: '20', descripcion: 'IVA', valor: parseFloat(totalIVA.toFixed(2)) }],
+        subTotal: parseFloat(total.toFixed(2)),
+        ivaRete1: 0,
+        reteRenta: 0,
+        montoTotalOperacion: parseFloat((total + totalIVA).toFixed(2)),
+        totalNoGravado: 0,
+        totalPagar: parseFloat((total + totalIVA).toFixed(2)),
+        totalLetras: 'TODO',
+        totalIva: parseFloat(totalIVA.toFixed(2)),
+        saldoFavor: 0,
+        condicionOperacion: 1,
+        pagos: [
+          {
+            codigo: '01',
+            montoPago: parseFloat((total + totalIVA).toFixed(2)),
+            referencia: null,
+            plazo: null,
+            periodo: null,
+          },
+        ],
+        numPagoElectronico: null,
+      },
+      extension: null,
+      apendice: null,
+    },
+  };
+  return `<!-- TODO: El Salvador DTE (MH) — JSON format; requires JWS signature + MH submission -->
 <!-- SV DTE is JSON, not XML. The actual payload is below: -->
 ${JSON.stringify(dte, null, 2)}
 <!-- TODO: selloRecibido (received timestamp from MH) + real códigoGeneración UUID -->`;
@@ -541,12 +569,12 @@ ${JSON.stringify(dte, null, 2)}
  *   sign with XAdES-BES; POST via WS to DGI.
  */
 export function buildUyCfe(data: InvoiceRenderData): string {
-        const issueDt = isoDateTimeSeconds(data);
-        const issueDate = issueDt.split('T')[0];
-        const rut = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const totalIVA = sumVat(data.items);
-        return `<!-- TODO: Uruguay CFE e-Factura (DGI) — requires CAE numbering + XAdES-BES signature -->
+  const issueDt = isoDateTimeSeconds(data);
+  const issueDate = issueDt.split('T')[0];
+  const rut = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const totalIVA = sumVat(data.items);
+  return `<!-- TODO: Uruguay CFE e-Factura (DGI) — requires CAE numbering + XAdES-BES signature -->
 <CFE xmlns="http://www.dgi.gub.uy"
      xmlns:ds="http://www.w3.org/2000/09/xmldsig#"
      version="1.0">
@@ -597,7 +625,9 @@ export function buildUyCfe(data: InvoiceRenderData): string {
         <MontoNF>${(total + totalIVA).toFixed(2)}</MontoNF>
       </Totales>
     </Encabezado>
-    <Detalle>${data.items.map((item, i) => `
+    <Detalle>${data.items
+      .map(
+        (item, i) => `
       <Item>
         <NroLinDet>${i + 1}</NroLinDet>
         <IndFact>3</IndFact>
@@ -606,7 +636,9 @@ export function buildUyCfe(data: InvoiceRenderData): string {
         <UniMed>unit</UniMed>
         <PrecioUnitario>${item.unitPrice.toFixed(6)}</PrecioUnitario>
         <MontoItem>${(item.quantity * item.unitPrice).toFixed(2)}</MontoItem>
-      </Item>`).join('')}
+      </Item>`,
+      )
+      .join('')}
     </Detalle>
   </eFact>
 </CFE>
@@ -619,11 +651,11 @@ export function buildUyCfe(data: InvoiceRenderData): string {
  * TODO: sign; submit to SENIAT portal (currently unstable; system uses SIVEF).
  */
 export function buildVeFe(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const rif = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const totalIVA = sumVat(data.items);
-        return `<!-- TODO: Venezuela Factura Electrónica (SENIAT/SIVEF) — submission system currently in flux -->
+  const issueDate = isoDate(data);
+  const rif = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const totalIVA = sumVat(data.items);
+  return `<!-- TODO: Venezuela Factura Electrónica (SENIAT/SIVEF) — submission system currently in flux -->
 <FacturaElectronica xmlns="http://www.seniat.gob.ve/namespace/factura_electronica/v1.0">
   <EncabezadoFactura>
     <NumeroFactura>${data.rawNumber || 'DRAFT'}</NumeroFactura>
@@ -640,7 +672,9 @@ export function buildVeFe(data: InvoiceRenderData): string {
     <RIFReceptor>${getIdentifier(data.client, 'VAT') || ''}</RIFReceptor>
     <RazonSocialReceptor>${data.client.name}</RazonSocialReceptor>
   </Receptor>
-  <Detalles>${data.items.map((item, i) => `
+  <Detalles>${data.items
+    .map(
+      (item, i) => `
     <Linea>
       <Numero>${i + 1}</Numero>
       <Descripcion>${item.name}</Descripcion>
@@ -648,8 +682,10 @@ export function buildVeFe(data: InvoiceRenderData): string {
       <PrecioUnitario>${item.unitPrice.toFixed(2)}</PrecioUnitario>
       <Monto>${(item.quantity * item.unitPrice).toFixed(2)}</Monto>
       <AlicuotaIVA>${item.vatRate || 0}</AlicuotaIVA>
-      <IVA>${(item.quantity * item.unitPrice * (item.vatRate || 0) / 100).toFixed(2)}</IVA>
-    </Linea>`).join('')}
+      <IVA>${((item.quantity * item.unitPrice * (item.vatRate || 0)) / 100).toFixed(2)}</IVA>
+    </Linea>`,
+    )
+    .join('')}
   </Detalles>
   <Totales>
     <BaseImponible>${total.toFixed(2)}</BaseImponible>
@@ -667,11 +703,11 @@ export function buildVeFe(data: InvoiceRenderData): string {
  *   de Facturación Diaria); sign; submit to SIN API.
  */
 export function buildBoFe(data: InvoiceRenderData): string {
-        const issueDt = isoDateTimeSeconds(data);
-        const nit = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const totalIVA = sumVat(data.items);
-        return `<!-- TODO: Bolivia Facturación Electrónica SIN — requires CUF/CUFD + digital signature -->
+  const issueDt = isoDateTimeSeconds(data);
+  const nit = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const totalIVA = sumVat(data.items);
+  return `<!-- TODO: Bolivia Facturación Electrónica SIN — requires CUF/CUFD + digital signature -->
 <facturaComputarizadaCompraVenta xmlns="urn:siat:facturaelectronica:v2"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <cabecera>
@@ -701,7 +737,9 @@ export function buildBoFe(data: InvoiceRenderData): string {
     <usuario>${(data.company as any).email || ''}</usuario>
     <codigoDocumentoSector>1</codigoDocumentoSector>
   </cabecera>
-  <detalle>${data.items.map((item, i) => `
+  <detalle>${data.items
+    .map(
+      (item, i) => `
     <detalleFactura>
       <actividadEconomica>TODO</actividadEconomica>
       <codigoProductoSin>83111</codigoProductoSin>
@@ -712,7 +750,9 @@ export function buildBoFe(data: InvoiceRenderData): string {
       <precioUnitario>${item.unitPrice.toFixed(2)}</precioUnitario>
       <montoDescuento>0.00</montoDescuento>
       <subTotal>${(item.quantity * item.unitPrice).toFixed(2)}</subTotal>
-    </detalleFactura>`).join('')}
+    </detalleFactura>`,
+    )
+    .join('')}
   </detalle>
 </facturaComputarizadaCompraVenta>
 <!-- TODO: CUF (Código Único de Facturación) algorithm + CUFD + SIN API submission -->`;

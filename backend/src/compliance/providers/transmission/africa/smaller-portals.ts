@@ -14,12 +14,33 @@
 import { GenericPortalSpec, PortalResponseHeuristics, buildGenericPortalProviders } from '../generic-portal';
 
 export const AFRICA_PORTAL_HEURISTICS: PortalResponseHeuristics = {
-  idFields: ['id', 'uuid', 'submissionId', 'receiptNo', 'verificationCode', 'fdnNo', 'invoiceNo',
-    'smartInvoiceNo', 'mecefCode'],
+  idFields: [
+    'id',
+    'uuid',
+    'submissionId',
+    'receiptNo',
+    'verificationCode',
+    'fdnNo',
+    'invoiceNo',
+    'smartInvoiceNo',
+    'mecefCode',
+  ],
   statusFields: ['status', 'invoiceStatus', 'approvalStatus', 'result', 'ebmStatus'],
   statusFallback: 'PENDING',
-  clearTokens: ['APPROVED', 'CLEARED', 'VALID', 'SUCCESS', 'ACCEPTED', 'CONFIRMED',
-    'REGISTERED', 'COMPLETED', 'OK', 'GENERATED', 'VERIFIED', 'SIGNED'],
+  clearTokens: [
+    'APPROVED',
+    'CLEARED',
+    'VALID',
+    'SUCCESS',
+    'ACCEPTED',
+    'CONFIRMED',
+    'REGISTERED',
+    'COMPLETED',
+    'OK',
+    'GENERATED',
+    'VERIFIED',
+    'SIGNED',
+  ],
   rejectTokens: ['REJECTED', 'INVALID', 'FAILED', 'ERROR', 'REFUSED', 'CANCELLED', 'DENIED'],
 };
 
@@ -38,8 +59,15 @@ export const SMALL_AFRICA_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/invoices/status',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'GRA environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'GRA environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
       { type: 'text', name: 'tin', label: 'GRA TIN (Ghana Taxpayer Identification Number)', required: true },
       { type: 'text', name: 'apiToken', label: 'GRA E-VAT API key', required: true, secret: true },
@@ -60,8 +88,15 @@ export const SMALL_AFRICA_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/invoices/status',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'RRA EBM environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'RRA EBM environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
       { type: 'text', name: 'tin', label: 'RRA TIN (Rwanda TIN, 9 digits)', required: true },
       { type: 'text', name: 'deviceSerial', label: 'EBM Device Serial Number', required: true },
@@ -83,8 +118,15 @@ export const SMALL_AFRICA_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/receipts/status',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'TRA VFD environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'TRA VFD environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
       { type: 'text', name: 'gcn', label: 'GCN (Global Certification Number from TRA)', required: true },
       { type: 'text', name: 'tin', label: 'TIN (Tanzania TIN, 9 digits)', required: true },
@@ -106,8 +148,15 @@ export const SMALL_AFRICA_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/business/searchInvoice',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'URA EFRIS environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'URA EFRIS environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
       { type: 'text', name: 'tpin', label: 'TPIN (Uganda TIN, 10 digits)', required: true },
       { type: 'text', name: 'deviceNo', label: 'EFRIS Device Number', required: true },
@@ -129,8 +178,15 @@ export const SMALL_AFRICA_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/querySavedInvoice',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'ZRA Smart Invoice environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'ZRA Smart Invoice environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
       { type: 'text', name: 'tpin', label: 'TPIN (Zambia Tax Payer ID, 10 digits)', required: true },
       { type: 'text', name: 'deviceSerial', label: 'VSDC Device Serial Number', required: true },
@@ -152,8 +208,15 @@ export const SMALL_AFRICA_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/getDocumentStatus',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'ZIMRA FDMS environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'ZIMRA FDMS environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
       { type: 'text', name: 'bpno', label: 'BPNO (Business Partner Number)', required: true },
       { type: 'text', name: 'deviceSerial', label: 'Fiscal Device Serial Number', required: true },
@@ -176,8 +239,15 @@ export const SMALL_AFRICA_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/factures/statut',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'DGI FNE environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'DGI FNE environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
       { type: 'text', name: 'ncc', label: 'NCC (Numéro de Compte Contribuable)', required: true },
       { type: 'text', name: 'apiToken', label: 'DGI FNE API key', required: true, secret: true },
@@ -199,10 +269,24 @@ export const SMALL_AFRICA_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/factures/statut',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'DGI MECeF environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'DGI MECeF environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
-      { type: 'text', name: 'ifu', label: 'IFU (Identifiant Fiscal Unique, 13 digits)', required: true, minLength: 13, maxLength: 13 },
+      {
+        type: 'text',
+        name: 'ifu',
+        label: 'IFU (Identifiant Fiscal Unique, 13 digits)',
+        required: true,
+        minLength: 13,
+        maxLength: 13,
+      },
       { type: 'text', name: 'apiToken', label: 'MECeF/SeMeF API key', required: true, secret: true },
     ],
     isAsync: false, // MECeF is real-time
@@ -210,4 +294,7 @@ export const SMALL_AFRICA_PORTAL_SPECS: GenericPortalSpec[] = [
 ];
 
 // Static list for registry use (no credentials needed at the stub layer)
-export const SMALL_AFRICA_PROVIDERS = buildGenericPortalProviders(SMALL_AFRICA_PORTAL_SPECS, AFRICA_PORTAL_HEURISTICS);
+export const SMALL_AFRICA_PROVIDERS = buildGenericPortalProviders(
+  SMALL_AFRICA_PORTAL_SPECS,
+  AFRICA_PORTAL_HEURISTICS,
+);

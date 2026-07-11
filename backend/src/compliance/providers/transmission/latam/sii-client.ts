@@ -54,9 +54,20 @@ export interface SiiHttpPort {
   /** Exchange a signed seed XML for a token (GetTokenFromSeed). */
   getToken(baseUrl: string, firmadoXml: string): Promise<SiiToken>;
   /** Submit an EnvioDTE XML. */
-  submitEnvioDTE(baseUrl: string, token: string, envioDteXml: Buffer, rutEnvia: string): Promise<SiiEnvioResponse>;
+  submitEnvioDTE(
+    baseUrl: string,
+    token: string,
+    envioDteXml: Buffer,
+    rutEnvia: string,
+  ): Promise<SiiEnvioResponse>;
   /** Query DTE status by trackId. */
-  queryEstado(baseUrl: string, token: string, rutEmisor: string, dvEmisor: string, trackId: string): Promise<SiiEstadoResponse>;
+  queryEstado(
+    baseUrl: string,
+    token: string,
+    rutEmisor: string,
+    dvEmisor: string,
+    trackId: string,
+  ): Promise<SiiEstadoResponse>;
 }
 
 // ---------------------------------------------------------------------------
@@ -111,13 +122,7 @@ export class SiiClient {
   /** Poll DTE processing status by trackId. */
   async queryEstado(trackId: string): Promise<SiiEstadoResponse> {
     const token = await this.authenticate();
-    return this.http.queryEstado(
-      this.baseUrl,
-      token.token,
-      this.config.rut,
-      this.config.dv,
-      trackId,
-    );
+    return this.http.queryEstado(this.baseUrl, token.token, this.config.rut, this.config.dv, trackId);
   }
 
   static mapEstado(estado: string): 'CLEARED' | 'REJECTED' | 'PENDING' {

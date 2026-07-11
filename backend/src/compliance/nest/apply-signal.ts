@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../../prisma/generated/prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { ChannelType } from '../types';
@@ -9,7 +9,10 @@ import { Effect, LifecycleRuntime, LifecycleSignal } from '../lifecycle/runtime'
 import { createPollJob } from '../lifecycle/drivers/poll-job';
 import { createTimerJob } from '../lifecycle/drivers/timer-job';
 import { createRegistration } from '../lifecycle/drivers/inbound-job';
-import { defaultTransmissionRegistry, TransmissionProviderRegistry } from '../providers/transmission/registry';
+import {
+  defaultTransmissionRegistry,
+  TransmissionProviderRegistry,
+} from '../providers/transmission/registry';
 import { PrismaComplianceDocumentStore } from '../persistence/prisma-document-store';
 import { PrismaPollJobStore, PrismaTimerJobStore } from '../persistence/prisma-scheduled-job-store';
 import { PrismaCallbackStore } from '../persistence/prisma-callback-store';
@@ -77,7 +80,9 @@ export class ApplySignalService {
 
       for (const effect of effects) {
         if (effect.kind === 'SCHEDULE_POLL') {
-          const provider = effect.channelProviderId ? this.txRegistry.getById(effect.channelProviderId) : null;
+          const provider = effect.channelProviderId
+            ? this.txRegistry.getById(effect.channelProviderId)
+            : null;
           const job = createPollJob(
             {
               id: genId('poll'),
@@ -93,7 +98,13 @@ export class ApplySignalService {
         } else if (effect.kind === 'ARM_TIMER') {
           if (effect.deadlineHours == null) continue; // open-ended response window: no silence timer
           const job = createTimerJob(
-            { id: genId('timer'), documentId, awaiting: effect.awaiting, onElapse: effect.onElapse, deadlineHours: effect.deadlineHours },
+            {
+              id: genId('timer'),
+              documentId,
+              awaiting: effect.awaiting,
+              onElapse: effect.onElapse,
+              deadlineHours: effect.deadlineHours,
+            },
             new Date(),
           );
           await txTimerStore.arm(job);
@@ -101,7 +112,13 @@ export class ApplySignalService {
           const channel = this.resolveChannel(rec);
           if (!channel) continue;
           const reg = createRegistration(
-            { id: genId('cb'), documentId, channel, correlationKey: effect.correlationKey ?? documentId, awaiting: effect.awaiting },
+            {
+              id: genId('cb'),
+              documentId,
+              channel,
+              correlationKey: effect.correlationKey ?? documentId,
+              awaiting: effect.awaiting,
+            },
             new Date(),
           );
           await txCallbackStore.register(reg);

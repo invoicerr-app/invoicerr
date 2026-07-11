@@ -1,4 +1,4 @@
-import { Controller, Get, HttpException, HttpStatus, Logger, Query, Res } from '@nestjs/common';
+import { Controller, Get, HttpException, HttpStatus, Logger, Res } from '@nestjs/common';
 import { Response } from 'express';
 import { ComplianceService } from '../operations/compliance-service';
 
@@ -28,19 +28,17 @@ export class AuditExportController {
           doc.previousHash ?? '',
           doc.createdAt,
           doc.updatedAt,
-        ].map(escapeCsv).join(',');
+        ]
+          .map(escapeCsv)
+          .join(',');
 
         if (doc.events.length === 0) {
           rows.push(base + ',,,,,');
         } else {
           for (const ev of doc.events) {
-            rows.push(base + ',' + [
-              ev.id,
-              ev.type,
-              ev.at,
-              ev.actor ?? '',
-              ev.detail ?? '',
-            ].map(escapeCsv).join(','));
+            rows.push(
+              base + ',' + [ev.id, ev.type, ev.at, ev.actor ?? '', ev.detail ?? ''].map(escapeCsv).join(','),
+            );
           }
         }
       }

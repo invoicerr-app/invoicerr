@@ -2,7 +2,13 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { CallbackRegStatus } from '../../../prisma/generated/prisma/client';
 import { CallbackRegistration, CallbackStore, InboundMessage } from '../lifecycle/drivers/inbound-job';
 import { ChannelType } from '../types';
-import { callbackRegToRow, callbackRegToUpdateRow, rowToCallbackReg, inboundMsgToRow, rowToInboundMsg } from './mappers';
+import {
+  callbackRegToRow,
+  callbackRegToUpdateRow,
+  rowToCallbackReg,
+  inboundMsgToRow,
+  rowToInboundMsg,
+} from './mappers';
 
 const ACTIVE_STATUSES: CallbackRegStatus[] = ['WAITING'];
 
@@ -16,7 +22,10 @@ export class PrismaCallbackStore implements CallbackStore {
   }
 
   async save(reg: CallbackRegistration): Promise<CallbackRegistration> {
-    await this.prisma.complianceCallbackRegistration.update({ where: { id: reg.id }, data: callbackRegToUpdateRow(reg) });
+    await this.prisma.complianceCallbackRegistration.update({
+      where: { id: reg.id },
+      data: callbackRegToUpdateRow(reg),
+    });
     return reg;
   }
 

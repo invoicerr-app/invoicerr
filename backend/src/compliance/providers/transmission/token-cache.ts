@@ -28,10 +28,7 @@ export class TokenCache {
  * used). `now` lets callers anchor the countdown at the moment they initiated
  * the auth call instead of when the response arrived.
  */
-export function tokenExpiry(
-  expiresInSeconds: number,
-  opts: { skewMs?: number; now?: number } = {},
-): number {
+export function tokenExpiry(expiresInSeconds: number, opts: { skewMs?: number; now?: number } = {}): number {
   const { skewMs = 60_000, now = Date.now() } = opts;
   return now + expiresInSeconds * 1000 - skewMs;
 }

@@ -2,7 +2,10 @@ import { triggerForFeedback } from './triggers';
 
 describe('triggerForFeedback', () => {
   it('ASYNC_POLL → POLL carrying the given policy + providerId', () => {
-    const t = triggerForFeedback('ASYNC_POLL', { poll: { everySeconds: 30, timeoutHours: 24 }, providerId: 'pac' });
+    const t = triggerForFeedback('ASYNC_POLL', {
+      poll: { everySeconds: 30, timeoutHours: 24 },
+      providerId: 'pac',
+    });
     expect(t.kind).toBe('POLL');
     if (t.kind === 'POLL') {
       expect(t.poll.everySeconds).toBe(30);

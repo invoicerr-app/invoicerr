@@ -10,7 +10,6 @@
  */
 import { PeppolTransmissionProvider } from '../providers';
 import { PeppolApPort, PeppolInvoiceResponseRequest, PeppolSendResult } from './peppol-client';
-import { SmpLookupPort } from './smp-client';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from '../channel-credentials-port';
 import { RecordingComplianceLogger } from '../../../execution/logger';
 import { TransactionContext } from '../../../canonical/canonical-document';
@@ -70,28 +69,48 @@ function mockApPort(): PeppolApPort {
   return {
     send: jest.fn(),
     getStatus: jest.fn(),
-    sendInvoiceResponse: jest.fn().mockResolvedValue({ messageId: 'ir-resp-1', status: 'QUEUED' } satisfies PeppolSendResult),
+    sendInvoiceResponse: jest
+      .fn()
+      .mockResolvedValue({ messageId: 'ir-resp-1', status: 'QUEUED' } satisfies PeppolSendResult),
   };
 }
 
 describe('PeppolTransmissionProvider.sendStatus — mocked', () => {
   it('returns QUEUED when ref is malformed (not 2 parts)', async () => {
     const provider = new PeppolTransmissionProvider(mockCredentials(makeResolvedConfig()));
-    const result = await provider.sendStatus('bad-ref', 'accepted', makeCtx(), {} as any, new RecordingComplianceLogger());
+    const result = await provider.sendStatus(
+      'bad-ref',
+      'accepted',
+      makeCtx(),
+      {} as any,
+      new RecordingComplianceLogger(),
+    );
     expect(result.status).toBe('QUEUED');
     expect(result.notes.join(' ')).toMatch(/invalid ref/);
   });
 
   it('returns QUEUED when no credentials port', async () => {
     const provider = new PeppolTransmissionProvider(); // no credentials
-    const result = await provider.sendStatus(REF, 'accepted', makeCtx(), {} as any, new RecordingComplianceLogger());
+    const result = await provider.sendStatus(
+      REF,
+      'accepted',
+      makeCtx(),
+      {} as any,
+      new RecordingComplianceLogger(),
+    );
     expect(result.status).toBe('QUEUED');
     expect(result.notes.join(' ')).toMatch(/no credentials port/);
   });
 
   it('returns QUEUED when credentials no longer active', async () => {
     const provider = new PeppolTransmissionProvider(mockCredentials(null));
-    const result = await provider.sendStatus(REF, 'accepted', makeCtx(), {} as any, new RecordingComplianceLogger());
+    const result = await provider.sendStatus(
+      REF,
+      'accepted',
+      makeCtx(),
+      {} as any,
+      new RecordingComplianceLogger(),
+    );
     expect(result.status).toBe('QUEUED');
     expect(result.notes.join(' ')).toMatch(/no longer active/);
   });
@@ -105,7 +124,13 @@ describe('PeppolTransmissionProvider.sendStatus — mocked', () => {
       supplier: { legalName: 'Seller', countryCode: 'NO', role: 'B2B', identifiers: [] },
       buyer: { legalName: 'Buyer', countryCode: 'NO', role: 'B2B', identifiers: [] },
     } as TransactionContext;
-    const result = await provider.sendStatus(REF, 'accepted', ctxNoPeppol, {} as any, new RecordingComplianceLogger());
+    const result = await provider.sendStatus(
+      REF,
+      'accepted',
+      ctxNoPeppol,
+      {} as any,
+      new RecordingComplianceLogger(),
+    );
     expect(result.status).toBe('QUEUED');
     expect(result.notes.join(' ')).toContain('peppolId');
   });
@@ -140,7 +165,13 @@ describe('PeppolTransmissionProvider.sendStatus — mocked', () => {
   it('maps "dispute" → UQ', async () => {
     const ap = mockApPort();
     const provider = new PeppolTransmissionProvider(mockCredentials(makeResolvedConfig()), ap);
-    await provider.sendStatus(REF, 'invoice in dispute', makeCtx(), {} as any, new RecordingComplianceLogger());
+    await provider.sendStatus(
+      REF,
+      'invoice in dispute',
+      makeCtx(),
+      {} as any,
+      new RecordingComplianceLogger(),
+    );
     expect(ap.sendInvoiceResponse).toHaveBeenCalledWith(expect.objectContaining({ responseCode: 'UQ' }));
   });
 
@@ -156,7 +187,13 @@ describe('PeppolTransmissionProvider.sendStatus — mocked', () => {
     (ap.sendInvoiceResponse as jest.MockedFunction<any>).mockRejectedValueOnce(new Error('AP gateway down'));
     const provider = new PeppolTransmissionProvider(mockCredentials(makeResolvedConfig()), ap);
 
-    const result = await provider.sendStatus(REF, 'accepted', makeCtx(), {} as any, new RecordingComplianceLogger());
+    const result = await provider.sendStatus(
+      REF,
+      'accepted',
+      makeCtx(),
+      {} as any,
+      new RecordingComplianceLogger(),
+    );
 
     expect(result.status).toBe('QUEUED');
     expect(result.notes.join(' ')).toMatch(/sendStatus error/);

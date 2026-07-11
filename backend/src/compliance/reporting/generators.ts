@@ -22,7 +22,7 @@ import { accumulateTotals } from '../taxsystems/tax-system';
 // ---------------------------------------------------------------------------
 
 function minorToDecimal(minor: number, decimals: number): string {
-  return (minor / Math.pow(10, decimals)).toFixed(decimals);
+  return (minor / 10 ** decimals).toFixed(decimals);
 }
 
 function isoDate(d: Date): string {
@@ -39,8 +39,9 @@ function supplierVatId(ctx: TransactionContext): string | undefined {
 
 function supplierLegalId(ctx: TransactionContext): string | undefined {
   return (
-    ctx.supplier.identifiers.find((id) => id.scheme === 'SIRET' || id.scheme === 'SIREN' || id.scheme === 'NIP')
-      ?.value ?? ctx.supplier.identifiers[0]?.value
+    ctx.supplier.identifiers.find(
+      (id) => id.scheme === 'SIRET' || id.scheme === 'SIREN' || id.scheme === 'NIP',
+    )?.value ?? ctx.supplier.identifiers[0]?.value
   );
 }
 
@@ -250,7 +251,11 @@ export function generateOssEntry(
   return {
     periodKey,
     memberStateDest: ctx.buyer.countryCode,
-    supplyType: supplyTypes.includes('GOODS') ? 'GOODS' : supplyTypes.includes('DIGITAL') ? 'DIGITAL_SERVICES' : 'SERVICES',
+    supplyType: supplyTypes.includes('GOODS')
+      ? 'GOODS'
+      : supplyTypes.includes('DIGITAL')
+        ? 'DIGITAL_SERVICES'
+        : 'SERVICES',
     netAmount: minorToDecimal(totals.net.minor, decimals),
     vatRate: firstComp?.rate ?? 0,
     vatAmount: minorToDecimal(totals.tax.minor, decimals),
@@ -363,9 +368,7 @@ export function generateIntrastatEntry(
   const { decimals } = totals.net;
 
   // Dispatch = supplier is sending goods out; the flag comes from the tax treatment (category K = intra-Community)
-  const isDispatch = plan.tax.lines.some((l) =>
-    l.treatment.components.some((c) => c.category === 'K'),
-  );
+  const isDispatch = plan.tax.lines.some((l) => l.treatment.components.some((c) => c.category === 'K'));
 
   return {
     periodKey,

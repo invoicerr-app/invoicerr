@@ -16,11 +16,11 @@ import { sumNet, isoDate } from './xml-helpers';
  *   embed QR code in invoice PDF; submit via /api/v1/invoice/submit.
  */
 export function buildNgFirs(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const tin = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const vat = total * 0.075; // Nigeria VAT 7.5%
-        return `<!-- TODO: Nigeria FIRS MBS e-invoice — IRN (SHA-256) + QR + FIRS certificate signing -->
+  const issueDate = isoDate(data);
+  const tin = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const vat = total * 0.075; // Nigeria VAT 7.5%
+  return `<!-- TODO: Nigeria FIRS MBS e-invoice — IRN (SHA-256) + QR + FIRS certificate signing -->
 <FirsInvoice xmlns="urn:ng:firs:mbs:v1">
   <Header>
     <InvoiceNo>${data.rawNumber || 'DRAFT'}</InvoiceNo>
@@ -38,7 +38,9 @@ export function buildNgFirs(data: InvoiceRenderData): string {
     <TIN>${getIdentifier(data.client, 'VAT') || '0000000000000'}</TIN>
     <Address>${data.client.address || 'TODO'}</Address>
   </Buyer>
-  <Lines>${data.items.map((item, i) => `
+  <Lines>${data.items
+    .map(
+      (item, i) => `
     <Line>
       <Seq>${i + 1}</Seq>
       <Description>${item.name}</Description>
@@ -48,7 +50,9 @@ export function buildNgFirs(data: InvoiceRenderData): string {
       <VATRate>7.5</VATRate>
       <VATAmt>${(item.quantity * item.unitPrice * 0.075).toFixed(2)}</VATAmt>
       <TotalAmt>${(item.quantity * item.unitPrice * 1.075).toFixed(2)}</TotalAmt>
-    </Line>`).join('')}
+    </Line>`,
+    )
+    .join('')}
   </Lines>
   <Totals>
     <TaxableAmt>${total.toFixed(2)}</TaxableAmt>
@@ -68,11 +72,11 @@ export function buildNgFirs(data: InvoiceRenderData): string {
  *   submit via POST /trnsSales/saveTrns; embed rcptSign in QR.
  */
 export function buildKeEtims(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data).replace(/-/g, '');
-        const tin = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const vat = total * 0.16; // Kenya VAT 16%
-        return `<!-- TODO: Kenya KRA eTIMS — OSCU/VSCU device registration + saveTrns; embed rcptSign QR on receipt -->
+  const issueDate = isoDate(data).replace(/-/g, '');
+  const tin = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const vat = total * 0.16; // Kenya VAT 16%
+  return `<!-- TODO: Kenya KRA eTIMS — OSCU/VSCU device registration + saveTrns; embed rcptSign QR on receipt -->
 <ETimsInvoice xmlns="urn:ke:kra:etims:v1">
   <Header>
     <InvoiceNo>${data.rawNumber || 'DRAFT'}</InvoiceNo>
@@ -89,7 +93,9 @@ export function buildKeEtims(data: InvoiceRenderData): string {
     <CustPIN>${getIdentifier(data.client, 'VAT') || 'NON'}</CustPIN>
     <CustName>${data.client.name}</CustName>
   </Buyer>
-  <Items>${data.items.map((item, i) => `
+  <Items>${data.items
+    .map(
+      (item, i) => `
     <Item>
       <Seq>${i + 1}</Seq>
       <Name>${item.name}</Name>
@@ -101,7 +107,9 @@ export function buildKeEtims(data: InvoiceRenderData): string {
       <TaxTypeCd>A</TaxTypeCd>
       <TaxAmt>${(item.quantity * item.unitPrice * 0.16).toFixed(2)}</TaxAmt>
       <TotAmt>${(item.quantity * item.unitPrice * 1.16).toFixed(2)}</TotAmt>
-    </Item>`).join('')}
+    </Item>`,
+    )
+    .join('')}
   </Items>
   <Totals>
     <TaxblAmtA>${total.toFixed(2)}</TaxblAmtA>
@@ -126,11 +134,11 @@ export function buildKeEtims(data: InvoiceRenderData): string {
  * TODO: submit via GRA E-VAT portal API; await QR/verification code.
  */
 export function buildGhEvat(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const tin = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const vat = total * 0.125; // Ghana VAT 12.5% (+ NHIL 2.5% + GETFUND 2.5%)
-        return `<!-- TODO: Ghana GRA E-VAT — submit via GRA E-VAT portal API; await verification code + QR -->
+  const issueDate = isoDate(data);
+  const tin = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const vat = total * 0.125; // Ghana VAT 12.5% (+ NHIL 2.5% + GETFUND 2.5%)
+  return `<!-- TODO: Ghana GRA E-VAT — submit via GRA E-VAT portal API; await verification code + QR -->
 <EvatInvoice xmlns="urn:gh:gra:evat:v1">
   <Header>
     <InvoiceNo>${data.rawNumber || 'DRAFT'}</InvoiceNo>
@@ -146,7 +154,9 @@ export function buildGhEvat(data: InvoiceRenderData): string {
     <TIN>${getIdentifier(data.client, 'VAT') || 'NON'}</TIN>
     <Name>${data.client.name}</Name>
   </Buyer>
-  <Lines>${data.items.map((item, i) => `
+  <Lines>${data.items
+    .map(
+      (item, i) => `
     <Line>
       <Seq>${i + 1}</Seq>
       <Description>${item.name}</Description>
@@ -155,7 +165,9 @@ export function buildGhEvat(data: InvoiceRenderData): string {
       <NetAmt>${(item.quantity * item.unitPrice).toFixed(2)}</NetAmt>
       <VATAmt>${(item.quantity * item.unitPrice * 0.125).toFixed(2)}</VATAmt>
       <TotalAmt>${(item.quantity * item.unitPrice * 1.125).toFixed(2)}</TotalAmt>
-    </Line>`).join('')}
+    </Line>`,
+    )
+    .join('')}
   </Lines>
   <Totals>
     <NetAmt>${total.toFixed(2)}</NetAmt>
@@ -174,11 +186,11 @@ export function buildGhEvat(data: InvoiceRenderData): string {
  * TODO: device registration with RRA; POST to EBM API; await EBM signature.
  */
 export function buildRwEbm(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const tin = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const vat = total * 0.18; // Rwanda VAT 18%
-        return `<!-- TODO: Rwanda RRA EBM — EBM device registration; POST to RRA EBM API; embed EBM signature -->
+  const issueDate = isoDate(data);
+  const tin = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const vat = total * 0.18; // Rwanda VAT 18%
+  return `<!-- TODO: Rwanda RRA EBM — EBM device registration; POST to RRA EBM API; embed EBM signature -->
 <EbmInvoice xmlns="urn:rw:rra:ebm:v1">
   <Header>
     <InvoiceNo>${data.rawNumber || 'DRAFT'}</InvoiceNo>
@@ -194,7 +206,9 @@ export function buildRwEbm(data: InvoiceRenderData): string {
     <TIN>${getIdentifier(data.client, 'VAT') || 'NON'}</TIN>
     <Name>${data.client.name}</Name>
   </Buyer>
-  <Lines>${data.items.map((item, i) => `
+  <Lines>${data.items
+    .map(
+      (item, i) => `
     <Line>
       <Seq>${i + 1}</Seq>
       <Description>${item.name}</Description>
@@ -204,7 +218,9 @@ export function buildRwEbm(data: InvoiceRenderData): string {
       <VATRate>18</VATRate>
       <VATAmt>${(item.quantity * item.unitPrice * 0.18).toFixed(2)}</VATAmt>
       <TotalAmt>${(item.quantity * item.unitPrice * 1.18).toFixed(2)}</TotalAmt>
-    </Line>`).join('')}
+    </Line>`,
+    )
+    .join('')}
   </Lines>
   <Totals>
     <TaxableAmt>${total.toFixed(2)}</TaxableAmt>
@@ -223,11 +239,11 @@ export function buildRwEbm(data: InvoiceRenderData): string {
  * TODO: register VFD with TRA (GCN assignment); POST receipts; embed verification code + QR.
  */
 export function buildTzVfd(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const tin = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const vat = total * 0.18; // Tanzania VAT 18%
-        return `<!-- TODO: Tanzania TRA VFD — GCN device registration; POST to TRA VFD API; embed verification code + QR -->
+  const issueDate = isoDate(data);
+  const tin = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const vat = total * 0.18; // Tanzania VAT 18%
+  return `<!-- TODO: Tanzania TRA VFD — GCN device registration; POST to TRA VFD API; embed verification code + QR -->
 <VfdReceipt xmlns="urn:tz:tra:vfd:v1">
   <Header>
     <ReceiptNo>${data.rawNumber || 'DRAFT'}</ReceiptNo>
@@ -243,7 +259,9 @@ export function buildTzVfd(data: InvoiceRenderData): string {
     <TIN>${getIdentifier(data.client, 'VAT') || 'NON'}</TIN>
     <Name>${data.client.name}</Name>
   </Buyer>
-  <Lines>${data.items.map((item, i) => `
+  <Lines>${data.items
+    .map(
+      (item, i) => `
     <Line>
       <Seq>${i + 1}</Seq>
       <Description>${item.name}</Description>
@@ -253,7 +271,9 @@ export function buildTzVfd(data: InvoiceRenderData): string {
       <TaxCode>A</TaxCode>
       <TaxAmt>${(item.quantity * item.unitPrice * 0.18).toFixed(2)}</TaxAmt>
       <TotalAmt>${(item.quantity * item.unitPrice * 1.18).toFixed(2)}</TotalAmt>
-    </Line>`).join('')}
+    </Line>`,
+    )
+    .join('')}
   </Lines>
   <Totals>
     <NetAmt>${total.toFixed(2)}</NetAmt>
@@ -273,11 +293,11 @@ export function buildTzVfd(data: InvoiceRenderData): string {
  *   embed FDN (Fiscal Document Number) + QR on invoice.
  */
 export function buildUgEfris(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const tin = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const vat = total * 0.18; // Uganda VAT 18%
-        return `<!-- TODO: Uganda URA EFRIS — device registration; POST /business/saveInvoice; embed FDN + QR -->
+  const issueDate = isoDate(data);
+  const tin = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const vat = total * 0.18; // Uganda VAT 18%
+  return `<!-- TODO: Uganda URA EFRIS — device registration; POST /business/saveInvoice; embed FDN + QR -->
 <EfrisInvoice xmlns="urn:ug:ura:efris:v3">
   <Header>
     <InvoiceNo>${data.rawNumber || 'DRAFT'}</InvoiceNo>
@@ -294,7 +314,9 @@ export function buildUgEfris(data: InvoiceRenderData): string {
     <TPIN>${getIdentifier(data.client, 'VAT') || 'NON'}</TPIN>
     <Name>${data.client.name}</Name>
   </Buyer>
-  <Lines>${data.items.map((item, i) => `
+  <Lines>${data.items
+    .map(
+      (item, i) => `
     <Line>
       <Seq>${i + 1}</Seq>
       <Description>${item.name}</Description>
@@ -304,7 +326,9 @@ export function buildUgEfris(data: InvoiceRenderData): string {
       <VATRate>18</VATRate>
       <VATAmt>${(item.quantity * item.unitPrice * 0.18).toFixed(2)}</VATAmt>
       <TotalAmt>${(item.quantity * item.unitPrice * 1.18).toFixed(2)}</TotalAmt>
-    </Line>`).join('')}
+    </Line>`,
+    )
+    .join('')}
   </Lines>
   <Totals>
     <NetAmt>${total.toFixed(2)}</NetAmt>
@@ -324,11 +348,11 @@ export function buildUgEfris(data: InvoiceRenderData): string {
  *   embed verification code + QR on invoice.
  */
 export function buildZmSmartInvoice(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const tin = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const vat = total * 0.16; // Zambia VAT 16%
-        return `<!-- TODO: Zambia ZRA Smart Invoice — VSDC registration; POST /saveinvoice; embed verification code + QR -->
+  const issueDate = isoDate(data);
+  const tin = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const vat = total * 0.16; // Zambia VAT 16%
+  return `<!-- TODO: Zambia ZRA Smart Invoice — VSDC registration; POST /saveinvoice; embed verification code + QR -->
 <SmartInvoice xmlns="urn:zm:zra:smartinvoice:v1">
   <Header>
     <InvoiceNo>${data.rawNumber || 'DRAFT'}</InvoiceNo>
@@ -345,7 +369,9 @@ export function buildZmSmartInvoice(data: InvoiceRenderData): string {
     <TPIN>${getIdentifier(data.client, 'VAT') || 'NON'}</TPIN>
     <Name>${data.client.name}</Name>
   </Buyer>
-  <Lines>${data.items.map((item, i) => `
+  <Lines>${data.items
+    .map(
+      (item, i) => `
     <Line>
       <Seq>${i + 1}</Seq>
       <Description>${item.name}</Description>
@@ -355,7 +381,9 @@ export function buildZmSmartInvoice(data: InvoiceRenderData): string {
       <TaxCode>A</TaxCode>
       <TaxAmt>${(item.quantity * item.unitPrice * 0.16).toFixed(2)}</TaxAmt>
       <TotalAmt>${(item.quantity * item.unitPrice * 1.16).toFixed(2)}</TotalAmt>
-    </Line>`).join('')}
+    </Line>`,
+    )
+    .join('')}
   </Lines>
   <Totals>
     <NetAmt>${total.toFixed(2)}</NetAmt>
@@ -376,11 +404,11 @@ export function buildZmSmartInvoice(data: InvoiceRenderData): string {
  *   embed verification QR on invoice.
  */
 export function buildZwFdms(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const tin = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const vat = total * 0.15; // Zimbabwe VAT 15%
-        return `<!-- TODO: Zimbabwe ZIMRA FDMS — fiscal device registration (BPNO); POST /submitDocument; embed QR -->
+  const issueDate = isoDate(data);
+  const tin = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const vat = total * 0.15; // Zimbabwe VAT 15%
+  return `<!-- TODO: Zimbabwe ZIMRA FDMS — fiscal device registration (BPNO); POST /submitDocument; embed QR -->
 <FdmsDocument xmlns="urn:zw:zimra:fdms:v1">
   <Header>
     <DocumentNo>${data.rawNumber || 'DRAFT'}</DocumentNo>
@@ -397,7 +425,9 @@ export function buildZwFdms(data: InvoiceRenderData): string {
     <BPNO>${getIdentifier(data.client, 'VAT') || 'NON'}</BPNO>
     <Name>${data.client.name}</Name>
   </Buyer>
-  <Lines>${data.items.map((item, i) => `
+  <Lines>${data.items
+    .map(
+      (item, i) => `
     <Line>
       <Seq>${i + 1}</Seq>
       <Description>${item.name}</Description>
@@ -407,7 +437,9 @@ export function buildZwFdms(data: InvoiceRenderData): string {
       <TaxCode>A</TaxCode>
       <TaxAmt>${(item.quantity * item.unitPrice * 0.15).toFixed(2)}</TaxAmt>
       <TotalAmt>${(item.quantity * item.unitPrice * 1.15).toFixed(2)}</TotalAmt>
-    </Line>`).join('')}
+    </Line>`,
+    )
+    .join('')}
   </Lines>
   <Totals>
     <NetAmt>${total.toFixed(2)}</NetAmt>
@@ -426,11 +458,11 @@ export function buildZwFdms(data: InvoiceRenderData): string {
  *   embed DGI sticker/QR on invoice.
  */
 export function buildCiFne(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const ncc = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const vat = total * 0.18; // Côte d'Ivoire TVA 18%
-        return `<!-- TODO: Côte d'Ivoire DGI FNE — NCC registration; POST to SIGF FNE API; embed DGI sticker/QR -->
+  const issueDate = isoDate(data);
+  const ncc = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const vat = total * 0.18; // Côte d'Ivoire TVA 18%
+  return `<!-- TODO: Côte d'Ivoire DGI FNE — NCC registration; POST to SIGF FNE API; embed DGI sticker/QR -->
 <FactureNormalisee xmlns="urn:ci:dgi:fne:v1">
   <Entete>
     <NumFacture>${data.rawNumber || 'DRAFT'}</NumFacture>
@@ -446,7 +478,9 @@ export function buildCiFne(data: InvoiceRenderData): string {
     <NCC>${getIdentifier(data.client, 'VAT') || 'NON'}</NCC>
     <RaisonSociale>${data.client.name}</RaisonSociale>
   </Acheteur>
-  <Lignes>${data.items.map((item, i) => `
+  <Lignes>${data.items
+    .map(
+      (item, i) => `
     <Ligne>
       <No>${i + 1}</No>
       <Designation>${item.name}</Designation>
@@ -456,7 +490,9 @@ export function buildCiFne(data: InvoiceRenderData): string {
       <TauxTVA>18</TauxTVA>
       <MontantTVA>${(item.quantity * item.unitPrice * 0.18).toFixed(2)}</MontantTVA>
       <MontantTTC>${(item.quantity * item.unitPrice * 1.18).toFixed(2)}</MontantTTC>
-    </Ligne>`).join('')}
+    </Ligne>`,
+    )
+    .join('')}
   </Lignes>
   <Totaux>
     <TotalHT>${total.toFixed(2)}</TotalHT>
@@ -475,11 +511,11 @@ export function buildCiFne(data: InvoiceRenderData): string {
  *   embed MECeF code + QR on invoice.
  */
 export function buildBjMecef(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const ifu = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const vat = total * 0.18; // Benin TVA 18%
-        return `<!-- TODO: Benin DGI MECeF/SeMeF — IFU registration; POST to SeMeF API; embed MECeF code + QR -->
+  const issueDate = isoDate(data);
+  const ifu = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const vat = total * 0.18; // Benin TVA 18%
+  return `<!-- TODO: Benin DGI MECeF/SeMeF — IFU registration; POST to SeMeF API; embed MECeF code + QR -->
 <FactureMecef xmlns="urn:bj:dgi:mecef:v1">
   <Entete>
     <NumFacture>${data.rawNumber || 'DRAFT'}</NumFacture>
@@ -496,7 +532,9 @@ export function buildBjMecef(data: InvoiceRenderData): string {
     <IFU>${getIdentifier(data.client, 'VAT') || 'NON'}</IFU>
     <RaisonSociale>${data.client.name}</RaisonSociale>
   </Acheteur>
-  <Lignes>${data.items.map((item, i) => `
+  <Lignes>${data.items
+    .map(
+      (item, i) => `
     <Ligne>
       <No>${i + 1}</No>
       <Designation>${item.name}</Designation>
@@ -506,7 +544,9 @@ export function buildBjMecef(data: InvoiceRenderData): string {
       <TauxTVA>18</TauxTVA>
       <MontantTVA>${(item.quantity * item.unitPrice * 0.18).toFixed(2)}</MontantTVA>
       <MontantTTC>${(item.quantity * item.unitPrice * 1.18).toFixed(2)}</MontantTTC>
-    </Ligne>`).join('')}
+    </Ligne>`,
+    )
+    .join('')}
   </Lignes>
   <Totaux>
     <TotalHT>${total.toFixed(2)}</TotalHT>

@@ -1,32 +1,10 @@
-/**
- * PDP-AFNOR live round-trip test — REAL superpdp sandbox (AFNOR-style API), never in CI.
- *
- * Guard:
- *   PDP_AFNOR_LIVE=1 PDP_BASE_URL=<url> PDP_CLIENT_ID=<id> PDP_CLIENT_SECRET=<secret> \
- *     [PDP_SELLER_ROUTING=<id>] [PDP_BUYER_ROUTING=<id>] \
- *     npx jest pdp-afnor-live --no-coverage
- *
- * Uses apiStyle='afnor' → POST /afnor-flow/v1/flows (proven live: flowId i_90103 assigned).
- *
- * Hard assertions:
- *   - transmit status MUST be PENDING (not REJECTED/SKIPPED)
- *   - ref MUST contain a non-empty flowId (real authority reference from superpdp)
- *   - REJECTED or SKIPPED outcomes fail the test — NOT tolerated
- *
- * Note: AFNOR content validation in the superpdp sandbox may reject certain test invoices
- * (known diagnostics pending). The transport layer must succeed (PENDING + flowId).
- *
- * See LIVE_TESTING.md for full env var documentation.
- */
-export {}; // module marker — dynamic imports only
-
 import { liveDescribe } from '../live-gate.js';
 
 const describeLive = liveDescribe('PDP_AFNOR_LIVE', ['PDP_BASE_URL', 'PDP_CLIENT_ID', 'PDP_CLIENT_SECRET']);
 
 // Sandbox routing addresses (superpdp: pdp_siren=315143296, Burger Queen=1422, Tricatel=1421)
 const DEFAULT_SELLER_ROUTING = '315143296_1422';
-const DEFAULT_BUYER_ROUTING  = '315143296_1421';
+const DEFAULT_BUYER_ROUTING = '315143296_1421';
 
 describeLive('PDP-AFNOR live round-trip (superpdp AFNOR-style flow)', () => {
   let baseUrl: string;
@@ -36,23 +14,26 @@ describeLive('PDP-AFNOR live round-trip (superpdp AFNOR-style flow)', () => {
   let buyerRouting: string;
 
   beforeAll(() => {
-    baseUrl       = process.env.PDP_BASE_URL!;
-    clientId      = process.env.PDP_CLIENT_ID!;
-    clientSecret  = process.env.PDP_CLIENT_SECRET!;
+    baseUrl = process.env.PDP_BASE_URL!;
+    clientId = process.env.PDP_CLIENT_ID!;
+    clientSecret = process.env.PDP_CLIENT_SECRET!;
     sellerRouting = process.env.PDP_SELLER_ROUTING ?? DEFAULT_SELLER_ROUTING;
-    buyerRouting  = process.env.PDP_BUYER_ROUTING  ?? DEFAULT_BUYER_ROUTING;
+    buyerRouting = process.env.PDP_BUYER_ROUTING ?? DEFAULT_BUYER_ROUTING;
     // Secrets are never logged — only non-sensitive identifiers.
     console.log('Routing — seller:', sellerRouting, 'buyer:', buyerRouting);
   });
 
   it('buildEInvoice → Factur-X (CII) → AFNOR flow → PENDING + real flowId', async () => {
-    process.env.CREDENTIALS_ENCRYPTION_KEY ??= '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    process.env.CREDENTIALS_ENCRYPTION_KEY ??=
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
     const timestamp = Date.now();
     const companyId = 'live_pdp_afnor_' + timestamp;
 
     // ── Generate Factur-X (CII) invoice ──
-    const { InvoiceRenderingService } = await import('../../../../modules/invoice-rendering/invoice-rendering.service.js');
+    const { InvoiceRenderingService } = await import(
+      '../../../../modules/invoice-rendering/invoice-rendering.service.js'
+    );
     const service = new InvoiceRenderingService();
     const now = new Date();
 
@@ -72,7 +53,10 @@ describeLive('PDP-AFNOR live round-trip (superpdp AFNOR-style flow)', () => {
         country: 'France',
         phone: '+33100000000',
         email: 'seller@example.fr',
-        partyIdentifiers: [{ scheme: 'VAT', value: 'FR18000000002' }, { scheme: 'LEGAL_ID', value: '000000002' }],
+        partyIdentifiers: [
+          { scheme: 'VAT', value: 'FR18000000002' },
+          { scheme: 'LEGAL_ID', value: '000000002' },
+        ],
       },
       client: {
         type: 'COMPANY',
@@ -91,7 +75,10 @@ describeLive('PDP-AFNOR live round-trip (superpdp AFNOR-style flow)', () => {
         city: 'Paris',
         postalCode: '75001',
         country: 'France',
-        partyIdentifiers: [{ scheme: 'VAT', value: 'FR15000000001' }, { scheme: 'LEGAL_ID', value: '000000001' }],
+        partyIdentifiers: [
+          { scheme: 'VAT', value: 'FR15000000001' },
+          { scheme: 'LEGAL_ID', value: '000000001' },
+        ],
       },
       items: [{ name: 'Prestation AFNOR test', quantity: 1, unitPrice: 100, vatRate: 20, type: 'SERVICE' }],
     } as any);
@@ -115,7 +102,7 @@ describeLive('PDP-AFNOR live round-trip (superpdp AFNOR-style flow)', () => {
         clientSecret,
         apiStyle: 'afnor',
         sellerEndpointId: sellerRouting,
-        buyerEndpointId:  buyerRouting,
+        buyerEndpointId: buyerRouting,
       },
       isActive: true,
     };
@@ -124,7 +111,9 @@ describeLive('PDP-AFNOR live round-trip (superpdp AFNOR-style flow)', () => {
       resolve: async () => fakeResolvedConfig,
       resolveActive: async () => fakeResolvedConfig,
     };
-    const reg = new TransmissionProviderRegistry([new PdpTransmissionProvider(stubCredentials as any) as any]);
+    const reg = new TransmissionProviderRegistry([
+      new PdpTransmissionProvider(stubCredentials as any) as any,
+    ]);
     const pdp = reg.getById('pdp')!;
 
     const artifact = {
@@ -156,9 +145,12 @@ describeLive('PDP-AFNOR live round-trip (superpdp AFNOR-style flow)', () => {
     } as any;
 
     const transmitResult = await pdp.transmit!(
-      [artifact], ctx,
+      [artifact],
+      ctx,
       { channels: [{ type: 'PDP', providerId: 'pdp' }] } as any,
-      'afnor-live-key', log, fakeResolvedConfig as any,
+      'afnor-live-key',
+      log,
+      fakeResolvedConfig as any,
     );
 
     console.log('AFNOR transmit result:', JSON.stringify(transmitResult, null, 2));

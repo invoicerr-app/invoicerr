@@ -22,9 +22,21 @@ export class EmailTransmissionProvider implements TransmissionProvider {
       { type: 'text', name: 'host', label: 'SMTP host', placeholder: 'smtp.example.com', required: true },
       { type: 'number', name: 'port', label: 'SMTP port', placeholder: '587', required: true, default: 587 },
       { type: 'switch', name: 'secure', label: 'Use TLS (implicit, port 465)', default: false },
-      { type: 'text', name: 'username', label: 'SMTP username', placeholder: 'apikey / user@example.com', required: true },
+      {
+        type: 'text',
+        name: 'username',
+        label: 'SMTP username',
+        placeholder: 'apikey / user@example.com',
+        required: true,
+      },
       { type: 'text', name: 'password', label: 'SMTP password', required: true, secret: true },
-      { type: 'text', name: 'fromAddress', label: 'From address', placeholder: 'invoices@company.com', required: true },
+      {
+        type: 'text',
+        name: 'fromAddress',
+        label: 'From address',
+        placeholder: 'invoices@company.com',
+        required: true,
+      },
     ],
   };
 
@@ -61,7 +73,10 @@ export class EmailTransmissionProvider implements TransmissionProvider {
         notes: r.skipped ? [r.reason ?? 'no email'] : [],
       };
     }
-    log.todo('transmission/email', `send ${artifacts.length} artifact(s) to ${ctx.buyer.legalName} via MailService (key ${key})`);
+    log.todo(
+      'transmission/email',
+      `send ${artifacts.length} artifact(s) to ${ctx.buyer.legalName} via MailService (key ${key})`,
+    );
     return { channel: 'EMAIL', status: 'SENT', notes: ['stub: wire to MailService.sendMail'] };
   }
 }

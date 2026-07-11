@@ -56,21 +56,25 @@ async function buildCii(): Promise<string> {
         } as any,
       },
       'cac:Delivery': { 'cbc:ActualDeliveryDate': new Date().toISOString().split('T')[0] },
-      'cac:TaxTotal': [{
-        'cbc:TaxAmount': '20.00',
-        'cbc:TaxAmount@currencyID': 'EUR',
-        'cac:TaxSubtotal': [{
-          'cbc:TaxableAmount': '100.00',
-          'cbc:TaxableAmount@currencyID': 'EUR',
+      'cac:TaxTotal': [
+        {
           'cbc:TaxAmount': '20.00',
           'cbc:TaxAmount@currencyID': 'EUR',
-          'cac:TaxCategory': {
-            'cbc:ID': 'S',
-            'cbc:Percent': '20',
-            'cac:TaxScheme': { 'cbc:ID': 'VAT' },
-          },
-        }] as any,
-      }],
+          'cac:TaxSubtotal': [
+            {
+              'cbc:TaxableAmount': '100.00',
+              'cbc:TaxableAmount@currencyID': 'EUR',
+              'cbc:TaxAmount': '20.00',
+              'cbc:TaxAmount@currencyID': 'EUR',
+              'cac:TaxCategory': {
+                'cbc:ID': 'S',
+                'cbc:Percent': '20',
+                'cac:TaxScheme': { 'cbc:ID': 'VAT' },
+              },
+            },
+          ] as any,
+        },
+      ],
       'cac:LegalMonetaryTotal': {
         'cbc:LineExtensionAmount': '100.00',
         'cbc:LineExtensionAmount@currencyID': 'EUR',
@@ -81,22 +85,24 @@ async function buildCii(): Promise<string> {
         'cbc:PayableAmount': '120.00',
         'cbc:PayableAmount@currencyID': 'EUR',
       },
-      'cac:InvoiceLine': [{
-        'cbc:ID': '1',
-        'cbc:InvoicedQuantity': '1',
-        'cbc:InvoicedQuantity@unitCode': 'C62',
-        'cbc:LineExtensionAmount': '100.00',
-        'cbc:LineExtensionAmount@currencyID': 'EUR',
-        'cac:Item': {
-          'cbc:Name': 'Prestation de test',
-          'cac:ClassifiedTaxCategory': {
-            'cbc:ID': 'S',
-            'cbc:Percent': '20',
-            'cac:TaxScheme': { 'cbc:ID': 'VAT' },
+      'cac:InvoiceLine': [
+        {
+          'cbc:ID': '1',
+          'cbc:InvoicedQuantity': '1',
+          'cbc:InvoicedQuantity@unitCode': 'C62',
+          'cbc:LineExtensionAmount': '100.00',
+          'cbc:LineExtensionAmount@currencyID': 'EUR',
+          'cac:Item': {
+            'cbc:Name': 'Prestation de test',
+            'cac:ClassifiedTaxCategory': {
+              'cbc:ID': 'S',
+              'cbc:Percent': '20',
+              'cac:TaxScheme': { 'cbc:ID': 'VAT' },
+            },
           },
+          'cac:Price': { 'cbc:PriceAmount': '100.00', 'cbc:PriceAmount@currencyID': 'EUR' },
         },
-        'cac:Price': { 'cbc:PriceAmount': '100.00', 'cbc:PriceAmount@currencyID': 'EUR' },
-      }] as any,
+      ] as any,
     },
   };
 
@@ -132,7 +138,9 @@ describe('CII Schematron diagnostic (@e-invoice-eu/core)', () => {
     // @e-invoice-eu/core should produce fully valid EN16931 CII
     // If there are errors, they must be documented
     if (rawResult.errorCount > 0) {
-      console.warn('WARNING: Schematron errors found in @e-invoice-eu/core output — review and add to known gaps');
+      console.warn(
+        'WARNING: Schematron errors found in @e-invoice-eu/core output — review and add to known gaps',
+      );
     }
   });
 

@@ -99,15 +99,7 @@ export type DocumentSyntax =
   | 'AL_FISCALIZATION' // Albania — fiscalization (CIS)
   | 'NATIONAL_XML'; // generic placeholder for a national clearance XML without a dedicated provider yet
 
-export type ChannelType =
-  | 'EMAIL'
-  | 'PEPPOL'
-  | 'GOV_PORTAL_API'
-  | 'PAC'
-  | 'PDP'
-  | 'OSE'
-  | 'SDI'
-  | 'PRINT';
+export type ChannelType = 'EMAIL' | 'PEPPOL' | 'GOV_PORTAL_API' | 'PAC' | 'PDP' | 'OSE' | 'SDI' | 'PRINT';
 
 export type ReportingKind =
   | 'EC_SALES_LIST'
@@ -121,14 +113,7 @@ export type ReportingKind =
 
 export type Confidence = 'OFFICIAL' | 'BEST_EFFORT' | 'PLANNED' | 'FALLBACK' | 'UNVERIFIED';
 
-export type TaxScheme =
-  | 'STANDARD'
-  | 'FRANCHISE_BASE'
-  | 'FLAT_RATE'
-  | 'EXEMPT'
-  | 'MARGIN'
-  | 'OSS'
-  | 'IOSS';
+export type TaxScheme = 'STANDARD' | 'FRANCHISE_BASE' | 'FLAT_RATE' | 'EXEMPT' | 'MARGIN' | 'OSS' | 'IOSS';
 
 export type NumberingModel = 'GAPLESS_SELF' | 'AUTHORITY_RANGE';
 

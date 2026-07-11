@@ -7,7 +7,13 @@ const run = (m: RegimeModel) => defaultRegimeRegistry.get(m).handle({} as never,
 
 describe('RegimeHandlerRegistry', () => {
   it('returns a handler per regime model', () => {
-    for (const m of ['POST_AUDIT', 'PERIODIC_REPORTING', 'REAL_TIME_REPORTING', 'CLEARANCE', 'DECENTRALIZED_CTC'] as RegimeModel[]) {
+    for (const m of [
+      'POST_AUDIT',
+      'PERIODIC_REPORTING',
+      'REAL_TIME_REPORTING',
+      'CLEARANCE',
+      'DECENTRALIZED_CTC',
+    ] as RegimeModel[]) {
       expect(defaultRegimeRegistry.get(m).model).toBe(m);
     }
   });
@@ -23,7 +29,12 @@ describe('RegimeHandlerRegistry', () => {
   });
 
   it('every non-clearance regime is valid immediately (cleared, non-blocking)', () => {
-    for (const m of ['POST_AUDIT', 'PERIODIC_REPORTING', 'REAL_TIME_REPORTING', 'DECENTRALIZED_CTC'] as RegimeModel[]) {
+    for (const m of [
+      'POST_AUDIT',
+      'PERIODIC_REPORTING',
+      'REAL_TIME_REPORTING',
+      'DECENTRALIZED_CTC',
+    ] as RegimeModel[]) {
       const r = run(m);
       expect(r.clearanceRequired).toBe(false);
       expect(r.cleared).toBe(true);

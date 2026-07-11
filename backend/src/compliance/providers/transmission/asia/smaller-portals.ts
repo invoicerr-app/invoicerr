@@ -14,8 +14,20 @@ export const ASIA_PORTAL_HEURISTICS: PortalResponseHeuristics = {
   idFields: ['id', 'uuid', 'submissionId', 'refNo', 'trackId', 'invoiceId', 'receiptNo'],
   statusFields: ['status', 'invoiceStatus', 'approvalStatus', 'documentStatus', 'result'],
   statusFallback: 'PENDING',
-  clearTokens: ['APPROVED', 'CLEARED', 'VALID', 'SUCCESS', 'ACCEPTED', 'AUTHORIZED', 'REGISTERED',
-    'COMPLETED', 'COMMITTED', 'OK', 'PASSED', 'DELIVERED'],
+  clearTokens: [
+    'APPROVED',
+    'CLEARED',
+    'VALID',
+    'SUCCESS',
+    'ACCEPTED',
+    'AUTHORIZED',
+    'REGISTERED',
+    'COMPLETED',
+    'COMMITTED',
+    'OK',
+    'PASSED',
+    'DELIVERED',
+  ],
   rejectTokens: ['REJECTED', 'INVALID', 'FAILED', 'ERROR', 'REFUSED', 'CANCELLED', 'DENIED'],
 };
 
@@ -34,8 +46,15 @@ export const SMALL_ASIA_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/invapp/InvAppQuery',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'MoF environment', required: true,
-        options: [{ label: 'Test (wwwtest)', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'MoF environment',
+        required: true,
+        options: [
+          { label: 'Test (wwwtest)', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
       { type: 'text', name: 'appId', label: 'MoF APP ID', required: true },
       { type: 'text', name: 'apiToken', label: 'MoF API Key', required: true, secret: true },
@@ -57,10 +76,23 @@ export const SMALL_ASIA_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/i/invoices',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'IS ESF environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'IS ESF environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
-      { type: 'text', name: 'apiToken', label: 'IS ESF session token (from X.509 auth)', required: true, secret: true },
+      {
+        type: 'text',
+        name: 'apiToken',
+        label: 'IS ESF session token (from X.509 auth)',
+        required: true,
+        secret: true,
+      },
       { type: 'text', name: 'bin', label: 'BIN (Бизнес-идентификационный номер, 12 digits)', required: true },
     ],
     isAsync: true,
@@ -80,8 +112,15 @@ export const SMALL_ASIA_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/invoices/status',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'BIR EIS environment', required: true,
-        options: [{ label: 'Sandbox', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'BIR EIS environment',
+        required: true,
+        options: [
+          { label: 'Sandbox', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
       { type: 'text', name: 'apiToken', label: 'BIR EIS API Key', required: true, secret: true },
       { type: 'text', name: 'tin', label: 'Seller TIN (9-12 digits)', required: true },
@@ -102,8 +141,15 @@ export const SMALL_ASIA_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/invoices/status',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'RD environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'RD environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
       { type: 'text', name: 'apiToken', label: 'RD Service Provider API key', required: true, secret: true },
       { type: 'text', name: 'tin', label: 'Seller TIN (Thai Tax ID, 13 digits)', required: true },
@@ -124,8 +170,15 @@ export const SMALL_ASIA_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/billingDetails/status',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'IRD environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'IRD environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
       { type: 'text', name: 'apiToken', label: 'IRD CBMS API key', required: true, secret: true },
       { type: 'text', name: 'pan', label: 'PAN (Permanent Account Number, 9 digits)', required: true },
@@ -146,8 +199,15 @@ export const SMALL_ASIA_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/invoices/status',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'NBR environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'NBR environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
       { type: 'text', name: 'apiToken', label: 'NBR API key', required: true, secret: true },
       { type: 'text', name: 'bin', label: 'BIN (9 digits)', required: true },
@@ -168,8 +228,15 @@ export const SMALL_ASIA_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/invoices/status',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'FBR environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'FBR environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
       { type: 'text', name: 'apiToken', label: 'FBR ESP API key', required: true, secret: true },
       { type: 'text', name: 'strn', label: 'STRN (Sales Tax Registration Number)', required: true },
@@ -191,10 +258,23 @@ export const SMALL_ASIA_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/fapiao/query',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'STA environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'STA environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
-      { type: 'text', name: 'apiToken', label: 'STA session token (from Tax Control Device)', required: true, secret: true },
+      {
+        type: 'text',
+        name: 'apiToken',
+        label: 'STA session token (from Tax Control Device)',
+        required: true,
+        secret: true,
+      },
       { type: 'text', name: 'nsrsbh', label: 'NSRSBH (纳税人识别号, 18 chars)', required: true },
     ],
     isAsync: true,
@@ -208,13 +288,21 @@ export const SMALL_ASIA_PORTAL_SPECS: GenericPortalSpec[] = [
       test: 'https://hoadondientu.gdt.gov.vn:30000/api/test',
       prod: 'https://hoadondientu.gdt.gov.vn:30000/api',
     },
-    authHint: 'GDT e-invoice API username + password (from tax authority registration) or service provider (SINVOICE, VNPT, etc.)',
+    authHint:
+      'GDT e-invoice API username + password (from tax authority registration) or service provider (SINVOICE, VNPT, etc.)',
     submitEndpoint: '/HD/hoadondientu',
     pollEndpoint: '/HD/status',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'GDT environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'GDT environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
       { type: 'text', name: 'apiToken', label: 'GDT/Provider Bearer token', required: true, secret: true },
       { type: 'text', name: 'mst', label: 'MST (Mã số thuế — Tax code, 10 or 13 digits)', required: true },
@@ -224,4 +312,7 @@ export const SMALL_ASIA_PORTAL_SPECS: GenericPortalSpec[] = [
 ];
 
 // Static list for registry use (no credentials needed at the stub layer)
-export const SMALL_ASIA_PROVIDERS = buildGenericPortalProviders(SMALL_ASIA_PORTAL_SPECS, ASIA_PORTAL_HEURISTICS);
+export const SMALL_ASIA_PROVIDERS = buildGenericPortalProviders(
+  SMALL_ASIA_PORTAL_SPECS,
+  ASIA_PORTAL_HEURISTICS,
+);

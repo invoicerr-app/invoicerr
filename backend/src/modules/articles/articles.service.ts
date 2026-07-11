@@ -43,7 +43,10 @@ export class ArticlesService {
       },
     });
 
-    logger.info('Article created', { category: 'article', details: { articleId: article.id, companyId: company.id } });
+    logger.info('Article created', {
+      category: 'article',
+      details: { articleId: article.id, companyId: company.id },
+    });
     return article;
   }
 
@@ -92,7 +95,10 @@ export class ArticlesService {
       },
     });
 
-    logger.info('Article updated', { category: 'article', details: { articleId: updated.id, companyId: company.id } });
+    logger.info('Article updated', {
+      category: 'article',
+      details: { articleId: updated.id, companyId: company.id },
+    });
     return updated;
   }
 
@@ -109,7 +115,10 @@ export class ArticlesService {
       data: { isActive: false },
     });
 
-    logger.info('Article deactivated', { category: 'article', details: { articleId: existing.id, companyId: company.id } });
+    logger.info('Article deactivated', {
+      category: 'article',
+      details: { articleId: existing.id, companyId: company.id },
+    });
     return deleted;
   }
 }

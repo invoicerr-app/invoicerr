@@ -52,10 +52,7 @@ export function normalizeCiiNamespaces(ciiXml: string): string {
   result = result.replace(/\s+xsi:schemaLocation="[^"]*"/, '');
 
   // Add xmlns= on root element
-  result = result.replace(
-    /<rsm:CrossIndustryInvoice/,
-    `<CrossIndustryInvoice xmlns="${NS.rsm}"`,
-  );
+  result = result.replace(/<rsm:CrossIndustryInvoice/, `<CrossIndustryInvoice xmlns="${NS.rsm}"`);
   result = result.replace(/<\/rsm:CrossIndustryInvoice>/g, '</CrossIndustryInvoice>');
 
   // Replace opening tags: <rsm:XXX → <XXX xmlns="..."
@@ -90,10 +87,13 @@ export function normalizeCiiNamespaces(ciiXml: string): string {
  * @param opts.sellerRouting - Seller PDP routing address (e.g. '315143296_1422').
  * @param opts.buyerRouting  - Buyer PDP routing address (e.g. '315143296_1421').
  */
-export function postProcessCiiForCtc(ciiXml: string, opts?: {
-  sellerRouting?: string;
-  buyerRouting?: string;
-}): string {
+export function postProcessCiiForCtc(
+  ciiXml: string,
+  opts?: {
+    sellerRouting?: string;
+    buyerRouting?: string;
+  },
+): string {
   let result = ciiXml;
 
   // 1. Update GlobalID schemeID="0225" and URIUniversalCommunication/URIID

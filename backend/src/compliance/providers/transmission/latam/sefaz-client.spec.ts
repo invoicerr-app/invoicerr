@@ -12,7 +12,9 @@ const TEST_CONFIG: SefazClientConfig = {
 
 function mockHttp(overrides?: Partial<SefazHttpPort>): SefazHttpPort {
   return {
-    autorizarLote: jest.fn().mockResolvedValue({ nRec: '135123456789012', cStat: 103, xMotivo: 'Lote Recebido' }),
+    autorizarLote: jest
+      .fn()
+      .mockResolvedValue({ nRec: '135123456789012', cStat: 103, xMotivo: 'Lote Recebido' }),
     retornoLote: jest.fn().mockResolvedValue({
       cStat: 104,
       xMotivo: 'Lote Processado',

@@ -11,7 +11,11 @@ import {
 import { PhaseContext, PhaseContributor } from './phase-contributor';
 
 function plan(over: Partial<CompliancePlan> = {}): CompliancePlan {
-  const lifecycle: LifecyclePolicy = { immutableAfter: 'ISSUE', correctionModel: 'CREDIT_NOTE', cancellation: { allowed: true, requiresAuthorityAck: false } };
+  const lifecycle: LifecyclePolicy = {
+    immutableAfter: 'ISSUE',
+    correctionModel: 'CREDIT_NOTE',
+    cancellation: { allowed: true, requiresAuthorityAck: false },
+  };
   return {
     supplier: { country: 'XX', confidence: 'OFFICIAL' },
     buyer: { country: 'XX', confidence: 'OFFICIAL' },
@@ -42,18 +46,27 @@ describe('phase contributors — gating & drivers', () => {
 
   it('Clearance contributes only when the regime is blocking', () => {
     expect(get(new ClearancePhase(), plan())).toBeNull();
-    const f = get(new ClearancePhase(), plan({ regime: { model: 'CLEARANCE', blocking: true } }), { channelFeedback: 'ASYNC_POLL', pollPolicy: { everySeconds: 30, timeoutHours: 24 } })!;
-    expect(f.states).toEqual(expect.arrayContaining(['PENDING_CLEARANCE', 'CLEARED', 'REJECTED', 'CONTINGENCY']));
+    const f = get(new ClearancePhase(), plan({ regime: { model: 'CLEARANCE', blocking: true } }), {
+      channelFeedback: 'ASYNC_POLL',
+      pollPolicy: { everySeconds: 30, timeoutHours: 24 },
+    })!;
+    expect(f.states).toEqual(
+      expect.arrayContaining(['PENDING_CLEARANCE', 'CLEARED', 'REJECTED', 'CONTINGENCY']),
+    );
     expect(f.transitions.find((t) => t.on === 'CLEAR')!.trigger.kind).toBe('POLL');
   });
 
   it('Clearance binds a CALLBACK driver when the channel pushes statuses', () => {
-    const f = get(new ClearancePhase(), plan({ regime: { model: 'CLEARANCE', blocking: true } }), { channelFeedback: 'ASYNC_CALLBACK' })!;
+    const f = get(new ClearancePhase(), plan({ regime: { model: 'CLEARANCE', blocking: true } }), {
+      channelFeedback: 'ASYNC_CALLBACK',
+    })!;
     expect(f.transitions.find((t) => t.on === 'CLEAR')!.trigger.kind).toBe('CALLBACK');
   });
 
   it('Delivery starts from CLEARED when blocking, ISSUED otherwise', () => {
-    expect(get(new DeliveryPhase(), plan({ regime: { model: 'CLEARANCE', blocking: true } }))!.transitions[0].from).toBe('CLEARED');
+    expect(
+      get(new DeliveryPhase(), plan({ regime: { model: 'CLEARANCE', blocking: true } }))!.transitions[0].from,
+    ).toBe('CLEARED');
     const nonBlocking = get(new DeliveryPhase(), plan(), { channelFeedback: 'NONE' })!;
     expect(nonBlocking.transitions[0].from).toBe('ISSUED');
     expect(nonBlocking.transitions[0].trigger.kind).toBe('IMMEDIATE');
@@ -61,7 +74,9 @@ describe('phase contributors — gating & drivers', () => {
 
   it('BuyerResponse contributes only with a response policy; silence=ACCEPT → TIMER', () => {
     expect(get(new BuyerResponsePhase(), plan())).toBeNull();
-    const withResp = plan({ lifecycle: { ...plan().lifecycle, response: { window: { hours: 192 }, defaultOnSilence: 'ACCEPT' } } });
+    const withResp = plan({
+      lifecycle: { ...plan().lifecycle, response: { window: { hours: 192 }, defaultOnSilence: 'ACCEPT' } },
+    });
     const accept = get(new BuyerResponsePhase(), withResp)!.transitions.find((t) => t.on === 'ACCEPT')!;
     expect(accept.trigger.kind).toBe('TIMER');
     if (accept.trigger.kind === 'TIMER') expect(accept.trigger.deadlineHours).toBe(192);
@@ -79,13 +94,24 @@ describe('phase contributors — gating & drivers', () => {
   });
 
   it('Corrections: cancel guard reflects buyer consent', () => {
-    const p = plan({ regime: { model: 'CLEARANCE', blocking: true }, lifecycle: { immutableAfter: 'CLEARANCE', correctionModel: 'CREDIT_NOTE', cancellation: { allowed: true, requiresAuthorityAck: true, requiresBuyerConsent: true } } });
-    const cancel = get(new CorrectionsPhase(), p)!.transitions.find((t) => t.on === 'CANCEL' && t.from === 'CLEARED')!;
+    const p = plan({
+      regime: { model: 'CLEARANCE', blocking: true },
+      lifecycle: {
+        immutableAfter: 'CLEARANCE',
+        correctionModel: 'CREDIT_NOTE',
+        cancellation: { allowed: true, requiresAuthorityAck: true, requiresBuyerConsent: true },
+      },
+    });
+    const cancel = get(new CorrectionsPhase(), p)!.transitions.find(
+      (t) => t.on === 'CANCEL' && t.from === 'CLEARED',
+    )!;
     expect(cancel.guardKey).toBe('buyerConsent');
   });
 
   it('Corrections: no cancel transition when cancellation is disallowed', () => {
-    const p = plan({ lifecycle: { ...plan().lifecycle, cancellation: { allowed: false, requiresAuthorityAck: false } } });
+    const p = plan({
+      lifecycle: { ...plan().lifecycle, cancellation: { allowed: false, requiresAuthorityAck: false } },
+    });
     expect(get(new CorrectionsPhase(), p)!.transitions.some((t) => t.on === 'CANCEL')).toBe(false);
   });
 });

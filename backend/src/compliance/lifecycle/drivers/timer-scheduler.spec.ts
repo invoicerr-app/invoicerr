@@ -25,11 +25,20 @@ describe('timer-job — pure', () => {
 });
 
 describe('TimerScheduler', () => {
-  const ARM: ArmTimerEffect = { kind: 'ARM_TIMER', deadlineHours: 192, onElapse: 'ACCEPT', awaiting: 'AWAITING_RESPONSE' };
+  const ARM: ArmTimerEffect = {
+    kind: 'ARM_TIMER',
+    deadlineHours: 192,
+    onElapse: 'ACCEPT',
+    awaiting: 'AWAITING_RESPONSE',
+  };
 
   it('arm() returns null for an open-ended window (no deadline)', async () => {
     const scheduler = new TimerScheduler({ applySignal: () => {}, store: new InMemoryTimerJobStore() });
-    const openEnded: ArmTimerEffect = { kind: 'ARM_TIMER', onElapse: 'ACCEPT', awaiting: 'AWAITING_RESPONSE' };
+    const openEnded: ArmTimerEffect = {
+      kind: 'ARM_TIMER',
+      onElapse: 'ACCEPT',
+      awaiting: 'AWAITING_RESPONSE',
+    };
     expect(await scheduler.arm('doc1', openEnded)).toBeNull();
   });
 
@@ -37,7 +46,13 @@ describe('TimerScheduler', () => {
     const clock = clockFrom('2027-01-15T00:00:00Z');
     const store = new InMemoryTimerJobStore();
     const signals: Array<[string, LifecycleSignal]> = [];
-    const scheduler = new TimerScheduler({ applySignal: (id, s) => { signals.push([id, s]); }, store, now: clock.now });
+    const scheduler = new TimerScheduler({
+      applySignal: (id, s) => {
+        signals.push([id, s]);
+      },
+      store,
+      now: clock.now,
+    });
 
     await scheduler.arm('doc1', ARM);
     expect(await scheduler.tick()).toMatchObject({ due: 0, fired: 0 }); // not yet
@@ -52,10 +67,21 @@ describe('TimerScheduler', () => {
 
 describe('TimerScheduler × LifecycleRuntime — Chile silence = acceptance (8 days)', () => {
   function party(country: string, role: PartyRole): PartyTaxProfile {
-    return { legalName: `${country} Co`, countryCode: country, role, identifiers: [{ scheme: 'VAT', value: `${country}1`, validated: true }] };
+    return {
+      legalName: `${country} Co`,
+      countryCode: country,
+      role,
+      identifiers: [{ scheme: 'VAT', value: `${country}1`, validated: true }],
+    };
   }
   function tx(s: string, b: string, role: PartyRole, supply: SupplyType, date: string): TransactionContext {
-    return { supplier: party(s, 'B2B'), buyer: party(b, role), lines: [{ id: 'l1', description: 'x', quantity: 1, unitNetMinor: 10000, supplyType: supply }], issueDate: new Date(date), currency: 'EUR' };
+    return {
+      supplier: party(s, 'B2B'),
+      buyer: party(b, role),
+      lines: [{ id: 'l1', description: 'x', quantity: 1, unitNetMinor: 10000, supplyType: supply }],
+      issueDate: new Date(date),
+      currency: 'EUR',
+    };
   }
   const clGraph = () => assembleFromPlan(resolve(tx('CL', 'CL', 'B2B', 'GOODS', '2027-01-15')));
 
@@ -70,7 +96,13 @@ describe('TimerScheduler × LifecycleRuntime — Chile silence = acceptance (8 d
     expect(arm.onElapse).toBe('ACCEPT');
 
     const clock = clockFrom('2027-01-15T00:00:00Z');
-    const scheduler = new TimerScheduler({ applySignal: (_id, s) => { runtime.dispatch(s); }, store: new InMemoryTimerJobStore(), now: clock.now });
+    const scheduler = new TimerScheduler({
+      applySignal: (_id, s) => {
+        runtime.dispatch(s);
+      },
+      store: new InMemoryTimerJobStore(),
+      now: clock.now,
+    });
     await scheduler.arm('cl-doc', arm);
 
     clock.advance(192 * HOURS + 1); // 8 days of silence

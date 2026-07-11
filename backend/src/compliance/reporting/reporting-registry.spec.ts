@@ -4,7 +4,12 @@ import { ReportingKind } from '../types';
 import { defaultReportingRegistry, ReportingRegistry } from './registry';
 import { NullReportingStore } from './reporting-store';
 
-const planWith = (reporting: ReportingKind[]) => ({ reporting, tax: { lines: [], reportingFlags: [], mentions: [], buyerSelfAssess: false }, classification: { buyerRole: 'B2B', crossBorder: false, supplyTypes: ['SERVICES'] } } as unknown as CompliancePlan);
+const planWith = (reporting: ReportingKind[]) =>
+  ({
+    reporting,
+    tax: { lines: [], reportingFlags: [], mentions: [], buyerSelfAssess: false },
+    classification: { buyerRole: 'B2B', crossBorder: false, supplyTypes: ['SERVICES'] },
+  }) as unknown as CompliancePlan;
 
 const ctxStub = {
   supplier: { legalName: 'ACME', countryCode: 'FR', role: 'B2B' as const, identifiers: [] },
@@ -16,7 +21,16 @@ const ctxStub = {
 
 describe('ReportingRegistry', () => {
   it('has a handler for every reporting kind', () => {
-    for (const k of ['EC_SALES_LIST', 'INTRASTAT', 'OSS', 'IOSS', 'SAFT', 'E_REPORTING', 'SALES_PURCHASE_LEDGER', 'CUSTOMS_EXPORT'] as ReportingKind[]) {
+    for (const k of [
+      'EC_SALES_LIST',
+      'INTRASTAT',
+      'OSS',
+      'IOSS',
+      'SAFT',
+      'E_REPORTING',
+      'SALES_PURCHASE_LEDGER',
+      'CUSTOMS_EXPORT',
+    ] as ReportingKind[]) {
       expect(defaultReportingRegistry.get(k)?.kind).toBe(k);
     }
   });
@@ -24,7 +38,11 @@ describe('ReportingRegistry', () => {
   it('reportAll emits each plan.reporting kind, preserving order', async () => {
     const registry = new ReportingRegistry(undefined, new NullReportingStore());
     const log = new RecordingComplianceLogger();
-    const results = await registry.reportAll(ctxStub, planWith(['EC_SALES_LIST', 'OSS', 'CUSTOMS_EXPORT']), log);
+    const results = await registry.reportAll(
+      ctxStub,
+      planWith(['EC_SALES_LIST', 'OSS', 'CUSTOMS_EXPORT']),
+      log,
+    );
     expect(results.map((r) => r.kind)).toEqual(['EC_SALES_LIST', 'OSS', 'CUSTOMS_EXPORT']);
     expect(results.every((r) => r.status === 'EMITTED')).toBe(true);
   });

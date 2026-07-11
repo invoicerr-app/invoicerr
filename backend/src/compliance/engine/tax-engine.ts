@@ -12,11 +12,7 @@ import {
   TaxTreatment,
   TransactionContext,
 } from '../canonical/canonical-document';
-import {
-  CountryComplianceProfile,
-  SalesTaxSystemSpec,
-  VatSystemSpec,
-} from '../profiles/schema';
+import { CountryComplianceProfile, SalesTaxSystemSpec, VatSystemSpec } from '../profiles/schema';
 import { ReportingKind } from '../types';
 import { TaxUnion, VatValidator, taxUnionOf } from './classification';
 
@@ -158,15 +154,10 @@ export function determineLineTax(
   );
 }
 
-function domesticVat(
-  line: DocumentLine,
-  sys: VatSystemSpec,
-  supplier: PartyTaxProfile,
-): TaxTreatment {
+function domesticVat(line: DocumentLine, sys: VatSystemSpec, supplier: PartyTaxProfile): TaxTreatment {
   // Small-business exemption schemes (FR 293 B and generic franchise / exempt).
   if (supplier.taxScheme === 'FRANCHISE_BASE') {
-    const mention =
-      supplier.countryCode.toUpperCase() === 'FR' ? MENTION.fr293b : MENTION.franchise;
+    const mention = supplier.countryCode.toUpperCase() === 'FR' ? MENTION.fr293b : MENTION.franchise;
     return treatment(
       { taxSystem: sys.kind, name: 'VAT', category: 'E', rate: 0, jurisdiction: supplier.countryCode },
       false,
@@ -182,7 +173,7 @@ function domesticVat(
       [],
     );
   }
-  const rate = line.taxCategoryHint === 'Z' ? 0 : line.taxRateHint ?? sys.standardRate;
+  const rate = line.taxCategoryHint === 'Z' ? 0 : (line.taxRateHint ?? sys.standardRate);
   const category = line.taxCategoryHint ?? (rate === 0 ? 'Z' : 'S');
   return treatment(
     { taxSystem: sys.kind, name: 'VAT', category, rate, jurisdiction: supplier.countryCode },
@@ -200,7 +191,8 @@ function ossDestinationVat(
   // Charge the destination country's standard rate when we know it; otherwise fall back to the
   // supplier's standard rate (placeholder) and the engine warns via FALLBACK confidence upstream.
   const dest = buyerProfile?.taxSystem;
-  const rate = dest && dest.kind !== 'SALES_TAX' && dest.kind !== 'NONE' ? dest.standardRate : sys.standardRate;
+  const rate =
+    dest && dest.kind !== 'SALES_TAX' && dest.kind !== 'NONE' ? dest.standardRate : sys.standardRate;
   return treatment(
     { taxSystem: sys.kind, name: 'VAT (OSS)', category: 'S', rate, jurisdiction: destination },
     false,
@@ -223,8 +215,7 @@ function salesTax(
     // If the destination is a VAT jurisdiction, flag that its buyer must self-assess import VAT.
     const destUnion: TaxUnion | null = taxUnionOf(bCountry);
     const destIsVat =
-      !!destUnion ||
-      (buyerProfile?.taxSystem.kind === 'VAT' || buyerProfile?.taxSystem.kind === 'GST');
+      !!destUnion || buyerProfile?.taxSystem.kind === 'VAT' || buyerProfile?.taxSystem.kind === 'GST';
     return treatment(
       { taxSystem: 'SALES_TAX', name: 'Sales Tax', category: 'O', rate: 0, jurisdiction: sCountry },
       destIsVat, // buyer self-assesses in the destination country
@@ -292,7 +283,7 @@ export function determineTax(
   let buyerSelfAssess = false;
 
   for (const { treatment: t } of lines) {
-    t.reportingFlags.forEach((f) => flags.add(f));
+    for (const f of t.reportingFlags) flags.add(f);
     t.mentions.forEach((m) => {
       if (!seen.has(m.code)) {
         seen.add(m.code);

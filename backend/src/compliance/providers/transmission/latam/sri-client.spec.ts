@@ -12,13 +12,15 @@ function mockHttp(overrides?: Partial<SriHttpPort>): SriHttpPort {
     autorizarComprobante: jest.fn().mockResolvedValue({
       claveAccesoConsultada: '0106202501179234567800110010010000000011234567810',
       numeroComprobantes: 1,
-      autorizaciones: [{
-        estado: 'AUTORIZADO',
-        numeroAutorizacion: '0106202501179234567800110010010000000011234567810',
-        fechaAutorizacion: '2026-06-29T12:00:00',
-        ambiente: 'PRUEBAS',
-        comprobante: '<factura>...</factura>',
-      }],
+      autorizaciones: [
+        {
+          estado: 'AUTORIZADO',
+          numeroAutorizacion: '0106202501179234567800110010010000000011234567810',
+          fechaAutorizacion: '2026-06-29T12:00:00',
+          ambiente: 'PRUEBAS',
+          comprobante: '<factura>...</factura>',
+        },
+      ],
     }),
     ...overrides,
   };

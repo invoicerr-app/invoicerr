@@ -69,7 +69,8 @@ describe('EtaClient (scaffold, mocked)', () => {
     it('extracts uuid from acceptedDocuments response', async () => {
       const http = makeHttp({
         post: async (url) => {
-          if (url.includes('/connect/token')) return { status: 200, data: { access_token: 'tok123', expires_in: 3600 } };
+          if (url.includes('/connect/token'))
+            return { status: 200, data: { access_token: 'tok123', expires_in: 3600 } };
           return {
             status: 202,
             data: {
@@ -89,7 +90,8 @@ describe('EtaClient (scaffold, mocked)', () => {
     it('throws when HTTP returns 4xx on submit', async () => {
       const http = makeHttp({
         post: async (url) => {
-          if (url.includes('/connect/token')) return { status: 200, data: { access_token: 'tok', expires_in: 3600 } };
+          if (url.includes('/connect/token'))
+            return { status: 200, data: { access_token: 'tok', expires_in: 3600 } };
           return { status: 400, data: { error: 'Bad request' } };
         },
       });
@@ -124,7 +126,9 @@ describe('EtaClient (scaffold, mocked)', () => {
         get: async () => ({ status: 404, data: {} }),
       });
       const client = new EtaClient(BASE_CONFIG, http);
-      await expect(client.getDocumentStatus('missing')).rejects.toThrow('ETA getDocumentStatus failed (HTTP 404)');
+      await expect(client.getDocumentStatus('missing')).rejects.toThrow(
+        'ETA getDocumentStatus failed (HTTP 404)',
+      );
     });
   });
 });

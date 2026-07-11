@@ -33,7 +33,10 @@ export class MyInvoisTransmissionProvider implements TransmissionProvider {
   readonly configSchema: ChannelConfigSchema = {
     fields: [
       {
-        type: 'select', name: 'environment', label: 'MyInvois environment', required: true,
+        type: 'select',
+        name: 'environment',
+        label: 'MyInvois environment',
+        required: true,
         options: [
           { label: 'Pre-production (sandbox)', value: 'preprod' },
           { label: 'Production', value: 'prod' },
@@ -60,11 +63,17 @@ export class MyInvoisTransmissionProvider implements TransmissionProvider {
     resolvedConfig?: ResolvedChannelConfig,
   ): Promise<TransmissionResult> {
     if (!resolvedConfig) {
-      return { channel: GP, status: 'SKIPPED', notes: ['myinvois: no resolved config (client_id + secret required)'] };
+      return {
+        channel: GP,
+        status: 'SKIPPED',
+        notes: ['myinvois: no resolved config (client_id + secret required)'],
+      };
     }
 
     const { config, environment } = resolvedConfig;
-    const env = ((config.environment as string) ?? environment ?? 'preprod').toLowerCase() as 'preprod' | 'prod';
+    const env = ((config.environment as string) ?? environment ?? 'preprod').toLowerCase() as
+      | 'preprod'
+      | 'prod';
     const clientId = config.clientId as string;
     const clientSecret = config.clientSecret as string;
     const tin = config.tin as string;
@@ -105,7 +114,10 @@ export class MyInvoisTransmissionProvider implements TransmissionProvider {
       }
 
       const ref = `${companyId}|${accepted.uuid}`;
-      log.info('transmission/myinvois', `submitted → uuid ${accepted.uuid}, submissionUID ${resp.submissionUID} (key ${key})`);
+      log.info(
+        'transmission/myinvois',
+        `submitted → uuid ${accepted.uuid}, submissionUID ${resp.submissionUID} (key ${key})`,
+      );
       return {
         channel: GP,
         status: 'PENDING', // MyInvois validates async; poll for "Valid"
@@ -125,13 +137,21 @@ export class MyInvoisTransmissionProvider implements TransmissionProvider {
     const [companyId, uuid] = parts;
     if (!this.credentials) {
       log.todo('transmission/myinvois', `poll MyInvois document ${uuid}`);
-      return { channel: GP, status: 'PENDING', ref, notes: ['myinvois: poll deferred (use /api/v1.0/documents/{uuid}/details)'] };
+      return {
+        channel: GP,
+        status: 'PENDING',
+        ref,
+        notes: ['myinvois: poll deferred (use /api/v1.0/documents/{uuid}/details)'],
+      };
     }
     try {
       const resolved = await this.credentials.resolveActive(companyId, 'myinvois');
-      if (!resolved?.isActive) return { channel: GP, status: 'PENDING', ref, notes: ['myinvois: credentials inactive'] };
+      if (!resolved?.isActive)
+        return { channel: GP, status: 'PENDING', ref, notes: ['myinvois: credentials inactive'] };
       const { config, environment } = resolved;
-      const env = ((config.environment as string) ?? environment ?? 'preprod').toLowerCase() as 'preprod' | 'prod';
+      const env = ((config.environment as string) ?? environment ?? 'preprod').toLowerCase() as
+        | 'preprod'
+        | 'prod';
       const http = this.httpPort ?? buildStubHttpPort();
       const client = new MyInvoisClient(http, {
         environment: env,
@@ -142,13 +162,23 @@ export class MyInvoisTransmissionProvider implements TransmissionProvider {
       const details = await client.getStatus(uuid);
       if (details.status === 'Valid') {
         return {
-          channel: GP, status: 'CLEARED', ref,
-          authorityIds: [{ scheme: 'MYINVOIS_UUID', value: uuid }, { scheme: 'LONG_ID', value: details.longId }],
+          channel: GP,
+          status: 'CLEARED',
+          ref,
+          authorityIds: [
+            { scheme: 'MYINVOIS_UUID', value: uuid },
+            { scheme: 'LONG_ID', value: details.longId },
+          ],
           notes: [`myinvois: Valid — longId: ${details.longId}`],
         };
       }
       if (details.status === 'Invalid') {
-        return { channel: GP, status: 'REJECTED', ref, notes: [`myinvois: Invalid — ${details.documentStatusReason ?? 'no reason'}`] };
+        return {
+          channel: GP,
+          status: 'REJECTED',
+          ref,
+          notes: [`myinvois: Invalid — ${details.documentStatusReason ?? 'no reason'}`],
+        };
       }
       if (details.status === 'Cancelled') {
         return { channel: GP, status: 'REJECTED', ref, notes: ['myinvois: Cancelled'] };
@@ -164,8 +194,14 @@ export class MyInvoisTransmissionProvider implements TransmissionProvider {
 
 function buildStubHttpPort(): MyInvoisHttpPort {
   return {
-    getToken: async () => { throw new Error('MyInvoisHttpPort not implemented — client_id + secret required'); },
-    submitDocuments: async () => { throw new Error('MyInvoisHttpPort not implemented — live MyInvois credentials required'); },
-    getDocumentDetails: async () => { throw new Error('MyInvoisHttpPort not implemented'); },
+    getToken: async () => {
+      throw new Error('MyInvoisHttpPort not implemented — client_id + secret required');
+    },
+    submitDocuments: async () => {
+      throw new Error('MyInvoisHttpPort not implemented — live MyInvois credentials required');
+    },
+    getDocumentDetails: async () => {
+      throw new Error('MyInvoisHttpPort not implemented');
+    },
   };
 }

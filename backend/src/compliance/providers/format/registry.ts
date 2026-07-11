@@ -1,5 +1,5 @@
 import { TransactionContext } from '../../canonical/canonical-document';
-import { CompliancePlan, PlannedArtifact } from '../../engine/compliance-engine';
+import { CompliancePlan } from '../../engine/compliance-engine';
 import { ComplianceLogger, defaultLogger } from '../../execution/logger';
 import { RenderedArtifact } from '../../execution/types';
 import { DocumentSyntax } from '../../types';
@@ -56,7 +56,12 @@ export class FormatProviderRegistry {
       const provider = this.resolve(artifact.syntax as DocumentSyntax);
       if (!provider) {
         log.warn('format', `no provider for syntax ${artifact.syntax}; emitting empty artifact`);
-        results.push({ role: artifact.role as RenderedArtifact['role'], syntax: artifact.syntax as DocumentSyntax, mime: 'application/octet-stream', bytes: new Uint8Array() });
+        results.push({
+          role: artifact.role as RenderedArtifact['role'],
+          syntax: artifact.syntax as DocumentSyntax,
+          mime: 'application/octet-stream',
+          bytes: new Uint8Array(),
+        });
         continue;
       }
       const built = await provider.build(artifact, ctx, plan, log);

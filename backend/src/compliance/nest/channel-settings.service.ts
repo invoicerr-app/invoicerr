@@ -40,10 +40,7 @@ function deriveTaxId(identifiers: { scheme: string; value: string }[]): string |
 }
 
 /** Mask secret fields in a config object using the provider's schema. */
-function maskSecrets(
-  config: Record<string, unknown>,
-  schema?: ChannelConfigSchema,
-): Record<string, unknown> {
+function maskSecrets(config: Record<string, unknown>, schema?: ChannelConfigSchema): Record<string, unknown> {
   if (!schema) {
     // No schema → mask ALL values (defensive: never leak unknown fields).
     const masked: Record<string, unknown> = {};

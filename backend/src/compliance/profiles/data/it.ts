@@ -18,10 +18,18 @@ export const IT: CountryComplianceProfile = {
   ],
 
   formats: [
-    { validFrom: '1900-01-01', validTo: '2019-01-01', value: { primary: { syntax: 'PLAIN_PDF' }, buyerNegotiable: true } },
+    {
+      validFrom: '1900-01-01',
+      validTo: '2019-01-01',
+      value: { primary: { syntax: 'PLAIN_PDF' }, buyerNegotiable: true },
+    },
     {
       validFrom: '2019-01-01',
-      value: { primary: { syntax: 'FATTURAPA', version: '1.2' }, human: { syntax: 'PLAIN_PDF' }, buyerNegotiable: false },
+      value: {
+        primary: { syntax: 'FATTURAPA', version: '1.2' },
+        human: { syntax: 'PLAIN_PDF' },
+        buyerNegotiable: false,
+      },
     },
   ],
 

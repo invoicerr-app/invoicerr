@@ -30,11 +30,7 @@ function formatNumber(counter: number, date: Date, pattern: string): string {
         return key;
     }
 
-    const padLength = padding !== undefined
-      ? parseInt(padding, 10)
-      : key === 'number'
-        ? 4
-        : 0;
+    const padLength = padding !== undefined ? parseInt(padding, 10) : key === 'number' ? 4 : 0;
 
     return value.toString().padStart(padLength, '0');
   });
@@ -63,17 +59,17 @@ export class NumberingService {
     const scopeKey = await this.resolveScopeKey(company, docType, issueDate);
 
     const rows = await tx.$queryRawUnsafe<Array<{ counter: number }>>(
-        `INSERT INTO "NumberSeries" ("id", "companyId", "docType", "scopeKey", "counter", "createdAt", "updatedAt")
+      `INSERT INTO "NumberSeries" ("id", "companyId", "docType", "scopeKey", "counter", "createdAt", "updatedAt")
          VALUES (gen_random_uuid()::text, $1, $2, $3, $4, now(), now())
          ON CONFLICT ("companyId", "docType", "scopeKey") DO UPDATE
          SET "counter" = "NumberSeries"."counter" + 1,
              "updatedAt" = now()
          RETURNING "counter"`,
-        companyId,
-        docType,
-        scopeKey,
-        startingNumber,
-      );
+      companyId,
+      docType,
+      scopeKey,
+      startingNumber,
+    );
 
     const result = rows[0].counter;
     const rawNumber = formatNumber(result, issueDate, pattern);
@@ -93,9 +89,12 @@ export class NumberingService {
 
   private getStartingNumber(company: any, docType: DocType): number {
     switch (docType) {
-      case 'invoice': return company.invoiceStartingNumber;
-      case 'quote': return company.quoteStartingNumber;
-      case 'payment': return company.paymentStartingNumber;
+      case 'invoice':
+        return company.invoiceStartingNumber;
+      case 'quote':
+        return company.quoteStartingNumber;
+      case 'payment':
+        return company.paymentStartingNumber;
     }
   }
 
@@ -103,18 +102,14 @@ export class NumberingService {
    * Resolve the NumberSeries scope key from the company's compliance profile.
    * Falls back to the issue year when no profile / rule is found.
    */
-  private async resolveScopeKey(
-    company: any,
-    _docType: DocType,
-    issueDate: Date,
-  ): Promise<string> {
+  private async resolveScopeKey(company: any, _docType: DocType, issueDate: Date): Promise<string> {
     const countryCode = (company.countryCode || company.country || 'XX').toUpperCase();
     const resolved = defaultRegistry.resolve(countryCode);
     const profile = resolved.profile;
 
     const activeRule = profile.numbering
       .sort((a, b) => new Date(a.validFrom).getTime() - new Date(b.validFrom).getTime())
-      .find(r => {
+      .find((r) => {
         const from = new Date(r.validFrom);
         if (r.validTo) {
           const to = new Date(r.validTo);
@@ -141,7 +136,6 @@ export class NumberingService {
         return 'all';
       case 'DOC_TYPE':
         return 'all';
-      case 'YEAR':
       default:
         return issueDate.getFullYear().toString();
     }

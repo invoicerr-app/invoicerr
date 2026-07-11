@@ -79,7 +79,7 @@ export const DE: CountryComplianceProfile = {
     {
       scheme: 'VAT',
       label: 'Umsatzsteuer-Identifikationsnummer (USt-IdNr.)',
-      appliesTo: 'BOTH',          // DE VAT applies to companies and registered sole traders alike
+      appliesTo: 'BOTH', // DE VAT applies to companies and registered sole traders alike
       required: false,
       pattern: '^DE\\d{9}$',
       helpText: '9-digit EU VAT ID prefixed with DE (e.g. DE123456789)',
@@ -96,7 +96,8 @@ export const DE: CountryComplianceProfile = {
       label: 'Leitweg-ID (B2G routing)',
       appliesTo: 'COMPANY',
       required: false,
-      helpText: 'Mandatory for federal/state B2G invoices; format: {Amtliche Gemeinde Schlüssel}--{optionale Ergänzung}-{Prüfziffer}',
+      helpText:
+        'Mandatory for federal/state B2G invoices; format: {Amtliche Gemeinde Schlüssel}--{optionale Ergänzung}-{Prüfziffer}',
     },
   ],
 

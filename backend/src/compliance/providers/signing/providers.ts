@@ -56,7 +56,6 @@ export interface TimestampOptions {
 //
 // Node.js 18+ provides globalThis.crypto; @xmldom/xmldom provides DOMParser.
 // ---------------------------------------------------------------------------
-/* eslint-disable @typescript-eslint/no-require-imports */
 let _engineInitialised = false;
 function ensureXmlCryptoEngine(): void {
   if (_engineInitialised) return;
@@ -67,7 +66,7 @@ function ensureXmlCryptoEngine(): void {
   setNodeDependencies(xmlDomDeps);
 
   // 2. Set DOM deps on xmldsigjs's bundled xml-core (a separate module instance).
-  const path = require('path') as typeof import('path');
+  const path = require('node:path') as typeof import('path');
   const xmldsigDir = path.dirname(require.resolve('xmldsigjs'));
   const xmldsigXmlCore = require(require.resolve('xml-core', { paths: [xmldsigDir] })) as {
     setNodeDependencies: typeof setNodeDependencies;
@@ -79,7 +78,6 @@ function ensureXmlCryptoEngine(): void {
 
   _engineInitialised = true;
 }
-/* eslint-enable @typescript-eslint/no-require-imports */
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -178,7 +176,10 @@ async function applyTimestampCades(p7mDer: Buffer, tsa: TsaPort): Promise<Buffer
   const sdChildren = signedData.value as forge.asn1.Asn1[];
   let signerInfosSet: forge.asn1.Asn1 | null = null;
   for (let i = sdChildren.length - 1; i >= 0; i--) {
-    if (sdChildren[i].type === forge.asn1.Type.SET) { signerInfosSet = sdChildren[i]; break; }
+    if (sdChildren[i].type === forge.asn1.Type.SET) {
+      signerInfosSet = sdChildren[i];
+      break;
+    }
   }
   if (!signerInfosSet) return p7mDer;
 
@@ -189,7 +190,10 @@ async function applyTimestampCades(p7mDer: Buffer, tsa: TsaPort): Promise<Buffer
   const siChildren = signerInfo.value as forge.asn1.Asn1[];
   let sigOctet: forge.asn1.Asn1 | null = null;
   for (let i = siChildren.length - 1; i >= 0; i--) {
-    if (siChildren[i].type === forge.asn1.Type.OCTETSTRING) { sigOctet = siChildren[i]; break; }
+    if (siChildren[i].type === forge.asn1.Type.OCTETSTRING) {
+      sigOctet = siChildren[i];
+      break;
+    }
   }
   if (!sigOctet) return p7mDer;
 
@@ -202,7 +206,7 @@ async function applyTimestampCades(p7mDer: Buffer, tsa: TsaPort): Promise<Buffer
   // The attribute value is the TST ContentInfo DER (a SEQUENCE), not an OctetString.
   const unsignedAttrs = forge.asn1.create(
     forge.asn1.Class.CONTEXT_SPECIFIC,
-    1,  // [1] IMPLICIT
+    1, // [1] IMPLICIT
     true,
     [
       forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
@@ -213,7 +217,7 @@ async function applyTimestampCades(p7mDer: Buffer, tsa: TsaPort): Promise<Buffer
           forge.asn1.oidToDer(CADES_TIMESTAMP_OID).getBytes(),
         ),
         forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [
-          forge.asn1.fromDer(tst.toString('binary')),  // TST ContentInfo
+          forge.asn1.fromDer(tst.toString('binary')), // TST ContentInfo
         ]),
       ]),
     ],
@@ -245,7 +249,10 @@ export class XadesSigningProvider implements SigningProvider {
   async sign(rendered: RenderedArtifact, certRef: string, log: ComplianceLogger): Promise<SignedArtifact> {
     const material = await this.credentials.resolve(certRef);
     if (!material) {
-      log.warn('signing/xades', `No signing cert configured for "${certRef}" — artifact passed through unsigned`);
+      log.warn(
+        'signing/xades',
+        `No signing cert configured for "${certRef}" — artifact passed through unsigned`,
+      );
       return { ...rendered };
     }
 
@@ -261,15 +268,10 @@ export class XadesSigningProvider implements SigningProvider {
       ]);
 
       const signedXml = new SignedXml();
-      await signedXml.Sign(
-        RSA_ALGO,
-        privateKey,
-        xmlDoc,
-        {
-          keyValue: publicKey,
-          references: [{ hash: 'SHA-256', transforms: ['enveloped'] }],
-        },
-      );
+      await signedXml.Sign(RSA_ALGO, privateKey, xmlDoc, {
+        keyValue: publicKey,
+        references: [{ hash: 'SHA-256', transforms: ['enveloped'] }],
+      });
 
       // Apply RFC 3161 timestamp when level ≥ T and a TSA is wired up.
       let signedXmlString = signedXml.toString();
@@ -279,14 +281,20 @@ export class XadesSigningProvider implements SigningProvider {
 
       const signedBytes = Buffer.from(signedXmlString, 'utf-8');
       const level = this.signatureLevel !== 'BES' ? `-${this.signatureLevel}` : '-BES';
-      log.info('signing/xades', `XAdES${level} signed ${rendered.syntax} with cert "${certRef}" (${signedBytes.length} bytes)`);
+      log.info(
+        'signing/xades',
+        `XAdES${level} signed ${rendered.syntax} with cert "${certRef}" (${signedBytes.length} bytes)`,
+      );
       return {
         ...rendered,
         bytes: new Uint8Array(signedBytes),
         signature: { algo: 'XAdES', certRef },
       };
     } catch (err) {
-      log.warn('signing/xades', `XAdES signing failed for "${certRef}": ${(err as Error).message} — artifact passed through unsigned`);
+      log.warn(
+        'signing/xades',
+        `XAdES signing failed for "${certRef}": ${(err as Error).message} — artifact passed through unsigned`,
+      );
       return { ...rendered };
     }
   }
@@ -313,7 +321,10 @@ export class CadesSigningProvider implements SigningProvider {
   async sign(rendered: RenderedArtifact, certRef: string, log: ComplianceLogger): Promise<SignedArtifact> {
     const material = await this.credentials.resolve(certRef);
     if (!material) {
-      log.warn('signing/cades', `No signing cert configured for "${certRef}" — artifact passed through unsigned`);
+      log.warn(
+        'signing/cades',
+        `No signing cert configured for "${certRef}" — artifact passed through unsigned`,
+      );
       return { ...rendered };
     }
 
@@ -326,7 +337,10 @@ export class CadesSigningProvider implements SigningProvider {
       }
 
       const level = this.signatureLevel !== 'BES' ? `-${this.signatureLevel}` : '-BES';
-      log.info('signing/cades', `CAdES${level} signed ${rendered.syntax} with cert "${certRef}" (${p7mBytes.length} bytes .p7m)`);
+      log.info(
+        'signing/cades',
+        `CAdES${level} signed ${rendered.syntax} with cert "${certRef}" (${p7mBytes.length} bytes .p7m)`,
+      );
       return {
         ...rendered,
         bytes: new Uint8Array(p7mBytes),
@@ -334,7 +348,10 @@ export class CadesSigningProvider implements SigningProvider {
         signature: { algo: 'CAdES', certRef },
       };
     } catch (err) {
-      log.warn('signing/cades', `CAdES signing failed for "${certRef}": ${(err as Error).message} — artifact passed through unsigned`);
+      log.warn(
+        'signing/cades',
+        `CAdES signing failed for "${certRef}": ${(err as Error).message} — artifact passed through unsigned`,
+      );
       return { ...rendered };
     }
   }
@@ -390,25 +407,37 @@ export class PadesSigningProvider implements SigningProvider {
   async sign(rendered: RenderedArtifact, certRef: string, log: ComplianceLogger): Promise<SignedArtifact> {
     const material = await this.credentials.resolve(certRef);
     if (!material) {
-      log.warn('signing/pades', `No signing cert configured for "${certRef}" — artifact passed through unsigned`);
+      log.warn(
+        'signing/pades',
+        `No signing cert configured for "${certRef}" — artifact passed through unsigned`,
+      );
       return { ...rendered };
     }
     if (!material.p12Buffer) {
-      log.warn('signing/pades', `PAdES requires a PKCS#12 bundle — no p12Buffer in cert "${certRef}" — artifact passed through unsigned`);
+      log.warn(
+        'signing/pades',
+        `PAdES requires a PKCS#12 bundle — no p12Buffer in cert "${certRef}" — artifact passed through unsigned`,
+      );
       return { ...rendered };
     }
 
     try {
       const signedBytes = await this.signPdf(rendered.bytes, material);
       const level = this.signatureLevel !== 'BES' ? `-${this.signatureLevel}(seam/B)` : '-B';
-      log.info('signing/pades', `PAdES${level} signed ${rendered.syntax} with cert "${certRef}" (${signedBytes.length} bytes)`);
+      log.info(
+        'signing/pades',
+        `PAdES${level} signed ${rendered.syntax} with cert "${certRef}" (${signedBytes.length} bytes)`,
+      );
       return {
         ...rendered,
         bytes: new Uint8Array(signedBytes),
         signature: { algo: 'PAdES', certRef },
       };
     } catch (err) {
-      log.warn('signing/pades', `PAdES signing failed for "${certRef}": ${(err as Error).message} — artifact passed through unsigned`);
+      log.warn(
+        'signing/pades',
+        `PAdES signing failed for "${certRef}": ${(err as Error).message} — artifact passed through unsigned`,
+      );
       return { ...rendered };
     }
   }

@@ -4,7 +4,10 @@
  * Pure (no I/O); the graph is snapshotted on the invoice at issue and never mutated afterwards.
  */
 import { CompliancePlan } from '../engine/compliance-engine';
-import { defaultTransmissionRegistry, TransmissionProviderRegistry } from '../providers/transmission/registry';
+import {
+  defaultTransmissionRegistry,
+  TransmissionProviderRegistry,
+} from '../providers/transmission/registry';
 import { PhaseContext } from './phases/phase-contributor';
 import { defaultPhaseRegistry, PhaseContributorRegistry } from './phases/registry';
 import { ComplianceStateMachine, ComplianceStatus } from './state-machine';
@@ -44,7 +47,7 @@ export function assembleLifecycle(
   for (const contributor of registry.contributors) {
     const fragment = contributor.contributes(plan, pctx);
     if (!fragment) continue;
-    fragment.states.forEach((s) => states.add(s));
+    for (const s of fragment.states) states.add(s);
     for (const t of fragment.transitions) {
       // Legality guard: every composed edge must exist in the canonical superset (state-machine.ts).
       const sm = new ComplianceStateMachine(t.from);

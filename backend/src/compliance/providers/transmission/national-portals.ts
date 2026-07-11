@@ -82,16 +82,22 @@ const GP: ChannelType = 'GOV_PORTAL_API';
 
 export const NATIONAL_PORTAL_PROVIDERS: TransmissionProvider[] = [
   // --- LATAM (clearance) — proper scaffolded clients ---
-  new AfipTransmissionProvider(),       // AR — ARCA/AFIP WSFE
-  new SefazTransmissionProvider(),      // BR — SEFAZ NF-e (async, 2-phase)
-  new SiiTransmissionProvider(),        // CL — SII DTE (seed→token→EnvioDTE→poll)
-  new DianTransmissionProvider(),       // CO — DIAN validación previa (UBL 2.1 → trackId/CUFE)
-  new SriTransmissionProvider(),        // EC — SRI comprobante (submit→claveAcceso→poll)
-  new UyDgiTransmissionProvider(),      // UY — DGI CFE (enviarCfe→idEnvio→poll)
+  new AfipTransmissionProvider(), // AR — ARCA/AFIP WSFE
+  new SefazTransmissionProvider(), // BR — SEFAZ NF-e (async, 2-phase)
+  new SiiTransmissionProvider(), // CL — SII DTE (seed→token→EnvioDTE→poll)
+  new DianTransmissionProvider(), // CO — DIAN validación previa (UBL 2.1 → trackId/CUFE)
+  new SriTransmissionProvider(), // EC — SRI comprobante (submit→claveAcceso→poll)
+  new UyDgiTransmissionProvider(), // UY — DGI CFE (enviarCfe→idEnvio→poll)
   // CR, DO, GT, PA, PY, SV, VE, BO — generic scaffold with configSchema + injectable HTTP
   ...SMALL_LATAM_PROVIDERS,
   // --- MENA ---
-  nationalPortal({ id: 'zatca', channel: GP, label: 'Saudi Arabia ZATCA FATOORA', hint: 'report/clear via FATOORA (B2B clearance, B2C reporting ≤24h), await ZATCA hash/UUID', async: true }),
+  nationalPortal({
+    id: 'zatca',
+    channel: GP,
+    label: 'Saudi Arabia ZATCA FATOORA',
+    hint: 'report/clear via FATOORA (B2B clearance, B2C reporting ≤24h), await ZATCA hash/UUID',
+    async: true,
+  }),
   // JO (jofotara) + TN (tn-ttn) — scaffolded clients with configSchema + injectable HTTP
   ...SMALL_MENA_PROVIDERS,
   // TR GİB — deeper scaffold: UBL-TR envelope + auth/submit/poll + configSchema
@@ -99,14 +105,14 @@ export const NATIONAL_PORTAL_PROVIDERS: TransmissionProvider[] = [
   // EG ETA — deeper scaffold: UUID/hash/sign seam + OAuth2 + submit/poll
   new EgEtaTransmissionProvider(),
   // --- Sub-Saharan Africa — scaffolded clients with injectable HTTP port + configSchema ---
-  new FirsTransmissionProvider(),   // NG — FIRS MBS e-invoice (IRN + QR, async clearance)
-  new KeKraTransmissionProvider(),  // KE — KRA eTIMS OSCU/VSCU (real-time fiscal)
+  new FirsTransmissionProvider(), // NG — FIRS MBS e-invoice (IRN + QR, async clearance)
+  new KeKraTransmissionProvider(), // KE — KRA eTIMS OSCU/VSCU (real-time fiscal)
   // GH, RW, TZ, UG, ZM, ZW, CI, BJ — uniform scaffold (auth/submit/poll, HTTP injectable)
   ...SMALL_AFRICA_PROVIDERS,
   // --- Asia — scaffolded clients with injectable HTTP port + configSchema ---
-  new IdCoretaxTransmissionProvider(),  // ID — DGT Coretax e-Faktur (NSFP → kodeOtorisasi)
-  new InIrpTransmissionProvider(),      // IN — GST IRP (IRN hash + signed QR)
-  new MyInvoisTransmissionProvider(),   // MY — LHDNM MyInvois UBL clearance
+  new IdCoretaxTransmissionProvider(), // ID — DGT Coretax e-Faktur (NSFP → kodeOtorisasi)
+  new InIrpTransmissionProvider(), // IN — GST IRP (IRN hash + signed QR)
+  new MyInvoisTransmissionProvider(), // MY — LHDNM MyInvois UBL clearance
   // TW, KZ, PH, TH, NP, BD, PK, CN, VN — uniform scaffold (auth/submit/poll, HTTP injectable)
   ...SMALL_ASIA_PROVIDERS,
   // --- Europe (national) ---

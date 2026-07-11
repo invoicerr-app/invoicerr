@@ -76,7 +76,9 @@ describe('AnafClient (scaffold, mocked)', () => {
         post: async () => ({ status: 401, data: {} }),
       });
       const client = new AnafClient(BASE_CONFIG, http);
-      await expect(client.uploadInvoice('<Invoice/>')).rejects.toThrow('ANAF authentication failed (HTTP 401)');
+      await expect(client.uploadInvoice('<Invoice/>')).rejects.toThrow(
+        'ANAF authentication failed (HTTP 401)',
+      );
     });
   });
 

@@ -25,8 +25,18 @@ export const EUROPE_PORTAL_HEURISTICS: PortalResponseHeuristics = {
   idFields: ['id', 'uuid', 'invoiceId', 'submissionId', 'jir', 'index', 'ref'],
   statusFields: ['status', 'invoiceStatus', 'result'],
   statusFallback: 'PENDING',
-  clearTokens: ['APPROVED', 'CLEARED', 'ACCEPTED', 'VALID', 'SUCCESS', 'CONFIRMED',
-    'REGISTERED', 'SENT', 'OK', 'VERIFIED'],
+  clearTokens: [
+    'APPROVED',
+    'CLEARED',
+    'ACCEPTED',
+    'VALID',
+    'SUCCESS',
+    'CONFIRMED',
+    'REGISTERED',
+    'SENT',
+    'OK',
+    'VERIFIED',
+  ],
   rejectTokens: ['REJECTED', 'INVALID', 'FAILED', 'ERROR', 'REFUSED', 'DENIED', 'CANCELLED'],
 };
 
@@ -45,8 +55,15 @@ export const EUROPE_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/documents/status',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'DPS environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'DPS environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
       { type: 'text', name: 'ipn', label: 'IPN / ЄДРПОУ (8-10 digits)', required: true },
       { type: 'text', name: 'apiToken', label: 'DPS API token (КЕП session)', required: true, secret: true },
@@ -67,10 +84,24 @@ export const EUROPE_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/fiscalize/status',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'PU environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'PU environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
-      { type: 'text', name: 'pib', label: 'PIB (8 digits, tax identification number)', required: true, minLength: 8, maxLength: 8 },
+      {
+        type: 'text',
+        name: 'pib',
+        label: 'PIB (8 digits, tax identification number)',
+        required: true,
+        minLength: 8,
+        maxLength: 8,
+      },
       { type: 'text', name: 'tcrCode', label: 'TCR (Tax Cash Register) code', required: true },
       { type: 'text', name: 'apiToken', label: 'PU API token', required: true, secret: true },
     ],
@@ -90,11 +121,30 @@ export const EUROPE_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/eracun/status',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'CIS environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'CIS environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
-      { type: 'text', name: 'oib', label: 'OIB (11 digits, personal identification number)', required: true, minLength: 11, maxLength: 11 },
-      { type: 'text', name: 'businessPremise', label: 'Business premise identifier (prostor)', required: true },
+      {
+        type: 'text',
+        name: 'oib',
+        label: 'OIB (11 digits, personal identification number)',
+        required: true,
+        minLength: 11,
+        maxLength: 11,
+      },
+      {
+        type: 'text',
+        name: 'businessPremise',
+        label: 'Business premise identifier (prostor)',
+        required: true,
+      },
       { type: 'text', name: 'apiToken', label: 'CIS API token', required: true, secret: true },
     ],
     isAsync: true, // e-Račun CIS has async acknowledgement (ZKI → JIR)
@@ -113,10 +163,24 @@ export const EUROPE_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/fiscalize/status',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'CIS environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'CIS environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
-      { type: 'text', name: 'nipt', label: 'NIPT (10 chars, Albanian taxpayer ID)', required: true, minLength: 10, maxLength: 10 },
+      {
+        type: 'text',
+        name: 'nipt',
+        label: 'NIPT (10 chars, Albanian taxpayer ID)',
+        required: true,
+        minLength: 10,
+        maxLength: 10,
+      },
       { type: 'text', name: 'apiToken', label: 'CIS API token', required: true, secret: true },
     ],
     isAsync: true, // Albanian CIS has async NSLF/NIVF flow
@@ -135,8 +199,15 @@ export const EUROPE_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/einvoice/status',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'VID environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'VID environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
       { type: 'text', name: 'pvnNumber', label: 'PVN registration number', required: true },
       { type: 'text', name: 'apiToken', label: 'VID EDS API key', required: true, secret: true },
@@ -157,10 +228,24 @@ export const EUROPE_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/status',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'Finančná správa environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'Finančná správa environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
-      { type: 'text', name: 'ico', label: 'IČO (8-digit company registration number)', required: true, minLength: 8, maxLength: 8 },
+      {
+        type: 'text',
+        name: 'ico',
+        label: 'IČO (8-digit company registration number)',
+        required: true,
+        minLength: 8,
+        maxLength: 8,
+      },
       { type: 'text', name: 'apiToken', label: 'Finančná správa API key', required: true, secret: true },
     ],
     isAsync: false, // Slovak system is reporting-style (planned 2027)
@@ -179,10 +264,24 @@ export const EUROPE_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/invoices',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'SEF environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'SEF environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
-      { type: 'text', name: 'pib', label: 'PIB (9-digit tax identification number)', required: true, minLength: 9, maxLength: 9 },
+      {
+        type: 'text',
+        name: 'pib',
+        label: 'PIB (9-digit tax identification number)',
+        required: true,
+        minLength: 9,
+        maxLength: 9,
+      },
       { type: 'text', name: 'apiToken', label: 'SEF API key', required: true, secret: true },
     ],
     isAsync: true, // SEF has async acceptance by buyer flow
@@ -202,11 +301,24 @@ export const EUROPE_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/status',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'AEAT environment', required: true,
-        options: [{ label: 'Pre-production', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'AEAT environment',
+        required: true,
+        options: [
+          { label: 'Pre-production', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
       { type: 'text', name: 'nif', label: 'NIF (Spanish tax ID, e.g. A12345678)', required: true },
-      { type: 'text', name: 'apiToken', label: 'AEAT API token / certificate hash', required: true, secret: true },
+      {
+        type: 'text',
+        name: 'apiToken',
+        label: 'AEAT API token / certificate hash',
+        required: true,
+        secret: true,
+      },
     ],
     isAsync: false, // SII is near-real-time reporting (4 days for B2B)
   },
@@ -224,12 +336,32 @@ export const EUROPE_PORTAL_SPECS: GenericPortalSpec[] = [
     pollEndpoint: '/RequestMyIncome',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'AADE myDATA environment', required: true,
-        options: [{ label: 'Pre-production', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'AADE myDATA environment',
+        required: true,
+        options: [
+          { label: 'Pre-production', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
-      { type: 'text', name: 'afm', label: 'AFM (9-digit Greek tax number, no EL prefix)', required: true, minLength: 9, maxLength: 9 },
+      {
+        type: 'text',
+        name: 'afm',
+        label: 'AFM (9-digit Greek tax number, no EL prefix)',
+        required: true,
+        minLength: 9,
+        maxLength: 9,
+      },
       { type: 'text', name: 'userId', label: 'myDATA user ID', required: true },
-      { type: 'text', name: 'subscriptionKey', label: 'Ocp-Apim-Subscription-Key (myDATA portal)', required: true, secret: true },
+      {
+        type: 'text',
+        name: 'subscriptionKey',
+        label: 'Ocp-Apim-Subscription-Key (myDATA portal)',
+        required: true,
+        secret: true,
+      },
     ],
     isAsync: false, // myDATA is RTIR — fire-and-forget (mark set on acceptance)
   },
@@ -242,23 +374,59 @@ export const EUROPE_PORTAL_SPECS: GenericPortalSpec[] = [
       test: 'https://api-test.onlineszamla.nav.gov.hu/invoiceService/v3',
       prod: 'https://api.onlineszamla.nav.gov.hu/invoiceService/v3',
     },
-    authHint: 'NAV Online Számla v3 — adószám (8-digit tax number) + API user/key from onlineszamla.nav.gov.hu',
+    authHint:
+      'NAV Online Számla v3 — adószám (8-digit tax number) + API user/key from onlineszamla.nav.gov.hu',
     submitEndpoint: '/manageInvoice',
     pollEndpoint: '/queryInvoiceStatus',
     configFields: [
       {
-        type: 'select', name: 'environment', label: 'NAV environment', required: true,
-        options: [{ label: 'Test (sandbox)', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+        type: 'select',
+        name: 'environment',
+        label: 'NAV environment',
+        required: true,
+        options: [
+          { label: 'Test (sandbox)', value: 'test' },
+          { label: 'Production', value: 'prod' },
+        ],
+        default: 'test',
       },
-      { type: 'text', name: 'adoszam', label: 'Adószám (8-digit Hungarian tax number)', required: true, minLength: 8, maxLength: 13 },
+      {
+        type: 'text',
+        name: 'adoszam',
+        label: 'Adószám (8-digit Hungarian tax number)',
+        required: true,
+        minLength: 8,
+        maxLength: 13,
+      },
       { type: 'text', name: 'login', label: 'NAV Online Számla API login', required: true },
-      { type: 'text', name: 'password', label: 'NAV Online Számla API password', required: true, secret: true },
-      { type: 'text', name: 'xmlSigningKey', label: 'XML signing key (signature key from NAV portal)', required: true, secret: true },
-      { type: 'text', name: 'exchangeKey', label: 'Exchange key (data encryption key from NAV portal)', required: true, secret: true },
+      {
+        type: 'text',
+        name: 'password',
+        label: 'NAV Online Számla API password',
+        required: true,
+        secret: true,
+      },
+      {
+        type: 'text',
+        name: 'xmlSigningKey',
+        label: 'XML signing key (signature key from NAV portal)',
+        required: true,
+        secret: true,
+      },
+      {
+        type: 'text',
+        name: 'exchangeKey',
+        label: 'Exchange key (data encryption key from NAV portal)',
+        required: true,
+        secret: true,
+      },
     ],
     isAsync: false, // NAV Online Számla is RTIR (real-time incoming reporting)
   },
 ];
 
 // Static list for registry use (no credentials needed at the stub layer)
-export const EUROPE_PORTAL_PROVIDERS = buildGenericPortalProviders(EUROPE_PORTAL_SPECS, EUROPE_PORTAL_HEURISTICS);
+export const EUROPE_PORTAL_PROVIDERS = buildGenericPortalProviders(
+  EUROPE_PORTAL_SPECS,
+  EUROPE_PORTAL_HEURISTICS,
+);

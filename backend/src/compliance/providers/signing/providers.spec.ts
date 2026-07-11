@@ -34,10 +34,8 @@ beforeAll(() => {
   setNodeDependencies(xmlDomDeps);
 
   // Set DOM deps on xmldsigjs's own xml-core (separate module instance)
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const path = require('path') as typeof import('path');
+  const path = require('node:path') as typeof import('path');
   const xmldsigDir = path.dirname(require.resolve('xmldsigjs'));
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const xmlCoreInXmldsig = require(require.resolve('xml-core', { paths: [xmldsigDir] })) as {
     setNodeDependencies: typeof setNodeDependencies;
   };
@@ -84,7 +82,9 @@ function generateTestCert(): TestCertBundle {
   cert.sign(keys.privateKey, forge.md.sha256.create());
 
   const certPem = forge.pki.certificateToPem(cert);
-  const privateKeyPem = forge.pki.privateKeyInfoToPem(forge.pki.wrapRsaPrivateKey(forge.pki.privateKeyToAsn1(keys.privateKey)));
+  const privateKeyPem = forge.pki.privateKeyInfoToPem(
+    forge.pki.wrapRsaPrivateKey(forge.pki.privateKeyToAsn1(keys.privateKey)),
+  );
   const certDer = Buffer.from(forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes(), 'binary');
 
   // Build PKCS#12 bundle for PAdES
@@ -337,7 +337,6 @@ describe('PadesSigningProvider', () => {
 
     // signature from extractSignature is a binary string (DER bytes)
     const asn1 = forge.asn1.fromDer(extracted.signature);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const p7 = forge.pkcs7.messageFromAsn1(asn1) as any;
     expect(p7.rawCapture.signerInfos).toHaveLength(1);
     expect(p7.certificates).toHaveLength(1);

@@ -15,7 +15,10 @@ export class RequiredFieldsController {
       throw new HttpException('countryCode query parameter is required', HttpStatus.BAD_REQUEST);
     }
     if (!partyType || !['COMPANY', 'INDIVIDUAL'].includes(partyType)) {
-      throw new HttpException('partyType query parameter must be COMPANY or INDIVIDUAL', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'partyType query parameter must be COMPANY or INDIVIDUAL',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     const { profile } = defaultRegistry.resolve(countryCode);

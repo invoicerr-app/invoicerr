@@ -35,7 +35,7 @@ function makeCtx(
 ): TransactionContext {
   return {
     supplier: { legalName: 'Supplier', countryCode: 'FR', role: 'B2B', identifiers: supplierIdentifiers },
-    buyer:    { legalName: 'Buyer',    countryCode: 'FR', role: 'B2B', identifiers: buyerIdentifiers },
+    buyer: { legalName: 'Buyer', countryCode: 'FR', role: 'B2B', identifiers: buyerIdentifiers },
     lines: [],
     issueDate: new Date('2025-01-01'),
     currency: 'EUR',
@@ -502,10 +502,10 @@ describe('validateVat', () => {
 describe('validateIdentifier', () => {
   it('dispatches SIREN', () => expect(validateIdentifier('SIREN', '123456782').valid).toBe(true));
   it('dispatches SIRET', () => expect(validateIdentifier('SIRET', '12345678200002').valid).toBe(true));
-  it('dispatches NIP', ()  => expect(validateIdentifier('NIP',  '1234567802').valid).toBe(true));
-  it('dispatches CF', ()   => expect(validateIdentifier('CF',   'AAAAAA00A00A000I').valid).toBe(true));
-  it('dispatches RFC', ()  => expect(validateIdentifier('RFC',  'XAXX010101000').valid).toBe(true));
-  it('dispatches VAT FR',  () => expect(validateIdentifier('VAT', 'FR11123456782').valid).toBe(true));
+  it('dispatches NIP', () => expect(validateIdentifier('NIP', '1234567802').valid).toBe(true));
+  it('dispatches CF', () => expect(validateIdentifier('CF', 'AAAAAA00A00A000I').valid).toBe(true));
+  it('dispatches RFC', () => expect(validateIdentifier('RFC', 'XAXX010101000').valid).toBe(true));
+  it('dispatches VAT FR', () => expect(validateIdentifier('VAT', 'FR11123456782').valid).toBe(true));
 
   it('returns valid:true and checksumValidated:false for unknown scheme', () => {
     const r = validateIdentifier('EIN', '12-3456789');
@@ -555,8 +555,8 @@ describe('validateContextIdentifiers', () => {
 
   it('validates buyer identifiers too', () => {
     const ctx = makeCtx(
-      [{ scheme: 'SIREN', value: '123456782' }],    // valid supplier
-      [{ scheme: 'NIP',   value: '1234567809' }],   // invalid buyer NIP
+      [{ scheme: 'SIREN', value: '123456782' }], // valid supplier
+      [{ scheme: 'NIP', value: '1234567809' }], // invalid buyer NIP
     );
     const { ctx: out, warnings } = validateContextIdentifiers(ctx);
     expect(out.supplier.identifiers[0].validated).toBe(true);
@@ -567,8 +567,8 @@ describe('validateContextIdentifiers', () => {
 
   it('handles multiple identifiers per party', () => {
     const ctx = makeCtx([
-      { scheme: 'SIREN',  value: '123456782' }, // valid
-      { scheme: 'SIRET',  value: '12345678900001' }, // invalid
+      { scheme: 'SIREN', value: '123456782' }, // valid
+      { scheme: 'SIRET', value: '12345678900001' }, // invalid
     ]);
     const { ctx: out, warnings } = validateContextIdentifiers(ctx);
     expect(out.supplier.identifiers[0].validated).toBe(true);
@@ -581,7 +581,11 @@ describe('validateContextIdentifiers', () => {
 // Existence port — NullIdentifierExistenceClient
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { NullIdentifierExistenceClient, ViesExistenceClient, SireneExistenceClient } from './identifier-existence.port';
+import {
+  NullIdentifierExistenceClient,
+  ViesExistenceClient,
+  SireneExistenceClient,
+} from './identifier-existence.port';
 
 describe('NullIdentifierExistenceClient', () => {
   const client = new NullIdentifierExistenceClient();
@@ -607,7 +611,9 @@ describe('NullIdentifierExistenceClient', () => {
 describe('ViesExistenceClient (mocked fetch)', () => {
   const originalFetch = global.fetch;
 
-  afterEach(() => { global.fetch = originalFetch; });
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
 
   function mockFetch(body: unknown, status = 200): void {
     global.fetch = jest.fn().mockResolvedValue({
@@ -673,7 +679,9 @@ describe('ViesExistenceClient (mocked fetch)', () => {
 
 describe('SireneExistenceClient (mocked fetch)', () => {
   const originalFetch = global.fetch;
-  afterEach(() => { global.fetch = originalFetch; });
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
 
   function mockFetch(status: number): void {
     global.fetch = jest.fn().mockResolvedValue({

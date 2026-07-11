@@ -9,4 +9,4 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
   controllers: [PaymentMethodsController],
   exports: [PaymentMethodsService],
 })
-export class PaymentMethodsModule { }
+export class PaymentMethodsModule {}

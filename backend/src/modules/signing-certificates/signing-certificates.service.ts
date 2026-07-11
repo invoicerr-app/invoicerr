@@ -16,7 +16,10 @@
 import * as forge from 'node-forge';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
-import { SigningCredentialsMaterial, SigningCredentialsPort } from '@/compliance/providers/signing/signing-credentials-port';
+import {
+  SigningCredentialsMaterial,
+  SigningCredentialsPort,
+} from '@/compliance/providers/signing/signing-credentials-port';
 import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
 import { credentialAudit } from '@/utils/credential-access-audit';
 import { ChannelEnvironment, CompanySigningCertificate } from '../../../prisma/generated/prisma/client';
@@ -58,7 +61,10 @@ export interface UploadCertificateBody {
 // ──────────────────────────────────────────────────────────────────────────────
 
 /** Parse the PFX and extract cert metadata + credential material. */
-function parsePfx(pfxBase64: string, password: string): {
+function parsePfx(
+  pfxBase64: string,
+  password: string,
+): {
   notBefore: Date;
   notAfter: Date;
   serial: string;
@@ -182,7 +188,10 @@ export class SigningCertificatesService implements SigningCredentialsPort {
           companyId_applicability_environment: { companyId, applicability, environment },
         },
       });
-      if (found && found.isActive) { row = found; break; }
+      if (found && found.isActive) {
+        row = found;
+        break;
+      }
     }
 
     if (!row) {
@@ -201,7 +210,7 @@ export class SigningCertificatesService implements SigningCredentialsPort {
     if (row.notAfter < new Date()) {
       this.logger.warn(
         `Signing cert "${row.id}" (${row.label}) for company ${companyId} expired on ` +
-        `${row.notAfter.toISOString()} — skipping, artifact will be unsigned.`,
+          `${row.notAfter.toISOString()} — skipping, artifact will be unsigned.`,
       );
       credentialAudit.emit({
         companyId,
@@ -273,9 +282,7 @@ export class SigningCertificatesService implements SigningCredentialsPort {
    */
   async upload(companyId: string, body: UploadCertificateBody): Promise<CertificateMetaResponse> {
     if (!isEncryptionAvailable()) {
-      throw new Error(
-        'CREDENTIALS_ENCRYPTION_KEY is not set — cannot store signing certificates.',
-      );
+      throw new Error('CREDENTIALS_ENCRYPTION_KEY is not set — cannot store signing certificates.');
     }
 
     const applicability = body.applicability ?? '*';

@@ -38,17 +38,35 @@ function buildKsefHttpMock(invoiceStatusOverride?: object): KsefHttpClient {
     async request(req: HttpRequest): Promise<HttpResponse> {
       callCount++;
       if (req.path.includes('/auth/challenge')) {
-        return { status: 200, body: { challenge: 'ch', timestamp: '2025-01-01', timestampMs: 1000, clientIp: '1.2.3.4' } };
+        return {
+          status: 200,
+          body: { challenge: 'ch', timestamp: '2025-01-01', timestampMs: 1000, clientIp: '1.2.3.4' },
+        };
       }
       if (req.path.includes('/auth/ksef-token')) {
-        return { status: 200, body: { referenceNumber: 'ref-auth', authenticationToken: { token: 'tok', validUntil: '2025-01-02' } } };
+        return {
+          status: 200,
+          body: {
+            referenceNumber: 'ref-auth',
+            authenticationToken: { token: 'tok', validUntil: '2025-01-02' },
+          },
+        };
       }
       if (req.path.includes('/auth/') && req.method === 'GET') {
         // Auth status poll
-        return { status: 200, body: { status: { code: 200, description: 'OK' }, startDate: '', authenticationMethod: 'Token' } };
+        return {
+          status: 200,
+          body: { status: { code: 200, description: 'OK' }, startDate: '', authenticationMethod: 'Token' },
+        };
       }
       if (req.path.includes('/auth/token/redeem')) {
-        return { status: 200, body: { accessToken: { token: 'access-tok', validUntil: '2025-01-03' }, refreshToken: { token: 'refresh', validUntil: '2025-01-10' } } };
+        return {
+          status: 200,
+          body: {
+            accessToken: { token: 'access-tok', validUntil: '2025-01-03' },
+            refreshToken: { token: 'refresh', validUntil: '2025-01-10' },
+          },
+        };
       }
       if (req.path.includes('/sessions/') && req.path.includes('/invoices/') && req.method === 'GET') {
         // Invoice status — CLEARED with ksefNumber + UPO URL
@@ -93,9 +111,7 @@ describe('KSeF UPO archival — poll() CLEARED path', () => {
     // is replaced by the mock; the crypto path is short-circuited by the mock returning
     // a pre-built auth token without needing real RSA keys.
     // This is a unit-level test of the poll() logic only.
-    const provider = new KsefTransmissionProvider(
-      makeCredentials('1234567890', 'fake-ksef-token'),
-    );
+    const provider = new KsefTransmissionProvider(makeCredentials('1234567890', 'fake-ksef-token'));
     const log = new RecordingComplianceLogger();
 
     // poll() will try to do the full auth flow. With real crypto this fails on RSA.
@@ -142,9 +158,7 @@ describe('KSeF UPO archival — poll() CLEARED path', () => {
       status: 'CLEARED' as const,
       ref: 'company|sess|inv',
       notes: ['ksefNumber: 20250101-KSEF-ABCDE12345'],
-      authorityIds: [
-        { scheme: 'KSEF_NUMBER', value: '20250101-KSEF-ABCDE12345' },
-      ],
+      authorityIds: [{ scheme: 'KSEF_NUMBER', value: '20250101-KSEF-ABCDE12345' }],
     };
 
     expect(resultNoUpo.authorityIds).toHaveLength(1);

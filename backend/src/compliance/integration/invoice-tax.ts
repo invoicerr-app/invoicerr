@@ -60,19 +60,19 @@ export function resolveInvoiceTax(input: InvoiceTaxInput): InvoiceTaxResult {
       countryCode: input.supplierCountryCode ?? '',
       role: 'B2B' as const,
       identifiers: supplierIdentifiers,
-      taxScheme: input.supplierExemptVat ? 'FRANCHISE_BASE' as const : undefined,
+      taxScheme: input.supplierExemptVat ? ('FRANCHISE_BASE' as const) : undefined,
     },
     buyer: {
       legalName: '-',
       countryCode: input.buyerCountryCode ?? '',
-      role: input.buyerRole ?? 'B2B' as const,
+      role: input.buyerRole ?? ('B2B' as const),
       identifiers: buyerIdentifiers,
     },
     lines: input.items.map((item) => ({
       id: nextLineId(),
       description: '',
       quantity: item.quantity,
-      unitNetMinor: Math.round((item.unitPrice * discountFactor) * 10 ** decimals),
+      unitNetMinor: Math.round(item.unitPrice * discountFactor * 10 ** decimals),
       supplyType: (item.supplyType ?? 'SERVICES') as SupplyType,
       taxRateHint: item.vatRate ?? undefined,
     })),
@@ -94,9 +94,7 @@ export function resolveInvoiceTax(input: InvoiceTaxInput): InvoiceTaxResult {
       taxMinor: totals.tax.minor,
       grossMinor: totals.gross.minor,
     },
-    itemVatRates: plan.tax.lines.map(
-      (l) => l.treatment.components[0]?.rate ?? 0,
-    ),
+    itemVatRates: plan.tax.lines.map((l) => l.treatment.components[0]?.rate ?? 0),
     warnings: plan.warnings,
   };
 }

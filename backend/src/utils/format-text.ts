@@ -1,10 +1,10 @@
 function escapeHtml(text: string): string {
-    return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 /**
@@ -13,9 +13,9 @@ function escapeHtml(text: string): string {
  * so users can emphasize text without allowing arbitrary HTML injection.
  */
 export function formatItemDescription(text?: string | null): string {
-    if (!text) return '';
+  if (!text) return '';
 
-    const escaped = escapeHtml(text);
-    const withBold = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    return withBold.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  const escaped = escapeHtml(text);
+  const withBold = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  return withBold.replace(/\*(.+?)\*/g, '<em>$1</em>');
 }

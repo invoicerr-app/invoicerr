@@ -50,14 +50,13 @@ describeLive('KSeF live round-trip', () => {
     testNip = process.env.KSEF_NIP ?? '1234567802';
 
     if (!testToken) {
-      throw new Error(
-        'KSEF_LIVE=1 requires KSEF_AUTH_TOKEN (and optionally KSEF_NIP) in the environment.',
-      );
+      throw new Error('KSEF_LIVE=1 requires KSEF_AUTH_TOKEN (and optionally KSEF_NIP) in the environment.');
     }
   });
 
   it('Run A: crypto guard — encrypts and transmits without 435 (decryption error)', async () => {
-    process.env.CREDENTIALS_ENCRYPTION_KEY ??= '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    process.env.CREDENTIALS_ENCRYPTION_KEY ??=
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
     const companyId = 'live_crypto_' + Date.now();
     const { KsefTransmissionProvider } = await import('../providers.js');
@@ -74,8 +73,13 @@ describeLive('KSeF live round-trip', () => {
 
     // Stub credentials port so poll() can re-resolve + re-authenticate (mirrors production,
     // where the registry injects the real ChannelCredentialsPort into the provider).
-    const stubCredentials = { resolve: async () => fakeResolvedConfig, resolveActive: async () => fakeResolvedConfig };
-    const reg = new TransmissionProviderRegistry([new KsefTransmissionProvider(stubCredentials as any) as any]);
+    const stubCredentials = {
+      resolve: async () => fakeResolvedConfig,
+      resolveActive: async () => fakeResolvedConfig,
+    };
+    const reg = new TransmissionProviderRegistry([
+      new KsefTransmissionProvider(stubCredentials as any) as any,
+    ]);
     const ksef = reg.getById('ksef')!;
 
     const faVatArtifact = {
@@ -87,15 +91,31 @@ describeLive('KSeF live round-trip', () => {
 
     const log = new RecordingComplianceLogger();
     const ctx = {
-      supplier: { legalName: 'Test', countryCode: 'PL', role: 'B2B', identifiers: [{ scheme: 'VAT', value: 'PL' + testNip, validated: true }] },
-      buyer: { legalName: 'Buyer', countryCode: 'PL', role: 'B2B', identifiers: [{ scheme: 'VAT', value: 'PL1234567803', validated: true }] },
-      lines: [], issueDate: new Date('2026-06-28'), currency: 'PLN', supplierCompanyId: companyId,
+      supplier: {
+        legalName: 'Test',
+        countryCode: 'PL',
+        role: 'B2B',
+        identifiers: [{ scheme: 'VAT', value: 'PL' + testNip, validated: true }],
+      },
+      buyer: {
+        legalName: 'Buyer',
+        countryCode: 'PL',
+        role: 'B2B',
+        identifiers: [{ scheme: 'VAT', value: 'PL1234567803', validated: true }],
+      },
+      lines: [],
+      issueDate: new Date('2026-06-28'),
+      currency: 'PLN',
+      supplierCompanyId: companyId,
     } as any;
 
     const transmitResult = await ksef.transmit!(
-      [faVatArtifact], ctx,
+      [faVatArtifact],
+      ctx,
       { channels: [{ type: 'GOV_PORTAL_API', providerId: 'ksef' }] } as any,
-      'crypto-guard', log, fakeResolvedConfig as any,
+      'crypto-guard',
+      log,
+      fakeResolvedConfig as any,
     );
 
     console.log('Run A transmit:', JSON.stringify(transmitResult, null, 2));
@@ -108,14 +128,17 @@ describeLive('KSeF live round-trip', () => {
   });
 
   it('Run B: valid FA(2) via buildFaVat → CLEARED + ksefNumber', async () => {
-    process.env.CREDENTIALS_ENCRYPTION_KEY ??= '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    process.env.CREDENTIALS_ENCRYPTION_KEY ??=
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
     const timestamp = Date.now();
     const companyId = 'live_valid_' + timestamp;
     const invoiceNumber = `INV-${timestamp}`;
 
     // ── Generate FA(2) via buildFaVat (DB-free) ──
-    const { InvoiceRenderingService } = await import('../../../../modules/invoice-rendering/invoice-rendering.service.js');
+    const { InvoiceRenderingService } = await import(
+      '../../../../modules/invoice-rendering/invoice-rendering.service.js'
+    );
     const { validateXsd } = await import('../../../schemas/validate.js');
 
     const service = new InvoiceRenderingService();
@@ -183,8 +206,13 @@ describeLive('KSeF live round-trip', () => {
 
     // Stub credentials port so poll() can re-resolve + re-authenticate (mirrors production,
     // where the registry injects the real ChannelCredentialsPort into the provider).
-    const stubCredentials = { resolve: async () => fakeResolvedConfig, resolveActive: async () => fakeResolvedConfig };
-    const reg = new TransmissionProviderRegistry([new KsefTransmissionProvider(stubCredentials as any) as any]);
+    const stubCredentials = {
+      resolve: async () => fakeResolvedConfig,
+      resolveActive: async () => fakeResolvedConfig,
+    };
+    const reg = new TransmissionProviderRegistry([
+      new KsefTransmissionProvider(stubCredentials as any) as any,
+    ]);
     const ksef = reg.getById('ksef')!;
 
     const faVatArtifact = {
@@ -196,15 +224,31 @@ describeLive('KSeF live round-trip', () => {
 
     const log = new RecordingComplianceLogger();
     const ctx = {
-      supplier: { legalName: 'Test Live Seller', countryCode: 'PL', role: 'B2B', identifiers: [{ scheme: 'VAT', value: 'PL' + testNip, validated: true }] },
-      buyer: { legalName: 'Test Live Buyer', countryCode: 'PL', role: 'B2B', identifiers: [{ scheme: 'VAT', value: 'PL1234567803', validated: true }] },
-      lines: [], issueDate: now, currency: 'PLN', supplierCompanyId: companyId,
+      supplier: {
+        legalName: 'Test Live Seller',
+        countryCode: 'PL',
+        role: 'B2B',
+        identifiers: [{ scheme: 'VAT', value: 'PL' + testNip, validated: true }],
+      },
+      buyer: {
+        legalName: 'Test Live Buyer',
+        countryCode: 'PL',
+        role: 'B2B',
+        identifiers: [{ scheme: 'VAT', value: 'PL1234567803', validated: true }],
+      },
+      lines: [],
+      issueDate: now,
+      currency: 'PLN',
+      supplierCompanyId: companyId,
     } as any;
 
     const transmitResult = await ksef.transmit!(
-      [faVatArtifact], ctx,
+      [faVatArtifact],
+      ctx,
       { channels: [{ type: 'GOV_PORTAL_API', providerId: 'ksef' }] } as any,
-      'valid-fa', log, fakeResolvedConfig as any,
+      'valid-fa',
+      log,
+      fakeResolvedConfig as any,
     );
 
     console.log('Run B transmit:', JSON.stringify(transmitResult, null, 2));

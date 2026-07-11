@@ -15,7 +15,10 @@ export class WormS3ArchiveProvider implements ArchiveProvider {
   readonly regions = ['MX', 'BR', 'SA', 'EU', 'GLOBAL'];
   store(artifacts: SignedArtifact[], policy: ArchivalPolicy, log: ComplianceLogger): ArchiveReceipt {
     const region = policy.residency ?? 'GLOBAL';
-    log.todo('archive/s3-worm', `PUT ${artifacts.length} artifact(s) to WORM bucket [${region}], retain ${policy.retentionYears}y, integrity ${policy.integrity}`);
+    log.todo(
+      'archive/s3-worm',
+      `PUT ${artifacts.length} artifact(s) to WORM bucket [${region}], retain ${policy.retentionYears}y, integrity ${policy.integrity}`,
+    );
     return {
       providerId: this.id,
       region,
@@ -31,7 +34,10 @@ export class LocalArchiveProvider implements ArchiveProvider {
   readonly id = 'local';
   readonly regions = ['GLOBAL'];
   store(artifacts: SignedArtifact[], policy: ArchivalPolicy, log: ComplianceLogger): ArchiveReceipt {
-    log.todo('archive/local', `write ${artifacts.length} artifact(s) to local storage, retain ${policy.retentionYears}y`);
+    log.todo(
+      'archive/local',
+      `write ${artifacts.length} artifact(s) to local storage, retain ${policy.retentionYears}y`,
+    );
     return {
       providerId: this.id,
       region: 'GLOBAL',

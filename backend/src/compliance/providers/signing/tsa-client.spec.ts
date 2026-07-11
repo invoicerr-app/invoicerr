@@ -40,10 +40,8 @@ import { SigningProviderRegistry } from './registry';
 beforeAll(() => {
   const xmlDomDeps = { DOMParser, XMLSerializer } as Parameters<typeof setNodeDependencies>[0];
   setNodeDependencies(xmlDomDeps);
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const path = require('path') as typeof import('path');
+  const path = require('node:path') as typeof import('path');
   const xmldsigDir = path.dirname(require.resolve('xmldsigjs'));
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const xmlCoreInXmldsig = require(require.resolve('xml-core', { paths: [xmldsigDir] })) as {
     setNodeDependencies: typeof setNodeDependencies;
   };
@@ -87,10 +85,7 @@ function generateTestCert(): TestCertBundle {
   const privateKeyPem = forge.pki.privateKeyInfoToPem(
     forge.pki.wrapRsaPrivateKey(forge.pki.privateKeyToAsn1(keys.privateKey)),
   );
-  const certDer = Buffer.from(
-    forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes(),
-    'binary',
-  );
+  const certDer = Buffer.from(forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes(), 'binary');
   const p12Password = 'tsa-test-p12-pass';
   const p12Asn1 = forge.pkcs12.toPkcs12Asn1(keys.privateKey, [cert], p12Password, {
     algorithm: '3des',
@@ -143,22 +138,38 @@ function buildMockTst(digest: Buffer, algoOid: string = SHA256_OID): Buffer {
   // We build it as raw ASN.1 to avoid pkijs's mandatory signing flow.
   const sigDataContent = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
     // version INTEGER
-    forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.INTEGER, false,
-      forge.asn1.integerToDer(3).getBytes()),
+    forge.asn1.create(
+      forge.asn1.Class.UNIVERSAL,
+      forge.asn1.Type.INTEGER,
+      false,
+      forge.asn1.integerToDer(3).getBytes(),
+    ),
     // digestAlgorithms SET
     forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [
       forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-        forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
-          forge.asn1.oidToDer(algoOid).getBytes()),
+        forge.asn1.create(
+          forge.asn1.Class.UNIVERSAL,
+          forge.asn1.Type.OID,
+          false,
+          forge.asn1.oidToDer(algoOid).getBytes(),
+        ),
       ]),
     ]),
     // encapContentInfo SEQUENCE  (id-eContentType-TSTInfo + OCTET STRING wrapping TSTInfo DER)
     forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-      forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
-        forge.asn1.oidToDer('1.2.840.113549.1.9.16.1.4').getBytes()),
+      forge.asn1.create(
+        forge.asn1.Class.UNIVERSAL,
+        forge.asn1.Type.OID,
+        false,
+        forge.asn1.oidToDer('1.2.840.113549.1.9.16.1.4').getBytes(),
+      ),
       forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 0, true, [
-        forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OCTETSTRING, false,
-          tstInfoDer.toString('binary')),
+        forge.asn1.create(
+          forge.asn1.Class.UNIVERSAL,
+          forge.asn1.Type.OCTETSTRING,
+          false,
+          tstInfoDer.toString('binary'),
+        ),
       ]),
     ]),
     // signerInfos SET (empty — structural mock only)
@@ -167,8 +178,12 @@ function buildMockTst(digest: Buffer, algoOid: string = SHA256_OID): Buffer {
 
   // ContentInfo: OID(signedData) + [0] EXPLICIT SignedData
   const contentInfo = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-    forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
-      forge.asn1.oidToDer('1.2.840.113549.1.7.2').getBytes()),
+    forge.asn1.create(
+      forge.asn1.Class.UNIVERSAL,
+      forge.asn1.Type.OID,
+      false,
+      forge.asn1.oidToDer('1.2.840.113549.1.7.2').getBytes(),
+    ),
     forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 0, true, [sigDataContent]),
   ]);
 
@@ -182,8 +197,12 @@ function buildMockTst(digest: Buffer, algoOid: string = SHA256_OID): Buffer {
 function buildMockTsr(tstDer: Buffer): Buffer {
   // PKIStatusInfo: SEQUENCE { status INTEGER(0) }
   const pkiStatus = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-    forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.INTEGER, false,
-      forge.asn1.integerToDer(0).getBytes()),
+    forge.asn1.create(
+      forge.asn1.Class.UNIVERSAL,
+      forge.asn1.Type.INTEGER,
+      false,
+      forge.asn1.integerToDer(0).getBytes(),
+    ),
   ]);
   // Re-parse the TST DER as ASN.1 so we can embed it
   const tstAsn1 = forge.asn1.fromDer(tstDer.toString('binary'));
@@ -281,7 +300,9 @@ describe('NullTsaClient', () => {
 // ---------------------------------------------------------------------------
 describe('HttpTsaClient', () => {
   const originalFetch = globalThis.fetch;
-  afterEach(() => { globalThis.fetch = originalFetch; });
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
 
   it('returns null when the HTTP response is not OK', async () => {
     globalThis.fetch = async () => new Response(null, { status: 500 });
@@ -295,7 +316,7 @@ describe('HttpTsaClient', () => {
     const tsr = buildMockTsr(tst);
     let capturedReq: { method: string; headers: Headers; body: Uint8Array } | null = null;
 
-    globalThis.fetch = async (url, init) => {
+    globalThis.fetch = async (_url, init) => {
       capturedReq = {
         method: init?.method ?? '',
         headers: new Headers(init?.headers as HeadersInit),
@@ -315,7 +336,9 @@ describe('HttpTsaClient', () => {
   });
 
   it('returns null on network error (fetch throws)', async () => {
-    globalThis.fetch = async () => { throw new Error('network error'); };
+    globalThis.fetch = async () => {
+      throw new Error('network error');
+    };
     const client = new HttpTsaClient('http://tsa.example.invalid');
     expect(await client.timestamp(Buffer.alloc(32))).toBeNull();
   });
@@ -326,15 +349,17 @@ describe('HttpTsaClient', () => {
 // ---------------------------------------------------------------------------
 describe('XadesSigningProvider with signatureLevel=T', () => {
   let bundle: TestCertBundle;
-  beforeAll(() => { bundle = generateTestCert(); });
+  beforeAll(() => {
+    bundle = generateTestCert();
+  });
 
   it('embeds xades:UnsignedProperties/SignatureTimeStamp in the signed XML', async () => {
     const mockTsa = new MockTsaClient();
     const log = new RecordingComplianceLogger();
-    const provider = new XadesSigningProvider(
-      fixedCredentials(bundle.material),
-      { signatureLevel: 'T', tsa: mockTsa },
-    );
+    const provider = new XadesSigningProvider(fixedCredentials(bundle.material), {
+      signatureLevel: 'T',
+      tsa: mockTsa,
+    });
     const signed = await provider.sign(xmlArtifact, 'test-cert', log);
 
     const xml = Buffer.from(signed.bytes).toString('utf-8');
@@ -348,10 +373,10 @@ describe('XadesSigningProvider with signatureLevel=T', () => {
   it('logs XAdES-T in the info entry', async () => {
     const mockTsa = new MockTsaClient();
     const log = new RecordingComplianceLogger();
-    const provider = new XadesSigningProvider(
-      fixedCredentials(bundle.material),
-      { signatureLevel: 'T', tsa: mockTsa },
-    );
+    const provider = new XadesSigningProvider(fixedCredentials(bundle.material), {
+      signatureLevel: 'T',
+      tsa: mockTsa,
+    });
     await provider.sign(xmlArtifact, 'test-cert', log);
     const infoEntry = log.entries.find((e) => e.level === 'info' && e.scope === 'signing/xades');
     expect(infoEntry?.message).toContain('-T');
@@ -359,10 +384,10 @@ describe('XadesSigningProvider with signatureLevel=T', () => {
 
   it('falls back to BES when NullTsaClient is used (no UnsignedProperties)', async () => {
     const log = new RecordingComplianceLogger();
-    const provider = new XadesSigningProvider(
-      fixedCredentials(bundle.material),
-      { signatureLevel: 'T', tsa: new NullTsaClient() },
-    );
+    const provider = new XadesSigningProvider(fixedCredentials(bundle.material), {
+      signatureLevel: 'T',
+      tsa: new NullTsaClient(),
+    });
     const signed = await provider.sign(xmlArtifact, 'test-cert', log);
     const xml = Buffer.from(signed.bytes).toString('utf-8');
     // NullTsa → no timestamp → no UnsignedProperties appended
@@ -376,15 +401,17 @@ describe('XadesSigningProvider with signatureLevel=T', () => {
 // ---------------------------------------------------------------------------
 describe('CadesSigningProvider with signatureLevel=T', () => {
   let bundle: TestCertBundle;
-  beforeAll(() => { bundle = generateTestCert(); });
+  beforeAll(() => {
+    bundle = generateTestCert();
+  });
 
   it('appends [1] IMPLICIT unsignedAttrs containing id-aa-signatureTimeStampToken OID', async () => {
     const mockTsa = new MockTsaClient();
     const log = new RecordingComplianceLogger();
-    const provider = new CadesSigningProvider(
-      fixedCredentials(bundle.material),
-      { signatureLevel: 'T', tsa: mockTsa },
-    );
+    const provider = new CadesSigningProvider(fixedCredentials(bundle.material), {
+      signatureLevel: 'T',
+      tsa: mockTsa,
+    });
     const signed = await provider.sign(xmlArtifact, 'test-cert', log);
 
     // Re-parse the DER and verify the unsigned attribute was appended.
@@ -394,7 +421,10 @@ describe('CadesSigningProvider with signatureLevel=T', () => {
     const sdChildren = signedData.value as forge.asn1.Asn1[];
     let signerInfosSet: forge.asn1.Asn1 | null = null;
     for (let i = sdChildren.length - 1; i >= 0; i--) {
-      if (sdChildren[i].type === forge.asn1.Type.SET) { signerInfosSet = sdChildren[i]; break; }
+      if (sdChildren[i].type === forge.asn1.Type.SET) {
+        signerInfosSet = sdChildren[i];
+        break;
+      }
     }
     expect(signerInfosSet).not.toBeNull();
     const signerInfo = (signerInfosSet!.value as forge.asn1.Asn1[])[0];
@@ -416,10 +446,10 @@ describe('CadesSigningProvider with signatureLevel=T', () => {
   it('falls back to BES output when NullTsaClient used', async () => {
     const log = new RecordingComplianceLogger();
     const besProvider = new CadesSigningProvider(fixedCredentials(bundle.material));
-    const tProvider = new CadesSigningProvider(
-      fixedCredentials(bundle.material),
-      { signatureLevel: 'T', tsa: new NullTsaClient() },
-    );
+    const tProvider = new CadesSigningProvider(fixedCredentials(bundle.material), {
+      signatureLevel: 'T',
+      tsa: new NullTsaClient(),
+    });
     const [signedBes, signedT] = await Promise.all([
       besProvider.sign(xmlArtifact, 'test-cert', log),
       tProvider.sign(xmlArtifact, 'test-cert', log),
@@ -435,7 +465,10 @@ describe('CadesSigningProvider with signatureLevel=T', () => {
     const sdTChildren = sdT.value as forge.asn1.Asn1[];
     let siSetT: forge.asn1.Asn1 | null = null;
     for (let i = sdTChildren.length - 1; i >= 0; i--) {
-      if (sdTChildren[i].type === forge.asn1.Type.SET) { siSetT = sdTChildren[i]; break; }
+      if (sdTChildren[i].type === forge.asn1.Type.SET) {
+        siSetT = sdTChildren[i];
+        break;
+      }
     }
     const siT = (siSetT!.value as forge.asn1.Asn1[])[0];
     const lastChildT = (siT.value as forge.asn1.Asn1[])[(siT.value as forge.asn1.Asn1[]).length - 1];
@@ -451,8 +484,12 @@ describe('SigningProviderRegistry — TSA_URL env wiring (mocked fetch, no netwo
   let bundle: TestCertBundle;
   const originalFetch = globalThis.fetch;
 
-  beforeAll(() => { bundle = generateTestCert(); });
-  afterEach(() => { globalThis.fetch = originalFetch; });
+  beforeAll(() => {
+    bundle = generateTestCert();
+  });
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
 
   it('XAdES provider embeds SignatureTimeStamp when registry built with TSA_URL env', async () => {
     // Wire fetch to return a valid TSR so the HttpTsaClient succeeds.
@@ -464,11 +501,9 @@ describe('SigningProviderRegistry — TSA_URL env wiring (mocked fetch, no netwo
     };
 
     // Create registry via the env override — this wires HttpTsaClient internally.
-    const registry = new SigningProviderRegistry(
-      undefined,
-      fixedCredentials(bundle.material),
-      { TSA_URL: 'http://fake-tsa.invalid' },
-    );
+    const registry = new SigningProviderRegistry(undefined, fixedCredentials(bundle.material), {
+      TSA_URL: 'http://fake-tsa.invalid',
+    });
     const log = new RecordingComplianceLogger();
     const signed = await registry.get('XAdES').sign(xmlArtifact, 'test-cert', log);
 
@@ -504,7 +539,9 @@ describe('SigningProviderRegistry — TSA_URL env wiring (mocked fetch, no netwo
 // ---------------------------------------------------------------------------
 describe('BES regression — default options produce unchanged BES output', () => {
   let bundle: TestCertBundle;
-  beforeAll(() => { bundle = generateTestCert(); });
+  beforeAll(() => {
+    bundle = generateTestCert();
+  });
 
   it('XAdES default constructor (no options) still produces BES-level output', async () => {
     const log = new RecordingComplianceLogger();

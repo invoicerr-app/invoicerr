@@ -42,11 +42,11 @@ const GP: ChannelType = 'GOV_PORTAL_API';
 const CHORUS_PRO_URLS = {
   sandbox: {
     oauthBaseUrl: 'https://sandbox-oauth.piste.gouv.fr',
-    apiBaseUrl:   'https://sandbox-api.piste.gouv.fr',
+    apiBaseUrl: 'https://sandbox-api.piste.gouv.fr',
   },
   prod: {
     oauthBaseUrl: 'https://oauth.piste.gouv.fr',
-    apiBaseUrl:   'https://api.piste.gouv.fr',
+    apiBaseUrl: 'https://api.piste.gouv.fr',
   },
 } as const;
 
@@ -62,7 +62,7 @@ const CHORUSPRO_CONFIG_SCHEMA: ChannelConfigSchema = {
       required: true,
       options: [
         { label: 'Sandbox (PISTE sandbox)', value: 'sandbox' },
-        { label: 'Production',              value: 'prod'    },
+        { label: 'Production', value: 'prod' },
       ],
       default: 'sandbox',
     },
@@ -102,9 +102,7 @@ const CHORUSPRO_CONFIG_SCHEMA: ChannelConfigSchema = {
 // ---------------------------------------------------------------------------
 const STUB_HTTP: ChorusProHttpPort = {
   post: async () => {
-    throw new Error(
-      'Chorus Pro HTTP port not implemented — provide real PISTE credentials + HTTP client',
-    );
+    throw new Error('Chorus Pro HTTP port not implemented — provide real PISTE credentials + HTTP client');
   },
 };
 
@@ -137,28 +135,26 @@ export class ChorusProTransmissionProvider implements TransmissionProvider {
       return {
         channel: GP,
         status: 'SKIPPED',
-        notes: [
-          'choruspro: no resolved config — configure PISTE credentials + Chorus Pro technical account',
-        ],
+        notes: ['choruspro: no resolved config — configure PISTE credentials + Chorus Pro technical account'],
       };
     }
 
     const { config, environment } = resolvedConfig;
-    const envKey = (String(config['environment'] ?? environment ?? 'sandbox') === 'prod')
-      ? 'prod'
-      : 'sandbox';
+    const envKey = String(config.environment ?? environment ?? 'sandbox') === 'prod' ? 'prod' : 'sandbox';
     const urls = CHORUS_PRO_URLS[envKey];
 
-    const clientId            = String(config['clientId']            ?? '');
-    const clientSecret        = String(config['clientSecret']        ?? '');
-    const technicalAccountLogin    = String(config['technicalAccountLogin']    ?? '');
-    const technicalAccountPassword = String(config['technicalAccountPassword'] ?? '');
+    const clientId = String(config.clientId ?? '');
+    const clientSecret = String(config.clientSecret ?? '');
+    const technicalAccountLogin = String(config.technicalAccountLogin ?? '');
+    const technicalAccountPassword = String(config.technicalAccountPassword ?? '');
 
     if (!clientId || !clientSecret || !technicalAccountLogin || !technicalAccountPassword) {
       return {
         channel: GP,
         status: 'SKIPPED',
-        notes: ['choruspro: incomplete config — clientId, clientSecret, technicalAccountLogin, technicalAccountPassword are all required'],
+        notes: [
+          'choruspro: incomplete config — clientId, clientSecret, technicalAccountLogin, technicalAccountPassword are all required',
+        ],
       };
     }
 
@@ -185,7 +181,10 @@ export class ChorusProTransmissionProvider implements TransmissionProvider {
 
     const fileName = `invoice-${key.replace(/[^a-zA-Z0-9_-]/g, '_')}.xml`;
 
-    log.info('transmission/choruspro', `depositing flux to Chorus Pro (${envKey}, syntax ${syntaxeFlux}, key ${key})`);
+    log.info(
+      'transmission/choruspro',
+      `depositing flux to Chorus Pro (${envKey}, syntax ${syntaxeFlux}, key ${key})`,
+    );
 
     const client = new ChorusProClient(
       { ...urls, clientId, clientSecret, technicalAccountLogin, technicalAccountPassword },
@@ -235,15 +234,13 @@ export class ChorusProTransmissionProvider implements TransmissionProvider {
       }
 
       const { config, environment } = resolved;
-      const envKey = (String(config['environment'] ?? environment ?? 'sandbox') === 'prod')
-        ? 'prod'
-        : 'sandbox';
+      const envKey = String(config.environment ?? environment ?? 'sandbox') === 'prod' ? 'prod' : 'sandbox';
       const urls = CHORUS_PRO_URLS[envKey];
 
-      const clientId            = String(config['clientId']            ?? '');
-      const clientSecret        = String(config['clientSecret']        ?? '');
-      const technicalAccountLogin    = String(config['technicalAccountLogin']    ?? '');
-      const technicalAccountPassword = String(config['technicalAccountPassword'] ?? '');
+      const clientId = String(config.clientId ?? '');
+      const clientSecret = String(config.clientSecret ?? '');
+      const technicalAccountLogin = String(config.technicalAccountLogin ?? '');
+      const technicalAccountPassword = String(config.technicalAccountPassword ?? '');
 
       const client = new ChorusProClient(
         { ...urls, clientId, clientSecret, technicalAccountLogin, technicalAccountPassword },

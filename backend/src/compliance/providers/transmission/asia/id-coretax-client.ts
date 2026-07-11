@@ -132,7 +132,11 @@ export interface IdCoretaxHttpPort {
   /** Authenticate with Coretax API — returns bearer token. */
   authenticate(baseUrl: string, npwp: string, passphrase: string): Promise<IdCoretaxAuthResponse>;
   /** Submit Faktur Pajak (one or more) for clearance. */
-  submitFaktur(baseUrl: string, token: string, req: IdCoretaxSubmissionRequest): Promise<IdCoretaxSubmissionResponse>;
+  submitFaktur(
+    baseUrl: string,
+    token: string,
+    req: IdCoretaxSubmissionRequest,
+  ): Promise<IdCoretaxSubmissionResponse>;
   /** Poll clearance status for a given NSFP. */
   getStatus(baseUrl: string, token: string, nsfp: string): Promise<IdCoretaxStatusResponse>;
 }

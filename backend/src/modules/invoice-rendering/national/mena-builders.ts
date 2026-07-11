@@ -9,11 +9,11 @@ import type { InvoiceRenderData } from '../render-data';
 import { sumNet, sumVat, isoDate } from './xml-helpers';
 
 export function buildTrEfatura(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const vknTckn = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const totalIVA = sumVat(data.items);
-        return `<!-- TODO: Turkey e-Fatura (GİB) — requires e-İmza + KEP -->
+  const issueDate = isoDate(data);
+  const vknTckn = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const totalIVA = sumVat(data.items);
+  return `<!-- TODO: Turkey e-Fatura (GİB) — requires e-İmza + KEP -->
 <Invoice>
   <Header><ID>${data.rawNumber || 'DRAFT'}</ID><IssueDate>${issueDate}</IssueDate><IssueTime>12:00:00</IssueTime><CurrencyCode>${data.company.currency || 'TRY'}</CurrencyCode></Header>
   <Sender><ID><VKN_TCKN>${vknTckn}</VKN_TCKN></ID><Name>${data.company.name}</Name></Sender>
@@ -25,11 +25,11 @@ export function buildTrEfatura(data: InvoiceRenderData): string {
 }
 
 export function buildEgEta(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const tin = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const totalIVA = sumVat(data.items);
-        return `<!-- TODO: Egypt ETA (E-Invoicing) — requires UUID + QR Code -->
+  const issueDate = isoDate(data);
+  const tin = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const totalIVA = sumVat(data.items);
+  return `<!-- TODO: Egypt ETA (E-Invoicing) — requires UUID + QR Code -->
 <Invoice>
   <Header><UUID>${data.rawNumber || 'DRAFT'}</UUID><IssueDate>${issueDate}</IssueDate></Header>
   <Seller><TIN>${tin}</TIN><Name>${data.company.name}</Name></Seller>
@@ -46,11 +46,11 @@ export function buildEgEta(data: InvoiceRenderData): string {
  *   register with ISTD and obtain merchant credential; POST to JoFotara API.
  */
 export function buildJoJofotara(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const tin = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const totalVat = sumVat(data.items);
-        return `<!-- TODO: Jordan JoFotara (ISTD) — UBL 2.1 + ISTD extensions; QR seam; merchant registration -->
+  const issueDate = isoDate(data);
+  const tin = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const totalVat = sumVat(data.items);
+  return `<!-- TODO: Jordan JoFotara (ISTD) — UBL 2.1 + ISTD extensions; QR seam; merchant registration -->
 <ubl:Invoice xmlns:ubl="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
              xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
              xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
@@ -87,13 +87,17 @@ export function buildJoJofotara(data: InvoiceRenderData): string {
     <cbc:TaxInclusiveAmount currencyID="${data.company.currency || 'JOD'}">${(total + totalVat).toFixed(3)}</cbc:TaxInclusiveAmount>
     <cbc:PayableAmount currencyID="${data.company.currency || 'JOD'}">${(total + totalVat).toFixed(3)}</cbc:PayableAmount>
   </cac:LegalMonetaryTotal>
-  ${data.items.map((item, i) => `<cac:InvoiceLine>
+  ${data.items
+    .map(
+      (item, i) => `<cac:InvoiceLine>
     <cbc:ID>${i + 1}</cbc:ID>
     <cbc:InvoicedQuantity unitCode="C62">${item.quantity}</cbc:InvoicedQuantity>
     <cbc:LineExtensionAmount currencyID="${data.company.currency || 'JOD'}">${(item.quantity * item.unitPrice).toFixed(3)}</cbc:LineExtensionAmount>
     <cac:Item><cbc:Name>${item.name}</cbc:Name></cac:Item>
     <cac:Price><cbc:PriceAmount currencyID="${data.company.currency || 'JOD'}">${item.unitPrice.toFixed(3)}</cbc:PriceAmount></cac:Price>
-  </cac:InvoiceLine>`).join('\n  ')}
+  </cac:InvoiceLine>`,
+    )
+    .join('\n  ')}
   <istd:QRCode>TODO-JOFOTARA-QR</istd:QRCode>
 </ubl:Invoice>
 <!-- TODO: ISTD JoFotara merchant registration; POST to national platform; embed QR code -->`;
@@ -105,11 +109,11 @@ export function buildJoJofotara(data: InvoiceRenderData): string {
  *   sign with qualified certificate; POST to TTN El Fatoora gateway.
  */
 export function buildTnTeif(data: InvoiceRenderData): string {
-        const issueDate = isoDate(data);
-        const mf = getIdentifier(data.company, 'VAT') || '';
-        const total = sumNet(data.items);
-        const totalTva = sumVat(data.items);
-        return `<!-- TODO: Tunisia TEIF (El Fatoora/TTN) — DGI TEIF schema; qualified signature; POST to TTN gateway -->
+  const issueDate = isoDate(data);
+  const mf = getIdentifier(data.company, 'VAT') || '';
+  const total = sumNet(data.items);
+  const totalTva = sumVat(data.items);
+  return `<!-- TODO: Tunisia TEIF (El Fatoora/TTN) — DGI TEIF schema; qualified signature; POST to TTN gateway -->
 <TEIF xmlns="urn:tn:dgi:teif:v1" xmlns:ttn="urn:tn:tradenet:elfattoura:1">
   <Entete>
     <NumeroFacture>${data.rawNumber || 'DRAFT'}</NumeroFacture>
@@ -129,7 +133,9 @@ export function buildTnTeif(data: InvoiceRenderData): string {
     <RaisonSociale>${data.client.name}</RaisonSociale>
     <Adresse>${data.client.address || 'TODO'}</Adresse>
   </Acheteur>
-  <Lignes>${data.items.map((item, i) => `
+  <Lignes>${data.items
+    .map(
+      (item, i) => `
     <Ligne>
       <Numero>${i + 1}</Numero>
       <Designation>${item.name}</Designation>
@@ -137,9 +143,11 @@ export function buildTnTeif(data: InvoiceRenderData): string {
       <PrixUnitaireHT>${item.unitPrice.toFixed(3)}</PrixUnitaireHT>
       <MontantHT>${(item.quantity * item.unitPrice).toFixed(3)}</MontantHT>
       <TauxTVA>${item.vatRate || 19}</TauxTVA>
-      <MontantTVA>${(item.quantity * item.unitPrice * (item.vatRate || 19) / 100).toFixed(3)}</MontantTVA>
+      <MontantTVA>${((item.quantity * item.unitPrice * (item.vatRate || 19)) / 100).toFixed(3)}</MontantTVA>
       <MontantTTC>${(item.quantity * item.unitPrice * (1 + (item.vatRate || 19) / 100)).toFixed(3)}</MontantTTC>
-    </Ligne>`).join('')}
+    </Ligne>`,
+    )
+    .join('')}
   </Lignes>
   <Totaux>
     <TotalHT>${total.toFixed(3)}</TotalHT>

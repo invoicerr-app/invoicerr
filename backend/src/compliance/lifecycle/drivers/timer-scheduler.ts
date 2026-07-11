@@ -14,7 +14,11 @@ import { createTimerJob, InMemoryTimerJobStore, TimerJob, TimerJobStore } from '
 
 export type ArmTimerEffect = Extract<Effect, { kind: 'ARM_TIMER' }>;
 
-export type ApplySignal = (documentId: string, signal: LifecycleSignal, log: ComplianceLogger) => void | Promise<void>;
+export type ApplySignal = (
+  documentId: string,
+  signal: LifecycleSignal,
+  log: ComplianceLogger,
+) => void | Promise<void>;
 
 export interface TimerSchedulerDeps {
   applySignal: ApplySignal;
@@ -49,11 +53,20 @@ export class TimerScheduler {
   /** Arm a timer from a runtime ARM_TIMER effect. Returns null for an open-ended window (no deadline). */
   async arm(documentId: string, effect: ArmTimerEffect): Promise<TimerJob | null> {
     if (effect.deadlineHours == null) {
-      this.log.info('lifecycle/timer-scheduler', `response window for ${documentId} has no deadline — no silence timer`);
+      this.log.info(
+        'lifecycle/timer-scheduler',
+        `response window for ${documentId} has no deadline — no silence timer`,
+      );
       return null;
     }
     const job = createTimerJob(
-      { id: this.idgen(), documentId, awaiting: effect.awaiting, onElapse: effect.onElapse, deadlineHours: effect.deadlineHours },
+      {
+        id: this.idgen(),
+        documentId,
+        awaiting: effect.awaiting,
+        onElapse: effect.onElapse,
+        deadlineHours: effect.deadlineHours,
+      },
       this.now(),
     );
     return this.store.arm(job);

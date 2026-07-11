@@ -25,16 +25,20 @@ import { SimpleHttpPort } from '../generic-portal';
 import { TokenCache, tokenExpiry } from '../token-cache';
 
 export interface AnafClientConfig {
-  baseUrl: string;          // e.g. https://api.anaf.ro/test or /prod/FCTEL/rest
-  tokenUrl: string;         // OAuth2 token endpoint
-  clientId: string;         // OAuth2 client_id (from ANAF SPV registration)
-  clientSecret: string;     // OAuth2 client_secret (secret, encrypted at rest)
-  cif: string;              // CUI/CIF (Romanian tax ID, digits only, no 'RO' prefix for API)
+  baseUrl: string; // e.g. https://api.anaf.ro/test or /prod/FCTEL/rest
+  tokenUrl: string; // OAuth2 token endpoint
+  clientId: string; // OAuth2 client_id (from ANAF SPV registration)
+  clientSecret: string; // OAuth2 client_secret (secret, encrypted at rest)
+  cif: string; // CUI/CIF (Romanian tax ID, digits only, no 'RO' prefix for API)
 }
 
 /** Generic-portal HTTP port + PUT (ANAF uploads the UBL via PUT /upload). */
 export interface AnafHttpPort extends SimpleHttpPort {
-  put(url: string, body: unknown, headers: Record<string, string>): Promise<{ status: number; data: unknown }>;
+  put(
+    url: string,
+    body: unknown,
+    headers: Record<string, string>,
+  ): Promise<{ status: number; data: unknown }>;
 }
 
 export interface AnafUploadResult {
@@ -85,7 +89,7 @@ export class AnafClient {
     );
     if (resp.status >= 400) throw new Error(`ANAF upload failed (HTTP ${resp.status})`);
     const data = resp.data as Record<string, unknown>;
-    const idIncarcare = (data['id_incarcare'] ?? data['idIncarcare'] ?? '') as string | number;
+    const idIncarcare = (data.id_incarcare ?? data.idIncarcare ?? '') as string | number;
     return { idIncarcare: String(idIncarcare), httpStatus: resp.status, raw: data };
   }
 
@@ -105,8 +109,8 @@ export class AnafClient {
     );
     if (resp.status >= 400) throw new Error(`ANAF stareMesaj failed (HTTP ${resp.status})`);
     const data = resp.data as Record<string, unknown>;
-    const stare = (data['stare'] ?? 'in prelucrare') as string;
-    const errors = Array.isArray(data['Errors']) ? (data['Errors'] as string[]) : [];
+    const stare = (data.stare ?? 'in prelucrare') as string;
+    const errors = Array.isArray(data.Errors) ? (data.Errors as string[]) : [];
     return { stare, errors, raw: data };
   }
 
@@ -125,15 +129,13 @@ export class AnafClient {
         client_id: this.config.clientId,
         client_secret: this.config.clientSecret,
       });
-      const resp = await this.http.post(
-        `${this.config.tokenUrl}/token`,
-        body.toString(),
-        { 'Content-Type': 'application/x-www-form-urlencoded' },
-      );
+      const resp = await this.http.post(`${this.config.tokenUrl}/token`, body.toString(), {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      });
       if (resp.status >= 400) throw new Error(`ANAF authentication failed (HTTP ${resp.status})`);
       const data = resp.data as Record<string, unknown>;
-      const token = (data['access_token'] ?? '') as string;
-      const expiresIn = (data['expires_in'] ?? 3600) as number;
+      const token = (data.access_token ?? '') as string;
+      const expiresIn = (data.expires_in ?? 3600) as number;
       return { token, expiresAt: tokenExpiry(expiresIn) };
     });
   }

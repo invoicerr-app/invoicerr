@@ -14,7 +14,9 @@ function mockHttp(overrides?: Partial<SiiHttpPort>): SiiHttpPort {
   return {
     getSeed: jest.fn().mockResolvedValue('12345678'),
     getToken: jest.fn().mockResolvedValue({ token: 'sii-token-abc', expiresAt: '2026-06-29T23:59:00' }),
-    submitEnvioDTE: jest.fn().mockResolvedValue({ trackId: '1234567890', estado: 'SOK', glosa: 'Envío recibido OK' }),
+    submitEnvioDTE: jest
+      .fn()
+      .mockResolvedValue({ trackId: '1234567890', estado: 'SOK', glosa: 'Envío recibido OK' }),
     queryEstado: jest.fn().mockResolvedValue({ estado: 'DOK', glosa: 'Proceso OK' }),
     ...overrides,
   };
@@ -28,10 +30,7 @@ describe('SiiClient (mocked HTTP — live-deferred)', () => {
     const client = new SiiClient(http, TEST_CONFIG);
     const token = await client.authenticate();
     expect(http.getSeed).toHaveBeenCalledWith(expect.stringContaining('maullin.sii.cl'));
-    expect(http.getToken).toHaveBeenCalledWith(
-      expect.stringContaining('maullin.sii.cl'),
-      expect.any(String),
-    );
+    expect(http.getToken).toHaveBeenCalledWith(expect.stringContaining('maullin.sii.cl'), expect.any(String));
     expect(token.token).toBe('sii-token-abc');
   });
 

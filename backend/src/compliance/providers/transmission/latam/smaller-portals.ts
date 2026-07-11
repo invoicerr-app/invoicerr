@@ -16,7 +16,17 @@ export const LATAM_PORTAL_HEURISTICS: PortalResponseHeuristics = {
   statusFields: ['estado', 'status', 'estado_doc'],
   statusFallback: 'EN_PROCESO',
   clearTokens: ['AUTORI', 'CLEARED', 'ACCEPTED', 'ACEPTAD', 'APPROVED', 'APROBAD', 'CONFIRMAD', 'DOK', 'FOK'],
-  rejectTokens: ['RECHAZ', 'REJECT', 'REFUSED', 'REFUS', 'DENIED', 'DENEGAD', 'ERREUR', 'NO AUTORI', 'INVALID'],
+  rejectTokens: [
+    'RECHAZ',
+    'REJECT',
+    'REFUSED',
+    'REFUS',
+    'DENIED',
+    'DENEGAD',
+    'ERREUR',
+    'NO AUTORI',
+    'INVALID',
+  ],
 };
 
 export const SMALL_LATAM_PORTAL_SPECS: GenericPortalSpec[] = [
@@ -33,8 +43,17 @@ export const SMALL_LATAM_PORTAL_SPECS: GenericPortalSpec[] = [
     submitEndpoint: '/recepcion',
     pollEndpoint: '/comprobante',
     configFields: [
-      { type: 'select', name: 'environment', label: 'Hacienda environment', required: true,
-        options: [{ label: 'Sandbox (test)', value: 'test' }, { label: 'Producción', value: 'prod' }], default: 'test' },
+      {
+        type: 'select',
+        name: 'environment',
+        label: 'Hacienda environment',
+        required: true,
+        options: [
+          { label: 'Sandbox (test)', value: 'test' },
+          { label: 'Producción', value: 'prod' },
+        ],
+        default: 'test',
+      },
       { type: 'text', name: 'apiToken', label: 'OAuth2 Bearer token', required: true, secret: true },
       { type: 'text', name: 'cedula', label: 'Cédula jurídica (10 digits)', required: true },
     ],
@@ -52,10 +71,25 @@ export const SMALL_LATAM_PORTAL_SPECS: GenericPortalSpec[] = [
     submitEndpoint: '/send',
     pollEndpoint: '/status',
     configFields: [
-      { type: 'select', name: 'environment', label: 'DGII environment', required: true,
-        options: [{ label: 'Test (testecf)', value: 'test' }, { label: 'Producción', value: 'prod' }], default: 'test' },
+      {
+        type: 'select',
+        name: 'environment',
+        label: 'DGII environment',
+        required: true,
+        options: [
+          { label: 'Test (testecf)', value: 'test' },
+          { label: 'Producción', value: 'prod' },
+        ],
+        default: 'test',
+      },
       { type: 'text', name: 'rnc', label: 'RNC (9 digits)', required: true },
-      { type: 'text', name: 'certBase64', label: 'Certificate PKCS#12 (base64)', required: false, secret: true },
+      {
+        type: 'text',
+        name: 'certBase64',
+        label: 'Certificate PKCS#12 (base64)',
+        required: false,
+        secret: true,
+      },
       { type: 'text', name: 'certPassword', label: 'Certificate password', required: false, secret: true },
     ],
   },
@@ -72,8 +106,17 @@ export const SMALL_LATAM_PORTAL_SPECS: GenericPortalSpec[] = [
     submitEndpoint: '/dte',
     pollEndpoint: '/dte/status',
     configFields: [
-      { type: 'select', name: 'environment', label: 'SAT environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Producción', value: 'prod' }], default: 'test' },
+      {
+        type: 'select',
+        name: 'environment',
+        label: 'SAT environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Producción', value: 'prod' },
+        ],
+        default: 'test',
+      },
       { type: 'text', name: 'apiToken', label: 'Certificador API key', required: true, secret: true },
       { type: 'text', name: 'nit', label: 'NIT (digits only)', required: true },
     ],
@@ -91,8 +134,17 @@ export const SMALL_LATAM_PORTAL_SPECS: GenericPortalSpec[] = [
     submitEndpoint: '/documentos',
     pollEndpoint: '/documentos',
     configFields: [
-      { type: 'select', name: 'environment', label: 'DGI environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Producción', value: 'prod' }], default: 'test' },
+      {
+        type: 'select',
+        name: 'environment',
+        label: 'DGI environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Producción', value: 'prod' },
+        ],
+        default: 'test',
+      },
       { type: 'text', name: 'apiToken', label: 'PAC/DGI Bearer token', required: true, secret: true },
       { type: 'text', name: 'ruc', label: 'RUC', required: true },
     ],
@@ -110,10 +162,25 @@ export const SMALL_LATAM_PORTAL_SPECS: GenericPortalSpec[] = [
     submitEndpoint: '',
     pollEndpoint: '/consulta',
     configFields: [
-      { type: 'select', name: 'environment', label: 'SIFEN environment', required: true,
-        options: [{ label: 'Test (async)', value: 'test' }, { label: 'Producción (sync)', value: 'prod' }], default: 'test' },
+      {
+        type: 'select',
+        name: 'environment',
+        label: 'SIFEN environment',
+        required: true,
+        options: [
+          { label: 'Test (async)', value: 'test' },
+          { label: 'Producción (sync)', value: 'prod' },
+        ],
+        default: 'test',
+      },
       { type: 'text', name: 'ruc', label: 'RUC (xxx-x format)', required: true },
-      { type: 'text', name: 'certBase64', label: 'Certificate PKCS#12 (base64)', required: false, secret: true },
+      {
+        type: 'text',
+        name: 'certBase64',
+        label: 'Certificate PKCS#12 (base64)',
+        required: false,
+        secret: true,
+      },
       { type: 'text', name: 'certPassword', label: 'Certificate password', required: false, secret: true },
     ],
   },
@@ -130,10 +197,25 @@ export const SMALL_LATAM_PORTAL_SPECS: GenericPortalSpec[] = [
     submitEndpoint: '',
     pollEndpoint: '/consultaDte',
     configFields: [
-      { type: 'select', name: 'environment', label: 'MH environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Producción', value: 'prod' }], default: 'test' },
+      {
+        type: 'select',
+        name: 'environment',
+        label: 'MH environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Producción', value: 'prod' },
+        ],
+        default: 'test',
+      },
       { type: 'text', name: 'nit', label: 'NIT (xxxx-xxxxxx-xxx-x)', required: true },
-      { type: 'text', name: 'apiToken', label: 'Bearer token (from FESV /seguridad/auth)', required: true, secret: true },
+      {
+        type: 'text',
+        name: 'apiToken',
+        label: 'Bearer token (from FESV /seguridad/auth)',
+        required: true,
+        secret: true,
+      },
     ],
   },
   // --- Venezuela — SENIAT ---
@@ -150,8 +232,17 @@ export const SMALL_LATAM_PORTAL_SPECS: GenericPortalSpec[] = [
     submitEndpoint: '/emitir',
     pollEndpoint: '/consultar',
     configFields: [
-      { type: 'select', name: 'environment', label: 'SENIAT environment', required: true,
-        options: [{ label: 'Test', value: 'test' }, { label: 'Producción', value: 'prod' }], default: 'test' },
+      {
+        type: 'select',
+        name: 'environment',
+        label: 'SENIAT environment',
+        required: true,
+        options: [
+          { label: 'Test', value: 'test' },
+          { label: 'Producción', value: 'prod' },
+        ],
+        default: 'test',
+      },
       { type: 'text', name: 'rif', label: 'RIF (J-xxxxxxxx-x)', required: true },
       { type: 'text', name: 'apiToken', label: 'SIVEF Bearer token', required: true, secret: true },
     ],
@@ -169,8 +260,17 @@ export const SMALL_LATAM_PORTAL_SPECS: GenericPortalSpec[] = [
     submitEndpoint: '/registroComputarizadoCompraVenta',
     pollEndpoint: '/estadoFactura',
     configFields: [
-      { type: 'select', name: 'environment', label: 'SIN environment', required: true,
-        options: [{ label: 'Piloto (test)', value: 'test' }, { label: 'Producción', value: 'prod' }], default: 'test' },
+      {
+        type: 'select',
+        name: 'environment',
+        label: 'SIN environment',
+        required: true,
+        options: [
+          { label: 'Piloto (test)', value: 'test' },
+          { label: 'Producción', value: 'prod' },
+        ],
+        default: 'test',
+      },
       { type: 'text', name: 'nit', label: 'NIT (digits only)', required: true },
       { type: 'text', name: 'apiToken', label: 'SIN API token', required: true, secret: true },
     ],
@@ -178,4 +278,7 @@ export const SMALL_LATAM_PORTAL_SPECS: GenericPortalSpec[] = [
 ];
 
 // Static list for registry use (no credentials needed at the stub layer)
-export const SMALL_LATAM_PROVIDERS = buildGenericPortalProviders(SMALL_LATAM_PORTAL_SPECS, LATAM_PORTAL_HEURISTICS);
+export const SMALL_LATAM_PROVIDERS = buildGenericPortalProviders(
+  SMALL_LATAM_PORTAL_SPECS,
+  LATAM_PORTAL_HEURISTICS,
+);

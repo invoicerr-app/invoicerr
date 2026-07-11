@@ -1,7 +1,7 @@
-import { EVENT_STYLES, formatPayloadForEvent } from "./event-formatters";
-import { WebhookEvent, WebhookType } from "../../../../prisma/generated/prisma/client";
+import { EVENT_STYLES, formatPayloadForEvent } from './event-formatters';
+import { WebhookEvent, WebhookType } from '../../../../prisma/generated/prisma/client';
 
-import { WebhookDriver } from "./webhook-driver.interface";
+import { WebhookDriver } from './webhook-driver.interface';
 
 export interface ChatField {
   title: string;
@@ -96,7 +96,7 @@ export class ChatWebhook {
   async send(): Promise<Response> {
     const payload: Record<string, unknown> = {
       text: this.text,
-      attachments: this.attachments.map(attachment => attachment.build())
+      attachments: this.attachments.map((attachment) => attachment.build()),
     };
 
     if (this.username) payload.username = this.username;
@@ -105,7 +105,7 @@ export class ChatWebhook {
     const response = await fetch(this.webhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     this.text = '';
@@ -137,8 +137,8 @@ export abstract class ChatWebhookDriver implements WebhookDriver {
     const eventType = payload.event as WebhookEvent;
     const eventStyle = EVENT_STYLES[eventType] || {
       color: this.fallbackColor,
-      emoji: "📢",
-      title: "Event"
+      emoji: '📢',
+      title: 'Event',
     };
 
     const description = formatPayloadForEvent(eventType, payload);
@@ -147,10 +147,7 @@ export abstract class ChatWebhookDriver implements WebhookDriver {
       .setTitle(`${eventStyle.emoji} ${eventStyle.title}`)
       .setText(description)
       .setColor(eventStyle.color)
-      .setFooter(
-        `Invoicerr Webhooks • ${new Date().toLocaleString()}`,
-        'https://invoicerr.app/favicon.png'
-      )
+      .setFooter(`Invoicerr Webhooks • ${new Date().toLocaleString()}`, 'https://invoicerr.app/favicon.png');
 
     if (payload.company?.name) {
       attachment.addField({ title: 'Entreprise', value: payload.company.name, short: true });

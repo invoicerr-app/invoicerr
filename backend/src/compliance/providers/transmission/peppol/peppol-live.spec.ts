@@ -1,27 +1,3 @@
-/**
- * Peppol live round-trip test — REAL Access Point gateway, never in CI.
- *
- * Guard:
- *   PEPPOL_LIVE=1 PEPPOL_PARTICIPANT_ID=<icd:id> PEPPOL_AP_URL=<url> PEPPOL_API_KEY=<key> \
- *     PEPPOL_RECEIVER_ID=<icd:id> [PEPPOL_ENV=TEST|PROD] \
- *     npx jest peppol-live --no-coverage
- *
- * Prerequisites (currently deferred):
- *   - A Peppol-connected Access Point (e.g. Basware, Pagero, Qvalia, or self-hosted oxalis-ng)
- *   - A valid AP certificate registered with the Peppol Authority (OpenPeppol or AISBL)
- *   - The receiver participant must be registered in the SMP/SML
- *   See: backend/src/compliance/providers/transmission/peppol/peppol-client.ts
- *
- * Hard assertions:
- *   - transmit status MUST be PENDING or SENT (not REJECTED/SKIPPED)
- *   - ref MUST contain a non-empty messageId (AP-assigned identifier)
- *   - poll MUST reach DELIVERED (AS4 receipt from receiver AP)
- *   - REJECTED or SKIPPED outcomes fail the test — NOT tolerated
- *
- * See LIVE_TESTING.md for full env var documentation.
- */
-export {}; // module marker
-
 import { liveDescribe } from '../live-gate.js';
 
 const describeLive = liveDescribe('PEPPOL_LIVE', [
@@ -39,23 +15,35 @@ describeLive('Peppol live round-trip (Access Point gateway)', () => {
   let environment: 'TEST' | 'PROD';
 
   beforeAll(() => {
-    participantId  = process.env.PEPPOL_PARTICIPANT_ID!;
+    participantId = process.env.PEPPOL_PARTICIPANT_ID!;
     accessPointUrl = process.env.PEPPOL_AP_URL!;
-    apiKey         = process.env.PEPPOL_API_KEY!;
-    receiverId     = process.env.PEPPOL_RECEIVER_ID!;
-    environment    = (process.env.PEPPOL_ENV ?? 'TEST') as 'TEST' | 'PROD';
-    console.log('Sender:', participantId, '/ Receiver:', receiverId, '/ AP:', accessPointUrl, '/ Env:', environment);
+    apiKey = process.env.PEPPOL_API_KEY!;
+    receiverId = process.env.PEPPOL_RECEIVER_ID!;
+    environment = (process.env.PEPPOL_ENV ?? 'TEST') as 'TEST' | 'PROD';
+    console.log(
+      'Sender:',
+      participantId,
+      '/ Receiver:',
+      receiverId,
+      '/ AP:',
+      accessPointUrl,
+      '/ Env:',
+      environment,
+    );
     // apiKey is never logged.
   });
 
   it('buildEInvoice → UBL (PEPPOL_BIS) → send via AP → PENDING/SENT + messageId → poll → DELIVERED', async () => {
-    process.env.CREDENTIALS_ENCRYPTION_KEY ??= '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    process.env.CREDENTIALS_ENCRYPTION_KEY ??=
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
     const timestamp = Date.now();
     const companyId = 'live_peppol_' + timestamp;
 
     // ── Generate a UBL (Peppol BIS 3) invoice (DB-free) ──
-    const { InvoiceRenderingService } = await import('../../../../modules/invoice-rendering/invoice-rendering.service.js');
+    const { InvoiceRenderingService } = await import(
+      '../../../../modules/invoice-rendering/invoice-rendering.service.js'
+    );
     const service = new InvoiceRenderingService();
     const now = new Date();
 
@@ -139,7 +127,9 @@ describeLive('Peppol live round-trip (Access Point gateway)', () => {
     // injected here or made available as defaults.
     // If no real httpPort is in place, transmit returns SKIPPED/REJECTED — which FAILS
     // this test intentionally: it signals that the AP implementation is incomplete.
-    const reg = new TransmissionProviderRegistry([new PeppolTransmissionProvider(stubCredentials as any) as any]);
+    const reg = new TransmissionProviderRegistry([
+      new PeppolTransmissionProvider(stubCredentials as any) as any,
+    ]);
     const peppol = reg.getById('peppol')!;
 
     const artifact = {
@@ -172,9 +162,12 @@ describeLive('Peppol live round-trip (Access Point gateway)', () => {
     } as any;
 
     const transmitResult = await peppol.transmit!(
-      [artifact], ctx,
+      [artifact],
+      ctx,
       { channels: [{ type: 'PEPPOL', providerId: 'peppol' }] } as any,
-      'peppol-live-key', log, fakeResolvedConfig as any,
+      'peppol-live-key',
+      log,
+      fakeResolvedConfig as any,
     );
 
     console.log('Peppol transmit result:', JSON.stringify(transmitResult, null, 2));
@@ -202,7 +195,12 @@ describeLive('Peppol live round-trip (Access Point gateway)', () => {
       pollResult = await peppol.poll!(transmitResult.ref!, log);
       console.log(`Poll ${i + 1}/${MAX_POLLS}:`, pollResult.status, (pollResult.notes ?? []).join(' | '));
 
-      if (pollResult.status === 'CLEARED' || pollResult.status === 'DELIVERED' || pollResult.status === 'REJECTED') break;
+      if (
+        pollResult.status === 'CLEARED' ||
+        pollResult.status === 'DELIVERED' ||
+        pollResult.status === 'REJECTED'
+      )
+        break;
     }
 
     expect(pollResult).toBeDefined();

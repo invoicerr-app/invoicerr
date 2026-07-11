@@ -10,6 +10,6 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
 @Module({
   imports: [WebhooksModule, QuotesModule],
   controllers: [SignaturesController],
-  providers: [SignaturesService, MailService, JwtService, PluginsService]
+  providers: [SignaturesService, MailService, JwtService, PluginsService],
 })
-export class SignaturesModule { }
+export class SignaturesModule {}

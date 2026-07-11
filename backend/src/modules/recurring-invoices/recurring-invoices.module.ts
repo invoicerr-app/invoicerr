@@ -10,12 +10,7 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
 @Module({
   imports: [WebhooksModule, InvoicesModule],
   controllers: [RecurringInvoicesController],
-  providers: [
-    RecurringInvoicesService,
-    RecurringInvoicesCronService,
-    MailService,
-    JwtService,
-  ],
+  providers: [RecurringInvoicesService, RecurringInvoicesCronService, MailService, JwtService],
   exports: [RecurringInvoicesService, RecurringInvoicesCronService],
 })
-export class RecurringInvoicesModule { }
+export class RecurringInvoicesModule {}

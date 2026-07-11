@@ -225,7 +225,8 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('cac:LegalMonetaryTotal')) errors.push('missing MonetaryTotal');
       if (!xml.includes('cac:InvoiceLine')) errors.push('missing InvoiceLine');
       if (!xml.includes('310123456700003')) errors.push('missing seller VAT');
-      if (!xml.includes('cac:AdditionalDocumentReference')) errors.push('missing AdditionalDocumentReference (QR)');
+      if (!xml.includes('cac:AdditionalDocumentReference'))
+        errors.push('missing AdditionalDocumentReference (QR)');
       if (!xml.includes('<cbc:ID>QR</cbc:ID>')) errors.push('missing QR ID tag');
       if (!xml.includes('EmbeddedDocumentBinaryObject')) errors.push('missing QR TLV payload');
 
@@ -389,7 +390,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('76123456-7')) errors.push('missing seller RUT');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
 
-      results.push({ fixture: fixture.slug, format: 'cl-dte', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'cl-dte',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -408,7 +416,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('30-71234567-9')) errors.push('missing seller CUIT');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
 
-      results.push({ fixture: fixture.slug, format: 'ar-fe', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'ar-fe',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -427,7 +442,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('1792345678001')) errors.push('missing seller RUC');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
 
-      results.push({ fixture: fixture.slug, format: 'ec-fe', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'ec-fe',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -448,7 +470,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('12.345.678/0001-90')) errors.push('missing seller CNPJ');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
 
-      results.push({ fixture: fixture.slug, format: 'br-nfe', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'br-nfe',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -468,7 +497,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('1234567890')) errors.push('missing seller VKN');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
 
-      results.push({ fixture: fixture.slug, format: 'tr-efatura', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'tr-efatura',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -487,7 +523,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('06AABCT1234F1Z5')) errors.push('missing seller GSTIN');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
 
-      results.push({ fixture: fixture.slug, format: 'in-irp', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'in-irp',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -508,7 +551,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('EL801234567')) errors.push('missing seller AFM');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
 
-      results.push({ fixture: fixture.slug, format: 'gr-mydata', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'gr-mydata',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -530,7 +580,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('HU12345678')) errors.push('missing seller adoszám');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
 
-      results.push({ fixture: fixture.slug, format: 'hu-szamla', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'hu-szamla',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -551,7 +608,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('91110000MA01XXXXX')) errors.push('missing seller NSRSBH');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
 
-      results.push({ fixture: fixture.slug, format: 'cn-efapiao', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'cn-efapiao',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -572,7 +636,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('EG-123456789')) errors.push('missing seller TIN');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
 
-      results.push({ fixture: fixture.slug, format: 'eg-eta', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'eg-eta',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -593,7 +664,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('Encabezado')) errors.push('missing Encabezado');
       if (!xml.includes('Emisor')) errors.push('missing Emisor');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'uy-cfe', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'uy-cfe',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -610,7 +688,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('gEmis')) errors.push('missing gEmis (Emisor)');
       if (!xml.includes('gDatRec')) errors.push('missing gDatRec (Receptor/Destinatario)');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'py-de', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'py-de',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -627,7 +712,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('Receptor')) errors.push('missing Receptor');
       if (!xml.includes('DetalleServicio')) errors.push('missing DetalleServicio');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'cr-fe', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'cr-fe',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -645,7 +737,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('Emisor')) errors.push('missing Emisor');
       if (!xml.includes('Comprador')) errors.push('missing Comprador');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'do-ecf', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'do-ecf',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -663,7 +762,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('Emisor')) errors.push('missing Emisor');
       if (!xml.includes('Receptor')) errors.push('missing Receptor');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'gt-fel', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'gt-fel',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -681,7 +787,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('Emisor')) errors.push('missing Emisor');
       if (!xml.includes('Receptor')) errors.push('missing Receptor');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'pa-fe', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'pa-fe',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -699,7 +812,14 @@ describe('National Format — structural validation', () => {
       if (!out.includes('emisor')) errors.push('missing emisor');
       if (!out.includes('receptor')) errors.push('missing receptor');
       if (!out.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'sv-dte', xmlLength: out.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'sv-dte',
+        xmlLength: out.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -717,7 +837,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('Receptor')) errors.push('missing Receptor');
       if (!xml.includes('Detalles')) errors.push('missing Detalles');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 've-fe', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 've-fe',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -730,12 +857,20 @@ describe('National Format — structural validation', () => {
       expect(xml.length).toBeGreaterThan(100);
       const errors: string[] = [];
       // Root is <facturaComputarizadaCompraVenta> (lowercase, SIN schema)
-      if (!xml.includes('facturaComputarizadaCompraVenta')) errors.push('missing facturaComputarizadaCompraVenta root');
+      if (!xml.includes('facturaComputarizadaCompraVenta'))
+        errors.push('missing facturaComputarizadaCompraVenta root');
       if (!xml.includes('<cabecera>')) errors.push('missing cabecera');
       if (!xml.includes('<detalle>')) errors.push('missing detalle');
       if (!xml.includes('nitEmisor')) errors.push('missing nitEmisor');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'bo-fe', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'bo-fe',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -758,7 +893,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('PPN')) errors.push('missing PPN (tax)');
       if (!xml.includes('012345678901234')) errors.push('missing seller NPWP');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'id-efaktur', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'id-efaktur',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -776,7 +918,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('SalesAmount')) errors.push('missing SalesAmount');
       if (!xml.includes('12345678')) errors.push('missing seller tax ID (統一編號)');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'tw-egui', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'tw-egui',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -794,7 +943,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('Products')) errors.push('missing Products');
       if (!xml.includes('123456789012')) errors.push('missing seller BIN');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'kz-esf', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'kz-esf',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -813,7 +969,14 @@ describe('National Format — structural validation', () => {
       if (!out.includes('items')) errors.push('missing items');
       if (!out.includes('123456789012')) errors.push('missing seller TIN');
       if (!out.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'ph-eis', xmlLength: out.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'ph-eis',
+        xmlLength: out.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -831,7 +994,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('LineItems')) errors.push('missing LineItems');
       if (!xml.includes('1234567890123')) errors.push('missing seller TIN');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'th-etax', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'th-etax',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -849,7 +1019,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('Items')) errors.push('missing Items');
       if (!xml.includes('123456789')) errors.push('missing seller PAN');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'np-cbms', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'np-cbms',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -867,7 +1044,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('LineItems')) errors.push('missing LineItems');
       if (!xml.includes('123456789')) errors.push('missing seller BIN');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'bd-nbr', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'bd-nbr',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -885,7 +1069,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('Items')) errors.push('missing Items');
       if (!xml.includes('1234567')) errors.push('missing seller STRN');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'pk-fbr', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'pk-fbr',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -903,7 +1094,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('DSHHDVu')) errors.push('missing DSHHDVu (items)');
       if (!xml.includes('0123456789')) errors.push('missing seller MST');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'vn-tt78', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'vn-tt78',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -923,7 +1121,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('cbc:ProfileID')) errors.push('missing ProfileID (LHDNM extension)');
       if (!xml.includes('C12345678900')) errors.push('missing seller TIN');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'my-invois', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'my-invois',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -947,7 +1152,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('7.5')) errors.push('missing VAT rate (7.5%)');
       if (!xml.includes('123456789012')) errors.push('missing seller TIN');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'ng-firs', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'ng-firs',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -967,7 +1179,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('A000000000A')) errors.push('missing seller TPIN');
       if (!xml.includes('Receipt')) errors.push('missing Receipt block');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'ke-etims', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'ke-etims',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -985,7 +1204,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('Lines')) errors.push('missing Lines');
       if (!xml.includes('Totals')) errors.push('missing Totals');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'gh-evat', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'gh-evat',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -1004,7 +1230,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('Totals')) errors.push('missing Totals');
       if (!xml.includes('100123456')) errors.push('missing seller TIN');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'rw-ebm', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'rw-ebm',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -1027,7 +1260,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('cac:InvoiceLine')) errors.push('missing InvoiceLine');
       if (!xml.includes('1234567890')) errors.push('missing seller TIN');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'jo-jofotara', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'jo-jofotara',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -1046,7 +1286,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('Lignes')) errors.push('missing Lignes');
       if (!xml.includes('1234567/A/M/000')) errors.push('missing seller MF (matricule fiscal)');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'tn-teif', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'tn-teif',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -1068,7 +1315,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('ITEMS')) errors.push('missing ITEMS');
       if (!xml.includes('UA123456789')) errors.push('missing seller IPN/EDRPOU');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'ua-taxinvoice', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'ua-taxinvoice',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -1088,7 +1342,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('IKOF')) errors.push('missing IKOF block');
       if (!xml.includes('12345678')) errors.push('missing seller PIB');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'me-fiscal', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'me-fiscal',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -1107,7 +1368,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('HR12345678901')) errors.push('missing seller OIB (HR-prefixed)');
       if (!xml.includes('ZKI')) errors.push('missing ZKI (Zaštitni Kod Ispisa)');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'hr-eracun', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'hr-eracun',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -1127,7 +1395,14 @@ describe('National Format — structural validation', () => {
       if (!xml.includes('NSLF')) errors.push('missing NSLF (seller self-control code)');
       if (!xml.includes('K12345678A')) errors.push('missing seller NIPT');
       if (!xml.includes('TODO')) errors.push('missing TODO comment (skeleton)');
-      results.push({ fixture: fixture.slug, format: 'al-fiscalization', xmlLength: xml.length, hasRequiredElements: errors.length === 0, verdict: errors.length === 0 ? 'PASS' : 'FAIL', errors });
+      results.push({
+        fixture: fixture.slug,
+        format: 'al-fiscalization',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0,
+        verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+        errors,
+      });
       expect(errors).toEqual([]);
     });
   });
@@ -1155,7 +1430,9 @@ describe('National Format — structural validation', () => {
       // §51: XML now contains two AdditionalDocumentReferences: PIH + QR.
       // Extract the QR-specific EmbeddedDocumentBinaryObject by finding the block
       // that follows cbc:ID containing 'QR'.
-      const qrBlock = xml.match(/<cbc:ID[^>]*>QR<\/cbc:ID>[\s\S]*?<cbc:EmbeddedDocumentBinaryObject[^>]*>([A-Za-z0-9+/=]+)<\/cbc:EmbeddedDocumentBinaryObject>/);
+      const qrBlock = xml.match(
+        /<cbc:ID[^>]*>QR<\/cbc:ID>[\s\S]*?<cbc:EmbeddedDocumentBinaryObject[^>]*>([A-Za-z0-9+/=]+)<\/cbc:EmbeddedDocumentBinaryObject>/,
+      );
       expect(qrBlock).not.toBeNull();
       const b64 = qrBlock![1];
       const buf = Buffer.from(b64, 'base64');
@@ -1198,7 +1475,7 @@ describe('National Format — structural validation', () => {
 
       const certPem = forge.pki.certificateToPem(cert);
       const privateKeyPem = forge.pki.privateKeyInfoToPem(
-        forge.pki.wrapRsaPrivateKey(forge.pki.privateKeyToAsn1(keys.privateKey))
+        forge.pki.wrapRsaPrivateKey(forge.pki.privateKeyToAsn1(keys.privateKey)),
       );
       const certDer = Buffer.from(forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes(), 'binary');
 
@@ -1207,10 +1484,8 @@ describe('National Format — structural validation', () => {
       const { Application: XmldsigApp } = await import('xmldsigjs');
       const { DOMParser: Dom, XMLSerializer: Ser } = await import('@xmldom/xmldom');
       setNodeDependencies({ DOMParser: Dom, XMLSerializer: Ser } as any);
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const path = require('path') as typeof import('path');
+      const path = require('node:path') as typeof import('path');
       const xmldsigDir = path.dirname(require.resolve('xmldsigjs'));
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const xmlCore = require(require.resolve('xml-core', { paths: [xmldsigDir] })) as any;
       xmlCore.setNodeDependencies({ DOMParser: Dom, XMLSerializer: Ser });
       XmldsigApp.setEngine('native', globalThis.crypto as Crypto);
@@ -1235,9 +1510,9 @@ describe('National Format — structural validation', () => {
 
       const signedXml = Buffer.from(signed.bytes).toString('utf-8');
       // If signing failed silently, the log will have a warn entry; surface it for diagnostics.
-      const warnEntries = log.entries.filter(e => e.level === 'warn');
+      const warnEntries = log.entries.filter((e) => e.level === 'warn');
       if (warnEntries.length > 0) {
-        throw new Error(`XAdES signing produced warnings: ${warnEntries.map(e => e.message).join('; ')}`);
+        throw new Error(`XAdES signing produced warnings: ${warnEntries.map((e) => e.message).join('; ')}`);
       }
       // XAdES embeds a <ds:Signature> or <Signature> element — check for both variants.
       expect(signedXml).toMatch(/Signature/);

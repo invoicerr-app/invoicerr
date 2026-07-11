@@ -13,4 +13,4 @@ import { NumberingService } from '@/utils/numbering';
   providers: [QuotesService, JwtService, NumberingService],
   exports: [QuotesService],
 })
-export class QuotesModule { }
+export class QuotesModule {}

@@ -28,7 +28,13 @@ describe('isPeriodClosed (period-close logic)', () => {
   const NOW = new Date('2026-06-29T10:00:00Z'); // June 2026 = 2026-Q2
 
   describe('monthly kinds', () => {
-    const monthlyKinds: ReportingKind[] = ['E_REPORTING', 'INTRASTAT', 'SALES_PURCHASE_LEDGER', 'CUSTOMS_EXPORT', 'SAFT'];
+    const monthlyKinds: ReportingKind[] = [
+      'E_REPORTING',
+      'INTRASTAT',
+      'SALES_PURCHASE_LEDGER',
+      'CUSTOMS_EXPORT',
+      'SAFT',
+    ];
 
     it.each(monthlyKinds)('%s — 2026-05 is closed (before current June)', (kind) => {
       expect(isPeriodClosed(kind, '2026-05', NOW)).toBe(true);
@@ -122,7 +128,10 @@ class TrackingStore implements ReportingStore {
 }
 
 // Simulate what the cron tick does (without the lock / logger overhead).
-async function runReportingClose(store: ReportingStore & { findPendingForClosedPeriods: (n: Date) => Promise<ReportRecord[]> }, now: Date): Promise<number> {
+async function runReportingClose(
+  store: ReportingStore & { findPendingForClosedPeriods: (n: Date) => Promise<ReportRecord[]> },
+  now: Date,
+): Promise<number> {
   const pending = await store.findPendingForClosedPeriods(now);
   for (const record of pending) {
     const mockRef = `mock:${record.kind}:${record.periodKey}:${record.id}`;
@@ -193,9 +202,36 @@ describe('Reporting period-close — idempotence', () => {
   it('processes multiple kinds, companies, and periods in one run', async () => {
     const store = new TrackingStore();
     const closed: Array<Omit<ReportRecord, 'id' | 'createdAt'>> = [
-      { kind: 'E_REPORTING', periodKey: '2026-05', companyId: 'a', invoiceRef: '1', status: 'PENDING', payload: {}, submittedRef: null, submittedAt: null },
-      { kind: 'E_REPORTING', periodKey: '2026-04', companyId: 'a', invoiceRef: '2', status: 'PENDING', payload: {}, submittedRef: null, submittedAt: null },
-      { kind: 'OSS',         periodKey: '2026-Q1', companyId: 'b', invoiceRef: '3', status: 'PENDING', payload: {}, submittedRef: null, submittedAt: null },
+      {
+        kind: 'E_REPORTING',
+        periodKey: '2026-05',
+        companyId: 'a',
+        invoiceRef: '1',
+        status: 'PENDING',
+        payload: {},
+        submittedRef: null,
+        submittedAt: null,
+      },
+      {
+        kind: 'E_REPORTING',
+        periodKey: '2026-04',
+        companyId: 'a',
+        invoiceRef: '2',
+        status: 'PENDING',
+        payload: {},
+        submittedRef: null,
+        submittedAt: null,
+      },
+      {
+        kind: 'OSS',
+        periodKey: '2026-Q1',
+        companyId: 'b',
+        invoiceRef: '3',
+        status: 'PENDING',
+        payload: {},
+        submittedRef: null,
+        submittedAt: null,
+      },
     ];
     for (const r of closed) store.addPending(r);
 
@@ -206,15 +242,35 @@ describe('Reporting period-close — idempotence', () => {
 
   it('quarterly record 2026-Q1 is submitted but 2026-Q2 is not', async () => {
     const store = new TrackingStore();
-    store.addPending({ kind: 'OSS', periodKey: '2026-Q1', companyId: 'c', invoiceRef: '1', status: 'PENDING', payload: {}, submittedRef: null, submittedAt: null });
-    store.addPending({ kind: 'OSS', periodKey: '2026-Q2', companyId: 'c', invoiceRef: '2', status: 'PENDING', payload: {}, submittedRef: null, submittedAt: null });
+    store.addPending({
+      kind: 'OSS',
+      periodKey: '2026-Q1',
+      companyId: 'c',
+      invoiceRef: '1',
+      status: 'PENDING',
+      payload: {},
+      submittedRef: null,
+      submittedAt: null,
+    });
+    store.addPending({
+      kind: 'OSS',
+      periodKey: '2026-Q2',
+      companyId: 'c',
+      invoiceRef: '2',
+      status: 'PENDING',
+      payload: {},
+      submittedRef: null,
+      submittedAt: null,
+    });
 
     const submitted = await runReportingClose(store, NOW);
     expect(submitted).toBe(1);
     // Q1 should be submitted
+    // biome-ignore lint/complexity/useLiteralKeys: bracket access intentionally bypasses TS private visibility in this test
     const q1 = store['records'].find((r: ReportRecord) => r.periodKey === '2026-Q1');
     expect(q1?.status).toBe('SUBMITTED');
     // Q2 stays PENDING
+    // biome-ignore lint/complexity/useLiteralKeys: bracket access intentionally bypasses TS private visibility in this test
     const q2 = store['records'].find((r: ReportRecord) => r.periodKey === '2026-Q2');
     expect(q2?.status).toBe('PENDING');
   });

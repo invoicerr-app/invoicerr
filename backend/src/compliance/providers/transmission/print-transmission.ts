@@ -41,9 +41,10 @@ export class PrintTransmissionProvider implements TransmissionProvider {
       ref: ctx.externalRef ?? key.slice(-16),
       seller: ctx.supplier.legalName,
       buyer: ctx.buyer.legalName,
-      date: ctx.issueDate instanceof Date
-        ? ctx.issueDate.toISOString().split('T')[0]
-        : String(ctx.issueDate ?? '').split('T')[0],
+      date:
+        ctx.issueDate instanceof Date
+          ? ctx.issueDate.toISOString().split('T')[0]
+          : String(ctx.issueDate ?? '').split('T')[0],
       currency: ctx.currency ?? 'EUR',
     });
   }
@@ -75,7 +76,11 @@ export class PrintTransmissionProvider implements TransmissionProvider {
     const qrPng = await PrintTransmissionProvider.buildQrBuffer(qrPayload);
 
     return new Promise<Buffer>((resolve, reject) => {
-      const doc = new PDFDocument({ size: 'A4', margin: 50, info: { Title: 'Invoice', Author: 'Invoicerr' } });
+      const doc = new PDFDocument({
+        size: 'A4',
+        margin: 50,
+        info: { Title: 'Invoice', Author: 'Invoicerr' },
+      });
       const chunks: Buffer[] = [];
       doc.on('data', (chunk: Buffer) => chunks.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -83,9 +88,10 @@ export class PrintTransmissionProvider implements TransmissionProvider {
 
       const sellerName = ctx.supplier.legalName;
       const buyerName = ctx.buyer.legalName;
-      const issueDate = ctx.issueDate instanceof Date
-        ? ctx.issueDate.toISOString().split('T')[0]
-        : String(ctx.issueDate ?? 'N/A').split('T')[0];
+      const issueDate =
+        ctx.issueDate instanceof Date
+          ? ctx.issueDate.toISOString().split('T')[0]
+          : String(ctx.issueDate ?? 'N/A').split('T')[0];
       const ref = ctx.externalRef ?? key.slice(-16);
       const currency = ctx.currency ?? 'EUR';
 

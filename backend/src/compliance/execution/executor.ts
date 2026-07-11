@@ -4,10 +4,13 @@
  * (they log TODO where an external integration is required), but every class, method and call exists
  * and is wired, so adding a real integration is "fill in one provider", never "rewire the pipeline".
  */
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { TransactionContext } from '../canonical/canonical-document';
 import { validateContextIdentifiers } from '../canonical/identifier-validator';
-import { IdentifierExistencePort, NullIdentifierExistenceClient } from '../canonical/identifier-existence.port';
+import {
+  IdentifierExistencePort,
+  NullIdentifierExistenceClient,
+} from '../canonical/identifier-existence.port';
 import { CompliancePlan } from '../engine/compliance-engine';
 import { ArchiveProviderRegistry, defaultArchiveRegistry } from '../providers/archive/registry';
 import { FormatProviderRegistry, defaultFormatRegistry } from '../providers/format/registry';
@@ -95,9 +98,7 @@ export class ComplianceExecutor {
           } else if (id.scheme === 'SIRET') {
             const res = await this.existence.checkSiret(id.value);
             if (res.exists === false) {
-              warnings.push(
-                `[existence] ${label} SIRET "${id.value}" not found in SIRENE registry`,
-              );
+              warnings.push(`[existence] ${label} SIRET "${id.value}" not found in SIRENE registry`);
             }
           }
         } catch {
@@ -114,7 +115,11 @@ export class ComplianceExecutor {
     return 'none';
   }
 
-  async execute(ctx: TransactionContext, plan: CompliancePlan, opts: ExecuteOptions = {}): Promise<ExecutionResult> {
+  async execute(
+    ctx: TransactionContext,
+    plan: CompliancePlan,
+    opts: ExecuteOptions = {},
+  ): Promise<ExecutionResult> {
     const log = this.log;
     const warnings: string[] = [...plan.warnings];
     // randomUUID() ensures the default key is globally unique even if two executions start

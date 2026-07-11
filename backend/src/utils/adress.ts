@@ -21,12 +21,12 @@ export function parseAddress(address: string): AddressParts {
     return { houseNumber: ordinal[1], streetName: ordinal[2] };
   }
 
-  const standard = cleaned.match(/^(\d+[a-zA-Z\-]*)\s+(.*)$/);
+  const standard = cleaned.match(/^(\d+[a-zA-Z-]*)\s+(.*)$/);
   if (standard) {
     return { houseNumber: standard[1], streetName: standard[2] };
   }
 
-  const reversed = cleaned.match(/^(.*\D)\s+(\d+[a-zA-Z\-]*)$/);
+  const reversed = cleaned.match(/^(.*\D)\s+(\d+[a-zA-Z-]*)$/);
   if (reversed) {
     return { houseNumber: reversed[2], streetName: reversed[1].trim() };
   }

@@ -54,9 +54,9 @@ export interface PeppolSendResult {
 
 export type PeppolDeliveryStatus =
   | 'QUEUED'
-  | 'SENT'          // AP transmitted to receiver AP
-  | 'DELIVERED'     // Receiver AP acknowledged (AS4 receipt)
-  | 'FAILED'        // Delivery failed permanently
+  | 'SENT' // AP transmitted to receiver AP
+  | 'DELIVERED' // Receiver AP acknowledged (AS4 receipt)
+  | 'FAILED' // Delivery failed permanently
   | 'UNKNOWN';
 
 export interface PeppolStatusResult {
@@ -126,9 +126,12 @@ export const PEPPOL_BILLING_PROCESS_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:0
 
 /** Peppol BIS Billing 3 document types. */
 export const PEPPOL_DOC_TYPES = {
-  INVOICE_UBL: 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0::2.1',
-  CREDIT_NOTE_UBL: 'urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2::CreditNote##urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0::2.1',
-  INVOICE_RESPONSE: 'urn:oasis:names:specification:ubl:schema:xsd:ApplicationResponse-2::ApplicationResponse##urn:fdc:peppol.eu:poacc:trns:invoice_response:3::2.1',
+  INVOICE_UBL:
+    'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0::2.1',
+  CREDIT_NOTE_UBL:
+    'urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2::CreditNote##urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0::2.1',
+  INVOICE_RESPONSE:
+    'urn:oasis:names:specification:ubl:schema:xsd:ApplicationResponse-2::ApplicationResponse##urn:fdc:peppol.eu:poacc:trns:invoice_response:3::2.1',
 };
 
 // ---------------------------------------------------------------------------
@@ -257,15 +260,20 @@ export class PeppolApHttpClient implements PeppolApPort {
 
   private normalizeStatus(raw: string): PeppolDeliveryStatus {
     switch (raw?.toUpperCase()) {
-      case 'QUEUED': return 'QUEUED';
+      case 'QUEUED':
+        return 'QUEUED';
       case 'SENT':
-      case 'TRANSMITTED': return 'SENT';
+      case 'TRANSMITTED':
+        return 'SENT';
       case 'DELIVERED':
-      case 'ACKNOWLEDGED': return 'DELIVERED';
+      case 'ACKNOWLEDGED':
+        return 'DELIVERED';
       case 'FAILED':
       case 'ERROR':
-      case 'REJECTED': return 'FAILED';
-      default: return 'UNKNOWN';
+      case 'REJECTED':
+        return 'FAILED';
+      default:
+        return 'UNKNOWN';
     }
   }
 }

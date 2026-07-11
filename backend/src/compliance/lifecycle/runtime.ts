@@ -87,17 +87,31 @@ export class LifecycleRuntime {
         case 'POLL':
           if (seen.has('POLL')) break;
           seen.add('POLL');
-          effects.push({ kind: 'SCHEDULE_POLL', poll: t.trigger.poll, channelProviderId: t.trigger.channelProviderId, awaiting: this.status });
+          effects.push({
+            kind: 'SCHEDULE_POLL',
+            poll: t.trigger.poll,
+            channelProviderId: t.trigger.channelProviderId,
+            awaiting: this.status,
+          });
           break;
         case 'TIMER':
           if (seen.has('TIMER')) break;
           seen.add('TIMER');
-          effects.push({ kind: 'ARM_TIMER', deadlineHours: t.trigger.deadlineHours, onElapse: t.trigger.onElapse, awaiting: this.status });
+          effects.push({
+            kind: 'ARM_TIMER',
+            deadlineHours: t.trigger.deadlineHours,
+            onElapse: t.trigger.onElapse,
+            awaiting: this.status,
+          });
           break;
         case 'CALLBACK':
           if (seen.has('CALLBACK')) break;
           seen.add('CALLBACK');
-          effects.push({ kind: 'AWAIT_CALLBACK', correlationKey: t.trigger.correlationKey, awaiting: this.status });
+          effects.push({
+            kind: 'AWAIT_CALLBACK',
+            correlationKey: t.trigger.correlationKey,
+            awaiting: this.status,
+          });
           break;
         default:
           break; // IMMEDIATE = executed by the executor; MANUAL = waits for a user command

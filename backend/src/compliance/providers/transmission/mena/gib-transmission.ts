@@ -38,18 +38,36 @@ const GIB_BASE_URLS = {
 const GIB_CONFIG_SCHEMA: ChannelConfigSchema = {
   fields: [
     {
-      type: 'select', name: 'environment', label: 'GİB environment', required: true,
-      options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test',
+      type: 'select',
+      name: 'environment',
+      label: 'GİB environment',
+      required: true,
+      options: [
+        { label: 'Test', value: 'test' },
+        { label: 'Production', value: 'prod' },
+      ],
+      default: 'test',
     },
-    { type: 'text', name: 'vkn', label: 'VKN (Vergi Kimlik Numarası, 10 digits)', required: true, minLength: 10, maxLength: 10 },
+    {
+      type: 'text',
+      name: 'vkn',
+      label: 'VKN (Vergi Kimlik Numarası, 10 digits)',
+      required: true,
+      minLength: 10,
+      maxLength: 10,
+    },
     { type: 'text', name: 'username', label: 'GİB portal username', required: true },
     { type: 'text', name: 'password', label: 'GİB portal password', required: true, secret: true },
     {
-      type: 'select', name: 'invoiceMode', label: 'Invoice mode', required: true,
+      type: 'select',
+      name: 'invoiceMode',
+      label: 'Invoice mode',
+      required: true,
       options: [
         { label: 'e-Fatura (registered buyer)', value: 'efatura' },
         { label: 'e-Arşiv (unregistered / B2C)', value: 'earsiv' },
-      ], default: 'efatura',
+      ],
+      default: 'efatura',
     },
   ],
 };
@@ -57,7 +75,9 @@ const GIB_CONFIG_SCHEMA: ChannelConfigSchema = {
 /** Stub HTTP port — replaced by a real implementation or a mock in tests. */
 const STUB_HTTP: GibHttpPort = {
   post: async (_url, _body, _headers) => {
-    throw new Error('GİB HTTP port not implemented — provide real credentials + HTTP client for live integration');
+    throw new Error(
+      'GİB HTTP port not implemented — provide real credentials + HTTP client for live integration',
+    );
   },
   get: async (_url, _headers) => {
     throw new Error('GİB HTTP port not implemented');
@@ -82,7 +102,11 @@ export class GibTransmissionProvider implements TransmissionProvider {
     resolvedConfig?: ResolvedChannelConfig,
   ): Promise<TransmissionResult> {
     if (!resolvedConfig) {
-      return { channel: GP, status: 'SKIPPED', notes: ['gib: no resolved config — configure VKN + GİB credentials'] };
+      return {
+        channel: GP,
+        status: 'SKIPPED',
+        notes: ['gib: no resolved config — configure VKN + GİB credentials'],
+      };
     }
     const { config, environment } = resolvedConfig;
     const isTest = ((config.environment as string) ?? environment ?? 'test').toLowerCase() !== 'prod';
@@ -100,7 +124,9 @@ export class GibTransmissionProvider implements TransmissionProvider {
     log.info('transmission/gib', `submitting e-Fatura to GİB (VKN ${vkn}, key ${key})`);
     // TODO: call the signing port (XAdES-BES) before submitting.
     // For now, transmit the raw artifact bytes (unsigned — live integration requires e-İmza).
-    const xmlStr = Buffer.isBuffer(art.bytes) ? art.bytes.toString('utf-8') : new TextDecoder().decode(art.bytes);
+    const xmlStr = Buffer.isBuffer(art.bytes)
+      ? art.bytes.toString('utf-8')
+      : new TextDecoder().decode(art.bytes);
 
     // HTTP port is the stub unless replaced externally.
     const client = new GibClient({ baseUrl, vkn, username, password }, STUB_HTTP);
@@ -126,7 +152,8 @@ export class GibTransmissionProvider implements TransmissionProvider {
     }
     try {
       const resolved = await this.credentials.resolveActive(companyId, 'gib');
-      if (!resolved?.isActive) return { channel: GP, status: 'PENDING', ref, notes: ['gib: credentials inactive'] };
+      if (!resolved?.isActive)
+        return { channel: GP, status: 'PENDING', ref, notes: ['gib: credentials inactive'] };
       const { config, environment } = resolved;
       const isTest = ((config.environment as string) ?? environment ?? 'test').toLowerCase() !== 'prod';
       const baseUrl = isTest ? GIB_BASE_URLS.test : GIB_BASE_URLS.prod;

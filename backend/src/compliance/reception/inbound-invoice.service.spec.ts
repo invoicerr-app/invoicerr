@@ -142,7 +142,13 @@ function makeMockPrisma() {
         return store.get(key) ?? null;
       }),
       create: jest.fn(async ({ data }: any) => {
-        const row = { id: `ibi_${++idSeq}`, ...data, receivedAt: new Date(), createdAt: new Date(), updatedAt: new Date() };
+        const row = {
+          id: `ibi_${++idSeq}`,
+          ...data,
+          receivedAt: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
         const key = `${data.channel}:${data.externalId}`;
         store.set(key, row);
         return row;
@@ -236,8 +242,8 @@ describe('InboundInvoiceService', () => {
     expect(created.sellerTaxId).toBe('01234567890');
     expect(created.buyerTaxId).toBe('09876543210');
     expect(created.currency).toBe('EUR');
-    expect(created.totalNet).toBeCloseTo(600);   // 100 + 500
-    expect(created.totalTax).toBeCloseTo(120);   // 10 + 110
+    expect(created.totalNet).toBeCloseTo(600); // 100 + 500
+    expect(created.totalTax).toBeCloseTo(120); // 10 + 110
     expect(created.totalGross).toBeCloseTo(610);
     expect(created.status).toBe('PARSED');
   });

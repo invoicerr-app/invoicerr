@@ -50,8 +50,17 @@ const SPEC: GenericPortalSpec = {
   submitEndpoint: '/invoices',
   pollEndpoint: '/invoices/status',
   configFields: [
-    { type: 'select', name: 'environment', label: 'Environment', required: true,
-      options: [{ label: 'Test', value: 'test' }, { label: 'Production', value: 'prod' }], default: 'test' },
+    {
+      type: 'select',
+      name: 'environment',
+      label: 'Environment',
+      required: true,
+      options: [
+        { label: 'Test', value: 'test' },
+        { label: 'Production', value: 'prod' },
+      ],
+      default: 'test',
+    },
     { type: 'text', name: 'apiToken', label: 'API token', required: true, secret: true },
   ],
 };
@@ -74,8 +83,14 @@ const makeHttp = (overrides: Partial<SimpleHttpPort> = {}): SimpleHttpPort & { c
   const calls: unknown[][] = [];
   return {
     calls,
-    post: async (url, body, headers) => { calls.push(['post', url, body, headers]); return { status: 200, data: { id: 'sub-42' } }; },
-    get: async (url, headers) => { calls.push(['get', url, headers]); return { status: 200, data: { status: 'APPROVED' } }; },
+    post: async (url, body, headers) => {
+      calls.push(['post', url, body, headers]);
+      return { status: 200, data: { id: 'sub-42' } };
+    },
+    get: async (url, headers) => {
+      calls.push(['get', url, headers]);
+      return { status: 200, data: { status: 'APPROVED' } };
+    },
     ...overrides,
   };
 };
@@ -116,7 +131,12 @@ describe('buildGenericPortalProvider (shared behaviour)', () => {
     expect(result.status).toBe('PENDING'); // default: clearance-style async
     expect(result.ref).toBe('company1|sub-42');
     expect(result.notes).toContain('id: sub-42');
-    const [method, url, body, headers] = http.calls[0] as [string, string, Record<string, unknown>, Record<string, string>];
+    const [method, url, body, headers] = http.calls[0] as [
+      string,
+      string,
+      Record<string, unknown>,
+      Record<string, string>,
+    ];
     expect(method).toBe('post');
     expect(url).toBe('https://test.example.gov/api/invoices');
     expect(body).toEqual({ document: '<Invoice/>', idempotencyKey: 'idem-key' });
@@ -126,8 +146,10 @@ describe('buildGenericPortalProvider (shared behaviour)', () => {
   it('uses the prod baseUrl when config.environment is prod', async () => {
     const http = makeHttp();
     const p = buildGenericPortalProvider(SPEC, HEURISTICS, undefined, http);
-    await p.transmit(artifacts, ctx, plan, 'k', log,
-      { ...resolvedConfig, config: { environment: 'prod', apiToken: 'tok-123' } });
+    await p.transmit(artifacts, ctx, plan, 'k', log, {
+      ...resolvedConfig,
+      config: { environment: 'prod', apiToken: 'tok-123' },
+    });
     expect((http.calls[0] as string[])[1]).toBe('https://example.gov/api/invoices');
   });
 
@@ -169,7 +191,9 @@ describe('buildGenericPortalProvider (shared behaviour)', () => {
     const p = buildGenericPortalProvider(SPEC, HEURISTICS);
     const result = await p.transmit(artifacts, ctx, plan, 'k', log, resolvedConfig);
     expect(result.status).toBe('REJECTED');
-    expect(result.notes).toContain('xx-portal: Test Portal HTTP port not implemented — API key from the portal');
+    expect(result.notes).toContain(
+      'xx-portal: Test Portal HTTP port not implemented — API key from the portal',
+    );
   });
 
   describe('poll()', () => {
@@ -205,7 +229,10 @@ describe('buildGenericPortalProvider (shared behaviour)', () => {
     });
 
     it('maps a reject-token status to REJECTED and unknown to PENDING', async () => {
-      for (const [raw, mapped] of [['INVALID_SIGNATURE', 'REJECTED'], ['IN_PROGRESS', 'PENDING']] as const) {
+      for (const [raw, mapped] of [
+        ['INVALID_SIGNATURE', 'REJECTED'],
+        ['IN_PROGRESS', 'PENDING'],
+      ] as const) {
         const http = makeHttp({ get: async () => ({ status: 200, data: { status: raw } }) });
         const p = buildGenericPortalProvider(SPEC, HEURISTICS, makeCredentials(resolvedConfig), http);
         const result = await p.poll!('company1|sub-42', log);
@@ -234,7 +261,9 @@ describe('buildGenericPortalProvider (shared behaviour)', () => {
       expect(mapPortalStatus('AUTORIZADO', LATAM_PORTAL_HEURISTICS)).toBe('CLEARED');
       expect(mapPortalStatus('Aceptado', LATAM_PORTAL_HEURISTICS)).toBe('CLEARED');
       expect(mapPortalStatus('RECHAZADO', LATAM_PORTAL_HEURISTICS)).toBe('REJECTED');
-      expect(mapPortalStatus(LATAM_PORTAL_HEURISTICS.statusFallback, LATAM_PORTAL_HEURISTICS)).toBe('PENDING');
+      expect(mapPortalStatus(LATAM_PORTAL_HEURISTICS.statusFallback, LATAM_PORTAL_HEURISTICS)).toBe(
+        'PENDING',
+      );
     });
   });
 });
@@ -253,27 +282,37 @@ interface RegionCase {
 
 const REGIONS: RegionCase[] = [
   {
-    name: 'LATAM', providers: SMALL_LATAM_PROVIDERS, count: 8,
+    name: 'LATAM',
+    providers: SMALL_LATAM_PROVIDERS,
+    count: 8,
     asyncIds: ['cr-hacienda', 'dgii', 'gt-sat', 'pa-dgi', 'sifen', 'sv-mh', 'seniat', 'bo-sin'],
     realtimeIds: [],
   },
   {
-    name: 'Asia', providers: SMALL_ASIA_PROVIDERS, count: 9,
+    name: 'Asia',
+    providers: SMALL_ASIA_PROVIDERS,
+    count: 9,
     asyncIds: ['tw-mof', 'kz-isesf', 'cn-sta', 'vn-gdt'],
     realtimeIds: ['ph-bir', 'th-rd', 'np-ird', 'bd-nbr', 'pk-fbr'],
   },
   {
-    name: 'Africa', providers: SMALL_AFRICA_PROVIDERS, count: 8,
+    name: 'Africa',
+    providers: SMALL_AFRICA_PROVIDERS,
+    count: 8,
     asyncIds: ['gh-gra', 'rw-rra'],
     realtimeIds: ['tz-tra', 'ug-ura', 'zm-zra', 'zw-zimra', 'ci-dgi', 'bj-dgi'],
   },
   {
-    name: 'MENA', providers: SMALL_MENA_PROVIDERS, count: 2,
+    name: 'MENA',
+    providers: SMALL_MENA_PROVIDERS,
+    count: 2,
     asyncIds: ['jofotara', 'tn-ttn'],
     realtimeIds: [],
   },
   {
-    name: 'Europe', providers: EUROPE_PORTAL_PROVIDERS, count: 10,
+    name: 'Europe',
+    providers: EUROPE_PORTAL_PROVIDERS,
+    count: 10,
     asyncIds: ['ua-dps', 'hr-fiskalizacija', 'al-cis', 'rs-sef'],
     realtimeIds: ['me-fiscal', 'lv-vid', 'sk-financnasprava', 'es-aeat', 'gr-aade', 'hu-nav'],
   },

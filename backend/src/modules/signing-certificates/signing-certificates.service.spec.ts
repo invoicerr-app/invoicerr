@@ -18,8 +18,12 @@ import type { PrismaService } from '@/prisma/prisma.service';
 
 // ── Encryption key (test-only) ──────────────────────────────────────────────
 const TEST_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-beforeAll(() => { process.env.CREDENTIALS_ENCRYPTION_KEY = TEST_KEY; });
-afterAll(() => { delete process.env.CREDENTIALS_ENCRYPTION_KEY; });
+beforeAll(() => {
+  process.env.CREDENTIALS_ENCRYPTION_KEY = TEST_KEY;
+});
+afterAll(() => {
+  delete process.env.CREDENTIALS_ENCRYPTION_KEY;
+});
 
 const COMPANY_ID = 'cmp_test_signing_001';
 
@@ -42,10 +46,10 @@ function generateTestCert(opts: { expired?: boolean } = {}): TestCertBundle {
   const now = new Date();
   if (opts.expired) {
     cert.validity.notBefore = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000); // 2d ago
-    cert.validity.notAfter  = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000); // 1d ago
+    cert.validity.notAfter = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000); // 1d ago
   } else {
     cert.validity.notBefore = now;
-    cert.validity.notAfter  = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+    cert.validity.notAfter = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
   }
 
   const attrs = [
@@ -58,15 +62,15 @@ function generateTestCert(opts: { expired?: boolean } = {}): TestCertBundle {
 
   const password = 'test-pfx-password-not-real';
   const p12Asn1 = forge.pkcs12.toPkcs12Asn1(keys.privateKey, [cert], password);
-  const p12Der  = forge.asn1.toDer(p12Asn1).getBytes();
+  const p12Der = forge.asn1.toDer(p12Asn1).getBytes();
   const pfxBase64 = Buffer.from(p12Der, 'binary').toString('base64');
 
   return {
     pfxBase64,
     password,
     notBefore: cert.validity.notBefore,
-    notAfter:  cert.validity.notAfter,
-    serial:    cert.serialNumber,
+    notAfter: cert.validity.notAfter,
+    serial: cert.serialNumber,
   };
 }
 
@@ -75,14 +79,15 @@ function generateTestCert(opts: { expired?: boolean } = {}): TestCertBundle {
 type RowLike = Record<string, unknown>;
 
 function makePrisma(rows: RowLike[] = []): PrismaService {
-  let store: RowLike[] = [...rows];
+  const store: RowLike[] = [...rows];
 
   return {
     companySigningCertificate: {
       findUnique: jest.fn().mockImplementation(({ where }: any) => {
         const { companyId, applicability, environment } = where.companyId_applicability_environment ?? {};
         const found = store.find(
-          (r) => r.companyId === companyId && r.applicability === applicability && r.environment === environment,
+          (r) =>
+            r.companyId === companyId && r.applicability === applicability && r.environment === environment,
         );
         return Promise.resolve(found ?? null);
       }),
@@ -104,8 +109,8 @@ describe('SigningCertificatesService', () => {
   // 1. encrypt→store→resolve→decrypt round-trip
   it('round-trip: upload → resolve returns valid signing material', async () => {
     const bundle = generateTestCert();
-    const prisma  = makePrisma();
-    const svc     = new SigningCertificatesService(prisma);
+    const prisma = makePrisma();
+    const svc = new SigningCertificatesService(prisma);
 
     const meta = await svc.upload(COMPANY_ID, {
       label: 'Test cert round-trip',
@@ -138,7 +143,7 @@ describe('SigningCertificatesService', () => {
   // 2. Expired cert → returns null
   it('expired cert → resolve returns null (skipped with warn)', async () => {
     const bundle = generateTestCert({ expired: true });
-    const svc    = new SigningCertificatesService(makePrisma());
+    const svc = new SigningCertificatesService(makePrisma());
 
     await svc.upload(COMPANY_ID, {
       label: 'Expired cert',
@@ -152,7 +157,7 @@ describe('SigningCertificatesService', () => {
 
   // 3. No cert configured → resolve returns null
   it('no cert configured → resolve returns null', async () => {
-    const svc    = new SigningCertificatesService(makePrisma([]));
+    const svc = new SigningCertificatesService(makePrisma([]));
     const result = await svc.resolve('company_with_no_cert');
     expect(result).toBeNull();
   });
@@ -160,7 +165,7 @@ describe('SigningCertificatesService', () => {
   // 4. listForCompany never returns secret fields
   it('listForCompany strips encryptedPfx and encryptedPass', async () => {
     const bundle = generateTestCert();
-    const svc    = new SigningCertificatesService(makePrisma());
+    const svc = new SigningCertificatesService(makePrisma());
 
     await svc.upload(COMPANY_ID, {
       label: 'Secret masking test',
@@ -185,7 +190,7 @@ describe('SigningCertificatesService', () => {
 
   // 5. Inactive cert → resolve returns null
   it('inactive cert → resolve skips it and returns null', async () => {
-    const bundle  = generateTestCert();
+    const bundle = generateTestCert();
     const row: RowLike = {
       id: 'cert_inactive',
       companyId: COMPANY_ID,
@@ -197,7 +202,7 @@ describe('SigningCertificatesService', () => {
       notAfter: bundle.notAfter,
       serial: bundle.serial,
       subject: 'CN=Test',
-      isActive: false,  // <-- inactive
+      isActive: false, // <-- inactive
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -209,7 +214,7 @@ describe('SigningCertificatesService', () => {
   // 6. delete removes the cert
   it('delete removes cert — deleteMany is called with correct companyId + certId', async () => {
     const prisma = makePrisma();
-    const svc    = new SigningCertificatesService(prisma);
+    const svc = new SigningCertificatesService(prisma);
 
     await svc.delete(COMPANY_ID, 'cert_123');
 
@@ -221,7 +226,7 @@ describe('SigningCertificatesService', () => {
   // 7. certRef with companyId:algo suffix → companyId is parsed correctly
   it('certRef "{companyId}:{algo}" — parses companyId from prefix', async () => {
     const bundle = generateTestCert();
-    const svc    = new SigningCertificatesService(makePrisma());
+    const svc = new SigningCertificatesService(makePrisma());
 
     await svc.upload(COMPANY_ID, {
       label: 'Algo-scoped cert',

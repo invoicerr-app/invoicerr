@@ -101,7 +101,9 @@ describe('PdpClient', () => {
     });
 
     it('authenticate() throws PdpApiError on failure', async () => {
-      mockFetch.mockResolvedValueOnce(mockJsonResponse({ error: 'invalid_client' }, 401) as unknown as Response);
+      mockFetch.mockResolvedValueOnce(
+        mockJsonResponse({ error: 'invalid_client' }, 401) as unknown as Response,
+      );
 
       const client = new PdpClient(CLIENT_CONFIG);
       await expect(client.authenticate()).rejects.toThrow(PdpApiError);
@@ -127,26 +129,25 @@ describe('PdpClient', () => {
       // First call: auth
       mockFetch.mockResolvedValueOnce(mockTokenResponse() as unknown as Response);
       // Second call: sendInvoice
-      mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 42, status_code: ['api:uploaded'] }) as unknown as Response);
+      mockFetch.mockResolvedValueOnce(
+        mockJsonResponse({ id: 42, status_code: ['api:uploaded'] }) as unknown as Response,
+      );
 
       const client = new PdpClient(CLIENT_CONFIG);
-      const result = await client.sendInvoice(
-        Buffer.from('%PDF-1.4 test'),
-        { externalId: 'my-ref-123' },
-      );
+      const result = await client.sendInvoice(Buffer.from('%PDF-1.4 test'), { externalId: 'my-ref-123' });
 
       expect(result.id).toBe(42);
       expect(result.status_code).toContain('api:uploaded');
     });
 
     it('getInvoice() fetches invoice by id', async () => {
-      mockFetch
-        .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
-        .mockResolvedValueOnce(mockJsonResponse({
+      mockFetch.mockResolvedValueOnce(mockTokenResponse() as unknown as Response).mockResolvedValueOnce(
+        mockJsonResponse({
           id: 42,
           status_code: ['api:uploaded', 'fr:200', 'fr:201'],
           direction: 'out',
-        }) as unknown as Response);
+        }) as unknown as Response,
+      );
 
       const client = new PdpClient(CLIENT_CONFIG);
       const result = await client.getInvoice(42);
@@ -158,7 +159,9 @@ describe('PdpClient', () => {
     it('getCompany() fetches current company', async () => {
       mockFetch
         .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
-        .mockResolvedValueOnce(mockJsonResponse({ id: 1, name: 'Test FR', number: '123456789' }) as unknown as Response);
+        .mockResolvedValueOnce(
+          mockJsonResponse({ id: 1, name: 'Test FR', number: '123456789' }) as unknown as Response,
+        );
 
       const client = new PdpClient(CLIENT_CONFIG);
       const result = await client.getCompany();
@@ -169,9 +172,8 @@ describe('PdpClient', () => {
 
   describe('AFNOR Flow API', () => {
     it('submitFlow() sends multipart with flowInfo', async () => {
-      mockFetch
-        .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
-        .mockResolvedValueOnce(mockJsonResponse({
+      mockFetch.mockResolvedValueOnce(mockTokenResponse() as unknown as Response).mockResolvedValueOnce(
+        mockJsonResponse({
           flowId: 'uuid-123',
           submittedAt: '2026-06-28T12:00:00Z',
           flowSyntax: 'Factur-X',
@@ -179,7 +181,8 @@ describe('PdpClient', () => {
           flowDirection: 'Out',
           flowType: 'CustomerInvoice',
           updatedAt: '2026-06-28T12:00:00Z',
-        }) as unknown as Response);
+        }) as unknown as Response,
+      );
 
       const client = new PdpClient(CLIENT_CONFIG);
       const flow = await client.submitFlow(Buffer.from('%PDF test'), {
@@ -193,13 +196,13 @@ describe('PdpClient', () => {
     });
 
     it('searchFlows() posts filter criteria', async () => {
-      mockFetch
-        .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
-        .mockResolvedValueOnce(mockJsonResponse({
+      mockFetch.mockResolvedValueOnce(mockTokenResponse() as unknown as Response).mockResolvedValueOnce(
+        mockJsonResponse({
           results: [{ flowId: 'f1', acknowledgement: { status: 'Ok' } }],
           limit: 10,
           filters: {},
-        }) as unknown as Response);
+        }) as unknown as Response,
+      );
 
       const client = new PdpClient(CLIENT_CONFIG);
       const result = await client.searchFlows({ trackingId: 'track-123' });
@@ -209,13 +212,13 @@ describe('PdpClient', () => {
     });
 
     it('getFlow() fetches flow by id', async () => {
-      mockFetch
-        .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
-        .mockResolvedValueOnce(mockJsonResponse({
+      mockFetch.mockResolvedValueOnce(mockTokenResponse() as unknown as Response).mockResolvedValueOnce(
+        mockJsonResponse({
           flowId: 'uuid-123',
           acknowledgement: { status: 'Pending' },
           updatedAt: '2026-06-28T12:00:00Z',
-        }) as unknown as Response);
+        }) as unknown as Response,
+      );
 
       const client = new PdpClient(CLIENT_CONFIG);
       const flow = await client.getFlow('uuid-123');
@@ -226,11 +229,11 @@ describe('PdpClient', () => {
 
   describe('Directory lookup', () => {
     it('lookupDirectoryEntries() fetches entries for SIREN', async () => {
-      mockFetch
-        .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
-        .mockResolvedValueOnce(mockJsonResponse({
+      mockFetch.mockResolvedValueOnce(mockTokenResponse() as unknown as Response).mockResolvedValueOnce(
+        mockJsonResponse({
           data: [{ id: 1, addressing_identifier: 'addr-1', platform_type: 'WK' }],
-        }) as unknown as Response);
+        }) as unknown as Response,
+      );
 
       const client = new PdpClient(CLIENT_CONFIG);
       const entries = await client.lookupDirectoryEntries('123456789');

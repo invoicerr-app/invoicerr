@@ -18,15 +18,34 @@ export class SefazTransmissionProvider implements TransmissionProvider {
   readonly pollPolicy = { everySeconds: 60, timeoutHours: 48, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {
     fields: [
-      { type: 'select', name: 'environment', label: 'SEFAZ environment', required: true,
-        options: [{ label: 'Homologação (test)', value: 'hom' }, { label: 'Produção', value: 'prod' }],
-        default: 'hom' },
-      { type: 'text', name: 'cnpj', label: 'CNPJ (digits only, 14 chars)',
-        placeholder: '12345678000190', required: true, minLength: 14, maxLength: 14 },
-      { type: 'text', name: 'certBase64', label: 'ICP-Brasil certificate PKCS#12 (base64)',
-        required: false, secret: true },
-      { type: 'text', name: 'certPassword', label: 'Certificate password',
-        required: false, secret: true },
+      {
+        type: 'select',
+        name: 'environment',
+        label: 'SEFAZ environment',
+        required: true,
+        options: [
+          { label: 'Homologação (test)', value: 'hom' },
+          { label: 'Produção', value: 'prod' },
+        ],
+        default: 'hom',
+      },
+      {
+        type: 'text',
+        name: 'cnpj',
+        label: 'CNPJ (digits only, 14 chars)',
+        placeholder: '12345678000190',
+        required: true,
+        minLength: 14,
+        maxLength: 14,
+      },
+      {
+        type: 'text',
+        name: 'certBase64',
+        label: 'ICP-Brasil certificate PKCS#12 (base64)',
+        required: false,
+        secret: true,
+      },
+      { type: 'text', name: 'certPassword', label: 'Certificate password', required: false, secret: true },
     ],
   };
 
@@ -82,14 +101,21 @@ export class SefazTransmissionProvider implements TransmissionProvider {
       const loteResp = await client.submitLote(nfeBytes);
 
       if (loteResp.cStat >= 400) {
-        return { channel: 'GOV_PORTAL_API', status: 'REJECTED',
-          notes: [`sefaz: lote rejected (${loteResp.cStat}): ${loteResp.xMotivo}`] };
+        return {
+          channel: 'GOV_PORTAL_API',
+          status: 'REJECTED',
+          notes: [`sefaz: lote rejected (${loteResp.cStat}): ${loteResp.xMotivo}`],
+        };
       }
 
       const ref = `${companyId}|${loteResp.nRec}`;
       log.info('transmission/sefaz', `lote submitted → nRec ${loteResp.nRec} (key ${key})`);
-      return { channel: 'GOV_PORTAL_API', status: 'PENDING', ref,
-        notes: [`nRec: ${loteResp.nRec}`, `cStat: ${loteResp.cStat} ${loteResp.xMotivo}`] };
+      return {
+        channel: 'GOV_PORTAL_API',
+        status: 'PENDING',
+        ref,
+        notes: [`nRec: ${loteResp.nRec}`, `cStat: ${loteResp.cStat} ${loteResp.xMotivo}`],
+      };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       log.warn('transmission/sefaz', `transmit failed: ${msg} (key ${key})`);
@@ -112,7 +138,12 @@ export class SefazTransmissionProvider implements TransmissionProvider {
     try {
       const resolved = await this.credentials.resolveActive(companyId, 'sefaz');
       if (!resolved?.isActive) {
-        return { channel: 'GOV_PORTAL_API', status: 'PENDING', ref, notes: ['sefaz: credentials no longer active'] };
+        return {
+          channel: 'GOV_PORTAL_API',
+          status: 'PENDING',
+          ref,
+          notes: ['sefaz: credentials no longer active'],
+        };
       }
 
       const { config, environment } = resolved;
@@ -120,25 +151,40 @@ export class SefazTransmissionProvider implements TransmissionProvider {
       const cnpj = config.cnpj as string;
 
       const http = this.httpPort ?? buildStubHttpPort();
-      const client = new SefazClient(http, { environment: env, cnpj,
+      const client = new SefazClient(http, {
+        environment: env,
+        cnpj,
         certBase64: config.certBase64 as string | undefined,
-        certPassword: config.certPassword as string | undefined });
+        certPassword: config.certPassword as string | undefined,
+      });
 
       const resp = await client.pollLote(nRec);
       const category = SefazClient.mapCStat(resp.cStat);
 
       if (category === 'AUTHORIZED') {
         const prot = resp.protNFe?.nProt;
-        return { channel: 'GOV_PORTAL_API', status: 'CLEARED', ref,
+        return {
+          channel: 'GOV_PORTAL_API',
+          status: 'CLEARED',
+          ref,
           authorityIds: prot ? [{ scheme: 'PROTOCOLO', value: prot }] : [],
-          notes: [`cStat: ${resp.cStat} ${resp.xMotivo}`] };
+          notes: [`cStat: ${resp.cStat} ${resp.xMotivo}`],
+        };
       }
       if (category === 'REJECTED') {
-        return { channel: 'GOV_PORTAL_API', status: 'REJECTED', ref,
-          notes: [`sefaz: ${resp.cStat} ${resp.xMotivo}`] };
+        return {
+          channel: 'GOV_PORTAL_API',
+          status: 'REJECTED',
+          ref,
+          notes: [`sefaz: ${resp.cStat} ${resp.xMotivo}`],
+        };
       }
-      return { channel: 'GOV_PORTAL_API', status: 'PENDING', ref,
-        notes: [`cStat: ${resp.cStat} ${resp.xMotivo}`] };
+      return {
+        channel: 'GOV_PORTAL_API',
+        status: 'PENDING',
+        ref,
+        notes: [`cStat: ${resp.cStat} ${resp.xMotivo}`],
+      };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       log.warn('transmission/sefaz', `poll failed: ${msg}`);
@@ -149,8 +195,14 @@ export class SefazTransmissionProvider implements TransmissionProvider {
 
 function buildStubHttpPort(): SefazHttpPort {
   return {
-    autorizarLote: async () => { throw new Error('SefazHttpPort not implemented — ICP-Brasil cert + live CNPJ required'); },
-    retornoLote: async () => { throw new Error('SefazHttpPort not implemented'); },
-    consultaSituacao: async () => { throw new Error('SefazHttpPort not implemented'); },
+    autorizarLote: async () => {
+      throw new Error('SefazHttpPort not implemented — ICP-Brasil cert + live CNPJ required');
+    },
+    retornoLote: async () => {
+      throw new Error('SefazHttpPort not implemented');
+    },
+    consultaSituacao: async () => {
+      throw new Error('SefazHttpPort not implemented');
+    },
   };
 }

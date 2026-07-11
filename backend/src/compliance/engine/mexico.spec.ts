@@ -52,7 +52,9 @@ describe('Mexico — CLEARANCE plan (the new regime path)', () => {
   it('routes through a PAC and emits the national CFDI 4.0 format', () => {
     expect(plan.channels.map((c) => c.type)).toEqual(['PAC']);
     expect(plan.artifacts).toEqual(
-      expect.arrayContaining([expect.objectContaining({ role: 'AUTHORITATIVE', syntax: 'CFDI', version: '4.0' })]),
+      expect.arrayContaining([
+        expect.objectContaining({ role: 'AUTHORITATIVE', syntax: 'CFDI', version: '4.0' }),
+      ]),
     );
   });
 

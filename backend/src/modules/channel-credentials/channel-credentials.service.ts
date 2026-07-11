@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
-import { ChannelCredentialsPort, ResolvedChannelConfig } from '@/compliance/providers/transmission/channel-credentials-port';
+import {
+  ChannelCredentialsPort,
+  ResolvedChannelConfig,
+} from '@/compliance/providers/transmission/channel-credentials-port';
 import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
 import { credentialAudit } from '@/utils/credential-access-audit';
 import { ChannelEnvironment, CompanyChannelConfig } from '../../../prisma/generated/prisma/client';
@@ -79,10 +82,7 @@ export class ChannelCredentialsService implements ChannelCredentialsPort {
     }
   }
 
-  async resolveActive(
-    companyId: string,
-    providerId: string,
-  ): Promise<ResolvedChannelConfig | null> {
+  async resolveActive(companyId: string, providerId: string): Promise<ResolvedChannelConfig | null> {
     if (!isEncryptionAvailable()) return null;
 
     const rows: CompanyChannelConfig[] = await this.prisma.companyChannelConfig.findMany({
@@ -106,8 +106,8 @@ export class ChannelCredentialsService implements ChannelCredentialsPort {
     if (active.length > 1) {
       this.logger.error(
         `Multiple active configs for company ${companyId} provider ${providerId}: ` +
-        `[${active.map((r: CompanyChannelConfig) => r.environment).join(', ')}]. ` +
-        `Exactly one must be active — skipping transmission.`,
+          `[${active.map((r: CompanyChannelConfig) => r.environment).join(', ')}]. ` +
+          `Exactly one must be active — skipping transmission.`,
       );
       credentialAudit.emit({
         companyId,

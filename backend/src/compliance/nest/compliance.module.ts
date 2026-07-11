@@ -41,7 +41,15 @@ import { NullInboxPort } from '../lifecycle/drivers/inbox-port';
 
 @Module({
   imports: [InvoiceRenderingModule, ChannelCredentialsModule, SigningCertificatesModule],
-  controllers: [ComplianceController, CompliancePipelineController, RequiredFieldsController, AuditExportController, ChannelCredentialsController, SigningCertificatesController, InboundInvoiceController],
+  controllers: [
+    ComplianceController,
+    CompliancePipelineController,
+    RequiredFieldsController,
+    AuditExportController,
+    ChannelCredentialsController,
+    SigningCertificatesController,
+    InboundInvoiceController,
+  ],
   providers: [
     // Stores
     {
@@ -73,42 +81,37 @@ import { NullInboxPort } from '../lifecycle/drivers/inbox-port';
     // Schedulers & Router
     {
       provide: PollScheduler,
-      useFactory: (
-        applySignal: ApplySignalService,
-        pollStore: PrismaPollJobStore,
-      ) => new PollScheduler({
-        applySignal: (id, signal, log) => applySignal.apply(id, signal, log),
-        store: pollStore,
-        txRegistry: defaultTransmissionRegistry,
-      }),
+      useFactory: (applySignal: ApplySignalService, pollStore: PrismaPollJobStore) =>
+        new PollScheduler({
+          applySignal: (id, signal, log) => applySignal.apply(id, signal, log),
+          store: pollStore,
+          txRegistry: defaultTransmissionRegistry,
+        }),
       inject: [ApplySignalService, PrismaPollJobStore],
     },
     {
       provide: TimerScheduler,
-      useFactory: (
-        applySignal: ApplySignalService,
-        timerStore: PrismaTimerJobStore,
-      ) => new TimerScheduler({
-        applySignal: (id, signal, log) => applySignal.apply(id, signal, log),
-        store: timerStore,
-      }),
+      useFactory: (applySignal: ApplySignalService, timerStore: PrismaTimerJobStore) =>
+        new TimerScheduler({
+          applySignal: (id, signal, log) => applySignal.apply(id, signal, log),
+          store: timerStore,
+        }),
       inject: [ApplySignalService, PrismaTimerJobStore],
     },
     {
       provide: InboundRouter,
-      useFactory: (
-        applySignal: ApplySignalService,
-        callbackStore: PrismaCallbackStore,
-      ) => new InboundRouter({
-        applySignal: (id, signal, log) => applySignal.apply(id, signal, log),
-        store: callbackStore,
-      }),
+      useFactory: (applySignal: ApplySignalService, callbackStore: PrismaCallbackStore) =>
+        new InboundRouter({
+          applySignal: (id, signal, log) => applySignal.apply(id, signal, log),
+          store: callbackStore,
+        }),
       inject: [ApplySignalService, PrismaCallbackStore],
     },
     // FormatProviderRegistry with real rendering port (InvoiceRenderingService)
     {
       provide: FormatProviderRegistry,
-      useFactory: (rendering: InvoiceRenderingService) => new FormatProviderRegistry({ artifacts: rendering }),
+      useFactory: (rendering: InvoiceRenderingService) =>
+        new FormatProviderRegistry({ artifacts: rendering }),
       inject: [InvoiceRenderingService],
     },
     // TransmissionProviderRegistry with real mail port + credentials port
@@ -147,7 +150,13 @@ import { NullInboxPort } from '../lifecycle/drivers/inbox-port';
         reporting: ReportingRegistry,
         existence: CachedExistenceClient,
       ) => new ComplianceExecutor({ formats, signing, transmission, reporting, existence }),
-      inject: [FormatProviderRegistry, SigningProviderRegistry, TransmissionProviderRegistry, ReportingRegistry, 'IDENTIFIER_EXISTENCE_CLIENT'],
+      inject: [
+        FormatProviderRegistry,
+        SigningProviderRegistry,
+        TransmissionProviderRegistry,
+        ReportingRegistry,
+        'IDENTIFIER_EXISTENCE_CLIENT',
+      ],
     },
     // ComplianceService (facade) with Prisma store + wired executor
     {
@@ -183,8 +192,23 @@ import { NullInboxPort } from '../lifecycle/drivers/inbox-port';
         inboxPoller: InboxPoller,
         reportingStore: PrismaReportingStore,
         cronLock: CronLockService,
-      ) => new ComplianceCron(pollScheduler, timerScheduler, inboundRouter, inboxPoller, reportingStore, cronLock),
-      inject: [PollScheduler, TimerScheduler, InboundRouter, InboxPoller, PrismaReportingStore, CronLockService],
+      ) =>
+        new ComplianceCron(
+          pollScheduler,
+          timerScheduler,
+          inboundRouter,
+          inboxPoller,
+          reportingStore,
+          cronLock,
+        ),
+      inject: [
+        PollScheduler,
+        TimerScheduler,
+        InboundRouter,
+        InboxPoller,
+        PrismaReportingStore,
+        CronLockService,
+      ],
     },
     // InboundInvoiceService — parse + store received supplier invoices
     {

@@ -24,11 +24,11 @@ import { RecurringInvoicesModule } from './modules/recurring-invoices/recurring-
 import { ScheduleModule } from '@nestjs/schedule';
 import { SignaturesModule } from './modules/signatures/signatures.module';
 import { SireneModule } from './modules/sirene/sirene.module';
-import { StatsModule } from './modules/stats/stats.module'
+import { StatsModule } from './modules/stats/stats.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { ComplianceModule } from './compliance/nest/compliance.module';
 import { LoggerModule } from './modules/logger/logger.module';
-import { auth } from "./lib/auth"
+import { auth } from './lib/auth';
 
 @Module({
   imports: [
@@ -77,4 +77,4 @@ import { auth } from "./lib/auth"
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

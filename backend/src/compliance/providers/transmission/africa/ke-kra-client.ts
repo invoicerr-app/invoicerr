@@ -96,13 +96,13 @@ export interface KeKraInvoicePayload {
   items: KeKraTaxItem[];
   /** Totals. */
   totItemCnt: number;
-  taxblAmtA: number;  // Taxable amount at 16% (VAT type A)
-  taxblAmtB: number;  // Taxable amount at 8% (VAT type B)
-  taxblAmtC: number;  // Taxable amount at 0% (VAT type C)
-  taxblAmtD: number;  // Taxable amount excise
-  taxblAmtE: number;  // Exempt amount
-  taxAmtA: number;    // VAT at 16%
-  taxAmtB: number;    // VAT at 8%
+  taxblAmtA: number; // Taxable amount at 16% (VAT type A)
+  taxblAmtB: number; // Taxable amount at 8% (VAT type B)
+  taxblAmtC: number; // Taxable amount at 0% (VAT type C)
+  taxblAmtD: number; // Taxable amount excise
+  taxblAmtE: number; // Exempt amount
+  taxAmtA: number; // VAT at 16%
+  taxAmtB: number; // VAT at 8%
   taxAmtC: number;
   taxAmtD: number;
   taxAmtE: number;

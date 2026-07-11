@@ -1,5 +1,5 @@
-import { readdirSync } from 'fs';
-import { resolve as resolvePath } from 'path';
+import { readdirSync } from 'node:fs';
+import { resolve as resolvePath } from 'node:path';
 import { defaultRegistry } from './registry';
 
 /**
