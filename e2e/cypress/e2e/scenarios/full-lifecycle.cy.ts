@@ -53,7 +53,28 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
       if (doc.querySelector('[data-cy="onboarding-dialog"]')) {
         cy.get('[data-cy="onboarding-company-name-input"]').clear().type(s.company.name);
         cy.selectCountry('onboarding-company-country-input', s.company.country);
+        // Country-required identifier: the input appears once the country is picked
+        // (compliance required-fields lookup) and the dialog refuses to submit without it.
+        if (s.company.identifierScheme === 'VAT') {
+          cy.get('[data-cy="onboarding-vat-input"]', { timeout: 10000 })
+            .clear({ force: true })
+            .type(s.company.legalId, { force: true });
+        } else if (s.company.identifierScheme === 'LEGAL_ID') {
+          cy.get('[data-cy="onboarding-legalid-input"]', { timeout: 10000 })
+            .clear({ force: true })
+            .type(s.company.legalId, { force: true });
+        } else if (s.company.identifierScheme) {
+          // Schemes without a dedicated onboarding data-cy (e.g. RFC) — match by
+          // placeholder = scheme label, same fallback as fillCompanyIdentifier below.
+          cy.get(`input[placeholder="${s.company.identifierScheme}"]`, { timeout: 10000 })
+            .clear({ force: true })
+            .type(s.company.legalId, { force: true });
+        }
         cy.get('[data-cy="onboarding-submit-btn"]').click();
+        // Company creation switches to the new company and reloads the page —
+        // wait for the dialog to be gone and the reloaded app to settle before moving on.
+        cy.get('[data-cy="onboarding-dialog"]', { timeout: 20000 }).should('not.exist');
+        cy.wait(3000);
       }
     });
 

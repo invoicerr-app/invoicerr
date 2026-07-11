@@ -54,7 +54,7 @@ export const SCENARIOS: Record<string, Scenario> = {
   },
   'es-pt': {
     id: 'es-pt',
-    company: { name: 'Madrid Diseño SL', country: 'Spain', legalId: 'ESB12345678', currency: 'EUR', currencyLabel: 'Euro (€)' },
+    company: { name: 'Madrid Diseño SL', country: 'Spain', legalId: 'ESB12345678', currency: 'EUR', currencyLabel: 'Euro (€)', identifierScheme: 'VAT' },
     client: { name: 'Lisboa Comércio Lda', email: 'client-es-pt@mailpit.test', country: 'Portugal', type: 'COMPANY', vat: 'PT123456789', address: 'Av. da Liberdade', postalCode: '1250-143', city: 'Lisbon', currency: 'EUR' },
     item: { name: 'Diseño web', quantity: 3, unitPrice: 500, vatRate: 21, type: 'SERVICE' },
   },
