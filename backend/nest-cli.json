@@ -5,14 +5,7 @@
   "compilerOptions": {
     "builder": "tsc",
     "deleteOutDir": true,
-    "assets": [
-      "**/*.json",
-      "**/*.pem",
-      "**/*.xsd",
-      "**/*.sch"
-    ],
-    "plugins": [
-      "@nestjs/swagger"
-    ]
+    "assets": ["**/*.json", "**/*.pem", "**/*.xsd", "**/*.sch"],
+    "plugins": ["@nestjs/swagger"]
   }
 }
