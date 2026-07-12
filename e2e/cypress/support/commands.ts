@@ -55,15 +55,28 @@ Cypress.Commands.add('login', () => {
 
 
 Cypress.Commands.add('getLastEmail', () => {
-    return cy
-        .request('http://localhost:8025/api/v1/messages')
-        .then(res => {
-            const messages = res.body.messages;
-            expect(messages).to.have.length.greaterThan(0);
-            const id = messages[0].ID;
-            return cy.request(`http://localhost:8025/api/v1/message/${id}`);
-        })
-        .then(res => res.body);
+    // Backend sends mail asynchronously — under CI load the OTP email can lag
+    // behind the request that triggered it. Poll mailpit instead of asserting
+    // on a single-shot request, so we don't hard-fail on a mail that is simply
+    // still in flight. ~20 attempts * 500ms wait ≈ 10s retry budget.
+    function pollForMessage(attemptsLeft: number): Cypress.Chainable<any> {
+        return cy
+            .request({ url: 'http://localhost:8025/api/v1/messages', failOnStatusCode: false })
+            .then((res) => {
+                const messages = res.body?.messages || [];
+                if (messages.length === 0 && attemptsLeft > 0) {
+                    cy.wait(500);
+                    return pollForMessage(attemptsLeft - 1);
+                }
+                // Retry budget exhausted (or messages present) — assert here so a
+                // genuine failure (no mail ever arrived) still hard-fails clearly.
+                expect(messages, 'mailpit message present after polling').to.have.length.greaterThan(0);
+                const id = messages[0].ID;
+                return cy.request(`http://localhost:8025/api/v1/message/${id}`);
+            });
+    }
+
+    return pollForMessage(20).then(res => res.body);
 });
 
 Cypress.Commands.add('clearEmails', () => {

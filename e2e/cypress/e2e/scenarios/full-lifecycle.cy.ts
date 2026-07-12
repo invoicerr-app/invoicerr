@@ -32,6 +32,21 @@ function assertCompliance(invoiceId: string, attempts = 5) {
   });
 }
 
+// Signature processing (OTP verification → SIGNED) happens async on the backend —
+// re-fetch the table and only assert on the final attempt (or once SIGNED lands)
+// so a brief processing lag doesn't hard-fail the test.
+function assertQuoteSigned(quoteId: string, attempts = 5) {
+  cy.request(`${api}/api/quotes/table`).its('body').then((quotes) => {
+    const q = quotes.find((q: { id: string }) => q.id === quoteId);
+    if ((!q || q.status !== 'SIGNED') && attempts > 0) {
+      cy.wait(1000);
+      return assertQuoteSigned(quoteId, attempts - 1);
+    }
+    expect(q, 'quote found in table').to.exist;
+    expect(q.status).to.eq('SIGNED');
+  });
+}
+
 describe(`Full lifecycle — ${scenarioId}`, () => {
   before(() => {
     cy.task('resetDatabase');
@@ -166,11 +181,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
             });
 
           // 6. Verify quote SIGNED (no GET /api/quotes/:id — use table endpoint)
-          cy.request(`${api}/api/quotes/table`).its('body').then((quotes) => {
-            const q = quotes.find((q: { id: string }) => q.id === quote.id);
-            expect(q, 'quote found in table').to.exist;
-            expect(q.status).to.eq('SIGNED');
-          });
+          assertQuoteSigned(quote.id);
 
           // 7. Create invoice from quote
           cy.request('POST', `${api}/api/invoices/create-from-quote`, {
