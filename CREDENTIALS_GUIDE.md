@@ -1,8 +1,9 @@
 # E-Invoicing Credentials — Setup Guide
 
 > Step-by-step guide for obtaining the credentials of every e-invoicing platform the
-> project can transmit to, and wiring them into GitHub Actions secrets.
-> Generated 2026-07-12. Each section was researched against official sources (listed inline).
+> project can transmit to. **The deployed app takes these per-tenant in each company's
+> settings (stored encrypted in the DB) — env vars / GitHub secrets are only for the live CI
+> tests.** Generated 2026-07-12. Each section was researched against official sources (listed inline).
 
 ---
 
@@ -20,7 +21,35 @@
 - **Priority:** the project's real markets are **France, Poland, Italy** (+ Peppol for
   cross-border). Everything else is long-tail — document­ed here for completeness, not urgency.
 
-## How to add a secret
+## Two separate credential paths — the deployed app vs the CI tests
+
+The app is **multi-tenant**. There are two entirely separate places credentials can live, and
+they must not be confused:
+
+**① Deployed app (production — this is what real usage relies on).**
+Each company enters **its own** channel credentials in the app UI — no env vars, no GitHub
+secrets involved:
+- **Settings → Channels** → connect a channel (e.g. FR→PDP, PL→KSeF) and paste that tenant's
+  API credentials → stored in `CompanyChannelConfig` (one row per `companyId` + provider +
+  `TEST`/`PROD` environment).
+- **Settings → Signing certificates** → upload the tenant's `.pfx/.p12` + password → stored in
+  `CompanySigningCertificate`.
+- Both are **AES-256-GCM encrypted at rest** (`backend/src/utils/secret-crypto.ts`), scoped by
+  `companyId`. The **only** server-side env var the deployed app needs for this is
+  **`CREDENTIALS_ENCRYPTION_KEY`** (see Transverse secrets). Tenant A never sees tenant B's keys.
+
+**② CI live tests (`compliance-live.yml`) — the only reason env/GitHub secrets exist here.**
+A CI job has no tenant and no UI, so the live test specs read credentials from **env vars /
+GitHub repository secrets** instead. That is the *sole* purpose of every `<PREFIX>_*` secret named
+in this guide. It never touches the deployed app's per-tenant storage.
+
+**What this means for the per-platform sections below:** the "how to obtain this credential from
+the authority" steps are **identical** for both paths — you get the same client_id / token /
+certificate from the same portal. Only the **destination** differs:
+- for **production** → paste it into that company's *Settings → Channels / Signing certificates*;
+- for a **CI live test** → put it in a **GitHub secret** (below).
+
+### Adding a GitHub secret (CI-test path only)
 
 **UI:** repo → *Settings → Secrets and variables → Actions → New repository secret*.
 
