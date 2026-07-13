@@ -32,6 +32,8 @@ import { SireneModule } from './modules/sirene/sirene.module';
 import { StatsModule } from './modules/stats/stats.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { ComplianceModule } from './compliance/nest/compliance.module';
+import { ComplianceWorkerModule } from './compliance/nest/queue/compliance-worker.module';
+import { QueueModule } from './compliance/nest/queue/queue.module';
 import { LoggerModule } from './modules/logger/logger.module';
 import { auth } from './lib/auth';
 
@@ -76,6 +78,15 @@ import { auth } from './lib/auth';
     LoggerModule,
     PdfLinksModule,
     McpModule,
+    // QueueModule is always imported so the API can *enqueue* (via ComplianceQueueDispatcher)
+    // regardless of deployment topology. ComplianceWorkerModule (the queue processors) is only
+    // imported when WORKER_INLINE !== 'false' (default: inline/mono) — NestJS only instantiates
+    // `@Processor()` classes reachable from an imported module, so gating this import gates
+    // consumption. In a scaled ("giga") deployment the API sets WORKER_INLINE=false and only the
+    // dedicated worker process(es) (worker.ts / worker.module.ts) import ComplianceWorkerModule,
+    // avoiding double-consumption. See QUEUE_IMPL_PLAN.md §5.5 / Décision 4.
+    QueueModule,
+    ...(process.env.WORKER_INLINE !== 'false' ? [ComplianceWorkerModule] : []),
   ],
   controllers: [],
   providers: [

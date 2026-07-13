@@ -3,6 +3,16 @@
 # Navigate to the backend directory where the compiled code and config are
 cd /usr/share/nginx/backend/src
 
+# ROLE switch: same image, different process. ROLE=worker runs ONLY the dedicated
+# compliance queue worker (dist/src/worker.js) — no nginx, no frontend config, no
+# migrations (those are API-only, handled inside main.js via syncDatabaseSchema()).
+# Default (unset or "api") keeps the existing combined nginx+node backend below.
+# See QUEUE_IMPL_PLAN.md §7.1.
+if [ "${ROLE:-api}" = "worker" ]; then
+  echo "Starting compliance worker..."
+  exec node worker.js
+fi
+
 echo "[DEBUG] - Listing files in /usr/share/nginx/backend"
 ls -la /usr/share/nginx/backend
 

@@ -55,6 +55,43 @@ jobs:
       - name: Run backend unit tests
         run: cd backend && npm test -- --ci
 
+  queue-integration:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Generate Prisma client
+        run: cd backend && DATABASE_URL="postgresql://unused:unused@localhost:5432/unused" npx prisma generate
+
+      # Self-gated on REDIS_URL (queue-smoke.redis.spec.ts) — this is the only jest run in CI
+      # that has a Redis service available, so it's the only one where the smoke test actually
+      # executes (elsewhere it self-skips). Filters to *.redis.spec.ts so it doesn't re-run the
+      # full offline suite already covered by backend-tests.
+      - name: Run compliance queue smoke test (real Redis enqueue -> consume)
+        env:
+          REDIS_URL: redis://localhost:6379
+        run: cd backend && npx jest --testPathPattern redis.spec --ci
+
   cypress-run:
     runs-on: ubuntu-latest
     services:
