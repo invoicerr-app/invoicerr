@@ -1,6 +1,7 @@
 import { PartyRole, SupplyType } from '../types';
 import { PartyTaxProfile, TransactionContext } from '../canonical/canonical-document';
 import { NumberingRegistry } from '../lifecycle/numbering';
+import { ConfigAuthorityRangeSource, NullAuthorityRangeSource } from '../lifecycle/authority-range-source';
 import { RecordingComplianceLogger } from '../execution/logger';
 import { ComplianceExecutor } from '../execution/executor';
 import { TransmissionProvider } from '../providers/transmission/transmission-provider';
@@ -43,6 +44,20 @@ function mailMock(): InvoiceMailPort {
   return { sendInvoiceEmail: async () => ({ sent: true }) };
 }
 
+/**
+ * F-9: pre-configures a generous MX folio range for both the no-company MX() context and the
+ * MX_CONFIGURED() ('mx-test-co') context, so the many pre-existing MX tests below (which exercise
+ * transmission/clearance/cancellation/archival, NOT numbering) keep reaching ISSUED exactly like
+ * before AUTHORITY_RANGE was wired up. Numbering-specific behavior (no range / exhaustion) has its
+ * own dedicated describe block further down, using a bare NullAuthorityRangeSource instead.
+ */
+function mxRangeSource(): ConfigAuthorityRangeSource {
+  const src = new ConfigAuthorityRangeSource();
+  src.configure(undefined, 'MX-INVOICE', { from: 1, to: 999999 });
+  src.configure('mx-test-co', 'MX-INVOICE', { from: 1, to: 999999 });
+  return src;
+}
+
 function svc() {
   const log = new RecordingComplianceLogger();
   // M-18: EmailTransmissionProvider's no-port fallback is now honestly SKIPPED (never SENT), so a
@@ -54,6 +69,7 @@ function svc() {
   const service = new ComplianceService({
     store: new InMemoryComplianceDocumentStore(),
     numbering: new NumberingRegistry(),
+    rangeSource: mxRangeSource(),
     executor: new ComplianceExecutor({ logger: log, numbering: new NumberingRegistry(), transmission }),
     logger: log,
   });
@@ -99,6 +115,7 @@ function svcMx() {
   const service = new ComplianceService({
     store: new InMemoryComplianceDocumentStore(),
     numbering: new NumberingRegistry(),
+    rangeSource: mxRangeSource(),
     executor: new ComplianceExecutor({
       logger: log,
       numbering: new NumberingRegistry(),
@@ -152,6 +169,7 @@ function svcMxFlaky() {
   const service = new ComplianceService({
     store: new InMemoryComplianceDocumentStore(),
     numbering: new NumberingRegistry(),
+    rangeSource: mxRangeSource(),
     executor: new ComplianceExecutor({
       logger: log,
       numbering: new NumberingRegistry(),
@@ -508,5 +526,91 @@ describe('ComplianceService — outgoing lifecycle status (sendStatus)', () => {
     expect(paid.events.some((e) => e.type === 'STATUS:encaissée')).toBe(true);
     expect(log.hasScope('reporting/E_REPORTING')).toBe(true);
     expect(log.hasScope('transmission/pdp')).toBe(true);
+  });
+});
+
+describe('ComplianceService — F-9: AUTHORITY_RANGE numbering (loadRange wiring + hard block)', () => {
+  it('MX plan still requires AUTHORITY_RANGE numbering', () => {
+    expect(resolve(MX()).numbering.model).toBe('AUTHORITY_RANGE');
+  });
+
+  it('with a configured range, issue() allocates sequential numbers from it', async () => {
+    const rangeSource = new ConfigAuthorityRangeSource();
+    rangeSource.configure('range-co', 'MX-INVOICE', { from: 1000, to: 1002 });
+    const service = new ComplianceService({
+      store: new InMemoryComplianceDocumentStore(),
+      numbering: new NumberingRegistry(),
+      rangeSource,
+    });
+    const mxCtx = { ...MX(), supplierCompanyId: 'range-co' };
+
+    const d1 = await service.createDraft(mxCtx);
+    const { document: issued1 } = await service.issue(d1.id);
+    expect(issued1.status).toBe('ISSUED');
+    expect(issued1.number).toBe('1000');
+
+    const d2 = await service.createDraft(mxCtx);
+    const { document: issued2 } = await service.issue(d2.id);
+    expect(issued2.number).toBe('1001'); // next folio in the same loaded range
+  });
+
+  it('range exhausted → issue() hard-fails instead of silently reusing/skipping a folio', async () => {
+    const rangeSource = new ConfigAuthorityRangeSource();
+    rangeSource.configure('exhaust-co', 'MX-INVOICE', { from: 1, to: 1 }); // a single-folio range
+    const service = new ComplianceService({
+      store: new InMemoryComplianceDocumentStore(),
+      numbering: new NumberingRegistry(),
+      rangeSource,
+    });
+    const mxCtx = { ...MX(), supplierCompanyId: 'exhaust-co' };
+
+    const d1 = await service.createDraft(mxCtx);
+    const { document: issued1 } = await service.issue(d1.id);
+    expect(issued1.number).toBe('1'); // consumes the only folio
+
+    const d2 = await service.createDraft(mxCtx);
+    await expect(service.issue(d2.id)).rejects.toThrow(/exhausted/i);
+    const after = await service.getDocument(d2.id);
+    expect(after!.status).toBe('DRAFT');
+    expect(after!.number).toBeUndefined();
+  });
+
+  it('with NO range configured, issue() hard-fails — the document must never reach ISSUED with number: undefined', async () => {
+    const service = new ComplianceService({
+      store: new InMemoryComplianceDocumentStore(),
+      numbering: new NumberingRegistry(),
+      rangeSource: new NullAuthorityRangeSource(), // offline-safe default: never has a range
+    });
+    const draft = await service.createDraft(MX());
+
+    await expect(service.issue(draft.id)).rejects.toThrow(/no folio range loaded/i);
+
+    // F-9: the old behavior swallowed this into a warn and still transitioned to ISSUED with
+    // number: undefined. Now the document must stay in a pre-issue state (DRAFT) with no number.
+    const after = await service.getDocument(draft.id);
+    expect(after!.status).toBe('DRAFT');
+    expect(after!.number).toBeUndefined();
+
+    // The failure is a first-class, persisted event (not just a log line) — aligned with the F-4
+    // sincerity principle of surfacing real failures instead of swallowing them.
+    const blocked = after!.events.find((e) => e.type === 'ISSUE_BLOCKED');
+    expect(blocked).toBeDefined();
+    expect(blocked!.detail).toMatch(/no folio range loaded/i);
+  });
+
+  it('AR is requalified to GAPLESS_SELF (AFIP self-numbers; CAE is granted a posteriori, not a range)', async () => {
+    const arCtx = ctx('AR', 'AR', 'B2B', 'GOODS', '2027-01-15');
+    expect(resolve(arCtx).numbering.model).toBe('GAPLESS_SELF');
+
+    // Issues successfully with NO range configured anywhere — AR must never consult FolioPool.
+    const service = new ComplianceService({
+      store: new InMemoryComplianceDocumentStore(),
+      numbering: new NumberingRegistry(),
+      rangeSource: new NullAuthorityRangeSource(),
+    });
+    const draft = await service.createDraft(arCtx);
+    const { document } = await service.issue(draft.id);
+    expect(document.status).toBe('ISSUED');
+    expect(document.number).toBeDefined();
   });
 });

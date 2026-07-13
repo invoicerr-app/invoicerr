@@ -12,6 +12,7 @@ import { resolve } from '../engine/compliance-engine';
 import { ComplianceExecutor, defaultExecutor } from '../execution/executor';
 import { ComplianceLogger, defaultLogger } from '../execution/logger';
 import { AuthorityIdentifier, ExecutionResult, SignedArtifact, TransmissionResult } from '../execution/types';
+import { AuthorityRangeSource, defaultAuthorityRangeSource } from '../lifecycle/authority-range-source';
 import { defaultCorrectionRegistry, CorrectionRegistry } from '../lifecycle/corrections';
 import { defaultNumberingRegistry, NumberingRegistry } from '../lifecycle/numbering';
 import { defaultResponseTracker, ResponseTracker } from '../lifecycle/response';
@@ -51,6 +52,10 @@ export interface ComplianceServiceDeps {
   executor?: ComplianceExecutor;
   logger?: ComplianceLogger;
   numbering?: NumberingRegistry;
+  /** F-9: resolves the AUTHORITY_RANGE range a company holds for a series. Defaults to the
+   * offline-safe Null source (no range ever configured) — inject a config-backed / live source to
+   * actually enable MX/CL issuance. */
+  rangeSource?: AuthorityRangeSource;
   corrections?: CorrectionRegistry;
   response?: ResponseTracker;
   reporting?: ReportingRegistry;
@@ -86,6 +91,7 @@ export class ComplianceService {
   private readonly executor: ComplianceExecutor;
   private readonly log: ComplianceLogger;
   private readonly numbering: NumberingRegistry;
+  private readonly rangeSource: AuthorityRangeSource;
   private readonly corrections: CorrectionRegistry;
   private readonly response: ResponseTracker;
   private readonly reporting: ReportingRegistry;
@@ -99,6 +105,7 @@ export class ComplianceService {
     this.executor = deps.executor ?? defaultExecutor;
     this.log = deps.logger ?? defaultLogger;
     this.numbering = deps.numbering ?? defaultNumberingRegistry;
+    this.rangeSource = deps.rangeSource ?? defaultAuthorityRangeSource;
     this.corrections = deps.corrections ?? defaultCorrectionRegistry;
     this.response = deps.response ?? defaultResponseTracker;
     this.reporting = deps.reporting ?? defaultReportingRegistry;
@@ -187,12 +194,35 @@ export class ComplianceService {
     if (rec.status !== 'DRAFT') throw new Error(`Only DRAFT documents can be issued (was ${rec.status}).`);
     const plan = resolve(rec.ctx);
 
-    let number: string | undefined;
     const series = `${rec.ctx.supplier.countryCode}-${rec.kind}`;
+    // F-9: hydrate the AUTHORITY_RANGE pool from the injected range source before allocating (no-op
+    // for GAPLESS_SELF / once already loaded).
+    await this.numbering.ensureRange(
+      plan.numbering.model,
+      rec.ctx.supplierCompanyId,
+      series,
+      this.log,
+      this.rangeSource,
+    );
+
+    let number: string;
     try {
       number = this.numbering.get(plan.numbering.model).next(series, plan.numbering, this.log).value;
     } catch (e) {
-      this.log.warn('operations/issue', `numbering blocked: ${(e as Error).message}`);
+      // F-9: a numbering failure now HARD-BLOCKS issuance — the document must never reach ISSUED
+      // with `number: undefined` (the old behavior: warn and continue). It stays DRAFT (a legal
+      // pre-issue state) with the reason recorded as a first-class event, and the error is rethrown
+      // so the caller cannot silently treat this as success (aligned with the F-4 sincerity
+      // principle: don't swallow a real failure into a log line).
+      const reason = (e as Error).message;
+      await this.store.update(id, {
+        events: [
+          ...rec.events,
+          { id: randomUUID(), type: 'ISSUE_BLOCKED', at: now(), actor: 'system', detail: reason },
+        ],
+      });
+      this.log.warn('operations/issue', `numbering blocked: ${reason}`);
+      throw new Error(`Cannot issue document "${id}": ${reason}`);
     }
 
     // Hash-chain: find the previous document in the series and link to it

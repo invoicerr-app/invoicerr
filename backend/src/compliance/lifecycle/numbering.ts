@@ -1,10 +1,18 @@
 /**
  * Document numbering (COMPLIANCE_ARCHITECTURE.md §11.2). Two models:
- *  - GAPLESS_SELF: issuer-sequenced, strictly gap-controlled (FR/PT + most post-audit/EU).
- *  - AUTHORITY_RANGE: the authority pre-allocates ranges the issuer consumes (CL CAF, AR CAE, MX folio).
+ *  - GAPLESS_SELF: issuer-sequenced, strictly gap-controlled (FR/PT + most post-audit/EU; also AR
+ *    since F-9 — AFIP auto-numbers and grants a CAE authorization a posteriori, it does not
+ *    pre-allocate a number range, so AR was requalified out of AUTHORITY_RANGE).
+ *  - AUTHORITY_RANGE: the authority pre-allocates a range the issuer consumes (CL CAF, MX folio).
+ *    See ./authority-range-source.ts (F-9) for how a range is loaded into the pool below.
  */
 import { ComplianceLogger } from '../execution/logger';
 import { NumberingRule } from '../profiles/schema';
+import {
+  AuthorityRangeSource,
+  defaultAuthorityRangeSource,
+  hydrateAuthorityRange,
+} from './authority-range-source';
 
 export interface AssignedNumber {
   value: string;
@@ -42,6 +50,11 @@ export class FolioPool implements Numberer {
     this.pools.set(series, { from, to, next: from });
   }
 
+  /** Whether a range is already loaded for this series (hydrate-once guard — see F-9). */
+  hasRange(series: string): boolean {
+    return this.pools.has(series);
+  }
+
   next(series: string, _rule: NumberingRule, log: ComplianceLogger): AssignedNumber {
     const pool = this.pools.get(series);
     if (!pool) {
@@ -68,6 +81,22 @@ export class NumberingRegistry {
 
   get folioPool(): FolioPool {
     return this.folio;
+  }
+
+  /**
+   * F-9: lazily loads the authority-allocated range for `series` from `source` before `next()` is
+   * called — the fix for `loadRange()` having no caller. No-op for GAPLESS_SELF and no-op once a
+   * range is already loaded (never reloads mid-series). Callers still get an honest failure from
+   * `next()` afterwards if no range was available (source returned null) or it is exhausted.
+   */
+  async ensureRange(
+    model: NumberingRule['model'],
+    companyId: string | undefined,
+    series: string,
+    log: ComplianceLogger,
+    source: AuthorityRangeSource = defaultAuthorityRangeSource,
+  ): Promise<void> {
+    await hydrateAuthorityRange(this.folio, model, source, companyId, series, log);
   }
 }
 

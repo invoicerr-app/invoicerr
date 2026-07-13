@@ -24,6 +24,7 @@ import { RegimeHandlerRegistry, defaultRegimeRegistry } from '../regimes/registr
 import { ReportingRegistry, defaultReportingRegistry } from '../reporting/registry';
 import { TaxSystemRegistry, defaultTaxSystemRegistry } from '../taxsystems/registry';
 import { NumberingRegistry, defaultNumberingRegistry } from '../lifecycle/numbering';
+import { AuthorityRangeSource, defaultAuthorityRangeSource } from '../lifecycle/authority-range-source';
 import { ResponseTracker, defaultResponseTracker } from '../lifecycle/response';
 import { DocumentSyntax } from '../types';
 import { ComplianceLogger, defaultLogger } from './logger';
@@ -50,6 +51,8 @@ export interface ExecutorDeps {
   taxSystems?: TaxSystemRegistry;
   reporting?: ReportingRegistry;
   numbering?: NumberingRegistry;
+  /** F-9: same range source ComplianceService.issue() uses — see numbering step below. */
+  rangeSource?: AuthorityRangeSource;
   response?: ResponseTracker;
   logger?: ComplianceLogger;
   /** Optional remote existence checker (VIES/SIRENE). Defaults to NullIdentifierExistenceClient (offline-safe). */
@@ -69,6 +72,7 @@ export class ComplianceExecutor {
   private readonly taxSystems: TaxSystemRegistry;
   private readonly reporting: ReportingRegistry;
   private readonly numbering: NumberingRegistry;
+  private readonly rangeSource: AuthorityRangeSource;
   private readonly response: ResponseTracker;
   private readonly log: ComplianceLogger;
   private readonly existence: IdentifierExistencePort;
@@ -82,6 +86,7 @@ export class ComplianceExecutor {
     this.taxSystems = deps.taxSystems ?? defaultTaxSystemRegistry;
     this.reporting = deps.reporting ?? defaultReportingRegistry;
     this.numbering = deps.numbering ?? defaultNumberingRegistry;
+    this.rangeSource = deps.rangeSource ?? defaultAuthorityRangeSource;
     this.response = deps.response ?? defaultResponseTracker;
     this.log = deps.logger ?? defaultLogger;
     this.existence = deps.existence ?? new NullIdentifierExistenceClient();
@@ -186,11 +191,25 @@ export class ComplianceExecutor {
     const totals = this.taxSystems.get(plan.taxSystemKind).computeTotals(ctx, plan.tax, log);
 
     // 2. Numbering (gapless self-counter, or authority folio range which blocks when exhausted).
+    // F-9: hydrate the AUTHORITY_RANGE pool from the range source before allocating — no-op for
+    // GAPLESS_SELF / once already loaded (e.g. by ComplianceService.issue() earlier in the same
+    // lifecycle, since both share the default NumberingRegistry singleton in prod).
     const series = `${ctx.supplier.countryCode}-${ctx.documentKind ?? 'INVOICE'}`;
+    await this.numbering.ensureRange(
+      plan.numbering.model,
+      ctx.supplierCompanyId,
+      series,
+      log,
+      this.rangeSource,
+    );
     let number: string | undefined;
     try {
       number = this.numbering.get(plan.numbering.model).next(series, plan.numbering, log).value;
     } catch (e) {
+      // Non-blocking here by design: this step runs again during send() (after issue() already
+      // hard-blocked on the same failure — see ComplianceService.issue()), so by the time execute()
+      // runs the document already has its authoritative number; a second allocation failure just
+      // surfaces as a pipeline warning rather than re-blocking a document that is already ISSUED.
       warnings.push(`Numbering blocked: ${(e as Error).message}`);
     }
 

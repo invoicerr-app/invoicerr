@@ -9,11 +9,16 @@ import { clearance, planned, vat } from '../archetypes';
  */
 export const LATAM_PROFILES: CountryComplianceProfile[] = [
   clearance('AR', 'Argentina', {
+    // F-9: requalified from AUTHORITY_RANGE — AFIP does not pre-allocate a folio range; the issuer
+    // self-numbers sequentially (queries FECompUltimoAutorizado for the last authorized number and
+    // increments) and only receives the CAE (Código de Autorización Electrónico) authorization
+    // a posteriori, at transmit time (see afip-transmission.ts). That CAE is modeled as an
+    // authorityId on the transmission result, independent of numbering — only the numbering model
+    // was wrong. GAPLESS_SELF is the `clearance()` archetype default, so no override is needed here.
     syntax: 'AR_FE',
     providerId: 'afip',
-    numbering: 'AUTHORITY_RANGE',
     tax: vat(21, [10.5, 27]),
-  }), // ARCA/AFIP, CAE/CAEA
+  }), // ARCA/AFIP, CAE a posteriori
   clearance('BO', 'Bolivia', { syntax: 'BO_FE', providerId: 'bo-sin', tax: vat(13) }), // SIN, CUF
   clearance('BR', 'Brazil', {
     syntax: 'NFE',
@@ -23,6 +28,9 @@ export const LATAM_PROFILES: CountryComplianceProfile[] = [
     tax: vat(17, [12, 7]),
   }), // NF-e family, SEFAZ
   clearance('CL', 'Chile', {
+    // AUTHORITY_RANGE is correct here (unlike the AR case above, F-9): SII genuinely pre-allocates a
+    // folio range via a CAF (Código de Autorización de Folios) file the issuer requests in advance
+    // and then consumes offline, in order — a real range allocation, not a post-hoc authorization.
     syntax: 'CL_DTE',
     providerId: 'sii',
     numbering: 'AUTHORITY_RANGE',

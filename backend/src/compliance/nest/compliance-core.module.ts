@@ -8,6 +8,7 @@ import { PrismaReportingStore } from '../reporting/prisma-reporting-store';
 import { ReportingRegistry } from '../reporting/registry';
 import { NullIdentifierExistenceClient } from '../canonical/identifier-existence.port';
 import { CachedExistenceClient } from '../canonical/cached-existence-client';
+import { ConfigAuthorityRangeSource } from '../lifecycle/authority-range-source';
 import { PollScheduler } from '../lifecycle/drivers/poll-scheduler';
 import { TimerScheduler } from '../lifecycle/drivers/timer-scheduler';
 import { InboundRouter } from '../lifecycle/drivers/inbound-router';
@@ -181,13 +182,15 @@ import { QueueModule } from './queue/queue.module';
         transmission: TransmissionProviderRegistry,
         reporting: ReportingRegistry,
         existence: CachedExistenceClient,
-      ) => new ComplianceExecutor({ formats, signing, transmission, reporting, existence }),
+        rangeSource: ConfigAuthorityRangeSource,
+      ) => new ComplianceExecutor({ formats, signing, transmission, reporting, existence, rangeSource }),
       inject: [
         FormatProviderRegistry,
         SigningProviderRegistry,
         TransmissionProviderRegistry,
         ReportingRegistry,
         'IDENTIFIER_EXISTENCE_CLIENT',
+        'AUTHORITY_RANGE_SOURCE',
       ],
     },
     // ComplianceService (facade) with Prisma store + wired executor — also the home of
@@ -195,9 +198,12 @@ import { QueueModule } from './queue/queue.module';
     // callers) AND TransmitProcessor (the real event-sourced queue path).
     {
       provide: ComplianceService,
-      useFactory: (docStore: PrismaComplianceDocumentStore, executor: ComplianceExecutor) =>
-        new ComplianceService({ store: docStore, executor }),
-      inject: [PrismaComplianceDocumentStore, ComplianceExecutor],
+      useFactory: (
+        docStore: PrismaComplianceDocumentStore,
+        executor: ComplianceExecutor,
+        rangeSource: ConfigAuthorityRangeSource,
+      ) => new ComplianceService({ store: docStore, executor, rangeSource }),
+      inject: [PrismaComplianceDocumentStore, ComplianceExecutor, 'AUTHORITY_RANGE_SOURCE'],
     },
     // IdentifierExistencePort — offline-safe default (NullIdentifierExistenceClient wrapped in cache) (§7)
     // To enable live checks: replace NullIdentifierExistenceClient with ViesExistenceClient /
@@ -205,6 +211,16 @@ import { QueueModule } from './queue/queue.module';
     {
       provide: 'IDENTIFIER_EXISTENCE_CLIENT',
       useFactory: () => new CachedExistenceClient(new NullIdentifierExistenceClient()),
+    },
+    // AuthorityRangeSource (F-9) — the seam a company's authority-allocated numbering range
+    // (MX folio via PAC, CL CAF via SII) is loaded from. ConfigAuthorityRangeSource is the
+    // credential-free default: in-memory, empty until a company/admin flow calls `.configure()`
+    // with the range it obtained from its PAC/SAT/SII portal (no such flow exists yet — this is the
+    // wiring seam, not the settings UI). A later live PAC/SAT/CAF client is a further, creds-gated
+    // implementation of the same AuthorityRangeSource port and can replace this provider directly.
+    {
+      provide: 'AUTHORITY_RANGE_SOURCE',
+      useFactory: () => new ConfigAuthorityRangeSource(),
     },
   ],
   exports: [

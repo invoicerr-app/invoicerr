@@ -22,6 +22,7 @@ import { ComplianceExecutor } from '../execution/executor';
 import { TransmissionProvider } from '../providers/transmission/transmission-provider';
 import { TransmissionProviderRegistry } from '../providers/transmission/registry';
 import { NumberingRegistry } from './numbering';
+import { ConfigAuthorityRangeSource } from './authority-range-source';
 
 // ─────────────────────────── helpers ───────────────────────────
 
@@ -53,11 +54,24 @@ function tx(
 const graphOf = (s: string, b: string, r: PartyRole, sup: SupplyType, d: string) =>
   assembleFromPlan(resolve(tx(s, b, r, sup, d)));
 
+/**
+ * F-9: pre-configures a generous MX folio range for both the no-company MX context and the
+ * mxCtxConfigured() ('mx-test-co') context, so the MX coverage below (clearance-blocking guards,
+ * not numbering) keeps reaching ISSUED exactly like before AUTHORITY_RANGE was wired up.
+ */
+function mxRangeSource(): ConfigAuthorityRangeSource {
+  const src = new ConfigAuthorityRangeSource();
+  src.configure(undefined, 'MX-INVOICE', { from: 1, to: 999999 });
+  src.configure('mx-test-co', 'MX-INVOICE', { from: 1, to: 999999 });
+  return src;
+}
+
 function svc() {
   const log = new RecordingComplianceLogger();
   const service = new ComplianceService({
     store: new InMemoryComplianceDocumentStore(),
     numbering: new NumberingRegistry(),
+    rangeSource: mxRangeSource(),
     executor: new ComplianceExecutor({ logger: log, numbering: new NumberingRegistry() }),
     logger: log,
   });
@@ -102,6 +116,7 @@ function svcMx() {
   const service = new ComplianceService({
     store: new InMemoryComplianceDocumentStore(),
     numbering: new NumberingRegistry(),
+    rangeSource: mxRangeSource(),
     executor: new ComplianceExecutor({
       logger: log,
       numbering: new NumberingRegistry(),
