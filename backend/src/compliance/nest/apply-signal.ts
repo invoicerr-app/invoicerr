@@ -57,6 +57,10 @@ export class ApplySignalService {
    * authority with the real external reference instead of falling back to the internal documentId.
    * NOTE: AWAIT_CALLBACK's correlationKey is intentionally NOT changed here — the
    * correlationKey=transmitRef fix and the ASYNC_CALLBACK POLL fallback are Phase 4 (plan §5.2).
+   *
+   * Phase 3 (QUEUE_IMPL_PLAN.md §5.2/§9): ARM_TIMER effects are now ALSO projected post-commit onto
+   * `compliance-timer`, same outbox-lite pattern as SCHEDULE_POLL below (durable ScheduledJob row
+   * written inside the transaction; BullMQ delayed job enqueued only once it has actually committed).
    */
   async apply(
     documentId: string,
@@ -82,6 +86,7 @@ export class ApplySignalService {
     // truth, written inside the transaction below; the BullMQ delayed job is a projection of it,
     // enqueued only once the transaction has actually committed.
     const pollProjections: Array<{ scheduledJobId: string; delayMs: number }> = [];
+    const timerProjections: Array<{ scheduledJobId: string; delayMs: number }> = [];
 
     await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const txDocStore = new PrismaComplianceDocumentStore(tx as unknown as PrismaService);
@@ -130,9 +135,10 @@ export class ApplySignalService {
           pollProjections.push({ scheduledJobId, delayMs: nextDelaySeconds(effect.poll, 0) * 1000 });
         } else if (effect.kind === 'ARM_TIMER') {
           if (effect.deadlineHours == null) continue; // open-ended response window: no silence timer
+          const scheduledJobId = genId('timer');
           const job = createTimerJob(
             {
-              id: genId('timer'),
+              id: scheduledJobId,
               documentId,
               awaiting: effect.awaiting,
               onElapse: effect.onElapse,
@@ -141,9 +147,7 @@ export class ApplySignalService {
             new Date(),
           );
           await txTimerStore.arm(job);
-          // NOTE: BullMQ projection for ARM_TIMER (compliance-timer) is Phase 3 (timer.processor.ts) —
-          // the ScheduledJob row above is still the durable registry the legacy TimerScheduler.tick()
-          // reconciles against in the meantime.
+          timerProjections.push({ scheduledJobId, delayMs: effect.deadlineHours * 3_600_000 });
         } else if (effect.kind === 'AWAIT_CALLBACK') {
           const channel = this.resolveChannel(rec);
           if (!channel) continue;
@@ -173,10 +177,13 @@ export class ApplySignalService {
       for (const { scheduledJobId, delayMs } of pollProjections) {
         await this.dispatcher.enqueuePoll(documentId, scheduledJobId, delayMs);
       }
-    } else if (pollProjections.length > 0) {
+      for (const { scheduledJobId, delayMs } of timerProjections) {
+        await this.dispatcher.enqueueTimer(documentId, scheduledJobId, delayMs);
+      }
+    } else if (pollProjections.length > 0 || timerProjections.length > 0) {
       l.warn(
         'nest/apply-signal',
-        `no queue dispatcher configured — SCHEDULE_POLL effect(s) for ${documentId} were persisted but not projected to BullMQ`,
+        `no queue dispatcher configured — SCHEDULE_POLL/ARM_TIMER effect(s) for ${documentId} were persisted but not projected to BullMQ`,
       );
     }
   }

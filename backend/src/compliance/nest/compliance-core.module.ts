@@ -11,6 +11,8 @@ import { CachedExistenceClient } from '../canonical/cached-existence-client';
 import { PollScheduler } from '../lifecycle/drivers/poll-scheduler';
 import { TimerScheduler } from '../lifecycle/drivers/timer-scheduler';
 import { InboundRouter } from '../lifecycle/drivers/inbound-router';
+import { InboxPoller } from '../lifecycle/drivers/inbox-poller';
+import { NullInboxPort } from '../lifecycle/drivers/inbox-port';
 import { ComplianceService } from '../operations/compliance-service';
 import { ComplianceExecutor } from '../execution/executor';
 import { FormatProviderRegistry } from '../providers/format/registry';
@@ -33,11 +35,13 @@ import { QueueModule } from './queue/queue.module';
  * Split out of `ComplianceModule` in Phase 2 so `ComplianceWorkerModule` (the dedicated worker
  * process AND the WORKER_INLINE in-process consumer) can reuse the exact same DI-wired,
  * CREDENTIALED instances (TransmissionProviderRegistry, ApplySignalService, the Prisma stores,
- * ComplianceExecutor, ComplianceService) WITHOUT also pulling in:
- *   - the HTTP controllers (ComplianceController, CompliancePipelineController, …), and
- *   - `ComplianceCron` (`@Interval`/`@Cron` — would otherwise start ticking a SECOND time inside
- *     the worker process, duplicating the API process's cron, and requires `ScheduleModule` which
- *     the worker never imports).
+ * ComplianceExecutor, ComplianceService, InboxPoller) WITHOUT also pulling in the HTTP controllers
+ * (ComplianceController, CompliancePipelineController, …).
+ *
+ * Phase 3 (QUEUE_IMPL_PLAN.md §5.8): `ComplianceCron` (`@Interval`/`@Cron`) and `CronLockService`
+ * are gone entirely — `timer.processor.ts`/`report.processor.ts`/`sweep.processor.ts` (BullMQ
+ * processors, wired in `ComplianceWorkerModule`) replace the tick-based scan, and `InboxPoller` moved
+ * here (from `ComplianceModule`) so `SweepProcessor` can inject it exactly like the API side does.
  *
  * `ComplianceModule` imports this module and re-exports it (a whole-module re-export — Nest does
  * not allow cherry-picking an individual token that is only provided by an *imported* module,
@@ -128,6 +132,20 @@ import { QueueModule } from './queue/queue.module';
         }),
       inject: [ApplySignalService, PrismaCallbackStore],
     },
+    // InboxPoller — §4 inbox polling driver (SFTP/IMAP), moved here from ComplianceModule in Phase 3
+    // (QUEUE_IMPL_PLAN.md §5.3/§9) so `sweep.processor.ts` (worker-side, no controllers) can inject it
+    // exactly like the API side does. Default: NullInboxPort (offline-safe, no polling without config).
+    // Replace 'INBOX_PORTS' with real port instances when credentials are available.
+    {
+      provide: 'INBOX_PORTS',
+      useFactory: () => [new NullInboxPort()],
+    },
+    {
+      provide: InboxPoller,
+      useFactory: (router: InboundRouter, ports: InstanceType<typeof NullInboxPort>[]) =>
+        new InboxPoller({ router, ports }),
+      inject: [InboundRouter, 'INBOX_PORTS'],
+    },
     // FormatProviderRegistry with real rendering port (InvoiceRenderingService)
     {
       provide: FormatProviderRegistry,
@@ -198,6 +216,7 @@ import { QueueModule } from './queue/queue.module';
     PollScheduler,
     TimerScheduler,
     InboundRouter,
+    InboxPoller,
     FormatProviderRegistry,
     TransmissionProviderRegistry,
     SigningProviderRegistry,

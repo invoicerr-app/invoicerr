@@ -1,14 +1,16 @@
 /**
  * InboxPoller — scheduled inbox polling driver (§4).
  *
- * Mirrors the poll/timer driver pattern: an `@Interval` tick in `ComplianceCron`
- * calls `tick()`, which iterates registered `InboxPort`s, retrieves new messages,
- * and feeds them into `InboundRouter.receive()` for dedup + correlation.
+ * Mirrors the poll/timer driver pattern: `SweepProcessor` (compliance-sweep BullMQ repeatable —
+ * QUEUE_IMPL_PLAN.md §4.5/§9 Phase 3; formerly an `@Interval` tick in the now-removed
+ * `ComplianceCron`) calls `tick()`, which iterates registered `InboxPort`s, retrieves new
+ * messages, and feeds them into `InboundRouter.receive()` for dedup + correlation.
  *
  * Design:
  *   - Ports are swappable (inject `NullInboxPort` when unconfigured → safe offline).
  *   - Dedup is handled by `InboundRouter.receive()` via the (channel, rawRef) pair.
- *   - No cron-lock is acquired here; the caller (`ComplianceCron`) applies it.
+ *   - No lock is needed here: BullMQ dedups the `compliance-sweep` repeatable by its repeat key
+ *     across the whole cluster, so only one worker instance ever runs a given tick.
  *   - `tick()` returns a report for observability.
  */
 
