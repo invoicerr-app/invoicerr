@@ -686,12 +686,29 @@ export class InvoiceRenderingService {
         items: true,
         client: { include: { partyIdentifiers: true } },
         company: { include: { partyIdentifiers: true } },
+        // M-4: only populated when this invoice corrects another (Invoice.correctsInvoiceId) —
+        // feeds InvoiceRenderData.correction so a national builder (PL's faktura korygująca) can
+        // reference the corrected document's own number/date/KSeF number. The compliance
+        // documents are ordered so [0] is the most recent one issued for the original invoice
+        // (mirrors the `orderBy: createdAt desc` lookup already used by InvoicesService.correctInvoice()).
+        correctsInvoice: {
+          include: {
+            complianceDocuments: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              include: { authorityIds: true },
+            },
+          },
+        },
       },
     });
     if (!inv) {
       logger.error('Invoice not found', { category: 'invoice' });
       throw new BadRequestException('Invoice not found');
     }
+    const original = inv.correctsInvoice;
+    const originalKsefNumber =
+      original?.complianceDocuments[0]?.authorityIds.find((a) => a.scheme === 'KSEF_NUMBER')?.value ?? null;
     return {
       rawNumber: inv.rawNumber,
       number: inv.number,
@@ -739,6 +756,14 @@ export class InvoiceRenderingService {
         vatRate: i.vatRate ?? 0,
         type: i.type,
       })),
+      correction: original
+        ? {
+            originalIssueDate: original.issuedAt ?? original.createdAt,
+            originalNumber: original.rawNumber || (original.number != null ? String(original.number) : ''),
+            originalKsefNumber,
+            reason: inv.notes ?? null,
+          }
+        : undefined,
     };
   }
 

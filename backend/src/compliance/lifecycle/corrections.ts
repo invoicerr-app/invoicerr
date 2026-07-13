@@ -26,11 +26,22 @@ export class CreditNoteStrategy implements CorrectionStrategy {
   }
 }
 
-/** Some LATAM: a corrective invoice that supersedes the original's amounts. */
+/**
+ * Some LATAM, and PL post-2026-02 (KSeF: `faktura korygująca`, the only legal correction path once
+ * `cancellation.allowed=false` — see profiles/data/pl.ts): a corrective invoice that supersedes the
+ * original's amounts.
+ *
+ * M-4 (COMPLIANCE_AUDIT.md): this strategy only decides the correction OUTCOME (kind + linkage) —
+ * building the actual document is the format-provider layer's job, downstream of createRecord()
+ * (see ComplianceService.correct()). For PL that's now real: national/fa-vat.ts's KOR mode
+ * (RodzajFaktury=KOR + DaneFaKorygowanej referencing the original's KSeF number), wired end-to-end
+ * by InvoicesService.correctInvoice() → ComplianceService.createDraft(..., correctsId) → issue() →
+ * send() → FaVatFormatProvider → InvoiceRenderingService.renderFaVat(). No longer a stub.
+ */
 export class CorrectiveInvoiceStrategy implements CorrectionStrategy {
   readonly model: CorrectionModel = 'CORRECTIVE_INVOICE';
   correct(originalRef: string, _ctx: TransactionContext, log: ComplianceLogger): CorrectionOutcome {
-    log.todo('lifecycle/corrections/corrective-invoice', `create CORRECTIVE_INVOICE for ${originalRef}`);
+    log.info('lifecycle/corrections/corrective-invoice', `CORRECTIVE_INVOICE created for ${originalRef}`);
     return { newKind: 'CORRECTIVE_INVOICE', correctsRef: originalRef, notes: ['corrective invoice issued'] };
   }
 }

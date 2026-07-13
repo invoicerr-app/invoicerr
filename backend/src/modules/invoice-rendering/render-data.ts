@@ -14,6 +14,27 @@ export interface LineAllowance {
   amount: number;
 }
 
+/**
+ * Faktura korygująca (PL post-clearance correction) reference data — populated only when this
+ * document corrects a previously issued one. Consumed by the PL FA_VAT builder
+ * (national/fa-vat.ts: RodzajFaktury=KOR + the DaneFaKorygowanej block, per the vendored
+ * schemat_FA2.xsd/schemat_FA3.xsd); every other national builder ignores this field (M-4).
+ */
+export interface CorrectedInvoiceRef {
+  /** The corrected document's own issue date (→ FA's DataWystFaKorygowanej). */
+  originalIssueDate: Date;
+  /** The corrected document's legal number (→ FA's NrFaKorygowanej). */
+  originalNumber: string;
+  /**
+   * KSeF number of the corrected document, when it was cleared through KSeF
+   * (→ FA's NrKSeF + NrKSeFFaKorygowanej). Null/undefined means the corrected document was
+   * issued outside KSeF (→ FA's NrKSeFN marker instead — the XSD requires exactly one of the two).
+   */
+  originalKsefNumber?: string | null;
+  /** Free-text correction reason (→ FA's PrzyczynaKorekty). */
+  reason?: string | null;
+}
+
 /** Minimal data shape required by {@link InvoiceRenderingService.buildEInvoice}.
  *  Matches the Prisma include used by {@link renderXml} / {@link renderPdf} but is
  *  decoupled from Prisma so tests can build invoices from plain objects. */
@@ -70,4 +91,6 @@ export interface InvoiceRenderData {
     /** Per-line allowances (BG-27). EN16931-compliant alternative to negative unitPrice. */
     allowances?: LineAllowance[];
   }[];
+  /** Present only for a correction document (faktura korygująca) — see {@link CorrectedInvoiceRef}. */
+  correction?: CorrectedInvoiceRef;
 }

@@ -14,6 +14,16 @@
  * `JST` (jednostka samorządu terytorialnego — local-government sub-unit) and `GV` (grupa VAT — VAT
  * group member) — which invoicerr always declares "not applicable" (2 = Nie), the same convention
  * already used for the Adnotacje flags below.
+ *
+ * M-4 (COMPLIANCE_AUDIT.md): `faktura korygująca` (post-clearance correction) support — a KOR mode
+ * on the SAME builder, not a parallel one. Both schemat_FA2.xsd and schemat_FA3.xsd declare an
+ * identical structure for this (Fa/RodzajFaktury, then an optional sequence gated "for RodzajFaktury
+ * = KOR/KOR_ZAL/KOR_ROZ"): `PrzyczynaKorekty` (correction reason, optional), then a mandatory
+ * `DaneFaKorygowanej` block (date + number of the corrected document, plus a choice of either its
+ * KSeF number — `NrKSeF`/`NrKSeFFaKorygowanej` — or an `NrKSeFN` marker when it was issued outside
+ * KSeF). invoicerr only ever emits one `DaneFaKorygowanej` entry (one correction ⇒ one corrected
+ * document) and skips the remaining optional KOR fields (TypKorekty, OkresFaKorygowanej,
+ * Podmiot1K/Podmiot2K — corrected-party-data corrections) as out of scope for now.
  */
 import { getIdentifier } from '@/utils/entity-identifiers';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
@@ -173,6 +183,33 @@ async function buildFaVatXml(data: InvoiceRenderData, version: FaVatVersion): Pr
     podmiot2.GV = 2;
   }
 
+  // ── M-4: faktura korygująca (KOR) block — see the module doc comment above for the exact XSD
+  //    elements. Both schemat_FA2.xsd and schemat_FA3.xsd place this identically, right after
+  //    RodzajFaktury and before FaWiersz (verified by reading both vendored XSDs). TZnakowy fields
+  //    are capped at 256 chars per the schema (`xsd:maxLength value="256"`).
+  const correction = data.correction;
+  const korFields = correction
+    ? {
+        PrzyczynaKorekty: (correction.reason?.trim() || `Korekta faktury ${correction.originalNumber}`).slice(
+          0,
+          256,
+        ),
+        DaneFaKorygowanej: [
+          {
+            DataWystFaKorygowanej: correction.originalIssueDate.toISOString().split('T')[0],
+            NrFaKorygowanej: correction.originalNumber.slice(0, 256),
+            // xsd:choice: either the corrected document's KSeF number (NrKSeF=1 marker +
+            // NrKSeFFaKorygowanej), or NrKSeFN=1 when it was issued outside KSeF. TWybor1 only
+            // accepts the literal value "1" — the field is present-to-mean-true, absent otherwise
+            // (same convention as P_19N/P_22N/P_PMarzyN above), never "2".
+            ...(correction.originalKsefNumber
+              ? { NrKSeF: '1', NrKSeFFaKorygowanej: correction.originalKsefNumber }
+              : { NrKSeFN: '1' }),
+          },
+        ],
+      }
+    : {};
+
   // ── full FA(2)/FA(3) object tree ──
   const namespace = version === 3 ? FA_VAT_3_NAMESPACE : FA_VAT_2_NAMESPACE;
   const kodSystemowy = version === 3 ? 'FA (3)' : 'FA (2)';
@@ -222,7 +259,8 @@ async function buildFaVatXml(data: InvoiceRenderData, version: FaVatVersion): Pr
           P_23: '2',
           PMarzy: { P_PMarzyN: '1' },
         },
-        RodzajFaktury: 'VAT',
+        RodzajFaktury: correction ? 'KOR' : 'VAT',
+        ...korFields,
         FaWiersz: faWiersze,
       },
       Stopka: {

@@ -584,12 +584,23 @@ export class InvoicesService {
           lines: toComplianceLines(correctionInvoice.items, invoice.currency),
           issueDate: new Date(),
           currency: invoice.currency,
-          externalRef: invoice.id,
+          // M-4: must point at the CORRECTION's own row, not the original's — the format
+          // providers (e.g. FaVatFormatProvider) resolve `ctx.externalRef` back into an
+          // invoiceId to render FROM (InvoiceRenderingService.fetchRenderData). Pointing this at
+          // `invoice.id` (as before) silently re-rendered the ORIGINAL invoice as a plain FA(2)/
+          // FA(3) "VAT" document instead of the correction's own data (correction items/number,
+          // and — for PL — the KOR block referencing the original). Mirrors the correct pattern
+          // already used by cancelAndReplaceInvoice() (`externalRef: replacement.id`).
+          externalRef: correctionInvoice.id,
         });
         const correctionDoc = await this.complianceService.createDraft(
           complianceCtx,
           correctionKind as any,
           correctionInvoice.id,
+          // M-4: link the new ComplianceDocument to the original's, so a national builder (PL's
+          // faktura korygująca) can look up the original's KSeF number and the runtime can trace
+          // corrections back to what they correct (ComplianceDocumentRecord.correctsId).
+          complianceDoc.id,
         );
         await this.complianceService.issue(correctionDoc.id);
       } catch (error) {

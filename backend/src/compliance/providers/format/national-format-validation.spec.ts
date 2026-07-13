@@ -457,6 +457,121 @@ describe('National Format — structural validation', () => {
     });
   });
 
+  describe('FA_VAT (PL) — faktura korygująca (KOR) — M-4', () => {
+    // Same B2B fixture, plus a `correction` block referencing an original that was cleared
+    // through KSeF with a KSeF number matching the real TNumerKSeF XSD pattern (verified against
+    // schemat_FA2.xsd/schemat_FA3.xsd: NIP-like prefix + YYYYMMDD + hex groups).
+    const originalKsefNumber = '1234567890-20250301-1A2B3C-4D5E6F-A1';
+    const korData = {
+      ...PL_B2B.data,
+      rawNumber: 'FV-2025-0099-KOR',
+      correction: {
+        originalIssueDate: new Date('2025-03-01T09:00:00Z'),
+        originalNumber: 'FV-2025-0099',
+        originalKsefNumber,
+        reason: 'Błędna stawka VAT na pozycji 1 (wrong VAT rate on line 1)',
+      },
+    };
+
+    it('builds RodzajFaktury=KOR referencing the original by KSeF number, and validates against schemat_FA2.xsd', async () => {
+      const xml = await service.buildFaVat(korData); // NOW = 2025-06-15 → FA(2)
+      expect(typeof xml).toBe('string');
+
+      expect(xml).toContain('<RodzajFaktury>KOR</RodzajFaktury>');
+      expect(xml).toContain(
+        '<PrzyczynaKorekty>Błędna stawka VAT na pozycji 1 (wrong VAT rate on line 1)</PrzyczynaKorekty>',
+      );
+      expect(xml).toContain('<DataWystFaKorygowanej>2025-03-01</DataWystFaKorygowanej>');
+      expect(xml).toContain('<NrFaKorygowanej>FV-2025-0099</NrFaKorygowanej>');
+      expect(xml).toContain('<NrKSeF>1</NrKSeF>');
+      expect(xml).toContain(`<NrKSeFFaKorygowanej>${originalKsefNumber}</NrKSeFFaKorygowanej>`);
+      expect(xml).not.toContain('NrKSeFN');
+
+      const xsdResult: XsdResult = await validateXsd(xml, 'pl/schemat_FA2.xsd');
+      results.push({
+        fixture: 'pl-b2b-kor',
+        format: 'fa-vat-kor',
+        xmlLength: xml.length,
+        hasRequiredElements: xsdResult.valid,
+        verdict: xsdResult.valid ? 'PASS' : 'FAIL',
+        errors: xsdResult.errors,
+      });
+      expect(xsdResult.valid).toBe(true);
+      expect(xsdResult.errors).toHaveLength(0);
+    });
+
+    it('marks the corrected document as issued outside KSeF (NrKSeFN) when no KSeF number is known', async () => {
+      const xml = await service.buildFaVat({
+        ...korData,
+        correction: { ...korData.correction, originalKsefNumber: null },
+      });
+      expect(xml).toContain('<RodzajFaktury>KOR</RodzajFaktury>');
+      expect(xml).toContain('<NrKSeFN>1</NrKSeFN>');
+      expect(xml).not.toContain('NrKSeFFaKorygowanej');
+
+      const xsdResult: XsdResult = await validateXsd(xml, 'pl/schemat_FA2.xsd');
+      expect(xsdResult.valid).toBe(true);
+      expect(xsdResult.errors).toHaveLength(0);
+    });
+
+    it('falls back to a generated reason when none is supplied', async () => {
+      const xml = await service.buildFaVat({
+        ...korData,
+        correction: { ...korData.correction, reason: null },
+      });
+      expect(xml).toContain('<PrzyczynaKorekty>Korekta faktury FV-2025-0099</PrzyczynaKorekty>');
+      const xsdResult: XsdResult = await validateXsd(xml, 'pl/schemat_FA2.xsd');
+      expect(xsdResult.valid).toBe(true);
+    });
+
+    it('issued in the FA(3) era (2026-02+), a correction is built and validated as FA(3)', async () => {
+      const fa3KorData = {
+        ...korData,
+        issuedAt: new Date('2026-03-01T10:00:00Z'),
+        createdAt: new Date('2026-03-01T10:00:00Z'),
+      };
+      const xml = await service.buildFaVat(fa3KorData);
+      expect(xml).toContain('http://crd.gov.pl/wzor/2025/06/25/13775/');
+      expect(xml).toContain('kodSystemowy="FA (3)"');
+      expect(xml).toContain('<RodzajFaktury>KOR</RodzajFaktury>');
+      expect(xml).toContain(`<NrKSeFFaKorygowanej>${originalKsefNumber}</NrKSeFFaKorygowanej>`);
+      // FA(3)'s mandatory buyer-side markers still apply to a correction.
+      expect(xml).toContain('<JST>2</JST>');
+      expect(xml).toContain('<GV>2</GV>');
+
+      const xsdResult: XsdResult = await validateXsd(xml, 'pl/schemat_FA3.xsd');
+      results.push({
+        fixture: 'pl-b2b-kor-fa3',
+        format: 'fa-vat-kor-3',
+        xmlLength: xml.length,
+        hasRequiredElements: xsdResult.valid,
+        verdict: xsdResult.valid ? 'PASS' : 'FAIL',
+        errors: xsdResult.errors,
+      });
+      expect(xsdResult.valid).toBe(true);
+      expect(xsdResult.errors).toHaveLength(0);
+    });
+
+    it('a normal (non-correction) FA_VAT document is unaffected — still RodzajFaktury=VAT, no KOR block', async () => {
+      const xml = await service.buildFaVat(PL_B2B.data);
+      expect(xml).toContain('<RodzajFaktury>VAT</RodzajFaktury>');
+      expect(xml).not.toContain('KOR');
+      expect(xml).not.toContain('DaneFaKorygowanej');
+      expect(xml).not.toContain('PrzyczynaKorekty');
+
+      const xsdResult: XsdResult = await validateXsd(xml, 'pl/schemat_FA2.xsd');
+      expect(xsdResult.valid).toBe(true);
+    });
+
+    it('a broken correction (missing the mandatory DaneFaKorygowanej block) is rejected by the XSD gate', async () => {
+      const xml = await service.buildFaVat(korData);
+      const broken = xml.replace(/<DaneFaKorygowanej>[\s\S]*?<\/DaneFaKorygowanej>/, '');
+      const result = await validateXsd(broken, 'pl/schemat_FA2.xsd');
+      expect(result.valid).toBe(false);
+      expect(result.errorCount).toBeGreaterThan(0);
+    });
+  });
+
   describe('Chile DTE (CL)', () => {
     const fixture = CL_B2B;
     it(`${fixture.slug} → national-xml CL`, async () => {

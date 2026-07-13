@@ -173,13 +173,22 @@ export class ComplianceService {
 
   // ─────────────────────────── issuance ───────────────────────────
 
-  /** Create an editable draft (no compliance obligations attached yet). */
+  /**
+   * Create an editable draft (no compliance obligations attached yet).
+   *
+   * @param correctsId M-4: the id of the ComplianceDocument this one corrects, when the caller
+   * already knows it (e.g. InvoicesService.correctInvoice() resolving the original's
+   * ComplianceDocument before creating the correction's). Threaded straight to
+   * ComplianceDocumentRecord.correctsId so a national builder (PL's faktura korygująca) and the
+   * runtime can trace a correction back to what it corrects without a second lookup.
+   */
   async createDraft(
     ctx: TransactionContext,
     kind: DocumentKind = 'INVOICE',
     invoiceId?: string,
+    correctsId?: string,
   ): Promise<ComplianceDocumentRecord> {
-    return this.createRecord(ctx, kind, 'OUTBOUND', undefined, invoiceId);
+    return this.createRecord(ctx, kind, 'OUTBOUND', correctsId, invoiceId);
   }
 
   /** Free edit — allowed ONLY in DRAFT (immutability after issuance is enforced here). */
