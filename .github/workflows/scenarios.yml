@@ -28,6 +28,18 @@ jobs:
         ports:
           - "8025:8025"
           - "1025:1025"
+      # The backend requires Redis (BullMQ) to boot — WORKER_INLINE defaults to true, so the inline
+      # compliance processors + registerRepeatables() connect at startup. Without it the Nest app
+      # fails to boot and the scenario times out on a hung /api. redisConnection() defaults to
+      # localhost:6379, so no backend env change is needed.
+      redis:
+        image: redis:7
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-retries 10
 
     steps:
       - uses: actions/checkout@v3
@@ -59,6 +71,7 @@ jobs:
           npx wait-on tcp:5433 --timeout 60
           npx wait-on tcp:8025 --timeout 60
           npx wait-on tcp:1025 --timeout 60
+          npx wait-on tcp:6379 --timeout 60
 
       - name: Run backend, frontend & scenario
         run: |
