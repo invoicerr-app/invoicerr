@@ -107,4 +107,18 @@ export class PrismaComplianceDocumentStore implements ComplianceDocumentStore {
     });
     return rows.map((r) => documentToRecord(r));
   }
+
+  /**
+   * Tenant-scoped list. ComplianceDocument has no direct companyId column — it's scoped via
+   * the `invoice` relation (invoiceId → Invoice.companyId). Documents with invoiceId == null
+   * (no linked Invoice — e.g. future non-invoice kinds or period aggregates) are intentionally
+   * excluded from any per-company view: there is no tenant they can be safely attributed to.
+   */
+  async listByCompany(companyId: string): Promise<ComplianceDocumentRecord[]> {
+    const rows = await this.prisma.complianceDocument.findMany({
+      where: { invoice: { companyId } },
+      include: { events: true, authorityIds: true },
+    });
+    return rows.map((r) => documentToRecord(r));
+  }
 }

@@ -12,6 +12,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Headers,
   HttpCode,
@@ -21,21 +22,35 @@ import {
   Param,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
+import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { Public } from '@/decorators/public.decorator';
 import { InboundInvoiceService, ReceiveDocumentInput } from '../reception/inbound-invoice.service';
 import { PollScheduler } from '../lifecycle/drivers/poll-scheduler';
 import { PrismaComplianceDocumentStore } from '../persistence/prisma-document-store';
+import { assertWebhookAuth } from './webhook-auth';
 
 /**
- * Shared-secret gate (same as ComplianceController) for the document-receive webhook.
- * TODO: per-channel HMAC or mTLS once live credentials are in place.
+ * Extract the raw body bytes from the request for HMAC verification.
+ * Mirrors ComplianceController's helper (main.ts's bodyParser `verify` callback attaches the
+ * raw bytes to `req.rawBody`; falls back to re-serialising the parsed body).
  */
-function assertWebhookSecret(secret: string | undefined): void {
-  const expected = process.env.COMPLIANCE_WEBHOOK_SECRET;
-  if (expected && secret !== expected) {
-    throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
+function getRawBody(req: Request, parsedBody: unknown): Buffer {
+  const raw = (req as any).rawBody;
+  if (raw instanceof Buffer) return raw;
+  return Buffer.from(JSON.stringify(parsedBody) ?? '', 'utf-8');
+}
+
+/** Extract remote IP from the request, honouring X-Forwarded-For (set by a trusted reverse-proxy). */
+function getRemoteIp(req: Request): string | undefined {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    const first = Array.isArray(forwarded) ? forwarded[0] : forwarded.split(',')[0];
+    return first?.trim();
   }
+  return req.socket?.remoteAddress;
 }
 
 interface RejectBody {
@@ -68,12 +83,13 @@ export class InboundInvoiceController {
   ) {}
 
   // ---------------------------------------------------------------------------
-  // Received invoices CRUD
+  // Received invoices CRUD — always scoped to the caller's active company (never
+  // the URL's :companyId, which is only kept for URL-shape/backwards compat).
   // ---------------------------------------------------------------------------
 
   @Get('compliance/received-invoices/:companyId')
   async list(
-    @Param('companyId') companyId: string,
+    @ActiveCompany() companyId: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
   ) {
@@ -83,19 +99,19 @@ export class InboundInvoiceController {
   }
 
   @Get('compliance/received-invoices/:companyId/:id')
-  getOne(@Param('companyId') companyId: string, @Param('id') id: string) {
+  getOne(@ActiveCompany() companyId: string, @Param('id') id: string) {
     return this.inboundInvoices.getOne(id, companyId);
   }
 
   @Post('compliance/received-invoices/:companyId/:id/accept')
   @HttpCode(200)
-  accept(@Param('companyId') companyId: string, @Param('id') id: string, @Body() body: RejectBody) {
+  accept(@ActiveCompany() companyId: string, @Param('id') id: string, @Body() body: RejectBody) {
     return this.inboundInvoices.acceptOrReject(id, companyId, 'accept', body?.reason);
   }
 
   @Post('compliance/received-invoices/:companyId/:id/reject')
   @HttpCode(200)
-  reject(@Param('companyId') companyId: string, @Param('id') id: string, @Body() body: RejectBody) {
+  reject(@ActiveCompany() companyId: string, @Param('id') id: string, @Body() body: RejectBody) {
     return this.inboundInvoices.acceptOrReject(id, companyId, 'reject', body?.reason);
   }
 
@@ -110,8 +126,9 @@ export class InboundInvoiceController {
    * received supplier invoice here. The body contains the raw e-invoice payload
    * plus metadata (companyId, externalId).
    *
-   * Authentication: shared secret via `x-compliance-secret` header.
-   * TODO: per-channel HMAC or mTLS for production hardening.
+   * Authentication: HMAC-SHA256 via X-Signature header (preferred) or X-Compliance-Secret
+   * fallback, plus an optional per-channel IP allowlist — see webhook-auth.ts. Same scheme as
+   * ComplianceController's inbound endpoints.
    */
   @Public()
   @Post('compliance/received-invoices/receive/:channel')
@@ -119,9 +136,17 @@ export class InboundInvoiceController {
   async receiveDocument(
     @Param('channel') channel: string,
     @Body() body: ReceiveWebhookBody,
-    @Headers('x-compliance-secret') secret?: string,
+    @Req() req: Request,
+    @Headers('x-signature') sigHeader?: string,
+    @Headers('x-compliance-secret') secretHeader?: string,
   ) {
-    assertWebhookSecret(secret);
+    assertWebhookAuth({
+      channel: channel.toUpperCase(),
+      rawBody: getRawBody(req, body),
+      signatureHeader: sigHeader,
+      sharedSecretHeader: secretHeader,
+      remoteIp: getRemoteIp(req),
+    });
 
     if (!body.companyId || !body.externalId || !body.rawPayload) {
       this.logger.warn(`inbound-doc/${channel}: missing required fields (companyId|externalId|rawPayload)`);
@@ -158,10 +183,17 @@ export class InboundInvoiceController {
    */
   @Post('compliance/documents/:id/refresh')
   @HttpCode(200)
-  async refreshDocument(@Param('id') documentId: string) {
+  async refreshDocument(@ActiveCompany() companyId: string, @Param('id') documentId: string) {
     // Verify document exists
     const doc = await this.docStore.get(documentId);
     if (!doc) throw new HttpException('Compliance document not found', HttpStatus.NOT_FOUND);
+
+    // Ownership check: ctx.supplierCompanyId is always set at issuance (see
+    // invoices.helpers.ts / quotes.service.ts) for outbound documents. Fail closed if it's
+    // ever missing rather than let a caller probe/refresh another tenant's document.
+    if (doc.ctx?.supplierCompanyId !== companyId) {
+      throw new ForbiddenException('Compliance document does not belong to the active company');
+    }
 
     // Trigger reconcile for all pending poll jobs (scoped to this document via provider)
     // PollScheduler.reconcile() polls ALL pending jobs; for a UI-triggered refresh this

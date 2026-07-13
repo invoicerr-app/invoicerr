@@ -1,5 +1,8 @@
 import { Body, Controller, Delete, Get, Param, Put } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ActiveCompany } from '@/decorators/active-company.decorator';
+import { Roles } from '@/decorators/roles.decorator';
+import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import {
   ChannelConfigResponse,
   ChannelSettingsService,
@@ -36,9 +39,13 @@ export class ChannelCredentialsController {
     description:
       "Resolves the company's country compliance profile and returns the required transmission channels with their configuration status.",
   })
-  @ApiParam({ name: 'id', type: String, description: 'Company ID' })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Company ID (ignored — always resolved from the caller\'s active company/session)',
+  })
   @ApiResponse({ status: 200, description: 'Required channels retrieved' })
-  getRequiredChannels(@Param('id') companyId: string) {
+  getRequiredChannels(@ActiveCompany() companyId: string) {
     return this.channels.getRequiredChannels(companyId);
   }
 
@@ -51,23 +58,35 @@ export class ChannelCredentialsController {
     description:
       'Returns existing channel configurations for a company. Secret fields are masked with "•••• set".',
   })
-  @ApiParam({ name: 'id', type: String, description: 'Company ID' })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Company ID (ignored — always resolved from the caller\'s active company/session)',
+  })
   @ApiResponse({ status: 200, description: 'Configs retrieved' })
-  listCompanyChannels(@Param('id') companyId: string): Promise<ChannelConfigResponse[]> {
+  listCompanyChannels(@ActiveCompany() companyId: string): Promise<ChannelConfigResponse[]> {
     return this.channels.listCompanyChannels(companyId);
   }
 
   /**
    * PUT /compliance/channels/companies/:id — upsert a channel config.
    * Validates against the provider's configSchema. Encrypts the blob before storing.
+   *
+   * Scoped to the caller's active company (never the URL's :id) and restricted to
+   * OWNER/ADMIN — this stores channel credentials (KSeF token, PDP client secret, …).
    */
   @Put('companies/:id')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @ApiOperation({
     summary: 'Upsert a channel config',
     description:
       'Creates or updates a channel configuration for a company. The config blob is encrypted at rest. Secret fields in the request are never logged.',
   })
-  @ApiParam({ name: 'id', type: String, description: 'Company ID' })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Company ID (ignored — always resolved from the caller\'s active company/session)',
+  })
   @ApiBody({
     schema: {
       type: 'object',
@@ -81,23 +100,30 @@ export class ChannelCredentialsController {
     },
   })
   @ApiResponse({ status: 200, description: 'Config upserted' })
-  upsertChannelConfig(@Param('id') companyId: string, @Body() body: UpsertChannelConfigBody) {
+  upsertChannelConfig(@ActiveCompany() companyId: string, @Body() body: UpsertChannelConfigBody) {
     return this.channels.upsertChannelConfig(companyId, body);
   }
 
   /**
    * DELETE /compliance/channels/companies/:id/:providerId — remove a channel config.
+   *
+   * Scoped to the caller's active company (never the URL's :id) and restricted to OWNER/ADMIN.
    */
   @Delete('companies/:id/:providerId')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @ApiOperation({
     summary: 'Delete a channel config',
     description: 'Removes a channel configuration for a company and environment.',
   })
-  @ApiParam({ name: 'id', type: String, description: 'Company ID' })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Company ID (ignored — always resolved from the caller\'s active company/session)',
+  })
   @ApiParam({ name: 'providerId', type: String, description: 'Provider ID' })
   @ApiResponse({ status: 200, description: 'Config deleted' })
   deleteChannelConfig(
-    @Param('id') companyId: string,
+    @ActiveCompany() companyId: string,
     @Param('providerId') providerId: string,
     @Body() body: { environment?: string },
   ) {

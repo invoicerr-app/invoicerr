@@ -534,6 +534,11 @@ export class ComplianceService {
   list(): Promise<ComplianceDocumentRecord[]> {
     return this.store.list();
   }
+
+  /** Tenant-scoped variant of {@link list} — see {@link ComplianceDocumentStore.listByCompany}. */
+  listByCompany(companyId: string): Promise<ComplianceDocumentRecord[]> {
+    return this.store.listByCompany(companyId);
+  }
 }
 
 export const defaultComplianceService = new ComplianceService();

@@ -6,6 +6,7 @@
  *   GET /compliance/reports     paginated ComplianceReport summaries (?status=&kind=)
  */
 import { Controller, Get, Query } from '@nestjs/common';
+import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { CompliancePipelineService } from './compliance-pipeline.service';
 
 function parsePage(value?: string): number | undefined {
@@ -19,12 +20,14 @@ export class CompliancePipelineController {
 
   @Get('documents')
   listDocuments(
+    @ActiveCompany() companyId: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
     @Query('status') status?: string,
     @Query('channel') channel?: string,
   ) {
     return this.pipeline.listDocuments({
+      companyId,
       page: parsePage(page),
       pageSize: parsePage(pageSize),
       status: status || undefined,
@@ -34,12 +37,14 @@ export class CompliancePipelineController {
 
   @Get('reports')
   listReports(
+    @ActiveCompany() companyId: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
     @Query('status') status?: string,
     @Query('kind') kind?: string,
   ) {
     return this.pipeline.listReports({
+      companyId,
       page: parsePage(page),
       pageSize: parsePage(pageSize),
       status: status || undefined,

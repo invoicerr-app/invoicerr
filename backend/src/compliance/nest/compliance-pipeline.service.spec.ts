@@ -40,7 +40,7 @@ describe('CompliancePipelineService', () => {
       prisma.complianceDocument.findMany.mockResolvedValue([docRow]);
       prisma.complianceDocument.count.mockResolvedValue(1);
 
-      const result = await service.listDocuments({});
+      const result = await service.listDocuments({ companyId: 'comp-1' });
 
       expect(result.total).toBe(1);
       expect(result.pageCount).toBe(1);
@@ -66,7 +66,7 @@ describe('CompliancePipelineService', () => {
       ]);
       prisma.complianceDocument.count.mockResolvedValue(1);
 
-      const { documents } = await service.listDocuments({});
+      const { documents } = await service.listDocuments({ companyId: 'comp-1' });
       expect(documents[0]).toMatchObject({
         invoiceNumber: null,
         channelType: null,
@@ -80,7 +80,7 @@ describe('CompliancePipelineService', () => {
       prisma.complianceDocument.findMany.mockResolvedValue([]);
       prisma.complianceDocument.count.mockResolvedValue(0);
 
-      await service.listDocuments({ status: 'CLEARED', channel: 'PDP' });
+      await service.listDocuments({ companyId: 'comp-1', status: 'CLEARED', channel: 'PDP' });
 
       const where = prisma.complianceDocument.findMany.mock.calls[0][0].where;
       expect(where.status).toBe('CLEARED');
@@ -88,8 +88,20 @@ describe('CompliancePipelineService', () => {
       expect(prisma.complianceDocument.count).toHaveBeenCalledWith({ where });
     });
 
+    it('always scopes by the caller company (tenant isolation — invoice relation)', async () => {
+      prisma.complianceDocument.findMany.mockResolvedValue([]);
+      prisma.complianceDocument.count.mockResolvedValue(0);
+
+      await service.listDocuments({ companyId: 'comp-1' });
+
+      const where = prisma.complianceDocument.findMany.mock.calls[0][0].where;
+      expect(where.invoice).toEqual({ companyId: 'comp-1' });
+    });
+
     it('rejects an unknown status with 400', async () => {
-      await expect(service.listDocuments({ status: 'NOT_A_STATUS' })).rejects.toThrow(HttpException);
+      await expect(service.listDocuments({ companyId: 'comp-1', status: 'NOT_A_STATUS' })).rejects.toThrow(
+        HttpException,
+      );
       expect(prisma.complianceDocument.findMany).not.toHaveBeenCalled();
     });
 
@@ -97,7 +109,7 @@ describe('CompliancePipelineService', () => {
       prisma.complianceDocument.findMany.mockResolvedValue([]);
       prisma.complianceDocument.count.mockResolvedValue(45);
 
-      const result = await service.listDocuments({ page: 3, pageSize: 500 });
+      const result = await service.listDocuments({ companyId: 'comp-1', page: 3, pageSize: 500 });
 
       const args = prisma.complianceDocument.findMany.mock.calls[0][0];
       expect(args.take).toBe(100); // MAX_PAGE_SIZE clamp
@@ -124,23 +136,25 @@ describe('CompliancePipelineService', () => {
       prisma.complianceReport.findMany.mockResolvedValue([reportRow]);
       prisma.complianceReport.count.mockResolvedValue(1);
 
-      const result = await service.listReports({});
+      const result = await service.listReports({ companyId: 'comp-1' });
 
       expect(result.reports).toEqual([reportRow]);
       expect(result.total).toBe(1);
       const select = prisma.complianceReport.findMany.mock.calls[0][0].select;
       expect(select.payload).toBeUndefined();
       expect(select.kind).toBe(true);
+      const where = prisma.complianceReport.findMany.mock.calls[0][0].where;
+      expect(where.companyId).toBe('comp-1');
     });
 
-    it('filters by status and kind', async () => {
+    it('filters by status and kind, always scoped by the caller company', async () => {
       prisma.complianceReport.findMany.mockResolvedValue([]);
       prisma.complianceReport.count.mockResolvedValue(0);
 
-      await service.listReports({ status: 'SUBMITTED', kind: 'SAFT' });
+      await service.listReports({ companyId: 'comp-1', status: 'SUBMITTED', kind: 'SAFT' });
 
       const where = prisma.complianceReport.findMany.mock.calls[0][0].where;
-      expect(where).toEqual({ status: 'SUBMITTED', kind: 'SAFT' });
+      expect(where).toEqual({ companyId: 'comp-1', status: 'SUBMITTED', kind: 'SAFT' });
     });
   });
 });

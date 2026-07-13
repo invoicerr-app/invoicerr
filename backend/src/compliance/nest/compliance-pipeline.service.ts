@@ -16,6 +16,8 @@ const PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
 export interface ListDocumentsOptions {
+  /** Caller's active company — every query is scoped to it (tenant isolation). */
+  companyId: string;
   page?: number;
   pageSize?: number;
   /** ComplianceStatus filter (e.g. PENDING_CLEARANCE, CLEARED, REJECTED). */
@@ -25,6 +27,8 @@ export interface ListDocumentsOptions {
 }
 
 export interface ListReportsOptions {
+  /** Caller's active company — every query is scoped to it (tenant isolation). */
+  companyId: string;
   page?: number;
   pageSize?: number;
   /** Report status filter (PENDING | SUBMITTED | FILED). */
@@ -54,7 +58,10 @@ export class CompliancePipelineService {
     const page = clampPage(opts.page);
     const pageSize = clampPageSize(opts.pageSize);
 
-    const where: Prisma.ComplianceDocumentWhereInput = {};
+    // ComplianceDocument has no direct companyId column — scope via the invoice relation.
+    // Documents with no linked invoice (invoiceId == null) are excluded from a per-company
+    // view, matching the audit-export scoping (see PrismaComplianceDocumentStore.listByCompany).
+    const where: Prisma.ComplianceDocumentWhereInput = { invoice: { companyId: opts.companyId } };
     if (opts.status) {
       if (!Object.values(ComplianceStatus).includes(opts.status as ComplianceStatus)) {
         throw new HttpException(`Unknown compliance status '${opts.status}'`, HttpStatus.BAD_REQUEST);
@@ -126,7 +133,9 @@ export class CompliancePipelineService {
     const page = clampPage(opts.page);
     const pageSize = clampPageSize(opts.pageSize);
 
-    const where: Prisma.ComplianceReportWhereInput = {};
+    // ComplianceReport DOES have a direct companyId column — scope directly. Reports with a
+    // null companyId (period-aggregate records) are excluded from any per-company view.
+    const where: Prisma.ComplianceReportWhereInput = { companyId: opts.companyId };
     if (opts.status) where.status = opts.status;
     if (opts.kind) where.kind = opts.kind;
 

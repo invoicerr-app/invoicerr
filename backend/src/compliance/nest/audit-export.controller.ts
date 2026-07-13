@@ -1,5 +1,6 @@
 import { Controller, Get, HttpException, HttpStatus, Logger, Res } from '@nestjs/common';
 import { Response } from 'express';
+import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { ComplianceService } from '../operations/compliance-service';
 
 @Controller('compliance')
@@ -9,9 +10,9 @@ export class AuditExportController {
   constructor(private readonly complianceService: ComplianceService) {}
 
   @Get('audit-export')
-  async exportAudit(@Res() res: Response) {
+  async exportAudit(@ActiveCompany() companyId: string, @Res() res: Response) {
     try {
-      const docs = await this.complianceService.list();
+      const docs = await this.complianceService.listByCompany(companyId);
 
       const rows: string[] = [
         'DocumentID,Kind,Direction,Status,Number,ImmutableHash,PreviousHash,CreatedAt,UpdatedAt,EventID,EventType,EventAt,EventActor,EventDetail',

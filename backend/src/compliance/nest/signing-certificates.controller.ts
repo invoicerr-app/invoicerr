@@ -17,6 +17,9 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ActiveCompany } from '@/decorators/active-company.decorator';
+import { Roles } from '@/decorators/roles.decorator';
+import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import {
   CertificateMetaResponse,
   SigningCertificatesService,
@@ -31,12 +34,17 @@ export class SigningCertificatesController {
   /**
    * GET /compliance/signing-certificates/companies/:id
    * List signing certs for a company — metadata only, no secrets.
+   * Scoped to the caller's active company (never the URL's :id).
    */
   @Get(':id')
   @ApiOperation({ summary: 'List signing certificates for a company (metadata only)' })
-  @ApiParam({ name: 'id', type: String, description: 'Company ID' })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Company ID (ignored — always resolved from the caller\'s active company/session)',
+  })
   @ApiResponse({ status: 200, description: 'Certificate list (no PFX / no password)' })
-  listCerts(@Param('id') companyId: string): Promise<CertificateMetaResponse[]> {
+  listCerts(@ActiveCompany() companyId: string): Promise<CertificateMetaResponse[]> {
     return this.certs.listForCompany(companyId);
   }
 
@@ -44,10 +52,17 @@ export class SigningCertificatesController {
    * POST /compliance/signing-certificates/companies/:id
    * Upload a PFX (PKCS#12) signing certificate.
    * The PFX and password are encrypted at rest. Only metadata is returned.
+   * Scoped to the caller's active company (never the URL's :id) and restricted to
+   * OWNER/ADMIN — this is the most sensitive credential in the compliance module.
    */
   @Post(':id')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @ApiOperation({ summary: 'Upload a signing certificate (PFX + password, write-only)' })
-  @ApiParam({ name: 'id', type: String, description: 'Company ID' })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Company ID (ignored — always resolved from the caller\'s active company/session)',
+  })
   @ApiBody({
     schema: {
       type: 'object',
@@ -73,7 +88,7 @@ export class SigningCertificatesController {
   })
   @ApiResponse({ status: 201, description: 'Certificate stored (metadata returned, no secrets)' })
   async uploadCert(
-    @Param('id') companyId: string,
+    @ActiveCompany() companyId: string,
     @Body() body: UploadCertificateBody,
   ): Promise<CertificateMetaResponse> {
     if (!body.pfxBase64 || !body.pfxPassword) {
@@ -89,14 +104,20 @@ export class SigningCertificatesController {
   /**
    * DELETE /compliance/signing-certificates/companies/:id/:certId
    * Hard-delete a signing certificate.
+   * Scoped to the caller's active company (never the URL's :id) and restricted to OWNER/ADMIN.
    */
   @Delete(':id/:certId')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a signing certificate' })
-  @ApiParam({ name: 'id', type: String, description: 'Company ID' })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Company ID (ignored — always resolved from the caller\'s active company/session)',
+  })
   @ApiParam({ name: 'certId', type: String, description: 'Certificate record ID' })
   @ApiResponse({ status: 204, description: 'Certificate deleted' })
-  async deleteCert(@Param('id') companyId: string, @Param('certId') certId: string): Promise<void> {
+  async deleteCert(@ActiveCompany() companyId: string, @Param('certId') certId: string): Promise<void> {
     return this.certs.delete(companyId, certId);
   }
 }
