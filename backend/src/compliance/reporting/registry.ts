@@ -13,6 +13,8 @@ import {
   OssReportingHandler,
   SaftReportingHandler,
   SalesPurchaseLedgerReportingHandler,
+  SiiReportingHandler,
+  VerifactuReportingHandler,
 } from './handlers';
 import { NullReportingStore, ReportingStore } from './reporting-store';
 
@@ -30,6 +32,8 @@ export class ReportingRegistry {
       new EReportingReportingHandler(s),
       new SalesPurchaseLedgerReportingHandler(s),
       new CustomsExportReportingHandler(s),
+      new SiiReportingHandler(s),
+      new VerifactuReportingHandler(s),
     ];
     for (const h of list) this.byKind.set(h.kind, h);
   }

@@ -30,6 +30,8 @@ describe('ReportingRegistry', () => {
       'E_REPORTING',
       'SALES_PURCHASE_LEDGER',
       'CUSTOMS_EXPORT',
+      'SII',
+      'VERIFACTU',
     ] as ReportingKind[]) {
       expect(defaultReportingRegistry.get(k)?.kind).toBe(k);
     }

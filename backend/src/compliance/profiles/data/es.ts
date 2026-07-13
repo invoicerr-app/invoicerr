@@ -1,25 +1,33 @@
 import { CountryComplianceProfile } from '../schema';
 
 /**
- * Spain — Facturae 3.2.2 + XAdES-BES / Verifactu.
+ * Spain — Facturae 3.2.2 + XAdES-BES / SII / Verifactu.
  *
  * Transmission & reporting timeline:
  *   2017-07-01 — SII (Suministro Inmediato de Información): VAT ledger reporting within 4 days
  *                for large taxpayers (SII-obligados). Mandates real-time upload to AEAT of
- *                LibroRegistro facturas expedidas/recibidas (not per-invoice clearance).
+ *                LibroRegistro facturas expedidas/recibidas (SuministroLRFacturasEmitidas) — not
+ *                per-invoice clearance. reporting kind: 'SII' (generateSiiRegistroPayload).
  *   2024-01-01 — SII extended; Facturae remains voluntary for B2B; B2G via FACe is mandatory.
- *   2025-07-01 — Verifactu (RD 1007/2023): new software anti-fraud requirements — all invoice
- *                software must generate a Registro de Verifactu (signed hash-chain JSON) AND
- *                report eligible invoices to AEAT within 4 days. NOT blocking clearance.
+ *   2027-01-01 — Verifactu (RD 1007/2023 / Orden HAC/1177/2024): mandatory for Corporate Income
+ *                Tax taxpayers (Impuesto sobre Sociedades) — invoicing software must generate a
+ *                signed hash-chain "Registro de facturación" (Huella) and, in VERI*FACTU mode,
+ *                report it to AEAT in real time. reporting kind: 'VERIFACTU'
+ *                (generateVerifactuRegistroPayload). NOT blocking clearance.
+ *   2027-07-01 — Verifactu mandatory for the remaining taxpayers (autónomos / IRPF, non-sociedades).
+ *                Originally 2026-01-01 / 2026-07-01 per Orden HAC/1177/2024; POSTPONED one year by
+ *                Real Decreto-ley 15/2025 (2 December 2025) — confirmed via the official AEAT notice
+ *                (sede.agenciatributaria.gob.es/.../nota-informativa-ampliacion-plazo-adaptacion-facturacion.html).
  *   TBD        — Full B2B mandate (Ley Crea y Crece, art. 12): dates announced iteratively;
- *                currently expected 2025-2026 for large companies. Format: Facturae 3.2.2 + XAdES.
+ *                format: Facturae 3.2.2 + XAdES (unrelated to the SII/Verifactu reporting timeline).
  *
  * Format:
  *   Primary: ES_FACTURAE (Facturae 3.2.2 XML with XAdES-BES or XAdES-EPES enveloped signature).
  *   Transmission: AEAT SII portal for reporting; FACe / FACeB2B portal for government invoices.
  *   No blocking clearance — invoice effective at issuance.
  *
- * Refs: Facturae v3.2.2 (MINHAC), RD 1007/2023 (Verifactu), Ley 25/2013 (B2G), SII AEAT.
+ * Refs: Facturae v3.2.2 (MINHAC), RD 1007/2023 + Orden HAC/1177/2024 + RDL 15/2025 (Verifactu),
+ * Ley 25/2013 (B2G), SII AEAT (SuministroInformacion.xsd / SuministroLR.xsd).
  */
 export const ES: CountryComplianceProfile = {
   countryCode: 'ES',
@@ -95,15 +103,33 @@ export const ES: CountryComplianceProfile = {
   ],
 
   reporting: [
-    // SII: daily/4-day ledger upload of issued/received invoice registers to AEAT
+    // SII: daily/4-day ledger upload of issued invoice registers (SuministroLRFacturasEmitidas) to AEAT.
+    // Capped at the Verifactu mandate date below — see note there on why the engine picks a single
+    // reporting kind per date (it cannot yet select by taxpayer type / SII-obligado status; in
+    // reality SII-obligados remain on SII and are exempt from Verifactu — RD 1007/2023 art. 3 — but
+    // that per-taxpayer split is not representable by this profile's date-only temporal model yet).
     {
       validFrom: '2017-07-01',
-      value: { kinds: ['SALES_PURCHASE_LEDGER'] },
+      validTo: '2027-01-01',
+      value: { kinds: ['SII'] },
     },
-    // Verifactu: signed hash-chain register + reporting to AEAT (RD 1007/2023)
+    // Verifactu: signed hash-chain register (Huella) + real-time reporting to AEAT.
+    // Mandatory from 2027-01-01 for Impuesto sobre Sociedades taxpayers (this row); the remaining
+    // taxpayers (autónomos/IRPF) follow on 2027-07-01 — both dates postponed one year from the
+    // original Orden HAC/1177/2024 schedule by Real Decreto-ley 15/2025 (2 Dec 2025). The engine
+    // does not yet model a same-country split by taxpayer type, so this single row conservatively
+    // uses the earlier (sociedades) date; see the header comment for the full timeline + source.
+    //
+    // NOTE (temporal-resolution mechanics): `allByDate` (profiles/temporal.ts) returns every rule
+    // whose window contains the date; when several match and none carry an `appliesTo` selector,
+    // `pickWithSelector` (engine/compliance-engine.ts) takes the FIRST one in array order — NOT the
+    // latest validFrom. Every other axis in this profile (regime, formats, transmission, …) already
+    // caps each superseded row with `validTo` for exactly this reason; the original reporting array
+    // did not, which meant the 2025-07-01 E_REPORTING row could never actually be selected once
+    // 'SALES_PURCHASE_LEDGER' was also in force. Fixed here by capping SII's window above.
     {
-      validFrom: '2025-07-01',
-      value: { kinds: ['E_REPORTING'] },
+      validFrom: '2027-01-01',
+      value: { kinds: ['VERIFACTU'] },
     },
   ],
 

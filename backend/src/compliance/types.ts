@@ -109,7 +109,10 @@ export type ReportingKind =
   | 'SAFT'
   | 'E_REPORTING'
   | 'SALES_PURCHASE_LEDGER'
-  | 'CUSTOMS_EXPORT';
+  | 'CUSTOMS_EXPORT'
+  // Spain (AEAT) — see profiles/data/es.ts and reporting/generators.ts.
+  | 'SII' // Suministro Inmediato de Información — LibroRegistro (issued-invoice ledger) upload
+  | 'VERIFACTU'; // RD 1007/2023 / Orden HAC/1177/2024 anti-fraud hash-chain register + reporting
 
 export type Confidence = 'OFFICIAL' | 'BEST_EFFORT' | 'PLANNED' | 'FALLBACK' | 'UNVERIFIED';
 

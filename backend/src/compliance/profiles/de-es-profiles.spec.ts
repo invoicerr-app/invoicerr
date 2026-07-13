@@ -5,10 +5,13 @@
  *   - DE profile resolves from defaultRegistry (bespoke takes precedence over archetype stub)
  *   - DE format is XRECHNUNG; channel is PEPPOL; confidence OFFICIAL; no clearance
  *   - DE receive syntax is XRECHNUNG (B2B receive mandate 2025+)
- *   - ES profile resolves; format is ES_FACTURAE; reporting includes SALES_PURCHASE_LEDGER (SII)
+ *   - ES profile resolves; format is ES_FACTURAE; reporting includes SII (2017) + VERIFACTU (2027)
  *   - ES has OFFICIAL confidence; real-time reporting model from 2017
  *   - US + XX (fallback) still resolve correctly (no regression)
  */
+import { PartyRole, SupplyType } from '../types';
+import { PartyTaxProfile, TransactionContext } from '../canonical/canonical-document';
+import { resolve } from '../engine/compliance-engine';
 import { defaultRegistry } from './registry';
 import { DE } from './data/de';
 import { ES } from './data/es';
@@ -73,10 +76,16 @@ describe('ES bespoke profile', () => {
     expect(ES.mandatoryReceiveSyntax).toBe('ES_FACTURAE');
   });
 
-  it('reporting includes SALES_PURCHASE_LEDGER (SII) from 2017', () => {
-    const sii = ES.reporting.find((r) => r.value.kinds.includes('SALES_PURCHASE_LEDGER'));
+  it('reporting includes SII from 2017', () => {
+    const sii = ES.reporting.find((r) => r.value.kinds.includes('SII'));
     expect(sii).toBeDefined();
     expect(sii?.validFrom).toBe('2017-07-01');
+  });
+
+  it('reporting includes VERIFACTU from 2027 (RDL 15/2025 postponement)', () => {
+    const verifactu = ES.reporting.find((r) => r.value.kinds.includes('VERIFACTU'));
+    expect(verifactu).toBeDefined();
+    expect(verifactu?.validFrom).toBe('2027-01-01');
   });
 
   it('transmission includes GOV_PORTAL_API with es-aeat after SII mandate', () => {
@@ -100,6 +109,40 @@ describe('ES bespoke profile', () => {
     const vat = ES.requiredIdentifiers.find((i) => i.scheme === 'VAT');
     expect(vat).toBeDefined();
     expect(vat?.required).toBe(true);
+  });
+});
+
+function esParty(role: PartyRole): PartyTaxProfile {
+  return {
+    legalName: 'ES Co',
+    countryCode: 'ES',
+    role,
+    identifiers: [{ scheme: 'VAT', value: 'ESB12345674', validated: true }],
+  };
+}
+
+function esTx(issueDate: string, supplyType: SupplyType = 'SERVICES'): TransactionContext {
+  return {
+    supplier: esParty('B2B'),
+    buyer: esParty('B2B'),
+    lines: [{ id: 'l1', description: 'x', quantity: 1, unitNetMinor: 10000, supplyType }],
+    issueDate: new Date(issueDate),
+    currency: 'EUR',
+  };
+}
+
+describe('ES — SII/VERIFACTU reporting resolves through the full engine (no orphan kinds)', () => {
+  it('resolves plan.reporting=["SII"] for a transaction after 2017-07-01 and before the Verifactu mandate', () => {
+    const plan = resolve(esTx('2026-06-15'));
+    expect(plan.reporting).toContain('SII');
+    expect(plan.reporting).not.toContain('VERIFACTU');
+    expect(plan.reporting).not.toContain('SALES_PURCHASE_LEDGER');
+    expect(plan.reporting).not.toContain('E_REPORTING');
+  });
+
+  it('resolves plan.reporting to include "VERIFACTU" on/after the 2027-01-01 mandate', () => {
+    const plan = resolve(esTx('2027-01-15'));
+    expect(plan.reporting).toContain('VERIFACTU');
   });
 });
 

@@ -23,8 +23,14 @@ export function getPeriodKey(date: Date, frequency: ReportFrequency): string {
 
 /**
  * Default filing frequency per reporting kind (per OECD / EU / national rules).
- * Monthly:   E_REPORTING, INTRASTAT, SALES_PURCHASE_LEDGER, CUSTOMS_EXPORT, SAFT
+ * Monthly:   E_REPORTING, INTRASTAT, SALES_PURCHASE_LEDGER, CUSTOMS_EXPORT, SAFT, SII, VERIFACTU
  * Quarterly: OSS, IOSS, EC_SALES_LIST
+ *
+ * SII and VERIFACTU are both near-real-time / per-invoice obligations at AEAT (SII: within 4
+ * working days of issuance; Verifactu: submission "as soon as" the invoice is issued/generated —
+ * neither is periodic in the OSS/IOSS/ESL sense). They are bucketed MONTHLY here purely for the
+ * idempotence periodKey (one ComplianceReport row's uniqueness window), mirroring how E_REPORTING
+ * (also submitted per-transaction, not periodically) is bucketed.
  */
 export function frequencyForKind(kind: ReportingKind): ReportFrequency {
   const QUARTERLY: ReportingKind[] = ['OSS', 'IOSS', 'EC_SALES_LIST'];

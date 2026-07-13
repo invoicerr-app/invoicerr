@@ -33,6 +33,8 @@ import {
   generateOssEntry,
   generateSaftEntry,
   generateSalesPurchaseLedgerEntry,
+  generateSiiRegistroPayload,
+  generateVerifactuRegistroPayload,
 } from './generators';
 
 // ---------------------------------------------------------------------------
@@ -172,4 +174,18 @@ export const CustomsExportReportingHandler = makeReportingHandler(
   'CUSTOMS_EXPORT',
   (ctx, plan) => generateCustomsExportPayload(ctx, plan),
   'attach customs/export evidence for zero-rating (mocked)',
+);
+
+export const SiiReportingHandler = makeReportingHandler(
+  'SII',
+  generateSiiRegistroPayload,
+  'upload SuministroLRFacturasEmitidas registration to AEAT SII (mocked)',
+);
+
+// previousHuella defaults to '' (first record in the chain) — see the TODO(seam) on
+// generateVerifactuRegistroPayload for how a real cross-invoice chain must feed the prior huella.
+export const VerifactuReportingHandler = makeReportingHandler(
+  'VERIFACTU',
+  generateVerifactuRegistroPayload,
+  'submit Verifactu RegistroAlta (hash-chained) to AEAT (mocked)',
 );

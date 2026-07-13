@@ -3,6 +3,7 @@
  *
  * All generators receive synthetic TransactionContext + CompliancePlan stubs — no I/O, fully pure.
  */
+import { createHash } from 'node:crypto';
 import { TransactionContext } from '../canonical/canonical-document';
 import { CompliancePlan } from '../engine/compliance-engine';
 import { getPeriodKey, frequencyForKind, ReportFrequency } from './period';
@@ -15,6 +16,8 @@ import {
   generateOssEntry,
   generateSaftEntry,
   generateSalesPurchaseLedgerEntry,
+  generateSiiRegistroPayload,
+  generateVerifactuRegistroPayload,
 } from './generators';
 
 // ---------------------------------------------------------------------------
@@ -446,6 +449,315 @@ describe('generateCustomsExportPayload', () => {
   it('uses FREE_EXPORT for non-G categories', () => {
     const payload = generateCustomsExportPayload(makeCtx(), makePlan());
     expect(payload.exportBasis).toBe('FREE_EXPORT');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Spain (AEAT) fixtures — SII + Verifactu
+// ---------------------------------------------------------------------------
+
+function makeEsCtx(overrides: Partial<TransactionContext> = {}): TransactionContext {
+  return {
+    supplier: {
+      legalName: 'Ibérica Soluciones SL',
+      countryCode: 'ES',
+      role: 'B2B',
+      identifiers: [{ scheme: 'VAT', value: 'ESB12345674' }],
+      address: { line1: 'Calle Mayor 1', postalCode: '28013', city: 'Madrid', countryCode: 'ES' },
+    },
+    buyer: {
+      legalName: 'Cliente Español SL',
+      countryCode: 'ES',
+      role: 'B2B',
+      identifiers: [{ scheme: 'VAT', value: 'ESA87654321' }],
+    },
+    lines: [
+      {
+        id: 'L1',
+        description: 'Servicios de consultoría',
+        quantity: 1,
+        unitNetMinor: 100000,
+        supplyType: 'SERVICES',
+      },
+    ],
+    issueDate: new Date('2026-06-15T00:00:00Z'),
+    currency: 'EUR',
+    externalRef: 'FAC-2026-001',
+    supplierCompanyId: 'company-es',
+    ...overrides,
+  } as TransactionContext;
+}
+
+function makeEsPlan(overrides: Partial<CompliancePlan> = {}): CompliancePlan {
+  return {
+    supplier: { country: 'ES', confidence: 'OFFICIAL' },
+    buyer: { country: 'ES', confidence: 'OFFICIAL' },
+    classification: { buyerRole: 'B2B', crossBorder: false, supplyTypes: ['SERVICES'] },
+    tax: {
+      lines: [
+        {
+          lineId: 'L1',
+          treatment: {
+            components: [{ taxSystem: 'VAT', name: 'IVA', category: 'S', rate: 21, jurisdiction: 'ES' }],
+            buyerSelfAssess: false,
+            reportingFlags: ['SII'],
+            mentions: [],
+          },
+        },
+      ],
+      reportingFlags: ['SII'],
+      mentions: [],
+      buyerSelfAssess: false,
+    },
+    taxSystemKind: 'VAT',
+    regime: { model: 'REAL_TIME_REPORTING', blocking: false },
+    artifacts: [{ role: 'AUTHORITATIVE', syntax: 'ES_FACTURAE' }],
+    channels: [{ type: 'GOV_PORTAL_API', providerId: 'es-aeat' }],
+    numbering: { model: 'GAPLESS_SELF' },
+    lifecycle: {
+      immutableAfter: 'ISSUE',
+      correctionModel: 'CREDIT_NOTE',
+      cancellation: { allowed: true, requiresAuthorityAck: false },
+    },
+    archival: { retentionYears: 10, archivedForm: 'BOTH', integrity: 'SIGNED' },
+    reporting: ['SII'],
+    confidence: 'OFFICIAL',
+    warnings: [],
+    ...overrides,
+  } as unknown as CompliancePlan;
+}
+
+// ---------------------------------------------------------------------------
+// SII — AEAT SuministroLRFacturasEmitidas
+// ---------------------------------------------------------------------------
+
+describe('generateSiiRegistroPayload', () => {
+  it('produces a well-formed SuministroLR XML with the real AEAT element/namespace names', () => {
+    const result = generateSiiRegistroPayload(makeEsCtx(), makeEsPlan(), '2026-06');
+
+    // Root element + namespace URIs verified against the official SuministroLR.xsd /
+    // SuministroInformacion.xsd targetNamespace declarations (sede.agenciatributaria.gob.es).
+    expect(result.xml).toContain('<siiLR:SuministroLRFacturasEmitidas');
+    expect(result.xml).toContain(
+      'xmlns:sii="https://www2.agenciatributaria.gob.es/static_files/common/internet/dep/aplicaciones/es/aeat/ssii/fact/ws/SuministroInformacion.xsd"',
+    );
+    expect(result.xml).toContain(
+      'xmlns:siiLR="https://www2.agenciatributaria.gob.es/static_files/common/internet/dep/aplicaciones/es/aeat/ssii/fact/ws/SuministroLR.xsd"',
+    );
+
+    // Cabecera (sii:CabeceraSii)
+    expect(result.xml).toContain('<sii:IDVersionSii>1.1</sii:IDVersionSii>');
+    expect(result.xml).toContain('<sii:NombreRazon>Ibérica Soluciones SL</sii:NombreRazon>');
+    expect(result.xml).toContain('<sii:NIF>B12345674</sii:NIF>');
+    expect(result.xml).toContain('<sii:TipoComunicacion>A0</sii:TipoComunicacion>');
+
+    // RegistroLRFacturasEmitidas → PeriodoLiquidacion / IDFactura / FacturaExpedida
+    expect(result.xml).toContain('<siiLR:RegistroLRFacturasEmitidas>');
+    expect(result.xml).toContain('<sii:Ejercicio>2026</sii:Ejercicio>');
+    expect(result.xml).toContain('<sii:Periodo>06</sii:Periodo>');
+    expect(result.xml).toContain('<sii:NumSerieFacturaEmisor>FAC-2026-001</sii:NumSerieFacturaEmisor>');
+    expect(result.xml).toContain(
+      '<sii:FechaExpedicionFacturaEmisor>15-06-2026</sii:FechaExpedicionFacturaEmisor>',
+    );
+    expect(result.xml).toContain('<sii:TipoFactura>F1</sii:TipoFactura>');
+    expect(result.xml).toContain(
+      '<sii:ClaveRegimenEspecialOTrascendencia>01</sii:ClaveRegimenEspecialOTrascendencia>',
+    );
+    expect(result.xml).toContain('<sii:ImporteTotal>1210.00</sii:ImporteTotal>');
+    expect(result.xml).toContain('<sii:Contraparte>');
+
+    // TipoDesglose → DesgloseFactura (TipoSinDesgloseType) → Sujeta → NoExenta → DesgloseIVA → DetalleIVA
+    expect(result.xml).toContain('<sii:TipoDesglose>');
+    expect(result.xml).toContain('<sii:DesgloseFactura>');
+    expect(result.xml).toContain('<sii:Sujeta>');
+    expect(result.xml).toContain('<sii:NoExenta>');
+    expect(result.xml).toContain('<sii:TipoNoExenta>S1</sii:TipoNoExenta>');
+    expect(result.xml).toContain('<sii:DesgloseIVA>');
+    expect(result.xml).toContain('<sii:DetalleIVA>');
+    expect(result.xml).toContain('<sii:TipoImpositivo>21</sii:TipoImpositivo>');
+    expect(result.xml).toContain('<sii:BaseImponible>1000.00</sii:BaseImponible>');
+    expect(result.xml).toContain('<sii:CuotaRepercutida>210.00</sii:CuotaRepercutida>');
+  });
+
+  it('structured meta mirrors the XML content', () => {
+    const result = generateSiiRegistroPayload(makeEsCtx(), makeEsPlan(), '2026-06');
+    expect(result.meta.periodKey).toBe('2026-06');
+    expect(result.meta.ejercicio).toBe('2026');
+    expect(result.meta.periodo).toBe('06');
+    expect(result.meta.nifEmisor).toBe('B12345674');
+    expect(result.meta.numSerieFactura).toBe('FAC-2026-001');
+    expect(result.meta.fechaExpedicion).toBe('15-06-2026');
+    expect(result.meta.tipoFactura).toBe('F1');
+    expect(result.meta.importeTotal).toBe('1210.00');
+    expect(result.meta.cuotaTotal).toBe('210.00');
+  });
+
+  it('uses TipoFactura=R1 for credit notes', () => {
+    const ctx = makeEsCtx({ documentKind: 'CREDIT_NOTE' });
+    const result = generateSiiRegistroPayload(ctx, makeEsPlan(), '2026-06');
+    expect(result.xml).toContain('<sii:TipoFactura>R1</sii:TipoFactura>');
+  });
+
+  it('uses Contraparte/IDOtro (not NIF) for a non-Spanish buyer', () => {
+    const ctx = makeEsCtx({
+      buyer: {
+        legalName: 'Client France SARL',
+        countryCode: 'FR',
+        role: 'B2B',
+        identifiers: [{ scheme: 'VAT', value: 'FR12345678901' }],
+      },
+    });
+    const result = generateSiiRegistroPayload(ctx, makeEsPlan(), '2026-06');
+    expect(result.xml).toContain('<sii:IDOtro>');
+    expect(result.xml).toContain('<sii:CodigoPais>FR</sii:CodigoPais>');
+    expect(result.xml).toContain('<sii:IDType>02</sii:IDType>');
+    expect(result.xml).toContain('<sii:ID>FR12345678901</sii:ID>');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// VERIFACTU — AEAT hash-chain RegistroAlta (Huella) + QR
+// ---------------------------------------------------------------------------
+
+describe('generateVerifactuRegistroPayload', () => {
+  it('huella algorithm matches the official AEAT worked example — case 1 (first record, no chain)', () => {
+    // Verbatim from "Detalle de las especificaciones técnicas para la generación de la huella o
+    // hash de los registros de facturación" v0.1.2 (27/08/2024, AEAT), §6.1 "Caso 1". This proves
+    // the documented canonical-string field set/order/casing against AEAT's own published vector,
+    // independently of our generator implementation.
+    const canonical =
+      'IDEmisorFactura=89890001K&NumSerieFactura=12345678/G33&FechaExpedicionFactura=01-01-2024' +
+      '&TipoFactura=F1&CuotaTotal=12.35&ImporteTotal=123.45&Huella=&FechaHoraHusoGenRegistro=2024-01-01T19:20:30+01:00';
+    const huella = createHash('sha256').update(Buffer.from(canonical, 'utf-8')).digest('hex').toUpperCase();
+    expect(huella).toBe('3C464DAF61ACB827C65FDA19F352A4E3BDC2C640E9E9FC4CC058073F38F12F60');
+  });
+
+  it('huella algorithm matches the official AEAT worked example — case 2 (chained record)', () => {
+    // §6.2 "Caso 2" of the same document: second record, chaining case-1's huella.
+    const canonical =
+      'IDEmisorFactura=89890001K&NumSerieFactura=12345679/G34&FechaExpedicionFactura=01-01-2024' +
+      '&TipoFactura=F1&CuotaTotal=12.35&ImporteTotal=123.45' +
+      '&Huella=3C464DAF61ACB827C65FDA19F352A4E3BDC2C640E9E9FC4CC058073F38F12F60' +
+      '&FechaHoraHusoGenRegistro=2024-01-01T19:20:35+01:00';
+    const huella = createHash('sha256').update(Buffer.from(canonical, 'utf-8')).digest('hex').toUpperCase();
+    expect(huella).toBe('F7B94CFD8924EDFF273501B01EE5153E4CE8F259766F88CF6ACB8935802A2B97');
+  });
+
+  it('generator huella is reproducible: independently recomputing SHA-256 over the documented canonical string (built from the returned fields, not the generator internals) equals the returned huella', () => {
+    const result = generateVerifactuRegistroPayload(makeEsCtx(), makeEsPlan(), '2026-06');
+    const r = result.registro;
+    const independentCanonical =
+      `IDEmisorFactura=${r.idEmisorFactura}&NumSerieFactura=${r.numSerieFactura}` +
+      `&FechaExpedicionFactura=${r.fechaExpedicionFactura}&TipoFactura=${r.tipoFactura}` +
+      `&CuotaTotal=${r.cuotaTotal}&ImporteTotal=${r.importeTotal}&Huella=${result.previousHuella}` +
+      `&FechaHoraHusoGenRegistro=${r.fechaHoraHusoGenRegistro}`;
+    const independentHuella = createHash('sha256')
+      .update(Buffer.from(independentCanonical, 'utf-8'))
+      .digest('hex')
+      .toUpperCase();
+    expect(result.huella).toBe(independentHuella);
+    expect(result.huella).toMatch(/^[0-9A-F]{64}$/);
+  });
+
+  it('first record: previousHuella defaults to "" and primerRegistro is true', () => {
+    const result = generateVerifactuRegistroPayload(makeEsCtx(), makeEsPlan(), '2026-06');
+    expect(result.previousHuella).toBe('');
+    expect(result.primerRegistro).toBe(true);
+  });
+
+  it('chaining: feeding record N huella as previousHuella for N+1 changes N+1 huella and is embedded in its canonical input', () => {
+    const ctx = makeEsCtx();
+    const plan = makeEsPlan();
+    const record1 = generateVerifactuRegistroPayload(ctx, plan, '2026-06');
+    const record2 = generateVerifactuRegistroPayload(ctx, plan, '2026-06', record1.huella);
+
+    expect(record2.previousHuella).toBe(record1.huella);
+    expect(record2.primerRegistro).toBe(false);
+    expect(record2.huella).not.toBe(record1.huella);
+
+    // Prove the chained huella actually changes record2's hash (it is embedded in the hashed
+    // input, not just carried through as inert metadata).
+    const r = record2.registro;
+    const canonicalWithoutChain =
+      `IDEmisorFactura=${r.idEmisorFactura}&NumSerieFactura=${r.numSerieFactura}` +
+      `&FechaExpedicionFactura=${r.fechaExpedicionFactura}&TipoFactura=${r.tipoFactura}` +
+      `&CuotaTotal=${r.cuotaTotal}&ImporteTotal=${r.importeTotal}&Huella=` +
+      `&FechaHoraHusoGenRegistro=${r.fechaHoraHusoGenRegistro}`;
+    const huellaWithoutChain = createHash('sha256')
+      .update(Buffer.from(canonicalWithoutChain, 'utf-8'))
+      .digest('hex')
+      .toUpperCase();
+    expect(record2.huella).not.toBe(huellaWithoutChain);
+  });
+
+  it('QR content is a well-formed AEAT ValidarQR URL with the 4 required params, URL-encoded', () => {
+    const ctx = makeEsCtx({ externalRef: '12345678&G33' });
+    const result = generateVerifactuRegistroPayload(ctx, makeEsPlan(), '2026-06');
+    expect(
+      result.qrContent.startsWith('https://www2.agenciatributaria.gob.es/wlpl/TIKE-CONT/ValidarQR?'),
+    ).toBe(true);
+    expect(result.qrContent).toContain('nif=B12345674');
+    // '&' must be percent-encoded inside numserie — verified against the official QR spec worked
+    // example (encoding "12345678&G33" → "12345678%26G33").
+    expect(result.qrContent).toContain('numserie=12345678%26G33');
+    expect(result.qrContent).toContain('fecha=15-06-2026');
+    expect(result.qrContent).toContain('importe=1210.00');
+  });
+
+  it('meta reflects the transaction', () => {
+    const result = generateVerifactuRegistroPayload(makeEsCtx(), makeEsPlan(), '2026-06');
+    expect(result.meta.periodKey).toBe('2026-06');
+    expect(result.meta.invoiceNo).toBe('FAC-2026-001');
+    expect(result.meta.buyerName).toBe('Cliente Español SL');
+    expect(result.meta.currency).toBe('EUR');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ES wiring — SiiReportingHandler / VerifactuReportingHandler resolve and emit real payloads
+// ---------------------------------------------------------------------------
+
+describe('ES reporting handlers (SII / VERIFACTU) end to end', () => {
+  it('SiiReportingHandler resolves via the registry and emits a real SuministroLR payload', async () => {
+    const { defaultReportingRegistry } = await import('./registry.js');
+    const { RecordingComplianceLogger } = await import('../execution/logger.js');
+
+    const handler = defaultReportingRegistry.get('SII');
+    expect(handler?.kind).toBe('SII');
+
+    const log = new RecordingComplianceLogger();
+    const result = await handler!.report(makeEsCtx(), makeEsPlan({ reporting: ['SII'] }), log);
+    expect(result.status).toBe('EMITTED');
+    expect(result.kind).toBe('SII');
+  });
+
+  it('VerifactuReportingHandler resolves via the registry and emits a real RegistroAlta payload', async () => {
+    const { defaultReportingRegistry } = await import('./registry.js');
+    const { RecordingComplianceLogger } = await import('../execution/logger.js');
+
+    const handler = defaultReportingRegistry.get('VERIFACTU');
+    expect(handler?.kind).toBe('VERIFACTU');
+
+    const log = new RecordingComplianceLogger();
+    const result = await handler!.report(makeEsCtx(), makeEsPlan({ reporting: ['VERIFACTU'] }), log);
+    expect(result.status).toBe('EMITTED');
+    expect(result.kind).toBe('VERIFACTU');
+  });
+
+  it('registry.reportAll for an ES-shaped plan emits both SII and VERIFACTU when both are requested', async () => {
+    const { ReportingRegistry } = await import('./registry.js');
+    const { NullReportingStore } = await import('./reporting-store.js');
+    const { RecordingComplianceLogger } = await import('../execution/logger.js');
+
+    const registry = new ReportingRegistry(undefined, new NullReportingStore());
+    const log = new RecordingComplianceLogger();
+    const results = await registry.reportAll(
+      makeEsCtx(),
+      makeEsPlan({ reporting: ['SII', 'VERIFACTU'] }),
+      log,
+    );
+    expect(results.map((r) => r.kind)).toEqual(['SII', 'VERIFACTU']);
+    expect(results.every((r) => r.status === 'EMITTED')).toBe(true);
   });
 });
 
