@@ -505,7 +505,9 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                           title={t("invoices.view.actions.retryTransmission", "Retry")}
                           data-cy="invoice-retry-transmission"
                         >
-                          <RotateCcw className={`h-3 w-3 mr-1 ${retryingTransmission ? "animate-spin" : ""}`} />
+                          <RotateCcw
+                            className={`h-3 w-3 mr-1 ${retryingTransmission ? "animate-spin" : ""}`}
+                          />
                           {t("invoices.view.actions.retryTransmission", "Retry")}
                         </Button>
                       ) : (
