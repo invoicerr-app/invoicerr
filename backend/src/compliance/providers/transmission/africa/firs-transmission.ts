@@ -19,7 +19,7 @@ import { ComplianceLogger } from '../../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../../execution/types';
 import { ChannelType } from '../../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from '../channel-credentials-port';
-import { ChannelConfigSchema, TransmissionProvider } from '../transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from '../transmission-provider';
 import { computeFirsIrn, FirsClient, FirsHttpPort, FirsInvoicePayload } from './firs-client';
 
 const GP: ChannelType = 'GOV_PORTAL_API';
@@ -27,6 +27,8 @@ const GP: ChannelType = 'GOV_PORTAL_API';
 export class FirsTransmissionProvider implements TransmissionProvider {
   readonly id = 'firs';
   readonly channel: ChannelType = GP;
+  /** IMPLEMENTED — real IRN + QR clearance scaffold, awaiting live FIRS MBS creds. */
+  readonly maturity: ProviderMaturity = 'IMPLEMENTED';
   readonly feedback = 'ASYNC_POLL' as const;
   readonly pollPolicy = { everySeconds: 60, timeoutHours: 48, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {

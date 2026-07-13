@@ -71,6 +71,33 @@ export interface ChannelConfigSchema {
   fields: ChannelConfigField[];
 }
 
+/**
+ * Delivery maturity — an honesty signal that is orthogonal to `configSchema` presence
+ * (COMPLIANCE_AUDIT.md F-8 / M-16 / M-18, "channel honesty"). `configSchema` only says
+ * "the UI can collect credentials for this provider"; it says nothing about whether the
+ * provider can actually deliver anything once those credentials are saved. `maturity` is
+ * the field that says that:
+ *
+ *  - PROVEN      : a real live round-trip has been exercised end-to-end (ksef, pdp,
+ *                  peppol via peppol.sh, email).
+ *  - IMPLEMENTED : a real named-protocol client exists — correct envelopes/crypto/OAuth
+ *                  for THAT specific authority — but has not been proven live yet; it is
+ *                  waiting on real credentials or an accreditation process (sdi, choruspro,
+ *                  sefaz, anaf, myinvois, …).
+ *  - STUB        : no real transport exists for this authority yet (the generic-portal
+ *                  tier, zatca, pac, ose, print, …). A STUB's `transmit()` MUST return a
+ *                  terminal non-accepted status (SKIPPED or REJECTED) — never PENDING
+ *                  forever, never SENT — so `ComplianceService.send()`'s F-4 acceptance
+ *                  check (SENT/PENDING/CLEARED) correctly lands the document in
+ *                  TRANSMISSION_FAILED instead of pretending delivery happened.
+ *
+ * Optional on the interface (undefined ⇒ treat as STUB, the safe default) so ad hoc mock
+ * providers built in tests don't need updating; every provider actually registered in
+ * `defaultTransmissionRegistry` sets it explicitly — enforced by
+ * `provider-maturity.spec.ts`.
+ */
+export type ProviderMaturity = 'PROVEN' | 'IMPLEMENTED' | 'STUB';
+
 /** Delivers the artifact over one channel (email, Peppol, a clearance API, a portal, print…) (§10). */
 export interface TransmissionProvider {
   /** Stable provider id (e.g. 'email', 'sdi', 'ksef'); used for exact selection via ChannelSpec.providerId. */
@@ -78,6 +105,8 @@ export interface TransmissionProvider {
   readonly channel: ChannelType;
   /** Feedback model driving the lifecycle (defaults to NONE when omitted). */
   readonly feedback?: ChannelFeedback;
+  /** See {@link ProviderMaturity}. Defaults to 'STUB' when omitted. */
+  readonly maturity?: ProviderMaturity;
   /** Cadence/timeout for ASYNC_POLL providers. */
   readonly pollPolicy?: PollPolicy;
   /**

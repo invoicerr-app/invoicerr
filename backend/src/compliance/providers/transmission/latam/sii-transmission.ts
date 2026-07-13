@@ -8,12 +8,14 @@ import { ComplianceLogger } from '../../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../../execution/types';
 import { ChannelType } from '../../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from '../channel-credentials-port';
-import { ChannelConfigSchema, TransmissionProvider } from '../transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from '../transmission-provider';
 import { SiiClient, SiiHttpPort } from './sii-client';
 
 export class SiiTransmissionProvider implements TransmissionProvider {
   readonly id = 'sii';
   readonly channel: ChannelType = 'GOV_PORTAL_API';
+  /** IMPLEMENTED — real seed→token→EnvioDTE→poll scaffold, awaiting a certification-env cert. */
+  readonly maturity: ProviderMaturity = 'IMPLEMENTED';
   readonly feedback = 'ASYNC_POLL' as const;
   readonly pollPolicy = { everySeconds: 60, timeoutHours: 48, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {

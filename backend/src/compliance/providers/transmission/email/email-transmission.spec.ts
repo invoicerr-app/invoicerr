@@ -133,15 +133,15 @@ describe('EmailTransmissionProvider — per-company SMTP overrides', () => {
     expect(mail.sendInvoiceEmail).toHaveBeenCalledWith('INV-2026-001', undefined);
   });
 
-  it('skips when InvoiceMailPort is not wired (returns stub SENT with notes)', async () => {
+  it('M-18: returns SKIPPED (not SENT) when InvoiceMailPort is not wired — a stub must never lie', async () => {
     const provider = new EmailTransmissionProvider(); // no mail port
     const log = new RecordingComplianceLogger();
 
     const result = await provider.transmit(NO_ARTIFACTS, makeCtx(), {} as any, 'key-3', log);
 
     expect(result.channel).toBe('EMAIL');
-    // Stub path: SENT with a note
-    expect(result.notes.some((n) => n.includes('stub'))).toBe(true);
+    expect(result.status).toBe('SKIPPED');
+    expect(result.notes.some((n) => n.includes('no mail port wired'))).toBe(true);
   });
 
   it('returns SKIPPED when mail port returns skipped (client has no email)', async () => {

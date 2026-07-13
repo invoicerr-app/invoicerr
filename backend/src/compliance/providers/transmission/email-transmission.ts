@@ -5,13 +5,16 @@ import { SignedArtifact, TransmissionResult } from '../../execution/types';
 import { ChannelType } from '../../types';
 import { ResolvedChannelConfig } from './channel-credentials-port';
 import { InvoiceMailPort, SmtpOverrides } from './invoice-mail-port';
-import { ChannelConfigSchema, TransmissionProvider } from './transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from './transmission-provider';
 
 /** Email — real send via InvoiceMailPort when wired, stub otherwise. */
 export class EmailTransmissionProvider implements TransmissionProvider {
   readonly id = 'email';
   readonly channel: ChannelType = 'EMAIL';
   readonly feedback = 'NONE' as const;
+  /** PROVEN — real SMTP send is exercised live (email-live.spec.ts). Only the never-wired
+   * fallback branch below (no mail port injected) is a stub-safe path; the happy path is real. */
+  readonly maturity: ProviderMaturity = 'PROVEN';
   /**
    * Per-company SMTP is optional: when no active config is found, fall back to the global
    * MAIL_PROVIDER (SMTP_* env). The registry must NOT skip this channel for missing config.
@@ -73,10 +76,17 @@ export class EmailTransmissionProvider implements TransmissionProvider {
         notes: r.skipped ? [r.reason ?? 'no email'] : [],
       };
     }
-    log.todo(
+    // M-18: no InvoiceMailPort wired (e.g. a bare `new TransmissionProviderRegistry()` such as
+    // the one used by PollScheduler tests) — nothing was actually sent. A stub-safe path must
+    // never claim SENT; SKIPPED is the honest terminal status (never attempted, not refused).
+    log.warn(
       'transmission/email',
-      `send ${artifacts.length} artifact(s) to ${ctx.buyer.legalName} via MailService (key ${key})`,
+      `no mail port wired — cannot send ${artifacts.length} artifact(s) to ${ctx.buyer.legalName} (key ${key})`,
     );
-    return { channel: 'EMAIL', status: 'SENT', notes: ['stub: wire to MailService.sendMail'] };
+    return {
+      channel: 'EMAIL',
+      status: 'SKIPPED',
+      notes: ['no mail port wired — configure MailService before this channel can deliver'],
+    };
   }
 }

@@ -24,7 +24,7 @@ import { ComplianceLogger } from '../../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../../execution/types';
 import { ChannelType } from '../../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from '../channel-credentials-port';
-import { ChannelConfigSchema, TransmissionProvider } from '../transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from '../transmission-provider';
 import { AnafClient, AnafHttpPort, mapAnafStatus } from './anaf-client';
 
 const GP: ChannelType = 'GOV_PORTAL_API';
@@ -91,6 +91,8 @@ const STUB_HTTP: AnafHttpPort = {
 export class AnafTransmissionProvider implements TransmissionProvider {
   readonly id = 'anaf';
   readonly channel: ChannelType = GP;
+  /** IMPLEMENTED — real OAuth2 + PUT upload + stareMesaj poll scaffold, awaiting live ANAF creds. */
+  readonly maturity: ProviderMaturity = 'IMPLEMENTED';
   readonly feedback = 'ASYNC_POLL' as const;
   readonly pollPolicy = { everySeconds: 60, timeoutHours: 72, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = ANAF_CONFIG_SCHEMA;

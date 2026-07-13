@@ -21,7 +21,7 @@ import { ComplianceLogger } from '../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../execution/types';
 import { ChannelType } from '../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from './channel-credentials-port';
-import { ChannelConfigSchema, TransmissionProvider } from './transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from './transmission-provider';
 
 const GP: ChannelType = 'GOV_PORTAL_API';
 
@@ -135,16 +135,6 @@ export function buildGenericPortalProvider(
   credentials?: ChannelCredentialsPort,
   httpPort?: SimpleHttpPort,
 ): TransmissionProvider {
-  const stub: SimpleHttpPort = {
-    post: async () => {
-      throw new Error(`${spec.label} HTTP port not implemented — ${spec.authHint}`);
-    },
-    get: async () => {
-      throw new Error(`${spec.label} HTTP port not implemented`);
-    },
-  };
-  const http = httpPort ?? stub;
-
   return {
     id: spec.id,
     channel: GP,
@@ -152,6 +142,11 @@ export function buildGenericPortalProvider(
     pollPolicy:
       spec.isAsync !== false ? { everySeconds: 60, timeoutHours: 48, backoff: 'EXPONENTIAL' } : undefined,
     configSchema: { fields: spec.configFields },
+    // F-8: every generic-portal instance is a STUB — no country in this 37-country tier has a
+    // real httpPort wired in prod (the 5 regional `build*` call sites and compliance.module.ts
+    // never inject one). configSchema being present only lets the UI collect credentials; it
+    // does not mean this channel can deliver anything.
+    maturity: 'STUB' as ProviderMaturity,
 
     async transmit(
       artifacts: SignedArtifact[],
@@ -175,8 +170,24 @@ export function buildGenericPortalProvider(
       const companyId = ctx.supplierCompanyId;
       if (!companyId) return { channel: GP, status: 'SKIPPED', notes: [`${spec.id}: no supplierCompanyId`] };
 
+      // F-8: no real transport exists for this authority yet. Rather than let a throwing
+      // default port be caught below and reported as REJECTED (implying the authority refused
+      // something we never actually sent), short-circuit honestly to SKIPPED before any I/O is
+      // attempted — this is a stub, not a live rejection.
+      if (!httpPort) {
+        log.warn(
+          `transmission/${spec.id}`,
+          `no real transport implemented for ${spec.label} (key ${key}) — ${spec.authHint}`,
+        );
+        return {
+          channel: GP,
+          status: 'SKIPPED',
+          notes: [`${spec.id}: no real transport implemented yet for ${spec.label} — ${spec.authHint}`],
+        };
+      }
+
       try {
-        const client = new GenericPortalClient(http, baseUrl, spec.label, heuristics);
+        const client = new GenericPortalClient(httpPort, baseUrl, spec.label, heuristics);
         const xmlStr = Buffer.isBuffer(art.bytes)
           ? art.bytes.toString('utf-8')
           : new TextDecoder().decode(art.bytes);
@@ -219,7 +230,17 @@ export function buildGenericPortalProvider(
                 ((config.environment as string) ?? environment ?? 'test').toLowerCase() !== 'prod';
               const baseUrl = isTest ? spec.baseUrls.test : spec.baseUrls.prod;
               const token = (config.apiToken ?? config.token ?? config.accessToken ?? '') as string;
-              const client = new GenericPortalClient(http, baseUrl, spec.label, heuristics);
+              // F-8: same stub short-circuit as transmit() — without a real httpPort there is
+              // nothing to poll; SKIPPED is honest, PENDING would look like it's still in-flight.
+              if (!httpPort) {
+                return {
+                  channel: GP,
+                  status: 'SKIPPED',
+                  ref,
+                  notes: [`${spec.id}: no real transport implemented yet for ${spec.label}`],
+                };
+              }
+              const client = new GenericPortalClient(httpPort, baseUrl, spec.label, heuristics);
               const resp = await client.pollStatus(spec.pollEndpoint, id, token);
               const status = mapPortalStatus(resp.status, heuristics);
               return { channel: GP, status, ref, notes: [`${spec.id}: ${resp.status}`] };

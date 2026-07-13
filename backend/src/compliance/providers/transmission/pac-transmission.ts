@@ -4,7 +4,7 @@ import { ComplianceLogger } from '../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../execution/types';
 import { ChannelType } from '../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from './channel-credentials-port';
-import { ChannelConfigSchema, TransmissionProvider } from './transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from './transmission-provider';
 import type { PacHttpPort } from './latam/pac-client';
 
 /**
@@ -23,6 +23,10 @@ import type { PacHttpPort } from './latam/pac-client';
 export class PacTransmissionProvider implements TransmissionProvider {
   readonly id = 'pac';
   readonly channel: ChannelType = 'PAC';
+  /** STUB — "PAC" is a market of interchangeable vendors (SW Sapien, Finkok, Facturapi, …),
+   * each with a different real API; this client models only the common denominator, so
+   * there is no single real transport to target/prove. */
+  readonly maturity: ProviderMaturity = 'STUB';
   readonly feedback = 'ASYNC_POLL' as const;
   readonly pollPolicy = { everySeconds: 30, timeoutHours: 24, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {

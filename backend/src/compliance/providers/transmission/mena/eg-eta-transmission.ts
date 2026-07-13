@@ -22,7 +22,7 @@ import { ComplianceLogger } from '../../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../../execution/types';
 import { ChannelType } from '../../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from '../channel-credentials-port';
-import { ChannelConfigSchema, TransmissionProvider } from '../transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from '../transmission-provider';
 import { EtaClient, EtaHttpPort, computeEtaUuid, etaCanonicalize, mapEtaStatus } from './eg-eta-client';
 
 const GP: ChannelType = 'GOV_PORTAL_API';
@@ -86,6 +86,8 @@ const STUB_HTTP: EtaHttpPort = {
 export class EgEtaTransmissionProvider implements TransmissionProvider {
   readonly id = 'eg-eta';
   readonly channel: ChannelType = GP;
+  /** IMPLEMENTED — real UUID/hash/sign + OAuth2 submit/poll scaffold, awaiting live ETA creds. */
+  readonly maturity: ProviderMaturity = 'IMPLEMENTED';
   readonly feedback = 'ASYNC_POLL' as const;
   readonly pollPolicy = { everySeconds: 60, timeoutHours: 48, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = ETA_CONFIG_SCHEMA;

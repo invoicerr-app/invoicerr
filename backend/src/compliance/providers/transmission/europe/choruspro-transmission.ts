@@ -26,7 +26,7 @@ import { ComplianceLogger } from '../../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../../execution/types';
 import { ChannelType } from '../../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from '../channel-credentials-port';
-import { ChannelConfigSchema, TransmissionProvider } from '../transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from '../transmission-provider';
 import {
   ChorusProClient,
   ChorusProHttpPort,
@@ -113,6 +113,8 @@ const STUB_HTTP: ChorusProHttpPort = {
 export class ChorusProTransmissionProvider implements TransmissionProvider {
   readonly id = 'choruspro';
   readonly channel: ChannelType = GP;
+  /** IMPLEMENTED — real PISTE OAuth2 + deposerFlux/consulterCr scaffold, awaiting a PISTE sandbox account. */
+  readonly maturity: ProviderMaturity = 'IMPLEMENTED';
   readonly feedback = 'ASYNC_POLL' as const;
   readonly pollPolicy = { everySeconds: 120, timeoutHours: 72, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = CHORUSPRO_CONFIG_SCHEMA;

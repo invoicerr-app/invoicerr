@@ -3,7 +3,7 @@ import { CompliancePlan } from '../../engine/compliance-engine';
 import { ComplianceLogger } from '../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../execution/types';
 import { ChannelType } from '../../types';
-import { ChannelConfigSchema, TransmissionProvider } from './transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from './transmission-provider';
 
 /**
  * Physical print / simplified receipt — universal fallback channel.
@@ -22,6 +22,9 @@ import { ChannelConfigSchema, TransmissionProvider } from './transmission-provid
 export class PrintTransmissionProvider implements TransmissionProvider {
   readonly id = 'print';
   readonly channel: ChannelType = 'PRINT';
+  /** STUB — the PDF generation itself is real, but there is no real transmission: nothing is
+   * actually delivered to a recipient (no printer, no download link, no fax). */
+  readonly maturity: ProviderMaturity = 'STUB';
   readonly feedback = 'NONE' as const;
   readonly optionalConfig = true;
   readonly configSchema: ChannelConfigSchema = {

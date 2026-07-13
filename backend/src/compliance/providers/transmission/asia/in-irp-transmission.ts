@@ -21,7 +21,7 @@ import { ComplianceLogger } from '../../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../../execution/types';
 import { ChannelType } from '../../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from '../channel-credentials-port';
-import { ChannelConfigSchema, TransmissionProvider } from '../transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from '../transmission-provider';
 import { InIrpClient, InIrpHttpPort, InIrpInvoicePayload } from './in-irp-client';
 
 const GP: ChannelType = 'GOV_PORTAL_API';
@@ -29,6 +29,8 @@ const GP: ChannelType = 'GOV_PORTAL_API';
 export class InIrpTransmissionProvider implements TransmissionProvider {
   readonly id = 'in-irp';
   readonly channel: ChannelType = GP;
+  /** IMPLEMENTED — real GST IRP hash/QR clearance scaffold, awaiting live IRP creds. */
+  readonly maturity: ProviderMaturity = 'IMPLEMENTED';
   readonly feedback = 'ASYNC_POLL' as const;
   readonly pollPolicy = { everySeconds: 30, timeoutHours: 2, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {

@@ -8,12 +8,14 @@ import { ComplianceLogger } from '../../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../../execution/types';
 import { ChannelType } from '../../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from '../channel-credentials-port';
-import { ChannelConfigSchema, TransmissionProvider } from '../transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from '../transmission-provider';
 import { SefazClient, SefazHttpPort } from './sefaz-client';
 
 export class SefazTransmissionProvider implements TransmissionProvider {
   readonly id = 'sefaz';
   readonly channel: ChannelType = 'GOV_PORTAL_API';
+  /** IMPLEMENTED — real 2-phase NF-e scaffold, awaiting an ICP-Brasil cert + live CNPJ. */
+  readonly maturity: ProviderMaturity = 'IMPLEMENTED';
   readonly feedback = 'ASYNC_POLL' as const;
   readonly pollPolicy = { everySeconds: 60, timeoutHours: 48, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {

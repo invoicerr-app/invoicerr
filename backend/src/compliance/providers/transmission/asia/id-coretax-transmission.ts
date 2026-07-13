@@ -19,7 +19,7 @@ import { ComplianceLogger } from '../../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../../execution/types';
 import { ChannelType } from '../../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from '../channel-credentials-port';
-import { ChannelConfigSchema, TransmissionProvider } from '../transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from '../transmission-provider';
 import { IdCoretaxClient, IdCoretaxFakturItem, IdCoretaxHttpPort } from './id-coretax-client';
 
 const GP: ChannelType = 'GOV_PORTAL_API';
@@ -27,6 +27,8 @@ const GP: ChannelType = 'GOV_PORTAL_API';
 export class IdCoretaxTransmissionProvider implements TransmissionProvider {
   readonly id = 'id-coretax';
   readonly channel: ChannelType = GP;
+  /** IMPLEMENTED — real DGT Coretax e-Faktur scaffold, awaiting live NPWP + passphrase. */
+  readonly maturity: ProviderMaturity = 'IMPLEMENTED';
   readonly feedback = 'ASYNC_POLL' as const;
   readonly pollPolicy = { everySeconds: 60, timeoutHours: 24, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {

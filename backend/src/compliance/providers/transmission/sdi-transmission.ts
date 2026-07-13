@@ -4,7 +4,7 @@ import { ComplianceLogger } from '../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../execution/types';
 import { ChannelType } from '../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from './channel-credentials-port';
-import { ChannelConfigSchema, TransmissionProvider } from './transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from './transmission-provider';
 import type { SdiHttpPort } from './sdi/sdi-client';
 
 /**
@@ -24,6 +24,8 @@ import type { SdiHttpPort } from './sdi/sdi-client';
 export class SdiTransmissionProvider implements TransmissionProvider {
   readonly id = 'sdi';
   readonly channel: ChannelType = 'SDI';
+  /** IMPLEMENTED — real SOAP SDICoop client, honest throw when unaccredited; awaiting AdE accreditation. */
+  readonly maturity: ProviderMaturity = 'IMPLEMENTED';
   readonly feedback = 'ASYNC_CALLBACK' as const; // SdI notifiche (consegnata/scartata…)
   readonly pollPolicy = { everySeconds: 60, timeoutHours: 72, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {

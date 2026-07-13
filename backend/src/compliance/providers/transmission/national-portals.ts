@@ -39,7 +39,7 @@ import { UyDgiTransmissionProvider } from './latam/uy-dgi-transmission';
 import { EgEtaTransmissionProvider } from './mena/eg-eta-transmission';
 import { GibTransmissionProvider } from './mena/gib-transmission';
 import { SMALL_MENA_PROVIDERS } from './mena/mena-smaller-portals';
-import { TransmissionProvider } from './transmission-provider';
+import { ProviderMaturity, TransmissionProvider } from './transmission-provider';
 
 interface NationalPortalSpec {
   /** Stable provider id referenced by ChannelSpec.providerId, e.g. 'sefaz', 'sii'. */
@@ -54,6 +54,13 @@ interface NationalPortalSpec {
   async?: boolean;
 }
 
+/**
+ * F-8bis / M-16: this factory has ZERO real transport — every call is a `log.todo` note, no I/O
+ * ever happens. It must therefore be honest about it: transmit()/poll() always return SKIPPED
+ * (never PENDING-forever, never SENT) so `ComplianceService.send()`'s F-4 acceptance check
+ * correctly lands the document in TRANSMISSION_FAILED instead of pretending a Saudi invoice is
+ * "clearing" eternally with zero I/O. Every provider built here is a STUB by construction.
+ */
 function nationalPortal(spec: NationalPortalSpec): TransmissionProvider {
   return {
     id: spec.id,
@@ -61,18 +68,24 @@ function nationalPortal(spec: NationalPortalSpec): TransmissionProvider {
     // Clearance portals are polled for their authorization; real-time/report portals are fire-and-forget.
     feedback: spec.async ? 'ASYNC_POLL' : 'NONE',
     pollPolicy: spec.async ? { everySeconds: 60, timeoutHours: 48, backoff: 'EXPONENTIAL' } : undefined,
+    maturity: 'STUB' as ProviderMaturity,
     async transmit(_artifacts, _ctx, _plan, key: string, log: ComplianceLogger): Promise<TransmissionResult> {
-      log.todo(`transmission/${spec.id}`, `${spec.hint} (key ${key})`);
+      log.warn(`transmission/${spec.id}`, `no real transport implemented — ${spec.hint} (key ${key})`);
       return {
         channel: spec.channel,
-        status: spec.async ? 'PENDING' : 'SENT',
-        notes: [`stub: integrate ${spec.label}`],
+        status: 'SKIPPED',
+        notes: [`stub: ${spec.label} has no real transport yet — integrate before enabling this channel`],
       };
     },
     poll: spec.async
       ? (ref: string, log: ComplianceLogger): TransmissionResult => {
-          log.todo(`transmission/${spec.id}`, `poll ${spec.label} authorization status for ${ref}`);
-          return { channel: spec.channel, status: 'PENDING', ref, notes: [] };
+          log.warn(`transmission/${spec.id}`, `no real transport implemented — poll skipped for ${ref}`);
+          return {
+            channel: spec.channel,
+            status: 'SKIPPED',
+            ref,
+            notes: [`stub: ${spec.label} has no real transport yet`],
+          };
         }
       : undefined,
   };

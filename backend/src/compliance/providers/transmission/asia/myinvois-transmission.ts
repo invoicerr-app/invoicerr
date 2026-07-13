@@ -20,7 +20,7 @@ import { ComplianceLogger } from '../../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../../execution/types';
 import { ChannelType } from '../../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from '../channel-credentials-port';
-import { ChannelConfigSchema, TransmissionProvider } from '../transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from '../transmission-provider';
 import { MyInvoisClient, MyInvoisHttpPort } from './myinvois-client';
 
 const GP: ChannelType = 'GOV_PORTAL_API';
@@ -28,6 +28,8 @@ const GP: ChannelType = 'GOV_PORTAL_API';
 export class MyInvoisTransmissionProvider implements TransmissionProvider {
   readonly id = 'myinvois';
   readonly channel: ChannelType = GP;
+  /** IMPLEMENTED — real LHDNM MyInvois UBL clearance scaffold, awaiting live client creds. */
+  readonly maturity: ProviderMaturity = 'IMPLEMENTED';
   readonly feedback = 'ASYNC_POLL' as const;
   readonly pollPolicy = { everySeconds: 30, timeoutHours: 4, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {

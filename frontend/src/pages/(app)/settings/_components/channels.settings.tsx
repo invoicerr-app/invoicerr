@@ -22,11 +22,16 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 
+/** Mirrors backend ProviderMaturity (transmission-provider.ts). Undefined/unknown ⇒ treat as STUB. */
+type ProviderMaturity = "PROVEN" | "IMPLEMENTED" | "STUB"
+
 interface ProviderMeta {
   id: string
   channel: string
   feedback: string
   configSchema: { fields: any[] } | null
+  /** F-8/M-16: a STUB provider has no real transport — never offer a working Connect control for it. */
+  maturity?: ProviderMaturity
 }
 
 interface RequiredChannel {
@@ -208,6 +213,9 @@ export default function ChannelsSettings() {
       <div className="space-y-4">
         {requiredChannels?.map((ch) => {
           const hasSchema = !!ch.provider?.configSchema
+          // F-8/M-16: a STUB provider has no real transport — it must never present a working
+          // Connect/Edit control identical to a proven/implemented channel's.
+          const isStub = (ch.provider?.maturity ?? "STUB") === "STUB"
 
           // Determine if the channel mandate is in the future
           const isFuture = ch.availableFrom ? new Date(ch.availableFrom) > new Date() : false
@@ -224,7 +232,9 @@ export default function ChannelsSettings() {
               <CardContent className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-3">
                   <div className="shrink-0">
-                    {ch.isConfigured ? (
+                    {isStub ? (
+                      <XCircle className="h-5 w-5 text-muted-foreground/50" />
+                    ) : ch.isConfigured ? (
                       <CheckCircle2 className="h-5 w-5 text-green-500" />
                     ) : isFuture ? (
                       <Clock className="h-5 w-5 text-amber-400" />
@@ -235,12 +245,22 @@ export default function ChannelsSettings() {
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium">{ch.providerId}</p>
-                      <Badge variant={ch.isConfigured ? "default" : "secondary"}>
-                        {ch.isConfigured
-                          ? t("settings.channels.status.connected", "Connected")
-                          : t("settings.channels.status.notConfigured", "Not configured")}
-                      </Badge>
-                      {isFuture && availableFromDate && (
+                      {isStub ? (
+                        <Badge
+                          variant="outline"
+                          className="text-muted-foreground text-xs"
+                          data-cy="channel-stub-badge"
+                        >
+                          {t("settings.channels.status.comingSoon", "Coming soon")}
+                        </Badge>
+                      ) : (
+                        <Badge variant={ch.isConfigured ? "default" : "secondary"}>
+                          {ch.isConfigured
+                            ? t("settings.channels.status.connected", "Connected")
+                            : t("settings.channels.status.notConfigured", "Not configured")}
+                        </Badge>
+                      )}
+                      {!isStub && isFuture && availableFromDate && (
                         <Badge
                           variant="outline"
                           className="text-amber-700 border-amber-300 bg-amber-50 text-xs"
@@ -256,6 +276,14 @@ export default function ChannelsSettings() {
                       {ch.type}
                       {ch.provider?.feedback ? ` · ${ch.provider.feedback}` : ""}
                     </p>
+                    {isStub && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t(
+                          "settings.channels.stubNote",
+                          "This channel isn't wired to a live transmission integration yet — connecting wouldn't actually send anything.",
+                        )}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -271,7 +299,7 @@ export default function ChannelsSettings() {
                       </Button>
                     </a>
                   )}
-                  {hasSchema && (
+                  {hasSchema && !isStub && (
                     <Button
                       variant="outline"
                       size="sm"

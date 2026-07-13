@@ -4,12 +4,14 @@ import { ComplianceLogger } from '../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../execution/types';
 import { ChannelType } from '../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from './channel-credentials-port';
-import { ChannelConfigSchema, TransmissionProvider } from './transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from './transmission-provider';
 
 /** Poland — Krajowy System e-Faktur. A GOV_PORTAL_API system selected via ChannelSpec.providerId='ksef'. */
 export class KsefTransmissionProvider implements TransmissionProvider {
   readonly id = 'ksef';
   readonly channel: ChannelType = 'GOV_PORTAL_API';
+  /** PROVEN — real CLEARED status + ksefNumber obtained end-to-end (2026-06-28). */
+  readonly maturity: ProviderMaturity = 'PROVEN';
   readonly feedback = 'ASYNC_POLL' as const; // poll KSeF for the UPO / reference number
   readonly pollPolicy = { everySeconds: 30, timeoutHours: 24, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {

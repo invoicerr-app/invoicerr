@@ -5,6 +5,7 @@ import { RecordingComplianceLogger } from '../execution/logger';
 import { ComplianceExecutor } from '../execution/executor';
 import { TransmissionProvider } from '../providers/transmission/transmission-provider';
 import { TransmissionProviderRegistry } from '../providers/transmission/registry';
+import { InvoiceMailPort } from '../providers/transmission/invoice-mail-port';
 import { ComplianceService } from './compliance-service';
 import { InMemoryComplianceDocumentStore } from './document-store';
 import { resolve } from '../engine/compliance-engine';
@@ -31,15 +32,29 @@ function ctx(
     lines: [{ id: 'l1', description: 'x', quantity: 1, unitNetMinor: 10000, supplyType: supply }],
     issueDate: new Date(date),
     currency: 'EUR',
+    // M-18: needed for EmailTransmissionProvider's real-send branch (`this.mail && ctx.externalRef`)
+    // — without it, EMAIL always falls into the no-port fallback, which is honestly SKIPPED post-M-18.
+    externalRef: `${supplier}-${buyer}-${date}`,
   };
+}
+
+/** Always-accepting InvoiceMailPort mock — mirrors the real gateway that IS injected in prod. */
+function mailMock(): InvoiceMailPort {
+  return { sendInvoiceEmail: async () => ({ sent: true }) };
 }
 
 function svc() {
   const log = new RecordingComplianceLogger();
+  // M-18: EmailTransmissionProvider's no-port fallback is now honestly SKIPPED (never SENT), so a
+  // bare registry no longer provides free acceptance for FR/US EMAIL-carrying plans. Wire a mock
+  // InvoiceMailPort — matching prod, where the mail gateway IS injected — so these "happy path"
+  // tests keep exercising a genuinely-accepted send() instead of relying on the removed lie. MX
+  // only ever plans a PAC channel (see F-4 sincerity test below), so it is unaffected by this.
+  const transmission = new TransmissionProviderRegistry({ mail: mailMock() });
   const service = new ComplianceService({
     store: new InMemoryComplianceDocumentStore(),
     numbering: new NumberingRegistry(),
-    executor: new ComplianceExecutor({ logger: log, numbering: new NumberingRegistry() }),
+    executor: new ComplianceExecutor({ logger: log, numbering: new NumberingRegistry(), transmission }),
     logger: log,
   });
   return { service, log };

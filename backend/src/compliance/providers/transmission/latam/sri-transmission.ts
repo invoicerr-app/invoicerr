@@ -8,12 +8,14 @@ import { ComplianceLogger } from '../../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../../execution/types';
 import { ChannelType } from '../../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from '../channel-credentials-port';
-import { ChannelConfigSchema, TransmissionProvider } from '../transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from '../transmission-provider';
 import { SriClient, SriHttpPort } from './sri-client';
 
 export class SriTransmissionProvider implements TransmissionProvider {
   readonly id = 'sri';
   readonly channel: ChannelType = 'GOV_PORTAL_API';
+  /** IMPLEMENTED — real submit→claveAcceso→poll scaffold, awaiting an SRI cert. */
+  readonly maturity: ProviderMaturity = 'IMPLEMENTED';
   readonly feedback = 'ASYNC_POLL' as const;
   readonly pollPolicy = { everySeconds: 60, timeoutHours: 48, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {

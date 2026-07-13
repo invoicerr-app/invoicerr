@@ -187,12 +187,13 @@ describe('buildGenericPortalProvider (shared behaviour)', () => {
     expect(result.notes).toContain('xx-portal: Test Portal: submission failed (HTTP 500)');
   });
 
-  it('default (stub) HTTP port rejects with the authHint message', async () => {
+  it('F-8: no httpPort injected → SKIPPED (never REJECTED-via-throw, never PENDING) with the authHint message', async () => {
     const p = buildGenericPortalProvider(SPEC, HEURISTICS);
+    expect(p.maturity).toBe('STUB');
     const result = await p.transmit(artifacts, ctx, plan, 'k', log, resolvedConfig);
-    expect(result.status).toBe('REJECTED');
+    expect(result.status).toBe('SKIPPED');
     expect(result.notes).toContain(
-      'xx-portal: Test Portal HTTP port not implemented — API key from the portal',
+      'xx-portal: no real transport implemented yet for Test Portal — API key from the portal',
     );
   });
 
@@ -216,6 +217,13 @@ describe('buildGenericPortalProvider (shared behaviour)', () => {
       const result = await p.poll!('company1|sub-42', log);
       expect(result.status).toBe('PENDING');
       expect(result.notes).toContain('xx-portal: credentials inactive');
+    });
+
+    it('F-8: returns SKIPPED (not PENDING-forever) when credentials resolve but no httpPort is injected', async () => {
+      const p = buildGenericPortalProvider(SPEC, HEURISTICS, makeCredentials(resolvedConfig));
+      const result = await p.poll!('company1|sub-42', log);
+      expect(result.status).toBe('SKIPPED');
+      expect(result.notes).toContain('xx-portal: no real transport implemented yet for Test Portal');
     });
 
     it('GETs pollEndpoint/{id} and maps the portal status (CLEARED)', async () => {

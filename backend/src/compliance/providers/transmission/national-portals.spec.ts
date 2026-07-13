@@ -60,4 +60,15 @@ describe('national transmission portals', () => {
     expect(p.channel).toBe('GOV_PORTAL_API');
     expect(p.feedback).toBe('ASYNC_POLL');
   });
+
+  it('F-8bis: zatca is a STUB and always returns SKIPPED — never PENDING-forever, never SENT', async () => {
+    const log = new RecordingComplianceLogger();
+    const p = defaultTransmissionRegistry.getById('zatca')!;
+    expect(p).toBeDefined();
+    expect(p.maturity).toBe('STUB');
+    const transmitResult = await p.transmit([], {} as never, {} as never, 'k', log);
+    expect(transmitResult.status).toBe('SKIPPED');
+    const pollResult = await p.poll!('ref', log);
+    expect(pollResult.status).toBe('SKIPPED');
+  });
 });

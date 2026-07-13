@@ -79,6 +79,9 @@ export class ChannelSettingsService {
       channel: p.channel,
       feedback: p.feedback ?? 'NONE',
       configSchema: p.configSchema ?? null,
+      // F-8/M-16: undefined (should not happen for a registered provider — see
+      // provider-maturity.spec.ts) is treated as the safe default, STUB.
+      maturity: p.maturity ?? 'STUB',
     }));
   }
 
@@ -154,6 +157,10 @@ export class ChannelSettingsService {
               channel: provider.channel,
               feedback: provider.feedback ?? 'NONE',
               configSchema: provider.configSchema ?? null,
+              // F-8/M-16: lets the UI distinguish a proven/implemented channel from a stub that
+              // will never actually deliver, instead of showing an identical Connect control for
+              // both (channels.settings.tsx).
+              maturity: provider.maturity ?? 'STUB',
             }
           : null,
         isConfigured: !!existing?.isActive,

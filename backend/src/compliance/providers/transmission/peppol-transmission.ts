@@ -4,7 +4,7 @@ import { ComplianceLogger } from '../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../execution/types';
 import { ChannelType } from '../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from './channel-credentials-port';
-import { ChannelConfigSchema, TransmissionProvider } from './transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from './transmission-provider';
 import type { PeppolApPort } from './peppol/peppol-client';
 import type { SmpLookupPort } from './peppol/smp-client';
 import type { BuyerDirectoryPort } from './buyer-directory-port';
@@ -33,6 +33,8 @@ import type { BuyerDirectoryPort } from './buyer-directory-port';
 export class PeppolTransmissionProvider implements TransmissionProvider {
   readonly id = 'peppol';
   readonly channel: ChannelType = 'PEPPOL';
+  /** PROVEN via peppol.sh sandbox (2026-07-11) — real round-trip transmit → poll → CLEARED. */
+  readonly maturity: ProviderMaturity = 'PROVEN';
   readonly feedback = 'ASYNC_CALLBACK' as const; // Peppol Invoice Response / MLR
   readonly pollPolicy = { everySeconds: 60, timeoutHours: 48, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {

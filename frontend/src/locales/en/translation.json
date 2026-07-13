@@ -2047,9 +2047,11 @@
                 "saveSuccess": "Channel configured"
             },
             "status": {
+                "comingSoon": "Coming soon",
                 "connected": "Connected",
                 "notConfigured": "Not configured"
             },
+            "stubNote": "This channel isn't wired to a live transmission integration yet — connecting wouldn't actually send anything.",
             "title": "E-invoicing Channels"
         },
         "signing": {

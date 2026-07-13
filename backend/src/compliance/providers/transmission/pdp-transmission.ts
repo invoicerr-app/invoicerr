@@ -4,7 +4,7 @@ import { ComplianceLogger } from '../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../execution/types';
 import { ChannelType } from '../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from './channel-credentials-port';
-import { ChannelConfigSchema, TransmissionProvider } from './transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from './transmission-provider';
 import type { BuyerDirectoryPort } from './buyer-directory-port';
 
 /**
@@ -28,6 +28,8 @@ function mapStatusToPdpCode(status: string): string {
 export class PdpTransmissionProvider implements TransmissionProvider {
   readonly id = 'pdp';
   readonly channel: ChannelType = 'PDP';
+  /** PROVEN — real invoice PENDING in superpdp sandbox, verified end-to-end (2026-06-28). */
+  readonly maturity: ProviderMaturity = 'PROVEN';
   readonly feedback = 'ASYNC_CALLBACK' as const; // PDP pushes lifecycle statuses (déposée/refusée/encaissée); poll() is the fallback
   readonly pollPolicy = { everySeconds: 30, timeoutHours: 24, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = {

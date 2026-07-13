@@ -25,7 +25,7 @@ import { ComplianceLogger } from '../../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../../execution/types';
 import { ChannelType } from '../../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from '../channel-credentials-port';
-import { ChannelConfigSchema, TransmissionProvider } from '../transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from '../transmission-provider';
 import { GibClient, GibHttpPort, mapGibStatus } from './gib-client';
 
 const GP: ChannelType = 'GOV_PORTAL_API';
@@ -87,6 +87,8 @@ const STUB_HTTP: GibHttpPort = {
 export class GibTransmissionProvider implements TransmissionProvider {
   readonly id = 'gib';
   readonly channel: ChannelType = GP;
+  /** IMPLEMENTED — real UBL-TR envelope + auth/submit/poll scaffold, awaiting live GİB creds. */
+  readonly maturity: ProviderMaturity = 'IMPLEMENTED';
   readonly feedback = 'ASYNC_POLL' as const;
   readonly pollPolicy = { everySeconds: 60, timeoutHours: 48, backoff: 'EXPONENTIAL' as const };
   readonly configSchema: ChannelConfigSchema = GIB_CONFIG_SCHEMA;

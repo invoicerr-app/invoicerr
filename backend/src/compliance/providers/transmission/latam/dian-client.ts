@@ -27,7 +27,7 @@ import { ComplianceLogger } from '../../../execution/logger';
 import { SignedArtifact, TransmissionResult } from '../../../execution/types';
 import { ChannelType } from '../../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from '../channel-credentials-port';
-import { ChannelConfigSchema, TransmissionProvider } from '../transmission-provider';
+import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from '../transmission-provider';
 
 // ---------------------------------------------------------------------------
 // HTTP port — injectable for testing
@@ -118,6 +118,8 @@ export class DianClient {
 export class DianTransmissionProvider implements TransmissionProvider {
   readonly id = 'dian';
   readonly channel: ChannelType = 'GOV_PORTAL_API';
+  /** IMPLEMENTED — real validación previa (OAuth2 → UBL 2.1 → trackId/CUFE) scaffold, awaiting live creds. */
+  readonly maturity: ProviderMaturity = 'IMPLEMENTED';
   readonly feedback = 'ASYNC_POLL' as const; // DIAN clearance is asynchronous (minutes to hours)
   readonly pollPolicy = { everySeconds: 60, timeoutHours: 48, backoff: 'EXPONENTIAL' as const };
 
