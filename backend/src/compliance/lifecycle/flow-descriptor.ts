@@ -77,13 +77,22 @@ export function describeFlow(plan: CompliancePlan, status: ComplianceStatus): Fl
   else if (status === 'AWAITING_RESPONSE') awaiting = 'BUYER_RESPONSE';
   else if (status === 'ISSUED' && hasAsyncDriver) awaiting = 'DELIVERY';
 
-  const terminal =
-    TERMINAL_STATUSES.includes(status) || (runtime.availableActions().length === 0 && drivers.length === 0);
+  // Phase 4 (QUEUE_IMPL_PLAN.md §5.10): TRANSMISSION_FAILED is NOT a dead end — the lifecycle graph
+  // now carries a real retry edge out of it (contributors.ts ClearancePhase/DeliveryPhase), but that
+  // edge fires via the async TransmitProcessor (a COMMAND event), not a graph-level MANUAL trigger —
+  // so `runtime.availableActions()` never surfaces it on its own. Special-case it here, the same way
+  // `sendLabelKey` special-cases the ISSUED "send" action outside the graph's MANUAL triggers.
+  const isTransmissionFailed = status === 'TRANSMISSION_FAILED';
+
+  const terminal = isTransmissionFailed
+    ? false
+    : TERMINAL_STATUSES.includes(status) || (runtime.availableActions().length === 0 && drivers.length === 0);
 
   const manualActions = runtime
     .availableActions()
     .map((tr) => (tr.trigger.kind === 'MANUAL' ? tr.trigger.action : null))
     .filter((a): a is string => a !== null);
+  if (isTransmissionFailed) manualActions.push('retry');
 
   return {
     primaryChannel: { type: spec.type, providerId: spec.providerId, feedback: provider?.feedback ?? 'NONE' },

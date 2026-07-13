@@ -13,6 +13,7 @@ import {
   defaultTransmissionRegistry,
   TransmissionProviderRegistry,
 } from '../providers/transmission/registry';
+import { TransmissionProvider } from '../providers/transmission/transmission-provider';
 import { PrismaComplianceDocumentStore } from '../persistence/prisma-document-store';
 import { PrismaPollJobStore, PrismaTimerJobStore } from '../persistence/prisma-scheduled-job-store';
 import { PrismaCallbackStore } from '../persistence/prisma-callback-store';
@@ -51,12 +52,24 @@ export class ApplySignalService {
   ) {}
 
   /**
-   * `ctx.transmitRef` (QUEUE_IMPL_PLAN.md F-2/F-3, Phase 2 slice only) is the accepted channel's
-   * authority/transmission ref, computed by `ComplianceService.computeSendOutcome()` in the
-   * TransmitProcessor. It is threaded into `SCHEDULE_POLL` so the poll driver interrogates the
-   * authority with the real external reference instead of falling back to the internal documentId.
-   * NOTE: AWAIT_CALLBACK's correlationKey is intentionally NOT changed here — the
-   * correlationKey=transmitRef fix and the ASYNC_CALLBACK POLL fallback are Phase 4 (plan §5.2).
+   * `ctx.transmitRef` (QUEUE_IMPL_PLAN.md F-2/F-3) is the accepted channel's authority/transmission
+   * ref, computed by `ComplianceService.computeSendOutcome()` in the TransmitProcessor. It is
+   * threaded into:
+   *  - `SCHEDULE_POLL` (`ref`), so the poll driver interrogates the authority with the real external
+   *    reference instead of falling back to the internal documentId.
+   *  - `AWAIT_CALLBACK` (`correlationKey`, F-2 fix, Phase 4 — QUEUE_IMPL_PLAN.md §5.2): the armed
+   *    `CallbackRegistration` correlates on `effect.correlationKey ?? ctx.transmitRef ?? documentId`.
+   *    An inbound webhook (SdI notifica, PDP status push, Peppol MLR) carries the AUTHORITY's ref
+   *    (e.g. PDP `invoice_id`, SdI `idSdI`) — never the internal documentId — so without this the
+   *    registration would never correlate and `InboundRouter.receive()` would report UNMATCHED.
+   *
+   * F-2 fallback POLL (Phase 4 — QUEUE_IMPL_PLAN.md §5.2): whenever an `AWAIT_CALLBACK` is armed for
+   * a channel whose provider declares `feedback === 'ASYNC_CALLBACK'`, we ALSO arm a belt-and-
+   * suspenders `SCHEDULE_POLL` using that provider's own `pollPolicy` (already declared alongside
+   * `feedback` for exactly this purpose — see e.g. PdpTransmissionProvider's "poll() is the fallback"
+   * comment). If the webhook never arrives, the periodic poll still resolves the document to a
+   * terminal status; whichever driver resolves first cancels the other via the normal
+   * `cancelForDocument` cleanup on APPLIED.
    *
    * Phase 3 (QUEUE_IMPL_PLAN.md §5.2/§9): ARM_TIMER effects are now ALSO projected post-commit onto
    * `compliance-timer`, same outbox-lite pattern as SCHEDULE_POLL below (durable ScheduledJob row
@@ -156,12 +169,38 @@ export class ApplySignalService {
               id: genId('cb'),
               documentId,
               channel,
-              correlationKey: effect.correlationKey ?? documentId,
+              // F-2 fix (QUEUE_IMPL_PLAN.md §5.2): correlate on the authority's EXTERNAL ref, not the
+              // internal documentId the inbound webhook never sees.
+              correlationKey: effect.correlationKey ?? ctx?.transmitRef ?? documentId,
               awaiting: effect.awaiting,
             },
             new Date(),
           );
           await txCallbackStore.register(reg);
+
+          // F-2 fallback POLL (Phase 4): belt-and-suspenders for ASYNC_CALLBACK channels — see the
+          // class docstring above. Reuses the provider's own pollPolicy; no new cadence invented.
+          const provider = this.resolveProvider(rec);
+          if (provider?.feedback === 'ASYNC_CALLBACK' && provider.pollPolicy && typeof provider.poll === 'function') {
+            const scheduledJobId = genId('poll');
+            const job = createPollJob(
+              {
+                id: scheduledJobId,
+                documentId,
+                providerId: provider.id,
+                channel,
+                ref: ctx?.transmitRef,
+                awaiting: effect.awaiting,
+                policy: provider.pollPolicy,
+              },
+              new Date(),
+            );
+            await txPollStore.enqueue(job);
+            pollProjections.push({
+              scheduledJobId,
+              delayMs: nextDelaySeconds(provider.pollPolicy, 0) * 1000,
+            });
+          }
         }
       }
     });
@@ -200,5 +239,12 @@ export class ApplySignalService {
     const plan = rec.plan;
     if (!plan || !plan.channels.length) return null;
     return plan.channels[0].type as ChannelType;
+  }
+
+  /** Resolve the primary channel's TransmissionProvider (for its `feedback`/`pollPolicy` metadata). */
+  private resolveProvider(rec: ComplianceDocumentRecord): TransmissionProvider | null {
+    const plan = rec.plan;
+    if (!plan || !plan.channels.length) return null;
+    return this.txRegistry.resolve(plan.channels[0]);
   }
 }

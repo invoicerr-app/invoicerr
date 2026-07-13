@@ -224,9 +224,17 @@ export function InvoiceProgression({
                           ? "bg-emerald-500"
                           : ["PENDING_CLEARANCE", "AWAITING_RESPONSE", "DISPUTED", "CONTINGENCY"].includes(cs)
                             ? "bg-amber-500"
-                            : ["REJECTED", "REFUSED", "CANCELLED"].includes(cs)
+                            : ["REJECTED", "REFUSED", "CANCELLED", "TRANSMISSION_FAILED"].includes(cs)
                               ? "bg-red-500"
                               : "bg-slate-400"
+                        // TODO(QUEUE_IMPL_PLAN.md §5.10, Phase 4): this row only ever shows the dot for
+                        // TRANSMISSION_FAILED, not a Retry action — the stepper's action set
+                        // (getInvoiceActions() below) is keyed on the top-level invoice.status/pipeline
+                        // step, not complianceDocuments[0].status, so TRANSMISSION_FAILED (a compliance
+                        // sub-state reachable while invoice.status is still e.g. ISSUED) doesn't fit
+                        // that model without a larger restructure. The full retry flow (backend
+                        // endpoint + flow-descriptor + UI) is wired in invoice-view.tsx's detail dialog
+                        // (Compliance section) — reachable via onViewInvoice below.
                         return (
                           <span className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                             <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${dotColor}`} />

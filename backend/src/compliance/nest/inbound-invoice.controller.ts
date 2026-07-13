@@ -8,6 +8,7 @@
  *   POST   /compliance/received-invoices/:companyId/:id/reject  reject
  *   POST   /compliance/received-invoices/receive/:channel     webhook — store received doc
  *   POST   /compliance/documents/:id/refresh                  trigger one-off poll/reconcile
+ *   POST   /compliance/documents/:id/retry                    re-enqueue a TRANSMISSION_FAILED doc
  */
 import {
   Body,
@@ -30,6 +31,7 @@ import { Public } from '@/decorators/public.decorator';
 import { InboundInvoiceService, ReceiveDocumentInput } from '../reception/inbound-invoice.service';
 import { PollScheduler } from '../lifecycle/drivers/poll-scheduler';
 import { PrismaComplianceDocumentStore } from '../persistence/prisma-document-store';
+import { ComplianceQueueDispatcher } from './queue/compliance-queue.dispatcher';
 import { assertWebhookAuth } from './webhook-auth';
 
 /**
@@ -80,6 +82,7 @@ export class InboundInvoiceController {
     private readonly inboundInvoices: InboundInvoiceService,
     private readonly pollScheduler: PollScheduler,
     private readonly docStore: PrismaComplianceDocumentStore,
+    private readonly dispatcher: ComplianceQueueDispatcher,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -205,6 +208,52 @@ export class InboundInvoiceController {
       documentId,
       status: doc.status,
       reconcile: report,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Retry — manual resend for a document stuck in TRANSMISSION_FAILED (Phase 4,
+  // QUEUE_IMPL_PLAN.md §5.9)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * POST /compliance/documents/:id/retry
+   *
+   * Re-enqueue a `compliance-transmit` job for a document currently in TRANSMISSION_FAILED —
+   * i.e. "no channel accepted the document" on the previous attempt (F-4, ComplianceService.send()'s
+   * honesty guard). The TransmitProcessor (queue/processors/transmit.processor.ts) re-runs
+   * `computeSendOutcome` for real (the same executor/registry path as the original send) and
+   * advances the document via `ApplySignalService.apply()` on success.
+   *
+   * `enqueueTransmit` uses a deterministic jobId (`transmit-<documentId>`) so a double-click (or a
+   * retry racing an already-enqueued job) is a no-op, not a duplicate transmission.
+   */
+  @Post('compliance/documents/:id/retry')
+  @HttpCode(200)
+  async retryDocument(@ActiveCompany() companyId: string, @Param('id') documentId: string) {
+    // Verify document exists
+    const doc = await this.docStore.get(documentId);
+    if (!doc) throw new HttpException('Compliance document not found', HttpStatus.NOT_FOUND);
+
+    // Ownership check — identical pattern to refreshDocument() above.
+    if (doc.ctx?.supplierCompanyId !== companyId) {
+      throw new ForbiddenException('Compliance document does not belong to the active company');
+    }
+
+    if (doc.status !== 'TRANSMISSION_FAILED') {
+      throw new HttpException(
+        `Cannot retry document "${documentId}" in status ${doc.status}; expected TRANSMISSION_FAILED`,
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    await this.dispatcher.enqueueTransmit(documentId);
+
+    this.logger.log(`retry document ${documentId}: enqueued compliance-transmit`);
+    return {
+      documentId,
+      status: doc.status,
+      enqueued: true,
     };
   }
 }

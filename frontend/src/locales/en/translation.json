@@ -892,7 +892,10 @@
                 "awaitingDelivery": "Awaiting delivery confirmation",
                 "refreshStatus": "Refresh status",
                 "refreshStatusError": "Failed to refresh status",
-                "refreshStatusSuccess": "Status refreshed"
+                "refreshStatusSuccess": "Status refreshed",
+                "retryTransmission": "Retry",
+                "retryTransmissionError": "Failed to retry",
+                "retryTransmissionSuccess": "Retry submitted"
             }
         },
         "sendConfirmation": {

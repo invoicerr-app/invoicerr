@@ -81,6 +81,20 @@ export class ClearancePhase implements PhaseContributor {
           description: 'submit to the authority via the outbox',
         },
         {
+          // Phase 4 (QUEUE_IMPL_PLAN.md §5.9/§9): retry path for TransmissionFailurePhase's
+          // TRANSMISSION_FAILED state — a resend() (via the /retry endpoint → TransmitProcessor)
+          // that this time gets accepted by a blocking channel must be able to advance out of
+          // TRANSMISSION_FAILED, not just loop back into it. Canonical superset already allows this
+          // (state-machine.ts TRANSMISSION_FAILED.SUBMIT_CLEARANCE) — this fragment was the missing
+          // half; without it `LifecycleRuntime.dispatch()` throws "Illegal action" on a successful
+          // retry even though the real transmit already succeeded.
+          on: 'SUBMIT_CLEARANCE',
+          from: 'TRANSMISSION_FAILED',
+          to: 'PENDING_CLEARANCE',
+          trigger: { kind: 'IMMEDIATE' },
+          description: 'retry: submit to the authority via the outbox',
+        },
+        {
           on: 'CLEAR',
           from: 'PENDING_CLEARANCE',
           to: 'CLEARED',
@@ -126,12 +140,23 @@ export class DeliveryPhase implements PhaseContributor {
           poll: pctx.pollPolicy,
           providerId: pctx.channelProviderId,
         });
-    return {
-      states: ['DELIVERED'],
-      transitions: [
-        { on: 'DELIVER', from, to: 'DELIVERED', trigger: driver, description: 'transmit to the recipient' },
-      ],
-    };
+    const transitions: PhaseFragment['transitions'] = [
+      { on: 'DELIVER', from, to: 'DELIVERED', trigger: driver, description: 'transmit to the recipient' },
+    ];
+    if (!plan.regime.blocking) {
+      // Phase 4 (QUEUE_IMPL_PLAN.md §5.9/§9): retry path mirroring ClearancePhase's above — only for
+      // non-blocking regimes, where TRANSMISSION_FAILED's retry (via computeSendOutcome) resolves
+      // straight to DELIVER (a blocking regime's retry instead re-enters clearance, handled by
+      // ClearancePhase's own TRANSMISSION_FAILED edge).
+      transitions.push({
+        on: 'DELIVER',
+        from: 'TRANSMISSION_FAILED',
+        to: 'DELIVERED',
+        trigger: driver,
+        description: 'retry: transmit to the recipient',
+      });
+    }
+    return { states: ['DELIVERED'], transitions };
   }
 }
 

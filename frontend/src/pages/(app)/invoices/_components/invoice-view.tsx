@@ -44,6 +44,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
   const { data: actions } = useAvailableActions(invoice?.id)
   const [depositOpen, setDepositOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [retryingTransmission, setRetryingTransmission] = useState(false)
 
   // Fetch the original invoice when this one corrects another
   const { data: originalInvoice } = useGet<Invoice>(
@@ -119,6 +120,29 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
       toast.error(t("invoices.view.actions.refreshStatusError", "Failed to refresh status"))
     } finally {
       setRefreshing(false)
+    }
+  }
+
+  // Phase 4 (QUEUE_IMPL_PLAN.md §5.10): re-enqueue transmission for a compliance document stuck in
+  // TRANSMISSION_FAILED — mirrors handleRefreshComplianceStatus() above, hitting the dedicated retry
+  // endpoint instead (backend/src/compliance/nest/inbound-invoice.controller.ts).
+  const handleRetryTransmission = async (compDocId: string) => {
+    setRetryingTransmission(true)
+    try {
+      const res = await authenticatedFetch(`/api/compliance/documents/${compDocId}/retry`, {
+        method: "POST",
+      })
+      if (res.ok) {
+        toast.success(t("invoices.view.actions.retryTransmissionSuccess", "Retry submitted"))
+        onMutate?.()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.message || t("invoices.view.actions.retryTransmissionError", "Failed to retry"))
+      }
+    } catch {
+      toast.error(t("invoices.view.actions.retryTransmissionError", "Failed to retry"))
+    } finally {
+      setRetryingTransmission(false)
     }
   }
 
@@ -455,8 +479,14 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                 REJECTED: "text-red-700 bg-red-50",
                 REFUSED: "text-red-700 bg-red-50",
                 CANCELLED: "text-red-700 bg-red-50",
+                TRANSMISSION_FAILED: "text-red-700 bg-red-50",
               }
               const color = statusColors[compDoc.status] ?? "text-slate-500 bg-slate-50"
+              // Phase 4 (QUEUE_IMPL_PLAN.md §5.10): TRANSMISSION_FAILED is non-terminal (retryable —
+              // see flow-descriptor.ts) — swap the passive "refresh" action for the "retry" one, which
+              // actually re-enqueues transmission instead of just re-polling a channel that never
+              // accepted the document in the first place.
+              const isTransmissionFailed = compDoc.status === "TRANSMISSION_FAILED"
               return (
                 <div className="mt-6 border-t pt-4">
                   <div className="flex items-center justify-between mb-3">
@@ -465,16 +495,31 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${color}`}>
                         {compDoc.status.replace(/_/g, " ")}
                       </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs"
-                        disabled={refreshing}
-                        onClick={() => handleRefreshComplianceStatus(compDoc.id)}
-                        title={t("invoices.view.actions.refreshStatus", "Refresh status")}
-                      >
-                        <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} />
-                      </Button>
+                      {isTransmissionFailed ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs text-red-700 hover:text-red-800"
+                          disabled={retryingTransmission}
+                          onClick={() => handleRetryTransmission(compDoc.id)}
+                          title={t("invoices.view.actions.retryTransmission", "Retry")}
+                          data-cy="invoice-retry-transmission"
+                        >
+                          <RotateCcw className={`h-3 w-3 mr-1 ${retryingTransmission ? "animate-spin" : ""}`} />
+                          {t("invoices.view.actions.retryTransmission", "Retry")}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          disabled={refreshing}
+                          onClick={() => handleRefreshComplianceStatus(compDoc.id)}
+                          title={t("invoices.view.actions.refreshStatus", "Refresh status")}
+                        >
+                          <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} />
+                        </Button>
+                      )}
                     </div>
                   </div>
                   {compDoc.events && compDoc.events.length > 0 && (

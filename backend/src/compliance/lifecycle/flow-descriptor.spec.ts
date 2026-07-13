@@ -107,6 +107,12 @@ describe('FlowDescriptor', () => {
       const flow = describeFlow(plan, 'DRAFT');
       expect(flow.terminal).toBe(false);
     });
+
+    it('TRANSMISSION_FAILED → terminal === false (Phase 4, retryable)', () => {
+      const plan = resolve(tx('DE', 'DE', 'B2B', 'SERVICES', '2025-06-01'));
+      const flow = describeFlow(plan, 'TRANSMISSION_FAILED');
+      expect(flow.terminal).toBe(false);
+    });
   });
 
   describe('describeFlow — manualActions', () => {
@@ -133,6 +139,12 @@ describe('FlowDescriptor', () => {
       const plan = resolve(tx('DE', 'DE', 'B2B', 'SERVICES', '2025-06-01'));
       const flow = describeFlow(plan, 'CORRECTED');
       expect(flow.manualActions).toEqual([]);
+    });
+
+    it('TRANSMISSION_FAILED → manualActions contains retry (Phase 4)', () => {
+      const plan = resolve(tx('DE', 'DE', 'B2B', 'SERVICES', '2025-06-01'));
+      const flow = describeFlow(plan, 'TRANSMISSION_FAILED');
+      expect(flow.manualActions).toContain('retry');
     });
   });
 
