@@ -11,7 +11,7 @@ import { TransactionContext } from '../canonical/canonical-document';
 import { resolve } from '../engine/compliance-engine';
 import { ComplianceExecutor, defaultExecutor } from '../execution/executor';
 import { ComplianceLogger, defaultLogger } from '../execution/logger';
-import { AuthorityIdentifier, SignedArtifact, TransmissionResult } from '../execution/types';
+import { AuthorityIdentifier, ExecutionResult, SignedArtifact, TransmissionResult } from '../execution/types';
 import { defaultCorrectionRegistry, CorrectionRegistry } from '../lifecycle/corrections';
 import { defaultNumberingRegistry, NumberingRegistry } from '../lifecycle/numbering';
 import { defaultResponseTracker, ResponseTracker } from '../lifecycle/response';
@@ -219,6 +219,38 @@ export class ComplianceService {
 
   // ─────────────────────────── sending ───────────────────────────
 
+  /**
+   * QUEUE_IMPL_PLAN.md §5.1 — the "transmit" half of `send()`, extracted so the real event-sourced
+   * path (`TransmitProcessor` → `ApplySignalService.apply()`) can drive the exact same honesty logic
+   * (F-4: accepted somewhere vs TRANSMISSION_FAIL) without going through `send()`'s own
+   * `ComplianceStateMachine` transitions. `send()` below is unchanged in signature/behavior — it
+   * still calls this internally — so the ~120 specs that call `send()` directly keep passing.
+   *
+   * Does NOT persist anything (no store.update, no transition) — the caller decides how to apply the
+   * outcome (send() via ComplianceStateMachine; the processor via ApplySignalService/LifecycleRuntime).
+   */
+  async computeSendOutcome(
+    rec: ComplianceDocumentRecord,
+    opts: IssueOptions = {},
+  ): Promise<{ event: ComplianceEvent; transmitRef?: string; execution: ExecutionResult }> {
+    const plan = rec.plan ?? resolve(rec.ctx);
+    const execution = await this.executor.execute(rec.ctx, plan, { idempotencyKey: opts.idempotencyKey });
+
+    // F-4: "accepted somewhere" means at least one channel came back SENT/PENDING/CLEARED; if every
+    // channel was SKIPPED/REJECTED, nothing was actually submitted/delivered — do not pretend
+    // otherwise. transmitRef is the accepted channel's authority/transmission ref (used to correlate
+    // later polls/callbacks — QUEUE_IMPL_PLAN.md F-2/F-3).
+    const acceptedTransmission = execution.transmissions.find((t) => ACCEPTED_TRANSMISSION_STATUSES.has(t.status));
+
+    const event: ComplianceEvent = !acceptedTransmission
+      ? 'TRANSMISSION_FAIL'
+      : plan.regime.blocking
+        ? 'SUBMIT_CLEARANCE'
+        : 'DELIVER';
+
+    return { event, transmitRef: acceptedTransmission?.ref, execution };
+  }
+
   /** Run the full pipeline (build → sign → regime → transmit → archive → report) and move state. */
   async send(id: string, opts: IssueOptions = {}): Promise<SendResult> {
     const rec = await this.require(id);
@@ -234,26 +266,22 @@ export class ComplianceService {
       );
     }
     const plan = rec.plan ?? resolve(rec.ctx);
-    const execution = await this.executor.execute(rec.ctx, plan, { idempotencyKey: opts.idempotencyKey });
+    const outcome = await this.computeSendOutcome(rec, opts);
+    const execution = outcome.execution;
 
     let current = await this.store.update(id, {
       plan,
       authorityIds: [...rec.authorityIds, ...execution.regime.authorityIds],
     });
 
-    // F-4: send() must be honest about what actually happened on the wire. "Accepted somewhere"
-    // means at least one channel came back SENT/PENDING/CLEARED; if every channel was
-    // SKIPPED/REJECTED, nothing was actually submitted/delivered — do not pretend otherwise.
-    const accepted = execution.transmissions.some((t) => ACCEPTED_TRANSMISSION_STATUSES.has(t.status));
-
-    if (!accepted) {
+    if (outcome.event === 'TRANSMISSION_FAIL') {
       const reasons = execution.transmissions.flatMap((t) => t.notes);
       current = await this.transition(
         current,
         'TRANSMISSION_FAIL',
         reasons.length > 0 ? reasons.join('; ') : 'no transmission channel accepted the document',
       );
-    } else if (plan.regime.blocking) {
+    } else if (outcome.event === 'SUBMIT_CLEARANCE') {
       current = await this.transition(current, 'SUBMIT_CLEARANCE', 'awaiting clearance');
     } else {
       current = await this.transition(current, 'DELIVER');
@@ -268,7 +296,7 @@ export class ComplianceService {
     } catch {
       this.log.warn('operations/send', `archival skipped for ${id}`);
     }
-    return { document: current, execution, transmissionFailed: !accepted };
+    return { document: current, execution, transmissionFailed: outcome.event === 'TRANSMISSION_FAIL' };
   }
 
   /** Convenience: create + issue + send in one call. */

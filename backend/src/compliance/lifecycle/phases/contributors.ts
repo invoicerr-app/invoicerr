@@ -26,6 +26,41 @@ export class IssuancePhase implements PhaseContributor {
   }
 }
 
+/**
+ * F-4/Phase 2 (QUEUE_IMPL_PLAN.md §9): TRANSMISSION_FAIL is a state-machine-level event
+ * (state-machine.ts) reachable from ISSUED — "no transmission channel accepted the document"
+ * (ComplianceService.send()'s honesty guard) — and self-retryable from TRANSMISSION_FAILED. This
+ * phase was missing from the composed LifecycleGraph until the real event-sourced TransmitProcessor
+ * (nest/queue/processors/transmit.processor.ts) started driving `computeSendOutcome`'s outcome
+ * through `ApplySignalService.apply()` (the LifecycleRuntime path) instead of only through
+ * `ComplianceService.send()`'s simpler `ComplianceStateMachine` path. Always present (not gated by
+ * the plan): every channel can fail to accept, regardless of regime/feedback.
+ */
+export class TransmissionFailurePhase implements PhaseContributor {
+  readonly id = 'transmission-failure';
+  contributes(): PhaseFragment {
+    return {
+      states: ['TRANSMISSION_FAILED'],
+      transitions: [
+        {
+          on: 'TRANSMISSION_FAIL',
+          from: 'ISSUED',
+          to: 'TRANSMISSION_FAILED',
+          trigger: { kind: 'IMMEDIATE' },
+          description: 'no transmission channel accepted the document',
+        },
+        {
+          on: 'TRANSMISSION_FAIL',
+          from: 'TRANSMISSION_FAILED',
+          to: 'TRANSMISSION_FAILED',
+          trigger: { kind: 'IMMEDIATE' },
+          description: 'retry attempt also failed',
+        },
+      ],
+    };
+  }
+}
+
 /** Blocking clearance: the invoice is invalid until the authority authorises it. */
 export class ClearancePhase implements PhaseContributor {
   readonly id = 'clearance';

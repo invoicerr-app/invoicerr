@@ -16,8 +16,9 @@ import { assembleLifecycle, phaseContextFromPlan } from '@/compliance/lifecycle/
 import { LifecycleRuntime } from '@/compliance/lifecycle/runtime';
 import type { CompliancePlan } from '@/compliance/engine/compliance-engine';
 import type { ComplianceStatus } from '@/compliance/lifecycle/state-machine';
-import { defaultTransmissionRegistry } from '@/compliance/providers/transmission/registry';
+import { defaultTransmissionRegistry, TransmissionProviderRegistry } from '@/compliance/providers/transmission/registry';
 import { describeFlow } from '@/compliance/lifecycle/flow-descriptor';
+import { ComplianceQueueDispatcher } from '@/compliance/nest/queue/compliance-queue.dispatcher';
 import { clampDiscountRate, toMinor } from '@/utils/financial';
 import type { SupplyType, DocumentKind } from '@/compliance/types';
 import { enrichWithPaymentMethod, enrichWithPaymentMethods } from '@/utils/enrich-payment-methods';
@@ -37,6 +38,11 @@ export class InvoicesService {
     private readonly numberingService: NumberingService,
     private readonly complianceService: ComplianceService,
     private readonly rendering: InvoiceRenderingService,
+    // QUEUE_IMPL_PLAN.md §5.6 — credentialed registry (F-3), used ONLY to look up the primary
+    // channel's feedback model (never to transmit directly from here); ComplianceQueueDispatcher is
+    // the single enqueue point for the async ("real" event-sourced) send path.
+    private readonly transmissionRegistry: TransmissionProviderRegistry,
+    private readonly complianceQueue: ComplianceQueueDispatcher,
   ) {}
 
   async getInvoice(companyId: string, id: string) {
@@ -1305,8 +1311,26 @@ export class InvoicesService {
     if (!complianceDoc) {
       throw new BadRequestException('No compliance document for invoice');
     }
+
+    // QUEUE_IMPL_PLAN.md §5.6 — branch by the PRIMARY channel's feedback model, not by name (despite
+    // this method's name, it is the single "send" entry point for every channel: EMAIL, PDP, KSeF,
+    // SdI, Peppol, …). feedback === 'NONE' (or no provider resolved) means there is no lifecycle
+    // driver to arm (fire-and-forget, e.g. plain email) — keep send() fully synchronous, unchanged.
+    // Any ASYNC feedback (ASYNC_POLL: KSeF/PAC/OSE; ASYNC_CALLBACK: PDP/SdI/Peppol) enqueues
+    // compliance-transmit instead: the real transmit + lifecycle arming then happens in
+    // TransmitProcessor (nest/queue/processors/transmit.processor.ts), consumed inline when
+    // WORKER_INLINE=true (the mono default) or by a dedicated worker process otherwise.
+    const plan = complianceDoc.plan as unknown as CompliancePlan | null;
+    const primaryChannel = plan?.channels?.[0];
+    const provider = primaryChannel ? this.transmissionRegistry.resolve(primaryChannel) : null;
+    const feedback = provider?.feedback ?? 'NONE';
+
     try {
-      await this.complianceService.send(complianceDoc.id);
+      if (feedback === 'NONE') {
+        await this.complianceService.send(complianceDoc.id);
+      } else {
+        await this.complianceQueue.enqueueTransmit(complianceDoc.id);
+      }
     } catch (error) {
       logger.error('Failed to send invoice', { category: 'invoice', details: { error } });
       throw new BadRequestException('Failed to send invoice email. Please check your SMTP configuration.');

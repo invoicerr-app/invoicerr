@@ -16,9 +16,15 @@ import {
 /**
  * The single point of enqueueing for the compliance async status loop.
  *
- * Every `enqueue*` method uses a deterministic `jobId` (`<kind>:<documentId>`) so that
+ * Every `enqueue*` method uses a deterministic `jobId` (`<kind>-<documentId>`) so that
  * re-enqueueing the same effect is a no-op/idempotent operation — see QUEUE_IMPL_PLAN.md
  * Décision 5 (jobId déterministe + registre DB + sweep).
+ *
+ * NOTE: the separator is `-`, not `:` — BullMQ's `Job.validateOptions` rejects any custom jobId
+ * containing a single `:` (`Custom Id cannot contain :`; reserved for its own internal repeatable-job
+ * id format, which requires exactly two colons). This surfaced in Phase 2 (QUEUE_IMPL_PLAN.md §9)
+ * the first time this dispatcher was actually exercised end-to-end — Phase 1 never called it for
+ * real (see the module docstring history), so the bug was latent until now.
  *
  * PHASE 1 NOTE: this dispatcher is infrastructure only. Nothing in the business logic
  * (compliance-service.ts, apply-signal.ts, invoices.service.ts) calls it yet — that wiring
@@ -43,7 +49,7 @@ export class ComplianceQueueDispatcher {
       'transmit',
       { documentId, idempotencyKey },
       {
-        jobId: `transmit:${documentId}`,
+        jobId: `transmit-${documentId}`,
         attempts,
         backoff: { type: 'exponential', delay: 5000 },
         removeOnComplete: true,
@@ -58,7 +64,7 @@ export class ComplianceQueueDispatcher {
       'poll',
       { documentId, scheduledJobId },
       {
-        jobId: `poll:${documentId}`,
+        jobId: `poll-${documentId}`,
         delay: Math.max(0, delayMs),
         removeOnComplete: true,
         removeOnFail: { count: 50 },
@@ -72,7 +78,7 @@ export class ComplianceQueueDispatcher {
       'timer',
       { documentId, scheduledJobId },
       {
-        jobId: `timer:${documentId}`,
+        jobId: `timer-${documentId}`,
         delay: Math.max(0, delayMs),
         removeOnComplete: true,
         removeOnFail: { count: 50 },
@@ -88,9 +94,9 @@ export class ComplianceQueueDispatcher {
    */
   async removeForDocument(documentId: string): Promise<void> {
     const targets: Array<[Queue, string]> = [
-      [this.transmitQueue, `transmit:${documentId}`],
-      [this.pollQueue, `poll:${documentId}`],
-      [this.timerQueue, `timer:${documentId}`],
+      [this.transmitQueue, `transmit-${documentId}`],
+      [this.pollQueue, `poll-${documentId}`],
+      [this.timerQueue, `timer-${documentId}`],
     ];
     for (const [queue, jobId] of targets) {
       try {

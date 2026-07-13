@@ -6,7 +6,7 @@ import { ComplianceLogger, defaultLogger } from '../execution/logger';
 import { assembleLifecycle, phaseContextFromPlan } from '../lifecycle/assembler';
 import { ComplianceDocumentRecord } from '../operations/types';
 import { Effect, LifecycleRuntime, LifecycleSignal } from '../lifecycle/runtime';
-import { createPollJob } from '../lifecycle/drivers/poll-job';
+import { createPollJob, nextDelaySeconds } from '../lifecycle/drivers/poll-job';
 import { createTimerJob } from '../lifecycle/drivers/timer-job';
 import { createRegistration } from '../lifecycle/drivers/inbound-job';
 import {
@@ -16,6 +16,7 @@ import {
 import { PrismaComplianceDocumentStore } from '../persistence/prisma-document-store';
 import { PrismaPollJobStore, PrismaTimerJobStore } from '../persistence/prisma-scheduled-job-store';
 import { PrismaCallbackStore } from '../persistence/prisma-callback-store';
+import { ComplianceQueueDispatcher } from './queue/compliance-queue.dispatcher';
 
 let seq = 0;
 function genId(prefix: string): string {
@@ -36,11 +37,33 @@ function genId(prefix: string): string {
 export class ApplySignalService {
   constructor(
     private readonly prisma: PrismaService,
+    // F-3 (QUEUE_IMPL_PLAN.md §5.2): the DI factory (compliance.module.ts / compliance-core.module.ts)
+    // always passes the CREDENTIALED registry here. The `defaultTransmissionRegistry` fallback exists
+    // only so offline callers (e.g. apply-signal.live.spec.ts, which does `new ApplySignalService(prisma)`
+    // with a single arg) keep working without needing a real Redis/BullMQ or credentials wiring.
     private readonly txRegistry: TransmissionProviderRegistry = defaultTransmissionRegistry,
+    // Post-commit BullMQ projection (QUEUE_IMPL_PLAN.md Décision 5 — outbox-lite). Optional so this
+    // class stays constructible without a live queue (unit/live-DB specs); when absent, SCHEDULE_POLL
+    // effects are still persisted to ScheduledJob (the durable registry) but are NOT projected onto
+    // compliance-poll — a real deployment always injects the real dispatcher (see compliance-core.module.ts).
+    private readonly dispatcher?: ComplianceQueueDispatcher,
     private readonly log: ComplianceLogger = defaultLogger,
   ) {}
 
-  async apply(documentId: string, signal: LifecycleSignal, log?: ComplianceLogger): Promise<void> {
+  /**
+   * `ctx.transmitRef` (QUEUE_IMPL_PLAN.md F-2/F-3, Phase 2 slice only) is the accepted channel's
+   * authority/transmission ref, computed by `ComplianceService.computeSendOutcome()` in the
+   * TransmitProcessor. It is threaded into `SCHEDULE_POLL` so the poll driver interrogates the
+   * authority with the real external reference instead of falling back to the internal documentId.
+   * NOTE: AWAIT_CALLBACK's correlationKey is intentionally NOT changed here — the
+   * correlationKey=transmitRef fix and the ASYNC_CALLBACK POLL fallback are Phase 4 (plan §5.2).
+   */
+  async apply(
+    documentId: string,
+    signal: LifecycleSignal,
+    log?: ComplianceLogger,
+    ctx?: { transmitRef?: string },
+  ): Promise<void> {
     const l = log ?? this.log;
     const docStore = new PrismaComplianceDocumentStore(this.prisma);
     const rec = await docStore.get(documentId);
@@ -54,6 +77,12 @@ export class ApplySignalService {
     if (effects.length === 1 && effects[0].kind === 'NOOP') return;
 
     const now = new Date().toISOString();
+    let hasApplied = false;
+    // Post-commit BullMQ projection queue (Décision 5): the ScheduledJob row is the durable source of
+    // truth, written inside the transaction below; the BullMQ delayed job is a projection of it,
+    // enqueued only once the transaction has actually committed.
+    const pollProjections: Array<{ scheduledJobId: string; delayMs: number }> = [];
+
     await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const txDocStore = new PrismaComplianceDocumentStore(tx as unknown as PrismaService);
       const txPollStore = new PrismaPollJobStore(tx as unknown as PrismaService);
@@ -62,6 +91,7 @@ export class ApplySignalService {
 
       const applied = effects.find((e): e is Extract<Effect, { kind: 'APPLIED' }> => e.kind === 'APPLIED');
       if (applied) {
+        hasApplied = true;
         // The document just left `rec.status` for `applied.to` — any driver still guarding the OLD
         // state is now obsolete. (A stale fire is already a safe runtime no-op; this keeps the
         // scheduled-job/callback tables from accumulating dead rows that poll a resolved document for
@@ -83,18 +113,21 @@ export class ApplySignalService {
           const provider = effect.channelProviderId
             ? this.txRegistry.getById(effect.channelProviderId)
             : null;
+          const scheduledJobId = genId('poll');
           const job = createPollJob(
             {
-              id: genId('poll'),
+              id: scheduledJobId,
               documentId,
               providerId: effect.channelProviderId ?? '(unknown)',
               channel: provider?.channel ?? 'GOV_PORTAL_API',
+              ref: ctx?.transmitRef,
               awaiting: effect.awaiting,
               policy: effect.poll,
             },
             new Date(),
           );
           await txPollStore.enqueue(job);
+          pollProjections.push({ scheduledJobId, delayMs: nextDelaySeconds(effect.poll, 0) * 1000 });
         } else if (effect.kind === 'ARM_TIMER') {
           if (effect.deadlineHours == null) continue; // open-ended response window: no silence timer
           const job = createTimerJob(
@@ -108,6 +141,9 @@ export class ApplySignalService {
             new Date(),
           );
           await txTimerStore.arm(job);
+          // NOTE: BullMQ projection for ARM_TIMER (compliance-timer) is Phase 3 (timer.processor.ts) —
+          // the ScheduledJob row above is still the durable registry the legacy TimerScheduler.tick()
+          // reconciles against in the meantime.
         } else if (effect.kind === 'AWAIT_CALLBACK') {
           const channel = this.resolveChannel(rec);
           if (!channel) continue;
@@ -125,6 +161,24 @@ export class ApplySignalService {
         }
       }
     });
+
+    // Post-commit projection (Décision 5): only after the transaction has committed do we touch
+    // BullMQ, so a crash between the DB write and the enqueue leaves the durable ScheduledJob row as
+    // the source of truth (a future sweep — Phase 3 — re-projects it). `dispatcher` is optional (see
+    // constructor note) so callers without a live queue (tests, live-DB specs) still work.
+    if (this.dispatcher) {
+      if (hasApplied) {
+        await this.dispatcher.removeForDocument(documentId);
+      }
+      for (const { scheduledJobId, delayMs } of pollProjections) {
+        await this.dispatcher.enqueuePoll(documentId, scheduledJobId, delayMs);
+      }
+    } else if (pollProjections.length > 0) {
+      l.warn(
+        'nest/apply-signal',
+        `no queue dispatcher configured — SCHEDULE_POLL effect(s) for ${documentId} were persisted but not projected to BullMQ`,
+      );
+    }
   }
 
   private async buildRuntime(rec: ComplianceDocumentRecord): Promise<LifecycleRuntime> {

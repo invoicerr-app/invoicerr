@@ -10,6 +10,7 @@ import {
   DeliveryPhase,
   IssuancePhase,
   ReportingPhase,
+  TransmissionFailurePhase,
 } from './contributors';
 
 export class PhaseContributorRegistry {
@@ -18,6 +19,7 @@ export class PhaseContributorRegistry {
   constructor(contributors?: PhaseContributor[]) {
     this.contributors = contributors ?? [
       new IssuancePhase(),
+      new TransmissionFailurePhase(),
       new ClearancePhase(),
       new DeliveryPhase(),
       new BuyerResponsePhase(),
