@@ -234,58 +234,74 @@ function parseFatturaPA(xml: string): ParsedInboundDocument {
   };
 }
 
-/** FA(2) / FA_VAT — KSeF Polish e-invoice (JSON) */
-function parseFaVat(raw: string): ParsedInboundDocument {
-  try {
-    const obj: Record<string, unknown> = JSON.parse(raw);
-    // KSeF wraps in { Faktura: { ... } } at the top level
-    const root = (obj?.Faktura ?? obj) as Record<string, unknown>;
-    const podmiot1 = (root?.Podmiot1 as Record<string, unknown>)?.DaneIdentyfikacyjne as
-      | Record<string, unknown>
-      | undefined;
-    const podmiot2 = (root?.Podmiot2 as Record<string, unknown>)?.DaneIdentyfikacyjne as
-      | Record<string, unknown>
-      | undefined;
-    const fa = root?.Fa as Record<string, unknown> | undefined;
+/**
+ * FA(2) / FA(3) — KSeF Polish e-invoice.
+ *
+ * KSeF invoices are XML (namespace `http://crd.gov.pl/wzor/2023/06/29/12648/` for FA(2)), NOT
+ * JSON — `GET /invoices/ksef/{ksefNumber}` (github.com/CIRFMF/ksef-api open-api.json) returns
+ * `application/xml` verbatim. Parsed structurally like the other syntaxes (namespace-agnostic
+ * regex tag extraction — same rationale as parseCii: avoid xmldom's namespace-prefix fragility).
+ *
+ * Field names (Podmiot1/Podmiot2/DaneIdentyfikacyjne/NIP/PelnaNazwa/ImieNazwisko/Fa/P_1/P_2/
+ * P_13_x/P_14_x/P_15/KodWaluty) are the real FA(2)/FA(3) XSD element names — Podmiot1 = seller
+ * (issuer, always has PelnaNazwa), Podmiot2 = buyer (PelnaNazwa for a legal entity, ImieNazwisko
+ * for a natural person, or no NIP at all — BrakID — for a foreign/unregistered buyer).
+ */
+function parseFaVat(xml: string): ParsedInboundDocument {
+  const errors: string[] = [];
 
-    const sellerName =
-      (podmiot1?.PelnaNazwa as string | undefined) ?? (podmiot1?.ImieNazwisko as string | undefined);
-    const sellerTaxId = podmiot1?.NIP as string | undefined;
-    const buyerTaxId = podmiot2?.NIP as string | undefined;
+  // Seller — Podmiot1 (always the issuer for a non-self-invoicing document)
+  const podmiot1Block = extractBlock(xml, 'Podmiot1');
+  const podmiot1Ids = podmiot1Block ? extractBlock(podmiot1Block, 'DaneIdentyfikacyjne') : undefined;
+  const sellerTaxId = podmiot1Ids ? extractText(podmiot1Ids, 'NIP') : undefined;
+  const sellerName = podmiot1Ids
+    ? (extractText(podmiot1Ids, 'PelnaNazwa') ?? extractText(podmiot1Ids, 'ImieNazwisko'))
+    : undefined;
 
-    const invoiceNumber = (fa?.P_2 as string | undefined) ?? (fa?.NrFa as string | undefined);
-    const issueDate = fa?.P_1 as string | undefined;
-    const currency = (fa?.KodWaluty as string | undefined) ?? 'PLN';
+  // Buyer — Podmiot2 (may have no NIP — BrakID — for a foreign/unregistered buyer)
+  const podmiot2Block = extractBlock(xml, 'Podmiot2');
+  const podmiot2Ids = podmiot2Block ? extractBlock(podmiot2Block, 'DaneIdentyfikacyjne') : undefined;
+  const buyerTaxId = podmiot2Ids ? extractText(podmiot2Ids, 'NIP') : undefined;
 
-    // FA(2) totals: P_13_x = net per rate, P_14_x = tax, P_15 = gross
-    const totalGross = toFloat(String(fa?.P_15 ?? ''));
-    // Net = sum of all P_13_x fields; Tax = sum of all P_14_x fields
-    let totalNet: number | undefined;
-    let totalTax: number | undefined;
-    for (const [k, v] of Object.entries(fa ?? {})) {
-      if (/^P_13_\d+$/.test(k) || k === 'P_13_1') {
-        totalNet = (totalNet ?? 0) + (toFloat(String(v)) ?? 0);
-      }
-      if (/^P_14_\d+$/.test(k) || k === 'P_14_1') {
-        totalTax = (totalTax ?? 0) + (toFloat(String(v)) ?? 0);
-      }
+  // Body — Fa
+  const faBlock = extractBlock(xml, 'Fa');
+  const invoiceNumber = faBlock ? extractText(faBlock, 'P_2') : undefined;
+  const issueDate = faBlock ? extractText(faBlock, 'P_1') : undefined;
+  const currency = (faBlock ? extractText(faBlock, 'KodWaluty') : undefined) ?? 'PLN';
+  const totalGross = toFloat(faBlock ? extractText(faBlock, 'P_15') : undefined);
+
+  // FA(2)/FA(3) totals: P_13_x = net per VAT-rate group, P_14_x = tax per VAT-rate group.
+  let totalNet: number | undefined;
+  let totalTax: number | undefined;
+  if (faBlock) {
+    const netRe =
+      /<(?:[A-Za-z_][A-Za-z0-9_.-]*:)?P_13_\d+(?:\s[^>]*)?>([^<]*)<\/(?:[A-Za-z_][A-Za-z0-9_.-]*:)?P_13_\d+>/gi;
+    for (const m of faBlock.matchAll(netRe)) {
+      const v = toFloat(m[1]);
+      if (v !== undefined) totalNet = (totalNet ?? 0) + v;
     }
-
-    return {
-      invoiceNumber,
-      issueDate,
-      sellerName,
-      sellerTaxId,
-      buyerTaxId,
-      currency,
-      totalNet,
-      totalTax,
-      totalGross,
-      parseErrors: [],
-    };
-  } catch (e) {
-    return { parseErrors: [`FA_VAT JSON parse error: ${e instanceof Error ? e.message : String(e)}`] };
+    const taxRe =
+      /<(?:[A-Za-z_][A-Za-z0-9_.-]*:)?P_14_\d+(?:\s[^>]*)?>([^<]*)<\/(?:[A-Za-z_][A-Za-z0-9_.-]*:)?P_14_\d+>/gi;
+    for (const m of faBlock.matchAll(taxRe)) {
+      const v = toFloat(m[1]);
+      if (v !== undefined) totalTax = (totalTax ?? 0) + v;
+    }
   }
+
+  if (!invoiceNumber) errors.push('FA_VAT: Fa/P_2 (invoice number) not found');
+
+  return {
+    invoiceNumber,
+    issueDate,
+    sellerName,
+    sellerTaxId,
+    buyerTaxId,
+    currency,
+    totalNet,
+    totalTax,
+    totalGross,
+    parseErrors: errors,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -295,7 +311,13 @@ function parseFaVat(raw: string): ParsedInboundDocument {
 /** Detect document syntax from the raw payload. */
 export function detectSyntax(raw: string): InboundSyntax {
   const trimmed = raw.trimStart();
-  if (trimmed.startsWith('{') || trimmed.startsWith('[')) return 'FA_VAT';
+  // FA(2)/FA(3) — KSeF's own XML namespace, or the <Faktura> root paired with a KSeF-specific
+  // child element (avoids false-matching an unrelated document that merely contains "Faktura").
+  if (
+    trimmed.includes('crd.gov.pl/wzor') ||
+    (trimmed.includes('<Faktura') && (trimmed.includes('Podmiot1') || trimmed.includes('KodFormularza')))
+  )
+    return 'FA_VAT';
   if (
     trimmed.includes('CrossIndustryInvoice') ||
     trimmed.includes(':CrossIndustryInvoice') ||

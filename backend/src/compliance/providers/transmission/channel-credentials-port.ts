@@ -22,6 +22,11 @@ export interface ResolvedChannelConfig {
   isActive: boolean;
 }
 
+/** A resolved config paired with the company it belongs to (`listActiveByProvider` result row). */
+export interface ActiveChannelConfig extends ResolvedChannelConfig {
+  companyId: string;
+}
+
 export interface ChannelCredentialsPort {
   /**
    * Resolve the decrypted, active channel config for a given company+provider+environment.
@@ -34,4 +39,13 @@ export interface ChannelCredentialsPort {
    * Returns null when zero or 2+ active configs exist (caller must not guess).
    */
   resolveActive(companyId: string, providerId: string): Promise<ResolvedChannelConfig | null>;
+
+  /**
+   * List every ACTIVE (company, environment) config for a given provider, across all companies.
+   * Used by drivers that must act on behalf of every configured company rather than a single one
+   * (e.g. `KsefInboxPort` polling KSeF for each company's purchase invoices). Optional: a port
+   * implementation that doesn't support bulk listing simply omits it — callers must treat a
+   * missing method the same as an empty result (stay offline-safe/inert), never throw.
+   */
+  listActiveByProvider?(providerId: string): Promise<ActiveChannelConfig[]>;
 }

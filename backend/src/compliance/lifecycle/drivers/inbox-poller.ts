@@ -16,6 +16,7 @@
 
 import type { InboxPort, InboxMessage } from './inbox-port';
 import type { InboundRouter } from './inbound-router';
+import type { InboundDocumentSink } from './inbound-document-sink';
 import type { ComplianceLogger } from '../../execution/logger';
 import { defaultLogger } from '../../execution/logger';
 
@@ -39,8 +40,15 @@ export interface InboxPollReport {
 export interface InboxPollerDeps {
   /** The inbox transports to poll. Inject [NullInboxPort] to disable polling. */
   ports: InboxPort[];
-  /** InboundRouter for dedup + correlation + signal delivery. */
+  /** InboundRouter for dedup + correlation + signal delivery (status-ping messages). */
   router: InboundRouter;
+  /**
+   * Sink for full-document messages (`InboxMessage.documentBytes` set) — e.g. KSeF purchase
+   * invoices. Optional: when omitted, a port that yields a document-bearing message is a
+   * misconfiguration and that message is dropped with a warning + counted as an error (never
+   * silently routed through the status-correlation router, which would just come back UNMATCHED).
+   */
+  documentSink?: InboundDocumentSink;
   log?: ComplianceLogger;
 }
 
@@ -51,11 +59,13 @@ export interface InboxPollerDeps {
 export class InboxPoller {
   private readonly ports: InboxPort[];
   private readonly router: InboundRouter;
+  private readonly documentSink?: InboundDocumentSink;
   private readonly log: ComplianceLogger;
 
   constructor(deps: InboxPollerDeps) {
     this.ports = deps.ports;
     this.router = deps.router;
+    this.documentSink = deps.documentSink;
     this.log = deps.log ?? defaultLogger;
   }
 
@@ -86,6 +96,55 @@ export class InboxPoller {
 
       for (const message of messages) {
         try {
+          // Full-document messages (KSeF purchase invoices, …) bypass the status-correlation
+          // router entirely — there is no CallbackRegistration to match against a document we
+          // never transmitted. Route to the InboundDocumentSink instead (§ inbound-document-sink.ts).
+          if (message.documentBytes) {
+            if (!this.documentSink) {
+              this.log.warn(
+                'inbox-poller',
+                `port ${port.id} yielded a full document (${message.messageId}) but no documentSink ` +
+                  'is configured — dropped',
+              );
+              report.errors++;
+              continue;
+            }
+            if (!message.companyId) {
+              this.log.warn(
+                'inbox-poller',
+                `port ${port.id} message ${message.messageId} carries documentBytes but no ` +
+                  'companyId — dropped',
+              );
+              report.errors++;
+              continue;
+            }
+
+            const sinkResult = await this.documentSink.receive({
+              companyId: message.companyId,
+              channel: message.channel,
+              providerId: message.providerId,
+              externalId: message.rawRef ?? message.messageId,
+              rawPayload: message.documentBytes.toString('utf-8'),
+              syntax: message.syntax,
+              senderId: message.senderId,
+            });
+
+            if (sinkResult.kind === 'STORED') {
+              this.log.info(
+                'inbox-poller',
+                `stored [${message.channel}] ${message.messageId} → received invoice ${sinkResult.id}`,
+              );
+              report.routed++;
+            } else {
+              this.log.info(
+                'inbox-poller',
+                `duplicate [${message.channel}] ${message.messageId} (received invoice ${sinkResult.id}) dropped`,
+              );
+              report.duplicates++;
+            }
+            continue;
+          }
+
           const result = await this.router.receive({
             channel: message.channel,
             correlationKey: message.correlationKey,

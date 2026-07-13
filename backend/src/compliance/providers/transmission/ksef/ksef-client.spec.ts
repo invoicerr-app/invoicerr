@@ -245,4 +245,122 @@ describe('KsefClient', () => {
       await expect(client.authChallenge()).rejects.toThrow('KSeF API error 500');
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // M-6 / F-15 — purchase-invoice reception: query metadata + download
+  // Response shapes transcribed from the real KSeF 2.0 OpenAPI spec
+  // (github.com/CIRFMF/ksef-api open-api.json — paths `/invoices/query/metadata` and
+  // `/invoices/ksef/{ksefNumber}`), not invented.
+  // ---------------------------------------------------------------------------
+
+  describe('queryInvoicesMetadata()', () => {
+    it('POSTs to /invoices/query/metadata with subjectType=Subject2 (buyer) and dateRange filters', async () => {
+      const http = mockHttp((_req) => ({
+        status: 200,
+        body: {
+          hasMore: false,
+          isTruncated: false,
+          permanentStorageHwmDate: '2025-08-28T09:23:55.388+00:00',
+          invoices: [
+            {
+              ksefNumber: '5555555555-20250828-010080615740-E4',
+              invoiceNumber: 'FA/KUDY01',
+              issueDate: '2025-08-27',
+              invoicingDate: '2025-08-28T09:22:13.388+00:00',
+              acquisitionDate: '2025-08-28T09:22:56.388+00:00',
+              permanentStorageDate: '2025-08-28T09:23:01.388+00:00',
+              seller: { nip: '5555555555', name: 'Test Company 1' },
+              buyer: { identifier: { type: 'Nip', value: '7352765225' }, name: 'Test Company 4' },
+              netAmount: 35260.63,
+              grossAmount: 43370.57,
+              vatAmount: 8109.94,
+              currency: 'PLN',
+              invoicingMode: 'Offline',
+              invoiceType: 'Vat',
+              formCode: { systemCode: 'FA (3)', schemaVersion: '1-0E', value: 'FA' },
+              isSelfInvoicing: false,
+              hasAttachment: false,
+              invoiceHash: 'mkht+3m5trnfxlTYhq3QFn74LkEO69MFNlsMAkCDSPA=',
+              thirdSubjects: [],
+            },
+          ],
+        },
+      }));
+      const client = new KsefClient(http, TEST_CONFIG);
+      const result = await client.queryInvoicesMetadata(
+        'access-token',
+        {
+          subjectType: 'Subject2',
+          dateRange: {
+            dateType: 'PermanentStorage',
+            from: '2025-08-28T00:00:00Z',
+            to: '2025-08-29T00:00:00Z',
+          },
+        },
+        { pageOffset: 0, pageSize: 100, sortOrder: 'Asc' },
+      );
+
+      expect(result.hasMore).toBe(false);
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0].ksefNumber).toBe('5555555555-20250828-010080615740-E4');
+      expect(result.invoices[0].buyer.identifier.value).toBe('7352765225');
+
+      const req = (http.request as jest.Mock).mock.calls[0][0];
+      expect(req.method).toBe('POST');
+      expect(req.path).toContain('/invoices/query/metadata');
+      expect(req.path).toContain('pageOffset=0');
+      expect(req.path).toContain('pageSize=100');
+      expect(req.path).toContain('sortOrder=Asc');
+      expect(req.headers).toEqual({ Authorization: 'Bearer access-token' });
+      expect(req.body).toEqual({
+        subjectType: 'Subject2',
+        dateRange: { dateType: 'PermanentStorage', from: '2025-08-28T00:00:00Z', to: '2025-08-29T00:00:00Z' },
+      });
+    });
+
+    it('omits the query string when no pagination is supplied', async () => {
+      const http = mockHttp(() => ({
+        status: 200,
+        body: { hasMore: false, isTruncated: false, invoices: [] },
+      }));
+      const client = new KsefClient(http, TEST_CONFIG);
+      await client.queryInvoicesMetadata('access-token', {
+        subjectType: 'Subject2',
+        dateRange: { dateType: 'PermanentStorage', from: '2025-08-28T00:00:00Z' },
+      });
+
+      const req = (http.request as jest.Mock).mock.calls[0][0];
+      expect(req.path.endsWith('/invoices/query/metadata')).toBe(true);
+    });
+  });
+
+  describe('getInvoiceByKsefNumber()', () => {
+    it('GETs /invoices/ksef/{ksefNumber} and returns the raw XML body verbatim', async () => {
+      const xml =
+        '<?xml version="1.0"?><Faktura xmlns="http://crd.gov.pl/wzor/2023/06/29/12648/">test</Faktura>';
+      const http = mockHttp(() => ({ status: 200, body: xml }));
+      const client = new KsefClient(http, TEST_CONFIG);
+      const result = await client.getInvoiceByKsefNumber(
+        'access-token',
+        '5555555555-20250828-010080615740-E4',
+      );
+
+      expect(result).toBe(xml);
+      const req = (http.request as jest.Mock).mock.calls[0][0];
+      expect(req.method).toBe('GET');
+      expect(req.path).toContain('/invoices/ksef/5555555555-20250828-010080615740-E4');
+      expect(req.headers).toEqual({ Authorization: 'Bearer access-token' });
+    });
+
+    it('throws KsefError when the invoice is not found (404)', async () => {
+      const http = mockHttp(() => ({
+        status: 404,
+        body: { code: 21164, message: 'Faktura o podanym identyfikatorze nie istnieje.' },
+      }));
+      const client = new KsefClient(http, TEST_CONFIG);
+      await expect(client.getInvoiceByKsefNumber('access-token', 'missing')).rejects.toThrow(
+        'KSeF API error 404',
+      );
+    });
+  });
 });

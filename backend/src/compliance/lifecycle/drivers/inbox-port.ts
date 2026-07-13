@@ -43,8 +43,27 @@ export interface InboxMessage {
   /** Optional raw provider reference (used as dedup rawRef in the router). */
   rawRef?: string;
 
-  /** Raw bytes of the inbound document (optional; for future parsing/archival). */
+  /**
+   * Raw bytes of the inbound document. When present, `InboxPoller` treats this message as a FULL
+   * new document (not a status ping on something we transmitted) and routes it to the injected
+   * `InboundDocumentSink` instead of `InboundRouter` — see inbound-document-sink.ts.
+   */
   documentBytes?: Buffer;
+
+  /**
+   * The receiving (buyer) company — REQUIRED alongside `documentBytes` (a full document has no
+   * existing lifecycle-tracked document to infer the tenant from). Ignored on status-ping messages.
+   */
+  companyId?: string;
+
+  /** Specific provider id (e.g. 'ksef'), forwarded to the document sink for display/routing. */
+  providerId?: string;
+
+  /** DocumentSyntax hint (e.g. 'FA_VAT'), forwarded to the document sink's parser. */
+  syntax?: string;
+
+  /** Sender endpoint / tax ID, forwarded to the document sink for quick display. */
+  senderId?: string;
 }
 
 // ---------------------------------------------------------------------------

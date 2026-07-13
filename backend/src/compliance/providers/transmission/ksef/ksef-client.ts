@@ -126,6 +126,101 @@ export interface KsefError {
 }
 
 // ---------------------------------------------------------------------------
+// Invoice query / download (M-6 / F-15 — purchase-invoice reception)
+//
+// Shapes below are transcribed from the real KSeF 2.0 OpenAPI spec
+// (github.com/CIRFMF/ksef-api open-api.json, paths `/invoices/query/metadata` and
+// `/invoices/ksef/{ksefNumber}`) — not invented. `Subject2` = the polled company acting as
+// BUYER (nabywca); `Subject1` = seller. Both endpoints require the `InvoiceRead` permission,
+// which a KSeF token minted for a NIP grants by default alongside send permissions.
+// ---------------------------------------------------------------------------
+
+/** Which party (relative to the querying NIP) the search is scoped to. */
+export type InvoiceQuerySubjectType = 'Subject1' | 'Subject2' | 'Subject3' | 'SubjectAuthorized';
+
+/** Which date field `dateRange` filters on. PermanentStorage is KSeF's recommended field for
+ * incremental polling — stable, not subject to async-processing reordering. */
+export type InvoiceQueryDateType = 'Issue' | 'Invoicing' | 'PermanentStorage';
+
+export interface InvoiceQueryDateRange {
+  dateType: InvoiceQueryDateType;
+  /** ISO-8601 date-time. */
+  from: string;
+  /** ISO-8601 date-time. Defaults to "now" server-side when omitted. */
+  to?: string;
+}
+
+export interface InvoiceQueryFilters {
+  subjectType: InvoiceQuerySubjectType;
+  dateRange: InvoiceQueryDateRange;
+  ksefNumber?: string;
+  invoiceNumber?: string;
+  sellerNip?: string;
+  currencyCodes?: string[];
+  invoicingMode?: 'Online' | 'Offline';
+  formType?: 'FA' | 'PEF' | 'FA_RR';
+  invoiceTypes?: string[];
+  hasAttachment?: boolean;
+}
+
+export interface InvoiceQueryPagination {
+  pageOffset?: number;
+  pageSize?: number;
+  sortOrder?: 'Asc' | 'Desc';
+}
+
+export interface InvoiceMetadataIdentifier {
+  type: 'Nip' | 'VatUe' | 'Other' | 'None';
+  value?: string;
+}
+
+export interface InvoiceMetadataSeller {
+  nip: string;
+  name?: string;
+}
+
+export interface InvoiceMetadataBuyer {
+  identifier: InvoiceMetadataIdentifier;
+  name?: string;
+}
+
+export interface InvoiceFormCode {
+  systemCode: string; // e.g. "FA (2)" | "FA (3)"
+  schemaVersion: string; // e.g. "1-0E"
+  value: string; // "FA"
+}
+
+/** One row of `POST /invoices/query/metadata`'s `invoices[]` array. */
+export interface InvoiceMetadata {
+  ksefNumber: string;
+  invoiceNumber: string;
+  issueDate: string; // "YYYY-MM-DD"
+  invoicingDate: string;
+  acquisitionDate: string;
+  permanentStorageDate: string;
+  seller: InvoiceMetadataSeller;
+  buyer: InvoiceMetadataBuyer;
+  netAmount: number;
+  grossAmount: number;
+  vatAmount: number;
+  currency: string;
+  invoicingMode: string;
+  invoiceType: string;
+  formCode: InvoiceFormCode;
+  isSelfInvoicing: boolean;
+  hasAttachment: boolean;
+  invoiceHash: string;
+  thirdSubjects?: unknown[];
+}
+
+export interface QueryInvoicesMetadataResponse {
+  hasMore: boolean;
+  isTruncated: boolean;
+  permanentStorageHwmDate?: string | null;
+  invoices: InvoiceMetadata[];
+}
+
+// ---------------------------------------------------------------------------
 // HTTP port — injectable for testing
 // ---------------------------------------------------------------------------
 
@@ -315,6 +410,50 @@ export class KsefClient {
     });
     if (res.status >= 400) throw ksefError(res);
     return res.body as PublicKeyCertificate[];
+  }
+
+  // ── invoice query / download (M-6 / F-15 — purchase-invoice reception) ──────
+
+  /**
+   * `POST /invoices/query/metadata` — list invoice metadata matching `filters`. Callers polling
+   * for PURCHASE invoices (i.e. the authenticated NIP is the buyer) must pass
+   * `subjectType: 'Subject2'`. Requires the `InvoiceRead` permission (granted by default to a
+   * KSeF token minted for the NIP).
+   *
+   * Rate-limited by KSeF at 8 req/s, 16/min, 20/hour — callers should poll on a coarse interval
+   * (e.g. hourly) with an overlapping lookback window, not on every tick.
+   */
+  async queryInvoicesMetadata(
+    accessToken: string,
+    filters: InvoiceQueryFilters,
+    pagination?: InvoiceQueryPagination,
+  ): Promise<QueryInvoicesMetadataResponse> {
+    const params = new URLSearchParams();
+    if (pagination?.pageOffset !== undefined) params.set('pageOffset', String(pagination.pageOffset));
+    if (pagination?.pageSize !== undefined) params.set('pageSize', String(pagination.pageSize));
+    if (pagination?.sortOrder) params.set('sortOrder', pagination.sortOrder);
+    const qs = params.toString();
+
+    return this.post<QueryInvoicesMetadataResponse>(
+      `/invoices/query/metadata${qs ? `?${qs}` : ''}`,
+      filters,
+      { Authorization: `Bearer ${accessToken}` },
+    );
+  }
+
+  /**
+   * `GET /invoices/ksef/{ksefNumber}` — download the invoice's canonical XML (FA(2)/FA(3)).
+   * The API returns `application/xml` (a raw XML document, not a JSON envelope) — the response
+   * body is the XML string verbatim. Requires the `InvoiceRead` permission.
+   */
+  async getInvoiceByKsefNumber(accessToken: string, ksefNumber: string): Promise<string> {
+    const res = await this.http.request({
+      method: 'GET',
+      path: this.baseUrl + `/invoices/ksef/${encodeURIComponent(ksefNumber)}`,
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (res.status >= 400) throw ksefError(res);
+    return String(res.body ?? '');
   }
 }
 

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import {
+  ActiveChannelConfig,
   ChannelCredentialsPort,
   ResolvedChannelConfig,
 } from '@/compliance/providers/transmission/channel-credentials-port';
@@ -148,6 +149,58 @@ export class ChannelCredentialsService implements ChannelCredentialsPort {
       });
       return null;
     }
+  }
+
+  /**
+   * List every ACTIVE (company, environment) config for a provider, across ALL companies.
+   *
+   * Used by inbox drivers (e.g. `KsefInboxPort`) that must poll on behalf of every company that
+   * has configured the provider, rather than a single caller-known companyId — there is no
+   * "list all companies" concept anywhere else in the credentials port, this is additive.
+   *
+   * Offline-safe: returns [] when encryption is unavailable (mirrors resolve/resolveActive), and
+   * skips (rather than throws on) any row whose blob fails to decrypt — a corrupted credential for
+   * one company must never block polling for the rest.
+   */
+  async listActiveByProvider(providerId: string): Promise<ActiveChannelConfig[]> {
+    if (!isEncryptionAvailable()) return [];
+
+    const rows: CompanyChannelConfig[] = await this.prisma.companyChannelConfig.findMany({
+      where: { providerId, isActive: true },
+    });
+
+    const results: ActiveChannelConfig[] = [];
+    for (const row of rows) {
+      try {
+        const config = decryptJson<Record<string, unknown>>(row.config);
+        credentialAudit.emit({
+          companyId: row.companyId,
+          credentialRef: `${providerId}:${row.environment}`,
+          action: 'RESOLVE_ACTIVE',
+          outcome: 'HIT',
+          timestamp: new Date().toISOString(),
+          context: { reason: 'listActiveByProvider' },
+        });
+        results.push({
+          companyId: row.companyId,
+          providerId: row.providerId,
+          channel: row.channel,
+          environment: row.environment,
+          config,
+          isActive: row.isActive,
+        });
+      } catch {
+        credentialAudit.emit({
+          companyId: row.companyId,
+          credentialRef: `${providerId}:${row.environment}`,
+          action: 'RESOLVE_ACTIVE',
+          outcome: 'ERROR',
+          timestamp: new Date().toISOString(),
+          context: { reason: 'decrypt_failed_listActiveByProvider' },
+        });
+      }
+    }
+    return results;
   }
 
   // ---------------------------------------------------------------------------

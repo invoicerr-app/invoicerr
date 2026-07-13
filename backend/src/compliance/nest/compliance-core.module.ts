@@ -13,12 +13,13 @@ import { PollScheduler } from '../lifecycle/drivers/poll-scheduler';
 import { TimerScheduler } from '../lifecycle/drivers/timer-scheduler';
 import { InboundRouter } from '../lifecycle/drivers/inbound-router';
 import { InboxPoller } from '../lifecycle/drivers/inbox-poller';
-import { NullInboxPort } from '../lifecycle/drivers/inbox-port';
+import { InboxPort, NullInboxPort } from '../lifecycle/drivers/inbox-port';
 import { ComplianceService } from '../operations/compliance-service';
 import { ComplianceExecutor } from '../execution/executor';
 import { FormatProviderRegistry } from '../providers/format/registry';
 import { TransmissionProviderRegistry } from '../providers/transmission/registry';
 import { SigningProviderRegistry } from '../providers/signing/registry';
+import { KsefInboxPort } from '../providers/transmission/ksef/ksef-inbox-port';
 import { InvoiceRenderingModule } from '@/modules/invoice-rendering/invoice-rendering.module';
 import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
 import { InvoiceMailGateway } from '@/modules/invoice-rendering/invoice-mail.gateway';
@@ -29,6 +30,8 @@ import { SigningCertificatesService } from '@/modules/signing-certificates/signi
 import { ApplySignalService } from './apply-signal';
 import { ComplianceQueueDispatcher } from './queue/compliance-queue.dispatcher';
 import { QueueModule } from './queue/queue.module';
+import { InboundInvoiceService } from '../reception/inbound-invoice.service';
+import { InboundInvoiceDocumentSink } from '../reception/inbound-invoice-document-sink';
 
 /**
  * QUEUE_IMPL_PLAN.md §4.8/§5.3 — providers-only compliance module, no controllers.
@@ -133,19 +136,42 @@ import { QueueModule } from './queue/queue.module';
         }),
       inject: [ApplySignalService, PrismaCallbackStore],
     },
-    // InboxPoller — §4 inbox polling driver (SFTP/IMAP), moved here from ComplianceModule in Phase 3
-    // (QUEUE_IMPL_PLAN.md §5.3/§9) so `sweep.processor.ts` (worker-side, no controllers) can inject it
-    // exactly like the API side does. Default: NullInboxPort (offline-safe, no polling without config).
-    // Replace 'INBOX_PORTS' with real port instances when credentials are available.
+    // InboundInvoiceService — parse + store received supplier invoices (moved here from
+    // ComplianceModule so InboxPoller's documentSink — below — can reuse it; it only needs
+    // PrismaService, already imported via PrismaModule).
+    {
+      provide: InboundInvoiceService,
+      useFactory: (prisma: PrismaService) => new InboundInvoiceService(prisma),
+      inject: [PrismaService],
+    },
+    // InboundInvoiceDocumentSink — Nest adapter: InboundDocumentSink port → InboundInvoiceService.
+    {
+      provide: InboundInvoiceDocumentSink,
+      useFactory: (inboundInvoices: InboundInvoiceService) => new InboundInvoiceDocumentSink(inboundInvoices),
+      inject: [InboundInvoiceService],
+    },
+    // InboxPoller — §4 inbox polling driver (SFTP/IMAP/KSeF query), moved here from ComplianceModule
+    // in Phase 3 (QUEUE_IMPL_PLAN.md §5.3/§9) so `sweep.processor.ts` (worker-side, no controllers)
+    // can inject it exactly like the API side does.
+    //
+    // 'INBOX_PORTS' always includes NullInboxPort (a harmless no-op) plus KsefInboxPort — the latter
+    // self-activates per company (M-6/F-15): with zero companies holding an active 'ksef' channel
+    // config, `KsefInboxPort.poll()` returns [] on its first await, so the array's net effect is
+    // identical to [NullInboxPort] until a company actually configures KSeF. Offline-safe by
+    // construction — no env var/feature flag needed to keep this inert in dev/CI.
     {
       provide: 'INBOX_PORTS',
-      useFactory: () => [new NullInboxPort()],
+      useFactory: (credentials: ChannelCredentialsService): InboxPort[] => [
+        new NullInboxPort(),
+        new KsefInboxPort({ credentials }),
+      ],
+      inject: [ChannelCredentialsService],
     },
     {
       provide: InboxPoller,
-      useFactory: (router: InboundRouter, ports: InstanceType<typeof NullInboxPort>[]) =>
-        new InboxPoller({ router, ports }),
-      inject: [InboundRouter, 'INBOX_PORTS'],
+      useFactory: (router: InboundRouter, ports: InboxPort[], documentSink: InboundInvoiceDocumentSink) =>
+        new InboxPoller({ router, ports, documentSink }),
+      inject: [InboundRouter, 'INBOX_PORTS', InboundInvoiceDocumentSink],
     },
     // FormatProviderRegistry with real rendering port (InvoiceRenderingService)
     {
@@ -240,6 +266,7 @@ import { QueueModule } from './queue/queue.module';
     ReportingRegistry,
     ComplianceExecutor,
     ComplianceService,
+    InboundInvoiceService,
   ],
 })
 export class ComplianceCoreModule {}

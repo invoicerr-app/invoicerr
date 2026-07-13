@@ -103,29 +103,36 @@ const SAMPLE_FATTURAPA = `<?xml version="1.0" encoding="UTF-8"?>
   </FatturaElettronicaBody>
 </FatturaElettronica>`;
 
-const SAMPLE_FA_VAT = JSON.stringify({
-  Faktura: {
-    Podmiot1: {
-      DaneIdentyfikacyjne: {
-        NIP: '1234567890',
-        PelnaNazwa: 'Dostawca Sp. z o.o.',
-      },
-    },
-    Podmiot2: {
-      DaneIdentyfikacyjne: {
-        NIP: '9876543210',
-      },
-    },
-    Fa: {
-      P_1: '2026-06-01',
-      P_2: 'FV/2026/001',
-      KodWaluty: 'PLN',
-      P_13_1: 1000,
-      P_14_1: 230,
-      P_15: 1230,
-    },
-  },
-});
+// Real FA(2) shape (github.com/CIRFMF/ksef-api) — namespace + element names verbatim, not invented.
+// GET /invoices/ksef/{ksefNumber} returns this XML directly (application/xml), never JSON.
+const SAMPLE_FA_VAT = `<?xml version="1.0" encoding="UTF-8"?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2023/06/29/12648/">
+  <Naglowek>
+    <KodFormularza kodSystemowy="FA (2)" wersjaSchemy="1-0E">FA</KodFormularza>
+    <WariantFormularza>2</WariantFormularza>
+    <DataWytworzeniaFa>2026-06-01T10:00:00</DataWytworzeniaFa>
+  </Naglowek>
+  <Podmiot1>
+    <DaneIdentyfikacyjne>
+      <NIP>1234567890</NIP>
+      <PelnaNazwa>Dostawca Sp. z o.o.</PelnaNazwa>
+    </DaneIdentyfikacyjne>
+  </Podmiot1>
+  <Podmiot2>
+    <DaneIdentyfikacyjne>
+      <NIP>9876543210</NIP>
+      <PelnaNazwa>Client Corp</PelnaNazwa>
+    </DaneIdentyfikacyjne>
+  </Podmiot2>
+  <Fa>
+    <KodWaluty>PLN</KodWaluty>
+    <P_1>2026-06-01</P_1>
+    <P_2>FV/2026/001</P_2>
+    <P_13_1>1000.00</P_13_1>
+    <P_14_1>230.00</P_14_1>
+    <P_15>1230.00</P_15>
+  </Fa>
+</Faktura>`;
 
 // ---------------------------------------------------------------------------
 // Mock PrismaService
@@ -248,9 +255,9 @@ describe('InboundInvoiceService', () => {
     expect(created.status).toBe('PARSED');
   });
 
-  // ---- FA_VAT (KSeF JSON) parsing ----
+  // ---- FA_VAT (KSeF XML) parsing ----
 
-  it('parses a FA_VAT (KSeF JSON) invoice into canonical fields', async () => {
+  it('parses a FA_VAT (KSeF FA(2) XML) invoice into canonical fields', async () => {
     const result = await service.receiveDocument({
       companyId: 'co-1',
       channel: 'GOV_PORTAL_API',
@@ -269,6 +276,8 @@ describe('InboundInvoiceService', () => {
     expect(created.sellerTaxId).toBe('1234567890');
     expect(created.buyerTaxId).toBe('9876543210');
     expect(created.currency).toBe('PLN');
+    expect(created.totalNet).toBeCloseTo(1000);
+    expect(created.totalTax).toBeCloseTo(230);
     expect(created.totalGross).toBeCloseTo(1230);
     expect(created.status).toBe('PARSED');
   });
