@@ -2,10 +2,15 @@ import { TransactionContext } from '../../canonical/canonical-document';
 import { CompliancePlan, PlannedArtifact } from '../../engine/compliance-engine';
 import { ComplianceLogger } from '../../execution/logger';
 import { RenderedArtifact, ValidationReport } from '../../execution/types';
-import { validateSchematron, validateXsd } from '../../schemas/validate';
+import { SchematronResult, validateSchematron, validateXsd } from '../../schemas/validate';
 import { ArtifactRole, DocumentSyntax } from '../../types';
 import { FormatProvider } from './format-provider';
 import { ExportFormat, InvoiceArtifactPort, XmlExportFormat } from './invoice-artifact-port';
+
+/** EN16931 CII Schematron (preprocessed .sch, all includes resolved) — real BR-* rule set. */
+const EN16931_CII_SCH = 'en16931/EN16931-CII-validation-preprocessed.sch';
+/** OpenPEPPOL's Peppol BIS Billing 3.0 delta Schematron (see En16931FormatProvider.validate()). */
+const PEPPOL_BIS_SCH = 'peppol/PEPPOL-EN16931-UBL.sch';
 
 function rendered(artifact: PlannedArtifact): RenderedArtifact {
   return {
@@ -96,22 +101,92 @@ export class En16931FormatProvider implements FormatProvider {
     };
   }
   async validate(rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport> {
-    if (rendered.syntax !== 'PEPPOL_BIS') {
-      log.todo('format/en16931', `validate ${rendered.syntax} against EN 16931 Schematron`);
-      return okValidation(`EN16931 ${rendered.syntax} validation not implemented (stub)`);
+    if (!rendered.bytes.length) {
+      return okValidation(`${rendered.syntax} validation skipped (no bytes — stub path)`);
     }
-    // Peppol BIS Billing 3.0 — validate UBL output against the official PEPPOL Schematron
-    if (!rendered.bytes.length) return okValidation('PEPPOL_BIS validation skipped (no bytes — stub path)');
-    const xml = new TextDecoder().decode(rendered.bytes);
-    const result = validateSchematron(xml, 'peppol/PEPPOL-EN16931-UBL.sch');
-    const errors = result.errors.map((e) => `[${e.id}] ${e.message}`);
-    if (!result.valid) {
-      log.warn(
-        'format/peppol-bis',
-        `Peppol BIS Schematron: ${result.errorCount} error(s) — ${errors.slice(0, 3).join('; ')}`,
+    // FACTURX/ZUGFERD/PDF_A3 are hybrid PDF/A-3 containers (embedInPdf()) — `rendered.bytes` is a
+    // PDF, not XML, and validate() only receives the already-rendered artifact (no access back to
+    // the pre-embed XML or the TransactionContext used to build it). Extracting the embedded XML
+    // from a PDF/A-3 attachment isn't implemented, so decoding these bytes as text and running
+    // Schematron on them would be meaningless (garbage input, not a real gate). Skip honestly
+    // rather than fake a pass/fail on binary data — see M-1 report for how EN16931_CII/FACTURX-XML
+    // are still covered (the pure-XML syntaxes below).
+    if (rendered.mime !== 'application/xml') {
+      log.todo(
+        'format/en16931',
+        `${rendered.syntax} validation skipped — artifact is ${rendered.mime}, not XML ` +
+          `(PDF/A-3 embedded-XML extraction not implemented)`,
+      );
+      return okValidation(
+        `${rendered.syntax} is a PDF/A-3 container — Schematron needs the pre-embed XML (not implemented)`,
       );
     }
-    return { valid: result.valid, errors, warnings: [] };
+    const xml = new TextDecoder().decode(rendered.bytes);
+
+    // EN16931_CII / FACTURX-as-XML — the real EN16931 Schematron for the CII binding. Validated
+    // directly against the built XML (never round-tripped through @fin.cx/einvoice's fromXml,
+    // which has a known CII parsing bug — see einvoice-cii-validation-gotcha).
+    if (rendered.syntax === 'EN16931_CII' || rendered.syntax === 'FACTURX') {
+      const result = validateSchematron(xml, EN16931_CII_SCH);
+      return this.reportFrom(result, log, 'format/en16931-cii', rendered.syntax);
+    }
+
+    // Peppol BIS Billing 3.0 — validate UBL output against the official PEPPOL Schematron. This is
+    // the ONLY UBL-family Schematron vendored (it is OpenPEPPOL's *delta* on top of the base
+    // EN16931-UBL ruleset — no base EN16931-UBL Schematron is vendored, see below).
+    if (rendered.syntax === 'PEPPOL_BIS') {
+      const result = validateSchematron(xml, PEPPOL_BIS_SCH);
+      return this.reportFrom(result, log, 'format/peppol-bis', rendered.syntax);
+    }
+
+    // EN16931_UBL / XRECHNUNG — no base EN16931-UBL Schematron is vendored in this repo (only the
+    // Peppol-specific delta above, and the true EN16931-CII ruleset). Running the Peppol delta as a
+    // *blocking* gate here was tried and empirically false-blocks every non-Peppol UBL/XRechnung
+    // fixture: PEPPOL-EN16931-R004/R007 assert the document carries Peppol's own
+    // CustomizationID/ProfileID, which a document that never goes out over Peppol legitimately does
+    // not have. XRechnung's "german-rules" pattern (DE-R-*, the closest available proxy for the
+    // official BR-DE rules — no official KoSIT XRechnung Schematron is vendored either) is real and
+    // useful (e.g. DE-R-005 "seller contact point" catches the documented XRechnung BR-DE data gap
+    // — Contact/PaymentMeans emitted but some sub-fields still missing), but only fires for DE→DE
+    // traffic and cannot be blindly trusted to be exhaustive for a ruleset this repo doesn't fully
+    // vendor. So: run it, but surface every finding (fatal or warning) as a warning — informational,
+    // never blocking — until a true base EN16931-UBL Schematron (and the real KoSIT BR-DE one) are
+    // vendored (tracked separately, not part of M-1).
+    if (rendered.syntax === 'EN16931_UBL' || rendered.syntax === 'XRECHNUNG') {
+      const result = validateSchematron(xml, PEPPOL_BIS_SCH);
+      const all = [...result.errors, ...result.warnings].map((e) => `[${e.id}] ${e.message}`);
+      if (all.length > 0) {
+        log.warn(
+          'format/en16931-ubl',
+          `${rendered.syntax} Schematron (Peppol-delta, non-blocking): ${all.slice(0, 3).join('; ')}`,
+        );
+      }
+      return { valid: true, errors: [], warnings: all };
+    }
+
+    // ZUGFERD-as-XML / PDF_A3-as-XML / anything else in the family reaching here with real XML
+    // bytes (not expected in production — PDF-mime is caught above) — no dedicated ruleset; leave
+    // as an honest stub rather than mis-apply the CII or Peppol schema to an unknown shape.
+    log.todo('format/en16931', `validate ${rendered.syntax} against EN 16931 Schematron`);
+    return okValidation(`EN16931 ${rendered.syntax} validation not implemented (stub)`);
+  }
+
+  /** Turn a SchematronResult into a ValidationReport, logging a warning when it blocks. */
+  private reportFrom(
+    result: SchematronResult,
+    log: ComplianceLogger,
+    scope: string,
+    syntax: DocumentSyntax,
+  ): ValidationReport {
+    const errors = result.errors.map((e) => `[${e.id}] ${e.message}`);
+    const warnings = result.warnings.map((e) => `[${e.id}] ${e.message}`);
+    if (!result.valid) {
+      log.warn(
+        scope,
+        `${syntax} Schematron: ${result.errorCount} error(s) — ${errors.slice(0, 3).join('; ')}`,
+      );
+    }
+    return { valid: result.valid, errors, warnings };
   }
 }
 
@@ -231,6 +306,21 @@ export class FatturaPaFormatProvider implements FormatProvider {
     if (!result.valid) {
       log.warn('format/fatturapa', `FatturaPA XSD errors: ${result.errors.slice(0, 3).join('; ')}`);
       return { valid: false, errors: result.errors, warnings: [] };
+    }
+    // Business-rule gate — @digitalia/fatturapa's own yup schema (FPAYupSchema), the authoritative
+    // rule set the library ships alongside the XSD (e.g. StabileOrganizzazione required when
+    // Sede.Nazione !== 'IT'). Round-tripped via the library's OWN parser (fpa2js), which is
+    // independent of — and not affected by — the unrelated @fin.cx/einvoice CII fromXml bug (see
+    // einvoice-cii-validation-gotcha); this is the exact pattern national-format-validation.spec.ts
+    // already exercises against real fixtures.
+    try {
+      const { fpa2js, fpaValidate, FPAYupSchema } = await import('@digitalia/fatturapa');
+      const parsed = fpa2js(xml, { validate: true, valuesOnly: true });
+      await fpaValidate(parsed, FPAYupSchema);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      log.warn('format/fatturapa', `FatturaPA business-rule (yup) validation failed: ${message}`);
+      return { valid: false, errors: [message], warnings: [] };
     }
     return { valid: true, errors: [], warnings: [] };
   }
@@ -378,6 +468,7 @@ export class FacturaeFormatProvider implements FormatProvider {
     // Facturaev3_2_2.xsd vendored from https://www.facturae.gob.es/content/dam/facturae/formato/versiones/Facturaev3_2_2.xml
     // (official Ministerio de Hacienda / facturae.gob.es schema, fetched 2026-07-04).
     // xmldsig-core-schema.xsd co-vendored for xsd:import resolution.
+    if (!rendered.bytes.length) return okValidation('Facturae validation skipped (no bytes — stub path)');
     const xml = new TextDecoder().decode(rendered.bytes);
     const result = await validateXsd(xml, 'es/Facturaev3_2_2.xsd');
     if (!result.valid) {

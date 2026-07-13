@@ -28,7 +28,7 @@ import { AuthorityRangeSource, defaultAuthorityRangeSource } from '../lifecycle/
 import { ResponseTracker, defaultResponseTracker } from '../lifecycle/response';
 import { DocumentSyntax } from '../types';
 import { ComplianceLogger, defaultLogger } from './logger';
-import { ExecutionResult, SignedArtifact } from './types';
+import { ExecutionResult, FormatValidationError, SignedArtifact } from './types';
 
 /**
  * Artifact syntaxes rendered as a PDF container (Factur-X/ZUGFeRD hybrid PDF/A-3, or a plain PDF
@@ -215,6 +215,34 @@ export class ComplianceExecutor {
 
     // 3. Build each planned artifact (authoritative / human / buyer).
     const artifacts = await this.formats.buildAll(ctx, plan, log);
+
+    // 3b. M-1 (COMPLIANCE_AUDIT.md): a built artifact that FAILS format validation (XSD
+    // structurally invalid, or Schematron fatal/error-level assertions) must never reach
+    // signing/transmission — before this fix, provider.validate()'s result was discarded by
+    // buildAll() and an invalid CII/FA_VAT/FatturaPA could be transmitted unchecked. Abort the
+    // whole pipeline here, before step 4; the caller (ComplianceService.send()) turns this into a
+    // recorded, non-swallowed event (F-9 sincerity pattern) instead of a silent partial send.
+    // Warning-level Schematron findings never reach here (see providers.ts) — only genuine
+    // failures do, so this cannot false-block a document whose only findings are advisory.
+    const invalidArtifacts = artifacts.filter((a) => a.validation && !a.validation.valid);
+    if (invalidArtifacts.length > 0) {
+      const failures = invalidArtifacts.map((a) => ({
+        syntax: a.syntax,
+        role: a.role,
+        errors: a.validation!.errors,
+      }));
+      const summary = failures
+        .map((f) => `${f.syntax}/${f.role}: ${f.errors.slice(0, 2).join('; ')}`)
+        .join(' | ');
+      log.warn('executor/validate', `format validation blocked pipeline — ${summary}`);
+      throw new FormatValidationError(`Format validation failed — ${summary}`, failures);
+    }
+    // Non-blocking (warning-level) findings still ride along as pipeline warnings.
+    for (const a of artifacts) {
+      if (a.validation?.warnings?.length) {
+        for (const w of a.validation.warnings) warnings.push(`[validation:${a.syntax}] ${w}`);
+      }
+    }
 
     // 4. Sign (dispatched PER ARTIFACT by its DocumentSyntax — see chooseSignAlgo; F-5).
     const gateSigned = this.requiresSignature(plan);

@@ -11,7 +11,13 @@ import { TransactionContext } from '../canonical/canonical-document';
 import { resolve } from '../engine/compliance-engine';
 import { ComplianceExecutor, defaultExecutor } from '../execution/executor';
 import { ComplianceLogger, defaultLogger } from '../execution/logger';
-import { AuthorityIdentifier, ExecutionResult, SignedArtifact, TransmissionResult } from '../execution/types';
+import {
+  AuthorityIdentifier,
+  ExecutionResult,
+  FormatValidationError,
+  SignedArtifact,
+  TransmissionResult,
+} from '../execution/types';
 import { AuthorityRangeSource, defaultAuthorityRangeSource } from '../lifecycle/authority-range-source';
 import { defaultCorrectionRegistry, CorrectionRegistry } from '../lifecycle/corrections';
 import { defaultNumberingRegistry, NumberingRegistry } from '../lifecycle/numbering';
@@ -283,6 +289,38 @@ export class ComplianceService {
     return { event, transmitRef: acceptedTransmission?.ref, execution };
   }
 
+  /**
+   * M-1: record a first-class, persisted VALIDATION_BLOCKED event for a document whose artifact
+   * failed format validation — the executor already aborted before signing/transmission (see
+   * ComplianceExecutor.execute()). Mirrors the F-9 sincerity pattern used for numbering failures in
+   * issue(): a genuine validation failure is surfaced as an event, never swallowed into a log line.
+   * Leaves the document's status untouched (it never reached DELIVERED/PENDING_CLEARANCE/
+   * TRANSMISSION_FAILED).
+   *
+   * Shared by BOTH transmit paths so the event shape lives in ONE place: the sync path (`send()`
+   * records then rethrows) and the async path (`TransmitProcessor` records then returns without
+   * retrying — a deterministic validation failure must not trigger a BullMQ retry).
+   */
+  async recordValidationBlocked(id: string, err: FormatValidationError): Promise<ComplianceDocumentRecord> {
+    const rec = await this.require(id);
+    const reason = err.message;
+    const updated = await this.store.update(id, {
+      events: [
+        ...rec.events,
+        {
+          id: randomUUID(),
+          type: 'VALIDATION_BLOCKED',
+          at: now(),
+          actor: 'system',
+          detail: reason,
+          payload: err.failures,
+        },
+      ],
+    });
+    this.log.warn('operations/validation', `format validation blocked for ${id}: ${reason}`);
+    return updated;
+  }
+
   /** Run the full pipeline (build → sign → regime → transmit → archive → report) and move state. */
   async send(id: string, opts: IssueOptions = {}): Promise<SendResult> {
     const rec = await this.require(id);
@@ -298,7 +336,19 @@ export class ComplianceService {
       );
     }
     const plan = rec.plan ?? resolve(rec.ctx);
-    const outcome = await this.computeSendOutcome(rec, opts);
+    let outcome: { event: ComplianceEvent; transmitRef?: string; execution: ExecutionResult };
+    try {
+      outcome = await this.computeSendOutcome(rec, opts);
+    } catch (e) {
+      if (e instanceof FormatValidationError) {
+        // M-1: an artifact failed format validation — the executor already aborted before
+        // signing/transmission. Record the first-class VALIDATION_BLOCKED event (shared with the
+        // async TransmitProcessor path so the event shape lives in one place), leave the document's
+        // status untouched, and rethrow so the caller cannot mistake this for a successful send.
+        await this.recordValidationBlocked(id, e);
+      }
+      throw e;
+    }
     const execution = outcome.execution;
 
     let current = await this.store.update(id, {
@@ -594,13 +644,26 @@ export class ComplianceService {
     return { document: rec, receipt };
   }
 
-  /** Pre-flight validation of the document against its format rules. */
+  /**
+   * Pre-flight validation of the document against its format rules — builds every planned
+   * artifact and aggregates each provider's real ValidationReport (M-1). Read-only: never mutates
+   * the document or blocks anything by itself — callers that need enforcement go through
+   * issue()/send(), where ComplianceExecutor.execute() actually aborts on a FormatValidationError.
+   */
   async validate(id: string): Promise<{ valid: boolean; errors: string[]; warnings: string[] }> {
     const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
-    await this.formats.buildAll(rec.ctx, plan, this.log); // each provider runs its own validate()
-    this.log.todo('operations/validate', 'aggregate per-artifact ValidationReports');
-    return { valid: true, errors: [], warnings: ['validation aggregation is stubbed'] };
+    const artifacts = await this.formats.buildAll(rec.ctx, plan, this.log); // each provider runs its own validate()
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    for (const a of artifacts) {
+      const report = a.validation;
+      if (!report) continue;
+      if (!report.valid) errors.push(...report.errors.map((e) => `[${a.syntax}/${a.role}] ${e}`));
+      if (report.warnings.length)
+        warnings.push(...report.warnings.map((w) => `[${a.syntax}/${a.role}] ${w}`));
+    }
+    return { valid: errors.length === 0, errors, warnings };
   }
 
   /** Append a custom audit event to a document without any state machine transition. */

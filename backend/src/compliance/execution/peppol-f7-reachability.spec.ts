@@ -68,12 +68,16 @@ function makeArtifactPort(fixtureData: InvoiceRenderData): InvoiceArtifactPort {
       const inv = renderService.buildEInvoice(fixtureData);
       return inv.exportXml(format);
     },
-    renderFatturaPa: async () => '<stub/>',
-    renderCfdi: async () => '<stub/>',
-    renderFacturae: async () => '<stub/>',
-    renderKsaUbl: async () => '<stub/>',
-    renderFaVat: async () => '<stub/>',
-    renderNationalXml: async () => '<stub/>',
+    // M-1: these providers now run real, blocking format validation (XSD/Schematron). '<stub/>' is
+    // not a valid document for any of them and would fail that gate — return '' instead so each
+    // provider takes its "no real bytes, nothing to validate" stub path, matching the "irrelevant
+    // to what this spec asserts" intent above (only PEPPOL_BIS/UBL is exercised here).
+    renderFatturaPa: async () => '',
+    renderCfdi: async () => '',
+    renderFacturae: async () => '',
+    renderKsaUbl: async () => '',
+    renderFaVat: async () => '',
+    renderNationalXml: async () => '',
   };
 }
 

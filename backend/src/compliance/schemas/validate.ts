@@ -50,14 +50,49 @@ function loadSchema(relPath: string) {
   return schema;
 }
 
+// M-1: node-schematron's Assert/Result classes only expose { id, test, message, isReport } — the
+// ISO Schematron `flag` attribute (fatal|warning, used throughout the vendored EN16931/Peppol .sch
+// files to distinguish a hard rule violation from an advisory one) is parsed by the library but
+// never surfaced on the result. Since every failed assertion (isReport=false) would otherwise be
+// treated as an "error" regardless of what the schema author intended, we extract id→flag straight
+// from the .sch source (a plain attribute read, not a schema re-implementation) and use it to split
+// failures into blocking `errors` (flag="fatal"/unspecified) vs non-blocking `warnings`
+// (flag="warning"). Cached per path alongside the compiled Schema.
+const SEVERITY_CACHE = new Map<string, Map<string, string>>();
+
+function loadSeverityMap(relPath: string): Map<string, string> {
+  const cached = SEVERITY_CACHE.get(relPath);
+  if (cached) return cached;
+  const absPath = path.resolve(__dirname, relPath);
+  const content = fs.readFileSync(absPath, 'utf-8');
+  const map = new Map<string, string>();
+  // Attribute order varies across vendored .sch files (id-then-flag, flag-then-id, multi-line) —
+  // match the whole opening <assert ...> tag then pull id/flag out independently.
+  const assertTagRe = /<assert\b([^>]*)>/g;
+  for (const match of content.matchAll(assertTagRe)) {
+    const attrs = match[1];
+    const idMatch = attrs.match(/\bid="([^"]*)"/);
+    const flagMatch = attrs.match(/\bflag="([^"]*)"/);
+    if (idMatch) map.set(idMatch[1], flagMatch ? flagMatch[1] : 'fatal');
+  }
+  SEVERITY_CACHE.set(relPath, map);
+  return map;
+}
+
 export interface SchematronResult {
+  /** No blocking (fatal/unspecified) findings. Warning-level findings do not affect this. */
   valid: boolean;
+  /** Count of blocking (fatal/unspecified) findings — mirrors `errors.length`. */
   errorCount: number;
+  /** Blocking findings (flag="fatal" or no flag attribute on the rule). */
   errors: SchematronError[];
+  /** Non-blocking findings (flag="warning") — surfaced for visibility, never block. */
+  warnings: SchematronError[];
 }
 
 export interface SchematronError {
   id: string;
+  /** The rule's ISO Schematron `flag` attribute, e.g. 'fatal' | 'warning'. */
   flag: string;
   message: string;
 }
@@ -68,25 +103,30 @@ export interface SchematronError {
  * 'en16931/EN16931-CII-validation-preprocessed.sch'.
  *
  * node-schematron result items: { assertId: string, isReport: boolean, message: string }
- * isReport=false → failed assertion (error), isReport=true → fired report (informational).
+ * isReport=false → failed assertion, isReport=true → fired report (informational, always ignored).
+ * Failed assertions are further split by the rule's `flag` attribute (see loadSeverityMap): fatal
+ * (or unspecified) → `errors` (blocking); warning → `warnings` (non-blocking).
  */
 export function validateSchematron(xml: string, schRelPath: string): SchematronResult {
   const schema = loadSchema(schRelPath);
+  const severity = loadSeverityMap(schRelPath);
   const results: Array<{ assertId: string; isReport: boolean; message: string }> = schema.validateString(xml);
 
-  // Only count failed assertions (isReport=false); reports are informational
-  const errors: SchematronError[] = results
-    .filter((r) => !r.isReport)
-    .map((r) => ({
-      id: r.assertId,
-      flag: 'error',
-      message: r.message,
-    }));
+  const errors: SchematronError[] = [];
+  const warnings: SchematronError[] = [];
+  for (const r of results) {
+    if (r.isReport) continue; // informational <report> fires — never a validation finding
+    const flag = (r.assertId && severity.get(r.assertId)) || 'fatal';
+    const entry: SchematronError = { id: r.assertId, flag, message: r.message };
+    if (flag === 'warning') warnings.push(entry);
+    else errors.push(entry);
+  }
 
   return {
     valid: errors.length === 0,
     errorCount: errors.length,
     errors,
+    warnings,
   };
 }
 

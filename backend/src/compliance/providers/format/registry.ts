@@ -65,7 +65,12 @@ export class FormatProviderRegistry {
         continue;
       }
       const built = await provider.build(artifact, ctx, plan, log);
-      await provider.validate(built, log);
+      // M-1: attach the validation report to the artifact instead of discarding it — this is what
+      // lets ComplianceExecutor.execute() actually block on an invalid document (and
+      // ComplianceService.validate() aggregate a real pre-flight report). buildAll() itself stays
+      // non-throwing: it is also used by non-blocking callers (archiveDocument(), sendViaChannel(),
+      // the reachability tests) that legitimately want every artifact built regardless of validity.
+      built.validation = await provider.validate(built, log);
       results.push(built);
     }
     return results;

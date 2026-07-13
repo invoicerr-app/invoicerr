@@ -7,12 +7,36 @@ export interface RenderedArtifact {
   syntax: DocumentSyntax;
   mime: string;
   bytes: Uint8Array;
+  /**
+   * M-1 (COMPLIANCE_AUDIT.md): populated by FormatProviderRegistry.buildAll() from
+   * provider.validate() — makes format validity a first-class part of the artifact instead of a
+   * discarded return value. ComplianceExecutor.execute() reads this to block before sign/transmit.
+   */
+  validation?: ValidationReport;
 }
 
 export interface ValidationReport {
   valid: boolean;
   errors: string[];
   warnings: string[];
+}
+
+/**
+ * M-1: thrown by ComplianceExecutor.execute() when a built artifact fails format validation (XSD
+ * structural invalidity, or Schematron fatal/error-level assertions). Mirrors the F-9 sincerity
+ * pattern already used for numbering failures (ComplianceService.issue()): a genuine validation
+ * failure must abort the pipeline before signing/transmission, not be swallowed into a log line.
+ * Schematron warning-level findings never reach here — they stay on RenderedArtifact.validation
+ * .warnings and are surfaced without blocking.
+ */
+export class FormatValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly failures: Array<{ syntax: DocumentSyntax; role: ArtifactRole; errors: string[] }>,
+  ) {
+    super(message);
+    this.name = 'FormatValidationError';
+  }
 }
 
 export interface AuthorityIdentifier {

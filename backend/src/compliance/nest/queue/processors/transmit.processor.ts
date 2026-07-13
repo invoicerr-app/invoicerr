@@ -2,6 +2,7 @@ import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { ApplySignalService } from '../../apply-signal';
+import { FormatValidationError } from '../../../execution/types';
 import { PrismaComplianceDocumentStore } from '../../../persistence/prisma-document-store';
 import { ComplianceService } from '../../../operations/compliance-service';
 import { TransmitJobData, Q_TRANSMIT } from '../queue.constants';
@@ -49,7 +50,28 @@ export class TransmitProcessor extends WorkerHost {
       return;
     }
 
-    const outcome = await this.complianceService.computeSendOutcome(rec, { idempotencyKey });
+    let outcome: Awaited<ReturnType<ComplianceService['computeSendOutcome']>>;
+    try {
+      outcome = await this.complianceService.computeSendOutcome(rec, { idempotencyKey });
+    } catch (err) {
+      if (err instanceof FormatValidationError) {
+        // M-1 (parity with ComplianceService.send()): the artifact failed format validation, so the
+        // executor aborted before any transmission. Record the first-class VALIDATION_BLOCKED event
+        // (shared ComplianceService method — same event shape as the sync path) and RETURN NORMALLY.
+        // A format-validation failure is DETERMINISTIC: rebuilding the same invalid artifact on a
+        // BullMQ retry would fail identically, so rethrowing here would only burn pointless retries
+        // and, after removeOnFail, leave the document stuck at ISSUED with no surfaced state. Instead
+        // the document stays at ISSUED (never transmitted) with the VALIDATION_BLOCKED event visible
+        // — exactly the state outcome the sync path produces. Any OTHER error is transient (e.g. a
+        // network hiccup) and MUST rethrow so BullMQ retries it.
+        await this.complianceService.recordValidationBlocked(documentId, err);
+        this.logger.warn(
+          `[TRANSMIT] document ${documentId} blocked by format validation — recorded VALIDATION_BLOCKED, not retrying (job ${job.id}): ${err.message}`,
+        );
+        return;
+      }
+      throw err;
+    }
 
     // Parity with ComplianceService.send(): persist the resolved regime authorityIds alongside the
     // transition (applySignal's transaction only touches status/events; it does not know about
