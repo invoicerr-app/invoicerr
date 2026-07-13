@@ -281,6 +281,11 @@ export class InvoiceRenderingService {
 
     const sellerVat = getIdentifier(data.company, 'VAT');
     const buyerVat = getIdentifier(data.client, 'VAT');
+    // BT-10 Buyer reference / DE Leitweg-ID (M-9 part 2): the mandatory routing key for German
+    // federal/state B2G invoices. When the buyer carries a LEITWEG_ID party identifier, it MUST
+    // travel in cbc:BuyerReference — falls back to the invoice-number placeholder otherwise (see
+    // PEPPOL-EN16931-R003 note below, which only requires SOME buyer reference to be present).
+    const buyerLeitwegId = getIdentifier(data.client, 'LEITWEG_ID');
     // schemeID 0002 = SIREN (9 digits). The app stores the French legal id as a 14-digit SIRET
     // (SIREN + NIC); derive the SIREN from its first 9 digits so the CTC seller/buyer id is valid.
     const toSiren = (legalId?: string): string | undefined => {
@@ -547,8 +552,9 @@ export class InvoiceRenderingService {
         'cbc:InvoiceTypeCode': '380',
         'cbc:DocumentCurrencyCode': currency,
         // PEPPOL-EN16931-R003: buyer reference or purchase order reference is required.
-        // Fall back to the invoice number when no explicit buyer PO ref is provided.
-        'cbc:BuyerReference': data.rawNumber || (data.number?.toString() ?? '0'),
+        // DE Leitweg-ID takes priority (BT-10, mandatory for B2G); otherwise fall back to the
+        // invoice number so the rule is still satisfied when no routing id is configured.
+        'cbc:BuyerReference': buyerLeitwegId || data.rawNumber || (data.number?.toString() ?? '0'),
         'cac:AccountingSupplierParty': { 'cac:Party': sellerParty as any },
         'cac:AccountingCustomerParty': { 'cac:Party': buyerParty as any },
         'cac:Delivery': { 'cbc:ActualDeliveryDate': issueDateStr },

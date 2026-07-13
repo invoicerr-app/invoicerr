@@ -13,11 +13,16 @@
  *   [negative] a deliberately broken document fails validation
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import type { TransactionContext } from '../../canonical/canonical-document';
+import type { PlannedArtifact } from '../../engine/compliance-engine';
 import { RecordingComplianceLogger } from '../../execution/logger';
 import { RenderedArtifact } from '../../execution/types';
 import { validateXsd, validateSchematron } from '../../schemas/validate';
 import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
-import { IT_B2B, MX_B2B, ES_B2B, PL_B2B, FR_B2B_STANDARD } from './__fixtures__/invoices';
+import { DE_B2B, IT_B2B, MX_B2B, ES_B2B, PL_B2B, FR_B2B_STANDARD } from './__fixtures__/invoices';
+import type { InvoiceArtifactPort, XmlExportFormat } from './invoice-artifact-port';
 import {
   FatturaPaFormatProvider,
   CfdiFormatProvider,
@@ -290,6 +295,147 @@ describe('Peppol BIS Billing 3.0 — Schematron gate (PEPPOL-EN16931-UBL.sch)', 
     expect(result.errorCount).toBeGreaterThan(0);
     const hasR004 = result.errors.some((e) => e.id === 'PEPPOL-EN16931-R004');
     expect(hasR004).toBe(true);
+  });
+});
+
+// ── XRechnung CustomizationID (M-9 part 1) ──────────────────────────────────
+//
+// XRechnung 3.0 must self-identify with its own "compliant" CustomizationID
+// (urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0 — verified against the
+// official KoSIT xrechnung-schematron common.sch $XR-CIUS-ID and xrechnung-testsuite conformant
+// fixtures, see providers.ts), not the bare generic EN16931 one — see providers.ts
+// En16931FormatProvider.build(). Exercised end-to-end via the real provider.build() path (same
+// InvoiceArtifactPort seam used by format-registry.spec.ts), wired to InvoiceRenderingService so
+// the XML is the actual builder output, not a hand-rolled stub.
+
+const XRECHNUNG_CUSTOMIZATION_ID = 'urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0';
+
+function ctxWithRef(ref: string): TransactionContext {
+  return { externalRef: ref } as TransactionContext;
+}
+
+/** InvoiceArtifactPort backed by the real InvoiceRenderingService for a given fixture. */
+function portFor(service: InvoiceRenderingService, data: (typeof DE_B2B)['data']): InvoiceArtifactPort {
+  return {
+    renderPdf: async () => new Uint8Array(),
+    renderPdfFormat: async () => new Uint8Array(),
+    renderXmlFormat: async (_id: string, format: XmlExportFormat) =>
+      service.buildEInvoice(data).exportXml(format),
+    renderFatturaPa: async () => '',
+    renderCfdi: async () => '',
+    renderFacturae: async () => '',
+    renderKsaUbl: async () => '',
+    renderFaVat: async () => '',
+    renderNationalXml: async () => '',
+  };
+}
+
+describe('XRechnung CustomizationID — M-9 part 1', () => {
+  const service = new InvoiceRenderingService();
+  const provider = new En16931FormatProvider(portFor(service, DE_B2B.data));
+  const log = new RecordingComplianceLogger();
+
+  it('XRECHNUNG artifact carries the XRechnung CustomizationID, not the bare generic one', async () => {
+    const artifact: PlannedArtifact = { role: 'AUTHORITATIVE', syntax: 'XRECHNUNG' };
+    const built = await provider.build(artifact, ctxWithRef('inv-xr'), {} as never, log);
+    const xml = new TextDecoder().decode(built.bytes);
+    expect(xml).toContain(`<cbc:CustomizationID>${XRECHNUNG_CUSTOMIZATION_ID}</cbc:CustomizationID>`);
+    expect(xml).not.toContain('<cbc:CustomizationID>urn:cen.eu:en16931:2017</cbc:CustomizationID>');
+  });
+
+  it('plain EN16931_UBL artifact is unaffected — still the bare generic CustomizationID', async () => {
+    const artifact: PlannedArtifact = { role: 'AUTHORITATIVE', syntax: 'EN16931_UBL' };
+    const built = await provider.build(artifact, ctxWithRef('inv-ubl'), {} as never, log);
+    const xml = new TextDecoder().decode(built.bytes);
+    expect(xml).toContain('<cbc:CustomizationID>urn:cen.eu:en16931:2017</cbc:CustomizationID>');
+    expect(xml).not.toContain(XRECHNUNG_CUSTOMIZATION_ID);
+  });
+
+  it('Peppol BIS artifact is unaffected — still gets its own Peppol CustomizationID, not XRechnung’s', async () => {
+    const artifact: PlannedArtifact = { role: 'AUTHORITATIVE', syntax: 'PEPPOL_BIS' };
+    const built = await provider.build(artifact, ctxWithRef('inv-peppol'), {} as never, log);
+    const xml = new TextDecoder().decode(built.bytes);
+    expect(xml).toContain(PEPPOL_BIS_CUSTOMIZATION_ID);
+    expect(xml).not.toContain(XRECHNUNG_CUSTOMIZATION_ID);
+  });
+});
+
+// ── XRechnung real Schematron — base EN16931-UBL + KoSIT BR-DE delta (M-9 part 3) ──────────────
+//
+// Vendored (see providers.ts for full provenance/transformation notes):
+//   - en16931/EN16931-UBL-validation-preprocessed.sch — the REAL base EN16931-UBL ruleset,
+//     ConnectingEurope/eInvoicing-EN16931's own preprocessed file, BLOCKING for EN16931_UBL and
+//     XRECHNUNG.
+//   - de/XRechnung-UBL-validation-preprocessed.sch — KoSIT's own official XRechnung-UBL delta
+//     (itplr-kosit/xrechnung-schematron v2.5.0, the real BR-DE-* rules), run for XRECHNUNG but
+//     kept non-blocking (see providers.ts XRECHNUNG branch comment for exactly why).
+//
+// __fixtures__/kosit-xrechnung-3.0-conformant.xml is KoSIT's OWN official "conformant" business
+// case (itplr-kosit/xrechnung-testsuite, business-cases/standard/01.01a-INVOICE_ubl.xml) — used
+// here as independent ground truth, not a fixture this repo authored.
+describe('XRechnung real Schematron — base EN16931-UBL + KoSIT BR-DE delta (M-9 part 3)', () => {
+  const CONFORMANT_XML = fs.readFileSync(
+    path.resolve(__dirname, '__fixtures__/kosit-xrechnung-3.0-conformant.xml'),
+    'utf-8',
+  );
+
+  it("[positive] KoSIT's own official conformant XRechnung 3.0 UBL fixture validates cleanly against the base EN16931-UBL Schematron", () => {
+    const result = validateSchematron(CONFORMANT_XML, 'en16931/EN16931-UBL-validation-preprocessed.sch');
+    if (result.errorCount > 0) {
+      console.error('Base EN16931-UBL errors:', result.errors);
+    }
+    expect(result.valid).toBe(true);
+    expect(result.errorCount).toBe(0);
+  });
+
+  it("[positive] the same fixture validates cleanly against KoSIT's own XRechnung-UBL delta Schematron", () => {
+    const result = validateSchematron(CONFORMANT_XML, 'de/XRechnung-UBL-validation-preprocessed.sch');
+    if (result.errorCount > 0) {
+      console.error('KoSIT delta errors:', result.errors);
+    }
+    expect(result.valid).toBe(true);
+    expect(result.errorCount).toBe(0);
+    // BR-DE-TMP-32 (flag="information") legitimately fires — this fixture carries no delivery
+    // date / invoicing period at document level. Proves the 3-tier severity fix in validate.ts
+    // (flag="information" → non-blocking, same bucket as "warning") is exercised for real, not
+    // just theorized.
+    expect(result.warnings.some((w) => w.id === 'BR-DE-TMP-32')).toBe(true);
+  });
+
+  it('[positive] provider.validate() on the official conformant fixture returns valid:true end-to-end', async () => {
+    const provider = new En16931FormatProvider();
+    const log = new RecordingComplianceLogger();
+    const artifact = artifactFrom(CONFORMANT_XML, 'XRECHNUNG');
+    const report = await provider.validate(artifact, log);
+    expect(report.valid).toBe(true);
+    expect(report.errors).toHaveLength(0);
+  });
+
+  it('[negative] base EN16931-UBL: stripping the invoice line net amount trips real BR-12/BR-CO-* rules (not invented) and BLOCKS end-to-end via provider.validate()', async () => {
+    const broken = CONFORMANT_XML.replace(
+      '<cbc:LineExtensionAmount currencyID="EUR">314.86</cbc:LineExtensionAmount>',
+      '',
+    );
+    expect(broken).not.toEqual(CONFORMANT_XML); // sanity: the replace actually matched
+
+    const schResult = validateSchematron(broken, 'en16931/EN16931-UBL-validation-preprocessed.sch');
+    expect(schResult.valid).toBe(false);
+    expect(schResult.errors.map((e) => e.id)).toContain('BR-12'); // "shall have the Sum of Invoice line net amount"
+
+    const provider = new En16931FormatProvider();
+    const log = new RecordingComplianceLogger();
+    const report = await provider.validate(artifactFrom(broken, 'XRECHNUNG'), log);
+    expect(report.valid).toBe(false);
+    expect(report.errors.some((e) => e.includes('BR-12'))).toBe(true);
+  });
+
+  it('[negative] KoSIT delta: stripping BuyerReference (BT-10 / the Leitweg-ID field M-9 part 2 fills) trips the real rule BR-DE-15', () => {
+    const broken = CONFORMANT_XML.replace(/<cbc:BuyerReference>[^<]*<\/cbc:BuyerReference>\s*/, '');
+    expect(broken).not.toEqual(CONFORMANT_XML); // sanity: the replace actually matched
+
+    const result = validateSchematron(broken, 'de/XRechnung-UBL-validation-preprocessed.sch');
+    expect(result.valid).toBe(false);
+    expect(result.errors.map((e) => e.id)).toContain('BR-DE-15'); // '"Buyer reference" (BT-10) muss übermittelt werden'
   });
 });
 

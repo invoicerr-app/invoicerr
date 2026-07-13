@@ -9,8 +9,25 @@ import { ExportFormat, InvoiceArtifactPort, XmlExportFormat } from './invoice-ar
 
 /** EN16931 CII Schematron (preprocessed .sch, all includes resolved) — real BR-* rule set. */
 const EN16931_CII_SCH = 'en16931/EN16931-CII-validation-preprocessed.sch';
+/**
+ * Base EN16931 UBL Schematron (preprocessed .sch, all includes resolved) — the CEN TC434
+ * ruleset for the UBL syntax binding (BR-01..BR-66, BR-CO-*, BR-DEC-*, BR-S-*, ...). Vendored
+ * verbatim (no modification) from ConnectingEurope/eInvoicing-EN16931, ubl/schematron/
+ * preprocessed/EN16931-UBL-validation-preprocessed.sch (the maintainer's own pre-combined file —
+ * same reason the CII preprocessed file above is used unmodified). Used for EN16931_UBL and
+ * XRECHNUNG (M-9 part 3) — see En16931FormatProvider.validate().
+ */
+const EN16931_UBL_SCH = 'en16931/EN16931-UBL-validation-preprocessed.sch';
 /** OpenPEPPOL's Peppol BIS Billing 3.0 delta Schematron (see En16931FormatProvider.validate()). */
 const PEPPOL_BIS_SCH = 'peppol/PEPPOL-EN16931-UBL.sch';
+/**
+ * KoSIT's official XRechnung UBL delta Schematron (the real BR-DE-* rules) — itplr-kosit/
+ * xrechnung-schematron v2.5.0 (XRechnung 3.0.x compatible). Hand-inlined (include resolved +
+ * cross-pattern <let> variables hoisted to schema-level — a node-schematron compatibility fix,
+ * not a rule change; see the file's own header comment for the exact transformation). Run for
+ * XRECHNUNG but kept NON-BLOCKING — see the rationale comment on the XRECHNUNG branch below.
+ */
+const XRECHNUNG_DELTA_SCH = 'de/XRechnung-UBL-validation-preprocessed.sch';
 
 function rendered(artifact: PlannedArtifact): RenderedArtifact {
   return {
@@ -43,6 +60,21 @@ const SYNTAX_TO_XML_FORMAT: Partial<Record<DocumentSyntax, XmlExportFormat>> = {
 const PEPPOL_BIS_CUSTOMIZATION_ID =
   'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0';
 const PEPPOL_BIS_PROFILE_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0';
+
+/**
+ * XRechnung 3.0 UBL "compliant" CustomizationID. Identifies the document as XRechnung rather than
+ * the generic EN16931 CustomizationID — required for BR-DE-21 conformance and for German B2G
+ * receivers/validators to route the document to the right rule set (M-9).
+ *
+ * Verified against the official KoSIT source (not hand-guessed):
+ *   - itplr-kosit/xrechnung-schematron common.sch ($XR-CIUS-ID = concat('urn:cen.eu:en16931:2017
+ *     #compliant#urn:xeinkauf.de:kosit:xrechnung_', $XR-MAJOR-MINOR-VERSION) with version '3.0')
+ *   - itplr-kosit/xrechnung-testsuite conformant fixtures (e.g. business-cases/standard/
+ *     01.01a-INVOICE_ubl.xml) emit this exact string.
+ * Domain is xeinkauf.de (KoSIT's e-procurement unit), NOT xoev-de — xoev-de:kosit:standard:* is
+ * used by unrelated XÖV-framework standards, never by XRechnung's own CustomizationID.
+ */
+const XRECHNUNG_CUSTOMIZATION_ID = 'urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0';
 
 /** EN 16931 family (Factur-X, ZUGFeRD, XRechnung, UBL, CII, Peppol BIS, PDF/A-3). Wraps
  *  @e-invoice-eu/core via InvoiceRenderingService.buildEInvoice → BuiltEInvoice. */
@@ -86,6 +118,15 @@ export class En16931FormatProvider implements FormatProvider {
             '<cbc:ProfileID>M1</cbc:ProfileID>',
             `<cbc:ProfileID>${PEPPOL_BIS_PROFILE_ID}</cbc:ProfileID>`,
           );
+        }
+        // XRechnung 3.0 requires its own "compliant" CustomizationID so the document self-identifies
+        // as XRechnung rather than generic EN16931 (M-9 part 1). @e-invoice-eu/core's XRECHNUNG-UBL
+        // format emits byte-identical output to plain UBL (same hardcoded generic CustomizationID in
+        // the euInvoice object built by InvoiceRenderingService.buildEInvoice) — there is no builder
+        // branch to hook into, so we string-replace here, mirroring the PEPPOL_BIS pattern above.
+        // ProfileID is left untouched: XRechnung does not mandate a specific ProfileID value.
+        if (syntax === 'XRECHNUNG') {
+          xml = xml.replace('urn:cen.eu:en16931:2017', XRECHNUNG_CUSTOMIZATION_ID);
         }
         const bytes = new TextEncoder().encode(xml);
         return { role: artifact.role as ArtifactRole, syntax, mime: 'application/xml', bytes };
@@ -131,37 +172,59 @@ export class En16931FormatProvider implements FormatProvider {
       return this.reportFrom(result, log, 'format/en16931-cii', rendered.syntax);
     }
 
-    // Peppol BIS Billing 3.0 — validate UBL output against the official PEPPOL Schematron. This is
-    // the ONLY UBL-family Schematron vendored (it is OpenPEPPOL's *delta* on top of the base
-    // EN16931-UBL ruleset — no base EN16931-UBL Schematron is vendored, see below).
+    // Peppol BIS Billing 3.0 — validate UBL output against the official PEPPOL Schematron (its own
+    // *delta* on top of the base EN16931-UBL ruleset). Unchanged by M-9 part 3 — out of scope.
     if (rendered.syntax === 'PEPPOL_BIS') {
       const result = validateSchematron(xml, PEPPOL_BIS_SCH);
       return this.reportFrom(result, log, 'format/peppol-bis', rendered.syntax);
     }
 
-    // EN16931_UBL / XRECHNUNG — no base EN16931-UBL Schematron is vendored in this repo (only the
-    // Peppol-specific delta above, and the true EN16931-CII ruleset). Running the Peppol delta as a
-    // *blocking* gate here was tried and empirically false-blocks every non-Peppol UBL/XRechnung
-    // fixture: PEPPOL-EN16931-R004/R007 assert the document carries Peppol's own
-    // CustomizationID/ProfileID, which a document that never goes out over Peppol legitimately does
-    // not have. XRechnung's "german-rules" pattern (DE-R-*, the closest available proxy for the
-    // official BR-DE rules — no official KoSIT XRechnung Schematron is vendored either) is real and
-    // useful (e.g. DE-R-005 "seller contact point" catches the documented XRechnung BR-DE data gap
-    // — Contact/PaymentMeans emitted but some sub-fields still missing), but only fires for DE→DE
-    // traffic and cannot be blindly trusted to be exhaustive for a ruleset this repo doesn't fully
-    // vendor. So: run it, but surface every finding (fatal or warning) as a warning — informational,
-    // never blocking — until a true base EN16931-UBL Schematron (and the real KoSIT BR-DE one) are
-    // vendored (tracked separately, not part of M-1).
-    if (rendered.syntax === 'EN16931_UBL' || rendered.syntax === 'XRECHNUNG') {
-      const result = validateSchematron(xml, PEPPOL_BIS_SCH);
-      const all = [...result.errors, ...result.warnings].map((e) => `[${e.id}] ${e.message}`);
-      if (all.length > 0) {
+    // EN16931_UBL — the REAL base EN16931-UBL Schematron (M-9 part 3; previously not vendored —
+    // see EN16931_UBL_SCH provenance comment above), BLOCKING. Proven clean (0 errors) against
+    // every UBL-family fixture in this repo (plain UBL, Peppol-BIS-tagged, and XRechnung-tagged
+    // alike — format-schema-validation.spec.ts) and against KoSIT's own official conformant
+    // XRechnung 3.0 UBL example, so promoting it from stub/non-blocking to a real gate carries no
+    // known regression risk today.
+    if (rendered.syntax === 'EN16931_UBL') {
+      const result = validateSchematron(xml, EN16931_UBL_SCH);
+      return this.reportFrom(result, log, 'format/en16931-ubl', rendered.syntax);
+    }
+
+    // XRECHNUNG — same base EN16931-UBL Schematron as above, BLOCKING (same proof). On top of
+    // that we now also run KoSIT's own official XRechnung-UBL delta (the real BR-DE-* rules,
+    // itplr-kosit/xrechnung-schematron v2.5.0 — replacing the previous approximation that reused
+    // the unrelated Peppol delta and mislabelled its R-codes as "DE-R-*"), but keep IT
+    // non-blocking: it fires BR-DE-2/BR-DE-5/BR-DE-6/BR-DE-7 ("Seller contact point"/BT-41,
+    // "Seller contact telephone number"/BT-42, "Seller contact email"/BT-43) on every single
+    // fixture in this repo, because InvoiceRenderingService.buildEInvoice() only ever emits
+    // cac:Contact with Telephone/ElectronicMail — never cbc:Name — and only when phone/email
+    // happen to be set on the company. That is a real, currently-open, and SYSTEMIC BR-DE data
+    // gap (this is the exact same gap the old Peppol-delta-based "DE-R-005" approximation was
+    // already flagging — now pinpointed via KoSIT's own official rule ids instead of a borrowed
+    // proxy). Promoting the delta to blocking today would make it impossible to successfully
+    // `send()` ANY XRechnung document; closing the Contact/Name gap means changing the shared
+    // buildEInvoice() builder used by every EN16931-family format (CII/UBL/Peppol/XRechnung/
+    // Factur-X/ZUGFeRD alike), which is out of scope for M-9's two required fixes (CustomizationID
+    // + Leitweg-ID→BuyerReference) — left as an honest, tracked follow-up rather than silently
+    // widened scope or a fabricated pass.
+    if (rendered.syntax === 'XRECHNUNG') {
+      const baseResult = validateSchematron(xml, EN16931_UBL_SCH);
+      const baseReport = this.reportFrom(baseResult, log, 'format/en16931-ubl', rendered.syntax);
+      const deltaResult = validateSchematron(xml, XRECHNUNG_DELTA_SCH);
+      const deltaFindings = [...deltaResult.errors, ...deltaResult.warnings].map(
+        (e) => `[${e.id}] ${e.message}`,
+      );
+      if (deltaFindings.length > 0) {
         log.warn(
-          'format/en16931-ubl',
-          `${rendered.syntax} Schematron (Peppol-delta, non-blocking): ${all.slice(0, 3).join('; ')}`,
+          'format/xrechnung-de',
+          `XRECHNUNG KoSIT BR-DE Schematron (non-blocking): ${deltaFindings.slice(0, 3).join('; ')}`,
         );
       }
-      return { valid: true, errors: [], warnings: all };
+      return {
+        valid: baseReport.valid,
+        errors: baseReport.errors,
+        warnings: [...baseReport.warnings, ...deltaFindings],
+      };
     }
 
     // ZUGFERD-as-XML / PDF_A3-as-XML / anything else in the family reaching here with real XML

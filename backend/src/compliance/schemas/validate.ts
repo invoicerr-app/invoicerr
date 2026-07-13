@@ -80,13 +80,17 @@ function loadSeverityMap(relPath: string): Map<string, string> {
 }
 
 export interface SchematronResult {
-  /** No blocking (fatal/unspecified) findings. Warning-level findings do not affect this. */
+  /** No blocking (fatal/unspecified) findings. Non-fatal-level findings do not affect this. */
   valid: boolean;
   /** Count of blocking (fatal/unspecified) findings — mirrors `errors.length`. */
   errorCount: number;
   /** Blocking findings (flag="fatal" or no flag attribute on the rule). */
   errors: SchematronError[];
-  /** Non-blocking findings (flag="warning") — surfaced for visibility, never block. */
+  /** Non-blocking findings (flag="warning", flag="information", or any other non-"fatal" token —
+   *  ISO Schematron only reserves "fatal" as a universally-recognized blocking severity; schema
+   *  authors are free to define others, e.g. KoSIT's XRechnung-UBL-validation.sch uses
+   *  flag="information" for BR-DE-TMP-32, a recommendation-only rule) — surfaced for visibility,
+   *  never block. */
   warnings: SchematronError[];
 }
 
@@ -105,7 +109,8 @@ export interface SchematronError {
  * node-schematron result items: { assertId: string, isReport: boolean, message: string }
  * isReport=false → failed assertion, isReport=true → fired report (informational, always ignored).
  * Failed assertions are further split by the rule's `flag` attribute (see loadSeverityMap): fatal
- * (or unspecified) → `errors` (blocking); warning → `warnings` (non-blocking).
+ * (or unspecified) → `errors` (blocking); anything else (warning, information, ...) → `warnings`
+ * (non-blocking) — "fatal" is the only severity ISO Schematron treats as universally blocking.
  */
 export function validateSchematron(xml: string, schRelPath: string): SchematronResult {
   const schema = loadSchema(schRelPath);
@@ -118,8 +123,8 @@ export function validateSchematron(xml: string, schRelPath: string): SchematronR
     if (r.isReport) continue; // informational <report> fires — never a validation finding
     const flag = (r.assertId && severity.get(r.assertId)) || 'fatal';
     const entry: SchematronError = { id: r.assertId, flag, message: r.message };
-    if (flag === 'warning') warnings.push(entry);
-    else errors.push(entry);
+    if (flag === 'fatal') errors.push(entry);
+    else warnings.push(entry);
   }
 
   return {

@@ -216,12 +216,12 @@ describe('M-1 — invalid documents are BLOCKED before transmission', () => {
   });
 });
 
-describe('M-1 — Schematron warning-level findings never block', () => {
-  it('XRechnung DE→DE: the documented BR-DE-style data gap (DE-R-005, seller contact) is surfaced as a warning, not blocked', async () => {
+describe('M-1/M-9 — base EN16931-UBL blocks XRECHNUNG, the real KoSIT BR-DE delta stays advisory', () => {
+  it('XRechnung DE→DE: base EN16931-UBL passes (valid:true), the real BR-DE-5 seller-contact gap is surfaced as a non-blocking warning', async () => {
     const provider = new En16931FormatProvider();
     const log = new RecordingComplianceLogger();
-    // DE_B2B's buyer is French by default (so the Peppol-delta "german-rules" pattern never even
-    // fires — see providers.ts). Force a DE→DE pair, the scenario the CIUS rules actually target.
+    // DE_B2B's buyer is French by default (so the DE-specific delta never even fires — see
+    // providers.ts). Force a DE→DE pair, the scenario XRechnung's CIUS rules actually target.
     const deToDeData = {
       ...DE_B2B.data,
       client: {
@@ -239,12 +239,19 @@ describe('M-1 — Schematron warning-level findings never block', () => {
     };
     const report = await provider.validate(artifact, log);
 
-    // EN16931_UBL/XRECHNUNG never block on Schematron findings (see providers.ts rationale — no
-    // base EN16931-UBL Schematron is vendored, and the Peppol delta false-blocks non-Peppol UBL).
+    // M-9 part 3: XRECHNUNG is now validated against the REAL, official base EN16931-UBL
+    // Schematron (ConnectingEurope/eInvoicing-EN16931) — BLOCKING — and it passes clean for this
+    // fixture (report.valid / errors reflect ONLY the base ruleset's outcome). KoSIT's own
+    // XRechnung-UBL delta (itplr-kosit/xrechnung-schematron, the real BR-DE-* rules) is also run,
+    // but its findings are merged into `warnings`, never `errors`: it correctly and repeatedly
+    // fires BR-DE-5 ("Seller contact point"/BT-41 must be present) because buildEInvoice() never
+    // emits cac:Contact/cbc:Name — a real, currently-open, systemic data gap tracked as a
+    // follow-up (see providers.ts XRECHNUNG branch comment), not blocked here on purpose so
+    // XRechnung documents can still be sent today.
     expect(report.valid).toBe(true);
     expect(report.errors).toHaveLength(0);
     expect(report.warnings.length).toBeGreaterThan(0);
-    expect(report.warnings.some((w) => w.includes('DE-R-005'))).toBe(true);
+    expect(report.warnings.some((w) => w.includes('BR-DE-5'))).toBe(true);
   });
 });
 
