@@ -13,7 +13,6 @@
 import {
   Body,
   Controller,
-  ForbiddenException,
   Get,
   Headers,
   HttpCode,
@@ -192,10 +191,11 @@ export class InboundInvoiceController {
     if (!doc) throw new HttpException('Compliance document not found', HttpStatus.NOT_FOUND);
 
     // Ownership check: ctx.supplierCompanyId is always set at issuance (see
-    // invoices.helpers.ts / quotes.service.ts) for outbound documents. Fail closed if it's
-    // ever missing rather than let a caller probe/refresh another tenant's document.
+    // invoices.helpers.ts / quotes.service.ts) for outbound documents. A foreign (or ctx-missing)
+    // document is reported as 404 — identical to a nonexistent one — so a caller cannot probe
+    // another tenant's document ids by telling a 403 apart from a 404.
     if (doc.ctx?.supplierCompanyId !== companyId) {
-      throw new ForbiddenException('Compliance document does not belong to the active company');
+      throw new HttpException('Compliance document not found', HttpStatus.NOT_FOUND);
     }
 
     // Trigger reconcile for all pending poll jobs (scoped to this document via provider)
@@ -235,9 +235,10 @@ export class InboundInvoiceController {
     const doc = await this.docStore.get(documentId);
     if (!doc) throw new HttpException('Compliance document not found', HttpStatus.NOT_FOUND);
 
-    // Ownership check — identical pattern to refreshDocument() above.
+    // Ownership check — identical pattern to refreshDocument() above (404, not 403, so a foreign
+    // document id is indistinguishable from a nonexistent one — no existence probing).
     if (doc.ctx?.supplierCompanyId !== companyId) {
-      throw new ForbiddenException('Compliance document does not belong to the active company');
+      throw new HttpException('Compliance document not found', HttpStatus.NOT_FOUND);
     }
 
     if (doc.status !== 'TRANSMISSION_FAILED') {
