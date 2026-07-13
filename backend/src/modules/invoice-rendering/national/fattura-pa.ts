@@ -12,7 +12,22 @@ import type { InvoiceRenderData } from '../render-data';
  *  - ALL amounts/dates are **strings** matching the yup regex patterns
  *    (e.g. /^[-]?\d{1,12}(\.\d{2,8})$/ for PrezzoTotale, /^[-]?\d{1,3}(\.\d{2,2})$/ for AliquotaIVA).
  *  - Natura is deduced from operation nature (client country + VAT) — NOT a blanket N1 for 0%.
- *  - CodiceDestinatario defaults to 'XXXXXXX' (foreign/no-PEC) — PEC field absent from model = documented gap.
+ *  - CodiceDestinatario/PECDestinatario (F-16/M-8) are real SdI routing, read from the client's
+ *    `IT_SDI` / `PEC` partyIdentifiers (see profiles/data/it.ts requiredIdentifiers):
+ *      1. a valid 7-char IT_SDI code wins → CodiceDestinatario = that code, no PEC;
+ *      2. else a PEC on file → CodiceDestinatario = '0000000' + PECDestinatario = the PEC
+ *         (per Schema_VFPR12.xsd, PECDestinatario is only meaningful when CodiceDestinatario is
+ *         '0000000' — SdI notifies the intermediary via PEC instead of a direct SdI channel).
+ *         NOTE: '0000000' is ONLY ever emitted together with a real PECDestinatario — the
+ *         @digitalia/fatturapa FPAYupSchema (the business-rule gate FatturaPaFormatProvider.validate()
+ *         actually runs — see providers/format/providers.ts) makes PECDestinatario a REQUIRED field
+ *         whenever CodiceDestinatario === '0000000', so '0000000' without a PEC would fail
+ *         validation and block send();
+ *      3. else a foreign (non-IT) buyer → 'XXXXXXX' (SdI can't route it, human follow-up needed);
+ *      4. else (domestic IT, neither code nor PEC on file) → 'XXXXXXX' as well — the only
+ *         XSD-and-yup-valid fallback that doesn't require data we don't have. Legally incomplete
+ *         for true domestic B2B delivery (TODO: prompt onboarding to fill IT_SDI/PEC so this
+ *         invoice actually reaches the buyer instead of needing manual SdI follow-up).
  *  - ProgressivoInvio is derived from invoice number or timestamp for uniqueness.
  *  - Contatti only emitted when data exists (never undefined).
  *  - RiferimentoNormativo emitted when Natura is present (legal reference).
@@ -100,10 +115,31 @@ export async function buildFatturaPa(data: InvoiceRenderData): Promise<string> {
       .replace(/[^A-Za-z0-9]/g, '')
       .slice(0, 10) || '00001';
 
-  // ── CodiceDestinatario ──────────────────────────────────────────
-  // FPR12 requires 7 chars. 'XXXXXXX' = foreign/unknown (no PEC).
-  // '0000000' requires PECDestinatario (PEC email) — absent from model → documented gap.
-  const codiceDestinatario = 'XXXXXXX';
+  // ── CodiceDestinatario / PECDestinatario (F-16/M-8) ──────────────
+  // FPR12 requires the 7-char form. See the JSDoc above for the full routing rationale.
+  const clienteSdiCode = getIdentifier(data.client, 'IT_SDI') || '';
+  const clientePec = getIdentifier(data.client, 'PEC') || '';
+  const isValidSdiCode = /^[A-Za-z0-9]{7}$/.test(clienteSdiCode);
+
+  let codiceDestinatario: string;
+  let pecDestinatario: string | undefined;
+  if (isValidSdiCode) {
+    codiceDestinatario = clienteSdiCode.toUpperCase();
+  } else if (clientePec) {
+    codiceDestinatario = '0000000';
+    pecDestinatario = clientePec;
+  } else if (clienteVatCountry && clienteVatCountry !== 'IT') {
+    codiceDestinatario = 'XXXXXXX';
+  } else {
+    // Domestic IT, neither a Codice Destinatario nor a PEC on file. '0000000' is NOT a safe
+    // fallback here — @digitalia/fatturapa's FPAYupSchema requires PECDestinatario whenever
+    // CodiceDestinatario is '0000000', and we have none, so it would fail
+    // FatturaPaFormatProvider.validate() and block send(). 'XXXXXXX' is the only fallback that
+    // doesn't demand data we don't have.
+    // TODO: prompt onboarding to collect IT_SDI/PEC for true domestic B2B delivery — this
+    // fallback is the least-wrong option, not a correct one (SdI can't route it automatically).
+    codiceDestinatario = 'XXXXXXX';
+  }
 
   // ── DettaglioLinee ──────────────────────────────────────────────
   const dettaglioLinee = data.items.map((item, idx) => {
@@ -167,6 +203,7 @@ export async function buildFatturaPa(data: InvoiceRenderData): Promise<string> {
           ProgressivoInvio: progressivoInvio,
           FormatoTrasmissione: 'FPR12',
           CodiceDestinatario: codiceDestinatario,
+          ...(pecDestinatario ? { PECDestinatario: pecDestinatario } : {}),
         },
         CedentePrestatore: {
           DatiAnagrafici: {

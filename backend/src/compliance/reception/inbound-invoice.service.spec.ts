@@ -6,6 +6,7 @@
  */
 import { InboundInvoiceService } from './inbound-invoice.service';
 import { HttpException } from '@nestjs/common';
+import * as forge from 'node-forge';
 
 // ---------------------------------------------------------------------------
 // Sample payloads — minimal but structurally correct
@@ -135,6 +136,44 @@ const SAMPLE_FA_VAT = `<?xml version="1.0" encoding="UTF-8"?>
 </Faktura>`;
 
 // ---------------------------------------------------------------------------
+// M-11: wrap a payload as a real CAdES-BES (.p7m) CMS/PKCS#7 SignedData envelope, the same shape
+// unwrapCadesP7m (./p7m.ts, unit-tested in p7m.spec.ts) unwraps. Proves the wiring at
+// InboundInvoiceService.receiveDocument() → parseInboundDocument(), not just the module in
+// isolation.
+// ---------------------------------------------------------------------------
+
+function wrapAsP7m(xml: string): Buffer {
+  const keys = forge.pki.rsa.generateKeyPair(1024);
+  const cert = forge.pki.createCertificate();
+  cert.publicKey = keys.publicKey;
+  cert.serialNumber = '01';
+  cert.validity.notBefore = new Date();
+  cert.validity.notAfter = new Date();
+  cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + 1);
+  const attrs = [{ name: 'commonName', value: 'Test Signer' }];
+  cert.setSubject(attrs);
+  cert.setIssuer(attrs);
+  cert.sign(keys.privateKey);
+
+  const p7 = forge.pkcs7.createSignedData();
+  p7.content = forge.util.createBuffer(xml, 'utf8');
+  p7.addCertificate(cert);
+  p7.addSigner({
+    key: keys.privateKey,
+    certificate: cert,
+    digestAlgorithm: forge.pki.oids.sha256,
+    authenticatedAttributes: [
+      { type: forge.pki.oids.contentType, value: forge.pki.oids.data },
+      { type: forge.pki.oids.messageDigest },
+      // signingTime: omit value — forge fills it in automatically from current time
+      { type: forge.pki.oids.signingTime },
+    ],
+  });
+  p7.sign();
+  return Buffer.from(forge.asn1.toDer(p7.toAsn1()).getBytes(), 'binary');
+}
+
+// ---------------------------------------------------------------------------
 // Mock PrismaService
 // ---------------------------------------------------------------------------
 
@@ -251,6 +290,36 @@ describe('InboundInvoiceService', () => {
     expect(created.currency).toBe('EUR');
     expect(created.totalNet).toBeCloseTo(600); // 100 + 500
     expect(created.totalTax).toBeCloseTo(120); // 10 + 110
+    expect(created.totalGross).toBeCloseTo(610);
+    expect(created.status).toBe('PARSED');
+  });
+
+  // ---- FatturaPA parsing, .p7m-wrapped (M-11) ----
+
+  it('parses a .p7m-wrapped (CAdES-BES) FatturaPA invoice — before M-11 this would have yielded empty fields', async () => {
+    const p7mBuffer = wrapAsP7m(SAMPLE_FATTURAPA);
+    // rawPayload is string-typed end-to-end (webhook JSON body) — byte-faithful latin1 encoding is
+    // how a caller preserves the DER bytes through that string-typed call chain (see p7m.ts JSDoc).
+    const p7mAsString = p7mBuffer.toString('binary');
+
+    const result = await service.receiveDocument({
+      companyId: 'co-1',
+      channel: 'SDI',
+      externalId: 'sdi-p7m-1',
+      rawPayload: p7mAsString,
+      syntax: 'FATTURAPA',
+    });
+
+    expect(result.kind).toBe('STORED');
+
+    const created = mockPrisma.inboundInvoice.create.mock.calls[0][0].data;
+    // Same assertions as the plain-FatturaPA test above — proves the .p7m envelope was unwrapped
+    // and the same structural fields were extracted, not left empty/garbage.
+    expect(created.invoiceNumber).toBe('FT/2026/0099');
+    expect(created.issueDate).toBe('2026-06-01');
+    expect(created.sellerName).toBe('Fornitore SRL');
+    expect(created.sellerTaxId).toBe('01234567890');
+    expect(created.buyerTaxId).toBe('09876543210');
     expect(created.totalGross).toBeCloseTo(610);
     expect(created.status).toBe('PARSED');
   });

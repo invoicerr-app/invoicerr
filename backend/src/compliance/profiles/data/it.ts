@@ -52,12 +52,19 @@ export const IT: CountryComplianceProfile = {
       },
     },
     // SdI era: immutable after clearance; AdE acknowledgement required to cancel.
+    // M-7: the buyer's notifica NE (esito EC01/EC02) is optional — 15 days (360h) of silence is
+    // "decorrenza termini", legally deemed accepted (defaultOnSilence: 'ACCEPT').
     {
       validFrom: '2019-01-01',
       value: {
         immutableAfter: 'CLEARANCE',
         correctionModel: 'CREDIT_NOTE',
         cancellation: { allowed: true, requiresAuthorityAck: true },
+        response: {
+          defaultOnSilence: 'ACCEPT',
+          window: { hours: 360 },
+          statuses: ['accettata', 'rifiutata'],
+        },
       },
     },
   ],
@@ -86,6 +93,25 @@ export const IT: CountryComplianceProfile = {
       required: true,
       pattern: '^\\d{11}$',
       helpText: '11-digit VAT number',
+    },
+    // F-16/M-8: optional alternatives that drive FatturaPA's CodiceDestinatario/PECDestinatario
+    // routing (national/fattura-pa.ts) — neither is individually required since they're
+    // alternatives to each other (and a foreign buyer needs neither); the builder's routing logic
+    // enforces the real-world choice at render time.
+    {
+      scheme: 'IT_SDI',
+      label: 'Codice Destinatario',
+      appliesTo: 'COMPANY',
+      required: false,
+      pattern: '^[A-Za-z0-9]{7}$',
+      helpText: '7-char SdI recipient code (or provide a PEC)',
+    },
+    {
+      scheme: 'PEC',
+      label: 'PEC',
+      appliesTo: 'BOTH',
+      required: false,
+      helpText: 'Certified email — required for domestic delivery when no Codice Destinatario',
     },
   ],
 

@@ -27,8 +27,8 @@ export type Effect =
   | { kind: 'AWAIT_CALLBACK'; correlationKey?: string; awaiting: ComplianceStatus }
   | { kind: 'NOOP'; reason: string };
 
-const REFUSE_WORDS = ['refus', 'reject', 'rechaz', 'scart', 'denied'];
-const ACCEPT_WORDS = ['accept', 'approv', 'approu', 'consegn', 'autoriz', 'cleared'];
+const REFUSE_WORDS = ['refus', 'reject', 'rechaz', 'scart', 'denied', 'rifiut'];
+const ACCEPT_WORDS = ['accept', 'approv', 'approu', 'consegn', 'autoriz', 'cleared', 'accett'];
 const DISPUTE_WORDS = ['litige', 'disput'];
 
 export class LifecycleRuntime {

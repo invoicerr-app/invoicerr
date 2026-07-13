@@ -9,7 +9,13 @@
  *
  * Per `einvoice-cii-validation-gotcha` memory: do NOT round-trip CII via
  * @e-invoice-eu/core fromXml — it has a known bug. Parse structurally instead.
+ *
+ * M-11: `parseInboundDocument` first runs the payload through `unwrapCadesP7m` (p7m.ts) — a
+ * no-op passthrough for plain XML, but a real CAdES-BES/.p7m de-envelope for Italian supplier
+ * invoices delivered signed. Wired at the single entry point so both the webhook reception path
+ * and the KSeF-sink path benefit without a parallel code path.
  */
+import { unwrapCadesP7m } from './p7m';
 
 export interface ParsedInboundDocument {
   invoiceNumber?: string;
@@ -346,7 +352,10 @@ export function detectSyntax(raw: string): InboundSyntax {
  * `syntaxHint` (e.g. "EN16931_CII") maps to the short forms used internally:
  * CII | UBL | FATTURAPA | FA_VAT. When omitted, syntax is auto-detected.
  */
-export function parseInboundDocument(raw: string, syntaxHint?: string | null): ParsedInboundDocument {
+export function parseInboundDocument(rawInput: string, syntaxHint?: string | null): ParsedInboundDocument {
+  // M-11: unwrap a .p7m (CAdES-BES) envelope first — a no-op for plain XML.
+  const { xml: raw } = unwrapCadesP7m(rawInput);
+
   // Normalise syntaxHint to short form
   let syntax: InboundSyntax;
   if (!syntaxHint) {

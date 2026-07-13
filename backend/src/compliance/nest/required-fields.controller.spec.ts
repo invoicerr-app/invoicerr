@@ -39,6 +39,20 @@ describe('RequiredFieldsController', () => {
     expect(result.length).toBeLessThanOrEqual(all.length);
   });
 
+  it('F-16/M-8: IT COMPANY includes optional IT_SDI (Codice Destinatario) and PEC', () => {
+    const result = controller.getRequiredFields('IT', 'COMPANY');
+    const sdi = result.find((r) => r.scheme === 'IT_SDI');
+    const pec = result.find((r) => r.scheme === 'PEC');
+    expect(sdi).toMatchObject({ appliesTo: 'COMPANY', required: false, pattern: '^[A-Za-z0-9]{7}$' });
+    expect(pec).toMatchObject({ appliesTo: 'BOTH', required: false });
+  });
+
+  it('F-16/M-8: IT INDIVIDUAL includes PEC (BOTH) but not IT_SDI (COMPANY-only)', () => {
+    const result = controller.getRequiredFields('IT', 'INDIVIDUAL');
+    expect(result.find((r) => r.scheme === 'PEC')).toBeDefined();
+    expect(result.find((r) => r.scheme === 'IT_SDI')).toBeUndefined();
+  });
+
   it('returns empty array for FALLBACK (unknown country)', () => {
     const result = controller.getRequiredFields('ZZ', 'COMPANY');
     expect(result).toEqual([]);

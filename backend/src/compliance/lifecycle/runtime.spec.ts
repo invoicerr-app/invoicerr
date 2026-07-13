@@ -119,6 +119,16 @@ describe('LifecycleRuntime — inbound status mapping', () => {
     expect(dis.status).toBe('DISPUTED');
   });
 
+  it('IT M-7: response-phase callbacks map Italian "accett"/"rifiut" (notifica NE esito) words', () => {
+    // notifica NE - esito accettazione EC01 / esito rifiuto EC02 (parseSdiNotifica output).
+    const acc = new LifecycleRuntime(graph, 'AWAITING_RESPONSE', new RecordingComplianceLogger());
+    acc.dispatch({ type: 'INBOUND_STATUS', status: 'notifica NE - esito accettazione EC01' });
+    expect(acc.status).toBe('ACCEPTED');
+    const ref = new LifecycleRuntime(graph, 'AWAITING_RESPONSE', new RecordingComplianceLogger());
+    ref.dispatch({ type: 'INBOUND_STATUS', status: 'notifica NE - esito rifiuto EC02' });
+    expect(ref.status).toBe('REFUSED');
+  });
+
   it('an unrecognised inbound status is a NOOP and logs a TODO', () => {
     const log = new RecordingComplianceLogger();
     const r = new LifecycleRuntime(graph, 'AWAITING_RESPONSE', log);

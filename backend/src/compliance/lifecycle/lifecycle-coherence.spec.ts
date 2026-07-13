@@ -15,6 +15,8 @@ import { PartyTaxProfile, TransactionContext } from '../canonical/canonical-docu
 import { resolve } from '../engine/compliance-engine';
 import { assembleFromPlan } from './assembler';
 import { ComplianceStateMachine } from './state-machine';
+import { LifecycleRuntime } from './runtime';
+import { parseSdiNotifica } from './drivers/inbound-parsers';
 import { RecordingComplianceLogger } from '../execution/logger';
 import { ComplianceService } from '../operations/compliance-service';
 import { InMemoryComplianceDocumentStore } from '../operations/document-store';
@@ -328,5 +330,78 @@ describe('per-profile lifecycle coherence — no dangling (unreachable) states',
     expect(plan.lifecycle.immutableAfter).toBe('ISSUE');
     expect(plan.lifecycle.correctionModel).toBe('CREDIT_NOTE');
     expect(plan.lifecycle.cancellation.allowed).toBe(true);
+  });
+});
+
+// ─────────────────────────── M-7: IT notifica NE (esito EC01/EC02) response track ───────────────────────────
+
+describe('IT SdI era — buyer response track (notifica NE / decorrenza termini)', () => {
+  it('plan.lifecycle.response is present with silence=ACCEPT after 360h (15 days)', () => {
+    const plan = resolve(tx('IT', 'IT', 'B2B', 'GOODS', '2027-01-15'));
+    expect(plan.lifecycle.response).toEqual({
+      defaultOnSilence: 'ACCEPT',
+      window: { hours: 360 },
+      statuses: ['accettata', 'rifiutata'],
+    });
+  });
+
+  it('IT pre-SdI (pre-2019) lifecycle has no response policy — SdI esito is SdI-era only', () => {
+    const plan = resolve(tx('IT', 'IT', 'B2B', 'GOODS', '2018-01-01'));
+    expect(plan.lifecycle.response).toBeUndefined();
+  });
+
+  it('assembled IT SdI-era graph has DELIVERED --OPEN_RESPONSE--> AWAITING_RESPONSE --ACCEPT/REFUSE--> ACCEPTED/REFUSED', () => {
+    const graph = graphOf('IT', 'IT', 'B2B', 'GOODS', '2027-01-15');
+    expect(graph.states).toEqual(expect.arrayContaining(['AWAITING_RESPONSE', 'ACCEPTED', 'REFUSED']));
+
+    const openResponse = graph.transitions.find((t) => t.on === 'OPEN_RESPONSE');
+    expect(openResponse).toMatchObject({ from: 'DELIVERED', to: 'AWAITING_RESPONSE' });
+
+    const accept = graph.transitions.find((t) => t.on === 'ACCEPT' && t.from === 'AWAITING_RESPONSE');
+    expect(accept).toMatchObject({ to: 'ACCEPTED' });
+    expect(accept!.trigger.kind).toBe('TIMER'); // silence-timer per defaultOnSilence: 'ACCEPT'
+    if (accept!.trigger.kind === 'TIMER') expect(accept!.trigger.deadlineHours).toBe(360);
+
+    const refuse = graph.transitions.find((t) => t.on === 'REFUSE' && t.from === 'AWAITING_RESPONSE');
+    expect(refuse).toMatchObject({ to: 'REFUSED' });
+  });
+
+  it('end-to-end: a real parseSdiNotifica NE/EC01 payload drives AWAITING_RESPONSE → ACCEPTED on the assembled IT graph', () => {
+    const graph = graphOf('IT', 'IT', 'B2B', 'GOODS', '2027-01-15');
+    const runtime = new LifecycleRuntime(graph, 'AWAITING_RESPONSE', new RecordingComplianceLogger());
+
+    const input = parseSdiNotifica({
+      type: 'NE',
+      idSdI: 42,
+      dataOraRicezione: '2027-01-20T08:00:00Z',
+      esitoCommittente: 'EC01',
+    });
+    expect(input.status).toBe('notifica NE - esito accettazione EC01');
+
+    runtime.dispatch({ type: 'INBOUND_STATUS', status: input.status });
+    expect(runtime.status).toBe('ACCEPTED');
+  });
+
+  it('end-to-end: a real parseSdiNotifica NE/EC02 payload drives AWAITING_RESPONSE → REFUSED on the assembled IT graph', () => {
+    const graph = graphOf('IT', 'IT', 'B2B', 'GOODS', '2027-01-15');
+    const runtime = new LifecycleRuntime(graph, 'AWAITING_RESPONSE', new RecordingComplianceLogger());
+
+    const input = parseSdiNotifica({
+      type: 'NE',
+      idSdI: 43,
+      dataOraRicezione: '2027-01-20T08:00:00Z',
+      esitoCommittente: 'EC02',
+    });
+    expect(input.status).toBe('notifica NE - esito rifiuto EC02');
+
+    runtime.dispatch({ type: 'INBOUND_STATUS', status: input.status });
+    expect(runtime.status).toBe('REFUSED');
+  });
+
+  it('silence = acceptance: TIMER_ELAPSED from AWAITING_RESPONSE resolves to ACCEPTED (decorrenza termini)', () => {
+    const graph = graphOf('IT', 'IT', 'B2B', 'GOODS', '2027-01-15');
+    const runtime = new LifecycleRuntime(graph, 'AWAITING_RESPONSE', new RecordingComplianceLogger());
+    runtime.dispatch({ type: 'TIMER_ELAPSED' });
+    expect(runtime.status).toBe('ACCEPTED');
   });
 });
