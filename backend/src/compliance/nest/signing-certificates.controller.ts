@@ -41,7 +41,7 @@ export class SigningCertificatesController {
   @ApiParam({
     name: 'id',
     type: String,
-    description: 'Company ID (ignored — always resolved from the caller\'s active company/session)',
+    description: "Company ID (ignored — always resolved from the caller's active company/session)",
   })
   @ApiResponse({ status: 200, description: 'Certificate list (no PFX / no password)' })
   listCerts(@ActiveCompany() companyId: string): Promise<CertificateMetaResponse[]> {
@@ -61,7 +61,7 @@ export class SigningCertificatesController {
   @ApiParam({
     name: 'id',
     type: String,
-    description: 'Company ID (ignored — always resolved from the caller\'s active company/session)',
+    description: "Company ID (ignored — always resolved from the caller's active company/session)",
   })
   @ApiBody({
     schema: {
@@ -113,7 +113,7 @@ export class SigningCertificatesController {
   @ApiParam({
     name: 'id',
     type: String,
-    description: 'Company ID (ignored — always resolved from the caller\'s active company/session)',
+    description: "Company ID (ignored — always resolved from the caller's active company/session)",
   })
   @ApiParam({ name: 'certId', type: String, description: 'Certificate record ID' })
   @ApiResponse({ status: 204, description: 'Certificate deleted' })

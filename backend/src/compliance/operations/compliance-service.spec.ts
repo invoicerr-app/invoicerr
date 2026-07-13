@@ -80,10 +80,7 @@ function svcMx() {
   };
   const transmission = new TransmissionProviderRegistry({ credentials });
   (transmission as unknown as { byId: Map<string, TransmissionProvider> }).byId.set('pac', pacMock);
-  (transmission as unknown as { byChannel: Map<string, TransmissionProvider> }).byChannel.set(
-    'PAC',
-    pacMock,
-  );
+  (transmission as unknown as { byChannel: Map<string, TransmissionProvider> }).byChannel.set('PAC', pacMock);
   const service = new ComplianceService({
     store: new InMemoryComplianceDocumentStore(),
     numbering: new NumberingRegistry(),
@@ -136,10 +133,7 @@ function svcMxFlaky() {
   };
   const transmission = new TransmissionProviderRegistry({ credentials });
   (transmission as unknown as { byId: Map<string, TransmissionProvider> }).byId.set('pac', pacMock);
-  (transmission as unknown as { byChannel: Map<string, TransmissionProvider> }).byChannel.set(
-    'PAC',
-    pacMock,
-  );
+  (transmission as unknown as { byChannel: Map<string, TransmissionProvider> }).byChannel.set('PAC', pacMock);
   const service = new ComplianceService({
     store: new InMemoryComplianceDocumentStore(),
     numbering: new NumberingRegistry(),

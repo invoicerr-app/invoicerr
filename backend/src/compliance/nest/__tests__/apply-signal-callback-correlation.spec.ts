@@ -81,7 +81,10 @@ class FakePrisma {
       rec.id,
       (rec.events ?? []).map((e) => ({ ...e, documentId: rec.id, at: new Date(e.at) })),
     );
-    this.authorityIds.set(rec.id, (rec.authorityIds ?? []).map((a) => ({ ...(a as object), documentId: rec.id })));
+    this.authorityIds.set(
+      rec.id,
+      (rec.authorityIds ?? []).map((a) => ({ ...(a as object), documentId: rec.id })),
+    );
   }
 
   scheduledJobsFor(documentId: string): Array<Record<string, unknown>> {
@@ -304,7 +307,7 @@ describe('F-2: AWAIT_CALLBACK correlates on ctx.transmitRef (the external ref), 
     expect(regs[0].correlationKey).toBe(id);
   });
 
-  it('also arms a fallback SCHEDULE_POLL using the provider\'s own pollPolicy (belt-and-suspenders)', async () => {
+  it("also arms a fallback SCHEDULE_POLL using the provider's own pollPolicy (belt-and-suspenders)", async () => {
     const fake = new FakePrisma();
     const applySignal = new ApplySignalService(
       fake as unknown as PrismaService,

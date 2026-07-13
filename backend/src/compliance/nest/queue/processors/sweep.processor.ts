@@ -73,9 +73,7 @@ export class SweepProcessor extends WorkerHost {
         this.logger.log(`[SWEEP] inbound replay: ${replayed} replayed, ${skipped} skipped`);
       }
     } catch (err) {
-      this.logger.error(
-        `[SWEEP] inbound replay failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      this.logger.error(`[SWEEP] inbound replay failed: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     // (3b) Inbox tick — poll configured InboxPort(s) (SFTP/IMAP) for new inbound documents. A no-op

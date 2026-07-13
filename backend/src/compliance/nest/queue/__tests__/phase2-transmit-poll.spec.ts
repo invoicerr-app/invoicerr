@@ -136,10 +136,7 @@ describeWithRedis('Phase 2: real queue transmit -> poll -> CLEARED (F-3 proof)',
     // Inject the mock PAC provider into the REAL, DI-resolved, credentialed registry instance — same
     // technique already used by lifecycle-coherence.spec.ts's svcMx() helper.
     (registry as unknown as { byId: Map<string, TransmissionProvider> }).byId.set('pac', mockPac);
-    (registry as unknown as { byChannel: Map<string, TransmissionProvider> }).byChannel.set(
-      'PAC',
-      mockPac,
-    );
+    (registry as unknown as { byChannel: Map<string, TransmissionProvider> }).byChannel.set('PAC', mockPac);
   });
 
   afterAll(async () => {
@@ -181,7 +178,11 @@ describeWithRedis('Phase 2: real queue transmit -> poll -> CLEARED (F-3 proof)',
       // 1) TransmitProcessor: computeSendOutcome (accepted/PENDING, blocking) -> SUBMIT_CLEARANCE ->
       //    ApplySignalService: ISSUED -> PENDING_CLEARANCE, SCHEDULE_POLL armed (ref=phase2-mock-ref),
       //    post-commit projection enqueues compliance-poll.
-      await waitFor(() => docStore.get(id), (d) => d?.status === 'PENDING_CLEARANCE', 15000);
+      await waitFor(
+        () => docStore.get(id),
+        (d) => d?.status === 'PENDING_CLEARANCE',
+        15000,
+      );
 
       const pollRows = await prisma.scheduledJob.findMany({ where: { documentId: id, kind: 'POLL' } });
       expect(pollRows).toHaveLength(1);
@@ -189,7 +190,11 @@ describeWithRedis('Phase 2: real queue transmit -> poll -> CLEARED (F-3 proof)',
 
       // 2) PollProcessor: first poll -> PENDING -> RESCHEDULE (job.moveToDelayed, same jobId) ->
       //    second poll -> CLEARED -> ApplySignalService: PENDING_CLEARANCE -> CLEARED.
-      await waitFor(() => docStore.get(id), (d) => d?.status === 'CLEARED', 20000);
+      await waitFor(
+        () => docStore.get(id),
+        (d) => d?.status === 'CLEARED',
+        20000,
+      );
 
       expect(pollCallCount).toBeGreaterThanOrEqual(2);
       // F-2-adjacent proof: poll() was called with the EXTERNAL transmit ref, never the raw documentId.

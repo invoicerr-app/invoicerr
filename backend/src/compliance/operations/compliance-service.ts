@@ -240,7 +240,9 @@ export class ComplianceService {
     // channel was SKIPPED/REJECTED, nothing was actually submitted/delivered — do not pretend
     // otherwise. transmitRef is the accepted channel's authority/transmission ref (used to correlate
     // later polls/callbacks — QUEUE_IMPL_PLAN.md F-2/F-3).
-    const acceptedTransmission = execution.transmissions.find((t) => ACCEPTED_TRANSMISSION_STATUSES.has(t.status));
+    const acceptedTransmission = execution.transmissions.find((t) =>
+      ACCEPTED_TRANSMISSION_STATUSES.has(t.status),
+    );
 
     const event: ComplianceEvent = !acceptedTransmission
       ? 'TRANSMISSION_FAIL'

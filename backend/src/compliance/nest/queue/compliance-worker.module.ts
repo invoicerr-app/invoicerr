@@ -45,7 +45,14 @@ import { QueueModule } from './queue.module';
  */
 @Module({
   imports: [BullModule.registerQueue({ name: Q_PING }), QueueModule, ComplianceCoreModule],
-  providers: [PingProcessor, TransmitProcessor, PollProcessor, TimerProcessor, ReportProcessor, SweepProcessor],
+  providers: [
+    PingProcessor,
+    TransmitProcessor,
+    PollProcessor,
+    TimerProcessor,
+    ReportProcessor,
+    SweepProcessor,
+  ],
   exports: [BullModule],
 })
 export class ComplianceWorkerModule implements OnApplicationBootstrap {

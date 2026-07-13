@@ -211,7 +211,7 @@ describe('ChannelCredentialsController — cross-tenant IDOR regression', () => 
     expect(channels.upsertChannelConfig).not.toHaveBeenCalledWith('company-A', expect.anything());
   });
 
-  it('a company-B MEMBER cannot delete company A\'s channel config → 403', async () => {
+  it("a company-B MEMBER cannot delete company A's channel config → 403", async () => {
     const res = await fetch(`${baseUrl}/compliance/channels/companies/company-A/ksef`, {
       method: 'DELETE',
       headers: { 'x-test-company-id': 'company-B', 'x-test-role': CompanyRole.MEMBER },

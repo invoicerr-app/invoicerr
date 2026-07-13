@@ -162,7 +162,13 @@ describeWithRedis('Phase 3: real timer fire + sweep reconcile', () => {
       supplier: party('CL', 'B2B'),
       buyer: party('CL', 'B2B'),
       lines: [
-        { id: 'l1', description: 'phase3 timer widget', quantity: 1, unitNetMinor: 5000, supplyType: 'GOODS' },
+        {
+          id: 'l1',
+          description: 'phase3 timer widget',
+          quantity: 1,
+          unitNetMinor: 5000,
+          supplyType: 'GOODS',
+        },
       ],
       issueDate: new Date('2027-02-01'),
       currency: 'CLP',
@@ -200,7 +206,11 @@ describeWithRedis('Phase 3: real timer fire + sweep reconcile', () => {
 
       // TimerProcessor: get(ARMED, fireAt<=now) -> save FIRED -> applySignal(TIMER_ELAPSED) ->
       // runtime resolves TIMER_ELAPSED -> ACCEPT (BuyerResponsePhase) -> AWAITING_RESPONSE -> ACCEPTED.
-      await waitFor(() => docStore.get(id), (d) => d?.status === 'ACCEPTED', 15000);
+      await waitFor(
+        () => docStore.get(id),
+        (d) => d?.status === 'ACCEPTED',
+        15000,
+      );
 
       const timerRow = await prisma.scheduledJob.findUnique({ where: { id: timerJobId } });
       expect(timerRow?.status).toBe('FIRED');
@@ -218,7 +228,13 @@ describeWithRedis('Phase 3: real timer fire + sweep reconcile', () => {
       supplier: party('MX', 'B2B'),
       buyer: party('MX', 'B2B'),
       lines: [
-        { id: 'l1', description: 'phase3 sweep widget', quantity: 1, unitNetMinor: 7500, supplyType: 'GOODS' },
+        {
+          id: 'l1',
+          description: 'phase3 sweep widget',
+          quantity: 1,
+          unitNetMinor: 7500,
+          supplyType: 'GOODS',
+        },
       ],
       issueDate: new Date('2027-02-01'),
       currency: 'MXN',

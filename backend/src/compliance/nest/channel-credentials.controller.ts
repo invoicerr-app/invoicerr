@@ -42,7 +42,7 @@ export class ChannelCredentialsController {
   @ApiParam({
     name: 'id',
     type: String,
-    description: 'Company ID (ignored — always resolved from the caller\'s active company/session)',
+    description: "Company ID (ignored — always resolved from the caller's active company/session)",
   })
   @ApiResponse({ status: 200, description: 'Required channels retrieved' })
   getRequiredChannels(@ActiveCompany() companyId: string) {
@@ -61,7 +61,7 @@ export class ChannelCredentialsController {
   @ApiParam({
     name: 'id',
     type: String,
-    description: 'Company ID (ignored — always resolved from the caller\'s active company/session)',
+    description: "Company ID (ignored — always resolved from the caller's active company/session)",
   })
   @ApiResponse({ status: 200, description: 'Configs retrieved' })
   listCompanyChannels(@ActiveCompany() companyId: string): Promise<ChannelConfigResponse[]> {
@@ -85,7 +85,7 @@ export class ChannelCredentialsController {
   @ApiParam({
     name: 'id',
     type: String,
-    description: 'Company ID (ignored — always resolved from the caller\'s active company/session)',
+    description: "Company ID (ignored — always resolved from the caller's active company/session)",
   })
   @ApiBody({
     schema: {
@@ -118,7 +118,7 @@ export class ChannelCredentialsController {
   @ApiParam({
     name: 'id',
     type: String,
-    description: 'Company ID (ignored — always resolved from the caller\'s active company/session)',
+    description: "Company ID (ignored — always resolved from the caller's active company/session)",
   })
   @ApiParam({ name: 'providerId', type: String, description: 'Provider ID' })
   @ApiResponse({ status: 200, description: 'Config deleted' })

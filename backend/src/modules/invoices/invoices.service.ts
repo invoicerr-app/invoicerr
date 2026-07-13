@@ -16,7 +16,10 @@ import { assembleLifecycle, phaseContextFromPlan } from '@/compliance/lifecycle/
 import { LifecycleRuntime } from '@/compliance/lifecycle/runtime';
 import type { CompliancePlan } from '@/compliance/engine/compliance-engine';
 import type { ComplianceStatus } from '@/compliance/lifecycle/state-machine';
-import { defaultTransmissionRegistry, TransmissionProviderRegistry } from '@/compliance/providers/transmission/registry';
+import {
+  defaultTransmissionRegistry,
+  TransmissionProviderRegistry,
+} from '@/compliance/providers/transmission/registry';
 import { describeFlow } from '@/compliance/lifecycle/flow-descriptor';
 import { ComplianceQueueDispatcher } from '@/compliance/nest/queue/compliance-queue.dispatcher';
 import { clampDiscountRate, toMinor } from '@/utils/financial';

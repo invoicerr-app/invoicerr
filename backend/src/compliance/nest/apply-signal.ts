@@ -181,7 +181,11 @@ export class ApplySignalService {
           // F-2 fallback POLL (Phase 4): belt-and-suspenders for ASYNC_CALLBACK channels — see the
           // class docstring above. Reuses the provider's own pollPolicy; no new cadence invented.
           const provider = this.resolveProvider(rec);
-          if (provider?.feedback === 'ASYNC_CALLBACK' && provider.pollPolicy && typeof provider.poll === 'function') {
+          if (
+            provider?.feedback === 'ASYNC_CALLBACK' &&
+            provider.pollPolicy &&
+            typeof provider.poll === 'function'
+          ) {
             const scheduledJobId = genId('poll');
             const job = createPollJob(
               {

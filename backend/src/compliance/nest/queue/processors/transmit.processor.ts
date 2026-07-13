@@ -45,9 +45,7 @@ export class TransmitProcessor extends WorkerHost {
     // ComplianceService.send() call) already advanced the document — re-processing would either
     // throw (illegal COMMAND) or double-transmit, so this guard makes at-least-once delivery safe.
     if (rec.status !== 'ISSUED' && rec.status !== 'TRANSMISSION_FAILED') {
-      this.logger.log(
-        `[TRANSMIT] document ${documentId} is already ${rec.status} — NOOP (job ${job.id})`,
-      );
+      this.logger.log(`[TRANSMIT] document ${documentId} is already ${rec.status} — NOOP (job ${job.id})`);
       return;
     }
 
@@ -62,12 +60,9 @@ export class TransmitProcessor extends WorkerHost {
       });
     }
 
-    await this.applySignal.apply(
-      documentId,
-      { type: 'COMMAND', event: outcome.event },
-      undefined,
-      { transmitRef: outcome.transmitRef },
-    );
+    await this.applySignal.apply(documentId, { type: 'COMMAND', event: outcome.event }, undefined, {
+      transmitRef: outcome.transmitRef,
+    });
 
     this.logger.log(
       `[TRANSMIT] document ${documentId} -> ${outcome.event} (ref=${outcome.transmitRef ?? 'n/a'}) [job ${job.id}]`,
