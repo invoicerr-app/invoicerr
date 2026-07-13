@@ -96,6 +96,56 @@ describe('ComplianceEngine — cross-border composition', () => {
   });
 });
 
+describe('ComplianceEngine — F-7: Peppol channel × artifact crossing (buildArtifacts)', () => {
+  it('DE (primary XRECHNUNG) declares PEPPOL and gets a PEPPOL_BIS artifact added', () => {
+    const plan = resolve(tx('DE', 'DE', 'B2B', 'GOODS', '2027-01-15'));
+    expect(plan.channels.map((c) => c.type)).toContain('PEPPOL');
+    expect(plan.artifacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ role: 'AUTHORITATIVE', syntax: 'XRECHNUNG' }),
+        expect.objectContaining({ syntax: 'PEPPOL_BIS' }),
+      ]),
+    );
+  });
+
+  it('ES (primary ES_FACTURAE) declares PEPPOL and gets a PEPPOL_BIS artifact added', () => {
+    const plan = resolve(tx('ES', 'ES', 'B2B', 'GOODS', '2027-01-15'));
+    expect(plan.channels.map((c) => c.type)).toContain('PEPPOL');
+    expect(plan.artifacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ role: 'AUTHORITATIVE', syntax: 'ES_FACTURAE' }),
+        expect.objectContaining({ syntax: 'PEPPOL_BIS' }),
+      ]),
+    );
+  });
+
+  it('FR (primary EN16931_CII, already Peppol-transmittable) is NOT bloated with a duplicate', () => {
+    const plan = resolve(tx('FR', 'FR', 'B2B', 'SERVICES', '2027-01-15'));
+    expect(plan.channels.map((c) => c.type)).toContain('PEPPOL');
+    const peppolCompatible = plan.artifacts.filter((a) =>
+      ['PEPPOL_BIS', 'EN16931_UBL', 'EN16931_CII'].includes(a.syntax),
+    );
+    // Exactly one Peppol-transmittable syntax (the pre-existing EN16931_CII) — no PEPPOL_BIS added.
+    expect(peppolCompatible).toHaveLength(1);
+    expect(plan.artifacts.some((a) => a.syntax === 'PEPPOL_BIS')).toBe(false);
+  });
+
+  it('AT (postAudit archetype, primary EN16931_UBL, already Peppol-transmittable) is NOT bloated', () => {
+    const plan = resolve(tx('AT', 'AT', 'B2B', 'SERVICES', '2027-01-15'));
+    expect(plan.channels.map((c) => c.type)).toContain('PEPPOL');
+    const peppolCompatible = plan.artifacts.filter((a) =>
+      ['PEPPOL_BIS', 'EN16931_UBL', 'EN16931_CII'].includes(a.syntax),
+    );
+    expect(peppolCompatible).toHaveLength(1);
+  });
+
+  it('PL (no PEPPOL channel — KSeF only) does NOT get a PEPPOL_BIS artifact', () => {
+    const plan = resolve(tx('PL', 'PL', 'B2B', 'GOODS', '2027-01-15'));
+    expect(plan.channels.map((c) => c.type)).not.toContain('PEPPOL');
+    expect(plan.artifacts.some((a) => a.syntax === 'PEPPOL_BIS')).toBe(false);
+  });
+});
+
 describe('ComplianceEngine — delegation & fail-safe', () => {
   it('Monaco delegates to the French profile', () => {
     const plan = resolve(tx('MC', 'MC', 'B2B', 'SERVICES', '2027-01-15'));

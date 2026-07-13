@@ -95,13 +95,14 @@ export function resolve(ctx: TransactionContext, deps: ResolveDeps = {}): Compli
   const regime =
     pickWithSelector(sp.regime, ctx.issueDate, buyerRole, supplyTypes) ?? fallbackRegime(sp, warnings);
 
-  // Formats — supplier primary (+ human) plus buyer-mandated receive syntax when negotiable.
-  const fmt = pickWithSelector(sp.formats, ctx.issueDate, buyerRole, supplyTypes);
-  const artifacts = buildArtifacts(fmt, bp, warnings);
-
-  // Channels.
+  // Channels — resolved BEFORE artifacts so buildArtifacts() can cross-check them (F-7).
   const transmission = pickByDate(sp.transmission, ctx.issueDate);
   const channels: ChannelSpec[] = transmission?.channels ?? [{ type: 'EMAIL' }];
+
+  // Formats — supplier primary (+ human) plus buyer-mandated receive syntax when negotiable,
+  // plus (F-7) a Peppol-transmittable artifact when the plan actually carries a PEPPOL channel.
+  const fmt = pickWithSelector(sp.formats, ctx.issueDate, buyerRole, supplyTypes);
+  const artifacts = buildArtifacts(fmt, bp, channels, warnings);
 
   // Lifecycle, archival & numbering.
   const lifecycle = pickByDate(sp.lifecycle, ctx.issueDate) ?? DEFAULT_LIFECYCLE;
@@ -154,9 +155,23 @@ function fallbackRegime(sp: CountryComplianceProfile, warnings: string[]): Regim
   return { model: 'POST_AUDIT', blocking: false };
 }
 
+/**
+ * Syntaxes the Peppol transmission provider accepts directly (peppol-transmission.ts's own
+ * artifact search order: PEPPOL_BIS, then EN16931_UBL, then EN16931_CII). Any primary format
+ * already in this set means the network is already reachable with what buildArtifacts() would
+ * emit anyway — no extra artifact needed (this is what keeps FR, and every EN16931_UBL/CII
+ * "post-audit Peppol" archetype country, from getting a duplicate).
+ */
+const PEPPOL_TRANSMITTABLE_SYNTAXES: ReadonlySet<string> = new Set([
+  'PEPPOL_BIS',
+  'EN16931_UBL',
+  'EN16931_CII',
+]);
+
 function buildArtifacts(
   fmt: FormatRule | null,
   buyerProfile: CountryComplianceProfile,
+  channels: ChannelSpec[],
   warnings: string[],
 ): PlannedArtifact[] {
   if (!fmt) {
@@ -174,5 +189,21 @@ function buildArtifacts(
   ) {
     artifacts.push({ role: 'BUYER', syntax: buyerProfile.mandatoryReceiveSyntax });
   }
+
+  // F-7: cross the plan's *channels* against the artifacts actually built. A profile can declare
+  // a PEPPOL channel (DE, ES...) while its primary/human/buyer syntaxes are all national-CIUS
+  // formats the Peppol provider does not recognise (XRECHNUNG, ES_FACTURAE) — the send would be
+  // SKIPPED on every attempt, silently, forever. When PEPPOL is actually in the plan's channels
+  // and nothing already-built is Peppol-transmittable, add a PEPPOL_BIS artifact (UBL BIS 3.0 /
+  // EN16931-UBL) built from the canonical invoice model by the same En16931FormatProvider used
+  // for EN16931_UBL/CII (providers/format/providers.ts, SYNTAX_TO_XML_FORMAT['PEPPOL_BIS'] =
+  // 'ubl') — never derived from another syntax's artifact (e.g. never from ES_FACTURAE). Gated on
+  // the channel actually being present so every other document is unaffected (no bloat).
+  const wantsPeppolChannel = channels.some((c) => c.type === 'PEPPOL');
+  const alreadyPeppolTransmittable = artifacts.some((a) => PEPPOL_TRANSMITTABLE_SYNTAXES.has(a.syntax));
+  if (wantsPeppolChannel && !alreadyPeppolTransmittable) {
+    artifacts.push({ role: 'BUYER', syntax: 'PEPPOL_BIS' });
+  }
+
   return artifacts;
 }
