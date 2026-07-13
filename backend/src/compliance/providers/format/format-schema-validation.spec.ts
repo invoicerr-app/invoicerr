@@ -374,4 +374,17 @@ describe('FA_VAT (PL) — XSD gate via provider.validate()', () => {
     const report = await provider.validate(artifact, log);
     expect(report.valid).toBe(false);
   });
+
+  it('[positive] FA(3) builder output validates via provider.validate() (auto-detects namespace)', async () => {
+    const fa3Data = {
+      ...PL_B2B.data,
+      issuedAt: new Date('2026-03-01T10:00:00Z'),
+      createdAt: new Date('2026-03-01T10:00:00Z'),
+    };
+    const xml = await service.buildFaVat3(fa3Data);
+    const artifact = artifactFrom(xml, 'FA_VAT');
+    const report = await provider.validate(artifact, log);
+    expect(report.valid).toBe(true);
+    expect(report.errors).toHaveLength(0);
+  });
 });

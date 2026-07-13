@@ -5,7 +5,10 @@
  * PL FA(2): authoritative XSD validation via vendored schemas + libxmljs2.
  * Gate vivant: presence of required root elements and data integrity.
  */
-import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
+import {
+  InvoiceRenderingService,
+  selectFaVatVersion,
+} from '@/modules/invoice-rendering/invoice-rendering.service';
 import { validateXsd, XsdResult } from '@/compliance/schemas/validate';
 import {
   IT_B2B,
@@ -371,6 +374,86 @@ describe('National Format — structural validation', () => {
 
       expect(errors).toEqual([]);
       expect(xsdResult.valid).toBe(true);
+    });
+  });
+
+  describe('FA_VAT (PL) — FA(3) / KSeF 2.0', () => {
+    // Same B2B fixture, but issued after the FA(3) mandate onset (2026-02-01) — see
+    // selectFaVatVersion() in national/fa-vat.ts.
+    const fa3Data = {
+      ...PL_B2B.data,
+      issuedAt: new Date('2026-03-01T10:00:00Z'),
+      createdAt: new Date('2026-03-01T10:00:00Z'),
+    };
+
+    it('service.buildFaVat() auto-selects FA(3) for a post-threshold issue date', async () => {
+      const xml = await service.buildFaVat(fa3Data);
+      expect(xml).toContain('http://crd.gov.pl/wzor/2025/06/25/13775/');
+      expect(xml).toContain('kodSystemowy="FA (3)"');
+      expect(xml).toContain('<WariantFormularza>3</WariantFormularza>');
+    });
+
+    it('service.buildFaVat() still selects FA(2) for a pre-threshold issue date', async () => {
+      const xml = await service.buildFaVat(PL_B2B.data); // NOW = 2025-06-15, before 2026-02-01
+      expect(xml).toContain('http://crd.gov.pl/wzor/2023/06/29/12648/');
+      expect(xml).toContain('kodSystemowy="FA (2)"');
+      expect(xml).toContain('<WariantFormularza>2</WariantFormularza>');
+    });
+
+    it('explicit buildFaVat3() output validates against the vendored FA(3) XSD (schemat_FA3.xsd)', async () => {
+      const xml = await service.buildFaVat3(fa3Data);
+      expect(typeof xml).toBe('string');
+      expect(xml.length).toBeGreaterThan(100);
+
+      const errors: string[] = [];
+      if (!xml.includes('Faktura')) errors.push('missing Faktura root');
+      if (!xml.includes('Naglowek')) errors.push('missing Naglowek');
+      if (!xml.includes('Podmiot1')) errors.push('missing Podmiot1 (seller)');
+      if (!xml.includes('Podmiot2')) errors.push('missing Podmiot2 (buyer)');
+      if (!xml.includes('<JST>2</JST>')) errors.push('missing mandatory FA(3) JST marker');
+      if (!xml.includes('<GV>2</GV>')) errors.push('missing mandatory FA(3) GV marker');
+      if (!xml.includes('FaWiersz')) errors.push('missing FaWiersz');
+      if (!xml.includes('1234567890')) errors.push('missing seller NIP');
+      if (!xml.includes('9876543210')) errors.push('missing buyer NIP');
+
+      const xsdResult: XsdResult = await validateXsd(xml, 'pl/schemat_FA3.xsd');
+
+      results.push({
+        fixture: 'pl-b2b-fa3',
+        format: 'fa-vat-3',
+        xmlLength: xml.length,
+        hasRequiredElements: errors.length === 0 && xsdResult.valid,
+        verdict: xsdResult.valid ? 'PASS' : 'FAIL',
+        errors: [...errors, ...xsdResult.errors],
+      });
+
+      expect(errors).toEqual([]);
+      expect(xsdResult.valid).toBe(true);
+    });
+
+    it('explicit buildFaVat2() still builds+validates against schemat_FA2.xsd (transition kept)', async () => {
+      // Same post-threshold data, but forced to FA(2) — proves FA(2) isn't ripped out.
+      const xml = await service.buildFaVat2(fa3Data);
+      expect(xml).toContain('http://crd.gov.pl/wzor/2023/06/29/12648/');
+      const xsdResult: XsdResult = await validateXsd(xml, 'pl/schemat_FA2.xsd');
+      expect(xsdResult.valid).toBe(true);
+      expect(xsdResult.errors).toHaveLength(0);
+    });
+
+    it('rejects an FA(3) document that is missing the mandatory JST/GV buyer markers', async () => {
+      const xml = await service.buildFaVat3(fa3Data);
+      const broken = xml.replace(/<JST>2<\/JST>\s*<GV>2<\/GV>\s*/, '');
+      const result = await validateXsd(broken, 'pl/schemat_FA3.xsd');
+      expect(result.valid).toBe(false);
+      expect(result.errorCount).toBeGreaterThan(0);
+    });
+
+    it('selectFaVatVersion() picks by threshold date (2026-02-01) and honours an explicit override', () => {
+      expect(selectFaVatVersion(new Date('2026-01-31T23:59:59Z'))).toBe(2);
+      expect(selectFaVatVersion(new Date('2026-02-01T00:00:00Z'))).toBe(3);
+      expect(selectFaVatVersion(new Date('2026-06-01T00:00:00Z'))).toBe(3);
+      expect(selectFaVatVersion(null)).toBe(2);
+      expect(selectFaVatVersion(new Date('2026-06-01T00:00:00Z'), 2)).toBe(2); // explicit override wins
     });
   });
 

@@ -3,7 +3,7 @@
  *
  * Vendored schemas live in:
  *   backend/src/compliance/schemas/en16931/   — EN16931 CII Schematron (preprocessed .sch)
- *   backend/src/compliance/schemas/pl/        — PL FA(2) XSD
+ *   backend/src/compliance/schemas/pl/        — PL FA(2)/FA(3) XSD
  *
  * Schematron uses node-schematron (runs .sch directly, no compile step).
  * XSD uses xmllint-wasm (no native binary dependency).
@@ -130,7 +130,7 @@ export function validateSchematron(xml: string, schRelPath: string): SchematronR
   };
 }
 
-// ─── XSD (PL FA(2) via xmllint-wasm) ──────────────────────────────────────
+// ─── XSD (PL FA(2)/FA(3) via xmllint-wasm) ─────────────────────────────────
 // xmllint-wasm runs xmllint inside a WASM sandbox — no system binary required.
 // All XSD files in the schema directory are preloaded into the WASM VFS so that
 // xsd:include and xsd:import chains resolve correctly.

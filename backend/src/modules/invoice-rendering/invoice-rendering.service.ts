@@ -17,12 +17,18 @@ import { buildFatturaPa as buildFatturaPaXml } from './national/fattura-pa';
 import { buildCfdi as buildCfdiXml } from './national/cfdi';
 import { buildFacturae as buildFacturaeXml } from './national/facturae';
 import { buildKsaUbl as buildKsaUblXml } from './national/ksa-ubl';
-import { buildFaVat as buildFaVatXml } from './national/fa-vat';
+import {
+  buildFaVat as buildFaVatXml,
+  buildFaVat2 as buildFaVat2Xml,
+  buildFaVat3 as buildFaVat3Xml,
+} from './national/fa-vat';
 import { NATIONAL_XML_BUILDERS } from './national/index';
 import { buildGenericNationalXml } from './national/generic-builder';
 
 export type { InvoiceRenderData, LineAllowance } from './render-data';
 export { computeKsaInvoiceHash, ZATCA_PIH_INIT } from './national/ksa-ubl';
+export { selectFaVatVersion, FA_VAT_3_EFFECTIVE_DATE } from './national/fa-vat';
+export type { FaVatVersion } from './national/fa-vat';
 
 /** Silent logger for @e-invoice-eu/core — validation errors surface as thrown exceptions. */
 const EU_LOGGER = { log: () => {}, warn: () => {}, error: () => {} };
@@ -629,9 +635,19 @@ export class InvoiceRenderingService {
     return buildKsaUblXml(data, options);
   }
 
-  /** FA_VAT (PL/KSeF) XML — see national/fa-vat.ts. */
+  /** FA_VAT (PL/KSeF) XML — selects FA(2)/FA(3) by issue date, see national/fa-vat.ts. */
   async buildFaVat(data: InvoiceRenderData): Promise<string> {
     return buildFaVatXml(data);
+  }
+
+  /** FA_VAT / FA(2) XML — explicit build, kept available during the FA(2)→FA(3) transition. */
+  async buildFaVat2(data: InvoiceRenderData): Promise<string> {
+    return buildFaVat2Xml(data);
+  }
+
+  /** FA_VAT / FA(3) XML — explicit build (KSeF 2.0 structure). */
+  async buildFaVat3(data: InvoiceRenderData): Promise<string> {
+    return buildFaVat3Xml(data);
   }
 
   async renderPdfFormat(invoiceId: string, format: '' | 'pdf' | string): Promise<Uint8Array> {

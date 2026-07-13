@@ -423,10 +423,15 @@ export class FaVatFormatProvider implements FormatProvider {
     return { ...rendered(artifact), mime: 'application/xml' };
   }
   async validate(rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport> {
-    // Poland FA(2) XSD gate — schemat_FA2.xsd + support schemas (vendored under schemas/pl/).
+    // Poland FA(2)/FA(3) XSD gate — schemat_FA2.xsd / schemat_FA3.xsd + shared support schemas
+    // (vendored under schemas/pl/). The two builders emit different target namespaces (see
+    // FA_VAT_3_NAMESPACE in modules/invoice-rendering/national/fa-vat.ts — not imported here to
+    // keep this provider decoupled from the rendering module, per the hexagonal boundary), so we
+    // detect which one was rendered and validate against the matching vendored schema.
     if (!rendered.bytes.length) return okValidation('FA_VAT validation skipped (no bytes — stub path)');
     const xml = new TextDecoder().decode(rendered.bytes);
-    const result = await validateXsd(xml, 'pl/schemat_FA2.xsd');
+    const isFa3 = xml.includes('http://crd.gov.pl/wzor/2025/06/25/13775/');
+    const result = await validateXsd(xml, isFa3 ? 'pl/schemat_FA3.xsd' : 'pl/schemat_FA2.xsd');
     if (!result.valid) {
       log.warn('format/fa-vat', `FA_VAT XSD errors: ${result.errors.slice(0, 3).join('; ')}`);
       return { valid: false, errors: result.errors, warnings: [] };
