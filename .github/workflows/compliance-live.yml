@@ -20,6 +20,33 @@ jobs:
     runs-on: ubuntu-latest
     # Optional: a GitHub Environment named "live-tests" lets you require a reviewer before each run.
     environment: live-tests
+    # M-15 (COMPLIANCE_AUDIT.md): real Postgres + Redis, mirroring cypress.yml's queue-integration
+    # job — needed by full-pipeline-peppol.live.spec.ts, which drives a document through the REAL
+    # BullMQ TransmitProcessor/PollProcessor + ApplySignalService (not just a provider call). Every
+    # other spec in this job is provider-level (no DB/queue) and simply ignores these services.
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: invoicerr_test
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     env:
       # *_LIVE / *_ENV / *_CHANNEL are constants set here, NOT secrets — only credentials are secrets.
       # Flags ON — the per-spec credential gate decides what actually runs.
@@ -30,6 +57,12 @@ jobs:
       SDI_LIVE: '1'
       PEPPOL_LIVE: '1'
       TSA_LIVE: '1'           # RFC 3161 -T timestamping (e.g. FreeTSA)
+
+      # --- full-pipeline-peppol.live.spec.ts (M-15): real Postgres + Redis for the queue-driven
+      # engine -> executor -> applySignal -> BullMQ pipeline. Same DB/Redis the queue-integration
+      # job (cypress.yml) uses — a fresh, empty, freshly-migrated DB is enough here too.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/invoicerr_test?schema=public
+      REDIS_URL: redis://localhost:6379
 
       # --- TSA (RFC 3161) — e.g. https://freetsa.org/tsr ---
       TSA_URL: ${{ secrets.TSA_URL }}
@@ -79,10 +112,19 @@ jobs:
         run: cd backend && npm ci
 
       - name: Generate Prisma client
-        run: cd backend && DATABASE_URL="postgresql://unused:unused@localhost:5432/unused" npx prisma generate
+        run: cd backend && npx prisma generate
 
+      # Apply the full migration chain to the empty CI Postgres — same as cypress.yml's
+      # queue-integration job. full-pipeline-peppol.live.spec.ts creates its own Company/Client/
+      # Invoice/ComplianceDocument fixtures against this schema and cleans them up in afterAll.
+      - name: Apply migrations (empty dev DB)
+        run: cd backend && npx prisma migrate deploy
+
+      # --forceExit: full-pipeline-peppol.live.spec.ts (like the queue-integration specs) leaves
+      # BullMQ/ioredis connections open past the last assertion — harmless once the job's own
+      # container teardown reclaims them, but forceExit keeps this step from hanging.
       - name: Run gated live specs
-        run: cd backend && npx jest live --no-coverage --ci
+        run: cd backend && npx jest live --no-coverage --ci --forceExit
 
   # National portals — namespaced per-provider convention.
   # Each portal self-gates on <PREFIX>_LIVE=1 + its own <PREFIX>_* creds.
