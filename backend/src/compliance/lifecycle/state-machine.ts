@@ -16,7 +16,8 @@ export type ComplianceStatus =
   | 'DISPUTED'
   | 'REPORTED'
   | 'CANCELLED'
-  | 'CORRECTED';
+  | 'CORRECTED'
+  | 'TRANSMISSION_FAILED';
 
 export type ComplianceEvent =
   | 'ISSUE'
@@ -31,11 +32,25 @@ export type ComplianceEvent =
   | 'DISPUTE'
   | 'REPORT'
   | 'CANCEL'
-  | 'CORRECT';
+  | 'CORRECT'
+  | 'TRANSMISSION_FAIL';
 
 const TRANSITIONS: Record<ComplianceStatus, Partial<Record<ComplianceEvent, ComplianceStatus>>> = {
   DRAFT: { ISSUE: 'ISSUED' },
-  ISSUED: { SUBMIT_CLEARANCE: 'PENDING_CLEARANCE', DELIVER: 'DELIVERED', ENTER_CONTINGENCY: 'CONTINGENCY' },
+  ISSUED: {
+    SUBMIT_CLEARANCE: 'PENDING_CLEARANCE',
+    DELIVER: 'DELIVERED',
+    ENTER_CONTINGENCY: 'CONTINGENCY',
+    TRANSMISSION_FAIL: 'TRANSMISSION_FAILED',
+  },
+  // F-4: every planned channel came back SKIPPED/REJECTED — send() refuses to pretend the document
+  // was delivered/submitted. Retryable: the same events that leave ISSUED also leave here, so a
+  // later resend() (which re-invokes send()) can pick back up once the channel is fixed/configured.
+  TRANSMISSION_FAILED: {
+    SUBMIT_CLEARANCE: 'PENDING_CLEARANCE',
+    DELIVER: 'DELIVERED',
+    TRANSMISSION_FAIL: 'TRANSMISSION_FAILED',
+  },
   PENDING_CLEARANCE: { CLEAR: 'CLEARED', REJECT: 'REJECTED', ENTER_CONTINGENCY: 'CONTINGENCY' },
   CONTINGENCY: { CLEAR: 'CLEARED', REJECT: 'REJECTED' },
   CLEARED: { DELIVER: 'DELIVERED', CANCEL: 'CANCELLED' },

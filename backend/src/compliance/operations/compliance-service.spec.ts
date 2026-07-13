@@ -3,6 +3,8 @@ import { PartyTaxProfile, TransactionContext } from '../canonical/canonical-docu
 import { NumberingRegistry } from '../lifecycle/numbering';
 import { RecordingComplianceLogger } from '../execution/logger';
 import { ComplianceExecutor } from '../execution/executor';
+import { TransmissionProvider } from '../providers/transmission/transmission-provider';
+import { TransmissionProviderRegistry } from '../providers/transmission/registry';
 import { ComplianceService } from './compliance-service';
 import { InMemoryComplianceDocumentStore } from './document-store';
 import { resolve } from '../engine/compliance-engine';
@@ -43,9 +45,119 @@ function svc() {
   return { service, log };
 }
 
+/**
+ * F-4: send() is now honest about the transmission outcome, so a MX (PAC) test that wants to reach
+ * PENDING_CLEARANCE needs a channel that genuinely accepts the document — `svc()` above has no
+ * transmission credentials configured, so PAC always comes back SKIPPED (see the dedicated F-4
+ * sincerity test below, which exercises exactly that unconfigured path on purpose). This variant
+ * wires a company id + a mocked-but-accepting PAC provider so the "happy path" MX tests keep
+ * covering PENDING_CLEARANCE → markCleared → CLEARED like they did before the fix.
+ */
+function svcMx() {
+  const log = new RecordingComplianceLogger();
+  const pacMock: TransmissionProvider = {
+    id: 'pac',
+    channel: 'PAC',
+    feedback: 'ASYNC_POLL',
+    configSchema: { fields: [] },
+    transmit: async () => ({
+      channel: 'PAC',
+      status: 'CLEARED',
+      ref: 'mx-test-co|test-uuid',
+      authorityIds: [{ scheme: 'UUID', value: 'test-uuid' }],
+      notes: ['uuid: test-uuid'],
+    }),
+  };
+  const credentials = {
+    resolve: async () => null,
+    resolveActive: async () => ({
+      providerId: 'pac',
+      channel: 'PAC' as const,
+      environment: 'test',
+      config: { baseUrl: 'https://pac.example.test', apiKey: 'k', rfc: 'AAA010101AAA' },
+      isActive: true,
+    }),
+  };
+  const transmission = new TransmissionProviderRegistry({ credentials });
+  (transmission as unknown as { byId: Map<string, TransmissionProvider> }).byId.set('pac', pacMock);
+  (transmission as unknown as { byChannel: Map<string, TransmissionProvider> }).byChannel.set(
+    'PAC',
+    pacMock,
+  );
+  const service = new ComplianceService({
+    store: new InMemoryComplianceDocumentStore(),
+    numbering: new NumberingRegistry(),
+    executor: new ComplianceExecutor({
+      logger: log,
+      numbering: new NumberingRegistry(),
+      transmission,
+    }),
+    logger: log,
+  });
+  return { service, log };
+}
+
+/**
+ * Like svcMx(), but the mocked PAC provider SKIPS the first transmit() call and only accepts from
+ * the second call onward — used to prove the TRANSMISSION_FAILED → (resend) → PENDING_CLEARANCE
+ * retry path actually re-invokes the executor rather than replaying a cached outcome.
+ */
+function svcMxFlaky() {
+  const log = new RecordingComplianceLogger();
+  let attempt = 0;
+  const pacMock: TransmissionProvider = {
+    id: 'pac',
+    channel: 'PAC',
+    feedback: 'ASYNC_POLL',
+    configSchema: { fields: [] },
+    transmit: async () => {
+      attempt += 1;
+      if (attempt === 1) {
+        return { channel: 'PAC', status: 'SKIPPED', notes: ['pac: sandbox not yet warmed up'] };
+      }
+      return {
+        channel: 'PAC',
+        status: 'CLEARED',
+        ref: 'mx-test-co|test-uuid',
+        authorityIds: [{ scheme: 'UUID', value: 'test-uuid' }],
+        notes: ['uuid: test-uuid'],
+      };
+    },
+  };
+  const credentials = {
+    resolve: async () => null,
+    resolveActive: async () => ({
+      providerId: 'pac',
+      channel: 'PAC' as const,
+      environment: 'test',
+      config: { baseUrl: 'https://pac.example.test', apiKey: 'k', rfc: 'AAA010101AAA' },
+      isActive: true,
+    }),
+  };
+  const transmission = new TransmissionProviderRegistry({ credentials });
+  (transmission as unknown as { byId: Map<string, TransmissionProvider> }).byId.set('pac', pacMock);
+  (transmission as unknown as { byChannel: Map<string, TransmissionProvider> }).byChannel.set(
+    'PAC',
+    pacMock,
+  );
+  const service = new ComplianceService({
+    store: new InMemoryComplianceDocumentStore(),
+    numbering: new NumberingRegistry(),
+    executor: new ComplianceExecutor({
+      logger: log,
+      numbering: new NumberingRegistry(),
+      transmission,
+    }),
+    logger: log,
+  });
+  return { service, log };
+}
+
 const FR = () => ctx('FR', 'FR', 'B2B', 'SERVICES', '2027-01-15');
 const US = () => ctx('US', 'US', 'B2B', 'GOODS', '2027-01-15');
 const MX = () => ctx('MX', 'MX', 'B2B', 'GOODS', '2024-06-01');
+/** MX context carrying a supplierCompanyId so transmitAll() actually resolves per-company config. */
+const MX_CONFIGURED = (): TransactionContext => ({ ...MX(), supplierCompanyId: 'mx-test-co' });
 
 describe('ComplianceService — issuance & immutability', () => {
   it('creates a draft, issues it (number + ISSUED), and freezes editing', async () => {
@@ -77,8 +189,10 @@ describe('ComplianceService — sending by regime', () => {
   });
 
   it('MX (blocking clearance) send → PENDING_CLEARANCE, then markCleared → CLEARED', async () => {
-    const { service } = svc();
-    const draft = await service.createDraft(MX());
+    // F-4: send() only reaches PENDING_CLEARANCE when a channel genuinely accepted the document —
+    // svcMx()/MX_CONFIGURED() wire a company id + a mocked-but-accepting PAC provider for that.
+    const { service } = svcMx();
+    const draft = await service.createDraft(MX_CONFIGURED());
     await service.issue(draft.id);
     expect((await service.send(draft.id)).document.status).toBe('PENDING_CLEARANCE');
     expect((await service.markCleared(draft.id)).document.status).toBe('CLEARED');
@@ -90,6 +204,79 @@ describe('ComplianceService — sending by regime', () => {
     await service.issue(d.id);
     const r = await service.sendViaChannel(d.id, 'PRINT');
     expect(r.transmissions[0].channel).toBe('PRINT');
+  });
+});
+
+describe('ComplianceService — F-4: send() sincerity (transmission failure is visible, not swallowed)', () => {
+  it('MX send() with no PAC channel configured → TRANSMISSION_FAILED, not PENDING_CLEARANCE', async () => {
+    // svc()/MX() (no supplierCompanyId, no transmission credentials) is exactly the "nothing is
+    // configured" scenario: every planned channel (just PAC here) comes back SKIPPED. Before F-4,
+    // send() ignored this and transitioned to PENDING_CLEARANCE anyway because plan.regime.blocking
+    // was true — a document that was never actually submitted to anyone.
+    const { service } = svc();
+    const draft = await service.createDraft(MX());
+    await service.issue(draft.id);
+    const sent = await service.send(draft.id);
+
+    expect(sent.execution.transmissions.every((t) => t.status === 'SKIPPED' || t.status === 'REJECTED')).toBe(
+      true,
+    );
+    expect(sent.document.status).toBe('TRANSMISSION_FAILED');
+    expect(sent.transmissionFailed).toBe(true);
+
+    // The failure is a first-class, persisted ComplianceEvent (not just a log line) so the
+    // UI/pipeline can surface it — detail carries the transmission notes as the failure reason.
+    const failEvent = sent.document.events.find((e) => e.type === 'TRANSMISSION_FAIL');
+    expect(failEvent).toBeDefined();
+    expect(failEvent!.detail).toBeTruthy();
+  });
+
+  it('is retryable: a later resend() can succeed after an earlier TRANSMISSION_FAILED', async () => {
+    // A PAC provider whose first attempt is SKIPPED (e.g. sandbox not warmed up yet) and whose
+    // second attempt is genuinely accepted — proves both that TRANSMISSION_FAILED → PENDING_CLEARANCE
+    // is a legal state-machine transition, and that resend() truly re-invokes the executor rather
+    // than replaying a cached result.
+    const { service } = svcMxFlaky();
+    const draft = await service.createDraft(MX_CONFIGURED());
+    await service.issue(draft.id);
+
+    const first = await service.send(draft.id);
+    expect(first.document.status).toBe('TRANSMISSION_FAILED');
+
+    const retried = await service.resend(draft.id);
+    expect(retried.document.status).toBe('PENDING_CLEARANCE');
+  });
+
+  it('a successful (accepted) send() does not report transmissionFailed', async () => {
+    const { service } = svc();
+    const sent = await service.issueAndSend(US());
+    expect(sent.transmissionFailed).toBe(false);
+  });
+});
+
+describe('ComplianceService — M-12a: send() precondition guards the real network side effect', () => {
+  it('rejects a non-ISSUED document (e.g. DRAFT) before ever calling the executor', async () => {
+    const { service } = svc();
+    const draft = await service.createDraft(FR());
+    const innerExecutor = (service as unknown as { executor: { execute: jest.Mock } }).executor;
+    const realExecuteSpy = jest.spyOn(innerExecutor, 'execute');
+
+    await expect(service.send(draft.id)).rejects.toThrow(/ISSUED/);
+    expect(realExecuteSpy).not.toHaveBeenCalled();
+    realExecuteSpy.mockRestore();
+  });
+
+  it('rejects a second send() on an already-DELIVERED document before re-invoking the executor', async () => {
+    const { service } = svc();
+    const { document } = await service.issueAndSend(US());
+    expect(document.status).toBe('DELIVERED');
+
+    const innerExecutor = (service as unknown as { executor: { execute: jest.Mock } }).executor;
+    const realExecuteSpy = jest.spyOn(innerExecutor, 'execute');
+
+    await expect(service.send(document.id)).rejects.toThrow(/DELIVERED/);
+    expect(realExecuteSpy).not.toHaveBeenCalled();
+    realExecuteSpy.mockRestore();
   });
 });
 
@@ -112,8 +299,8 @@ describe('ComplianceService — modification & corrections', () => {
   });
 
   it('cancellation is policy-gated: MX needs buyer consent', async () => {
-    const { service } = svc();
-    const d = await service.createDraft(MX());
+    const { service } = svcMx(); // F-4: needs a genuinely-accepted channel to reach CLEARED via send()
+    const d = await service.createDraft(MX_CONFIGURED());
     await service.issue(d.id);
     await service.send(d.id);
     await service.markCleared(d.id);
@@ -262,8 +449,8 @@ describe('ComplianceService — PART IV: available-actions resolution', () => {
   });
 
   it('cancel() rejects MX without buyer consent', async () => {
-    const { service } = svc();
-    const d = await service.createDraft(MX());
+    const { service } = svcMx(); // F-4: needs a genuinely-accepted channel to reach CLEARED via send()
+    const d = await service.createDraft(MX_CONFIGURED());
     await service.issue(d.id);
     await service.send(d.id);
     await service.markCleared(d.id);
@@ -274,8 +461,8 @@ describe('ComplianceService — PART IV: available-actions resolution', () => {
   });
 
   it('cancel() accepts MX with buyer consent', async () => {
-    const { service } = svc();
-    const d = await service.createDraft(MX());
+    const { service } = svcMx(); // F-4: needs a genuinely-accepted channel to reach CLEARED via send()
+    const d = await service.createDraft(MX_CONFIGURED());
     await service.issue(d.id);
     await service.send(d.id);
     await service.markCleared(d.id);

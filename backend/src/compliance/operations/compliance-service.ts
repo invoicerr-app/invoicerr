@@ -69,6 +69,18 @@ function now(): string {
   return new Date().toISOString();
 }
 
+/**
+ * F-4: TransmissionStatus values that count as "the channel actually accepted the document".
+ * SKIPPED (never attempted — no config/provider) and REJECTED (attempted, refused) do NOT count.
+ * QUEUED is a mid-status used by sendStatus()/poll() lifecycle pushes, not the initial send() —
+ * excluded here deliberately so a plain "we queued it locally" cannot masquerade as delivery.
+ */
+const ACCEPTED_TRANSMISSION_STATUSES: ReadonlySet<TransmissionResult['status']> = new Set([
+  'SENT',
+  'PENDING',
+  'CLEARED',
+]);
+
 export class ComplianceService {
   private readonly store: ComplianceDocumentStore;
   private readonly executor: ComplianceExecutor;
@@ -210,6 +222,17 @@ export class ComplianceService {
   /** Run the full pipeline (build → sign → regime → transmit → archive → report) and move state. */
   async send(id: string, opts: IssueOptions = {}): Promise<SendResult> {
     const rec = await this.require(id);
+    // M-12a: guard BEFORE the real network side effect (executor.execute()). Before this guard, a
+    // racing double-call (or a resend() on a document that already succeeded) re-fired the real
+    // transmission and was only rejected AFTERWARDS, by the state-machine guard inside transition()
+    // — too late, the side effect already happened. ISSUED is the normal entry point;
+    // TRANSMISSION_FAILED is also accepted so a later resend() can retry a document whose previous
+    // send() honestly failed (see the sincerity check below).
+    if (rec.status !== 'ISSUED' && rec.status !== 'TRANSMISSION_FAILED') {
+      throw new Error(
+        `Cannot send document "${id}" in status ${rec.status}; expected ISSUED (or TRANSMISSION_FAILED to retry).`,
+      );
+    }
     const plan = rec.plan ?? resolve(rec.ctx);
     const execution = await this.executor.execute(rec.ctx, plan, { idempotencyKey: opts.idempotencyKey });
 
@@ -218,7 +241,19 @@ export class ComplianceService {
       authorityIds: [...rec.authorityIds, ...execution.regime.authorityIds],
     });
 
-    if (plan.regime.blocking) {
+    // F-4: send() must be honest about what actually happened on the wire. "Accepted somewhere"
+    // means at least one channel came back SENT/PENDING/CLEARED; if every channel was
+    // SKIPPED/REJECTED, nothing was actually submitted/delivered — do not pretend otherwise.
+    const accepted = execution.transmissions.some((t) => ACCEPTED_TRANSMISSION_STATUSES.has(t.status));
+
+    if (!accepted) {
+      const reasons = execution.transmissions.flatMap((t) => t.notes);
+      current = await this.transition(
+        current,
+        'TRANSMISSION_FAIL',
+        reasons.length > 0 ? reasons.join('; ') : 'no transmission channel accepted the document',
+      );
+    } else if (plan.regime.blocking) {
       current = await this.transition(current, 'SUBMIT_CLEARANCE', 'awaiting clearance');
     } else {
       current = await this.transition(current, 'DELIVER');
@@ -233,7 +268,7 @@ export class ComplianceService {
     } catch {
       this.log.warn('operations/send', `archival skipped for ${id}`);
     }
-    return { document: current, execution };
+    return { document: current, execution, transmissionFailed: !accepted };
   }
 
   /** Convenience: create + issue + send in one call. */

@@ -25,8 +25,21 @@ import { ReportingRegistry, defaultReportingRegistry } from '../reporting/regist
 import { TaxSystemRegistry, defaultTaxSystemRegistry } from '../taxsystems/registry';
 import { NumberingRegistry, defaultNumberingRegistry } from '../lifecycle/numbering';
 import { ResponseTracker, defaultResponseTracker } from '../lifecycle/response';
+import { DocumentSyntax } from '../types';
 import { ComplianceLogger, defaultLogger } from './logger';
 import { ExecutionResult, SignedArtifact } from './types';
+
+/**
+ * Artifact syntaxes rendered as a PDF container (Factur-X/ZUGFeRD hybrid PDF/A-3, or a plain PDF
+ * human copy) — these get a PAdES signature, never XAdES (XAdES expects XML bytes; signing a PDF
+ * as XML would throw and silently fall through unsigned).
+ */
+const PDF_ARTIFACT_SYNTAXES: ReadonlySet<DocumentSyntax> = new Set([
+  'PLAIN_PDF',
+  'FACTURX',
+  'ZUGFERD',
+  'PDF_A3',
+]);
 
 export interface ExecutorDeps {
   formats?: FormatProviderRegistry;
@@ -109,10 +122,32 @@ export class ComplianceExecutor {
     return warnings;
   }
 
-  /** Decide the signature algorithm from the plan (clearance or signed-archive ⇒ XAdES). */
-  private chooseSignAlgo(plan: CompliancePlan): SignAlgo {
-    if (plan.regime.blocking || plan.archival.integrity === 'SIGNED') return 'XAdES';
-    return 'none';
+  /** Whether the plan requires signed artifacts at all (clearance regime, or a signed-integrity archive). */
+  private requiresSignature(plan: CompliancePlan): boolean {
+    return plan.regime.blocking || plan.archival.integrity === 'SIGNED';
+  }
+
+  /**
+   * Decide the signature algorithm for ONE artifact, dispatched by its DocumentSyntax — never a
+   * single algo blindly applied to every artifact of the plan (F-5). The "gate" (whether signing is
+   * required at all) still comes from the plan; the envelope comes from what the artifact actually
+   * is:
+   *   - FA_VAT (Poland/KSeF)  → always 'none', even when the gate says signed. KSeF authenticates by
+   *     token and seals server-side; a <Signature> element breaks the schemat_FA2.xsd validation SdI
+   *     performs. This override is unconditional and must never be reached by the generic branches
+   *     below.
+   *   - FATTURAPA (Italy/SdI) → CAdES (.p7m PKCS7 envelope) — what SdI expects; enveloped XAdES is
+   *     the wrong container for this syntax.
+   *   - PDF-container syntaxes (PLAIN_PDF, FACTURX, ZUGFERD, PDF_A3) → PAdES.
+   *   - Everything else (ES_FACTURAE, the EN16931 XML family, and any other XML-based national
+   *     syntax without a dedicated override) → XAdES enveloped, the general-purpose default.
+   */
+  private chooseSignAlgo(syntax: DocumentSyntax, gateSigned: boolean): SignAlgo {
+    if (syntax === 'FA_VAT') return 'none';
+    if (!gateSigned) return 'none';
+    if (syntax === 'FATTURAPA') return 'CAdES';
+    if (PDF_ARTIFACT_SYNTAXES.has(syntax)) return 'PAdES';
+    return 'XAdES';
   }
 
   async execute(
@@ -162,14 +197,18 @@ export class ComplianceExecutor {
     // 3. Build each planned artifact (authoritative / human / buyer).
     const artifacts = await this.formats.buildAll(ctx, plan, log);
 
-    // 4. Sign (when the regime/archive requires it).
-    const algo = this.chooseSignAlgo(plan);
-    const signer = this.signing.get(algo);
+    // 4. Sign (dispatched PER ARTIFACT by its DocumentSyntax — see chooseSignAlgo; F-5).
+    const gateSigned = this.requiresSignature(plan);
     // certRef encodes the DB company ID so SigningCertificatesService can resolve
     // the per-company encrypted cert.  Falls back to countryCode-cert for contexts
     // without a DB company ID (e.g. unit tests that don't need a real cert).
     const certRef = ctx.supplierCompanyId ?? `${ctx.supplier.countryCode}-cert`;
-    const signed: SignedArtifact[] = await Promise.all(artifacts.map((a) => signer.sign(a, certRef, log)));
+    const signed: SignedArtifact[] = await Promise.all(
+      artifacts.map((a) => {
+        const algo = this.chooseSignAlgo(a.syntax, gateSigned);
+        return this.signing.get(algo).sign(a, certRef, log);
+      }),
+    );
 
     // 5. Regime-specific handling (clearance gates validity; CTC routes & e-reports).
     const regime = this.regimes.get(plan.regime.model).handle(ctx, plan, signed, log);

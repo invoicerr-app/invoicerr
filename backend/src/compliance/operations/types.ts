@@ -59,6 +59,12 @@ export interface IssueResult {
 export interface SendResult {
   document: ComplianceDocumentRecord;
   execution: ExecutionResult;
+  /**
+   * F-4: true when every planned transmission channel came back SKIPPED/REJECTED — i.e. `document`
+   * was moved to TRANSMISSION_FAILED instead of DELIVERED/PENDING_CLEARANCE. Exposed for callers
+   * that want to react (e.g. surface a warning) without re-deriving it from `execution.transmissions`.
+   */
+  transmissionFailed: boolean;
 }
 
 export interface TransmitResult {

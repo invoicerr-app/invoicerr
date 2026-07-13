@@ -1194,6 +1194,7 @@ enum ComplianceStatus {
   CANCELLED
   CORRECTED
   LEGACY
+  TRANSMISSION_FAILED
 }
 
 enum ComplianceDirection {
