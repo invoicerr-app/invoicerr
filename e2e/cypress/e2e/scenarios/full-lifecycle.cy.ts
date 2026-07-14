@@ -20,12 +20,12 @@ function fillCompanyIdentifier(legalId: string, scheme?: IdentifierScheme) {
   });
 }
 
-function assertCompliance(invoiceId: string, attempts = 5) {
+function assertCompliance(invoiceId: string, attempts = 5, strictStatus = true) {
   cy.request(`${api}/api/invoices/${invoiceId}`).its('body').then((inv) => {
     const doc = inv.complianceDocuments?.[0];
     if (!doc && attempts > 0) {
       cy.wait(1000);
-      return assertCompliance(invoiceId, attempts - 1);
+      return assertCompliance(invoiceId, attempts - 1, strictStatus);
     }
     expect(doc, 'compliance document created').to.exist;
     expect(doc.status, 'compliance status present').to.exist;
@@ -40,6 +40,18 @@ function assertCompliance(invoiceId: string, attempts = 5) {
       failureEvents,
       `no VALIDATION_BLOCKED/WIRING_FAILED events, found: ${JSON.stringify(failureEvents)}`,
     ).to.have.length(0);
+    // M-14: a compliance doc + a status STRING existing is not enough — REJECTED is
+    // a status too. Deny actual failure/dead-end outcomes; in-progress states
+    // (DRAFT/ISSUED/PENDING_CLEARANCE/AWAITING_RESPONSE) are deliberately NOT denied
+    // since assertCompliance polls and may legitimately observe a doc mid-flight.
+    // Gated by strictStatus so scenarios that can't transmit in CI (no creds, no
+    // fallback channel) can opt out — see the it-it/noCiTransmission exemption.
+    if (strictStatus) {
+      expect(
+        ['REJECTED', 'REFUSED', 'DISPUTED', 'TRANSMISSION_FAILED'],
+        'compliance status is not a failure state, got: ' + doc.status,
+      ).to.not.include(doc.status);
+    }
   });
 }
 
@@ -226,7 +238,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
             // 9. Verify status SENT/UNPAID + compliance doc exists with status
             cy.request(`${api}/api/invoices/${invoice.id}`).its('body').then((inv) => {
               expect(inv.status).to.be.oneOf(['SENT', 'UNPAID']);
-              assertCompliance(invoice.id);
+              assertCompliance(invoice.id, 5, !s.noCiTransmission);
             });
           });
         });

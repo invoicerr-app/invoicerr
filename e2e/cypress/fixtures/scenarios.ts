@@ -3,6 +3,11 @@ export type IdentifierScheme = 'LEGAL_ID' | 'VAT' | 'RFC';
 export interface Scenario {
   id: string;
   expectsAuthorityNumbering?: boolean;
+  /** Set when the scenario's ONLY transmission channel is unreachable in CI (no credentials)
+   *  and has no EMAIL fallback, so its compliance doc legitimately lands on
+   *  TRANSMISSION_FAILED. assertCompliance() skips the failure-status denylist for these
+   *  scenarios — the test still proves format conformance, just not creds-gated transmission. */
+  noCiTransmission?: boolean;
   company: {
     name: string;
     country: string;
@@ -70,6 +75,11 @@ export const SCENARIOS: Record<string, Scenario> = {
   },
   'it-it': {
     id: 'it-it',
+    // SdI is Italy's ONLY transmission channel — there is no EMAIL fallback for IT, and CI has
+    // no SdI credentials — so the compliance doc legitimately lands on TRANSMISSION_FAILED. This
+    // scenario still proves the rendered FatturaPA is a VALID format; it does not (and cannot, in
+    // CI) prove creds-gated transmission. See assertCompliance()'s strictStatus gate.
+    noCiTransmission: true,
     company: { name: 'Milano Servizi SRL', country: 'Italy', legalId: '12345678901', currency: 'EUR', currencyLabel: 'Euro (€)', identifierScheme: 'VAT' },
     client: { name: 'Comune di Roma', email: 'client-it-it@mailpit.test', country: 'Italy', type: 'COMPANY', vat: 'IT98765432109', address: 'Via del Corso', postalCode: '00186', city: 'Rome', currency: 'EUR' },
     item: { name: 'Servizi IT', quantity: 10, unitPrice: 90, vatRate: 22, type: 'SERVICE' },
