@@ -197,6 +197,14 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
 
     const noteStr = (pollResult.notes ?? []).join(' ');
     expect(noteStr).not.toMatch(/error|ENOENT|no credentials/i);
-    expect(['PENDING', 'SENT', 'DELIVERED', 'CLEARED', 'REJECTED']).toContain(pollResult.status);
+
+    // Hard-success contract (live-gate.ts): REJECTED/SKIPPED are NOT tolerated — a real authority
+    // rejection (or a local error masquerading as one) must FAIL this test, never pass silently.
+    if (pollResult.status === 'REJECTED' || pollResult.status === 'SKIPPED') {
+      const notes = (pollResult.notes ?? []).join(' | ');
+      fail(`PDP poll returned ${pollResult.status} — hard failure. Notes: ${notes}`);
+    }
+    expect(pollResult.ref).toBeTruthy();
+    expect(['PENDING', 'SENT', 'DELIVERED', 'CLEARED']).toContain(pollResult.status);
   }, 90_000);
 });

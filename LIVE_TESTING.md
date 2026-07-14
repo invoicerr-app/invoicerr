@@ -29,6 +29,7 @@ Hard-success contract (enforced per-spec):
 | National portals | `<PREFIX>_LIVE=1` (per portal) | `<PREFIX>_*` namespaced creds | `portal-live.spec.ts` | 🟡 Parametrized (per-portal namespaced creds) |
 | Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET` | `europe/choruspro-live.spec.ts` | 🔴 Deferred (PISTE account required) |
 | RFC 3161 TSA (-T signing) | `TSA_LIVE=1` | `TSA_URL` | `signing/tsa-live.spec.ts` | 🟡 Wired (run to prove FreeTSA) |
+| ApplySignalService atomic transitions | `COMPLIANCE_LIVE_DB_TESTS=1` | `DATABASE_URL` only — **no external cred, no `CREDENTIALS_ENCRYPTION_KEY`** | `nest/apply-signal.live.spec.ts` | ✅ Proven creds-free — runs against the CI job's disposable Postgres |
 
 ---
 
@@ -74,6 +75,12 @@ ANAF_LIVE=1 ANAF_AUTH_TOKEN=<token> ANAF_TAXPAYER_ID=<cui> \
 # RFC 3161 TSA — level-T signing via real TSA (e.g. FreeTSA)
 TSA_LIVE=1 TSA_URL=https://freetsa.org/tsr \
   npx jest tsa-live --no-coverage --runInBand
+
+# ApplySignalService atomic transitions — DB-only, no external cred/encryption key.
+# NEVER point DATABASE_URL at a database you care about: it truncates the compliance
+# tables before/after every test (safe only on a disposable local/CI Postgres).
+COMPLIANCE_LIVE_DB_TESTS=1 DATABASE_URL=postgresql://user:pass@localhost:PORT/db \
+  npx jest src/compliance/nest/apply-signal.live.spec.ts --runInBand
 ```
 
 ---
@@ -319,11 +326,27 @@ Live proof needs a trial account (manual request, 30-day sandbox; no self-serve 
 ## Running in GitHub Actions
 
 Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch` + nightly cron).
-- The `live` job handles proven channels (KSeF, PDP, SdI, Peppol, email, TSA).
+- The `live` job handles proven channels (KSeF, PDP, SdI, Peppol, email, TSA) plus the
+  creds-free `apply-signal.live.spec.ts` DB test (`COMPLIANCE_LIVE_DB_TESTS=1`, set as a workflow
+  constant — needs only the job's own disposable Postgres, no secret).
 - The `national-portals-live` job runs `portal-live.spec.ts` with all namespaced `<PREFIX>_*`
   secrets mapped. Each portal self-skips unless at least one real credential is present
   (checked: `_CLIENT_ID`, `_CLIENT_SECRET`, `_API_KEY`, `_AUTH_TOKEN`, `_CERTIFICATE`, `_TOKEN`).
   You can fill in one portal's credentials at a time.
+
+> **Cron caveat:** GitHub only fires the `schedule` trigger from the repository's **default branch**
+> (typically `main`). On a feature branch, the nightly `cron: '0 3 * * *'` entry above is inert —
+> use the **"Run workflow"** button (`workflow_dispatch`) targeting that branch instead; the cron
+> starts firing automatically once the workflow file is merged to the default branch.
+>
+> **What "green" means with zero secrets configured:** every creds-gated spec (KSeF, PDP, SdI,
+> generic-AP Peppol, TSA, Chorus Pro, all national portals) self-skips via `liveDescribe`/the
+> two-tier portal gate — see the hard-success contract at the top of this file, enforced by each
+> spec, not by the gate. Only the genuinely creds-free specs actually run and must pass: Email
+> (Ethereal), Peppol via `peppol-sh` (zero-secret sandbox self-signup), and the
+> `apply-signal.live.spec.ts` DB test. A fully green *real-round-trip* matrix (KSeF CLEARED, PDP
+> PENDING/CLEARED, SdI CLEARED, national portals, …) additionally needs the repo secrets listed in
+> the table below — see also `CREDENTIALS_GUIDE.md` for the per-platform setup walkthrough.
 
 > **`*_LIVE` and `*_ENVIRONMENT` are constants in the workflow — do NOT add them as GitHub secrets.**
 > They are set as literal values directly in the YAML (`ANAF_LIVE: '1'`, `ANAF_ENVIRONMENT: 'SANDBOX'`, etc.).

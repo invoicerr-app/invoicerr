@@ -9,11 +9,19 @@ name: Compliance live tests
 # Secrets live in: repo Settings → Secrets and variables → Actions → "New repository secret".
 # (GitLab equivalent: Settings → CI/CD → Variables. Forgejo/Gitea: Settings → Actions → Secrets.)
 # A channel with no secrets set is silently skipped — fill them in channel by channel.
+#
+# CRON CAVEAT: GitHub only fires `schedule` triggers from the repository's DEFAULT branch (main).
+# While this workflow lives on a feature branch, the nightly cron below is inert — use the
+# "Run workflow" button (workflow_dispatch) instead, targeting that branch explicitly. The cron
+# starts firing automatically once this file is merged to main. See LIVE_TESTING.md for the full
+# list of repo secrets needed for a completely green (real round-trip) run — with none of them set,
+# every creds-gated spec below self-skips and only the creds-free specs (apply-signal DB test,
+# EMAIL/Ethereal, Peppol via peppol.sh) run and pass.
 
 on:
   workflow_dispatch:        # manual button in the Actions tab
   schedule:
-    - cron: '0 3 * * *'     # nightly 03:00 UTC — optional, remove if undesired
+    - cron: '0 3 * * *'     # nightly 03:00 UTC — only fires from the default branch (main); see cron caveat above
 
 jobs:
   live:
@@ -57,6 +65,12 @@ jobs:
       SDI_LIVE: '1'
       PEPPOL_LIVE: '1'
       TSA_LIVE: '1'           # RFC 3161 -T timestamping (e.g. FreeTSA)
+
+      # apply-signal.live.spec.ts (M-14): the atomic-transition suite against the real CI Postgres
+      # above. NO external cred, NO encryption key — only DATABASE_URL (already provisioned below).
+      # It truncates the compliance tables before/after each test; safe here because this Postgres
+      # service is a disposable, freshly-migrated CI container, never a real environment.
+      COMPLIANCE_LIVE_DB_TESTS: '1'
 
       # --- full-pipeline-peppol.live.spec.ts (M-15): real Postgres + Redis for the queue-driven
       # engine -> executor -> applySignal -> BullMQ pipeline. Same DB/Redis the queue-integration
