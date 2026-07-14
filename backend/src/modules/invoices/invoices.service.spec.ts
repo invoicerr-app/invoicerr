@@ -14,10 +14,12 @@
  *       label (or, when no compliance document exists at all, the failure is logged at `error`
  *       instead of `warn` — the missing document IS the visible signal).
  */
+import { BadRequestException } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
 import prisma from '@/prisma/prisma.service';
 import { logger } from '@/logger/logger.service';
 import type { ComplianceService } from '@/compliance/operations/compliance-service';
+import { FormatValidationError } from '@/compliance/execution/types';
 
 // The real WebhookDispatcherService pulls in the Discord driver → `@teever/ez-hook`, an unrelated
 // module whose type declarations ts-jest cannot resolve when the file is required directly (no
@@ -55,6 +57,7 @@ function makeComplianceServiceMock() {
   return {
     createDraft: jest.fn(),
     issue: jest.fn(),
+    send: jest.fn(),
     recordAuditEvent: jest.fn(),
     recordWiringFailure: jest.fn().mockResolvedValue(undefined),
   };
@@ -388,6 +391,71 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
       const actions = await service.getAvailableActions('co-1', 'inv-9');
 
       expect(actions.complianceError).toBeNull();
+    });
+  });
+
+  describe('sendInvoiceByEmail() — a FormatValidationError must never be reported as an SMTP problem', () => {
+    function issuedInvoice(id: string) {
+      return {
+        id,
+        companyId: 'co-1',
+        status: 'ISSUED',
+        number: 1,
+        client: { contactEmail: 'buyer@example.com' },
+        company: {},
+        items: [],
+      };
+    }
+
+    it('surfaces a FormatValidationError from complianceService.send() as a real validation failure (rule ids included, no SMTP wording)', async () => {
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValue(issuedInvoice('inv-fv-1'));
+      (prisma.complianceDocument.findFirst as jest.Mock).mockResolvedValue({
+        id: 'doc-fv-1',
+        plan: null, // no channels resolved → feedback 'NONE' → the synchronous send() path
+      });
+      const validationError = new FormatValidationError('format validation failed for 1 artifact(s)', [
+        {
+          syntax: 'EN16931_CII',
+          role: 'AUTHORITATIVE',
+          errors: [
+            '[BR-S-02] An Invoice that contains an Invoice line (BG-25) where the Invoiced item VAT category code (BT-151) is "Standard rated" shall contain the Seller VAT Identifier (BT-31), the Seller tax registration identifier (BT-32) and/or the Seller tax representative VAT identifier (BT-63).',
+          ],
+        },
+      ]);
+      complianceService.send.mockRejectedValue(validationError);
+
+      const service = buildService();
+      let caught: any;
+      try {
+        await service.sendInvoiceByEmail('co-1', 'inv-fv-1');
+      } catch (e) {
+        caught = e;
+      }
+
+      expect(caught).toBeInstanceOf(BadRequestException);
+      expect(caught.message).toContain('BR-S-02');
+      expect(caught.message).toContain('compliance format validation');
+      expect(caught.message).not.toMatch(/SMTP/i);
+    });
+
+    it('still reports the generic SMTP message for a genuine (non-validation) transport failure', async () => {
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValue(issuedInvoice('inv-fv-2'));
+      (prisma.complianceDocument.findFirst as jest.Mock).mockResolvedValue({
+        id: 'doc-fv-2',
+        plan: null,
+      });
+      complianceService.send.mockRejectedValue(new Error('ECONNREFUSED 127.0.0.1:1025'));
+
+      const service = buildService();
+      let caught: any;
+      try {
+        await service.sendInvoiceByEmail('co-1', 'inv-fv-2');
+      } catch (e) {
+        caught = e;
+      }
+
+      expect(caught).toBeInstanceOf(BadRequestException);
+      expect(caught.message).toMatch(/SMTP configuration/i);
     });
   });
 });

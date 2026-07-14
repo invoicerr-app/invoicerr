@@ -10,6 +10,12 @@ export interface Scenario {
     currency: string;
     currencyLabel: string;
     identifierScheme?: IdentifierScheme;
+    /** Additional VAT identifier, independent of `identifierScheme` (e.g. an FR seller whose
+     *  onboarding-required identifier is the SIRET/LEGAL_ID but who also needs an intra-EU VAT
+     *  number to invoice a cross-border EU B2B buyer — EN16931 BR-S-02/BR-AE-02). Filled on the
+     *  company settings page only (not the onboarding dialog, which only asks for
+     *  `identifierScheme`). */
+    vat?: string;
   };
   client: {
     name: string;
@@ -36,9 +42,16 @@ export interface Scenario {
 export const SCENARIOS: Record<string, Scenario> = {
   'fr-be': {
     id: 'fr-be',
-    company: { name: 'Studio Lyon SARL', country: 'France', legalId: '73282932000074', currency: 'EUR', currencyLabel: 'Euro (€)', identifierScheme: 'LEGAL_ID' },
+    // Intra-EU B2B service (Art. 44/196 Directive 2006/112/EC): FR seller → BE buyer, both
+    // VAT-registered. Correct treatment is reverse charge (0% VAT, buyer self-accounts in
+    // Belgium) — NOT French/Belgian standard-rated VAT, which the seller has no place charging
+    // for a supply whose place of supply is the buyer's country. The FR seller's own
+    // intra-community VAT number (`vat`, distinct from the SIRET `legalId`/`identifierScheme`
+    // used at onboarding) is required by EN16931 (BR-S-02/BR-AE-02) to identify the seller for
+    // tax purposes on ANY cross-border invoice, standard-rated or reverse-charge alike.
+    company: { name: 'Studio Lyon SARL', country: 'France', legalId: '73282932000074', vat: 'FR44732829320', currency: 'EUR', currencyLabel: 'Euro (€)', identifierScheme: 'LEGAL_ID' },
     client: { name: 'Brussels Retail NV', email: 'client-fr-be@mailpit.test', country: 'Belgium', type: 'COMPANY', vat: 'BE0123456789', address: '10 Rue de la Loi', postalCode: '1000', city: 'Brussels', currency: 'EUR' },
-    item: { name: 'Consulting', quantity: 5, unitPrice: 200, vatRate: 21, type: 'SERVICE' },
+    item: { name: 'Consulting', quantity: 5, unitPrice: 200, vatRate: 0, type: 'SERVICE' },
   },
   'de-fr': {
     id: 'de-fr',

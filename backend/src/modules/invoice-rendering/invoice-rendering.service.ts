@@ -12,6 +12,7 @@ import { clampDiscountRate } from '@/utils/financial';
 import { getDraftWatermarkLabel } from '@/utils/watermark';
 import { augmentWithIdentifiers, getIdentifier } from '@/utils/entity-identifiers';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
+import { EU_MEMBERS } from '@/compliance/engine/classification';
 import type { InvoiceRenderData, LineAllowance } from './render-data';
 import { buildFatturaPa as buildFatturaPaXml } from './national/fattura-pa';
 import { buildCfdi as buildCfdiXml } from './national/cfdi';
@@ -113,6 +114,62 @@ export function extractIban(details: string | null | undefined): string | undefi
   if (!details) return undefined;
   const m = details.replace(/\s/g, '').match(/[A-Z]{2}\d{2}[A-Z0-9]{8,30}/);
   return m ? m[0] : undefined;
+}
+
+/**
+ * Map a VAT identifier's 2-letter country prefix → the OpenPeppol Electronic Address Scheme (EAS,
+ * ISO 6523 ICD) code that specifically denotes THAT country's national VAT-number scheme.
+ *
+ * A VAT number is only a valid Peppol electronic address under its own country's VAT EAS — e.g.
+ * a French VAT is scheme 9957, a German VAT is 9930; there is no single generic "EU VAT" code
+ * (9925 is Belgium's, not a catch-all). Every code below is verified against the authoritative
+ * OpenPeppol "Participant identifier schemes" code list (docs.peppol.eu/edelivery/codelists — the
+ * genericode/XML source, cross-checked against the vendored eaid enumeration in
+ * schemas/peppol/PEPPOL-EN16931-UBL.sch so each also passes PEPPOL-EN16931-CL008). Only EU VAT
+ * schemes that (a) exist as a dedicated "<country> VAT number" EAS AND (b) are in that eaid
+ * enumeration are listed; member states whose only Peppol scheme is an organisation-number list
+ * (DK, SE, FI, SK) are intentionally OMITTED — a VAT there falls back to the email/placeholder
+ * path rather than being mislabelled under an org-number or wrong-country scheme.
+ *
+ * Greece is keyed by its VAT prefix "EL" (not the ISO country code "GR") — Greek VAT numbers use
+ * the EL prefix, as EN16931 rule BR-CO-09 itself notes. Italy uses 0211 (PARTITA IVA); 0210 is
+ * CODICE FISCALE and is deliberately not used here.
+ */
+const VAT_PREFIX_TO_PEPPOL_EAS: Readonly<Record<string, string>> = {
+  AT: '9914', // Österreichische Umsatzsteuer-Identifikationsnummer
+  BE: '9925', // Belgium VAT number
+  BG: '9926', // Bulgaria VAT number
+  CY: '9928', // Cyprus VAT number
+  CZ: '9929', // Czech Republic VAT number
+  DE: '9930', // Germany VAT number
+  EE: '9931', // Estonia VAT number
+  EL: '9933', // Greece VAT number (VAT prefix EL, ISO country GR)
+  ES: '9920', // Agencia Española de Administración Tributaria (Spain VAT)
+  FR: '9957', // French VAT number
+  HR: '9934', // Croatia VAT number
+  HU: '9910', // Hungary VAT number
+  IE: '9935', // Ireland VAT number
+  IT: '0211', // PARTITA IVA (Italy VAT; 0210 CODICE FISCALE is NOT VAT)
+  LT: '9937', // Lithuania VAT number
+  LU: '9938', // Luxemburg VAT number
+  LV: '9939', // Latvia VAT number
+  MT: '9943', // Malta VAT number
+  NL: '9944', // Netherlands VAT number
+  PL: '9945', // Poland VAT number
+  PT: '9946', // Portugal VAT number
+  RO: '9947', // Romania VAT number
+  SI: '9949', // Slovenia VAT number
+};
+
+/**
+ * The Peppol EAS code for a VAT identifier's country, or `undefined` when its 2-letter prefix has
+ * no dedicated, CL008-valid VAT EAS in {@link VAT_PREFIX_TO_PEPPOL_EAS} (caller then falls back to
+ * the email/placeholder endpoint path — never an incorrect scheme code).
+ */
+export function peppolEasForVat(vat: string | null | undefined): string | undefined {
+  if (!vat) return undefined;
+  const prefix = vat.trim().slice(0, 2).toUpperCase();
+  return VAT_PREFIX_TO_PEPPOL_EAS[prefix];
 }
 
 @Injectable()
@@ -281,6 +338,26 @@ export class InvoiceRenderingService {
 
     const sellerVat = getIdentifier(data.company, 'VAT');
     const buyerVat = getIdentifier(data.client, 'VAT');
+
+    // Intra-EU B2B reverse charge (Art. 44 / Art. 196 Directive 2006/112/EC): a zero-rated
+    // (vatRate === 0) line between two DIFFERENT EU member states, where the buyer carries a VAT
+    // identifier (the invoice's own signal that they are a VAT-registered business able to
+    // self-account), is a genuine "Reverse charge" supply — EN16931 requires VAT category code
+    // "AE" (not the generic "Zero rated" Z) plus a VAT exemption reason (BR-AE-10 requires
+    // BT-121 and/or BT-120). An ordinary rate=0 line outside this shape (domestic zero-rating,
+    // non-EU export, out-of-scope supply, …) keeps using "Z", unchanged.
+    const isEuReverseCharge =
+      sellerCountryCode !== buyerCountryCode &&
+      EU_MEMBERS.has(sellerCountryCode) &&
+      EU_MEMBERS.has(buyerCountryCode) &&
+      !!buyerVat;
+    const vatCategoryFor = (rate: number): 'S' | 'Z' | 'AE' => {
+      if (rate !== 0) return 'S';
+      return isEuReverseCharge ? 'AE' : 'Z';
+    };
+    const REVERSE_CHARGE_EXEMPTION_CODE = 'VATEX-EU-AE';
+    const REVERSE_CHARGE_EXEMPTION_TEXT = 'Reverse charge — Autoliquidation, Art. 196 Directive 2006/112/EC';
+
     // BT-10 Buyer reference / DE Leitweg-ID (M-9 part 2): the mandatory routing key for German
     // federal/state B2G invoices. When the buyer carries a LEITWEG_ID party identifier, it MUST
     // travel in cbc:BuyerReference — falls back to the invoice-number placeholder otherwise (see
@@ -346,17 +423,27 @@ export class InvoiceRenderingService {
     });
     const totalIncl = taxableBase + totalVat;
 
-    const taxSubtotals = taxSubtotalsAfterDiscount.map(({ rate, taxable, tax }) => ({
-      'cbc:TaxableAmount': fmt2(taxable),
-      'cbc:TaxableAmount@currencyID': currency,
-      'cbc:TaxAmount': fmt2(tax),
-      'cbc:TaxAmount@currencyID': currency,
-      'cac:TaxCategory': {
-        'cbc:ID': rate === 0 ? 'Z' : 'S',
-        'cbc:Percent': String(rate),
-        'cac:TaxScheme': { 'cbc:ID': 'VAT' },
-      },
-    }));
+    const taxSubtotals = taxSubtotalsAfterDiscount.map(({ rate, taxable, tax }) => {
+      const category = vatCategoryFor(rate);
+      return {
+        'cbc:TaxableAmount': fmt2(taxable),
+        'cbc:TaxableAmount@currencyID': currency,
+        'cbc:TaxAmount': fmt2(tax),
+        'cbc:TaxAmount@currencyID': currency,
+        'cac:TaxCategory': {
+          'cbc:ID': category,
+          'cbc:Percent': String(rate),
+          // BR-AE-10: a "Reverse charge" VAT breakdown must carry a VAT exemption reason.
+          ...(category === 'AE'
+            ? {
+                'cbc:TaxExemptionReasonCode': REVERSE_CHARGE_EXEMPTION_CODE,
+                'cbc:TaxExemptionReason': REVERSE_CHARGE_EXEMPTION_TEXT,
+              }
+            : {}),
+          'cac:TaxScheme': { 'cbc:ID': 'VAT' },
+        },
+      };
+    });
 
     // Build invoice lines from positive-price items only.
     // Line-level allowances (BG-27) are emitted as cac:AllowanceCharge inside cac:InvoiceLine.
@@ -376,7 +463,7 @@ export class InvoiceRenderingService {
         'cac:Item': {
           'cbc:Name': item.name,
           'cac:ClassifiedTaxCategory': {
-            'cbc:ID': (item.vatRate || 0) === 0 ? 'Z' : 'S',
+            'cbc:ID': vatCategoryFor(item.vatRate || 0),
             'cbc:Percent': String(item.vatRate || 0),
             'cac:TaxScheme': { 'cbc:ID': 'VAT' },
           },
@@ -405,16 +492,27 @@ export class InvoiceRenderingService {
     // @e-invoice-eu/core requires EndpointID on both parties.
     // Priority: 1) PEPPOL_ENDPOINT party identifier (format 'schemeId:value', e.g. '0088:7300010000001')
     //           2) SIREN with schemeID 0225 (FR PDP routing)
-    //           3) email with EM
-    //           4) placeholder
+    //           3) VAT identifier under its OWN country's VAT EAS code (peppolEasForVat — e.g.
+    //              FR→9957, DE→9930, BE→9925, IT→0211); only when that country has a dedicated,
+    //              CL008-valid VAT scheme
+    //           4) email with EM
+    //           5) placeholder
+    // NOTE on 'EM': it satisfies the base EN16931 schema but is NOT a valid Peppol Electronic
+    // Address Scheme code (PEPPOL-EN16931-CL008 — see the vendored eaid codelist in
+    // schemas/peppol/PEPPOL-EN16931-UBL.sch). A party with neither a numeric legal id nor a
+    // mappable VAT identifier still falls back to it (email-only parties have no other EAS-listed
+    // id to use), which will fail Peppol-BIS validation specifically — a pre-existing, narrower
+    // gap than what tier 3 (VAT) now closes for the common case of a VAT-registered EU counterparty.
     const rawPeppolSeller = getIdentifier(data.company, 'PEPPOL_ENDPOINT');
     const peppolSellerParts = rawPeppolSeller?.match(/^(\d{4,}):(.+)$/);
+    const sellerVatEas = peppolEasForVat(sellerVat);
     const sellerEndpointId =
       peppolSellerParts?.[2] ??
       sellerSiren ??
+      (sellerVatEas ? sellerVat : null) ??
       (data.company.email ? data.company.email.trim() : null) ??
       'seller@local.invalid';
-    const sellerEndpointScheme = peppolSellerParts?.[1] ?? (sellerSiren ? '0225' : 'EM');
+    const sellerEndpointScheme = peppolSellerParts?.[1] ?? (sellerSiren ? '0225' : (sellerVatEas ?? 'EM'));
 
     const sellerParty: Record<string, unknown> = {
       'cbc:EndpointID': sellerEndpointId,
@@ -449,17 +547,21 @@ export class InvoiceRenderingService {
     // @e-invoice-eu/core requires EndpointID on the buyer party (mandatory in its JSON schema).
     // Priority: 1) PEPPOL_ENDPOINT party identifier (format 'schemeId:value', e.g. '0088:7300010000001')
     //           2) SIREN with schemeID 0225 (FR B2B routing)
-    //           3) contact email with EM
-    //           4) placeholder
+    //           3) VAT identifier under its OWN country's VAT EAS code (peppolEasForVat — see the
+    //              seller-side comment above for why a single hardcoded code / 'EM' is not correct)
+    //           4) contact email with EM
+    //           5) placeholder
     const rawPeppolBuyer = getIdentifier(data.client, 'PEPPOL_ENDPOINT');
     const peppolBuyerParts = rawPeppolBuyer?.match(/^(\d{4,}):(.+)$/);
+    const buyerVatEas = peppolEasForVat(buyerVat);
     const buyerEndpointId =
       peppolBuyerParts?.[2] ??
       buyerSiren ??
+      (buyerVatEas ? buyerVat : null) ??
       (data.client.contactEmail ? data.client.contactEmail.trim() : null) ??
       ((data.client as any).email ? (data.client as any).email.trim() : null) ??
       'consumer@local.invalid';
-    const buyerEndpointScheme = peppolBuyerParts?.[1] ?? (buyerSiren ? '0225' : 'EM');
+    const buyerEndpointScheme = peppolBuyerParts?.[1] ?? (buyerSiren ? '0225' : (buyerVatEas ?? 'EM'));
 
     const buyerParty: Record<string, unknown> = {
       'cbc:EndpointID': buyerEndpointId,
@@ -505,7 +607,7 @@ export class InvoiceRenderingService {
     // negative-price items (if any). Both are ChargeIndicator=false (= reduction).
     // EN16931 requires AllowanceTotalAmount in LegalMonetaryTotal to match their sum.
     const allowanceCharges: Record<string, unknown>[] = [];
-    const vatCategoryId = (taxSubtotalsAfterDiscount[0]?.rate ?? 0) === 0 ? 'Z' : 'S';
+    const vatCategoryId = vatCategoryFor(taxSubtotalsAfterDiscount[0]?.rate ?? 0);
     const vatPercent = String(taxSubtotalsAfterDiscount[0]?.rate ?? 0);
     if (rateDiscountAmount > 0) {
       allowanceCharges.push({

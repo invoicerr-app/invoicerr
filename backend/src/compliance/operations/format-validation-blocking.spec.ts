@@ -19,7 +19,11 @@
  *   3. A Schematron *warning*-level-only finding (XRechnung's documented BR-DE-style data gap) does
  *      NOT block — ComplianceService.validate() and the provider both report valid:true.
  */
-import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
+import {
+  InvoiceRenderingService,
+  peppolEasForVat,
+} from '@/modules/invoice-rendering/invoice-rendering.service';
+import type { InvoiceRenderData } from '@/modules/invoice-rendering/render-data';
 import { PartyTaxProfile, TransactionContext } from '../canonical/canonical-document';
 import { ComplianceExecutor } from '../execution/executor';
 import { RecordingComplianceLogger } from '../execution/logger';
@@ -290,5 +294,131 @@ describe('M-1 — ComplianceService.validate() pre-flight aggregates real per-ar
     // validate() is read-only — it must not have mutated the document's status.
     const after = await service.getDocument(draft.id);
     expect(after!.status).toBe('ISSUED');
+  });
+});
+
+describe('FR→BE intra-EU B2B service — CI-red investigation (fr-be Business Scenario, commit a5f77310+)', () => {
+  // Studio Lyon SARL (FR, SIRET-only — no seller VAT identifier) → Brussels Retail NV (BE, VAT
+  // BE0123456789), 21% "standard rated" consulting line. This is the ORIGINAL fr-be e2e fixture
+  // shape (e2e/cypress/fixtures/scenarios.ts) that made the "Business Scenarios" CI job's
+  // scenario(fr-be) matrix entry fail on every run since M-1 made format validation blocking:
+  // EN16931 BR-S-02 correctly rejects a "Standard rated" line with no Seller VAT/tax-registration
+  // identifier present. This was never a Schematron/builder bug — the data was genuinely invalid.
+  const frSellerNoVat: InvoiceRenderData['company'] = {
+    name: 'Studio Lyon SARL',
+    description: null,
+    foundedAt: null,
+    currency: 'EUR',
+    address: '1 Rue de la Fixture',
+    city: 'Lyon',
+    postalCode: '69001',
+    country: 'France',
+    partyIdentifiers: [{ scheme: 'LEGAL_ID', value: '73282932000074' }],
+  };
+  const beBuyer: InvoiceRenderData['client'] = {
+    type: 'COMPANY',
+    name: 'Brussels Retail NV',
+    description: null,
+    foundedAt: null,
+    contactFirstname: null,
+    contactLastname: null,
+    salutation: null,
+    sex: null,
+    title: null,
+    isActive: true,
+    address: '10 Rue de la Loi',
+    city: 'Brussels',
+    postalCode: '1000',
+    country: 'Belgium',
+    partyIdentifiers: [{ scheme: 'VAT', value: 'BE0123456789' }],
+  };
+
+  it('the ORIGINAL fr-be data (standard-rated 21%, no seller VAT id) is genuinely invalid — BLOCKED on BR-S-02, not a false positive', async () => {
+    const data: InvoiceRenderData = {
+      rawNumber: 'INV-2025-0001',
+      number: null,
+      issuedAt: new Date('2025-06-15'),
+      createdAt: new Date('2025-06-15'),
+      company: frSellerNoVat,
+      client: beBuyer,
+      items: [{ name: 'Consulting', quantity: 5, unitPrice: 200, vatRate: 21, type: 'SERVICE' }],
+    };
+    const port = makePort({
+      renderXmlFormat: async (_id: string, format: XmlExportFormat) =>
+        renderService.buildEInvoice(data).exportXml(format),
+    });
+    const { service } = svc(port);
+    const draft = await service.createDraft(ctx('FR', 'BE', 'inv-fr-be-original'));
+    await service.issue(draft.id);
+
+    await expect(service.send(draft.id)).rejects.toThrow(/format validation failed/i);
+
+    const after = await service.getDocument(draft.id);
+    expect(after!.status).toBe('ISSUED');
+    const blocked = after!.events.find((e) => e.type === 'VALIDATION_BLOCKED');
+    expect(blocked).toBeDefined();
+    expect(JSON.stringify(blocked!.payload)).toContain('BR-S-02');
+  });
+
+  it('the FIXED fr-be data (reverse charge: seller VAT id + 0% AE, per Art. 44/196 Directive 2006/112/EC) passes — send() does not throw, no VALIDATION_BLOCKED', async () => {
+    const data: InvoiceRenderData = {
+      rawNumber: 'INV-2025-0001',
+      number: null,
+      issuedAt: new Date('2025-06-15'),
+      createdAt: new Date('2025-06-15'),
+      company: {
+        ...frSellerNoVat,
+        partyIdentifiers: [
+          { scheme: 'LEGAL_ID', value: '73282932000074' },
+          { scheme: 'VAT', value: 'FR44732829320' },
+        ],
+      },
+      client: beBuyer,
+      // Reverse charge: the FR seller does not charge VAT — the BE buyer self-accounts.
+      items: [{ name: 'Consulting', quantity: 5, unitPrice: 200, vatRate: 0, type: 'SERVICE' }],
+    };
+    const port = makePort({
+      renderXmlFormat: async (_id: string, format: XmlExportFormat) =>
+        renderService.buildEInvoice(data).exportXml(format),
+    });
+    const { service } = svc(port);
+    const draft = await service.createDraft(ctx('FR', 'BE', 'inv-fr-be-fixed'));
+    await service.issue(draft.id);
+
+    const { document } = await service.send(draft.id);
+    expect(document.events.some((e) => e.type === 'VALIDATION_BLOCKED')).toBe(false);
+    expect(document.status).not.toBe('ISSUED');
+
+    // Confirm the rendered CII actually used the "AE" (Reverse charge) category, not a plain "S"/"Z".
+    const xml = await renderService.buildEInvoice(data).exportXml('cii');
+    expect(xml).toContain('<ram:CategoryCode>AE</ram:CategoryCode>');
+    expect(xml).toContain('VATEX-EU-AE');
+
+    // The BE buyer (VAT-only, no legal id) endpoint must resolve to Belgium's VAT EAS code 9925,
+    // derived from the "BE" VAT prefix via the verified Peppol EAS map — NOT a hardcode and NOT the
+    // 'EM' fallback (which would fail Peppol-BIS PEPPOL-EN16931-CL008).
+    const ubl = await renderService.buildEInvoice(data).exportXml('ubl');
+    const buyerBlock = ubl.slice(ubl.indexOf('AccountingCustomerParty'));
+    expect(buyerBlock).toContain('schemeID="9925"');
+    expect(buyerBlock).toContain('BE0123456789');
+    expect(buyerBlock).not.toContain('schemeID="EM"');
+  });
+
+  it('peppolEasForVat derives each VAT identifier its OWN country VAT EAS code (verified against the OpenPeppol codelist), undefined for unmapped/malformed', () => {
+    // Every code verified against OpenPeppol "Participant identifier schemes" (docs.peppol.eu) and
+    // present in the vendored eaid enumeration (schemas/peppol/PEPPOL-EN16931-UBL.sch) so it passes
+    // PEPPOL-EN16931-CL008. 9925 is Belgium-specific, NOT a generic EU VAT code.
+    expect(peppolEasForVat('BE0123456789')).toBe('9925'); // Belgium
+    expect(peppolEasForVat('FR44732829320')).toBe('9957'); // France
+    expect(peppolEasForVat('DE987654321')).toBe('9930'); // Germany
+    expect(peppolEasForVat('IT12345678901')).toBe('0211'); // Italy — PARTITA IVA (not 0210 CF)
+    expect(peppolEasForVat('ES12345678A')).toBe('9920'); // Spain
+    expect(peppolEasForVat('EL123456789')).toBe('9933'); // Greece — VAT prefix EL, not ISO "GR"
+    expect(peppolEasForVat('nl123456789b01')).toBe('9944'); // Netherlands (case-insensitive)
+    // Member states with no dedicated CL008-valid VAT EAS → undefined → caller falls back to email.
+    expect(peppolEasForVat('DK12345678')).toBeUndefined();
+    expect(peppolEasForVat('SE123456789012')).toBeUndefined();
+    expect(peppolEasForVat(null)).toBeUndefined();
+    expect(peppolEasForVat('')).toBeUndefined();
   });
 });

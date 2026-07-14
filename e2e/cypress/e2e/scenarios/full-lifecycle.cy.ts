@@ -116,6 +116,17 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
     // Legal id (conditional on country scheme)
     fillCompanyIdentifier(s.company.legalId, s.company.identifierScheme);
 
+    // Additional VAT identifier — independent of identifierScheme (e.g. an FR seller whose
+    // onboarding-required identifier is the SIRET/LEGAL_ID but who also carries an intra-EU VAT
+    // number, needed to invoice a cross-border EU B2B buyer). Skip when identifierScheme is
+    // already 'VAT' — fillCompanyIdentifier() above already filled that same field.
+    if (s.company.vat && s.company.identifierScheme !== 'VAT') {
+      cy.get('[data-cy="company-vat-input"]', { timeout: 10000 })
+        .scrollIntoView()
+        .clear({ force: true })
+        .type(s.company.vat, { force: true });
+    }
+
     // PDF format + date format (required by zod schema)
     cy.get('[data-cy="company-pdfformat-select"]').click();
     cy.get('[data-cy="company-pdfformat-option-pdf"]').click();

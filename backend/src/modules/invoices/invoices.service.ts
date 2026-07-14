@@ -12,6 +12,7 @@ import { Prisma, WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 import { ComplianceService } from '@/compliance/operations/compliance-service';
+import { FormatValidationError } from '@/compliance/execution/types';
 import { assembleLifecycle, phaseContextFromPlan } from '@/compliance/lifecycle/assembler';
 import { LifecycleRuntime } from '@/compliance/lifecycle/runtime';
 import type { CompliancePlan } from '@/compliance/engine/compliance-engine';
@@ -1422,6 +1423,24 @@ export class InvoicesService {
         await this.complianceQueue.enqueueTransmit(complianceDoc.id);
       }
     } catch (error) {
+      if (error instanceof FormatValidationError) {
+        // M-1: the compliance artifact failed format validation (e.g. an EN16931 Schematron BR-*
+        // rule) — ComplianceService.send() / TransmitProcessor already aborted BEFORE any
+        // transport attempt and recorded the first-class VALIDATION_BLOCKED event. This has
+        // NOTHING to do with SMTP/transport — surface the real validation failures honestly
+        // instead of the generic "check your SMTP configuration" message below, which would send
+        // the user chasing a config that was never the problem.
+        logger.error('Invoice failed compliance format validation before send', {
+          category: 'invoice',
+          details: { error: error.message, failures: error.failures },
+        });
+        const details = error.failures
+          .flatMap((f) => f.errors.map((e) => `[${f.syntax}/${f.role}] ${e}`))
+          .join('; ');
+        throw new BadRequestException(
+          `Invoice failed compliance format validation and was not sent: ${details || error.message}`,
+        );
+      }
       logger.error('Failed to send invoice', { category: 'invoice', details: { error } });
       throw new BadRequestException('Failed to send invoice email. Please check your SMTP configuration.');
     }
