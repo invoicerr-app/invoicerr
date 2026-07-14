@@ -26,6 +26,16 @@ function genId(prefix: string): string {
 }
 
 /**
+ * M-12b: private sentinel thrown INSIDE the `$transaction` callback to abort it cleanly when the
+ * optimistic CAS (`PrismaComplianceDocumentStore.transitionIfStatus`) loses — i.e. some other signal
+ * already advanced the document past the status this signal's effects were computed from. Throwing
+ * inside a Prisma interactive transaction rolls back every write the callback made so far (including
+ * any driver cancel/arm calls that ran before the CAS), so a losing signal leaves the database
+ * completely untouched. Caught immediately outside the `$transaction` call — never escapes `apply()`.
+ */
+class StaleSignalAbort extends Error {}
+
+/**
  * The real `applySignal` bridge: loads a document's runtime, dispatches the signal, and persists the
  * result. Every write for one signal — the status/event update, cancelling the drivers that guarded
  * the OLD state, and arming the drivers for the NEW state — happens inside a single Prisma
@@ -101,113 +111,140 @@ export class ApplySignalService {
     const pollProjections: Array<{ scheduledJobId: string; delayMs: number }> = [];
     const timerProjections: Array<{ scheduledJobId: string; delayMs: number }> = [];
 
-    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const txDocStore = new PrismaComplianceDocumentStore(tx as unknown as PrismaService);
-      const txPollStore = new PrismaPollJobStore(tx as unknown as PrismaService);
-      const txTimerStore = new PrismaTimerJobStore(tx as unknown as PrismaService);
-      const txCallbackStore = new PrismaCallbackStore(tx as unknown as PrismaService);
+    try {
+      await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        const txDocStore = new PrismaComplianceDocumentStore(tx as unknown as PrismaService);
+        const txPollStore = new PrismaPollJobStore(tx as unknown as PrismaService);
+        const txTimerStore = new PrismaTimerJobStore(tx as unknown as PrismaService);
+        const txCallbackStore = new PrismaCallbackStore(tx as unknown as PrismaService);
 
-      const applied = effects.find((e): e is Extract<Effect, { kind: 'APPLIED' }> => e.kind === 'APPLIED');
-      if (applied) {
-        hasApplied = true;
-        // The document just left `rec.status` for `applied.to` — any driver still guarding the OLD
-        // state is now obsolete. (A stale fire is already a safe runtime no-op; this keeps the
-        // scheduled-job/callback tables from accumulating dead rows that poll a resolved document for
-        // up to their full timeout — e.g. a leaked MX PAC poll every 30s for 24h.)
-        await Promise.all([
-          txPollStore.cancelForDocument(documentId),
-          txTimerStore.cancelForDocument(documentId),
-          txCallbackStore.cancelForDocument(documentId),
-        ]);
-        await txDocStore.update(documentId, {
-          status: applied.to,
-          events: [...rec.events, { id: randomUUID(), type: applied.event, at: now, actor: 'system' }],
-          updatedAt: now,
-        });
-      }
+        const applied = effects.find((e): e is Extract<Effect, { kind: 'APPLIED' }> => e.kind === 'APPLIED');
+        if (applied) {
+          // M-12b: CAS the status write FIRST, conditioned on the document still being in
+          // `rec.status` (the status this whole `effects` computation was derived from). Two
+          // concurrent signals (e.g. a poll resolving CLEAR and a webhook resolving REJECT) both read
+          // the same stale `rec.status` and both compute an APPLIED effect — only the one that gets
+          // here first still finds the document in `rec.status`; the loser's `updateMany` matches
+          // zero rows and we abort the whole transaction below, so it never touches the drivers or
+          // the event log.
+          const cas = await txDocStore.transitionIfStatus(documentId, rec.status, {
+            status: applied.to,
+            events: [...rec.events, { id: randomUUID(), type: applied.event, at: now, actor: 'system' }],
+          });
+          if (!cas.applied) {
+            throw new StaleSignalAbort(
+              `document ${documentId} already advanced from ${rec.status} — concurrent signal lost the CAS`,
+            );
+          }
+          hasApplied = true;
+          // Only now that the CAS has actually won: the document really did just leave `rec.status`
+          // for `applied.to`, so any driver still guarding the OLD state is now obsolete. (A stale
+          // fire is already a safe runtime no-op; this keeps the scheduled-job/callback tables from
+          // accumulating dead rows that poll a resolved document for up to their full timeout — e.g.
+          // a leaked MX PAC poll every 30s for 24h.)
+          await Promise.all([
+            txPollStore.cancelForDocument(documentId),
+            txTimerStore.cancelForDocument(documentId),
+            txCallbackStore.cancelForDocument(documentId),
+          ]);
+        }
 
-      for (const effect of effects) {
-        if (effect.kind === 'SCHEDULE_POLL') {
-          const provider = effect.channelProviderId
-            ? this.txRegistry.getById(effect.channelProviderId)
-            : null;
-          const scheduledJobId = genId('poll');
-          const job = createPollJob(
-            {
-              id: scheduledJobId,
-              documentId,
-              providerId: effect.channelProviderId ?? '(unknown)',
-              channel: provider?.channel ?? 'GOV_PORTAL_API',
-              ref: ctx?.transmitRef,
-              awaiting: effect.awaiting,
-              policy: effect.poll,
-            },
-            new Date(),
-          );
-          await txPollStore.enqueue(job);
-          pollProjections.push({ scheduledJobId, delayMs: nextDelaySeconds(effect.poll, 0) * 1000 });
-        } else if (effect.kind === 'ARM_TIMER') {
-          if (effect.deadlineHours == null) continue; // open-ended response window: no silence timer
-          const scheduledJobId = genId('timer');
-          const job = createTimerJob(
-            {
-              id: scheduledJobId,
-              documentId,
-              awaiting: effect.awaiting,
-              onElapse: effect.onElapse,
-              deadlineHours: effect.deadlineHours,
-            },
-            new Date(),
-          );
-          await txTimerStore.arm(job);
-          timerProjections.push({ scheduledJobId, delayMs: effect.deadlineHours * 3_600_000 });
-        } else if (effect.kind === 'AWAIT_CALLBACK') {
-          const channel = this.resolveChannel(rec);
-          if (!channel) continue;
-          const reg = createRegistration(
-            {
-              id: genId('cb'),
-              documentId,
-              channel,
-              // F-2 fix (QUEUE_IMPL_PLAN.md §5.2): correlate on the authority's EXTERNAL ref, not the
-              // internal documentId the inbound webhook never sees.
-              correlationKey: effect.correlationKey ?? ctx?.transmitRef ?? documentId,
-              awaiting: effect.awaiting,
-            },
-            new Date(),
-          );
-          await txCallbackStore.register(reg);
-
-          // F-2 fallback POLL (Phase 4): belt-and-suspenders for ASYNC_CALLBACK channels — see the
-          // class docstring above. Reuses the provider's own pollPolicy; no new cadence invented.
-          const provider = this.resolveProvider(rec);
-          if (
-            provider?.feedback === 'ASYNC_CALLBACK' &&
-            provider.pollPolicy &&
-            typeof provider.poll === 'function'
-          ) {
+        for (const effect of effects) {
+          if (effect.kind === 'SCHEDULE_POLL') {
+            const provider = effect.channelProviderId
+              ? this.txRegistry.getById(effect.channelProviderId)
+              : null;
             const scheduledJobId = genId('poll');
             const job = createPollJob(
               {
                 id: scheduledJobId,
                 documentId,
-                providerId: provider.id,
-                channel,
+                providerId: effect.channelProviderId ?? '(unknown)',
+                channel: provider?.channel ?? 'GOV_PORTAL_API',
                 ref: ctx?.transmitRef,
                 awaiting: effect.awaiting,
-                policy: provider.pollPolicy,
+                policy: effect.poll,
               },
               new Date(),
             );
             await txPollStore.enqueue(job);
-            pollProjections.push({
-              scheduledJobId,
-              delayMs: nextDelaySeconds(provider.pollPolicy, 0) * 1000,
-            });
+            pollProjections.push({ scheduledJobId, delayMs: nextDelaySeconds(effect.poll, 0) * 1000 });
+          } else if (effect.kind === 'ARM_TIMER') {
+            if (effect.deadlineHours == null) continue; // open-ended response window: no silence timer
+            const scheduledJobId = genId('timer');
+            const job = createTimerJob(
+              {
+                id: scheduledJobId,
+                documentId,
+                awaiting: effect.awaiting,
+                onElapse: effect.onElapse,
+                deadlineHours: effect.deadlineHours,
+              },
+              new Date(),
+            );
+            await txTimerStore.arm(job);
+            timerProjections.push({ scheduledJobId, delayMs: effect.deadlineHours * 3_600_000 });
+          } else if (effect.kind === 'AWAIT_CALLBACK') {
+            const channel = this.resolveChannel(rec);
+            if (!channel) continue;
+            const reg = createRegistration(
+              {
+                id: genId('cb'),
+                documentId,
+                channel,
+                // F-2 fix (QUEUE_IMPL_PLAN.md §5.2): correlate on the authority's EXTERNAL ref, not the
+                // internal documentId the inbound webhook never sees.
+                correlationKey: effect.correlationKey ?? ctx?.transmitRef ?? documentId,
+                awaiting: effect.awaiting,
+              },
+              new Date(),
+            );
+            await txCallbackStore.register(reg);
+
+            // F-2 fallback POLL (Phase 4): belt-and-suspenders for ASYNC_CALLBACK channels — see the
+            // class docstring above. Reuses the provider's own pollPolicy; no new cadence invented.
+            const provider = this.resolveProvider(rec);
+            if (
+              provider?.feedback === 'ASYNC_CALLBACK' &&
+              provider.pollPolicy &&
+              typeof provider.poll === 'function'
+            ) {
+              const scheduledJobId = genId('poll');
+              const job = createPollJob(
+                {
+                  id: scheduledJobId,
+                  documentId,
+                  providerId: provider.id,
+                  channel,
+                  ref: ctx?.transmitRef,
+                  awaiting: effect.awaiting,
+                  policy: provider.pollPolicy,
+                },
+                new Date(),
+              );
+              await txPollStore.enqueue(job);
+              pollProjections.push({
+                scheduledJobId,
+                delayMs: nextDelaySeconds(provider.pollPolicy, 0) * 1000,
+              });
+            }
           }
         }
+      });
+    } catch (e) {
+      if (e instanceof StaleSignalAbort) {
+        // M-12b: the CAS lost — some other signal already advanced this document past `rec.status`.
+        // The transaction rolled back everything the callback wrote (drivers cancelled, status/event
+        // write), so the database is exactly as it was before this call. Treat the whole signal as a
+        // clean NOOP: no further post-commit projection work, nothing to log as an error.
+        l.info(
+          'nest/apply-signal',
+          `stale signal — document ${documentId} already advanced from ${rec.status} (${signal.type}); discarding`,
+        );
+        return;
       }
-    });
+      throw e;
+    }
 
     // Post-commit projection (Décision 5): only after the transaction has committed do we touch
     // BullMQ, so a crash between the DB write and the enqueue leaves the durable ScheduledJob row as

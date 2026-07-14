@@ -114,6 +114,24 @@ class FakePrisma {
       }
       return this.row(where.id);
     },
+    // M-12b: backs PrismaComplianceDocumentStore.transitionIfStatus's CAS (`updateMany({ where: {
+    // id, status: expectedStatus }, ... })`) — matches (and writes) only when the seeded document's
+    // current status equals `where.status`, exactly like the real Postgres `updateMany` semantics
+    // this fake is standing in for.
+    updateMany: async ({
+      where,
+      data,
+    }: {
+      where: { id: string; status?: string };
+      data: Record<string, any>;
+    }) => {
+      const doc = this.docs.get(where.id);
+      if (!doc || (where.status !== undefined && doc.status !== where.status)) {
+        return { count: 0 };
+      }
+      this.docs.set(where.id, { ...doc, ...data });
+      return { count: 1 };
+    },
   };
 
   complianceEvent = {

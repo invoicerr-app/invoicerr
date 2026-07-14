@@ -134,12 +134,17 @@ function svcMx() {
 function svcMxFlaky() {
   const log = new RecordingComplianceLogger();
   let attempt = 0;
+  // M-12a: records the idempotencyKey (transmitAll's 4th positional arg to provider.transmit — see
+  // registry.ts transmitAll) each real transmit() call actually received, so tests can assert the
+  // stable-key derivation reaches all the way down to the transport layer.
+  const transmitKeys: string[] = [];
   const pacMock: TransmissionProvider = {
     id: 'pac',
     channel: 'PAC',
     feedback: 'ASYNC_POLL',
     configSchema: { fields: [] },
-    transmit: async () => {
+    transmit: async (_artifacts, _ctx, _plan, idempotencyKey) => {
+      transmitKeys.push(idempotencyKey);
       attempt += 1;
       if (attempt === 1) {
         return { channel: 'PAC', status: 'SKIPPED', notes: ['pac: sandbox not yet warmed up'] };
@@ -177,7 +182,7 @@ function svcMxFlaky() {
     }),
     logger: log,
   });
-  return { service, log };
+  return { service, log, transmitKeys };
 }
 
 const FR = () => ctx('FR', 'FR', 'B2B', 'SERVICES', '2027-01-15');
@@ -304,6 +309,82 @@ describe('ComplianceService — M-12a: send() precondition guards the real netwo
     await expect(service.send(document.id)).rejects.toThrow(/DELIVERED/);
     expect(realExecuteSpy).not.toHaveBeenCalled();
     realExecuteSpy.mockRestore();
+  });
+});
+
+describe('ComplianceService — M-12a: stable idempotency key engages the transport dedup', () => {
+  it('two computeSendOutcome() calls on the same doc+status pass the SAME idempotencyKey to the executor; a status change yields a DIFFERENT key', async () => {
+    const { service } = svc();
+    const draft = await service.createDraft(US());
+    await service.issue(draft.id);
+    const rec = (await service.getDocument(draft.id))!;
+    expect(rec.status).toBe('ISSUED');
+
+    const innerExecutor = (service as unknown as { executor: { execute: jest.Mock } }).executor;
+    const executeSpy = jest.spyOn(innerExecutor, 'execute');
+
+    // Two concurrent/rapid computeSendOutcome() calls on the SAME record — same id, same status.
+    await service.computeSendOutcome(rec);
+    await service.computeSendOutcome(rec);
+
+    expect(executeSpy).toHaveBeenCalledTimes(2);
+    const key1 = executeSpy.mock.calls[0][2]?.idempotencyKey;
+    const key2 = executeSpy.mock.calls[1][2]?.idempotencyKey;
+    expect(key1).toBe(`${rec.id}:ISSUED`);
+    expect(key1).toBe(key2); // same doc + same status → SAME stable key
+
+    // A LEGITIMATE resend after the status legitimately changed (e.g. TRANSMISSION_FAILED → retry)
+    // must get a fresh key — it is derived from `rec.status`, which is now different.
+    const failedRec = { ...rec, status: 'TRANSMISSION_FAILED' as const };
+    await service.computeSendOutcome(failedRec);
+    const key3 = executeSpy.mock.calls[2][2]?.idempotencyKey;
+    expect(key3).toBe(`${rec.id}:TRANSMISSION_FAILED`);
+    expect(key3).not.toBe(key1);
+
+    executeSpy.mockRestore();
+  });
+
+  it("actually engages transmitAll()'s dedup: a second same-status computeSendOutcome() comes back SKIPPED on every channel, never a real second submission", async () => {
+    // Uses the REAL (un-spied) TransmissionProviderRegistry — proves the stable key propagates all the
+    // way through executor.execute() -> transmitAll() and is recognized by its in-memory dedup Map
+    // (registry.ts: `_isDuplicate`/`_markSeen`, keyed on `${idempotencyKeyBase}:${provider.id}:${i}`).
+    const { service } = svc();
+    const draft = await service.createDraft(US());
+    await service.issue(draft.id);
+    const rec = (await service.getDocument(draft.id))!;
+
+    const first = await service.computeSendOutcome(rec);
+    expect(
+      first.execution.transmissions.some(
+        (t) => t.status === 'SENT' || t.status === 'PENDING' || t.status === 'CLEARED',
+      ),
+    ).toBe(true); // the first call genuinely reaches the (mocked) mail gateway
+
+    const second = await service.computeSendOutcome(rec); // SAME rec: same id, same status
+    expect(second.execution.transmissions.length).toBeGreaterThan(0);
+    expect(second.execution.transmissions.every((t) => t.status === 'SKIPPED')).toBe(true);
+    expect(second.execution.transmissions.some((t) => t.notes.some((n) => n.includes('idempotency')))).toBe(
+      true,
+    );
+  });
+
+  it('resend() after a real TRANSMISSION_FAILED transition passes a genuinely DIFFERENT transport-layer key than the original send (real state-machine transition, not a hand-built rec)', async () => {
+    const { service, transmitKeys } = svcMxFlaky();
+    const draft = await service.createDraft(MX_CONFIGURED());
+    await service.issue(draft.id);
+
+    const first = await service.send(draft.id);
+    expect(first.document.status).toBe('TRANSMISSION_FAILED'); // svcMxFlaky's first attempt SKIPS
+
+    const retried = await service.resend(draft.id);
+    expect(retried.document.status).toBe('PENDING_CLEARANCE'); // svcMxFlaky's second attempt accepts
+
+    // registry.ts transmitAll(): iKey = `${idempotencyKeyBase}:${provider.id}:${i}`, where
+    // idempotencyKeyBase is what ComplianceService.computeSendOutcome() derived (`${rec.id}:${rec.status}`).
+    expect(transmitKeys).toHaveLength(2);
+    expect(transmitKeys[0]).toBe(`${draft.id}:ISSUED:pac:0`);
+    expect(transmitKeys[1]).toBe(`${draft.id}:TRANSMISSION_FAILED:pac:0`);
+    expect(transmitKeys[0]).not.toBe(transmitKeys[1]);
   });
 });
 

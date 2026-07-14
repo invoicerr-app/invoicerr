@@ -279,7 +279,18 @@ export class ComplianceService {
     opts: IssueOptions = {},
   ): Promise<{ event: ComplianceEvent; transmitRef?: string; execution: ExecutionResult }> {
     const plan = rec.plan ?? resolve(rec.ctx);
-    const execution = await this.executor.execute(rec.ctx, plan, { idempotencyKey: opts.idempotencyKey });
+    // M-12a: when the caller doesn't supply an idempotencyKey, derive a STABLE one from the document
+    // identity + its CURRENT status, instead of letting the executor fall back to its random default
+    // (executor.ts:167 — deliberately random there so unrelated callers never accidentally dedup).
+    // `transmitAll` (providers/transmission/registry.ts) keys its in-memory dedup Map on
+    // `${idempotencyKeyBase}:${provider.id}:${i}` — a random base means two concurrent/rapid send()
+    // calls on the SAME document-in-the-SAME-status never collide, so a genuine double-send (retry
+    // race, double-click) re-fires the real transmission. `${rec.id}:${rec.status}` is stable across
+    // such a race (same id, same status) but changes the moment the document legitimately transitions
+    // (e.g. TRANSMISSION_FAILED → retry, or a fresh ISSUED after a correction) — so a real resend is
+    // never suppressed, only an accidental duplicate of the SAME logical send.
+    const idempotencyKey = opts.idempotencyKey ?? `${rec.id}:${rec.status}`;
+    const execution = await this.executor.execute(rec.ctx, plan, { idempotencyKey });
 
     // F-4: "accepted somewhere" means at least one channel came back SENT/PENDING/CLEARED; if every
     // channel was SKIPPED/REJECTED, nothing was actually submitted/delivered — do not pretend

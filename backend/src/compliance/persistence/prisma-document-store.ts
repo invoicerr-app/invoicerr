@@ -1,7 +1,8 @@
 import { PrismaService } from '@/prisma/prisma.service';
 import { Prisma } from '../../../prisma/generated/prisma/client';
 import { TransactionContext } from '../canonical/canonical-document';
-import { ComplianceDocumentRecord } from '../operations/types';
+import { ComplianceStatus } from '../lifecycle/state-machine';
+import { ComplianceDocumentEvent, ComplianceDocumentRecord } from '../operations/types';
 import { ComplianceDocumentStore } from '../operations/document-store';
 import { documentToRecord, documentToCreateInput, documentToUpdateInput } from './mappers';
 
@@ -83,6 +84,65 @@ export class PrismaComplianceDocumentStore implements ComplianceDocumentStore {
     }
 
     return documentToRecord(row);
+  }
+
+  /**
+   * M-12b: optimistic compare-and-swap transition. `ComplianceDocument` has no version column, so
+   * the `status` column itself doubles as the CAS token — the write is conditioned on the document
+   * STILL being in `expectedStatus` (the status the caller originally read). Guards against two
+   * concurrent signals (e.g. a poll and a webhook racing to apply CLEAR vs REJECT, or two identical
+   * webhook deliveries) both computing an effect from the same stale read: only the FIRST writer's
+   * `updateMany` matches a row (`count === 1`); every later one matches nothing (`count === 0` — the
+   * status has already moved on) and returns `{ applied: false }` without writing anything at all —
+   * no status clobber, no dropped/duplicated event.
+   *
+   * The event append is a separate write (nested Prisma `create` can't run inside `updateMany`), but
+   * it only ever runs once the CAS has already won, so a losing caller never reaches it and the
+   * document's event log never gets a second, conflicting terminal event appended.
+   */
+  async transitionIfStatus(
+    id: string,
+    expectedStatus: ComplianceStatus,
+    patch: { status: ComplianceStatus; events?: ComplianceDocumentEvent[] },
+  ): Promise<{ applied: boolean; record?: ComplianceDocumentRecord }> {
+    const updatedAt = new Date();
+    const { count } = await this.prisma.complianceDocument.updateMany({
+      where: { id, status: expectedStatus },
+      data: { status: patch.status, updatedAt },
+    });
+    if (count === 0) {
+      return { applied: false };
+    }
+
+    // CAS won — append any new events (same append-only semantics as update() above).
+    if (patch.events && patch.events.length > 0) {
+      const existingIds = (
+        await this.prisma.complianceEvent.findMany({
+          where: { documentId: id },
+          select: { id: true },
+        })
+      ).map((e) => e.id);
+      const newEvents = patch.events.filter((e) => !existingIds.includes(e.id));
+      if (newEvents.length > 0) {
+        await this.prisma.complianceEvent.createMany({
+          data: newEvents.map((e) => ({
+            id: e.id,
+            documentId: id,
+            type: e.type,
+            at: new Date(e.at),
+            actor: e.actor ?? null,
+            detail: e.detail ?? null,
+            payload: (e.payload ?? null) as unknown as Prisma.InputJsonValue,
+          })),
+        });
+      }
+    }
+
+    const row = await this.prisma.complianceDocument.findUnique({
+      where: { id },
+      include: { events: true, authorityIds: true },
+    });
+    return { applied: true, record: row ? documentToRecord(row) : undefined };
   }
 
   async findLastInSeries(seriesKey: string): Promise<ComplianceDocumentRecord | null> {
