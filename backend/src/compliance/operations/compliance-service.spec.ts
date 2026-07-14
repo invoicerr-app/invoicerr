@@ -484,7 +484,11 @@ describe('ComplianceService — reporting, payment, archive', () => {
     const { service } = svc();
     const d = await service.createDraft(MX());
     await service.issue(d.id);
-    expect((await service.archiveDocument(d.id)).receipt.region).toBe('MX');
+    const { receipt } = await service.archiveDocument(d.id);
+    expect(receipt.region).toBe('MX');
+    // M-3: the receipt carries a real SHA-256 over the archived artifacts, not a fabricated hash.
+    expect(receipt.contentHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(receipt.uri).not.toContain('/stub');
   });
 
   it('validates a document', async () => {

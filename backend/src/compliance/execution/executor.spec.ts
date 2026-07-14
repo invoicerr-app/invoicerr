@@ -118,9 +118,12 @@ describe('ComplianceExecutor — Mexico (blocking clearance)', () => {
     expect(result.regime.cleared).toBe(false);
     expect(result.regime.clearanceRequired).toBe(true);
   });
-  it('archives in-country (MX WORM bucket)', () => {
+  it('archives in-country (MX WORM bucket) with a real content hash', () => {
     expect(result.archive?.region).toBe('MX');
     expect(result.archive?.providerId).toBe('s3-worm');
+    // M-3: no more fabricated 'stub-sha256' — a real 64-hex-char SHA-256 over the signed artifacts.
+    expect(result.archive?.contentHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(result.archive?.uri).not.toContain('/stub');
   });
   it('blocks numbering until a folio range is loaded (AUTHORITY_RANGE)', () => {
     expect(result.number).toBeUndefined();
