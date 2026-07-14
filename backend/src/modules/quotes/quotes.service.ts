@@ -14,7 +14,7 @@ import { formatDate } from '@/utils/date';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 import { calculateDiscountedTotals, clampDiscountRate } from '@/utils/financial';
-import { formatRichText } from '@/utils/format-text';
+import { formatNotes, formatRichText } from '@/utils/format-text';
 import { getDraftWatermarkLabel } from '@/utils/watermark';
 
 @Injectable()
@@ -481,7 +481,7 @@ export class QuotesService {
             isDraft: quote.status === 'DRAFT',
             draftLabel: getDraftWatermarkLabel(quote.company.country),
             noteExists: !!quote.notes,
-            notes: formatRichText(quote.notes).replace(/\n/g, '<br>'),
+            notes: formatNotes(quote.notes),
             labels: {
                 quote: config.quote,
                 quoteFor: config.quoteFor,
