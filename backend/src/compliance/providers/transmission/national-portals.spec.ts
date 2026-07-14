@@ -19,7 +19,7 @@ describe('national transmission portals', () => {
 
   it('clearance portals are ASYNC_POLL with a poll policy and expose poll()', async () => {
     const log = new RecordingComplianceLogger();
-    for (const id of ['sefaz', 'sii', 'afip', 'zatca', 'in-irp', 'gib', 'anaf', 'choruspro']) {
+    for (const id of ['sefaz', 'sii', 'afip', 'zatca', 'in-irp', 'gib', 'anaf', 'choruspro', 'es-face']) {
       const p = defaultTransmissionRegistry.getById(id)!;
       expect(p.feedback).toBe('ASYNC_POLL');
       expect(p.pollPolicy).toBeDefined();
@@ -59,6 +59,17 @@ describe('national transmission portals', () => {
     expect(p).toBeDefined();
     expect(p.channel).toBe('GOV_PORTAL_API');
     expect(p.feedback).toBe('ASYNC_POLL');
+  });
+
+  it('es-face (Spain FACe) is registered, resolves by providerId, and is a GOV_PORTAL_API clearance portal', () => {
+    expect(defaultTransmissionRegistry.resolve({ type: 'GOV_PORTAL_API', providerId: 'es-face' })?.id).toBe(
+      'es-face',
+    );
+    const p = defaultTransmissionRegistry.getById('es-face')!;
+    expect(p).toBeDefined();
+    expect(p.channel).toBe('GOV_PORTAL_API');
+    expect(p.feedback).toBe('ASYNC_POLL');
+    expect(p.maturity).toBe('IMPLEMENTED');
   });
 
   it('F-8bis: zatca is a STUB and always returns SKIPPED — never PENDING-forever, never SENT', async () => {

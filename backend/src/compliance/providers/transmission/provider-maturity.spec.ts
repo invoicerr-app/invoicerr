@@ -65,6 +65,7 @@ const GENERIC_PORTAL_IDS = [
 const IMPLEMENTED_IDS = [
   'sdi',
   'choruspro',
+  'es-face',
   'anaf',
   'gib',
   'eg-eta',

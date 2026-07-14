@@ -69,10 +69,16 @@ export const ES: CountryComplianceProfile = {
       value: { channels: [{ type: 'PEPPOL' }, { type: 'EMAIL' }] },
     },
     // SII era: B2G via FACe portal; B2B via AEAT SII real-time ledger upload (GOV_PORTAL_API)
+    // NOTE: TransmissionRule has no appliesTo; role-based selection (B2G→FACe, B2B/reporting→
+    // AEAT SII) is future engine work — mirrors fr.ts's B2B(PDP)/B2G(choruspro) note. In
+    // practice a B2G supplier configures FACe credentials (es-face) and AEAT SII credentials
+    // (es-aeat) independently; a B2B-only company has no FACe credentials, so es-face is
+    // skipped for lack of credentials (F-6/F-8 honesty guard — never a false SENT/PENDING).
     {
       validFrom: '2017-07-01',
       value: {
         channels: [
+          { type: 'GOV_PORTAL_API', providerId: 'es-face' }, // B2G: FACe (Ley 25/2013) mandatory entry point
           { type: 'GOV_PORTAL_API', providerId: 'es-aeat' }, // SII + Verifactu reporting
           { type: 'PEPPOL' },
           { type: 'EMAIL' },

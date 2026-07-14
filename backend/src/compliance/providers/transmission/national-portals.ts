@@ -29,6 +29,7 @@ import { SMALL_ASIA_PROVIDERS } from './asia/smaller-portals';
 import { AnafTransmissionProvider } from './europe/anaf-transmission';
 import { ChorusProTransmissionProvider } from './europe/choruspro-transmission';
 import { EUROPE_PORTAL_PROVIDERS } from './europe/europe-smaller-portals';
+import { FaceTransmissionProvider } from './europe/face-transmission';
 import { AfipTransmissionProvider } from './latam/afip-transmission';
 import { DianTransmissionProvider } from './latam/dian-client';
 import { SefazTransmissionProvider } from './latam/sefaz-transmission';
@@ -132,6 +133,9 @@ export const NATIONAL_PORTAL_PROVIDERS: TransmissionProvider[] = [
   // France B2G: Chorus Pro is the mandatory government-invoicing platform (AIFE / DGFiP).
   // B2B invoices go via PDP (channel type PDP); B2G invoices go here (GOV_PORTAL_API/choruspro).
   new ChorusProTransmissionProvider(), // real PISTE OAuth2 + deposerFlux + consulterCr
+  // Spain B2G: FACe is the mandatory AGE invoice entry point (Ley 25/2013); real SSPP SOAP
+  // contract (enviarFactura/consultarFactura + estado table) — awaiting a FACe-registered cert.
+  new FaceTransmissionProvider(), // real SSPP enviarFactura/consultarFactura + estado mapping
   // RO ANAF — deeper scaffold: OAuth2 + PUT upload + stareMesaj poll + UBL/RO_CIUS
   new AnafTransmissionProvider(),
   // UA, ME, HR, AL, LV, SK, RS, ES, GR, HU — scaffolded clients with configSchema + injectable HTTP
