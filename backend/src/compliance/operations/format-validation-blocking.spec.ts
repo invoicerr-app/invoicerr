@@ -221,7 +221,7 @@ describe('M-1 — invalid documents are BLOCKED before transmission', () => {
 });
 
 describe('M-1/M-9 — base EN16931-UBL blocks XRECHNUNG, the real KoSIT BR-DE delta stays advisory', () => {
-  it('XRechnung DE→DE: base EN16931-UBL passes (valid:true), the real BR-DE-5 seller-contact gap is surfaced as a non-blocking warning', async () => {
+  it('XRechnung DE→DE: base EN16931-UBL passes (valid:true), and the formerly-open BR-DE-5 seller-contact gap is now CLOSED', async () => {
     const provider = new En16931FormatProvider();
     const log = new RecordingComplianceLogger();
     // DE_B2B's buyer is French by default (so the DE-specific delta never even fires — see
@@ -243,19 +243,23 @@ describe('M-1/M-9 — base EN16931-UBL blocks XRECHNUNG, the real KoSIT BR-DE de
     };
     const report = await provider.validate(artifact, log);
 
-    // M-9 part 3: XRECHNUNG is now validated against the REAL, official base EN16931-UBL
-    // Schematron (ConnectingEurope/eInvoicing-EN16931) — BLOCKING — and it passes clean for this
-    // fixture (report.valid / errors reflect ONLY the base ruleset's outcome). KoSIT's own
-    // XRechnung-UBL delta (itplr-kosit/xrechnung-schematron, the real BR-DE-* rules) is also run,
-    // but its findings are merged into `warnings`, never `errors`: it correctly and repeatedly
-    // fires BR-DE-5 ("Seller contact point"/BT-41 must be present) because buildEInvoice() never
-    // emits cac:Contact/cbc:Name — a real, currently-open, systemic data gap tracked as a
-    // follow-up (see providers.ts XRECHNUNG branch comment), not blocked here on purpose so
-    // XRechnung documents can still be sent today.
+    // M-9 part 3: XRECHNUNG is validated against the REAL, official base EN16931-UBL Schematron
+    // (ConnectingEurope/eInvoicing-EN16931) — BLOCKING — and it passes clean for this fixture
+    // (report.valid / errors reflect ONLY the base ruleset's outcome). KoSIT's own XRechnung-UBL
+    // delta (itplr-kosit/xrechnung-schematron, the real BR-DE-* rules) is also run and merged into
+    // `warnings` (still non-blocking overall — see providers.ts XRECHNUNG branch comment for the
+    // one remaining reason: BR-DE-16 seller-VAT data gap on sellers with neither a VAT nor a tax
+    // registration id). The #14 fix closed the Contact/Name gap specifically: buildEInvoice() now
+    // always emits cac:Contact/cbc:Name (falling back to the company name), so BR-DE-5/6/7 no
+    // longer fire for THIS fixture (DE_B2B's seller carries a VAT identifier). The only remaining
+    // warning here is BR-DE-21 (CustomizationID) — cosmetic, expected: this test calls
+    // buildEInvoice().exportXml() directly, bypassing provider.build()'s XRechnung-specific
+    // CustomizationID string substitution, which only applies on the real build() path.
     expect(report.valid).toBe(true);
     expect(report.errors).toHaveLength(0);
-    expect(report.warnings.length).toBeGreaterThan(0);
-    expect(report.warnings.some((w) => w.includes('BR-DE-5'))).toBe(true);
+    expect(report.warnings.some((w) => w.includes('BR-DE-5'))).toBe(false);
+    expect(report.warnings.some((w) => w.includes('BR-DE-6'))).toBe(false);
+    expect(report.warnings.some((w) => w.includes('BR-DE-7'))).toBe(false);
   });
 });
 

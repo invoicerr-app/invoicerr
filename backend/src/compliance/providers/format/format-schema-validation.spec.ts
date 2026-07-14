@@ -402,6 +402,44 @@ describe('XRechnung real Schematron — base EN16931-UBL + KoSIT BR-DE delta (M-
     expect(result.warnings.some((w) => w.id === 'BR-DE-TMP-32')).toBe(true);
   });
 
+  // #14 regression: locks the BR-DE-2/5/6/7 seller-Contact/Name gap closed on OUR OWN builder
+  // output (not just KoSIT's externally-authored conformant fixture above). A complete German
+  // XRechnung shape — seller Contact Name (fallback from company name) + Telephone + Electronic
+  // Mail, seller VAT, a Leitweg-ID-carrying buyer (BT-10 routing, M-9 part 2), and a payment means
+  // block (always emitted) — must validate with ZERO delta errors now that
+  // InvoiceRenderingService.buildEInvoice() always emits cac:Contact/cbc:Name for the seller.
+  it('[positive] #14: a complete DE→DE XRechnung doc built by OUR OWN buildEInvoice() (seller Contact Name/Tel/Email + seller VAT + Leitweg-ID buyer + payment means) validates with ZERO KoSIT delta errors', async () => {
+    const service = new InvoiceRenderingService();
+    const deToDeWithLeitweg = {
+      ...DE_B2B.data,
+      client: {
+        ...DE_B2B.data.client,
+        country: 'Germany',
+        partyIdentifiers: [
+          { scheme: 'VAT', value: 'DE987654321' },
+          { scheme: 'LEITWEG_ID', value: '04011000-1234512345-06' },
+        ],
+      },
+    };
+    const xml = await service.buildEInvoice(deToDeWithLeitweg).exportXml('xrechnung');
+
+    // Sanity: the shape this test claims to exercise is actually present in the rendered XML.
+    expect(xml).toContain('<cbc:Name>Schmidt Software GmbH</cbc:Name>');
+    expect(xml).toContain('<cbc:Telephone>+49-30-12345678</cbc:Telephone>');
+    expect(xml).toContain('<cbc:ElectronicMail>invoice@schmidt-software.de</cbc:ElectronicMail>');
+    expect(xml).toContain('<cbc:BuyerReference>04011000-1234512345-06</cbc:BuyerReference>');
+    expect(xml).toContain('<cac:PaymentMeans>');
+
+    const result = validateSchematron(xml, 'de/XRechnung-UBL-validation-preprocessed.sch');
+    if (result.errorCount > 0) {
+      console.error('KoSIT delta errors on our own builder output:', result.errors);
+    }
+    expect(result.errorCount).toBe(0);
+    expect(result.errors.map((e) => e.id)).not.toContain('BR-DE-5');
+    expect(result.errors.map((e) => e.id)).not.toContain('BR-DE-6');
+    expect(result.errors.map((e) => e.id)).not.toContain('BR-DE-7');
+  });
+
   it('[positive] provider.validate() on the official conformant fixture returns valid:true end-to-end', async () => {
     const provider = new En16931FormatProvider();
     const log = new RecordingComplianceLogger();

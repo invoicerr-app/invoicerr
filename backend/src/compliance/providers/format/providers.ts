@@ -191,22 +191,41 @@ export class En16931FormatProvider implements FormatProvider {
     }
 
     // XRECHNUNG — same base EN16931-UBL Schematron as above, BLOCKING (same proof). On top of
-    // that we now also run KoSIT's own official XRechnung-UBL delta (the real BR-DE-* rules,
+    // that we also run KoSIT's own official XRechnung-UBL delta (the real BR-DE-* rules,
     // itplr-kosit/xrechnung-schematron v2.5.0 — replacing the previous approximation that reused
-    // the unrelated Peppol delta and mislabelled its R-codes as "DE-R-*"), but keep IT
-    // non-blocking: it fires BR-DE-2/BR-DE-5/BR-DE-6/BR-DE-7 ("Seller contact point"/BT-41,
-    // "Seller contact telephone number"/BT-42, "Seller contact email"/BT-43) on every single
-    // fixture in this repo, because InvoiceRenderingService.buildEInvoice() only ever emits
-    // cac:Contact with Telephone/ElectronicMail — never cbc:Name — and only when phone/email
-    // happen to be set on the company. That is a real, currently-open, and SYSTEMIC BR-DE data
-    // gap (this is the exact same gap the old Peppol-delta-based "DE-R-005" approximation was
-    // already flagging — now pinpointed via KoSIT's own official rule ids instead of a borrowed
-    // proxy). Promoting the delta to blocking today would make it impossible to successfully
-    // `send()` ANY XRechnung document; closing the Contact/Name gap means changing the shared
-    // buildEInvoice() builder used by every EN16931-family format (CII/UBL/Peppol/XRechnung/
-    // Factur-X/ZUGFeRD alike), which is out of scope for M-9's two required fixes (CustomizationID
-    // + Leitweg-ID→BuyerReference) — left as an honest, tracked follow-up rather than silently
-    // widened scope or a fabricated pass.
+    // the unrelated Peppol delta and mislabelled its R-codes as "DE-R-*").
+    //
+    // #14 update: the systemic BR-DE-2/BR-DE-5/BR-DE-6/BR-DE-7 ("Seller contact point"/BT-41 etc.)
+    // Contact/Name gap this comment used to describe is now CLOSED —
+    // InvoiceRenderingService.buildEInvoice() always emits seller cac:Contact with cbc:Name
+    // (falling back to the company's registered name absent a dedicated contact-name field), so
+    // those four rules no longer fire on any fixture in this repo (see
+    // format-validation-blocking.spec.ts's XRechnung DE→DE test and
+    // format-schema-validation.spec.ts's KoSIT-conformant-fixture tests).
+    //
+    // The delta STILL stays non-blocking, for one remaining, narrower, PROVEN reason: BR-DE-16
+    // ("if a taxed VAT category S/Z/E/AE/K/G/L/M is used, the seller must carry a VAT identifier
+    // (BT-31) and/or a tax registration identifier (BT-32), i.e. cac:PartyTaxScheme/cbc:CompanyID,
+    // and/or a tax representative — cac:PartyLegalEntity/cbc:CompanyID does NOT count"). Reproduced
+    // through the real pipeline against the de-fr Business Scenario shape (DE seller with NO VAT
+    // identifier at all, category "S" line at 20%): the BASE EN16931-UBL Schematron ALREADY fires
+    // BR-S-02 (and BR-CO-26 when the seller also carries no legal-registration id) for that seller
+    // shape — i.e. this exact real-world seller shape is not base-EN16931-conformant to begin with,
+    // independent of XRechnung. On top of that, KoSIT's delta Schematron does not even get a chance
+    // to report BR-DE-16 as an ordinary finding for that shape: the vendored rule's test is
+    // `not(...) or (cac:TaxRepresentativeParty, $BT-31orBT-32Path)` — an un-guarded XPath sequence
+    // (comma) used directly as an `or` operand instead of `exists(...)`. When both operands are
+    // empty (no BG-11 tax representative AND no BT-31/32), node-schematron/fontoxpath throws
+    // err:FORG0006 ("cannot determine the effective boolean value... type array(*)") instead of
+    // returning a normal fail — a pre-existing defect in the vendored .sch/library pairing, wholly
+    // independent of the blocking/non-blocking flag below (validateSchematron(xml,
+    // XRECHNUNG_DELTA_SCH) is called unconditionally either way). Flipping this delta to blocking
+    // would therefore not just add a BR-DE-16 error for a seller-VAT-less XRechnung document, it
+    // would make `send()` throw an UNCAUGHT, non-FormatValidationError exception for that shape —
+    // strictly worse than today. Tracked follow-up: either fix the vendored rule (wrap in
+    // `exists()`), or give DE sellers a VAT/tax-registration id (the de-fr fixture currently has
+    // neither), or wrap the delta validateSchematron() call itself in a try/catch. None of those is
+    // in scope here — left as an honest, tracked gap rather than a silent fix or a fabricated pass.
     if (rendered.syntax === 'XRECHNUNG') {
       const baseResult = validateSchematron(xml, EN16931_UBL_SCH);
       const baseReport = this.reportFrom(baseResult, log, 'format/en16931-ubl', rendered.syntax);

@@ -536,13 +536,20 @@ export class InvoiceRenderingService {
         { 'cbc:CompanyID': sellerVat, 'cac:TaxScheme': { 'cbc:ID': 'VAT' } },
       ];
     }
-    // BR-DE-11 (seller telephone) + BR-DE-12 (seller email) — emit when data is available
-    if (data.company.phone || data.company.email) {
-      sellerParty['cac:Contact'] = {
-        ...(data.company.phone ? { 'cbc:Telephone': data.company.phone } : {}),
-        ...(data.company.email ? { 'cbc:ElectronicMail': data.company.email } : {}),
-      };
-    }
+    // Seller cac:Contact (BG-6) — ALWAYS emitted so BR-DE-2 (group present) and BR-DE-5
+    // (BT-41 Seller contact point / cbc:Name) always hold, not just when phone/email happen to be
+    // set. cbc:Name (BT-41) has no dedicated contact-name field on InvoiceRenderData (see
+    // render-data.ts — company only carries name/phone/email), so it falls back to the company's
+    // own registered name — a non-empty value that satisfies BR-DE-5 in the absence of a real
+    // per-person contact. Telephone (BT-42/BR-DE-6) and ElectronicMail (BT-43/BR-DE-7) stay
+    // conditional on the data being present. UBL cac:Contact child order is cbc:ID?, cbc:Name?,
+    // cbc:Telephone?, cbc:Telefax?, cbc:ElectronicMail? — Name must precede Telephone/ElectronicMail
+    // or base UBL XSD/schema validation breaks.
+    sellerParty['cac:Contact'] = {
+      'cbc:Name': data.company.name,
+      ...(data.company.phone ? { 'cbc:Telephone': data.company.phone } : {}),
+      ...(data.company.email ? { 'cbc:ElectronicMail': data.company.email } : {}),
+    };
 
     // @e-invoice-eu/core requires EndpointID on the buyer party (mandatory in its JSON schema).
     // Priority: 1) PEPPOL_ENDPOINT party identifier (format 'schemeId:value', e.g. '0088:7300010000001')
