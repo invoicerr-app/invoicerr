@@ -700,6 +700,119 @@ describe('ComplianceService — F-9: AUTHORITY_RANGE numbering (loadRange wiring
   });
 });
 
+/**
+ * Numbering double-consumption fix. issue() allocates the ONE authoritative number for a document;
+ * send() (via computeSendOutcome -> executor.execute()) used to allocate a SECOND one from the same
+ * counter/pool, because in PROD both issue() and execute() share the SAME NumberingRegistry singleton
+ * (defaultNumberingRegistry — see executor.ts's "2. Numbering" comment). The `svc()`/`svcMx()`/
+ * `svcMxFlaky()` helpers above deliberately wire TWO SEPARATE NumberingRegistry instances (one for the
+ * service, one for the executor) so none of the ~120 existing specs that use them ever exercised —
+ * or relied on — the double-allocation bug. This block wires ONE shared instance on purpose, mirroring
+ * prod, to prove the fix end-to-end through the real issue()+send() path.
+ */
+describe('ComplianceService — F-9 numbering fix: no double allocation across issue()+send()', () => {
+  function svcSharedRegistry() {
+    const log = new RecordingComplianceLogger();
+    const shared = new NumberingRegistry();
+    const rangeSource = mxRangeSource();
+    const transmission = new TransmissionProviderRegistry({ mail: mailMock() });
+    const service = new ComplianceService({
+      store: new InMemoryComplianceDocumentStore(),
+      numbering: shared,
+      rangeSource,
+      executor: new ComplianceExecutor({ logger: log, numbering: shared, rangeSource, transmission }),
+      logger: log,
+    });
+    return { service, shared };
+  }
+
+  function svcMxSharedRegistry() {
+    const log = new RecordingComplianceLogger();
+    const shared = new NumberingRegistry();
+    const rangeSource = mxRangeSource();
+    const pacMock: TransmissionProvider = {
+      id: 'pac',
+      channel: 'PAC',
+      feedback: 'ASYNC_POLL',
+      configSchema: { fields: [] },
+      transmit: async () => ({
+        channel: 'PAC',
+        status: 'CLEARED',
+        ref: 'mx-test-co|test-uuid',
+        authorityIds: [{ scheme: 'UUID', value: 'test-uuid' }],
+        notes: ['uuid: test-uuid'],
+      }),
+    };
+    const credentials = {
+      resolve: async () => null,
+      resolveActive: async () => ({
+        providerId: 'pac',
+        channel: 'PAC' as const,
+        environment: 'test',
+        config: { baseUrl: 'https://pac.example.test', apiKey: 'k', rfc: 'AAA010101AAA' },
+        isActive: true,
+      }),
+    };
+    const transmission = new TransmissionProviderRegistry({ credentials });
+    (transmission as unknown as { byId: Map<string, TransmissionProvider> }).byId.set('pac', pacMock);
+    (transmission as unknown as { byChannel: Map<string, TransmissionProvider> }).byChannel.set(
+      'PAC',
+      pacMock,
+    );
+    const service = new ComplianceService({
+      store: new InMemoryComplianceDocumentStore(),
+      numbering: shared,
+      rangeSource,
+      executor: new ComplianceExecutor({ logger: log, numbering: shared, rangeSource, transmission }),
+      logger: log,
+    });
+    return { service, shared };
+  }
+
+  it('GAPLESS_SELF (FR): issue()+send() advances the counter by exactly ONE per document — 000001 then 000002, NOT 000001 then 000003', async () => {
+    const { service, shared } = svcSharedRegistry();
+
+    const first = await service.issueAndSend(FR());
+    expect(first.document.number).toBe('000001');
+    // The executor now REPORTS the authoritative number instead of allocating a fresh one.
+    expect(first.execution.number).toBe('000001');
+    expect(first.execution.number).toBe(first.document.number);
+
+    const second = await service.issueAndSend(FR());
+    // A double-consume (issue() burns 000002, then execute() burns 000003) would have produced
+    // '000003' here. The fix means only ONE value was burned by the first document.
+    expect(second.document.number).toBe('000002');
+    expect(second.execution.number).toBe('000002');
+
+    // Confirm directly against the shared counter: exactly 2 values have been burned in total (one
+    // per document) — the next live allocation is '000003', not '000005'.
+    const log = new RecordingComplianceLogger();
+    const plan = resolve(FR());
+    expect(shared.get('GAPLESS_SELF').next('FR-INVOICE', plan.numbering, log).value).toBe('000003');
+  });
+
+  it('AUTHORITY_RANGE (MX): issue()+send() consumes exactly ONE folio per document, not two', async () => {
+    const { service, shared } = svcMxSharedRegistry();
+    const mxCtx = MX_CONFIGURED();
+
+    const draft = await service.createDraft(mxCtx);
+    const { document: issued } = await service.issue(draft.id);
+    expect(issued.number).toBe('1'); // first folio in the loaded range (mxRangeSource(): from 1)
+
+    const { document: sent, execution } = await service.send(draft.id);
+    expect(sent.status).toBe('PENDING_CLEARANCE');
+    // The executor reused issue()'s folio instead of consuming a second one from the pool.
+    expect(execution.number).toBe('1');
+    expect(sent.number).toBe('1');
+
+    // Confirm directly against the shared pool: only ONE folio was consumed by issue()+send()
+    // together — the next folio up is '2', not '3' (which a double-consume would have produced).
+    const log = new RecordingComplianceLogger();
+    const plan = resolve(mxCtx);
+    expect(shared.folioPool.next('MX-INVOICE', plan.numbering, log).value).toBe('2');
+  });
+});
+
 describe('ComplianceService — M-2: recordWiringFailure (non-blocking integration points)', () => {
   it('appends a first-class WIRING_FAILED event carrying the operation label + error message, and leaves status untouched', async () => {
     const { service } = svc();

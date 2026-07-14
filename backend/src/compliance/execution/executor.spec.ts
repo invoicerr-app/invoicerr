@@ -140,3 +140,51 @@ describe('ComplianceExecutor — reporting side-effects', () => {
     expect(log.hasScope('reporting/EC_SALES_LIST')).toBe(true);
   });
 });
+
+/**
+ * Numbering double-consumption fix: issue() (ComplianceService) already allocates the ONE
+ * authoritative number for a document before send() ever runs execute() against it — and in prod
+ * both share the SAME NumberingRegistry singleton (see the "2. Numbering" comment in executor.ts).
+ * Before this fix, execute() unconditionally called numbering.next() again, burning a second
+ * counter value (GAPLESS_SELF) or consuming a second folio (AUTHORITY_RANGE) per document — pure
+ * waste, since execute()'s returned `number` was never read downstream. These tests prove the fix
+ * directly at the executor level: when the caller passes `assignedNumber`, execute() reuses it
+ * verbatim and never touches the numbering registry at all.
+ */
+describe('ComplianceExecutor — F-9 fix: opts.assignedNumber reuse skips (re-)allocation', () => {
+  it('GAPLESS_SELF: returns assignedNumber verbatim and never increments the counter', async () => {
+    const log = new RecordingComplianceLogger();
+    const numbering = new NumberingRegistry();
+    const executor = new ComplianceExecutor({ numbering, logger: log });
+    const txCtx = tx('FR', 'FR', 'B2B', 'SERVICES', '2027-01-15');
+    const plan = resolve(txCtx);
+
+    const result = await executor.execute(txCtx, plan, { assignedNumber: 'PRE-ASSIGNED-1' });
+    expect(result.number).toBe('PRE-ASSIGNED-1');
+
+    // The counter was never touched by the call above — the very first live next() call on this
+    // series still yields the series' FIRST value. A double-consume would have left it at '000002'.
+    expect(numbering.get('GAPLESS_SELF').next('FR-INVOICE', plan.numbering, log).value).toBe('000001');
+  });
+
+  it('AUTHORITY_RANGE: returns assignedNumber verbatim and never consumes a folio (no ensureRange/next() call)', async () => {
+    const log = new RecordingComplianceLogger();
+    const numbering = new NumberingRegistry();
+    numbering.folioPool.loadRange('MX-INVOICE', 1000, 1002);
+    const executor = new ComplianceExecutor({ numbering, logger: log });
+    const txCtx = tx('MX', 'MX', 'B2B', 'GOODS', '2024-06-01');
+    const plan = resolve(txCtx);
+
+    const result = await executor.execute(txCtx, plan, { assignedNumber: 'PRE-ASSIGNED-FOLIO' });
+    expect(result.number).toBe('PRE-ASSIGNED-FOLIO');
+
+    // The pool's cursor is untouched — the FIRST folio in the loaded range is still up next. A
+    // double-consume would have left '1000' already burned and '1001' up next.
+    expect(numbering.folioPool.next('MX-INVOICE', plan.numbering, log).value).toBe('1000');
+  });
+
+  it('with NO assignedNumber, standalone execute() still allocates a fresh number (unchanged behavior)', async () => {
+    const { result } = await run(tx('FR', 'FR', 'B2B', 'SERVICES', '2027-01-15'));
+    expect(result.number).toBe('000001');
+  });
+});

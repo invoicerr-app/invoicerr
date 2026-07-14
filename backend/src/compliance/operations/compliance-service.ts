@@ -290,7 +290,17 @@ export class ComplianceService {
     // (e.g. TRANSMISSION_FAILED → retry, or a fresh ISSUED after a correction) — so a real resend is
     // never suppressed, only an accidental duplicate of the SAME logical send.
     const idempotencyKey = opts.idempotencyKey ?? `${rec.id}:${rec.status}`;
-    const execution = await this.executor.execute(rec.ctx, plan, { idempotencyKey });
+    // F-9 numbering fix: issue() already allocated the ONE authoritative number for this document
+    // (before any send() is ever reachable — see issue()'s hard-block on numbering failure). Pass it
+    // through so the executor reuses it instead of allocating a second one from the SAME
+    // NumberingRegistry singleton (a burned GAPLESS_SELF counter value / a second AUTHORITY_RANGE
+    // folio consumed for nothing — the executor's own number was never read downstream anyway).
+    // `rec.number` is only absent for a document that somehow reached ISSUED without going through
+    // issue() (shouldn't happen) — fall through to allocation rather than crash.
+    const execution = await this.executor.execute(rec.ctx, plan, {
+      idempotencyKey,
+      assignedNumber: rec.number,
+    });
 
     // F-4: "accepted somewhere" means at least one channel came back SENT/PENDING/CLEARED; if every
     // channel was SKIPPED/REJECTED, nothing was actually submitted/delivered — do not pretend

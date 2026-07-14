@@ -61,6 +61,18 @@ export interface ExecutorDeps {
 
 export interface ExecuteOptions {
   idempotencyKey?: string;
+  /**
+   * F-9 numbering fix: the number ALREADY assigned to this document by ComplianceService.issue()
+   * (which allocates the one and only authoritative number before any send). When set, execute()
+   * reuses it verbatim and skips the ensureRange()/numbering.next() allocation block below entirely
+   * — otherwise, since issue() and execute() share the same NumberingRegistry singleton in prod
+   * (see the numbering step below), a second next() would burn a second counter value / consume a
+   * second authority-issued folio for the SAME document, which is pure waste (execute()'s `number`
+   * is never read downstream — see ComplianceService.computeSendOutcome(), which builds artifacts
+   * from `ctx`, not from this return value). Left undefined for standalone/executor-spec usage with
+   * no prior issue() call, in which case the current allocate-with-warning behavior is unchanged.
+   */
+  assignedNumber?: string;
 }
 
 export class ComplianceExecutor {
@@ -191,26 +203,33 @@ export class ComplianceExecutor {
     const totals = this.taxSystems.get(plan.taxSystemKind).computeTotals(ctx, plan.tax, log);
 
     // 2. Numbering (gapless self-counter, or authority folio range which blocks when exhausted).
-    // F-9: hydrate the AUTHORITY_RANGE pool from the range source before allocating — no-op for
-    // GAPLESS_SELF / once already loaded (e.g. by ComplianceService.issue() earlier in the same
-    // lifecycle, since both share the default NumberingRegistry singleton in prod).
-    const series = `${ctx.supplier.countryCode}-${ctx.documentKind ?? 'INVOICE'}`;
-    await this.numbering.ensureRange(
-      plan.numbering.model,
-      ctx.supplierCompanyId,
-      series,
-      log,
-      this.rangeSource,
-    );
-    let number: string | undefined;
-    try {
-      number = this.numbering.get(plan.numbering.model).next(series, plan.numbering, log).value;
-    } catch (e) {
-      // Non-blocking here by design: this step runs again during send() (after issue() already
-      // hard-blocked on the same failure — see ComplianceService.issue()), so by the time execute()
-      // runs the document already has its authoritative number; a second allocation failure just
-      // surfaces as a pipeline warning rather than re-blocking a document that is already ISSUED.
-      warnings.push(`Numbering blocked: ${(e as Error).message}`);
+    // F-9 (fixed): when the caller already assigned an authoritative number (ComplianceService.issue()
+    // runs before every send — see computeSendOutcome()), REUSE it and skip allocation entirely. issue()
+    // and execute() share the same NumberingRegistry singleton in prod, so calling next() again here
+    // would burn a second counter value (GAPLESS_SELF: a gap in a supposedly gap-less sequence) or
+    // consume a second authority-issued folio (AUTHORITY_RANGE: half the limited pool wasted) for the
+    // SAME document — pure waste, since this return value is never read downstream (artifacts are
+    // built from `ctx`, not from executor.execute()'s `number` — see computeSendOutcome()).
+    let number: string | undefined = opts.assignedNumber;
+    if (number === undefined) {
+      // No prior issue() in this call path (standalone/executor-spec usage) — allocate as before.
+      const series = `${ctx.supplier.countryCode}-${ctx.documentKind ?? 'INVOICE'}`;
+      await this.numbering.ensureRange(
+        plan.numbering.model,
+        ctx.supplierCompanyId,
+        series,
+        log,
+        this.rangeSource,
+      );
+      try {
+        number = this.numbering.get(plan.numbering.model).next(series, plan.numbering, log).value;
+      } catch (e) {
+        // Non-blocking here by design: this step runs again during send() (after issue() already
+        // hard-blocked on the same failure — see ComplianceService.issue()), so by the time execute()
+        // runs the document already has its authoritative number; a second allocation failure just
+        // surfaces as a pipeline warning rather than re-blocking a document that is already ISSUED.
+        warnings.push(`Numbering blocked: ${(e as Error).message}`);
+      }
     }
 
     // 3. Build each planned artifact (authoritative / human / buyer).
