@@ -210,3 +210,24 @@ export function deriveInvoiceActions(
     deposit: isPlainInvoice && isIssued,
   };
 }
+
+/**
+ * M-2: surfaces a compliance wiring failure to the API/UI. A ComplianceDocument's intended
+ * transition (issue/send/audit/markPaid/…) can fail on a NON-BLOCKING integration point (see
+ * ComplianceService.recordWiringFailure) — the invoice/payment operation itself still succeeds, so
+ * nothing throws, but the document can silently sit at its current status forever with no signal.
+ *
+ * Derives a human-readable `complianceError` from the events timeline: non-null ONLY when the most
+ * RECENT event is a WIRING_FAILED (i.e. the document's intended action failed and nothing has
+ * advanced/retried since — an older WIRING_FAILED followed by a later successful event is not an
+ * active error anymore).
+ */
+export function deriveComplianceError(
+  events: Array<{ type: string; at: Date | string; detail?: string | null }> | undefined,
+): string | null {
+  if (!events || events.length === 0) return null;
+  const sorted = [...events].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+  const last = sorted[sorted.length - 1];
+  if (last.type !== 'WIRING_FAILED') return null;
+  return last.detail ?? 'Compliance wiring failed';
+}

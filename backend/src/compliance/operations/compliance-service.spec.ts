@@ -699,3 +699,83 @@ describe('ComplianceService — F-9: AUTHORITY_RANGE numbering (loadRange wiring
     expect(document.number).toBeDefined();
   });
 });
+
+describe('ComplianceService — M-2: recordWiringFailure (non-blocking integration points)', () => {
+  it('appends a first-class WIRING_FAILED event carrying the operation label + error message, and leaves status untouched', async () => {
+    const { service } = svc();
+    const draft = await service.createDraft(FR());
+    expect(draft.status).toBe('DRAFT');
+
+    await service.recordWiringFailure(draft.id, 'issueInvoice', new Error('SMTP gateway unreachable'));
+
+    const after = await service.getDocument(draft.id);
+    expect(after!.status).toBe('DRAFT'); // untouched — no state-machine transition happened
+    const failure = after!.events.find((e) => e.type === 'WIRING_FAILED');
+    expect(failure).toBeDefined();
+    expect(failure!.detail).toBe('issueInvoice: SMTP gateway unreachable');
+    expect(failure!.actor).toBe('system');
+  });
+
+  it('stringifies a non-Error thrown value into the event detail', async () => {
+    const { service } = svc();
+    const draft = await service.createDraft(FR());
+
+    await service.recordWiringFailure(draft.id, 'markPaid', 'plain string rejection');
+
+    const after = await service.getDocument(draft.id);
+    const failure = after!.events.find((e) => e.type === 'WIRING_FAILED');
+    expect(failure!.detail).toBe('markPaid: plain string rejection');
+  });
+
+  it('appends WIRING_FAILED on top of existing events without disturbing them (append-only)', async () => {
+    const { service } = svc();
+    const draft = await service.createDraft(FR());
+    const { document: issued } = await service.issue(draft.id);
+    expect(issued.events.map((e) => e.type)).toEqual(['CREATED', 'ISSUE']);
+
+    await service.recordWiringFailure(issued.id, 'send', new Error('transmission wiring failed'));
+
+    const after = await service.getDocument(issued.id);
+    expect(after!.events.map((e) => e.type)).toEqual(['CREATED', 'ISSUE', 'WIRING_FAILED']);
+    expect(after!.status).toBe('ISSUED');
+  });
+
+  it('never throws when the document id is unknown — logs at error and returns', async () => {
+    const { service, log } = svc();
+
+    await expect(
+      service.recordWiringFailure('does-not-exist', 'createDraft', new Error('boom')),
+    ).resolves.toBeUndefined();
+
+    const errorEntries = log.entries.filter((e) => e.level === 'error');
+    expect(errorEntries.length).toBeGreaterThan(0);
+    expect(errorEntries.some((e) => e.message.includes('does-not-exist'))).toBe(true);
+  });
+
+  it('never throws when the underlying store fails to persist the event — logs at error and returns', async () => {
+    const log = new RecordingComplianceLogger();
+    const draft = { id: 'doc-1', status: 'DRAFT', events: [] } as any;
+    const failingStore = {
+      get: async () => draft,
+      update: async () => {
+        throw new Error('store unavailable');
+      },
+      save: async (r: any) => r,
+      list: async () => [],
+      listByCompany: async () => [],
+      findLastInSeries: async () => null,
+    };
+    const service = new ComplianceService({ store: failingStore as any, logger: log });
+
+    await expect(
+      service.recordWiringFailure('doc-1', 'issue', new Error('original failure')),
+    ).resolves.toBeUndefined();
+
+    const errorEntries = log.entries.filter((e) => e.level === 'error');
+    expect(errorEntries.length).toBeGreaterThan(0);
+    expect(errorEntries.some((e) => e.message.includes('store unavailable'))).toBe(true);
+    // The original failure reason must still be visible in the (swallowed) recording log — it is
+    // not replaced by the recording error.
+    expect(errorEntries.some((e) => e.message.includes('original failure'))).toBe(true);
+  });
+});

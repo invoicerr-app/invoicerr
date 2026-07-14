@@ -27,6 +27,7 @@ import type { SupplyType, DocumentKind } from '@/compliance/types';
 import { enrichWithPaymentMethod, enrichWithPaymentMethods } from '@/utils/enrich-payment-methods';
 import {
   buildComplianceContext,
+  deriveComplianceError,
   deriveInvoiceActions,
   invoiceItemData,
   resolveTax,
@@ -47,6 +48,28 @@ export class InvoicesService {
     private readonly transmissionRegistry: TransmissionProviderRegistry,
     private readonly complianceQueue: ComplianceQueueDispatcher,
   ) {}
+
+  /**
+   * M-2: report a compliance side-effect failure from inside a non-blocking catch block (an
+   * invoice/correction/deposit/etc. was already committed and this call site deliberately does not
+   * rethrow). `ComplianceService.recordWiringFailure` is itself defensive and documented to never
+   * throw, but this wrapper is a second guard so a misbehaving or test-mocked ComplianceService can
+   * never escape the non-blocking contract of the call site that invokes it.
+   */
+  private async reportComplianceWiringFailure(
+    complianceDocId: string,
+    operation: string,
+    error: unknown,
+  ): Promise<void> {
+    try {
+      await this.complianceService.recordWiringFailure(complianceDocId, operation, error);
+    } catch (reportingError) {
+      logger.error('recordWiringFailure itself threw — swallowed to preserve the non-blocking contract', {
+        category: 'invoice',
+        details: { complianceDocId, operation, error: String(reportingError) },
+      });
+    }
+  }
 
   async getInvoice(companyId: string, id: string) {
     const invoice = await prisma.invoice.findFirst({
@@ -330,10 +353,16 @@ export class InvoicesService {
       });
       await this.complianceService.createDraft(complianceCtx, 'INVOICE', invoice.id);
     } catch (error) {
-      logger.warn('ComplianceService.createDraft failed (non-blocking)', {
-        category: 'invoice',
-        details: { error: String(error) },
-      });
+      // M-2: createDraft itself failed — there is no ComplianceDocument row yet to attach a
+      // WIRING_FAILED event to. The invoice having NO compliance document at all is itself the
+      // visible signal; upgraded warn → error (a genuine, unrecorded failure, not a shrug).
+      logger.error(
+        'ComplianceService.createDraft failed — invoice has no compliance document (non-blocking)',
+        {
+          category: 'invoice',
+          details: { invoiceId: invoice.id, operation: 'createInvoice.createDraft', error: String(error) },
+        },
+      );
     }
 
     try {
@@ -399,12 +428,14 @@ export class InvoicesService {
     });
 
     // Wire ComplianceService: issue the compliance document linked to this invoice
+    let issueDocId: string | undefined;
     try {
       const complianceDoc = await prisma.complianceDocument.findFirst({
         where: { invoiceId: id },
         orderBy: { createdAt: 'desc' },
       });
       if (complianceDoc) {
+        issueDocId = complianceDoc.id;
         await this.complianceService.issue(complianceDoc.id);
       } else {
         logger.warn('No compliance document found for issued invoice', {
@@ -413,10 +444,17 @@ export class InvoicesService {
         });
       }
     } catch (error) {
-      logger.warn('ComplianceService.issue failed (non-blocking)', {
-        category: 'invoice',
-        details: { error: String(error) },
-      });
+      if (issueDocId) {
+        await this.reportComplianceWiringFailure(issueDocId, 'issueInvoice', error);
+      } else {
+        logger.error(
+          'ComplianceService wiring failed for issued invoice — no compliance document found (non-blocking)',
+          {
+            category: 'invoice',
+            details: { invoiceId: id, operation: 'issueInvoice', error: String(error) },
+          },
+        );
+      }
     }
 
     logger.info('Invoice issued', {
@@ -579,6 +617,7 @@ export class InvoicesService {
       });
 
       // Wire ComplianceService for the correction (non-blocking)
+      let correctionDocId: string | undefined;
       try {
         const complianceCtx = buildComplianceContext(invoice.company, invoice.client, {
           lines: toComplianceLines(correctionInvoice.items, invoice.currency),
@@ -602,12 +641,17 @@ export class InvoicesService {
           // corrections back to what they correct (ComplianceDocumentRecord.correctsId).
           complianceDoc.id,
         );
+        correctionDocId = correctionDoc.id;
         await this.complianceService.issue(correctionDoc.id);
       } catch (error) {
-        logger.warn('ComplianceService wiring for correction failed (non-blocking)', {
-          category: 'invoice',
-          details: { error: String(error) },
-        });
+        // M-2: prefer the correction's OWN document (created but stuck at DRAFT because issue()
+        // failed) — fall back to the ORIGINAL's document when createDraft() itself never produced
+        // a correction document to attach the failure to.
+        await this.reportComplianceWiringFailure(
+          correctionDocId ?? complianceDoc.id,
+          'correctInvoice',
+          error,
+        );
       }
 
       logger.info('Invoice corrected', {
@@ -758,6 +802,7 @@ export class InvoicesService {
       });
 
       // Wire ComplianceService for the replacement (non-blocking)
+      let replacementDocId: string | undefined;
       try {
         // NOTE: unlike the other flows, replacement lines prefer the stored
         // unitPriceMinor over a fresh toMinor() conversion — keep inline.
@@ -778,12 +823,16 @@ export class InvoicesService {
           'INVOICE',
           replacement.id,
         );
+        replacementDocId = replacementDoc.id;
         await this.complianceService.issue(replacementDoc.id);
       } catch (error) {
-        logger.warn('ComplianceService wiring for replacement failed (non-blocking)', {
-          category: 'invoice',
-          details: { error: String(error) },
-        });
+        // M-2: prefer the replacement's OWN document — fall back to the original's (already
+        // cancelled at this point) when createDraft() never produced a replacement document.
+        await this.reportComplianceWiringFailure(
+          replacementDocId ?? complianceDoc.id,
+          'cancelAndReplaceInvoice',
+          error,
+        );
       }
 
       logger.info('Invoice cancelled and replaced', {
@@ -939,19 +988,28 @@ export class InvoicesService {
     });
 
     // Audit: record EDIT event
+    let editedDocId: string | undefined;
     try {
       const complianceDoc = await prisma.complianceDocument.findFirst({
         where: { invoiceId: id },
         orderBy: { createdAt: 'desc' },
       });
       if (complianceDoc) {
+        editedDocId = complianceDoc.id;
         await this.complianceService.recordAuditEvent(complianceDoc.id, 'EDITED', `draft edited`);
       }
     } catch (error) {
-      logger.warn('ComplianceService.recordAuditEvent(EDITED) failed (non-blocking)', {
-        category: 'invoice',
-        details: { error: String(error) },
-      });
+      if (editedDocId) {
+        await this.reportComplianceWiringFailure(editedDocId, 'recordAuditEvent(EDITED)', error);
+      } else {
+        logger.error(
+          'ComplianceService.recordAuditEvent(EDITED) failed — no compliance document found (non-blocking)',
+          {
+            category: 'invoice',
+            details: { invoiceId: id, error: String(error) },
+          },
+        );
+      }
     }
 
     logger.info('Invoice updated', { category: 'invoice', details: { invoiceId: updateInvoice.id } });
@@ -1000,19 +1058,28 @@ export class InvoicesService {
     });
 
     // Audit: record DELETED event
+    let deletedDocId: string | undefined;
     try {
       const complianceDoc = await prisma.complianceDocument.findFirst({
         where: { invoiceId: id },
         orderBy: { createdAt: 'desc' },
       });
       if (complianceDoc) {
+        deletedDocId = complianceDoc.id;
         await this.complianceService.recordAuditEvent(complianceDoc.id, 'DELETED', `draft deleted (soft)`);
       }
     } catch (error) {
-      logger.warn('ComplianceService.recordAuditEvent(DELETED) failed (non-blocking)', {
-        category: 'invoice',
-        details: { error: String(error) },
-      });
+      if (deletedDocId) {
+        await this.reportComplianceWiringFailure(deletedDocId, 'recordAuditEvent(DELETED)', error);
+      } else {
+        logger.error(
+          'ComplianceService.recordAuditEvent(DELETED) failed — no compliance document found (non-blocking)',
+          {
+            category: 'invoice',
+            details: { invoiceId: id, error: String(error) },
+          },
+        );
+      }
     }
 
     logger.info('Invoice deleted', { category: 'invoice', details: { invoiceId: id } });
@@ -1256,19 +1323,28 @@ export class InvoicesService {
     });
 
     // Audit: record ARCHIVED event
+    let archivedDocId: string | undefined;
     try {
       const complianceDoc = await prisma.complianceDocument.findFirst({
         where: { invoiceId },
         orderBy: { createdAt: 'desc' },
       });
       if (complianceDoc) {
+        archivedDocId = complianceDoc.id;
         await this.complianceService.recordAuditEvent(complianceDoc.id, 'ARCHIVED', `PAID→ARCHIVED`);
       }
     } catch (error) {
-      logger.warn('ComplianceService.recordAuditEvent(ARCHIVED) failed (non-blocking)', {
-        category: 'invoice',
-        details: { error: String(error) },
-      });
+      if (archivedDocId) {
+        await this.reportComplianceWiringFailure(archivedDocId, 'recordAuditEvent(ARCHIVED)', error);
+      } else {
+        logger.error(
+          'ComplianceService.recordAuditEvent(ARCHIVED) failed — no compliance document found (non-blocking)',
+          {
+            category: 'invoice',
+            details: { invoiceId, error: String(error) },
+          },
+        );
+      }
     }
 
     logger.info('Invoice archived', { category: 'invoice', details: { invoiceId } });
@@ -1452,10 +1528,19 @@ export class InvoicesService {
       });
       await this.complianceService.createDraft(complianceCtx, 'PROFORMA', invoice.id);
     } catch (error) {
-      logger.warn('ComplianceService.createDraft failed for proforma (non-blocking)', {
-        category: 'invoice',
-        details: { error: String(error) },
-      });
+      // M-2: createDraft itself failed — no document exists yet to attach a WIRING_FAILED event
+      // to; the missing compliance document IS the visible signal. Upgraded warn → error.
+      logger.error(
+        'ComplianceService.createDraft failed for proforma — invoice has no compliance document (non-blocking)',
+        {
+          category: 'invoice',
+          details: {
+            invoiceId: invoice.id,
+            operation: 'createProformaInvoice.createDraft',
+            error: String(error),
+          },
+        },
+      );
     }
 
     logger.info('Proforma created', { category: 'invoice', details: { invoiceId: invoice.id } });
@@ -1625,6 +1710,7 @@ export class InvoicesService {
     });
 
     // Non-blocking: ComplianceService createDraft + issue
+    let depositDocId: string | undefined;
     try {
       const complianceCtx = buildComplianceContext(company, client, {
         lines: [
@@ -1641,12 +1727,20 @@ export class InvoicesService {
         externalRef: depositInvoice.id,
       });
       const doc = await this.complianceService.createDraft(complianceCtx, 'DEPOSIT', depositInvoice.id);
+      depositDocId = doc.id;
       await this.complianceService.issue(doc.id);
     } catch (error) {
-      logger.warn('ComplianceService wiring for deposit failed (non-blocking)', {
-        category: 'invoice',
-        details: { error: String(error) },
-      });
+      if (depositDocId) {
+        await this.reportComplianceWiringFailure(depositDocId, 'createDepositInvoice', error);
+      } else {
+        logger.error(
+          'ComplianceService wiring for deposit failed — invoice has no compliance document (non-blocking)',
+          {
+            category: 'invoice',
+            details: { depositInvoiceId: depositInvoice.id, error: String(error) },
+          },
+        );
+      }
     }
 
     logger.info('Deposit invoice created', {
@@ -1804,6 +1898,12 @@ export class InvoicesService {
     const complianceDoc = await prisma.complianceDocument.findFirst({
       where: { invoiceId: id },
       orderBy: { createdAt: 'desc' },
+      include: {
+        // M-2: needed to derive `complianceError` — the most recent event, when it's a
+        // WIRING_FAILED, is the UI-visible signal that the document's intended action failed on a
+        // non-blocking integration point (see ComplianceService.recordWiringFailure).
+        events: { select: { type: true, at: true, detail: true }, orderBy: { at: 'asc' as const } },
+      },
     });
 
     if (!complianceDoc || !complianceDoc.plan) {
@@ -1811,6 +1911,7 @@ export class InvoicesService {
         invoiceId: id,
         status: invoice.status,
         complianceStatus: complianceDoc?.status ?? null,
+        complianceError: deriveComplianceError(complianceDoc?.events),
         immutableAfter: 'ISSUE',
         correctionModel: 'CREDIT_NOTE',
         cancellation: { allowed: false },
@@ -1858,6 +1959,7 @@ export class InvoicesService {
       invoiceId: id,
       status: invoice.status,
       complianceStatus: complianceDoc.status,
+      complianceError: deriveComplianceError(complianceDoc.events),
       kind: invoice.kind,
       immutableAfter: lifecycle.immutableAfter,
       correctionModel: lifecycle.correctionModel,

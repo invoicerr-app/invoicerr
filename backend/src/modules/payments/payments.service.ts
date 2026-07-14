@@ -31,6 +31,28 @@ export class PaymentsService {
   }
 
   /**
+   * M-2: report a compliance side-effect failure from inside a non-blocking catch block (the
+   * payment was already committed and this call site deliberately does not rethrow).
+   * `ComplianceService.recordWiringFailure` is itself defensive and documented to never throw, but
+   * this wrapper is a second guard so a misbehaving or test-mocked ComplianceService can never
+   * escape the non-blocking contract of the call site that invokes it.
+   */
+  private async reportComplianceWiringFailure(
+    complianceDocId: string,
+    operation: string,
+    error: unknown,
+  ): Promise<void> {
+    try {
+      await this.complianceService.recordWiringFailure(complianceDocId, operation, error);
+    } catch (reportingError) {
+      logger.error('recordWiringFailure itself threw — swallowed to preserve the non-blocking contract', {
+        category: 'payment',
+        details: { complianceDocId, operation, error: String(reportingError) },
+      });
+    }
+  }
+
+  /**
    * Dispatches a payment webhook event. The new PAYMENT_* event is emitted first,
    * then the deprecated RECEIPT_* alias is emitted for backward compatibility with
    * existing webhook subscriptions. The payload exposes both `payment` and the
@@ -275,22 +297,28 @@ export class PaymentsService {
     });
 
     // Wire ComplianceService: mark the invoice as paid
+    let markPaidDocId: string | undefined;
     try {
       const complianceDoc = await prisma.complianceDocument.findFirst({
         where: { invoiceId: body.invoiceId },
         orderBy: { createdAt: 'desc' },
       });
       if (complianceDoc) {
+        markPaidDocId = complianceDoc.id;
         await this.complianceService.markPaid(complianceDoc.id, {
           amountMinor: toMinor(totalPaid, currency),
           paidAt: paidAtDate.toISOString(),
         });
       }
     } catch (error) {
-      logger.warn('ComplianceService.markPaid failed (non-blocking)', {
-        category: 'payment',
-        details: { error: String(error) },
-      });
+      if (markPaidDocId) {
+        await this.reportComplianceWiringFailure(markPaidDocId, 'markPaid', error);
+      } else {
+        logger.error('ComplianceService.markPaid failed — no compliance document found (non-blocking)', {
+          category: 'payment',
+          details: { invoiceId: body.invoiceId, error: String(error) },
+        });
+      }
     }
 
     await this.checkInvoiceAfterPayment(invoice.id);

@@ -341,6 +341,58 @@ export class ComplianceService {
     return updated;
   }
 
+  /**
+   * M-2: report a compliance side-effect that failed on a NON-BLOCKING integration path — the
+   * invoice-facing caller (e.g. InvoicesService.issueInvoice(), PaymentsService.createPayment())
+   * already committed its own write and deliberately does not rethrow, so without this the
+   * document's intended transition (issue/send/audit/markPaid…) silently never happens and the
+   * document can sit at its current status (often DRAFT) forever with nothing surfaced to the UI.
+   * Appends a first-class WIRING_FAILED event — mirrors the F-9/M-1 sincerity pattern (a real
+   * failure is a persisted event, never a bare log line) — and leaves status untouched: the
+   * document's own state machine never ran here, so there is nothing to transition.
+   *
+   * MUST NEVER THROW. This is an error *reporter* invoked from inside a caller's non-blocking catch
+   * block; if it throws, the original failure gets masked by a new one instead of surfaced. Any
+   * problem while recording (unknown document id, a store failure) is logged at `error` and
+   * swallowed here — it does not propagate and does not replace the original error the caller is
+   * already handling.
+   */
+  async recordWiringFailure(docId: string, operation: string, err: unknown): Promise<void> {
+    const reason = err instanceof Error ? err.message : String(err);
+    try {
+      const rec = await this.store.get(docId);
+      if (!rec) {
+        this.log.error(
+          'operations/wiring',
+          `cannot record wiring failure — document "${docId}" not found (operation=${operation}): ${reason}`,
+        );
+        return;
+      }
+      await this.store.update(docId, {
+        events: [
+          ...rec.events,
+          {
+            id: randomUUID(),
+            type: 'WIRING_FAILED',
+            at: now(),
+            actor: 'system',
+            detail: `${operation}: ${reason}`,
+          },
+        ],
+      });
+      this.log.error('operations/wiring', `${operation} failed for document "${docId}": ${reason}`);
+    } catch (recordingError) {
+      // The reporter itself failed (e.g. store.update threw) — log it and return; never throw out
+      // of a non-blocking catch block.
+      const recordingReason =
+        recordingError instanceof Error ? recordingError.message : String(recordingError);
+      this.log.error(
+        'operations/wiring',
+        `failed to record WIRING_FAILED for document "${docId}" (operation=${operation}, original=${reason}): ${recordingReason}`,
+      );
+    }
+  }
+
   /** Run the full pipeline (build → sign → regime → transmit → archive → report) and move state. */
   async send(id: string, opts: IssueOptions = {}): Promise<SendResult> {
     const rec = await this.require(id);
