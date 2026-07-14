@@ -90,10 +90,16 @@ describeWithRedis('Phase 2: real queue transmit -> poll -> CLEARED (F-3 proof)',
     poll: async (ref: string) => {
       capturedPollRef = ref;
       pollCallCount += 1;
+      const cleared = pollCallCount >= 2;
       return {
         channel: 'PAC',
-        status: pollCallCount >= 2 ? 'CLEARED' : 'PENDING',
+        status: cleared ? 'CLEARED' : 'PENDING',
         notes: [`mock poll call #${pollCallCount}`],
+        // Bug-fix proof (poll.processor.ts RESOLVE branch): a real authority (e.g. KSeF) returns its
+        // identifiers alongside the CLEARED status; this must reach the document's persisted
+        // authorityIds through the REAL PollProcessor -> ApplySignalService -> Postgres path, not just
+        // a mocked/in-memory assertion.
+        authorityIds: cleared ? [{ scheme: 'PAC_FOLIO', value: 'phase2-folio-999' }] : undefined,
       };
     },
   };
@@ -206,6 +212,15 @@ describeWithRedis('Phase 2: real queue transmit -> poll -> CLEARED (F-3 proof)',
       // DIFFERENT effect, e.g. a webhook resolving the document before this same poll could).
       const pollRowsAfter = await prisma.scheduledJob.findMany({ where: { documentId: id, kind: 'POLL' } });
       expect(pollRowsAfter[0].status).toBe('DONE');
+
+      // Bug-fix proof: the CLEARED poll's authorityIds (mock PAC_FOLIO above) must have been persisted
+      // on the document — real Postgres row, written by PollProcessor -> ApplySignalService, not a
+      // mock/in-memory assertion.
+      const clearedDoc = await docStore.get(id);
+      expect(clearedDoc?.authorityIds).toEqual([{ scheme: 'PAC_FOLIO', value: 'phase2-folio-999' }]);
+      const authRows = await prisma.complianceAuthorityId.findMany({ where: { documentId: id } });
+      expect(authRows).toHaveLength(1);
+      expect(authRows[0]).toMatchObject({ scheme: 'PAC_FOLIO', value: 'phase2-folio-999' });
     } finally {
       await prisma.scheduledJob.deleteMany({ where: { documentId: id } });
       await prisma.complianceCallbackRegistration.deleteMany({ where: { documentId: id } });

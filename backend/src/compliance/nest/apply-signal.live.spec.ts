@@ -217,6 +217,132 @@ live('LIVE: ApplySignalService against Postgres', () => {
     expect(finalDoc.events.some((e: { type: string }) => e.type === 'REJECT')).toBe(false);
   });
 
+  it('bug fix: a CLEARED poll carrying authorityIds persists them on the document (was: dropped)', async () => {
+    // Mirrors the real KSeF async-poll path: provider.poll() resolves CLEARED with the authority's
+    // ksefNumber + UPO download url in TransmissionResult.authorityIds (ksef-transmission.ts:258-275).
+    // Before the fix, poll-scheduler/poll.processor dispatched `{ type: 'POLL_RESULT', status }` only —
+    // authorityIds never reached ApplySignalService, so the CLEARED document had NO authorityIds row
+    // at all: the legal proof of clearance was silently lost.
+    const ctx = mxCtx();
+    const plan = resolve(ctx);
+    const id = 'live-mx-authids-1';
+    await docStore.save({
+      id,
+      kind: 'INVOICE',
+      direction: 'OUTBOUND',
+      status: 'PENDING_CLEARANCE',
+      ctx,
+      plan,
+      authorityIds: [],
+      events: [{ id: 'evt-submit', type: 'SUBMIT_CLEARANCE', at: new Date().toISOString(), actor: 'system' }],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    await applySignal.apply(id, {
+      type: 'POLL_RESULT',
+      status: 'CLEARED',
+      authorityIds: [
+        { scheme: 'KSEF_NUMBER', value: '1111111111-20270115-ABCDEF123456-01' },
+        { scheme: 'UPO', value: 'https://ksef.example/upo/download/xyz' },
+      ],
+    });
+
+    const after = await docStore.get(id);
+    expect(after.status).toBe('CLEARED');
+    expect(after.authorityIds).toHaveLength(2);
+    expect(after.authorityIds).toEqual(
+      expect.arrayContaining([
+        { scheme: 'KSEF_NUMBER', value: '1111111111-20270115-ABCDEF123456-01' },
+        { scheme: 'UPO', value: 'https://ksef.example/upo/download/xyz' },
+      ]),
+    );
+
+    // Not a mock tautology: query the actual Postgres rows independently of docStore's own mapping.
+    const rows = await prisma.complianceAuthorityId.findMany({
+      where: { documentId: id },
+      orderBy: { scheme: 'asc' },
+    });
+    expect(rows).toHaveLength(2);
+    expect(
+      rows.map((r: { scheme: string; value: string }) => ({ scheme: r.scheme, value: r.value })),
+    ).toEqual(
+      expect.arrayContaining([
+        { scheme: 'KSEF_NUMBER', value: '1111111111-20270115-ABCDEF123456-01' },
+        { scheme: 'UPO', value: 'https://ksef.example/upo/download/xyz' },
+      ]),
+    );
+  });
+
+  it('re-poll idempotence: re-applying the same CLEARED+authorityIds signal is a NOOP — no duplicate rows', async () => {
+    const ctx = mxCtx();
+    const plan = resolve(ctx);
+    const id = 'live-mx-authids-2';
+    await docStore.save({
+      id,
+      kind: 'INVOICE',
+      direction: 'OUTBOUND',
+      status: 'PENDING_CLEARANCE',
+      ctx,
+      plan,
+      authorityIds: [],
+      events: [{ id: 'evt-submit', type: 'SUBMIT_CLEARANCE', at: new Date().toISOString(), actor: 'system' }],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const signal = {
+      type: 'POLL_RESULT' as const,
+      status: 'CLEARED' as const,
+      authorityIds: [{ scheme: 'KSEF_NUMBER', value: 'dup-ksef-number' }],
+    };
+
+    await applySignal.apply(id, signal);
+    const afterFirst = await docStore.get(id);
+    expect(afterFirst.status).toBe('CLEARED');
+    expect(afterFirst.authorityIds).toEqual([{ scheme: 'KSEF_NUMBER', value: 'dup-ksef-number' }]);
+    expect(afterFirst.events).toHaveLength(2); // seed SUBMIT_CLEARANCE + CLEAR
+
+    // Re-poll: the document is already CLEARED, so CLEARED has no outgoing CLEAR transition — the
+    // runtime dispatch resolves to a NOOP BEFORE apply() ever opens a transaction (same mechanism the
+    // existing "a NOOP signal ... writes nothing" test above proves), so this second call must not
+    // touch authorityIds, events or status at all.
+    await applySignal.apply(id, signal);
+
+    const afterSecond = await docStore.get(id);
+    expect(afterSecond.status).toBe('CLEARED');
+    expect(afterSecond.events).toHaveLength(2); // unchanged — no new event appended
+    expect(afterSecond.authorityIds).toEqual([{ scheme: 'KSEF_NUMBER', value: 'dup-ksef-number' }]); // not duplicated
+
+    const rows = await prisma.complianceAuthorityId.findMany({ where: { documentId: id } });
+    expect(rows).toHaveLength(1); // exactly one row in the real table — never two
+  });
+
+  it('a REJECTED poll (no authorityIds on the signal) persists nothing new', async () => {
+    const ctx = mxCtx();
+    const plan = resolve(ctx);
+    const id = 'live-mx-authids-3';
+    await docStore.save({
+      id,
+      kind: 'INVOICE',
+      direction: 'OUTBOUND',
+      status: 'PENDING_CLEARANCE',
+      ctx,
+      plan,
+      authorityIds: [],
+      events: [{ id: 'evt-submit', type: 'SUBMIT_CLEARANCE', at: new Date().toISOString(), actor: 'system' }],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    await applySignal.apply(id, { type: 'POLL_RESULT', status: 'REJECTED' }); // no authorityIds field at all
+
+    const after = await docStore.get(id);
+    expect(after.status).toBe('REJECTED');
+    expect(after.authorityIds).toEqual([]);
+    expect(await prisma.complianceAuthorityId.count({ where: { documentId: id } })).toBe(0);
+  });
+
   it('AWAIT_CALLBACK registers a correlation that a real inbound message later resolves', async () => {
     const itCtx = {
       supplier: { legalName: 'IT Co', countryCode: 'IT', role: 'B2B', identifiers: [] },

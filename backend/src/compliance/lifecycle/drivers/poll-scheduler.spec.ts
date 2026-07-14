@@ -135,6 +135,63 @@ describe('PollScheduler', () => {
     expect((await store.forDocument('doc1'))[0].status).toBe('DONE');
   });
 
+  it('tick(): a CLEARED poll carrying authorityIds threads them into the POLL_RESULT signal (bug fix)', async () => {
+    // Before the fix, `pollJobOnce` dispatched `{ type: 'POLL_RESULT', status: decision.outcome }` only
+    // — provider.poll()'s `authorityIds` (KSeF number, UPO url, …) never reached the signal at all.
+    const clock = clockFrom('2027-01-15T00:00:00Z');
+    const store = new InMemoryPollJobStore();
+    const signals: Array<[string, LifecycleSignal]> = [];
+    const authorityIds = [
+      { scheme: 'KSEF_NUMBER', value: '1111111111-20270115-ABCDEF-01' },
+      { scheme: 'UPO', value: 'https://ksef.example/upo/xyz' },
+    ];
+    const provider: TransmissionProvider = {
+      id: 'pac',
+      channel: 'PAC',
+      feedback: 'ASYNC_POLL',
+      pollPolicy: POLICY,
+      transmit: () => ({ channel: 'PAC', status: 'PENDING', notes: [] }),
+      poll: () => ({ channel: 'PAC', status: 'CLEARED', notes: [], authorityIds }),
+    };
+    const reg = new TransmissionProviderRegistry([provider]);
+    const scheduler = new PollScheduler({
+      applySignal: (id, s) => {
+        signals.push([id, s]);
+      },
+      store,
+      txRegistry: reg,
+      now: clock.now,
+    });
+
+    await scheduler.schedule('doc1', EFFECT);
+    clock.advance(31_000);
+    await scheduler.tick();
+
+    expect(signals).toEqual([['doc1', { type: 'POLL_RESULT', status: 'CLEARED', authorityIds }]]);
+  });
+
+  it('tick(): a REJECTED poll with no authorityIds threads an undefined authorityIds field through', async () => {
+    const { reg, setStatus } = fakeRegistry(); // fakeRegistry's poll() never sets authorityIds
+    setStatus('REJECTED');
+    const clock = clockFrom('2027-01-15T00:00:00Z');
+    const store = new InMemoryPollJobStore();
+    const signals: Array<[string, LifecycleSignal]> = [];
+    const scheduler = new PollScheduler({
+      applySignal: (id, s) => {
+        signals.push([id, s]);
+      },
+      store,
+      txRegistry: reg,
+      now: clock.now,
+    });
+
+    await scheduler.schedule('doc1', EFFECT);
+    clock.advance(31_000);
+    await scheduler.tick();
+
+    expect(signals).toEqual([['doc1', { type: 'POLL_RESULT', status: 'REJECTED' }]]);
+  });
+
   it('reconcile(): polls a NOT-yet-due job (boot/12h catch-up) — tick() would skip it', async () => {
     const { reg, setStatus } = fakeRegistry();
     setStatus('CLEARED'); // authority resolved it while we were offline / we missed the push

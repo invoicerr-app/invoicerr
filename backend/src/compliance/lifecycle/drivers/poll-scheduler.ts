@@ -148,7 +148,11 @@ export class PollScheduler {
 
     switch (decision.kind) {
       case 'RESOLVE':
-        await this.applySignal(job.documentId, { type: 'POLL_RESULT', status: decision.outcome }, this.log);
+        await this.applySignal(
+          job.documentId,
+          { type: 'POLL_RESULT', status: decision.outcome, authorityIds: result.authorityIds },
+          this.log,
+        );
         report.resolved++;
         break;
       case 'RESCHEDULE':

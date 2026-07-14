@@ -6,6 +6,7 @@
  * durable I/O (scheduler, outbox, persistence) with log.todo.
  */
 import { ComplianceLogger, defaultLogger } from '../execution/logger';
+import { AuthorityIdentifier } from '../execution/types';
 import { PollPolicy } from '../providers/transmission/transmission-provider';
 import { LifecycleGraph } from './assembler';
 import { ComplianceEvent, ComplianceStatus } from './state-machine';
@@ -15,7 +16,14 @@ import { TransitionSpec, Trigger } from './triggers';
 export type LifecycleSignal =
   | { type: 'COMMAND'; event: ComplianceEvent } // user / API (issue, send, cancel, correct…)
   | { type: 'AUTHORITY_ACK'; cleared: boolean } // synchronous authority answer
-  | { type: 'POLL_RESULT'; status: 'CLEARED' | 'REJECTED' | 'PENDING' } // scheduler poll outcome
+  | {
+      type: 'POLL_RESULT';
+      status: 'CLEARED' | 'REJECTED' | 'PENDING'; // scheduler poll outcome
+      // Authority identifiers (KSeF number, UPO URL, …) the provider's poll() returned alongside the
+      // status — carried through so ApplySignalService can persist them on the document instead of
+      // dropping them (the async-poll counterpart of the sync path's execution.regime.authorityIds).
+      authorityIds?: AuthorityIdentifier[];
+    }
   | { type: 'INBOUND_STATUS'; status: string } // callback: SdI/Peppol/PDP status message
   | { type: 'TIMER_ELAPSED' }; // silence = acceptance deadline
 

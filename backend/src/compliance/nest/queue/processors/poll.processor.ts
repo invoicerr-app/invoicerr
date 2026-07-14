@@ -71,7 +71,11 @@ export class PollProcessor extends WorkerHost {
 
     switch (decision.kind) {
       case 'RESOLVE':
-        await this.applySignal.apply(documentId, { type: 'POLL_RESULT', status: decision.outcome });
+        await this.applySignal.apply(documentId, {
+          type: 'POLL_RESULT',
+          status: decision.outcome,
+          authorityIds: result.authorityIds,
+        });
         this.logger.log(`[POLL] ${documentId} resolved: ${decision.outcome} (job ${scheduledJobId})`);
         return;
       case 'RESCHEDULE': {

@@ -3,6 +3,7 @@ import { Prisma } from '../../../prisma/generated/prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { ChannelType } from '../types';
 import { ComplianceLogger, defaultLogger } from '../execution/logger';
+import { AuthorityIdentifier } from '../execution/types';
 import { assembleLifecycle, phaseContextFromPlan } from '../lifecycle/assembler';
 import { ComplianceDocumentRecord } from '../operations/types';
 import { Effect, LifecycleRuntime, LifecycleSignal } from '../lifecycle/runtime';
@@ -34,6 +35,25 @@ function genId(prefix: string): string {
  * completely untouched. Caught immediately outside the `$transaction` call — never escapes `apply()`.
  */
 class StaleSignalAbort extends Error {}
+
+/**
+ * Merge authority identifiers (KSeF number, UPO URL, …) returned by an async poll into a document's
+ * existing set, deduping by (scheme, value) so a re-poll of an already-recorded id — or two poll
+ * cycles that both observe the same clearance — never creates duplicate rows. Mirrors
+ * `ComplianceService.markCleared`'s merge semantics (append, keep the existing entries first).
+ */
+function mergeAuthorityIds(
+  existing: AuthorityIdentifier[],
+  incoming: AuthorityIdentifier[],
+): AuthorityIdentifier[] {
+  const merged = [...existing];
+  for (const id of incoming) {
+    if (!merged.some((e) => e.scheme === id.scheme && e.value === id.value)) {
+      merged.push(id);
+    }
+  }
+  return merged;
+}
 
 /**
  * The real `applySignal` bridge: loads a document's runtime, dispatches the signal, and persists the
@@ -147,6 +167,19 @@ export class ApplySignalService {
             txTimerStore.cancelForDocument(documentId),
             txCallbackStore.cancelForDocument(documentId),
           ]);
+
+          // Bug fix: a POLL_RESULT signal carries the authority identifiers (KSeF number, UPO URL, …)
+          // its provider.poll() observed alongside the CLEARED/REJECTED status — the async-poll
+          // counterpart of the synchronous path, where ComplianceService already persists
+          // execution.regime.authorityIds on send()/markCleared(). Persist them ONLY now that the CAS
+          // has actually committed this transition (never on a losing CAS — the StaleSignalAbort below
+          // rolls back this entire transaction, including this write) and merge-dedup against the
+          // document's existing ids (rec.authorityIds, read before this signal) so a re-poll observing
+          // the same id twice never duplicates it.
+          if (signal.type === 'POLL_RESULT' && signal.authorityIds && signal.authorityIds.length > 0) {
+            const merged = mergeAuthorityIds(rec.authorityIds, signal.authorityIds);
+            await txDocStore.update(documentId, { authorityIds: merged });
+          }
         }
 
         for (const effect of effects) {
