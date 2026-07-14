@@ -29,6 +29,17 @@ function assertCompliance(invoiceId: string, attempts = 5) {
     }
     expect(doc, 'compliance document created').to.exist;
     expect(doc.status, 'compliance status present').to.exist;
+    // Guard against de-fr-class false-greens: a validation/wiring failure on the
+    // async transmit path records a first-class VALIDATION_BLOCKED/WIRING_FAILED
+    // event instead of crashing. A weak assertion on doc.status alone would miss
+    // this, so explicitly assert no such failure event was recorded.
+    const failureEvents = (doc.events ?? []).filter((e: { type: string }) =>
+      e.type === 'VALIDATION_BLOCKED' || e.type === 'WIRING_FAILED',
+    );
+    expect(
+      failureEvents,
+      `no VALIDATION_BLOCKED/WIRING_FAILED events, found: ${JSON.stringify(failureEvents)}`,
+    ).to.have.length(0);
   });
 }
 
