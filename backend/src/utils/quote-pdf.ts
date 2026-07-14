@@ -8,7 +8,7 @@ import { formatDate } from '@/utils/date';
 import prisma from '@/prisma/prisma.service';
 import { clampDiscountRate } from '@/utils/financial';
 import { formatAmount } from '@/utils/format-amount';
-import { formatRichText } from '@/utils/format-text';
+import { formatNotes, formatRichText } from '@/utils/format-text';
 import { getDraftWatermarkLabel } from '@/utils/watermark';
 
 export async function generateQuotePdf(id: string): Promise<Uint8Array> {
@@ -108,7 +108,7 @@ export async function generateQuotePdf(id: string): Promise<Uint8Array> {
         isDraft: quote.status === 'DRAFT',
         draftLabel: getDraftWatermarkLabel(quote.company.country),
         noteExists: !!quote.notes,
-        notes: formatRichText(quote.notes).replace(/\n/g, '<br>'),
+        notes: formatNotes(quote.notes),
         labels: {
             quote: config.quote,
             quoteFor: config.quoteFor,

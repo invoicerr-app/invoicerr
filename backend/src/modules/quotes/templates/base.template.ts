@@ -28,6 +28,18 @@ export const baseTemplate = `
         .totals-table { width: 100%; border-collapse: collapse; margin: 0 0 20px; page-break-inside: avoid; break-inside: avoid; }
         .totals-table td:last-child { text-align: right; }
         .notes { margin-top: 20px; padding: 20px; background-color: {{secondaryColor}}; border-radius: 4px; color: {{tableTextColor}}; page-break-inside: avoid; break-inside: avoid; }
+        .notes-content h1, .notes-content h2, .notes-content h3, .notes-content h4 { margin: 12px 0 6px; line-height: 1.3; }
+        .notes-content h1:first-child, .notes-content h2:first-child, .notes-content h3:first-child, .notes-content h4:first-child { margin-top: 0; }
+        .notes-content p { margin: 0 0 8px; }
+        .notes-content p:last-child { margin-bottom: 0; }
+        .notes-content ul, .notes-content ol { margin: 0 0 8px; padding-left: 20px; }
+        .notes-content li { margin: 2px 0; }
+        .notes-content a { color: {{primaryColor}}; text-decoration: underline; word-break: break-word; }
+        .notes-content code { font-family: 'Courier New', monospace; background-color: rgba(0, 0, 0, 0.06); padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
+        .notes-content pre { font-family: 'Courier New', monospace; background-color: rgba(0, 0, 0, 0.06); padding: 8px; border-radius: 4px; overflow-wrap: break-word; white-space: pre-wrap; margin: 0 0 8px; }
+        .notes-content pre code { background: none; padding: 0; }
+        .notes-content blockquote { margin: 0 0 8px; padding-left: 10px; border-left: 3px solid {{primaryColor}}; color: inherit; opacity: 0.85; }
+        .notes-content hr { border: none; border-top: 1px solid rgba(0, 0, 0, 0.15); margin: 10px 0; }
         .payment-info { margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-left: 4px solid {{primaryColor}}; color: #333; }
         .validity { color: #dc2626; font-weight: bold; }
         .logo { max-height: 140px; margin-bottom: 10px; }
@@ -159,7 +171,7 @@ export const baseTemplate = `
     {{#if noteExists}}
     <div class="notes">
         <h4>{{labels.notes}}</h4>
-        <p>{{{notes}}}</p>
+        <div class="notes-content">{{{notes}}}</div>
     </div>
     {{/if}}
 </body>

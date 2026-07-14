@@ -13,7 +13,7 @@ import { business } from '@tsclass/tsclass/dist_ts';
 import { finance } from '@fin.cx/einvoice/dist_ts/plugins';
 import { formatAmount } from '@/utils/format-amount';
 import { formatDate } from '@/utils/date';
-import { formatRichText } from '@/utils/format-text';
+import { formatNotes, formatRichText } from '@/utils/format-text';
 import { logger } from '@/logger/logger.service';
 import { parseAddress } from '@/utils/adress';
 import prisma from '@/prisma/prisma.service';
@@ -472,7 +472,7 @@ export class InvoicesService {
             logoB64: pdfConfig?.logoB64 ?? '',
 
             noteExists: !!invoice.notes,
-            notes: (invoice.notes || '').replace(/\n/g, '<br>'),
+            notes: formatNotes(invoice.notes),
 
             // Labels
             labels: {

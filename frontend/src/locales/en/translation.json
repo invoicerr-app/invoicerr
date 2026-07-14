@@ -2032,7 +2032,12 @@
             "month": "Month",
             "year": "Year"
         },
-        "valueWithCurrency": "{{amount}}{{currency}}"
+        "valueWithCurrency": "{{amount}}{{currency}}",
+        "markdownNotes": {
+            "edit": "Edit",
+            "preview": "Preview",
+            "hint": "Markdown supported"
+        }
     },
     "noOptions": "No options available. Create a new client.",
     "payments": {
