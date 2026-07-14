@@ -20,7 +20,7 @@ const LANGUAGE_BY_COUNTRY_CODE: Record<string, string> = {
     SV: "es", NI: "es", CR: "es", PA: "es", UY: "es",
 }
 
-const resolveCountryCode = (country: string): string | null => {
+export const resolveCountryCode = (country: string): string | null => {
     const normalized = country.trim().toLowerCase()
     for (const locale of RESOLVABLE_LOCALES) {
         const displayNames = new Intl.DisplayNames([locale], { type: "region" })

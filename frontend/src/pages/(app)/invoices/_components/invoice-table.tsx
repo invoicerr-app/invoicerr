@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import SearchSelect from "@/components/search-input"
 import { Spinner } from "@/components/ui/spinner"
 import { getDisplayInvoiceStatus } from "@/types"
+import { formatAmount } from "@/lib/utils"
 import { useClientSearch, useInvoicesTable } from "@/hooks/queries"
 import { useTranslation } from "react-i18next"
 
@@ -197,7 +198,7 @@ export function InvoiceTable() {
                                     <TableCell>
                                         {t("common.valueWithCurrency", {
                                             currency: invoice.currency || "",
-                                            amount: invoice.totalTTC.toFixed(2),
+                                            amount: formatAmount(invoice.totalTTC, invoice.company?.country),
                                         })}
                                     </TableCell>
                                     <TableCell>{new Date(invoice.createdAt).toLocaleDateString()}</TableCell>

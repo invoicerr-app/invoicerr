@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge"
 import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
+import { formatAmount } from "@/lib/utils"
 import {
     Dialog,
     DialogContent,
@@ -258,7 +259,7 @@ export function CreateInvoiceFromQuoteDialog({ quote, onOpenChange }: CreateInvo
                                                 })}
                                                 {" — "}
                                                 {t("quotes.createInvoiceDialog.remainingTotalLabel", {
-                                                    amount: item.remainingTTC.toFixed(2),
+                                                    amount: formatAmount(item.remainingTTC, quote?.company?.country),
                                                     currency: quote?.currency || "",
                                                 })}
                                             </p>
@@ -285,7 +286,7 @@ export function CreateInvoiceFromQuoteDialog({ quote, onOpenChange }: CreateInvo
                                                 />
                                                                                                 <span className="text-xs font-medium w-24 text-right shrink-0">
                                                     {t("quotes.createInvoiceDialog.itemAmountLabel", {
-                                                        amount: itemTTC.toFixed(2),
+                                                        amount: formatAmount(itemTTC, quote?.company?.country),
                                                         currency: quote?.currency || "",
                                                     })}
                                                 </span>
@@ -299,7 +300,7 @@ export function CreateInvoiceFromQuoteDialog({ quote, onOpenChange }: CreateInvo
                         <div className="flex items-center justify-between border-t pt-3 text-sm font-medium">
                             <span>
                                 {t("quotes.createInvoiceDialog.totalSelectedLabel", {
-                                    amount: selectedTTC.toFixed(2),
+                                    amount: formatAmount(selectedTTC, quote?.company?.country),
                                     currency: quote?.currency || "",
                                 })}
                             </span>
