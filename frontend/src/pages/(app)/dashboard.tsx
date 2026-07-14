@@ -11,6 +11,7 @@ import {
   ReceiptText,
   TrendingUp,
 } from "lucide-react"
+import ChannelConnectPrompt from "@/components/channel-connect-prompt"
 import { Card, CardContent } from "@/components/ui/card"
 import { CartesianGrid, Line, LineChart, XAxis } from "recharts"
 import type { NameType, Payload, ValueType } from "recharts/types/component/DefaultTooltipContent"
@@ -86,6 +87,8 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 p-6">
+      <ChannelConnectPrompt />
+
       <section className="space-y-6">
         <div className="flex items-center space-x-3">
           <div className="p-2 bg-emerald-500 rounded-lg">

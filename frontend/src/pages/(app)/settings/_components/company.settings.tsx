@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { z } from "zod"
+import ChannelConnectPrompt from "@/components/channel-connect-prompt"
 import CountrySelect from "@/components/country-select"
 import CurrencySelect from "@/components/currency-select"
 import { DatePicker } from "@/components/date-picker"
@@ -321,6 +322,8 @@ export default function CompanySettings() {
 
   return (
     <div>
+      <ChannelConnectPrompt className="mb-4" />
+
       <div className="mb-4">
         <h1 className="text-3xl font-bold">{t("settings.company.title")}</h1>
         <p className="text-muted-foreground">{t("settings.company.description")}</p>

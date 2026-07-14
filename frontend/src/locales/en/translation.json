@@ -2046,6 +2046,11 @@
                 "saveError": "Failed to save configuration",
                 "saveSuccess": "Channel configured"
             },
+            "prompt": {
+                "cta": "Connect now",
+                "description": "Your country requires connecting {{channels}} to send compliant invoices.",
+                "title": "E-invoicing channel required"
+            },
             "status": {
                 "comingSoon": "Coming soon",
                 "connected": "Connected",
