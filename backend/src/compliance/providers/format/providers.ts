@@ -215,24 +215,32 @@ export class En16931FormatProvider implements FormatProvider {
     // to report BR-DE-16 as an ordinary finding for that shape: the vendored rule's test is
     // `not(...) or (cac:TaxRepresentativeParty, $BT-31orBT-32Path)` — an un-guarded XPath sequence
     // (comma) used directly as an `or` operand instead of `exists(...)`. When both operands are
-    // empty (no BG-11 tax representative AND no BT-31/32), node-schematron/fontoxpath throws
+    // empty (no BG-11 tax representative AND no BT-31/32), node-schematron/fontoxpath THROWS
     // err:FORG0006 ("cannot determine the effective boolean value... type array(*)") instead of
     // returning a normal fail — a pre-existing defect in the vendored .sch/library pairing, wholly
-    // independent of the blocking/non-blocking flag below (validateSchematron(xml,
-    // XRECHNUNG_DELTA_SCH) is called unconditionally either way). Flipping this delta to blocking
-    // would therefore not just add a BR-DE-16 error for a seller-VAT-less XRechnung document, it
-    // would make `send()` throw an UNCAUGHT, non-FormatValidationError exception for that shape —
-    // strictly worse than today. Tracked follow-up: either fix the vendored rule (wrap in
-    // `exists()`), or give DE sellers a VAT/tax-registration id (the de-fr fixture currently has
-    // neither), or wrap the delta validateSchematron() call itself in a try/catch. None of those is
-    // in scope here — left as an honest, tracked gap rather than a silent fix or a fabricated pass.
+    // independent of the blocking/non-blocking flag below. Left unfixed at the .sch level (tracked
+    // follow-up: wrap the rule's test in `exists()`), the delta call below is now crash-guarded: a
+    // FORG0006 (or any other) throw from validateSchematron(xml, XRECHNUNG_DELTA_SCH) is caught and
+    // treated as "no delta findings" rather than propagating — so a seller-VAT-less XRechnung
+    // document now correctly RETURNS the real base-EN16931-UBL result (valid:false, BR-S-02/
+    // BR-CO-26 in `errors`) instead of the whole validate() call throwing an uncaught,
+    // non-FormatValidationError exception. The delta remains NON-BLOCKING either way — its findings
+    // only ever land in `warnings`, never `errors`, and `valid` is derived solely from the base
+    // report.
     if (rendered.syntax === 'XRECHNUNG') {
       const baseResult = validateSchematron(xml, EN16931_UBL_SCH);
       const baseReport = this.reportFrom(baseResult, log, 'format/en16931-ubl', rendered.syntax);
-      const deltaResult = validateSchematron(xml, XRECHNUNG_DELTA_SCH);
-      const deltaFindings = [...deltaResult.errors, ...deltaResult.warnings].map(
-        (e) => `[${e.id}] ${e.message}`,
-      );
+      let deltaFindings: string[] = [];
+      try {
+        const deltaResult = validateSchematron(xml, XRECHNUNG_DELTA_SCH);
+        deltaFindings = [...deltaResult.errors, ...deltaResult.warnings].map((e) => `[${e.id}] ${e.message}`);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        log.warn(
+          'format/xrechnung-de',
+          `XRECHNUNG KoSIT BR-DE delta Schematron crashed (non-blocking, treated as no findings): ${message}`,
+        );
+      }
       if (deltaFindings.length > 0) {
         log.warn(
           'format/xrechnung-de',

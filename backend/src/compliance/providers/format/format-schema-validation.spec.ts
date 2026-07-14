@@ -21,6 +21,7 @@ import { RecordingComplianceLogger } from '../../execution/logger';
 import { RenderedArtifact } from '../../execution/types';
 import { validateXsd, validateSchematron } from '../../schemas/validate';
 import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
+import type { InvoiceRenderData } from '@/modules/invoice-rendering/render-data';
 import { DE_B2B, IT_B2B, MX_B2B, ES_B2B, PL_B2B, FR_B2B_STANDARD } from './__fixtures__/invoices';
 import type { InvoiceArtifactPort, XmlExportFormat } from './invoice-artifact-port';
 import {
@@ -474,6 +475,134 @@ describe('XRechnung real Schematron — base EN16931-UBL + KoSIT BR-DE delta (M-
     const result = validateSchematron(broken, 'de/XRechnung-UBL-validation-preprocessed.sch');
     expect(result.valid).toBe(false);
     expect(result.errors.map((e) => e.id)).toContain('BR-DE-15'); // '"Buyer reference" (BT-10) muss übermittelt werden'
+  });
+
+  // de-fr Business Scenario false-green fix (e2e/cypress/fixtures/scenarios.ts): the DE seller
+  // ("Berlin Tech GmbH") used to carry NO tax/legal identifier at all, on a category "S" (20%)
+  // line — BR-S-02/BR-CO-26 territory, same defect class as the fr-be fix above. Giving the DE
+  // seller a checksum-valid USt-IdNr (DE136695976 — ISO 7064 Mod 11,10, see
+  // identifier-validator.ts's validateDeVat()) closes it: base EN16931-UBL now passes with ZERO
+  // errors, and (Part 1) the KoSIT delta no longer needs to be guarded against a throw for THIS
+  // shape either, since a PartyTaxScheme is now present.
+  it('[positive] de-fr-with-VAT (DE seller w/ USt-IdNr → FR buyer, category S 20%): base EN16931-UBL is ZERO errors and the KoSIT delta does not throw', async () => {
+    const service = new InvoiceRenderingService();
+    const deFrWithVat: InvoiceRenderData = {
+      rawNumber: 'INV-DEFR-0001',
+      number: null,
+      issuedAt: new Date('2026-07-12'),
+      createdAt: new Date('2026-07-12'),
+      company: {
+        name: 'Berlin Tech GmbH',
+        description: null,
+        foundedAt: null,
+        currency: 'EUR',
+        address: '1 Main St',
+        city: 'City',
+        postalCode: '10000',
+        country: 'Germany',
+        phone: '+123456789',
+        email: 'company@example.com',
+        partyIdentifiers: [{ scheme: 'VAT', value: 'DE136695976' }],
+      },
+      client: {
+        type: 'COMPANY',
+        name: 'Paris Media SAS',
+        description: null,
+        foundedAt: null,
+        contactFirstname: null,
+        contactLastname: null,
+        salutation: null,
+        sex: null,
+        title: null,
+        isActive: true,
+        address: '15 Rue de Rivoli',
+        city: 'Paris',
+        postalCode: '75001',
+        country: 'France',
+        partyIdentifiers: [{ scheme: 'VAT', value: 'FR12345678901' }],
+      },
+      items: [{ name: 'Software License', quantity: 1, unitPrice: 1200, vatRate: 20, type: 'PRODUCT' }],
+    };
+
+    const xml = await service.buildEInvoice(deFrWithVat).exportXml('xrechnung');
+    expect(xml).toContain('<cbc:CompanyID>DE136695976</cbc:CompanyID>');
+
+    const baseResult = validateSchematron(xml, 'en16931/EN16931-UBL-validation-preprocessed.sch');
+    if (baseResult.errorCount > 0) {
+      console.error('Base EN16931-UBL errors on de-fr-with-VAT:', baseResult.errors);
+    }
+    expect(baseResult.valid).toBe(true);
+    expect(baseResult.errorCount).toBe(0);
+
+    // The delta no longer throws for this shape either (PartyTaxScheme present).
+    expect(() => validateSchematron(xml, 'de/XRechnung-UBL-validation-preprocessed.sch')).not.toThrow();
+  });
+
+  // Part 1 (providers.ts): the XRECHNUNG branch's delta validateSchematron() call is now
+  // try/catch-guarded so a vendored-schema crash (FORG0006 on a no-PartyTaxScheme shape — see
+  // providers.ts's XRECHNUNG branch comment) can never mask the real base result. This locks that
+  // guard: En16931FormatProvider.validate() must RETURN the base result (valid:false, BR-S-02
+  // present) instead of throwing, for the exact seller shape that used to crash the whole call.
+  it('[negative] Part 1 try/catch: a no-PartyTaxScheme XRECHNUNG doc — provider.validate() RETURNS valid:false with base BR-S-02, and does NOT throw', async () => {
+    const service = new InvoiceRenderingService();
+    const noVatData: InvoiceRenderData = {
+      rawNumber: 'INV-DEFR-0002',
+      number: null,
+      issuedAt: new Date('2026-07-12'),
+      createdAt: new Date('2026-07-12'),
+      company: {
+        name: 'Berlin Tech GmbH',
+        description: null,
+        foundedAt: null,
+        currency: 'EUR',
+        address: '1 Main St',
+        city: 'City',
+        postalCode: '10000',
+        country: 'Germany',
+        phone: '+123456789',
+        email: 'company@example.com',
+        partyIdentifiers: [], // no VAT / tax-registration id at all — the original de-fr shape
+      },
+      client: {
+        type: 'COMPANY',
+        name: 'Paris Media SAS',
+        description: null,
+        foundedAt: null,
+        contactFirstname: null,
+        contactLastname: null,
+        salutation: null,
+        sex: null,
+        title: null,
+        isActive: true,
+        address: '15 Rue de Rivoli',
+        city: 'Paris',
+        postalCode: '75001',
+        country: 'France',
+        partyIdentifiers: [{ scheme: 'VAT', value: 'FR12345678901' }],
+      },
+      items: [{ name: 'Software License', quantity: 1, unitPrice: 1200, vatRate: 20, type: 'PRODUCT' }],
+    };
+    const xml = await service.buildEInvoice(noVatData).exportXml('xrechnung');
+    const sellerBlock = xml.slice(
+      xml.indexOf('<cac:AccountingSupplierParty>'),
+      xml.indexOf('</cac:AccountingSupplierParty>'),
+    );
+    expect(sellerBlock).not.toContain('<cac:PartyTaxScheme>');
+
+    const provider = new En16931FormatProvider();
+    const log = new RecordingComplianceLogger();
+    const artifact = artifactFrom(xml, 'XRECHNUNG');
+
+    let report: Awaited<ReturnType<typeof provider.validate>> | undefined;
+    await expect(
+      (async () => {
+        report = await provider.validate(artifact, log);
+      })(),
+    ).resolves.not.toThrow();
+
+    expect(report).toBeDefined();
+    expect(report!.valid).toBe(false);
+    expect(report!.errors.some((e) => e.includes('BR-S-02'))).toBe(true);
   });
 });
 

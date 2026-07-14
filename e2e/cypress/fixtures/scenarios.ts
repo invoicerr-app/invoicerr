@@ -55,7 +55,16 @@ export const SCENARIOS: Record<string, Scenario> = {
   },
   'de-fr': {
     id: 'de-fr',
-    company: { name: 'Berlin Tech GmbH', country: 'Germany', legalId: 'DE123456789', currency: 'EUR', currencyLabel: 'Euro (€)' },
+    // Standard-rated (20%, category "S") cross-border DE→FR B2B supply. EN16931 BR-S-02/BR-CO-26
+    // require a Seller VAT identifier (BT-31, cac:PartyTaxScheme/cbc:CompanyID) whenever a
+    // taxed/standard VAT category is used — a bare commercial-register id (cac:PartyLegalEntity/
+    // cbc:CompanyID) does NOT satisfy that. `identifierScheme: 'VAT'` routes `legalId` through the
+    // existing onboarding-vat-input/company-vat-input fields (see fillCompanyIdentifier() and the
+    // onboarding step in full-lifecycle.cy.ts) so the seller carries a real USt-IdNr end-to-end.
+    // DE136695976 is a checksum-valid German VAT (ISO 7064 Mod 11,10 — the exact algorithm in
+    // backend/src/compliance/canonical/identifier-validator.ts's validateDeVat(); this value is
+    // SAP SE's long-published, publicly known USt-IdNr, not an invented number).
+    company: { name: 'Berlin Tech GmbH', country: 'Germany', legalId: 'DE136695976', currency: 'EUR', currencyLabel: 'Euro (€)', identifierScheme: 'VAT' },
     client: { name: 'Paris Media SAS', email: 'client-de-fr@mailpit.test', country: 'France', type: 'COMPANY', vat: 'FR12345678901', address: '15 Rue de Rivoli', postalCode: '75001', city: 'Paris', currency: 'EUR' },
     item: { name: 'Software License', quantity: 1, unitPrice: 1200, vatRate: 20, type: 'PRODUCT' },
   },
