@@ -99,19 +99,24 @@ describe('readNamespacedConfig', () => {
 });
 
 describe('gate behaviour (smoke)', () => {
-  it('all portal live suites are skipped when no <PREFIX>_LIVE=1 is set', () => {
-    // This test verifies the gate contract indirectly: no portal flag is set in this
-    // process, so the two-tier gate (flagOn && hasCreds) fires describe.skip for every portal.
-    // The parametrized loop in portal-live.spec.ts covers them.
-    // We just assert the helper itself never throws for any id in the registry.
+  it('a bare <PREFIX>_LIVE=1 flag never satisfies the cred gate (two-tier gate → describe.skip)', () => {
+    // This test verifies the gate contract directly and deterministically: regardless of
+    // ambient process.env (e.g. the national-portals-live CI job, which sets <PREFIX>_LIVE=1
+    // as a constant for every portal with no credentials), a synthetic flag-only env must
+    // never satisfy portalHasCreds. The two-tier gate (flagOn && hasCreds) therefore always
+    // fires describe.skip when only the flag is set. The parametrized loop in
+    // portal-live.spec.ts covers the actual skip behaviour per portal.
     const { NATIONAL_PORTAL_PROVIDERS } = require('./national-portals') as {
       NATIONAL_PORTAL_PROVIDERS: Array<{ id: string }>;
     };
     for (const p of NATIONAL_PORTAL_PROVIDERS) {
       const prefix = portalPrefix(p.id);
       expect(() => readNamespacedConfig(prefix)).not.toThrow();
-      // No portal LIVE flag set in this test run.
-      expect(process.env[`${prefix}_LIVE`]).toBeUndefined();
+      // Two-tier gate: a bare <PREFIX>_LIVE=1 flag (the workflow's constant) must NEVER
+      // satisfy the credential gate — only real credentials do. Use a synthetic flag-only
+      // env (not process.env, which the workflow populates with _LIVE=1) so this is
+      // deterministic in every environment.
+      expect(portalHasCreds(prefix, { [`${prefix}_LIVE`]: '1' })).toBe(false);
     }
   });
 });

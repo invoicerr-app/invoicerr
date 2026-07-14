@@ -125,7 +125,7 @@ describeLive('KSeF live round-trip', () => {
     expect(['PENDING', 'REJECTED']).toContain(transmitResult.status);
     const allNotes = (transmitResult.notes ?? []).join(' ');
     expect(allNotes).not.toMatch(/435|decrypt/i);
-  });
+  }, 120_000);
 
   it('Run B: valid FA(2) via buildFaVat → CLEARED + ksefNumber', async () => {
     process.env.CREDENTIALS_ENCRYPTION_KEY ??=
@@ -190,13 +190,15 @@ describeLive('KSeF live round-trip', () => {
     // buildFaVat auto-selects FA(2)/FA(3) by issue date (selectFaVatVersion — see fa-vat.ts).
     // Validate against whichever XSD matches what was actually emitted, using the SAME
     // issuedAt the built invoice used (`now`, no version override), rather than hardcoding FA(2).
-    const { selectFaVatVersion } = await import(
-      '../../../../modules/invoice-rendering/national/fa-vat.js'
-    );
+    const { selectFaVatVersion } = await import('../../../../modules/invoice-rendering/national/fa-vat.js');
     const emittedVersion = selectFaVatVersion(now);
     const xsdPath = emittedVersion === 3 ? 'pl/schemat_FA3.xsd' : 'pl/schemat_FA2.xsd';
     const xsdResult = await validateXsd(fa2Xml, xsdPath);
-    console.log(`XSD validation (FA(${emittedVersion}), ${xsdPath}):`, xsdResult.valid ? 'PASS' : 'FAIL', xsdResult.errors);
+    console.log(
+      `XSD validation (FA(${emittedVersion}), ${xsdPath}):`,
+      xsdResult.valid ? 'PASS' : 'FAIL',
+      xsdResult.errors,
+    );
     expect(xsdResult.valid).toBe(true);
 
     // ── Transmit to KSeF ──
