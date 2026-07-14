@@ -26,6 +26,9 @@ describe('Multi-Company Switcher E2E', () => {
             .clear({ force: true })
             .type('73282932000074', { force: true });
         cy.get('[data-cy="onboarding-submit-btn"]').click();
+        // Company creation now advances the wizard to Step 2 (Channels) instead of
+        // closing the dialog — finish onboarding from there.
+        cy.get('[data-cy="onboarding-finish-btn"]', { timeout: 10000 }).should('be.visible').click();
         cy.get('[data-cy="onboarding-dialog"]', { timeout: 20000 }).should('not.exist');
         cy.wait(3000);
 

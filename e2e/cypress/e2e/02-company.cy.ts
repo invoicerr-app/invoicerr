@@ -65,6 +65,9 @@ describe('Company Settings E2E', () => {
                         .clear({ force: true })
                         .type('73282932000074', { force: true });
                     cy.get('[data-cy="onboarding-submit-btn"]').click();
+                    // Company creation now advances the wizard to Step 2 (Channels) instead
+                    // of closing the dialog — finish onboarding from there.
+                    cy.get('[data-cy="onboarding-finish-btn"]', { timeout: 10000 }).should('be.visible').click();
                     // Company creation switches to the new company and reloads the page —
                     // wait for the dialog to be gone and the reloaded app to settle before
                     // moving on, otherwise later steps race the reload.

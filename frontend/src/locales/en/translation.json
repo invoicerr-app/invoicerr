@@ -1677,6 +1677,16 @@
                     }
                 }
             },
+            "onboarding": {
+                "stepLabelCompany": "Company",
+                "stepLabelChannels": "Channels",
+                "stepIndicator": "Step {{current}} of {{total}}",
+                "step2Title": "Connect your e-invoicing channel",
+                "step2Description": "Your company has been created. Connect an e-invoicing channel now, or do it later from Settings.",
+                "connectChannels": "Connect channels",
+                "errorTitle": "Couldn't create your company",
+                "retry": "Retry"
+            },
             "messages": {
                 "updateSuccess": "Company settings updated successfully",
                 "updateError": "Failed to update company settings"

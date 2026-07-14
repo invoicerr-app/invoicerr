@@ -109,6 +109,9 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
             .type(s.company.legalId, { force: true });
         }
         cy.get('[data-cy="onboarding-submit-btn"]').click();
+        // Company creation now advances the wizard to Step 2 (Channels) instead of
+        // closing the dialog — finish onboarding from there.
+        cy.get('[data-cy="onboarding-finish-btn"]', { timeout: 10000 }).should('be.visible').click();
         // Company creation switches to the new company and reloads the page —
         // wait for the dialog to be gone and the reloaded app to settle before moving on.
         cy.get('[data-cy="onboarding-dialog"]', { timeout: 20000 }).should('not.exist');
