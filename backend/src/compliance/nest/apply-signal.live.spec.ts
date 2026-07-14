@@ -49,7 +49,7 @@ live('LIVE: ApplySignalService against Postgres', () => {
     await prisma.complianceEvent.deleteMany({});
     await prisma.complianceAuthorityId.deleteMany({});
     await prisma.complianceDocument.deleteMany({});
-    await prisma.onModuleDestroy();
+    await prisma.$disconnect();
   });
 
   it('a real transition persists the new status, appends one event, and cancels the obsolete driver', async () => {
