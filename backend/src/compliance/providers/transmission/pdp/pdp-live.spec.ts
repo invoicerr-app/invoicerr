@@ -202,7 +202,7 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
     // rejection (or a local error masquerading as one) must FAIL this test, never pass silently.
     if (pollResult.status === 'REJECTED' || pollResult.status === 'SKIPPED') {
       const notes = (pollResult.notes ?? []).join(' | ');
-      fail(`PDP poll returned ${pollResult.status} — hard failure. Notes: ${notes}`);
+      throw new Error(`PDP poll returned ${pollResult.status} — hard failure. Notes: ${notes}`);
     }
     expect(pollResult.ref).toBeTruthy();
     expect(['PENDING', 'SENT', 'DELIVERED', 'CLEARED']).toContain(pollResult.status);

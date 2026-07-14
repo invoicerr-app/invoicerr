@@ -62,6 +62,7 @@
  */
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '@/prisma/prisma.service';
+import { isEncryptionAvailable } from '@/utils/secret-crypto';
 import { TransactionContext } from '../canonical/canonical-document';
 import { resolve } from '../engine/compliance-engine';
 import { defaultLogger } from '../execution/logger';
@@ -77,13 +78,29 @@ import { QueueModule } from './queue/queue.module';
 
 const isPeppolSh = process.env.PEPPOL_AP_PROVIDER === 'peppol-sh';
 const hasQueueInfra = !!process.env.REDIS_URL;
+// This spec writes REAL encrypted per-company channel credentials (ChannelCredentialsService /
+// CompanyChannelConfig.config, see beforeAll below) and hard-asserts isEncryptionAvailable() ===
+// true — it must never run without a usable key. In CI, an unset `secrets.CREDENTIALS_ENCRYPTION_KEY`
+// is interpolated by GitHub Actions as an EMPTY STRING (not an unset var), so the beforeAll's
+// `??=` fallback never kicks in (`??` only substitutes for null/undefined, not ''). Gate the whole
+// suite on isEncryptionAvailable() so it SKIPS cleanly instead of failing — mirrors the
+// liveDescribe/gate self-skip pattern (creds-free-green principle) rather than weakening the
+// assertion itself. Once CREDENTIALS_ENCRYPTION_KEY is set to a real key, this runs again.
+const hasEncryptionKey = isEncryptionAvailable();
 if (isPeppolSh && !hasQueueInfra) {
   process.stderr.write(
     '[full-pipeline-peppol.live] PEPPOL_AP_PROVIDER=peppol-sh but REDIS_URL is unset — this spec ' +
       'drives the real BullMQ+Postgres DI graph (queue-integration-style infra required), skipping.\n',
   );
+} else if (isPeppolSh && hasQueueInfra && !hasEncryptionKey) {
+  process.stderr.write(
+    '[full-pipeline-peppol.live] PEPPOL_AP_PROVIDER=peppol-sh + REDIS_URL set but ' +
+      'CREDENTIALS_ENCRYPTION_KEY is missing/invalid — this spec writes real encrypted channel ' +
+      'credentials and requires a usable key, skipping.\n',
+  );
 }
-const describeLive = isPeppolSh && hasQueueInfra ? liveDescribe('PEPPOL_LIVE', []) : describe.skip;
+const describeLive =
+  isPeppolSh && hasQueueInfra && hasEncryptionKey ? liveDescribe('PEPPOL_LIVE', []) : describe.skip;
 
 async function waitFor<T>(
   check: () => Promise<T>,

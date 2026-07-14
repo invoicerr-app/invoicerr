@@ -187,8 +187,16 @@ describeLive('KSeF live round-trip', () => {
     expect(fa2Xml).toContain(testNip);
 
     // ── XSD validation (fail fast before consuming KSeF) ──
-    const xsdResult = await validateXsd(fa2Xml, 'pl/schemat_FA2.xsd');
-    console.log('XSD validation:', xsdResult.valid ? 'PASS' : 'FAIL', xsdResult.errors);
+    // buildFaVat auto-selects FA(2)/FA(3) by issue date (selectFaVatVersion — see fa-vat.ts).
+    // Validate against whichever XSD matches what was actually emitted, using the SAME
+    // issuedAt the built invoice used (`now`, no version override), rather than hardcoding FA(2).
+    const { selectFaVatVersion } = await import(
+      '../../../../modules/invoice-rendering/national/fa-vat.js'
+    );
+    const emittedVersion = selectFaVatVersion(now);
+    const xsdPath = emittedVersion === 3 ? 'pl/schemat_FA3.xsd' : 'pl/schemat_FA2.xsd';
+    const xsdResult = await validateXsd(fa2Xml, xsdPath);
+    console.log(`XSD validation (FA(${emittedVersion}), ${xsdPath}):`, xsdResult.valid ? 'PASS' : 'FAIL', xsdResult.errors);
     expect(xsdResult.valid).toBe(true);
 
     // ── Transmit to KSeF ──
