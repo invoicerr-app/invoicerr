@@ -420,11 +420,13 @@ export class QuotesService {
         // Resolve payment method display values (use saved payment method type + details when available)
         let paymentMethodType = quote.paymentMethod;
         let paymentDetails = quote.paymentDetails;
+        let paymentNote: string | null = null;
         if (quote.paymentMethodId) {
             const pm = await prisma.paymentMethod.findUnique({ where: { id: quote.paymentMethodId } });
             if (pm) {
                 paymentMethodType = paymentMethodLabels[pm.type as string] || pm.type;
                 paymentDetails = pm.details || paymentDetails;
+                paymentNote = pm.note || null;
             }
         }
 
@@ -469,6 +471,7 @@ export class QuotesService {
 
             paymentMethod: paymentMethodType,
             paymentDetails: paymentDetails,
+            paymentNote: paymentNote,
 
             // 🎨 Style & labels from PDFConfig
             fontFamily: config.fontFamily,

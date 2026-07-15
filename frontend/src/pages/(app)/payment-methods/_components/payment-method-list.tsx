@@ -146,6 +146,7 @@ export const PaymentMethodsList = forwardRef<PaymentMethodsListHandle, PaymentMe
                             </div>
                           </div>
                           <div className="mt-2 text-sm text-muted-foreground">{pm.details}</div>
+                          {pm.note && <div className="mt-1 text-sm text-muted-foreground italic">{pm.note}</div>}
                         </div>
                       </div>
 

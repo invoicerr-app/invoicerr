@@ -387,6 +387,7 @@ export class InvoicesService {
         // Default payment display values
         let paymentMethodName = invoice.paymentMethod;
         let paymentMethodDetails = invoice.paymentDetails;
+        let paymentMethodNote: string | null = null;
 
         if (invoice.client.name.length == 0) {
             invoice.client.name = invoice.client.contactFirstname + " " + invoice.client.contactLastname
@@ -410,6 +411,7 @@ export class InvoicesService {
                 // Use configured label for the payment method type when available
                 paymentMethodName = paymentMethodLabels[pm.type as string] || pm.type;
                 paymentMethodDetails = pm.details || invoice.paymentDetails;
+                paymentMethodNote = pm.note || null;
             }
         } else {
             // If paymentMethod was stored as an enum-like string (e.g. "PAYPAL"), map it to the configured label
@@ -461,6 +463,7 @@ export class InvoicesService {
 
             paymentMethod: paymentMethodName,
             paymentDetails: paymentMethodDetails,
+            paymentNote: paymentMethodNote,
 
             fontFamily: pdfConfig.fontFamily ?? 'Inter',
             primaryColor: pdfConfig.primaryColor ?? '#0ea5e9',

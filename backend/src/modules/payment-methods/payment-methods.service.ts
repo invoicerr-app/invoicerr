@@ -8,12 +8,14 @@ import prisma from '@/prisma/prisma.service';
 export interface CreatePaymentMethodDto {
   name: string;
   details?: string;
+  note?: string;
   type?: PaymentMethodType;
 }
 
 export interface EditPaymentMethodDto {
   name?: string;
   details?: string | null;
+  note?: string | null;
   type?: PaymentMethodType;
   isActive?: boolean;
 }
@@ -33,6 +35,7 @@ export class PaymentMethodsService {
         companyId: company.id,
         name: dto.name,
         details: dto.details ?? '',
+        note: dto.note ?? '',
         type: dto.type ?? PaymentMethodType.BANK_TRANSFER,
       },
     });
@@ -76,6 +79,7 @@ export class PaymentMethodsService {
       data: {
         name: dto.name ?? existing.name,
         details: dto.details ?? existing.details,
+        note: dto.note ?? existing.note,
         type: dto.type ?? existing.type,
         isActive: dto.isActive ?? existing.isActive,
       },

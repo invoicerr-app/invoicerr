@@ -20,6 +20,7 @@ import type { PaymentMethod } from "@/types";
 const paymentMethodSchema = z.object({
   name: z.string().min(1, { message: "Name is required" }),
   details: z.string().optional(),
+  note: z.string().optional(),
   type: z.enum(["BANK_TRANSFER", "PAYPAL", "CASH", "CHECK", "OTHER"]),
 });
 
@@ -44,6 +45,7 @@ export function PaymentMethodUpsert({ paymentMethod, open, onOpenChange }: Payme
     defaultValues: {
       name: "",
       details: "",
+      note: "",
       type: "BANK_TRANSFER",
     },
   });
@@ -53,10 +55,11 @@ export function PaymentMethodUpsert({ paymentMethod, open, onOpenChange }: Payme
       form.reset({
         name: paymentMethod.name || "",
         details: paymentMethod.details || "",
+        note: paymentMethod.note || "",
         type: paymentMethod.type || "BANK_TRANSFER",
       });
     } else {
-      form.reset({ name: "", details: "", type: "BANK_TRANSFER" });
+      form.reset({ name: "", details: "", note: "", type: "BANK_TRANSFER" });
     }
   }, [paymentMethod, open, form]);
 
@@ -121,6 +124,20 @@ export function PaymentMethodUpsert({ paymentMethod, open, onOpenChange }: Payme
                   <FormLabel>{t("paymentMethods.fields.details.label")}</FormLabel>
                   <FormControl>
                     <Input {...field} placeholder={t("paymentMethods.fields.details.placeholder") as string} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              name="note"
+              control={form.control}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("paymentMethods.fields.note.label")}</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder={t("paymentMethods.fields.note.placeholder") as string} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

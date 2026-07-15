@@ -99,6 +99,13 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
                                     return "—";
                                 })()}
                             </p>
+                            {(() => {
+                                const pm: any = invoice.paymentMethod as PaymentMethod;
+                                if (pm?.note) {
+                                    return <p className="text-sm text-muted-foreground italic mt-1">{pm.note}</p>;
+                                }
+                                return null;
+                            })()}
                         </div>
                     </div>
 

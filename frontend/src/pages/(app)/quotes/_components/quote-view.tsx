@@ -79,6 +79,13 @@ export function QuoteViewDialog({ quote, onOpenChange }: QuoteViewDialogProps) {
                                     return "—";
                                 })()}
                             </p>
+                            {(() => {
+                                const pm: any = quote.paymentMethod as PaymentMethod;
+                                if (pm?.note) {
+                                    return <p className="text-sm text-muted-foreground italic mt-1">{pm.note}</p>;
+                                }
+                                return null;
+                            })()}
                         </div>
 
                         {!!quote.signedAt && (

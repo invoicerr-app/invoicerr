@@ -1195,6 +1195,10 @@
                 "label": "Details",
                 "placeholder": "IBAN / details"
             },
+            "note": {
+                "label": "Note",
+                "placeholder": "Payment terms"
+            },
             "type": {
                 "label": "Type",
                 "bank_transfer": "Bank transfer",

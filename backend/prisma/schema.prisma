@@ -586,6 +586,7 @@ model PaymentMethod {
   companyId String
   name      String
   details   String? // Use this to store IBAN or other textual details
+  note      String? // Optional note, e.g. payment terms
   type      PaymentMethodType @default(BANK_TRANSFER)
   isActive  Boolean           @default(true)
   createdAt DateTime          @default(now())

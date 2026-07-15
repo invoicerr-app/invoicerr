@@ -1197,6 +1197,10 @@
                 "label": "Détails",
                 "placeholder": "IBAN, email PayPal, ..."
             },
+            "note": {
+                "label": "Note",
+                "placeholder": "Conditions de paiement"
+            },
             "type": {
                 "label": "Type",
                 "bank_transfer": "Virement bancaire",

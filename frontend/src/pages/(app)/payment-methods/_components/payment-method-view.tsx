@@ -42,6 +42,11 @@ export function PaymentMethodViewDialog({
           </div>
 
           <div>
+            <Label className="text-xs text-muted-foreground">{t("paymentMethods.fields.note.label")}</Label>
+            <div className="mt-1 text-muted-foreground break-words">{paymentMethod?.note || "-"}</div>
+          </div>
+
+          <div>
             <Label className="text-xs text-muted-foreground">{t("paymentMethods.fields.status.label")}</Label>
             <div className="mt-1">
               {paymentMethod?.isActive ? (

@@ -153,6 +153,9 @@ export const baseTemplate = `
         {{#if paymentDetails}}
         <strong>{{labels.paymentDetails}}</strong> {{{paymentDetails}}}
         {{/if}}
+        {{#if paymentNote}}
+        <br><em>{{paymentNote}}</em>
+        {{/if}}
     </div>
     {{/if}}
     

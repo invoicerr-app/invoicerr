@@ -14,6 +14,7 @@ export interface PaymentMethod {
   company?: Company;
   name: string;
   details?: string; // Use this to store IBAN or other textual details
+  note?: string; // Optional note, e.g. payment terms
   type: PaymentMethodType;
   isActive?: boolean;
   createdAt?: string;
