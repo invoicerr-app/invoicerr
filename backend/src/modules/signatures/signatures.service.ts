@@ -298,11 +298,13 @@ export class SignaturesService {
             throw new BadRequestException('Invalid or expired OTP code.');
         }
 
+        const signedAt = new Date();
+
         await prisma.signature.update({
             where: { id: signature.id },
             data: {
                 otpUsed: true,
-                signedAt: new Date(),
+                signedAt,
             },
         });
 
@@ -310,6 +312,7 @@ export class SignaturesService {
             where: { id: signature.quoteId },
             data: {
                 status: 'SIGNED',
+                signedAt,
             },
         });
 
@@ -317,7 +320,7 @@ export class SignaturesService {
             await this.webhookDispatcher.dispatch(WebhookEvent.SIGNATURE_COMPLETED, {
                 signatureId,
                 quoteId: signature.quoteId,
-                signedAt: new Date(),
+                signedAt,
             });
         } catch (error) {
             logger.error('Failed to dispatch SIGNATURE_COMPLETED webhook', error);
