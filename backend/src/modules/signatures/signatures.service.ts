@@ -73,6 +73,13 @@ export class SignaturesService {
             throw new BadRequestException('Quote not found or client information is missing.');
         }
 
+        await prisma.quote.update({
+            where: { id: quoteId },
+            data: {
+                status: 'SENT',
+            },
+        });
+
         let signatureId = ""
 
         try {
@@ -81,13 +88,6 @@ export class SignaturesService {
             logger.error('Failed to create signature.', { category: 'signature', details: { error, quoteId } });
             throw error;
         }
-
-        await prisma.quote.update({
-            where: { id: quoteId },
-            data: {
-                status: 'SENT',
-            },
-        });
 
         try {
             await this.webhookDispatcher.dispatch(WebhookEvent.SIGNATURE_CREATED, {

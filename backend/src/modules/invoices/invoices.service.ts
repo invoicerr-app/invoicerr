@@ -853,6 +853,11 @@ export class InvoicesService {
             return { message: 'Client has no email configured; invoice not sent' };
         }
 
+        await prisma.invoice.update({
+            where: { id: invoiceId },
+            data: { status: 'SENT' },
+        });
+
         const pdfBuffer = await this.getInvoicePDFFormat(companyId, invoiceId, (invoice.company.invoicePDFFormat as ExportFormat || 'pdf'));
 
         const mailTemplate = await prisma.mailTemplate.findFirst({
@@ -891,15 +896,6 @@ export class InvoicesService {
         }
 
         logger.info('Invoice sent by email', { category: 'invoice', details: { invoiceId, email: invoice.client.contactEmail } });
-
-        try {
-            await prisma.invoice.update({
-                where: { id: invoiceId },
-                data: { status: 'SENT' },
-            });
-        } catch (error) {
-            logger.error('Failed to update invoice status after sending', { category: 'invoice', details: { error } });
-        }
 
         try {
             await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_SENT, {
