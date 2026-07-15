@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import SearchSelect from "@/components/search-input"
 import { Spinner } from "@/components/ui/spinner"
+import { formatAmount } from "@/lib/utils"
 import { useClientSearch, useQuotesTable } from "@/hooks/queries"
 import { useTranslation } from "react-i18next"
 
@@ -196,7 +197,7 @@ export function QuoteTable() {
                                     <TableCell>
                                         {t("common.valueWithCurrency", {
                                             currency: quote.currency || "",
-                                            amount: quote.totalTTC.toFixed(2),
+                                            amount: formatAmount(quote.totalTTC, quote.company?.country),
                                         })}
                                     </TableCell>
                                     <TableCell>{new Date(quote.createdAt).toLocaleDateString()}</TableCell>

@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 import type { RecurringInvoice } from "@/types"
+import { formatAmount } from "@/lib/utils"
 import { useTranslation } from "react-i18next"
 
 interface RecurringInvoiceViewDialogProps {
@@ -43,17 +44,17 @@ export function RecurringInvoiceViewDialog({ recurringInvoice, onOpenChange }: R
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-muted/50 p-4 rounded-lg">
                         <div>
                             <p className="text-sm text-muted-foreground">{t("recurringInvoices.view.fields.totalHT")}</p>
-                            <p className="font-medium">{t("common.valueWithCurrency", { amount: recurringInvoice.totalHT.toFixed(2), currency: recurringInvoice.currency })}</p>
+                            <p className="font-medium">{t("common.valueWithCurrency", { amount: formatAmount(recurringInvoice.totalHT, recurringInvoice.company?.country), currency: recurringInvoice.currency })}</p>
                         </div>
 
                         <div>
                             <p className="text-sm text-muted-foreground">{t("recurringInvoices.view.fields.totalVAT")}</p>
-                            <p className="font-medium">{t("common.valueWithCurrency", { amount: recurringInvoice.totalVAT.toFixed(2), currency: recurringInvoice.currency })}</p>
+                            <p className="font-medium">{t("common.valueWithCurrency", { amount: formatAmount(recurringInvoice.totalVAT, recurringInvoice.company?.country), currency: recurringInvoice.currency })}</p>
                         </div>
 
                         <div>
                             <p className="text-sm text-muted-foreground">{t("recurringInvoices.view.fields.totalTTC")}</p>
-                            <p className="font-medium">{t("common.valueWithCurrency", { amount: recurringInvoice.totalTTC.toFixed(2), currency: recurringInvoice.currency })}</p>
+                            <p className="font-medium">{t("common.valueWithCurrency", { amount: formatAmount(recurringInvoice.totalTTC, recurringInvoice.company?.country), currency: recurringInvoice.currency })}</p>
                         </div>
                     </div>
 

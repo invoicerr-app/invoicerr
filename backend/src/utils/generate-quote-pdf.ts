@@ -8,6 +8,7 @@ import { formatDate } from '@/utils/date';
 import prisma from '@/prisma/prisma.service';
 import { clampDiscountRate } from '@/utils/financial';
 import { formatNotes, formatRichText } from '@/utils/format-text';
+import { formatAmount } from '@/utils/format-amount';
 import { getDraftWatermarkLabel } from '@/utils/watermark';
 
 /**
@@ -83,16 +84,16 @@ export async function generateQuotePdf(quoteId: string): Promise<Uint8Array> {
             name: i.name,
             description: formatRichText(i.description),
             quantity: i.quantity,
-            unitPrice: i.unitPrice.toFixed(2),
+            unitPrice: formatAmount(i.unitPrice, quote.company.country),
             vatRate: i.vatRate,
-            totalPrice: (i.quantity * i.unitPrice * (1 + (i.vatRate || 0) / 100)).toFixed(2),
+            totalPrice: formatAmount(i.quantity * i.unitPrice * (1 + (i.vatRate || 0) / 100), quote.company.country),
             type: itemTypeLabels[i.type] || i.type,
         })),
-        totalHT: quote.totalHT.toFixed(2),
-        totalVAT: quote.totalVAT.toFixed(2),
-        totalTTC: quote.totalTTC.toFixed(2),
-        subtotalBeforeDiscount: subtotalBeforeDiscount.toFixed(2),
-        discountAmount: discountAmountValue.toFixed(2),
+        totalHT: formatAmount(quote.totalHT, quote.company.country),
+        totalVAT: formatAmount(quote.totalVAT, quote.company.country),
+        totalTTC: formatAmount(quote.totalTTC, quote.company.country),
+        subtotalBeforeDiscount: formatAmount(subtotalBeforeDiscount, quote.company.country),
+        discountAmount: formatAmount(discountAmountValue, quote.company.country),
         discountRate: Number(normalizedDiscountRate.toFixed(2)),
         hasDiscount,
         vatExemptText: quote.company.exemptVat && (quote.company.country || '').toUpperCase() === 'FRANCE' ? 'TVA non applicable, art. 293 B du CGI' : null,
