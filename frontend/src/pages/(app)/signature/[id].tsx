@@ -58,27 +58,37 @@ export default function Signature() {
         }
     }, [pdfResponse])
 
+    const otpPendingKey = `signature-otp-pending:${id}`
+
     useEffect(() => {
         if (signature) {
             if (signature.quote.status === "SIGNED") {
+                sessionStorage.removeItem(otpPendingKey)
                 setState("signed")
             } else if (
                 signature.quote.status === "EXPIRED" ||
                 !signature.isActive ||
                 new Date(signature.expiresAt) < new Date()
             ) {
+                sessionStorage.removeItem(otpPendingKey)
                 setState("expired")
+            } else if (sessionStorage.getItem(otpPendingKey) === "true") {
+                // Restores the OTP-entry step after the browser reloads the tab
+                // (e.g. tab discarding on focus loss), so the customer doesn't
+                // have to request a new code just to type in the one they already have.
+                setState("otp-sent")
             } else {
                 setState("ready")
             }
         }
-    }, [signature])
+    }, [signature, otpPendingKey])
 
     const handleSendOtp = async () => {
         if (!signature) return
 
         sendOtp()
             .then(() => {
+                sessionStorage.setItem(otpPendingKey, "true")
                 setState("otp-sent")
                 setOtpCode("")
             })
@@ -94,6 +104,7 @@ export default function Signature() {
 
         sign({ otpCode: otpCode.trim() })
             .then(() => {
+                sessionStorage.removeItem(otpPendingKey)
                 setState("signed")
                 setOtpCode("")
                 mutate()
@@ -241,7 +252,7 @@ export default function Signature() {
                                     <Button data-cy="sign-quote-btn" type="submit" disabled={signingLoading || !otpCode.trim()} className="flex-1">
                                         {signingLoading ? "Signing in progress..." : "Sign quote"}
                                     </Button>
-                                    <Button type="button" variant="outline" onClick={() => setState("ready")} disabled={signingLoading}>
+                                    <Button type="button" variant="outline" onClick={() => { sessionStorage.removeItem(otpPendingKey); setState("ready") }} disabled={signingLoading}>
                                         Cancel
                                     </Button>
                                 </div>
