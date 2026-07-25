@@ -615,6 +615,7 @@ model InvoiceItem {
   unitPrice          Float
   unitPriceMinor     Int?
   vatRate            Float // 20 for 20%
+  requestedVatRate   Float?  // user's originally-requested per-line VAT hint; issuance recomputes tax FROM this (not the resolved vatRate) so a stored 0 is never ambiguous. Null for legacy rows.
   type               ItemType      @default(SERVICE)
   order              Int
   discountRate       Float         @default(0) // line-level discount percentage

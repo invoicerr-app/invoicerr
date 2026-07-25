@@ -80,15 +80,16 @@ export function resolveTax(
  * non-throwing — it also backs DRAFT creation/editing, where a country-less client is a legitimate,
  * saveable state (only a non-blocking warning). ISSUANCE is different: `taxUnionOf('')` resolves to
  * null for an unresolved country, which the compliance engine then treats like a non-EU export —
- * i.e. a silent 0% VAT under-charge. Call this ONLY at the point an invoice is about to become
- * ISSUED (or another directly-ISSUED document, e.g. a standalone deposit) so that state can never be
- * reached with an undetermined VAT treatment.
+ * i.e. a silent 0% VAT under-charge. Call this ONLY at a point where an invoice is about to become,
+ * or remain, ISSUED — initial issuance, a directly-ISSUED document (e.g. a standalone deposit), or
+ * re-editing an already-ISSUED invoice whose tax must be recomputed — so that state can never be
+ * reached, or kept, with an undetermined VAT treatment.
  */
 export function resolveBuyerCountryOrThrow(client: BuyerParty): string {
   const countryCode = client.countryCode ?? guessCountryCode(client.country);
   if (!countryCode) {
     throw new BadRequestException(
-      "Cannot issue invoice: the client's country is required to determine the VAT treatment. Set the client's country first.",
+      "The client's country is required to determine the VAT treatment. Set the client's country first.",
     );
   }
   return countryCode;
@@ -162,6 +163,10 @@ export function invoiceItemData<TType>(
     chargeAmount?: number | null;
     chargeDescription?: string | null;
     unitOfMeasure?: string | null;
+    /** User's originally-requested per-line VAT hint (DTO/stored value) — distinct from the
+     * `vatRate` param below, which is the ENGINE-RESOLVED rate. Persisted verbatim so issuance
+     * can recompute tax FROM the original hint instead of the (possibly stale-0) resolved rate. */
+    vatRate?: number | null;
   },
   currency: string,
   vatRate: number,
@@ -172,6 +177,7 @@ export function invoiceItemData<TType>(
     unitPrice: item.unitPrice,
     unitPriceMinor: toMinor(item.unitPrice, currency),
     vatRate,
+    requestedVatRate: item.vatRate ?? null,
     type: item.type,
     order: item.order || 0,
     discountRate: item.discountRate ?? 0,

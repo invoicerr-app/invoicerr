@@ -422,17 +422,13 @@ export class InvoicesService {
       items: invoice.items.map((item) => ({
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        // NOT `item.vatRate` as-is: for a domestic sale, the tax engine treats a per-item
-        // `vatRate` as a caller-declared rate hint (e.g. a deliberately reduced 5.5%) and TRUSTS
-        // it verbatim — including a literal 0. But the STORED vatRate on a draft that was created
-        // with an unresolved buyer country is ALWAYS 0 (the engine forces every line to the
-        // "buyer outside the union" 0% treatment, discarding whatever hint was originally
-        // requested — see resolveInvoiceTax/domesticVat). Feeding that stale 0 back in here as a
-        // "hint" would make a now-domestic recompute honor it and reproduce the exact 0% VAT
-        // under-charge this guard exists to prevent. Treat a stored 0 as "no hint" so the engine
-        // re-derives the rate from the (now-resolved) country/role/supply-type instead; a genuine
-        // non-zero reduced rate (5.5/10/2.1%) is still honored unchanged.
-        vatRate: item.vatRate || undefined,
+        // Re-hint from the user's ORIGINAL request (`requestedVatRate`), not the stored/resolved
+        // `vatRate`. The engine re-applies that hint under the now-resolved country/role/supply-type,
+        // so a country-less draft's real hint (e.g. 20) yields correct domestic VAT at issue — no
+        // under-charge — while a deliberate 0% hint is preserved (no over-charge), and exports/
+        // reverse-charge still resolve to 0% regardless. `??` (not `||`) so a genuine stored 0 hint
+        // is honored. Legacy rows (requestedVatRate null) fall back to country-derivation.
+        vatRate: item.requestedVatRate ?? undefined,
         type: item.type,
       })),
     });
@@ -490,6 +486,19 @@ export class InvoicesService {
       });
       if (complianceDoc) {
         issueDocId = complianceDoc.id;
+        // The compliance draft was snapshotted at DRAFT creation (createInvoice) and may have gone
+        // stale — e.g. the client had no country yet, so buildComplianceContext froze buyer country
+        // to its 'FR' fallback. `invoice` (fetched above, still pre-issuance) carries items/client/
+        // company as they are NOW; rebuild the ctx from it and push it into the still-DRAFT
+        // compliance document (editDraft is only permitted pre-issue) so `issue()` resolves the
+        // tax plan and hash-chains the CURRENT context, not the draft-time one.
+        const freshCtx = buildComplianceContext(invoice.company, invoice.client, {
+          lines: toComplianceLines(invoice.items, invoice.currency),
+          issueDate,
+          currency: invoice.currency,
+          externalRef: invoice.id,
+        });
+        await this.complianceService.editDraft(complianceDoc.id, freshCtx);
         await this.complianceService.issue(complianceDoc.id);
       } else {
         logger.warn('No compliance document found for issued invoice', {
@@ -543,13 +552,6 @@ export class InvoicesService {
     });
     if (!invoice) throw new NotFoundException('Invoice not found');
     if (invoice.status === 'DRAFT') throw new BadRequestException('Only issued invoices can be corrected');
-
-    // Defensive: a correction/credit-note carries forward the ORIGINAL invoice's already-computed
-    // totals (it does not recompute tax), so this cannot resurrect a stale 0% VAT by itself — but a
-    // correction is itself a new ISSUED document, and the client's country may have been cleared
-    // since the original was issued. Never allow a new ISSUED document to be produced for a buyer
-    // whose VAT treatment cannot currently be determined.
-    resolveBuyerCountryOrThrow(invoice.client);
 
     try {
       // Resolve the correction model from the compliance plan (consumes the engine, not a if-pays)
@@ -774,13 +776,6 @@ export class InvoicesService {
     });
     if (!invoice) throw new NotFoundException('Invoice not found');
     if (invoice.status === 'DRAFT') throw new BadRequestException('Only issued invoices can be cancelled');
-
-    // Defensive: the replacement carries forward the ORIGINAL invoice's already-computed totals (it
-    // does not recompute tax), so this cannot resurrect a stale 0% VAT by itself — but the
-    // replacement is itself a new ISSUED document, and the client's country may have been cleared
-    // since the original was issued. Never allow a new ISSUED document to be produced for a buyer
-    // whose VAT treatment cannot currently be determined.
-    resolveBuyerCountryOrThrow(invoice.client);
 
     try {
       const complianceDoc = await prisma.complianceDocument.findFirst({
@@ -1656,7 +1651,13 @@ export class InvoicesService {
         description: item.description ?? undefined,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        vatRate: item.vatRate,
+        // Prefer the proforma item's own ORIGINAL hint (requestedVatRate) over its resolved
+        // vatRate — same rationale as issueInvoice's recompute: the resolved rate may be a
+        // stale-0 forced by a country-less client at proforma-creation time, and re-hinting
+        // that verbatim into createInvoice (which trusts a hint as-is) would reproduce the
+        // under-charge this branch exists to prevent. Legacy proforma rows (requestedVatRate
+        // null, created before this field existed) fall back to the resolved vatRate.
+        vatRate: item.requestedVatRate ?? item.vatRate,
         type: item.type,
         order: item.order,
         discountRate: item.discountRate,
@@ -1740,18 +1741,20 @@ export class InvoicesService {
     // Use the compliance engine to resolve VAT on the deposit line.
     // amount is TTC (the user specifies the gross deposit). We derive HT
     // so that HT + VAT === TTC holds by construction.
-    const discountRate = 0;
     const vatRate = body.items?.[0]?.vatRate ?? 20;
-    const depositHT = depositTTC / (1 + vatRate / 100);
-    const depositVAT = depositTTC - depositHT;
 
+    // Resolve the effective VAT rate for this buyer/supply first (rate is amount-independent).
     const taxResult = resolveTax(company, client, {
       currency: body.currency || client.currency || company.currency,
-      discountRate,
-      items: [{ quantity: 1, unitPrice: depositHT, vatRate, supplyType: 'SERVICES' }],
+      discountRate: 0,
+      items: [{ quantity: 1, unitPrice: depositTTC, vatRate, supplyType: 'SERVICES' }],
     });
-
     const depositItemVatRate = taxResult.itemVatRates[0] ?? vatRate;
+
+    // Derive HT/VAT from the RESOLVED rate so the stored totals match the line's actual rate
+    // (e.g. an export/reverse-charge resolves to 0% => HT === TTC and VAT === 0, not a phantom 20%).
+    const depositHT = depositTTC / (1 + depositItemVatRate / 100);
+    const depositVAT = depositTTC - depositHT;
 
     const issueDate = new Date();
     const currency = body.currency || client.currency || company.currency;
@@ -1791,6 +1794,7 @@ export class InvoicesService {
                 unitPrice: depositHT,
                 unitPriceMinor: toMinor(depositHT, currency),
                 vatRate: depositItemVatRate,
+                requestedVatRate: vatRate,
                 type: 'DEPOSIT',
                 order: 0,
                 unitOfMeasure: 'C62',
@@ -1911,6 +1915,7 @@ export class InvoicesService {
       unitPrice: deductionHT,
       unitPriceMinor: toMinor(deductionHT, currency),
       vatRate: deductionTaxResult.itemVatRates[0] ?? depositVatRate,
+      requestedVatRate: depositVatRate,
       type: 'DEPOSIT' as const,
       order: items?.length ?? 0,
       unitOfMeasure: 'C62',

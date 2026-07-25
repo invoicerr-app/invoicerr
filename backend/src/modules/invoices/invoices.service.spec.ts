@@ -56,6 +56,7 @@ jest.mock('@/prisma/prisma.service', () => ({
 function makeComplianceServiceMock() {
   return {
     createDraft: jest.fn(),
+    editDraft: jest.fn().mockResolvedValue(undefined),
     issue: jest.fn(),
     send: jest.fn(),
     recordAuditEvent: jest.fn(),
@@ -289,7 +290,7 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
 
       expect(caught).toBeInstanceOf(BadRequestException);
       expect(caught.message).toBe(
-        "Cannot issue invoice: the client's country is required to determine the VAT treatment. Set the client's country first.",
+        "The client's country is required to determine the VAT treatment. Set the client's country first.",
       );
       // Blocked BEFORE the numbering transaction — no gapless number is consumed for a
       // rejected issuance.
@@ -300,7 +301,9 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
       (prisma.invoice.findFirst as jest.Mock).mockResolvedValue(
         draftInvoice({
           client: { name: 'Buyer', type: 'INDIVIDUAL', countryCode: 'FR', partyIdentifiers: [] },
-          items: [{ id: 'item-1', quantity: 1, unitPrice: 100, vatRate: 20, type: 'SERVICE' }],
+          items: [
+            { id: 'item-1', quantity: 1, unitPrice: 100, vatRate: 20, requestedVatRate: 20, type: 'SERVICE' },
+          ],
         }),
       );
       const getCapturedUpdateArgs = mockTransactionCapturingUpdate();
@@ -322,13 +325,17 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
     it('(c) stale-VAT: a draft created country-less (stored VAT 0) recomputes to the correct non-zero VAT once the client has a country at issuance', async () => {
       // Mirrors exactly what createInvoice() persists for a country-less client: the compliance
       // engine forces every line to the "buyer outside the union" 0% treatment because the buyer
-      // country was unresolved at draft-creation time — regardless of any vatRate that was
-      // originally requested. The client below now HAS a country (set after the draft was
-      // created) but the item still carries that stale, draft-time 0.
+      // country was unresolved at draft-creation time, so the stored (resolved) `vatRate` is a
+      // stale 0 — but `requestedVatRate` still holds the user's ORIGINAL hint (20), persisted
+      // verbatim at draft-creation regardless of what the engine resolved it to. The client below
+      // now HAS a country (set after the draft was created); issuance must recompute FROM
+      // requestedVatRate, not the stale stored vatRate.
       (prisma.invoice.findFirst as jest.Mock).mockResolvedValue(
         draftInvoice({
           client: { name: 'Buyer', type: 'INDIVIDUAL', countryCode: 'FR', partyIdentifiers: [] },
-          items: [{ id: 'item-1', quantity: 1, unitPrice: 100, vatRate: 0, type: 'SERVICE' }],
+          items: [
+            { id: 'item-1', quantity: 1, unitPrice: 100, vatRate: 0, requestedVatRate: 20, type: 'SERVICE' },
+          ],
         }),
       );
       const getCapturedUpdateArgs = mockTransactionCapturingUpdate();
@@ -338,14 +345,42 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
 
       // The stale draft-time 0 must NOT survive re-issuance — this is the nuance the fix exists
       // for: a naive "is a country present now?" guard would PASS here while the stored totalVAT
-      // stayed a stale 0. Issuance must recompute, landing on the correct FR domestic B2C
-      // standard rate (20%).
+      // stayed a stale 0. Issuance must recompute from requestedVatRate, landing on the correct
+      // FR domestic B2C standard rate (20%) — proving NO under-charge.
       expect(result.status).toBe('ISSUED');
       const data = getCapturedUpdateArgs().data;
       expect(data.totalHT).toBe(100);
       expect(data.totalVAT).toBe(20);
       expect(data.totalTTC).toBe(120);
       expect(data.items.update).toEqual([{ where: { id: 'item-1' }, data: { vatRate: 20 } }]);
+    });
+
+    it('(d) deliberate domestic 0%: a requestedVatRate of 0 for a resolved-country client is PRESERVED at issuance, not bumped to the standard rate', async () => {
+      // Distinguishes a deliberate zero-rated domestic line (e.g. a PL/IT zero-rated line, or an
+      // FR VAT-exempt line) from the stale-country-less-0 case in (c). Here the buyer's country
+      // was ALREADY resolved (FR) and the user explicitly chose 0% — `requestedVatRate: 0` must
+      // be honored verbatim (via `??`, not `||`) rather than discarded in favor of the standard
+      // rate. This locks in the over-charge fix: `item.vatRate || undefined` would have wrongly
+      // discarded this genuine 0 and bumped the line to 20%.
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValue(
+        draftInvoice({
+          client: { name: 'Buyer', type: 'INDIVIDUAL', countryCode: 'FR', partyIdentifiers: [] },
+          items: [
+            { id: 'item-1', quantity: 1, unitPrice: 100, vatRate: 0, requestedVatRate: 0, type: 'SERVICE' },
+          ],
+        }),
+      );
+      const getCapturedUpdateArgs = mockTransactionCapturingUpdate();
+
+      const service = buildService();
+      const result = await service.issueInvoice('co-1', 'inv-cc');
+
+      expect(result.status).toBe('ISSUED');
+      const data = getCapturedUpdateArgs().data;
+      expect(data.totalHT).toBe(100);
+      expect(data.totalVAT).toBe(0);
+      expect(data.totalTTC).toBe(100);
+      expect(data.items.update).toEqual([{ where: { id: 'item-1' }, data: { vatRate: 0 } }]);
     });
   });
 
@@ -432,7 +467,7 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
 
       expect(caught).toBeInstanceOf(BadRequestException);
       expect(caught.message).toBe(
-        "Cannot issue invoice: the client's country is required to determine the VAT treatment. Set the client's country first.",
+        "The client's country is required to determine the VAT treatment. Set the client's country first.",
       );
       // Blocked BEFORE tax is recomputed/persisted — no silent 0% VAT overwrite on the
       // already-issued invoice.
