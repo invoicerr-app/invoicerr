@@ -31,6 +31,7 @@ import {
   deriveComplianceError,
   deriveInvoiceActions,
   invoiceItemData,
+  resolveBuyerCountryOrThrow,
   resolveTax,
   toComplianceLines,
 } from './invoices.helpers';
@@ -382,7 +383,11 @@ export class InvoicesService {
   async issueInvoice(companyId: string, id: string) {
     const invoice = await prisma.invoice.findFirst({
       where: { id, companyId },
-      include: { client: true, company: true },
+      include: {
+        items: true,
+        client: { include: { partyIdentifiers: true } },
+        company: { include: { partyIdentifiers: true } },
+      },
     });
 
     if (!invoice) {
@@ -403,6 +408,42 @@ export class InvoicesService {
       throw new BadRequestException('Invoice already has a number');
     }
 
+    // Hard-block issuance when the buyer's country cannot be resolved (product decision — see
+    // invoices.helpers.ts:resolveBuyerCountryOrThrow). VAT totals are computed and STORED at DRAFT
+    // creation, so a draft created for a country-less client stores totalVAT = 0; if the client's
+    // country is set AFTER the draft was created, that stored 0 would go stale. Re-resolve from the
+    // CURRENT client and re-run tax computation here (not just re-check presence) so issuance always
+    // persists fresh, correct totals — never the draft-time snapshot.
+    resolveBuyerCountryOrThrow(invoice.client);
+
+    const taxResult = resolveTax(invoice.company, invoice.client, {
+      currency: invoice.currency,
+      discountRate: invoice.discountRate,
+      items: invoice.items.map((item) => ({
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        // NOT `item.vatRate` as-is: for a domestic sale, the tax engine treats a per-item
+        // `vatRate` as a caller-declared rate hint (e.g. a deliberately reduced 5.5%) and TRUSTS
+        // it verbatim — including a literal 0. But the STORED vatRate on a draft that was created
+        // with an unresolved buyer country is ALWAYS 0 (the engine forces every line to the
+        // "buyer outside the union" 0% treatment, discarding whatever hint was originally
+        // requested — see resolveInvoiceTax/domesticVat). Feeding that stale 0 back in here as a
+        // "hint" would make a now-domestic recompute honor it and reproduce the exact 0% VAT
+        // under-charge this guard exists to prevent. Treat a stored 0 as "no hint" so the engine
+        // re-derives the rate from the (now-resolved) country/role/supply-type instead; a genuine
+        // non-zero reduced rate (5.5/10/2.1%) is still honored unchanged.
+        vatRate: item.vatRate || undefined,
+        type: item.type,
+      })),
+    });
+
+    if (taxResult.warnings.length > 0) {
+      logger.warn('Tax resolution warnings at issuance', {
+        category: 'invoice',
+        details: { invoiceId: id, warnings: taxResult.warnings },
+      });
+    }
+
     const issueDate = new Date();
     const updated = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const { counter, rawNumber } = await this.numberingService.nextNumber(
@@ -419,6 +460,18 @@ export class InvoicesService {
           rawNumber,
           issuedAt: issueDate,
           status: 'ISSUED',
+          totalHT: taxResult.totalHT,
+          totalHTMinor: taxResult.totalsMinor.netMinor,
+          totalVAT: taxResult.totalVAT,
+          totalVATMinor: taxResult.totalsMinor.taxMinor,
+          totalTTC: taxResult.totalTTC,
+          totalTTCMinor: taxResult.totalsMinor.grossMinor,
+          items: {
+            update: invoice.items.map((item, i) => ({
+              where: { id: item.id },
+              data: { vatRate: taxResult.itemVatRates[i] },
+            })),
+          },
         },
         include: {
           items: true,
@@ -490,6 +543,13 @@ export class InvoicesService {
     });
     if (!invoice) throw new NotFoundException('Invoice not found');
     if (invoice.status === 'DRAFT') throw new BadRequestException('Only issued invoices can be corrected');
+
+    // Defensive: a correction/credit-note carries forward the ORIGINAL invoice's already-computed
+    // totals (it does not recompute tax), so this cannot resurrect a stale 0% VAT by itself — but a
+    // correction is itself a new ISSUED document, and the client's country may have been cleared
+    // since the original was issued. Never allow a new ISSUED document to be produced for a buyer
+    // whose VAT treatment cannot currently be determined.
+    resolveBuyerCountryOrThrow(invoice.client);
 
     try {
       // Resolve the correction model from the compliance plan (consumes the engine, not a if-pays)
@@ -714,6 +774,13 @@ export class InvoicesService {
     });
     if (!invoice) throw new NotFoundException('Invoice not found');
     if (invoice.status === 'DRAFT') throw new BadRequestException('Only issued invoices can be cancelled');
+
+    // Defensive: the replacement carries forward the ORIGINAL invoice's already-computed totals (it
+    // does not recompute tax), so this cannot resurrect a stale 0% VAT by itself — but the
+    // replacement is itself a new ISSUED document, and the client's country may have been cleared
+    // since the original was issued. Never allow a new ISSUED document to be produced for a buyer
+    // whose VAT treatment cannot currently be determined.
+    resolveBuyerCountryOrThrow(invoice.client);
 
     try {
       const complianceDoc = await prisma.complianceDocument.findFirst({
@@ -1643,6 +1710,11 @@ export class InvoicesService {
       include: { partyIdentifiers: true },
     });
     if (!client) throw new BadRequestException('Client not found');
+
+    // Standalone deposits are created directly as ISSUED (no DRAFT phase) — hard-block here too,
+    // same as issueInvoice, so a country-less client can never get a silently under-charged (0% VAT)
+    // deposit invoice.
+    resolveBuyerCountryOrThrow(client);
 
     // Compute deposit total TTC from amount or percentage
     let depositTTC: number;

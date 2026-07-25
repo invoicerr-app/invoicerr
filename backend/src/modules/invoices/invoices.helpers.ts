@@ -8,6 +8,7 @@
  * item-create data mapping. These helpers are extractions of those blocks,
  * value-for-value identical to the inline originals.
  */
+import { BadRequestException } from '@nestjs/common';
 import type { TransactionContext } from '@/compliance/canonical/canonical-document';
 import { resolveInvoiceTax, InvoiceTaxResult } from '@/compliance/integration/invoice-tax';
 import type { SupplyType } from '@/compliance/types';
@@ -71,6 +72,26 @@ export function resolveTax(
       supplyType: item.supplyType ?? ((item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType),
     })),
   });
+}
+
+/**
+ * Resolve the buyer's country the same way `resolveTax` does, but HARD-BLOCK when it cannot be
+ * determined (empty/unrecognized `client.country{,Code}`). `resolveTax` itself must stay
+ * non-throwing — it also backs DRAFT creation/editing, where a country-less client is a legitimate,
+ * saveable state (only a non-blocking warning). ISSUANCE is different: `taxUnionOf('')` resolves to
+ * null for an unresolved country, which the compliance engine then treats like a non-EU export —
+ * i.e. a silent 0% VAT under-charge. Call this ONLY at the point an invoice is about to become
+ * ISSUED (or another directly-ISSUED document, e.g. a standalone deposit) so that state can never be
+ * reached with an undetermined VAT treatment.
+ */
+export function resolveBuyerCountryOrThrow(client: BuyerParty): string {
+  const countryCode = client.countryCode ?? guessCountryCode(client.country);
+  if (!countryCode) {
+    throw new BadRequestException(
+      "Cannot issue invoice: the client's country is required to determine the VAT treatment. Set the client's country first.",
+    );
+  }
+  return countryCode;
 }
 
 /** Map invoice/DTO items to compliance DocumentLines. */

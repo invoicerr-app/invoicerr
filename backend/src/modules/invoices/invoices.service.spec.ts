@@ -147,8 +147,14 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
         companyId: 'co-1',
         status: 'DRAFT',
         number: null,
-        client: {},
-        company: {},
+        currency: 'EUR',
+        discountRate: 0,
+        items: [],
+        // M-16 (buyer-country hard-block): issuance now re-resolves the buyer country and
+        // recomputes tax, so the client fixture needs a resolvable country like any real issuable
+        // invoice — this test isn't exercising that guard, it's exercising the WIRING_FAILED path.
+        client: { countryCode: 'FR' },
+        company: { countryCode: 'FR', exemptVat: false },
       });
       const updatedInvoice = { id: 'inv-3', rawNumber: 'INV-0001', client: {}, company: {} };
       (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
@@ -180,8 +186,13 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
         companyId: 'co-1',
         status: 'DRAFT',
         number: null,
-        client: {},
-        company: {},
+        currency: 'EUR',
+        discountRate: 0,
+        items: [],
+        // M-16 (buyer-country hard-block): see the sibling test above for why the client needs a
+        // resolvable country now.
+        client: { countryCode: 'FR' },
+        company: { countryCode: 'FR', exemptVat: false },
       });
       const updatedInvoice = { id: 'inv-4', rawNumber: 'INV-0002', client: {}, company: {} };
       (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
@@ -201,6 +212,140 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
         'No compliance document found for issued invoice',
         expect.objectContaining({ details: { invoiceId: 'inv-4' } }),
       );
+    });
+  });
+
+  /**
+   * The compliance fix under test: a jurisdiction-aware VAT engine resolves
+   * `buyerCountryCode: client.countryCode ?? guessCountryCode(client.country)`. When that's
+   * unresolved, the engine treats the sale like a non-EU export → silent 0% VAT under-charge.
+   * Product decision: HARD-BLOCK issuance while the buyer country cannot be resolved, and —
+   * because VAT totals are computed and STORED at DRAFT creation — re-resolve the buyer country
+   * from the CURRENT client and re-run the tax computation at issuance (not just re-check
+   * presence), so a country added AFTER draft creation never leaves a stale, under-charged
+   * totalVAT behind.
+   */
+  describe('issueInvoice() — buyer-country hard-block + stale-VAT recompute', () => {
+    const supplier = {
+      id: 'co-1',
+      name: 'Acme SAS',
+      countryCode: 'FR',
+      exemptVat: false,
+      partyIdentifiers: [],
+    };
+
+    function draftInvoice(overrides: Record<string, any> = {}) {
+      return {
+        id: 'inv-cc',
+        companyId: 'co-1',
+        status: 'DRAFT',
+        number: null,
+        currency: 'EUR',
+        discountRate: 0,
+        company: supplier,
+        client: { name: 'Buyer', type: 'INDIVIDUAL', partyIdentifiers: [] },
+        items: [{ id: 'item-1', quantity: 1, unitPrice: 100, vatRate: 0, type: 'SERVICE' }],
+        ...overrides,
+      };
+    }
+
+    function mockTransactionCapturingUpdate() {
+      let capturedUpdateArgs: any;
+      (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
+        cb({
+          invoice: {
+            update: jest.fn((args: any) => {
+              capturedUpdateArgs = args;
+              return Promise.resolve({
+                id: 'inv-cc',
+                rawNumber: 'INV-0001',
+                ...args.data,
+                client: {},
+                company: {},
+              });
+            }),
+          },
+        }),
+      );
+      return () => capturedUpdateArgs;
+    }
+
+    beforeEach(() => {
+      // Own each test's compliance-document lookup explicitly (jest.clearAllMocks() in the outer
+      // beforeEach clears call history but not a previous test's mockResolvedValue).
+      (prisma.complianceDocument.findFirst as jest.Mock).mockResolvedValue(null);
+    });
+
+    it('(a) throws BadRequestException and never numbers the invoice when the client has no resolvable country', async () => {
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValue(draftInvoice());
+
+      const service = buildService();
+      let caught: any;
+      try {
+        await service.issueInvoice('co-1', 'inv-cc');
+      } catch (e) {
+        caught = e;
+      }
+
+      expect(caught).toBeInstanceOf(BadRequestException);
+      expect(caught.message).toBe(
+        "Cannot issue invoice: the client's country is required to determine the VAT treatment. Set the client's country first.",
+      );
+      // Blocked BEFORE the numbering transaction — no gapless number is consumed for a
+      // rejected issuance.
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('(b) issues an invoice for a client WITH a country and persists the correctly recomputed VAT (FR domestic B2C 20%)', async () => {
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValue(
+        draftInvoice({
+          client: { name: 'Buyer', type: 'INDIVIDUAL', countryCode: 'FR', partyIdentifiers: [] },
+          items: [{ id: 'item-1', quantity: 1, unitPrice: 100, vatRate: 20, type: 'SERVICE' }],
+        }),
+      );
+      const getCapturedUpdateArgs = mockTransactionCapturingUpdate();
+
+      const service = buildService();
+      const result = await service.issueInvoice('co-1', 'inv-cc');
+
+      expect(result.status).toBe('ISSUED');
+      const data = getCapturedUpdateArgs().data;
+      expect(data.totalHT).toBe(100);
+      expect(data.totalVAT).toBe(20);
+      expect(data.totalTTC).toBe(120);
+      expect(data.totalHTMinor).toBe(10000);
+      expect(data.totalVATMinor).toBe(2000);
+      expect(data.totalTTCMinor).toBe(12000);
+      expect(data.items.update).toEqual([{ where: { id: 'item-1' }, data: { vatRate: 20 } }]);
+    });
+
+    it('(c) stale-VAT: a draft created country-less (stored VAT 0) recomputes to the correct non-zero VAT once the client has a country at issuance', async () => {
+      // Mirrors exactly what createInvoice() persists for a country-less client: the compliance
+      // engine forces every line to the "buyer outside the union" 0% treatment because the buyer
+      // country was unresolved at draft-creation time — regardless of any vatRate that was
+      // originally requested. The client below now HAS a country (set after the draft was
+      // created) but the item still carries that stale, draft-time 0.
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValue(
+        draftInvoice({
+          client: { name: 'Buyer', type: 'INDIVIDUAL', countryCode: 'FR', partyIdentifiers: [] },
+          items: [{ id: 'item-1', quantity: 1, unitPrice: 100, vatRate: 0, type: 'SERVICE' }],
+        }),
+      );
+      const getCapturedUpdateArgs = mockTransactionCapturingUpdate();
+
+      const service = buildService();
+      const result = await service.issueInvoice('co-1', 'inv-cc');
+
+      // The stale draft-time 0 must NOT survive re-issuance — this is the nuance the fix exists
+      // for: a naive "is a country present now?" guard would PASS here while the stored totalVAT
+      // stayed a stale 0. Issuance must recompute, landing on the correct FR domestic B2C
+      // standard rate (20%).
+      expect(result.status).toBe('ISSUED');
+      const data = getCapturedUpdateArgs().data;
+      expect(data.totalHT).toBe(100);
+      expect(data.totalVAT).toBe(20);
+      expect(data.totalTTC).toBe(120);
+      expect(data.items.update).toEqual([{ where: { id: 'item-1' }, data: { vatRate: 20 } }]);
     });
   });
 
