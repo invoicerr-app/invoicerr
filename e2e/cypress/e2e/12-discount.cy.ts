@@ -5,6 +5,51 @@ type QuoteItemInput = {
     vatRate: number;
 };
 
+// The compliance tax engine is jurisdiction-aware: VAT depends on supplier country, buyer
+// country, and B2B/B2C role — not just the item's vatRate hint. The e2e company (supplier) is
+// France. Picking an arbitrary/first client (e.g. "ACME Corporation", United States, created by
+// 05-clients.cy.ts) makes the engine correctly treat the sale as a FR->US B2C export (0% VAT),
+// which breaks the fixed-VAT assertions below. Those assertions are only valid for a *domestic*
+// FR B2C sale (20% VAT), so we ensure a dedicated INDIVIDUAL (B2C) client with country France
+// exists, and select it explicitly by name instead of relying on list order.
+const FR_B2C_CLIENT_FIRSTNAME = 'DiscountFR';
+const FR_B2C_CLIENT_LASTNAME = 'B2CDomestic';
+const FR_B2C_CLIENT_LABEL = `${FR_B2C_CLIENT_FIRSTNAME} ${FR_B2C_CLIENT_LASTNAME}`;
+const FR_B2C_CLIENT_OPTION = `[data-cy="quote-client-select-option-${FR_B2C_CLIENT_LABEL.toLowerCase().replace(/\s+/g, '-')}"]`;
+const FR_B2C_CLIENT_OPTION_INVOICE = `[data-cy="invoice-client-select-option-${FR_B2C_CLIENT_LABEL.toLowerCase().replace(/\s+/g, '-')}"]`;
+
+function ensureDomesticFrB2cClient() {
+    const apiUrl = Cypress.env('apiUrl');
+    return cy.request({
+        url: `${apiUrl}/api/clients/search?query=${encodeURIComponent(FR_B2C_CLIENT_FIRSTNAME)}`,
+        failOnStatusCode: false,
+    }).then(({ status, body }: any) => {
+        const found = status === 200 && Array.isArray(body)
+            ? body.some((c: any) => c.contactFirstname === FR_B2C_CLIENT_FIRSTNAME && c.contactLastname === FR_B2C_CLIENT_LASTNAME)
+            : false;
+        if (found) return;
+
+        return cy.request({
+            method: 'POST',
+            url: `${apiUrl}/api/clients`,
+            body: {
+                type: 'INDIVIDUAL',
+                contactFirstname: FR_B2C_CLIENT_FIRSTNAME,
+                contactLastname: FR_B2C_CLIENT_LASTNAME,
+                contactEmail: 'discount-fr-b2c@example.com',
+                currency: 'EUR',
+                country: 'France',
+                countryCode: 'FR',
+                address: '1 Rue de la Discount',
+                city: 'Paris',
+                postalCode: '75001',
+                isActive: true,
+            },
+            failOnStatusCode: false,
+        });
+    });
+}
+
 type CreateQuoteOptions = {
     baseTitle?: string;
     discountRate?: number;
@@ -29,6 +74,7 @@ function createQuote({ baseTitle = 'Discount Flow Test', discountRate = 10, item
     const sanitizedTitle = quoteTitle.replace(/\s+/g, '-').toLowerCase();
 
     cy.ensureClient();
+    ensureDomesticFrB2cClient();
     cy.visit('/quotes');
     cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
     cy.wait(500);
@@ -37,10 +83,14 @@ function createQuote({ baseTitle = 'Discount Flow Test', discountRate = 10, item
 
     cy.get('[name="title"]').type(quoteTitle);
 
+    // Select the dedicated domestic FR B2C client by name (not the first client in the list) so
+    // the tax engine deterministically charges French domestic VAT — see comment at top of file.
     cy.get('[data-cy="quote-client-select"] button').first().click();
     cy.wait(300);
     cy.get('[data-cy="quote-client-select-options"]').should('be.visible');
-    cy.get('[data-cy="quote-client-select-options"] button').first().click();
+    cy.get('[data-cy="quote-client-select"] input').type(FR_B2C_CLIENT_FIRSTNAME);
+    cy.wait(300);
+    cy.get(FR_B2C_CLIENT_OPTION, { timeout: 5000 }).should('be.visible').click();
 
     cy.get('[data-cy="quote-currency-select"] button').first().click();
     cy.wait(200);
@@ -69,16 +119,21 @@ function createInvoice({ discountRate = 10, item = defaultQuoteItem }: CreateInv
     cy.intercept('POST', '/api/invoices').as('createInvoice');
 
     cy.ensureClient();
+    ensureDomesticFrB2cClient();
     cy.visit('/invoices');
     cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
     cy.wait(500);
 
     cy.get('[data-cy="invoice-dialog"]', { timeout: 5000 }).should('be.visible');
 
+    // Select the dedicated domestic FR B2C client by name (not the first client in the list) so
+    // the tax engine deterministically charges French domestic VAT — see comment at top of file.
     cy.get('[data-cy="invoice-client-select"] button').first().click();
     cy.wait(300);
     cy.get('[data-cy="invoice-client-select-options"]').should('be.visible');
-    cy.get('[data-cy="invoice-client-select-options"] button').first().click();
+    cy.get('[data-cy="invoice-client-select"] input').type(FR_B2C_CLIENT_FIRSTNAME);
+    cy.wait(300);
+    cy.get(FR_B2C_CLIENT_OPTION_INVOICE, { timeout: 5000 }).should('be.visible').click();
 
     cy.get('[data-cy="invoice-currency-select"] button').first().click();
     cy.wait(200);
