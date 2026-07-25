@@ -349,6 +349,140 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
     });
   });
 
+  /**
+   * Residual from the M-16 buyer-country hard-block (which only covered issuance): `editInvoice()`
+   * on a NON-DRAFT invoice whose compliance plan has `immutableAfter: 'NEVER'` (US / FALLBACK
+   * profiles) falls through past the "only DRAFT invoices can be edited" check and recomputes +
+   * persists tax via `resolveTax()` with no buyer-country guard — so a client whose country was
+   * cleared AFTER issuance could silently re-edit an already-ISSUED invoice down to 0% VAT.
+   * `resolveBuyerCountryOrThrow()` now guards that fall-through path only; DRAFT edits stay
+   * unguarded — a country-less DRAFT is still a legitimate, saveable state (only its later
+   * ISSUANCE is blocked, by the existing issueInvoice() guard).
+   */
+  describe('editInvoice() — buyer-country hard-block on already-issued (immutableAfter: NEVER) edits', () => {
+    const company = {
+      id: 'co-1',
+      name: 'Acme Inc',
+      countryCode: 'US',
+      currency: 'USD',
+      exemptVat: false,
+      partyIdentifiers: [],
+    };
+
+    function issuedInvoice(overrides: Record<string, any> = {}) {
+      return {
+        id: 'inv-edit-1',
+        companyId: 'co-1',
+        status: 'ISSUED',
+        currency: 'USD',
+        discountRate: 0,
+        items: [{ id: 'item-1', quantity: 1, unitPrice: 100, vatRate: 0 }],
+        ...overrides,
+      };
+    }
+
+    function editBody(overrides: Record<string, any> = {}) {
+      return {
+        id: 'inv-edit-1',
+        clientId: 'client-1',
+        currency: 'USD',
+        notes: '',
+        items: [
+          {
+            id: 'item-1',
+            name: 'Consulting',
+            quantity: 1,
+            unitPrice: 100,
+            vatRate: 0,
+            type: 'SERVICE',
+            order: 0,
+          },
+        ],
+        ...overrides,
+      } as any;
+    }
+
+    beforeEach(() => {
+      (prisma.company.findUniqueOrThrow as jest.Mock).mockResolvedValue(company);
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValue(issuedInvoice());
+      // immutableAfter: 'NEVER' — the fall-through path this residual closes (US / FALLBACK
+      // profiles stay editable after issuance).
+      (prisma.complianceDocument.findFirst as jest.Mock).mockResolvedValue({
+        id: 'doc-edit-1',
+        plan: { lifecycle: { immutableAfter: 'NEVER' } },
+      });
+    });
+
+    it('throws BadRequestException and never persists when the client has no resolvable country', async () => {
+      (prisma.client.findFirst as jest.Mock).mockResolvedValue({
+        id: 'client-1',
+        companyId: 'co-1',
+        name: 'Buyer',
+        type: 'INDIVIDUAL',
+        partyIdentifiers: [],
+      });
+
+      const service = buildService();
+      let caught: any;
+      try {
+        await service.editInvoice('co-1', editBody());
+      } catch (e) {
+        caught = e;
+      }
+
+      expect(caught).toBeInstanceOf(BadRequestException);
+      expect(caught.message).toBe(
+        "Cannot issue invoice: the client's country is required to determine the VAT treatment. Set the client's country first.",
+      );
+      // Blocked BEFORE tax is recomputed/persisted — no silent 0% VAT overwrite on the
+      // already-issued invoice.
+      expect(prisma.invoice.update).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('succeeds for a client WITH a country (legitimate US/FALLBACK edit is not over-blocked)', async () => {
+      (prisma.client.findFirst as jest.Mock).mockResolvedValue({
+        id: 'client-1',
+        companyId: 'co-1',
+        name: 'Buyer',
+        type: 'INDIVIDUAL',
+        countryCode: 'US',
+        currency: 'USD',
+        partyIdentifiers: [],
+      });
+      const updatedInvoice = { id: 'inv-edit-1', client: {}, company: {}, items: [] };
+      (prisma.invoice.update as jest.Mock).mockResolvedValue(updatedInvoice);
+
+      const service = buildService();
+      const result = await service.editInvoice('co-1', editBody());
+
+      expect(result).toEqual(updatedInvoice);
+      expect(prisma.invoice.update).toHaveBeenCalled();
+    });
+
+    it('a DRAFT invoice for a country-less client still succeeds (the guard is issued-doc-only)', async () => {
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValue(issuedInvoice({ status: 'DRAFT' }));
+      (prisma.client.findFirst as jest.Mock).mockResolvedValue({
+        id: 'client-1',
+        companyId: 'co-1',
+        name: 'Buyer',
+        type: 'INDIVIDUAL',
+        currency: 'USD',
+        partyIdentifiers: [],
+      });
+      const updatedInvoice = { id: 'inv-edit-1', client: {}, company: {}, items: [] };
+      (prisma.invoice.update as jest.Mock).mockResolvedValue(updatedInvoice);
+
+      const service = buildService();
+      const result = await service.editInvoice('co-1', editBody());
+
+      // DRAFT edits never reach the immutableAfter check (it's inside the `status !== 'DRAFT'`
+      // block), so a country-less client must not be blocked here — only later, at issuance.
+      expect(result).toEqual(updatedInvoice);
+      expect(prisma.invoice.update).toHaveBeenCalled();
+    });
+  });
+
   describe('createInvoice()', () => {
     const company = {
       id: 'co-1',

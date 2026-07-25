@@ -977,6 +977,12 @@ export class InvoicesService {
           'Only DRAFT invoices can be edited. Issued documents require a correction.',
         );
       }
+
+      // immutableAfter === 'NEVER' (US / FALLBACK profiles): this invoice is already ISSUED but
+      // stays editable. Re-editing it recomputes and persists tax below (resolveTax), so hard-block
+      // the same way issueInvoice does — a client whose country was cleared after issuance must not
+      // silently recompute this already-issued invoice to 0% VAT.
+      resolveBuyerCountryOrThrow(client);
     }
 
     const existingItemIds = existingInvoice.items.map((i) => i.id);
