@@ -6,8 +6,9 @@ import prisma from '@/prisma/prisma.service';
 import { logger } from '@/logger/logger.service';
 import { getInvertColor, getPDF } from '@/utils/pdf';
 import { baseTemplate } from '@/modules/invoices/templates/base.template';
+import { formatAmount } from '@/utils/format-amount';
 import { formatDate } from '@/utils/date';
-import { formatRichText } from '@/utils/format-text';
+import { formatNotes, formatRichText } from '@/utils/format-text';
 import { clampDiscountRate } from '@/utils/financial';
 import { getDraftWatermarkLabel } from '@/utils/watermark';
 import { augmentWithIdentifiers, getIdentifier } from '@/utils/entity-identifiers';
@@ -262,16 +263,19 @@ export class InvoiceRenderingService {
         quantity: Number.isInteger(i.quantity)
           ? i.quantity.toString()
           : i.quantity.toFixed(3).replace(/\.?0+$/, ''),
-        unitPrice: i.unitPrice.toFixed(2),
+        unitPrice: formatAmount(i.unitPrice, invoice.company.country),
         vatRate: (i.vatRate || 0).toFixed(2),
-        totalPrice: (i.quantity * i.unitPrice * (1 + (i.vatRate || 0) / 100)).toFixed(2),
+        totalPrice: formatAmount(
+          i.quantity * i.unitPrice * (1 + (i.vatRate || 0) / 100),
+          invoice.company.country,
+        ),
         type: itemTypeLabels[i.type] || i.type,
       })),
-      totalHT: invoice.totalHT.toFixed(2),
-      totalVAT: invoice.totalVAT.toFixed(2),
-      totalTTC: invoice.totalTTC.toFixed(2),
-      subtotalBeforeDiscount: subtotalBeforeDiscount.toFixed(2),
-      discountAmount: discountAmountValue.toFixed(2),
+      totalHT: formatAmount(invoice.totalHT, invoice.company.country),
+      totalVAT: formatAmount(invoice.totalVAT, invoice.company.country),
+      totalTTC: formatAmount(invoice.totalTTC, invoice.company.country),
+      subtotalBeforeDiscount: formatAmount(subtotalBeforeDiscount, invoice.company.country),
+      discountAmount: formatAmount(discountAmountValue, invoice.company.country),
       discountRate: Number(normalizedDiscountRate.toFixed(2)),
       hasDiscount,
       vatExemptText:
@@ -291,7 +295,7 @@ export class InvoiceRenderingService {
       logoB64: pdfConfig?.logoB64 ?? '',
 
       noteExists: !!invoice.notes,
-      notes: (invoice.notes || '').replace(/\n/g, '<br>'),
+      notes: formatNotes(invoice.notes),
 
       // Labels
       labels: {

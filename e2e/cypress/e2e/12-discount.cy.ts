@@ -159,7 +159,10 @@ describe('Discount Feature (Quote)', () => {
             cy.get(`[data-cy="view-quote-${sanitizedTitle}"]`).click();
             cy.get('[role="dialog"]').should('be.visible').within(() => {
                 cy.contains('Discount Rate').parent().find('p.font-medium', { timeout: 10000 }).should('contain', '10%');
-                cy.contains('Discount Amount').parent().find('p.font-medium').should('contain', '100');
+                cy.contains('Discount Amount').parent().find('p.font-medium').should('contain', '100,00EUR');
+                cy.contains('Total \(excl. VAT\)').parent().find('p.font-medium').should('contain', '900,00EUR');
+                cy.contains('VAT Amount').parent().find('p.font-medium').should('contain', '180,00EUR');
+                cy.contains('Total (incl. VAT)').parent().find('p.font-medium').should('contain', '1 080,00EUR');
             });
         });
 
@@ -221,7 +224,10 @@ describe('Discount Feature (Quote)', () => {
             cy.get(`[data-cy="view-quote-${sanitizedTitle}"]`, { timeout: 15000 }).should('exist').click();
             cy.get('[role="dialog"]').should('be.visible').within(() => {
                 cy.contains('Discount Rate').parent().find('p.font-medium', { timeout: 10000 }).should('contain', '15%');
-                cy.contains('Discount Amount').parent().find('p.font-medium').should('contain', '150');
+                cy.contains('Discount Amount').parent().find('p.font-medium').should('contain', '150,00EUR');
+                cy.contains('Total \(excl. VAT\)').parent().find('p.font-medium').should('contain', '850,00EUR');
+                cy.contains('VAT Amount').parent().find('p.font-medium').should('contain', '170,00EUR');
+                cy.contains('Total (incl. VAT)').parent().find('p.font-medium').should('contain', '1 020,00EUR');
             });
         });
 
@@ -237,7 +243,10 @@ describe('Discount Feature (Invoice)', () => {
             cy.get('[data-cy="invoice-row"]').first().find('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible').within(() => {
                 cy.contains('Discount Rate').parent().find('p.font-medium', { timeout: 10000 }).should('contain', '10%');
-                cy.contains('Discount Amount').parent().find('p.font-medium').should('contain', '100');
+                cy.contains('Discount Amount').parent().find('p.font-medium').should('contain', '100,00EUR');
+                cy.contains('Total \(excl. VAT\)').parent().find('p.font-medium').should('contain', '900,00EUR');
+                cy.contains('VAT Amount').parent().find('p.font-medium').should('contain', '180,00EUR');
+                cy.contains('Total (incl. VAT)').parent().find('p.font-medium').should('contain', '1 080,00EUR');
             });
         });
 

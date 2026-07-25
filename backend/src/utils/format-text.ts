@@ -1,3 +1,8 @@
+// CJS-compat import: the project's tsconfig has no esModuleInterop, and markdown-it's CJS
+// build exports the constructor directly (no `.default`) — a plain default import would
+// compile to `markdown_it_1.default`, which is undefined at runtime ("is not a constructor").
+import MarkdownIt = require('markdown-it');
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -10,7 +15,7 @@ function escapeHtml(text: string): string {
 /**
  * Escapes free text then converts a small markdown-like subset to HTML:
  * **text** becomes bold, *text* becomes italic. Used for item descriptions
- * and notes so users can emphasize text without allowing arbitrary HTML injection.
+ * so users can emphasize text without allowing arbitrary HTML injection.
  */
 export function formatRichText(text?: string | null): string {
   if (!text) return '';
@@ -18,4 +23,21 @@ export function formatRichText(text?: string | null): string {
   const escaped = escapeHtml(text);
   const withBold = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   return withBold.replace(/\*(.+?)\*/g, '<em>$1</em>');
+}
+
+// html: false escapes any raw HTML in user input instead of rendering it,
+// which is the primary XSS defense for markdown notes.
+const md = new MarkdownIt({
+  html: false,
+  linkify: true,
+  breaks: true,
+});
+
+/**
+ * Renders full markdown (headings, lists, links, code, blockquotes...) to HTML.
+ * Used for quote/invoice notes, which support richer formatting than item descriptions.
+ */
+export function formatNotes(text?: string | null): string {
+  if (!text) return '';
+  return md.render(text);
 }

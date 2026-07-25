@@ -12,6 +12,7 @@ import { StorageUploadService } from '@/utils/storage-upload';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { Prisma } from '../../../prisma/generated/prisma/client';
 import { baseTemplate } from '@/modules/quotes/templates/base.template';
+import { formatAmount } from '@/utils/format-amount';
 import { formatDate } from '@/utils/date';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
@@ -23,7 +24,7 @@ import { clampDiscountRate, toMinor } from '@/utils/financial';
 import type { SupplyType } from '@/compliance/types';
 import { augmentWithIdentifiers, getIdentifier } from '@/utils/entity-identifiers';
 import { enrichWithPaymentMethods } from '@/utils/enrich-payment-methods';
-import { formatRichText } from '@/utils/format-text';
+import { formatNotes, formatRichText } from '@/utils/format-text';
 import { getDraftWatermarkLabel } from '@/utils/watermark';
 
 @Injectable()
@@ -572,16 +573,19 @@ export class QuotesService {
         quantity: Number.isInteger(i.quantity)
           ? i.quantity.toString()
           : i.quantity.toFixed(3).replace(/\.?0+$/, ''),
-        unitPrice: i.unitPrice.toFixed(2),
+        unitPrice: formatAmount(i.unitPrice, quote.company.country),
         vatRate: i.vatRate,
-        totalPrice: (i.quantity * i.unitPrice * (1 + (i.vatRate || 0) / 100)).toFixed(2),
+        totalPrice: formatAmount(
+          i.quantity * i.unitPrice * (1 + (i.vatRate || 0) / 100),
+          quote.company.country,
+        ),
         type: itemTypeLabels[i.type] || i.type,
       })),
-      totalHT: quote.totalHT.toFixed(2),
-      totalVAT: quote.totalVAT.toFixed(2),
-      totalTTC: quote.totalTTC.toFixed(2),
-      subtotalBeforeDiscount: subtotalBeforeDiscount.toFixed(2),
-      discountAmount: discountAmountValue.toFixed(2),
+      totalHT: formatAmount(quote.totalHT, quote.company.country),
+      totalVAT: formatAmount(quote.totalVAT, quote.company.country),
+      totalTTC: formatAmount(quote.totalTTC, quote.company.country),
+      subtotalBeforeDiscount: formatAmount(subtotalBeforeDiscount, quote.company.country),
+      discountAmount: formatAmount(discountAmountValue, quote.company.country),
       discountRate: Number(normalizedDiscountRate.toFixed(2)),
       hasDiscount,
       vatExemptText:
@@ -603,7 +607,7 @@ export class QuotesService {
       isDraft: quote.status === 'DRAFT',
       draftLabel: getDraftWatermarkLabel(quote.company.country),
       noteExists: !!quote.notes,
-      notes: formatRichText(quote.notes).replace(/\n/g, '<br>'),
+      notes: formatNotes(quote.notes),
       labels: {
         quote: config.quote,
         quoteFor: config.quoteFor,

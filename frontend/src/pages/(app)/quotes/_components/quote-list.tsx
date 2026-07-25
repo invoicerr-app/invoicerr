@@ -16,6 +16,7 @@ import { QuoteDeleteDialog } from "@/pages/(app)/quotes/_components/quote-delete
 import { QuoteUpsert } from "@/pages/(app)/quotes/_components/quote-upsert"
 import { QuoteViewDialog } from "@/pages/(app)/quotes/_components/quote-view"
 import { SendConfirmationDialog } from "@/components/send-confirmation-dialog"
+import { formatAmount } from "@/lib/utils"
 import type React from "react"
 import { Spinner } from "@/components/ui/spinner"
 import { toast } from "sonner"
@@ -292,7 +293,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                                 </span>{" "}
                                 {t("common.valueWithCurrency", {
                                   currency: quote.currency,
-                                  amount: quote.totalHT.toFixed(2),
+                                  amount: formatAmount(quote.totalHT, quote.company?.country),
                                 })}
                               </span>
                               <span>
@@ -301,7 +302,7 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                                 </span>{" "}
                                 {t("common.valueWithCurrency", {
                                   currency: quote.currency,
-                                  amount: quote.totalTTC.toFixed(2),
+                                  amount: formatAmount(quote.totalTTC, quote.company?.country),
                                 })}
                               </span>
                             </div>

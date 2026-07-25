@@ -28,11 +28,11 @@ import { CurrencyField } from "@/components/document-form/currency-field"
 import { DatePicker } from "@/components/date-picker"
 import { DiscountRateField } from "@/components/document-form/discount-rate-field"
 import { LineItemsEditor } from "@/components/document-form/line-items-editor"
+import { MarkdownNotesField } from "@/components/markdown-notes-field"
 import { PaymentMethodField } from "@/components/document-form/payment-method-field"
 import SearchSelect from "@/components/search-input"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 
@@ -358,10 +358,9 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                       <FormItem>
                         <FormLabel>{t("invoices.upsert.form.notes.label")}</FormLabel>
                         <FormControl>
-                          <Textarea
+                          <MarkdownNotesField
                             {...field}
                             placeholder={t("invoices.upsert.form.notes.placeholder")}
-                            className="max-h-40"
                           />
                         </FormControl>
                         <FormMessage />
@@ -454,10 +453,9 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                       <FormItem>
                         <FormLabel>{t("recurringInvoices.upsert.form.notes.label")}</FormLabel>
                         <FormControl>
-                          <Textarea
+                          <MarkdownNotesField
                             {...field}
                             placeholder={t("recurringInvoices.upsert.form.notes.placeholder")}
-                            className="max-h-40"
                           />
                         </FormControl>
                         <FormMessage />
@@ -673,9 +671,8 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                       <FormItem>
                         <FormLabel>{t("invoices.upsert.form.notes.label")}</FormLabel>
                         <FormControl>
-                          <Textarea
+                          <MarkdownNotesField
                             placeholder={t("invoices.upsert.form.notes.placeholder")}
-                            className="resize-none"
                             {...field}
                             value={field.value ?? ""}
                           />
@@ -820,9 +817,8 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                       <FormItem>
                         <FormLabel>{t("invoices.upsert.form.notes.label")}</FormLabel>
                         <FormControl>
-                          <Textarea
+                          <MarkdownNotesField
                             placeholder={t("invoices.upsert.form.notes.placeholder")}
-                            className="resize-none"
                             {...field}
                             value={field.value ?? ""}
                           />

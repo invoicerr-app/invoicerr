@@ -10,6 +10,7 @@ import {
 } from "@/types"
 import { format } from "date-fns"
 import { languageToLocale } from "@/lib/i18n"
+import { formatAmount } from "@/lib/utils"
 import { getDraftWatermarkLabel } from "@/lib/watermark"
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
@@ -375,7 +376,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                 <p className="font-medium">
                   {t("common.valueWithCurrency", {
                     currency: invoice.currency,
-                    amount: invoice.totalHT.toFixed(2),
+                    amount: formatAmount(invoice.totalHT, invoice.company?.country),
                   })}
                 </p>
               </div>
@@ -385,7 +386,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                 <p className="font-medium">
                   {t("common.valueWithCurrency", {
                     currency: invoice.currency,
-                    amount: invoice.totalVAT.toFixed(2),
+                    amount: formatAmount(invoice.totalVAT, invoice.company?.country),
                   })}
                 </p>
               </div>
@@ -395,7 +396,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                 <p className="font-medium">
                   {t("common.valueWithCurrency", {
                     currency: invoice.currency,
-                    amount: invoice.totalTTC.toFixed(2),
+                    amount: formatAmount(invoice.totalTTC, invoice.company?.country),
                   })}
                 </p>
               </div>
@@ -411,7 +412,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                 <p className="font-medium">
                   {t("common.valueWithCurrency", {
                     currency: invoice.currency,
-                    amount: discountAmount.toFixed(2),
+                    amount: formatAmount(discountAmount, invoice.company?.country),
                   })}
                 </p>
               </div>

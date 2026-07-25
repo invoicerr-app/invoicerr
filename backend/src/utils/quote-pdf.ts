@@ -4,7 +4,8 @@ import { baseTemplate } from '@/modules/quotes/templates/base.template';
 import prisma from '@/prisma/prisma.service';
 import { formatDate } from '@/utils/date';
 import { clampDiscountRate } from '@/utils/financial';
-import { formatRichText } from '@/utils/format-text';
+import { formatAmount } from '@/utils/format-amount';
+import { formatNotes, formatRichText } from '@/utils/format-text';
 import { getInvertColor, getPDF } from '@/utils/pdf';
 import { getDraftWatermarkLabel } from '@/utils/watermark';
 
@@ -77,16 +78,19 @@ export async function generateQuotePdf(id: string): Promise<Uint8Array> {
       name: i.name,
       description: formatRichText(i.description),
       quantity: i.quantity,
-      unitPrice: i.unitPrice.toFixed(2),
+      unitPrice: formatAmount(i.unitPrice, quote.company.country),
       vatRate: i.vatRate,
-      totalPrice: (i.quantity * i.unitPrice * (1 + (i.vatRate || 0) / 100)).toFixed(2),
+      totalPrice: formatAmount(
+        i.quantity * i.unitPrice * (1 + (i.vatRate || 0) / 100),
+        quote.company.country,
+      ),
       type: itemTypeLabels[i.type] || i.type,
     })),
-    totalHT: quote.totalHT.toFixed(2),
-    totalVAT: quote.totalVAT.toFixed(2),
-    totalTTC: quote.totalTTC.toFixed(2),
-    subtotalBeforeDiscount: subtotalBeforeDiscount.toFixed(2),
-    discountAmount: discountAmountValue.toFixed(2),
+    totalHT: formatAmount(quote.totalHT, quote.company.country),
+    totalVAT: formatAmount(quote.totalVAT, quote.company.country),
+    totalTTC: formatAmount(quote.totalTTC, quote.company.country),
+    subtotalBeforeDiscount: formatAmount(subtotalBeforeDiscount, quote.company.country),
+    discountAmount: formatAmount(discountAmountValue, quote.company.country),
     discountRate: Number(normalizedDiscountRate.toFixed(2)),
     hasDiscount,
     vatExemptText:
@@ -108,7 +112,7 @@ export async function generateQuotePdf(id: string): Promise<Uint8Array> {
     isDraft: quote.status === 'DRAFT',
     draftLabel: getDraftWatermarkLabel(quote.company.country),
     noteExists: !!quote.notes,
-    notes: formatRichText(quote.notes).replace(/\n/g, '<br>'),
+    notes: formatNotes(quote.notes),
     labels: {
       quote: config.quote,
       quoteFor: config.quoteFor,

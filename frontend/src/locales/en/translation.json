@@ -2264,6 +2264,11 @@
             "week": "Week",
             "month": "Month",
             "year": "Year"
+        },
+        "markdownNotes": {
+            "edit": "Edit",
+            "preview": "Preview",
+            "hint": "Markdown supported"
         }
     },
     "payments": {

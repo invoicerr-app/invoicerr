@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Badge } from "@/components/ui/badge"
 
 import type { RecurringInvoice } from "@/types"
+import { formatAmount } from "@/lib/utils"
 import { useTranslation } from "react-i18next"
 
 interface RecurringInvoiceViewDialogProps {
@@ -113,7 +114,7 @@ export function RecurringInvoiceViewDialog({
               <p className="text-sm text-muted-foreground">{t("recurringInvoices.view.fields.totalHT")}</p>
               <p className="font-medium">
                 {t("common.valueWithCurrency", {
-                  amount: recurringInvoice.totalHT.toFixed(2),
+                  amount: formatAmount(recurringInvoice.totalHT, recurringInvoice.company?.country),
                   currency: recurringInvoice.currency,
                 })}
               </p>
@@ -123,7 +124,7 @@ export function RecurringInvoiceViewDialog({
               <p className="text-sm text-muted-foreground">{t("recurringInvoices.view.fields.totalVAT")}</p>
               <p className="font-medium">
                 {t("common.valueWithCurrency", {
-                  amount: recurringInvoice.totalVAT.toFixed(2),
+                  amount: formatAmount(recurringInvoice.totalVAT, recurringInvoice.company?.country),
                   currency: recurringInvoice.currency,
                 })}
               </p>
@@ -133,7 +134,7 @@ export function RecurringInvoiceViewDialog({
               <p className="text-sm text-muted-foreground">{t("recurringInvoices.view.fields.totalTTC")}</p>
               <p className="font-medium">
                 {t("common.valueWithCurrency", {
-                  amount: recurringInvoice.totalTTC.toFixed(2),
+                  amount: formatAmount(recurringInvoice.totalTTC, recurringInvoice.company?.country),
                   currency: recurringInvoice.currency,
                 })}
               </p>

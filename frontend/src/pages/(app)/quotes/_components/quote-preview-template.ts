@@ -3,6 +3,7 @@ import { format } from "date-fns"
 import type { PaymentMethod, Quote } from "@/types"
 import type { TemplateSettings } from "../../settings/_components/pdf.settings"
 import type { QuoteFormValues } from "./quote-form"
+import { formatAmount } from "@/lib/utils"
 import { getDraftWatermarkLabel } from "@/lib/watermark"
 
 /**
@@ -318,16 +319,19 @@ export function buildQuotePreviewData(
       quantity: Number.isInteger(i.quantity)
         ? i.quantity.toString()
         : (i.quantity || 0).toFixed(3).replace(/\.?0+$/, ""),
-      unitPrice: (i.unitPrice || 0).toFixed(2),
+      unitPrice: formatAmount(i.unitPrice || 0, quote.company.country),
       vatRate: i.vatRate,
-      totalPrice: ((i.quantity || 0) * (i.unitPrice || 0) * (1 + (i.vatRate || 0) / 100)).toFixed(2),
+      totalPrice: formatAmount(
+        (i.quantity || 0) * (i.unitPrice || 0) * (1 + (i.vatRate || 0) / 100),
+        quote.company.country,
+      ),
       type: itemTypeLabels[i.type] || i.type,
     })),
-    totalHT: totals.totalHT.toFixed(2),
-    totalVAT: totals.totalVAT.toFixed(2),
-    totalTTC: totals.totalTTC.toFixed(2),
-    subtotalBeforeDiscount: totals.baseTotalHT.toFixed(2),
-    discountAmount: totals.discountAmountHT.toFixed(2),
+    totalHT: formatAmount(totals.totalHT, quote.company.country),
+    totalVAT: formatAmount(totals.totalVAT, quote.company.country),
+    totalTTC: formatAmount(totals.totalTTC, quote.company.country),
+    subtotalBeforeDiscount: formatAmount(totals.baseTotalHT, quote.company.country),
+    discountAmount: formatAmount(totals.discountAmountHT, quote.company.country),
     discountRate: Number(totals.discountRate.toFixed(2)),
     hasDiscount,
     vatExemptText: isVatExempt ? "TVA non applicable, art. 293 B du CGI" : null,

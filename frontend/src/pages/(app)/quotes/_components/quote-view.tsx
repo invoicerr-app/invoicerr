@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { PaymentMethodType, type Quote } from "@/types"
 import { format } from "date-fns"
 import { languageToLocale } from "@/lib/i18n"
+import { formatAmount } from "@/lib/utils"
 import { useTranslation } from "react-i18next"
 
 interface QuoteViewDialogProps {
@@ -120,7 +121,7 @@ export function QuoteViewDialog({ quote, onOpenChange }: QuoteViewDialogProps) {
               <p className="font-medium">
                 {t("common.valueWithCurrency", {
                   currency: quote.currency,
-                  amount: quote.totalHT.toFixed(2),
+                  amount: formatAmount(quote.totalHT, quote.company?.country),
                 })}
               </p>
             </div>
@@ -130,7 +131,7 @@ export function QuoteViewDialog({ quote, onOpenChange }: QuoteViewDialogProps) {
               <p className="font-medium">
                 {t("common.valueWithCurrency", {
                   currency: quote.currency,
-                  amount: quote.totalVAT.toFixed(2),
+                  amount: formatAmount(quote.totalVAT, quote.company?.country),
                 })}
               </p>
             </div>
@@ -140,7 +141,7 @@ export function QuoteViewDialog({ quote, onOpenChange }: QuoteViewDialogProps) {
               <p className="font-medium">
                 {t("common.valueWithCurrency", {
                   currency: quote.currency,
-                  amount: quote.totalTTC.toFixed(2),
+                  amount: formatAmount(quote.totalTTC, quote.company?.country),
                 })}
               </p>
             </div>
@@ -156,7 +157,7 @@ export function QuoteViewDialog({ quote, onOpenChange }: QuoteViewDialogProps) {
               <p className="font-medium">
                 {t("common.valueWithCurrency", {
                   currency: quote.currency,
-                  amount: discountAmount.toFixed(2),
+                  amount: formatAmount(discountAmount, quote.company?.country),
                 })}
               </p>
             </div>

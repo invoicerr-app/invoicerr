@@ -6,6 +6,7 @@ import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
+import { formatAmount } from "@/lib/utils"
 import { useClientSearch, useQuotesTable } from "@/hooks/queries"
 import { useTableExport } from "@/hooks/use-table-export"
 import { useTranslation } from "react-i18next"
@@ -112,7 +113,7 @@ export function QuoteTable() {
                   <TableCell>
                     {t("common.valueWithCurrency", {
                       currency: quote.currency || "",
-                      amount: quote.totalTTC.toFixed(2),
+                      amount: formatAmount(quote.totalTTC, quote.company?.country),
                     })}
                   </TableCell>
                   <TableCell>{new Date(quote.createdAt).toLocaleDateString()}</TableCell>

@@ -32,6 +32,7 @@ import { InvoiceDeleteDialog } from "./invoice-delete"
 import { InvoiceUpsert } from "./invoice-upsert"
 import { InvoiceViewDialog } from "./invoice-view"
 import { SendConfirmationDialog } from "@/components/send-confirmation-dialog"
+import { formatAmount } from "@/lib/utils"
 import type React from "react"
 import { toast } from "sonner"
 import { useNavigate } from "react-router"
@@ -467,7 +468,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                 </span>{" "}
                                 {t("common.valueWithCurrency", {
                                   currency: invoice.currency,
-                                  amount: invoice.totalHT.toFixed(2),
+                                  amount: formatAmount(invoice.totalHT, invoice.company?.country),
                                 })}
                               </span>
                               <span>
@@ -476,7 +477,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                 </span>{" "}
                                 {t("common.valueWithCurrency", {
                                   currency: invoice.currency,
-                                  amount: invoice.totalTTC.toFixed(2),
+                                  amount: formatAmount(invoice.totalTTC, invoice.company?.country),
                                 })}
                               </span>
                             </div>

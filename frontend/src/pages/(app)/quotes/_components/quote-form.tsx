@@ -26,6 +26,7 @@ import { ClientUpsert } from "../../clients/_components/client-upsert"
 import CurrencySelect from "@/components/currency-select"
 import { DatePicker } from "@/components/date-picker"
 import { Input } from "@/components/ui/input"
+import { MarkdownNotesField } from "@/components/markdown-notes-field"
 import { PaymentMethodType } from "@/types"
 import type React from "react"
 import SearchSelect from "@/components/search-input"
@@ -316,11 +317,7 @@ export function QuoteFormFields({ form, formId, onSubmit }: QuoteFormFieldsProps
               <FormItem>
                 <FormLabel>{t("quotes.upsert.form.notes.label")}</FormLabel>
                 <FormControl>
-                  <Textarea
-                    {...field}
-                    placeholder={t("quotes.upsert.form.notes.placeholder")}
-                    className="max-h-40"
-                  />
+                  <MarkdownNotesField {...field} placeholder={t("quotes.upsert.form.notes.placeholder")} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

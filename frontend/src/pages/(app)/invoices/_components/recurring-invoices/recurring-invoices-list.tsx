@@ -18,6 +18,7 @@ import BetterPagination from "@/components/pagination"
 import { Button } from "@/components/ui/button"
 import type React from "react"
 import type { RecurringInvoice } from "@/types"
+import { formatAmount } from "@/lib/utils"
 import { RecurringInvoiceDeleteDialog } from "./recurring-invoices-delete"
 import { RecurringInvoiceUpsert } from "./recurring-invoices-upsert"
 import { RecurringInvoiceViewDialog } from "./recurring-invoices-view"
@@ -248,7 +249,10 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
                                   </span>{" "}
                                   {t("common.valueWithCurrency", {
                                     currency: recurringInvoice.currency,
-                                    amount: recurringInvoice.totalTTC.toFixed(2),
+                                    amount: formatAmount(
+                                      recurringInvoice.totalTTC,
+                                      recurringInvoice.company?.country,
+                                    ),
                                   })}
                                 </span>
                                 <span>

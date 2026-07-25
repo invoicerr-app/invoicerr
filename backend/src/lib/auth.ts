@@ -125,7 +125,7 @@ const userAfterCreateHook = async (user) => {
 };
 
 export const auth = betterAuth({
-  baseUrl: process.env.APP_URL || 'http://localhost:3000',
+  baseURL: process.env.APP_URL || 'http://localhost:3000',
   trustedOrigins: [
     'http://localhost:5173',
     process.env.APP_URL,
