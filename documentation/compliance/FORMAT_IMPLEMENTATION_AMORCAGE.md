@@ -123,7 +123,7 @@ nouveau statut. Commit `feat(compliance): migrate EN16931 family to @e-invoice-e
   `InvoiceHeader`, `InvoiceTotals`, `Items`). Sérialiseur dédié dans `InvoiceRenderingService.buildFacturae(data)`.
 - Signature : `npm i xadesjs` → **XAdES-EPES** requis. xadesjs fait BES nativement ; compléter EPES
   (SignaturePolicyIdentifier) si faisable cette nuit, sinon produire BES + TODO EPES (gate vivant).
-- Étends le port (`renderFacturae`), remplis le provider Facturae (`national-formats.ts`, id `es-facturae`).
+- Étends le port (`renderFacturae`), remplis le provider Facturae (`providers/format/national/es-facturae.ts`).
 - Harness : fixture `es-b2b` + attente (XSD Facturae si embarquable ; sinon présence des nœuds + gate vivant
   listant ce qui manque, ex EPES). Commit `feat(compliance): Facturae 3.2.2 XML (+XAdES-BES) for ES`.
 

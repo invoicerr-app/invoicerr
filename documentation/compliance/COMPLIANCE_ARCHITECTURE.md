@@ -824,15 +824,19 @@ backend/src/
       index.ts                    # ProfileRegistry (load by country @date, fallback)
       schema.ts                   # CountryComplianceProfile types
       data/
-        fr.ts it.ts de.ts es.ts gb.ts us.ts        # majors
-        mx.ts br.ts sa.ae… .ts                       # one file per country (77 + majors)
-        _fallback.ts
+        fr.ts it.ts de.ts es.ts mx.ts pl.ts us.ts mc.ts   # bespoke, OFFICIAL confidence
+        at.ts be.ts … zw.ts                               # one file per country, 106 total
+        all.ts                                            # the only aggregator (imports + list)
+        fallback.ts
     canonical/
       canonical-document.ts       # the semantic model (§6) + mappers from Prisma Invoice
     providers/
       format/   en16931.ts cfdi.ts fatturapa.ts nfe.ts ksa-ubl.ts peppol-bis.ts
+                national/ br-nfe.ts cl-dte.ts … eg-eta.ts  # national syntax stubs, one per country
       signing/  xades.ts cades.ts pades.ts qr.ts          (extends existing plugins/signing)
       transmission/ email.ts peppol.ts pac.ts pdp.ts sdi.ts sefaz.ts zatca.ts
+                <region>/portal-registry.ts               # heuristics + assembly only
+                <region>/portals/gh-gra.ts … tn-ttn.ts    # one file per national portal
       archive/  s3-worm.ts local-worm.ts region-router.ts (extends existing plugins/storage)
     lifecycle/
       state-machine.ts            # transitions + guards (§11)
@@ -845,6 +849,11 @@ backend/src/
     reporting/
       ec-sales-list.ts oss.ts saft.ts e-reporting.ts intrastat.ts sales-purchase-ledger.ts
 ```
+
+**One file per country, everywhere.** No file bundles several jurisdictions: not the
+profiles, not the national format stubs, not the portal specs. A regional folder only ever
+holds per-country files plus the small registry that assembles them, so adding a country is
+always "add one file, add one import".
 
 `invoices.service.ts` shrinks to orchestration: it builds the `TransactionContext`, calls
 `ComplianceEngine.resolve`, and drives the state machine. All country knowledge lives under

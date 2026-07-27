@@ -58,7 +58,7 @@
       vs classe EInvoice) → réécriture complète de `buildEInvoice()` nécessaire. Coût trop élevé pour run
       non supervisé. Reste sur `@fin.cx/einvoice`. BR-DE-11/12/13 = bloqués lib (migration = chantier séparé).
       BR-DE-14 = tentative clôture via `paymentOptions` quand modèle data sera prêt (phone/email endpoint).
-- [x] 6. `[FORMAT]` **Facturae** → 🇪🇸 ES — `buildFacturae()` + `national-formats.ts` (`es-facturae`) · ✅ squelette structural (3.2.1), XAdES-BES manquant (xadesjs installé, TODO EPES)
+- [x] 6. `[FORMAT]` **Facturae** → 🇪🇸 ES — `buildFacturae()` + `providers/format/national/es-facturae.ts` · ✅ squelette structural (3.2.1), XAdES-BES manquant (xadesjs installé, TODO EPES)
   Validation : présence nœuds racine + gate vivant. XSD/Schematron → L2.
 
 ## A2 · Grands formats nationaux (marchés majeurs)

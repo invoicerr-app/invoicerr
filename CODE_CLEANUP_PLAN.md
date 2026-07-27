@@ -118,7 +118,7 @@ Constat : **1 428 clés EN définies / 1 164 utilisées** ; **95 clés utilisée
 ## LOT 6 — P3 Hygiène & cohérence (≈ 1 jour, opportuniste)
 
 - [ ] `any` restants backend modules (~40 : stats, plugins, payments, webhook‑dispatcher) — typage progressif.
-- [ ] Cohérence nommage compliance : `latam/smaller-portals.ts` vs `mena/mena-smaller-portals.ts` vs `europe/europe-smaller-portals.ts` → convention unique `<region>-portals.ts` ; documenter la relation `*-client.ts` ↔ `*-transmission.ts` (23 clients / 14 providers) dans un README court.
+- [x] Cohérence nommage compliance (2026-07-27) : plus aucun fichier multi-pays. Un fichier par pays (`profiles/data/xx.ts`, `providers/transmission/<region>/portals/<cc>-*.ts`, `providers/format/national/<cc>-*.ts`) ; chaque région n'a plus qu'un assembleur `portal-registry.ts`. Reste à documenter la relation `*-client.ts` ↔ `*-transmission.ts` (23 clients / 14 providers) dans un README court.
 - [ ] Bruit de commentaires compliance : densité 25‑37% dans les clients régionaux (headers boilerplate d'agents) → dégraisser vers le standard du repo ; traduire les commentaires FR isolés (`mapStatusToPdpCode`) en EN.
 - [ ] **eslint à moitié migré** (deps flat‑config + `.eslintrc.js` legacy) : finir la migration flat config, brancher `npm run lint` en CI.
 - [ ] Clés i18n calculées fragiles (`t(\`...${pm.type?.toLowerCase()}\`)`) → maps explicites.
