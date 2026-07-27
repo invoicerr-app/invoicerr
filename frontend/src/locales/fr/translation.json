@@ -178,14 +178,15 @@
                 "cancel": "Annuler",
                 "create": "Créer le client",
                 "save": "Enregistrer les modifications",
-                "lookupSiret": "Rechercher"
+                "lookupCompany": "Rechercher"
             },
             "messages": {
-                "siretSuccess": "Informations récupérées avec succès.",
-                "siretNotFound": "Entreprise non trouvée. Vous pouvez saisir les informations manuellement.",
-                "siretInvalid": "Le numéro de SIRET semble invalide.",
-                "siretError": "Impossible de contacter l'annuaire des entreprises.",
-                "saveError": "Échec de l'enregistrement du client"
+                "saveError": "Échec de l'enregistrement du client",
+                "lookupSuccess": "Informations récupérées avec succès.",
+                "lookupNotFound": "Entreprise non trouvée. Vous pouvez saisir les informations manuellement.",
+                "lookupError": "Impossible de contacter l'annuaire des entreprises.",
+                "lookupInvalid": "Le numéro d'identification semble invalide pour ce pays.",
+                "lookupUnavailable": "Aucune consultation de registre n'est disponible pour ce pays."
             }
         },
         "view": {

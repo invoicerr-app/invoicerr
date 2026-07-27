@@ -132,7 +132,8 @@
             "actions": {
                 "cancel": "Zrušit",
                 "create": "Vytvořit klienta",
-                "save": "Uložit změny"
+                "save": "Uložit změny",
+                "lookupCompany": "Look up"
             }
         },
         "view": {

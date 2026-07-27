@@ -28,7 +28,7 @@ import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRequiredIdentifiers } from "@/hooks/use-required-identifiers"
-import { useLookupSiret } from "@/hooks/use-lookup-siret"
+import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
 
 interface OnBoardingProps {
   isLoading?: boolean
@@ -88,20 +88,24 @@ export default function OnBoarding({
   const countryCodeValue = form.watch("countryCode")
   const { data: requiredIdentifiers } = useRequiredIdentifiers(countryCodeValue || undefined, "COMPANY")
 
-  const identifiers = form.watch("identifiers") || []
-  const legalIdValue = identifiers.find((i) => i.scheme === "LEGAL_ID")?.value || ""
-  const countryValue = form.watch("country")
-  const isFranceOrUnset = !countryValue || /^fr(ance)?$/i.test(countryValue.trim())
-  const { lookup: onLookupSiret, isLoading: siretLookupLoading } = useLookupSiret(form, {
+  const {
+    lookup: onCompanyLookup,
+    isLoading: companyLookupLoading,
+    isAvailable: canLookupCompany,
+    schemes: lookupSchemes,
+    identifierLabel: lookupIdentifierLabel,
+  } = useCompanyLookup(form, {
+    countryCode: form.watch("countryCode"),
     messages: {
-      invalid: t("clients.upsert.messages.siretInvalid"),
-      notFound: t("clients.upsert.messages.siretNotFound"),
-      success: t("clients.upsert.messages.siretSuccess"),
-      error: t("clients.upsert.messages.siretError"),
+      invalid: t("clients.upsert.messages.lookupInvalid"),
+      notFound: t("clients.upsert.messages.lookupNotFound"),
+      success: t("clients.upsert.messages.lookupSuccess"),
+      error: t("clients.upsert.messages.lookupError"),
+      unavailable: t("clients.upsert.messages.lookupUnavailable"),
     },
   })
-  const isSiretLookupDisabled =
-    siretLookupLoading || !legalIdValue || legalIdValue.replace(/\D/g, "").length !== 14
+  // The backend owns the per-country format rules; the button only needs a value.
+  const canLookupScheme = (scheme: string) => canLookupCompany && lookupSchemes.includes(scheme as never)
 
   useEffect(() => {
     if (!requiredIdentifiers) return
@@ -330,17 +334,25 @@ export default function OnBoarding({
                                           : undefined
                                     }
                                   />
-                                  {isLegalId && isFranceOrUnset && (
+                                  {canLookupScheme(req.scheme) && (
                                     <Button
                                       type="button"
                                       variant="outline"
                                       size="icon"
-                                      disabled={isSiretLookupDisabled}
-                                      onClick={() => onLookupSiret(legalIdValue)}
-                                      title={t("clients.upsert.actions.lookupSiret")}
-                                      data-cy="onboarding-siret-lookup"
+                                      disabled={companyLookupLoading || !String(field.value || "").trim()}
+                                      onClick={() => onCompanyLookup(field.value, req.scheme as LookupScheme)}
+                                      title={
+                                        lookupIdentifierLabel
+                                          ? `${t("clients.upsert.actions.lookupCompany")} — ${lookupIdentifierLabel}`
+                                          : t("clients.upsert.actions.lookupCompany")
+                                      }
+                                      data-cy="onboarding-company-lookup"
                                     >
-                                      {siretLookupLoading ? <Loader2 className="animate-spin" /> : <Search />}
+                                      {companyLookupLoading ? (
+                                        <Loader2 className="animate-spin" />
+                                      ) : (
+                                        <Search />
+                                      )}
                                     </Button>
                                   )}
                                 </div>

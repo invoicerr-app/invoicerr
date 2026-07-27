@@ -178,14 +178,15 @@
                 "cancel": "Annulla",
                 "create": "Crea cliente",
                 "save": "Salva modifiche",
-                "lookupSiret": "Cerca"
+                "lookupCompany": "Cerca"
             },
             "messages": {
-                "siretSuccess": "Informazioni sull'azienda recuperate con successo.",
-                "siretNotFound": "Azienda non trovata. Puoi inserire i dati manualmente.",
-                "siretInvalid": "Il numero SIRET sembra non valido.",
-                "siretError": "Impossibile contattare il registro delle imprese.",
-                "saveError": "Impossibile salvare il cliente"
+                "saveError": "Impossibile salvare il cliente",
+                "lookupSuccess": "Informazioni sull'azienda recuperate con successo.",
+                "lookupNotFound": "Azienda non trovata. Puoi inserire i dati manualmente.",
+                "lookupError": "Impossibile contattare il registro delle imprese.",
+                "lookupInvalid": "L'identificativo non sembra valido per questo paese.",
+                "lookupUnavailable": "Nessuna consultazione del registro imprese è disponibile per questo paese."
             }
         },
         "view": {

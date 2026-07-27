@@ -131,7 +131,8 @@
             "actions": {
                 "cancel": "Annuleren",
                 "create": "Maak een klant aan",
-                "save": "Wijzigingen opslaan"
+                "save": "Wijzigingen opslaan",
+                "lookupCompany": "Look up"
             }
         },
         "view": {

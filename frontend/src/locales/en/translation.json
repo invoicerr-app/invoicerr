@@ -178,14 +178,15 @@
                 "cancel": "Cancel",
                 "create": "Create Client",
                 "save": "Save Changes",
-                "lookupSiret": "Look up"
+                "lookupCompany": "Look up"
             },
             "messages": {
-                "siretSuccess": "Company information retrieved successfully.",
-                "siretNotFound": "Company not found. You can enter the information manually.",
-                "siretInvalid": "The SIRET number looks invalid.",
-                "siretError": "Could not reach the company directory.",
-                "saveError": "Failed to save client"
+                "saveError": "Failed to save client",
+                "lookupSuccess": "Company information retrieved successfully.",
+                "lookupNotFound": "Company not found. You can enter the information manually.",
+                "lookupError": "Could not reach the company directory.",
+                "lookupInvalid": "The identifier looks invalid for this country.",
+                "lookupUnavailable": "No business register lookup is available for this country."
             }
         },
         "view": {

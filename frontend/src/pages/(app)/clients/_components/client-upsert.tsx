@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Loader2, Search } from "lucide-react"
 import { useEffect } from "react"
 import { useForm } from "react-hook-form"
-import { useLookupSiret } from "@/hooks/use-lookup-siret"
+import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
 import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
 import { useRequiredIdentifiers } from "@/hooks/use-required-identifiers"
 import { useTranslation } from "react-i18next"
@@ -199,18 +199,20 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
     }
   }, [client, isEditing, form])
 
-  const identifiers = form.watch("identifiers") || []
-  const legalIdEntry = identifiers.find((i) => i.scheme === "LEGAL_ID")
-  const legalIdValue = legalIdEntry?.value || ""
-  const countryValue = form.watch("country")
-  const isFranceOrUnset = !countryValue || /^fr(ance)?$/i.test(countryValue.trim())
-
-  const { lookup: onLookupSiret, isLoading: siretLookupLoading } = useLookupSiret(form, {
+  const {
+    lookup: onCompanyLookup,
+    isLoading: companyLookupLoading,
+    isAvailable: canLookupCompany,
+    schemes: lookupSchemes,
+    identifierLabel: lookupIdentifierLabel,
+  } = useCompanyLookup(form, {
+    countryCode: form.watch("countryCode"),
     messages: {
-      invalid: t("clients.upsert.messages.siretInvalid"),
-      notFound: t("clients.upsert.messages.siretNotFound"),
-      success: t("clients.upsert.messages.siretSuccess"),
-      error: t("clients.upsert.messages.siretError"),
+      invalid: t("clients.upsert.messages.lookupInvalid"),
+      notFound: t("clients.upsert.messages.lookupNotFound"),
+      success: t("clients.upsert.messages.lookupSuccess"),
+      error: t("clients.upsert.messages.lookupError"),
+      unavailable: t("clients.upsert.messages.lookupUnavailable"),
     },
   })
   useCountryToCurrency(form)
@@ -247,8 +249,8 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
     }
   }, [requiredIdentifiers, form])
 
-  const isSiretLookupDisabled =
-    siretLookupLoading || !legalIdValue || legalIdValue.replace(/\D/g, "").length !== 14
+  // The backend owns the per-country format rules; the button only needs a value.
+  const canLookupScheme = (scheme: string) => canLookupCompany && lookupSchemes.includes(scheme as never)
 
   const onSubmit = (data: z.infer<typeof clientSchema>) => {
     if (requiredIdentifiers) {
@@ -433,7 +435,6 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                       const current = form.watch("identifiers") || []
                       const formIndex = current.findIndex((i) => i.scheme === req.scheme)
                       if (formIndex < 0) return null
-                      const isLegalId = req.scheme === "LEGAL_ID"
                       return (
                         <FormField
                           key={req.scheme}
@@ -449,17 +450,25 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                                     placeholder={req.label}
                                     data-cy={`client-identifier-${req.scheme}`}
                                   />
-                                  {isLegalId && isFranceOrUnset && (
+                                  {canLookupScheme(req.scheme) && (
                                     <Button
                                       type="button"
                                       variant="outline"
                                       size="icon"
-                                      disabled={isSiretLookupDisabled}
-                                      onClick={() => onLookupSiret(legalIdValue)}
-                                      title={t("clients.upsert.actions.lookupSiret")}
-                                      dataCy="client-siret-lookup"
+                                      disabled={companyLookupLoading || !String(field.value || "").trim()}
+                                      onClick={() => onCompanyLookup(field.value, req.scheme as LookupScheme)}
+                                      title={
+                                        lookupIdentifierLabel
+                                          ? `${t("clients.upsert.actions.lookupCompany")} — ${lookupIdentifierLabel}`
+                                          : t("clients.upsert.actions.lookupCompany")
+                                      }
+                                      dataCy="client-company-lookup"
                                     >
-                                      {siretLookupLoading ? <Loader2 className="animate-spin" /> : <Search />}
+                                      {companyLookupLoading ? (
+                                        <Loader2 className="animate-spin" />
+                                      ) : (
+                                        <Search />
+                                      )}
                                     </Button>
                                   )}
                                 </div>

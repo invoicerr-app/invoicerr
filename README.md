@@ -197,6 +197,23 @@ Make sure port 80 is available on your host machine, or change the mapping.
    - Frontend: `http://localhost:5173`  
    - API: `http://localhost:3000`
 
+### One-command hot-reloading stack
+
+`scripts/dev.sh` runs the whole local stack and keeps it reloading on every file change —
+Postgres, Redis and Mailpit in Docker (`docker-compose.dev.yml`), backend and frontend on
+the host:
+
+```bash
+./scripts/dev.sh start     # docker services + prisma migrate + backend (watch) + vite
+./scripts/dev.sh status    # what is up, on which port
+./scripts/dev.sh logs      # tail both application logs
+./scripts/dev.sh restart   # after changing .env
+./scripts/dev.sh stop      # apps only     ·    down = apps + docker services
+```
+
+- Frontend `http://localhost:5173` · API `http://localhost:3000/api` · Mailpit `http://localhost:8025`
+- Logs and PID files live in `.dev/` (git-ignored).
+
 ---
 
 ## 🧪 Lancer les tests end-to-end (Cypress)
