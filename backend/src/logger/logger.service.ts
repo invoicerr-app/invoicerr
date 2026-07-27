@@ -31,7 +31,7 @@ export class LoggerService {
         },
       });
     } catch (error) {
-      console.error("Erreur lors de l'enregistrement du log en base de données:", error);
+      console.error('Failed to persist the log entry to the database:', error);
       logger.error("Impossible d'enregistrer le log.", { category: 'logger', details: { error } });
       throw new Error("Impossible d'enregistrer le log.");
     }

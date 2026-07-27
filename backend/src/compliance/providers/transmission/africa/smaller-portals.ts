@@ -230,7 +230,7 @@ export const SMALL_AFRICA_PORTAL_SPECS: GenericPortalSpec[] = [
     label: "Côte d'Ivoire DGI FNE (Facture Normalisée Electronique)",
     artifact: 'CI_FNE',
     baseUrls: {
-      // FNE is part of the SIGF (Système Intégré de Gestion des Finances) platform
+      // FNE is part of the SIGF platform (integrated public finance management system)
       test: 'https://sigf-test.dgi.gouv.ci/fne/api/v1',
       prod: 'https://sigf.dgi.gouv.ci/fne/api/v1',
     },

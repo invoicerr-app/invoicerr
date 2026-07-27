@@ -9,6 +9,7 @@
  * means the registry changed its contract — not that the data moved.
  */
 import { CompanyLookupService } from './company-lookup.service';
+import { PeppolDirectoryProvider } from './providers/peppol-directory.provider';
 import { CompanyLookupRegistry } from './registry';
 
 const live = process.env.COMPANY_LOOKUP_LIVE === '1';
@@ -87,7 +88,6 @@ describeLive('company lookup — live registries', () => {
   });
 
   it('finds a Peppol participant through the public directory', async () => {
-    const { PeppolDirectoryProvider } = await import('./providers/peppol-directory.provider');
     const company = await new PeppolDirectoryProvider().lookup({
       countryCode: 'DK',
       scheme: 'LEGAL_ID',

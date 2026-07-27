@@ -216,25 +216,25 @@ the host:
 
 ---
 
-## 🧪 Lancer les tests end-to-end (Cypress)
+## 🧪 Running the end-to-end tests (Cypress)
 
-Pour lancer les tests e2e localement ou en CI :
+To run the e2e tests locally or in CI:
 
-1. Démarrer le backend et le frontend avec les variables de test :
+1. Start the backend and the frontend with the test environment:
    ```bash
    cd backend && npm run start:test &
    cd frontend && npm run start:test &
    ```
-   (Assurez-vous d'avoir un .env.test dans chaque dossier)
+   (Make sure a .env.test file exists in each folder)
 
-2. Dans un autre terminal, lancer Cypress :
+2. In another terminal, run Cypress:
    ```bash
    cd e2e
    npm install
-   npm run e2e:open # ou npm run e2e:run
+   npm run e2e:open # or npm run e2e:run
    ```
 
-En CI, le workflow GitHub Actions fait ces étapes automatiquement.
+In CI, the GitHub Actions workflow does all of this automatically.
 
 ---
 
