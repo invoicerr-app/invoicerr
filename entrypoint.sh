@@ -49,10 +49,17 @@ EOF
 # Start the backend service
 echo "Starting backend service..."
 node main.js &
+BACKEND_PID=$!
 
 # Wait for backend to be ready
 echo "Waiting for backend to start..."
 while ! nc -z localhost 3000; do
+    # Fail fast if the backend process died (e.g. a crash on boot) instead of
+    # hanging forever waiting for a port that will never open.
+    if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+        echo "Backend process exited before becoming ready. Aborting." >&2
+        exit 1
+    fi
     sleep 1
 done
 

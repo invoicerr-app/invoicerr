@@ -40,6 +40,7 @@ services:
 
       # Optional, but recommended for docker deployments
       - JWT_SECRET="your_jwt_secret" # Used for JWT authentication, can be any random string
+      - BETTER_AUTH_SECRET="your_better_auth_secret" # Required, generate with: openssl rand -base64 32, falls back to JWT_SECRET if unset
 
       # Compliance async queue (BullMQ/Redis). WORKER_INLINE=true (default here) makes this
       # single container also consume its own queue jobs (mono/self-host deployment). For a

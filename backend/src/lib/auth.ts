@@ -126,6 +126,8 @@ const userAfterCreateHook = async (user) => {
 
 export const auth = betterAuth({
   baseURL: process.env.APP_URL || 'http://localhost:3000',
+  // Fall back to JWT_SECRET so existing deployments that only set it keep working
+  secret: process.env.BETTER_AUTH_SECRET || process.env.JWT_SECRET,
   trustedOrigins: [
     'http://localhost:5173',
     process.env.APP_URL,
