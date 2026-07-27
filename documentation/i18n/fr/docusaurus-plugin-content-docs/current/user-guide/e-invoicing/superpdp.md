@@ -2,7 +2,7 @@
 sidebar_position: 1
 ---
 
-# Guide d'installation PDP
+# Guide de configuration SuperPDP
 
 SuperPDP est une **Plateforme de Dématérialisation Partenaire (PDP)** certifiée par l'administration fiscale française. Elle permet à votre entreprise d'émettre et de recevoir des factures électroniques conformément à la réforme de la facture électronique en France.
 
@@ -88,3 +88,30 @@ Après la création, vous recevrez :
 - **Client Secret** (conservez-le précieusement — il ne sera plus affiché par la suite)
 
 Vous pouvez désormais utiliser ces identifiants pour vous authentifier et appeler l'API SuperPDP depuis Invoicerr ou vos propres intégrations.
+
+---
+
+## 5. Configurer le canal PDP dans Invoicerr
+
+Une fois votre Application SuperPDP créée, ouvrez **Paramètres → Facturation électronique → Canaux** dans Invoicerr et configurez le canal **PDP** à l'aide des identifiants que vous venez de créer.
+
+Renseignez le formulaire du canal :
+
+1. **URL de base de l'API** (obligatoire) — la racine de l'API de votre PDP. Valeur par défaut : `https://api.superpdp.tech`.
+2. **Client ID** (obligatoire) — le **Client ID** de l'Application SuperPDP créée à l'étape *Créer une Application* ci-dessus.
+3. **Client secret** (obligatoire) — le **Client Secret** de cette même Application. Il est stocké chiffré au repos.
+4. **Environnement** (obligatoire) — choisissez **Test (sandbox)** ou **Production**. Valeur par défaut : **Test**.
+5. **Style d'API** (facultatif) — par défaut **SuperPDP (propriétaire)** ; l'autre option est **AFNOR Flow (XP Z12-013)**.
+   - Le même canal peut communiquer avec l'API propriétaire v1.beta de SuperPDP (l'option par défaut) **ou** avec toute PDP compatible AFNOR Flow.
+   - Conservez **SuperPDP (propriétaire)** si vous vous êtes inscrit sur SuperPDP. Ne choisissez **AFNOR Flow** que si votre PDP n'est pas SuperPDP.
+6. **Votre identifiant de routage PDP** (facultatif) — l'adresse de routage de votre propre entreprise sur votre PDP, au format `{pdp_siren}_{account_id}` (par exemple `315143296_1422`).
+
+:::info
+Votre identifiant de routage PDP est **le vôtre**. L'adresse de l'acheteur est résolue automatiquement pour chaque facture à partir du client / de l'annuaire — vous ne la renseignez pas ici.
+:::
+
+:::note
+Les secrets sont chiffrés au repos. Le serveur doit disposer de la variable `CREDENTIALS_ENCRYPTION_KEY`, sans quoi l'enregistrement du canal échoue avec une erreur `503 — Encryption key not configured — channel credentials cannot be saved`.
+:::
+
+Enregistrez le canal. Invoicerr utilisera alors ces identifiants pour émettre et suivre vos factures électroniques via la PDP.

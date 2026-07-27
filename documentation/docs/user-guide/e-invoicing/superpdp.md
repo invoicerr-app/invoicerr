@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: "🇫🇷 SuperPDP"
 ---
 
-# PDP Setup Guide
+# SuperPDP Setup Guide
 
 SuperPDP is a French **Plateforme de Dématérialisation Partenaire (PDP)** certified by the French tax authorities. It enables your company to send and receive electronic invoices (e-invoices) in compliance with French e-invoicing regulations (Facture électronique).
 
@@ -88,3 +88,30 @@ After creation, you will receive:
 - **Client Secret** (save this securely — it will not be shown again)
 
 You can now use these credentials to authenticate and call the SuperPDP API from Invoicerr or your own integrations.
+
+---
+
+## 5. Configure the PDP channel in Invoicerr
+
+Once your SuperPDP Application exists, open **Settings → E-invoicing → Channels** in Invoicerr and configure the **PDP** channel using the credentials you just created.
+
+Fill in the channel form:
+
+1. **API base URL** (required) — the API root of your PDP. Default: `https://api.superpdp.tech`.
+2. **Client ID** (required) — the **Client ID** from the SuperPDP Application you created in the *Create an Application* step above.
+3. **Client secret** (required) — the **Client Secret** from that same Application. It is stored encrypted at rest.
+4. **Environment** (required) — choose **Test (sandbox)** or **Production**. Defaults to **Test**.
+5. **API style** (optional) — defaults to **SuperPDP (proprietary)**; the other option is **AFNOR Flow (XP Z12-013)**.
+   - The same channel can talk to SuperPDP's proprietary v1.beta API (the default) **or** to any AFNOR-Flow-compatible PDP.
+   - Keep **SuperPDP (proprietary)** if you signed up on SuperPDP. Only pick **AFNOR Flow** if your PDP is not SuperPDP.
+6. **Your PDP routing ID** (optional) — your company's own routing address on your PDP, in the format `{pdp_siren}_{account_id}` (for example `315143296_1422`).
+
+:::info
+Your PDP routing ID is **your own** endpoint. The buyer's endpoint is resolved automatically per invoice from the client / directory — you do not set it here.
+:::
+
+:::note
+Secrets are encrypted at rest. The server must have `CREDENTIALS_ENCRYPTION_KEY` configured, otherwise saving the channel fails with a `503 — Encryption key not configured — channel credentials cannot be saved` error.
+:::
+
+Save the channel. Invoicerr will then use these credentials to send and track your e-invoices through the PDP.
