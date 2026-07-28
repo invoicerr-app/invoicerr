@@ -3,6 +3,12 @@ import { execSync } from "child_process";
 import path from "path";
 
 export default defineConfig({
+  // The suite runs 15 specs back to back in one CI job with video capture on, which
+  // grows the Electron renderer's heap until it crashes ("Renderer process just
+  // crashed", seen on 14-articles). Both settings below are Cypress' own remedy:
+  // release each spec's memory instead of keeping every test's DOM snapshots around.
+  experimentalMemoryManagement: true,
+  numTestsKeptInMemory: 0,
   e2e: {
     video: true,
     experimentalStudio: true,
