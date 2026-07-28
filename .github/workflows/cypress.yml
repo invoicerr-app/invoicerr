@@ -169,9 +169,7 @@ jobs:
       - name: Install e2e dependencies
         run: |
           cd e2e
-          # npm install, not npm ci: cypress.config.ts now needs `pg` to truncate the
-          # test DB, and the committed lockfile isn't regenerated as part of this fix.
-          npm install
+          npm ci
 
       - name: Wait for DB
         run: |
@@ -184,7 +182,10 @@ jobs:
         run: |
           mkdir -p $GITHUB_WORKSPACE/logs
           npm install -D dotenv-cli
-          (cd $GITHUB_WORKSPACE/backend && npx dotenv -e .env.test -- node node_modules/.bin/prisma migrate dev 2>&1)
+          # The schema is already applied: the install step ran `prisma migrate deploy`
+          # against this same database. `migrate dev` used to run again here — it is a
+          # developer-machine command that can prompt or fail without a TTY as soon as
+          # the migrations drift from schema.prisma.
           (cd $GITHUB_WORKSPACE/backend && npm run start:test > $GITHUB_WORKSPACE/logs/backend.log 2>&1 &)
           (cd $GITHUB_WORKSPACE/frontend && npm run start:test > /dev/null 2>&1 &)
           # wait-on above only checked the DB/mail/Redis ports were open, not that the

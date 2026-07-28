@@ -16,11 +16,17 @@ export class LoggerService {
 
   constructor() {}
 
-  private async createLog(level: LogLevel, message: string, options: LogOptions): Promise<Log> {
+  /**
+   * Resolves to null when the row could not be written. Callers never await this — a
+   * rejected promise would surface as an unhandled rejection, which takes the Node
+   * process down. Losing a log line must never cost the request that produced it.
+   */
+  private async createLog(level: LogLevel, message: string, options: LogOptions): Promise<Log | null> {
     try {
       const { category, userId, path, details } = options;
 
-      return this.prisma.log.create({
+      // Awaited on purpose: without it the rejection escapes the catch below.
+      return await this.prisma.log.create({
         data: {
           level,
           category,
@@ -36,14 +42,14 @@ export class LoggerService {
       // what happens when the schema is being rebuilt under a running app — turned one
       // failure into an endless chain of failing writes.
       this.inLogger.error(`Failed to persist a ${level} log entry: ${message}`, error as Error);
-      throw new Error('Failed to persist the log entry to the database');
+      return null;
     }
   }
 
   public info(
     message: string,
     options: Omit<LogOptions, 'details'> & { details?: Record<string, any> },
-  ): Promise<Log> {
+  ): Promise<Log | null> {
     this.inLogger.log(`[${options.category}] ${message}`);
     return this.createLog('INFO', message, options);
   }
@@ -51,7 +57,7 @@ export class LoggerService {
   public warn(
     message: string,
     options: Omit<LogOptions, 'details'> & { details?: Record<string, any> },
-  ): Promise<Log> {
+  ): Promise<Log | null> {
     this.inLogger.warn(`[${options.category}] ${message}`);
     return this.createLog('WARN', message, options);
   }
@@ -59,7 +65,7 @@ export class LoggerService {
   public error(
     message: string,
     options: Omit<LogOptions, 'details'> & { details?: Record<string, any> },
-  ): Promise<Log> {
+  ): Promise<Log | null> {
     this.inLogger.error(`[${options.category}] ${message}`);
     const errorDetails = options.details || {};
     if (errorDetails.stack === undefined) {
@@ -71,7 +77,7 @@ export class LoggerService {
   public debug(
     message: string,
     options: Omit<LogOptions, 'details'> & { details?: Record<string, any> },
-  ): Promise<Log> {
+  ): Promise<Log | null> {
     if (process.env.NODE_ENV !== 'production' || process.env.FORCE_DEBUG_LOGS === 'true') {
       this.inLogger.debug(`[${options.category}] ${message}`);
     }

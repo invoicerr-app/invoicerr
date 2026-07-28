@@ -165,7 +165,7 @@ specs/providers.
   asserte `signature.algo` par pays.
 
 **F-6 — Chorus Pro (FR B2G) ne peut pas fonctionner, même avec des creds PISTE valides.**
-`providers/transmission/europe/choruspro-transmission.ts:103-107` (`STUB_HTTP.post` → throw,
+`providers/transmission/choruspro-transmission.ts:103-107` (`STUB_HTTP.post` → throw,
 utilisé en dur dans transmit/poll l.191/247 ; aucune implémentation réelle du port dans le repo) +
 `providers/transmission/national-portals.ts:121` (`new ChorusProTransmissionProvider()` instancié
 **sans** credentials, contrairement à tous ses voisins).

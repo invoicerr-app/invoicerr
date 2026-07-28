@@ -835,8 +835,9 @@ backend/src/
                 national/ br-nfe.ts cl-dte.ts … eg-eta.ts  # national syntax stubs, one per country
       signing/  xades.ts cades.ts pades.ts qr.ts          (extends existing plugins/signing)
       transmission/ email.ts peppol.ts pac.ts pdp.ts sdi.ts sefaz.ts zatca.ts
-                <region>/portal-registry.ts               # heuristics + assembly only
-                <region>/portals/gh-gra.ts … tn-ttn.ts    # one file per national portal
+                anaf-client.ts firs-client.ts …           # one file per country, flat
+                portal-registry.ts                        # heuristics + assembly only
+                portals/gh-gra.ts … tn-ttn.ts             # one file per national portal
       archive/  s3-worm.ts local-worm.ts region-router.ts (extends existing plugins/storage)
     lifecycle/
       state-machine.ts            # transitions + guards (§11)
@@ -850,9 +851,10 @@ backend/src/
       ec-sales-list.ts oss.ts saft.ts e-reporting.ts intrastat.ts sales-purchase-ledger.ts
 ```
 
-**One file per country, everywhere.** No file bundles several jurisdictions: not the
-profiles, not the national format stubs, not the portal specs. A regional folder only ever
-holds per-country files plus the small registry that assembles them, so adding a country is
+**One file per country, everywhere — and no regional folders either.** No file bundles
+several jurisdictions: not the profiles, not the national format stubs, not the portal
+specs. Transmission clients sit flat next to each other, the portal specs live in a single
+`portals/` directory, and one `portal-registry.ts` assembles them all. Adding a country is
 always "add one file, add one import".
 
 `invoices.service.ts` shrinks to orchestration: it builds the `TransactionContext`, calls
