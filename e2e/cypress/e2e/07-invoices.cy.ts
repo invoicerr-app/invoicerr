@@ -37,7 +37,7 @@ describe('Invoices E2E', () => {
             // Click view button on the first invoice in the list
             cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
-            cy.contains(/1[.,\s]?800/, { timeout: 10000 });
+            cy.contains(/1[.,\s]?500/, { timeout: 10000 }); // FR→US export of services: 0% VAT (EU VAT Directive Art. 59)
             cy.get('body').type('{esc}');
         });
 
@@ -71,7 +71,7 @@ describe('Invoices E2E', () => {
 
             cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
-            cy.contains(/6[.,\s]?600/, { timeout: 10000 });
+            cy.contains(/5[.,\s]?500/, { timeout: 10000 }); // FR→US export of services: 0% VAT (EU VAT Directive Art. 59)
             cy.get('body').type('{esc}');
         });
     });
@@ -221,7 +221,7 @@ describe('Invoices E2E', () => {
 
             cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
-            cy.contains(/600/, { timeout: 10000 });
+            cy.contains(/500/, { timeout: 10000 }); // FR→US export of services: 0% VAT (EU VAT Directive Art. 59)
             cy.get('body').type('{esc}');
         });
     });
@@ -338,8 +338,8 @@ describe('Invoices E2E', () => {
             cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
             
-            // Check that the total is calculated correctly (19.875 * 100 * 1.2 = 2385)
-            cy.contains(/2[.,\s]?385/, { timeout: 10000 });
+            // Check that the total is calculated correctly (19.875 * 100 = 1987.50, 0% VAT for FR→US export)
+            cy.contains(/1[.,\s]?987[.,\s]?50/, { timeout: 10000 }); // FR→US export of services: 0% VAT (EU VAT Directive Art. 59)
             cy.get('body').type('{esc}');
             cy.wait(1000);
 
@@ -389,10 +389,10 @@ describe('Invoices E2E', () => {
             cy.get('[data-cy="invoice-submit"]').click();
             cy.get('[data-cy="invoice-dialog"]').should('not.exist');
 
-            // Verify the total (0.25*800 + 2.75*1000 = 200 + 2750 = 2950 * 1.2 = 3540)
+            // Verify the total (0.25*800 + 2.75*1000 = 2950, 0% VAT for FR→US export)
             cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
-            cy.contains(/3[.,\s]?540/, { timeout: 10000 });
+            cy.contains(/2[.,\s]?950/, { timeout: 10000 }); // FR→US export of services: 0% VAT (EU VAT Directive Art. 59)
             cy.get('body').type('{esc}');
         });
     });

@@ -3,8 +3,5 @@ import { queryKeys } from "@/lib/query-keys"
 import type { Company } from "@/types"
 
 export function useCompany() {
-    return useApiQuery<Company>(
-        queryKeys.company.info(),
-        "/api/company/info",
-    )
+  return useApiQuery<Company>(queryKeys.company.info(), "/api/company/info")
 }

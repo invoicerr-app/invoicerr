@@ -1,9 +1,5 @@
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
-import {
-  ArticlesService,
-  CreateArticleDto,
-  EditArticleDto,
-} from './articles.service';
+import { ArticlesService, CreateArticleDto, EditArticleDto } from './articles.service';
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
@@ -12,10 +8,13 @@ import { Roles } from '@/decorators/roles.decorator';
 @ApiTags('articles')
 @Controller('articles')
 export class ArticlesController {
-  constructor(private readonly articlesService: ArticlesService) { }
+  constructor(private readonly articlesService: ArticlesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List articles', description: 'Returns all active catalog articles for the company.' })
+  @ApiOperation({
+    summary: 'List articles',
+    description: 'Returns all active catalog articles for the company.',
+  })
   @ApiResponse({ status: 200, description: 'Articles retrieved' })
   async findAll(@ActiveCompany() companyId: string) {
     return this.articlesService.findAll(companyId);
@@ -35,7 +34,10 @@ export class ArticlesController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create an article', description: 'Adds a new reusable catalog article (product or service).' })
+  @ApiOperation({
+    summary: 'Create an article',
+    description: 'Adds a new reusable catalog article (product or service).',
+  })
   @ApiResponse({ status: 201, description: 'Article created' })
   async create(@ActiveCompany() companyId: string, @Body() dto: CreateArticleDto) {
     return this.articlesService.create(companyId, dto);

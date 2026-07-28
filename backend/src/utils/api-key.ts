@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'node:crypto';
 
 const API_KEY_PREFIX = 'sk_live_';
 
@@ -20,7 +20,7 @@ export function extractApiKey(headers: Record<string, unknown>): string | undefi
     return apiKeyHeader;
   }
 
-  const authHeader = headers['authorization'];
+  const authHeader = headers.authorization;
   if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
     return authHeader.slice('Bearer '.length);
   }

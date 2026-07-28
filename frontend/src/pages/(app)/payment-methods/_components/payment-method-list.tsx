@@ -35,7 +35,23 @@ export interface PaymentMethodsListHandle {
 }
 
 export const PaymentMethodsList = forwardRef<PaymentMethodsListHandle, PaymentMethodsListProps>(
-  ({ paymentMethods = [], loading, title, description, searchTerm, onSearchChange, statusFilter, onStatusFilterChange, statusCounts, mutate, emptyState, showCreateButton = false }, ref) => {
+  (
+    {
+      paymentMethods = [],
+      loading,
+      title,
+      description,
+      searchTerm,
+      onSearchChange,
+      statusFilter,
+      onStatusFilterChange,
+      statusCounts,
+      mutate,
+      emptyState,
+      showCreateButton = false,
+    },
+    ref,
+  ) => {
     const { t } = useTranslation()
     const [createDialog, setCreateDialog] = useState<boolean>(false)
     const [editDialog, setEditDialog] = useState<PaymentMethod | null>(null)
@@ -88,20 +104,22 @@ export const PaymentMethodsList = forwardRef<PaymentMethodsListHandle, PaymentMe
                   <Badge
                     onClick={() => onStatusFilterChange(statusFilter === "active" ? undefined : "active")}
                     variant="outline"
-                    className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter === "active"
-                      ? "bg-green-600 text-white font-semibold shadow-sm scale-105"
-                      : "bg-green-50 text-green-700/70 hover:bg-green-100"
-                      }`}
+                    className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${
+                      statusFilter === "active"
+                        ? "bg-green-600 text-white font-semibold shadow-sm scale-105"
+                        : "bg-green-50 text-green-700/70 hover:bg-green-100"
+                    }`}
                   >
                     {t("clients.stats.active")} ({statusCounts?.active ?? 0})
                   </Badge>
                   <Badge
                     onClick={() => onStatusFilterChange(statusFilter === "inactive" ? undefined : "inactive")}
                     variant="outline"
-                    className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${statusFilter === "inactive"
-                      ? "bg-gray-500 text-white font-semibold shadow-sm scale-105"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
+                    className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${
+                      statusFilter === "inactive"
+                        ? "bg-gray-500 text-white font-semibold shadow-sm scale-105"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
                   >
                     {t("clients.stats.inactive")} ({statusCounts?.inactive ?? 0})
                   </Badge>
@@ -136,10 +154,13 @@ export const PaymentMethodsList = forwardRef<PaymentMethodsListHandle, PaymentMe
                           <div className="flex flex-wrap items-center gap-2">
                             <h3 className="font-medium text-foreground break-words">{pm.name}</h3>
                             <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${pm.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-                                } w-fit`}
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                pm.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                              } w-fit`}
                             >
-                              {pm.isActive ? t("clients.stats.active") || "Active" : t("clients.stats.inactive") || "Inactive"}
+                              {pm.isActive
+                                ? t("clients.stats.active") || "Active"
+                                : t("clients.stats.inactive") || "Inactive"}
                             </span>
                             <div className="text-sm text-muted-foreground ml-2">
                               {t(`paymentMethods.fields.type.${pm.type?.toLowerCase()}`) || pm.type}
@@ -160,11 +181,23 @@ export const PaymentMethodsList = forwardRef<PaymentMethodsListHandle, PaymentMe
                           <Eye className="h-4 w-4" />
                         </Button>
 
-                        <Button tooltip={t("paymentMethods.actions.edit")} variant="ghost" size="icon" onClick={() => handleEdit(pm)} className="text-gray-600 hover:text-green-600">
+                        <Button
+                          tooltip={t("paymentMethods.actions.edit")}
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(pm)}
+                          className="text-gray-600 hover:text-green-600"
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
 
-                        <Button tooltip={t("paymentMethods.actions.delete")} variant="ghost" size="icon" onClick={() => handleDelete(pm)} className="text-gray-600 hover:text-red-600">
+                        <Button
+                          tooltip={t("paymentMethods.actions.delete")}
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(pm)}
+                          className="text-gray-600 hover:text-red-600"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -193,7 +226,10 @@ export const PaymentMethodsList = forwardRef<PaymentMethodsListHandle, PaymentMe
           }}
         />
 
-        <PaymentMethodViewDialog paymentMethod={viewDialog} onOpenChange={(open: boolean) => (open ? undefined : setViewDialog(null))} />
+        <PaymentMethodViewDialog
+          paymentMethod={viewDialog}
+          onOpenChange={(open: boolean) => (open ? undefined : setViewDialog(null))}
+        />
 
         <PaymentMethodDeleteDialog
           paymentMethod={deleteDialog}

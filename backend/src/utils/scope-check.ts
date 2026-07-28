@@ -5,6 +5,6 @@ import { RequestWithUser } from '@/types/request';
 // by CompanyRole/@Roles() instead. Only API-key callers (request.scopes is
 // a string[], possibly empty) are narrowed to exactly their granted scopes.
 export function hasScope(request: Pick<RequestWithUser, 'scopes'>, scope: ApiKeyScope): boolean {
-    if (request.scopes === null) return true;
-    return request.scopes.includes(scope);
+  if (request.scopes === null) return true;
+  return request.scopes.includes(scope);
 }

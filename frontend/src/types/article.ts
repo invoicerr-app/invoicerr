@@ -1,4 +1,4 @@
-import type { Company } from "./company";
+import type { Company } from "./company"
 
 export enum ArticleType {
   HOUR = "HOUR",
@@ -9,15 +9,15 @@ export enum ArticleType {
 }
 
 export interface Article {
-  id: string;
-  companyId: string;
-  company?: Company;
-  name: string;
-  description?: string | null;
-  type: ArticleType;
-  unitPrice: number;
-  vatRate: number;
-  isActive?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+  id: string
+  companyId: string
+  company?: Company
+  name: string
+  description?: string | null
+  type: ArticleType
+  unitPrice: number
+  vatRate: number
+  isActive?: boolean
+  createdAt?: string
+  updatedAt?: string
 }

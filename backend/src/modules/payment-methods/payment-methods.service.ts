@@ -42,10 +42,16 @@ export class PaymentMethodsService {
         paymentMethod: pm,
         company,
       });
-      logger.info('Payment method created', { category: 'payment-method', details: { paymentMethodId: pm.id, companyId: company.id } });
+      logger.info('Payment method created', {
+        category: 'payment-method',
+        details: { paymentMethodId: pm.id, companyId: company.id },
+      });
     } catch (error) {
       this.logger.error('Failed to dispatch PAYMENT_METHOD_CREATED webhook', error);
-      logger.error('Failed to dispatch PAYMENT_METHOD_CREATED webhook', { category: 'payment-method', details: { error, paymentMethodId: pm.id, companyId: company.id } });
+      logger.error('Failed to dispatch PAYMENT_METHOD_CREATED webhook', {
+        category: 'payment-method',
+        details: { error, paymentMethodId: pm.id, companyId: company.id },
+      });
     }
 
     return pm;
@@ -86,19 +92,30 @@ export class PaymentMethodsService {
         paymentMethod: updatedPm,
         company,
       });
-      logger.info('Payment method updated', { category: 'payment-method', details: { paymentMethodId: updatedPm.id, companyId: company.id } });
+      logger.info('Payment method updated', {
+        category: 'payment-method',
+        details: { paymentMethodId: updatedPm.id, companyId: company.id },
+      });
 
       if (dto.isActive !== undefined && dto.isActive !== existing.isActive) {
-        const event = dto.isActive ? WebhookEvent.PAYMENT_METHOD_ACTIVATED : WebhookEvent.PAYMENT_METHOD_DEACTIVATED;
+        const event = dto.isActive
+          ? WebhookEvent.PAYMENT_METHOD_ACTIVATED
+          : WebhookEvent.PAYMENT_METHOD_DEACTIVATED;
         await this.webhookDispatcher.dispatch(event, {
           paymentMethod: updatedPm,
           company,
         });
-        logger.info('Payment method activation status changed', { category: 'payment-method', details: { paymentMethodId: updatedPm.id, companyId: company.id, isActive: dto.isActive } });
+        logger.info('Payment method activation status changed', {
+          category: 'payment-method',
+          details: { paymentMethodId: updatedPm.id, companyId: company.id, isActive: dto.isActive },
+        });
       }
     } catch (error) {
       this.logger.error('Failed to dispatch PAYMENT_METHOD webhook', error);
-      logger.error('Failed to dispatch PAYMENT_METHOD webhook', { category: 'payment-method', details: { error, paymentMethodId: updatedPm.id, companyId: company.id } });
+      logger.error('Failed to dispatch PAYMENT_METHOD webhook', {
+        category: 'payment-method',
+        details: { error, paymentMethodId: updatedPm.id, companyId: company.id },
+      });
     }
 
     return updatedPm;
@@ -123,10 +140,16 @@ export class PaymentMethodsService {
         paymentMethod: existing,
         company,
       });
-      logger.info('Payment method deactivated', { category: 'payment-method', details: { paymentMethodId: existing.id, companyId: company.id } });
+      logger.info('Payment method deactivated', {
+        category: 'payment-method',
+        details: { paymentMethodId: existing.id, companyId: company.id },
+      });
     } catch (error) {
       this.logger.error('Failed to dispatch PAYMENT_METHOD_DELETED webhook', error);
-      logger.error('Failed to dispatch PAYMENT_METHOD_DELETED webhook', { category: 'payment-method', details: { error, paymentMethodId: existing.id, companyId: company.id } });
+      logger.error('Failed to dispatch PAYMENT_METHOD_DELETED webhook', {
+        category: 'payment-method',
+        details: { error, paymentMethodId: existing.id, companyId: company.id },
+      });
     }
 
     return deletedPm;

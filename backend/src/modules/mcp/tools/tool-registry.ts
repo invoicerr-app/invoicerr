@@ -12,13 +12,13 @@ import { listClientsTool } from './list-clients.tool';
 // Every new tool is one file + one entry here — mcp-server.factory.ts is the
 // only place that touches the SDK's registration API.
 export const TOOL_REGISTRY: ToolDescriptor<any>[] = [
-    createQuoteTool,
-    createInvoiceTool,
-    createInvoiceFromQuoteTool,
-    createClientTool,
-    createArticleTool,
-    listArticlesTool,
-    listClientsTool,
-    getQuotePdfTool,
-    getInvoicePdfTool,
+  createQuoteTool,
+  createInvoiceTool,
+  createInvoiceFromQuoteTool,
+  createClientTool,
+  createArticleTool,
+  listArticlesTool,
+  listClientsTool,
+  getQuotePdfTool,
+  getInvoicePdfTool,
 ];

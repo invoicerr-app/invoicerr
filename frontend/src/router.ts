@@ -10,6 +10,7 @@ export type Path =
   | `/auth/sign-out`
   | `/auth/sign-up`
   | `/clients`
+  | `/compliance`
   | `/dashboard`
   | `/expenses`
   | `/invoices`
@@ -19,6 +20,7 @@ export type Path =
   | `/payments/pdf/:id`
   | `/quotes`
   | `/quotes/pdf/:id`
+  | `/received-invoices`
   | `/settings/:tab?`
   | `/signature/:id`
   | `/stats`

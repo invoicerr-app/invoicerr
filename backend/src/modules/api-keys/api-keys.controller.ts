@@ -16,7 +16,7 @@ import { User } from '@/decorators/user.decorator';
 @UseGuards(AuthGuard)
 @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
 export class ApiKeysController {
-  constructor(private readonly apiKeysService: ApiKeysService) { }
+  constructor(private readonly apiKeysService: ApiKeysService) {}
 
   @Get('options')
   @ApiOperation({ summary: 'List available API key scopes' })
@@ -26,7 +26,11 @@ export class ApiKeysController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create a new API key', description: 'The plaintext key is only ever returned in this response — it cannot be retrieved again afterwards.' })
+  @ApiOperation({
+    summary: 'Create a new API key',
+    description:
+      'The plaintext key is only ever returned in this response — it cannot be retrieved again afterwards.',
+  })
   @ApiResponse({ status: 201, description: 'API key created' })
   async create(@ActiveCompany() companyId: string, @User() user: CurrentUser, @Body() dto: CreateApiKeyDto) {
     return this.apiKeysService.create(companyId, user.id, dto.name, dto.scopes);

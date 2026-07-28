@@ -1,9 +1,118 @@
-name: Cypress Tests
+name: Tests
 
 on:
   pull_request:
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Biome is the only linter/formatter (eslint+prettier removed). biome ci = check without writes.
+      - name: Lint backend (biome ci)
+        run: cd backend && npx --yes @biomejs/biome@2.5.2 ci .
+
+      - name: Lint frontend (biome ci)
+        run: cd frontend && npx --yes @biomejs/biome@2.5.2 ci .
+
+  i18n-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check i18n catalogs (used keys must exist in EN)
+        run: node frontend/scripts/i18n-check.mjs
+
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Generate Prisma client
+        run: cd backend && DATABASE_URL="postgresql://unused:unused@localhost:5432/unused" npx prisma generate
+
+      - name: Run backend unit tests
+        run: cd backend && npm test -- --ci
+
+  queue-integration:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/invoicerr_test?schema=public
+      REDIS_URL: redis://localhost:6379
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: invoicerr_test
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Generate Prisma client
+        run: cd backend && npx prisma generate
+
+      # Apply the full migration chain to the empty CI Postgres — the same path production runs via
+      # syncDatabaseSchema() (prisma migrate deploy). The integration specs below create their own
+      # compliance-document fixtures against this schema, so an empty freshly-migrated DB is enough.
+      - name: Apply migrations (empty dev DB)
+        run: cd backend && npx prisma migrate deploy
+
+      # The real async-loop proofs: enqueue -> consume over real Redis + real Postgres (F-3
+      # credentialed poll, timer fire, sweep re-projection). These specs self-gate on REDIS_URL, so
+      # they self-skip in the offline backend-tests job and only execute here. --runInBand because
+      # they share one Redis/Postgres and would otherwise race; --forceExit because BullMQ/ioredis
+      # keep connections open past the last assertion.
+      - name: Run compliance queue integration specs (real Redis + Postgres)
+        run: cd backend && npx jest --ci --runInBand --forceExit --testPathPattern 'compliance/nest/queue/__tests__'
+
   cypress-run:
     runs-on: ubuntu-latest
     services:
@@ -24,6 +133,18 @@ jobs:
         ports:
           - "8025:8025"
           - "1025:1025"
+      # The backend requires Redis (BullMQ) to boot — WORKER_INLINE defaults to true, so the inline
+      # compliance processors + registerRepeatables() connect at startup. Without it the Nest app
+      # fails to boot and every e2e times out on a hung /api. redisConnection() defaults to
+      # localhost:6379, so no backend env change is needed.
+      redis:
+        image: redis:7
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-retries 10
 
     steps:
       - uses: actions/checkout@v3
@@ -52,17 +173,25 @@ jobs:
 
       - name: Wait for DB
         run: |
-          npx wait-on tcp:5433 --timeout 60
-          npx wait-on tcp:8025 --timeout 60
-          npx wait-on tcp:1025 --timeout 60
+          npx wait-on tcp:5433 --timeout 60000
+          npx wait-on tcp:8025 --timeout 60000
+          npx wait-on tcp:1025 --timeout 60000
+          npx wait-on tcp:6379 --timeout 60000
 
       - name: Run backend, frontend & tests
         run: |
           mkdir -p $GITHUB_WORKSPACE/logs
           npm install -D dotenv-cli
-          (cd $GITHUB_WORKSPACE/backend && npx dotenv -e .env.test -- node node_modules/.bin/prisma migrate dev 2>&1)
+          # The schema is already applied: the install step ran `prisma migrate deploy`
+          # against this same database. `migrate dev` used to run again here — it is a
+          # developer-machine command that can prompt or fail without a TTY as soon as
+          # the migrations drift from schema.prisma.
           (cd $GITHUB_WORKSPACE/backend && npm run start:test > $GITHUB_WORKSPACE/logs/backend.log 2>&1 &)
           (cd $GITHUB_WORKSPACE/frontend && npm run start:test > /dev/null 2>&1 &)
+          # wait-on above only checked the DB/mail/Redis ports were open, not that the
+          # Nest app itself finished booting — a slow boot or a startup crash used to
+          # go unnoticed until 15 Cypress specs failed with confusing auth errors.
+          npx wait-on http-get://localhost:4000/api/health --timeout 120000
           (cd $GITHUB_WORKSPACE/e2e && npm run e2e:run)
 
       - name: Upload backend logs

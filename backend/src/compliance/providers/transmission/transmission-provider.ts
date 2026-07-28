@@ -1,0 +1,151 @@
+/**
+ * Transmission-provider taxonomy
+ * ================================
+ * ChannelType = the transmission *topology / feedback family*:
+ *   EMAIL      — plain SMTP delivery, no structured feedback.
+ *   PEPPOL     — 4-corner AS4 (access-point network), Peppol Invoice Response / MLR.
+ *   PDP        — France decentralized CTC (Y-model): PDP pushes lifecycle statuses.
+ *   SDI        — Italy Sistema di Interscambio hub: notifiche callbacks.
+ *   PAC        — Mexico Proveedor Autorizado de Certificación: blocking SAT clearance.
+ *   OSE        — Peru Operador de Servicios Electrónicos: CDR poll.
+ *   GOV_PORTAL_API — centralized national authority API / clearance portal; almost always
+ *                    polled (ASYNC_POLL). SDI/PDP are KEPT as distinct types because their
+ *                    topology and feedback model genuinely differ from a plain portal.
+ *   PRINT      — physical print / simplified receipt (fire-and-forget).
+ *
+ * Concrete authority = always a *named* provider selected by ChannelSpec.providerId.
+ *   Examples: 'ksef' (PL), 'sefaz' (BR), 'zatca' (SA), 'choruspro' (FR B2G).
+ *   GOV_PORTAL_API ALWAYS requires a providerId — there is no generic fallback.
+ *   A bare { type: 'GOV_PORTAL_API' } (no providerId) resolves to null → SKIPPED.
+ */
+import { TransactionContext } from '../../canonical/canonical-document';
+import { CompliancePlan } from '../../engine/compliance-engine';
+import { ComplianceLogger } from '../../execution/logger';
+import { SignedArtifact, TransmissionResult } from '../../execution/types';
+import { ChannelType } from '../../types';
+import { ResolvedChannelConfig } from './channel-credentials-port';
+
+/**
+ * How a channel reports the document's evolving state back to us — drives the lifecycle trigger
+ * (COMPLIANCE_LIFECYCLE.md §3). This is a property of the *channel/provider*, NOT the country:
+ * it is why a "super PDP" (callback) lives differently from email (none) or a polled portal.
+ *  - SYNC           : the transmit() result is final (rare).
+ *  - ASYNC_POLL     : we must call poll() periodically to learn CLEARED/REJECTED (PAC, most portals).
+ *  - ASYNC_CALLBACK : the channel pushes statuses to us (SdI notifiche, Peppol MLR, a PDP).
+ *  - NONE           : fire-and-forget, no downstream state (plain email, real-time report).
+ */
+export type ChannelFeedback = 'SYNC' | 'ASYNC_POLL' | 'ASYNC_CALLBACK' | 'NONE';
+
+export interface PollPolicy {
+  everySeconds: number;
+  timeoutHours: number;
+  backoff?: 'NONE' | 'EXPONENTIAL';
+}
+
+// ---------------------------------------------------------------------------
+// Channel config schema — mirrors the plugin form.json pattern (IPluginFormField)
+// but adds `secret` to flag sensitive fields that must be masked in the UI and
+// encrypted at rest. The entire config blob is encrypted regardless, but the
+// schema tells the UI which fields to mask with "••••".
+// ---------------------------------------------------------------------------
+
+export interface ChannelConfigField {
+  type: 'text' | 'number' | 'switch' | 'select';
+  name: string;
+  label: string;
+  placeholder?: string;
+  required?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  min?: number;
+  max?: number;
+  default?: boolean | string | number;
+  multiple?: boolean;
+  pattern?: string;
+  options?: { label: string; value: string }[];
+  /** When true the field holds a secret (token, certificate, password). Masked in UI. */
+  secret?: boolean;
+}
+
+export interface ChannelConfigSchema {
+  fields: ChannelConfigField[];
+}
+
+/**
+ * Delivery maturity — an honesty signal that is orthogonal to `configSchema` presence
+ * (COMPLIANCE_AUDIT.md F-8 / M-16 / M-18, "channel honesty"). `configSchema` only says
+ * "the UI can collect credentials for this provider"; it says nothing about whether the
+ * provider can actually deliver anything once those credentials are saved. `maturity` is
+ * the field that says that:
+ *
+ *  - PROVEN      : a real live round-trip has been exercised end-to-end (ksef, pdp,
+ *                  peppol via peppol.sh, email).
+ *  - IMPLEMENTED : a real named-protocol client exists — correct envelopes/crypto/OAuth
+ *                  for THAT specific authority — but has not been proven live yet; it is
+ *                  waiting on real credentials or an accreditation process (sdi, choruspro,
+ *                  sefaz, anaf, myinvois, …).
+ *  - STUB        : no real transport exists for this authority yet (the generic-portal
+ *                  tier, zatca, pac, ose, print, …). A STUB's `transmit()` MUST return a
+ *                  terminal non-accepted status (SKIPPED or REJECTED) — never PENDING
+ *                  forever, never SENT — so `ComplianceService.send()`'s F-4 acceptance
+ *                  check (SENT/PENDING/CLEARED) correctly lands the document in
+ *                  TRANSMISSION_FAILED instead of pretending delivery happened.
+ *
+ * Optional on the interface (undefined ⇒ treat as STUB, the safe default) so ad hoc mock
+ * providers built in tests don't need updating; every provider actually registered in
+ * `defaultTransmissionRegistry` sets it explicitly — enforced by
+ * `provider-maturity.spec.ts`.
+ */
+export type ProviderMaturity = 'PROVEN' | 'IMPLEMENTED' | 'STUB';
+
+/** Delivers the artifact over one channel (email, Peppol, a clearance API, a portal, print…) (§10). */
+export interface TransmissionProvider {
+  /** Stable provider id (e.g. 'email', 'sdi', 'ksef'); used for exact selection via ChannelSpec.providerId. */
+  readonly id: string;
+  readonly channel: ChannelType;
+  /** Feedback model driving the lifecycle (defaults to NONE when omitted). */
+  readonly feedback?: ChannelFeedback;
+  /** See {@link ProviderMaturity}. Defaults to 'STUB' when omitted. */
+  readonly maturity?: ProviderMaturity;
+  /** Cadence/timeout for ASYNC_POLL providers. */
+  readonly pollPolicy?: PollPolicy;
+  /**
+   * Declarative schema for the config this provider needs from a company.
+   * When present, the UI renders a form and the backend validates against it.
+   * Fields with `secret: true` are masked in the API response and encrypted at rest.
+   */
+  readonly configSchema?: ChannelConfigSchema;
+  /**
+   * When true, a missing/inactive per-company config does NOT skip the channel.
+   * Instead, `transmit()` is called with `resolvedConfig=undefined` and may fall back
+   * to a global default (e.g. EMAIL uses the global SMTP provider).
+   * Default: false — missing config → SKIPPED (used by KSeF, PDP, SdI, Peppol).
+   */
+  readonly optionalConfig?: boolean;
+  transmit(
+    artifacts: SignedArtifact[],
+    ctx: TransactionContext,
+    plan: CompliancePlan,
+    idempotencyKey: string,
+    log: ComplianceLogger,
+    resolvedConfig?: ResolvedChannelConfig,
+  ): TransmissionResult | Promise<TransmissionResult>;
+  /** For asynchronous clearance channels: re-check status. */
+  poll?(ref: string, log: ComplianceLogger): TransmissionResult | Promise<TransmissionResult>;
+
+  /**
+   * Push a lifecycle status update (not a document) to this channel — e.g. FR "encaissée"
+   * relayed by a PDP, or a buyer accept/refuse acknowledgement. Only channels that carry an
+   * outbound status model implement it (PDP, SDI, Peppol). Returns a TransmissionResult like
+   * transmit().
+   *
+   * Real implementations are async (HTTP calls); callers must await.
+   */
+  sendStatus?(
+    ref: string,
+    status: string,
+    ctx: TransactionContext,
+    plan: CompliancePlan,
+    log: ComplianceLogger,
+  ): TransmissionResult | Promise<TransmissionResult>;
+}

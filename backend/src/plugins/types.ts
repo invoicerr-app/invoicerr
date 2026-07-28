@@ -39,4 +39,4 @@ export interface IPdfPreviewProvider {
    * @param document The PDF document to preview
    */
   generatePdfPreview(quoteId: string): Promise<Uint8Array<ArrayBufferLike>>;
-} 
+}

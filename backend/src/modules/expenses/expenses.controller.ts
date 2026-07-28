@@ -1,10 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
-import {
-  ExpensesService,
-  CreateExpenseDto,
-  EditExpenseDto,
-} from './expenses.service';
+import { ExpensesService, CreateExpenseDto, EditExpenseDto } from './expenses.service';
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { Roles } from '@/decorators/roles.decorator';
@@ -12,10 +8,13 @@ import { Roles } from '@/decorators/roles.decorator';
 @ApiTags('expenses')
 @Controller('expenses')
 export class ExpensesController {
-  constructor(private readonly expensesService: ExpensesService) { }
+  constructor(private readonly expensesService: ExpensesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List expenses', description: 'Returns all recorded expenses for the active company.' })
+  @ApiOperation({
+    summary: 'List expenses',
+    description: 'Returns all recorded expenses for the active company.',
+  })
   @ApiResponse({ status: 200, description: 'Expenses retrieved' })
   async findAll(@ActiveCompany() companyId: string) {
     return this.expensesService.findAll(companyId);

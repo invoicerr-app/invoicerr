@@ -39,11 +39,11 @@ export function LogsSettings() {
     applyFilters()
   }, [logs, levelFilter, categoryFilter, searchQuery, dateRange])
 
-  const { data: sseData, loading: sseLoading, error: sseError } = useSse<Log[]>('/api/logs?intervalMs=1000')
+  const { data: sseData, loading: sseLoading, error: sseError } = useSse<Log[]>("/api/logs?intervalMs=1000")
 
   useEffect(() => {
     if (sseError) {
-      console.error('SSE logs error', sseError)
+      console.error("SSE logs error", sseError)
       setLoading(false)
       return
     }

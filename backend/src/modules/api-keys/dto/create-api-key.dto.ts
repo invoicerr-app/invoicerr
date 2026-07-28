@@ -6,7 +6,8 @@ export class CreateApiKeyDto {
   name: string;
 
   @ApiProperty({
-    description: 'Permission scopes granted to this key. Omit or leave empty for a key with no document-creation access.',
+    description:
+      'Permission scopes granted to this key. Omit or leave empty for a key with no document-creation access.',
     enum: API_KEY_SCOPES,
     isArray: true,
     required: false,

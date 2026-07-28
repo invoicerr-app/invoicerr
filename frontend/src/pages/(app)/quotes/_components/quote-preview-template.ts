@@ -181,156 +181,175 @@ export const quotePreviewTemplate = `
 `
 
 function escapeHtml(text: string): string {
-    return text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;")
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
 }
 
 /** Mirrors backend/src/utils/format-text.ts's formatRichText. */
 function formatRichText(text?: string | null): string {
-    if (!text) return ""
-    const escaped = escapeHtml(text)
-    const withBold = escaped.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    return withBold.replace(/\*(.+?)\*/g, "<em>$1</em>")
+  if (!text) return ""
+  const escaped = escapeHtml(text)
+  const withBold = escaped.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+  return withBold.replace(/\*(.+?)\*/g, "<em>$1</em>")
 }
 
 /** Mirrors backend/src/utils/pdf.ts's getInvertColor. */
 function getInvertColor(hex: string): string {
-    let cleanHex = hex.replace(/^#/, "")
-    if (cleanHex.length === 3) {
-        cleanHex = cleanHex.split("").map((c) => c + c).join("")
-    }
-    const r = parseInt(cleanHex.slice(0, 2), 16)
-    const g = parseInt(cleanHex.slice(2, 4), 16)
-    const b = parseInt(cleanHex.slice(4, 6), 16)
-    const luminance = 0.299 * r + 0.587 * g + 0.114 * b
-    return luminance > 186 ? "#000000" : "#ffffff"
+  let cleanHex = hex.replace(/^#/, "")
+  if (cleanHex.length === 3) {
+    cleanHex = cleanHex
+      .split("")
+      .map((c) => c + c)
+      .join("")
+  }
+  const r = parseInt(cleanHex.slice(0, 2), 16)
+  const g = parseInt(cleanHex.slice(2, 4), 16)
+  const b = parseInt(cleanHex.slice(4, 6), 16)
+  const luminance = 0.299 * r + 0.587 * g + 0.114 * b
+  return luminance > 186 ? "#000000" : "#ffffff"
 }
 
 /** Mirrors backend/src/utils/date.ts's formatDate. */
 function formatQuoteDate(company: { dateFormat?: string }, date?: Date | string | null): string {
-    if (!date) return "N/A"
-    const allowedFormats = ["dd/MM/yyyy", "MM/dd/yyyy", "yyyy/MM/dd", "dd.MM.yyyy", "dd-MM-yyyy", "yyyy-MM-dd", "EEEE, dd MMM yyyy"]
-    const dateFormat = allowedFormats.includes(company.dateFormat || "") ? (company.dateFormat as string) : "dd/MM/yyyy"
-    return format(new Date(date), dateFormat)
+  if (!date) return "N/A"
+  const allowedFormats = [
+    "dd/MM/yyyy",
+    "MM/dd/yyyy",
+    "yyyy/MM/dd",
+    "dd.MM.yyyy",
+    "dd-MM-yyyy",
+    "yyyy-MM-dd",
+    "EEEE, dd MMM yyyy",
+  ]
+  const dateFormat = allowedFormats.includes(company.dateFormat || "")
+    ? (company.dateFormat as string)
+    : "dd/MM/yyyy"
+  return format(new Date(date), dateFormat)
 }
 
 function clampDiscountRate(rate?: number | null): number {
-    if (typeof rate !== "number" || Number.isNaN(rate)) return 0
-    return Math.min(Math.max(rate, 0), 100)
+  if (typeof rate !== "number" || Number.isNaN(rate)) return 0
+  return Math.min(Math.max(rate, 0), 100)
 }
 
 /** Mirrors backend/src/utils/financial.ts's calculateDiscountedTotals — presentation-only, real totals are always recomputed server-side on save. */
 function calculateDiscountedTotals(
-    items: { quantity: number; unitPrice: number; vatRate?: number | null }[],
-    discountRate: number,
-    isVatExempt: boolean,
+  items: { quantity: number; unitPrice: number; vatRate?: number | null }[],
+  discountRate: number,
+  isVatExempt: boolean,
 ) {
-    const normalizedRate = clampDiscountRate(discountRate)
-    const discountFactor = 1 - normalizedRate / 100
+  const normalizedRate = clampDiscountRate(discountRate)
+  const discountFactor = 1 - normalizedRate / 100
 
-    const baseTotalHT = items.reduce((sum, item) => sum + (item.quantity || 0) * (item.unitPrice || 0), 0)
-    const totalHT = baseTotalHT * discountFactor
-    const discountAmountHT = baseTotalHT - totalHT
+  const baseTotalHT = items.reduce((sum, item) => sum + (item.quantity || 0) * (item.unitPrice || 0), 0)
+  const totalHT = baseTotalHT * discountFactor
+  const discountAmountHT = baseTotalHT - totalHT
 
-    const totalVAT = isVatExempt
-        ? 0
-        : items.reduce((sum, item) => {
-              const vatRate = (item.vatRate || 0) / 100
-              const discountedBase = (item.quantity || 0) * (item.unitPrice || 0) * discountFactor
-              return sum + discountedBase * vatRate
-          }, 0)
+  const totalVAT = isVatExempt
+    ? 0
+    : items.reduce((sum, item) => {
+        const vatRate = (item.vatRate || 0) / 100
+        const discountedBase = (item.quantity || 0) * (item.unitPrice || 0) * discountFactor
+        return sum + discountedBase * vatRate
+      }, 0)
 
-    const totalTTC = totalHT + totalVAT
+  const totalTTC = totalHT + totalVAT
 
-    return { discountRate: normalizedRate, baseTotalHT, discountAmountHT, totalHT, totalVAT, totalTTC }
+  return { discountRate: normalizedRate, baseTotalHT, discountAmountHT, totalHT, totalVAT, totalTTC }
 }
 
 export function compileQuotePreview(data: Record<string, unknown>): string {
-    return Handlebars.compile(quotePreviewTemplate)(data)
+  return Handlebars.compile(quotePreviewTemplate)(data)
 }
 
 /** Assembles the same shaped data backend's getQuotePdf builds, sourced from live (possibly unsaved) form values and settings-panel state. */
 export function buildQuotePreviewData(
-    quote: Quote,
-    values: QuoteFormValues,
-    settings: TemplateSettings,
-    paymentMethods: PaymentMethod[] | undefined,
+  quote: Quote,
+  values: QuoteFormValues,
+  settings: TemplateSettings,
+  paymentMethods: PaymentMethod[] | undefined,
 ) {
-    const itemTypeLabels: Record<string, string> = {
-        HOUR: settings.labels.hour,
-        DAY: settings.labels.day,
-        DEPOSIT: settings.labels.deposit,
-        SERVICE: settings.labels.service,
-        PRODUCT: settings.labels.product,
+  const itemTypeLabels: Record<string, string> = {
+    HOUR: settings.labels.hour,
+    DAY: settings.labels.day,
+    DEPOSIT: settings.labels.deposit,
+    SERVICE: settings.labels.service,
+    PRODUCT: settings.labels.product,
+  }
+
+  const paymentMethodLabels: Record<string, string> = {
+    BANK_TRANSFER: settings.labels.paymentMethodBankTransfer,
+    PAYPAL: settings.labels.paymentMethodPayPal,
+    CASH: settings.labels.paymentMethodCash,
+    CHECK: settings.labels.paymentMethodCheck,
+    OTHER: settings.labels.paymentMethodOther,
+  }
+
+  let paymentMethodType: string | undefined = (quote as any).paymentMethod
+  let paymentDetails: string | undefined = (quote as any).paymentDetails
+  if (values.paymentMethodId) {
+    const pm = paymentMethods?.find((p) => p.id === values.paymentMethodId)
+    if (pm) {
+      paymentMethodType = paymentMethodLabels[pm.type as string] || pm.type
+      paymentDetails = pm.details || paymentDetails
     }
+  }
 
-    const paymentMethodLabels: Record<string, string> = {
-        BANK_TRANSFER: settings.labels.paymentMethodBankTransfer,
-        PAYPAL: settings.labels.paymentMethodPayPal,
-        CASH: settings.labels.paymentMethodCash,
-        CHECK: settings.labels.paymentMethodCheck,
-        OTHER: settings.labels.paymentMethodOther,
-    }
+  const isVatExempt = !!(quote.company.exemptVat && (quote.company.country || "").toUpperCase() === "FRANCE")
+  const totals = calculateDiscountedTotals(values.items, values.discountRate, isVatExempt)
+  const hasDiscount = totals.discountRate > 0 && totals.discountAmountHT > 0
 
-    let paymentMethodType: string | undefined = (quote as any).paymentMethod
-    let paymentDetails: string | undefined = (quote as any).paymentDetails
-    if (values.paymentMethodId) {
-        const pm = paymentMethods?.find((p) => p.id === values.paymentMethodId)
-        if (pm) {
-            paymentMethodType = paymentMethodLabels[pm.type as string] || pm.type
-            paymentDetails = pm.details || paymentDetails
-        }
-    }
+  const clientName =
+    quote.client.name || `${quote.client.contactFirstname || ""} ${quote.client.contactLastname || ""}`.trim()
 
-    const isVatExempt = !!(quote.company.exemptVat && (quote.company.country || "").toUpperCase() === "FRANCE")
-    const totals = calculateDiscountedTotals(values.items, values.discountRate, isVatExempt)
-    const hasDiscount = totals.discountRate > 0 && totals.discountAmountHT > 0
+  return {
+    number: quote.rawNumber || (quote.number?.toString() ?? "DRAFT"),
+    date: formatQuoteDate(quote.company as any, quote.createdAt),
+    validUntil: formatQuoteDate(quote.company as any, values.validUntil ?? null),
+    company: quote.company,
+    client: { ...quote.client, name: clientName },
+    currency: values.currency || quote.currency,
+    items: values.items.map((i) => ({
+      name: i.name,
+      description: formatRichText(i.description),
+      quantity: Number.isInteger(i.quantity)
+        ? i.quantity.toString()
+        : (i.quantity || 0).toFixed(3).replace(/\.?0+$/, ""),
+      unitPrice: formatAmount(i.unitPrice || 0, quote.company.country),
+      vatRate: i.vatRate,
+      totalPrice: formatAmount(
+        (i.quantity || 0) * (i.unitPrice || 0) * (1 + (i.vatRate || 0) / 100),
+        quote.company.country,
+      ),
+      type: itemTypeLabels[i.type] || i.type,
+    })),
+    totalHT: formatAmount(totals.totalHT, quote.company.country),
+    totalVAT: formatAmount(totals.totalVAT, quote.company.country),
+    totalTTC: formatAmount(totals.totalTTC, quote.company.country),
+    subtotalBeforeDiscount: formatAmount(totals.baseTotalHT, quote.company.country),
+    discountAmount: formatAmount(totals.discountAmountHT, quote.company.country),
+    discountRate: Number(totals.discountRate.toFixed(2)),
+    hasDiscount,
+    vatExemptText: isVatExempt ? "TVA non applicable, art. 293 B du CGI" : null,
 
-    const clientName = quote.client.name || `${quote.client.contactFirstname || ""} ${quote.client.contactLastname || ""}`.trim()
+    paymentMethod: paymentMethodType,
+    paymentDetails,
 
-    return {
-        number: quote.rawNumber || quote.number.toString(),
-        date: formatQuoteDate(quote.company as any, quote.createdAt),
-        validUntil: formatQuoteDate(quote.company as any, values.validUntil ?? null),
-        company: quote.company,
-        client: { ...quote.client, name: clientName },
-        currency: values.currency || quote.currency,
-        items: values.items.map((i) => ({
-            name: i.name,
-            description: formatRichText(i.description),
-            quantity: Number.isInteger(i.quantity) ? i.quantity.toString() : (i.quantity || 0).toFixed(3).replace(/\.?0+$/, ""),
-            unitPrice: formatAmount(i.unitPrice || 0, quote.company.country),
-            vatRate: i.vatRate,
-            totalPrice: formatAmount((i.quantity || 0) * (i.unitPrice || 0) * (1 + (i.vatRate || 0) / 100), quote.company.country),
-            type: itemTypeLabels[i.type] || i.type,
-        })),
-        totalHT: formatAmount(totals.totalHT, quote.company.country),
-        totalVAT: formatAmount(totals.totalVAT, quote.company.country),
-        totalTTC: formatAmount(totals.totalTTC, quote.company.country),
-        subtotalBeforeDiscount: formatAmount(totals.baseTotalHT, quote.company.country),
-        discountAmount: formatAmount(totals.discountAmountHT, quote.company.country),
-        discountRate: Number(totals.discountRate.toFixed(2)),
-        hasDiscount,
-        vatExemptText: isVatExempt ? "TVA non applicable, art. 293 B du CGI" : null,
-
-        paymentMethod: paymentMethodType,
-        paymentDetails,
-
-        fontFamily: settings.fontFamily,
-        padding: settings.padding,
-        primaryColor: settings.primaryColor,
-        secondaryColor: settings.secondaryColor,
-        tableTextColor: getInvertColor(settings.secondaryColor),
-        includeLogo: settings.includeLogo,
-        logoB64: settings.logoB64 ?? "",
-        isDraft: true,
-        draftLabel: getDraftWatermarkLabel(quote.company.country),
-        noteExists: !!values.notes,
-        notes: formatRichText(values.notes).replace(/\n/g, "<br>"),
-        labels: settings.labels,
-    }
+    fontFamily: settings.fontFamily,
+    padding: settings.padding,
+    primaryColor: settings.primaryColor,
+    secondaryColor: settings.secondaryColor,
+    tableTextColor: getInvertColor(settings.secondaryColor),
+    includeLogo: settings.includeLogo,
+    logoB64: settings.logoB64 ?? "",
+    isDraft: true,
+    draftLabel: getDraftWatermarkLabel(quote.company.country),
+    noteExists: !!values.notes,
+    notes: formatRichText(values.notes).replace(/\n/g, "<br>"),
+    labels: settings.labels,
+  }
 }

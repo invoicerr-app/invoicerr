@@ -2,9 +2,9 @@ import type { CompanyMembership, CompanyRole } from "@/types"
 import { authClient } from "@/lib/auth"
 
 interface SessionWithCompanies {
-    companies?: CompanyMembership[]
-    activeCompanyId?: string | null
-    activeRole?: CompanyRole | null
+  companies?: CompanyMembership[]
+  activeCompanyId?: string | null
+  activeRole?: CompanyRole | null
 }
 
 // The backend's customSession plugin (see backend/src/lib/auth.ts) enriches
@@ -12,15 +12,15 @@ interface SessionWithCompanies {
 // along on the same authClient.useSession() call already used elsewhere, no
 // extra request needed.
 export function useCompanies() {
-    const session = authClient.useSession()
-    // @ts-ignore — additionalFields aren't reflected in the client's session type
-    const data = session.data as SessionWithCompanies | null | undefined
+  const session = authClient.useSession()
+  // additionalFields aren't reflected in the client's session type — widen through unknown.
+  const data = session.data as unknown as SessionWithCompanies | null | undefined
 
-    return {
-        companies: data?.companies ?? [],
-        activeCompanyId: data?.activeCompanyId ?? null,
-        activeRole: data?.activeRole ?? null,
-        isPending: session.isPending,
-        refetch: session.refetch,
-    }
+  return {
+    companies: data?.companies ?? [],
+    activeCompanyId: data?.activeCompanyId ?? null,
+    activeRole: data?.activeRole ?? null,
+    isPending: session.isPending,
+    refetch: session.refetch,
+  }
 }

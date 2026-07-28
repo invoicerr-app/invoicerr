@@ -1,25 +1,25 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { usePatch, usePost } from "@/hooks/use-fetch";
-import { queryKeys } from "@/lib/query-keys";
-import { useQueryClient } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { usePatch, usePost } from "@/hooks/use-fetch"
+import { queryKeys } from "@/lib/query-keys"
+import { useQueryClient } from "@tanstack/react-query"
 
-import { BetterInput } from "@/components/better-input";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { currencies } from "@/lib/constants/currencies";
-import { toast } from "sonner";
-import { useCompany } from "@/hooks/queries";
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { useTranslation } from "react-i18next";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import type { Article } from "@/types";
+import { BetterInput } from "@/components/better-input"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { currencies } from "@/lib/constants/currencies"
+import { toast } from "sonner"
+import { useCompany } from "@/hooks/queries"
+import { useEffect } from "react"
+import { useForm } from "react-hook-form"
+import { useTranslation } from "react-i18next"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+import type { Article } from "@/types"
 
 const articleSchema = z.object({
   name: z.string().min(1, { message: "Name is required" }),
@@ -27,25 +27,25 @@ const articleSchema = z.object({
   type: z.enum(["HOUR", "DAY", "DEPOSIT", "SERVICE", "PRODUCT"]),
   unitPrice: z.coerce.number().min(0, { message: "Price must be >= 0" }),
   vatRate: z.coerce.number().min(0, { message: "VAT must be >= 0" }),
-});
+})
 
-type ArticleForm = z.infer<typeof articleSchema>;
+type ArticleForm = z.infer<typeof articleSchema>
 
 interface ArticleUpsertProps {
-  article?: Article | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  article?: Article | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 export function ArticleUpsert({ article, open, onOpenChange }: ArticleUpsertProps) {
-  const { t } = useTranslation();
-  const isEdit = !!article;
-  const queryClient = useQueryClient();
-  const { data: company } = useCompany();
-  const currencySymbol = company?.currency ? currencies[company.currency]?.symbol : undefined;
+  const { t } = useTranslation()
+  const isEdit = !!article
+  const queryClient = useQueryClient()
+  const { data: company } = useCompany()
+  const currencySymbol = company?.currency ? currencies[company.currency]?.symbol : undefined
 
-  const { trigger: createTrigger, loading: creating } = usePost("/api/articles");
-  const { trigger: updateTrigger, loading: updating } = usePatch(`/api/articles/${article?.id || ""}`);
+  const { trigger: createTrigger, loading: creating } = usePost("/api/articles")
+  const { trigger: updateTrigger, loading: updating } = usePatch(`/api/articles/${article?.id || ""}`)
 
   const form = useForm<ArticleForm>({
     resolver: zodResolver(articleSchema),
@@ -56,7 +56,7 @@ export function ArticleUpsert({ article, open, onOpenChange }: ArticleUpsertProp
       unitPrice: 0,
       vatRate: 0,
     },
-  });
+  })
 
   useEffect(() => {
     if (article) {
@@ -66,11 +66,11 @@ export function ArticleUpsert({ article, open, onOpenChange }: ArticleUpsertProp
         type: article.type || "SERVICE",
         unitPrice: article.unitPrice ?? 0,
         vatRate: article.vatRate ?? 0,
-      });
+      })
     } else {
-      form.reset({ name: "", description: "", type: "SERVICE", unitPrice: 0, vatRate: 0 });
+      form.reset({ name: "", description: "", type: "SERVICE", unitPrice: 0, vatRate: 0 })
     }
-  }, [article, open, form]);
+  }, [article, open, form])
 
   const onSubmit = async (data: ArticleForm) => {
     try {
@@ -78,25 +78,25 @@ export function ArticleUpsert({ article, open, onOpenChange }: ArticleUpsertProp
       // `null` instead of throwing, so the result must be checked explicitly
       // — awaiting alone does not tell us whether the request succeeded.
       if (isEdit) {
-        const result = await updateTrigger({ ...data });
-        if (!result) throw new Error("Update failed");
-        toast.success(t("articles.upsert.messages.updateSuccess") || "Article updated");
+        const result = await updateTrigger({ ...data })
+        if (!result) throw new Error("Update failed")
+        toast.success(t("articles.upsert.messages.updateSuccess") || "Article updated")
       } else {
-        const result = await createTrigger(data);
-        if (!result) throw new Error("Create failed");
-        toast.success(t("articles.upsert.messages.addSuccess") || "Article added");
+        const result = await createTrigger(data)
+        if (!result) throw new Error("Create failed")
+        toast.success(t("articles.upsert.messages.addSuccess") || "Article added")
       }
-      queryClient.invalidateQueries({ queryKey: queryKeys.articles.list() });
-      onOpenChange(false);
+      queryClient.invalidateQueries({ queryKey: queryKeys.articles.list() })
+      onOpenChange(false)
     } catch (err) {
-      console.error(err);
+      console.error(err)
       toast.error(
         isEdit
           ? t("articles.upsert.messages.updateError") || "Failed to update article"
-          : t("articles.upsert.messages.addError") || "Failed to add article"
-      );
+          : t("articles.upsert.messages.addError") || "Failed to add article",
+      )
     }
-  };
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -127,7 +127,11 @@ export function ArticleUpsert({ article, open, onOpenChange }: ArticleUpsertProp
                 <FormItem>
                   <FormLabel>{t("articles.fields.description.label")}</FormLabel>
                   <FormControl>
-                    <Textarea {...field} rows={3} placeholder={t("articles.fields.description.placeholder") as string} />
+                    <Textarea
+                      {...field}
+                      rows={3}
+                      placeholder={t("articles.fields.description.placeholder") as string}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -143,7 +147,12 @@ export function ArticleUpsert({ article, open, onOpenChange }: ArticleUpsertProp
                     <FormLabel>{t("articles.fields.type.label")}</FormLabel>
                     <FormControl>
                       <Select value={field.value} onValueChange={(val) => field.onChange(val as any)}>
-                        <SelectTrigger className="w-full" size="sm" aria-label={t("articles.fields.type.label") as string} dataCy="article-type-trigger">
+                        <SelectTrigger
+                          className="w-full"
+                          size="sm"
+                          aria-label={t("articles.fields.type.label") as string}
+                          dataCy="article-type-trigger"
+                        >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent dataCy="article-type-content">
@@ -167,7 +176,13 @@ export function ArticleUpsert({ article, open, onOpenChange }: ArticleUpsertProp
                   <FormItem>
                     <FormLabel>{t("articles.fields.unitPrice.label")}</FormLabel>
                     <FormControl>
-                      <BetterInput {...field} type="number" step="0.01" min="0" postAdornment={currencySymbol} />
+                      <BetterInput
+                        {...field}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        postAdornment={currencySymbol}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -201,7 +216,7 @@ export function ArticleUpsert({ article, open, onOpenChange }: ArticleUpsertProp
         </Form>
       </DialogContent>
     </Dialog>
-  );
+  )
 }
 
 export default ArticleUpsert

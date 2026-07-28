@@ -1,0 +1,93 @@
+/**
+ * Prisma-backed ReportingStore implementation.
+ * Each row is keyed by (kind, periodKey, companyId, invoiceRef) — unique in the DB.
+ */
+import { PrismaService } from '@/prisma/prisma.service';
+import { ComplianceReport, Prisma } from '../../../prisma/generated/prisma/client';
+import { ReportRecord, ReportingStore } from './reporting-store';
+import { frequencyForKind, getPeriodKey } from './period';
+import { ReportingKind } from '../types';
+
+function rowToRecord(row: ComplianceReport): ReportRecord {
+  return {
+    id: row.id,
+    kind: row.kind,
+    periodKey: row.periodKey,
+    companyId: row.companyId,
+    invoiceRef: row.invoiceRef,
+    status: row.status as ReportRecord['status'],
+    payload: row.payload,
+    submittedRef: row.submittedRef,
+    submittedAt: row.submittedAt,
+    createdAt: row.createdAt,
+  };
+}
+
+export class PrismaReportingStore implements ReportingStore {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async find(
+    kind: string,
+    periodKey: string,
+    companyId: string | null,
+    invoiceRef: string | null,
+  ): Promise<ReportRecord | null> {
+    const row = await this.prisma.complianceReport.findUnique({
+      where: {
+        kind_periodKey_companyId_invoiceRef: {
+          kind,
+          periodKey,
+          companyId: companyId ?? '',
+          invoiceRef: invoiceRef ?? '',
+        },
+      },
+    });
+    return row ? rowToRecord(row) : null;
+  }
+
+  async create(record: Omit<ReportRecord, 'id' | 'createdAt'>): Promise<ReportRecord> {
+    const row = await this.prisma.complianceReport.create({
+      data: {
+        kind: record.kind,
+        periodKey: record.periodKey,
+        companyId: record.companyId,
+        invoiceRef: record.invoiceRef,
+        status: record.status,
+        // Invariant: report payloads are generated JSON-serializable objects (or XML strings), never null/undefined.
+        payload: record.payload as Prisma.InputJsonValue,
+        submittedRef: record.submittedRef,
+        submittedAt: record.submittedAt,
+      },
+    });
+    return rowToRecord(row);
+  }
+
+  async markSubmitted(id: string, ref: string, submittedAt: Date = new Date()): Promise<void> {
+    await this.prisma.complianceReport.update({
+      where: { id },
+      data: { status: 'SUBMITTED', submittedRef: ref, submittedAt },
+    });
+  }
+
+  /**
+   * Returns all PENDING records whose period is closed relative to `now`.
+   * "Closed" = periodKey < current period for the kind's frequency.
+   * String comparison works because period keys sort lexicographically in
+   * chronological order ("2026-05" < "2026-06"; "2026-Q1" < "2026-Q2").
+   */
+  async findPendingForClosedPeriods(now: Date): Promise<ReportRecord[]> {
+    const rows = await this.prisma.complianceReport.findMany({
+      where: { status: 'PENDING' },
+    });
+
+    return rows
+      .filter((row) => {
+        const kind = row.kind as ReportingKind;
+        const frequency = frequencyForKind(kind);
+        const currentPeriod = getPeriodKey(now, frequency);
+        // Strictly less-than: current period is still open; anything before is closed.
+        return row.periodKey < currentPeriod;
+      })
+      .map(rowToRecord);
+  }
+}

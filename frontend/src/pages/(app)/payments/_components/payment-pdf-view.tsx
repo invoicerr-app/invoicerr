@@ -51,7 +51,9 @@ export function PaymentPdfModal({ payment, onOpenChange }: PaymentPdfModalProps)
     >
       <DialogContent className="!max-w-6xl w-[95vw] h-[90dvh] overflow-hidden flex flex-col">
         <DialogHeader className="flex flex-row items-center justify-between gap-4 pr-8">
-          <DialogTitle>{t("payments.pdf.title", { number: payment.rawNumber || payment.number })}</DialogTitle>
+          <DialogTitle>
+            {t("payments.pdf.title", { number: payment.rawNumber || payment.number })}
+          </DialogTitle>
           <Button type="button" variant="outline" size="sm" onClick={handleDownload} disabled={!pdfBase64}>
             <Download className="h-4 w-4 mr-2" />
             {t("payments.list.tooltips.downloadPdf")}

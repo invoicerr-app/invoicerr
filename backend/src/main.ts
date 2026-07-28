@@ -1,6 +1,6 @@
 import * as bodyParser from 'body-parser';
-import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
@@ -22,11 +22,24 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
   app.enableCors({
     credentials: true,
-    origin: ['http://localhost:5173', process.env.APP_URL, ...(process.env.CORS_ORIGINS?.split(',').map(o => o.trim()) || [])].filter(Boolean),
+    origin: [
+      'http://localhost:5173',
+      process.env.APP_URL,
+      ...(process.env.CORS_ORIGINS?.split(',').map((o) => o.trim()) || []),
+    ].filter(Boolean),
   });
   app.use(cookieParser());
   app.setGlobalPrefix('api');
-  app.use(bodyParser.json({ limit: '1mb' }));
+  app.use(
+    bodyParser.json({
+      limit: '1mb',
+      // Capture the raw body buffer so webhook HMAC verification can operate on the
+      // original bytes (re-serialising a parsed JSON object is unreliable for HMAC).
+      verify: (req, _res, buf) => {
+        (req as any).rawBody = buf;
+      },
+    }),
+  );
   app.use((_req, res, next) => {
     res.header('Access-Control-Expose-Headers', 'WWW-Authenticate');
     next();
@@ -47,7 +60,9 @@ async function bootstrap() {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Invoicerr API')
-    .setDescription('Authenticate with an API key (Settings > API Keys) via the Authorization: Bearer header or the X-Api-Key header.')
+    .setDescription(
+      'Authenticate with an API key (Settings > API Keys) via the Authorization: Bearer header or the X-Api-Key header.',
+    )
     .setVersion(version)
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'API key' }, 'apiKey')
     .build();

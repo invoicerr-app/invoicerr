@@ -1,0 +1,35 @@
+# Local dev dependencies for hot-reload development on the Mac.
+# Backend runs on the host via `npm run start:dev`, frontend via `npm run dev`.
+# This only provides the stateful backing services they need.
+#   Postgres → localhost:5433  (matches backend/.env DATABASE_URL)
+#   Redis    → localhost:6379
+#   Mailpit  → SMTP localhost:1025, web UI http://localhost:8025
+name: invoicerr-dev
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: invoicerr
+      POSTGRES_PASSWORD: invoicerr
+      POSTGRES_DB: invoicerr_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - dev-db:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+volumes:
+  dev-db:

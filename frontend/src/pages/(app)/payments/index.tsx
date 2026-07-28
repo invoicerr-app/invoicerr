@@ -15,90 +15,92 @@ type PaymentsTab = "list" | "table"
 const PAYMENTS_TABS: PaymentsTab[] = ["list", "table"]
 
 export default function Payments() {
-    const { t } = useTranslation()
-    const paymentListRef = useRef<PaymentListHandle>(null)
-    const [page, setPage] = useState(1)
-    const { data: payments } = usePayments(page)
-    const [searchParams, setSearchParams] = useSearchParams()
-    const viewParam = searchParams.get("view")
-    const activeTab: PaymentsTab = PAYMENTS_TABS.includes(viewParam as PaymentsTab) ? (viewParam as PaymentsTab) : "list"
-    const setActiveTab = (next: PaymentsTab) => {
-        setSearchParams((params) => {
-            const updated = new URLSearchParams(params)
-            if (next === "list") updated.delete("view")
-            else updated.set("view", next)
-            return updated
-        })
-    }
+  const { t } = useTranslation()
+  const paymentListRef = useRef<PaymentListHandle>(null)
+  const [page, setPage] = useState(1)
+  const { data: payments } = usePayments(page)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const viewParam = searchParams.get("view")
+  const activeTab: PaymentsTab = PAYMENTS_TABS.includes(viewParam as PaymentsTab)
+    ? (viewParam as PaymentsTab)
+    : "list"
+  const setActiveTab = (next: PaymentsTab) => {
+    setSearchParams((params) => {
+      const updated = new URLSearchParams(params)
+      if (next === "list") updated.delete("view")
+      else updated.set("view", next)
+      return updated
+    })
+  }
 
-    const [searchTerm, setSearchTerm] = useState("")
+  const [searchTerm, setSearchTerm] = useState("")
 
-    const filteredPayments =
-        payments?.payments.filter(
-            (payment) =>
-                payment.invoice?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                payment.invoice?.client?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                payment.rawNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                payment.number?.toString().includes(searchTerm) ||
-                payment.invoice?.rawNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                payment.invoice?.number?.toString().includes(searchTerm)
-        ) || []
+  const filteredPayments =
+    payments?.payments.filter(
+      (payment) =>
+        payment.invoice?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        payment.invoice?.client?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        payment.rawNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        payment.number?.toString().includes(searchTerm) ||
+        payment.invoice?.rawNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        payment.invoice?.number?.toString().includes(searchTerm),
+    ) || []
 
-    usePageHeader(t("sidebar.navigation.payments"))
+  usePageHeader(t("sidebar.navigation.payments"))
 
-    const emptyState = (
-        <div className="text-center py-12">
-            <PaymentIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-foreground">
-                {searchTerm ? t("payments.emptyState.noResults") : t("payments.emptyState.noPayments")}
-            </h3>
-            <p className="mt-1 text-sm text-primary">
-                {searchTerm ? t("payments.emptyState.tryDifferentSearch") : t("payments.emptyState.startAdding")}
-            </p>
-            {!searchTerm && (
-                <div className="mt-6">
-                    <Button onClick={() => paymentListRef.current?.handleAddClick()}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        {t("payments.actions.addNew")}
-                    </Button>
-                </div>
-            )}
+  const emptyState = (
+    <div className="text-center py-12">
+      <PaymentIcon className="mx-auto h-12 w-12 text-gray-400" />
+      <h3 className="mt-2 text-sm font-medium text-foreground">
+        {searchTerm ? t("payments.emptyState.noResults") : t("payments.emptyState.noPayments")}
+      </h3>
+      <p className="mt-1 text-sm text-primary">
+        {searchTerm ? t("payments.emptyState.tryDifferentSearch") : t("payments.emptyState.startAdding")}
+      </p>
+      {!searchTerm && (
+        <div className="mt-6">
+          <Button onClick={() => paymentListRef.current?.handleAddClick()}>
+            <Plus className="h-4 w-4 mr-2" />
+            {t("payments.actions.addNew")}
+          </Button>
         </div>
-    )
+      )}
+    </div>
+  )
 
-    return (
-        <div className="max-w-7xl mx-auto space-y-6 p-6">
-            <div className="flex justify-end">
-                <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as PaymentsTab)}>
-                    <TabsList>
-                        <TabsTrigger value="list">
-                            <List className="h-4 w-4 mr-2" />
-                            {t("payments.tabs.list")}
-                        </TabsTrigger>
-                        <TabsTrigger value="table">
-                            <Table2 className="h-4 w-4 mr-2" />
-                            {t("payments.tabs.table")}
-                        </TabsTrigger>
-                    </TabsList>
-                </Tabs>
-            </div>
+  return (
+    <div className="max-w-7xl mx-auto space-y-6 p-6">
+      <div className="flex justify-end">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as PaymentsTab)}>
+          <TabsList>
+            <TabsTrigger value="list">
+              <List className="h-4 w-4 mr-2" />
+              {t("payments.tabs.list")}
+            </TabsTrigger>
+            <TabsTrigger value="table">
+              <Table2 className="h-4 w-4 mr-2" />
+              {t("payments.tabs.table")}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
-            {activeTab === "list" ? (
-                <PaymentList
-                    ref={paymentListRef}
-                    payments={filteredPayments}
-                    loading={false}
-                    searchTerm={searchTerm}
-                    onSearchChange={setSearchTerm}
-                    page={page}
-                    pageCount={payments?.pageCount || 1}
-                    setPage={setPage}
-                    emptyState={emptyState}
-                    showCreateButton={true}
-                />
-            ) : (
-                <PaymentTable />
-            )}
-        </div>
-    )
+      {activeTab === "list" ? (
+        <PaymentList
+          ref={paymentListRef}
+          payments={filteredPayments}
+          loading={false}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          page={page}
+          pageCount={payments?.pageCount || 1}
+          setPage={setPage}
+          emptyState={emptyState}
+          showCreateButton={true}
+        />
+      ) : (
+        <PaymentTable />
+      )}
+    </div>
+  )
 }

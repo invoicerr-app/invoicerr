@@ -44,8 +44,8 @@ function ButtonWithoutTooltip({
 }: React.ComponentProps<"button"> & {
   loading?: boolean
 } & VariantProps<typeof buttonVariants> & {
-  asChild?: boolean
-}) {
+    asChild?: boolean
+  }) {
   const Comp = asChild ? Slot : "button"
 
   return (
@@ -69,10 +69,10 @@ function Button({
 }: React.ComponentProps<"button"> & {
   loading?: boolean
 } & VariantProps<typeof buttonVariants> & {
-  asChild?: boolean
-  tooltip?: string
-  dataCy?: string
-}) {
+    asChild?: boolean
+    tooltip?: string
+    dataCy?: string
+  }) {
   if (!tooltip) {
     return (
       <ButtonWithoutTooltip

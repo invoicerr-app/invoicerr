@@ -40,8 +40,18 @@ services:
 
       # Optional, but recommended for docker deployments
       - JWT_SECRET="your_jwt_secret" # Used for JWT authentication, can be any random string
+      - BETTER_AUTH_SECRET="your_better_auth_secret" # Required, generate with: openssl rand -base64 32, falls back to JWT_SECRET if unset
+
+      # Compliance async queue (BullMQ/Redis). WORKER_INLINE=true (default here) makes this
+      # single container also consume its own queue jobs (mono/self-host deployment). For a
+      # scaled deployment with a dedicated worker service, see docker-compose.scale.yml.
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - WORKER_INLINE=true
     depends_on:
       - invoicerr_db
+      - redis
 
   invoicerr_db:
     image: postgres:15
@@ -52,6 +62,26 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
+  redis:
+    image: bitnami/redis:latest
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      # bitnami/redis refuses to start with an empty REDIS_PASSWORD unless this is set.
+      # Self-host default is no password (single-host docker network); set REDIS_PASSWORD
+      # to enable auth.
+      ALLOW_EMPTY_PASSWORD: "yes"
+      REDIS_AOF_ENABLED: "yes"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    volumes:
+      - redis-data:/bitnami
+
 volumes:
   db_data:
+    driver: local
+  redis-data:
     driver: local

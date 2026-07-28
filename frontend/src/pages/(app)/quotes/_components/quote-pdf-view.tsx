@@ -61,7 +61,9 @@ export function QuotePdfModal({ quote, onOpenChange }: QuotePdfModalProps) {
 
   const previewHtml = useMemo(() => {
     if (!quote || !settings) return ""
-    return compileQuotePreview(buildQuotePreviewData(quote, watchedValues as QuoteFormValues, settings, paymentMethods))
+    return compileQuotePreview(
+      buildQuotePreviewData(quote, watchedValues as QuoteFormValues, settings, paymentMethods),
+    )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quote, settings, paymentMethods, watchedValues])
 
@@ -144,7 +146,11 @@ export function QuotePdfModal({ quote, onOpenChange }: QuotePdfModalProps) {
           <ResizablePanelGroup direction="horizontal" className="!flex-1 min-h-0">
             <ResizablePanel defaultSize={25} minSize={18} maxSize={40}>
               <div className="h-full pr-4">
-                <QuotePdfSettingsPanel settings={settings} onSettingsChange={setSettings} onSaved={refetchPdf} />
+                <QuotePdfSettingsPanel
+                  settings={settings}
+                  onSettingsChange={setSettings}
+                  onSaved={refetchPdf}
+                />
               </div>
             </ResizablePanel>
             <ResizableHandle withHandle />
@@ -227,22 +233,46 @@ function QuoteLivePreview({ html, title }: { html: string; title: string }) {
   return (
     <div className="h-full flex flex-col gap-2">
       <div className="flex items-center justify-center gap-1 shrink-0">
-        <Button type="button" variant="outline" size="icon" onClick={() => setZoom((z) => Math.max(MIN_ZOOM, Math.round((z - 0.1) * 100) / 100))}>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={() => setZoom((z) => Math.max(MIN_ZOOM, Math.round((z - 0.1) * 100) / 100))}
+        >
           <ZoomOut className="h-4 w-4" />
         </Button>
         <span className="text-xs text-muted-foreground w-12 text-center">{Math.round(zoom * 100)}%</span>
-        <Button type="button" variant="outline" size="icon" onClick={() => setZoom((z) => Math.min(MAX_ZOOM, Math.round((z + 0.1) * 100) / 100))}>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={() => setZoom((z) => Math.min(MAX_ZOOM, Math.round((z + 0.1) * 100) / 100))}
+        >
           <ZoomIn className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="outline" size="icon" onClick={fitToWidth} tooltip={t("quotes.pdf.edit.fitToWidth")}>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={fitToWidth}
+          tooltip={t("quotes.pdf.edit.fitToWidth")}
+        >
           <Maximize className="h-4 w-4" />
         </Button>
       </div>
-      <div ref={containerRef} className="flex-1 min-h-0 overflow-auto bg-muted/30 rounded-lg flex justify-center p-4">
+      <div
+        ref={containerRef}
+        className="flex-1 min-h-0 overflow-auto bg-muted/30 rounded-lg flex justify-center p-4"
+      >
         <div style={{ width: PAGE_WIDTH * zoom, height: contentHeight * zoom, flexShrink: 0 }}>
           <iframe
             className="bg-white border border-border shadow-md"
-            style={{ width: PAGE_WIDTH, height: contentHeight, transform: `scale(${zoom})`, transformOrigin: "top left" }}
+            style={{
+              width: PAGE_WIDTH,
+              height: contentHeight,
+              transform: `scale(${zoom})`,
+              transformOrigin: "top left",
+            }}
             srcDoc={html}
             onLoad={handleIframeLoad}
             title={title}

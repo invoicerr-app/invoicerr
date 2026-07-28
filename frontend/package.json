@@ -8,8 +8,11 @@
     "start": "vite",
     "start:test": "dotenv -e .env.test vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "preview": "vite preview",
+    "i18n:check": "node scripts/i18n-check.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -63,21 +66,16 @@
     "zod": "^3.25.67"
   },
   "devDependencies": {
-    "@eslint/js": "^9.29.0",
+    "@biomejs/biome": "2.5.2",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.6.2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.5.2",
     "dotenv-cli": "^10.0.0",
-    "eslint": "^9.29.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.20",
-    "globals": "^16.2.0",
     "tailwind-scrollbar": "^4.0.2",
     "tw-animate-css": "^1.3.4",
     "typescript": "~5.8.3",
-    "typescript-eslint": "^8.34.1",
     "vite": "^7.3.6"
   }
 }

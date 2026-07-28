@@ -10,7 +10,7 @@ interface ComplianceCountryPageProps {
 
 /**
  * Generic layout for all dynamically-generated /compliance/<country> pages.
- * Routes are created by the compliance-content-plugin based on files in docs/compliance/.
+ * Routes are created by the compliance-content-plugin based on files in documentation/compliance/.
  * This component receives the country code and markdown content as props from the plugin.
  */
 export default function ComplianceCountryPage({

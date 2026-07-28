@@ -29,7 +29,19 @@ export interface ArticlesListHandle {
 }
 
 export const ArticlesList = forwardRef<ArticlesListHandle, ArticlesListProps>(
-  ({ articles = [], loading, title, description, searchTerm, onSearchChange, emptyState, showCreateButton = false }, ref) => {
+  (
+    {
+      articles = [],
+      loading,
+      title,
+      description,
+      searchTerm,
+      onSearchChange,
+      emptyState,
+      showCreateButton = false,
+    },
+    ref,
+  ) => {
     const { t } = useTranslation()
     const { data: company } = useCompany()
     const currencySymbol = company?.currency ? currencies[company.currency]?.symbol : ""
@@ -99,20 +111,37 @@ export const ArticlesList = forwardRef<ArticlesListHandle, ArticlesListProps>(
                             </Badge>
                           </div>
                           {article.description && (
-                            <div className="mt-1 text-sm text-muted-foreground break-words">{article.description}</div>
+                            <div className="mt-1 text-sm text-muted-foreground break-words">
+                              {article.description}
+                            </div>
                           )}
                           <div className="mt-1 text-sm text-muted-foreground">
-                            {t("articles.fields.unitPrice.label")}: {article.unitPrice}{currencySymbol} · {t("articles.fields.vatRate.label")}: {article.vatRate}%
+                            {t("articles.fields.unitPrice.label")}: {article.unitPrice}
+                            {currencySymbol} · {t("articles.fields.vatRate.label")}: {article.vatRate}%
                           </div>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 lg:flex justify-start sm:justify-end gap-1 md:gap-2">
-                        <Button tooltip={t("articles.actions.edit")} variant="ghost" size="icon" onClick={() => setEditDialog(article)} className="text-gray-600 hover:text-green-600" dataCy="article-edit-button">
+                        <Button
+                          tooltip={t("articles.actions.edit")}
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setEditDialog(article)}
+                          className="text-gray-600 hover:text-green-600"
+                          dataCy="article-edit-button"
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
 
-                        <Button tooltip={t("articles.actions.delete")} variant="ghost" size="icon" onClick={() => setDeleteDialog(article)} className="text-gray-600 hover:text-red-600" dataCy="article-delete-button">
+                        <Button
+                          tooltip={t("articles.actions.delete")}
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteDialog(article)}
+                          className="text-gray-600 hover:text-red-600"
+                          dataCy="article-delete-button"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -124,10 +153,7 @@ export const ArticlesList = forwardRef<ArticlesListHandle, ArticlesListProps>(
           </CardContent>
         </Card>
 
-        <ArticleUpsert
-          open={createDialog}
-          onOpenChange={(open: boolean) => setCreateDialog(open)}
-        />
+        <ArticleUpsert open={createDialog} onOpenChange={(open: boolean) => setCreateDialog(open)} />
 
         <ArticleUpsert
           open={!!editDialog}

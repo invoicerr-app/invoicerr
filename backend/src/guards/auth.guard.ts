@@ -12,7 +12,7 @@ const IS_PUBLIC_KEY = 'PUBLIC';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private reflector: Reflector) { }
+  constructor(private reflector: Reflector) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
@@ -58,10 +58,12 @@ export class AuthGuard implements CanActivate {
       });
 
       if (apiKey) {
-        prisma.apiKey.update({
-          where: { id: apiKey.id },
-          data: { lastUsedAt: new Date() },
-        }).catch(() => undefined);
+        prisma.apiKey
+          .update({
+            where: { id: apiKey.id },
+            data: { lastUsedAt: new Date() },
+          })
+          .catch(() => undefined);
 
         request.user = apiKey.user;
         request.companyId = apiKey.companyId;

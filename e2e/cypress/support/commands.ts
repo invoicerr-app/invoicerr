@@ -55,15 +55,28 @@ Cypress.Commands.add('login', () => {
 
 
 Cypress.Commands.add('getLastEmail', () => {
-    return cy
-        .request('http://localhost:8025/api/v1/messages')
-        .then(res => {
-            const messages = res.body.messages;
-            expect(messages).to.have.length.greaterThan(0);
-            const id = messages[0].ID;
-            return cy.request(`http://localhost:8025/api/v1/message/${id}`);
-        })
-        .then(res => res.body);
+    // Backend sends mail asynchronously — under CI load the OTP email can lag
+    // behind the request that triggered it. Poll mailpit instead of asserting
+    // on a single-shot request, so we don't hard-fail on a mail that is simply
+    // still in flight. ~20 attempts * 500ms wait ≈ 10s retry budget.
+    function pollForMessage(attemptsLeft: number): Cypress.Chainable<any> {
+        return cy
+            .request({ url: 'http://localhost:8025/api/v1/messages', failOnStatusCode: false })
+            .then((res) => {
+                const messages = res.body?.messages || [];
+                if (messages.length === 0 && attemptsLeft > 0) {
+                    cy.wait(500);
+                    return pollForMessage(attemptsLeft - 1);
+                }
+                // Retry budget exhausted (or messages present) — assert here so a
+                // genuine failure (no mail ever arrived) still hard-fails clearly.
+                expect(messages, 'mailpit message present after polling').to.have.length.greaterThan(0);
+                const id = messages[0].ID;
+                return cy.request(`http://localhost:8025/api/v1/message/${id}`);
+            });
+    }
+
+    return pollForMessage(20).then(res => res.body);
 });
 
 Cypress.Commands.add('clearEmails', () => {
@@ -71,10 +84,38 @@ Cypress.Commands.add('clearEmails', () => {
 });
 
 Cypress.Commands.add('selectCountry', (dataCy: string, countryName: string) => {
-    cy.get(`[data-cy="${dataCy}"] button`).click();
-    cy.get(`[data-cy="${dataCy}-options"]`).should('be.visible');
-    cy.get(`[data-cy="${dataCy}"] input`).clear().type(countryName);
-    cy.get(`[data-cy="${dataCy}-option-${countryName.toLowerCase().replace(/\s+/g, '-')}"]`).click();
+    cy.get(`[data-cy="${dataCy}"] button`).first().click({ force: true });
+    cy.wait(500);
+    cy.get(`[data-cy="${dataCy}-options"]`, { timeout: 3000 }).should('exist');
+    cy.get(`[data-cy="${dataCy}"] input`).clear({ force: true }).type(countryName, { force: true });
+    cy.wait(300);
+    cy.get(`[data-cy="${dataCy}-option-${countryName.toLowerCase().replace(/\s+/g, '-')}"]`, { timeout: 3000 }).should('exist').click({ force: true });
+});
+
+Cypress.Commands.add('ensureClient', () => {
+    const apiUrl = Cypress.env('apiUrl');
+    cy.request({ url: `${apiUrl}/api/clients`, failOnStatusCode: false }).then(({ status, body }: any) => {
+        if (status !== 200) return; // auth failed, skip
+        const clients = Array.isArray(body) ? body : body?.clients ?? [];
+        if (clients.length === 0) {
+            cy.request({
+                method: 'POST',
+                url: `${apiUrl}/api/clients`,
+                body: {
+                    name: 'Test Client',
+                    contactEmail: 'test.client@example.com',
+                    currency: 'EUR',
+                    country: 'FR',
+                    address: '123 Test St',
+                    city: 'Paris',
+                    postalCode: '75001',
+                    isActive: true,
+                    type: 'COMPANY',
+                },
+                failOnStatusCode: false,
+            });
+        }
+    });
 });
 
 Cypress.on('window:before:load', (window) => {

@@ -10,4 +10,4 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
   providers: [ClientsService, JwtService],
   exports: [ClientsService],
 })
-export class ClientsModule { }
+export class ClientsModule {}

@@ -7,7 +7,7 @@ import { PdfLinksModule } from '@/modules/pdf-links/pdf-links.module';
 import { QuotesModule } from '@/modules/quotes/quotes.module';
 
 @Module({
-    imports: [QuotesModule, InvoicesModule, ClientsModule, ArticlesModule, PdfLinksModule],
-    controllers: [McpController],
+  imports: [QuotesModule, InvoicesModule, ClientsModule, ArticlesModule, PdfLinksModule],
+  controllers: [McpController],
 })
-export class McpModule { }
+export class McpModule {}

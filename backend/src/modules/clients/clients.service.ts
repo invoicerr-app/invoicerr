@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
-import { EditClientsDto } from '@/modules/clients/dto/clients.dto';
+import { EditClientsDto, IdentifierEntry } from '@/modules/clients/dto/clients.dto';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { logger } from '@/logger/logger.service';
@@ -8,194 +8,218 @@ import prisma from '@/prisma/prisma.service';
 
 @Injectable()
 export class ClientsService {
+  constructor(private readonly webhookDispatcher: WebhookDispatcherService) {}
 
-    constructor(private readonly webhookDispatcher: WebhookDispatcherService) {
+  async getClients(companyId: string, page: string) {
+    const pageNumber = parseInt(page, 10) || 1;
+    const pageSize = 10;
+    const skip = (pageNumber - 1) * pageSize;
+
+    const clients = await prisma.client.findMany({
+      where: { companyId },
+      skip,
+      take: pageSize,
+      orderBy: {
+        name: 'asc',
+      },
+      include: { partyIdentifiers: true },
+    });
+
+    const totalClients = await prisma.client.count({ where: { companyId } });
+
+    return { pageCount: Math.ceil(totalClients / pageSize), clients };
+  }
+
+  async searchClients(companyId: string, query: string) {
+    if (!query) {
+      return prisma.client.findMany({
+        where: { companyId, isActive: true },
+        take: 10,
+        orderBy: {
+          name: 'asc',
+        },
+        include: { partyIdentifiers: true },
+      });
     }
 
-    async getClients(companyId: string, page: string) {
-        const pageNumber = parseInt(page, 10) || 1;
-        const pageSize = 10;
-        const skip = (pageNumber - 1) * pageSize;
+    const results = await prisma.client.findMany({
+      where: {
+        companyId,
+        isActive: true,
+        OR: [
+          { name: { contains: query } },
+          { contactFirstname: { contains: query } },
+          { contactLastname: { contains: query } },
+          { contactEmail: { contains: query } },
+          { contactPhone: { contains: query } },
+          { address: { contains: query } },
+          { postalCode: { contains: query } },
+          { city: { contains: query } },
+          { country: { contains: query } },
+        ],
+      },
+      take: 10,
+      orderBy: {
+        name: 'asc',
+      },
+      include: { partyIdentifiers: true },
+    });
 
-        const clients = await prisma.client.findMany({
-            where: { companyId },
-            skip,
-            take: pageSize,
-            orderBy: {
-                name: 'asc',
-            },
-        });
-
-        const totalClients = await prisma.client.count({ where: { companyId } });
-
-        return { pageCount: Math.ceil(totalClients / pageSize), clients };
+    try {
+      await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_SEARCHED, {
+        query,
+        results: results.length,
+      });
+    } catch (error) {
+      logger.error('Failed to dispatch CLIENT_SEARCHED webhook', { category: 'client', details: { error } });
     }
 
-    async searchClients(companyId: string, query: string) {
-        if (!query) {
-            return prisma.client.findMany({
-                where: { companyId, isActive: true },
-                take: 10,
-                orderBy: {
-                    name: 'asc',
-                },
-            });
-        }
+    return results;
+  }
 
-        const results = await prisma.client.findMany({
-            where: {
-                companyId,
-                isActive: true,
-                OR: [
-                    { name: { contains: query } },
-                    { contactFirstname: { contains: query } },
-                    { contactLastname: { contains: query } },
-                    { contactEmail: { contains: query } },
-                    { contactPhone: { contains: query } },
-                    { address: { contains: query } },
-                    { postalCode: { contains: query } },
-                    { city: { contains: query } },
-                    { country: { contains: query } },
-                ],
-            },
-            take: 10,
-            orderBy: {
-                name: 'asc',
-            },
-        });
+  private async upsertPartyIdentifiers(clientId: string, identifiers: IdentifierEntry[] | undefined) {
+    if (!identifiers) return;
 
-        try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_SEARCHED, {
-                query,
-                results: results.length,
-            });
-        } catch (error) {
-            logger.error('Failed to dispatch CLIENT_SEARCHED webhook', { category: 'client', details: { error } });
-        }
+    const existing = await prisma.partyIdentifier.findMany({
+      where: { clientId },
+    });
 
-        return results;
+    const incomingSchemes = new Set(identifiers.map((i) => i.scheme));
+
+    for (const row of existing) {
+      if (!incomingSchemes.has(row.scheme)) {
+        await prisma.partyIdentifier.delete({ where: { id: row.id } });
+      }
     }
 
-    async createClient(companyId: string, editClientsDto: EditClientsDto) {
-        const { id, ...data } = editClientsDto;
+    for (const entry of identifiers) {
+      await prisma.partyIdentifier.upsert({
+        where: { clientId_scheme: { clientId, scheme: entry.scheme } },
+        create: { clientId, scheme: entry.scheme, value: entry.value },
+        update: { value: entry.value },
+      });
+    }
+  }
 
-        const type = (data as any).type || 'COMPANY';
+  async createClient(companyId: string, editClientsDto: EditClientsDto) {
+    const { id, identifiers, ...data } = editClientsDto;
 
-        if (type === 'INDIVIDUAL') {
-            data.name = ``;
-            if (!data.contactFirstname || (data.contactFirstname as string).trim() === '') {
-                logger.error('First name is required for individual clients', { category: 'client' });
-                throw new BadRequestException('First name is required for individual clients');
-            }
-            if (!data.contactLastname || (data.contactLastname as string).trim() === '') {
-                logger.error('Last name is required for individual clients', { category: 'client' });
-                throw new BadRequestException('Last name is required for individual clients');
-            }
-        } else {
-            data.contactFirstname = undefined;
-            data.contactLastname = undefined;
-            if (!data.name || (data.name as string).trim() === '') {
-                logger.error('Company name is required for company clients', { category: 'client' });
-                throw new BadRequestException('Company name is required for company clients');
-            }
-            if (!data.legalId || (data.legalId as string).trim() === '') {
-                logger.error('SIRET/SIREN (legalId) is required for company clients', { category: 'client' });
-                throw new BadRequestException('SIRET/SIREN (legalId) is required for company clients');
-            }
-        }
+    const type = (data as any).type || 'COMPANY';
 
-        const newClient = await prisma.client.create({ data: { ...data, companyId } });
-
-        logger.info('Client created', { category: 'client', details: { clientId: newClient.id } });
-
-        try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_CREATED, {
-                client: newClient,
-            });
-        } catch (error) {
-            logger.error('Failed to dispatch CLIENT_CREATED webhook', { category: 'client', details: { error } });
-        }
-
-        return newClient;
+    if (type === 'INDIVIDUAL') {
+      data.name = ``;
+      if (!data.contactFirstname || (data.contactFirstname as string).trim() === '') {
+        logger.error('First name is required for individual clients', { category: 'client' });
+        throw new BadRequestException('First name is required for individual clients');
+      }
+      if (!data.contactLastname || (data.contactLastname as string).trim() === '') {
+        logger.error('Last name is required for individual clients', { category: 'client' });
+        throw new BadRequestException('Last name is required for individual clients');
+      }
+    } else {
+      data.contactFirstname = undefined;
+      data.contactLastname = undefined;
+      if (!data.name || (data.name as string).trim() === '') {
+        logger.error('Company name is required for company clients', { category: 'client' });
+        throw new BadRequestException('Company name is required for company clients');
+      }
     }
 
-    async editClientsInfo(companyId: string, editClientsDto: EditClientsDto) {
-        if (!editClientsDto.id) {
-            logger.error('Client ID is required for editing', { category: 'client' });
-            throw new BadRequestException('Client ID is required for editing');
-        }
+    const newClient = await prisma.client.create({ data: { ...data, companyId } });
 
-        const existingClient = await prisma.client.findFirst({ where: { id: editClientsDto.id, companyId } });
-        if (!existingClient) {
-            logger.error('Client not found', { category: 'client', details: { id: editClientsDto.id } });
-            throw new NotFoundException('Client not found');
-        }
+    await this.upsertPartyIdentifiers(newClient.id, identifiers);
 
-        const data = { ...editClientsDto } as any;
-        // Prefer explicit type in payload, otherwise fall back to existing client's type
-        const type = data.type || existingClient.type || 'COMPANY';
+    logger.info('Client created', { category: 'client', details: { clientId: newClient.id } });
 
-        if (type === 'INDIVIDUAL') {
-            if (!data.contactFirstname || (data.contactFirstname as string).trim() === '') {
-                logger.error('First name is required for individual clients', { category: 'client' });
-                throw new BadRequestException('First name is required for individual clients');
-            }
-            if (!data.contactLastname || (data.contactLastname as string).trim() === '') {
-                logger.error('Last name is required for individual clients', { category: 'client' });
-                throw new BadRequestException('Last name is required for individual clients');
-            }
-        } else {
-            if (!data.name || (data.name as string).trim() === '') {
-                logger.error('Company name is required for company clients', { category: 'client' });
-                throw new BadRequestException('Company name is required for company clients');
-            }
-            if (!data.legalId || (data.legalId as string).trim() === '') {
-                logger.error('SIRET/SIREN (legalId) is required for company clients', { category: 'client' });
-                throw new BadRequestException('SIRET/SIREN (legalId) is required for company clients');
-            }
-        }
-
-        const updatedClient = await prisma.client.update({
-            where: { id: editClientsDto.id },
-            data: { ...editClientsDto, isActive: true },
-        });
-
-        logger.info('Client updated', { category: 'client', details: { clientId: updatedClient.id } });
-
-        try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_UPDATED, {
-                client: updatedClient,
-            });
-        } catch (error) {
-            logger.error('Failed to dispatch CLIENT_UPDATED webhook', { category: 'client', details: { error } });
-        }
-
-        return updatedClient;
+    try {
+      await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_CREATED, {
+        client: newClient,
+      });
+    } catch (error) {
+      logger.error('Failed to dispatch CLIENT_CREATED webhook', { category: 'client', details: { error } });
     }
 
-    async deleteClient(companyId: string, id: string) {
-        const existingClient = await prisma.client.findFirst({ where: { id, companyId } });
+    return newClient;
+  }
 
-        if (!existingClient) {
-            logger.error('Client not found', { category: 'client', details: { id } });
-            throw new NotFoundException('Client not found');
-        }
-
-        const deletedClient = await prisma.client.update({
-            where: { id },
-            data: { isActive: false },
-        });
-
-        logger.info('Client deleted', { category: 'client', details: { clientId: id } });
-
-        try {
-            await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_DELETED, {
-                client: existingClient,
-            });
-        } catch (error) {
-            logger.error('Failed to dispatch CLIENT_DELETED webhook', { category: 'client', details: { error } });
-        }
-
-        return deletedClient;
+  async editClientsInfo(companyId: string, editClientsDto: EditClientsDto) {
+    if (!editClientsDto.id) {
+      logger.error('Client ID is required for editing', { category: 'client' });
+      throw new BadRequestException('Client ID is required for editing');
     }
+
+    const existingClient = await prisma.client.findFirst({
+      where: { id: editClientsDto.id, companyId },
+    });
+    if (!existingClient) {
+      logger.error('Client not found', { category: 'client', details: { id: editClientsDto.id } });
+      throw new NotFoundException('Client not found');
+    }
+
+    const { identifiers, ...dataFields } = editClientsDto;
+    const data = { ...dataFields } as any;
+    // Prefer explicit type in payload, otherwise fall back to existing client's type
+    const type = data.type || existingClient.type || 'COMPANY';
+
+    if (type === 'INDIVIDUAL') {
+      if (!data.contactFirstname || (data.contactFirstname as string).trim() === '') {
+        logger.error('First name is required for individual clients', { category: 'client' });
+        throw new BadRequestException('First name is required for individual clients');
+      }
+      if (!data.contactLastname || (data.contactLastname as string).trim() === '') {
+        logger.error('Last name is required for individual clients', { category: 'client' });
+        throw new BadRequestException('Last name is required for individual clients');
+      }
+    } else {
+      if (!data.name || (data.name as string).trim() === '') {
+        logger.error('Company name is required for company clients', { category: 'client' });
+        throw new BadRequestException('Company name is required for company clients');
+      }
+    }
+
+    const updatedClient = await prisma.client.update({
+      where: { id: editClientsDto.id },
+      data: { ...dataFields, isActive: true },
+    });
+
+    await this.upsertPartyIdentifiers(updatedClient.id, identifiers);
+
+    logger.info('Client updated', { category: 'client', details: { clientId: updatedClient.id } });
+
+    try {
+      await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_UPDATED, {
+        client: updatedClient,
+      });
+    } catch (error) {
+      logger.error('Failed to dispatch CLIENT_UPDATED webhook', { category: 'client', details: { error } });
+    }
+
+    return updatedClient;
+  }
+
+  async deleteClient(companyId: string, id: string) {
+    const existingClient = await prisma.client.findFirst({ where: { id, companyId } });
+
+    if (!existingClient) {
+      logger.error('Client not found', { category: 'client', details: { id } });
+      throw new NotFoundException('Client not found');
+    }
+
+    const deletedClient = await prisma.client.update({
+      where: { id },
+      data: { isActive: false },
+    });
+
+    logger.info('Client deleted', { category: 'client', details: { clientId: id } });
+
+    try {
+      await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_DELETED, {
+        client: existingClient,
+      });
+    } catch (error) {
+      logger.error('Failed to dispatch CLIENT_DELETED webhook', { category: 'client', details: { error } });
+    }
+
+    return deletedClient;
+  }
 }

@@ -20,8 +20,17 @@ describe('Multi-Company Switcher E2E', () => {
         cy.get('[data-cy="onboarding-dialog"]', { timeout: 10000 }).should('be.visible');
         cy.get('[data-cy="onboarding-company-name-input"]').clear().type('Globex Corporation');
         cy.selectCountry('onboarding-company-country-input', 'France');
+        // France requires a LEGAL_ID (SIRET) identifier — the dialog refuses to
+        // submit without it (same required-fields check as the first company).
+        cy.get('[data-cy="onboarding-legalid-input"]', { timeout: 10000 })
+            .clear({ force: true })
+            .type('73282932000074', { force: true });
         cy.get('[data-cy="onboarding-submit-btn"]').click();
-        cy.get('[data-cy="onboarding-dialog"]').should('not.exist');
+        // Company creation now advances the wizard to Step 2 (Channels) instead of
+        // closing the dialog — finish onboarding from there.
+        cy.get('[data-cy="onboarding-finish-btn"]', { timeout: 10000 }).should('be.visible').click();
+        cy.get('[data-cy="onboarding-dialog"]', { timeout: 20000 }).should('not.exist');
+        cy.wait(3000);
 
         // Creating a company switches the active session to it immediately
         cy.get('[data-cy="sidebar-company-button"]', { timeout: 15000 }).should('contain.text', 'Globex Corporation');

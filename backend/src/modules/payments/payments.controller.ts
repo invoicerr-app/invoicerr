@@ -1,16 +1,6 @@
 import { CreatePaymentDto, EditPaymentDto } from '@/modules/payments/dto/payments.dto';
 import { PaymentsService } from '@/modules/payments/payments.service';
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Res,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { Response } from 'express';
@@ -21,31 +11,73 @@ import { Roles } from '@/decorators/roles.decorator';
 @ApiTags('payments')
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) { }
+  constructor(private readonly paymentsService: PaymentsService) {}
 
   @Get()
   @ApiOperation({ summary: 'List payments', description: 'Returns a paginated list of payments.' })
-  @ApiQuery({ name: 'page', required: false, type: String, description: 'Page number (1-indexed) of the paginated payment list. Defaults to 1.' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: String,
+    description: 'Page number (1-indexed) of the paginated payment list. Defaults to 1.',
+  })
   @ApiResponse({ status: 200, description: 'Payments retrieved' })
   async getPayments(@ActiveCompany() companyId: string, @Query('page') page: string) {
     return this.paymentsService.getPayments(companyId, page);
   }
 
   @Get('search')
-  @ApiOperation({ summary: 'Search payments', description: 'Searches payments by query string (client name, payment number, etc.).' })
-  @ApiQuery({ name: 'query', required: true, type: String, description: 'Free-text search term matched against client name and payment number.' })
+  @ApiOperation({
+    summary: 'Search payments',
+    description: 'Searches payments by query string (client name, payment number, etc.).',
+  })
+  @ApiQuery({
+    name: 'query',
+    required: true,
+    type: String,
+    description: 'Free-text search term matched against client name and payment number.',
+  })
   @ApiResponse({ status: 200, description: 'Search results retrieved' })
   async searchPayments(@ActiveCompany() companyId: string, @Query('query') query: string) {
     return await this.paymentsService.searchPayments(companyId, query);
   }
 
   @Get('table')
-  @ApiOperation({ summary: 'List payments for table view', description: 'Returns the full (unpaginated) list of payments matching the given filters, sorted by payment date. Used by the payments table view and its export.' })
-  @ApiQuery({ name: 'invoiceId', required: false, type: String, description: 'Filter payments by invoice ID.' })
-  @ApiQuery({ name: 'clientId', required: false, type: String, description: 'Filter payments by the client of their invoice.' })
-  @ApiQuery({ name: 'year', required: false, type: String, description: 'Filter payments paid during this year.' })
-  @ApiQuery({ name: 'month', required: false, type: String, description: 'Filter payments paid during this month (1-12). Ignored unless "year" is also provided.' })
-  @ApiQuery({ name: 'sort', required: false, enum: ['asc', 'desc'], description: 'Sort order on payment date. Defaults to "desc".' })
+  @ApiOperation({
+    summary: 'List payments for table view',
+    description:
+      'Returns the full (unpaginated) list of payments matching the given filters, sorted by payment date. Used by the payments table view and its export.',
+  })
+  @ApiQuery({
+    name: 'invoiceId',
+    required: false,
+    type: String,
+    description: 'Filter payments by invoice ID.',
+  })
+  @ApiQuery({
+    name: 'clientId',
+    required: false,
+    type: String,
+    description: 'Filter payments by the client of their invoice.',
+  })
+  @ApiQuery({
+    name: 'year',
+    required: false,
+    type: String,
+    description: 'Filter payments paid during this year.',
+  })
+  @ApiQuery({
+    name: 'month',
+    required: false,
+    type: String,
+    description: 'Filter payments paid during this month (1-12). Ignored unless "year" is also provided.',
+  })
+  @ApiQuery({
+    name: 'sort',
+    required: false,
+    enum: ['asc', 'desc'],
+    description: 'Sort order on payment date. Defaults to "desc".',
+  })
   @ApiResponse({ status: 200, description: 'Payments retrieved' })
   async getPaymentsTable(
     @ActiveCompany() companyId: string,
@@ -59,9 +91,32 @@ export class PaymentsController {
   }
 
   @Post('create-from-invoice')
-  @ApiOperation({ summary: 'Create payment from invoice', description: 'Generates a payment for an invoice, for its full amount or a partial amount.' })
+  @ApiOperation({
+    summary: 'Create payment from invoice',
+    description: 'Generates a payment for an invoice, for its full amount or a partial amount.',
+  })
   @ApiResponse({ status: 201, description: 'Payment created from invoice' })
-  @ApiBody({ schema: { type: 'object', properties: { id: { type: 'string', description: 'ID of the invoice to create a payment for' }, amount: { type: 'number', description: 'Amount received. Defaults to the invoice total (full payment) when omitted.' }, items: { type: 'array', description: 'Explicit per-item amounts. When provided, they are used instead of distributing the amount proportionally.', items: { type: 'object', properties: { invoiceItemId: { type: 'string' }, amountPaid: { type: 'number' } } } } } } })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'ID of the invoice to create a payment for' },
+        amount: {
+          type: 'number',
+          description: 'Amount received. Defaults to the invoice total (full payment) when omitted.',
+        },
+        items: {
+          type: 'array',
+          description:
+            'Explicit per-item amounts. When provided, they are used instead of distributing the amount proportionally.',
+          items: {
+            type: 'object',
+            properties: { invoiceItemId: { type: 'string' }, amountPaid: { type: 'number' } },
+          },
+        },
+      },
+    },
+  })
   async createPaymentFromInvoice(
     @ActiveCompany() companyId: string,
     @Body('id') invoiceId: string,
@@ -71,11 +126,19 @@ export class PaymentsController {
     if (!invoiceId) {
       throw new Error('Invoice ID is required');
     }
-    return await this.paymentsService.createPaymentFromInvoice(companyId, invoiceId, amount !== undefined ? +amount : undefined, items);
+    return await this.paymentsService.createPaymentFromInvoice(
+      companyId,
+      invoiceId,
+      amount !== undefined ? +amount : undefined,
+      items,
+    );
   }
 
   @Get(':id/pdf')
-  @ApiOperation({ summary: 'Get payment PDF', description: 'Downloads the PDF version of a specific payment.' })
+  @ApiOperation({
+    summary: 'Get payment PDF',
+    description: 'Downloads the PDF version of a specific payment.',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Payment ID' })
   @ApiResponse({ status: 200, description: 'PDF retrieved' })
   @ApiResponse({ status: 404, description: 'Payment not found' })
@@ -95,9 +158,17 @@ export class PaymentsController {
   }
 
   @Post('send')
-  @ApiOperation({ summary: 'Send payment by email', description: 'Sends a payment as a PDF attachment via email to the client.' })
+  @ApiOperation({
+    summary: 'Send payment by email',
+    description: 'Sends a payment as a PDF attachment via email to the client.',
+  })
   @ApiResponse({ status: 201, description: 'Payment sent' })
-  @ApiBody({ schema: { type: 'object', properties: { id: { type: 'string', description: 'ID of the payment to send' } } } })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { id: { type: 'string', description: 'ID of the payment to send' } },
+    },
+  })
   sendPaymentByEmail(@ActiveCompany() companyId: string, @Body('id') id: string) {
     if (!id) {
       throw new Error('Payment ID is required');
@@ -106,7 +177,10 @@ export class PaymentsController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create a payment', description: 'Creates a new payment with items, client, and payment information.' })
+  @ApiOperation({
+    summary: 'Create a payment',
+    description: 'Creates a new payment with items, client, and payment information.',
+  })
   @ApiResponse({ status: 201, description: 'Payment created' })
   createPayment(@ActiveCompany() companyId: string, @Body() body: CreatePaymentDto) {
     return this.paymentsService.createPayment(companyId, body);

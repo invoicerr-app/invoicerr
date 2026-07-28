@@ -12,7 +12,7 @@ import { Roles } from '@/decorators/roles.decorator';
 @ApiTags('payment-methods')
 @Controller('payment-methods')
 export class PaymentMethodsController {
-  constructor(private readonly paymentMethodService: PaymentMethodsService) { }
+  constructor(private readonly paymentMethodService: PaymentMethodsService) {}
 
   @Get()
   @ApiOperation({ summary: 'List payment methods', description: 'Returns all configured payment methods.' })
@@ -36,7 +36,10 @@ export class PaymentMethodsController {
 
   @Post()
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
-  @ApiOperation({ summary: 'Create a payment method', description: 'Adds a new payment method (bank transfer, PayPal, etc.).' })
+  @ApiOperation({
+    summary: 'Create a payment method',
+    description: 'Adds a new payment method (bank transfer, PayPal, etc.).',
+  })
   @ApiResponse({ status: 201, description: 'Payment method created' })
   async create(@ActiveCompany() companyId: string, @Body() dto: CreatePaymentMethodDto) {
     return this.paymentMethodService.create(companyId, dto);
@@ -44,10 +47,17 @@ export class PaymentMethodsController {
 
   @Patch(':id')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
-  @ApiOperation({ summary: 'Update a payment method', description: 'Updates an existing payment method by ID.' })
+  @ApiOperation({
+    summary: 'Update a payment method',
+    description: 'Updates an existing payment method by ID.',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Payment method ID' })
   @ApiResponse({ status: 200, description: 'Payment method updated' })
-  async update(@ActiveCompany() companyId: string, @Param('id') id: string, @Body() dto: EditPaymentMethodDto) {
+  async update(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Body() dto: EditPaymentMethodDto,
+  ) {
     return this.paymentMethodService.update(companyId, id, dto);
   }
 

@@ -13,24 +13,29 @@ import { User } from '@/decorators/user.decorator';
 @ApiTags('companies')
 @Controller('companies')
 export class CompaniesController {
-  constructor(private readonly companiesService: CompaniesService) { }
+  constructor(private readonly companiesService: CompaniesService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a new company', description: 'Creates an additional company and makes the caller its owner. Open to any authenticated user, regardless of existing memberships.' })
+  @ApiOperation({
+    summary: 'Create a new company',
+    description:
+      'Creates an additional company and makes the caller its owner. Open to any authenticated user, regardless of existing memberships.',
+  })
   @ApiResponse({ status: 201, description: 'Company created' })
   async create(@User() user: CurrentUser, @Body() body: EditCompanyDto) {
     return this.companiesService.createCompany(user.id, body);
   }
 
   @Post('switch')
-  @ApiOperation({ summary: 'Switch active company', description: "Switches the current session's active company to one the caller belongs to." })
-  @ApiBody({ schema: { type: 'object', properties: { companyId: { type: 'string' } }, required: ['companyId'] } })
+  @ApiOperation({
+    summary: 'Switch active company',
+    description: "Switches the current session's active company to one the caller belongs to.",
+  })
+  @ApiBody({
+    schema: { type: 'object', properties: { companyId: { type: 'string' } }, required: ['companyId'] },
+  })
   @ApiResponse({ status: 201, description: 'Active company switched' })
-  async switch(
-    @User() user: CurrentUser,
-    @Req() req: RequestWithUser,
-    @Body() body: { companyId: string },
-  ) {
+  async switch(@User() user: CurrentUser, @Req() req: RequestWithUser, @Body() body: { companyId: string }) {
     return this.companiesService.switchActiveCompany(user.id, req.session.id, body.companyId);
   }
 
@@ -43,9 +48,18 @@ export class CompaniesController {
 
   @Patch('members/:userId')
   @Roles(CompanyRole.OWNER)
-  @ApiOperation({ summary: "Change a member's role", description: 'Owner-only: promoting/demoting owners is ownership-sensitive.' })
+  @ApiOperation({
+    summary: "Change a member's role",
+    description: 'Owner-only: promoting/demoting owners is ownership-sensitive.',
+  })
   @ApiParam({ name: 'userId', type: String })
-  @ApiBody({ schema: { type: 'object', properties: { role: { type: 'string', enum: Object.values(CompanyRole) } }, required: ['role'] } })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { role: { type: 'string', enum: Object.values(CompanyRole) } },
+      required: ['role'],
+    },
+  })
   @ApiResponse({ status: 200, description: 'Member role updated' })
   async changeMemberRole(
     @ActiveCompany() companyId: string,
