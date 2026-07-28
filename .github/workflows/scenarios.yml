@@ -70,10 +70,10 @@ jobs:
 
       - name: Wait for DB
         run: |
-          npx wait-on tcp:5433 --timeout 60
-          npx wait-on tcp:8025 --timeout 60
-          npx wait-on tcp:1025 --timeout 60
-          npx wait-on tcp:6379 --timeout 60
+          npx wait-on tcp:5433 --timeout 60000
+          npx wait-on tcp:8025 --timeout 60000
+          npx wait-on tcp:1025 --timeout 60000
+          npx wait-on tcp:6379 --timeout 60000
 
       - name: Run backend, frontend & scenario
         run: |
@@ -85,7 +85,7 @@ jobs:
           # wait-on above only checked the DB/mail/Redis ports were open, not that the
           # Nest app itself finished booting — a slow boot or a startup crash used to
           # go unnoticed until the scenario failed with a confusing auth error.
-          npx wait-on http-get://localhost:4000/api/health --timeout 60
+          npx wait-on http-get://localhost:4000/api/health --timeout 120000
           (cd $GITHUB_WORKSPACE/e2e && CYPRESS_scenario=${{ matrix.scenario }} npx cypress run --spec "cypress/e2e/scenarios/full-lifecycle.cy.ts")
 
       - name: Upload backend logs
