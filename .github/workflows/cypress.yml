@@ -169,7 +169,9 @@ jobs:
       - name: Install e2e dependencies
         run: |
           cd e2e
-          npm ci
+          # npm install, not npm ci: cypress.config.ts now needs `pg` to truncate the
+          # test DB, and the committed lockfile isn't regenerated as part of this fix.
+          npm install
 
       - name: Wait for DB
         run: |
@@ -185,6 +187,10 @@ jobs:
           (cd $GITHUB_WORKSPACE/backend && npx dotenv -e .env.test -- node node_modules/.bin/prisma migrate dev 2>&1)
           (cd $GITHUB_WORKSPACE/backend && npm run start:test > $GITHUB_WORKSPACE/logs/backend.log 2>&1 &)
           (cd $GITHUB_WORKSPACE/frontend && npm run start:test > /dev/null 2>&1 &)
+          # wait-on above only checked the DB/mail/Redis ports were open, not that the
+          # Nest app itself finished booting — a slow boot or a startup crash used to
+          # go unnoticed until 15 Cypress specs failed with confusing auth errors.
+          npx wait-on http-get://localhost:4000/api/health --timeout 60
           (cd $GITHUB_WORKSPACE/e2e && npm run e2e:run)
 
       - name: Upload backend logs

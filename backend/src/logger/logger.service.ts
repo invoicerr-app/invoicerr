@@ -31,9 +31,12 @@ export class LoggerService {
         },
       });
     } catch (error) {
-      console.error('Failed to persist the log entry to the database:', error);
-      logger.error("Impossible d'enregistrer le log.", { category: 'logger', details: { error } });
-      throw new Error("Impossible d'enregistrer le log.");
+      // Report through the Nest logger only. Calling logger.error() here would funnel
+      // straight back into createLog(), so a database that cannot accept logs — exactly
+      // what happens when the schema is being rebuilt under a running app — turned one
+      // failure into an endless chain of failing writes.
+      this.inLogger.error(`Failed to persist a ${level} log entry: ${message}`, error as Error);
+      throw new Error('Failed to persist the log entry to the database');
     }
   }
 
