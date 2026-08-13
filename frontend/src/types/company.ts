@@ -32,6 +32,7 @@ export interface Company {
     country: string
     phone: string
     email: string
+    replyToEmail?: string | null
     quoteStartingNumber: number
     quoteNumberFormat: string
     invoiceStartingNumber: number

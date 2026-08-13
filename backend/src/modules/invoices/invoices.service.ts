@@ -879,6 +879,7 @@ export class InvoicesService {
 
         const mailOptions = {
             to: invoice.client.contactEmail,
+            replyTo: invoice.company.replyToEmail || undefined,
             subject: mailTemplate.subject.replace(/{{(\w+)}}/g, (_, key) => envVariables[key] || ''),
             html: mailTemplate.body.replace(/{{(\w+)}}/g, (_, key) => envVariables[key] || ''),
             attachments: [{

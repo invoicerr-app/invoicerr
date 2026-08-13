@@ -74,6 +74,8 @@ export class EditCompanyDto {
     country: string
     phone?: string
     email?: string
+    // null clears the override; undefined leaves it untouched
+    replyToEmail?: string | null
     pdfConfig: PDFConfigDto
     quoteStartingNumber: number
     quoteNumberFormat: string

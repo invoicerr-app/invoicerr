@@ -1466,6 +1466,14 @@
                         "format": "Email format is invalid"
                     }
                 },
+                "replyToEmail": {
+                    "label": "Reply-To Email",
+                    "placeholder": "Enter reply-to address (optional)",
+                    "description": "Address clients reply to, when emails are sent from a no-reply sender. Leave empty to use the server default.",
+                    "errors": {
+                        "format": "Email format is invalid"
+                    }
+                },
                 "quoteStartingNumber": {
                     "label": "Quote Starting Number",
                     "placeholder": "Enter starting number for quotes",

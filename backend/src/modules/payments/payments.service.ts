@@ -615,6 +615,7 @@ export class PaymentsService {
 
         const mailOptions = {
             to: payment.invoice.client.contactEmail,
+            replyTo: payment.invoice.company.replyToEmail || undefined,
             subject: mailTemplate.subject.replace(/{{(\w+)}}/g, (_, key) => envVariables[key] || ''),
             html: mailTemplate.body.replace(/{{(\w+)}}/g, (_, key) => envVariables[key] || ''),
             attachments: [{

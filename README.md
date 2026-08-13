@@ -93,6 +93,9 @@ The fastest way to run Invoicerr is using Docker Compose. A prebuilt image is av
          - SMTP_PORT=587
          - SMTP_SECURE=false
 
+         # Optional default Reply-To for outgoing mail (both providers)
+         # - MAIL_REPLY_TO="billing@example.com"
+
          # Option 2: Brevo (set MAIL_PROVIDER=brevo and comment out the SMTP_* variables above)
          # - MAIL_PROVIDER=brevo
          # - BREVO_API_KEY="your_brevo_api_key"
@@ -153,6 +156,9 @@ These environment variables are defined in `docker-compose.yml` under the `invoi
 
 - `BREVO_API_KEY`  
   Used when `MAIL_PROVIDER=brevo`. API key for sending emails via [Brevo](https://www.brevo.com/) instead of SMTP. The sender address falls back to `MAIL_FROM`, then `SMTP_FROM`/`SMTP_USER`.
+
+- `MAIL_REPLY_TO`  
+  Optional — default `Reply-To` address for outgoing emails, useful when sending from an unmonitored `no-reply` sender. Works with both providers. Each company can override it in Settings > Company; no `Reply-To` header is sent when neither is set.
 
 - `JWT_SECRET`  
   Optional but recommended for JWT authentication. Can be any random string.  

@@ -102,6 +102,14 @@ export default function CompanySettings() {
             .refine((val) => {
                 return z.string().email().safeParse(val).success
             }, t("settings.company.form.email.errors.format")),
+        // Optional: an empty string means "no Reply-To override", so only
+        // validate the address format once something has been typed.
+        replyToEmail: z
+            .string()
+            .optional()
+            .refine((val) => {
+                return !val || z.string().email().safeParse(val).success
+            }, t("settings.company.form.replyToEmail.errors.format")),
         quoteStartingNumber: z.number().min(1, t("settings.company.form.quoteStartingNumber.errors.min")),
         quoteNumberFormat: z
             .string()
@@ -164,6 +172,7 @@ export default function CompanySettings() {
             country: "",
             phone: "",
             email: "",
+            replyToEmail: "",
             invoicePDFFormat: "",
             quoteStartingNumber: 1,
             quoteNumberFormat: "Q-{year}-{number}",
@@ -183,6 +192,7 @@ export default function CompanySettings() {
                 VAT: data.VAT ?? "",
                 addressLine2: data.addressLine2 ?? "",
                 state: data.state ?? "",
+                replyToEmail: data.replyToEmail ?? "",
                 foundedAt: new Date(data.foundedAt),
                 exemptVat: !!data.exemptVat,
             })
@@ -206,7 +216,8 @@ export default function CompanySettings() {
 
     async function onSubmit(values: z.infer<typeof companySchema>) {
         setIsLoading(true)
-        trigger(values)
+        // Clearing the field should remove the override, not store an empty string.
+        trigger({ ...values, replyToEmail: values.replyToEmail?.trim() || null })
             .then(() => {
                 toast.success(t("settings.company.messages.updateSuccess"))
             })
@@ -490,6 +501,21 @@ export default function CompanySettings() {
                                                 <Input type="email" placeholder={t("settings.company.form.email.placeholder")} {...field} data-cy="company-email-input" />
                                             </FormControl>
                                             <FormDescription>{t("settings.company.form.email.description")}</FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    control={form.control}
+                                    name="replyToEmail"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>{t("settings.company.form.replyToEmail.label")}</FormLabel>
+                                            <FormControl>
+                                                <Input type="email" placeholder={t("settings.company.form.replyToEmail.placeholder")} {...field} data-cy="company-reply-to-email-input" />
+                                            </FormControl>
+                                            <FormDescription>{t("settings.company.form.replyToEmail.description")}</FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}

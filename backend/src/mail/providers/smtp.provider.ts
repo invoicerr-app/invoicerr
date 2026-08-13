@@ -26,6 +26,9 @@ export class SmtpMailProvider implements IMailProvider {
     async sendMail(options: MailOptions): Promise<void> {
         await this.transporter.sendMail({
             from: options.from || process.env.SMTP_FROM || process.env.SMTP_USER,
+            // Left undefined when neither is set, so nodemailer omits the header
+            // entirely rather than sending an empty Reply-To.
+            replyTo: options.replyTo || process.env.MAIL_REPLY_TO || undefined,
             to: options.to,
             subject: options.subject,
             text: options.text,

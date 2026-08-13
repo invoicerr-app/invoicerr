@@ -128,3 +128,16 @@ Use Brevo when you don't want to run or pay for an SMTP relay — it sends email
 
 </TabItem>
 </Tabs>
+
+### Reply-To address
+
+If you send from an unmonitored address (`no-reply@…`), set a Reply-To so client
+replies reach a real inbox. It applies to both providers:
+
+```yaml
+- MAIL_REPLY_TO="billing@example.com" # optional, no Reply-To header is sent when unset
+```
+
+Each company can override this under **Settings → Company → Reply-To Email**. The
+per-company value wins; `MAIL_REPLY_TO` is the fallback for companies that leave it
+blank.

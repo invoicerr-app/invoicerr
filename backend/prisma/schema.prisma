@@ -328,6 +328,7 @@ model Company {
   country      String
   phone        String
   email        String
+  replyToEmail String? // Reply-To header for outgoing mail; falls back to MAIL_REPLY_TO, then omitted
 
   quoteStartingNumber   Int    @default(1) // Starting number for quotes
   quoteNumberFormat     String @default("Q-{year}-{number:4}") // Ex: "Q-2025-0001"

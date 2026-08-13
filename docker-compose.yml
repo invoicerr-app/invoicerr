@@ -19,6 +19,10 @@ services:
       - SMTP_PORT=587 # Change this to your SMTP port (default is 587 for TLS)
       - SMTP_SECURE=false # Set to true if your SMTP server requires a secure connection (default is false)
 
+      # Optional default Reply-To for outgoing mail (both providers). Useful when the
+      # sender is an unmonitored no-reply address. Overridable per company in Settings.
+      # - MAIL_REPLY_TO="billing@example.com"
+
       # Option 2: Brevo (set MAIL_PROVIDER=brevo and comment out the SMTP_* variables above)
       # - MAIL_PROVIDER=brevo
       # - BREVO_API_KEY="your_brevo_api_key"

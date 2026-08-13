@@ -222,6 +222,7 @@ export class SignaturesService {
 
         const mailOptions = {
             from: process.env.SMTP_FROM || process.env.SMTP_USER,
+            replyTo: signature.quote.company.replyToEmail || undefined,
             to: signature.quote.client.contactEmail,
             subject: mailTemplate.subject.replace(/{{(\w+)}}/g, (_, key) => envVariables[key] || ''),
             html: mailTemplate.body.replace(/{{(\w+)}}/g, (_, key) => envVariables[key] || ''),
@@ -265,6 +266,7 @@ export class SignaturesService {
 
         const mailOptions = {
             to: email,
+            replyTo: signature.quote.company.replyToEmail || undefined,
             subject: mailTemplate.subject.replace(/{{(\w+)}}/g, (_, key) => envVariables[key] || ''),
             html: mailTemplate.body.replace(/{{(\w+)}}/g, (_, key) => envVariables[key] || ''),
         };
