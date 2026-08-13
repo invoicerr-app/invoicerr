@@ -1,11 +1,17 @@
 name: Publish Docker Image to GitHub Container Registry
 
+# FORK-ONLY BRANCH — do not include in a pull request to upstream.
+# Adds a manual trigger and trims the platform matrix so this fork can publish a
+# test image to its own GHCR namespace. A dispatched run uses the workflow file
+# from the ref it builds, which is why this lives on the deploy branch rather
+# than on the feature branch it tracks.
 on:
   release:
     types: [ "created" ]
   push:
     branches:
       - test/workflow
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
@@ -70,12 +76,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Trimmed to the single platform this fork tests on. arm64/arm/v7 are
+        # dropped to keep test builds fast; arm/v7 in particular cross-builds
+        # node_modules on an amd64 runner, so its native binaries (bcrypt,
+        # prisma engines, esbuild) do not match the target.
         include:
           - platform: linux/amd64
-            runner: ubuntu-24.04
-          - platform: linux/arm64
-            runner: ubuntu-24.04-arm
-          - platform: linux/arm/v7
             runner: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
