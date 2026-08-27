@@ -1,0 +1,142 @@
+# 09 — F-018 : séquence, question préalable, et grille de déclaration
+
+> Rédigé le 2026-08-27. Ce document **ne constitue aucune déclaration, aucun engagement, et n'a
+> aucune valeur juridique.** Il prépare des éléments et identifie qui doit trancher.
+
+---
+
+## 1. Le correctif évident est le plus coûteux
+
+| Manquement | Montant | Base |
+| --- | --- | --- |
+| Absence de déclaration responsable | **1 000 €** par système commercialisé | LGT art. 201 bis.1 f) |
+| Système ne respectant pas les spécifications de l'art. 29.2.j) LGT | **150 000 €** par exercice **et par type de système** | LGT art. 201 bis.1 a)–e) |
+
+**Le rapport de 1 à 150 commande toute la séquence.** Déclarer vite pour rattraper le retard, alors
+que la chaîne de registres ne se forme pas, ne rattrape rien : cela fait passer l'exposition du
+montant plancher au montant plafond.
+
+*(Montants relayés depuis la vérification pays ; l'art. 201 bis n'a pas été relu verbatim par mes
+soins. L'échéance, elle, l'a été — voir F-018.)*
+
+---
+
+## 2. Question préalable — à poser à un juriste espagnol, non tranchée ici
+
+**Le rattachement d'Invoicerr à l'obligation n'est pas établi**, et tout le finding en dépend.
+
+### La question
+
+> Le RD 1007/2023 art. 3.2 dispose que le règlement « **también se aplicará a los productores y
+> comercializadores de los sistemas informáticos** », s'agissant de leur activité de production et
+> de commercialisation de systèmes **mis à disposition des obligés tributaires visés au paragraphe
+> 1** (contribuables IS / IRPF activité économique / IRNR avec établissement permanent / entités en
+> attribution de revenus, domiciliés en territoire commun).
+>
+> **Invoicerr est-il un « productor » au sens de cet article s'il n'a aucun utilisateur assujetti en
+> Espagne et n'y est pas commercialisé ?**
+>
+> Sous-questions :
+> 1. Le rattachement naît-il de la **mise à disposition effective** à un obligé espagnol, ou de la
+>    simple **disponibilité** du logiciel (open source, téléchargeable, hébergeable par n'importe qui) ?
+> 2. Un logiciel **auto-hébergé** par un tiers, sans relation contractuelle avec l'éditeur, engage-t-il
+>    l'éditeur comme « productor », ou l'utilisateur devient-il lui-même le producteur au sens de
+>    l'art. 13 en l'intégrant ?
+> 3. Si un seul utilisateur espagnol apparaît ultérieurement, le rattachement est-il **rétroactif** au
+>    regard d'une échéance déjà échue, ou court-il à compter de cette mise à disposition ?
+> 4. La qualification de « comercializador » dépend-elle d'une contrepartie financière ?
+
+### Éléments de fait à joindre à la question
+
+- Invoicerr est distribué en **open source** et **auto-hébergeable** ; l'éditeur n'a pas
+  nécessairement connaissance ni contrôle des instances déployées.
+- Le dépôt ne contient **aucun indice d'utilisateur espagnol** : les canaux espagnols (`es-face`,
+  `es-aeat`) sont des stubs sans transport, et aucun identifiant de client espagnol n'y figure.
+- Le produit **modélise l'Espagne** (profil `ES`, générateurs SII et Veri\*Factu) sans être
+  commercialisé sur ce marché à ma connaissance.
+- Le marché principal déclaré du projet est France, Pologne et Italie.
+
+> **Cette question n'est pas tranchée ici, et ne doit pas l'être par moi.** Si la réponse est
+> négative, F-018 sort de l'axe « exposition juridique de l'éditeur » et redevient un point de
+> préparation. Si elle est positive, la séquence ci-dessous s'applique.
+
+---
+
+## 3. La séquence, si le rattachement est confirmé
+
+Elle est contrainte et ne s'inverse pas. **Elle a changé depuis la correction d'ES-D1.**
+
+| # | Étape | État | Bloqué par |
+| --- | --- | --- | --- |
+| 1 | Confirmer que les spécifications techniques AEAT encodées dans le code sont toujours à jour | à faire | rien — recherche bornée (P4) |
+| 2 | **Former la chaîne** : alimenter `previousHuella` depuis `ReportingStore` | **faisable maintenant** | rien |
+| 3 | Vérifier — les vecteurs officiels sont déjà dans la suite de tests | faisable après 2 | rien |
+| 4 | Déclarer | **décision d'entreprise** | question §2, puis étapes 1–3 |
+
+**Ce qui a changé.** La première rédaction posait « obtenir les deux documents techniques AEAT » en
+étape bloquante. Cette étape est **en substance déjà faite** : le code les cite nommément avec leurs
+versions — huella **v0.1.2 du 2024-08-27**, QR **v0.5.0 du 2025-12-10** — et `generators.spec.ts`
+reproduit les **deux exemples chiffrés officiels** de l'AEAT. Il reste à confirmer que ces versions
+sont les versions courantes, ce qui est une vérification, pas un déblocage.
+
+**Ce qui manque réellement est une requête, pas une source.** Le `TODO(seam)` de
+`generators.ts:695` décrit lui-même le correctif : lire par émetteur la huella du dernier registre
+VERIFACTU via `ReportingStore`, et la passer au générateur. Tant que ce n'est pas fait, chaque
+registre porte `PrimerRegistro='S'` : une chaîne de longueur un, répétée.
+
+**Ce qu'il ne faut toujours pas faire** : réécrire l'algorithme de la huella ou l'URL du QR « au
+plus probable ». Ils sont déjà conformes à des vecteurs publiés ; les toucher sans le document à
+jour ne peut que dégrader.
+
+---
+
+## 4. Grille des indicateurs — Orden HAC/1177/2024 art. 15
+
+Renseignée **uniquement** avec ce qui est factuel au 2026-08-27. Les cases non établies sont laissées
+vides — elles relèvent de l'entreprise, pas de l'audit.
+
+| Réf. | Champ exigé | État |
+| --- | --- | --- |
+| 1.a | Nom commercial du système | `Invoicerr` |
+| 1.b | **Code identifiant du SIF** (2 caractères, unique par produit) | *(à choisir — non attribué)* |
+| 1.c | Identifiant de version | dernier tag : `v1.4.6b`. **Écart à lever** : `backend/package.json` porte `0.0.1` et `frontend/package.json` `0.0.0` — la version publiée n'est pas celle du paquet |
+| 1.d | Composants matériels/logiciels et fonctionnalités | Application web ; backend NestJS + PostgreSQL + Redis ; frontend React ; déploiement conteneurisé, deux rôles (`api`, `worker`) |
+| 1.e | **Le système fonctionne-t-il uniquement en mode VERI\*FACTU ?** | **voir §5 — aucune des deux réponses n'est aujourd'hui exacte** |
+| 1.f | **Le système supporte-t-il plusieurs obligés tributaires ?** | **S** — multi-tenant par conception : 22 services applicatifs cadrent leurs requêtes par `companyId`, et le décorateur `@ActiveCompany()` lève une 403 hors contexte société |
+| 1.g | Types de signature en mode non-VERI\*FACTU | **non implémenté pour les registres.** Le produit dispose de providers XAdES, CAdES et PAdES, mais ils signent des **artefacts de facture**, pas des `registros de facturación` |
+| 1.h | Raison sociale du producteur | *(entreprise)* |
+| 1.i | Identification fiscale | *(entreprise — un producteur non espagnol peut porter son numéro de TVA intracommunautaire, type `02`)* |
+| 1.j | Adresse postale | *(entreprise)* |
+| 1.k | Formule de conformité | *(texte imposé par l'Orden ; à reprendre littéralement)* |
+| 1.l | Date et lieu — jour, mois, année, puis localité **et pays** | *(à la signature)* |
+
+Rappels de forme (Orden art. 15.3 et 15.4) : la déclaration doit être lisible et individualisée
+**dans le produit lui-même**, accessible « de forma rápida, fácil e intuitiva » ; il en faut **une par
+version** ; et chaque composant ou extension de tiers exige **sa propre déclaration, pour chaque
+version**.
+
+---
+
+## 5. Le piège de l'indicateur 1.e
+
+L'indicateur demande si le système fonctionne **exclusivement** en mode VERI\*FACTU. Les deux
+réponses engagent des obligations que le produit ne remplit pas aujourd'hui :
+
+| Réponse | Ce qu'elle engage | État du produit |
+| --- | --- | --- |
+| **S** — exclusivement VERI\*FACTU | Remisión **automatique, continue et instantanée** de tous les registres à l'AEAT | **non implémenté** — le handler de reporting journalise `[MOCK]` et ne transmet rien (F-016) |
+| **N** — non exclusivement | **Signature XAdES des registres** (art. 12), **registro de eventos**, conservation et exportation des registres | **non implémenté** pour les registres |
+
+> **Aucune des deux cases ne peut être cochée sincèrement en l'état.** Ce n'est pas un défaut de la
+> grille : c'est la grille qui révèle que la conformité espagnole n'est pas atteinte, indépendamment
+> de la question de rattachement du §2. C'est la raison pour laquelle l'étape 4 de la séquence est
+> une **décision d'entreprise** et non une tâche technique.
+
+---
+
+## 6. Ce que ce document ne fait pas
+
+Il n'émet aucune déclaration responsable. Il ne tranche pas le rattachement. Il ne recommande pas de
+déclarer, ni de s'en abstenir. Il établit que **déclarer avant d'avoir formé la chaîne et choisi une
+réponse sincère à 1.e multiplierait l'exposition par cent cinquante**, et il identifie les deux
+personnes qui doivent décider : un juriste espagnol pour le §2, la direction pour l'étape 4.
