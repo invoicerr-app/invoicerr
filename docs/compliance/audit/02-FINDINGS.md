@@ -713,12 +713,19 @@ décisive, puisqu'elle porte sur le marché principal, à cinq jours de son mand
 version de ce finding généralisait un déclencheur bilatéral à partir de la France, de l'Allemagne et
 de l'Italie ; la Pologne l'a infirmé. Le constat correct est plus lourd :
 
-| Pays | Déclencheur | Transfrontalier |
-| --- | --- | --- |
-| France | **bilatéral** | hors mandat → e-reporting art. 290 |
-| Allemagne | **bilatéral** | hors mandat → ZM § 18a |
-| Italie | résidents ou établis | hors mandat → données c. 3-bis |
-| Pologne | **unilatéral — vendeur seul** | **dans le mandat** |
+| Pays | Déclencheur | Pivot | Transfrontalier |
+| --- | --- | --- | --- |
+| France | bilatéral | les deux établis | hors mandat → e-reporting art. 290 |
+| Allemagne | bilatéral | les deux établis | hors mandat → ZM § 18a |
+| Italie | bilatéral (SdI) / unilatéral (c. 3-bis) | les deux / le transmetteur | hors mandat → données c. 3-bis |
+| Pologne | **unilatéral** | **vendeur** | **dans le mandat** |
+| Espagne — Veri\*Factu | **unilatéral** | **statut fiscal du vendeur** | **dans le régime** |
+| Espagne — mandat B2B | **bilatéral** | **acheteur** | hors mandat |
+
+Cinq pivots différents pour six régimes. L'Espagne fournit le contre-exemple le plus net : son mandat
+B2B pivote sur l'**établissement de l'acheteur**, de sorte qu'une résolution fondée sur le vendeur s'y
+trompe **dans les deux sens** — faux positif sur ES → FR, faux négatif sur un vendeur étranger soumis
+aux règles espagnoles vendant à un acheteur établi en Espagne.
 
 Une stratégie de résolution unique est donc fausse **quel que soit le choix retenu**. La résolution
 « fournisseur seul » du moteur se trouve juste pour la Pologne et fausse pour la France et
@@ -748,6 +755,71 @@ profils, produit bien l'autoliquidation (catégorie `AE`, 0 %) sur FR→IT et l'
 (catégorie `O`) sur FR→US, et déclenche `EC_SALES_LIST`. L'architecture « composer deux profils
 plutôt qu'une matrice N×N » est la bonne ; elle n'a simplement jamais été étendue au-delà de la
 couche fiscale.
+
+---
+
+<a id="f-018"></a>
+## F-018 — `critical` — Une obligation espagnole pèse sur l'éditeur, et son échéance est expirée
+
+Ce finding ne porte pas sur la couverture d'un pays. Il porte sur **Invoicerr en tant que producteur
+de logiciel**, et c'est le seul de l'audit dont l'exposition est **présente et chiffrée**.
+
+### La règle
+
+Le RD 1007/2023 s'applique aux contribuables **et** aux éditeurs. Art. 3.2, texte vérifié
+directement sur le [BOE consolidé](https://www.boe.es/buscar/act.php?id=BOE-A-2023-24840) le
+2026-08-27 :
+
+> « El presente Reglamento **también se aplicará a los productores y comercializadores de los
+> sistemas informáticos** »
+
+L'art. 13 impose une **declaración responsable** par laquelle le producteur certifie lui-même la
+conformité de son système. Elle doit figurer « **por escrito y de modo visible en el propio sistema
+informático** », être remise au client et au commercialisateur au moment de l'acquisition, et exister
+**pour chaque version**. L'Orden HAC/1177/2024 art. 15 en fixe le contenu littéral, dont deux
+indicateurs qui décrivent exactement l'architecture d'Invoicerr : `1.e` — le système fonctionne-t-il
+uniquement en mode VERI\*FACTU — et `1.f` — **le système supporte-t-il plusieurs obligés tributaires**,
+c'est-à-dire le multi-tenant.
+
+### L'échéance ✓✓
+
+Disposición final cuarta, vérifiée directement sur le BOE consolidé : les producteurs et
+commercialisateurs disposent de **neuf mois à compter de l'entrée en vigueur de l'orden ministerial**
+pour offrir des produits pleinement adaptés. L'Orden HAC/1177/2024 est entrée en vigueur le
+**2024-10-29**.
+
+> **L'échéance est donc échue depuis l'été 2025.** Elle ne dépend pas du calendrier des clients —
+> ceux-ci ont jusqu'au 2027-01-01 ou au 2027-07-01, l'éditeur non.
+
+### Ce qui rend le point actionnable plutôt que théorique
+
+**Un producteur établi hors d'Espagne peut parfaitement émettre cette déclaration**, sans NIF
+espagnol ni représentant fiscal. L'Orden art. 15.1.i) prévoit expressément : « **Si no dispone de NIF
+español, deberá hacer constar otro número de identificación de que disponga**, indicando de qué tipo
+de identificación se trata y el país que lo ha emitido ». Le document d'exemples publié par l'AEAT
+illustre le cas avec un numéro de TVA intracommunautaire portugais.
+
+Il s'agit par ailleurs d'une **auto-certification** : aucun organisme tiers, aucun enregistrement
+préalable. C'est donc une obligation à coût faible et à exposition élevée.
+
+### Exposition
+
+Les sanctions relèvent de la LGT art. 201 bis, qualifiées d'infractions **graves** : **150 000 €
+par exercice et par type de système** pour un système ne respectant pas les spécifications
+techniques de l'art. 29.2.j) LGT ; **1 000 € par système commercialisé** en l'absence de déclaration
+responsable. *(Montants rapportés par la vérification pays ; la disposition elle-même n'a pas été
+relue verbatim par mes soins — l'échéance, elle, l'a été.)*
+
+À rapprocher de **ES-D1** : le profil déclare `hashChain: false` alors que le chaînage est obligatoire
+dans les deux modalités. Une déclaration responsable attestant la conformité d'un système qui ne
+chaîne pas ses registres serait une déclaration inexacte — c'est-à-dire le cas visé par le premier
+montant, pas le second.
+
+### Décision attendue
+
+C'est un arbitrage d'entreprise, pas technique : émettre la déclaration responsable suppose d'être en
+état de la tenir. Deux ordres possibles — corriger d'abord le chaînage puis déclarer, ou déclarer sur
+un périmètre restreint. Cela n'entre pas dans le mandat de cet audit.
 
 ---
 

@@ -798,3 +798,126 @@ de conservation à un **plancher de 6 ans** (Código de Comercio art. 30.1 combi
 et non 4 — mais son rapport principal, auquel cet addendum se réfère, n'a jamais été transmis.
 **Aucune divergence espagnole ou mexicaine n'est donc consignée ici** : les inférer serait
 exactement ce que cet audit s'interdit.
+
+---
+
+## ESPAGNE
+
+### Sources
+
+BOE, textes consolidés (RD 1007/2023, RD 1619/2012, RD 238/2026, Orden HAC/1177/2024, LGT, LIVA,
+Código de Comercio, Ley 25/2013) ; AEAT (`sede.agenciatributaria.gob.es`) ; `hacienda.gob.es` pour le
+projet d'orden ministerial.
+
+### Deux régimes, deux déclencheurs de nature différente
+
+C'est la particularité espagnole, et elle est structurante :
+
+| Régime | Déclencheur | Pivot |
+| --- | --- | --- |
+| **Veri\*Factu** | **unilatéral** — un **statut fiscal de l'émetteur** (IS / IRPF activité économique / IRNR **avec établissement permanent** / entité en attribution de revenus), domicile fiscal en territoire commun, **et non inscrit au SII** | **vendeur** |
+| **Mandat B2B** (RD 238/2026) | **bilatéral, dominé par le destinataire** — l'émetteur doit être tenu d'émettre selon le RD 1619/2012, **et** le destinataire doit avoir en Espagne son siège, un EP ou son domicile, **et l'opération doit lui être adressée** | **acheteur** |
+
+Le mandat B2B pivote donc sur `buyerEstablishment == ES`, **pas** sur le pays du vendeur. Un moteur
+qui l'active sur le vendeur se trompe dans les deux sens : faux positif sur ES → FR, faux négatif sur
+un vendeur étranger soumis aux règles espagnoles vendant à un acheteur établi en Espagne.
+
+**Veri\*Factu couvre le transfrontalier sortant** : la norme vise l'émission de factures
+« **cualquiera que sea el destinatario** ». Une facture à un client étranger génère un registro de
+facturación comme une facture domestique. Un moteur qui court-circuite sur `buyerCountry != ES` est
+non conforme.
+
+### Calendrier — trois horloges indépendantes
+
+| Horloge | Échéance | Statut |
+| --- | --- | --- |
+| Veri\*Factu — contribuables IS | **2027-01-01** | en vigueur (prorogé deux fois : RD 254/2025 puis RD-ley 15/2025, convalidé le 2025-12-11) |
+| Veri\*Factu — reste des obligés art. 3.1 | **2027-07-01** | en vigueur |
+| Veri\*Factu — **producteurs de logiciel** | **9 mois après l'entrée en vigueur de l'orden ministerial** ✓✓ | **échéance expirée** |
+| Mandat B2B | 12 / 24 / 36 mois **à compter de l'entrée en vigueur d'une orden ministerial non publiée** | **horloge non démarrée** |
+
+L'orden ministerial du mandat B2B **n'est pas publiée au 2026-08-27** ; elle existe à l'état de projet
+soumis à information publique le 2026-04-17, prévoyant une entrée en vigueur au 2026-10-01. **Ces
+dates ne doivent pas être codées comme fermes.**
+
+### Divergences avec le code — Espagne
+
+**ES-D1 — `hashChain: false` : le code est faux.**
+Le chaînage par empreinte du registre précédent est **obligatoire dans les deux modalités**
+(RD 1007/2023 art. 8.2.b, 10.1.ñ, 11.2.e et 12). L'exception de l'art. 16.3 ne lève que la
+**signature XAdES**, jamais le hash.
+
+**ES-D2 — `reporting: SII + VERIFACTU` : le code est faux s'il cumule.**
+Les deux régimes sont **mutuellement exclusifs** : « El presente Reglamento **no se aplicará** a los
+contribuyentes que lleven los libros registros en los términos […] del artículo 62 del Reglamento del
+IVA » (art. 3.3). Un flag `isSiiFiler` doit arbitrer en amont ; il n'existe aucun état où les deux
+sont actifs.
+
+**ES-D3 — `archival: 10 ans` : mal étiqueté.**
+Le RD 1619/2012 art. 19.1 renvoie à la LGT sans écrire de durée. Le plancher réel est **6 ans**
+(Código de Comercio art. 30.1, via LGT art. 70.2 qui impose le plus long des deux), sur un socle
+fiscal de 4 ans. Les 10 ans ne valent que pour les bases et déductions en attente (LGT art. 66 bis.2)
+— et sont **insuffisants** pour l'immobilier, la régularisation des biens d'investissement portant sur
+neuf années supplémentaires (LIVA art. 107.Tres). 10 ans est un défaut prudent, pas une règle.
+
+**ES-D4 — `archivedForm: BOTH` : incomplet sur deux points opposables.**
+(a) Le **format d'origine** doit être conservé — XML natif, données associées **et mécanismes de
+vérification de signature** (art. 21.1) ; un rendu PDF ne suffit pas. (b) La conservation **hors
+d'Espagne** est licite mais soumise à **communication préalable à l'AEAT** (art. 22.2), de même que la
+sous-traitance hors UE (art. 19.4). Le profil ne modélise aucune de ces deux obligations déclaratives.
+
+**ES-D5 — `numbering: GAPLESS_SELF` : non sourcé, et incomplet.**
+Le texte n'exige que « la numeración […] **dentro de cada serie** será correlativa ». L'interdiction
+des trous n'est écrite nulle part → `open_question`. Surtout, le profil ignore les **séries
+obligatoirement séparées** : rectificatives, autofacturation (**une série par tiers émetteur ou
+destinataire**), art. 84.Uno.2º.g) LIVA, DA 5ª et art. 61 quinquies.2 RIVA, et **complètes vs
+simplifiées dès qu'elles coexistent sur une même année civile**.
+
+**ES-D6 / ES-D7 — `PLAIN_PDF + ES_FACTURAE` : faux pour le mandat B2B.**
+Le RD 238/2026 art. 7.1 impose EN 16931 dans l'une de quatre syntaxes — **CII, UBL, EDIFACT ou
+Facturae** — et les opérateurs doivent savoir **convertir entre les quatre**. **UBL est la syntaxe de
+référence** de la solución pública. Le PDF n'est qu'un **accompagnement transitoire** pendant les
+12 premiers mois pour les entreprises de plus de 8 M€. Facturae-seul est une règle **B2G**
+(Ley 25/2013 / FACe), pas B2B.
+
+**ES-D8 — canaux : incomplet sur trois obligations.**
+Manquent : le **dépôt simultané d'une copie fidèle UBL** au repositorio universel de l'AEAT par toute
+plateforme privée ; l'**interconnexion obligatoire** entre plateformes, sous un mois ; et le
+**reporting des états de facture** — acceptation ou rejet commercial, paiement effectif — sous
+**quatre jours naturels hors week-ends et fériés**. L'e-mail ne satisfera pas le mandat B2B.
+
+**ES-D9 — `cancellationAllowed` : ambigu, et le risque est de n'en faire qu'une moitié.**
+Aucune suppression n'existe. L'annulation prend **deux formes distinctes et cumulatives** : un
+**registro de anulación** append-only et chaîné côté Veri\*Factu, **et** une facture rectificative à
+100 % côté destinataire. Un `cancel` unique qui ne produit que l'un des deux est non conforme.
+
+**ES-D10 — `correctionModel: CREDIT_NOTE` : correct sur le principe, incomplet sur les règles.**
+Manquent la **double ancre** de la fenêtre de 4 ans (*devengo* **ou** survenance de la circonstance de
+l'art. 80 LIVA), les fenêtres courtes (2 mois en cas de concours, 6 mois pour créances irrécouvrables
+puis 1 mois de communication à l'AEAT, 1 mois pour une re-rectification à la hausse), les **deux
+représentations** admises — delta ou absolu post-rectification —, et l'interdiction de rectifier à la
+hausse un destinataire non-entrepreneur hors art. 80.
+
+**ES-D11 — plafond territorial absent.**
+Le profil ne modélise ni l'exclusion du **País Vasco et de la Navarre** (régimes foraux, exclusion par
+domicile fiscal), ni les spécificités des Canaries, Ceuta et Melilla, ni l'exclusion des opérations
+réalisées via un **établissement permanent à l'étranger** (art. 4.2), ni le fait qu'un assujetti **non
+établi mais simplement immatriculé NIF est hors du champ Veri\*Factu**.
+
+### Ce que le code fait juste — Espagne
+
+`regimeBlocking: false` est **exact** : Veri\*Factu n'est pas une clearance, l'AEAT ne valide pas la
+facture — l'art. 16 n'établit qu'une présomption de conformité **du système**, et l'art. 8.4 du
+RD 1619/2012 une présomption d'authenticité et d'intégrité **de la facture**. `immutableAfter: ISSUE`
+est exact, et même sous-estimé : l'immutabilité est exigée au niveau du **registre**, append-only,
+avec registro de eventos obligatoire en mode non-VERI\*FACTU.
+
+### Open questions — Espagne
+
+Les deux plus bloquantes pour une implémentation : le **document technique AEAT du hash** (algorithme
+confirmé, ordre de concaténation, séparateurs, encodage) et celui du **QR** (URL littérale du service
+de cotejo, paramètres, variante selon la modalité). L'Orden HAC/1177/2024 y renvoie formellement —
+**ne pas implémenter le hash ni l'URL du QR sans ces documents**. S'y ajoutent : les critères exacts
+d'assujettissement au SII (c'est pourtant le flag qui arbitre ES-D2), la publication de l'orden
+ministerial du mandat B2B, et le cas d'un fournisseur non établi mais immatriculé réalisant une
+opération localisée en Espagne vers un acheteur établi.
