@@ -1,6 +1,13 @@
 # 00 — Inventaire mécanique (Phase 0)
 
 > Généré par `scripts/audit/inventory.ts` le 2026-08-27, **en vigueur au 2026-08-27**.
+>
+> ⚠️ **Les champs `everDeclared*` de `inventory.json` n’établissent RIEN sur l’état en vigueur.**
+> Ils aplatissent toutes les périodes temporelles, périodes **abrogées** comprises. C’est
+> exactement cet aplatissement qui a produit deux findings faux (PL-D4, IT-D8) et une synthèse
+> transversale fausse avant correction. **Aucun finding ne doit s’y adosser** : ils servent à lire
+> l’histoire d’un profil, jamais à juger ce qu’il déclare aujourd’hui. Pour l’état courant, et
+> pour lui seul, utiliser les champs de premier niveau — qui sont, eux, filtrés par `as_of`.
 > Les champs issus des profils sont les règles **en vigueur** à cette date, pas la totalité des
 > périodes déclarées. Rejouer à une autre date : `AUDIT_AS_OF=YYYY-MM-DD`. **Aucun jugement, aucune
 > vérification juridique, aucune recherche web.** Uniquement ce qui existe dans le dépôt,

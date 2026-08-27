@@ -33,15 +33,19 @@ soins. L'échéance, elle, l'a été — voir F-018.)*
 > 1** (contribuables IS / IRPF activité économique / IRNR avec établissement permanent / entités en
 > attribution de revenus, domiciliés en territoire commun).
 >
-> **Invoicerr est-il un « productor » au sens de cet article s'il n'a aucun utilisateur assujetti en
+> **Question 0 — celle qui teste l'entrée dans le régime.** L'obligation de déclaration responsable
+> de l'art. 13 vise-t-elle **tout système de facturation**, ou seulement un système **destiné à être
+> utilisé par un obligé tributaire au sens de l'art. 3.1** ? Les questions suivantes présupposent
+> toutes que le régime s'applique et cherchent où il s'arrête ; celle-ci demande s'il commence.
+>
+> **Invoicerr est-il un « productor » au sens de l'art. 3.2 s'il n'a aucun utilisateur assujetti en
 > Espagne et n'y est pas commercialisé ?**
 >
 > Sous-questions :
 > 1. Le rattachement naît-il de la **mise à disposition effective** à un obligé espagnol, ou de la
 >    simple **disponibilité** du logiciel (open source, téléchargeable, hébergeable par n'importe qui) ?
-> 2. Un logiciel **auto-hébergé** par un tiers, sans relation contractuelle avec l'éditeur, engage-t-il
->    l'éditeur comme « productor », ou l'utilisateur devient-il lui-même le producteur au sens de
->    l'art. 13 en l'intégrant ?
+> 2. Dans un modèle **auto-hébergé** par un tiers, sans relation contractuelle ni connaissance de
+>    l'éditeur, **qui porte l'obligation de l'art. 13**, et à quel titre ?
 > 3. Si un seul utilisateur espagnol apparaît ultérieurement, le rattachement est-il **rétroactif** au
 >    regard d'une échéance déjà échue, ou court-il à compter de cette mise à disposition ?
 > 4. La qualification de « comercializador » dépend-elle d'une contrepartie financière ?
@@ -55,6 +59,21 @@ soins. L'échéance, elle, l'a été — voir F-018.)*
 - Le produit **modélise l'Espagne** (profil `ES`, générateurs SII et Veri\*Factu) sans être
   commercialisé sur ce marché à ma connaissance.
 - Le marché principal déclaré du projet est France, Pologne et Italie.
+
+**Fait technique à joindre — il détermine ce qui est évalué.** L'exposition dépend de ce que le
+système fait réellement, et non de ce qu'il ne fait pas :
+
+- L'**algorithme de la huella est implémenté et conforme**, suivant le document AEAT
+  **v0.1.2 du 2024-08-27** ; la suite de tests reproduit **les deux exemples chiffrés officiels** de
+  ce document, cas non chaîné et cas chaîné, avec les SHA-256 publiés par l'autorité.
+- **Mais la chaîne ne se forme jamais.** `previousHuella` vaut `''` par défaut et **aucun appelant ne
+  l'alimente** : chaque registre part avec `PrimerRegistro='S'` — une chaîne de longueur un, répétée,
+  là où l'art. 8.2.b exige le rattachement au registre précédent.
+- Le code QR est produit, mais sur le chemin `ValidarQR` des **systèmes vérifiables**, alors que le
+  produit ne transmet rien en continu (ES-D12).
+
+Un juriste qui ignorerait ces trois points évaluerait la mauvaise chose — soit un système supposé
+dépourvu de capacité de hachage, soit un système supposé conforme.
 
 > **Cette question n'est pas tranchée ici, et ne doit pas l'être par moi.** Si la réponse est
 > négative, F-018 sort de l'axe « exposition juridique de l'éditeur » et redevient un point de

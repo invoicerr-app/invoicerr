@@ -55,7 +55,7 @@ seulement du code mort. Voir `scripts/audit/repro/f019-mx-authority-range-block.
 
 | # | Objet |
 | --- | --- |
-| [F-004](#f-004) | 106 pages publiques de conformité pour 4 canaux réellement câblés |
+| [F-004](#f-004) | 106 pages publiques, **56 pays sans aucune sortie**, 4 canaux câblés |
 | [F-017](#f-017) | *(second effet)* — les pages ne décrivent pas seulement des capacités absentes, elles décrivent la **mauvaise unité d'analyse** : l'unité réelle est le corridor, pas le pays |
 
 ### Qualité / dette
@@ -77,6 +77,7 @@ Sévérité conservée telle quelle. Aucun de ces findings ne relève des trois 
 | [F-013](#f-013) | medium | Aucune trace machine-lisible d'une exécution live réussie | 6 |
 | [F-014](#f-014) | medium | Un spec écrit dans l'arbre de travail du développeur | 1 |
 | [F-015](#f-015) | low | Un document CLEARED ne peut pas être corrigé sans passer par DELIVERED | 5 |
+| [F-019](#f-019) | high | Le frontend n'a **aucune infrastructure de test** — zéro runner, zéro spec | — |
 
 > **F-001 et F-003 restent `critical` et ne sont pourtant dans aucun axe de décision.** C'est
 > délibéré : F-001 archive du vide sur des chemins qu'aucun transport ne permet d'emprunter, et F-003
@@ -250,7 +251,7 @@ code.
 ---
 
 <a id="f-004"></a>
-## F-004 — `critical` — 106 pages publiques de conformité pour 5 canaux réellement câblés
+## F-004 — `critical` — 106 pages publiques, 56 pays sans aucune sortie, 4 canaux câblés
 
 **Point 7.** Source : `00-INVENTORY.md` §1 à §3, entièrement mécanique.
 
@@ -262,9 +263,14 @@ par région, statut et format. En face :
 
 | Ce qui est publié | Ce qui existe |
 | --- | --- |
-| 106 pays avec une page de conformité | 5 providers sur 62 disposent d'un transport atteignable (`peppol`, `pdp`, `ksef`, `choruspro`, `email`) |
+| 106 pays avec une page de conformité | **4** providers sur 62 disposent d'un transport atteignable : `email`, `peppol`, `pdp`, `ksef` |
+| — | **56** de ces 106 pays n'ont **aucune sortie** en vigueur |
 | 54 syntaxes déclarées par les profils | 5 syntaxes rejettent un document invalide (`CFDI`, `ES_FACTURAE`, `FA_VAT`, `FATTURAPA`, `PEPPOL_BIS`) |
 | 66 pays marqués `status: mandatory` | 0 trace d'une transmission réelle acquittée dans le dépôt |
+
+*Chiffres recalculés depuis `inventory.json` le 2026-08-27, en vue « en vigueur », après la
+correction temporelle et la rétrogradation de `choruspro` (dont les deux « sites d'appel réseau »
+étaient le mot `axios` dans des commentaires).*
 
 **56 pays** ont une page publique alors qu'aucun `ChannelSpec` en vigueur de leur profil ne résout
 vers un provider capable d'émettre quoi que ce soit (catégorie 1a).
@@ -886,6 +892,52 @@ la requête manquante.
 C'est un arbitrage d'entreprise, pas technique : émettre la déclaration responsable suppose d'être en
 état de la tenir. Deux ordres possibles — corriger d'abord le chaînage puis déclarer, ou déclarer sur
 un périmètre restreint. Cela n'entre pas dans le mandat de cet audit.
+
+---
+
+<a id="f-019"></a>
+## F-019 — `high` — Le frontend n'a aucune infrastructure de test
+
+Constaté en cherchant à couvrir `fix/channel-ui-gate-on-reachable-transport`. Ce n'était pas une
+limite de cette branche, c'est une propriété du dépôt.
+
+```
+frontend/package.json → scripts : dev, start, start:test, build, lint, lint:fix, format, i18n:check
+                        vitest : absent · jest : absent · @testing-library/react : absent
+find frontend/src -name "*.test.*" -o -name "*.spec.*" → aucun résultat
+```
+
+**Zéro runner, zéro dépendance de test, zéro fichier de spec** sur l'intégralité du frontend.
+
+### Pourquoi c'est `high` et pas de la dette ordinaire
+
+Le frontend porte des décisions de conformité, pas seulement de la présentation :
+
+- `channels.settings.tsx:218` décide quels canaux se voient offrir un contrôle « Connect » — c'est ce
+  prédicat qui, avant correction, proposait 17 canaux incapables d'émettre (F-009) ;
+- `channel-connect-prompt.tsx:73` affirme à l'utilisateur que **son pays exige** de connecter tel
+  canal ;
+- `invoice-delete.tsx` déclenche la suppression, dont F-003 montre qu'aucune garde en base ne la
+  retient.
+
+Une régression sur l'un de ces trois points est silencieuse : le build passe, le lint passe, et le
+produit se remet à proposer un canal sanctionné ou à afficher une facture rejetée comme envoyée
+(F-008). C'est exactement la classe de défaut que cet audit a passé trois phases à débusquer, et
+c'est la seule où le dépôt n'a aucun filet.
+
+### Ce qui existe, et pourquoi ça ne suffit pas
+
+Une suite **Cypress** existe (`e2e/`), et elle couvre des parcours. Elle ne couvre pas ces
+prédicats : recherche sur `data-cy="channel-connect-prompt"` et `channel-stub-badge` dans
+`e2e/cypress` → **aucun résultat**. Un e2e vérifie qu'un parcours aboutit, pas qu'un canal
+sanctionné reste masqué.
+
+### Portée
+
+Ce finding ne dit pas quel runner adopter. Il dit qu'une correction frontend ne peut aujourd'hui
+être accompagnée d'aucune assertion — ce qui est la raison pour laquelle
+`fix/channel-ui-gate-on-reachable-transport` est la seule des sept branches sans test, et la seule
+dont l'absence de test ne soit pas justifiable.
 
 ---
 

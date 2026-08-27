@@ -1121,7 +1121,7 @@ La question mérite d'être posée voie par voie plutôt que laissée en bloc.
 
 | Voie de l'art. 6(5) | Application à l'Espagne | Verdict |
 | --- | --- | --- |
-| 1. Obligation **en place** au 2024-01-01 | Le **SII** fonctionne depuis juillet 2017 et est transactionnel — mais son délai de remise est de **quatre jours**. « Real-time » n'est pas défini par la directive. | **incertain** |
+| 1. Obligation **en place** au 2024-01-01 | **Le prédicat factuel est rempli** : le SII fonctionne depuis **juillet 2017**, il est obligatoire, et il porte sur les registres **facture par facture** — donc transactionnel. Seul le qualificatif reste ouvert : la remise SII est de **quatre jours ouvrés**. | **rempli, sauf un qualificatif** |
 | 2. Autorisation **art. 395** obtenue avant le 2024-01-01 | L'Espagne ne figure pas dans les dérogations « Articles 218 and 232 » de la Commission, et n'en a jamais demandé. | **non** |
 | 3. **Législation nationale adoptée** avant le 2024-01-01 prévoyant l'introduction d'une telle obligation | Le **RD 1007/2023 est du 5 décembre 2023**, donc antérieur au 2024-01-01, et il institue Veri\*Factu — dont la modalité vérifiable est définie par une remisión « **automática, continua e instantánea** » des registres. | **paraît rempli** |
 
@@ -1130,11 +1130,29 @@ d'adoption est vérifiable, et « automática, continua e instantánea » corres
 « real-time transaction-based » décrit. Si elle est retenue, **l'horizon domestique espagnol glisse du
 2030-07-01 au 2035-01-01**, et tout le volet ES doit se lire à cette échéance.
 
-`open_question` — je ne le tranche pas, pour deux raisons précises et non par prudence de façade :
-la directive ne définit **ni** « real-time » **ni** « transaction-based », et l'appréciation de la
-voie 3 suppose de qualifier Veri\*Factu au regard de termes non définis. C'est une position que la
-Commission ou l'administration espagnole doit prendre, pas moi. Ce qui est **établi** : la voie 2 est
-exclue, et la voie 3 repose sur une date antérieure vérifiée.
+### `open_question` — formulée factuellement, pour être cherchable
+
+Ce qui reste ouvert n'est pas « la qualification juridique de l'Espagne ». C'est **une question de
+fait, à un seuil près** :
+
+> **Une remise sous quatre jours ouvrés, facture par facture, qualifie-t-elle de « real-time
+> transaction-based » au sens du troisième alinéa de l'art. 6(5) ?**
+
+Posée ainsi, elle devient cherchable, et trois endroits peuvent la trancher :
+
+1. **Les considérants de la directive** — le considérant 24 évoque les systèmes domestiques
+   préexistants ; il n'a pas été lu ligne à ligne sous cet angle.
+2. **Une position de la Commission** — la clause de revoyure de l'art. 271c lui donne compétence pour
+   évaluer les dispositifs nationaux, ce qui suppose de savoir lesquels relèvent du report.
+3. **La pratique d'un autre État membre** — la Hongrie (RTIR, quasi immédiat) et l'Italie (SdI, au fil
+   de l'eau) sont des cas plus francs. Si l'un revendique publiquement le report, le seuil se lit par
+   comparaison.
+
+Deux choses sont en revanche **établies** : la voie 2 est **exclue**, et la voie 3 repose sur une
+**date vérifiée**, le RD 1007/2023 étant du 2023-12-05.
+
+Une seule voie suffit : si la voie 3 est retenue, le sort de la voie 1 devient sans effet pratique.
+L'énumération est traitée en entier pour qu'aucun trou ne se lise comme un oubli.
 
 **Conséquence immédiate, et elle est datée du 2025-04-14** : un État membre n'a plus besoin d'une
 dérogation du Conseil au titre de l'art. 395 pour imposer la facturation électronique domestique sans
