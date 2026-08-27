@@ -836,3 +836,27 @@ describe('Idempotence via NullReportingStore in handlers', () => {
     expect(mockStore.create).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * F-016 — a mocked submission must be detectable from the return value, not only from a log line.
+ */
+describe('F-016: reporting results declare that the submission is mocked', () => {
+  it('a handler that generated and stored a payload but submitted nothing returns mocked: true', async () => {
+    const { VerifactuReportingHandler } = require('./handlers');
+    const handler = new VerifactuReportingHandler();
+    const { RecordingComplianceLogger } = require('../execution/logger');
+    const ctx = {
+      supplier: { legalName: 'ES Co', countryCode: 'ES', role: 'B2B', identifiers: [] },
+      buyer: { legalName: 'ES Buyer', countryCode: 'ES', role: 'B2B', identifiers: [] },
+      lines: [{ id: 'l1', description: 'x', quantity: 1, unitNetMinor: 10000, supplyType: 'SERVICES' }],
+      issueDate: new Date('2026-10-01'),
+      currency: 'EUR',
+    };
+    const { resolve } = require('../engine/compliance-engine');
+    const result = await handler.report(ctx, resolve(ctx), new RecordingComplianceLogger());
+
+    // EMITTED alone said nothing about whether anything was filed.
+    expect(result.status).toBe('EMITTED');
+    expect(result.mocked).toBe(true);
+  });
+});
