@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import type { Invoice } from "@/types"
 import {
   DocumentKind,
+  InvoiceStatus,
   PaymentMethodType,
   getDisplayInvoiceStatus,
   getInvoiceKindLabel,
@@ -20,6 +21,7 @@ import { useGet } from "@/hooks/use-fetch"
 import { authenticatedFetch } from "@/hooks/use-fetch"
 import { toast } from "sonner"
 import {
+  AlertTriangle,
   Edit,
   RefreshCw,
   RotateCcw,
@@ -460,6 +462,48 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                         ))}
                       </ul>
                     )}
+                  </div>
+                )
+              })()}
+
+            {/*
+              F-008: the rejection has to be readable without scrolling to the compliance timeline
+              at the bottom of the page. Before this, an invoice rejected by KSeF or scartata by the
+              SdI showed "Sent" at the top and the rejection only appeared as one line in a list the
+              user had no reason to open — so they believed they had invoiced.
+
+              Driven by Invoice.status, which the backend now projects from the compliance document,
+              rather than by the document status, so the banner and the badge can never disagree.
+            */}
+            {invoice.status === InvoiceStatus.REJECTED &&
+              (() => {
+                // The authority's own wording, if it sent one. Only INBOUND_STATUS signals carry
+                // text — a poll-detected rejection has no motive — so an absent reason is normal
+                // and is rendered as absent, never padded with a plausible sentence.
+                const reason = invoice.complianceDocuments?.[0]?.events
+                  ?.filter((ev) => ev.detail)
+                  .slice(-1)[0]?.detail
+                return (
+                  <div
+                    className="mt-6 rounded-md border border-red-200 bg-red-50 p-4"
+                    data-cy="invoice-rejected-banner"
+                  >
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 shrink-0 text-red-600" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-red-800">
+                          {t("invoices.view.rejected.title")}
+                        </p>
+                        <p className="text-sm text-red-700">{t("invoices.view.rejected.body")}</p>
+                        {reason && (
+                          <p className="text-sm text-red-700" data-cy="invoice-rejected-reason">
+                            <span className="font-medium">{t("invoices.view.rejected.reason")}</span>
+                            {" : "}
+                            {reason}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )
               })()}

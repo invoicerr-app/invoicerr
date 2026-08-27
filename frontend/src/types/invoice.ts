@@ -13,6 +13,11 @@ export enum InvoiceStatus {
   ARCHIVED = "ARCHIVED",
   PENDING_CLEARANCE = "PENDING_CLEARANCE",
   CLEARED = "CLEARED",
+  // F-008: an authority rejection (KSeF, SdI scarto, PDP). Written only by the backend's
+  // compliance projection, never by a user action — but it MUST be listed here, because the
+  // status-to-filter mapping falls through to "sent", so an unmodelled status silently reads
+  // as a successfully sent invoice. That fallthrough is the finding.
+  REJECTED = "REJECTED",
   CANCELLED = "CANCELLED",
   CORRECTED = "CORRECTED",
 }
@@ -84,6 +89,7 @@ export type InvoiceStatusFilterKey =
   // ~ placeholders for clearance countries (PART X)
   | "pending_clearance"
   | "cleared"
+  | "rejected"
 
 export enum InvoiceItemType {
   HOUR = "HOUR",
