@@ -624,7 +624,7 @@
       "cancelled": "Cancelled",
       "corrected": "Corrected",
       "all": "All",
-      "rejected": "Rejected"
+      "rejected": "Failed"
     },
     "emptyState": {
       "noInvoices": "No invoices yet",
@@ -646,7 +646,9 @@
         "corrected": "Corrected",
         "pending_clearance": "Pending Clearance",
         "cleared": "Cleared",
-        "rejected": "Rejected"
+        "rejected": "Rejected",
+        "refused": "Refused by buyer",
+        "transmission_failed": "Not transmitted"
       },
       "item": {
         "title": "Invoice {{number}} {{title}}",
@@ -903,6 +905,16 @@
       "rejected": {
         "title": "Rejected by the authority",
         "body": "This invoice was not accepted. It has not been legally issued.",
+        "reason": "Reason given"
+      },
+      "refused": {
+        "title": "Refused by the buyer",
+        "body": "The buyer declined this invoice. Issue a corrective invoice to resolve it.",
+        "reason": "Reason given"
+      },
+      "transmissionFailed": {
+        "title": "Not transmitted",
+        "body": "This invoice never reached the authority. It has not been legally issued. Retry transmission once the channel is configured.",
         "reason": "Reason given"
       }
     },

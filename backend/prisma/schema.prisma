@@ -214,8 +214,11 @@ enum InvoiceStatus {
   ARCHIVED
   PENDING_CLEARANCE // ~ placeholder for clearance countries (PART X)
   CLEARED           // ~ placeholder for clearance countries (PART X)
-  REJECTED          // F-008: authority rejected it (KSeF, SdI scarto, PDP). Projected from
-                    // ComplianceDocument.status by ApplySignalService — never set by a user action.
+  REJECTED          // F-008: authority rejected it (KSeF, SdI scarto, PDP). Terminal.
+  REFUSED           // F-008: the BUYER declined a correctly transmitted invoice. Exits via CORRECT.
+  TRANSMISSION_FAILED // F-008: never reached the authority. Retryable — the projection clears it.
+                    // All three are projected from ComplianceDocument.status by ApplySignalService
+                    // and are never set by a user action.
   CANCELLED
   CORRECTED
 }

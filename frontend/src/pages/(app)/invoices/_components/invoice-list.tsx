@@ -171,7 +171,10 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
         case "CLEARED":
           return "bg-teal-100 text-teal-800"
         case "REJECTED":
+        case "REFUSED":
           return "bg-red-100 text-red-800"
+        case "TRANSMISSION_FAILED":
+          return "bg-orange-100 text-orange-800"
         default:
           return "bg-gray-100 text-gray-800"
       }
