@@ -1,10 +1,27 @@
 # HANDOFF — audit de conformité Invoicerr
 
-**Branche** `audit/compliance-truth`, **poussée**. Une branche de correction séparée,
-`fix/channel-ui-gate-on-reachable-transport`, est poussée elle aussi.
-**Phases 0, 1, 2 et 3 terminées.**
-Aucune correction sur la branche d'audit : `git diff feat/compliance-architecture..HEAD` n'y contient
-que des ajouts sous `docs/compliance/audit/` et `scripts/audit/`.
+**Branche d'audit** `audit/compliance-truth`, poussée, à jour de l'amont.
+**Branche produit** `feat/compliance-architecture`, poussée : les sept branches `fix/` ont été
+fusionnées, puis l'amont a été intégré. **Phases 0 à 3, plus le plan de travail P0–P8, terminés.**
+
+L'audit lui-même n'a rien corrigé : `git diff feat/compliance-architecture..HEAD` sur la branche
+d'audit ne contient que `docs/compliance/audit/` et `scripts/audit/`. Les corrections ont vécu sur
+des branches `fix/` distinctes, une par sujet, chacune avec son test de non-régression.
+
+---
+
+## 0. Par quoi commencer — F-008
+
+**F-008 (`high`) est le premier sujet de la prochaine session**, avant tout autre travail.
+
+Un rejet d'autorité — KSeF, SdI, PDP — n'atteint jamais l'écran de l'utilisateur. `apply-signal.ts`
+écrit `ComplianceDocument.status` ; il n'existe aucun `prisma.invoice.update` dans tout
+`src/compliance`, et l'énumération `InvoiceStatus` n'a même pas de valeur `REJECTED`. La facture
+reste affichée `SENT`. L'utilisateur croit avoir facturé.
+
+C'est le seul finding retenu qui soit à la fois de forte gravité, non corrigé, et sans dépendance
+externe : il ne demande ni credential, ni décision juridique, ni publication d'un texte. Détail et
+preuves : [F-008](02-FINDINGS.md#f-008).
 
 ---
 
@@ -21,11 +38,20 @@ que des ajouts sous `docs/compliance/audit/` et `scripts/audit/`.
 
 Les cinq agents interrompus par une limite de service ont été relancés et ont tous livré.
 
-**Reste ouvert, par ordre d'intérêt :** l'art. 6(5) de ViDA (report éventuel à 2035, non lisible dans
-le rendu obtenu — enjeu réel pour l'Espagne au titre du SII) ; les deux documents techniques AEAT
-(hash et QR), sans lesquels le chaînage espagnol **ne doit pas être implémenté** ; la publication de
-l'orden ministerial du mandat B2B espagnol, seul événement qui démarre ses horloges ; et
-`01-CLAIM-AUDIT.md`, `05-FEASIBILITY.md`, `06-REMEDIATION.md`, non écrits.
+**Depuis, trois des quatre questions ouvertes ont été refermées** — voir `03-LEGAL-VERIFICATION.md` :
+
+- **ViDA art. 6(5)** — lu en source primaire (JO, extraction locale du PDF après deux rendus HTML
+  tronqués). Le report est opérant : la mise en conformité des régimes nationaux préexistants est
+  due au 2035-01-01. Ce n'est pas une dispense de fond, c'est un délai.
+- **Les deux documents techniques AEAT** — obtenus. L'algorithme de huella du dépôt est conforme au
+  spec publié, vérifié contre le condensat de référence de l'autorité, octet pour octet. ES-D1 était
+  **faux** et a été rétracté ; le défaut réel est que `previousHuella` n'est jamais alimenté, donc
+  chaque enregistrement se déclare `PrimerRegistro='S'`.
+- **`06-REMEDIATION.md`** — écrit. `01-CLAIM-AUDIT.md` a été abandonné sur décision ; 
+  `05-FEASIBILITY.md` reste différé.
+
+**Reste ouvert :** la publication de l'orden ministerial du mandat B2B espagnol, seul événement qui
+démarre ses horloges. Aucune date ne peut être avancée avant.
 
 ## 2. Les six findings `critical`
 
@@ -144,16 +170,35 @@ perd rien : elle garde PDP et Peppol.
 
 | Fichier | État |
 | --- | --- |
-| `00-INVENTORY.md` + `inventory.json` | phase 0, à jour après correction de la sonde |
-| `02-FINDINGS.md` | **17 findings**, F-001…F-017 |
-| `03-LEGAL-VERIFICATION.md` | FR, PL, DE, IT + volet transfrontalier FR + statut honnête des manques |
+| `00-INVENTORY.md` + `inventory.json` | phase 0, **temporel**, date de référence `AUDIT_AS_OF` (défaut 2026-08-27) |
+| `02-FINDINGS.md` | **19 findings**, F-001…F-019 |
+| `03-LEGAL-VERIFICATION.md` | FR, PL, DE, IT, ES, MX + volet transfrontalier + ViDA + portée territoriale |
 | `04-TESTABILITY.md` | phase 3, 9 cibles |
+| `06-REMEDIATION.md` | plan de remédiation |
+| `07-FR-2026-09-01.md` | la page France |
+| `08-CORRIDOR-MODEL.md` | note de conception du corridor (F-017) — **sans code** |
+| `09-F018-ES-DECLARATION.md` | la séquence espagnole |
 | `compliance-truth.json` | 106 pays, testabilité intégrée, **structure non modifiée** |
-| `scripts/audit/repro/` | 4 reproductions exécutables |
+| `scripts/audit/repro/` | 5 reproductions exécutables |
 | `evidence/` | sorties capturées |
 
-Non écrit : `01-CLAIM-AUDIT.md` (F-004 en contient la substance ; la comparaison page par page
-attend le seuil de la décision 1), `05-FEASIBILITY.md` et `06-REMEDIATION.md` (phase 4).
+Non écrit : `01-CLAIM-AUDIT.md`, abandonné sur décision (F-004 en porte la substance) ;
+`05-FEASIBILITY.md`, différé.
+
+### Le piège de l'inventaire, à ne pas retendre
+
+Les profils sont **temporels**. La première version de `inventory.ts` aplatissait toutes les périodes
+d'une règle, ce qui a produit deux divergences fausses — PL-D4 et IT-D8, toutes deux rétractées : le
+canal EMAIL qu'elles reprochaient est bien retiré, en 2026-02-01 pour la Pologne et en 2019-01-01
+pour l'Italie. Depuis, tout champ dérivé d'un profil est calculé **en vigueur à la date de
+référence**. Les champs `everDeclared*` conservent la vue aplatie à titre documentaire seulement :
+**aucun finding ne doit s'y adosser**, ils n'établissent rien sur l'état en vigueur.
+
+Même nature de piège côté sondes : la détection des paliers de stub reconnaît le fichier qui déclare
+l'identifiant du fournisseur. Elle a survécu à un refactor amont qui a supprimé les bundles
+`*smaller-portals.ts` uniquement parce qu'elle a été repointée sur `portals/<cc>.ts`. **Elle échoue
+en silence, pas en erreur** : un motif qui ne correspond plus à rien promeut tous les stubs
+génériques en « dédié ». À revérifier à chaque déplacement de l'arborescence de transmission.
 
 ---
 
@@ -164,6 +209,7 @@ git checkout audit/compliance-truth && cd backend
 npx tsx ../scripts/audit/inventory.ts
 npx tsx ../scripts/audit/seed-truth.ts
 npx tsx ../scripts/audit/repro/f017-corridor-resolution.ts
+npx tsx ../scripts/audit/repro/f019-mx-authority-range-block.ts
 COMPLIANCE_ARCHIVE_DIR=/tmp/audit npx tsx ../scripts/audit/repro/f001-empty-archive.ts
 npx dotenv -e .env.test -- npx tsx ../scripts/audit/repro/f004-delete-issued-invoice.ts
 npx dotenv -e .env.test -- npx tsx ../scripts/audit/repro/f007-numbering-concurrency.ts
