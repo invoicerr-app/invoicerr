@@ -109,6 +109,18 @@ class TrackingStore implements ReportingStore {
     return row;
   }
 
+  /**
+   * ES-D1: this double now teaches the store the chain lookup, with the same ordering the Prisma
+   * implementation uses (newest first, id as the deterministic tie-break).
+   */
+  async findLastByKindAndCompany(kind: string, companyId: string | null): Promise<ReportRecord | null> {
+    if (!companyId) return null;
+    const matches = this.records
+      .filter((r) => r.kind === kind && r.companyId === companyId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || b.id.localeCompare(a.id));
+    return matches[0] ?? null;
+  }
+
   async markSubmitted(id: string, ref: string, submittedAt: Date = new Date()): Promise<void> {
     this.submittedIds.push(id);
     const rec = this.records.find((r) => r.id === id);

@@ -90,4 +90,24 @@ export class PrismaReportingStore implements ReportingStore {
       })
       .map(rowToRecord);
   }
+
+  /**
+   * ES-D1: the previous link of an issuer's Veri*Factu chain.
+   *
+   * Ordered by createdAt then id: createdAt alone is not a total order (two registros generated in
+   * the same millisecond would tie), and a tie broken arbitrarily would fork the chain. `id` is the
+   * deterministic tie-break, so replaying the same sequence always yields the same chain.
+   *
+   * A null companyId returns null rather than matching rows with `companyId: ''` — a document with
+   * no issuing company has no chain of its own, and chaining it onto someone else's would be worse
+   * than leaving it unchained.
+   */
+  async findLastByKindAndCompany(kind: string, companyId: string | null): Promise<ReportRecord | null> {
+    if (!companyId) return null;
+    const row = await this.prisma.complianceReport.findFirst({
+      where: { kind, companyId },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+    return row ? rowToRecord(row) : null;
+  }
 }
