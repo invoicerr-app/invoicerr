@@ -1860,7 +1860,7 @@
                 "button": "Create Webhook"
             },
             "card": {
-                "events": "Listening to events: {{events}}",
+                "events": "Listening to events:",
                 "edit": "Edit",
                 "delete": "Delete",
                 "editPrompt": "Enter new webhook URL"

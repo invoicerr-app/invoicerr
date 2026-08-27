@@ -1533,7 +1533,7 @@
                 "button": "Create Webhook"
             },
             "card": {
-                "events": "Escuchando eventos: {{events}}",
+                "events": "Escuchando eventos:",
                 "edit": "Editar",
                 "delete": "Eliminar",
                 "editPrompt": "Introduce la nueva URL del webhook"
