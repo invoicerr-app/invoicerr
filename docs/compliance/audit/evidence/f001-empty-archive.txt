@@ -1,0 +1,23 @@
+== A. defaultArchiveRegistry.store([], policy) — zéro artefact ==
+receipt        : {"providerId":"s3-worm","region":"EU","uri":"file:///tmp/claude-1000/-home-impre-Projects-invoicerr/dfeb7150-9bf3-42da-bd74-840e3c25abcb/scratchpad/arch-f001b/EU/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","retentionUntil":"2036-08-27T13:03:12.885Z","contentHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
+SHA-256("")    : e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+contentHash == SHA-256 de la chaîne vide ? true
+répertoire créé, contenu : []
+le receipt signale-t-il l'absence de contenu ? NON
+
+== B. store([artefact de 0 octet]) ==
+receipt        : {"providerId":"s3-worm","region":"BR","uri":"file:///tmp/claude-1000/-home-impre-Projects-invoicerr/dfeb7150-9bf3-42da-bd74-840e3c25abcb/scratchpad/arch-f001b/BR/e4591d3b70a2da7354dd30db06d8456fd935705d50fc5566f9fc5897be3217d1","retentionUntil":"2036-08-27T13:03:12.885Z","contentHash":"e4591d3b70a2da7354dd30db06d8456fd935705d50fc5566f9fc5897be3217d1"}
+fichiers écrits: ["BR/e4591d3b70a2da7354dd30db06d8456fd935705d50fc5566f9fc5897be3217d1/authoritative-nfe.xml (0 octets)"]
+un avertissement a-t-il été émis ? ["todo:archive/s3-worm","info:archive/s3-worm"]
+
+== C. pipeline complet, Brésil (syntaxe NFE → builder stub) ==
+plan.artifacts : ["AUTHORITATIVE/NFE","HUMAN/PLAIN_PDF"]
+artefacts construits : 2
+  AUTHORITATIVE/NFE: 0 octets — validation.valid=true errors=0 warnings=["Brazil NF-e family validation not implemented (stub)"]
+  HUMAN/PLAIN_PDF: 0 octets — validation.valid=true errors=0 warnings=["plain PDF has no structured validation"]
+octets réellement produits par tout le pipeline : 0
+le pipeline a-t-il bloqué (FormatValidationError) ? NON — il est arrivé jusqu'au bout
+transmissions : ["GOV_PORTAL_API:SKIPPED"]
+archive       : {"providerId":"s3-worm","region":"BR","uri":"file:///tmp/claude-1000/-home-impre-Projects-invoicerr/dfeb7150-9bf3-42da-bd74-840e3c25abcb/scratchpad/arch-f001b/BR/d31edef23f56d58fb25f1847e3e3a36db84f015c14410c7f4011b01a74a640ea","retentionUntil":"2037-08-27T13:03:12.887Z","contentHash":"d31edef23f56d58fb25f1847e3e3a36db84f015c14410c7f4011b01a74a640ea"}
+warnings      : ["[validation:NFE] Brazil NF-e family validation not implemented (stub)","[validation:PLAIN_PDF] plain PDF has no structured validation"]
+fichiers archivés : ["BR/d31edef23f56d58fb25f1847e3e3a36db84f015c14410c7f4011b01a74a640ea/authoritative-nfe.xml (0 octets)","BR/d31edef23f56d58fb25f1847e3e3a36db84f015c14410c7f4011b01a74a640ea/human-plain_pdf.pdf (0 octets)","BR/e4591d3b70a2da7354dd30db06d8456fd935705d50fc5566f9fc5897be3217d1/authoritative-nfe.xml (0 octets)"]
