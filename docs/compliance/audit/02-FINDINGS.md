@@ -80,6 +80,7 @@ Sévérité conservée telle quelle. Aucun de ces findings ne relève des trois 
 | [F-015](#f-015) | low | Un document CLEARED ne peut pas être corrigé sans passer par DELIVERED | 5 |
 | [F-019](#f-019) | high | Le frontend n'a **aucune infrastructure de test** — zéro runner, zéro spec | — |
 | [F-020](#f-020) | high | **L'instrument de cet audit a rendu deux fois un résultat propre et faux** | — |
+| [F-021](#f-021) | medium | Le dashboard ne renvoie aucun document de conformité — défaut armé, pas actif | — |
 
 > **F-001 et F-003 restent `critical` et ne sont pourtant dans aucun axe de décision.** C'est
 > délibéré : F-001 archive du vide sur des chemins qu'aucun transport ne permet d'emprunter, et F-003
@@ -1020,6 +1021,32 @@ aggrave le finding central, et la plus légère a consisté à retirer deux find
 déjà publiés à son propre crédit. Cela ne rachète pas les pannes — cela dit seulement que le biais
 de l'instrument n'était pas orienté.
 
+### La règle qui manquait, et qui vaut pour les éditions comme pour les sondes
+
+Les deux pannes ci-dessus sont la même : **un motif qui ne correspond à rien, et un silence**. La
+sonde a été armée pour ça. Mes propres **éditions** ne l'étaient pas, et la panne s'est reproduite
+le jour même, deux fois :
+
+1. `inventory.ts` — le motif `/smaller-portals\.ts$/` ne matchait plus après un refactor amont ;
+   37 stubs génériques auraient été publiés comme des implémentations dédiées.
+2. `invoice-view.tsx` — après avoir remonté la bannière hors de la zone défilante, l'édition
+   suivante remplaçait `invoice.complianceDocuments` par `detailed.complianceDocuments`. Le hoist
+   avait **réindenté** le bloc, le motif ne correspondait donc plus, et le remplacement n'a rien
+   fait. **Le build est resté vert**, la bannière a continué de lire la ligne de liste, et le motif
+   d'autorité n'atteignait toujours pas l'écran. Seule la première spec e2e écrite sur ces écrans
+   l'a vu.
+
+D'où la règle, applicable partout dans ce dépôt et à cet audit :
+
+> **Une édition qui remplace du texte doit échouer si le motif ne correspond pas.**
+> `assert old in s` avant chaque `s.replace(old, new)`. Un `replace` dont le motif ne matche rien
+> ne renvoie pas d'erreur : il renvoie la chaîne inchangée. Le programme continue, le build passe,
+> et la modification qu'on croit avoir faite n'existe pas.
+
+Le corollaire est celui qui coûte : **une édition non appliquée est indiscernable d'une édition
+appliquée**, tant qu'aucun test n'exerce le chemin modifié. C'est la même asymétrie que pour les
+sondes — échouer en ouvert coûte plus cher que ne rien faire, parce que le résultat est *cru*.
+
 ### Correction apportée à l'instrument
 
 `scripts/audit/inventory.ts` §0 arme désormais chaque mesure porteuse, et **une invariante violée
@@ -1062,6 +1089,46 @@ s'arrête, ce que la section ci-dessus documente.
 **Ce que ce finding ne dit pas.** Il ne dit pas que les chiffres actuels sont justes. Il dit qu'ils
 sont désormais **falsifiables** : les invariantes convertissent une classe de panne silencieuse en
 arrêt franc. Une panne d'une autre classe reste possible.
+
+---
+
+<a id="f-021"></a>
+## F-021 — `medium` — Le dashboard ne renvoie aucun document de conformité
+
+**Trouvé en recensant les points d'entrée de la vue détail, après F-008.**
+
+`InvoiceViewDialog` est monté à deux endroits et alimenté par **trois** chemins de données :
+
+| Point de montage | Ouvert depuis | Requête | `complianceDocuments` |
+| --- | --- | --- | --- |
+| `invoices/index.tsx:284` | vue liste | `GET /api/invoices` | `{id, status, plan}` — **sans événements** |
+| `invoices/index.tsx:284` | vue progression (`invoice-progression.tsx:211`) | *idem* | *idem* |
+| `invoice-list.tsx:643` | liste interne | *idem* | *idem* |
+| `invoice-list.tsx:643` | **dashboard** (`dashboard.tsx:400`) | `GET /api/dashboard` | **absent entièrement** |
+
+`dashboard.service.ts:81-86` construit les factures récentes avec
+`include: { company: true, client: true }` — aucun `complianceDocuments`. Là où la liste renvoie un
+document amputé de ses événements, le dashboard ne renvoie **pas de document du tout**.
+
+**Impact.** Aucun aujourd'hui : le dialogue ne dépend plus de la charge utile reçue, il récupère
+`GET /api/invoices/:id` lui-même. Le défaut est **armé, pas actif** — la prochaine surface qui
+lira `invoice.complianceDocuments` depuis les données du dashboard retombera dedans, et le
+symptôme sera le même que F-008 : un écran qui affiche un état de conformité vide comme s'il était
+un état de conformité sain.
+
+**Ce que ça a appris, et qui vaut au-delà de ce finding.** Le correctif de F-008 a fait porter la
+requête par le **dialogue** plutôt que par l'endpoint de liste. Ce choix couvre les quatre points
+d'entrée d'un coup. Enrichir `GET /api/invoices` — la correction qui vient spontanément à l'esprit —
+aurait laissé le chemin dashboard cassé, **et aucune spec ne l'aurait vu**, la spec e2e passant par
+la liste. Corriger au point de consommation plutôt qu'à chaque point de production n'était pas
+qu'élégant : c'est ce qui a rattrapé un chemin que le test ne couvrait pas.
+
+**Reproduction.** `grep -n complianceDocuments backend/src/modules/dashboard/dashboard.service.ts`
+ne renvoie rien.
+
+**Correction proposée, non appliquée.** Aligner la sélection du dashboard sur celle de la liste, ou
+— mieux — extraire la projection `complianceDocuments` en un sélecteur partagé, de sorte qu'un
+troisième endpoint ne puisse pas diverger une troisième fois.
 
 ---
 

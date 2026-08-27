@@ -171,13 +171,14 @@ perd rien : elle garde PDP et Peppol.
 | Fichier | État |
 | --- | --- |
 | `00-INVENTORY.md` + `inventory.json` | phase 0, **temporel**, date de référence `AUDIT_AS_OF` (défaut 2026-08-27) |
-| `02-FINDINGS.md` | **19 findings**, F-001…F-019 |
+| `02-FINDINGS.md` | **21 findings**, F-001…F-021 |
 | `03-LEGAL-VERIFICATION.md` | FR, PL, DE, IT, ES, MX + volet transfrontalier + ViDA + portée territoriale |
 | `04-TESTABILITY.md` | phase 3, 9 cibles |
 | `06-REMEDIATION.md` | plan de remédiation |
 | `07-FR-2026-09-01.md` | la page France |
 | `08-CORRIDOR-MODEL.md` | note de conception du corridor (F-017) — **sans code** |
 | `09-F018-ES-DECLARATION.md` | la séquence espagnole |
+| `10-ACQUIS.md` | **ce qui tient** — cinq catégories, chacune avec ce qui l'établit |
 | `compliance-truth.json` | 106 pays, testabilité intégrée, **structure non modifiée** |
 | `scripts/audit/repro/` | 5 reproductions exécutables |
 | `evidence/` | sorties capturées |
