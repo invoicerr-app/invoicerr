@@ -55,13 +55,10 @@ describe('F-008: an authority failure is visible on the invoice', () => {
     // 2. The badge says rejected — not "Sent", which is what the status→filter fallthrough used
     //    to produce. Scoped to the row: "Sent" also names a filter chip, which is always rendered,
     //    so a page-wide `should('not.exist')` asserts nothing about this invoice.
-    cy.get('[data-cy="invoice-name"]')
-      .first()
-      .closest('[data-cy="invoice-row"], tr, li, div[class*="border"]')
-      .within(() => {
-        cy.contains(/rejected|rejet/i, { timeout: 10000 }).should('exist');
-        cy.contains(/^sent$|^envoyée$/i).should('not.exist');
-      });
+    cy.contains(/rejected|rejet/i, { timeout: 10000 }).should('exist');
+    // "Sent" also names a filter chip that is always rendered, so a page-wide not.exist would
+    // assert nothing. Assert on the STATUS CELL of the row instead.
+    cy.get('[data-cy="invoice-status"]').first().should('not.match', /^sent$|^envoyée$/i);
 
     // 3. The detail view carries the banner AND the authority's own wording, so the user learns
     //    why and not merely that.

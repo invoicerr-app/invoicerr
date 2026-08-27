@@ -232,7 +232,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
               // The authority's or buyer's own wording, if one was sent. Only INBOUND_STATUS
               // signals carry text — a poll-detected failure has no motive — so an absent reason
               // is normal and is rendered as absent, never padded with a plausible sentence.
-              const reason = invoice.complianceDocuments?.[0]?.events
+              const reason = detailed?.complianceDocuments?.[0]?.events
                 ?.filter((ev) => ev.detail)
                 .slice(-1)[0]?.detail
               const banner = FAILURE_BANNERS[invoice.status as InvoiceStatus]!
