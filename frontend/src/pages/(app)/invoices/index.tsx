@@ -76,6 +76,10 @@ export default function Invoices() {
     "issued",
     "sent",
     "paid",
+    // F-008: on by default, deliberately. A rejected invoice left out of the default filter is
+    // worse than one mislabelled "sent" — it disappears from the list entirely, and the user has
+    // no reason to go looking for it. A rejection is the one outcome that must not need a click.
+    "rejected",
   ])
 
   const toggleStatusFilter = (key: InvoiceStatusFilterKey) => {
@@ -101,7 +105,9 @@ export default function Invoices() {
                   ? "pending_clearance"
                   : invoice.status === InvoiceStatus.CLEARED
                     ? "cleared"
-                    : "sent"
+                    : invoice.status === InvoiceStatus.REJECTED
+                      ? "rejected"
+                      : "sent"
 
   const matchesSearch = (invoice: Invoice) =>
     invoice.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -158,6 +164,7 @@ export default function Invoices() {
     archived: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "archived").length || 0,
     cancelled: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "cancelled").length || 0,
     corrected: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "corrected").length || 0,
+    rejected: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "rejected").length || 0,
   }
 
   usePageHeader(t("sidebar.navigation.invoices"))
