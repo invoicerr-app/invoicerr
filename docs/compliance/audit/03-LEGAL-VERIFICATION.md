@@ -235,10 +235,15 @@ L'unique syntaxe légale d'émission est **FA(3)** (`kodSystemowy "FA (3)"`, `we
 le 2026-02-01 ; « FA_VAT » / FA(2) est périmé. Le PDF n'est jamais une syntaxe primaire : c'est une
 visualisation pour les acquéreurs de l'art. 106gb ust. 4, qui doit alors porter un code QR.
 
-**PL-D4 — `canaux: EMAIL` : le code est faux en modélisation.**
-KSeF est le **seul** canal d'émission légale. L'e-mail n'est qu'un mode convenu de **mise à
-disposition** pour les acquéreurs de l'art. 106gb ust. 4 — jamais un substitut. Traiter `EMAIL`
-comme un canal pair risque une émission hors KSeF, sanctionnable dès le 2027-01-01.
+**PL-D4 — RETIRÉ. C'était un faux positif de mon instrumentation.**
+
+*Le profil polonais est correct.* Il déclare `EMAIL` **jusqu'au 2026-02-01 seulement**, puis
+uniquement `GOV_PORTAL_API:ksef` — ce qui est exactement la règle. L'erreur venait de mon
+inventaire, qui aplatit **délibérément toutes les périodes temporelles**, y compris révolues, et
+présentait donc un canal abandonné comme un canal déclaré.
+
+Reste vrai et non affecté : KSeF est le seul canal d'émission légale, et l'e-mail n'est qu'un mode
+convenu de mise à disposition pour les acquéreurs de l'art. 106gb ust. 4.
 
 **PL-D5 — `archival: 10y / BOTH / SIGNED` : durée juste, tout le reste faux. ✓✓**
 Les 10 ans sont exacts (art. 112aa) mais **à la charge de KSeF**, le contribuable en étant dispensé.
@@ -465,8 +470,11 @@ contrôles. Une purge à J+10 ans détruirait des pièces encore exigibles.
 toute autre modalité ⇒ « la fattura si intende **non emessa** ». Le PDF n'est licite que dans les cas
 d'exonération, ou comme *copia di cortesia* sans valeur fiscale.
 
-**IT-D8 — `canaux: EMAIL` : faux ou ambigu.** Les canaux SdI sont **PEC** (≠ e-mail ordinaire), la
-procédure web/app AdE, **SDICoop** et **SDIFTP**.
+**IT-D8 — RETIRÉ. Faux positif, même cause que PL-D4.**
+
+*Le profil italien est correct.* Il déclare `EMAIL` **jusqu'au 2019-01-01 seulement**, puis `SDI`.
+Reste vrai comme point de vocabulaire : les canaux SdI sont **PEC** (qui n'est pas un e-mail
+ordinaire), la procédure web/app AdE, **SDICoop** et **SDIFTP**.
 
 **IT-D9 — `requiredIdentifiers: IT_SDI + PEC` cumulés : le code est faux.** Codice destinatario et
 PEC sont **alternatifs**. Manquent les valeurs conventionnelles `0000000` (consommateur, forfettario,
@@ -1162,10 +1170,22 @@ France (LPF L102 C), l'Allemagne (§ 14b Abs. 2, autorisation préalable hors UE
 des contraintes que les profils **omettent**, tandis que le Mexique se voit **imposer** une résidence
 que le droit sourcé n'exige pas.
 
-## 3. Le canal déclaré est illicite dans trois pays
+## 3. Le canal illicite — un pays, pas trois
 
-`EMAIL` figure dans les profils FR, PL et IT. Dans les trois, il n'est **pas un canal licite** dans le
-champ du mandat domestique. En Italie, le canal SdI est **PEC**, qui n'est pas un e-mail ordinaire.
-Et l'inventaire de la phase 0 montre que `email` est l'un des quatre seuls canaux réellement
-joignables — le seul qui fonctionne est donc, dans ces trois pays, celui qui n'a pas le droit d'être
-utilisé.
+**Correction d'une première rédaction de cette synthèse.** J'avais écrit que `EMAIL` figurait dans
+les profils FR, PL et IT et qu'il y était illicite dans les trois. C'est vrai pour la **France
+seulement**.
+
+Les profils sont **temporels**, et deux des trois font déjà le bon découpage : la Pologne abandonne
+l'e-mail au **2026-02-01** pour KSeF, l'Italie au **2019-01-01** pour le SdI. Seule la France le
+conservait dans sa période postérieure au 2026-09-01.
+
+L'erreur venait de mon propre inventaire, qui aplatit délibérément **toutes** les périodes — un
+choix défendable pour un audit, qui doit voir les règles révolues, mais qui rend le résultat
+inexploitable tel quel pour juger de l'état courant. Toute lecture de `profile.channels` dans
+`inventory.json` porte ce biais.
+
+Ce qui subsiste, et qui est le vrai point : en retirant `EMAIL` de la France, on lui retire **le seul
+canal qui fonctionnait sans configuration**. PDP et Peppol exigent des identifiants, Chorus Pro n'a
+aucun transport. La France non configurée n'émet donc plus rien du tout — c'est le résultat correct,
+et il est désormais visible plutôt que masqué par un canal sanctionné.

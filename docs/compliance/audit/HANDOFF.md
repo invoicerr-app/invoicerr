@@ -105,10 +105,11 @@ plancher 6 ans montant à ~14 pour l'immobilier, Mexique 5 ans **depuis le dép�
 Et la localisation est fausse dans les deux sens : omise là où elle existe (FR, DE, IT), **inventée**
 là où elle n'existe pas (MX).
 
-**L'e-mail est un canal illicite dans trois pays** — FR, PL, IT — alors que les trois profils le
-déclarent. En Italie, le canal SdI est **PEC**, pas un e-mail ordinaire. Or l'inventaire de la
-phase 0 montre que `email` est l'un des quatre seuls canaux joignables : dans ces trois pays, le seul
-canal qui fonctionne est celui qui n'a pas le droit d'être utilisé.
+**L'e-mail est un canal illicite — en France, et en France seulement.** J'avais annoncé trois pays ;
+c'était un faux positif de mon inventaire, qui aplatit toutes les périodes temporelles. La Pologne
+abandonne l'e-mail au 2026-02-01 et l'Italie au 2019-01-01 : leurs profils sont corrects. Corrigé sur
+`fix/profile-illicit-email-channel`, France uniquement — ce qui lui retire le seul canal qui
+fonctionnait sans configuration, et rend le vide visible au lieu de le masquer.
 
 ---
 
