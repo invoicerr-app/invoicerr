@@ -2,7 +2,7 @@
   "generated_at": "2026-08-27",
   "generator": "scripts/audit/inventory.ts",
   "as_of": "2026-08-27",
-  "measured_tree": "523fc4fb23e60492f5d3db1d7c3829157ab5c390",
+  "measured_tree": "232f70f6512e9ee45cd39b41355a913d3275b73a",
   "measured_tree_dirty": false,
   "temporal_note": "Profile-derived fields are the rules IN FORCE at as_of. everDeclared* keeps the flattened historical view, and startsLater lists rules beginning after as_of. Override with AUDIT_AS_OF.",
   "totals": {
@@ -12,7 +12,7 @@
     "nationalPortalStubs": 54,
     "nationalFormatStubs": 42,
     "schemaFiles": 20,
-    "specs": 123,
+    "specs": 125,
     "liveSpecs": 12
   },
   "transmissionProviders": [
@@ -2946,6 +2946,12 @@
       "requiredEnv": []
     },
     {
+      "file": "backend/src/compliance/nest/__tests__/apply-signal-reject-projection.spec.ts",
+      "live": false,
+      "flags": [],
+      "requiredEnv": []
+    },
+    {
       "file": "backend/src/compliance/nest/apply-signal.live.spec.ts",
       "live": true,
       "flags": [],
@@ -3537,6 +3543,12 @@
     },
     {
       "file": "backend/src/compliance/reporting/reporting-registry.spec.ts",
+      "live": false,
+      "flags": [],
+      "requiredEnv": []
+    },
+    {
+      "file": "backend/src/compliance/reporting/verifactu-chain.spec.ts",
       "live": false,
       "flags": [],
       "requiredEnv": []

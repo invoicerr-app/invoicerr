@@ -2,7 +2,7 @@
 
 > Généré par `scripts/audit/inventory.ts` le 2026-08-27, **en vigueur au 2026-08-27**.
 >
-> **Arbre mesuré** : `523fc4fb23e60492f5d3db1d7c3829157ab5c390` (propre sur les chemins mesurés).
+> **Arbre mesuré** : `232f70f6512e9ee45cd39b41355a913d3275b73a` (propre sur les chemins mesurés).
 > **Date de référence** : `2026-08-27` (`AUDIT_AS_OF` pour la déplacer). Tout champ dérivé
 > d’un profil est calculé **en vigueur à cette date**, jamais aplati sur toutes les périodes.
 >
@@ -32,7 +32,7 @@
 | dont produits par la fabrique stub `national-portals.ts` | 54 | runtime |
 | Providers de format produits par `national-formats.ts` (bytes vides) | 42 | runtime |
 | Schémas vendorisés sur disque (.xsd/.sch) | 20 | disque |
-| Specs sous `src/compliance` | 123 | disque |
+| Specs sous `src/compliance` | 125 | disque |
 | dont specs live (nom `-live.spec.ts` ou usage `liveDescribe`) | 12 | disque |
 
 ### Maturités déclarées
