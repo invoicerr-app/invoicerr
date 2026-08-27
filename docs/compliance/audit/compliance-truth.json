@@ -112,10 +112,8 @@
       "audit_phase": "phase-1 (inventaire mécanique + vérifications ciblées) — aucune source primaire consultée",
       "capabilities": {
         "format_generation": {
-          "level": "L2",
-          "evidence": [
-            "PLAIN_PDF → provider plain-pdf (aucun artefact d'autorité)"
-          ],
+          "level": "L0",
+          "evidence": [],
           "gaps": [
             "AL_FISCALIZATION : builder stub à octets vides (national-formats.ts) — voir F-001",
             "`validate()` déclare valide un document de zéro octet — F-001"
@@ -132,12 +130,9 @@
         },
         "transmission": {
           "level": "L0",
-          "evidence": [
-            "email (PROVEN) — backend/src/compliance/providers/transmission/email-transmission.ts, 0 site(s) d'appel réseau"
-          ],
+          "evidence": [],
           "gaps": [
             "al-cis (STUB) : aucun transport câblé — le registre n'injecte jamais de port HTTP (registry.ts:70-88). Voir F-009.",
-            "le profil déclare POST_AUDIT/CLEARANCE mais le seul transport joignable est email — F-004 catégorie 1b",
             "aucun artefact daté d'exécution live dans le dépôt : L4/L5 non vérifiable en l'état — F-013"
           ]
         },
@@ -2850,10 +2845,8 @@
       "audit_phase": "phase-1 (inventaire mécanique + vérifications ciblées) — aucune source primaire consultée",
       "capabilities": {
         "format_generation": {
-          "level": "L2",
-          "evidence": [
-            "PLAIN_PDF → provider plain-pdf (aucun artefact d'autorité)"
-          ],
+          "level": "L0",
+          "evidence": [],
           "gaps": [
             "EG_ETA : builder stub à octets vides (national-formats.ts) — voir F-001",
             "`validate()` déclare valide un document de zéro octet — F-001"
@@ -2870,12 +2863,9 @@
         },
         "transmission": {
           "level": "L0",
-          "evidence": [
-            "email (PROVEN) — backend/src/compliance/providers/transmission/email-transmission.ts, 0 site(s) d'appel réseau"
-          ],
+          "evidence": [],
           "gaps": [
             "eg-eta (IMPLEMENTED) : aucun transport câblé — le registre n'injecte jamais de port HTTP (registry.ts:70-88). Voir F-009.",
-            "le profil déclare POST_AUDIT/CLEARANCE mais le seul transport joignable est email — F-004 catégorie 1b",
             "aucun artefact daté d'exécution live dans le dépôt : L4/L5 non vérifiable en l'état — F-013"
           ]
         },
@@ -2952,7 +2942,6 @@
         "format_generation": {
           "level": "L3",
           "evidence": [
-            "PLAIN_PDF → provider plain-pdf (aucun artefact d'autorité)",
             "backend/src/compliance/schemas/es/Facturaev3_2_2.xsd — providers.ts:568"
           ],
           "gaps": [
@@ -3003,7 +2992,7 @@
           "level": "L0",
           "evidence": [],
           "gaps": [
-            "obligations déclarées (SII, VERIFACTU) mais les 10 handlers sont mockés : handleReport journalise [MOCK] et renvoie EMITTED sans rien soumettre — F-016"
+            "obligations déclarées (SII) mais les 10 handlers sont mockés : handleReport journalise [MOCK] et renvoie EMITTED sans rien soumettre — F-016"
           ]
         }
       },
@@ -3257,23 +3246,17 @@
         "transmission": {
           "level": "L2",
           "evidence": [
-            "email (PROVEN) — backend/src/compliance/providers/transmission/email-transmission.ts, 0 site(s) d'appel réseau",
-            "pdp (PROVEN) — backend/src/compliance/providers/transmission/pdp-transmission.ts, 2 site(s) d'appel réseau",
-            "peppol (PROVEN) — backend/src/compliance/providers/transmission/peppol-transmission.ts, 11 site(s) d'appel réseau"
+            "email (PROVEN) — backend/src/compliance/providers/transmission/email-transmission.ts, 0 site(s) d'appel réseau"
           ],
           "gaps": [
-            "choruspro (IMPLEMENTED) : aucun transport câblé — le registre n'injecte jamais de port HTTP (registry.ts:70-88). Voir F-009.",
             "aucun artefact daté d'exécution live dans le dépôt : L4/L5 non vérifiable en l'état — F-013"
           ]
         },
         "reception": {
-          "level": "L2",
-          "evidence": [
-            "backend/src/compliance/lifecycle/drivers/inbound-parsers.ts:55 parsePdpWebhook",
-            "backend/src/compliance/lifecycle/drivers/inbound-parsers.ts:179 parsePeppolMlr"
-          ],
+          "level": "L0",
+          "evidence": [],
           "gaps": [
-            "aucun test contre un accusé réel d’autorité — F-013"
+            "aucun parseur entrant pour les canaux de ce pays"
           ]
         },
         "archival": {
@@ -3290,7 +3273,7 @@
           "level": "L0",
           "evidence": [],
           "gaps": [
-            "obligations déclarées (E_REPORTING) mais les 10 handlers sont mockés : handleReport journalise [MOCK] et renvoie EMITTED sans rien soumettre — F-016"
+            "aucune obligation déclarative dans le profil"
           ]
         }
       },
@@ -3325,7 +3308,6 @@
         "F-005",
         "F-006",
         "F-008",
-        "F-009",
         "F-010",
         "F-013",
         "F-016"
@@ -3802,10 +3784,8 @@
       "audit_phase": "phase-1 (inventaire mécanique + vérifications ciblées) — aucune source primaire consultée",
       "capabilities": {
         "format_generation": {
-          "level": "L2",
-          "evidence": [
-            "PLAIN_PDF → provider plain-pdf (aucun artefact d'autorité)"
-          ],
+          "level": "L0",
+          "evidence": [],
           "gaps": [
             "HR_ERACUN : builder stub à octets vides (national-formats.ts) — voir F-001",
             "`validate()` déclare valide un document de zéro octet — F-001"
@@ -3822,12 +3802,9 @@
         },
         "transmission": {
           "level": "L0",
-          "evidence": [
-            "email (PROVEN) — backend/src/compliance/providers/transmission/email-transmission.ts, 0 site(s) d'appel réseau"
-          ],
+          "evidence": [],
           "gaps": [
             "hr-fiskalizacija (STUB) : aucun transport câblé — le registre n'injecte jamais de port HTTP (registry.ts:70-88). Voir F-009.",
-            "le profil déclare POST_AUDIT/CLEARANCE mais le seul transport joignable est email — F-004 catégorie 1b",
             "aucun artefact daté d'exécution live dans le dépôt : L4/L5 non vérifiable en l'état — F-013"
           ]
         },
@@ -4138,7 +4115,7 @@
           "level": "L0",
           "evidence": [],
           "gaps": [
-            "obligations déclarées (E_REPORTING) mais les 10 handlers sont mockés : handleReport journalise [MOCK] et renvoie EMITTED sans rien soumettre — F-016"
+            "aucune obligation déclarative dans le profil"
           ]
         }
       },
@@ -4281,7 +4258,6 @@
         "format_generation": {
           "level": "L3",
           "evidence": [
-            "PLAIN_PDF → provider plain-pdf (aucun artefact d'autorité)",
             "backend/src/compliance/schemas/it/Schema_VFPR12.xsd (AdE) — providers.ts:395"
           ],
           "gaps": [
@@ -4300,12 +4276,9 @@
         },
         "transmission": {
           "level": "L0",
-          "evidence": [
-            "email (PROVEN) — backend/src/compliance/providers/transmission/email-transmission.ts, 0 site(s) d'appel réseau"
-          ],
+          "evidence": [],
           "gaps": [
             "sdi (IMPLEMENTED) : aucun transport câblé — le registre n'injecte jamais de port HTTP (registry.ts:70-88). Voir F-009.",
-            "le profil déclare POST_AUDIT/CLEARANCE mais le seul transport joignable est email — F-004 catégorie 1b",
             "aucun artefact daté d'exécution live dans le dépôt : L4/L5 non vérifiable en l'état — F-013"
           ]
         },
@@ -5974,7 +5947,6 @@
         "format_generation": {
           "level": "L3",
           "evidence": [
-            "PLAIN_PDF → provider plain-pdf (aucun artefact d'autorité)",
             "backend/src/compliance/schemas/en16931/EN16931-UBL-validation-preprocessed.sch — providers.ts:189"
           ],
           "gaps": [
@@ -5992,12 +5964,9 @@
         },
         "transmission": {
           "level": "L0",
-          "evidence": [
-            "email (PROVEN) — backend/src/compliance/providers/transmission/email-transmission.ts, 0 site(s) d'appel réseau"
-          ],
+          "evidence": [],
           "gaps": [
             "myinvois (IMPLEMENTED) : aucun transport câblé — le registre n'injecte jamais de port HTTP (registry.ts:70-88). Voir F-009.",
-            "le profil déclare POST_AUDIT/CLEARANCE mais le seul transport joignable est email — F-004 catégorie 1b",
             "aucun artefact daté d'exécution live dans le dépôt : L4/L5 non vérifiable en l'état — F-013"
           ]
         },
@@ -6165,10 +6134,8 @@
       "audit_phase": "phase-1 (inventaire mécanique + vérifications ciblées) — aucune source primaire consultée",
       "capabilities": {
         "format_generation": {
-          "level": "L2",
-          "evidence": [
-            "PLAIN_PDF → provider plain-pdf (aucun artefact d'autorité)"
-          ],
+          "level": "L0",
+          "evidence": [],
           "gaps": [
             "NG_FIRS : builder stub à octets vides (national-formats.ts) — voir F-001",
             "`validate()` déclare valide un document de zéro octet — F-001"
@@ -6185,12 +6152,9 @@
         },
         "transmission": {
           "level": "L0",
-          "evidence": [
-            "email (PROVEN) — backend/src/compliance/providers/transmission/email-transmission.ts, 0 site(s) d'appel réseau"
-          ],
+          "evidence": [],
           "gaps": [
             "firs (IMPLEMENTED) : aucun transport câblé — le registre n'injecte jamais de port HTTP (registry.ts:70-88). Voir F-009.",
-            "le profil déclare POST_AUDIT/CLEARANCE mais le seul transport joignable est email — F-004 catégorie 1b",
             "aucun artefact daté d'exécution live dans le dépôt : L4/L5 non vérifiable en l'état — F-013"
           ]
         },
@@ -7204,7 +7168,6 @@
         "format_generation": {
           "level": "L3",
           "evidence": [
-            "PLAIN_PDF → provider plain-pdf (aucun artefact d'autorité)",
             "backend/src/compliance/schemas/pl/schemat_FA3.xsd (MF) — providers.ts:524"
           ],
           "gaps": [
@@ -7224,7 +7187,6 @@
         "transmission": {
           "level": "L2",
           "evidence": [
-            "email (PROVEN) — backend/src/compliance/providers/transmission/email-transmission.ts, 0 site(s) d'appel réseau",
             "ksef (PROVEN) — backend/src/compliance/providers/transmission/ksef-transmission.ts, 7 site(s) d'appel réseau"
           ],
           "gaps": [
@@ -7585,7 +7547,6 @@
         "format_generation": {
           "level": "L3",
           "evidence": [
-            "PLAIN_PDF → provider plain-pdf (aucun artefact d'autorité)",
             "backend/src/compliance/schemas/en16931/EN16931-UBL-validation-preprocessed.sch — providers.ts:189"
           ],
           "gaps": [
@@ -7603,12 +7564,9 @@
         },
         "transmission": {
           "level": "L0",
-          "evidence": [
-            "email (PROVEN) — backend/src/compliance/providers/transmission/email-transmission.ts, 0 site(s) d'appel réseau"
-          ],
+          "evidence": [],
           "gaps": [
             "anaf (IMPLEMENTED) : aucun transport câblé — le registre n'injecte jamais de port HTTP (registry.ts:70-88). Voir F-009.",
-            "le profil déclare POST_AUDIT/CLEARANCE mais le seul transport joignable est email — F-004 catégorie 1b",
             "aucun artefact daté d'exécution live dans le dépôt : L4/L5 non vérifiable en l'état — F-013"
           ]
         },
@@ -7870,7 +7828,6 @@
         "format_generation": {
           "level": "L2",
           "evidence": [
-            "PLAIN_PDF → provider plain-pdf (aucun artefact d'autorité)",
             "KSA_UBL → provider ksa-ubl (aucun artefact d'autorité)"
           ],
           "gaps": [
@@ -7888,12 +7845,9 @@
         },
         "transmission": {
           "level": "L0",
-          "evidence": [
-            "email (PROVEN) — backend/src/compliance/providers/transmission/email-transmission.ts, 0 site(s) d'appel réseau"
-          ],
+          "evidence": [],
           "gaps": [
             "zatca (STUB) : aucun transport câblé — le registre n'injecte jamais de port HTTP (registry.ts:70-88). Voir F-009.",
-            "le profil déclare POST_AUDIT/CLEARANCE mais le seul transport joignable est email — F-004 catégorie 1b",
             "aucun artefact daté d'exécution live dans le dépôt : L4/L5 non vérifiable en l'état — F-013"
           ]
         },
@@ -8205,7 +8159,7 @@
           "level": "L0",
           "evidence": [],
           "gaps": [
-            "obligations déclarées (E_REPORTING) mais les 10 handlers sont mockés : handleReport journalise [MOCK] et renvoie EMITTED sans rien soumettre — F-016"
+            "aucune obligation déclarative dans le profil"
           ]
         }
       },
@@ -8296,7 +8250,7 @@
           "level": "L0",
           "evidence": [],
           "gaps": [
-            "obligations déclarées (SALES_PURCHASE_LEDGER) mais les 10 handlers sont mockés : handleReport journalise [MOCK] et renvoie EMITTED sans rien soumettre — F-016"
+            "aucune obligation déclarative dans le profil"
           ]
         }
       },

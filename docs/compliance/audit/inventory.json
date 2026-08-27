@@ -1,6 +1,8 @@
 {
   "generated_at": "2026-08-27",
   "generator": "scripts/audit/inventory.ts",
+  "as_of": "2026-08-27",
+  "temporal_note": "Profile-derived fields are the rules IN FORCE at as_of. everDeclared* keeps the flattened historical view, and startsLater lists rules beginning after as_of. Override with AUDIT_AS_OF.",
   "totals": {
     "profiles": 106,
     "docs": 106,
@@ -64,8 +66,6 @@
         "LU",
         "MT",
         "SI",
-        "HR",
-        "AL",
         "BA",
         "MK",
         "MD",
@@ -78,19 +78,15 @@
         "NO",
         "CH",
         "PT",
-        "RO",
         "HN",
         "NI",
         "AE",
-        "SA",
         "BH",
         "OM",
         "QA",
         "KW",
         "DZ",
         "MA",
-        "EG",
-        "NG",
         "AO",
         "MZ",
         "ZA",
@@ -98,16 +94,13 @@
         "SN",
         "ET",
         "LK",
-        "MY",
         "SG",
         "JP",
         "CA",
         "AU",
         "NZ",
         "FR",
-        "US",
-        "IT",
-        "PL"
+        "US"
       ],
       "specs": [
         {
@@ -194,8 +187,7 @@
         "SG",
         "JP",
         "AU",
-        "NZ",
-        "FR"
+        "NZ"
       ],
       "specs": [
         {
@@ -283,9 +275,7 @@
         "logTodoStubFactory": false,
         "noDefaultTransport": false
       },
-      "countries": [
-        "FR"
-      ],
+      "countries": [],
       "specs": [
         {
           "file": "backend/src/compliance/providers/transmission/pdp/pdp-afnor-live.spec.ts",
@@ -2303,9 +2293,7 @@
         "logTodoStubFactory": false,
         "noDefaultTransport": true
       },
-      "countries": [
-        "FR"
-      ],
+      "countries": [],
       "specs": [
         {
           "file": "backend/src/compliance/providers/transmission/europe/choruspro-client.spec.ts",
@@ -3595,7 +3583,6 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
           "DECENTRALIZED_CTC",
           "REAL_TIME_REPORTING"
         ],
@@ -3643,7 +3630,22 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "DECENTRALIZED_CTC",
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "AE",
@@ -3753,7 +3755,6 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
           "CLEARANCE"
         ],
         "regimeBlocking": true,
@@ -3767,16 +3768,14 @@
           "numbering": 1
         },
         "syntaxes": [
-          "PLAIN_PDF",
-          "AL_FISCALIZATION"
+          "AL_FISCALIZATION",
+          "PLAIN_PDF"
         ],
         "primarySyntaxes": [
-          "PLAIN_PDF",
           "AL_FISCALIZATION"
         ],
         "mandatoryReceiveSyntax": "AL_FISCALIZATION",
         "channels": [
-          "EMAIL",
           "GOV_PORTAL_API:al-cis"
         ],
         "immutableAfter": [
@@ -3799,7 +3798,21 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL",
+          "GOV_PORTAL_API:al-cis"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "AL",
@@ -3821,27 +3834,6 @@
       "route": "/compliance/al",
       "providers": [
         {
-          "id": "email",
-          "channelType": "EMAIL",
-          "resolvesToNothing": false,
-          "registered": true,
-          "channel": "EMAIL",
-          "maturity": "PROVEN",
-          "stubFactory": false,
-          "noDefaultTransport": false,
-          "httpCallSites": 0,
-          "sourceLoc": 1573,
-          "declaredIn": [
-            "backend/src/compliance/providers/transmission/email-transmission.ts"
-          ],
-          "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/email/email-transmission.spec.ts"
-          ],
-          "liveSpecs": [
-            "backend/src/compliance/providers/transmission/email-live.spec.ts"
-          ]
-        },
-        {
           "id": "al-cis",
           "channelType": "GOV_PORTAL_API",
           "resolvesToNothing": false,
@@ -3861,20 +3853,6 @@
       ],
       "formats": [
         {
-          "syntax": "PLAIN_PDF",
-          "providerId": "plain-pdf",
-          "stubByConstruction": false,
-          "garbageAccepted": true,
-          "garbageErrors": 0,
-          "emptyAccepted": true,
-          "emptyErrors": 0,
-          "warnings": [
-            "plain PDF has no structured validation"
-          ],
-          "threw": null,
-          "primary": true
-        },
-        {
           "syntax": "AL_FISCALIZATION",
           "providerId": "al-fiscalization",
           "stubByConstruction": true,
@@ -3887,6 +3865,20 @@
           ],
           "threw": null,
           "primary": true
+        },
+        {
+          "syntax": "PLAIN_PDF",
+          "providerId": "plain-pdf",
+          "stubByConstruction": false,
+          "garbageAccepted": true,
+          "garbageErrors": 0,
+          "emptyAccepted": true,
+          "emptyErrors": 0,
+          "warnings": [
+            "plain PDF has no structured validation"
+          ],
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -3946,7 +3938,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "PERIODIC_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "AO",
@@ -4095,7 +4100,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:afip"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "AR",
@@ -4221,7 +4238,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "AT",
@@ -4376,7 +4406,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "GST"
+        "taxSystem": "GST",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "AU",
@@ -4528,7 +4571,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "BA",
@@ -4655,7 +4710,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:bd-nbr"
+        ],
+        "everDeclaredRegimes": [
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "BD",
@@ -4732,7 +4799,6 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
           "DECENTRALIZED_CTC",
           "REAL_TIME_REPORTING"
         ],
@@ -4780,7 +4846,22 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "DECENTRALIZED_CTC",
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "BE",
@@ -4934,7 +5015,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "BG",
@@ -5087,7 +5181,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "BH",
@@ -5213,7 +5319,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:bj-dgi"
+        ],
+        "everDeclaredRegimes": [
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "BJ",
@@ -5335,7 +5453,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:bo-sin"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "BO",
@@ -5455,7 +5585,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:sefaz"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "BR",
@@ -5581,7 +5723,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "GST"
+        "taxSystem": "GST",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "CA",
@@ -5703,7 +5857,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "CH",
@@ -5825,7 +5991,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:ci-dgi"
+        ],
+        "everDeclaredRegimes": [
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "CI",
@@ -5945,7 +6123,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:sii"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "CL",
@@ -6070,7 +6260,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "CM",
@@ -6192,7 +6394,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:cn-sta"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "CN",
@@ -6315,7 +6529,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:dian"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "CO",
@@ -6439,7 +6665,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:cr-hacienda"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "CR",
@@ -6560,7 +6798,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "CY",
@@ -6714,7 +6965,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "CZ",
@@ -6870,7 +7134,20 @@
           "LEGAL_ID",
           "LEITWEG_ID"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "DE",
@@ -7025,7 +7302,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "DK",
@@ -7179,7 +7469,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:dgii"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "DO",
@@ -7299,7 +7601,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "DZ",
@@ -7421,7 +7735,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:sri"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "EC",
@@ -7544,7 +7870,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "EE",
@@ -7654,7 +7993,6 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
           "CLEARANCE"
         ],
         "regimeBlocking": true,
@@ -7668,16 +8006,14 @@
           "numbering": 1
         },
         "syntaxes": [
-          "PLAIN_PDF",
-          "EG_ETA"
+          "EG_ETA",
+          "PLAIN_PDF"
         ],
         "primarySyntaxes": [
-          "PLAIN_PDF",
           "EG_ETA"
         ],
         "mandatoryReceiveSyntax": "EG_ETA",
         "channels": [
-          "EMAIL",
           "GOV_PORTAL_API:eg-eta"
         ],
         "immutableAfter": [
@@ -7700,7 +8036,21 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL",
+          "GOV_PORTAL_API:eg-eta"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "EG",
@@ -7718,27 +8068,6 @@
       },
       "route": "/compliance/eg",
       "providers": [
-        {
-          "id": "email",
-          "channelType": "EMAIL",
-          "resolvesToNothing": false,
-          "registered": true,
-          "channel": "EMAIL",
-          "maturity": "PROVEN",
-          "stubFactory": false,
-          "noDefaultTransport": false,
-          "httpCallSites": 0,
-          "sourceLoc": 1573,
-          "declaredIn": [
-            "backend/src/compliance/providers/transmission/email-transmission.ts"
-          ],
-          "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/email/email-transmission.spec.ts"
-          ],
-          "liveSpecs": [
-            "backend/src/compliance/providers/transmission/email-live.spec.ts"
-          ]
-        },
         {
           "id": "eg-eta",
           "channelType": "GOV_PORTAL_API",
@@ -7761,20 +8090,6 @@
       ],
       "formats": [
         {
-          "syntax": "PLAIN_PDF",
-          "providerId": "plain-pdf",
-          "stubByConstruction": false,
-          "garbageAccepted": true,
-          "garbageErrors": 0,
-          "emptyAccepted": true,
-          "emptyErrors": 0,
-          "warnings": [
-            "plain PDF has no structured validation"
-          ],
-          "threw": null,
-          "primary": true
-        },
-        {
           "syntax": "EG_ETA",
           "providerId": "eg-eta",
           "stubByConstruction": true,
@@ -7787,6 +8102,20 @@
           ],
           "threw": null,
           "primary": true
+        },
+        {
+          "syntax": "PLAIN_PDF",
+          "providerId": "plain-pdf",
+          "stubByConstruction": false,
+          "garbageAccepted": true,
+          "garbageErrors": 0,
+          "emptyAccepted": true,
+          "emptyErrors": 0,
+          "warnings": [
+            "plain PDF has no structured validation"
+          ],
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -7800,7 +8129,6 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
           "REAL_TIME_REPORTING"
         ],
         "regimeBlocking": false,
@@ -7814,19 +8142,18 @@
           "numbering": 1
         },
         "syntaxes": [
-          "PLAIN_PDF",
-          "ES_FACTURAE"
+          "ES_FACTURAE",
+          "PLAIN_PDF"
         ],
         "primarySyntaxes": [
-          "PLAIN_PDF",
           "ES_FACTURAE"
         ],
         "mandatoryReceiveSyntax": "ES_FACTURAE",
         "channels": [
-          "PEPPOL",
-          "EMAIL",
           "GOV_PORTAL_API:es-face",
-          "GOV_PORTAL_API:es-aeat"
+          "GOV_PORTAL_API:es-aeat",
+          "PEPPOL",
+          "EMAIL"
         ],
         "immutableAfter": [
           "ISSUE"
@@ -7841,8 +8168,7 @@
           "10y/BOTH/SIGNED"
         ],
         "reportingKinds": [
-          "SII",
-          "VERIFACTU"
+          "SII"
         ],
         "numbering": [
           "GAPLESS_SELF"
@@ -7851,7 +8177,23 @@
           "VAT",
           "LEGAL_ID"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL",
+          "GOV_PORTAL_API:es-face",
+          "GOV_PORTAL_API:es-aeat"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "ES",
@@ -7872,6 +8214,40 @@
       },
       "route": "/compliance/es",
       "providers": [
+        {
+          "id": "es-face",
+          "channelType": "GOV_PORTAL_API",
+          "resolvesToNothing": false,
+          "registered": true,
+          "channel": "GOV_PORTAL_API",
+          "maturity": "IMPLEMENTED",
+          "stubFactory": true,
+          "noDefaultTransport": true,
+          "httpCallSites": 0,
+          "sourceLoc": 2078,
+          "declaredIn": [
+            "backend/src/compliance/providers/transmission/europe/face-transmission.ts"
+          ],
+          "mockedSpecs": [],
+          "liveSpecs": []
+        },
+        {
+          "id": "es-aeat",
+          "channelType": "GOV_PORTAL_API",
+          "resolvesToNothing": false,
+          "registered": true,
+          "channel": "GOV_PORTAL_API",
+          "maturity": "STUB",
+          "stubFactory": true,
+          "noDefaultTransport": true,
+          "httpCallSites": 0,
+          "sourceLoc": 1522,
+          "declaredIn": [
+            "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+          ],
+          "mockedSpecs": [],
+          "liveSpecs": []
+        },
         {
           "id": "peppol",
           "channelType": "PEPPOL",
@@ -7919,43 +8295,21 @@
           "liveSpecs": [
             "backend/src/compliance/providers/transmission/email-live.spec.ts"
           ]
-        },
-        {
-          "id": "es-face",
-          "channelType": "GOV_PORTAL_API",
-          "resolvesToNothing": false,
-          "registered": true,
-          "channel": "GOV_PORTAL_API",
-          "maturity": "IMPLEMENTED",
-          "stubFactory": true,
-          "noDefaultTransport": true,
-          "httpCallSites": 0,
-          "sourceLoc": 2078,
-          "declaredIn": [
-            "backend/src/compliance/providers/transmission/europe/face-transmission.ts"
-          ],
-          "mockedSpecs": [],
-          "liveSpecs": []
-        },
-        {
-          "id": "es-aeat",
-          "channelType": "GOV_PORTAL_API",
-          "resolvesToNothing": false,
-          "registered": true,
-          "channel": "GOV_PORTAL_API",
-          "maturity": "STUB",
-          "stubFactory": true,
-          "noDefaultTransport": true,
-          "httpCallSites": 0,
-          "sourceLoc": 1522,
-          "declaredIn": [
-            "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
-          ],
-          "mockedSpecs": [],
-          "liveSpecs": []
         }
       ],
       "formats": [
+        {
+          "syntax": "ES_FACTURAE",
+          "providerId": "es-facturae",
+          "stubByConstruction": false,
+          "garbageAccepted": false,
+          "garbageErrors": 1,
+          "emptyAccepted": true,
+          "emptyErrors": 0,
+          "warnings": [],
+          "threw": null,
+          "primary": true
+        },
         {
           "syntax": "PLAIN_PDF",
           "providerId": "plain-pdf",
@@ -7968,19 +8322,7 @@
             "plain PDF has no structured validation"
           ],
           "threw": null,
-          "primary": true
-        },
-        {
-          "syntax": "ES_FACTURAE",
-          "providerId": "es-facturae",
-          "stubByConstruction": false,
-          "garbageAccepted": false,
-          "garbageErrors": 1,
-          "emptyAccepted": true,
-          "emptyErrors": 0,
-          "warnings": [],
-          "threw": null,
-          "primary": true
+          "primary": false
         }
       ]
     },
@@ -8037,7 +8379,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "ET",
@@ -8160,7 +8514,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "FI",
@@ -8271,9 +8638,7 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
-          "DECENTRALIZED_CTC",
-          "REAL_TIME_REPORTING"
+          "POST_AUDIT"
         ],
         "regimeBlocking": false,
         "temporalCounts": {
@@ -8294,10 +8659,7 @@
         ],
         "mandatoryReceiveSyntax": "FACTURX",
         "channels": [
-          "EMAIL",
-          "PDP",
-          "GOV_PORTAL_API:choruspro",
-          "PEPPOL"
+          "EMAIL"
         ],
         "immutableAfter": [
           "ISSUE"
@@ -8306,14 +8668,12 @@
           "CREDIT_NOTE"
         ],
         "cancellationAllowed": true,
-        "responsePolicyDefined": true,
+        "responsePolicyDefined": false,
         "contingencyDefined": false,
         "archival": [
           "10y/BOTH/HASH_CHAIN"
         ],
-        "reportingKinds": [
-          "E_REPORTING"
-        ],
+        "reportingKinds": [],
         "numbering": [
           "GAPLESS_SELF+hashChain"
         ],
@@ -8321,7 +8681,29 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL",
+          "PDP",
+          "GOV_PORTAL_API:choruspro",
+          "PEPPOL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "DECENTRALIZED_CTC",
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [
+            "2026-09-01:DECENTRALIZED_CTC",
+            "2026-09-01:REAL_TIME_REPORTING"
+          ],
+          "transmission": [
+            "2026-09-01:PDP+GOV_PORTAL_API+PEPPOL+EMAIL"
+          ],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "FR",
@@ -8363,78 +8745,6 @@
           ],
           "liveSpecs": [
             "backend/src/compliance/providers/transmission/email-live.spec.ts"
-          ]
-        },
-        {
-          "id": "pdp",
-          "channelType": "PDP",
-          "resolvesToNothing": false,
-          "registered": true,
-          "channel": "PDP",
-          "maturity": "PROVEN",
-          "stubFactory": false,
-          "noDefaultTransport": false,
-          "httpCallSites": 2,
-          "sourceLoc": 2638,
-          "declaredIn": [
-            "backend/src/compliance/providers/transmission/pdp-transmission.ts"
-          ],
-          "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/pdp/pdp-client.spec.ts",
-            "backend/src/compliance/providers/transmission/pdp/pdp-send-status.spec.ts",
-            "backend/src/compliance/providers/transmission/pdp/pdp-transmission.spec.ts"
-          ],
-          "liveSpecs": [
-            "backend/src/compliance/providers/transmission/pdp/pdp-afnor-live.spec.ts",
-            "backend/src/compliance/providers/transmission/pdp/pdp-live.spec.ts"
-          ]
-        },
-        {
-          "id": "choruspro",
-          "channelType": "GOV_PORTAL_API",
-          "resolvesToNothing": false,
-          "registered": true,
-          "channel": "GOV_PORTAL_API",
-          "maturity": "IMPLEMENTED",
-          "stubFactory": true,
-          "noDefaultTransport": true,
-          "httpCallSites": 0,
-          "sourceLoc": 1982,
-          "declaredIn": [
-            "backend/src/compliance/providers/transmission/europe/choruspro-transmission.ts"
-          ],
-          "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/europe/choruspro-client.spec.ts"
-          ],
-          "liveSpecs": [
-            "backend/src/compliance/providers/transmission/europe/choruspro-live.spec.ts"
-          ]
-        },
-        {
-          "id": "peppol",
-          "channelType": "PEPPOL",
-          "resolvesToNothing": false,
-          "registered": true,
-          "channel": "PEPPOL",
-          "maturity": "PROVEN",
-          "stubFactory": false,
-          "noDefaultTransport": false,
-          "httpCallSites": 11,
-          "sourceLoc": 3111,
-          "declaredIn": [
-            "backend/src/compliance/providers/transmission/peppol-transmission.ts"
-          ],
-          "mockedSpecs": [
-            "backend/src/compliance/execution/peppol-f7-reachability.spec.ts",
-            "backend/src/compliance/providers/transmission/peppol/ap-adapters.spec.ts",
-            "backend/src/compliance/providers/transmission/peppol/peppol-send-status.spec.ts",
-            "backend/src/compliance/providers/transmission/peppol/peppol-sh-client.spec.ts",
-            "backend/src/compliance/providers/transmission/peppol/peppol-transmission.spec.ts",
-            "backend/src/compliance/providers/transmission/peppol/storecove-client.spec.ts"
-          ],
-          "liveSpecs": [
-            "backend/src/compliance/providers/transmission/peppol/peppol-live.spec.ts",
-            "backend/src/compliance/providers/transmission/peppol/peppol-sh-live.spec.ts"
           ]
         }
       ],
@@ -8518,7 +8828,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "GB",
@@ -8640,7 +8962,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:gh-gra"
+        ],
+        "everDeclaredRegimes": [
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "GH",
@@ -8717,7 +9051,6 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
           "REAL_TIME_REPORTING"
         ],
         "regimeBlocking": false,
@@ -8763,7 +9096,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:gr-aade"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "GR",
@@ -8886,7 +9232,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:gt-sat"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "GT",
@@ -9006,7 +9364,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "HN",
@@ -9085,7 +9455,6 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
           "CLEARANCE"
         ],
         "regimeBlocking": true,
@@ -9099,16 +9468,14 @@
           "numbering": 1
         },
         "syntaxes": [
-          "PLAIN_PDF",
-          "HR_ERACUN"
+          "HR_ERACUN",
+          "PLAIN_PDF"
         ],
         "primarySyntaxes": [
-          "PLAIN_PDF",
           "HR_ERACUN"
         ],
         "mandatoryReceiveSyntax": "HR_ERACUN",
         "channels": [
-          "EMAIL",
           "GOV_PORTAL_API:hr-fiskalizacija"
         ],
         "immutableAfter": [
@@ -9131,7 +9498,21 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL",
+          "GOV_PORTAL_API:hr-fiskalizacija"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "HR",
@@ -9155,27 +9536,6 @@
       "route": "/compliance/hr",
       "providers": [
         {
-          "id": "email",
-          "channelType": "EMAIL",
-          "resolvesToNothing": false,
-          "registered": true,
-          "channel": "EMAIL",
-          "maturity": "PROVEN",
-          "stubFactory": false,
-          "noDefaultTransport": false,
-          "httpCallSites": 0,
-          "sourceLoc": 1573,
-          "declaredIn": [
-            "backend/src/compliance/providers/transmission/email-transmission.ts"
-          ],
-          "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/email/email-transmission.spec.ts"
-          ],
-          "liveSpecs": [
-            "backend/src/compliance/providers/transmission/email-live.spec.ts"
-          ]
-        },
-        {
           "id": "hr-fiskalizacija",
           "channelType": "GOV_PORTAL_API",
           "resolvesToNothing": false,
@@ -9195,20 +9555,6 @@
       ],
       "formats": [
         {
-          "syntax": "PLAIN_PDF",
-          "providerId": "plain-pdf",
-          "stubByConstruction": false,
-          "garbageAccepted": true,
-          "garbageErrors": 0,
-          "emptyAccepted": true,
-          "emptyErrors": 0,
-          "warnings": [
-            "plain PDF has no structured validation"
-          ],
-          "threw": null,
-          "primary": true
-        },
-        {
           "syntax": "HR_ERACUN",
           "providerId": "hr-eracun",
           "stubByConstruction": true,
@@ -9221,6 +9567,20 @@
           ],
           "threw": null,
           "primary": true
+        },
+        {
+          "syntax": "PLAIN_PDF",
+          "providerId": "plain-pdf",
+          "stubByConstruction": false,
+          "garbageAccepted": true,
+          "garbageErrors": 0,
+          "emptyAccepted": true,
+          "emptyErrors": 0,
+          "warnings": [
+            "plain PDF has no structured validation"
+          ],
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -9234,7 +9594,6 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
           "REAL_TIME_REPORTING"
         ],
         "regimeBlocking": false,
@@ -9280,7 +9639,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:hu-nav"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "HU",
@@ -9403,7 +9775,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:id-coretax"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "ID",
@@ -9484,9 +9868,7 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
-          "DECENTRALIZED_CTC",
-          "REAL_TIME_REPORTING"
+          "POST_AUDIT"
         ],
         "regimeBlocking": false,
         "temporalCounts": {
@@ -9522,9 +9904,7 @@
         "archival": [
           "10y/HYBRID_PDF/NONE"
         ],
-        "reportingKinds": [
-          "E_REPORTING"
-        ],
+        "reportingKinds": [],
         "numbering": [
           "GAPLESS_SELF"
         ],
@@ -9532,7 +9912,25 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "DECENTRALIZED_CTC",
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [
+            "2028-11-01:DECENTRALIZED_CTC",
+            "2028-11-01:REAL_TIME_REPORTING"
+          ],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "IE",
@@ -9685,7 +10083,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "GST"
+        "taxSystem": "GST",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:in-irp"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "IN",
@@ -9767,7 +10177,6 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
           "CLEARANCE"
         ],
         "regimeBlocking": true,
@@ -9781,20 +10190,17 @@
           "numbering": 1
         },
         "syntaxes": [
-          "PLAIN_PDF",
-          "FATTURAPA"
+          "FATTURAPA",
+          "PLAIN_PDF"
         ],
         "primarySyntaxes": [
-          "PLAIN_PDF",
           "FATTURAPA"
         ],
         "mandatoryReceiveSyntax": "FATTURAPA",
         "channels": [
-          "EMAIL",
           "SDI"
         ],
         "immutableAfter": [
-          "ISSUE",
           "CLEARANCE"
         ],
         "correctionModels": [
@@ -9816,7 +10222,21 @@
           "IT_SDI",
           "PEC"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL",
+          "SDI"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "IT",
@@ -9838,27 +10258,6 @@
       },
       "route": "/compliance/it",
       "providers": [
-        {
-          "id": "email",
-          "channelType": "EMAIL",
-          "resolvesToNothing": false,
-          "registered": true,
-          "channel": "EMAIL",
-          "maturity": "PROVEN",
-          "stubFactory": false,
-          "noDefaultTransport": false,
-          "httpCallSites": 0,
-          "sourceLoc": 1573,
-          "declaredIn": [
-            "backend/src/compliance/providers/transmission/email-transmission.ts"
-          ],
-          "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/email/email-transmission.spec.ts"
-          ],
-          "liveSpecs": [
-            "backend/src/compliance/providers/transmission/email-live.spec.ts"
-          ]
-        },
         {
           "id": "sdi",
           "channelType": "SDI",
@@ -9884,6 +10283,18 @@
       ],
       "formats": [
         {
+          "syntax": "FATTURAPA",
+          "providerId": "fatturapa-1.2",
+          "stubByConstruction": false,
+          "garbageAccepted": false,
+          "garbageErrors": 1,
+          "emptyAccepted": true,
+          "emptyErrors": 0,
+          "warnings": [],
+          "threw": null,
+          "primary": true
+        },
+        {
           "syntax": "PLAIN_PDF",
           "providerId": "plain-pdf",
           "stubByConstruction": false,
@@ -9895,19 +10306,7 @@
             "plain PDF has no structured validation"
           ],
           "threw": null,
-          "primary": true
-        },
-        {
-          "syntax": "FATTURAPA",
-          "providerId": "fatturapa-1.2",
-          "stubByConstruction": false,
-          "garbageAccepted": false,
-          "garbageErrors": 1,
-          "emptyAccepted": true,
-          "emptyErrors": 0,
-          "warnings": [],
-          "threw": null,
-          "primary": true
+          "primary": false
         }
       ]
     },
@@ -9964,7 +10363,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:jofotara"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "JO",
@@ -10085,7 +10496,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "JP",
@@ -10193,7 +10617,6 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
           "REAL_TIME_REPORTING"
         ],
         "regimeBlocking": false,
@@ -10239,7 +10662,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:ke-kra"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "KE",
@@ -10361,7 +10797,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "NONE"
+        "taxSystem": "NONE",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "KW",
@@ -10485,7 +10933,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:kz-isesf"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "KZ",
@@ -10606,7 +11066,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "LI",
@@ -10758,7 +11231,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "LK",
@@ -10881,7 +11366,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "LT",
@@ -11035,7 +11533,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "LU",
@@ -11145,7 +11656,6 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
           "REAL_TIME_REPORTING"
         ],
         "regimeBlocking": false,
@@ -11191,7 +11701,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:lv-vid"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "LV",
@@ -11313,7 +11836,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "MA",
@@ -11415,7 +11950,15 @@
         "reportingKinds": [],
         "numbering": [],
         "requiredIdentifiers": [],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [],
+        "everDeclaredRegimes": [],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "MC",
@@ -11493,7 +12036,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "MD",
@@ -11603,7 +12159,6 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
           "REAL_TIME_REPORTING"
         ],
         "regimeBlocking": false,
@@ -11649,7 +12204,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:me-fiscal"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "ME",
@@ -11772,7 +12340,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "MK",
@@ -11898,7 +12478,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "MT",
@@ -12051,7 +12644,19 @@
           "RFC",
           "CURP"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PAC"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "MX",
@@ -12128,7 +12733,6 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
           "CLEARANCE"
         ],
         "regimeBlocking": true,
@@ -12142,16 +12746,14 @@
           "numbering": 1
         },
         "syntaxes": [
-          "PLAIN_PDF",
-          "EN16931_UBL"
+          "EN16931_UBL",
+          "PLAIN_PDF"
         ],
         "primarySyntaxes": [
-          "PLAIN_PDF",
           "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": "EN16931_UBL",
         "channels": [
-          "EMAIL",
           "GOV_PORTAL_API:myinvois"
         ],
         "immutableAfter": [
@@ -12174,7 +12776,21 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL",
+          "GOV_PORTAL_API:myinvois"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "MY",
@@ -12195,27 +12811,6 @@
       },
       "route": "/compliance/my",
       "providers": [
-        {
-          "id": "email",
-          "channelType": "EMAIL",
-          "resolvesToNothing": false,
-          "registered": true,
-          "channel": "EMAIL",
-          "maturity": "PROVEN",
-          "stubFactory": false,
-          "noDefaultTransport": false,
-          "httpCallSites": 0,
-          "sourceLoc": 1573,
-          "declaredIn": [
-            "backend/src/compliance/providers/transmission/email-transmission.ts"
-          ],
-          "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/email/email-transmission.spec.ts"
-          ],
-          "liveSpecs": [
-            "backend/src/compliance/providers/transmission/email-live.spec.ts"
-          ]
-        },
         {
           "id": "myinvois",
           "channelType": "GOV_PORTAL_API",
@@ -12238,6 +12833,18 @@
       ],
       "formats": [
         {
+          "syntax": "EN16931_UBL",
+          "providerId": "en16931",
+          "stubByConstruction": false,
+          "garbageAccepted": true,
+          "garbageErrors": 0,
+          "emptyAccepted": true,
+          "emptyErrors": 0,
+          "warnings": [],
+          "threw": null,
+          "primary": true
+        },
+        {
           "syntax": "PLAIN_PDF",
           "providerId": "plain-pdf",
           "stubByConstruction": false,
@@ -12249,19 +12856,7 @@
             "plain PDF has no structured validation"
           ],
           "threw": null,
-          "primary": true
-        },
-        {
-          "syntax": "EN16931_UBL",
-          "providerId": "en16931",
-          "stubByConstruction": false,
-          "garbageAccepted": true,
-          "garbageErrors": 0,
-          "emptyAccepted": true,
-          "emptyErrors": 0,
-          "warnings": [],
-          "threw": null,
-          "primary": true
+          "primary": false
         }
       ]
     },
@@ -12321,7 +12916,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "PERIODIC_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "MZ",
@@ -12427,7 +13035,6 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
           "CLEARANCE"
         ],
         "regimeBlocking": true,
@@ -12441,16 +13048,14 @@
           "numbering": 1
         },
         "syntaxes": [
-          "PLAIN_PDF",
-          "NG_FIRS"
+          "NG_FIRS",
+          "PLAIN_PDF"
         ],
         "primarySyntaxes": [
-          "PLAIN_PDF",
           "NG_FIRS"
         ],
         "mandatoryReceiveSyntax": "NG_FIRS",
         "channels": [
-          "EMAIL",
           "GOV_PORTAL_API:firs"
         ],
         "immutableAfter": [
@@ -12473,7 +13078,21 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL",
+          "GOV_PORTAL_API:firs"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "NG",
@@ -12491,27 +13110,6 @@
       },
       "route": "/compliance/ng",
       "providers": [
-        {
-          "id": "email",
-          "channelType": "EMAIL",
-          "resolvesToNothing": false,
-          "registered": true,
-          "channel": "EMAIL",
-          "maturity": "PROVEN",
-          "stubFactory": false,
-          "noDefaultTransport": false,
-          "httpCallSites": 0,
-          "sourceLoc": 1573,
-          "declaredIn": [
-            "backend/src/compliance/providers/transmission/email-transmission.ts"
-          ],
-          "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/email/email-transmission.spec.ts"
-          ],
-          "liveSpecs": [
-            "backend/src/compliance/providers/transmission/email-live.spec.ts"
-          ]
-        },
         {
           "id": "firs",
           "channelType": "GOV_PORTAL_API",
@@ -12534,20 +13132,6 @@
       ],
       "formats": [
         {
-          "syntax": "PLAIN_PDF",
-          "providerId": "plain-pdf",
-          "stubByConstruction": false,
-          "garbageAccepted": true,
-          "garbageErrors": 0,
-          "emptyAccepted": true,
-          "emptyErrors": 0,
-          "warnings": [
-            "plain PDF has no structured validation"
-          ],
-          "threw": null,
-          "primary": true
-        },
-        {
           "syntax": "NG_FIRS",
           "providerId": "ng-firs",
           "stubByConstruction": true,
@@ -12560,6 +13144,20 @@
           ],
           "threw": null,
           "primary": true
+        },
+        {
+          "syntax": "PLAIN_PDF",
+          "providerId": "plain-pdf",
+          "stubByConstruction": false,
+          "garbageAccepted": true,
+          "garbageErrors": 0,
+          "emptyAccepted": true,
+          "emptyErrors": 0,
+          "warnings": [
+            "plain PDF has no structured validation"
+          ],
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -12616,7 +13214,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "NI",
@@ -12739,7 +13349,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "NL",
@@ -12894,7 +13517,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "NO",
@@ -13050,7 +13686,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:np-ird"
+        ],
+        "everDeclaredRegimes": [
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "NP",
@@ -13171,7 +13819,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "GST"
+        "taxSystem": "GST",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "NZ",
@@ -13323,7 +13984,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "OM",
@@ -13447,7 +14120,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:pa-dgi"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "PA",
@@ -13567,7 +14252,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "OSE"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "PE",
@@ -13693,7 +14390,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:ph-bir"
+        ],
+        "everDeclaredRegimes": [
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "PH",
@@ -13815,7 +14524,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:pk-fbr"
+        ],
+        "everDeclaredRegimes": [
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "PK",
@@ -13892,7 +14613,6 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
           "CLEARANCE"
         ],
         "regimeBlocking": true,
@@ -13906,27 +14626,23 @@
           "numbering": 1
         },
         "syntaxes": [
-          "PLAIN_PDF",
-          "FA_VAT"
+          "FA_VAT",
+          "PLAIN_PDF"
         ],
         "primarySyntaxes": [
-          "PLAIN_PDF",
           "FA_VAT"
         ],
         "mandatoryReceiveSyntax": "FA_VAT",
         "channels": [
-          "EMAIL",
           "GOV_PORTAL_API:ksef"
         ],
         "immutableAfter": [
-          "ISSUE",
           "CLEARANCE"
         ],
         "correctionModels": [
-          "CREDIT_NOTE",
           "CORRECTIVE_INVOICE"
         ],
-        "cancellationAllowed": true,
+        "cancellationAllowed": false,
         "responsePolicyDefined": false,
         "contingencyDefined": false,
         "archival": [
@@ -13940,7 +14656,21 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL",
+          "GOV_PORTAL_API:ksef"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "PL",
@@ -13960,27 +14690,6 @@
       },
       "route": "/compliance/pl",
       "providers": [
-        {
-          "id": "email",
-          "channelType": "EMAIL",
-          "resolvesToNothing": false,
-          "registered": true,
-          "channel": "EMAIL",
-          "maturity": "PROVEN",
-          "stubFactory": false,
-          "noDefaultTransport": false,
-          "httpCallSites": 0,
-          "sourceLoc": 1573,
-          "declaredIn": [
-            "backend/src/compliance/providers/transmission/email-transmission.ts"
-          ],
-          "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/email/email-transmission.spec.ts"
-          ],
-          "liveSpecs": [
-            "backend/src/compliance/providers/transmission/email-live.spec.ts"
-          ]
-        },
         {
           "id": "ksef",
           "channelType": "GOV_PORTAL_API",
@@ -14010,6 +14719,18 @@
       ],
       "formats": [
         {
+          "syntax": "FA_VAT",
+          "providerId": "fa-vat",
+          "stubByConstruction": false,
+          "garbageAccepted": false,
+          "garbageErrors": 1,
+          "emptyAccepted": true,
+          "emptyErrors": 0,
+          "warnings": [],
+          "threw": null,
+          "primary": true
+        },
+        {
           "syntax": "PLAIN_PDF",
           "providerId": "plain-pdf",
           "stubByConstruction": false,
@@ -14021,19 +14742,7 @@
             "plain PDF has no structured validation"
           ],
           "threw": null,
-          "primary": true
-        },
-        {
-          "syntax": "FA_VAT",
-          "providerId": "fa-vat",
-          "stubByConstruction": false,
-          "garbageAccepted": false,
-          "garbageErrors": 1,
-          "emptyAccepted": true,
-          "emptyErrors": 0,
-          "warnings": [],
-          "threw": null,
-          "primary": true
+          "primary": false
         }
       ]
     },
@@ -14093,7 +14802,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "PERIODIC_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "PT",
@@ -14245,7 +14967,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:sifen"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "PY",
@@ -14365,7 +15099,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "NONE"
+        "taxSystem": "NONE",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "QA",
@@ -14446,7 +15192,6 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
           "CLEARANCE"
         ],
         "regimeBlocking": true,
@@ -14460,16 +15205,14 @@
           "numbering": 1
         },
         "syntaxes": [
-          "PLAIN_PDF",
-          "EN16931_UBL"
+          "EN16931_UBL",
+          "PLAIN_PDF"
         ],
         "primarySyntaxes": [
-          "PLAIN_PDF",
           "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": "EN16931_UBL",
         "channels": [
-          "EMAIL",
           "GOV_PORTAL_API:anaf"
         ],
         "immutableAfter": [
@@ -14492,7 +15235,21 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL",
+          "GOV_PORTAL_API:anaf"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "RO",
@@ -14516,27 +15273,6 @@
       "route": "/compliance/ro",
       "providers": [
         {
-          "id": "email",
-          "channelType": "EMAIL",
-          "resolvesToNothing": false,
-          "registered": true,
-          "channel": "EMAIL",
-          "maturity": "PROVEN",
-          "stubFactory": false,
-          "noDefaultTransport": false,
-          "httpCallSites": 0,
-          "sourceLoc": 1573,
-          "declaredIn": [
-            "backend/src/compliance/providers/transmission/email-transmission.ts"
-          ],
-          "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/email/email-transmission.spec.ts"
-          ],
-          "liveSpecs": [
-            "backend/src/compliance/providers/transmission/email-live.spec.ts"
-          ]
-        },
-        {
           "id": "anaf",
           "channelType": "GOV_PORTAL_API",
           "resolvesToNothing": false,
@@ -14558,6 +15294,18 @@
       ],
       "formats": [
         {
+          "syntax": "EN16931_UBL",
+          "providerId": "en16931",
+          "stubByConstruction": false,
+          "garbageAccepted": true,
+          "garbageErrors": 0,
+          "emptyAccepted": true,
+          "emptyErrors": 0,
+          "warnings": [],
+          "threw": null,
+          "primary": true
+        },
+        {
           "syntax": "PLAIN_PDF",
           "providerId": "plain-pdf",
           "stubByConstruction": false,
@@ -14569,19 +15317,7 @@
             "plain PDF has no structured validation"
           ],
           "threw": null,
-          "primary": true
-        },
-        {
-          "syntax": "EN16931_UBL",
-          "providerId": "en16931",
-          "stubByConstruction": false,
-          "garbageAccepted": true,
-          "garbageErrors": 0,
-          "emptyAccepted": true,
-          "emptyErrors": 0,
-          "warnings": [],
-          "threw": null,
-          "primary": true
+          "primary": false
         }
       ]
     },
@@ -14638,7 +15374,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:rs-sef"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "RS",
@@ -14762,7 +15510,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:rw-rra"
+        ],
+        "everDeclaredRegimes": [
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "RW",
@@ -14839,7 +15599,6 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
           "CLEARANCE"
         ],
         "regimeBlocking": true,
@@ -14853,16 +15612,14 @@
           "numbering": 1
         },
         "syntaxes": [
-          "PLAIN_PDF",
-          "KSA_UBL"
+          "KSA_UBL",
+          "PLAIN_PDF"
         ],
         "primarySyntaxes": [
-          "PLAIN_PDF",
           "KSA_UBL"
         ],
         "mandatoryReceiveSyntax": "KSA_UBL",
         "channels": [
-          "EMAIL",
           "GOV_PORTAL_API:zatca"
         ],
         "immutableAfter": [
@@ -14885,7 +15642,21 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL",
+          "GOV_PORTAL_API:zatca"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "SA",
@@ -14908,27 +15679,6 @@
       "route": "/compliance/sa",
       "providers": [
         {
-          "id": "email",
-          "channelType": "EMAIL",
-          "resolvesToNothing": false,
-          "registered": true,
-          "channel": "EMAIL",
-          "maturity": "PROVEN",
-          "stubFactory": false,
-          "noDefaultTransport": false,
-          "httpCallSites": 0,
-          "sourceLoc": 1573,
-          "declaredIn": [
-            "backend/src/compliance/providers/transmission/email-transmission.ts"
-          ],
-          "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/email/email-transmission.spec.ts"
-          ],
-          "liveSpecs": [
-            "backend/src/compliance/providers/transmission/email-live.spec.ts"
-          ]
-        },
-        {
           "id": "zatca",
           "channelType": "GOV_PORTAL_API",
           "resolvesToNothing": false,
@@ -14948,20 +15698,6 @@
       ],
       "formats": [
         {
-          "syntax": "PLAIN_PDF",
-          "providerId": "plain-pdf",
-          "stubByConstruction": false,
-          "garbageAccepted": true,
-          "garbageErrors": 0,
-          "emptyAccepted": true,
-          "emptyErrors": 0,
-          "warnings": [
-            "plain PDF has no structured validation"
-          ],
-          "threw": null,
-          "primary": true
-        },
-        {
           "syntax": "KSA_UBL",
           "providerId": "ksa-ubl",
           "stubByConstruction": false,
@@ -14974,6 +15710,20 @@
           ],
           "threw": null,
           "primary": true
+        },
+        {
+          "syntax": "PLAIN_PDF",
+          "providerId": "plain-pdf",
+          "stubByConstruction": false,
+          "garbageAccepted": true,
+          "garbageErrors": 0,
+          "emptyAccepted": true,
+          "emptyErrors": 0,
+          "warnings": [
+            "plain PDF has no structured validation"
+          ],
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -15031,7 +15781,20 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "SE",
@@ -15135,7 +15898,6 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
           "DECENTRALIZED_CTC",
           "REAL_TIME_REPORTING"
         ],
@@ -15183,7 +15945,22 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "GST"
+        "taxSystem": "GST",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "DECENTRALIZED_CTC",
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "SG",
@@ -15290,9 +16067,7 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
-          "DECENTRALIZED_CTC",
-          "REAL_TIME_REPORTING"
+          "POST_AUDIT"
         ],
         "regimeBlocking": false,
         "temporalCounts": {
@@ -15328,9 +16103,7 @@
         "archival": [
           "10y/HYBRID_PDF/NONE"
         ],
-        "reportingKinds": [
-          "E_REPORTING"
-        ],
+        "reportingKinds": [],
         "numbering": [
           "GAPLESS_SELF"
         ],
@@ -15338,7 +16111,25 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "PEPPOL",
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "DECENTRALIZED_CTC",
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [
+            "2027-06-01:DECENTRALIZED_CTC",
+            "2027-06-01:REAL_TIME_REPORTING"
+          ],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "SI",
@@ -15449,8 +16240,7 @@
         "delegatesTo": null,
         "schemaVersion": "1.0",
         "regimeModels": [
-          "POST_AUDIT",
-          "REAL_TIME_REPORTING"
+          "POST_AUDIT"
         ],
         "regimeBlocking": false,
         "temporalCounts": {
@@ -15485,9 +16275,7 @@
         "archival": [
           "7y/HYBRID_PDF/NONE"
         ],
-        "reportingKinds": [
-          "SALES_PURCHASE_LEDGER"
-        ],
+        "reportingKinds": [],
         "numbering": [
           "GAPLESS_SELF"
         ],
@@ -15495,7 +16283,22 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:sk-financnasprava"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT",
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [
+            "2027-01-01:REAL_TIME_REPORTING"
+          ],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "SK",
@@ -15617,7 +16420,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "SDI"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "SM",
@@ -15744,7 +16559,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "SN",
@@ -15866,7 +16693,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:sv-mh"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "SV",
@@ -15988,7 +16827,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:th-rd"
+        ],
+        "everDeclaredRegimes": [
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "TH",
@@ -16108,7 +16959,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:tn-ttn"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "TN",
@@ -16228,7 +17091,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:gib"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "TR",
@@ -16354,7 +17229,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:tw-mof"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "TW",
@@ -16479,7 +17366,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:tz-tra"
+        ],
+        "everDeclaredRegimes": [
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "TZ",
@@ -16599,7 +17498,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:ua-dps"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "UA",
@@ -16724,7 +17635,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:ug-ura"
+        ],
+        "everDeclaredRegimes": [
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "UG",
@@ -16842,7 +17765,19 @@
         "requiredIdentifiers": [
           "LEGAL_ID"
         ],
-        "taxSystem": "SALES_TAX"
+        "taxSystem": "SALES_TAX",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "US",
@@ -16952,7 +17887,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:uy-dgi"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "UY",
@@ -17074,7 +18021,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "VA",
@@ -17199,7 +18158,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:seniat"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "VE",
@@ -17319,7 +18290,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:vn-gdt"
+        ],
+        "everDeclaredRegimes": [
+          "CLEARANCE"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "VN",
@@ -17441,7 +18424,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "EMAIL"
+        ],
+        "everDeclaredRegimes": [
+          "POST_AUDIT"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "ZA",
@@ -17566,7 +18561,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:zm-zra"
+        ],
+        "everDeclaredRegimes": [
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "ZM",
@@ -17688,7 +18695,19 @@
           "LEGAL_ID",
           "VAT"
         ],
-        "taxSystem": "VAT"
+        "taxSystem": "VAT",
+        "everDeclaredChannels": [
+          "GOV_PORTAL_API:zw-zimra"
+        ],
+        "everDeclaredRegimes": [
+          "REAL_TIME_REPORTING"
+        ],
+        "startsLater": {
+          "regime": [],
+          "transmission": [],
+          "numbering": [],
+          "archival": []
+        }
       },
       "doc": {
         "code": "ZW",

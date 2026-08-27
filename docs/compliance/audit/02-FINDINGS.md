@@ -45,6 +45,8 @@ Ce qui bloque une émission, l'invalide, ou trompe l'utilisateur sur l'état de 
 | [PL-D1](03-LEGAL-VERIFICATION.md) | Annulation autorisée en Pologne | Produit un état juridiquement inexistant côté KSeF | — |
 | [IT-D1](03-LEGAL-VERIFICATION.md) | Annulation autorisée en Italie | Idem, incohérent avec le registre TVA | — |
 | [IT-D10](03-LEGAL-VERIFICATION.md) | `immutableAfter` déclenché trop tôt | **Bloque le renvoi après scarto**, chemin nominal de reprise | — |
+| [ES-D12](03-LEGAL-VERIFICATION.md) | QR codé en dur sur `ValidarQR` | **Un QR faux sur chaque facture** : le destinataire scanne un service de cotéjo pour systèmes vérifiables, que le produit n'est pas | — |
+| [ES-D1](03-LEGAL-VERIFICATION.md) | `previousHuella` jamais alimenté | Chaîne de registres de longueur un, répétée — l'art. 8.2.b exige le rattachement au précédent | — |
 
 `MX-D1` a été promu dans cet axe après reproduction : `AUTHORITY_RANGE` ne produisait pas
 seulement du code mort. Voir `scripts/audit/repro/f019-mx-authority-range-block.ts`.
@@ -264,10 +266,16 @@ par région, statut et format. En face :
 | 54 syntaxes déclarées par les profils | 5 syntaxes rejettent un document invalide (`CFDI`, `ES_FACTURAE`, `FA_VAT`, `FATTURAPA`, `PEPPOL_BIS`) |
 | 66 pays marqués `status: mandatory` | 0 trace d'une transmission réelle acquittée dans le dépôt |
 
-**48 pays** ont une page publique alors qu'aucun `ChannelSpec` de leur profil ne résout vers un
-provider capable d'émettre quoi que ce soit (catégorie 1a de l'inventaire). **8 pays de plus** — AL,
-EG, HR, **IT**, MY, NG, RO, SA — déclarent dans leur *propre* profil un régime `CLEARANCE` bloquant,
-et le seul transport joignable pour eux est `email` (catégorie 1b).
+**56 pays** ont une page publique alors qu'aucun `ChannelSpec` en vigueur de leur profil ne résout
+vers un provider capable d'émettre quoi que ce soit (catégorie 1a).
+
+> **Chiffre corrigé, et il s'aggrave.** La première version disait 48, plus 8 pays « en clearance
+> avec le courriel pour seule sortie ». Les deux venaient du même artefact : mon inventaire aplatissait
+> toutes les périodes temporelles, périodes **abrogées** comprises, si bien que des canaux e-mail
+> depuis longtemps retirés faisaient paraître des pays joignables. En vue « en vigueur au 2026-08-27 »,
+> la catégorie 1b **est vide** : ces 8 pays n'ont pas le courriel pour seule sortie, ils n'ont
+> **aucune sortie** — et ils sont exactement les 8 que la catégorie 1a a gagnés. L'énoncé corrigé est
+> plus dur que le faux.
 
 ### Nuance importante, en faveur du dépôt
 

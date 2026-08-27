@@ -1,6 +1,8 @@
 # 00 — Inventaire mécanique (Phase 0)
 
-> Généré par `scripts/audit/inventory.ts` le 2026-08-27. **Aucun jugement, aucune
+> Généré par `scripts/audit/inventory.ts` le 2026-08-27, **en vigueur au 2026-08-27**.
+> Les champs issus des profils sont les règles **en vigueur** à cette date, pas la totalité des
+> périodes déclarées. Rejouer à une autre date : `AUDIT_AS_OF=YYYY-MM-DD`. **Aucun jugement, aucune
 > vérification juridique, aucune recherche web.** Uniquement ce qui existe dans le dépôt,
 > obtenu en chargeant les registres réels et en lisant les fichiers.
 >
@@ -59,15 +61,15 @@ Légende — `providers` : `id(maturité)`, `⊘` = aucun transport atteignable 
 
 | Pays | Profil | Conf. | Régime | Fiche | status/progress | Canaux | Providers | Formats | Specs live |
 | --- | :-: | --- | --- | :-: | --- | --- | --- | --- | --- |
-| **AE** United Arab Emirates | archétype | BEST_EFFORT | POST_AUDIT/DECENTRALIZED_CTC/REAL_TIME_REPORTING | ✓ | mandatory/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | PEPPOL_BIS→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
-| **AL** Albania | archétype | BEST_EFFORT | POST_AUDIT/CLEARANCE | ✓ | mandatory/— | EMAIL<br>GOV_PORTAL_API:al-cis | email(PROVEN)<br>al-cis(STUB)⊘ | PLAIN_PDF→plain-pdf!<br>AL_FISCALIZATION→al-fiscalization∅! | 1 |
+| **AE** United Arab Emirates | archétype | BEST_EFFORT | DECENTRALIZED_CTC/REAL_TIME_REPORTING | ✓ | mandatory/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | PEPPOL_BIS→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
+| **AL** Albania | archétype | BEST_EFFORT | CLEARANCE | ✓ | mandatory/— | GOV_PORTAL_API:al-cis | al-cis(STUB)⊘ | AL_FISCALIZATION→al-fiscalization∅!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **AO** Angola | archétype | BEST_EFFORT | PERIODIC_REPORTING | ✓ | mandatory/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
 | **AR** Argentina | archétype | BEST_EFFORT | CLEARANCE | ✓ | mandatory/— | GOV_PORTAL_API:afip | afip(IMPLEMENTED)⊘ | AR_FE→ar-fe∅!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **AT** Austria | archétype | BEST_EFFORT | POST_AUDIT | ✓ | post-audit/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
 | **AU** Australia | archétype | BEST_EFFORT | POST_AUDIT | ✓ | voluntary/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
 | **BA** Bosnia and Herzegovina | archétype | PLANNED | POST_AUDIT | ✓ | planned/— | EMAIL | email(PROVEN) | PLAIN_PDF→plain-pdf!<br>EN16931_UBL→en16931! | 1 |
 | **BD** Bangladesh | archétype | BEST_EFFORT | REAL_TIME_REPORTING | ✓ | mandatory/— | GOV_PORTAL_API:bd-nbr | bd-nbr(STUB)⊘ | BD_NBR→bd-nbr∅!<br>PLAIN_PDF→plain-pdf! | 0 |
-| **BE** Belgium | archétype | BEST_EFFORT | POST_AUDIT/DECENTRALIZED_CTC/REAL_TIME_REPORTING | ✓ | phased/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | PEPPOL_BIS→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
+| **BE** Belgium | archétype | BEST_EFFORT | DECENTRALIZED_CTC/REAL_TIME_REPORTING | ✓ | phased/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | PEPPOL_BIS→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
 | **BG** Bulgaria | archétype | BEST_EFFORT | POST_AUDIT | ✓ | voluntary/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
 | **BH** Bahrain | archétype | PLANNED | POST_AUDIT | ✓ | mandatory/— | EMAIL | email(PROVEN) | PLAIN_PDF→plain-pdf!<br>EN16931_UBL→en16931! | 1 |
 | **BJ** Benin | archétype | BEST_EFFORT | REAL_TIME_REPORTING | ✓ | mandatory/— | GOV_PORTAL_API:bj-dgi | bj-dgi(STUB)⊘ | BJ_MECEF→bj-mecef∅!<br>PLAIN_PDF→plain-pdf! | 0 |
@@ -89,42 +91,42 @@ Légende — `providers` : `id(maturité)`, `⊘` = aucun transport atteignable 
 | **DZ** Algeria | archétype | PLANNED | POST_AUDIT | ✓ | mandatory/— | EMAIL | email(PROVEN) | PLAIN_PDF→plain-pdf!<br>EN16931_UBL→en16931! | 1 |
 | **EC** Ecuador | archétype | BEST_EFFORT | CLEARANCE | ✓ | mandatory/— | GOV_PORTAL_API:sri | sri(IMPLEMENTED)⊘ | EC_FE→ec-fe∅!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **EE** Estonia | archétype | BEST_EFFORT | POST_AUDIT | ✓ | phased/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
-| **EG** Egypt | archétype | BEST_EFFORT | POST_AUDIT/CLEARANCE | ✓ | mandatory/— | EMAIL<br>GOV_PORTAL_API:eg-eta | email(PROVEN)<br>eg-eta(IMPLEMENTED)⊘ | PLAIN_PDF→plain-pdf!<br>EG_ETA→eg-eta∅! | 1 |
-| **ES** Spain | bespoke | OFFICIAL | POST_AUDIT/REAL_TIME_REPORTING | ✓ | phased/— | PEPPOL<br>EMAIL<br>GOV_PORTAL_API:es-face<br>GOV_PORTAL_API:es-aeat | peppol(PROVEN)<br>email(PROVEN)<br>es-face(IMPLEMENTED)⊘<br>es-aeat(STUB)⊘ | PLAIN_PDF→plain-pdf!<br>ES_FACTURAE→es-facturae! | 3 |
+| **EG** Egypt | archétype | BEST_EFFORT | CLEARANCE | ✓ | mandatory/— | GOV_PORTAL_API:eg-eta | eg-eta(IMPLEMENTED)⊘ | EG_ETA→eg-eta∅!<br>PLAIN_PDF→plain-pdf! | 0 |
+| **ES** Spain | bespoke | OFFICIAL | REAL_TIME_REPORTING | ✓ | phased/— | GOV_PORTAL_API:es-face<br>GOV_PORTAL_API:es-aeat<br>PEPPOL<br>EMAIL | es-face(IMPLEMENTED)⊘<br>es-aeat(STUB)⊘<br>peppol(PROVEN)<br>email(PROVEN) | ES_FACTURAE→es-facturae!<br>PLAIN_PDF→plain-pdf! | 3 |
 | **ET** Ethiopia | archétype | PLANNED | POST_AUDIT | ✓ | mandatory/— | EMAIL | email(PROVEN) | PLAIN_PDF→plain-pdf!<br>EN16931_UBL→en16931! | 1 |
 | **FI** Finland | archétype | BEST_EFFORT | POST_AUDIT | ✓ | voluntary/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
-| **FR** France | bespoke | OFFICIAL | POST_AUDIT/DECENTRALIZED_CTC/REAL_TIME_REPORTING | ✓ | phased/in-progress | EMAIL<br>PDP<br>GOV_PORTAL_API:choruspro<br>PEPPOL | email(PROVEN)<br>pdp(PROVEN)<br>choruspro(IMPLEMENTED)⊘<br>peppol(PROVEN) | EN16931_CII→en16931!<br>FACTURX→en16931! | 6 |
+| **FR** France | bespoke | OFFICIAL | POST_AUDIT | ✓ | phased/in-progress | EMAIL | email(PROVEN) | EN16931_CII→en16931!<br>FACTURX→en16931! | 1 |
 | **GB** United Kingdom | archétype | OFFICIAL | POST_AUDIT | ✓ | —/— | EMAIL | email(PROVEN) | PLAIN_PDF→plain-pdf!<br>EN16931_UBL→en16931! | 1 |
 | **GH** Ghana | archétype | BEST_EFFORT | REAL_TIME_REPORTING | ✓ | mandatory/— | GOV_PORTAL_API:gh-gra | gh-gra(STUB)⊘ | GH_EVAT→gh-evat∅!<br>PLAIN_PDF→plain-pdf! | 0 |
-| **GR** Greece | archétype | BEST_EFFORT | POST_AUDIT/REAL_TIME_REPORTING | ✓ | phased/— | GOV_PORTAL_API:gr-aade | gr-aade(STUB)⊘ | NATIONAL_XML→national-xml!<br>PLAIN_PDF→plain-pdf! | 0 |
+| **GR** Greece | archétype | BEST_EFFORT | REAL_TIME_REPORTING | ✓ | phased/— | GOV_PORTAL_API:gr-aade | gr-aade(STUB)⊘ | NATIONAL_XML→national-xml!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **GT** Guatemala | archétype | BEST_EFFORT | CLEARANCE | ✓ | mandatory/— | GOV_PORTAL_API:gt-sat | gt-sat(STUB)⊘ | GT_FEL→gt-fel∅!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **HN** Honduras | archétype | PLANNED | POST_AUDIT | ✓ | mandatory/— | EMAIL | email(PROVEN) | PLAIN_PDF→plain-pdf!<br>EN16931_UBL→en16931! | 1 |
-| **HR** Croatia | archétype | BEST_EFFORT | POST_AUDIT/CLEARANCE | ✓ | mandatory/— | EMAIL<br>GOV_PORTAL_API:hr-fiskalizacija | email(PROVEN)<br>hr-fiskalizacija(STUB)⊘ | PLAIN_PDF→plain-pdf!<br>HR_ERACUN→hr-eracun∅! | 1 |
-| **HU** Hungary | archétype | BEST_EFFORT | POST_AUDIT/REAL_TIME_REPORTING | ✓ | mandatory/— | GOV_PORTAL_API:hu-nav | hu-nav(STUB)⊘ | NATIONAL_XML→national-xml!<br>PLAIN_PDF→plain-pdf! | 0 |
+| **HR** Croatia | archétype | BEST_EFFORT | CLEARANCE | ✓ | mandatory/— | GOV_PORTAL_API:hr-fiskalizacija | hr-fiskalizacija(STUB)⊘ | HR_ERACUN→hr-eracun∅!<br>PLAIN_PDF→plain-pdf! | 0 |
+| **HU** Hungary | archétype | BEST_EFFORT | REAL_TIME_REPORTING | ✓ | mandatory/— | GOV_PORTAL_API:hu-nav | hu-nav(STUB)⊘ | NATIONAL_XML→national-xml!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **ID** Indonesia | archétype | BEST_EFFORT | CLEARANCE | ✓ | mandatory/— | GOV_PORTAL_API:id-coretax | id-coretax(IMPLEMENTED)⊘ | ID_EFAKTUR→id-efaktur∅!<br>PLAIN_PDF→plain-pdf! | 0 |
-| **IE** Ireland | archétype | BEST_EFFORT | POST_AUDIT/DECENTRALIZED_CTC/REAL_TIME_REPORTING | ✓ | voluntary/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | PEPPOL_BIS→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
+| **IE** Ireland | archétype | BEST_EFFORT | POST_AUDIT | ✓ | voluntary/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | PEPPOL_BIS→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
 | **IN** India | archétype | BEST_EFFORT | CLEARANCE | ✓ | mandatory/— | GOV_PORTAL_API:in-irp | in-irp(IMPLEMENTED)⊘ | IN_IRP→in-irp∅!<br>PLAIN_PDF→plain-pdf! | 0 |
-| **IT** Italy | bespoke | OFFICIAL | POST_AUDIT/CLEARANCE | ✓ | mandatory/in-progress | EMAIL<br>SDI | email(PROVEN)<br>sdi(IMPLEMENTED)⊘ | PLAIN_PDF→plain-pdf!<br>FATTURAPA→fatturapa-1.2! | 2 |
+| **IT** Italy | bespoke | OFFICIAL | CLEARANCE | ✓ | mandatory/in-progress | SDI | sdi(IMPLEMENTED)⊘ | FATTURAPA→fatturapa-1.2!<br>PLAIN_PDF→plain-pdf! | 1 |
 | **JO** Jordan | archétype | BEST_EFFORT | CLEARANCE | ✓ | mandatory/— | GOV_PORTAL_API:jofotara | jofotara(STUB)⊘ | JO_JOFOTARA→jo-jofotara∅!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **JP** Japan | archétype | BEST_EFFORT | POST_AUDIT | ✓ | voluntary/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
-| **KE** Kenya | archétype | BEST_EFFORT | POST_AUDIT/REAL_TIME_REPORTING | ✓ | mandatory/— | GOV_PORTAL_API:ke-kra | ke-kra(IMPLEMENTED)⊘ | KE_ETIMS→ke-etims∅!<br>PLAIN_PDF→plain-pdf! | 0 |
+| **KE** Kenya | archétype | BEST_EFFORT | REAL_TIME_REPORTING | ✓ | mandatory/— | GOV_PORTAL_API:ke-kra | ke-kra(IMPLEMENTED)⊘ | KE_ETIMS→ke-etims∅!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **KW** Kuwait | archétype | PLANNED | POST_AUDIT | ✓ | mandatory/— | EMAIL | email(PROVEN) | PLAIN_PDF→plain-pdf!<br>EN16931_UBL→en16931! | 1 |
 | **KZ** Kazakhstan | archétype | BEST_EFFORT | CLEARANCE | ✓ | mandatory/— | GOV_PORTAL_API:kz-isesf | kz-isesf(STUB)⊘ | KZ_ESF→kz-esf∅!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **LI** Liechtenstein | archétype | BEST_EFFORT | POST_AUDIT | ✓ | voluntary/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
 | **LK** Sri Lanka | archétype | PLANNED | POST_AUDIT | ✓ | mandatory/— | EMAIL | email(PROVEN) | PLAIN_PDF→plain-pdf!<br>EN16931_UBL→en16931! | 1 |
 | **LT** Lithuania | archétype | BEST_EFFORT | POST_AUDIT | ✓ | voluntary/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
 | **LU** Luxembourg | archétype | BEST_EFFORT | POST_AUDIT | ✓ | voluntary/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
-| **LV** Latvia | archétype | BEST_EFFORT | POST_AUDIT/REAL_TIME_REPORTING | ✓ | phased/— | GOV_PORTAL_API:lv-vid | lv-vid(STUB)⊘ | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 0 |
+| **LV** Latvia | archétype | BEST_EFFORT | REAL_TIME_REPORTING | ✓ | phased/— | GOV_PORTAL_API:lv-vid | lv-vid(STUB)⊘ | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **MA** Morocco | archétype | PLANNED | POST_AUDIT | ✓ | mandatory/— | EMAIL | email(PROVEN) | PLAIN_PDF→plain-pdf!<br>EN16931_UBL→en16931! | 1 |
 | **MC** Monaco | bespoke | OFFICIAL |  | ✓ | phased/— | — | — | — | 0 |
 | **MD** Moldova | archétype | BEST_EFFORT | POST_AUDIT | ✓ | phased/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
-| **ME** Montenegro | archétype | BEST_EFFORT | POST_AUDIT/REAL_TIME_REPORTING | ✓ | phased/— | GOV_PORTAL_API:me-fiscal | me-fiscal(STUB)⊘ | ME_FISCAL→me-fiscal∅!<br>PLAIN_PDF→plain-pdf! | 0 |
+| **ME** Montenegro | archétype | BEST_EFFORT | REAL_TIME_REPORTING | ✓ | phased/— | GOV_PORTAL_API:me-fiscal | me-fiscal(STUB)⊘ | ME_FISCAL→me-fiscal∅!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **MK** North Macedonia | archétype | PLANNED | POST_AUDIT | ✓ | mandatory/— | EMAIL | email(PROVEN) | PLAIN_PDF→plain-pdf!<br>EN16931_UBL→en16931! | 1 |
 | **MT** Malta | archétype | BEST_EFFORT | POST_AUDIT | ✓ | voluntary/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
 | **MX** Mexico | bespoke | OFFICIAL | CLEARANCE | ✓ | mandatory/in-progress | PAC | pac(STUB)⊘ | CFDI→cfdi-4.0!<br>PLAIN_PDF→plain-pdf! | 0 |
-| **MY** Malaysia | archétype | BEST_EFFORT | POST_AUDIT/CLEARANCE | ✓ | phased/— | EMAIL<br>GOV_PORTAL_API:myinvois | email(PROVEN)<br>myinvois(IMPLEMENTED)⊘ | PLAIN_PDF→plain-pdf!<br>EN16931_UBL→en16931! | 1 |
+| **MY** Malaysia | archétype | BEST_EFFORT | CLEARANCE | ✓ | phased/— | GOV_PORTAL_API:myinvois | myinvois(IMPLEMENTED)⊘ | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **MZ** Mozambique | archétype | BEST_EFFORT | PERIODIC_REPORTING | ✓ | mandatory/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
-| **NG** Nigeria | archétype | BEST_EFFORT | POST_AUDIT/CLEARANCE | ✓ | mandatory/— | EMAIL<br>GOV_PORTAL_API:firs | email(PROVEN)<br>firs(IMPLEMENTED)⊘ | PLAIN_PDF→plain-pdf!<br>NG_FIRS→ng-firs∅! | 1 |
+| **NG** Nigeria | archétype | BEST_EFFORT | CLEARANCE | ✓ | mandatory/— | GOV_PORTAL_API:firs | firs(IMPLEMENTED)⊘ | NG_FIRS→ng-firs∅!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **NI** Nicaragua | archétype | PLANNED | POST_AUDIT | ✓ | mandatory/— | EMAIL | email(PROVEN) | PLAIN_PDF→plain-pdf!<br>EN16931_UBL→en16931! | 1 |
 | **NL** Netherlands | archétype | BEST_EFFORT | POST_AUDIT | ✓ | voluntary/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
 | **NO** Norway | archétype | BEST_EFFORT | POST_AUDIT | ✓ | voluntary/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
@@ -135,18 +137,18 @@ Légende — `providers` : `id(maturité)`, `⊘` = aucun transport atteignable 
 | **PE** Peru | archétype | BEST_EFFORT | CLEARANCE | ✓ | mandatory/— | OSE | ose(STUB)⊘ | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **PH** Philippines | archétype | BEST_EFFORT | REAL_TIME_REPORTING | ✓ | mandatory/— | GOV_PORTAL_API:ph-bir | ph-bir(STUB)⊘ | PH_EIS→ph-eis∅!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **PK** Pakistan | archétype | BEST_EFFORT | REAL_TIME_REPORTING | ✓ | mandatory/— | GOV_PORTAL_API:pk-fbr | pk-fbr(STUB)⊘ | PK_FBR→pk-fbr∅!<br>PLAIN_PDF→plain-pdf! | 0 |
-| **PL** Poland | bespoke | OFFICIAL | POST_AUDIT/CLEARANCE | ✓ | phased/in-progress | EMAIL<br>GOV_PORTAL_API:ksef | email(PROVEN)<br>ksef(PROVEN) | PLAIN_PDF→plain-pdf!<br>FA_VAT→fa-vat! | 2 |
+| **PL** Poland | bespoke | OFFICIAL | CLEARANCE | ✓ | phased/in-progress | GOV_PORTAL_API:ksef | ksef(PROVEN) | FA_VAT→fa-vat!<br>PLAIN_PDF→plain-pdf! | 1 |
 | **PT** Portugal | archétype | BEST_EFFORT | PERIODIC_REPORTING | ✓ | mandatory/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
 | **PY** Paraguay | archétype | BEST_EFFORT | CLEARANCE | ✓ | mandatory/— | GOV_PORTAL_API:sifen | sifen(STUB)⊘ | PY_DE→py-de∅!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **QA** Qatar | archétype | PLANNED | POST_AUDIT | ✓ | mandatory/— | EMAIL | email(PROVEN) | PLAIN_PDF→plain-pdf!<br>EN16931_UBL→en16931! | 1 |
-| **RO** Romania | archétype | BEST_EFFORT | POST_AUDIT/CLEARANCE | ✓ | mandatory/— | EMAIL<br>GOV_PORTAL_API:anaf | email(PROVEN)<br>anaf(IMPLEMENTED)⊘ | PLAIN_PDF→plain-pdf!<br>EN16931_UBL→en16931! | 1 |
+| **RO** Romania | archétype | BEST_EFFORT | CLEARANCE | ✓ | mandatory/— | GOV_PORTAL_API:anaf | anaf(IMPLEMENTED)⊘ | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **RS** Serbia | archétype | BEST_EFFORT | CLEARANCE | ✓ | mandatory/— | GOV_PORTAL_API:rs-sef | rs-sef(STUB)⊘ | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **RW** Rwanda | archétype | BEST_EFFORT | REAL_TIME_REPORTING | ✓ | mandatory/— | GOV_PORTAL_API:rw-rra | rw-rra(STUB)⊘ | RW_EBM→rw-ebm∅!<br>PLAIN_PDF→plain-pdf! | 0 |
-| **SA** Saudi Arabia | archétype | BEST_EFFORT | POST_AUDIT/CLEARANCE | ✓ | mandatory/— | EMAIL<br>GOV_PORTAL_API:zatca | email(PROVEN)<br>zatca(STUB)⊘ | PLAIN_PDF→plain-pdf!<br>KSA_UBL→ksa-ubl! | 1 |
+| **SA** Saudi Arabia | archétype | BEST_EFFORT | CLEARANCE | ✓ | mandatory/— | GOV_PORTAL_API:zatca | zatca(STUB)⊘ | KSA_UBL→ksa-ubl!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **SE** Sweden | archétype | BEST_EFFORT | POST_AUDIT | ✓ | —/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
-| **SG** Singapore | archétype | BEST_EFFORT | POST_AUDIT/DECENTRALIZED_CTC/REAL_TIME_REPORTING | ✓ | phased/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | PEPPOL_BIS→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
-| **SI** Slovenia | archétype | BEST_EFFORT | POST_AUDIT/DECENTRALIZED_CTC/REAL_TIME_REPORTING | ✓ | voluntary/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | PEPPOL_BIS→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
-| **SK** Slovakia | archétype | BEST_EFFORT | POST_AUDIT/REAL_TIME_REPORTING | ✓ | voluntary/— | GOV_PORTAL_API:sk-financnasprava | sk-financnasprava(STUB)⊘ | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 0 |
+| **SG** Singapore | archétype | BEST_EFFORT | DECENTRALIZED_CTC/REAL_TIME_REPORTING | ✓ | phased/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | PEPPOL_BIS→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
+| **SI** Slovenia | archétype | BEST_EFFORT | POST_AUDIT | ✓ | voluntary/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | PEPPOL_BIS→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
+| **SK** Slovakia | archétype | BEST_EFFORT | POST_AUDIT | ✓ | voluntary/— | GOV_PORTAL_API:sk-financnasprava | sk-financnasprava(STUB)⊘ | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **SM** San Marino | archétype | BEST_EFFORT | CLEARANCE | ✓ | mandatory/— | SDI | sdi(IMPLEMENTED)⊘ | FATTURAPA→fatturapa-1.2!<br>PLAIN_PDF→plain-pdf! | 1 |
 | **SN** Senegal | archétype | PLANNED | POST_AUDIT | ✓ | planned/— | EMAIL | email(PROVEN) | PLAIN_PDF→plain-pdf!<br>EN16931_UBL→en16931! | 1 |
 | **SV** El Salvador | archétype | BEST_EFFORT | CLEARANCE | ✓ | mandatory/— | GOV_PORTAL_API:sv-mh | sv-mh(STUB)⊘ | SV_DTE→sv-dte∅!<br>PLAIN_PDF→plain-pdf! | 0 |
@@ -168,7 +170,12 @@ Légende — `providers` : `id(maturité)`, `⊘` = aucun transport atteignable 
 
 ## 3. Matrice de divergence
 
-### Catégorie 1a — Fiche publique **sans aucun** transport atteignable (48)
+### Catégorie 1a — Fiche publique **sans aucun** transport atteignable (56)
+
+> Vue **en vigueur au 2026-08-27**. Une première version de cette matrice
+> aplatissait toutes les périodes temporelles, périodes abrogées comprises : elle comptait 48 pays
+> ici, parce que des canaux e-mail depuis longtemps abrogés faisaient paraître certains pays
+> joignables. Le chiffre corrigé est **plus lourd**, pas plus léger.
 
 Critère mécanique : une page `/compliance/<cc>` est générée, mais aucun `ChannelSpec` du profil
 ne résout — via `defaultTransmissionRegistry.resolve()`, la logique de production — vers un
@@ -177,6 +184,7 @@ rien émettre : le résultat est `SKIPPED` ou une exception interne.
 
 | Pays | Route publique | status fiche | Régime déclaré | Canaux du profil | Providers résolus |
 | --- | --- | --- | --- | --- | --- |
+| AL Albania | `/compliance/al` | mandatory | CLEARANCE | GOV_PORTAL_API:al-cis | al-cis(STUB)⊘ |
 | AR Argentina | `/compliance/ar` | mandatory | CLEARANCE | GOV_PORTAL_API:afip | afip(IMPLEMENTED)⊘ |
 | BD Bangladesh | `/compliance/bd` | mandatory | REAL_TIME_REPORTING | GOV_PORTAL_API:bd-nbr | bd-nbr(STUB)⊘ |
 | BJ Benin | `/compliance/bj` | mandatory | REAL_TIME_REPORTING | GOV_PORTAL_API:bj-dgi | bj-dgi(STUB)⊘ |
@@ -189,28 +197,35 @@ rien émettre : le résultat est `SKIPPED` ou une exception interne.
 | CR Costa Rica | `/compliance/cr` | mandatory | CLEARANCE | GOV_PORTAL_API:cr-hacienda | cr-hacienda(STUB)⊘ |
 | DO Dominican Republic | `/compliance/do` | mandatory | CLEARANCE | GOV_PORTAL_API:dgii | dgii(STUB)⊘ |
 | EC Ecuador | `/compliance/ec` | mandatory | CLEARANCE | GOV_PORTAL_API:sri | sri(IMPLEMENTED)⊘ |
+| EG Egypt | `/compliance/eg` | mandatory | CLEARANCE | GOV_PORTAL_API:eg-eta | eg-eta(IMPLEMENTED)⊘ |
 | GH Ghana | `/compliance/gh` | mandatory | REAL_TIME_REPORTING | GOV_PORTAL_API:gh-gra | gh-gra(STUB)⊘ |
-| GR Greece | `/compliance/gr` | phased | POST_AUDIT/REAL_TIME_REPORTING | GOV_PORTAL_API:gr-aade | gr-aade(STUB)⊘ |
+| GR Greece | `/compliance/gr` | phased | REAL_TIME_REPORTING | GOV_PORTAL_API:gr-aade | gr-aade(STUB)⊘ |
 | GT Guatemala | `/compliance/gt` | mandatory | CLEARANCE | GOV_PORTAL_API:gt-sat | gt-sat(STUB)⊘ |
-| HU Hungary | `/compliance/hu` | mandatory | POST_AUDIT/REAL_TIME_REPORTING | GOV_PORTAL_API:hu-nav | hu-nav(STUB)⊘ |
+| HR Croatia | `/compliance/hr` | mandatory | CLEARANCE | GOV_PORTAL_API:hr-fiskalizacija | hr-fiskalizacija(STUB)⊘ |
+| HU Hungary | `/compliance/hu` | mandatory | REAL_TIME_REPORTING | GOV_PORTAL_API:hu-nav | hu-nav(STUB)⊘ |
 | ID Indonesia | `/compliance/id` | mandatory | CLEARANCE | GOV_PORTAL_API:id-coretax | id-coretax(IMPLEMENTED)⊘ |
 | IN India | `/compliance/in` | mandatory | CLEARANCE | GOV_PORTAL_API:in-irp | in-irp(IMPLEMENTED)⊘ |
+| IT Italy | `/compliance/it` | mandatory | CLEARANCE | SDI | sdi(IMPLEMENTED)⊘ |
 | JO Jordan | `/compliance/jo` | mandatory | CLEARANCE | GOV_PORTAL_API:jofotara | jofotara(STUB)⊘ |
-| KE Kenya | `/compliance/ke` | mandatory | POST_AUDIT/REAL_TIME_REPORTING | GOV_PORTAL_API:ke-kra | ke-kra(IMPLEMENTED)⊘ |
+| KE Kenya | `/compliance/ke` | mandatory | REAL_TIME_REPORTING | GOV_PORTAL_API:ke-kra | ke-kra(IMPLEMENTED)⊘ |
 | KZ Kazakhstan | `/compliance/kz` | mandatory | CLEARANCE | GOV_PORTAL_API:kz-isesf | kz-isesf(STUB)⊘ |
-| LV Latvia | `/compliance/lv` | phased | POST_AUDIT/REAL_TIME_REPORTING | GOV_PORTAL_API:lv-vid | lv-vid(STUB)⊘ |
+| LV Latvia | `/compliance/lv` | phased | REAL_TIME_REPORTING | GOV_PORTAL_API:lv-vid | lv-vid(STUB)⊘ |
 | MC Monaco | `/compliance/mc` | phased |  | — | **aucun** |
-| ME Montenegro | `/compliance/me` | phased | POST_AUDIT/REAL_TIME_REPORTING | GOV_PORTAL_API:me-fiscal | me-fiscal(STUB)⊘ |
+| ME Montenegro | `/compliance/me` | phased | REAL_TIME_REPORTING | GOV_PORTAL_API:me-fiscal | me-fiscal(STUB)⊘ |
 | MX Mexico | `/compliance/mx` | mandatory | CLEARANCE | PAC | pac(STUB)⊘ |
+| MY Malaysia | `/compliance/my` | phased | CLEARANCE | GOV_PORTAL_API:myinvois | myinvois(IMPLEMENTED)⊘ |
+| NG Nigeria | `/compliance/ng` | mandatory | CLEARANCE | GOV_PORTAL_API:firs | firs(IMPLEMENTED)⊘ |
 | NP Nepal | `/compliance/np` | mandatory | REAL_TIME_REPORTING | GOV_PORTAL_API:np-ird | np-ird(STUB)⊘ |
 | PA Panama | `/compliance/pa` | mandatory | CLEARANCE | GOV_PORTAL_API:pa-dgi | pa-dgi(STUB)⊘ |
 | PE Peru | `/compliance/pe` | mandatory | CLEARANCE | OSE | ose(STUB)⊘ |
 | PH Philippines | `/compliance/ph` | mandatory | REAL_TIME_REPORTING | GOV_PORTAL_API:ph-bir | ph-bir(STUB)⊘ |
 | PK Pakistan | `/compliance/pk` | mandatory | REAL_TIME_REPORTING | GOV_PORTAL_API:pk-fbr | pk-fbr(STUB)⊘ |
 | PY Paraguay | `/compliance/py` | mandatory | CLEARANCE | GOV_PORTAL_API:sifen | sifen(STUB)⊘ |
+| RO Romania | `/compliance/ro` | mandatory | CLEARANCE | GOV_PORTAL_API:anaf | anaf(IMPLEMENTED)⊘ |
 | RS Serbia | `/compliance/rs` | mandatory | CLEARANCE | GOV_PORTAL_API:rs-sef | rs-sef(STUB)⊘ |
 | RW Rwanda | `/compliance/rw` | mandatory | REAL_TIME_REPORTING | GOV_PORTAL_API:rw-rra | rw-rra(STUB)⊘ |
-| SK Slovakia | `/compliance/sk` | voluntary | POST_AUDIT/REAL_TIME_REPORTING | GOV_PORTAL_API:sk-financnasprava | sk-financnasprava(STUB)⊘ |
+| SA Saudi Arabia | `/compliance/sa` | mandatory | CLEARANCE | GOV_PORTAL_API:zatca | zatca(STUB)⊘ |
+| SK Slovakia | `/compliance/sk` | voluntary | POST_AUDIT | GOV_PORTAL_API:sk-financnasprava | sk-financnasprava(STUB)⊘ |
 | SM San Marino | `/compliance/sm` | mandatory | CLEARANCE | SDI | sdi(IMPLEMENTED)⊘ |
 | SV El Salvador | `/compliance/sv` | mandatory | CLEARANCE | GOV_PORTAL_API:sv-mh | sv-mh(STUB)⊘ |
 | TH Thailand | `/compliance/th` | mandatory | REAL_TIME_REPORTING | GOV_PORTAL_API:th-rd | th-rd(STUB)⊘ |
@@ -226,22 +241,20 @@ rien émettre : le résultat est `SKIPPED` ou une exception interne.
 | ZM Zambia | `/compliance/zm` | mandatory | REAL_TIME_REPORTING | GOV_PORTAL_API:zm-zra | zm-zra(STUB)⊘ |
 | ZW Zimbabwe | `/compliance/zw` | mandatory | REAL_TIME_REPORTING | GOV_PORTAL_API:zw-zimra | zw-zimra(STUB)⊘ |
 
-### Catégorie 1b — Régime **déclaré par le profil lui-même** comme clearance/temps réel, mais seul un courriel peut sortir (8)
+### Catégorie 1b — Régime clearance/temps réel avec le courriel pour seule sortie (0)
 
-Ce n’est pas une affirmation juridique : c’est une contradiction interne aux données du dépôt.
-Le profil déclare `CLEARANCE` / `REAL_TIME_REPORTING` / `DECENTRALIZED_CTC` — donc, selon ses
-propres données, un canal autorité est requis — et le seul provider joignable est `email`.
+**Cette catégorie est vide, et son contenu antérieur était entièrement un artefact.**
 
-| Pays | Régime déclaré | Bloquant | Canaux déclarés | Seul transport atteignable |
-| --- | --- | :-: | --- | --- |
-| AL Albania | POST_AUDIT/CLEARANCE | ✓ | EMAIL, GOV_PORTAL_API:al-cis | email |
-| EG Egypt | POST_AUDIT/CLEARANCE | ✓ | EMAIL, GOV_PORTAL_API:eg-eta | email |
-| HR Croatia | POST_AUDIT/CLEARANCE | ✓ | EMAIL, GOV_PORTAL_API:hr-fiskalizacija | email |
-| IT Italy | POST_AUDIT/CLEARANCE | ✓ | EMAIL, SDI | email |
-| MY Malaysia | POST_AUDIT/CLEARANCE | ✓ | EMAIL, GOV_PORTAL_API:myinvois | email |
-| NG Nigeria | POST_AUDIT/CLEARANCE | ✓ | EMAIL, GOV_PORTAL_API:firs | email |
-| RO Romania | POST_AUDIT/CLEARANCE | ✓ | EMAIL, GOV_PORTAL_API:anaf | email |
-| SA Saudi Arabia | POST_AUDIT/CLEARANCE | ✓ | EMAIL, GOV_PORTAL_API:zatca | email |
+Elle listait 8 pays — AL, EG, HR, IT, MY, NG, RO, SA — présentés comme déclarant un régime de
+clearance tout en n’ayant que le courriel pour sortir. Aucun n’était réel : la matrice aplatissait
+les périodes temporelles, et ces pays portaient un canal `EMAIL` **abrogé** — l’Italie l’abandonne
+au 2019-01-01, la Pologne au 2026-02-01. En vue « en vigueur », ils n’ont pas le courriel comme
+seule sortie : ils n’ont **aucune sortie du tout**, et ils sont donc en catégorie 1a — ce qui
+explique exactement les 8 pays qu’elle a gagnés.
+
+L’énoncé corrigé est plus dur que le faux : ce n’est pas « le seul canal qui marche est illicite »,
+c’est « il n’y a pas de canal ».
+
 
 ### Catégorie 2 — Provider présent **sans** schéma ni validation de format effective (105)
 
@@ -410,7 +423,7 @@ confronte la maturité déclarée aux seuls faits vérifiables mécaniquement.
 
 - Fiche publique **sans** profil moteur (0) : —
 - Profil moteur **sans** fiche publique (0) : —
-- Providers enregistrés qu'**aucun profil n'atteint** (1) : print
+- Providers enregistrés qu'**aucun profil n'atteint** (3) : choruspro, pdp, print
   (résolution faite via `defaultTransmissionRegistry.resolve()` : un provider n'est "atteint" que s'il gagne réellement la résolution d'un `ChannelSpec` d'un profil.)
 
 ### Schémas vendorisés

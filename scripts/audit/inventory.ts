@@ -57,9 +57,35 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** Every temporal value, flattened — an audit must see superseded rules too, not just today's. */
+/**
+ * Reference date for the "in force" view. Override with AUDIT_AS_OF=YYYY-MM-DD.
+ *
+ * Why this exists: the first version of this script only had `allValues()` below, which flattens
+ * every temporal period including repealed ones. That was a defensible choice for reading a profile
+ * historically, and a wrong one for judging its CURRENT state — it reported e-mail as a declared
+ * channel for Poland and Italy, whose profiles correctly drop it at 2026-02-01 and 2019-01-01. Two
+ * findings (PL-D4, IT-D8) and one cross-cutting claim were false because of it. Every profile field
+ * below is derived from temporal rules, so the artefact reached all of them.
+ */
+const AS_OF = new Date(process.env.AUDIT_AS_OF ?? '2026-08-27');
+
+/** Every temporal value, flattened — repealed periods included. Historical view, NOT current state. */
 function allValues<T>(rules: Temporal<T>[] | undefined): T[] {
   return (rules ?? []).map((r) => r.value);
+}
+
+/** Only the rules in force at `asOf`. `validTo` is exclusive, matching profiles/temporal.ts. */
+function inForce<T>(rules: Temporal<T>[] | undefined, asOf: Date = AS_OF): T[] {
+  return (rules ?? [])
+    .filter((r) => new Date(r.validFrom) <= asOf && (!r.validTo || asOf < new Date(r.validTo)))
+    .map((r) => r.value);
+}
+
+/** Rules that have not started yet at `asOf` — so a near-future mandate is never silently hidden. */
+function future<T>(rules: Temporal<T>[] | undefined, asOf: Date = AS_OF): Array<{ from: string; value: T }> {
+  return (rules ?? [])
+    .filter((r) => new Date(r.validFrom) > asOf)
+    .map((r) => ({ from: r.validFrom, value: r.value }));
 }
 
 function uniq<T>(xs: T[]): T[] {
@@ -426,7 +452,7 @@ for (const p of ALL_PROFILES) profileByCode.set(p.countryCode, p);
  */
 const providerToCountries = new Map<string, string[]>();
 for (const p of profileByCode.values()) {
-  for (const rule of allValues(p.transmission)) {
+  for (const rule of inForce(p.transmission)) {
     for (const ch of rule.channels ?? []) {
       const resolved = defaultTransmissionRegistry.resolve(ch);
       const key = resolved?.id ?? ch.providerId;
@@ -451,7 +477,7 @@ async function buildCountry(code: string) {
 
   const channels = profile
     ? uniq(
-        allValues(profile.transmission).flatMap((r) =>
+        inForce(profile.transmission).flatMap((r) =>
           (r.channels ?? []).map((c) => `${c.type}${c.providerId ? `:${c.providerId}` : ''}`),
         ),
       )
@@ -461,7 +487,7 @@ async function buildCountry(code: string) {
   // ChannelType falls back to its first-registered provider (PEPPOL → peppol, EMAIL → email…).
   // Reading only explicit providerIds would have reported "no provider" for every Peppol country.
   const channelSpecs = profile
-    ? allValues(profile.transmission).flatMap((r) => r.channels ?? [])
+    ? inForce(profile.transmission).flatMap((r) => r.channels ?? [])
     : [];
   const resolvedByChannel = uniq(
     channelSpecs.map((spec) => {
@@ -515,7 +541,7 @@ async function buildCountry(code: string) {
 
   const syntaxes = profile
     ? uniq(
-        allValues(profile.formats).flatMap((r) =>
+        inForce(profile.formats).flatMap((r) =>
           [r.primary?.syntax, r.human?.syntax].filter((x): x is DocumentSyntax => Boolean(x)),
         ),
       )
@@ -524,7 +550,7 @@ async function buildCountry(code: string) {
   // capability on the merged list would credit Brazil's stub NFE with the plain-PDF human copy.
   const primarySyntaxes = profile
     ? uniq(
-        allValues(profile.formats)
+        inForce(profile.formats)
           .map((r) => r.primary?.syntax)
           .filter((x): x is DocumentSyntax => Boolean(x)),
       )
@@ -533,9 +559,9 @@ async function buildCountry(code: string) {
   const formatProbes: (FormatProbe & { primary: boolean })[] = [];
   for (const s of syntaxes) formatProbes.push({ ...(await probeSyntax(s)), primary: primarySyntaxes.includes(s) });
 
-  const lifecycles = profile ? allValues(profile.lifecycle) : [];
-  const archivals = profile ? allValues(profile.archival) : [];
-  const numberings = profile ? allValues(profile.numbering) : [];
+  const lifecycles = profile ? inForce(profile.lifecycle) : [];
+  const archivals = profile ? inForce(profile.archival) : [];
+  const numberings = profile ? inForce(profile.numbering) : [];
 
   return {
     code,
@@ -547,8 +573,8 @@ async function buildCountry(code: string) {
           confidence: profile.confidence,
           delegatesTo: profile.delegatesTo ?? null,
           schemaVersion: profile.schemaVersion,
-          regimeModels: uniq(allValues(profile.regime).map((r) => r.model)),
-          regimeBlocking: allValues(profile.regime).some((r) => r.blocking),
+          regimeModels: uniq(inForce(profile.regime).map((r) => r.model)),
+          regimeBlocking: inForce(profile.regime).some((r) => r.blocking),
           temporalCounts: {
             regime: profile.regime.length,
             formats: profile.formats.length,
@@ -570,10 +596,26 @@ async function buildCountry(code: string) {
           archival: uniq(
             archivals.map((a) => `${a.retentionYears}y/${a.archivedForm}/${a.integrity}${a.residency ? `/${a.residency}` : ''}`),
           ),
-          reportingKinds: uniq(allValues(profile.reporting).flatMap((r) => r.kinds)),
+          reportingKinds: uniq(inForce(profile.reporting).flatMap((r) => r.kinds)),
           numbering: uniq(numberings.map((n) => `${n.model}${n.hashChain ? '+hashChain' : ''}`)),
           requiredIdentifiers: profile.requiredIdentifiers?.map((i) => i.scheme) ?? [],
           taxSystem: profile.taxSystem.kind,
+          /** Historical view — every period ever declared, repealed included. */
+          everDeclaredChannels: uniq(
+            allValues(profile.transmission).flatMap((r) =>
+              (r.channels ?? []).map((c) => `${c.type}${c.providerId ? `:${c.providerId}` : ''}`),
+            ),
+          ),
+          everDeclaredRegimes: uniq(allValues(profile.regime).map((r) => r.model)),
+          /** Rules that start AFTER the reference date — a near-future mandate must stay visible. */
+          startsLater: {
+            regime: future(profile.regime).map((f) => `${f.from}:${f.value.model}`),
+            transmission: future(profile.transmission).map(
+              (f) => `${f.from}:${(f.value.channels ?? []).map((c) => c.type).join('+')}`,
+            ),
+            numbering: future(profile.numbering).map((f) => `${f.from}:${f.value.model}`),
+            archival: future(profile.archival).map((f) => `${f.from}:${f.value.retentionYears}y`),
+          },
         }
       : { present: false },
     doc: doc ?? null,
@@ -612,7 +654,9 @@ function md(countries: Country[], generatedAt: string): string {
 
   P('# 00 — Inventaire mécanique (Phase 0)');
   P();
-  P(`> Généré par \`scripts/audit/inventory.ts\` le ${generatedAt}. **Aucun jugement, aucune`);
+  P(`> Généré par \`scripts/audit/inventory.ts\` le ${generatedAt}, **en vigueur au ${AS_OF.toISOString().slice(0, 10)}**.`);
+  P('> Les champs issus des profils sont les règles **en vigueur** à cette date, pas la totalité des');
+  P('> périodes déclarées. Rejouer à une autre date : `AUDIT_AS_OF=YYYY-MM-DD`. **Aucun jugement, aucune');
   P('> vérification juridique, aucune recherche web.** Uniquement ce qui existe dans le dépôt,');
   P('> obtenu en chargeant les registres réels et en lisant les fichiers.');
   P('>');
@@ -713,6 +757,11 @@ function md(countries: Country[], generatedAt: string): string {
   });
   P(`### Catégorie 1a — Fiche publique **sans aucun** transport atteignable (${cat1.length})`);
   P();
+  P(`> Vue **en vigueur au ${AS_OF.toISOString().slice(0, 10)}**. Une première version de cette matrice`);
+  P('> aplatissait toutes les périodes temporelles, périodes abrogées comprises : elle comptait 48 pays');
+  P('> ici, parce que des canaux e-mail depuis longtemps abrogés faisaient paraître certains pays');
+  P('> joignables. Le chiffre corrigé est **plus lourd**, pas plus léger.');
+  P();
   P('Critère mécanique : une page `/compliance/<cc>` est générée, mais aucun `ChannelSpec` du profil');
   P('ne résout — via `defaultTransmissionRegistry.resolve()`, la logique de production — vers un');
   P('provider disposant d’un site d’appel réseau. Pour ces pays, `transmit()` ne peut structurellement');
@@ -741,15 +790,32 @@ function md(countries: Country[], generatedAt: string): string {
     return !reachable.some((p) => AUTHORITY_CHANNELS.has(p.channelType));
   });
   P(
-    `### Catégorie 1b — Régime **déclaré par le profil lui-même** comme clearance/temps réel, mais seul un courriel peut sortir (${cat1b.length})`,
+    `### Catégorie 1b — Régime clearance/temps réel avec le courriel pour seule sortie (${cat1b.length})`,
   );
   P();
-  P('Ce n’est pas une affirmation juridique : c’est une contradiction interne aux données du dépôt.');
-  P('Le profil déclare `CLEARANCE` / `REAL_TIME_REPORTING` / `DECENTRALIZED_CTC` — donc, selon ses');
-  P('propres données, un canal autorité est requis — et le seul provider joignable est `email`.');
-  P();
-  P('| Pays | Régime déclaré | Bloquant | Canaux déclarés | Seul transport atteignable |');
-  P('| --- | --- | :-: | --- | --- |');
+  if (cat1b.length === 0) {
+    P('**Cette catégorie est vide, et son contenu antérieur était entièrement un artefact.**');
+    P();
+    P('Elle listait 8 pays — AL, EG, HR, IT, MY, NG, RO, SA — présentés comme déclarant un régime de');
+    P('clearance tout en n’ayant que le courriel pour sortir. Aucun n’était réel : la matrice aplatissait');
+    P('les périodes temporelles, et ces pays portaient un canal `EMAIL` **abrogé** — l’Italie l’abandonne');
+    P('au 2019-01-01, la Pologne au 2026-02-01. En vue « en vigueur », ils n’ont pas le courriel comme');
+    P('seule sortie : ils n’ont **aucune sortie du tout**, et ils sont donc en catégorie 1a — ce qui');
+    P('explique exactement les 8 pays qu’elle a gagnés.');
+    P();
+    P('L’énoncé corrigé est plus dur que le faux : ce n’est pas « le seul canal qui marche est illicite »,');
+    P('c’est « il n’y a pas de canal ».');
+    P();
+  } else {
+    P('Ce n’est pas une affirmation juridique : c’est une contradiction interne aux données du dépôt.');
+    P('Le profil déclare `CLEARANCE` / `REAL_TIME_REPORTING` / `DECENTRALIZED_CTC` — donc, selon ses');
+    P('propres données, un canal autorité est requis — et le seul provider joignable est `email`.');
+    P();
+  }
+  if (cat1b.length > 0) {
+    P('| Pays | Régime déclaré | Bloquant | Canaux déclarés | Seul transport atteignable |');
+    P('| --- | --- | :-: | --- | --- |');
+  }
   for (const c of cat1b.sort((a, b) => a.code.localeCompare(b.code))) {
     P(
       `| ${c.code} ${c.name ?? ''} | ${c.profile.regimeModels.join('/')} | ${c.profile.regimeBlocking ? '✓' : ''} | ${c.profile.channels.join(', ')} | ${c.providers.filter((p) => !p.noDefaultTransport).map((p) => p.id).join(', ')} |`,
@@ -911,6 +977,10 @@ async function main() {
       {
         generated_at: generatedAt,
         generator: 'scripts/audit/inventory.ts',
+        as_of: AS_OF.toISOString().slice(0, 10),
+        temporal_note:
+          'Profile-derived fields are the rules IN FORCE at as_of. everDeclared* keeps the flattened ' +
+          'historical view, and startsLater lists rules beginning after as_of. Override with AUDIT_AS_OF.',
         totals: {
           profiles: profileByCode.size,
           docs: docs.length,

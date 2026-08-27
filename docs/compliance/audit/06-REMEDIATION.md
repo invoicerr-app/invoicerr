@@ -15,7 +15,7 @@ Rien ici n'est technique. Rien ici n'avancera tant que quelqu'un n'aura pas tran
 | --- | --- | --- | --- |
 | **D1** | **Prévenir ou non les utilisateurs français avant le 2026-09-01.** Quatre défauts produisent un rejet du PPF ou une sanction ; aucun ne se corrige en cinq jours. Texte d'avertissement rédigé, non publié : `07-FR-2026-09-01.md` §3. | La confiance. Un rejet PPF découvert par l'utilisateur coûte plus qu'un avertissement honnête. | **2026-09-01 — cinq jours** |
 | **D2** | **Faire poser la question de rattachement espagnole à un juriste.** Invoicerr est-il « productor » au sens du RD 1007/2023 art. 3.2 sans utilisateur ni commercialisation en Espagne ? Question rédigée avec ses éléments de fait : `09-F018-ES-DECLARATION.md` §2. | Tout F-018. Si la réponse est négative, le seul finding à exposition chiffrée disparaît. | échéance **déjà échue** si la réponse est positive |
-| **D3** | **Répondre sincèrement à l'indicateur 1.e de la déclaration responsable** — ou décider de ne pas déclarer encore. Aucune des deux cases n'est cochable en l'état : « S » engage une transmission continue non implémentée, « N » engage la signature XAdES des registres et un registro de eventos non implémentés. | L'étape 4 de la séquence F-018. | après D2 |
+| **D3** | *(devient une vraie décision une fois A1 fait, plus une impasse)* **Répondre sincèrement à l'indicateur 1.e de la déclaration responsable** — ou décider de ne pas déclarer encore. Aucune des deux cases n'est cochable en l'état : « S » engage une transmission continue non implémentée, « N » engage la signature XAdES des registres et un registro de eventos non implémentés. | L'étape 4 de la séquence F-018. | après D2 |
 | **D4** | **Périmètre public de F-004.** Retirer du navigateur les pays non soutenus, ou ajouter un bandeau dérivé, ou refondre par capacité. Recommandation : retirer d'abord, bandeau ensuite. | La promesse publique, et l'exposition de F-004. | aucune, mais c'est le plus gros écart de l'audit |
 | **D5** | **Structure de `compliance-truth.json` face à F-017.** Un pays par ligne ne peut pas porter un corridor. Piste proposée, non implémentée : garder un pays par ligne pour les capacités techniques et ajouter un bloc `territorial_scope`. | La suite de l'audit, et la dérivation du site. | aucune |
 | **D6** | **Résidence des données mexicaines.** `residency: 'MX'` est plus strict que le droit sourcé, mais le retirer déplace les documents d'un bucket in-country vers GLOBAL. C'est un arbitrage de localisation, pas une correction. | MX-D3. | aucune |
@@ -62,8 +62,8 @@ Chaque correction cite sa source dans son commit.
 
 | # | Correction | Coût | Débloque | Note |
 | --- | --- | --- | --- | --- |
-| **A1** | **Former la chaîne Veri\*Factu** — alimenter `previousHuella` depuis `ReportingStore` | **faible** — le `TODO(seam)` décrit la requête | ES-D1, et l'étape 2 de F-018 | L'algorithme est déjà conforme aux vecteurs officiels. Ne **pas** le réécrire. |
-| **A2** | **F-008 — rendre le rejet d'autorité visible** : ajouter `REJECTED` à `InvoiceStatus`, écrire `Invoice.status` depuis `apply-signal` | **modéré** — migration Prisma | Une facture rejetée par KSeF ou le SdI cesse de s'afficher `SENT` | **Non fait dans cette session** : une migration de schéma mérite sa propre revue, hors d'un lot de corrections. |
+| **A1** | **Former la chaîne Veri\*Factu** — alimenter `previousHuella` depuis `ReportingStore` | **faible** — le `TODO(seam)` décrit la requête | ES-D1, et l'étape 2 de F-018 | L'algorithme est déjà conforme aux vecteurs officiels. Ne **pas** le réécrire. Le blocage a changé de nature : ce n'est plus une source manquante, c'est **une requête manquante**. |
+| **A0** | **F-008 — rendre le rejet d'autorité visible** : ajouter `REJECTED` à `InvoiceStatus`, écrire `Invoice.status` depuis `apply-signal` | **modéré** — migration Prisma | Une facture rejetée par KSeF ou le SdI cesse de s'afficher `SENT` | **En tête de la prochaine session.** Deuxième report, et c'est le plus gros dégât utilisateur restant : le raisonnement sur la migration reste juste, mais il justifie une revue dédiée, pas un report indéfini. |
 | **A3** | **ES-D12 — chemin du QR** : `ValidarQRNoVerifactu` tant que le système n'est pas vérifiable | faible | Le QR cesse d'affirmer un mode que le système ne tient pas | Se referme sur D3 : le mode déclaré et le QR imprimé doivent coïncider. |
 | **A4** | **FR-D8 — contraindre le format du numéro** : 35 caractères, spéciaux limités | faible | Évite un **rejet du flux F1** | À faire avant le 2026-09-01 si possible. |
 | **A5** | **FR-D7 — émettre BT-23** en cardinalité 1..1 | modéré — valeurs limitatives à dériver du type d'opération | Évite l'échec des contrôles fonctionnels PPF | Idem. |
@@ -73,8 +73,10 @@ Chaque correction cite sa source dans son commit.
 | **A9** | **F-001 / F-010 — refuser un artefact vide**, et porter le compte d'artefacts dans le reçu d'archivage | faible | « Archivé » redevient une information vérifiable | Faible urgence : les chemins concernés n'ont pas de transport. |
 | **A10** | **F-014 — `COMPLIANCE_ARCHIVE_DIR` dans `archive-registry.spec.ts`** | trivial | Cesse d'écrire dans l'arbre de travail | |
 
-**Ordre recommandé** : A4 et A5 d'abord — ce sont les seuls dont l'échéance est dans cinq jours.
-Puis A1 (débloque F-018), A2 (le plus gros dégât utilisateur restant), A6, A7. A8 à A10 ensuite.
+**Ordre recommandé** : **A0 ouvre la prochaine session** — F-008 a été reporté deux fois et reste le
+plus gros dégât utilisateur ; il lui faut sa revue de migration, pas un troisième report. Puis A4 et
+A5, seuls à avoir une échéance dans cinq jours. Puis A1, qui débloque F-018 et coûte peu. Puis A3
+(QR faux sur chaque facture), A6, A7. A8 à A10 ensuite.
 
 ---
 

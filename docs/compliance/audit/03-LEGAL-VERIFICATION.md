@@ -1115,9 +1115,26 @@ manifestement de la première voie ; la France et la Pologne, dont les dispositi
 avant 2024, relèvent au moins de la troisième. Un profil qui coderait « EN 16931 obligatoire au
 2030-07-01 » pour ces pays serait donc trop strict de cinq ans sur leur périmètre domestique.
 
-`open_question` subsistante : la qualification de « **real-time** transaction-based » pour un
-dispositif comme le SII espagnol, dont le délai de remise est de quatre jours. La directive ne
-définit pas le terme. Ne pas trancher.
+### L'Espagne ouvre-t-elle une des trois voies ? — analyse, et ce qui reste ouvert
+
+La question mérite d'être posée voie par voie plutôt que laissée en bloc.
+
+| Voie de l'art. 6(5) | Application à l'Espagne | Verdict |
+| --- | --- | --- |
+| 1. Obligation **en place** au 2024-01-01 | Le **SII** fonctionne depuis juillet 2017 et est transactionnel — mais son délai de remise est de **quatre jours**. « Real-time » n'est pas défini par la directive. | **incertain** |
+| 2. Autorisation **art. 395** obtenue avant le 2024-01-01 | L'Espagne ne figure pas dans les dérogations « Articles 218 and 232 » de la Commission, et n'en a jamais demandé. | **non** |
+| 3. **Législation nationale adoptée** avant le 2024-01-01 prévoyant l'introduction d'une telle obligation | Le **RD 1007/2023 est du 5 décembre 2023**, donc antérieur au 2024-01-01, et il institue Veri\*Factu — dont la modalité vérifiable est définie par une remisión « **automática, continua e instantánea** » des registres. | **paraît rempli** |
+
+**La voie 3 est la plus solide**, et elle ne dépend pas de la qualification du SII : la date
+d'adoption est vérifiable, et « automática, continua e instantánea » correspond mot pour mot à ce que
+« real-time transaction-based » décrit. Si elle est retenue, **l'horizon domestique espagnol glisse du
+2030-07-01 au 2035-01-01**, et tout le volet ES doit se lire à cette échéance.
+
+`open_question` — je ne le tranche pas, pour deux raisons précises et non par prudence de façade :
+la directive ne définit **ni** « real-time » **ni** « transaction-based », et l'appréciation de la
+voie 3 suppose de qualifier Veri\*Factu au regard de termes non définis. C'est une position que la
+Commission ou l'administration espagnole doit prendre, pas moi. Ce qui est **établi** : la voie 2 est
+exclue, et la voie 3 repose sur une date antérieure vérifiée.
 
 **Conséquence immédiate, et elle est datée du 2025-04-14** : un État membre n'a plus besoin d'une
 dérogation du Conseil au titre de l'art. 395 pour imposer la facturation électronique domestique sans
