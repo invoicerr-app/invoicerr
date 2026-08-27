@@ -105,7 +105,9 @@ export default function Invoices() {
                   ? "pending_clearance"
                   : invoice.status === InvoiceStatus.CLEARED
                     ? "cleared"
-                    : invoice.status === InvoiceStatus.REJECTED
+                    : invoice.status === InvoiceStatus.REJECTED ||
+                        invoice.status === InvoiceStatus.REFUSED ||
+                        invoice.status === InvoiceStatus.TRANSMISSION_FAILED
                       ? "rejected"
                       : "sent"
 

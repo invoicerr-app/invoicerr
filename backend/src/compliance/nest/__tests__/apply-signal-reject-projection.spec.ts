@@ -44,6 +44,17 @@ function itCtx(): TransactionContext {
   };
 }
 
+/**
+ * The statuses this projection is the ONLY writer of, in declaration order. Established by auditing
+ * all fifteen writes to Invoice.status in the backend — thirteen in invoices.service.ts, two in
+ * payments.service.ts, every one of them a user action. PENDING_CLEARANCE and CLEARED appear in
+ * none of them, which is why they belong here.
+ */
+const PROJECTION_OWNED_ORDER = ['REJECTED', 'REFUSED', 'TRANSMISSION_FAILED', 'PENDING_CLEARANCE', 'CLEARED'];
+
+/** What a FAILURE may be written over: in-flight, or another projection-written status. */
+const FAILURE_OVER = ['ISSUED', 'SENT', 'PENDING_CLEARANCE', 'UNPAID', 'OVERDUE', ...PROJECTION_OWNED_ORDER];
+
 /** The Invoice.status values a user action can leave behind, none of which the projection may touch. */
 const USER_OWNED_STATUSES = ['DRAFT', 'PAID', 'CANCELLED', 'CORRECTED', 'ARCHIVED'] as const;
 
@@ -158,17 +169,21 @@ class FakePrisma {
   }
 }
 
-function seedRejectableDocument(fake: FakePrisma, id: string, invoiceId: string | null) {
+function seedDocumentAt(fake: FakePrisma, id: string, invoiceId: string | null, status: string) {
   const ctx = itCtx();
   fake.seedDocument({
     id,
     kind: 'INVOICE',
     direction: 'OUTBOUND',
-    status: 'PENDING_CLEARANCE',
+    status,
     ctx,
     plan: resolve(ctx),
     invoiceId,
   });
+}
+
+function seedRejectableDocument(fake: FakePrisma, id: string, invoiceId: string | null) {
+  seedDocumentAt(fake, id, invoiceId, 'PENDING_CLEARANCE');
 }
 
 function service(fake: FakePrisma): ApplySignalService {
@@ -237,9 +252,10 @@ describe('F-008: an authority rejection reaches the invoice the user looks at', 
     // And the guard is in the WHERE, not in a branch we could forget: the write was attempted
     // and matched zero rows, which is what makes this safe under a real concurrent update.
     expect(fake.invoiceUpdateAttempts).toHaveLength(1);
-    expect(fake.invoiceUpdateAttempts[0].status).toEqual({
-      in: ['ISSUED', 'SENT', 'PENDING_CLEARANCE', 'UNPAID', 'OVERDUE'],
-    });
+    // A FAILURE may be written over an in-flight invoice or over another projection-written
+    // failure (a retry that fails again, a transmission failure that later becomes a rejection).
+    // It may never be written over anything else, which is what this list encodes.
+    expect(fake.invoiceUpdateAttempts[0].status).toEqual({ in: FAILURE_OVER });
   });
 
   it('leaves the invoice alone on a non-rejection outcome', async () => {
@@ -251,8 +267,12 @@ describe('F-008: an authority rejection reaches the invoice the user looks at', 
 
     expect(fake.docStatus('f008-3')).toBe('CLEARED');
     expect(fake.invoices.get('inv-3')).toMatchObject({ status: 'SENT' });
-    // The projection table has exactly one entry; a cleared document must not touch the invoice.
-    expect(fake.invoiceUpdateAttempts).toHaveLength(0);
+    // Updated with the residual: CLEARED is now a RECOVERY target, so an attempt IS made — but it
+    // is scoped to projection-written failures only, matches zero rows here, and leaves the invoice
+    // exactly as the user left it. The original assertion (no attempt at all) encoded the
+    // unidirectional design and would have hidden that scoping rather than checked it.
+    expect(fake.invoiceUpdateAttempts).toHaveLength(1);
+    expect(fake.invoiceUpdateAttempts[0].status).toEqual({ in: PROJECTION_OWNED_ORDER });
   });
 
   it('does not attempt an invoice write for a document with no invoice', async () => {
@@ -263,5 +283,118 @@ describe('F-008: an authority rejection reaches the invoice the user looks at', 
 
     expect(fake.docStatus('f008-4')).toBe('REJECTED');
     expect(fake.invoiceUpdateAttempts).toHaveLength(0);
+  });
+});
+
+describe('F-008 residual: TRANSMISSION_FAILED and REFUSED, and coming back from failure', () => {
+  it('shows a transmission failure on the invoice', async () => {
+    const fake = new FakePrisma();
+    seedDocumentAt(fake, 'f008-tf', 'inv-tf', 'ISSUED');
+    fake.seedInvoice('inv-tf', 'SENT');
+
+    await service(fake).apply('f008-tf', { type: 'COMMAND', event: 'TRANSMISSION_FAIL' });
+
+    expect(fake.docStatus('f008-tf')).toBe('TRANSMISSION_FAILED');
+    expect(fake.invoices.get('inv-tf')).toMatchObject({ status: 'TRANSMISSION_FAILED' });
+  });
+
+  /**
+   * The bidirectional case. TRANSMISSION_FAILED is the one failure the state machine lets a
+   * document leave (SUBMIT_CLEARANCE and DELIVER both exit it), so a successful retry MUST clear
+   * the invoice too — otherwise the fix for one lie installs another: an invoice stuck showing
+   * "transmission failed" after the transmission has succeeded.
+   */
+  it('clears TRANSMISSION_FAILED from the invoice when a retry succeeds', async () => {
+    const fake = new FakePrisma();
+    seedDocumentAt(fake, 'f008-retry', 'inv-retry', 'ISSUED');
+    fake.seedInvoice('inv-retry', 'SENT');
+
+    await service(fake).apply('f008-retry', { type: 'COMMAND', event: 'TRANSMISSION_FAIL' });
+    expect(fake.invoices.get('inv-retry')).toMatchObject({ status: 'TRANSMISSION_FAILED' });
+
+    // The retry: send() succeeds this time and the document submits for clearance.
+    await service(fake).apply('f008-retry', { type: 'COMMAND', event: 'SUBMIT_CLEARANCE' });
+
+    expect(fake.docStatus('f008-retry')).toBe('PENDING_CLEARANCE');
+    expect(fake.invoices.get('inv-retry')).toMatchObject({ status: 'PENDING_CLEARANCE' });
+
+    // The recovery write was scoped to projection-owned statuses ONLY — it can never reach an
+    // invoice that is merely in flight, let alone a user-owned one.
+    expect(fake.invoiceUpdateAttempts[1].status).toEqual({ in: PROJECTION_OWNED_ORDER });
+  });
+
+  it.each(
+    USER_OWNED_STATUSES,
+  )('a recovery never writes over a user-owned invoice status (%s)', async (userStatus) => {
+    const fake = new FakePrisma();
+    // The document failed transmission and then recovered — but meanwhile the user acted on the
+    // invoice. The user's decision wins, in this direction too.
+    seedDocumentAt(fake, `f008-rec-${userStatus}`, `inv-rec-${userStatus}`, 'TRANSMISSION_FAILED');
+    fake.seedInvoice(`inv-rec-${userStatus}`, userStatus);
+
+    await service(fake).apply(`f008-rec-${userStatus}`, {
+      type: 'COMMAND',
+      event: 'SUBMIT_CLEARANCE',
+    });
+
+    expect(fake.docStatus(`f008-rec-${userStatus}`)).toBe('PENDING_CLEARANCE');
+    expect(fake.invoices.get(`inv-rec-${userStatus}`)).toMatchObject({ status: userStatus });
+    expect(fake.invoiceUpdateAttempts).toHaveLength(1);
+  });
+
+  /**
+   * The chain gap this ownership audit uncovered. A retry runs
+   * TRANSMISSION_FAILED -> PENDING_CLEARANCE -> CLEARED. With PENDING_CLEARANCE missing from
+   * PROJECTION_OWNED, the second hop could not be written and the invoice stayed on
+   * PENDING_CLEARANCE while its document was cleared — the recovery stopping half way.
+   */
+  it('follows a retry all the way through to CLEARED', async () => {
+    const fake = new FakePrisma();
+    seedDocumentAt(fake, 'f008-chain', 'inv-chain', 'ISSUED');
+    fake.seedInvoice('inv-chain', 'SENT');
+    const svc = service(fake);
+
+    await svc.apply('f008-chain', { type: 'COMMAND', event: 'TRANSMISSION_FAIL' });
+    expect(fake.invoices.get('inv-chain')).toMatchObject({ status: 'TRANSMISSION_FAILED' });
+
+    await svc.apply('f008-chain', { type: 'COMMAND', event: 'SUBMIT_CLEARANCE' });
+    expect(fake.invoices.get('inv-chain')).toMatchObject({ status: 'PENDING_CLEARANCE' });
+
+    await svc.apply('f008-chain', { type: 'POLL_RESULT', status: 'CLEARED' });
+    expect(fake.docStatus('f008-chain')).toBe('CLEARED');
+    expect(fake.invoices.get('inv-chain')).toMatchObject({ status: 'CLEARED' });
+  });
+
+  it('does not touch an in-flight invoice on a clearance that never failed', async () => {
+    const fake = new FakePrisma();
+    seedDocumentAt(fake, 'f008-happy', 'inv-happy', 'PENDING_CLEARANCE');
+    fake.seedInvoice('inv-happy', 'SENT');
+
+    await service(fake).apply('f008-happy', { type: 'POLL_RESULT', status: 'CLEARED' });
+
+    expect(fake.docStatus('f008-happy')).toBe('CLEARED');
+    // A recovery entry exists for CLEARED, but it may only overwrite a projection-written failure.
+    // This invoice never failed, so the happy path is left exactly as the user left it.
+    expect(fake.invoices.get('inv-happy')).toMatchObject({ status: 'SENT' });
+    expect(fake.invoiceUpdateAttempts).toHaveLength(1);
+    expect(fake.invoiceUpdateAttempts[0].status).toEqual({ in: PROJECTION_OWNED_ORDER });
+  });
+
+  it('shows a buyer refusal on the invoice', async () => {
+    const fake = new FakePrisma();
+    seedDocumentAt(fake, 'f008-ref', 'inv-ref', 'AWAITING_RESPONSE');
+    fake.seedInvoice('inv-ref', 'SENT');
+
+    await service(fake).apply('f008-ref', {
+      type: 'INBOUND_STATUS',
+      status: 'refusée par le destinataire',
+    });
+
+    expect(fake.docStatus('f008-ref')).toBe('REFUSED');
+    expect(fake.invoices.get('inv-ref')).toMatchObject({ status: 'REFUSED' });
+    // REFUSED: { CORRECT: 'CORRECTED' } — its only exit is a user action, and CORRECTED is not a
+    // recovery target, so the projection can never silently un-refuse an invoice.
+    const [ev] = fake.eventsFor('f008-ref').filter((e) => e.type === 'REFUSE');
+    expect(ev.detail).toBe('refusée par le destinataire');
   });
 });

@@ -58,33 +58,112 @@ function mergeAuthorityIds(
 }
 
 /**
- * F-008: the projection of a compliance outcome onto the invoice the USER actually looks at.
+ * F-008: the projection of a compliance outcome onto the invoice the USER looks at.
  *
  * Before this, `ComplianceDocument.status` was the only place an authority's verdict landed —
  * there was no `prisma.invoice.update` anywhere in `src/compliance` — so an invoice rejected by
  * KSeF or scartata by the SdI went on displaying SENT in the invoice list. The rejection existed
  * in a table the main screen does not read, and the user believed they had invoiced.
  *
- * Deliberately narrow, one entry: only an outright authority REJECTION is projected. `REFUSED`
- * (the BUYER declining a correctly-transmitted invoice) and `TRANSMISSION_FAILED` (never reached
- * the authority at all) are different facts that deserve their own user-facing wording, and are
- * NOT covered here — see the residual noted in F-008.
+ * Three distinct bad outcomes, kept distinct because they are not the same fact and a user acts
+ * differently on each:
+ *   REJECTED             the AUTHORITY refused the document. Terminal (`REJECTED: {}` in the
+ *                        state machine) — getting out of it is F-007, per-country, out of scope.
+ *   REFUSED              the BUYER declined a correctly transmitted invoice. Its only exit is
+ *                        CORRECT, i.e. the user issues a corrective invoice — a user action, so
+ *                        the projection never clears it.
+ *   TRANSMISSION_FAILED  it never reached the authority. Explicitly retryable: SUBMIT_CLEARANCE
+ *                        and DELIVER both leave it. This is the one the projection must be able
+ *                        to UNDO.
  */
-const INVOICE_STATUS_PROJECTION: Partial<Record<ComplianceStatus, InvoiceStatus>> = {
+const FAILURE_PROJECTION: Partial<Record<ComplianceStatus, InvoiceStatus>> = {
   REJECTED: 'REJECTED',
+  REFUSED: 'REFUSED',
+  TRANSMISSION_FAILED: 'TRANSMISSION_FAILED',
 };
 
 /**
- * Invoice statuses this projection is allowed to overwrite: the in-flight ones, where the invoice
- * is out with an authority and its fate is genuinely undecided.
+ * Where an invoice RETURNS to when its document recovers out of a failure state — the reverse
+ * direction, which the first version of this projection did not have.
  *
- * Everything else is off-limits, and the reason is that all ten existing writes to
- * `Invoice.status` are USER ACTIONS (issue, send, pay, cancel, correct, archive). A late poll
- * result must never walk back over a user's decision — an invoice the user has since cancelled,
- * corrected or archived keeps that status, and a PAID invoice is not silently un-paid by a
- * webhook arriving after the fact. The projection informs; it does not arbitrate.
+ * It is deliberately not the mirror image of FAILURE_PROJECTION. A recovery write fires ONLY when
+ * the invoice currently carries a projection-written failure (see PROJECTION_OWNED below), so on
+ * a normal flow that never failed, a clearance or delivery leaves the invoice exactly as the user
+ * left it. This entry is an undo, not a second opinion about the happy path.
+ *
+ * The targets are the statuses a document can actually reach when leaving TRANSMISSION_FAILED
+ * (SUBMIT_CLEARANCE → PENDING_CLEARANCE, DELIVER → DELIVERED) plus CLEARED, reachable one step
+ * later. Nothing here is invented: each is an edge in the state machine.
+ *
+ * The CLEARED entry only works because PENDING_CLEARANCE is itself projection-owned. A retry runs
+ * TRANSMISSION_FAILED → PENDING_CLEARANCE → CLEARED; with PENDING_CLEARANCE excluded from
+ * PROJECTION_OWNED, the second hop could not be written and the invoice stayed on
+ * PENDING_CLEARANCE forever while its document was cleared. Not a false status, but the recovery
+ * stopping half way — which is the same class of defect F-008 is about.
  */
-const PROJECTABLE_OVER = new Set<InvoiceStatus>(['ISSUED', 'SENT', 'PENDING_CLEARANCE', 'UNPAID', 'OVERDUE']);
+const RECOVERY_PROJECTION: Partial<Record<ComplianceStatus, InvoiceStatus>> = {
+  PENDING_CLEARANCE: 'PENDING_CLEARANCE',
+  DELIVERED: 'SENT',
+  CLEARED: 'CLEARED',
+};
+
+/**
+ * Invoice statuses only this projection ever writes.
+ *
+ * This is not an assumption — it is the result of auditing every write to `Invoice.status` in the
+ * backend. There are fifteen, all user actions:
+ *
+ *   invoices.service.ts  308, 1595, 1969  DRAFT      (create: invoice, proforma, duplicate)
+ *                        456, 475, 671, 846, 1790    ISSUED     (issue, correct, deposit, recurring)
+ *                        696                         CORRECTED
+ *                        774, 823                    CANCELLED
+ *                        1408                        ARCHIVED
+ *                        1536                        SENT       (send by e-mail)
+ *   payments.service.ts  241                         PAID
+ *                        246                         UNPAID
+ *
+ * PENDING_CLEARANCE and CLEARED appear in NONE of them: this projection is their only writer, so
+ * they belong here alongside the three failure statuses. Leaving them out was a real defect and not
+ * merely an incomplete comment — see the chain gap described on RECOVERY_PROJECTION.
+ *
+ * (OVERDUE has zero writers anywhere; it is kept in IN_FLIGHT because the enum still offers it and
+ * an invoice sitting in it would be legitimately in flight, not because anything produces it.)
+ */
+const PROJECTION_OWNED = new Set<InvoiceStatus>([
+  'REJECTED',
+  'REFUSED',
+  'TRANSMISSION_FAILED',
+  'PENDING_CLEARANCE',
+  'CLEARED',
+]);
+
+/**
+ * Invoice statuses where the invoice is out with an authority and its fate is genuinely undecided.
+ *
+ * Everything outside `IN_FLIGHT ∪ PROJECTION_OWNED` is off-limits, and the reason is the audit
+ * above: every pre-existing write is a USER ACTION. A late signal must never walk back over one —
+ * an invoice the user has since cancelled, corrected or archived keeps that status, and a PAID
+ * invoice is not silently un-paid by a webhook arriving after the fact. The projection informs; it
+ * does not arbitrate.
+ */
+const IN_FLIGHT = new Set<InvoiceStatus>(['ISSUED', 'SENT', 'PENDING_CLEARANCE', 'UNPAID', 'OVERDUE']);
+
+/**
+ * What this signal should write on the invoice, and which current statuses it may overwrite.
+ *
+ * The asymmetry between the two directions is the whole point:
+ *  - a FAILURE may be written over an in-flight invoice, or over another projection-written
+ *    failure (a retry that fails again, or a transmission failure that later becomes a rejection);
+ *  - a RECOVERY may be written ONLY over a projection-written failure, never over an in-flight
+ *    invoice, so it cannot touch a flow that never failed.
+ */
+function invoiceProjectionFor(to: ComplianceStatus): { status: InvoiceStatus; over: InvoiceStatus[] } | null {
+  const failure = FAILURE_PROJECTION[to];
+  if (failure) return { status: failure, over: [...IN_FLIGHT, ...PROJECTION_OWNED] };
+  const recovery = RECOVERY_PROJECTION[to];
+  if (recovery) return { status: recovery, over: [...PROJECTION_OWNED] };
+  return null;
+}
 
 /**
  * The authority's own wording for the rejection, when the signal carries one.
@@ -242,11 +321,11 @@ export class ApplySignalService {
           // statuses means a losing race writes zero rows instead of walking back over a user
           // action. All ten pre-existing writes to Invoice.status are user actions and none of them
           // is touched by this.
-          const projected = rec.invoiceId ? INVOICE_STATUS_PROJECTION[applied.to] : undefined;
-          if (projected && rec.invoiceId) {
+          const projection = rec.invoiceId ? invoiceProjectionFor(applied.to) : null;
+          if (projection && rec.invoiceId) {
             const hit = await tx.invoice.updateMany({
-              where: { id: rec.invoiceId, status: { in: [...PROJECTABLE_OVER] } },
-              data: { status: projected },
+              where: { id: rec.invoiceId, status: { in: projection.over } },
+              data: { status: projection.status },
             });
             if (hit.count === 0) {
               // Not an error: the invoice legitimately left the in-flight set (cancelled, corrected,
@@ -255,12 +334,12 @@ export class ApplySignalService {
               // finding is about.
               l.info(
                 'nest/apply-signal',
-                `document ${documentId} -> ${applied.to}, but invoice ${rec.invoiceId} is no longer in flight; invoice status left unchanged`,
+                `document ${documentId} -> ${applied.to}, but invoice ${rec.invoiceId} is not in a status this projection may write over; invoice status left unchanged`,
               );
             } else {
               l.info(
                 'nest/apply-signal',
-                `invoice ${rec.invoiceId} marked ${projected}${reason ? ` (${reason})` : ''}`,
+                `invoice ${rec.invoiceId} marked ${projection.status}${reason ? ` (${reason})` : ''}`,
               );
             }
           }

@@ -33,6 +33,43 @@ import {
   UploadCloud,
   Clock,
 } from "lucide-react"
+/**
+ * F-008 — the three outcomes that must be readable without scrolling to the compliance timeline at
+ * the bottom of the page. Before this, an invoice rejected by KSeF, refused by its buyer, or never
+ * transmitted at all showed "Sent" at the top, and the failure appeared only as one line in a list
+ * the user had no reason to open.
+ *
+ * Driven by Invoice.status, which the backend projects from the compliance document, so the banner
+ * and the status badge can never disagree. Three entries rather than one because a user acts
+ * differently on each: a rejection is terminal, a refusal is answered with a corrective invoice,
+ * and a transmission failure is retried.
+ */
+const FAILURE_BANNERS: Partial<
+  Record<InvoiceStatus, { key: string; tone: string; icon: string; title: string; body: string }>
+> = {
+  [InvoiceStatus.REJECTED]: {
+    key: "invoices.view.rejected",
+    tone: "border-red-200 bg-red-50",
+    icon: "text-red-600",
+    title: "text-red-800",
+    body: "text-red-700",
+  },
+  [InvoiceStatus.REFUSED]: {
+    key: "invoices.view.refused",
+    tone: "border-red-200 bg-red-50",
+    icon: "text-red-600",
+    title: "text-red-800",
+    body: "text-red-700",
+  },
+  [InvoiceStatus.TRANSMISSION_FAILED]: {
+    key: "invoices.view.transmissionFailed",
+    tone: "border-orange-200 bg-orange-50",
+    icon: "text-orange-600",
+    title: "text-orange-800",
+    body: "text-orange-700",
+  },
+}
+
 import { DepositDialog } from "./deposit-dialog"
 import { useState } from "react"
 
@@ -53,6 +90,20 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
   const { data: originalInvoice } = useGet<Invoice>(
     invoice?.correctsInvoiceId ? `/api/invoices/${invoice.correctsInvoiceId}` : null,
   )
+
+  /**
+   * F-008: this dialog is opened with the row object from the invoice LIST, and
+   * `GET /api/invoices` selects `complianceDocuments: { id, status, plan }` — no events. So
+   * `invoice.complianceDocuments[0].events` was always undefined here: the compliance timeline
+   * below rendered nothing, and the failure banner could show that an invoice was rejected but
+   * never why.
+   *
+   * `GET /api/invoices/:id` already selects the events with their `detail`. Fetching it and
+   * preferring it when it arrives fixes both, without changing the list payload for every row.
+   * Falls back to the list row while in flight, so the dialog still opens instantly.
+   */
+  const { data: fullInvoice } = useGet<Invoice>(invoice ? `/api/invoices/${invoice.id}` : null)
+  const detailed = fullInvoice ?? invoice
 
   if (!invoice) return null
 
@@ -175,6 +226,39 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
               {t("invoices.view.description")}
             </DialogDescription>
           </DialogHeader>
+
+          {FAILURE_BANNERS[invoice.status as InvoiceStatus] &&
+            (() => {
+              // The authority's or buyer's own wording, if one was sent. Only INBOUND_STATUS
+              // signals carry text — a poll-detected failure has no motive — so an absent reason
+              // is normal and is rendered as absent, never padded with a plausible sentence.
+              const reason = detailed?.complianceDocuments?.[0]?.events
+                ?.filter((ev) => ev.detail)
+                .slice(-1)[0]?.detail
+              const banner = FAILURE_BANNERS[invoice.status as InvoiceStatus]!
+              return (
+                <div
+                  className={`mt-2 flex-shrink-0 rounded-md border p-4 ${banner.tone}`}
+                  data-cy="invoice-failure-banner"
+                  data-status={invoice.status}
+                >
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className={`h-5 w-5 shrink-0 ${banner.icon}`} />
+                    <div className="space-y-1">
+                      <p className={`text-sm font-semibold ${banner.title}`}>{t(`${banner.key}.title`)}</p>
+                      <p className={`text-sm ${banner.body}`}>{t(`${banner.key}.body`)}</p>
+                      {reason && (
+                        <p className={`text-sm ${banner.body}`} data-cy="invoice-failure-reason">
+                          <span className="font-medium">{t(`${banner.key}.reason`)}</span>
+                          {" : "}
+                          {reason}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
 
           {/* Available actions from the compliance plan */}
           {actions && (
@@ -475,41 +559,8 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
               Driven by Invoice.status, which the backend now projects from the compliance document,
               rather than by the document status, so the banner and the badge can never disagree.
             */}
-            {invoice.status === InvoiceStatus.REJECTED &&
-              (() => {
-                // The authority's own wording, if it sent one. Only INBOUND_STATUS signals carry
-                // text — a poll-detected rejection has no motive — so an absent reason is normal
-                // and is rendered as absent, never padded with a plausible sentence.
-                const reason = invoice.complianceDocuments?.[0]?.events
-                  ?.filter((ev) => ev.detail)
-                  .slice(-1)[0]?.detail
-                return (
-                  <div
-                    className="mt-6 rounded-md border border-red-200 bg-red-50 p-4"
-                    data-cy="invoice-rejected-banner"
-                  >
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 shrink-0 text-red-600" />
-                      <div className="space-y-1">
-                        <p className="text-sm font-semibold text-red-800">
-                          {t("invoices.view.rejected.title")}
-                        </p>
-                        <p className="text-sm text-red-700">{t("invoices.view.rejected.body")}</p>
-                        {reason && (
-                          <p className="text-sm text-red-700" data-cy="invoice-rejected-reason">
-                            <span className="font-medium">{t("invoices.view.rejected.reason")}</span>
-                            {" : "}
-                            {reason}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })()}
-
             {(() => {
-              const compDoc = invoice.complianceDocuments?.[0]
+              const compDoc = detailed?.complianceDocuments?.[0]
               if (!compDoc) return null
               const statusColors: Record<string, string> = {
                 CLEARED: "text-emerald-700 bg-emerald-50",
