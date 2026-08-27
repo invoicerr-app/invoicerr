@@ -91,6 +91,20 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
     invoice?.correctsInvoiceId ? `/api/invoices/${invoice.correctsInvoiceId}` : null,
   )
 
+  /**
+   * F-008: this dialog is opened with the row object from the invoice LIST, and
+   * `GET /api/invoices` selects `complianceDocuments: { id, status, plan }` — no events. So
+   * `invoice.complianceDocuments[0].events` was always undefined here: the compliance timeline
+   * below rendered nothing, and the failure banner could show that an invoice was rejected but
+   * never why.
+   *
+   * `GET /api/invoices/:id` already selects the events with their `detail`. Fetching it and
+   * preferring it when it arrives fixes both, without changing the list payload for every row.
+   * Falls back to the list row while in flight, so the dialog still opens instantly.
+   */
+  const { data: fullInvoice } = useGet<Invoice>(invoice ? `/api/invoices/${invoice.id}` : null)
+  const detailed = fullInvoice ?? invoice
+
   if (!invoice) return null
 
   const formatDate = (date?: string) =>
@@ -212,6 +226,39 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
               {t("invoices.view.description")}
             </DialogDescription>
           </DialogHeader>
+
+          {FAILURE_BANNERS[invoice.status as InvoiceStatus] &&
+            (() => {
+              // The authority's or buyer's own wording, if one was sent. Only INBOUND_STATUS
+              // signals carry text — a poll-detected failure has no motive — so an absent reason
+              // is normal and is rendered as absent, never padded with a plausible sentence.
+              const reason = detailed?.complianceDocuments?.[0]?.events
+                ?.filter((ev) => ev.detail)
+                .slice(-1)[0]?.detail
+              const banner = FAILURE_BANNERS[invoice.status as InvoiceStatus]!
+              return (
+                <div
+                  className={`mt-2 flex-shrink-0 rounded-md border p-4 ${banner.tone}`}
+                  data-cy="invoice-failure-banner"
+                  data-status={invoice.status}
+                >
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className={`h-5 w-5 shrink-0 ${banner.icon}`} />
+                    <div className="space-y-1">
+                      <p className={`text-sm font-semibold ${banner.title}`}>{t(`${banner.key}.title`)}</p>
+                      <p className={`text-sm ${banner.body}`}>{t(`${banner.key}.body`)}</p>
+                      {reason && (
+                        <p className={`text-sm ${banner.body}`} data-cy="invoice-failure-reason">
+                          <span className="font-medium">{t(`${banner.key}.reason`)}</span>
+                          {" : "}
+                          {reason}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
 
           {/* Available actions from the compliance plan */}
           {actions && (
@@ -512,41 +559,8 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
               Driven by Invoice.status, which the backend now projects from the compliance document,
               rather than by the document status, so the banner and the badge can never disagree.
             */}
-            {FAILURE_BANNERS[invoice.status as InvoiceStatus] &&
-              (() => {
-                // The authority's or buyer's own wording, if one was sent. Only INBOUND_STATUS
-                // signals carry text — a poll-detected failure has no motive — so an absent reason
-                // is normal and is rendered as absent, never padded with a plausible sentence.
-                const reason = invoice.complianceDocuments?.[0]?.events
-                  ?.filter((ev) => ev.detail)
-                  .slice(-1)[0]?.detail
-                const banner = FAILURE_BANNERS[invoice.status as InvoiceStatus]!
-                return (
-                  <div
-                    className={`mt-6 rounded-md border p-4 ${banner.tone}`}
-                    data-cy="invoice-failure-banner"
-                    data-status={invoice.status}
-                  >
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className={`h-5 w-5 shrink-0 ${banner.icon}`} />
-                      <div className="space-y-1">
-                        <p className={`text-sm font-semibold ${banner.title}`}>{t(`${banner.key}.title`)}</p>
-                        <p className={`text-sm ${banner.body}`}>{t(`${banner.key}.body`)}</p>
-                        {reason && (
-                          <p className={`text-sm ${banner.body}`} data-cy="invoice-failure-reason">
-                            <span className="font-medium">{t(`${banner.key}.reason`)}</span>
-                            {" : "}
-                            {reason}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })()}
-
             {(() => {
-              const compDoc = invoice.complianceDocuments?.[0]
+              const compDoc = detailed?.complianceDocuments?.[0]
               if (!compDoc) return null
               const statusColors: Record<string, string> = {
                 CLEARED: "text-emerald-700 bg-emerald-50",
