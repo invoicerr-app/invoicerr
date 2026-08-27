@@ -18,6 +18,7 @@ import {
   generateSalesPurchaseLedgerEntry,
   generateSiiRegistroPayload,
   generateVerifactuRegistroPayload,
+  verifactuQrBase,
 } from './generators';
 
 // ---------------------------------------------------------------------------
@@ -690,18 +691,49 @@ describe('generateVerifactuRegistroPayload', () => {
     expect(record2.huella).not.toBe(huellaWithoutChain);
   });
 
-  it('QR content is a well-formed AEAT ValidarQR URL with the 4 required params, URL-encoded', () => {
+  /**
+   * ES-D12: this assertion previously pinned `…/ValidarQR`, the path for a system emitting
+   * VERIFIABLE invoices. The expectation itself was wrong, not merely outdated: AEAT's QR spec
+   * (v0.5.0, 2025-12-10) §5.1/§5.2 gives a different PATH per system mode, and this product
+   * transmits nothing to AEAT, so it is a non-verifiable system. The old URL told the recipient's
+   * scanner to check a record stream AEAT never received. Updated, not deleted — and the mode is
+   * now asserted explicitly below so a silent flip back is a test failure.
+   */
+  it('QR content is a well-formed AEAT ValidarQRNoVerifactu URL with the 4 required params, URL-encoded', () => {
     const ctx = makeEsCtx({ externalRef: '12345678&G33' });
     const result = generateVerifactuRegistroPayload(ctx, makeEsPlan(), '2026-06');
     expect(
-      result.qrContent.startsWith('https://www2.agenciatributaria.gob.es/wlpl/TIKE-CONT/ValidarQR?'),
+      result.qrContent.startsWith(
+        'https://www2.agenciatributaria.gob.es/wlpl/TIKE-CONT/ValidarQRNoVerifactu?',
+      ),
     ).toBe(true);
+    // The verifiable-system path must NOT appear: `ValidarQR?` is a prefix of neither URL once the
+    // query starts, so this pins the mode rather than merely the host.
+    expect(result.qrContent).not.toContain('/ValidarQR?');
     expect(result.qrContent).toContain('nif=B12345674');
     // '&' must be percent-encoded inside numserie — verified against the official QR spec worked
     // example (encoding "12345678&G33" → "12345678%26G33").
     expect(result.qrContent).toContain('numserie=12345678%26G33');
     expect(result.qrContent).toContain('fecha=15-06-2026');
     expect(result.qrContent).toContain('importe=1210.00');
+  });
+
+  it('exposes both QR axes — mode chooses the path, environment chooses the host', () => {
+    // AEAT QR spec v0.5.0 §5.1/§5.2. The regression this pins: treating the difference as
+    // environment-only, which is what the previous code comment claimed. Swapping the host while
+    // staying on the verifiable path is exactly the mistake ES-D12 describes.
+    expect(verifactuQrBase('NON_VERIFIABLE', 'PRODUCTION')).toBe(
+      'https://www2.agenciatributaria.gob.es/wlpl/TIKE-CONT/ValidarQRNoVerifactu',
+    );
+    expect(verifactuQrBase('NON_VERIFIABLE', 'TEST')).toBe(
+      'https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQRNoVerifactu',
+    );
+    expect(verifactuQrBase('VERIFIABLE', 'PRODUCTION')).toBe(
+      'https://www2.agenciatributaria.gob.es/wlpl/TIKE-CONT/ValidarQR',
+    );
+    expect(verifactuQrBase('VERIFIABLE', 'TEST')).toBe('https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR');
+    // The default is the product's actual mode: it transmits nothing, so it is non-verifiable.
+    expect(verifactuQrBase()).toBe(verifactuQrBase('NON_VERIFIABLE', 'PRODUCTION'));
   });
 
   it('meta reflects the transaction', () => {

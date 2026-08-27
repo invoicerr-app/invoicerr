@@ -47,7 +47,7 @@ async function handleReport<P>(
   _plan: CompliancePlan,
   log: ComplianceLogger,
   store: ReportingStore,
-  generatePayload: () => P,
+  generatePayload: () => P | Promise<P>,
   submitLabel: string,
 ): Promise<ReportingResult> {
   const periodKey = getPeriodKey(ctx.issueDate, frequencyForKind(kind));
@@ -64,8 +64,10 @@ async function handleReport<P>(
     return { kind, status: 'SKIPPED', ref: existing.id };
   }
 
-  // Generate the structured payload (pure, synchronous)
-  const payload = generatePayload();
+  // Generate the structured payload. The generators themselves stay pure; the builder may be async
+  // because ONE kind — VERIFACTU — has to read the previous link of its hash chain before it can
+  // generate (ES-D1). Awaiting a plain value is a no-op for every other kind.
+  const payload = await generatePayload();
 
   // Persist (status=PENDING)
   const record = await store.create({
@@ -184,10 +186,61 @@ export const SiiReportingHandler = makeReportingHandler(
   'upload SuministroLRFacturasEmitidas registration to AEAT SII (mocked)',
 );
 
-// previousHuella defaults to '' (first record in the chain) — see the TODO(seam) on
-// generateVerifactuRegistroPayload for how a real cross-invoice chain must feed the prior huella.
-export const VerifactuReportingHandler = makeReportingHandler(
-  'VERIFACTU',
-  generateVerifactuRegistroPayload,
-  'submit Verifactu RegistroAlta (hash-chained) to AEAT (mocked)',
-);
+/**
+ * ES-D1 — the Veri*Factu chain, actually chained.
+ *
+ * The huella algorithm was never the defect: it reproduces AEAT's two published worked examples
+ * (doc "Especificaciones técnicas para generación de la huella o hash", v0.1.2 of 2024-08-27)
+ * byte-for-byte, chained case included. The defect was that nobody ever fed it a previous link.
+ * `previousHuella` defaulted to `''` and no caller overrode it, so every single record hashed an
+ * empty `Huella=` and reported `PrimerRegistro='S'` — a chain of length one, repeated, where art.
+ * 8.2.b of RD 1007/2023 requires each registro to be tied to its predecessor.
+ *
+ * The fix is a query, not a new source: read this issuer's last VERIFACTU record through the
+ * ReportingStore port and pass its huella in. Which is why this kind cannot use
+ * `makeReportingHandler` — that factory takes a PURE generator, and this one needs one store read
+ * first. The generator itself stays pure and untouched.
+ */
+export class VerifactuReportingHandler implements ReportingHandler {
+  readonly kind: ReportingKind = 'VERIFACTU';
+  constructor(private readonly store: ReportingStore = new NullReportingStore()) {}
+
+  async report(
+    ctx: TransactionContext,
+    plan: CompliancePlan,
+    log: ComplianceLogger,
+  ): Promise<ReportingResult> {
+    return handleReport(
+      'VERIFACTU',
+      ctx,
+      plan,
+      log,
+      this.store,
+      async () => {
+        const periodKey = getPeriodKey(ctx.issueDate, frequencyForKind('VERIFACTU'));
+        const previous = await this.store.findLastByKindAndCompany(
+          'VERIFACTU',
+          ctx.supplierCompanyId ?? null,
+        );
+        // Read defensively: `payload` is a Json column, so a row written by an older build (or a
+        // hand-edited one) may not carry a huella. An unreadable predecessor must NOT silently
+        // restart the chain as if this were the first record — that is the exact failure being
+        // fixed — so it is logged loudly and left to the caller to investigate.
+        const previousHuella = (previous?.payload as { huella?: unknown } | null)?.huella;
+        if (previous && typeof previousHuella !== 'string') {
+          log.warn(
+            'reporting/VERIFACTU',
+            `previous record ${previous.id} carries no readable huella — this registro will declare PrimerRegistro='S' and BREAK the chain`,
+          );
+        }
+        return generateVerifactuRegistroPayload(
+          ctx,
+          plan,
+          periodKey,
+          typeof previousHuella === 'string' ? previousHuella : '',
+        );
+      },
+      'submit Verifactu RegistroAlta (hash-chained) to AEAT (mocked)',
+    );
+  }
+}

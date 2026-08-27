@@ -39,6 +39,21 @@ export interface ReportingStore {
    * that frequency (monthly: "2026-06" < current month; quarterly: "2026-Q2" < current quarter).
    */
   findPendingForClosedPeriods(now: Date): Promise<ReportRecord[]>;
+
+  /**
+   * ES-D1: the most recent record of `kind` for `companyId`, newest first, or null.
+   *
+   * This is the seam the Veri*Factu hash chain was missing. The huella algorithm was already
+   * conformant — it reproduces AEAT's published test vectors byte-for-byte — but nothing ever fed
+   * it a previous link, so every record was emitted with an empty `Huella=` and declared itself
+   * `PrimerRegistro='S'`. A chain of length one, repeated, where RD 1007/2023 art. 8.2.b requires
+   * each record to be tied to the one before it.
+   *
+   * The chain is scoped per (kind, companyId) because that is the issuer chain AEAT audits: one
+   * obligated taxpayer, one continuous sequence of registros. A null companyId has no chain and
+   * must return null rather than accidentally chaining across tenants.
+   */
+  findLastByKindAndCompany(kind: string, companyId: string | null): Promise<ReportRecord | null>;
 }
 
 /** No-op store — used in unit tests and as the default when Prisma is not wired. */
@@ -54,5 +69,8 @@ export class NullReportingStore implements ReportingStore {
   }
   async findPendingForClosedPeriods(): Promise<ReportRecord[]> {
     return [];
+  }
+  async findLastByKindAndCompany(): Promise<ReportRecord | null> {
+    return null;
   }
 }
