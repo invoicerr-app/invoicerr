@@ -32,7 +32,7 @@ Peu de choses, et moins qu'au début de l'audit — la phase 3 et P4 ont fermé 
 | **S1** | Conditions d'éligibilité à l'accréditation SdI — partita IVA italienne requise ? éditeur étranger admis ? | Plafonne l'Italie à L2 et conditionne toute la faisabilité IT | contact au Sistema di Accreditamento |
 | **S2** | Prérequis d'accès à `preportal.aeat.es` | Plafonne la testabilité espagnole | non documenté par l'AEAT ; demande directe |
 | **S3** | Exigences précises d'immatriculation DGFiP (audits, ISO 27001 / SecNumCloud, garanties financières, lieu d'établissement) | Tout `05-FEASIBILITY.md` pour la France | dossier `demarche.numerique.gouv.fr` |
-| **S4** | Qualification de « real-time » pour le SII espagnol au sens de l'art. 6(5) ViDA | Si l'Espagne qualifie, son horizon domestique glisse de 2030 à **2035** | non défini par la directive ; probablement une position de la Commission |
+| **S4** | Qualification de « real-time transaction-based » au sens de l'art. 6(5) ViDA — **analysé voie par voie, pas tranché** : la voie 2 (dérogation art. 395) est **exclue** ; la voie 3 paraît remplie, le RD 1007/2023 étant du **2023-12-05** donc antérieur au 2024-01-01 et instituant une remisión « automática, continua e instantánea » | Si l'Espagne qualifie, son horizon **domestique** glisse du 2030-07-01 au **2035-01-01**, et tout le volet ES se lit à cette échéance | La directive ne définit ni « real-time » ni « transaction-based » : position de la Commission ou de l'administration espagnole |
 | **S5** | Interdiction espagnole des trous de numérotation | ES reste `GAPLESS_SELF` par défaut prudent, non sourcé | doctrine DGT, hors périmètre de sourçage primaire |
 
 **Fermés par P4** : l'art. 6(5) de ViDA (le report à 2035 est une disposition opérative, trois voies
@@ -62,8 +62,8 @@ Chaque correction cite sa source dans son commit.
 
 | # | Correction | Coût | Débloque | Note |
 | --- | --- | --- | --- | --- |
-| **A1** | **Former la chaîne Veri\*Factu** — alimenter `previousHuella` depuis `ReportingStore` | **faible** — le `TODO(seam)` décrit la requête | ES-D1, et l'étape 2 de F-018 | L'algorithme est déjà conforme aux vecteurs officiels. Ne **pas** le réécrire. Le blocage a changé de nature : ce n'est plus une source manquante, c'est **une requête manquante**. |
 | **A0** | **F-008 — rendre le rejet d'autorité visible** : ajouter `REJECTED` à `InvoiceStatus`, écrire `Invoice.status` depuis `apply-signal` | **modéré** — migration Prisma | Une facture rejetée par KSeF ou le SdI cesse de s'afficher `SENT` | **En tête de la prochaine session.** Deuxième report, et c'est le plus gros dégât utilisateur restant : le raisonnement sur la migration reste juste, mais il justifie une revue dédiée, pas un report indéfini. |
+| **A1** | **Former la chaîne Veri\*Factu** — alimenter `previousHuella` depuis `ReportingStore` | **faible** — le `TODO(seam)` décrit la requête | ES-D1, et l'étape 2 de F-018 | L'algorithme est déjà conforme aux vecteurs officiels. Ne **pas** le réécrire. Le blocage a changé de nature : ce n'est plus une source manquante, c'est **une requête manquante**. |
 | **A3** | **ES-D12 — chemin du QR** : `ValidarQRNoVerifactu` tant que le système n'est pas vérifiable | faible | Le QR cesse d'affirmer un mode que le système ne tient pas | Se referme sur D3 : le mode déclaré et le QR imprimé doivent coïncider. |
 | **A4** | **FR-D8 — contraindre le format du numéro** : 35 caractères, spéciaux limités | faible | Évite un **rejet du flux F1** | À faire avant le 2026-09-01 si possible. |
 | **A5** | **FR-D7 — émettre BT-23** en cardinalité 1..1 | modéré — valeurs limitatives à dériver du type d'opération | Évite l'échec des contrôles fonctionnels PPF | Idem. |
