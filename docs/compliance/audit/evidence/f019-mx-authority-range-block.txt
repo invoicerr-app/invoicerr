@@ -1,0 +1,21 @@
+== A. Le modèle sélectionné pour le Mexique, et la source de plages par défaut ==
+   plan.numbering.model : AUTHORITY_RANGE
+   defaultAuthorityRangeSource.getRange(…) : null
+   classe : NullAuthorityRangeSource
+
+== B. FolioPool.next() sans plage chargée ==
+   LÈVE : No folio range loaded for series "MX-INVOICE" (request one from the authority).
+
+== C. ComplianceService.issue() — le vrai chemin d’émission ==
+   brouillon créé : doc_mtbtzi01_1 (statut DRAFT)
+   ÉMISSION BLOQUÉE : Cannot issue document "doc_mtbtzi01_1": No folio range loaded for series "MX-INVOICE" (request one from the authority).
+   statut après tentative : DRAFT
+   événements : ["CREATED","ISSUE_BLOCKED"]
+
+== D. Contrôle — le même chemin pour un pays GAPLESS_SELF (France) ==
+   ÉMIS : numéro "000001"
+
+== VERDICT ==
+   AUTHORITY_RANGE ne produit pas du code mort : il BLOQUE toute émission mexicaine,
+   avec la configuration par défaut, tant qu'une plage de folios n'est pas saisie —
+   or cette plage n’existe pas dans le régime CFDI (Serie et Folio sont use="optional").

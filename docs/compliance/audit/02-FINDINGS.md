@@ -7,29 +7,79 @@
 > Sévérité `critical` réservée à : perte de preuve légale, promesse publique fausse, corruption de
 > séquence, suppression d'un document légalement immuable.
 
-## Sommaire
+## Classement — trois axes disjoints
+
+La sévérité unique avait perdu sa résolution : six findings `critical` qui ne se comparaient pas.
+F-001 archive du vide sur des chemins que personne ne peut emprunter ; F-018 est une obligation
+légale échue qui pèse sur l'entreprise. Au même rang, la liste ne permettait plus de décider.
+
+Les trois axes ci-dessous sont **disjoints** et classés **séparément**. Un finding figure dans un
+seul. Le reste conserve sa sévérité, mais sous l'étiquette `qualité / dette` — ce qui ne veut pas
+dire « sans gravité », seulement « ne relève d'aucun des trois axes de décision ».
+
+### Axe 1 — Exposition juridique de l'éditeur
+
+Ce que l'entreprise encourt elle-même, indépendamment de ses utilisateurs.
+
+| # | Objet | Exposition |
+| --- | --- | --- |
+| [F-018](#f-018) | Déclaration responsable espagnole, échéance échue depuis mi-2025 | 150 000 €/exercice/type de système pour une déclaration inexacte ; 1 000 €/système sans déclaration |
+
+**Seul finding de cet axe à ce jour** — et le seul de tout l'audit dont l'exposition soit présente
+et chiffrée. Son rattachement n'est pas établi : voir la question à poser à un juriste espagnol,
+en fin de section F-018.
+
+### Axe 2 — Dégât utilisateur réel
+
+Ce qui bloque une émission, l'invalide, ou trompe l'utilisateur sur l'état de sa facture.
+
+| # | Objet | Effet | Reproduit |
+| --- | --- | --- | :-: |
+| [F-017](#f-017) | Plan résolu sur le seul pays du fournisseur | Document juridiquement inexistant dans un corridor, sans avertissement | ✓ |
+| [MX-D1](03-LEGAL-VERIFICATION.md) | `AUTHORITY_RANGE` au Mexique | **Bloque toute émission mexicaine** avec la configuration par défaut | ✓ |
+| [F-002](#f-002) | Garde de numérotation hors transaction | Trous définitifs dans une séquence censée être continue | ✓ |
+| [F-008](#f-008) | Rejet d'autorité invisible | La facture s'affiche `SENT` alors que l'autorité l'a rejetée | — |
+| [FR-D1](03-LEGAL-VERIFICATION.md) | `EMAIL` déclaré canal français | Canal illicite dans le champ ; 50 €/facture puis 500 € et 1 000 €/trimestre | — |
+| [FR-D7](03-LEGAL-VERIFICATION.md) | BT-23 absent, cardinalité 1..1 | Échec des contrôles fonctionnels du PPF | — |
+| [FR-D8](03-LEGAL-VERIFICATION.md) | Format du numéro non contraint | **Rejet du flux F1** si le numéro dépasse 35 caractères ou porte un spécial interdit | — |
+| [PL-D1](03-LEGAL-VERIFICATION.md) | Annulation autorisée en Pologne | Produit un état juridiquement inexistant côté KSeF | — |
+| [IT-D1](03-LEGAL-VERIFICATION.md) | Annulation autorisée en Italie | Idem, incohérent avec le registre TVA | — |
+| [IT-D10](03-LEGAL-VERIFICATION.md) | `immutableAfter` déclenché trop tôt | **Bloque le renvoi après scarto**, chemin nominal de reprise | — |
+
+`MX-D1` a été promu dans cet axe après reproduction : `AUTHORITY_RANGE` ne produisait pas
+seulement du code mort. Voir `scripts/audit/repro/f019-mx-authority-range-block.ts`.
+
+### Axe 3 — Promesse publique
+
+| # | Objet |
+| --- | --- |
+| [F-004](#f-004) | 106 pages publiques de conformité pour 4 canaux réellement câblés |
+| [F-017](#f-017) | *(second effet)* — les pages ne décrivent pas seulement des capacités absentes, elles décrivent la **mauvaise unité d'analyse** : l'unité réelle est le corridor, pas le pays |
+
+### Qualité / dette
+
+Sévérité conservée telle quelle. Aucun de ces findings ne relève des trois axes ci-dessus.
 
 | # | Sévérité | Titre | Point |
 | --- | --- | --- | :-: |
-| [F-001](#f-001) | **critical** | Un document de zéro octet traverse tout le pipeline et est archivé | 1 |
-| [F-002](#f-002) | **critical** | La séquence « sans trou » perd des numéros sous concurrence | 3 |
-| [F-003](#f-003) | **critical** | Une facture émise et acquittée est supprimable, sans aucune garde en base | 2 |
-| [F-004](#f-004) | **critical** | 106 pages publiques de conformité pour 4 canaux réellement câblés | 7 |
-| [F-017](#f-017) | **critical** | Le plan est résolu sur le seul pays du fournisseur : les corridors sont faux, silencieusement | — |
-| [F-018](#f-018) | **critical** | Obligation espagnole pesant sur l'éditeur lui-même, échéance déjà expirée | — |
+| [F-001](#f-001) | critical | Un document de zéro octet traverse tout le pipeline et est archivé | 1 |
+| [F-003](#f-003) | critical | Une facture émise et acquittée est supprimable, sans aucune garde en base | 2 |
 | [F-005](#f-005) | high | Le journal d'événements n'est pas append-only ; un document CLEARED est réécrivable | 4 |
 | [F-006](#f-006) | high | Le document transmis n'est jamais stocké — il est reconstruit à l'affichage | 4 |
 | [F-007](#f-007) | high | `REJECTED` est un cul-de-sac : ni re-soumission, ni correction, ni annulation | 5 |
-| [F-008](#f-008) | high | Un rejet d'autorité est invisible sur la facture que voit l'utilisateur | 5 |
 | [F-009](#f-009) | high | L'UI invite à connecter 17 canaux qui ne peuvent rien émettre | 6 |
 | [F-010](#f-010) | high | Le reçu d'archivage n'est ni vérifié ni persisté nulle part | 1 |
+| [F-016](#f-016) | high | Les 10 handlers de reporting sont mockés mais renvoient `EMITTED` | 1 |
 | [F-011](#f-011) | medium | `resetAll()` ne supprime rien et répond « All data reset successfully » | 2 |
 | [F-012](#f-012) | medium | OTP des opérations destructives : en mémoire, `Math.random()`, mauvais destinataire | 2 |
 | [F-013](#f-013) | medium | Aucune trace machine-lisible d'une exécution live réussie | 6 |
 | [F-014](#f-014) | medium | Un spec écrit dans l'arbre de travail du développeur | 1 |
-| [F-016](#f-016) | high | Les 10 handlers de reporting sont mockés mais renvoient `EMITTED` | 1 |
 | [F-015](#f-015) | low | Un document CLEARED ne peut pas être corrigé sans passer par DELIVERED | 5 |
 
+> **F-001 et F-003 restent `critical` et ne sont pourtant dans aucun axe de décision.** C'est
+> délibéré : F-001 archive du vide sur des chemins qu'aucun transport ne permet d'emprunter, et F-003
+> décrit une porte ouverte qu'aucun appel n'emprunte aujourd'hui. Leur gravité est intacte ; leur
+> **urgence** ne l'est pas. C'est exactement ce que la sévérité unique ne savait plus dire.
 ---
 
 <a id="f-001"></a>
