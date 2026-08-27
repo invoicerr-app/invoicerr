@@ -442,6 +442,23 @@ export class InvoicesService {
 
     const issueDate = new Date();
     const updated = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // The status/number guards above run OUTSIDE any transaction, so two concurrent issue()
+      // calls for the same invoice both pass them, both allocate a number, and the loser's value is
+      // consumed and lost — a gap in a series the profiles declare GAPLESS_SELF. Re-reading here
+      // would not help: at READ COMMITTED both transactions would still read DRAFT/null.
+      //
+      // So claim the row FIRST with a conditional update. `updateMany` matching on the pre-state
+      // takes the row lock; a concurrent transaction blocks on it, then matches zero rows once we
+      // commit and aborts before touching the counter. Claiming must precede nextNumber(),
+      // otherwise the sequence value is burnt before we learn we lost the race.
+      const claimed = await tx.invoice.updateMany({
+        where: { id, companyId, status: 'DRAFT', number: null },
+        data: { status: 'ISSUED', issuedAt: issueDate },
+      });
+      if (claimed.count === 0) {
+        throw new BadRequestException('Invoice is already being issued or has already been issued');
+      }
+
       const { counter, rawNumber } = await this.numberingService.nextNumber(
         tx,
         invoice.companyId,

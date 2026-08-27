@@ -159,7 +159,13 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
       });
       const updatedInvoice = { id: 'inv-3', rawNumber: 'INV-0001', client: {}, company: {} };
       (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
-        cb({ invoice: { update: jest.fn().mockResolvedValue(updatedInvoice) } }),
+        cb({
+          invoice: {
+            // claim-then-allocate guard added by fix/numbering-toctou
+            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+            update: jest.fn().mockResolvedValue(updatedInvoice),
+          },
+        }),
       );
       (prisma.complianceDocument.findFirst as jest.Mock).mockResolvedValue({ id: 'doc-3' });
       const wiringError = new Error('numbering blocked');
@@ -197,7 +203,13 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
       });
       const updatedInvoice = { id: 'inv-4', rawNumber: 'INV-0002', client: {}, company: {} };
       (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
-        cb({ invoice: { update: jest.fn().mockResolvedValue(updatedInvoice) } }),
+        cb({
+          invoice: {
+            // claim-then-allocate guard added by fix/numbering-toctou
+            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+            update: jest.fn().mockResolvedValue(updatedInvoice),
+          },
+        }),
       );
       (prisma.complianceDocument.findFirst as jest.Mock).mockResolvedValue(null);
 
@@ -255,6 +267,8 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
       (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
         cb({
           invoice: {
+            // claim-then-allocate guard added by fix/numbering-toctou
+            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
             update: jest.fn((args: any) => {
               capturedUpdateArgs = args;
               return Promise.resolve({
