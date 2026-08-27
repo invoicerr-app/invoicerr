@@ -180,6 +180,8 @@ réglementaire. Les profils étant temporels, la bascule de référence devra ê
 
 ---
 
+---
+
 ## POLOGNE
 
 ### Sources
@@ -273,6 +275,8 @@ facture — corriger le NIP est explicitement interdit) ; les statuts par factur
 `regimeBlocking: true` est **exact** : pas de numéro KSeF, pas de facture. `hashChain: false` est
 exact. Et le fait que KSeF **ne valide pas l'arithmétique** confirme qu'un `CLEARANCE` ne dispense
 d'aucun contrôle applicatif — le profil ne prétend pas le contraire.
+
+---
 
 ---
 
@@ -394,6 +398,8 @@ non-E-Rechnung devient une infraction au 2027-01-01 au-dessus de 800 000 €, pu
 
 ---
 
+---
+
 ## ITALIE
 
 ### Sources
@@ -481,6 +487,241 @@ même numéro, n'apparaît nulle part. C'est pourtant le chemin nominal de repri
 
 Le profil déclare simultanément `POST_AUDIT + CLEARANCE` et `reporting: aucun`. Or la jambe
 « post-audit » du dispositif italien **est** précisément le reporting c. 3-bis que le profil nie.
+
+---
+
+---
+
+## ESPAGNE
+
+### Sources
+
+BOE, textes consolidés (RD 1007/2023, RD 1619/2012, RD 238/2026, Orden HAC/1177/2024, LGT, LIVA,
+Código de Comercio, Ley 25/2013) ; AEAT (`sede.agenciatributaria.gob.es`) ; `hacienda.gob.es` pour le
+projet d'orden ministerial.
+
+### Deux régimes, deux déclencheurs de nature différente
+
+C'est la particularité espagnole, et elle est structurante :
+
+| Régime | Déclencheur | Pivot |
+| --- | --- | --- |
+| **Veri\*Factu** | **unilatéral** — un **statut fiscal de l'émetteur** (IS / IRPF activité économique / IRNR **avec établissement permanent** / entité en attribution de revenus), domicile fiscal en territoire commun, **et non inscrit au SII** | **vendeur** |
+| **Mandat B2B** (RD 238/2026) | **bilatéral, dominé par le destinataire** — l'émetteur doit être tenu d'émettre selon le RD 1619/2012, **et** le destinataire doit avoir en Espagne son siège, un EP ou son domicile, **et l'opération doit lui être adressée** | **acheteur** |
+
+Le mandat B2B pivote donc sur `buyerEstablishment == ES`, **pas** sur le pays du vendeur. Un moteur
+qui l'active sur le vendeur se trompe dans les deux sens : faux positif sur ES → FR, faux négatif sur
+un vendeur étranger soumis aux règles espagnoles vendant à un acheteur établi en Espagne.
+
+**Veri\*Factu couvre le transfrontalier sortant** : la norme vise l'émission de factures
+« **cualquiera que sea el destinatario** ». Une facture à un client étranger génère un registro de
+facturación comme une facture domestique. Un moteur qui court-circuite sur `buyerCountry != ES` est
+non conforme.
+
+### Calendrier — trois horloges indépendantes
+
+| Horloge | Échéance | Statut |
+| --- | --- | --- |
+| Veri\*Factu — contribuables IS | **2027-01-01** | en vigueur (prorogé deux fois : RD 254/2025 puis RD-ley 15/2025, convalidé le 2025-12-11) |
+| Veri\*Factu — reste des obligés art. 3.1 | **2027-07-01** | en vigueur |
+| Veri\*Factu — **producteurs de logiciel** | **9 mois après l'entrée en vigueur de l'orden ministerial** ✓✓ | **échéance expirée** |
+| Mandat B2B | 12 / 24 / 36 mois **à compter de l'entrée en vigueur d'une orden ministerial non publiée** | **horloge non démarrée** |
+
+L'orden ministerial du mandat B2B **n'est pas publiée au 2026-08-27** ; elle existe à l'état de projet
+soumis à information publique le 2026-04-17, prévoyant une entrée en vigueur au 2026-10-01. **Ces
+dates ne doivent pas être codées comme fermes.**
+
+### Divergences avec le code — Espagne
+
+**ES-D1 — `hashChain: false` : le code est faux.**
+Le chaînage par empreinte du registre précédent est **obligatoire dans les deux modalités**
+(RD 1007/2023 art. 8.2.b, 10.1.ñ, 11.2.e et 12). L'exception de l'art. 16.3 ne lève que la
+**signature XAdES**, jamais le hash.
+
+**ES-D2 — `reporting: SII + VERIFACTU` : le code est faux s'il cumule.**
+Les deux régimes sont **mutuellement exclusifs** : « El presente Reglamento **no se aplicará** a los
+contribuyentes que lleven los libros registros en los términos […] del artículo 62 del Reglamento del
+IVA » (art. 3.3). Un flag `isSiiFiler` doit arbitrer en amont ; il n'existe aucun état où les deux
+sont actifs.
+
+**ES-D3 — `archival: 10 ans` : mal étiqueté.**
+Le RD 1619/2012 art. 19.1 renvoie à la LGT sans écrire de durée. Le plancher réel est **6 ans**
+(Código de Comercio art. 30.1, via LGT art. 70.2 qui impose le plus long des deux), sur un socle
+fiscal de 4 ans. Les 10 ans ne valent que pour les bases et déductions en attente (LGT art. 66 bis.2)
+— et sont **insuffisants** pour l'immobilier, la régularisation des biens d'investissement portant sur
+neuf années supplémentaires (LIVA art. 107.Tres). 10 ans est un défaut prudent, pas une règle.
+
+**ES-D4 — `archivedForm: BOTH` : incomplet sur deux points opposables.**
+(a) Le **format d'origine** doit être conservé — XML natif, données associées **et mécanismes de
+vérification de signature** (art. 21.1) ; un rendu PDF ne suffit pas. (b) La conservation **hors
+d'Espagne** est licite mais soumise à **communication préalable à l'AEAT** (art. 22.2), de même que la
+sous-traitance hors UE (art. 19.4). Le profil ne modélise aucune de ces deux obligations déclaratives.
+
+**ES-D5 — `numbering: GAPLESS_SELF` : non sourcé, et incomplet.**
+Le texte n'exige que « la numeración […] **dentro de cada serie** será correlativa ». L'interdiction
+des trous n'est écrite nulle part → `open_question`. Surtout, le profil ignore les **séries
+obligatoirement séparées** : rectificatives, autofacturation (**une série par tiers émetteur ou
+destinataire**), art. 84.Uno.2º.g) LIVA, DA 5ª et art. 61 quinquies.2 RIVA, et **complètes vs
+simplifiées dès qu'elles coexistent sur une même année civile**.
+
+**ES-D6 / ES-D7 — `PLAIN_PDF + ES_FACTURAE` : faux pour le mandat B2B.**
+Le RD 238/2026 art. 7.1 impose EN 16931 dans l'une de quatre syntaxes — **CII, UBL, EDIFACT ou
+Facturae** — et les opérateurs doivent savoir **convertir entre les quatre**. **UBL est la syntaxe de
+référence** de la solución pública. Le PDF n'est qu'un **accompagnement transitoire** pendant les
+12 premiers mois pour les entreprises de plus de 8 M€. Facturae-seul est une règle **B2G**
+(Ley 25/2013 / FACe), pas B2B.
+
+**ES-D8 — canaux : incomplet sur trois obligations.**
+Manquent : le **dépôt simultané d'une copie fidèle UBL** au repositorio universel de l'AEAT par toute
+plateforme privée ; l'**interconnexion obligatoire** entre plateformes, sous un mois ; et le
+**reporting des états de facture** — acceptation ou rejet commercial, paiement effectif — sous
+**quatre jours naturels hors week-ends et fériés**. L'e-mail ne satisfera pas le mandat B2B.
+
+**ES-D9 — `cancellationAllowed` : ambigu, et le risque est de n'en faire qu'une moitié.**
+Aucune suppression n'existe. L'annulation prend **deux formes distinctes et cumulatives** : un
+**registro de anulación** append-only et chaîné côté Veri\*Factu, **et** une facture rectificative à
+100 % côté destinataire. Un `cancel` unique qui ne produit que l'un des deux est non conforme.
+
+**ES-D10 — `correctionModel: CREDIT_NOTE` : correct sur le principe, incomplet sur les règles.**
+Manquent la **double ancre** de la fenêtre de 4 ans (*devengo* **ou** survenance de la circonstance de
+l'art. 80 LIVA), les fenêtres courtes (2 mois en cas de concours, 6 mois pour créances irrécouvrables
+puis 1 mois de communication à l'AEAT, 1 mois pour une re-rectification à la hausse), les **deux
+représentations** admises — delta ou absolu post-rectification —, et l'interdiction de rectifier à la
+hausse un destinataire non-entrepreneur hors art. 80.
+
+**ES-D11 — plafond territorial absent.**
+Le profil ne modélise ni l'exclusion du **País Vasco et de la Navarre** (régimes foraux, exclusion par
+domicile fiscal), ni les spécificités des Canaries, Ceuta et Melilla, ni l'exclusion des opérations
+réalisées via un **établissement permanent à l'étranger** (art. 4.2), ni le fait qu'un assujetti **non
+établi mais simplement immatriculé NIF est hors du champ Veri\*Factu**.
+
+### Ce que le code fait juste — Espagne
+
+`regimeBlocking: false` est **exact** : Veri\*Factu n'est pas une clearance, l'AEAT ne valide pas la
+facture — l'art. 16 n'établit qu'une présomption de conformité **du système**, et l'art. 8.4 du
+RD 1619/2012 une présomption d'authenticité et d'intégrité **de la facture**. `immutableAfter: ISSUE`
+est exact, et même sous-estimé : l'immutabilité est exigée au niveau du **registre**, append-only,
+avec registro de eventos obligatoire en mode non-VERI\*FACTU.
+
+### Open questions — Espagne
+
+Les deux plus bloquantes pour une implémentation : le **document technique AEAT du hash** (algorithme
+confirmé, ordre de concaténation, séparateurs, encodage) et celui du **QR** (URL littérale du service
+de cotejo, paramètres, variante selon la modalité). L'Orden HAC/1177/2024 y renvoie formellement —
+**ne pas implémenter le hash ni l'URL du QR sans ces documents**. S'y ajoutent : les critères exacts
+d'assujettissement au SII (c'est pourtant le flag qui arbitre ES-D2), la publication de l'orden
+ministerial du mandat B2B, et le cas d'un fournisseur non établi mais immatriculé réalisant une
+opération localisée en Espagne vers un acheteur établi.
+
+---
+
+---
+
+## MEXIQUE
+
+### Sources
+
+CFF (art. 28, 29, 29-A, 30) via `sat.gob.mx` ; **RMF 2026, DOF 2025-12-28**, reglas 2.7.1.34 et
+2.7.1.35 ; Anexo 20 v4.0 ; et — vérification la plus forte de tout cet audit — **les schémas de
+l'autorité eux-mêmes, vendorisés dans le dépôt** : `backend/src/compliance/schemas/mx/cfdv40.xsd` et
+`catCFDI.xsd`, plus `TimbreFiscalDigitalv11.xsd` récupéré en ligne.
+
+**Version en vigueur au 2026-08-27 : CFDI 4.0.** Aucune version postérieure publiée ni annoncée.
+
+### Divergences avec le code — Mexique
+
+**MX-D1 — `numbering: AUTHORITY_RANGE` : le code est faux. ✓✓ Vérifié sur le schéma du dépôt.**
+
+Il n'existe **aucune plage de folios attribuée par l'autorité** sous CFDI. Contrôle direct sur
+`cfdv40.xsd` :
+
+```
+name="Serie" use="optional"
+name="Folio" use="optional"
+```
+
+L'Anexo 20 les qualifie de « para **control interno del contribuyente** ». L'identifiant fiscal est
+l'**`UUID`**, attribué **par document, par le PAC, au moment du timbrado** — le
+`TimbreFiscalDigital` porte d'ailleurs `RfcProvCertif`, « el RFC del proveedor de certificación […]
+que genera el timbre fiscal digital ». Le « folio » du CFF art. 29 fr. IV désigne cet UUID, pas une
+plage. Le mécanisme de plages a existé sous les régimes CFD/CBB, **abrogés**.
+
+C'est une divergence coûteuse : `AUTHORITY_RANGE` implique une pré-allocation, un compteur
+consommable et une gestion d'épuisement — tout cet appareillage est **sans objet** au Mexique, et
+produira au mieux du code mort, au pire un blocage d'émission artificiel. Le modèle correct est celui
+déjà nécessaire pour KSeF et SdI : **numéro interne libre + identifiant fiscal reçu en retour du
+clearance**.
+
+**MX-D2 — `requiredIdentifiers: RFC + CURP` : le code est faux. ✓✓ Vérifié sur le schéma du dépôt.**
+
+`grep -c -i "curp" cfdv40.xsd` → **0**. Le CURP n'apparaît **nulle part** dans le schéma CFDI : ni sur
+`Comprobante`, ni sur `Emisor`, ni sur `Receptor`. Il n'existe que dans certains compléments,
+principalement **Nómina 1.2**, pour les personnes physiques.
+
+À l'inverse, le `Receptor` exige trois champs que le profil ignore :
+
+```
+Rfc -> required · Nombre -> required · DomicilioFiscalReceptor -> required
+RegimenFiscalReceptor -> required · UsoCFDI -> required
+```
+
+Et `Comprobante` porte `Exportacion` en `use="required"` — l'export n'est pas hors champ, c'est un
+cas **paramétré** du CFDI.
+
+**MX-D3 — `archival.residency: MX` : le code est plus strict que le droit sourcé.**
+
+Les sources primaires imposent la **disponibilité au domicilio fiscal** : « La documentación
+comprobatoria […] deberá estar **disponible en el domicilio fiscal** del contribuyente » (CFF art. 28
+fr. III), et la conservation « **a disposición de las autoridades** » (art. 30). **Aucune source
+primaire prononçant une interdiction de stockage hors du Mexique n'a été trouvée.** L'exigence réelle
+est une **résidence d'accès**, pas une résidence physique des données. Le profil invente donc ici une
+contrainte — le symétrique exact de FR-D4 et DE-D13, où il en **omet** de réelles.
+
+**MX-D4 — `archival: 5 ans` : durée juste, point de départ faux.**
+Le CFF art. 30 compte les cinq ans **depuis le dépôt de la déclaration** concernée, non depuis
+l'émission de la facture. Et la conservation est **perpétuelle** pour les actes constitutifs, les
+mouvements de capital, fusions, scissions, distributions de dividendes et justificatifs de prix de
+transfert — et court jusqu'à ce que la résolution mettant fin à un contentieux soit **ferme**.
+
+**MX-D5 — `cancellationAllowed: true` : un booléen ne peut pas porter cette règle.**
+L'annulation est **bilatérale par défaut** — acceptation du récepteur, **tacite au bout de trois
+jours** (RMF 2026 regla 2.7.1.34) — sauf hydrocarbures et Carta Porte carburants où l'acceptation
+**expresse** est exigée et où le silence ne vaut donc pas accord. Elle exige un **motivo**
+(`01`…`04`), le `01` imposant de fournir l'UUID du CFDI de substitution. Elle est **bloquée** tant
+qu'un document relié est *vigente*. Elle est bornée à **l'exercice fiscal d'émission**. Et douze cas
+limitatifs (regla 2.7.1.35) la dispensent entièrement d'acceptation.
+
+**MX-D6 — `correctionModel: CREDIT_NOTE` : incomplet.**
+Manque la voie **annulation + substitution** — `motivo 01` avec l'UUID du substitut, puis nouveau
+CFDI portant `TipoRelacion = "04"` (« Sustitución de los CFDI previos »). C'est le chemin **normal**
+de rectification d'une erreur au Mexique. La nota de crédito (`TipoDeComprobante = E` +
+`TipoRelacion 01`) ne couvre que l'ajustement d'une opération qui subsiste.
+
+### Ce que le code fait juste — Mexique
+
+`CLEARANCE` bloquant, canal `PAC`, syntaxe `CFDI`, `immutableAfter: CLEARANCE`,
+`archivedForm: AUTHORITATIVE_XML`, `integrity: SIGNED` et `reporting: aucun` sont **tous exacts**.
+Le `SelloSAT` scelle le XML et toute modification post-timbrado l'invalide. C'est, avec l'Allemagne,
+le profil dont le noyau est le mieux posé.
+
+### Portée territoriale — déclencheur unilatéral, cycle de vie bilatéral
+
+L'obligation d'émettre dépend **exclusivement du statut de l'émetteur** (résident fiscal mexicain ou
+établissement permanent). Le pays de l'acheteur ne conditionne **jamais** l'applicabilité : il ne
+modifie que le contenu des champs (`Exportacion`, RFC générique étranger, `ResidenciaFiscal`,
+`NumRegIdTrib`, complemento Comercio Exterior le cas échéant).
+
+**Conséquence directe pour le correctif `f6888eb2`** : le hard-block sur pays acheteur non résolu est
+correct pour la TVA, mais **ne doit pas être réutilisé pour décider si un CFDI est dû**. Au Mexique,
+une adresse acheteur non résolue ne doit jamais désactiver l'émission — au pire bloquer sur le choix
+`Exportacion` / RFC générique.
+
+Le **cycle de vie**, lui, est bilatéral et temporisé : c'est un cas d'usage direct du runtime
+événementiel — `COMMAND(cancel)` → `AWAIT_CALLBACK` + `ARM_TIMER(3 jours)` → `INBOUND_STATUS` ou
+`TIMER_ELAPSED`. Avec deux pièges : les douze exceptions doivent être évaluées **avant** d'armer le
+timer, et pour les hydrocarbures **le timer ne doit pas conclure**.
+
+---
 
 ---
 
@@ -741,9 +982,24 @@ juste pour la Pologne et fausse pour la France et l'Allemagne. Cela ne réhabili
 l'aggrave — il ne suffit pas d'ajouter le pays de l'acheteur, il faut que **le déclencheur lui-même
 soit une donnée du profil**, au même titre que le régime ou l'archivage.
 
-### Reste à établir
+### Espagne — deux régimes, deux déclencheurs opposés
 
-Espagne et Mexique : agents relancés, résultats non parvenus. Ne rien inférer.
+Traité dans la section Espagne ci-dessus. En résumé : **Veri\*Factu** est **unilatéral** et attaché à
+un **statut fiscal de l'émetteur**, indépendamment de l'opération — une facture à un client étranger
+génère un registro comme une facture domestique. Le **mandat B2B** du RD 238/2026 est au contraire
+**bilatéral et dominé par l'acheteur** : il se déclenche « cuando el destinatario […] **tenga en
+España la sede de su actividad económica, o tenga en España un establecimiento permanente** ». Une
+résolution fondée sur le vendeur s'y trompe **dans les deux sens**.
+
+### Mexique — unilatéral à l'émission, bilatéral au cycle de vie
+
+Traité dans la section Mexique ci-dessus. L'obligation d'émettre dépend **exclusivement du statut de
+l'émetteur** ; le pays de l'acheteur ne conditionne jamais l'applicabilité, il ne modifie que le
+contenu des champs (`Exportacion`, RFC générique étranger, `ResidenciaFiscal`). En revanche
+l'**annulation** est bilatérale et temporisée — acceptation du récepteur, tacite au bout de trois
+jours.
+
+---
 
 ---
 
@@ -780,253 +1036,6 @@ que ni la France ni l'Espagne n'aient eu à en demander une pour leurs dispositi
    directive. `open_question`.
 3. **Art. 7** (entrée en vigueur de la directive elle-même) : non lisible dans le rendu obtenu. La
    date du 2025-04-14 est établie par l'art. 6(1), pas par l'art. 7.
-
-## État de la phase 2 au 2026-08-27
-
-| Pays | Rapport principal | Volet transfrontalier |
-| --- | --- | --- |
-| France | **complet** | **complet** |
-| Pologne | **complet** | interrompu |
-| Allemagne | **complet** | interrompu |
-| Italie | **complet** | interrompu |
-| Espagne | **manquant** — seul un addendum a été transmis | interrompu |
-| Mexique | **manquant** | interrompu |
-
-Cinq des six agents ont été interrompus par une limite de service (réinitialisation annoncée à
-18 h 20, Europe/Paris). L'Espagne a produit un addendum substantiel — recalibrant notamment sa durée
-de conservation à un **plancher de 6 ans** (Código de Comercio art. 30.1 combiné à LGT art. 70.2),
-et non 4 — mais son rapport principal, auquel cet addendum se réfère, n'a jamais été transmis.
-**Aucune divergence espagnole ou mexicaine n'est donc consignée ici** : les inférer serait
-exactement ce que cet audit s'interdit.
-
----
-
-## ESPAGNE
-
-### Sources
-
-BOE, textes consolidés (RD 1007/2023, RD 1619/2012, RD 238/2026, Orden HAC/1177/2024, LGT, LIVA,
-Código de Comercio, Ley 25/2013) ; AEAT (`sede.agenciatributaria.gob.es`) ; `hacienda.gob.es` pour le
-projet d'orden ministerial.
-
-### Deux régimes, deux déclencheurs de nature différente
-
-C'est la particularité espagnole, et elle est structurante :
-
-| Régime | Déclencheur | Pivot |
-| --- | --- | --- |
-| **Veri\*Factu** | **unilatéral** — un **statut fiscal de l'émetteur** (IS / IRPF activité économique / IRNR **avec établissement permanent** / entité en attribution de revenus), domicile fiscal en territoire commun, **et non inscrit au SII** | **vendeur** |
-| **Mandat B2B** (RD 238/2026) | **bilatéral, dominé par le destinataire** — l'émetteur doit être tenu d'émettre selon le RD 1619/2012, **et** le destinataire doit avoir en Espagne son siège, un EP ou son domicile, **et l'opération doit lui être adressée** | **acheteur** |
-
-Le mandat B2B pivote donc sur `buyerEstablishment == ES`, **pas** sur le pays du vendeur. Un moteur
-qui l'active sur le vendeur se trompe dans les deux sens : faux positif sur ES → FR, faux négatif sur
-un vendeur étranger soumis aux règles espagnoles vendant à un acheteur établi en Espagne.
-
-**Veri\*Factu couvre le transfrontalier sortant** : la norme vise l'émission de factures
-« **cualquiera que sea el destinatario** ». Une facture à un client étranger génère un registro de
-facturación comme une facture domestique. Un moteur qui court-circuite sur `buyerCountry != ES` est
-non conforme.
-
-### Calendrier — trois horloges indépendantes
-
-| Horloge | Échéance | Statut |
-| --- | --- | --- |
-| Veri\*Factu — contribuables IS | **2027-01-01** | en vigueur (prorogé deux fois : RD 254/2025 puis RD-ley 15/2025, convalidé le 2025-12-11) |
-| Veri\*Factu — reste des obligés art. 3.1 | **2027-07-01** | en vigueur |
-| Veri\*Factu — **producteurs de logiciel** | **9 mois après l'entrée en vigueur de l'orden ministerial** ✓✓ | **échéance expirée** |
-| Mandat B2B | 12 / 24 / 36 mois **à compter de l'entrée en vigueur d'une orden ministerial non publiée** | **horloge non démarrée** |
-
-L'orden ministerial du mandat B2B **n'est pas publiée au 2026-08-27** ; elle existe à l'état de projet
-soumis à information publique le 2026-04-17, prévoyant une entrée en vigueur au 2026-10-01. **Ces
-dates ne doivent pas être codées comme fermes.**
-
-### Divergences avec le code — Espagne
-
-**ES-D1 — `hashChain: false` : le code est faux.**
-Le chaînage par empreinte du registre précédent est **obligatoire dans les deux modalités**
-(RD 1007/2023 art. 8.2.b, 10.1.ñ, 11.2.e et 12). L'exception de l'art. 16.3 ne lève que la
-**signature XAdES**, jamais le hash.
-
-**ES-D2 — `reporting: SII + VERIFACTU` : le code est faux s'il cumule.**
-Les deux régimes sont **mutuellement exclusifs** : « El presente Reglamento **no se aplicará** a los
-contribuyentes que lleven los libros registros en los términos […] del artículo 62 del Reglamento del
-IVA » (art. 3.3). Un flag `isSiiFiler` doit arbitrer en amont ; il n'existe aucun état où les deux
-sont actifs.
-
-**ES-D3 — `archival: 10 ans` : mal étiqueté.**
-Le RD 1619/2012 art. 19.1 renvoie à la LGT sans écrire de durée. Le plancher réel est **6 ans**
-(Código de Comercio art. 30.1, via LGT art. 70.2 qui impose le plus long des deux), sur un socle
-fiscal de 4 ans. Les 10 ans ne valent que pour les bases et déductions en attente (LGT art. 66 bis.2)
-— et sont **insuffisants** pour l'immobilier, la régularisation des biens d'investissement portant sur
-neuf années supplémentaires (LIVA art. 107.Tres). 10 ans est un défaut prudent, pas une règle.
-
-**ES-D4 — `archivedForm: BOTH` : incomplet sur deux points opposables.**
-(a) Le **format d'origine** doit être conservé — XML natif, données associées **et mécanismes de
-vérification de signature** (art. 21.1) ; un rendu PDF ne suffit pas. (b) La conservation **hors
-d'Espagne** est licite mais soumise à **communication préalable à l'AEAT** (art. 22.2), de même que la
-sous-traitance hors UE (art. 19.4). Le profil ne modélise aucune de ces deux obligations déclaratives.
-
-**ES-D5 — `numbering: GAPLESS_SELF` : non sourcé, et incomplet.**
-Le texte n'exige que « la numeración […] **dentro de cada serie** será correlativa ». L'interdiction
-des trous n'est écrite nulle part → `open_question`. Surtout, le profil ignore les **séries
-obligatoirement séparées** : rectificatives, autofacturation (**une série par tiers émetteur ou
-destinataire**), art. 84.Uno.2º.g) LIVA, DA 5ª et art. 61 quinquies.2 RIVA, et **complètes vs
-simplifiées dès qu'elles coexistent sur une même année civile**.
-
-**ES-D6 / ES-D7 — `PLAIN_PDF + ES_FACTURAE` : faux pour le mandat B2B.**
-Le RD 238/2026 art. 7.1 impose EN 16931 dans l'une de quatre syntaxes — **CII, UBL, EDIFACT ou
-Facturae** — et les opérateurs doivent savoir **convertir entre les quatre**. **UBL est la syntaxe de
-référence** de la solución pública. Le PDF n'est qu'un **accompagnement transitoire** pendant les
-12 premiers mois pour les entreprises de plus de 8 M€. Facturae-seul est une règle **B2G**
-(Ley 25/2013 / FACe), pas B2B.
-
-**ES-D8 — canaux : incomplet sur trois obligations.**
-Manquent : le **dépôt simultané d'une copie fidèle UBL** au repositorio universel de l'AEAT par toute
-plateforme privée ; l'**interconnexion obligatoire** entre plateformes, sous un mois ; et le
-**reporting des états de facture** — acceptation ou rejet commercial, paiement effectif — sous
-**quatre jours naturels hors week-ends et fériés**. L'e-mail ne satisfera pas le mandat B2B.
-
-**ES-D9 — `cancellationAllowed` : ambigu, et le risque est de n'en faire qu'une moitié.**
-Aucune suppression n'existe. L'annulation prend **deux formes distinctes et cumulatives** : un
-**registro de anulación** append-only et chaîné côté Veri\*Factu, **et** une facture rectificative à
-100 % côté destinataire. Un `cancel` unique qui ne produit que l'un des deux est non conforme.
-
-**ES-D10 — `correctionModel: CREDIT_NOTE` : correct sur le principe, incomplet sur les règles.**
-Manquent la **double ancre** de la fenêtre de 4 ans (*devengo* **ou** survenance de la circonstance de
-l'art. 80 LIVA), les fenêtres courtes (2 mois en cas de concours, 6 mois pour créances irrécouvrables
-puis 1 mois de communication à l'AEAT, 1 mois pour une re-rectification à la hausse), les **deux
-représentations** admises — delta ou absolu post-rectification —, et l'interdiction de rectifier à la
-hausse un destinataire non-entrepreneur hors art. 80.
-
-**ES-D11 — plafond territorial absent.**
-Le profil ne modélise ni l'exclusion du **País Vasco et de la Navarre** (régimes foraux, exclusion par
-domicile fiscal), ni les spécificités des Canaries, Ceuta et Melilla, ni l'exclusion des opérations
-réalisées via un **établissement permanent à l'étranger** (art. 4.2), ni le fait qu'un assujetti **non
-établi mais simplement immatriculé NIF est hors du champ Veri\*Factu**.
-
-### Ce que le code fait juste — Espagne
-
-`regimeBlocking: false` est **exact** : Veri\*Factu n'est pas une clearance, l'AEAT ne valide pas la
-facture — l'art. 16 n'établit qu'une présomption de conformité **du système**, et l'art. 8.4 du
-RD 1619/2012 une présomption d'authenticité et d'intégrité **de la facture**. `immutableAfter: ISSUE`
-est exact, et même sous-estimé : l'immutabilité est exigée au niveau du **registre**, append-only,
-avec registro de eventos obligatoire en mode non-VERI\*FACTU.
-
-### Open questions — Espagne
-
-Les deux plus bloquantes pour une implémentation : le **document technique AEAT du hash** (algorithme
-confirmé, ordre de concaténation, séparateurs, encodage) et celui du **QR** (URL littérale du service
-de cotejo, paramètres, variante selon la modalité). L'Orden HAC/1177/2024 y renvoie formellement —
-**ne pas implémenter le hash ni l'URL du QR sans ces documents**. S'y ajoutent : les critères exacts
-d'assujettissement au SII (c'est pourtant le flag qui arbitre ES-D2), la publication de l'orden
-ministerial du mandat B2B, et le cas d'un fournisseur non établi mais immatriculé réalisant une
-opération localisée en Espagne vers un acheteur établi.
-
----
-
-## MEXIQUE
-
-### Sources
-
-CFF (art. 28, 29, 29-A, 30) via `sat.gob.mx` ; **RMF 2026, DOF 2025-12-28**, reglas 2.7.1.34 et
-2.7.1.35 ; Anexo 20 v4.0 ; et — vérification la plus forte de tout cet audit — **les schémas de
-l'autorité eux-mêmes, vendorisés dans le dépôt** : `backend/src/compliance/schemas/mx/cfdv40.xsd` et
-`catCFDI.xsd`, plus `TimbreFiscalDigitalv11.xsd` récupéré en ligne.
-
-**Version en vigueur au 2026-08-27 : CFDI 4.0.** Aucune version postérieure publiée ni annoncée.
-
-### Divergences avec le code — Mexique
-
-**MX-D1 — `numbering: AUTHORITY_RANGE` : le code est faux. ✓✓ Vérifié sur le schéma du dépôt.**
-
-Il n'existe **aucune plage de folios attribuée par l'autorité** sous CFDI. Contrôle direct sur
-`cfdv40.xsd` :
-
-```
-name="Serie" use="optional"
-name="Folio" use="optional"
-```
-
-L'Anexo 20 les qualifie de « para **control interno del contribuyente** ». L'identifiant fiscal est
-l'**`UUID`**, attribué **par document, par le PAC, au moment du timbrado** — le
-`TimbreFiscalDigital` porte d'ailleurs `RfcProvCertif`, « el RFC del proveedor de certificación […]
-que genera el timbre fiscal digital ». Le « folio » du CFF art. 29 fr. IV désigne cet UUID, pas une
-plage. Le mécanisme de plages a existé sous les régimes CFD/CBB, **abrogés**.
-
-C'est une divergence coûteuse : `AUTHORITY_RANGE` implique une pré-allocation, un compteur
-consommable et une gestion d'épuisement — tout cet appareillage est **sans objet** au Mexique, et
-produira au mieux du code mort, au pire un blocage d'émission artificiel. Le modèle correct est celui
-déjà nécessaire pour KSeF et SdI : **numéro interne libre + identifiant fiscal reçu en retour du
-clearance**.
-
-**MX-D2 — `requiredIdentifiers: RFC + CURP` : le code est faux. ✓✓ Vérifié sur le schéma du dépôt.**
-
-`grep -c -i "curp" cfdv40.xsd` → **0**. Le CURP n'apparaît **nulle part** dans le schéma CFDI : ni sur
-`Comprobante`, ni sur `Emisor`, ni sur `Receptor`. Il n'existe que dans certains compléments,
-principalement **Nómina 1.2**, pour les personnes physiques.
-
-À l'inverse, le `Receptor` exige trois champs que le profil ignore :
-
-```
-Rfc -> required · Nombre -> required · DomicilioFiscalReceptor -> required
-RegimenFiscalReceptor -> required · UsoCFDI -> required
-```
-
-Et `Comprobante` porte `Exportacion` en `use="required"` — l'export n'est pas hors champ, c'est un
-cas **paramétré** du CFDI.
-
-**MX-D3 — `archival.residency: MX` : le code est plus strict que le droit sourcé.**
-
-Les sources primaires imposent la **disponibilité au domicilio fiscal** : « La documentación
-comprobatoria […] deberá estar **disponible en el domicilio fiscal** del contribuyente » (CFF art. 28
-fr. III), et la conservation « **a disposición de las autoridades** » (art. 30). **Aucune source
-primaire prononçant une interdiction de stockage hors du Mexique n'a été trouvée.** L'exigence réelle
-est une **résidence d'accès**, pas une résidence physique des données. Le profil invente donc ici une
-contrainte — le symétrique exact de FR-D4 et DE-D13, où il en **omet** de réelles.
-
-**MX-D4 — `archival: 5 ans` : durée juste, point de départ faux.**
-Le CFF art. 30 compte les cinq ans **depuis le dépôt de la déclaration** concernée, non depuis
-l'émission de la facture. Et la conservation est **perpétuelle** pour les actes constitutifs, les
-mouvements de capital, fusions, scissions, distributions de dividendes et justificatifs de prix de
-transfert — et court jusqu'à ce que la résolution mettant fin à un contentieux soit **ferme**.
-
-**MX-D5 — `cancellationAllowed: true` : un booléen ne peut pas porter cette règle.**
-L'annulation est **bilatérale par défaut** — acceptation du récepteur, **tacite au bout de trois
-jours** (RMF 2026 regla 2.7.1.34) — sauf hydrocarbures et Carta Porte carburants où l'acceptation
-**expresse** est exigée et où le silence ne vaut donc pas accord. Elle exige un **motivo**
-(`01`…`04`), le `01` imposant de fournir l'UUID du CFDI de substitution. Elle est **bloquée** tant
-qu'un document relié est *vigente*. Elle est bornée à **l'exercice fiscal d'émission**. Et douze cas
-limitatifs (regla 2.7.1.35) la dispensent entièrement d'acceptation.
-
-**MX-D6 — `correctionModel: CREDIT_NOTE` : incomplet.**
-Manque la voie **annulation + substitution** — `motivo 01` avec l'UUID du substitut, puis nouveau
-CFDI portant `TipoRelacion = "04"` (« Sustitución de los CFDI previos »). C'est le chemin **normal**
-de rectification d'une erreur au Mexique. La nota de crédito (`TipoDeComprobante = E` +
-`TipoRelacion 01`) ne couvre que l'ajustement d'une opération qui subsiste.
-
-### Ce que le code fait juste — Mexique
-
-`CLEARANCE` bloquant, canal `PAC`, syntaxe `CFDI`, `immutableAfter: CLEARANCE`,
-`archivedForm: AUTHORITATIVE_XML`, `integrity: SIGNED` et `reporting: aucun` sont **tous exacts**.
-Le `SelloSAT` scelle le XML et toute modification post-timbrado l'invalide. C'est, avec l'Allemagne,
-le profil dont le noyau est le mieux posé.
-
-### Portée territoriale — déclencheur unilatéral, cycle de vie bilatéral
-
-L'obligation d'émettre dépend **exclusivement du statut de l'émetteur** (résident fiscal mexicain ou
-établissement permanent). Le pays de l'acheteur ne conditionne **jamais** l'applicabilité : il ne
-modifie que le contenu des champs (`Exportacion`, RFC générique étranger, `ResidenciaFiscal`,
-`NumRegIdTrib`, complemento Comercio Exterior le cas échéant).
-
-**Conséquence directe pour le correctif `f6888eb2`** : le hard-block sur pays acheteur non résolu est
-correct pour la TVA, mais **ne doit pas être réutilisé pour décider si un CFDI est dû**. Au Mexique,
-une adresse acheteur non résolue ne doit jamais désactiver l'émission — au pire bloquer sur le choix
-`Exportacion` / RFC générique.
-
-Le **cycle de vie**, lui, est bilatéral et temporisé : c'est un cas d'usage direct du runtime
-événementiel — `COMMAND(cancel)` → `AWAIT_CALLBACK` + `ARM_TIMER(3 jours)` → `INBOUND_STATUS` ou
-`TIMER_ELAPSED`. Avec deux pièges : les douze exceptions doivent être évaluées **avant** d'armer le
-timer, et pour les hydrocarbures **le timer ne doit pas conclure**.
 
 ---
 
