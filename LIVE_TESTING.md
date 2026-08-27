@@ -29,6 +29,7 @@ Hard-success contract (enforced per-spec):
 | National portals | `<PREFIX>_LIVE=1` (per portal) | `<PREFIX>_*` namespaced creds | `portal-live.spec.ts` | 🟡 Parametrized (per-portal namespaced creds) |
 | Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET` | `europe/choruspro-live.spec.ts` | 🔴 Deferred (PISTE account required) |
 | RFC 3161 TSA (-T signing) | `TSA_LIVE=1` | `TSA_URL` | `signing/tsa-live.spec.ts` | 🟡 Wired (run to prove FreeTSA) |
+| Company lookup (national registers) | `COMPANY_LOOKUP_LIVE=1` | _(none — every source is keyless: 15 national registers + VIES + GLEIF + Peppol Directory)_ | `modules/company-lookup/company-lookup.live.spec.ts` | ✅ Proven live (2026-07-27) |
 | ApplySignalService atomic transitions | `COMPLIANCE_LIVE_DB_TESTS=1` | `DATABASE_URL` only — **no external cred, no `CREDENTIALS_ENCRYPTION_KEY`** | `nest/apply-signal.live.spec.ts` | ✅ Proven creds-free — runs against the CI job's disposable Postgres |
 
 ---

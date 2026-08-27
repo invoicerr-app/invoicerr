@@ -569,7 +569,7 @@ document **and** `validate` runs the official schema/Schematron against a commit
 - [ ] `format/plain-pdf` — render the PDF via the existing `getInvoicePdf()` Handlebars template (the
   non-clearance default channel; reuse, don't fork).
 
-## XI.1-NAT National format specs (43) — `providers/format/national-formats.ts`
+## XI.1-NAT National format specs (43) — `providers/format/national/<cc>-*.ts` (un fichier par pays, assemblés par `national-formats.ts`)
 Data-driven family: the file loops the spec table and fires `format/${spec.id}` **build + validate**
 per country. Each box below = build the country's payload from its `buildHint` **and** validate per its
 national schema (`validateHint`). One box per country (build+validate together). *(`id` ↔ spec.)*

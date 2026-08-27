@@ -222,7 +222,7 @@ function createMethodHook(method: string) {
             ...(options.headers || {}),
             ...(extraOptions.headers || {}),
           },
-          // Gestion intelligente du body : si c'est un objet, on JSON.stringify, sinon on passe tel quel
+          // Objects are serialized to JSON; anything else (FormData, string…) is passed through as is
           body: body ? JSON.stringify(body) : options.body ? JSON.stringify(options.body) : undefined,
           ...options,
           ...extraOptions,

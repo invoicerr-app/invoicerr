@@ -23,11 +23,11 @@ import {
   mapPortalStatus,
 } from './generic-portal';
 
-import { SMALL_AFRICA_PROVIDERS } from './africa/smaller-portals';
-import { SMALL_ASIA_PROVIDERS } from './asia/smaller-portals';
-import { EUROPE_PORTAL_PROVIDERS } from './europe/europe-smaller-portals';
-import { LATAM_PORTAL_HEURISTICS, SMALL_LATAM_PROVIDERS } from './latam/smaller-portals';
-import { SMALL_MENA_PROVIDERS } from './mena/mena-smaller-portals';
+import { SMALL_AFRICA_PROVIDERS } from './portal-registry';
+import { SMALL_ASIA_PROVIDERS } from './portal-registry';
+import { EUROPE_PORTAL_PROVIDERS } from './portal-registry';
+import { LATAM_PORTAL_HEURISTICS, SMALL_LATAM_PROVIDERS } from './portal-registry';
+import { SMALL_MENA_PROVIDERS } from './portal-registry';
 
 // ---------------------------------------------------------------------------
 // 1. Shared factory behaviour

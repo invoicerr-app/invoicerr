@@ -178,14 +178,15 @@
                 "cancel": "Anuluj",
                 "create": "Utwórz klienta",
                 "save": "Zapisz zmiany",
-                "lookupSiret": "Wyszukaj"
+                "lookupCompany": "Wyszukaj"
             },
             "messages": {
-                "siretSuccess": "Dane firmy pobrano pomyślnie.",
-                "siretNotFound": "Nie znaleziono firmy. Możesz wprowadzić dane ręcznie.",
-                "siretInvalid": "Numer SIRET wygląda na nieprawidłowy.",
-                "siretError": "Nie udało się połączyć z rejestrem firm.",
-                "saveError": "Nie udało się zapisać klienta"
+                "saveError": "Nie udało się zapisać klienta",
+                "lookupSuccess": "Dane firmy pobrano pomyślnie.",
+                "lookupNotFound": "Nie znaleziono firmy. Możesz wprowadzić dane ręcznie.",
+                "lookupError": "Nie udało się połączyć z rejestrem firm.",
+                "lookupInvalid": "Identyfikator wygląda na nieprawidłowy dla tego kraju.",
+                "lookupUnavailable": "Dla tego kraju nie jest dostępne wyszukiwanie w rejestrze firm."
             }
         },
         "view": {

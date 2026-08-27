@@ -173,18 +173,25 @@ jobs:
 
       - name: Wait for DB
         run: |
-          npx wait-on tcp:5433 --timeout 60
-          npx wait-on tcp:8025 --timeout 60
-          npx wait-on tcp:1025 --timeout 60
-          npx wait-on tcp:6379 --timeout 60
+          npx wait-on tcp:5433 --timeout 60000
+          npx wait-on tcp:8025 --timeout 60000
+          npx wait-on tcp:1025 --timeout 60000
+          npx wait-on tcp:6379 --timeout 60000
 
       - name: Run backend, frontend & tests
         run: |
           mkdir -p $GITHUB_WORKSPACE/logs
           npm install -D dotenv-cli
-          (cd $GITHUB_WORKSPACE/backend && npx dotenv -e .env.test -- node node_modules/.bin/prisma migrate dev 2>&1)
+          # The schema is already applied: the install step ran `prisma migrate deploy`
+          # against this same database. `migrate dev` used to run again here — it is a
+          # developer-machine command that can prompt or fail without a TTY as soon as
+          # the migrations drift from schema.prisma.
           (cd $GITHUB_WORKSPACE/backend && npm run start:test > $GITHUB_WORKSPACE/logs/backend.log 2>&1 &)
           (cd $GITHUB_WORKSPACE/frontend && npm run start:test > /dev/null 2>&1 &)
+          # wait-on above only checked the DB/mail/Redis ports were open, not that the
+          # Nest app itself finished booting — a slow boot or a startup crash used to
+          # go unnoticed until 15 Cypress specs failed with confusing auth errors.
+          npx wait-on http-get://localhost:4000/api/health --timeout 120000
           (cd $GITHUB_WORKSPACE/e2e && npm run e2e:run)
 
       - name: Upload backend logs

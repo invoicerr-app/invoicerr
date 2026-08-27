@@ -47,7 +47,7 @@ Répartition actuelle des archétypes : `clearance` 34 · `realTime` 20 · `post
 
 # C. INTÉGRATIONS PAYS — clearance + realTime (le gros : 54 pays)
 *Chaque ligne = un format national + un portail national, déjà nommés dans
-`national-formats.ts` / `national-portals.ts` avec le hint exact. Priorisé par PIB/volume × mandat live.*
+`providers/format/national/<cc>-*.ts` / `national-portals.ts` avec le hint exact. Priorisé par PIB/volume × mandat live.*
 
 ### Vague C1 — grandes économies, mandats live (à faire d'abord)
 | Pays | Format | Portail |

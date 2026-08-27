@@ -16,6 +16,7 @@ services:
   invoicerr:
     environment:
       - WORKER_INLINE=false
+      - BETTER_AUTH_SECRET="your_better_auth_secret" # Required, generate with: openssl rand -base64 32, falls back to JWT_SECRET if unset
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "80"]
       interval: 5s
@@ -28,6 +29,7 @@ services:
     environment:
       - ROLE=worker
       - DATABASE_URL=postgresql://invoicerr:invoicerr@invoicerr_db:5432/invoicerr_db
+      - BETTER_AUTH_SECRET="your_better_auth_secret" # Required, generate with: openssl rand -base64 32, falls back to JWT_SECRET if unset
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}

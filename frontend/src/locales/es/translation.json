@@ -132,7 +132,8 @@
             "actions": {
                 "cancel": "Cancelar",
                 "create": "Crear cliente",
-                "save": "Guardar cambios"
+                "save": "Guardar cambios",
+                "lookupCompany": "Look up"
             }
         },
         "view": {
