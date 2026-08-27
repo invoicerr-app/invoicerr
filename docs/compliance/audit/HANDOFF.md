@@ -8,27 +8,26 @@ que des ajouts sous `docs/compliance/audit/` et `scripts/audit/`.
 
 ---
 
-## 1. Blocage en cours
-
-**Cinq des six agents de la phase 2 ont été interrompus par une limite de service**
-(réinitialisation annoncée à **18 h 20, Europe/Paris**). Les appels web sont tombés au même moment.
+## 1. État — phases 0, 1, 2 et 3 terminées
 
 | Pays | Rapport principal | Volet transfrontalier |
-| --- | --- | --- |
+| --- | :-: | :-: |
 | France | ✅ | ✅ |
-| Pologne | ✅ | ❌ interrompu |
-| Allemagne | ✅ | ❌ interrompu |
-| Italie | ✅ | ❌ interrompu |
-| **Espagne** | ❌ **jamais transmis** (seul un addendum est arrivé) | ❌ |
-| **Mexique** | ❌ **rien** | ❌ |
+| Pologne | ✅ | ✅ |
+| Allemagne | ✅ | ✅ |
+| Italie | ✅ | ✅ |
+| Espagne | ✅ | ✅ |
+| Mexique | ✅ | ✅ |
 
-**À reprendre en premier, dans cet ordre :** (1) rapport principal Espagne — l'agent l'a produit mais
-ne me l'a jamais transmis, il suffit de le lui redemander ; (2) rapport Mexique, à relancer depuis
-zéro ; (3) ViDA sur EUR-Lex ; (4) les cinq volets transfrontaliers manquants.
+Les cinq agents interrompus par une limite de service ont été relancés et ont tous livré.
 
----
+**Reste ouvert, par ordre d'intérêt :** l'art. 6(5) de ViDA (report éventuel à 2035, non lisible dans
+le rendu obtenu — enjeu réel pour l'Espagne au titre du SII) ; les deux documents techniques AEAT
+(hash et QR), sans lesquels le chaînage espagnol **ne doit pas être implémenté** ; la publication de
+l'orden ministerial du mandat B2B espagnol, seul événement qui démarre ses horloges ; et
+`01-CLAIM-AUDIT.md`, `05-FEASIBILITY.md`, `06-REMEDIATION.md`, non écrits.
 
-## 2. Les cinq findings `critical`
+## 2. Les six findings `critical`
 
 ### F-017 — Le plan est résolu sur le seul pays du fournisseur *(nouveau, et le plus structurant)*
 
@@ -70,27 +69,35 @@ F-017 en aggrave la lecture : les pages ne décrivent pas seulement des capacit�
 décrivent la **mauvaise unité d'analyse**. Un fournisseur français vendant en Italie ne trouve sa
 réponse ni sur la fiche FR ni sur la fiche IT.
 
+### F-018 — Une obligation espagnole pèse sur l'éditeur, échéance expirée
+Le RD 1007/2023 s'applique « **también a los productores y comercializadores** ». Neuf mois à compter
+de l'entrée en vigueur de l'Orden HAC/1177/2024 (2024-10-29) pour offrir un produit adapté portant sa
+**declaración responsable** — **échéance échue depuis mi-2025**, indépendamment du calendrier des
+clients. Auto-certification, émissible par un producteur non espagnol avec son numéro de TVA
+intracommunautaire. Exposition LGT art. 201 bis : 150 000 €/exercice/type de système.
+**C'est le seul finding de l'audit dont l'exposition est présente et chiffrée.**
+
 ---
 
-## 3. La divergence transverse de la phase 2
+## 3. Les trois divergences transverses de la phase 2
 
-**`GAPLESS_SELF` n'est juridiquement exact qu'en France.**
+**La numérotation est fausse dans cinq pays sur six.** Seule la France exige réellement une séquence
+continue. L'Allemagne (`einmalig`), l'Italie (`univoco`) et l'Espagne (`correlativa dentro de cada
+serie`, sans interdiction de trou sourcée) n'exigent que l'unicité ; la Pologne ne contrôle que
+l'unicité ; le Mexique n'a **aucune plage d'autorité** — `Serie` et `Folio` sont `use="optional"` dans
+le schéma vendorisé du dépôt. Rapproché de **F-002**, cela donne : le produit impose une contrainte
+que cinq de ses six marchés n'exigent pas, tout en ne la tenant pas là où elle l'est.
 
-| Pays | Règle réelle | Verdict |
-| --- | --- | --- |
-| France | « séquence chronologique **et continue** » (242 nonies A, 7°) | exact |
-| Allemagne | « **einmalig** vergeben » ; BMF : « eine lückenlose Abfolge … **ist nicht zwingend** » | **faux** |
-| Pologne | « kolejny numer … w ramach jednej lub więcej serii » ; seule l'**unicité** est contrôlée | sur-contrainte |
-| Italie | « numero progressivo che la identifichi in modo **univoco** » ; Ris. 1/E 2013 | **faux** |
+**L'archivage est mal modélisé dans les six.** France 6 ans (pas 10), Allemagne **8 ans**, Italie
+10 ans prolongés, Pologne 10 ans **à la charge de KSeF** avec dispense du contribuable, Espagne
+plancher 6 ans montant à ~14 pour l'immobilier, Mexique 5 ans **depuis le dépôt de la déclaration**.
+Et la localisation est fausse dans les deux sens : omise là où elle existe (FR, DE, IT), **inventée**
+là où elle n'existe pas (MX).
 
-Le produit impose donc une séquence sans trou que trois de ses quatre marchés vérifiés n'exigent
-pas — pendant que F-002 démontre qu'il ne la tient pas là où elle compte.
-
-Deux autres constantes : **l'e-mail n'est un canal licite ni en France, ni en Pologne, ni en
-Italie** dans le champ du mandat domestique, alors que les trois profils le déclarent ; et **aucun
-profil ne modélise de contrainte de localisation des données**, alors que la France (LPF L102 C),
-l'Allemagne (§ 14b Abs. 2 UStG, autorisation préalable hors UE sous peine de 2 500 à 250 000 €) et
-l'Italie en imposent une.
+**L'e-mail est un canal illicite dans trois pays** — FR, PL, IT — alors que les trois profils le
+déclarent. En Italie, le canal SdI est **PEC**, pas un e-mail ordinaire. Or l'inventaire de la
+phase 0 montre que `email` est l'un des quatre seuls canaux joignables : dans ces trois pays, le seul
+canal qui fonctionne est celui qui n'a pas le droit d'être utilisé.
 
 ---
 
