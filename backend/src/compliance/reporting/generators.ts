@@ -650,10 +650,60 @@ export function generateSiiRegistroPayload(
 // "Detalle de las especificaciones técnicas del código QR de la factura..." (v0.5.0, 10/12/2025).
 // ---------------------------------------------------------------------------
 
-/** Production ValidarQR host (systems emitting Verifactu-verifiable invoices). A pre-production
- *  "Portal de Pruebas Externas" host (prewww2.aeat.es) exists for testing and is documented but
- *  not wired here — swap via config when the transmission channel for ES is implemented. */
-const VERIFACTU_QR_BASE = 'https://www2.agenciatributaria.gob.es/wlpl/TIKE-CONT/ValidarQR';
+/**
+ * ES-D12 — the QR URL has TWO axes, not one.
+ *
+ * "Detalle de las especificaciones técnicas del código QR de la factura…" (AEAT, v0.5.0 of
+ * 2025-12-10) §5.1 and §5.2 give four URLs, crossing environment with system mode:
+ *
+ *                                 test host              production host
+ *   verifiable (Veri*Factu)       prewww2.aeat.es        www2.agenciatributaria.gob.es
+ *                                 …/ValidarQR            …/ValidarQR
+ *   non-verifiable                prewww2.aeat.es        www2.agenciatributaria.gob.es
+ *                                 …/ValidarQRNoVerifactu …/ValidarQRNoVerifactu
+ *
+ * The PATH changes with the mode; only the HOST changes with the environment. The previous code
+ * hardcoded `…/ValidarQR` and its comment described the difference as environment-only, which
+ * misses the second axis entirely: swapping the host still leaves you on the verifiable-invoice
+ * path.
+ *
+ * That mattered, because this product is NOT a verifiable system. A Veri*Factu system remits its
+ * registros to AEAT "de forma automática, continua e instantánea"; the reporting handler here logs
+ * `[MOCK]` and transmits nothing (F-016). Printing `ValidarQR` told the recipient's scanner to
+ * verify against a stream of records AEAT has never received, so the QR would not resolve — a
+ * defect visible to the invoice's recipient, not just internally.
+ *
+ * Modelled as the two axes the specification actually has, so that a future ES transmission
+ * channel flips `mode` rather than editing a string, and so an environment switch cannot silently
+ * change the declared mode.
+ */
+export type VerifactuQrMode = 'VERIFIABLE' | 'NON_VERIFIABLE';
+export type VerifactuQrEnvironment = 'PRODUCTION' | 'TEST';
+
+const VERIFACTU_QR_HOST: Record<VerifactuQrEnvironment, string> = {
+  PRODUCTION: 'https://www2.agenciatributaria.gob.es',
+  TEST: 'https://prewww2.aeat.es',
+};
+
+const VERIFACTU_QR_PATH: Record<VerifactuQrMode, string> = {
+  VERIFIABLE: '/wlpl/TIKE-CONT/ValidarQR',
+  NON_VERIFIABLE: '/wlpl/TIKE-CONT/ValidarQRNoVerifactu',
+};
+
+/**
+ * What this product is TODAY, and the reason is one line of behaviour, not a preference: nothing
+ * is transmitted to AEAT. The day an ES transmission channel actually remits continuously, this
+ * becomes VERIFIABLE — and that change belongs with the channel, not before it. Declaring
+ * VERIFIABLE while transmitting nothing is the incoherence ES-D12 names.
+ */
+const CURRENT_QR_MODE: VerifactuQrMode = 'NON_VERIFIABLE';
+
+export function verifactuQrBase(
+  mode: VerifactuQrMode = CURRENT_QR_MODE,
+  environment: VerifactuQrEnvironment = 'PRODUCTION',
+): string {
+  return `${VERIFACTU_QR_HOST[environment]}${VERIFACTU_QR_PATH[mode]}`;
+}
 
 export interface VerifactuRegistroPayload {
   /** This record's huella (64-char uppercase hex SHA-256). */
@@ -752,7 +802,7 @@ export function generateVerifactuRegistroPayload(
     `&numserie=${encodeURIComponent(numSerieFactura)}` +
     `&fecha=${encodeURIComponent(fechaExpedicionFactura)}` +
     `&importe=${encodeURIComponent(importeTotal)}`;
-  const qrContent = `${VERIFACTU_QR_BASE}?${qrParams}`;
+  const qrContent = `${verifactuQrBase()}?${qrParams}`;
 
   return {
     huella,

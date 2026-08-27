@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../../prisma/generated/prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { ChannelType } from '../types';
+import { ComplianceStatus } from '../lifecycle/state-machine';
+import { InvoiceStatus } from '../../../prisma/generated/prisma/client';
 import { ComplianceLogger, defaultLogger } from '../execution/logger';
 import { AuthorityIdentifier } from '../execution/types';
 import { assembleLifecycle, phaseContextFromPlan } from '../lifecycle/assembler';
@@ -53,6 +55,48 @@ function mergeAuthorityIds(
     }
   }
   return merged;
+}
+
+/**
+ * F-008: the projection of a compliance outcome onto the invoice the USER actually looks at.
+ *
+ * Before this, `ComplianceDocument.status` was the only place an authority's verdict landed —
+ * there was no `prisma.invoice.update` anywhere in `src/compliance` — so an invoice rejected by
+ * KSeF or scartata by the SdI went on displaying SENT in the invoice list. The rejection existed
+ * in a table the main screen does not read, and the user believed they had invoiced.
+ *
+ * Deliberately narrow, one entry: only an outright authority REJECTION is projected. `REFUSED`
+ * (the BUYER declining a correctly-transmitted invoice) and `TRANSMISSION_FAILED` (never reached
+ * the authority at all) are different facts that deserve their own user-facing wording, and are
+ * NOT covered here — see the residual noted in F-008.
+ */
+const INVOICE_STATUS_PROJECTION: Partial<Record<ComplianceStatus, InvoiceStatus>> = {
+  REJECTED: 'REJECTED',
+};
+
+/**
+ * Invoice statuses this projection is allowed to overwrite: the in-flight ones, where the invoice
+ * is out with an authority and its fate is genuinely undecided.
+ *
+ * Everything else is off-limits, and the reason is that all ten existing writes to
+ * `Invoice.status` are USER ACTIONS (issue, send, pay, cancel, correct, archive). A late poll
+ * result must never walk back over a user's decision — an invoice the user has since cancelled,
+ * corrected or archived keeps that status, and a PAID invoice is not silently un-paid by a
+ * webhook arriving after the fact. The projection informs; it does not arbitrate.
+ */
+const PROJECTABLE_OVER = new Set<InvoiceStatus>(['ISSUED', 'SENT', 'PENDING_CLEARANCE', 'UNPAID', 'OVERDUE']);
+
+/**
+ * The authority's own wording for the rejection, when the signal carries one.
+ *
+ * `INBOUND_STATUS` is the only signal that does: it holds the raw status string the authority
+ * pushed (SdI `scarto`, PDP `rejetée`, a Peppol MLR reason). `POLL_RESULT` carries a normalised
+ * CLEARED/REJECTED/PENDING and no text, so for a poll-detected rejection there is genuinely no
+ * motive to show. We store what exists and invent nothing — an empty reason is displayed as an
+ * absent reason, not as a plausible sentence.
+ */
+function authorityReason(signal: LifecycleSignal): string | undefined {
+  return signal.type === 'INBOUND_STATUS' && signal.status.trim() ? signal.status.trim() : undefined;
 }
 
 /**
@@ -147,9 +191,16 @@ export class ApplySignalService {
           // here first still finds the document in `rec.status`; the loser's `updateMany` matches
           // zero rows and we abort the whole transaction below, so it never touches the drivers or
           // the event log.
+          // F-008: keep the authority's own wording on the event. It is the only place a rejection
+          // motive exists, and the invoice screen reads it from here to show WHY a document was
+          // rejected rather than just that it was.
+          const reason = authorityReason(signal);
           const cas = await txDocStore.transitionIfStatus(documentId, rec.status, {
             status: applied.to,
-            events: [...rec.events, { id: randomUUID(), type: applied.event, at: now, actor: 'system' }],
+            events: [
+              ...rec.events,
+              { id: randomUUID(), type: applied.event, at: now, actor: 'system', detail: reason },
+            ],
           });
           if (!cas.applied) {
             throw new StaleSignalAbort(
@@ -179,6 +230,39 @@ export class ApplySignalService {
           if (signal.type === 'POLL_RESULT' && signal.authorityIds && signal.authorityIds.length > 0) {
             const merged = mergeAuthorityIds(rec.authorityIds, signal.authorityIds);
             await txDocStore.update(documentId, { authorityIds: merged });
+          }
+
+          // F-008: project the outcome onto the invoice the user actually looks at. Inside the same
+          // transaction as the CAS, so the invoice can never disagree with the document that caused
+          // it: either both land or neither does.
+          //
+          // Conditional `updateMany` rather than `update`, for the same reason the CAS above is
+          // conditional — it is the guard, not a filter. Between reading the invoice and writing it
+          // the user may have cancelled, corrected or paid it; scoping the write to the in-flight
+          // statuses means a losing race writes zero rows instead of walking back over a user
+          // action. All ten pre-existing writes to Invoice.status are user actions and none of them
+          // is touched by this.
+          const projected = rec.invoiceId ? INVOICE_STATUS_PROJECTION[applied.to] : undefined;
+          if (projected && rec.invoiceId) {
+            const hit = await tx.invoice.updateMany({
+              where: { id: rec.invoiceId, status: { in: [...PROJECTABLE_OVER] } },
+              data: { status: projected },
+            });
+            if (hit.count === 0) {
+              // Not an error: the invoice legitimately left the in-flight set (cancelled, corrected,
+              // paid). The document still records the rejection; the invoice keeps the user's own
+              // decision. Logged because a silent no-write here is exactly the class of thing this
+              // finding is about.
+              l.info(
+                'nest/apply-signal',
+                `document ${documentId} -> ${applied.to}, but invoice ${rec.invoiceId} is no longer in flight; invoice status left unchanged`,
+              );
+            } else {
+              l.info(
+                'nest/apply-signal',
+                `invoice ${rec.invoiceId} marked ${projected}${reason ? ` (${reason})` : ''}`,
+              );
+            }
           }
         }
 

@@ -55,6 +55,7 @@ interface InvoiceListProps {
     archived: number
     cancelled: number
     corrected: number
+    rejected: number
   }
   page?: number
   pageCount?: number
@@ -169,6 +170,8 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
           return "bg-sky-100 text-sky-800"
         case "CLEARED":
           return "bg-teal-100 text-teal-800"
+        case "REJECTED":
+          return "bg-red-100 text-red-800"
         default:
           return "bg-gray-100 text-gray-800"
       }
@@ -319,6 +322,18 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                     }`}
                   >
                     {t("invoices.statusFilters.paid")} ({statusCounts?.paid ?? 0})
+                  </Badge>
+                  <Badge
+                    onClick={() => onStatusFilterChange("rejected")}
+                    variant="outline"
+                    data-cy="invoice-filter-rejected"
+                    className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${
+                      statusFilter?.includes("rejected")
+                        ? "bg-red-600 text-white font-semibold shadow-sm scale-105"
+                        : "bg-red-50 text-red-700/70 hover:bg-red-100"
+                    }`}
+                  >
+                    {t("invoices.statusFilters.rejected")} ({statusCounts?.rejected ?? 0})
                   </Badge>
                   <Badge
                     onClick={() => onStatusFilterChange("archived")}
