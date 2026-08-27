@@ -73,7 +73,9 @@ export const DE: CountryComplianceProfile = {
     // Tracked here as a reminder; the reporting engine handles batch VAT returns, not this row.
   ],
 
-  numbering: [{ validFrom: '1900-01-01', value: { model: 'GAPLESS_SELF' } }],
+  // § 14 Abs. 4 Nr. 4 UStG requires a number "die … einmalig vergeben wird"; UStAE 14.5 Abs. 10:
+  // "Eine lückenlose Abfolge der ausgestellten Rechnungsnummern ist nicht zwingend." (DE-D4)
+  numbering: [{ validFrom: '1900-01-01', value: { model: 'UNIQUE_SELF' } }],
 
   requiredIdentifiers: [
     {
