@@ -2,7 +2,7 @@
   "generated_at": "2026-08-27",
   "generator": "scripts/audit/inventory.ts",
   "as_of": "2026-08-27",
-  "measured_tree": "d59073253213cb6f4771e9e1172bad65760d6ec7",
+  "measured_tree": "523fc4fb23e60492f5d3db1d7c3829157ab5c390",
   "measured_tree_dirty": false,
   "temporal_note": "Profile-derived fields are the rules IN FORCE at as_of. everDeclared* keeps the flattened historical view, and startsLater lists rules beginning after as_of. Override with AUDIT_AS_OF.",
   "totals": {

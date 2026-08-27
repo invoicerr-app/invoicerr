@@ -67,7 +67,7 @@ function walk(dir: string, out: string[] = []): string[] {
 /**
  * Reference date for the "in force" view. Override with AUDIT_AS_OF=YYYY-MM-DD.
  *
- * Why this exists: the first version of this script only had `allValues()` below, which flattens
+ * Why this exists: the first version of this script only had the flattening helper below, which flattens
  * every temporal period including repealed ones. That was a defensible choice for reading a profile
  * historically, and a wrong one for judging its CURRENT state — it reported e-mail as a declared
  * channel for Poland and Italy, whose profiles correctly drop it at 2026-02-01 and 2019-01-01. Two
@@ -79,11 +79,18 @@ const AS_OF = new Date(process.env.AUDIT_AS_OF ?? '2026-08-27');
 /** Every temporal value, flattened — repealed periods included. Historical view, NOT current state. */
 /**
  * Flattens every period of a temporal rule, ABROGATED ONES INCLUDED. This is the function that
- * produced the audit's two false findings when it was used where inForce() was meant. It has
- * exactly one legitimate use left — the everDeclared* fields, which are documentary. If you are
- * reaching for it to answer "what does country X do?", you want inForce().
+ * produced the audit's two false findings (PL-D4, IT-D8) when it was used where inForce() was meant.
+ *
+ * The name is deliberately unusable-looking. A comment saying "careful" sits at the DEFINITION,
+ * where nobody reads it; this name sits at every CALL SITE, where the mistake is actually made.
+ * The flattening failure cannot be caught mechanically — calling this is a legal call to a legal
+ * function — so the only remaining defence is that a reviewer sees the words at the point of use.
+ *
+ * Its two legitimate call sites are the everDeclared* fields, which are documentary and carry
+ * their own warning in the emitted JSON. If you are reaching for it to answer "what does country X
+ * do?", you want inForce().
  */
-function allValues<T>(rules: Temporal<T>[] | undefined): T[] {
+function everDeclaredValues_doNotUseForFacts<T>(rules: Temporal<T>[] | undefined): T[] {
   return (rules ?? []).map((r) => r.value);
 }
 
@@ -805,11 +812,11 @@ async function buildCountry(code: string) {
             'in force at as_of; no audit finding may rest on these two fields. Use channels / ' +
             'regimeModels instead.',
           everDeclaredChannels: uniq(
-            allValues(profile.transmission).flatMap((r) =>
+            everDeclaredValues_doNotUseForFacts(profile.transmission).flatMap((r) =>
               (r.channels ?? []).map((c) => `${c.type}${c.providerId ? `:${c.providerId}` : ''}`),
             ),
           ),
-          everDeclaredRegimes: uniq(allValues(profile.regime).map((r) => r.model)),
+          everDeclaredRegimes: uniq(everDeclaredValues_doNotUseForFacts(profile.regime).map((r) => r.model)),
           /** Rules that start AFTER the reference date — a near-future mandate must stay visible. */
           startsLater: {
             regime: future(profile.regime).map((f) => `${f.from}:${f.value.model}`),
