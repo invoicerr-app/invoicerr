@@ -125,9 +125,14 @@ describe('ComplianceExecutor — Mexico (blocking clearance)', () => {
     expect(result.archive?.contentHash).toMatch(/^[0-9a-f]{64}$/);
     expect(result.archive?.uri).not.toContain('/stub');
   });
-  it('blocks numbering until a folio range is loaded (AUTHORITY_RANGE)', () => {
-    expect(result.number).toBeUndefined();
-    expect(result.warnings.join(' ')).toMatch(/Numbering blocked|folio/i);
+  // MX-D1: Mexico was requalified from AUTHORITY_RANGE to UNIQUE_SELF — `Serie`/`Folio` are
+  // use="optional" in the SAT schema and the UUID is assigned per document at timbrado, so nothing
+  // is pre-allocated and nothing should block. The "blocks until a folio range is loaded" contract
+  // still matters and is still covered: it moved to the CL (SII/CAF) tests in
+  // compliance-service.spec.ts, which is the shipped AUTHORITY_RANGE jurisdiction.
+  it('numbers self-assigned, without waiting on any authority range', () => {
+    expect(result.number).toBeDefined();
+    expect(result.warnings.join(' ')).not.toMatch(/Numbering blocked|folio/i);
   });
   it('computes IVA totals (16%)', () => {
     expect(result.totals?.tax.minor).toBe(1600);
@@ -170,9 +175,9 @@ describe('ComplianceExecutor — F-9 fix: opts.assignedNumber reuse skips (re-)a
   it('AUTHORITY_RANGE: returns assignedNumber verbatim and never consumes a folio (no ensureRange/next() call)', async () => {
     const log = new RecordingComplianceLogger();
     const numbering = new NumberingRegistry();
-    numbering.folioPool.loadRange('MX-INVOICE', 1000, 1002);
+    numbering.folioPool.loadRange('CL-INVOICE', 1000, 1002);
     const executor = new ComplianceExecutor({ numbering, logger: log });
-    const txCtx = tx('MX', 'MX', 'B2B', 'GOODS', '2024-06-01');
+    const txCtx = tx('CL', 'CL', 'B2B', 'GOODS', '2024-06-01');
     const plan = resolve(txCtx);
 
     const result = await executor.execute(txCtx, plan, { assignedNumber: 'PRE-ASSIGNED-FOLIO' });
@@ -180,7 +185,7 @@ describe('ComplianceExecutor — F-9 fix: opts.assignedNumber reuse skips (re-)a
 
     // The pool's cursor is untouched — the FIRST folio in the loaded range is still up next. A
     // double-consume would have left '1000' already burned and '1001' up next.
-    expect(numbering.folioPool.next('MX-INVOICE', plan.numbering, log).value).toBe('1000');
+    expect(numbering.folioPool.next('CL-INVOICE', plan.numbering, log).value).toBe('1000');
   });
 
   it('with NO assignedNumber, standalone execute() still allocates a fresh number (unchanged behavior)', async () => {

@@ -72,7 +72,11 @@ describe('Mexico — CLEARANCE plan (the new regime path)', () => {
 
   it('numbers from authority-allocated folios and reports in the local tax currency', () => {
     // folio model lives on the profile (consumed by the FolioPool sub-system, see §11.2)
-    expect(MX.numbering[0].value.model).toBe('AUTHORITY_RANGE');
+    // MX-D1: requalified from AUTHORITY_RANGE. `Serie` and `Folio` are use="optional" in the SAT
+    // schema (compliance/schemas/mx/cfdv40.xsd) and the Anexo 20 calls them "para control interno
+    // del contribuyente"; the fiscal identifier is the UUID the PAC assigns per document at
+    // timbrado. Folio ranges belonged to the abrogated CFD/CBB regimes.
+    expect(MX.numbering[0].value.model).toBe('UNIQUE_SELF');
     expect(MX.taxSystem.kind === 'VAT' && MX.taxSystem.requiresTaxCurrency).toBe('MXN');
   });
 

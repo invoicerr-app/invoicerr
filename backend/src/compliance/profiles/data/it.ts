@@ -75,7 +75,10 @@ export const IT: CountryComplianceProfile = {
 
   reporting: [],
 
-  numbering: [{ validFrom: '1900-01-01', value: { model: 'GAPLESS_SELF', seriesScope: 'ENTITY' } }],
+  // Art. 21 c. 2 lett. b) DPR 633/72: "numero progressivo che la identifichi in modo univoco".
+  // The "per anno solare" wording was repealed in 2013; Ris. AdE 1/E of 10/01/2013 admits any
+  // progressive scheme that identifies uniquely. (IT-D2)
+  numbering: [{ validFrom: '1900-01-01', value: { model: 'UNIQUE_SELF', seriesScope: 'ENTITY' } }],
 
   requiredIdentifiers: [
     {

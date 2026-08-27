@@ -53,8 +53,10 @@ function mailMock(): InvoiceMailPort {
  */
 function mxRangeSource(): ConfigAuthorityRangeSource {
   const src = new ConfigAuthorityRangeSource();
-  src.configure(undefined, 'MX-INVOICE', { from: 1, to: 999999 });
-  src.configure('mx-test-co', 'MX-INVOICE', { from: 1, to: 999999 });
+  // Chile, not Mexico: CL is the shipped AUTHORITY_RANGE profile (SII pre-allocated CAF folios).
+  // MX was requalified to UNIQUE_SELF and needs no range at all — see MX-D1.
+  src.configure(undefined, 'CL-INVOICE', { from: 1, to: 999999 });
+  src.configure('cl-test-co', 'CL-INVOICE', { from: 1, to: 999999 });
   return src;
 }
 
@@ -190,6 +192,14 @@ const US = () => ctx('US', 'US', 'B2B', 'GOODS', '2027-01-15');
 const MX = () => ctx('MX', 'MX', 'B2B', 'GOODS', '2024-06-01');
 /** MX context carrying a supplierCompanyId so transmitAll() actually resolves per-company config. */
 const MX_CONFIGURED = (): TransactionContext => ({ ...MX(), supplierCompanyId: 'mx-test-co' });
+/**
+ * AUTHORITY_RANGE exemplar. Chile, not Mexico: the SII genuinely pre-allocates a CAF folio range,
+ * which is what this model describes. Mexico was requalified to UNIQUE_SELF — `Serie`/`Folio` are
+ * use="optional" in the SAT schema and the UUID is assigned per document at timbrado, so it never
+ * pre-allocated anything (audit MX-D1). The FolioPool contract below is unchanged; only the
+ * jurisdiction illustrating it moved.
+ */
+const CL = () => ctx('CL', 'CL', 'B2B', 'GOODS', '2024-06-01');
 
 describe('ComplianceService — issuance & immutability', () => {
   it('creates a draft, issues it (number + ISSUED), and freezes editing', async () => {
@@ -615,45 +625,45 @@ describe('ComplianceService — outgoing lifecycle status (sendStatus)', () => {
 });
 
 describe('ComplianceService — F-9: AUTHORITY_RANGE numbering (loadRange wiring + hard block)', () => {
-  it('MX plan still requires AUTHORITY_RANGE numbering', () => {
-    expect(resolve(MX()).numbering.model).toBe('AUTHORITY_RANGE');
+  it('CL plan requires AUTHORITY_RANGE numbering (SII pre-allocated CAF folios)', () => {
+    expect(resolve(CL()).numbering.model).toBe('AUTHORITY_RANGE');
   });
 
   it('with a configured range, issue() allocates sequential numbers from it', async () => {
     const rangeSource = new ConfigAuthorityRangeSource();
-    rangeSource.configure('range-co', 'MX-INVOICE', { from: 1000, to: 1002 });
+    rangeSource.configure('range-co', 'CL-INVOICE', { from: 1000, to: 1002 });
     const service = new ComplianceService({
       store: new InMemoryComplianceDocumentStore(),
       numbering: new NumberingRegistry(),
       rangeSource,
     });
-    const mxCtx = { ...MX(), supplierCompanyId: 'range-co' };
+    const clCtx = { ...CL(), supplierCompanyId: 'range-co' };
 
-    const d1 = await service.createDraft(mxCtx);
+    const d1 = await service.createDraft(clCtx);
     const { document: issued1 } = await service.issue(d1.id);
     expect(issued1.status).toBe('ISSUED');
     expect(issued1.number).toBe('1000');
 
-    const d2 = await service.createDraft(mxCtx);
+    const d2 = await service.createDraft(clCtx);
     const { document: issued2 } = await service.issue(d2.id);
     expect(issued2.number).toBe('1001'); // next folio in the same loaded range
   });
 
   it('range exhausted → issue() hard-fails instead of silently reusing/skipping a folio', async () => {
     const rangeSource = new ConfigAuthorityRangeSource();
-    rangeSource.configure('exhaust-co', 'MX-INVOICE', { from: 1, to: 1 }); // a single-folio range
+    rangeSource.configure('exhaust-co', 'CL-INVOICE', { from: 1, to: 1 }); // a single-folio range
     const service = new ComplianceService({
       store: new InMemoryComplianceDocumentStore(),
       numbering: new NumberingRegistry(),
       rangeSource,
     });
-    const mxCtx = { ...MX(), supplierCompanyId: 'exhaust-co' };
+    const clCtx = { ...CL(), supplierCompanyId: 'exhaust-co' };
 
-    const d1 = await service.createDraft(mxCtx);
+    const d1 = await service.createDraft(clCtx);
     const { document: issued1 } = await service.issue(d1.id);
     expect(issued1.number).toBe('1'); // consumes the only folio
 
-    const d2 = await service.createDraft(mxCtx);
+    const d2 = await service.createDraft(clCtx);
     await expect(service.issue(d2.id)).rejects.toThrow(/exhausted/i);
     const after = await service.getDocument(d2.id);
     expect(after!.status).toBe('DRAFT');
@@ -666,7 +676,7 @@ describe('ComplianceService — F-9: AUTHORITY_RANGE numbering (loadRange wiring
       numbering: new NumberingRegistry(),
       rangeSource: new NullAuthorityRangeSource(), // offline-safe default: never has a range
     });
-    const draft = await service.createDraft(MX());
+    const draft = await service.createDraft(CL());
 
     await expect(service.issue(draft.id)).rejects.toThrow(/no folio range loaded/i);
 
@@ -791,16 +801,20 @@ describe('ComplianceService — F-9 numbering fix: no double allocation across i
     expect(shared.get('GAPLESS_SELF').next('FR-INVOICE', plan.numbering, log).value).toBe('000003');
   });
 
-  it('AUTHORITY_RANGE (MX): issue()+send() consumes exactly ONE folio per document, not two', async () => {
+  it('AUTHORITY_RANGE (CL): issue()+send() consumes exactly ONE folio per document, not two', async () => {
     const { service, shared } = svcMxSharedRegistry();
-    const mxCtx = MX_CONFIGURED();
+    const clCtx = CL();
 
-    const draft = await service.createDraft(mxCtx);
+    const draft = await service.createDraft(clCtx);
     const { document: issued } = await service.issue(draft.id);
     expect(issued.number).toBe('1'); // first folio in the loaded range (mxRangeSource(): from 1)
 
     const { document: sent, execution } = await service.send(draft.id);
-    expect(sent.status).toBe('PENDING_CLEARANCE');
+    // Status is incidental to what this test asserts. Chile's channel is a transportless national
+    // portal, so send() honestly reports TRANSMISSION_FAILED rather than PENDING_CLEARANCE; Mexico
+    // used to reach the latter through its PAC channel. What matters here — and what is asserted
+    // below — is that the folio was not consumed twice, which holds either way.
+    expect(['PENDING_CLEARANCE', 'TRANSMISSION_FAILED']).toContain(sent.status);
     // The executor reused issue()'s folio instead of consuming a second one from the pool.
     expect(execution.number).toBe('1');
     expect(sent.number).toBe('1');
@@ -808,8 +822,8 @@ describe('ComplianceService — F-9 numbering fix: no double allocation across i
     // Confirm directly against the shared pool: only ONE folio was consumed by issue()+send()
     // together — the next folio up is '2', not '3' (which a double-consume would have produced).
     const log = new RecordingComplianceLogger();
-    const plan = resolve(mxCtx);
-    expect(shared.folioPool.next('MX-INVOICE', plan.numbering, log).value).toBe('2');
+    const plan = resolve(clCtx);
+    expect(shared.folioPool.next('CL-INVOICE', plan.numbering, log).value).toBe('2');
   });
 });
 

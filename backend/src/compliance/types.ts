@@ -118,7 +118,22 @@ export type Confidence = 'OFFICIAL' | 'BEST_EFFORT' | 'PLANNED' | 'FALLBACK' | '
 
 export type TaxScheme = 'STANDARD' | 'FRANCHISE_BASE' | 'FLAT_RATE' | 'EXEMPT' | 'MARGIN' | 'OSS' | 'IOSS';
 
-export type NumberingModel = 'GAPLESS_SELF' | 'AUTHORITY_RANGE';
+/**
+ * How the issuer's own document number must behave.
+ *
+ * GAPLESS_SELF — the sequence must be chronological AND continue without gaps. Verified true only
+ *   for France (CGI ann. II art. 242 nonies A, 7°, sanctioned by art. 1737, II).
+ * UNIQUE_SELF  — the number must identify the document uniquely; a gap invalidates nothing.
+ *   Germany (§ 14 Abs. 4 Nr. 4 UStG "einmalig"; UStAE 14.5: "eine lückenlose Abfolge … ist nicht
+ *   zwingend"), Italy (art. 21 c. 2 lett. b DPR 633/72 "in modo univoco"; Ris. 1/E 10/01/2013),
+ *   Poland (art. 106e ust. 1 pkt 2 "w ramach jednej lub więcej serii"; KSeF enforces uniqueness
+ *   only), Mexico (Anexo 20: Serie and Folio are use="optional", "para control interno").
+ * AUTHORITY_RANGE — the issuer consumes a range pre-allocated by the authority before issuing.
+ *   NOTE: this is NOT the CFDI model. Mexico's UUID is assigned per document at clearance, not
+ *   from a range; folio ranges belonged to the abrogated CFD/CBB regimes. Kept for jurisdictions
+ *   that genuinely pre-allocate (e.g. Chile's CAF), and used by no shipped profile today.
+ */
+export type NumberingModel = 'GAPLESS_SELF' | 'UNIQUE_SELF' | 'AUTHORITY_RANGE';
 
 export type CorrectionModel = 'CREDIT_NOTE' | 'CORRECTIVE_INVOICE' | 'CANCEL_AND_REPLACE';
 
