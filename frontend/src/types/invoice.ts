@@ -18,6 +18,11 @@ export enum InvoiceStatus {
   // status-to-filter mapping falls through to "sent", so an unmodelled status silently reads
   // as a successfully sent invoice. That fallthrough is the finding.
   REJECTED = "REJECTED",
+  // The two siblings of REJECTED, distinct facts the user acts on differently: REFUSED is the
+  // BUYER declining a correctly transmitted invoice, TRANSMISSION_FAILED never reached the
+  // authority at all and is retryable.
+  REFUSED = "REFUSED",
+  TRANSMISSION_FAILED = "TRANSMISSION_FAILED",
   CANCELLED = "CANCELLED",
   CORRECTED = "CORRECTED",
 }

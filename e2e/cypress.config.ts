@@ -53,6 +53,56 @@ export default defineConfig({
             await client.end();
           }
         },
+
+        /**
+         * F-008 — put an invoice into an authority-failure state so the SCREEN can be asserted.
+         *
+         * Driving this through a real authority is impossible offline: no channel has credentials
+         * in CI, which is the whole of F-009/F-013. The backend projection that writes these rows
+         * is covered by 19 jest tests in apply-signal-reject-projection.spec.ts; what no jest test
+         * can cover is whether the invoice list and detail view actually SHOW the failure, which is
+         * the finding. So this task writes exactly what ApplySignalService writes — the invoice
+         * status, plus a compliance document carrying the authority's wording on its event — and
+         * the spec asserts what the user sees.
+         *
+         * It writes the same shape, not a convenient one: if the projection's output changes, this
+         * task has to change with it, and the spec fails until it does.
+         */
+        async failLastInvoice({ status, detail }: { status: string; detail: string }) {
+          const client = new Client({
+            connectionString:
+              process.env.DATABASE_URL ||
+              "postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db?schema=public",
+          });
+          await client.connect();
+          try {
+            const { rows } = await client.query(
+              `SELECT id FROM "Invoice" ORDER BY "createdAt" DESC LIMIT 1`,
+            );
+            if (rows.length === 0) throw new Error("failLastInvoice: no invoice to fail");
+            const invoiceId = rows[0].id as string;
+            const documentId = `e2e-doc-${invoiceId}`;
+
+            await client.query(`UPDATE "Invoice" SET status = $1::"InvoiceStatus" WHERE id = $2`, [
+              status,
+              invoiceId,
+            ]);
+            await client.query(
+              `INSERT INTO "ComplianceDocument" (id, "invoiceId", status, ctx, "updatedAt")
+               VALUES ($1, $2, $3::"ComplianceStatus", '{}'::jsonb, now())
+               ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status`,
+              [documentId, invoiceId, status],
+            );
+            await client.query(
+              `INSERT INTO "ComplianceEvent" (id, "documentId", type, actor, detail)
+               VALUES ($1, $2, 'REJECT', 'system', $3)`,
+              [`${documentId}-ev`, documentId, detail],
+            );
+            return invoiceId;
+          } finally {
+            await client.end();
+          }
+        },
       });
     },
   }
