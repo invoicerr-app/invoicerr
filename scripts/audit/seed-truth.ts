@@ -54,6 +54,103 @@ const RECEPTION_BY_CHANNEL: Record<string, string> = {
 };
 const KSEF_RECEPTION = 'backend/src/compliance/reception/ksef-purchase-reception.spec.ts + ksef-inbox-port.ts';
 
+
+/**
+ * Phase-3 testability, per country, for the nine channels actually researched (04-TESTABILITY.md).
+ * Every entry is backed by a primary source consulted on 2026-08-27. Countries absent from this map
+ * keep `null` + an open_question: their testability was deliberately NOT researched (scoping out the
+ * 41 stub portals), and "not researched" must never be rendered as "no sandbox".
+ */
+const TESTABILITY: Record<
+  string,
+  {
+    sandbox: boolean;
+    access: 'open' | 'gated' | 'none';
+    prerequisites: string;
+    ceiling: string;
+    source: string;
+  }
+> = {
+  PL: {
+    sandbox: true,
+    access: 'open',
+    prerequisites:
+      "Aucune. L'environnement d'intégration api-test.ksef.mf.gov.pl s'utilise avec des données anonymisées ; ni inscription, ni contrat, ni approbation ministérielle documentés. La préproduction (Demo) exige en revanche des identifiants réels.",
+    ceiling: 'L4',
+    source: 'https://ksef.podatki.gov.pl/ksef-na-okres-obligatoryjny/wsparcie-dla-integratorow/',
+  },
+  FR: {
+    sandbox: true,
+    access: 'gated',
+    prerequisites:
+      "L'environnement de qualification AIFE (ouvert le 2025-10-14) est réservé aux plateformes agréées ; aucun chemin d'accès pour un éditeur non immatriculé n'est documenté. Chorus Pro fait exception : son portail de qualification est librement accessible via un compte PISTE, qui provisionne automatiquement une application SANDBOX.",
+    ceiling: 'L4 pour Chorus Pro ; L2 pour le PPF sans immatriculation',
+    source:
+      'https://www.impots.gouv.fr/actualite/immatriculation-des-plateformes-agreees-levee-des-reserves-ouverture-de-lenvironnement-de',
+  },
+  DE: {
+    sandbox: true,
+    access: 'open',
+    prerequisites:
+      "Inscription libre et gratuite sur OZG-RE (unique plateforme fédérale depuis l'arrêt de ZRE le 2025-12-31), environnement de test disponible, et web service Peppol fédéral gratuit sur simple demande. Couvre le B2G ; le régime B2B n'a pas été cartographié ici.",
+    ceiling: 'L4 pour le B2G',
+    source: 'https://e-rechnung-bund.de/en/faq/how-can-i-send-test-invoices-via-peppol-to-the-ozg-re-portal/',
+  },
+  IT: {
+    sandbox: true,
+    access: 'gated',
+    prerequisites:
+      "Accréditation préalable obligatoire via accreditamento.fatturapa.gov.it (accord de service, puis tests d'interopérabilité, puis passage en production). Limite journalière de transmission en test. Les conditions d'éligibilité à l'accréditation ne sont pas documentées publiquement.",
+    ceiling: 'L2 sans accréditation',
+    source: 'https://www.fatturapa.gov.it/it/sistemainterscambio/sperimentazione/',
+  },
+  ES: {
+    sandbox: true,
+    access: 'none',
+    prerequisites:
+      "Un portail de tests externes existe (https://preportal.aeat.es) mais la page d'information technique de l'AEAT ne documente ni ses prérequis d'accès ni ses capacités. Accès non établi.",
+    ceiling: 'non déterminé',
+    source:
+      'https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/informacion-tecnica.html',
+  },
+  MX: {
+    sandbox: false,
+    access: 'gated',
+    prerequisites:
+      "Aucun timbrado direct auprès du SAT : le passage par un PAC (acteur privé autorisé) est structurel. Le SAT délivre des CSD de test. L'existence d'un sandbox dépend de chaque PAC, pas de l'autorité.",
+    ceiling: 'L2 sans contrat PAC',
+    source: 'https://www.sat.gob.mx/consulta/76969/proveedores-autorizados-de-certificacion-(pac%C2%B4s)-',
+  },
+};
+
+/**
+ * Feasibility verdicts that phase 3 established firmly enough to record now. Everything else stays
+ * null: phase 4 has not run, and a plausible verdict is worse than an absent one.
+ */
+const FEASIBILITY: Record<
+  string,
+  { self_hosted_anonymous: string; with_publisher_entity: string; certification_required: string; rationale: string; source: string }
+> = {
+  FR: {
+    self_hosted_anonymous: 'only_with_provider',
+    with_publisher_entity: 'requires_certification',
+    certification_required:
+      "Immatriculation comme plateforme agréée auprès du Service d'Immatriculation de la DGFiP (dossier sur demarche.numerique.gouv.fr), validité 3 ans renouvelable.",
+    rationale:
+      "« Seule une plateforme agréée est habilitée à assurer toutes les fonctionnalités prévues » : une instance self-hosted ne peut pas transmettre par elle-même. Se raccorder à une plateforme agréée tierce — ce que fait le provider `pdp` — est le seul chemin sans immatriculation. Obligation en vigueur au 2026-09-01.",
+    source: 'https://www.impots.gouv.fr/facturation-electronique-et-plateformes-agreees',
+  },
+  MX: {
+    self_hosted_anonymous: 'only_with_provider',
+    with_publisher_entity: 'requires_certification',
+    certification_required:
+      "Autorisation SAT pour opérer comme Proveedor Autorizado de Certificación, selon l'Anexo 1-A de la RMF en vigueur (implique notamment d'être à jour de ses obligations fiscales mexicaines).",
+    rationale:
+      'Le timbrado ne peut pas être effectué directement : il passe obligatoirement par un PAC, acteur privé autorisé par le SAT, qui valide, timbre et transmet copie à l\'autorité.',
+    source: 'https://www.sat.gob.mx/tramites/31454/solicita-autorizacion-para-operar-como-proveedor-de-certificacion',
+  },
+};
+
 type Country = (typeof inventory.countries)[number];
 
 function cap(level: string, evidence: string[] = [], gaps: string[] = []) {
@@ -256,15 +353,28 @@ const entries = inventory.countries.map((c: Country) => {
       : {}),
     audit_phase: 'phase-1 (inventaire mécanique + vérifications ciblées) — aucune source primaire consultée',
     capabilities,
-    feasibility: {
-      self_hosted_anonymous: null,
-      with_publisher_entity: null,
-      certification_required: null,
-      rationale: null,
-      source: null,
-      open_question:
-        'Nécessite la phase 3 (existence et accessibilité d’un sandbox officiel) et la phase 4 (exigences d’immatriculation / certification). Non déterminable depuis le dépôt.',
-    },
+    testability: TESTABILITY[c.code]
+      ? { ...TESTABILITY[c.code], researched_at: AUDITED_AT }
+      : {
+          sandbox: null,
+          access: null,
+          prerequisites: null,
+          ceiling: null,
+          source: null,
+          open_question:
+            'Testabilité NON RECHERCHÉE : la phase 3 a été volontairement limitée aux 4 canaux PROVEN, aux portails des 6 pays de la phase 2 et à Chorus Pro. « Non recherché » ne veut pas dire « pas de sandbox ».',
+        },
+    feasibility: FEASIBILITY[c.code]
+      ? { ...FEASIBILITY[c.code], determined_at: AUDITED_AT }
+      : {
+          self_hosted_anonymous: null,
+          with_publisher_entity: null,
+          certification_required: null,
+          rationale: null,
+          source: null,
+          open_question:
+            'Nécessite la phase 4 (exigences d’immatriculation / certification). Non déterminable depuis le dépôt.',
+        },
     public_claim_current: publicClaimCurrent,
     public_claim_justified: publicClaimJustified,
     claim_gap: claimGap,
