@@ -568,6 +568,119 @@ transmise d'une déclaration jamais envoyée.
 
 ---
 
+<a id="f-017"></a>
+## F-017 — `critical` — Le plan est résolu sur le seul pays du fournisseur
+
+Reproduction : `scripts/audit/repro/f017-corridor-resolution.ts` — sortie dans
+`evidence/f017-corridor-resolution.txt`.
+
+### Le constat
+
+L'unité de rattachement d'une facture n'est pas un pays mais un **corridor** : (pays du
+fournisseur, pays de l'acheteur, nature de l'opération). Trois couches s'empilent avec des règles de
+rattachement différentes — règles de facturation TVA (art. 219 bis de la directive 2006/112/CE :
+État membre où l'opération est réputée effectuée, avec dérogations), obligation de clearance
+nationale (droit national, sur l'établissement ou l'immatriculation), et obligations du **récepteur**
+(réception et archivage dans le pays de l'acheteur). Les deux pays ont des obligations simultanées
+et non symétriques ; aucun ne « prévaut ».
+
+`engine/compliance-engine.ts:70` résout bien **deux** profils (`s` fournisseur ligne 75, `b`
+acheteur ligne 76). Mais le commentaire ligne 91 dit déjà la vérité : « Tax — the only step that
+reads both profiles deeply. » La réalité mesurée, pour un même fournisseur français vers trois
+destinations :
+
+| Couche | FR→FR | FR→IT | FR→US | varie ? |
+| --- | --- | --- | --- | :-: |
+| régime | DECENTRALIZED_CTC | DECENTRALIZED_CTC | DECENTRALIZED_CTC | non |
+| canaux | PDP, choruspro, PEPPOL, EMAIL | *idem* | *idem* | non |
+| artefacts | …BUYER/FACTURX | …**BUYER/FATTURAPA** | *(pas d'artefact acheteur)* | **oui** |
+| cycle de vie | ISSUE / CREDIT_NOTE | *idem* | *idem* | non |
+| archivage | 10y BOTH HASH_CHAIN | *idem* | *idem* | non |
+| numérotation | GAPLESS_SELF | *idem* | *idem* | non |
+| reporting | — | **EC_SALES_LIST** | — | **oui** |
+
+**Deux couches sur sept dépendent du corridor**, et uniquement par le canal de la fiscalité :
+la syntaxe de réception de l'acheteur (`buildArtifacts(fmt, bp, …)`, quand `buyerNegotiable`) et les
+`reportingFlags` dérivés du traitement TVA. **Cinq couches — régime, canaux, cycle de vie,
+archivage, numérotation — sont lues exclusivement sur `sp`, le profil du fournisseur.**
+
+### Le cas décisif
+
+Une société **française immatriculée à la TVA en Italie** réalisant une livraison **IT → IT** :
+
+```
+Ce que l'application construit :  régime DECENTRALIZED_CTC (non bloquant)
+                                  canaux PDP, choruspro, PEPPOL, EMAIL
+                                  artefact EN16931_CII
+Ce que la règle italienne exige : régime CLEARANCE (BLOQUANT)
+                                  canal  SDI
+                                  artefact FATTURAPA
+```
+
+Le plan produit est **le plan français**. Or l'art. 1 c. 6 du D.Lgs. 127/2015 dispose qu'une facture
+émise entre parties établies en Italie par une autre modalité que le SdI « **si intende non
+emessa** », avec les sanctions de l'art. 6 du D.Lgs. 471/1997. Le produit émettrait donc un document
+juridiquement inexistant, sans le moindre avertissement.
+
+### Pourquoi le modèle ne peut pas l'exprimer
+
+`PartyTaxProfile` porte pourtant le bon champ :
+
+```ts
+/** Jurisdiction governing the supply for this party (registration relevant to the supply). */
+countryCode: ISO3166Alpha2;
+establishmentCountry?: ISO3166Alpha2;
+```
+
+Mais **`establishmentCountry` n'apparaît qu'une seule fois dans tout le dépôt : sa propre
+déclaration** (`canonical-document.ts:42`). Jamais peuplé, jamais lu. Et `countryCode`, qui devrait
+porter la juridiction de l'opération, est alimenté par
+`invoices.helpers.ts:130` :
+
+```ts
+countryCode: company.countryCode ?? guessCountryCode(company.country) ?? 'FR'
+```
+
+— c'est-à-dire **le pays de la société**, jamais un pays d'immatriculation lié à l'opération. Avec,
+au passage, un repli silencieux sur la France quand le pays n'est pas résolu.
+
+### Les obligations du récepteur sont absentes
+
+Pour FR→IT, le plan ne porte du profil acheteur que `{ country: 'IT', confidence: 'OFFICIAL' }`.
+Il n'existe ni champ `buyerArchival`, ni champ `buyerObligations`. L'archivage du plan est celui du
+**fournisseur**. La troisième couche — ce que l'acheteur doit recevoir, conserver, et pendant
+combien de temps — n'est pas modélisée du tout.
+
+### Sévérité, et son lien avec F-004
+
+`critical`, au titre de la « promesse publique fausse ». Ce n'est pas une incomplétude : dans le
+corridor, le plan produit est **faux**, et il l'est en silence — aucun avertissement n'est levé.
+
+Cela **aggrave la lecture de F-004**. Une page par pays laisse croire qu'on « gère le pays X », alors
+que l'unité réelle est un corridor : un fournisseur français qui vend en Italie ne trouve sa réponse
+ni sur la fiche FR, ni sur la fiche IT. Les 106 pages ne décrivent pas seulement des capacités
+absentes — elles décrivent la **mauvaise unité d'analyse**.
+
+Deux rapports de la phase 2 confirment que ce n'est pas théorique :
+
+- **Italie** — art. 1 c. 3-bis du D.Lgs. 127/2015 : les opérations avec des non-établis sortent du
+  mandat SdI et basculent sur une **transmission de données** via le SdI, sortantes « entro i termini
+  di emissione delle fatture », entrantes « entro il quindicesimo giorno del mese successivo ».
+  Le profil IT déclare pourtant `reporting: aucun`.
+- **Allemagne** — § 14 Abs. 2 S. 2 Nr. 1 et S. 3 UStG : le mandat ne se déclenche que si **les deux
+  parties** sont établies en Allemagne. C'est un déclencheur explicitement **bilatéral**, que le
+  moteur ne peut pas représenter puisqu'il ne consulte que le fournisseur.
+
+### Ce qui n'est pas en cause
+
+La fiscalité, elle, est correctement composée : `determineTax(ctx, sp, vat, bp)` lit les deux
+profils, produit bien l'autoliquidation (catégorie `AE`, 0 %) sur FR→IT et l'exonération export
+(catégorie `O`) sur FR→US, et déclenche `EC_SALES_LIST`. L'architecture « composer deux profils
+plutôt qu'une matrice N×N » est la bonne ; elle n'a simplement jamais été étendue au-delà de la
+couche fiscale.
+
+---
+
 ## Ce que la phase 1 n'a pas tranché
 
 - **La correction des règles légales.** Aucune source primaire n'a été consultée (phase 2). F-007 et
