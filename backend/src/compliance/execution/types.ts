@@ -69,6 +69,13 @@ export interface ReportingResult {
   kind: ReportingKind;
   status: ReportingStatus;
   ref?: string;
+  /**
+   * True when the payload was generated and persisted but NOT actually submitted to the authority
+   * — the submission seam is still a `log.todo`. Without this, `status: 'EMITTED'` was
+   * indistinguishable from a real filing, and the only trace of the mock was a log line no caller
+   * reads. Audit F-016.
+   */
+  mocked?: boolean;
 }
 
 export interface RegimeResult {

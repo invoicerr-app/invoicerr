@@ -5,7 +5,7 @@ import { SignedArtifact, TransmissionResult } from '../../execution/types';
 import { ChannelType } from '../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from './channel-credentials-port';
 import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from './transmission-provider';
-import type { PacHttpPort } from './latam/pac-client';
+import type { PacHttpPort } from './pac-client';
 
 /**
  * Mexico — Proveedor Autorizado de Certificación (timbrado → UUID/TimbreFiscalDigital).
@@ -106,7 +106,7 @@ export class PacTransmissionProvider implements TransmissionProvider {
     }
 
     try {
-      const { PacClient } = await import('./latam/pac-client.js');
+      const { PacClient } = await import('./pac-client.js');
 
       // Inject test HTTP port or use a stub that throws clearly for missing live credentials.
       const http: PacHttpPort = this.httpPort ?? {
@@ -173,7 +173,7 @@ export class PacTransmissionProvider implements TransmissionProvider {
       const rfcReceptor = (config.rfcReceptor as string) ?? 'XAXX010101000';
       const total = (config.total as string) ?? '0.00';
 
-      const { PacClient } = await import('./latam/pac-client.js');
+      const { PacClient } = await import('./pac-client.js');
       const http: PacHttpPort = this.httpPort ?? {
         timbrar: async () => {
           throw new Error('PAC transport not implemented');

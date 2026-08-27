@@ -11,7 +11,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 
-import { AlertCircle, Check } from "lucide-react"
+import { AlertCircle, Check, Loader2, Search } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import ChannelConnectPrompt from "@/components/channel-connect-prompt"
@@ -28,6 +28,7 @@ import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRequiredIdentifiers } from "@/hooks/use-required-identifiers"
+import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
 
 interface OnBoardingProps {
   isLoading?: boolean
@@ -86,6 +87,25 @@ export default function OnBoarding({
 
   const countryCodeValue = form.watch("countryCode")
   const { data: requiredIdentifiers } = useRequiredIdentifiers(countryCodeValue || undefined, "COMPANY")
+
+  const {
+    lookup: onCompanyLookup,
+    isLoading: companyLookupLoading,
+    isAvailable: canLookupCompany,
+    schemes: lookupSchemes,
+    identifierLabel: lookupIdentifierLabel,
+  } = useCompanyLookup(form, {
+    countryCode: form.watch("countryCode"),
+    messages: {
+      invalid: t("clients.upsert.messages.lookupInvalid"),
+      notFound: t("clients.upsert.messages.lookupNotFound"),
+      success: t("clients.upsert.messages.lookupSuccess"),
+      error: t("clients.upsert.messages.lookupError"),
+      unavailable: t("clients.upsert.messages.lookupUnavailable"),
+    },
+  })
+  // The backend owns the per-country format rules; the button only needs a value.
+  const canLookupScheme = (scheme: string) => canLookupCompany && lookupSchemes.includes(scheme as never)
 
   useEffect(() => {
     if (!requiredIdentifiers) return
@@ -264,25 +284,6 @@ export default function OnBoarding({
 
               <FormField
                 control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel required>{t("settings.company.form.company.label")}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t("settings.company.form.company.placeholder")}
-                        {...field}
-                        data-cy="onboarding-company-name-input"
-                      />
-                    </FormControl>
-                    <FormDescription>{t("settings.company.form.company.description")}</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
                 name="country"
                 render={({ field }) => (
                   <FormItem>
@@ -311,6 +312,7 @@ export default function OnBoarding({
                       const current = form.watch("identifiers") || []
                       const formIndex = current.findIndex((i: any) => i.scheme === req.scheme)
                       if (formIndex < 0) return null
+                      const isLegalId = req.scheme === "LEGAL_ID"
                       return (
                         <FormField
                           key={req.scheme}
@@ -320,17 +322,40 @@ export default function OnBoarding({
                             <FormItem>
                               <FormLabel required={req.required}>{req.label}</FormLabel>
                               <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder={req.label}
-                                  data-cy={
-                                    req.scheme === "LEGAL_ID"
-                                      ? "onboarding-legalid-input"
-                                      : req.scheme === "VAT"
-                                        ? "onboarding-vat-input"
-                                        : undefined
-                                  }
-                                />
+                                <div className="flex gap-2">
+                                  <Input
+                                    {...field}
+                                    placeholder={req.label}
+                                    data-cy={
+                                      isLegalId
+                                        ? "onboarding-legalid-input"
+                                        : req.scheme === "VAT"
+                                          ? "onboarding-vat-input"
+                                          : undefined
+                                    }
+                                  />
+                                  {canLookupScheme(req.scheme) && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      disabled={companyLookupLoading || !String(field.value || "").trim()}
+                                      onClick={() => onCompanyLookup(field.value, req.scheme as LookupScheme)}
+                                      title={
+                                        lookupIdentifierLabel
+                                          ? `${t("clients.upsert.actions.lookupCompany")} — ${lookupIdentifierLabel}`
+                                          : t("clients.upsert.actions.lookupCompany")
+                                      }
+                                      data-cy="onboarding-company-lookup"
+                                    >
+                                      {companyLookupLoading ? (
+                                        <Loader2 className="animate-spin" />
+                                      ) : (
+                                        <Search />
+                                      )}
+                                    </Button>
+                                  )}
+                                </div>
                               </FormControl>
                               {req.helpText && (
                                 <p className="text-xs text-muted-foreground">{req.helpText}</p>
@@ -344,6 +369,25 @@ export default function OnBoarding({
                   </div>
                 </div>
               ) : null}
+
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel required>{t("settings.company.form.company.label")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={t("settings.company.form.company.placeholder")}
+                        {...field}
+                        data-cy="onboarding-company-name-input"
+                      />
+                    </FormControl>
+                    <FormDescription>{t("settings.company.form.company.description")}</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="flex justify-end pt-4">
                 <Button type="submit" disabled={loading} data-cy="onboarding-submit-btn">

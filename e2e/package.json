@@ -1,8 +1,10 @@
 {
   "devDependencies": {
     "@types/node": "^24.6.2",
+    "@types/pg": "^8.15.0",
     "@types/wait-on": "^5.3.4",
-    "cypress": "^15.18.0"
+    "cypress": "^15.18.0",
+    "pg": "^8.16.3"
   },
   "scripts": {
     "e2e:open": "cypress open",

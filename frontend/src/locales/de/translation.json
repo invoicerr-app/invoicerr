@@ -132,7 +132,8 @@
             "actions": {
                 "cancel": "Abbrechen",
                 "create": "Kunden erstellen",
-                "save": "Änderungen speichern"
+                "save": "Änderungen speichern",
+                "lookupCompany": "Look up"
             }
         },
         "view": {

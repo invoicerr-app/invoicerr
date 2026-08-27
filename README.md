@@ -197,27 +197,44 @@ Make sure port 80 is available on your host machine, or change the mapping.
    - Frontend: `http://localhost:5173`  
    - API: `http://localhost:3000`
 
+### One-command hot-reloading stack
+
+`scripts/dev.sh` runs the whole local stack and keeps it reloading on every file change —
+Postgres, Redis and Mailpit in Docker (`docker-compose.dev.yml`), backend and frontend on
+the host:
+
+```bash
+./scripts/dev.sh start     # docker services + prisma migrate + backend (watch) + vite
+./scripts/dev.sh status    # what is up, on which port
+./scripts/dev.sh logs      # tail both application logs
+./scripts/dev.sh restart   # after changing .env
+./scripts/dev.sh stop      # apps only     ·    down = apps + docker services
+```
+
+- Frontend `http://localhost:5173` · API `http://localhost:3000/api` · Mailpit `http://localhost:8025`
+- Logs and PID files live in `.dev/` (git-ignored).
+
 ---
 
-## 🧪 Lancer les tests end-to-end (Cypress)
+## 🧪 Running the end-to-end tests (Cypress)
 
-Pour lancer les tests e2e localement ou en CI :
+To run the e2e tests locally or in CI:
 
-1. Démarrer le backend et le frontend avec les variables de test :
+1. Start the backend and the frontend with the test environment:
    ```bash
    cd backend && npm run start:test &
    cd frontend && npm run start:test &
    ```
-   (Assurez-vous d'avoir un .env.test dans chaque dossier)
+   (Make sure a .env.test file exists in each folder)
 
-2. Dans un autre terminal, lancer Cypress :
+2. In another terminal, run Cypress:
    ```bash
    cd e2e
    npm install
-   npm run e2e:open # ou npm run e2e:run
+   npm run e2e:open # or npm run e2e:run
    ```
 
-En CI, le workflow GitHub Actions fait ces étapes automatiquement.
+In CI, the GitHub Actions workflow does all of this automatically.
 
 ---
 

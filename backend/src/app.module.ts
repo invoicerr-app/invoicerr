@@ -7,6 +7,7 @@ import { RolesGuard } from '@/guards/roles.guard';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { ClientsModule } from './modules/clients/clients.module';
 import { CompaniesModule } from './modules/companies/companies.module';
+import { CompanyLookupModule } from './modules/company-lookup/company-lookup.module';
 import { CompanyModule } from './modules/company/company.module';
 import { ConfigModule } from '@nestjs/config';
 import { DangerModule } from './modules/danger/danger.module';
@@ -63,6 +64,7 @@ import { auth } from './lib/auth';
     DashboardModule,
     SignaturesModule,
     SireneModule,
+    CompanyLookupModule,
     DangerModule,
     DirectoryModule,
     PluginsModule,

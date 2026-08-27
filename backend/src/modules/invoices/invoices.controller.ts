@@ -286,7 +286,7 @@ export class InvoicesController {
   @Post('deposit')
   @ApiOperation({
     summary: 'Create a deposit invoice',
-    description: "Creates a standalone numbered deposit invoice (facture d'acompte).",
+    description: 'Creates a standalone numbered deposit invoice.',
   })
   @ApiResponse({ status: 201, description: 'Deposit invoice created' })
   createDepositInvoice(

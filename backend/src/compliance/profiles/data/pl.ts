@@ -65,7 +65,10 @@ export const PL: CountryComplianceProfile = {
 
   reporting: [],
 
-  numbering: [{ validFrom: '1900-01-01', value: { model: 'GAPLESS_SELF', seriesScope: 'ENTITY' } }],
+  // Art. 106e ust. 1 pkt 2 ustawy o VAT: "kolejny numer nadany w ramach jednej lub więcej serii,
+  // który w sposób jednoznaczny identyfikuje fakturę". KSeF enforces uniqueness on (NIP, P_2,
+  // RodzajFaktury) only, and MF tolerates out-of-order transmission without a correction. (PL-D7)
+  numbering: [{ validFrom: '1900-01-01', value: { model: 'UNIQUE_SELF', seriesScope: 'ENTITY' } }],
 
   requiredIdentifiers: [
     {

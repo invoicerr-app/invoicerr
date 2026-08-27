@@ -5,7 +5,7 @@ import { SignedArtifact, TransmissionResult } from '../../execution/types';
 import { ChannelType } from '../../types';
 import { ChannelCredentialsPort, ResolvedChannelConfig } from './channel-credentials-port';
 import { ChannelConfigSchema, ProviderMaturity, TransmissionProvider } from './transmission-provider';
-import type { OseHttpPort, OseTipoDoc } from './latam/ose-client';
+import type { OseHttpPort, OseTipoDoc } from './ose-client';
 
 /**
  * Peru — Operador de Servicios Electrónicos (CDR — Constancia de Recepción).
@@ -106,7 +106,7 @@ export class OseTransmissionProvider implements TransmissionProvider {
     }
 
     try {
-      const { OseClient } = await import('./latam/ose-client.js');
+      const { OseClient } = await import('./ose-client.js');
 
       const http: OseHttpPort = this.httpPort ?? {
         enviarComprobante: async () => {
@@ -192,7 +192,7 @@ export class OseTransmissionProvider implements TransmissionProvider {
       const ruc = config.ruc as string;
       const environment = ((config.environment as string) ?? 'test').toLowerCase() as 'test' | 'prod';
 
-      const { OseClient } = await import('./latam/ose-client.js');
+      const { OseClient } = await import('./ose-client.js');
       const http: OseHttpPort = this.httpPort ?? {
         enviarComprobante: async () => {
           throw new Error('OSE transport not implemented');

@@ -385,7 +385,7 @@ export function RecurringInvoiceUpsert({
       <ClientUpsert
         open={clientDialogOpen}
         onOpenChange={setClientDialogOpen}
-        onCreate={handleClientCreate} // Gestion du client créé
+        onCreate={handleClientCreate} // Called with the newly created client
       />
     </>
   )

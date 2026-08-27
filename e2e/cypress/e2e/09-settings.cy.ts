@@ -101,7 +101,7 @@ describe('Settings E2E', () => {
             cy.wait(1000);
 
             // Sur petit écran, la navigation peut être un select ou un menu
-            // On vérifie simplement qu'on peut naviguer via l'URL
+            // Just check that the page is reachable through its URL
             cy.visit('/settings/account');
             cy.wait(500);
             cy.url().should('include', '/settings/account');

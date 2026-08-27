@@ -65,11 +65,19 @@ export const FR: CountryComplianceProfile = {
         // B2G→choruspro) is future engine work. In practice, companies configure only the
         // channel relevant to their trade: B2B companies have PDP credentials (ChorusPro
         // is skipped for lack of credentials), B2G suppliers configure ChorusPro.
+        // FR-D1: EMAIL removed from this period. From 2026-09-01 the emission, transmission and
+        // reception of an in-scope invoice go through an accredited platform — "Seule une
+        // plateforme agréée est habilitée à assurer toutes les fonctionnalités prévues"
+        // (impots.gouv.fr, consulted 2026-08-27). Sending such an invoice by e-mail is not a
+        // lesser channel, it is a sanctioned one: CGI art.1737 III, 50 EUR per invoice capped at
+        // 15 000 EUR a year, and IV bis, 500 EUR then 1 000 EUR per quarter for persisting in not
+        // using an accredited platform.
+        //
+        // The pre-2026-09-01 period above keeps EMAIL and is untouched — it was licit then.
         channels: [
           { type: 'PDP' },
           { type: 'GOV_PORTAL_API', providerId: 'choruspro' },
           { type: 'PEPPOL' },
-          { type: 'EMAIL' },
         ],
       },
     },
