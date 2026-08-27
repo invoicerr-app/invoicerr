@@ -2,7 +2,7 @@
 
 **Branche** `audit/compliance-truth`, **poussée**. Une branche de correction séparée,
 `fix/channel-ui-gate-on-reachable-transport`, est poussée elle aussi.
-**Phases 0, 1 et 3 terminées. Phase 2 aux quatre septièmes.**
+**Phases 0, 1, 2 et 3 terminées.**
 Aucune correction sur la branche d'audit : `git diff feat/compliance-architecture..HEAD` n'y contient
 que des ajouts sous `docs/compliance/audit/` et `scripts/audit/`.
 
@@ -36,20 +36,31 @@ L'unité de rattachement n'est pas un pays mais un **corridor**. Mesuré : sur s
 reporting dérivés de la TVA). Régime, canaux, cycle de vie, archivage et numérotation sont lus
 **exclusivement** sur le profil fournisseur.
 
-Cas décisif — société française immatriculée en Italie, vente IT→IT : le moteur produit le plan
-**français** (`DECENTRALIZED_CTC`, non bloquant, PDP) là où la loi italienne exige SdI, clearance
-bloquante et FatturaPA. L'art. 1 c. 6 du D.Lgs. 127/2015 répute une telle facture *« non emessa »*.
+Cas décisif — société française disposant d'un **établissement stable** en Italie et vendant IT→IT
+par son intermédiaire : le moteur produit le plan **français** (`DECENTRALIZED_CTC`, non bloquant,
+PDP) là où la loi italienne exige SdI, clearance bloquante et FatturaPA. L'art. 1 c. 6 du
+D.Lgs. 127/2015 répute une telle facture *« non emessa »*. *(Une simple immatriculation TVA ne
+suffirait pas — l'AdE exclut les « meramente identificati » ; c'est l'établissement stable qui
+déclenche, et seulement pour les opérations qu'il réalise.)*
 
-Le modèle ne peut pas l'exprimer : `PartyTaxProfile.establishmentCountry` **n'apparaît qu'une fois
-dans tout le dépôt — sa propre déclaration**, et `countryCode` est alimenté par le pays de la
-société, avec repli silencieux sur `'FR'`.
+Le modèle ne peut pas l'exprimer, et le manque est plus profond qu'un pays absent :
+`PartyTaxProfile.establishmentCountry` **n'apparaît qu'une fois dans tout le dépôt — sa propre
+déclaration** ; `countryCode` est alimenté par le pays de la société avec repli silencieux sur
+`'FR'` ; et comme la qualité d'établi se juge **opération par opération**, il faudrait un champ porté
+par la **transaction**, pas par la société.
 
-Confirmé par les trois juridictions vérifiées, qui posent toutes le **même** schéma : mandat
-domestique à déclencheur **bilatéral**, transfrontalier renvoyé vers une obligation déclarative
-distincte. France : art. 289 bis I — « l'émetteur **et** son destinataire […] établis […] en
-France », sinon e-reporting art. 290 (flux F10, statuts 300/301, rythme périodique, rectification par
-remplacement de période). Allemagne : § 14 Abs. 2 S. 3 UStG, les deux parties établies. Italie :
-art. 1 c. 3-bis, bascule sur transmission de données.
+**La règle de rattachement varie d'un pays à l'autre — cinq pivots pour six régimes.** France et
+Allemagne : bilatéral, les deux établis. Italie : bilatéral pour le SdI, unilatéral pour le reporting
+c. 3-bis. Pologne : **unilatéral, vendeur seul**, et le transfrontalier reste **dans** le mandat.
+Espagne : unilatéral pour Veri\*Factu (statut fiscal du vendeur), **bilatéral dominé par l'acheteur**
+pour le mandat B2B. Mexique : unilatéral à l'émission, **bilatéral au cycle de vie** (annulation avec
+acceptation tacite à 3 jours).
+
+Une stratégie unique est donc fausse quel que soit le choix retenu. L'Allemagne le montre par
+l'absurde : le **§ 14 Abs. 7 UStG** (art. 219 bis transposé) rend la résolution « fournisseur seul »
+**correcte** dans un cas précis — mais le moteur l'applique sans connaître la condition, donc
+identiquement là où elle est fausse. Et « établi » n'a pas une définition unique : le seul UStG en
+compte **trois**, selon qu'il s'agit d'émettre, de recevoir ou d'archiver.
 
 Reproduction : `scripts/audit/repro/f017-corridor-resolution.ts`
 
