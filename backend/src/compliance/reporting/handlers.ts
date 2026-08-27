@@ -85,7 +85,9 @@ async function handleReport<P>(
     `[MOCK] ${submitLabel} — period=${periodKey} record=${record.id} invoiceRef=${invoiceRef ?? 'n/a'}`,
   );
 
-  return { kind, status: 'EMITTED', ref: record.id };
+  // F-016: the payload is real and persisted, the submission is not. `mocked` carries that to the
+  // caller instead of leaving it in a log line.
+  return { kind, status: 'EMITTED', ref: record.id, mocked: true };
 }
 
 // ---------------------------------------------------------------------------
