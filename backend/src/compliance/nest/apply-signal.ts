@@ -94,6 +94,12 @@ const FAILURE_PROJECTION: Partial<Record<ComplianceStatus, InvoiceStatus>> = {
  * The targets are the statuses a document can actually reach when leaving TRANSMISSION_FAILED
  * (SUBMIT_CLEARANCE → PENDING_CLEARANCE, DELIVER → DELIVERED) plus CLEARED, reachable one step
  * later. Nothing here is invented: each is an edge in the state machine.
+ *
+ * The CLEARED entry only works because PENDING_CLEARANCE is itself projection-owned. A retry runs
+ * TRANSMISSION_FAILED → PENDING_CLEARANCE → CLEARED; with PENDING_CLEARANCE excluded from
+ * PROJECTION_OWNED, the second hop could not be written and the invoice stayed on
+ * PENDING_CLEARANCE forever while its document was cleared. Not a false status, but the recovery
+ * stopping half way — which is the same class of defect F-008 is about.
  */
 const RECOVERY_PROJECTION: Partial<Record<ComplianceStatus, InvoiceStatus>> = {
   PENDING_CLEARANCE: 'PENDING_CLEARANCE',
@@ -102,19 +108,43 @@ const RECOVERY_PROJECTION: Partial<Record<ComplianceStatus, InvoiceStatus>> = {
 };
 
 /**
- * Invoice statuses only this projection ever writes. Nothing else in the codebase sets them, which
- * is what makes them safe to overwrite: doing so can never discard a user's decision.
+ * Invoice statuses only this projection ever writes.
+ *
+ * This is not an assumption — it is the result of auditing every write to `Invoice.status` in the
+ * backend. There are fifteen, all user actions:
+ *
+ *   invoices.service.ts  308, 1595, 1969  DRAFT      (create: invoice, proforma, duplicate)
+ *                        456, 475, 671, 846, 1790    ISSUED     (issue, correct, deposit, recurring)
+ *                        696                         CORRECTED
+ *                        774, 823                    CANCELLED
+ *                        1408                        ARCHIVED
+ *                        1536                        SENT       (send by e-mail)
+ *   payments.service.ts  241                         PAID
+ *                        246                         UNPAID
+ *
+ * PENDING_CLEARANCE and CLEARED appear in NONE of them: this projection is their only writer, so
+ * they belong here alongside the three failure statuses. Leaving them out was a real defect and not
+ * merely an incomplete comment — see the chain gap described on RECOVERY_PROJECTION.
+ *
+ * (OVERDUE has zero writers anywhere; it is kept in IN_FLIGHT because the enum still offers it and
+ * an invoice sitting in it would be legitimately in flight, not because anything produces it.)
  */
-const PROJECTION_OWNED = new Set<InvoiceStatus>(['REJECTED', 'REFUSED', 'TRANSMISSION_FAILED']);
+const PROJECTION_OWNED = new Set<InvoiceStatus>([
+  'REJECTED',
+  'REFUSED',
+  'TRANSMISSION_FAILED',
+  'PENDING_CLEARANCE',
+  'CLEARED',
+]);
 
 /**
  * Invoice statuses where the invoice is out with an authority and its fate is genuinely undecided.
  *
- * Everything outside `IN_FLIGHT ∪ PROJECTION_OWNED` is off-limits, and the reason is that all ten
- * pre-existing writes to `Invoice.status` are USER ACTIONS (issue, send, pay, cancel, correct,
- * archive). A late signal must never walk back over one — an invoice the user has since cancelled,
- * corrected or archived keeps that status, and a PAID invoice is not silently un-paid by a webhook
- * arriving after the fact. The projection informs; it does not arbitrate.
+ * Everything outside `IN_FLIGHT ∪ PROJECTION_OWNED` is off-limits, and the reason is the audit
+ * above: every pre-existing write is a USER ACTION. A late signal must never walk back over one —
+ * an invoice the user has since cancelled, corrected or archived keeps that status, and a PAID
+ * invoice is not silently un-paid by a webhook arriving after the fact. The projection informs; it
+ * does not arbitrate.
  */
 const IN_FLIGHT = new Set<InvoiceStatus>(['ISSUED', 'SENT', 'PENDING_CLEARANCE', 'UNPAID', 'OVERDUE']);
 

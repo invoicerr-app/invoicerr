@@ -44,6 +44,17 @@ function itCtx(): TransactionContext {
   };
 }
 
+/**
+ * The statuses this projection is the ONLY writer of, in declaration order. Established by auditing
+ * all fifteen writes to Invoice.status in the backend — thirteen in invoices.service.ts, two in
+ * payments.service.ts, every one of them a user action. PENDING_CLEARANCE and CLEARED appear in
+ * none of them, which is why they belong here.
+ */
+const PROJECTION_OWNED_ORDER = ['REJECTED', 'REFUSED', 'TRANSMISSION_FAILED', 'PENDING_CLEARANCE', 'CLEARED'];
+
+/** What a FAILURE may be written over: in-flight, or another projection-written status. */
+const FAILURE_OVER = ['ISSUED', 'SENT', 'PENDING_CLEARANCE', 'UNPAID', 'OVERDUE', ...PROJECTION_OWNED_ORDER];
+
 /** The Invoice.status values a user action can leave behind, none of which the projection may touch. */
 const USER_OWNED_STATUSES = ['DRAFT', 'PAID', 'CANCELLED', 'CORRECTED', 'ARCHIVED'] as const;
 
@@ -244,18 +255,7 @@ describe('F-008: an authority rejection reaches the invoice the user looks at', 
     // A FAILURE may be written over an in-flight invoice or over another projection-written
     // failure (a retry that fails again, a transmission failure that later becomes a rejection).
     // It may never be written over anything else, which is what this list encodes.
-    expect(fake.invoiceUpdateAttempts[0].status).toEqual({
-      in: [
-        'ISSUED',
-        'SENT',
-        'PENDING_CLEARANCE',
-        'UNPAID',
-        'OVERDUE',
-        'REJECTED',
-        'REFUSED',
-        'TRANSMISSION_FAILED',
-      ],
-    });
+    expect(fake.invoiceUpdateAttempts[0].status).toEqual({ in: FAILURE_OVER });
   });
 
   it('leaves the invoice alone on a non-rejection outcome', async () => {
@@ -272,9 +272,7 @@ describe('F-008: an authority rejection reaches the invoice the user looks at', 
     // exactly as the user left it. The original assertion (no attempt at all) encoded the
     // unidirectional design and would have hidden that scoping rather than checked it.
     expect(fake.invoiceUpdateAttempts).toHaveLength(1);
-    expect(fake.invoiceUpdateAttempts[0].status).toEqual({
-      in: ['REJECTED', 'REFUSED', 'TRANSMISSION_FAILED'],
-    });
+    expect(fake.invoiceUpdateAttempts[0].status).toEqual({ in: PROJECTION_OWNED_ORDER });
   });
 
   it('does not attempt an invoice write for a document with no invoice', async () => {
@@ -287,8 +285,6 @@ describe('F-008: an authority rejection reaches the invoice the user looks at', 
     expect(fake.invoiceUpdateAttempts).toHaveLength(0);
   });
 });
-
-const PROJECTION_OWNED_ORDER = ['REJECTED', 'REFUSED', 'TRANSMISSION_FAILED'];
 
 describe('F-008 residual: TRANSMISSION_FAILED and REFUSED, and coming back from failure', () => {
   it('shows a transmission failure on the invoice', async () => {
@@ -344,6 +340,29 @@ describe('F-008 residual: TRANSMISSION_FAILED and REFUSED, and coming back from 
     expect(fake.docStatus(`f008-rec-${userStatus}`)).toBe('PENDING_CLEARANCE');
     expect(fake.invoices.get(`inv-rec-${userStatus}`)).toMatchObject({ status: userStatus });
     expect(fake.invoiceUpdateAttempts).toHaveLength(1);
+  });
+
+  /**
+   * The chain gap this ownership audit uncovered. A retry runs
+   * TRANSMISSION_FAILED -> PENDING_CLEARANCE -> CLEARED. With PENDING_CLEARANCE missing from
+   * PROJECTION_OWNED, the second hop could not be written and the invoice stayed on
+   * PENDING_CLEARANCE while its document was cleared — the recovery stopping half way.
+   */
+  it('follows a retry all the way through to CLEARED', async () => {
+    const fake = new FakePrisma();
+    seedDocumentAt(fake, 'f008-chain', 'inv-chain', 'ISSUED');
+    fake.seedInvoice('inv-chain', 'SENT');
+    const svc = service(fake);
+
+    await svc.apply('f008-chain', { type: 'COMMAND', event: 'TRANSMISSION_FAIL' });
+    expect(fake.invoices.get('inv-chain')).toMatchObject({ status: 'TRANSMISSION_FAILED' });
+
+    await svc.apply('f008-chain', { type: 'COMMAND', event: 'SUBMIT_CLEARANCE' });
+    expect(fake.invoices.get('inv-chain')).toMatchObject({ status: 'PENDING_CLEARANCE' });
+
+    await svc.apply('f008-chain', { type: 'POLL_RESULT', status: 'CLEARED' });
+    expect(fake.docStatus('f008-chain')).toBe('CLEARED');
+    expect(fake.invoices.get('inv-chain')).toMatchObject({ status: 'CLEARED' });
   });
 
   it('does not touch an in-flight invoice on a clearance that never failed', async () => {
