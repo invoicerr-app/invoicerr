@@ -128,6 +128,7 @@ export class MattermostDriver implements WebhookDriver {
 
   async send(url: string, payload: any): Promise<boolean> {
     const hook = new MattermostWebhook(url);
+    const instanceUrl = process.env.APP_URL || 'http://localhost:3000';
 
     const eventType = payload.event as WebhookEvent;
     const eventStyle = EVENT_STYLES[eventType] || {
@@ -144,7 +145,7 @@ export class MattermostDriver implements WebhookDriver {
       .setColor(eventStyle.color)
       .setFooter(
         `Invoicerr Webhooks • ${new Date().toLocaleString()}`,
-        'https://invoicerr.app/favicon.png'
+        `${instanceUrl}/favicon.svg`
       )
 
     if (payload.company?.name) {
@@ -153,7 +154,7 @@ export class MattermostDriver implements WebhookDriver {
 
     const res = await hook
       .setUsername('Invoicerr')
-      .setIconUrl('https://invoicerr.app/favicon.png')
+      .setIconUrl(`${instanceUrl}/favicon.svg`)
       .addCard(card)
       .send();
 

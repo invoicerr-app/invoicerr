@@ -17,11 +17,11 @@ import { ClientUpsert } from "../../clients/_components/client-upsert"
 import CurrencySelect from "@/components/currency-select"
 import { DatePicker } from "@/components/date-picker"
 import { InvoiceLineItemsEditor } from "./invoice-line-items-editor"
+import { MarkdownNotesField } from "@/components/markdown-notes-field"
 import { PaymentMethodType } from "@/types"
 import SearchSelect from "@/components/search-input"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -401,7 +401,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                             <FormItem>
                                                 <FormLabel>{t("invoices.upsert.form.notes.label")}</FormLabel>
                                                 <FormControl>
-                                                    <Textarea {...field} placeholder={t("invoices.upsert.form.notes.placeholder")} className="max-h-40" />
+                                                    <MarkdownNotesField {...field} placeholder={t("invoices.upsert.form.notes.placeholder")} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -517,7 +517,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                             <FormItem>
                                                 <FormLabel>{t("recurringInvoices.upsert.form.notes.label")}</FormLabel>
                                                 <FormControl>
-                                                    <Textarea {...field} placeholder={t("recurringInvoices.upsert.form.notes.placeholder")} className="max-h-40" />
+                                                    <MarkdownNotesField {...field} placeholder={t("recurringInvoices.upsert.form.notes.placeholder")} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>

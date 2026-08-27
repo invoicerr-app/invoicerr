@@ -35,6 +35,9 @@ export const queryKeys = {
     articles: {
         list: () => ["articles", "list"] as const,
     },
+    expenses: {
+        list: () => ["expenses", "list"] as const,
+    },
     dashboard: {
         summary: () => ["dashboard", "summary"] as const,
     },

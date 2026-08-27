@@ -1,6 +1,6 @@
 import * as Handlebars from 'handlebars';
 
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreatePaymentDto, EditPaymentDto } from '@/modules/payments/dto/payments.dto';
 import { getInvertColor, getPDF } from '@/utils/pdf';
 
@@ -46,20 +46,15 @@ export class PaymentsService {
         }
     }
 
-    async getPayments(page: string) {
+    async getPayments(companyId: string, page: string) {
         const pageNumber = parseInt(page, 10) || 1;
         const pageSize = 10;
         const skip = (pageNumber - 1) * pageSize;
-        const company = await prisma.company.findFirst();
-
-        if (!company) {
-            logger.error('No company found. Please create a company first.', { category: 'payment' });
-            throw new BadRequestException('No company found. Please create a company first.');
-        }
 
         const payments = await prisma.payment.findMany({
             skip,
             take: pageSize,
+            where: { invoice: { companyId } },
             orderBy: {
                 createdAt: 'desc',
             },
@@ -76,7 +71,7 @@ export class PaymentsService {
             },
         });
 
-        const totalPayments = await prisma.payment.count();
+        const totalPayments = await prisma.payment.count({ where: { invoice: { companyId } } });
 
         const paymentsWithPM = await Promise.all(payments.map(async (r: any) => {
             if (r.paymentMethodId) {
@@ -89,9 +84,10 @@ export class PaymentsService {
         return { pageCount: Math.ceil(totalPayments / pageSize), payments: paymentsWithPM };
     }
 
-    async searchPayments(query: string) {
+    async searchPayments(companyId: string, query: string) {
         if (!query) {
             const results = await prisma.payment.findMany({
+                where: { invoice: { companyId } },
                 take: 10,
                 orderBy: {
                     number: 'asc',
@@ -121,6 +117,7 @@ export class PaymentsService {
 
         const results = await prisma.payment.findMany({
             where: {
+                invoice: { companyId },
                 OR: [
                     { invoice: { quote: { title: { contains: query } } } },
                     { invoice: { client: { name: { contains: query } } } },
@@ -153,15 +150,15 @@ export class PaymentsService {
         return resultsWithPM;
     }
 
-    async getPaymentsTable(filters: { invoiceId?: string; clientId?: string; year?: string; month?: string; sort?: 'asc' | 'desc' }) {
-        const where: Record<string, any> = {};
+    async getPaymentsTable(companyId: string, filters: { invoiceId?: string; clientId?: string; year?: string; month?: string; sort?: 'asc' | 'desc' }) {
+        const where: Record<string, any> = { invoice: { companyId } };
 
         if (filters.invoiceId) {
             where.invoiceId = filters.invoiceId;
         }
 
         if (filters.clientId) {
-            where.invoice = { clientId: filters.clientId };
+            where.invoice = { companyId, clientId: filters.clientId };
         }
 
         const year = parseInt(filters.year ?? '', 10);
@@ -242,9 +239,9 @@ export class PaymentsService {
         }
     }
 
-    async createPayment(body: CreatePaymentDto) {
-        const invoice = await prisma.invoice.findUnique({
-            where: { id: body.invoiceId },
+    async createPayment(companyId: string, body: CreatePaymentDto) {
+        const invoice = await prisma.invoice.findFirst({
+            where: { id: body.invoiceId, companyId },
             include: {
                 company: true,
                 client: true,
@@ -254,7 +251,7 @@ export class PaymentsService {
 
         if (!invoice) {
             logger.error('Invoice not found', { category: 'payment', details: { invoiceId: body.invoiceId } });
-            throw new BadRequestException('Invoice not found');
+            throw new NotFoundException('Invoice not found');
         }
 
         const payment = await prisma.payment.create({
@@ -291,9 +288,9 @@ export class PaymentsService {
         return payment;
     }
 
-    async createPaymentFromInvoice(invoiceId: string, amount?: number, items?: { invoiceItemId: string; amountPaid: number | string }[]) {
-        const invoice = await prisma.invoice.findUnique({
-            where: { id: invoiceId },
+    async createPaymentFromInvoice(companyId: string, invoiceId: string, amount?: number, items?: { invoiceItemId: string; amountPaid: number | string }[]) {
+        const invoice = await prisma.invoice.findFirst({
+            where: { id: invoiceId, companyId },
             include: {
                 items: true,
                 client: true,
@@ -302,7 +299,7 @@ export class PaymentsService {
         });
         if (!invoice) {
             logger.error('Invoice not found', { category: 'payment', details: { invoiceId } });
-            throw new BadRequestException('Invoice not found');
+            throw new NotFoundException('Invoice not found');
         }
 
         // Use explicit per-item amounts when provided (e.g. edited in the dialog),
@@ -325,7 +322,7 @@ export class PaymentsService {
             });
         }
 
-        const newPayment = await this.createPayment({
+        const newPayment = await this.createPayment(companyId, {
             invoiceId: invoice.id,
             items: paymentItems,
             paymentMethodId: invoice.paymentMethodId || undefined,
@@ -345,9 +342,9 @@ export class PaymentsService {
         return newPayment;
     }
 
-    async editPayment(body: EditPaymentDto) {
-        const existingPayment = await prisma.payment.findUnique({
-            where: { id: body.id },
+    async editPayment(companyId: string, body: EditPaymentDto) {
+        const existingPayment = await prisma.payment.findFirst({
+            where: { id: body.id, invoice: { companyId } },
             include: {
                 items: true,
             },
@@ -355,7 +352,7 @@ export class PaymentsService {
 
         if (!existingPayment) {
             logger.error('Payment not found', { category: 'payment', details: { paymentId: body.id } });
-            throw new BadRequestException('Payment not found');
+            throw new NotFoundException('Payment not found');
         }
 
         const updatedPayment = await prisma.payment.update({
@@ -402,9 +399,9 @@ export class PaymentsService {
         return updatedPayment;
     }
 
-    async deletePayment(id: string) {
-        const existingPayment = await prisma.payment.findUnique({
-            where: { id },
+    async deletePayment(companyId: string, id: string) {
+        const existingPayment = await prisma.payment.findFirst({
+            where: { id, invoice: { companyId } },
             include: {
                 items: true,
                 invoice: {
@@ -418,7 +415,7 @@ export class PaymentsService {
 
         if (!existingPayment) {
             logger.error('Payment not found', { category: 'payment', details: { paymentId: id } });
-            throw new BadRequestException('Payment not found');
+            throw new NotFoundException('Payment not found');
         }
 
         await prisma.paymentItem.deleteMany({
@@ -443,9 +440,9 @@ export class PaymentsService {
         return { message: 'Payment deleted successfully' };
     }
 
-    async getPaymentPdf(paymentId: string): Promise<Uint8Array> {
-        const payment = await prisma.payment.findUnique({
-            where: { id: paymentId },
+    async getPaymentPdf(companyId: string, paymentId: string): Promise<Uint8Array> {
+        const payment = await prisma.payment.findFirst({
+            where: { id: paymentId, invoice: { companyId } },
             include: {
                 items: true,
                 invoice: {
@@ -462,7 +459,7 @@ export class PaymentsService {
 
         if (!payment) {
             logger.error('Payment not found', { category: 'payment', details: { paymentId } });
-            throw new BadRequestException('Payment not found');
+            throw new NotFoundException('Payment not found');
         }
 
         const { pdfConfig } = payment.invoice.company;
@@ -571,9 +568,9 @@ export class PaymentsService {
     }
 
 
-    async sendPaymentByEmail(id: string) {
-        const payment = await prisma.payment.findUnique({
-            where: { id },
+    async sendPaymentByEmail(companyId: string, id: string) {
+        const payment = await prisma.payment.findFirst({
+            where: { id, invoice: { companyId } },
             include: {
                 invoice: {
                     include: {
@@ -586,13 +583,13 @@ export class PaymentsService {
 
         if (!payment || !payment.invoice || !payment.invoice.client) {
             logger.error('Payment or associated invoice/client not found', { category: 'payment', details: { id } });
-            throw new BadRequestException('Payment or associated invoice/client not found');
+            throw new NotFoundException('Payment or associated invoice/client not found');
         }
 
-        const pdfBuffer = await this.getPaymentPdf(id);
+        const pdfBuffer = await this.getPaymentPdf(companyId, id);
 
         const mailTemplate = await prisma.mailTemplate.findFirst({
-            where: { type: 'PAYMENT' },
+            where: { type: 'PAYMENT', companyId },
             select: { subject: true, body: true }
         });
 

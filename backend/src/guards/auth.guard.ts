@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { extractApiKey, hashApiKey } from '@/utils/api-key';
 
+import { CompanyRole } from '../../prisma/generated/prisma/client';
 import { Reflector } from '@nestjs/core';
 import { auth } from '@/lib/auth';
 import { fromNodeHeaders } from 'better-auth/node';
@@ -33,6 +34,19 @@ export class AuthGuard implements CanActivate {
     if (session) {
       request.user = session.user;
       request.session = session.session;
+      // Enriched by the customSession plugin (see src/lib/auth.ts) with the
+      // caller's company memberships and the currently active one.
+      const enrichedSession = session as unknown as {
+        companies?: { id: string; name: string; role: CompanyRole }[];
+        activeCompanyId?: string | null;
+        activeRole?: CompanyRole | null;
+      };
+      request.companyId = enrichedSession.activeCompanyId ?? null;
+      request.role = enrichedSession.activeRole ?? null;
+      request.companies = enrichedSession.companies ?? [];
+      // Session (human) auth isn't scope-restricted — access is governed
+      // by CompanyRole instead. See @/utils/scope-check's hasScope().
+      request.scopes = null;
       return true;
     }
 
@@ -50,6 +64,15 @@ export class AuthGuard implements CanActivate {
         }).catch(() => undefined);
 
         request.user = apiKey.user;
+        request.companyId = apiKey.companyId;
+        // API keys are company-scoped, not member-scoped: grant them the
+        // same access as an ADMIN would have (no member/invitation
+        // management via API key, but full business-data + settings access).
+        request.role = CompanyRole.ADMIN;
+        request.companies = [];
+        // Restricts API-key callers (e.g. the MCP module) to exactly these
+        // scopes regardless of the synthetic ADMIN role above.
+        request.scopes = apiKey.scopes;
         return true;
       }
     }

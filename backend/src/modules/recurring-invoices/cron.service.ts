@@ -60,7 +60,7 @@ export class RecurringInvoicesCronService {
                         }
                     }
 
-                    const invoice = await this.invoicesService.createInvoice({
+                    const invoice = await this.invoicesService.createInvoice(recurringInvoice.companyId, {
                         clientId: recurringInvoice.clientId,
                         recurringInvoiceId: recurringInvoice.id,
                         currency: recurringInvoice.currency,
@@ -81,7 +81,7 @@ export class RecurringInvoicesCronService {
 
                     if (recurringInvoice.autoSend) {
                         try {
-                            await this.invoicesService.sendInvoiceByEmail(invoice.id);
+                            await this.invoicesService.sendInvoiceByEmail(recurringInvoice.companyId, invoice.id);
                         } catch (emailError) {
                             this.logger.error(`Failed to auto-send invoice ${invoice.id}:`, emailError);
                         }

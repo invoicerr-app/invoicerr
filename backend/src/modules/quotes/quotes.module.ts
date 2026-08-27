@@ -8,6 +8,7 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
 @Module({
   imports: [WebhooksModule, InvoicesModule],
   controllers: [QuotesController],
-  providers: [QuotesService, JwtService]
+  providers: [QuotesService, JwtService],
+  exports: [QuotesService],
 })
 export class QuotesModule { }

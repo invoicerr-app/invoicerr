@@ -1,4 +1,4 @@
-import { AlertTriangle, Building2, FileText, KeyRound, Mail, Plug, TicketIcon, User, Webhook } from "lucide-react"
+import { AlertTriangle, Building2, FileText, KeyRound, Mail, Plug, TicketIcon, User, Users, Webhook } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useNavigate, useParams } from "react-router"
 
@@ -8,11 +8,13 @@ import CompanySettings from "./_components/company.settings"
 import DangerZoneSettings from "./_components/danger.settings"
 import EmailTemplatesSettings from "./_components/templates.settings"
 import InvitationsSettings from "./_components/invitations.settings"
+import MembersSettings from "./_components/members.settings"
 import PDFTemplatesSettings from "./_components/pdf.settings"
 import PluginsSettings from "./_components/plugins.settings"
 import WebhooksSettings from "./_components/webhooks.settings"
 import { cn } from "@/lib/utils"
 import { usePageHeader } from "@/hooks/use-page-header"
+import { useCompanies } from "@/hooks/queries"
 import { useTranslation } from "react-i18next"
 import { LogsSettings } from "./_components/logs.settings"
 
@@ -20,8 +22,10 @@ export default function Settings() {
     const { t } = useTranslation()
     const { tab } = useParams()
     const navigate = useNavigate()
+    const { activeRole } = useCompanies()
+    const isMember = activeRole === "MEMBER"
 
-    const validTabs = ["company", "template", "email", "webhooks", "apiKeys", "logs", "account", "invitations", "plugins", "danger"]
+    const validTabs = ["company", "template", "email", "webhooks", "apiKeys", "logs", "account", "invitations", "members", "plugins", "danger"]
     const currentTab = validTabs.includes(tab!) ? tab! : "company"
 
     const handleTabChange = (newTab: string) => {
@@ -70,6 +74,11 @@ export default function Settings() {
             icon: TicketIcon,
         },
         {
+            value: "members",
+            label: t("settings.tabs.members"),
+            icon: Users,
+        },
+        {
             value: "plugins",
             label: t("settings.tabs.plugins"),
             icon: Plug,
@@ -79,7 +88,7 @@ export default function Settings() {
             label: t("settings.tabs.dangerZone"),
             icon: AlertTriangle,
         },
-    ]
+    ].filter((item) => !isMember || !["invitations", "members", "apiKeys", "webhooks", "danger"].includes(item.value))
 
     const currentMenuItem = menuItems.find((item) => item.value === currentTab)
 
@@ -103,6 +112,8 @@ export default function Settings() {
                 return <AccountSettings />
             case "invitations":
                 return <InvitationsSettings />
+            case "members":
+                return <MembersSettings />
             case "plugins":
                 return <PluginsSettings />
             case "danger":

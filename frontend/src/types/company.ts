@@ -1,3 +1,20 @@
+export type CompanyRole = "OWNER" | "ADMIN" | "MEMBER"
+
+export interface CompanyMembership {
+    id: string
+    name: string
+    role: CompanyRole
+}
+
+export interface CompanyMember {
+    userId: string
+    email: string
+    firstname: string
+    lastname: string
+    role: CompanyRole
+    joinedAt: string
+}
+
 export interface Company {
     id: string
     description?: string | null

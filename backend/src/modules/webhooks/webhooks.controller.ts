@@ -5,8 +5,10 @@ import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
 import { WebhooksService } from './webhooks.service';
 import prisma from '@/prisma/prisma.service';
 import { AuthGuard } from '@/guards/auth.guard';
-import { WebhookEvent, WebhookType } from '../../../prisma/generated/prisma/client';
+import { WebhookEvent, WebhookType, CompanyRole } from '../../../prisma/generated/prisma/client';
 import { WebhookDispatcherService } from './webhook-dispatcher.service';
+import { ActiveCompany } from '@/decorators/active-company.decorator';
+import { Roles } from '@/decorators/roles.decorator';
 
 @ApiTags('webhooks')
 @Controller('webhooks')
@@ -35,12 +37,9 @@ export class WebhooksController {
     @ApiParam({ name: 'id', type: String, description: 'Webhook ID' })
     @ApiResponse({ status: 200, description: 'Webhook retrieved' })
     @ApiResponse({ status: 404, description: 'Webhook not found' })
-    async findOne(@Param('id') id: string) {
-        const wh = await prisma.webhook.findUnique({ where: { id } });
+    async findOne(@ActiveCompany() companyId: string, @Param('id') id: string) {
+        const wh = await prisma.webhook.findFirst({ where: { id, companyId } });
         if (!wh) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
-
-        const company = await prisma.company.findFirst();
-        if (!company || wh.companyId !== company.id) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
 
         return { ...wh, secret: undefined };
     }
@@ -81,11 +80,8 @@ export class WebhooksController {
     @UseGuards(AuthGuard)
     @ApiOperation({ summary: 'List all webhooks', description: 'Returns all webhook configurations for the current company (secrets are excluded).' })
     @ApiResponse({ status: 200, description: 'Webhooks retrieved' })
-    async list() {
-        const company = await prisma.company.findFirst();
-        if (!company) return [];
-
-        const webhooks = await prisma.webhook.findMany({ where: { companyId: company.id } });
+    async list(@ActiveCompany() companyId: string) {
+        const webhooks = await prisma.webhook.findMany({ where: { companyId } });
 
         // Remove secret from response
         return webhooks.map(w => ({ ...w, secret: undefined }));
@@ -93,12 +89,12 @@ export class WebhooksController {
 
     @Post()
     @UseGuards(AuthGuard)
+    @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
     @ApiOperation({ summary: 'Create a webhook', description: 'Creates a new webhook configuration. The secret is returned only in this response.' })
     @ApiBody({ schema: { type: 'object', properties: { url: { type: 'string' }, type: { type: 'string', description: 'Webhook type, e.g. GENERIC' }, events: { type: 'array', items: { type: 'string' }, description: 'List of event types to subscribe to' }, secret: { type: 'string', description: 'Optional pre-set secret; generated if omitted' } }, required: ['url'] } })
     @ApiResponse({ status: 201, description: 'Webhook created' })
-    async create(@Body() body: any) {
-        const company = await prisma.company.findFirst();
-        if (!company) throw new HttpException('No company found', HttpStatus.BAD_REQUEST);
+    async create(@ActiveCompany() companyId: string, @Body() body: any) {
+        const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
 
         const secret = body.secret ?? '';
 
@@ -108,7 +104,7 @@ export class WebhooksController {
                 type: body.type ?? 'GENERIC',
                 events: body.events ?? [],
                 secret,
-                companyId: company.id,
+                companyId,
             }
         });
 
@@ -124,17 +120,17 @@ export class WebhooksController {
 
     @Patch(':id')
     @UseGuards(AuthGuard)
+    @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
     @ApiOperation({ summary: 'Update a webhook', description: 'Updates the URL, type, events, or secret of an existing webhook configuration.' })
     @ApiParam({ name: 'id', type: String, description: 'Webhook ID' })
     @ApiBody({ schema: { type: 'object', properties: { url: { type: 'string' }, type: { type: 'string' }, events: { type: 'array', items: { type: 'string' } }, secret: { type: 'string' } } } })
     @ApiResponse({ status: 200, description: 'Webhook updated' })
     @ApiResponse({ status: 404, description: 'Webhook not found' })
-    async update(@Param('id') id: string, @Body() body: any) {
-        const existing = await prisma.webhook.findUnique({ where: { id } });
+    async update(@ActiveCompany() companyId: string, @Param('id') id: string, @Body() body: any) {
+        const existing = await prisma.webhook.findFirst({ where: { id, companyId } });
         if (!existing) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
 
-        const company = await prisma.company.findFirst();
-        if (!company || existing.companyId !== company.id) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
+        const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
 
         const updated = await prisma.webhook.update({
             where: { id },
@@ -157,16 +153,16 @@ export class WebhooksController {
 
     @Delete(':id')
     @UseGuards(AuthGuard)
+    @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
     @ApiOperation({ summary: 'Delete a webhook', description: 'Permanently removes a webhook configuration.' })
     @ApiParam({ name: 'id', type: String, description: 'Webhook ID' })
     @ApiResponse({ status: 200, description: 'Webhook deleted' })
     @ApiResponse({ status: 404, description: 'Webhook not found' })
-    async remove(@Param('id') id: string) {
-        const existing = await prisma.webhook.findUnique({ where: { id } });
+    async remove(@ActiveCompany() companyId: string, @Param('id') id: string) {
+        const existing = await prisma.webhook.findFirst({ where: { id, companyId } });
         if (!existing) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
 
-        const company = await prisma.company.findFirst();
-        if (!company || existing.companyId !== company.id) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
+        const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
 
         await prisma.webhook.delete({ where: { id } });
 

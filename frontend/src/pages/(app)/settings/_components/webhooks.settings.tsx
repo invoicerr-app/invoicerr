@@ -117,9 +117,14 @@ export default function WebhooksSettings() {
                                     <span className="font-medium">{wh.type}</span>
                                     <span className={`inline-block w-1/2 max-w-full text-xs text-muted-foreground truncate overflow-hidden`}>{wh.url}</span>
                                 </CardTitle>
-                                <CardDescription
-                                    className="w-4/5 overflow-hidden text-ellipsis text-nowrap"
-                                >{t('settings.webhooks.card.events', { events: wh.events.join(', ') })}</CardDescription>
+                                <CardDescription className="w-full">
+                                    <span>{t('settings.webhooks.card.events')}</span>
+                                    <ul className="mt-1 list-disc list-inside space-y-0.5">
+                                        {wh.events.map((event) => (
+                                            <li key={event} className="break-all">{event}</li>
+                                        ))}
+                                    </ul>
+                                </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="w-full flex items-center gap-2">

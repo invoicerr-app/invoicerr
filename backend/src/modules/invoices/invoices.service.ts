@@ -1,6 +1,6 @@
 import * as Handlebars from 'handlebars';
 
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateInvoiceDto, CreateInvoiceFromQuoteDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
 import { EInvoice, ExportFormat } from '@fin.cx/einvoice';
 import { getInvertColor, getPDF } from '@/utils/pdf';
@@ -11,8 +11,9 @@ import { WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { baseTemplate } from '@/modules/invoices/templates/base.template';
 import { business } from '@tsclass/tsclass/dist_ts';
 import { finance } from '@fin.cx/einvoice/dist_ts/plugins';
+import { formatAmount } from '@/utils/format-amount';
 import { formatDate } from '@/utils/date';
-import { formatItemDescription } from '@/utils/format-text';
+import { formatNotes, formatRichText } from '@/utils/format-text';
 import { logger } from '@/logger/logger.service';
 import { parseAddress } from '@/utils/adress';
 import prisma from '@/prisma/prisma.service';
@@ -29,7 +30,7 @@ export class InvoicesService {
     }
 
 
-    async getInvoices(page: string) {
+    async getInvoices(companyId: string, page: string) {
         const pageNumber = parseInt(page, 10) || 1;
         const pageSize = 10;
         const skip = (pageNumber - 1) * pageSize;
@@ -38,6 +39,7 @@ export class InvoicesService {
             skip,
             take: pageSize,
             where: {
+                companyId,
                 isActive: true,
             },
             orderBy: {
@@ -51,7 +53,7 @@ export class InvoicesService {
             },
         });
 
-        const totalInvoices = await prisma.invoice.count();
+        const totalInvoices = await prisma.invoice.count({ where: { companyId } });
 
         // Attach payment method object when available so frontend can consume invoice.paymentMethod as an object
         const invoicesWithPM = await Promise.all(invoices.map(async (inv: any) => {
@@ -65,8 +67,8 @@ export class InvoicesService {
         return { pageCount: Math.ceil(totalInvoices / pageSize), invoices: invoicesWithPM };
     }
 
-    async getInvoicesTable(filters: { clientId?: string; year?: string; month?: string; sort?: 'asc' | 'desc' }) {
-        const where: Record<string, any> = { isActive: true };
+    async getInvoicesTable(companyId: string, filters: { clientId?: string; year?: string; month?: string; sort?: 'asc' | 'desc' }) {
+        const where: Record<string, any> = { companyId, isActive: true };
 
         if (filters.clientId) {
             where.clientId = filters.clientId;
@@ -114,13 +116,14 @@ export class InvoicesService {
         return invoicesWithPM;
     }
 
-    async searchInvoices(query: string) {
+    async searchInvoices(companyId: string, query: string) {
         if (query === '') {
-            return this.getInvoices('1'); // Return first page if query is empty
+            return this.getInvoices(companyId, '1'); // Return first page if query is empty
         }
 
         const results = await prisma.invoice.findMany({
             where: {
+                companyId,
                 OR: [
                     { client: { name: { contains: query } } },
                     { items: { some: { name: { contains: query } } } },
@@ -145,17 +148,13 @@ export class InvoicesService {
         return resultsWithPM;
     }
 
-    async createInvoice(body: CreateInvoiceDto) {
+    async createInvoice(companyId: string, body: CreateInvoiceDto) {
         const { items, ...data } = body;
 
-        const company = await prisma.company.findFirst();
-        if (!company) {
-            logger.error('No company found. Please create a company first.', { category: 'invoice' });
-            throw new BadRequestException('No company found. Please create a company first.');
-        }
+        const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
 
-        const client = await prisma.client.findUnique({
-            where: { id: body.clientId },
+        const client = await prisma.client.findFirst({
+            where: { id: body.clientId, companyId },
         });
         if (!client) {
             logger.error('Client not found', { category: 'invoice' });
@@ -216,7 +215,7 @@ export class InvoicesService {
         return invoice;
     }
 
-    async editInvoice(body: EditInvoicesDto) {
+    async editInvoice(companyId: string, body: EditInvoicesDto) {
         const { items, id, discountRate, ...data } = body;
 
         if (!id) {
@@ -224,28 +223,24 @@ export class InvoicesService {
             throw new BadRequestException('Invoice ID is required for editing');
         }
 
-        const company = await prisma.company.findFirst();
-        if (!company) {
-            logger.error('No company found. Please create a company first.', { category: 'invoice' });
-            throw new BadRequestException('No company found. Please create a company first.');
-        }
+        const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
 
-        const client = await prisma.client.findUnique({
-            where: { id: data.clientId },
+        const client = await prisma.client.findFirst({
+            where: { id: data.clientId, companyId },
         });
         if (!client) {
             logger.error('Client not found', { category: 'invoice' });
             throw new BadRequestException('Client not found');
         }
 
-        const existingInvoice = await prisma.invoice.findUnique({
-            where: { id },
+        const existingInvoice = await prisma.invoice.findFirst({
+            where: { id, companyId },
             include: { items: true }
         });
 
         if (!existingInvoice) {
             logger.error('Invoice not found', { category: 'invoice' });
-            throw new BadRequestException('Invoice not found');
+            throw new NotFoundException('Invoice not found');
         }
 
         if (existingInvoice.status !== 'DRAFT') {
@@ -331,9 +326,9 @@ export class InvoicesService {
         return updateInvoice;
     }
 
-    async deleteInvoice(id: string) {
-        const existingInvoice = await prisma.invoice.findUnique({
-            where: { id },
+    async deleteInvoice(companyId: string, id: string) {
+        const existingInvoice = await prisma.invoice.findFirst({
+            where: { id, companyId },
             include: {
                 items: true,
                 client: true,
@@ -343,7 +338,7 @@ export class InvoicesService {
 
         if (!existingInvoice) {
             logger.error('Invoice not found', { category: 'invoice' });
-            throw new BadRequestException('Invoice not found');
+            throw new NotFoundException('Invoice not found');
         }
 
         if (existingInvoice.status !== 'DRAFT') {
@@ -371,9 +366,9 @@ export class InvoicesService {
         return deletedInvoice;
     }
 
-    async getInvoicePdf(id: string): Promise<Uint8Array> {
-        const invoice = await prisma.invoice.findUnique({
-            where: { id },
+    async getInvoicePdf(companyId: string, id: string): Promise<Uint8Array> {
+        const invoice = await prisma.invoice.findFirst({
+            where: { id, companyId },
             include: {
                 items: true,
                 client: true,
@@ -385,7 +380,7 @@ export class InvoicesService {
 
         if (!invoice) {
             logger.error('Invoice not found', { category: 'invoice' });
-            throw new BadRequestException('Invoice not found');
+            throw new NotFoundException('Invoice not found');
         }
 
         const template = Handlebars.compile(baseTemplate);
@@ -449,18 +444,18 @@ export class InvoicesService {
             currency: invoice.currency,
             items: invoice.items.map(i => ({
                 name: i.name,
-                description: formatItemDescription(i.description),
+                description: formatRichText(i.description),
                 quantity: Number.isInteger(i.quantity) ? i.quantity.toString() : i.quantity.toFixed(3).replace(/\.?0+$/, ''),
-                unitPrice: i.unitPrice.toFixed(2),
+                unitPrice: formatAmount(i.unitPrice, invoice.company.country),
                 vatRate: (i.vatRate || 0).toFixed(2),
-                totalPrice: (i.quantity * i.unitPrice * (1 + (i.vatRate || 0) / 100)).toFixed(2),
+                totalPrice: formatAmount(i.quantity * i.unitPrice * (1 + (i.vatRate || 0) / 100), invoice.company.country),
                 type: itemTypeLabels[i.type] || i.type,
             })),
-            totalHT: invoice.totalHT.toFixed(2),
-            totalVAT: invoice.totalVAT.toFixed(2),
-            totalTTC: invoice.totalTTC.toFixed(2),
-            subtotalBeforeDiscount: subtotalBeforeDiscount.toFixed(2),
-            discountAmount: discountAmountValue.toFixed(2),
+            totalHT: formatAmount(invoice.totalHT, invoice.company.country),
+            totalVAT: formatAmount(invoice.totalVAT, invoice.company.country),
+            totalTTC: formatAmount(invoice.totalTTC, invoice.company.country),
+            subtotalBeforeDiscount: formatAmount(subtotalBeforeDiscount, invoice.company.country),
+            discountAmount: formatAmount(discountAmountValue, invoice.company.country),
             discountRate: Number(normalizedDiscountRate.toFixed(2)),
             hasDiscount,
             vatExemptText: invoice.company.exemptVat && (invoice.company.country || '').toUpperCase() === 'FRANCE' ? 'TVA non applicable, art. 293 B du CGI' : null,
@@ -477,7 +472,7 @@ export class InvoicesService {
             logoB64: pdfConfig?.logoB64 ?? '',
 
             noteExists: !!invoice.notes,
-            notes: (invoice.notes || '').replace(/\n/g, '<br>'),
+            notes: formatNotes(invoice.notes),
 
             // Labels
             labels: {
@@ -513,9 +508,9 @@ export class InvoicesService {
         return pdfBuffer;
     }
 
-    async getInvoiceXMLFormat(id: string): Promise<EInvoice> {
-        const invRec = await prisma.invoice.findUnique({
-            where: { id },
+    async getInvoiceXMLFormat(companyId: string, id: string): Promise<EInvoice> {
+        const invRec = await prisma.invoice.findFirst({
+            where: { id, companyId },
             include: {
                 items: true,
                 client: true,
@@ -527,7 +522,7 @@ export class InvoicesService {
 
         if (!invRec) {
             logger.error('Invoice not found', { category: 'invoice' });
-            throw new BadRequestException('Invoice not found');
+            throw new NotFoundException('Invoice not found');
         }
 
         const inv = new EInvoice();
@@ -644,27 +639,27 @@ export class InvoicesService {
         return inv;
     }
 
-    async getInvoicePDFFormat(invoiceId: string, format: '' | 'pdf' | ExportFormat): Promise<Uint8Array> {
-        const invRec = await prisma.invoice.findUnique({ where: { id: invoiceId }, include: { items: true, client: true, company: true, quote: true } });
+    async getInvoicePDFFormat(companyId: string, invoiceId: string, format: '' | 'pdf' | ExportFormat): Promise<Uint8Array> {
+        const invRec = await prisma.invoice.findFirst({ where: { id: invoiceId, companyId }, include: { items: true, client: true, company: true, quote: true } });
         if (!invRec) {
             logger.error('Invoice not found', { category: 'invoice' });
-            throw new BadRequestException('Invoice not found');
+            throw new NotFoundException('Invoice not found');
         }
 
-        const pdfBuffer = await this.getInvoicePdf(invoiceId);
+        const pdfBuffer = await this.getInvoicePdf(companyId, invoiceId);
 
         if (format === 'pdf' || format === '') {
             return pdfBuffer;
         }
 
-        const inv = await this.getInvoiceXMLFormat(invoiceId);
+        const inv = await this.getInvoiceXMLFormat(companyId, invoiceId);
 
         return await inv.embedInPdf(Buffer.from(pdfBuffer), format)
     }
 
-    async createInvoiceFromQuote(body: CreateInvoiceFromQuoteDto) {
-        const quote = await prisma.quote.findUnique({
-            where: { id: body.quoteId },
+    async createInvoiceFromQuote(companyId: string, body: CreateInvoiceFromQuoteDto) {
+        const quote = await prisma.quote.findFirst({
+            where: { id: body.quoteId, companyId },
             include: {
                 items: true,
                 client: true,
@@ -674,10 +669,10 @@ export class InvoicesService {
 
         if (!quote) {
             logger.error('Quote not found when creating invoice from quote', { category: 'invoice', details: { quoteId: body.quoteId } });
-            throw new BadRequestException('Quote not found');
+            throw new NotFoundException('Quote not found');
         }
 
-        const invoicingStatus = await this.getQuoteInvoicingStatus(body.quoteId);
+        const invoicingStatus = await this.getQuoteInvoicingStatus(companyId, body.quoteId);
 
         if (invoicingStatus.remainingPercent <= 0) {
             logger.error('Quote has already been fully invoiced', { category: 'invoice', details: { quoteId: body.quoteId } });
@@ -718,7 +713,7 @@ export class InvoicesService {
             throw new BadRequestException('No items selected to invoice');
         }
 
-        const newInvoice = await this.createInvoice({
+        const newInvoice = await this.createInvoice(companyId, {
             clientId: quote.clientId,
             quoteId: quote.id,
             dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
@@ -750,9 +745,9 @@ export class InvoicesService {
      * Computes how much of each quote item has already been invoiced across
      * all invoices created from this quote, and the remaining invoicable total.
      */
-    async getQuoteInvoicingStatus(quoteId: string) {
-        const quote = await prisma.quote.findUnique({
-            where: { id: quoteId },
+    async getQuoteInvoicingStatus(companyId: string, quoteId: string) {
+        const quote = await prisma.quote.findFirst({
+            where: { id: quoteId, companyId },
             include: {
                 items: {
                     include: {
@@ -767,7 +762,7 @@ export class InvoicesService {
 
         if (!quote) {
             logger.error('Quote not found when computing invoicing status', { category: 'invoice', details: { quoteId } });
-            throw new BadRequestException('Quote not found');
+            throw new NotFoundException('Quote not found');
         }
 
         const discountFactor = 1 - clampDiscountRate(quote.discountRate) / 100;
@@ -799,15 +794,15 @@ export class InvoicesService {
         };
     }
 
-    async archiveInvoice(invoiceId: string) {
-        const invoice = await prisma.invoice.findUnique({
-            where: { id: invoiceId },
+    async archiveInvoice(companyId: string, invoiceId: string) {
+        const invoice = await prisma.invoice.findFirst({
+            where: { id: invoiceId, companyId },
             include: { client: true, company: true },
         });
 
         if (!invoice) {
             logger.error('Invoice not found when trying to archive', { category: 'invoice', details: { invoiceId } });
-            throw new BadRequestException('Invoice not found');
+            throw new NotFoundException('Invoice not found');
         }
 
         if (invoice.status !== 'PAID') {
@@ -837,9 +832,9 @@ export class InvoicesService {
         return archivedInvoice;
     }
 
-    async sendInvoiceByEmail(invoiceId: string) {
-        const invoice = await prisma.invoice.findUnique({
-            where: { id: invoiceId },
+    async sendInvoiceByEmail(companyId: string, invoiceId: string) {
+        const invoice = await prisma.invoice.findFirst({
+            where: { id: invoiceId, companyId },
             include: {
                 client: true,
                 company: true,
@@ -849,7 +844,7 @@ export class InvoicesService {
 
         if (!invoice) {
             logger.error('Invoice not found', { category: 'invoice' });
-            throw new BadRequestException('Invoice not found');
+            throw new NotFoundException('Invoice not found');
         }
 
         // If client has no email, skip sending and return an informative message
@@ -858,10 +853,15 @@ export class InvoicesService {
             return { message: 'Client has no email configured; invoice not sent' };
         }
 
-        const pdfBuffer = await this.getInvoicePDFFormat(invoiceId, (invoice.company.invoicePDFFormat as ExportFormat || 'pdf'));
+        await prisma.invoice.update({
+            where: { id: invoiceId },
+            data: { status: 'SENT' },
+        });
+
+        const pdfBuffer = await this.getInvoicePDFFormat(companyId, invoiceId, (invoice.company.invoicePDFFormat as ExportFormat || 'pdf'));
 
         const mailTemplate = await prisma.mailTemplate.findFirst({
-            where: { type: 'INVOICE' },
+            where: { type: 'INVOICE', companyId },
             select: { subject: true, body: true }
         });
 
@@ -896,15 +896,6 @@ export class InvoicesService {
         }
 
         logger.info('Invoice sent by email', { category: 'invoice', details: { invoiceId, email: invoice.client.contactEmail } });
-
-        try {
-            await prisma.invoice.update({
-                where: { id: invoiceId },
-                data: { status: 'SENT' },
-            });
-        } catch (error) {
-            logger.error('Failed to update invoice status after sending', { category: 'invoice', details: { error } });
-        }
 
         try {
             await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_SENT, {

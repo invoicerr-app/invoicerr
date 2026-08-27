@@ -8,6 +8,19 @@ import { formatPattern } from '@/utils/pdf';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 
+// Quote/Invoice carry companyId directly; Payment only carries invoiceId, so
+// its companyId has to be resolved through the invoice it belongs to. Defined
+// as a function (not a const) so it can reference `prisma` below despite
+// being declared above it — same forward-reference pattern already used by
+// the query hooks in this extension.
+async function resolveCompanyId(model: string, record: { companyId?: string; invoiceId?: string }): Promise<string> {
+    if (record.companyId) {
+        return record.companyId;
+    }
+    const invoice = await prisma.invoice.findUniqueOrThrow({ where: { id: record.invoiceId! } });
+    return invoice.companyId;
+}
+
 const prisma = new PrismaClient({ adapter }).$extends({
     query: {
         $allModels: {
@@ -28,7 +41,6 @@ const prisma = new PrismaClient({ adapter }).$extends({
                     if (model === 'Quote') {
                         const toUpdate = await prisma.quote.findMany({
                             where: { rawNumber: null },
-                            include: { company: true },
                         });
                         await Promise.all(
                             toUpdate.map(async (quote) => {
@@ -36,6 +48,7 @@ const prisma = new PrismaClient({ adapter }).$extends({
                                     'quote',
                                     quote.number,
                                     quote.createdAt,
+                                    quote.companyId,
                                 );
                                 await prisma.quote.update({
                                     where: { id: quote.id },
@@ -48,7 +61,6 @@ const prisma = new PrismaClient({ adapter }).$extends({
                     if (model === 'Invoice') {
                         const toUpdate = await prisma.invoice.findMany({
                             where: { rawNumber: null },
-                            include: { company: true },
                         });
                         await Promise.all(
                             toUpdate.map(async (invoice) => {
@@ -56,6 +68,7 @@ const prisma = new PrismaClient({ adapter }).$extends({
                                     'invoice',
                                     invoice.number,
                                     invoice.createdAt,
+                                    invoice.companyId,
                                 );
                                 await prisma.invoice.update({
                                     where: { id: invoice.id },
@@ -68,7 +81,7 @@ const prisma = new PrismaClient({ adapter }).$extends({
                     if (model === 'Payment') {
                         const toUpdate = await prisma.payment.findMany({
                             where: { rawNumber: null },
-                            include: { invoice: { include: { company: true } } },
+                            include: { invoice: true },
                         });
                         await Promise.all(
                             toUpdate.map(async (payment) => {
@@ -76,6 +89,7 @@ const prisma = new PrismaClient({ adapter }).$extends({
                                     'payment',
                                     payment.number,
                                     payment.createdAt,
+                                    payment.invoice.companyId,
                                 );
                                 await prisma.payment.update({
                                     where: { id: payment.id },
@@ -95,10 +109,12 @@ const prisma = new PrismaClient({ adapter }).$extends({
                 if (['Quote', 'Invoice', 'Payment'].includes(model)) {
                     const typedResult = result as Prisma.QuoteGetPayload<{}> | Prisma.InvoiceGetPayload<{}> | Prisma.PaymentGetPayload<{}>;
                     if (!typedResult.rawNumber) {
+                        const companyId = await resolveCompanyId(model, typedResult);
                         const formattedNumber = await formatPattern(
                             (model.toLowerCase() as 'quote' | 'invoice' | 'payment'),
                             typedResult.number,
                             typedResult.createdAt,
+                            companyId,
                         );
                         await prisma[model.toLowerCase()].update({
                             where: { id: result.id },
@@ -116,10 +132,12 @@ const prisma = new PrismaClient({ adapter }).$extends({
                 if (['Quote', 'Invoice', 'Payment'].includes(model)) {
                     const typedResult = result as Prisma.QuoteGetPayload<{}> | Prisma.InvoiceGetPayload<{}> | Prisma.PaymentGetPayload<{}>;
                     if (!typedResult.rawNumber) {
+                        const companyId = await resolveCompanyId(model, typedResult);
                         const formattedNumber = await formatPattern(
                             (model.toLowerCase() as 'quote' | 'invoice' | 'payment'),
                             typedResult.number,
                             typedResult.createdAt,
+                            companyId,
                         );
                         await prisma[model.toLowerCase()].update({
                             where: { id: result.id },
@@ -156,6 +174,7 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     get verification() { return this.client.verification; }
     get invitationCode() { return this.client.invitationCode; }
     get company() { return this.client.company; }
+    get userCompany() { return this.client.userCompany; }
     get client_model() { return this.client.client; }
     get quote() { return this.client.quote; }
     get invoice() { return this.client.invoice; }

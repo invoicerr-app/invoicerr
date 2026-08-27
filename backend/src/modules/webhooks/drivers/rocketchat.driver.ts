@@ -122,6 +122,7 @@ export class RocketChatDriver implements WebhookDriver {
 
   async send(url: string, payload: any): Promise<boolean> {
     const hook = new RocketChatWebhook(url);
+    const instanceUrl = process.env.APP_URL || 'http://localhost:3000';
 
     const eventType = payload.event as WebhookEvent;
     const eventStyle = EVENT_STYLES[eventType] || {
@@ -138,7 +139,7 @@ export class RocketChatDriver implements WebhookDriver {
       .setColor(eventStyle.color)
       .setFooter(
         `Invoicerr Webhooks • ${new Date().toLocaleString()}`,
-        'https://invoicerr.app/favicon.png'
+        `${instanceUrl}/favicon.svg`
       )
 
     if (payload.company?.name) {
@@ -147,7 +148,7 @@ export class RocketChatDriver implements WebhookDriver {
 
     const res = await hook
       .setUsername('Invoicerr')
-      .setAvatar('https://invoicerr.app/favicon.png')
+      .setAvatar(`${instanceUrl}/favicon.svg`)
       .addAttachment(attachment)
       .send();
 

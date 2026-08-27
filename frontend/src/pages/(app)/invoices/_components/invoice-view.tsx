@@ -4,6 +4,7 @@ import type { Invoice, PaymentMethod } from "@/types"
 import { PaymentMethodType, getDisplayInvoiceStatus } from "@/types"
 import { format } from "date-fns"
 import { languageToLocale } from "@/lib/i18n"
+import { formatAmount } from "@/lib/utils"
 import { getDraftWatermarkLabel } from "@/lib/watermark"
 import { useTranslation } from "react-i18next"
 
@@ -107,7 +108,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
                             <p className="text-sm text-muted-foreground">{t("invoices.view.fields.totalHT")}</p>
                             <p className="font-medium">{t("common.valueWithCurrency", {
                                 currency: invoice.currency,
-                                amount: invoice.totalHT.toFixed(2)
+                                amount: formatAmount(invoice.totalHT, invoice.company?.country)
                             })}</p>
                         </div>
 
@@ -115,7 +116,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
                             <p className="text-sm text-muted-foreground">{t("invoices.view.fields.totalVAT")}</p>
                             <p className="font-medium">{t("common.valueWithCurrency", {
                                 currency: invoice.currency,
-                                amount: invoice.totalVAT.toFixed(2)
+                                amount: formatAmount(invoice.totalVAT, invoice.company?.country)
                             })}</p>
                         </div>
 
@@ -123,7 +124,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
                             <p className="text-sm text-muted-foreground">{t("invoices.view.fields.totalTTC")}</p>
                             <p className="font-medium">{t("common.valueWithCurrency", {
                                 currency: invoice.currency,
-                                amount: invoice.totalTTC.toFixed(2)
+                                amount: formatAmount(invoice.totalTTC, invoice.company?.country)
                             })}</p>
                         </div>
                     </div>
@@ -139,7 +140,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
                             <p className="text-sm text-muted-foreground">{t("invoices.view.fields.discountAmount")}</p>
                             <p className="font-medium">{t("common.valueWithCurrency", {
                                 currency: invoice.currency,
-                                amount: discountAmount.toFixed(2)
+                                amount: formatAmount(discountAmount, invoice.company?.country)
                             })}</p>
                         </div>
                     </div>

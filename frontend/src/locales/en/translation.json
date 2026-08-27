@@ -445,6 +445,10 @@
                 "cancel": "Cancel",
                 "create": "Create Quote",
                 "save": "Save Changes"
+            },
+            "messages": {
+                "updateSuccess": "Quote updated successfully",
+                "updateError": "Error updating quote"
             }
         },
         "view": {
@@ -488,7 +492,13 @@
             }
         },
         "pdf": {
-            "title": "Quote {{number}} - PDF"
+            "title": "Quote {{number}} - PDF",
+            "edit": {
+                "toggle": "Edit",
+                "saveQuote": "Save quote",
+                "saveSettings": "Save settings",
+                "fitToWidth": "Fit to width"
+            }
         }
     },
     "invoices": {
@@ -1078,6 +1088,80 @@
             "description": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone."
         }
     },
+    "expenses": {
+        "search": {
+            "placeholder": "Search expenses..."
+        },
+        "actions": {
+            "add": "Add expense",
+            "export": "Export CSV",
+            "cancel": "Cancel",
+            "save": "Save",
+            "delete": "Delete"
+        },
+        "table": {
+            "emptyState": "No expenses for this month",
+            "columns": {
+                "description": "Description",
+                "amount": "Amount",
+                "date": "Date",
+                "notes": "Notes",
+                "actions": "Actions"
+            },
+            "tooltips": {
+                "duplicate": "Duplicate expense",
+                "edit": "Edit expense",
+                "delete": "Delete expense"
+            }
+        },
+        "upsert": {
+            "title": {
+                "create": "Add expense",
+                "edit": "Edit expense"
+            },
+            "form": {
+                "description": {
+                    "label": "Description",
+                    "placeholder": "e.g. Office supplies",
+                    "errors": {
+                        "required": "Description is required"
+                    }
+                },
+                "amount": {
+                    "label": "Amount",
+                    "placeholder": "0.00",
+                    "errors": {
+                        "required": "Amount is required",
+                        "min": "Amount must be positive"
+                    }
+                },
+                "currency": {
+                    "label": "Currency"
+                },
+                "date": {
+                    "label": "Date"
+                },
+                "notes": {
+                    "label": "Notes",
+                    "placeholder": "Optional notes"
+                }
+            },
+            "messages": {
+                "addSuccess": "Expense added",
+                "addError": "Failed to add expense",
+                "updateSuccess": "Expense updated",
+                "updateError": "Failed to update expense",
+                "deleteSuccess": "Expense deleted",
+                "deleteError": "Failed to delete expense",
+                "duplicateSuccess": "Expense duplicated to today's date",
+                "duplicateError": "Failed to duplicate expense"
+            }
+        },
+        "delete": {
+            "title": "Delete expense",
+            "description": "Are you sure you want to delete \"{{description}}\"? This action cannot be undone."
+        }
+    },
     "paymentMethods": {
         "title": "Payment Methods",
         "description": "Manage reusable payment methods.",
@@ -1182,6 +1266,7 @@
             "account": "Account",
             "logs": "Logs",
             "invitations": "Invitations",
+            "members": "Members",
             "dangerZone": "Danger Zone",
             "plugins": "Plugins",
             "webhooks": "Webhooks",
@@ -1193,6 +1278,7 @@
                 "description": "Generate a new invitation code to invite someone to create an account",
                 "expiresIn": "Expires in (days)",
                 "expiresPlaceholder": "Leave empty for no expiration",
+                "role": "Role",
                 "button": "Generate Code",
                 "creating": "Generating..."
             },
@@ -1200,6 +1286,7 @@
                 "title": "Your Invitation Codes",
                 "description": "Manage the invitation codes you have created",
                 "code": "Code",
+                "role": "Role",
                 "status": "Status",
                 "createdAt": "Created",
                 "expiresAt": "Expires",
@@ -1207,6 +1294,11 @@
                 "actions": "Actions",
                 "empty": "You haven't created any invitation codes yet",
                 "noExpiry": "Never"
+            },
+            "roles": {
+                "owner": "Owner",
+                "admin": "Admin",
+                "member": "Member"
             },
             "status": {
                 "active": "Active",
@@ -1220,6 +1312,23 @@
                 "deleteSuccess": "Invitation code deleted",
                 "deleteError": "Failed to delete invitation code",
                 "codeCopied": "Code copied to clipboard"
+            }
+        },
+        "members": {
+            "title": "Company Members",
+            "description": "Manage who has access to this company and their role",
+            "empty": "No members yet",
+            "list": {
+                "name": "Name",
+                "email": "Email",
+                "role": "Role",
+                "actions": "Actions"
+            },
+            "messages": {
+                "roleUpdateSuccess": "Member role updated",
+                "roleUpdateError": "Failed to update member role",
+                "removeSuccess": "Member removed",
+                "removeError": "Failed to remove member"
             }
         },
         "company": {
@@ -1751,7 +1860,7 @@
                 "button": "Create Webhook"
             },
             "card": {
-                "events": "Listening to events: {{events}}",
+                "events": "Listening to events:",
                 "edit": "Edit",
                 "delete": "Delete",
                 "editPrompt": "Enter new webhook URL"
@@ -1768,12 +1877,14 @@
                 "description": "Generate a new API key",
                 "name": "Name",
                 "namePlaceholder": "e.g. CLI on my laptop",
+                "scopes": "Scopes",
                 "button": "Create API Key"
             },
             "card": {
                 "lastUsed": "Last used: {{date}}",
                 "neverUsed": "Never used",
-                "revoke": "Revoke"
+                "revoke": "Revoke",
+                "noScopes": "No scopes granted"
             }
         }
     },
@@ -1783,6 +1894,7 @@
             "quotes": "Quotes",
             "invoices": "Invoices",
             "payments": "Payments",
+            "expenses": "Expenses",
             "clients": "Clients",
             "articles": "Articles",
             "paymentMethods": "Payment Methods",
@@ -1790,7 +1902,10 @@
             "settings": "Settings"
         },
         "company": {
-            "plan": "Entreprise"
+            "plan": "Entreprise",
+            "switcherLabel": "Your companies",
+            "createNew": "Create new company",
+            "manage": "Manage company"
         },
         "menu": "Menu",
         "theme": {
@@ -1917,7 +2032,12 @@
             "month": "Month",
             "year": "Year"
         },
-        "valueWithCurrency": "{{amount}}{{currency}}"
+        "valueWithCurrency": "{{amount}}{{currency}}",
+        "markdownNotes": {
+            "edit": "Edit",
+            "preview": "Preview",
+            "hint": "Markdown supported"
+        }
     },
     "noOptions": "No options available. Create a new client.",
     "payments": {

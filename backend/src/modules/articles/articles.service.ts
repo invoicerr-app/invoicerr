@@ -1,5 +1,5 @@
 import { Article, ItemType } from '../../../prisma/generated/prisma/client';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
@@ -23,16 +23,10 @@ export interface EditArticleDto {
 
 @Injectable()
 export class ArticlesService {
-  async create(dto: CreateArticleDto): Promise<Article> {
-    const company = await prisma.company.findFirst();
-    if (!company) {
-      logger.error('No company found. Please create a company first.', { category: 'article' });
-      throw new BadRequestException('No company found. Please create a company first.');
-    }
-
+  async create(companyId: string, dto: CreateArticleDto): Promise<Article> {
     const article = await prisma.article.create({
       data: {
-        companyId: company.id,
+        companyId,
         name: dto.name,
         description: dto.description ?? null,
         type: dto.type ?? ItemType.SERVICE,
@@ -41,39 +35,26 @@ export class ArticlesService {
       },
     });
 
-    logger.info('Article created', { category: 'article', details: { articleId: article.id, companyId: company.id } });
+    logger.info('Article created', { category: 'article', details: { articleId: article.id, companyId } });
     return article;
   }
 
-  async findAll(): Promise<Article[]> {
-    const company = await prisma.company.findFirst();
-    if (!company) {
-      logger.error('No company found. Please create a company first.', { category: 'article' });
-      throw new BadRequestException('No company found. Please create a company first.');
-    }
-
+  async findAll(companyId: string): Promise<Article[]> {
     return prisma.article.findMany({
-      where: { companyId: company.id, isActive: true },
+      where: { companyId, isActive: true },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findOne(id: string): Promise<Article | null> {
-    const article = await prisma.article.findUnique({ where: { id } });
-    if (!article) return null;
-    const company = await prisma.company.findFirst();
-    if (!company || article.companyId !== company.id) {
-      return null;
-    }
-    return article;
+  async findOne(companyId: string, id: string): Promise<Article | null> {
+    return prisma.article.findFirst({ where: { id, companyId } });
   }
 
-  async update(id: string, dto: EditArticleDto): Promise<Article> {
-    const existing = await prisma.article.findUnique({ where: { id } });
-    const company = await prisma.company.findFirst();
-    if (!existing || !company || existing.companyId !== company.id) {
+  async update(companyId: string, id: string, dto: EditArticleDto): Promise<Article> {
+    const existing = await prisma.article.findFirst({ where: { id, companyId } });
+    if (!existing) {
       logger.error('Article not found', { category: 'article', details: { id } });
-      throw new BadRequestException('Article not found');
+      throw new NotFoundException('Article not found');
     }
 
     const updated = await prisma.article.update({
@@ -88,16 +69,15 @@ export class ArticlesService {
       },
     });
 
-    logger.info('Article updated', { category: 'article', details: { articleId: updated.id, companyId: company.id } });
+    logger.info('Article updated', { category: 'article', details: { articleId: updated.id, companyId } });
     return updated;
   }
 
-  async softDelete(id: string): Promise<Article> {
-    const existing = await prisma.article.findUnique({ where: { id } });
-    const company = await prisma.company.findFirst();
-    if (!existing || !company || existing.companyId !== company.id) {
+  async softDelete(companyId: string, id: string): Promise<Article> {
+    const existing = await prisma.article.findFirst({ where: { id, companyId } });
+    if (!existing) {
       logger.error('Article not found', { category: 'article', details: { id } });
-      throw new BadRequestException('Article not found');
+      throw new NotFoundException('Article not found');
     }
 
     const deleted = await prisma.article.update({
@@ -105,7 +85,7 @@ export class ArticlesService {
       data: { isActive: false },
     });
 
-    logger.info('Article deactivated', { category: 'article', details: { articleId: existing.id, companyId: company.id } });
+    logger.info('Article deactivated', { category: 'article', details: { articleId: existing.id, companyId } });
     return deleted;
   }
 }

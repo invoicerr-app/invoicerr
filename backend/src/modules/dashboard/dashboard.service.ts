@@ -54,33 +54,33 @@ export class DashboardService {
         }
     }
 
-    async getDashboardData(): Promise<DashboardData> {
+    async getDashboardData(companyId: string): Promise<DashboardData> {
 
         const quotes = await prisma.quote.groupBy({
-            where: { isActive: true },
+            where: { companyId, isActive: true },
             by: ['status'],
             _count: true,
         });
 
         const invoices = await prisma.invoice.groupBy({
-            where: { isActive: true },
+            where: { companyId, isActive: true },
             by: ['status'],
             _count: true,
         });
         const clientsCount = await prisma.client.count({
-            where: { isActive: true },
+            where: { companyId, isActive: true },
         });
-        const company = await prisma.company.findFirst();
+        const company = await prisma.company.findUnique({ where: { id: companyId } });
 
         const latestQuotes = await prisma.quote.findMany({
-            where: { isActive: true },
+            where: { companyId, isActive: true },
             orderBy: { updatedAt: 'desc' },
             include: { company: true, client: true },
             take: 5,
         });
 
         const latestInvoices = await prisma.invoice.findMany({
-            where: { isActive: true },
+            where: { companyId, isActive: true },
             orderBy: { updatedAt: 'desc' },
             include: { company: true, client: true },
             take: 5,
@@ -93,16 +93,16 @@ export class DashboardService {
             const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
             return {
                 createdAt: start,
-                real: await this.getRealRevenueForRange(start, end),
-                forecast: await this.getForecastRevenueForRange(start, end),
+                real: await this.getRealRevenueForRange(companyId, start, end),
+                forecast: await this.getForecastRevenueForRange(companyId, start, end),
             };
         }));
 
-        const currentMonthRevenue = await this.getMonthlyRevenue(new Date());
+        const currentMonthRevenue = await this.getMonthlyRevenue(companyId, new Date());
 
         const previousMonthDate = new Date();
         previousMonthDate.setMonth(previousMonthDate.getMonth() - 1);
-        const previousMonthRevenue = await this.getMonthlyRevenue(previousMonthDate);
+        const previousMonthRevenue = await this.getMonthlyRevenue(companyId, previousMonthDate);
 
         const monthlyChange = currentMonthRevenue - previousMonthRevenue;
 
@@ -115,16 +115,16 @@ export class DashboardService {
             const end = new Date(date.getFullYear() + 1, 0, 0);
             return {
                 createdAt: start,
-                real: await this.getRealRevenueForRange(start, end),
-                forecast: await this.getForecastRevenueForRange(start, end),
+                real: await this.getRealRevenueForRange(companyId, start, end),
+                forecast: await this.getForecastRevenueForRange(companyId, start, end),
             };
         }));
 
-        const currentYearRevenue = await this.getYearlyRevenue(new Date());
+        const currentYearRevenue = await this.getYearlyRevenue(companyId, new Date());
 
         const previousYearDate = new Date();
         previousYearDate.setFullYear(previousYearDate.getFullYear() - 1);
-        const previousYearRevenue = await this.getYearlyRevenue(previousYearDate);
+        const previousYearRevenue = await this.getYearlyRevenue(companyId, previousYearDate);
 
         const yearlyChange = currentYearRevenue - previousYearRevenue;
 
@@ -228,9 +228,9 @@ export class DashboardService {
     }
 
     /** Real revenue: actual payments received, by payment date. */
-    async getRealRevenueForRange(start: Date, end: Date): Promise<number> {
+    async getRealRevenueForRange(companyId: string, start: Date, end: Date): Promise<number> {
         const payments = await prisma.payment.findMany({
-            where: { paidAt: { gte: start, lte: end } },
+            where: { paidAt: { gte: start, lte: end }, invoice: { companyId } },
             include: { invoice: { include: { company: true } } },
         });
 
@@ -243,9 +243,10 @@ export class DashboardService {
     }
 
     /** Forecast revenue: total of issued invoices (paid + still expected), by due date. */
-    async getForecastRevenueForRange(start: Date, end: Date): Promise<number> {
+    async getForecastRevenueForRange(companyId: string, start: Date, end: Date): Promise<number> {
         const invoices = await prisma.invoice.findMany({
             where: {
+                companyId,
                 dueDate: { gte: start, lte: end },
                 status: { in: ['PAID', 'SENT', 'UNPAID'] },
             },
@@ -260,12 +261,13 @@ export class DashboardService {
         return convertedAmounts.reduce((total, amount) => total + amount, 0);
     }
 
-    async getMonthlyRevenue(date: Date): Promise<number> {
+    async getMonthlyRevenue(companyId: string, date: Date): Promise<number> {
         const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
         const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
         const invoices = await prisma.invoice.findMany({
             where: {
+                companyId,
                 createdAt: {
                     gte: startOfMonth,
                     lte: endOfMonth,
@@ -283,12 +285,13 @@ export class DashboardService {
         return convertedAmounts.reduce((total, amount) => total + amount, 0);
     }
 
-    async getYearlyRevenue(date: Date): Promise<number> {
+    async getYearlyRevenue(companyId: string, date: Date): Promise<number> {
         const startOfYear = new Date(date.getFullYear(), 0, 1);
         const endOfYear = new Date(date.getFullYear() + 1, 0, 0);
 
         const invoices = await prisma.invoice.findMany({
             where: {
+                companyId,
                 createdAt: {
                     gte: startOfYear,
                     lte: endOfYear,

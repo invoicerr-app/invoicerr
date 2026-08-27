@@ -16,6 +16,9 @@ import { ExportFormat } from '@fin.cx/einvoice';
 import { CreateInvoiceDto, CreateInvoiceFromQuoteDto, EditInvoicesDto } from '@/modules/invoices/dto/invoices.dto';
 import { InvoicesService } from '@/modules/invoices/invoices.service';
 import { PluginsService } from '@/modules/plugins/plugins.service';
+import { ActiveCompany } from '@/decorators/active-company.decorator';
+import { CompanyRole } from '../../../prisma/generated/prisma/client';
+import { Roles } from '@/decorators/roles.decorator';
 
 @ApiTags('invoices')
 @Controller('invoices')
@@ -29,16 +32,16 @@ export class InvoicesController {
   @ApiOperation({ summary: 'List invoices', description: 'Returns a paginated list of invoices.' })
   @ApiQuery({ name: 'page', required: false, type: String, description: 'Page number (1-indexed) of the paginated invoice list. Defaults to 1.' })
   @ApiResponse({ status: 200, description: 'Invoices retrieved' })
-  async getInvoices(@Query('page') page: string) {
-    return this.invoicesService.getInvoices(page);
+  async getInvoices(@ActiveCompany() companyId: string, @Query('page') page: string) {
+    return this.invoicesService.getInvoices(companyId, page);
   }
 
   @Get('search')
   @ApiOperation({ summary: 'Search invoices', description: 'Searches invoices by query string (client name, invoice number, etc.).' })
   @ApiQuery({ name: 'query', required: true, type: String, description: 'Free-text search term matched against client name and item descriptions.' })
   @ApiResponse({ status: 200, description: 'Search results retrieved' })
-  async searchInvoices(@Query('query') query: string) {
-    return await this.invoicesService.searchInvoices(query);
+  async searchInvoices(@ActiveCompany() companyId: string, @Query('query') query: string) {
+    return await this.invoicesService.searchInvoices(companyId, query);
   }
 
   @Get('table')
@@ -49,12 +52,13 @@ export class InvoicesController {
   @ApiQuery({ name: 'sort', required: false, enum: ['asc', 'desc'], description: 'Sort order on creation date. Defaults to "desc".' })
   @ApiResponse({ status: 200, description: 'Invoices retrieved' })
   async getInvoicesTable(
+    @ActiveCompany() companyId: string,
     @Query('clientId') clientId?: string,
     @Query('year') year?: string,
     @Query('month') month?: string,
     @Query('sort') sort?: 'asc' | 'desc',
   ) {
-    return await this.invoicesService.getInvoicesTable({ clientId, year, month, sort });
+    return await this.invoicesService.getInvoicesTable(companyId, { clientId, year, month, sort });
   }
 
   @Get(':id/pdf')
@@ -64,6 +68,7 @@ export class InvoicesController {
   @ApiResponse({ status: 200, description: 'PDF retrieved' })
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async getInvoicePdf(
+    @ActiveCompany() companyId: string,
     @Param('id') id: string,
     @Query('format') format: ExportFormat | undefined,
     @Res() res: Response,
@@ -71,9 +76,9 @@ export class InvoicesController {
     if (id === 'undefined') return res.status(400).send('Invalid invoice ID');
     let pdfBuffer: Uint8Array | null = null;
     if (format) {
-      pdfBuffer = await this.invoicesService.getInvoicePDFFormat(id, format);
+      pdfBuffer = await this.invoicesService.getInvoicePDFFormat(companyId, id, format);
     } else {
-      pdfBuffer = await this.invoicesService.getInvoicePdf(id);
+      pdfBuffer = await this.invoicesService.getInvoicePdf(companyId, id);
     }
     if (!pdfBuffer) {
       res.status(404).send('Invoice not found or PDF generation failed');
@@ -94,6 +99,7 @@ export class InvoicesController {
   @ApiResponse({ status: 200, description: 'XML retrieved' })
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async downloadInvoiceXml(
+    @ActiveCompany() companyId: string,
     @Param('id') id: string,
     @Query('format') format: string | ExportFormat,
     @Res() res: Response,
@@ -101,7 +107,7 @@ export class InvoicesController {
     if (id === 'undefined') return res.status(400).send('Invalid invoice ID');
     let fileBuffer: Uint8Array | null = null;
 
-    const xmlInvoice = await this.invoicesService.getInvoiceXMLFormat(id);
+    const xmlInvoice = await this.invoicesService.getInvoiceXMLFormat(companyId, id);
     let xmlString = '';
     if (this.pluginService.canGenerateXml(format)) {
       xmlString = await this.pluginService.generateXml(format, xmlInvoice);
@@ -129,6 +135,7 @@ export class InvoicesController {
   @ApiResponse({ status: 200, description: 'PDF retrieved' })
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async downloadInvoicePdf(
+    @ActiveCompany() companyId: string,
     @Param('id') id: string,
     @Query('format') format: ExportFormat | undefined,
     @Res() res: Response,
@@ -136,9 +143,9 @@ export class InvoicesController {
     if (id === 'undefined') return res.status(400).send('Invalid invoice ID');
     let pdfBuffer: Uint8Array | null = null;
     if (format) {
-      pdfBuffer = await this.invoicesService.getInvoicePDFFormat(id, format);
+      pdfBuffer = await this.invoicesService.getInvoicePDFFormat(companyId, id, format);
     } else {
-      pdfBuffer = await this.invoicesService.getInvoicePdf(id);
+      pdfBuffer = await this.invoicesService.getInvoicePdf(companyId, id);
     }
     if (!pdfBuffer) {
       res.status(404).send('Invoice not found or PDF generation failed');
@@ -156,46 +163,47 @@ export class InvoicesController {
   @ApiOperation({ summary: 'Create invoice from quote', description: 'Generates a new invoice based on an existing quote, with a partial selection of items and quantities.' })
   @ApiResponse({ status: 201, description: 'Invoice created from quote' })
   @ApiBody({ schema: { type: 'object', properties: { quoteId: { type: 'string', description: 'ID of the quote to convert to an invoice' }, items: { type: 'array', items: { type: 'object', properties: { quoteItemId: { type: 'string' }, quantity: { type: 'number' } } }, description: 'Quote items to invoice with their requested quantities' } } } })
-  createInvoiceFromQuote(@Body() body: CreateInvoiceFromQuoteDto) {
-    return this.invoicesService.createInvoiceFromQuote(body);
+  createInvoiceFromQuote(@ActiveCompany() companyId: string, @Body() body: CreateInvoiceFromQuoteDto) {
+    return this.invoicesService.createInvoiceFromQuote(companyId, body);
   }
 
   @Post()
   @ApiOperation({ summary: 'Create an invoice', description: 'Creates a new invoice with items, client, and pricing information.' })
   @ApiResponse({ status: 201, description: 'Invoice created' })
-  postInvoicesInfo(@Body() body: CreateInvoiceDto) {
-    return this.invoicesService.createInvoice(body);
+  postInvoicesInfo(@ActiveCompany() companyId: string, @Body() body: CreateInvoiceDto) {
+    return this.invoicesService.createInvoice(companyId, body);
   }
 
   @Post('archive')
   @ApiOperation({ summary: 'Archive invoice', description: 'Archives a paid invoice.' })
   @ApiResponse({ status: 201, description: 'Invoice archived' })
   @ApiBody({ schema: { type: 'object', properties: { invoiceId: { type: 'string', description: 'ID of the invoice to archive' } } } })
-  archiveInvoice(@Body('invoiceId') invoiceId: string) {
-    return this.invoicesService.archiveInvoice(invoiceId);
+  archiveInvoice(@ActiveCompany() companyId: string, @Body('invoiceId') invoiceId: string) {
+    return this.invoicesService.archiveInvoice(companyId, invoiceId);
   }
 
   @Post('send')
   @ApiOperation({ summary: 'Send invoice by email', description: 'Sends an invoice as a PDF attachment via email to the client.' })
   @ApiResponse({ status: 201, description: 'Invoice sent' })
   @ApiBody({ schema: { type: 'object', properties: { id: { type: 'string', description: 'ID of the invoice to send' } } } })
-  sendInvoiceByEmail(@Body('id') id: string) {
-    return this.invoicesService.sendInvoiceByEmail(id);
+  sendInvoiceByEmail(@ActiveCompany() companyId: string, @Body('id') id: string) {
+    return this.invoicesService.sendInvoiceByEmail(companyId, id);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update an invoice', description: 'Updates an existing invoice by ID.' })
   @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
   @ApiResponse({ status: 200, description: 'Invoice updated' })
-  editInvoicesInfo(@Param('id') id: string, @Body() body: EditInvoicesDto) {
-    return this.invoicesService.editInvoice({ ...body, id });
+  editInvoicesInfo(@ActiveCompany() companyId: string, @Param('id') id: string, @Body() body: EditInvoicesDto) {
+    return this.invoicesService.editInvoice(companyId, { ...body, id });
   }
 
   @Delete(':id')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @ApiOperation({ summary: 'Delete an invoice', description: 'Permanently removes an invoice by ID.' })
   @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
   @ApiResponse({ status: 200, description: 'Invoice deleted' })
-  deleteInvoice(@Param('id') id: string) {
-    return this.invoicesService.deleteInvoice(id);
+  deleteInvoice(@ActiveCompany() companyId: string, @Param('id') id: string) {
+    return this.invoicesService.deleteInvoice(companyId, id);
   }
 }

@@ -2,6 +2,7 @@ import { SignaturesService } from '@/modules/signatures/signatures.service';
 import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
+import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { Response } from 'express';
 
 @ApiTags('signatures')
@@ -42,8 +43,8 @@ export class SignaturesController {
   @ApiOperation({ summary: 'Create a signature request', description: 'Creates a new electronic signature request for a quote.' })
   @ApiResponse({ status: 201, description: 'Signature request created' })
   @ApiBody({ schema: { type: 'object', properties: { quoteId: { type: 'string', description: 'ID of the quote to request a signature for' } } } })
-  async createSignature(@Body('quoteId') quoteId: string) {
-    return this.signaturesService.createSignature(quoteId);
+  async createSignature(@ActiveCompany() companyId: string, @Body('quoteId') quoteId: string) {
+    return this.signaturesService.createSignature(companyId, quoteId);
   }
 
   @Post('/:id/otp')

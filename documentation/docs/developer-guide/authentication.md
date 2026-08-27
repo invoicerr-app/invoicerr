@@ -25,7 +25,9 @@ Accounts created via OIDC have no local password by default. `POST /api/auth-ext
 
 ## API key authentication
 
-For programmatic access (integrations, scripts), clients send `Authorization: Bearer <raw-key>`. `AuthGuard` extracts the key, hashes it, and looks up a matching `apiKey` row. On match, it updates `lastUsedAt` and attaches the associated user to `request.user`. Keys are scoped to a single user and are never returned again after creation.
+For programmatic access (integrations, scripts), clients send `Authorization: Bearer <raw-key>`. `AuthGuard` extracts the key, hashes it, and looks up a matching `apiKey` row. On match, it updates `lastUsedAt` and attaches the associated user and company to `request.user`/`request.companyId`. Keys are scoped to a single user and a single company, and are never returned again after creation.
+
+Keys can also carry a `scopes` array narrowing what they're allowed to do (e.g. `clients:write`, `articles:read`) — see [MCP server](./mcp-server.md#api-key-scopes) for where this is enforced today.
 
 ## Public routes
 

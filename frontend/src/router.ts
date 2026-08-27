@@ -11,6 +11,7 @@ export type Path =
   | `/auth/sign-up`
   | `/clients`
   | `/dashboard`
+  | `/expenses`
   | `/invoices`
   | `/invoices/pdf/:id`
   | `/payment-methods`

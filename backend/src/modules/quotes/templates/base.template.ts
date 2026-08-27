@@ -5,7 +5,7 @@ export const baseTemplate = `
     <meta charset="utf-8">
     <title>{{labels.quote}} {{number}}</title>
     <style>
-        body { font-family: {{fontFamily}}, sans-serif; margin: {{padding}}px; color: #333; }
+        body { font-family: {{fontFamily}}, sans-serif; margin: 0; color: #333; font-size: 13px; }
         .header { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; row-gap: 10px; margin-bottom: 30px; }
         .quote-info { text-align: right; }
         .header p { margin: 0; line-height: 1.4; }
@@ -15,10 +15,31 @@ export const baseTemplate = `
         .company-info .spacer { visibility: hidden; margin: 0 0 4px; }
         .item-description { display: block; font-size: 12px; color: #666; white-space: pre-line; margin-top: 4px; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { padding: 12px; text-align: left; vertical-align: top; border-bottom: 1px solid #ddd; }
+        th, td { padding: 12px; text-align: left; vertical-align: top; border-bottom: 1px solid #ddd; overflow-wrap: break-word; word-break: break-word; }
         th { background-color: {{secondaryColor}}; font-weight: bold; color: {{tableTextColor}}; }
+        .items-table { table-layout: fixed; }
+        .items-table th:nth-child(1), .items-table td:nth-child(1) { width: 38%; }
+        .items-table th:nth-child(2), .items-table td:nth-child(2) { width: 10%; }
+        .items-table th:nth-child(3), .items-table td:nth-child(3) { width: 9%; }
+        .items-table th:nth-child(4), .items-table td:nth-child(4) { width: 16%; }
+        .items-table th:nth-child(5), .items-table td:nth-child(5) { width: 9%; }
+        .items-table th:nth-child(6), .items-table td:nth-child(6) { width: 18%; }
         .total-row { font-weight: bold; background-color: {{secondaryColor}}; color: {{tableTextColor}}; }
-        .notes { margin-top: 20px; padding: 20px; background-color: {{secondaryColor}}; border-radius: 4px; color: {{tableTextColor}}; }
+        .totals-table { width: 100%; border-collapse: collapse; margin: 0 0 20px; page-break-inside: avoid; break-inside: avoid; }
+        .totals-table td:last-child { text-align: right; }
+        .notes { margin-top: 20px; padding: 20px; background-color: {{secondaryColor}}; border-radius: 4px; color: {{tableTextColor}}; page-break-inside: avoid; break-inside: avoid; }
+        .notes-content h1, .notes-content h2, .notes-content h3, .notes-content h4 { margin: 12px 0 6px; line-height: 1.3; }
+        .notes-content h1:first-child, .notes-content h2:first-child, .notes-content h3:first-child, .notes-content h4:first-child { margin-top: 0; }
+        .notes-content p { margin: 0 0 8px; }
+        .notes-content p:last-child { margin-bottom: 0; }
+        .notes-content ul, .notes-content ol { margin: 0 0 8px; padding-left: 20px; }
+        .notes-content li { margin: 2px 0; }
+        .notes-content a { color: {{primaryColor}}; text-decoration: underline; word-break: break-word; }
+        .notes-content code { font-family: 'Courier New', monospace; background-color: rgba(0, 0, 0, 0.06); padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
+        .notes-content pre { font-family: 'Courier New', monospace; background-color: rgba(0, 0, 0, 0.06); padding: 8px; border-radius: 4px; overflow-wrap: break-word; white-space: pre-wrap; margin: 0 0 8px; }
+        .notes-content pre code { background: none; padding: 0; }
+        .notes-content blockquote { margin: 0 0 8px; padding-left: 10px; border-left: 3px solid {{primaryColor}}; color: inherit; opacity: 0.85; }
+        .notes-content hr { border: none; border-top: 1px solid rgba(0, 0, 0, 0.15); margin: 10px 0; }
         .payment-info { margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-left: 4px solid {{primaryColor}}; color: #333; }
         .validity { color: #dc2626; font-weight: bold; }
         .logo { max-height: 140px; margin-bottom: 10px; }
@@ -29,9 +50,25 @@ export const baseTemplate = `
             font-size: 9px;
             color: #999;
         }
+        .watermark {
+            position: fixed;
+            top: 45%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 96px;
+            font-weight: bold;
+            color: #ff0000;
+            opacity: 0.15;
+            z-index: 1000;
+            pointer-events: none;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
+    {{#if isDraft}}
+    <div class="watermark">{{draftLabel}}</div>
+    {{/if}}
     <div class="made-with">Made with Invoicerr</div>
     <div class="header">
         <div class="company-name">
@@ -69,7 +106,7 @@ export const baseTemplate = `
             {{#if client.VAT}}<br><strong>{{labels.VATId}}:</strong> {{client.VAT}}{{/if}}</p>
         </div>
     </div>
-    <table>
+    <table class="items-table">
         <thead>
             <tr>
                 <th>{{labels.description}}</th>
@@ -92,7 +129,9 @@ export const baseTemplate = `
             </tr>
             {{/each}}
         </tbody>
-        <tfoot>
+    </table>
+    <table class="totals-table">
+        <tbody>
             <tr>
                 <td colspan="5"><strong>{{labels.subtotal}}</strong></td>
                 <td><strong>{{currency}} {{subtotalBeforeDiscount}}</strong></td>
@@ -117,9 +156,9 @@ export const baseTemplate = `
                 <td colspan="5"><strong>{{labels.grandTotal}}</strong></td>
                 <td><strong>{{currency}} {{totalTTC}}</strong></td>
             </tr>
-        </tfoot>
+        </tbody>
     </table>
-    
+
     {{#if paymentMethod}}
     <div class="payment-info">
         <strong>{{labels.paymentMethod}}</strong> {{paymentMethod}}<br>
@@ -132,7 +171,7 @@ export const baseTemplate = `
     {{#if noteExists}}
     <div class="notes">
         <h4>{{labels.notes}}</h4>
-        <p>{{{notes}}}</p>
+        <div class="notes-content">{{{notes}}}</div>
     </div>
     {{/if}}
 </body>

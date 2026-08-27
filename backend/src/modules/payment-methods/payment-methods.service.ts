@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PaymentMethod, PaymentMethodType, WebhookEvent } from '../../../prisma/generated/prisma/client';
 
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
@@ -25,12 +25,8 @@ export class PaymentMethodsService {
   constructor(private readonly webhookDispatcher: WebhookDispatcherService) {
     this.logger = new Logger(PaymentMethodsService.name);
   }
-  async create(dto: CreatePaymentMethodDto): Promise<PaymentMethod> {
-    const company = await prisma.company.findFirst();
-    if (!company) {
-      logger.error('No company found. Please create a company first.', { category: 'payment-method' });
-      throw new BadRequestException('No company found. Please create a company first.');
-    }
+  async create(companyId: string, dto: CreatePaymentMethodDto): Promise<PaymentMethod> {
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
 
     const pm = await prisma.paymentMethod.create({
       data: {
@@ -55,41 +51,25 @@ export class PaymentMethodsService {
     return pm;
   }
 
-  async findAll(): Promise<PaymentMethod[]> {
-    const company = await prisma.company.findFirst();
-    if (!company) {
-      logger.error('No company found. Please create a company first.', { category: 'payment-method' });
-      throw new BadRequestException('No company found. Please create a company first.');
-    }
-
+  async findAll(companyId: string): Promise<PaymentMethod[]> {
     return prisma.paymentMethod.findMany({
-      where: { companyId: company.id, isActive: true },
+      where: { companyId, isActive: true },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findOne(id: string): Promise<PaymentMethod | null> {
-    const pm = await prisma.paymentMethod.findUnique({ where: { id } });
-    if (!pm) return null;
-    const company = await prisma.company.findFirst();
-    if (!company || pm.companyId !== company.id) {
-      return null;
-    }
-    return pm;
+  async findOne(companyId: string, id: string): Promise<PaymentMethod | null> {
+    return prisma.paymentMethod.findFirst({ where: { id, companyId } });
   }
 
-  async update(id: string, dto: EditPaymentMethodDto): Promise<PaymentMethod> {
-    const existing = await prisma.paymentMethod.findUnique({ where: { id } });
+  async update(companyId: string, id: string, dto: EditPaymentMethodDto): Promise<PaymentMethod> {
+    const existing = await prisma.paymentMethod.findFirst({ where: { id, companyId } });
     if (!existing) {
       logger.error('Payment method not found', { category: 'payment-method', details: { id } });
-      throw new BadRequestException('Payment method not found');
+      throw new NotFoundException('Payment method not found');
     }
 
-    const company = await prisma.company.findFirst();
-    if (!company || existing.companyId !== company.id) {
-      logger.error('Payment method not found', { category: 'payment-method', details: { id } });
-      throw new BadRequestException('Payment method not found');
-    }
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
 
     const updatedPm = await prisma.paymentMethod.update({
       where: { id },
@@ -124,18 +104,14 @@ export class PaymentMethodsService {
     return updatedPm;
   }
 
-  async softDelete(id: string): Promise<PaymentMethod> {
-    const existing = await prisma.paymentMethod.findUnique({ where: { id } });
+  async softDelete(companyId: string, id: string): Promise<PaymentMethod> {
+    const existing = await prisma.paymentMethod.findFirst({ where: { id, companyId } });
     if (!existing) {
       logger.error('Payment method not found', { category: 'payment-method', details: { id } });
-      throw new BadRequestException('Payment method not found');
+      throw new NotFoundException('Payment method not found');
     }
 
-    const company = await prisma.company.findFirst();
-    if (!company || existing.companyId !== company.id) {
-      logger.error('Payment method not found', { category: 'payment-method', details: { id } });
-      throw new BadRequestException('Payment method not found');
-    }
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
 
     const deletedPm = await prisma.paymentMethod.update({
       where: { id },

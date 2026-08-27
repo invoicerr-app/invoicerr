@@ -31,6 +31,7 @@ export function useGetRaw<T = any>(url: string | null, options?: RequestInit): U
     const [data, setData] = useState<T | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
+    const [refetchIndex, setRefetchIndex] = useState(0);
 
     useEffect(() => {
         let cancelled = false;
@@ -65,9 +66,9 @@ export function useGetRaw<T = any>(url: string | null, options?: RequestInit): U
         return () => {
             cancelled = true;
         };
-    }, [url]);
+    }, [url, refetchIndex]);
 
-    return { data, loading, error, mutate: () => { } };
+    return { data, loading, error, mutate: () => setRefetchIndex((i) => i + 1) };
 }
 
 export function useGet<T = any>(url: string | null, options?: RequestInit): UseGetResult<T> {

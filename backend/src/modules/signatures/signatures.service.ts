@@ -55,9 +55,9 @@ export class SignaturesService {
         return signature;
     }
 
-    async createSignature(quoteId: string) {
-        const quote = await prisma.quote.findUnique({
-            where: { id: quoteId },
+    async createSignature(companyId: string, quoteId: string) {
+        const quote = await prisma.quote.findFirst({
+            where: { id: quoteId, companyId },
             select: {
                 id: true,
                 client: {
@@ -73,6 +73,13 @@ export class SignaturesService {
             throw new BadRequestException('Quote not found or client information is missing.');
         }
 
+        await prisma.quote.update({
+            where: { id: quoteId },
+            data: {
+                status: 'SENT',
+            },
+        });
+
         let signatureId = ""
 
         try {
@@ -81,13 +88,6 @@ export class SignaturesService {
             logger.error('Failed to create signature.', { category: 'signature', details: { error, quoteId } });
             throw error;
         }
-
-        await prisma.quote.update({
-            where: { id: quoteId },
-            data: {
-                status: 'SENT',
-            },
-        });
 
         try {
             await this.webhookDispatcher.dispatch(WebhookEvent.SIGNATURE_CREATED, {
@@ -298,11 +298,13 @@ export class SignaturesService {
             throw new BadRequestException('Invalid or expired OTP code.');
         }
 
+        const signedAt = new Date();
+
         await prisma.signature.update({
             where: { id: signature.id },
             data: {
                 otpUsed: true,
-                signedAt: new Date(),
+                signedAt,
             },
         });
 
@@ -310,6 +312,7 @@ export class SignaturesService {
             where: { id: signature.quoteId },
             data: {
                 status: 'SIGNED',
+                signedAt,
             },
         });
 
@@ -317,7 +320,7 @@ export class SignaturesService {
             await this.webhookDispatcher.dispatch(WebhookEvent.SIGNATURE_COMPLETED, {
                 signatureId,
                 quoteId: signature.quoteId,
-                signedAt: new Date(),
+                signedAt,
             });
         } catch (error) {
             logger.error('Failed to dispatch SIGNATURE_COMPLETED webhook', error);

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { EditClientsDto } from '@/modules/clients/dto/clients.dto';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
@@ -12,12 +12,13 @@ export class ClientsService {
     constructor(private readonly webhookDispatcher: WebhookDispatcherService) {
     }
 
-    async getClients(page: string) {
+    async getClients(companyId: string, page: string) {
         const pageNumber = parseInt(page, 10) || 1;
         const pageSize = 10;
         const skip = (pageNumber - 1) * pageSize;
 
         const clients = await prisma.client.findMany({
+            where: { companyId },
             skip,
             take: pageSize,
             orderBy: {
@@ -25,15 +26,15 @@ export class ClientsService {
             },
         });
 
-        const totalClients = await prisma.client.count();
+        const totalClients = await prisma.client.count({ where: { companyId } });
 
         return { pageCount: Math.ceil(totalClients / pageSize), clients };
     }
 
-    async searchClients(query: string) {
+    async searchClients(companyId: string, query: string) {
         if (!query) {
             return prisma.client.findMany({
-                where: { isActive: true },
+                where: { companyId, isActive: true },
                 take: 10,
                 orderBy: {
                     name: 'asc',
@@ -43,6 +44,7 @@ export class ClientsService {
 
         const results = await prisma.client.findMany({
             where: {
+                companyId,
                 isActive: true,
                 OR: [
                     { name: { contains: query } },
@@ -74,7 +76,7 @@ export class ClientsService {
         return results;
     }
 
-    async createClient(editClientsDto: EditClientsDto) {
+    async createClient(companyId: string, editClientsDto: EditClientsDto) {
         const { id, ...data } = editClientsDto;
 
         const type = (data as any).type || 'COMPANY';
@@ -102,7 +104,7 @@ export class ClientsService {
             }
         }
 
-        const newClient = await prisma.client.create({ data });
+        const newClient = await prisma.client.create({ data: { ...data, companyId } });
 
         logger.info('Client created', { category: 'client', details: { clientId: newClient.id } });
 
@@ -117,16 +119,16 @@ export class ClientsService {
         return newClient;
     }
 
-    async editClientsInfo(editClientsDto: EditClientsDto) {
+    async editClientsInfo(companyId: string, editClientsDto: EditClientsDto) {
         if (!editClientsDto.id) {
             logger.error('Client ID is required for editing', { category: 'client' });
             throw new BadRequestException('Client ID is required for editing');
         }
 
-        const existingClient = await prisma.client.findUnique({ where: { id: editClientsDto.id } });
+        const existingClient = await prisma.client.findFirst({ where: { id: editClientsDto.id, companyId } });
         if (!existingClient) {
             logger.error('Client not found', { category: 'client', details: { id: editClientsDto.id } });
-            throw new BadRequestException('Client not found');
+            throw new NotFoundException('Client not found');
         }
 
         const data = { ...editClientsDto } as any;
@@ -171,12 +173,12 @@ export class ClientsService {
         return updatedClient;
     }
 
-    async deleteClient(id: string) {
-        const existingClient = await prisma.client.findUnique({ where: { id } });
+    async deleteClient(companyId: string, id: string) {
+        const existingClient = await prisma.client.findFirst({ where: { id, companyId } });
 
         if (!existingClient) {
             logger.error('Client not found', { category: 'client', details: { id } });
-            throw new BadRequestException('Client not found');
+            throw new NotFoundException('Client not found');
         }
 
         const deletedClient = await prisma.client.update({

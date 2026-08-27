@@ -29,3 +29,4 @@ e2e/cypress/fixtures/session.json
 
 e2e/cypress/videos/*
 !e2e/cypress/videos/.gitkeep
+.claude/launch.json

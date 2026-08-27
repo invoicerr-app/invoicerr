@@ -30,9 +30,11 @@ cat > /usr/share/nginx/html/config.json <<EOF
 }
 EOF
 
-# Push database schema using the standard Prisma command
-echo "Pushing database schema..."
-npx prisma db push --accept-data-loss --schema=/usr/share/nginx/backend/prisma/schema-v1.4.4a.prisma
+# Schema convergence (baseline + migrate deploy, and the one-off v1.4.4a
+# leveling push for legacy db-push instances) is handled inside the backend
+# at startup — see backend/src/prisma/sync-schema.ts. Doing it here
+# unconditionally wrongly converged already-migrated instances back to
+# v1.4.4a on every boot.
 
 # Start the backend service
 echo "Starting backend service..."
