@@ -38,6 +38,7 @@ Ce qui bloque une émission, l'invalide, ou trompe l'utilisateur sur l'état de 
 | [F-017](#f-017) | Plan résolu sur le seul pays du fournisseur | Document juridiquement inexistant dans un corridor, sans avertissement | ✓ |
 | [MX-D1](03-LEGAL-VERIFICATION.md) | `AUTHORITY_RANGE` au Mexique | **Bloque toute émission mexicaine** avec la configuration par défaut | ✓ |
 | [F-002](#f-002) | Garde de numérotation hors transaction | Trous définitifs dans une séquence censée être continue | ✓ |
+| [ES-D13](03-LEGAL-VERIFICATION.md) | Horodatage du registro espagnol en UTC, pas à l'heure légale | **Sous condition** : si l'AEAT valide le décalage, chaque registro est rejeté — et la convention est scellée dans une chaîne append-only | — |
 | [F-008](#f-008) | Rejet d'autorité invisible | La facture s'affiche `SENT` alors que l'autorité l'a rejetée | — |
 | [FR-D1](03-LEGAL-VERIFICATION.md) | `EMAIL` déclaré canal français | Canal illicite dans le champ ; 50 €/facture puis 500 € et 1 000 €/trimestre | — |
 | [FR-D7](03-LEGAL-VERIFICATION.md) | BT-23 absent, cardinalité 1..1 | Échec des contrôles fonctionnels du PPF | — |

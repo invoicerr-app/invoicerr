@@ -599,7 +599,7 @@ axe** : bascule l'hôte et l'on reste sur le chemin des factures vérifiables.
 > `09-F018-ES-DECLARATION.md` §5) : le QR imprimé affirme au destinataire un mode que le système ne
 > tient pas. Ce n'est pas une divergence de plus, c'est la même incohérence vue depuis la facture.
 
-**ES-D13 — l'horodatage du registro est en UTC, pas à l'heure de Madrid.** *(nouveau)*
+**ES-D13 — l'horodatage du registro est en UTC, pas à l'heure de Madrid.** *(nouveau — axe 2, sous condition)*
 
 `generators.ts` produit `FechaHoraHusoGenRegistro` avec un décalage `+00:00` fixe :
 
@@ -608,24 +608,52 @@ const fechaHoraHusoGenRegistro = `${new Date().toISOString().slice(0, 19)}+00:00
 ```
 
 Le nom du champ le dit — *huso* signifie fuseau horaire. Les exemples chiffrés de l'AEAT emploient
-le décalage local de Madrid (`+01:00` en heure d'hiver, `+02:00` en heure d'été). La valeur produite
-est **syntaxiquement valide** — elle respecte le motif de la spécification, et c'est pourquoi les
-vecteurs de test passent — mais elle n'est pas exacte quant au fuseau déclaré.
+le décalage local de Madrid (`+01:00` en hiver, `+02:00` en été). La valeur produite est
+**syntaxiquement valide** — elle respecte le motif de la spécification, et c'est pourquoi les
+vecteurs de test passent — mais elle ne déclare pas le fuseau espagnol.
 
-**Portée réelle, et pourquoi ce n'est pas un simple détail cosmétique.** Ce champ **entre dans la
-huella** : il est le dernier élément de la chaîne canonique hachée. Une facture émise à 10h00 à
-Madrid en été est horodatée `08:00:00+00:00` au lieu de `10:00:00+02:00`. Les deux désignent le même
-instant, mais **produisent des condensats différents**, et un contrôle qui recalculerait la huella à
-partir de l'horodatage attendu localement ne retrouverait pas la valeur enregistrée.
+**Rectification d'une première formulation de cette divergence.** Elle affirmait qu'« un contrôle
+qui recalculerait la huella à partir de l'horodatage attendu localement ne retrouverait pas la
+valeur enregistrée ». C'est trompeur : un vérificateur recalcule la huella à partir des champs
+**du registre soumis**, pas d'un horodatage deviné. La chaîne est donc **auto-cohérente et
+vérifiable** quel que soit le décalage écrit — comme le fait observer la contrainte du format, le
+décalage étant explicite, l'instant est non ambigu. Le risque réel est plus étroit, et il est
+double :
 
-**Pourquoi ce n'est pas corrigé ici.** La correction demande une conversion DST-aware vers
-`Europe/Madrid`, et surtout de trancher ce que « l'heure de génération » désigne pour un serveur
-hébergé hors d'Espagne — question qui n'est pas résolue par le seul document technique. Consigné
-plutôt que corrigé au jugé.
+1. **L'AEAT valide-t-elle que le décalage corresponde à l'heure légale espagnole ?** Inconnu. Si
+   oui, chaque registro est rejeté à la soumission — d'où l'axe 2, **sous cette condition**.
+2. **La convention est scellée dans une chaîne append-only.** Rien ne casse cryptographiquement si
+   l'on passe à Madrid plus tard — chaque registre hache sa propre valeur — mais la chaîne portera
+   alors deux conventions de fuseau successives, ce qu'un contrôle lira comme une anomalie. C'est ce
+   qui rend la question urgente maintenant, et non le jour où la transmission espagnole fonctionnera.
 
-> Consigné comme divergence numérotée à la demande explicite, et non laissé en commentaire de code,
-> parce qu'un commentaire dans `generators.ts` disparaît au premier refactor du fichier — c'est
-> exactement ce qui est arrivé au motif `smaller-portals` (F-020).
+**Pourquoi ce n'est pas corrigé.** La piste la plus défendable serait le fuseau du *domicilio
+fiscal* de l'emisor. **Elle n'est pas disponible** : le chemin de production
+(`invoices.helpers.ts:128-133`) construit `supplier` avec `legalName`, `countryCode`, `role` et
+`identifiers` — **sans adresse**. `PartyTaxProfile.address` existe mais n'est jamais peuplé par ce
+constructeur, donc le générateur ne dispose que du **pays**, pas de la région.
+
+Or le pays ne suffit pas : l'Espagne péninsulaire et les Baléares sont à `Europe/Madrid`, les
+**Canaries à `Atlantic/Canary`**, une heure derrière. Coder `Europe/Madrid` sur la seule foi de
+`countryCode === 'ES'` serait donc exact pour la majorité des redevables et **faux d'une heure**
+pour les canariens — en écrivant cette valeur fausse dans une chaîne immuable. Le dépôt sait faire
+la conversion (`company-lookup/providers/shared.ts:17`, `localDate(timeZone)` via
+`Intl.DateTimeFormat`) ; ce qui manque n'est pas l'outil, c'est **la donnée d'entrée**.
+
+> `open_question` — **deux questions distinctes, et la première suffit à débloquer.**
+>
+> 1. **L'AEAT rejette-t-elle un `FechaHoraHusoGenRegistro` dont le décalage n'est pas celui de
+>    l'heure légale espagnole, ou accepte-t-elle tout décalage explicite désignant le bon instant ?**
+>    Ce qui la trancherait : les règles de validation publiées du service de soumission (la liste des
+>    codes d'erreur de l'AEAT, qui énumère les rejets de format), ou un aller-retour réel sur
+>    `preportal.aeat.es` — bloqué par **S2**, les prérequis d'accès n'étant pas documentés.
+> 2. **Si le fuseau doit être espagnol, lequel pour un redevable canarien ?** Ce qui la trancherait :
+>    le champ d'application de l'art. 3.1 quant aux Canaries, à traiter avec la question de
+>    rattachement (**D2**) plutôt que séparément.
+>
+> Tant que la première reste ouverte, **ne rien corriger** : un décalage dont on sait qu'il est en
+> UTC vaut mieux qu'un décalage espagnol supposé et faux d'une heure pour une partie des redevables,
+> gravé dans une chaîne qu'on ne peut pas réécrire.
 
 **ES-D2 — `reporting: SII + VERIFACTU` : le code est faux s'il cumule.**
 Les deux régimes sont **mutuellement exclusifs** : « El presente Reglamento **no se aplicará** a los
