@@ -36,11 +36,11 @@ conformité est `CLEARED`, sans erreur. Le dossier de conformité survit mais **
 (`invoiceId = null`). Vérifié en base : **0 trigger, 0 contrainte CHECK**. La protection n'existe que
 dans `deleteInvoice()`, et `danger.service.ts:64` la contourne déjà.
 
-### F-004 — 106 pages publiques de conformité pour 5 canaux réellement câblés
+### F-004 — 106 pages publiques de conformité pour 4 canaux réellement câblés
 
 | Publié | Réel |
 | --- | --- |
-| 106 pages `/compliance/<cc>` dans un navigateur à facettes | 5 providers sur 62 ont un transport atteignable |
+| 106 pages `/compliance/<cc>` dans un navigateur à facettes | 4 providers sur 62 ont un transport atteignable |
 | 54 syntaxes déclarées | 5 syntaxes rejettent un document invalide |
 | 66 pays `status: mandatory` | 0 preuve de transmission acquittée dans le dépôt |
 
@@ -89,8 +89,8 @@ maturités et résolutions de canaux viennent du code qui tourne en production, 
 sondes portent l'essentiel du signal :
 
 - **Transport réellement câblé.** Le registre de production ne passe que `credentials`, jamais de port
-  HTTP (`registry.ts:70-88`). Un provider sans site d'appel réseau dans son voisinage source à deux
-  sauts ne peut donc rien émettre. **57 sur 62 sont dans ce cas.**
+  HTTP (`registry.ts:70-88`). Un provider sans site d'appel réseau atteignable ne peut donc rien
+  émettre. **58 sur 62 sont dans ce cas, dont les 17 `IMPLEMENTED`.**
 - **Validation de format.** Chaque syntaxe demandée par un profil reçoit `<garbage/>` puis zéro
   octet. La première sonde porte une réserve Schematron explicite (une règle hors contexte ne lève
   rien) ; la seconde n'en porte aucune.

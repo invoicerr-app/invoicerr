@@ -2987,10 +2987,10 @@
           "evidence": [
             "email (PROVEN) — backend/src/compliance/providers/transmission/email-transmission.ts, 0 site(s) d'appel réseau",
             "pdp (PROVEN) — backend/src/compliance/providers/transmission/pdp-transmission.ts, 2 site(s) d'appel réseau",
-            "choruspro (IMPLEMENTED) — backend/src/compliance/providers/transmission/europe/choruspro-transmission.ts, 2 site(s) d'appel réseau",
             "peppol (PROVEN) — backend/src/compliance/providers/transmission/peppol-transmission.ts, 11 site(s) d'appel réseau"
           ],
           "gaps": [
+            "choruspro (IMPLEMENTED) : aucun transport câblé — le registre n'injecte jamais de port HTTP (registry.ts:70-88). Voir F-009.",
             "aucun artefact daté d'exécution live dans le dépôt : L4/L5 non vérifiable en l'état — F-013"
           ]
         },
@@ -3045,6 +3045,7 @@
         "F-005",
         "F-006",
         "F-008",
+        "F-009",
         "F-010",
         "F-013",
         "F-016"

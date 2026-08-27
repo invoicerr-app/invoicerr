@@ -2293,7 +2293,7 @@
           "backend/src/compliance/engine/tax-engine.ts"
         ],
         "loc": 1982,
-        "httpCallSites": 2,
+        "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
         "stubDefaultPort": false,
@@ -2301,7 +2301,7 @@
         "hardcodedStubPort": true,
         "genericPortalStubFactory": false,
         "logTodoStubFactory": false,
-        "noDefaultTransport": false
+        "noDefaultTransport": true
       },
       "countries": [
         "FR"
@@ -8397,8 +8397,8 @@
           "channel": "GOV_PORTAL_API",
           "maturity": "IMPLEMENTED",
           "stubFactory": true,
-          "noDefaultTransport": false,
-          "httpCallSites": 2,
+          "noDefaultTransport": true,
+          "httpCallSites": 0,
           "sourceLoc": 1982,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/europe/choruspro-transmission.ts"

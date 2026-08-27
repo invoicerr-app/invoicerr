@@ -106,6 +106,15 @@ const transmissionFiles = walk(path.join(COMPLIANCE_SRC, 'providers', 'transmiss
  * Plus the whole generic-portal factory tier, which is shape 1 by construction.
  */
 const RE_HTTP_CALL = /\bfetch\s*\(|\baxios\b|\bundici\b|https?\.request\s*\(|\bgot\s*\(|node-fetch/g;
+
+/**
+ * Comments are not code. `choruspro-transmission.ts` says "replaced by a real fetch/axios impl in
+ * live use" in a comment above a STUB_HTTP that throws — counting those two words credited the
+ * provider with a transport it does not have. Strip comments and string-free prose before matching.
+ */
+function stripComments(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+}
 const RE_MAIL_PORT = /InvoiceMailPort|nodemailer/;
 const RE_NO_PORT_SHORT_CIRCUIT = /if\s*\(\s*!\s*(this\.)?httpPort\s*\)/;
 const RE_THROWING_DEFAULT_PORT = /httpPort\s*\?\?\s*\{[\s\S]{0,800}?throw new Error/;
@@ -176,8 +185,9 @@ function sourceFactsFor(id: string) {
   let noPortShortCircuit = false;
   let hardcodedStubPort = false;
   for (const f of neighbourhood) {
-    const src = fs.readFileSync(f, 'utf8');
-    loc += src.split('\n').length;
+    const raw = fs.readFileSync(f, 'utf8');
+    const src = stripComments(raw);
+    loc += raw.split('\n').length;
     httpCallSites += (src.match(RE_HTTP_CALL) ?? []).length;
     if (RE_MAIL_PORT.test(src)) mailPort = true;
     if (RE_THROWING_DEFAULT_PORT.test(src)) throwingDefaultPort = true;
@@ -205,10 +215,22 @@ function sourceFactsFor(id: string) {
     logTodoStubFactory,
     /**
      * The load-bearing fact. The production registry constructs every provider with credentials
-     * only — never an httpPort (registry.ts:70-88). So a provider with zero HTTP call sites
-     * anywhere in its two-hop source neighbourhood cannot put a byte on the wire as wired.
+     * only — never an httpPort (registry.ts:70-88). A provider cannot put a byte on the wire when
+     * either
+     *   (a) its two-hop neighbourhood holds no network call site at all, or
+     *   (b) it holds one, but the port actually handed to the client is a stub — the shape wins
+     *       over the mere presence of a call somewhere in the neighbourhood.
+     * (b) was added after `choruspro` was wrongly reported as wired: it passes a module-level
+     * STUB_HTTP whose only method throws, at every call site, with no injection seam at all.
      */
-    noDefaultTransport: httpCallSites === 0 && !mailPort,
+    noDefaultTransport:
+      (httpCallSites === 0 && !mailPort) ||
+      hardcodedStubPort ||
+      throwingDefaultPort ||
+      stubDefaultPort ||
+      noPortShortCircuit ||
+      genericPortalStubFactory ||
+      logTodoStubFactory,
   };
 }
 
@@ -570,14 +592,14 @@ type SourceFacts = ReturnType<typeof sourceFactsFor>;
 
 /** Names the exact source shape that decides whether an un-injected provider can emit anything. */
 function transportLabel(s: SourceFacts): string {
-  if (s.httpCallSites > 0) return `réseau (${s.httpCallSites} sites d'appel)`;
-  if (s.mailPort) return 'SMTP (port courriel)';
   if (s.logTodoStubFactory) return 'aucun — fabrique `log.todo`';
   if (s.genericPortalStubFactory) return 'aucun — fabrique générique, `SKIPPED`';
   if (s.hardcodedStubPort) return 'aucun — port stub **codé en dur**';
   if (s.throwingDefaultPort) return 'aucun — port par défaut `throw`';
   if (s.stubDefaultPort) return 'aucun — port par défaut = stub';
   if (s.noPortShortCircuit) return 'aucun — court-circuit `SKIPPED`';
+  if (s.httpCallSites > 0) return `réseau (${s.httpCallSites} sites d'appel)`;
+  if (s.mailPort) return 'SMTP (port courriel)';
   return 'aucun — aucun site d\'appel réseau';
 }
 

@@ -19,7 +19,7 @@
 | [F-006](#f-006) | high | Le document transmis n'est jamais stocké — il est reconstruit à l'affichage | 4 |
 | [F-007](#f-007) | high | `REJECTED` est un cul-de-sac : ni re-soumission, ni correction, ni annulation | 5 |
 | [F-008](#f-008) | high | Un rejet d'autorité est invisible sur la facture que voit l'utilisateur | 5 |
-| [F-009](#f-009) | high | L'UI invite à connecter 16 canaux qui ne peuvent rien émettre | 6 |
+| [F-009](#f-009) | high | L'UI invite à connecter 17 canaux qui ne peuvent rien émettre | 6 |
 | [F-010](#f-010) | high | Le reçu d'archivage n'est ni vérifié ni persisté nulle part | 1 |
 | [F-011](#f-011) | medium | `resetAll()` ne supprime rien et répond « All data reset successfully » | 2 |
 | [F-012](#f-012) | medium | OTP des opérations destructives : en mémoire, `Math.random()`, mauvais destinataire | 2 |
@@ -344,7 +344,7 @@ la facture n'existe pas juridiquement, l'écart entre l'écran et la réalité e
 ---
 
 <a id="f-009"></a>
-## F-009 — `high` — L'UI invite à connecter 16 canaux qui ne peuvent rien émettre
+## F-009 — `high` — L'UI invite à connecter 17 canaux qui ne peuvent rien émettre
 
 **Point 6.**
 
@@ -360,9 +360,9 @@ const isLiveProvider = maturity === "PROVEN" || maturity === "IMPLEMENTED"
 
 et affiche alors : *« Your country requires connecting {channels} to send compliant invoices. »*
 
-Or l'inventaire mécanique montre que **16 des 17 providers `IMPLEMENTED` n'ont aucun site d'appel
-réseau** dans leur voisinage source à deux sauts, et que le registre de production ne leur injecte
-jamais de port HTTP (`registry.ts:70-88` ne passe que `credentials`) :
+Or l'inventaire mécanique montre que **les 17 providers `IMPLEMENTED`, sans exception, ne peuvent
+mettre aucun octet sur le réseau** tel que le registre de production les construit — celui-ci ne
+passe que `credentials`, jamais de port HTTP (`registry.ts:70-88`) :
 
 | Provider | Pays | Transport tel que câblé |
 | --- | --- | --- |
@@ -370,12 +370,23 @@ jamais de port HTTP (`registry.ts:70-88` ne passe que `credentials`) :
 | `sdi` | IT | port par défaut dont chaque méthode `throw` (`sdi-transmission.ts:119`) |
 | `sii`, `dian`, `sri`, `uy-dgi` | CL, CO, EC, UY | port par défaut = stub explicite |
 | `es-face` | ES | court-circuit `SKIPPED` si aucun port |
+| `choruspro` | FR | port stub `STUB_HTTP` **codé en dur** (`choruspro-transmission.ts:103-107`, passé lignes 193 et 249) |
 | `afip`, `sefaz`, `gib`, `eg-eta`, `firs`, `ke-kra`, `id-coretax`, `in-irp`, `myinvois` | AR, BR, TR, EG, NG, KE, ID, IN, MY | aucun site d'appel réseau |
 
-Seul `choruspro` (FR) a réellement 2 sites d'appel.
+**Correction d'une première version de ce finding.** `choruspro` y figurait comme la seule exception,
+créditée de 2 sites d'appel réseau. C'était faux, et l'erreur venait de la sonde : elle comptait les
+marqueurs réseau sans retirer les commentaires, et `choruspro-transmission.ts:19` et `:101` contiennent
+le mot « axios » dans deux commentaires décrivant ce qu'une vraie implémentation *devrait* faire. La
+sonde laissait par ailleurs la présence d'un appel quelque part dans le voisinage primer sur la forme
+du port réellement passé au client. Les deux défauts sont corrigés dans `inventory.ts`
+(`stripComments()`, et la forme stub l'emporte désormais sur le comptage). Résultat après correction :
 
-**Impact.** L'utilisateur roumain, brésilien, chilien, colombien, égyptien, indien, indonésien,
-kényan, malaisien, nigérian, turc, uruguayen, argentin ou espagnol est invité par le produit à
+> **4 providers sur 62 disposent d'un transport atteignable : `ksef`, `pdp`, `peppol` (HTTP) et
+> `email` (SMTP). Les 58 autres, dont les 17 `IMPLEMENTED`, ne le peuvent pas.**
+
+**Impact.** L'utilisateur français (canal Chorus Pro), roumain, brésilien, chilien, colombien,
+égyptien, indien, indonésien, kényan, malaisien, nigérian, turc, uruguayen, argentin ou espagnol est
+invité par le produit à
 saisir des identifiants pour un canal qui ne peut structurellement rien transmettre — et le fera
 sans avertissement bloquant. `provider-maturity.spec.ts` verrouille cette classification
 `IMPLEMENTED` en la faisant reposer sur `COMPLIANCE_AUDIT.md`, c'est-à-dire sur de la prose.

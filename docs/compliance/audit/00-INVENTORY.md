@@ -93,7 +93,7 @@ Légende — `providers` : `id(maturité)`, `⊘` = aucun transport atteignable 
 | **ES** Spain | bespoke | OFFICIAL | POST_AUDIT/REAL_TIME_REPORTING | ✓ | phased/— | PEPPOL<br>EMAIL<br>GOV_PORTAL_API:es-face<br>GOV_PORTAL_API:es-aeat | peppol(PROVEN)<br>email(PROVEN)<br>es-face(IMPLEMENTED)⊘<br>es-aeat(STUB)⊘ | PLAIN_PDF→plain-pdf!<br>ES_FACTURAE→es-facturae! | 3 |
 | **ET** Ethiopia | archétype | PLANNED | POST_AUDIT | ✓ | mandatory/— | EMAIL | email(PROVEN) | PLAIN_PDF→plain-pdf!<br>EN16931_UBL→en16931! | 1 |
 | **FI** Finland | archétype | BEST_EFFORT | POST_AUDIT | ✓ | voluntary/— | PEPPOL<br>EMAIL | peppol(PROVEN)<br>email(PROVEN) | EN16931_UBL→en16931!<br>PLAIN_PDF→plain-pdf! | 3 |
-| **FR** France | bespoke | OFFICIAL | POST_AUDIT/DECENTRALIZED_CTC/REAL_TIME_REPORTING | ✓ | phased/in-progress | EMAIL<br>PDP<br>GOV_PORTAL_API:choruspro<br>PEPPOL | email(PROVEN)<br>pdp(PROVEN)<br>choruspro(IMPLEMENTED)<br>peppol(PROVEN) | EN16931_CII→en16931!<br>FACTURX→en16931! | 6 |
+| **FR** France | bespoke | OFFICIAL | POST_AUDIT/DECENTRALIZED_CTC/REAL_TIME_REPORTING | ✓ | phased/in-progress | EMAIL<br>PDP<br>GOV_PORTAL_API:choruspro<br>PEPPOL | email(PROVEN)<br>pdp(PROVEN)<br>choruspro(IMPLEMENTED)⊘<br>peppol(PROVEN) | EN16931_CII→en16931!<br>FACTURX→en16931! | 6 |
 | **GB** United Kingdom | archétype | OFFICIAL | POST_AUDIT | ✓ | —/— | EMAIL | email(PROVEN) | PLAIN_PDF→plain-pdf!<br>EN16931_UBL→en16931! | 1 |
 | **GH** Ghana | archétype | BEST_EFFORT | REAL_TIME_REPORTING | ✓ | mandatory/— | GOV_PORTAL_API:gh-gra | gh-gra(STUB)⊘ | GH_EVAT→gh-evat∅!<br>PLAIN_PDF→plain-pdf! | 0 |
 | **GR** Greece | archétype | BEST_EFFORT | POST_AUDIT/REAL_TIME_REPORTING | ✓ | phased/— | GOV_PORTAL_API:gr-aade | gr-aade(STUB)⊘ | NATIONAL_XML→national-xml!<br>PLAIN_PDF→plain-pdf! | 0 |
@@ -390,6 +390,7 @@ confronte la maturité déclarée aux seuls faits vérifiables mécaniquement.
 | --- | --- | :-: | --- | ---: | --- |
 | `afip` | IMPLEMENTED | ✗ | aucun — aucun site d'appel réseau | 0 | IMPLEMENTED alors que le transport par défaut ne peut rien émettre ; IMPLEMENTED sans spec live dédiée |
 | `anaf` | IMPLEMENTED | ✗ | aucun — port stub **codé en dur** | 0 | IMPLEMENTED alors que le transport par défaut ne peut rien émettre ; IMPLEMENTED sans spec live dédiée |
+| `choruspro` | IMPLEMENTED | ✓ | aucun — port stub **codé en dur** | 0 | IMPLEMENTED alors que le transport par défaut ne peut rien émettre |
 | `dian` | IMPLEMENTED | ✗ | aucun — port par défaut = stub | 0 | IMPLEMENTED alors que le transport par défaut ne peut rien émettre ; IMPLEMENTED sans spec live dédiée |
 | `eg-eta` | IMPLEMENTED | ✗ | aucun — port stub **codé en dur** | 0 | IMPLEMENTED alors que le transport par défaut ne peut rien émettre ; IMPLEMENTED sans spec live dédiée |
 | `es-face` | IMPLEMENTED | ✗ | aucun — court-circuit `SKIPPED` | 0 | IMPLEMENTED alors que le transport par défaut ne peut rien émettre ; IMPLEMENTED sans spec live dédiée |
