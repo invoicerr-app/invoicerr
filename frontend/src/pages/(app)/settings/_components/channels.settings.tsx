@@ -213,9 +213,18 @@ export default function ChannelsSettings() {
       <div className="space-y-4">
         {requiredChannels?.map((ch) => {
           const hasSchema = !!ch.provider?.configSchema
-          // F-8/M-16: a STUB provider has no real transport — it must never present a working
-          // Connect/Edit control identical to a proven/implemented channel's.
-          const isStub = (ch.provider?.maturity ?? "STUB") === "STUB"
+          // F-8/M-16: a provider with no real transport must never present a working Connect/Edit
+          // control identical to a deliverable channel's.
+          //
+          // The gate is PROVEN, not "not STUB". IMPLEMENTED means a real named-protocol client was
+          // written — it does NOT mean the channel can deliver: the production registry constructs
+          // every provider with credentials only and never injects an HTTP port, so all 17
+          // IMPLEMENTED providers reach transmit() with a port that throws, short-circuits to
+          // SKIPPED, or does not exist. Audited mechanically in docs/compliance/audit (F-009):
+          // the set of providers with a reachable transport is exactly the set marked PROVEN.
+          // Promoting a provider to PROVEN is therefore what turns this control on — and that
+          // promotion is supposed to require a real acknowledged round-trip.
+          const isStub = (ch.provider?.maturity ?? "STUB") !== "PROVEN"
 
           // Determine if the channel mandate is in the future
           const isFuture = ch.availableFrom ? new Date(ch.availableFrom) > new Date() : false

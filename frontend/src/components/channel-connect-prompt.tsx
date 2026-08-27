@@ -70,7 +70,12 @@ export default function ChannelConnectPrompt({ className }: { className?: string
   const now = Date.now()
   const actionable = (requiredChannels ?? []).filter((ch) => {
     const maturity = ch.provider?.maturity
-    const isLiveProvider = maturity === "PROVEN" || maturity === "IMPLEMENTED"
+    // Only PROVEN channels may prompt the user to connect. IMPLEMENTED used to qualify here, which
+    // meant this banner told users in 17 countries that their jurisdiction "requires connecting" a
+    // channel that cannot put a byte on the wire — the registry never injects an HTTP port, so
+    // those providers hit a stub port that throws or short-circuits to SKIPPED. See F-009 in
+    // docs/compliance/audit: reachable transport and PROVEN are the same set today.
+    const isLiveProvider = maturity === "PROVEN"
     const isLiveMandate = !ch.availableFrom || new Date(ch.availableFrom).getTime() <= now
     return isLiveProvider && !ch.isConfigured && isLiveMandate
   })
