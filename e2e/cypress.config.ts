@@ -93,10 +93,13 @@ export default defineConfig({
                ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status`,
               [documentId, invoiceId, status],
             );
+            // A unique id per call: the same invoice is deliberately driven through several
+            // failure states in one spec, and a fixed id collided on the primary key the second
+            // time round.
             await client.query(
               `INSERT INTO "ComplianceEvent" (id, "documentId", type, actor, detail)
-               VALUES ($1, $2, 'REJECT', 'system', $3)`,
-              [`${documentId}-ev`, documentId, detail],
+               VALUES (gen_random_uuid()::text, $1, 'REJECT', 'system', $2)`,
+              [documentId, detail],
             );
             return invoiceId;
           } finally {

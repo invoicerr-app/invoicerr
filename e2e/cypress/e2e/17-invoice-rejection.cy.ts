@@ -17,7 +17,14 @@ beforeEach(() => {
   cy.login();
 });
 
-function createInvoice(title: string) {
+/**
+ * Creating an invoice through the form is by far the most expensive thing this spec does, and it
+ * runs last, when the Electron renderer has been alive for ten minutes. Four full form fills were
+ * enough to crash it in a full-suite run while the same spec passed in isolation. Two invoices are
+ * created once, up front, and reused: the failure state is set per test through the task, which is
+ * what each test is actually about.
+ */
+function createInvoice(note: string) {
   cy.visit('/invoices');
   cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
   cy.get('[data-cy="invoice-dialog"]', { timeout: 5000 }).should('be.visible');
@@ -26,7 +33,7 @@ function createInvoice(title: string) {
   cy.get('[data-cy="invoice-client-select-options"]').should('be.visible');
   cy.get('[data-cy="invoice-client-select-options"] button').first().click();
 
-  cy.get('[name="notes"]').type(title);
+  cy.get('[name="notes"]').type(note);
   cy.contains('button', /Add Item|Ajouter/i).click();
   cy.get('[name="items.0.name"]').type('Consulting', { force: true });
   cy.get('[name="items.0.quantity"]').clear({ force: true }).type('1', { force: true });
@@ -37,31 +44,41 @@ function createInvoice(title: string) {
   cy.get('[data-cy="invoice-dialog"]').should('not.exist');
 }
 
+/** Opens the newest invoice's detail dialog. */
+function openLatest() {
+  cy.visit('/invoices');
+  cy.get('[data-cy="invoice-name"]', { timeout: 10000 }).first().click();
+}
+
 describe('F-008: an authority failure is visible on the invoice', () => {
+  /**
+   * No `before()` hook on purpose. Combining one with the file-level `beforeEach(cy.login)` — which
+   * uses cy.session — crashed the Electron renderer deterministically here. The invoice is created
+   * inside the first test instead and reused by the next two: `failLastInvoice` targets the newest
+   * invoice, so driving the same row into three successive failure states costs one form fill, not
+   * three.
+   */
   it('shows a rejection in the list and on the detail view, with the authority wording', () => {
-    createInvoice('rejection spec');
+    createInvoice('failure subject');
     cy.task('failLastInvoice', {
       status: 'REJECTED',
       detail: 'scarto - codice 00200 file non conforme',
     });
-
     cy.visit('/invoices');
 
-    // 1. The invoice is STILL LISTED under the default filter. This is the assertion that would
-    //    have caught the worse half of the bug: leaving "rejected" out of the default set makes a
-    //    rejected invoice disappear from the list entirely, which is worse than mislabelling it.
+    // 1. The invoice is STILL LISTED under the default filter. This is the assertion that catches
+    //    the worse half of the bug: leaving "rejected" out of the default set makes a rejected
+    //    invoice disappear from the list entirely, which is worse than mislabelling it.
     cy.get('[data-cy="invoice-name"]', { timeout: 10000 }).should('have.length.greaterThan', 0);
 
-    // 2. The badge says rejected — not "Sent", which is what the status→filter fallthrough used
-    //    to produce. Scoped to the row: "Sent" also names a filter chip, which is always rendered,
-    //    so a page-wide `should('not.exist')` asserts nothing about this invoice.
+    // 2. The badge says rejected — not "Sent", which is what the status→filter fallthrough used to
+    //    produce. Asserted on the row's own status cell: "Sent" also names a filter chip that is
+    //    always rendered, so a page-wide not.exist would assert nothing.
     cy.contains(/rejected|rejet/i, { timeout: 10000 }).should('exist');
-    // "Sent" also names a filter chip that is always rendered, so a page-wide not.exist would
-    // assert nothing. Assert on the STATUS CELL of the row instead.
     cy.get('[data-cy="invoice-status"]').first().should('not.match', /^sent$|^envoyée$/i);
 
-    // 3. The detail view carries the banner AND the authority's own wording, so the user learns
-    //    why and not merely that.
+    // 3. The detail view carries the banner AND the authority's own wording, so the user learns why
+    //    and not merely that.
     cy.get('[data-cy="invoice-name"]').first().click();
     cy.get('[data-cy="invoice-failure-banner"]', { timeout: 10000 })
       .should('be.visible')
@@ -70,14 +87,8 @@ describe('F-008: an authority failure is visible on the invoice', () => {
   });
 
   it('shows a transmission failure with its own wording, distinct from a rejection', () => {
-    createInvoice('transmission failure spec');
-    cy.task('failLastInvoice', {
-      status: 'TRANSMISSION_FAILED',
-      detail: 'aucun canal configuré',
-    });
-
-    cy.visit('/invoices');
-    cy.get('[data-cy="invoice-name"]', { timeout: 10000 }).first().click();
+    cy.task('failLastInvoice', { status: 'TRANSMISSION_FAILED', detail: 'aucun canal configuré' });
+    openLatest();
 
     // The three outcomes are deliberately not folded into one: a transmission failure is retried,
     // a rejection is terminal. The banner must say which one this is.
@@ -87,23 +98,21 @@ describe('F-008: an authority failure is visible on the invoice', () => {
     cy.contains(/not transmitted|non transmise/i).should('be.visible');
   });
 
-  it('shows a buyer refusal, and no banner at all on a healthy invoice', () => {
-    createInvoice('refusal spec');
+  it('shows a buyer refusal with its reason', () => {
     cy.task('failLastInvoice', { status: 'REFUSED', detail: 'refusée par le destinataire' });
+    openLatest();
 
-    cy.visit('/invoices');
-    cy.get('[data-cy="invoice-name"]', { timeout: 10000 }).first().click();
     cy.get('[data-cy="invoice-failure-banner"]', { timeout: 10000 })
       .should('be.visible')
       .and('have.attr', 'data-status', 'REFUSED');
     cy.get('[data-cy="invoice-failure-reason"]').should('contain', 'destinataire');
-    cy.get('body').type('{esc}');
+  });
 
-    // The other half of the contract: a healthy invoice must show no banner. A banner that is
-    // always on is the same lie in the other direction.
+  it('shows no banner at all on a healthy invoice', () => {
+    // The other half of the contract: a banner that is always on is the same lie in the other
+    // direction. A fresh invoice is created here so it is the newest, and never failed.
     createInvoice('healthy invoice');
-    cy.visit('/invoices');
-    cy.get('[data-cy="invoice-name"]', { timeout: 10000 }).first().click();
+    openLatest();
     cy.get('[data-cy="invoice-failure-banner"]').should('not.exist');
   });
 });
