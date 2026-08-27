@@ -606,7 +606,18 @@ archivage, numérotation — sont lues exclusivement sur `sp`, le profil du four
 
 ### Le cas décisif
 
-Une société **française immatriculée à la TVA en Italie** réalisant une livraison **IT → IT** :
+> **Correction d'une première version de ce finding.** Le cas était formulé « société française
+> **immatriculée à la TVA** en Italie ». La prémisse juridique était fausse : l'AdE exclut
+> expressément les « soggetti non residenti **meramente identificati** » du périmètre SdI
+> (Circ. 13/E §1.2 ; Circ. 14/E §1.2 — « i quali **non sono tenuti** alla fatturazione
+> elettronica »). Une identificazione diretta ou un représentant fiscal ne déclenchent rien.
+> Le déclencheur est la **stabile organizzazione**, et seulement « **limitatamente alle operazioni
+> da essa rese o ricevute** » (art. 7 c. 1 lett. d du DPR 633/1972) — donc une propriété de
+> l'**opération**, pas de l'entité. Le cas corrigé est ci-dessous ; il rend la lacune du modèle
+> **plus** aiguë, pas moins.
+
+Une société **française disposant d'un établissement stable en Italie**, réalisant par cet
+établissement une livraison **IT → IT** :
 
 ```
 Ce que l'application construit :  régime DECENTRALIZED_CTC (non bloquant)
@@ -621,6 +632,14 @@ Le plan produit est **le plan français**. Or l'art. 1 c. 6 du D.Lgs. 127/2015 d
 émise entre parties établies en Italie par une autre modalité que le SdI « **si intende non
 emessa** », avec les sanctions de l'art. 6 du D.Lgs. 471/1997. Le produit émettrait donc un document
 juridiquement inexistant, sans le moindre avertissement.
+
+Et la lacune est plus profonde que « il manque un pays ». Puisque la qualité d'établi se juge
+**opération par opération**, il ne suffirait pas d'ajouter un `establishmentCountry` à la société :
+il faudrait un champ porté par la **transaction**, disant si l'établissement stable intervient dans
+*cette* opération. Le format italien l'impose déjà — le bloc `StabileOrganizzazione` des spécifications
+techniques n'est à renseigner que « nei soli casi in cui il cedente/prestatore è un soggetto non
+residente ed effettua **la transazione oggetto del documento** tramite stabile organizzazione ».
+Le modèle canonique n'a aucun emplacement pour cette information.
 
 ### Pourquoi le modèle ne peut pas l'exprimer
 

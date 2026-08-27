@@ -538,10 +538,55 @@ Un `country = FR` déduit du seul fournisseur produira un e-invoicing sur des op
 réalité de l'art. 290 — et manquera l'obligation d'e-reporting de l'art. 290 II pour un fournisseur
 non établi mais immatriculé en France, que le moteur classera hors périmètre français.
 
-### Italie — même bascule, déjà établie
+### Italie — mandat bilatéral, reporting unilatéral, et l'immatriculation ne déclenche rien
 
-Art. 1 c. 3-bis du D.Lgs. 127/2015 : les opérations avec des non-établis sortent du mandat SdI et
-basculent sur une transmission de données. Voir IT-D4.
+Art. 1 c. 3 du D.Lgs. 127/2015, texte consolidé vérifié au 2026-08-27 : l'obligation vise les
+opérations « effettuate **tra soggetti residenti o stabiliti nel territorio dello Stato** ». La même
+condition bilatérale est reprise **mot pour mot** au c. 6 pour la sanction (« la fattura si intende
+non emessa »). Le c. 3-bis, lui, n'exige la qualité de résident ou établi **que du transmetteur** :
+« I soggetti passivi di cui al comma 3 **trasmettono** […] i dati […] verso e da soggetti non
+stabiliti ». **Deux déclencheurs de nature différente dans le même article.**
+
+**L'immatriculation ne déclenche rien — et c'est explicite.** Le mot `identificati` a été
+**expressément retiré** de l'art. 1 c. 3 ; le provvedimento de 2018 le portait encore dans son
+intitulé, celui de 2022 ne le porte plus. L'AdE :
+
+> « […] tra i soggetti "stabiliti" **non possono essere inclusi i soggetti non residenti meramente
+> identificati** » — Circolare 13/E du 2018-07-02, §1.2
+>
+> « […] espungendo, dall'articolo 1, comma 3 […] il riferimento ai soggetti identificati (tramite
+> identificazione diretta ovvero rappresentante fiscale), **i quali non sono tenuti alla
+> fatturazione elettronica** » — Circolare 14/E du 2019-06-17, §1.2
+
+**Établissement stable : une propriété de l'opération, pas de l'entité.** L'art. 1 c. 3 ne définit
+pas « stabilito » et emprunte la notion TVA de l'art. 7 c. 1 lett. d) du DPR 633/1972 :
+
+> « […] ovvero una **stabile organizzazione** nel territorio dello Stato di soggetto domiciliato e
+> residente all'estero, **limitatamente alle operazioni da essa rese o ricevute** »
+
+Confirmé par la Risposta AdE n. 374/2023, qui rattache la règle à l'art. 192 bis de la directive TVA
+et au critère d'« intervention » de l'art. 53 du règlement 282/2011 — en précisant que « lo
+svolgimento di **meri compiti di supporto amministrativo, quali la contabilità, la fatturazione** o
+il recupero crediti, **non è sufficiente** ». Les spécifications techniques v1.9.1 en tirent la
+conséquence : le bloc `StabileOrganizzazione` n'est obligatoire que « nei soli casi in cui […]
+effettua **la transazione oggetto del documento** tramite stabile organizzazione ».
+
+**Reporting c. 3-bis — vérifié.** Périmètre sortant **et** entrant (« effettuate e ricevute verso e
+da »). Délais : sortantes « entro i termini di emissione delle fatture » ; entrantes « entro il
+quindicesimo giorno del mese successivo a quello di ricevimento del documento **o di effettuazione
+dell'operazione** » — le second terme alternatif est souvent omis. Exclusion à câbler : les achats
+non territorialement pertinents (art. 7 à 7-octies) **≤ 5 000 € par opération**.
+
+**Canal unique depuis le 2022-07-01** : les données passent par le SdI au format de la facture
+ordinaire ; les fichiers à l'ancien schéma portant une date postérieure au 2022-06-30 « **verranno
+scartati** ». L'esterometro autonome ne survit que pour les faits générateurs antérieurs.
+
+**Discriminant technique** : il n'existe **aucun `TipoDocumento` dédié** au flux sortant 3-bis. Le
+seul marqueur est `CodiceDestinatario = XXXXXXX`, valide **si et seulement si** `IdPaese ≠ IT` —
+sinon rejet **00313**. `0000000` couvre le cas distinct de l'émission volontaire vers un identifié
+portant sa partita IVA italienne. Ce sont deux branches disjointes, pas un repli. Entrantes :
+TD17 (services étrangers), TD18 (biens intracommunautaires), TD19 (art. 17 c. 2), TD28
+(Saint-Marin).
 
 ### Allemagne — déclencheur bilatéral
 

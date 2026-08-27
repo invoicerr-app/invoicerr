@@ -56,11 +56,16 @@ Le plan porte-t-il quoi que ce soit du profil acheteur, hors fiscalité ?
    un champ « archivage acheteur » existe-t-il ? NON
    un champ « obligations acheteur » existe-t-il ? NON
 
-=== D. Le cas décisif : société française immatriculée à la TVA en Italie, vente IT → IT ===
-Le droit italien vise l'opération domestique italienne : SdI, clearance bloquante, FatturaPA.
+=== D. Le cas décisif : société française avec établissement stable en Italie, vente IT → IT ===
+ATTENTION à la prémisse : une simple immatriculation TVA italienne (identificazione diretta
+art. 35-ter ou représentant fiscal) ne suffit PAS — l'AdE exclut les « meramente identificati »
+du périmètre SdI (Circ. 13/E §1.2, Circ. 14/E §1.2). Le déclencheur est la « stabile
+organizzazione », et seulement « limitatamente alle operazioni da essa rese o ricevute »
+(art. 7 c. 1 lett. d DPR 633/1972) — donc une propriété de L'OPÉRATION, pas de l'entité.
+Dans ce cas-là, le SdI est bien obligatoire : clearance bloquante, FatturaPA.
 Que peut exprimer le modèle ?
 
-Ce que l'application construit (invoices.helpers.ts : countryCode = celui de la société) :
+Ce que l'application construit (invoices.helpers.ts : countryCode = celui du siège) :
 ── supplier.countryCode=FR, buyer.countryCode=IT
    supplier=FR  buyer=IT  crossBorder=true
    régime        : DECENTRALIZED_CTC (bloquant=false)
@@ -91,7 +96,7 @@ Comparaison :
    canaux   — construit: PDP,GOV_PORTAL_API,PEPPOL,EMAIL   |  requis: SDI
    artefact — construit: EN16931_CII   |  requis: FATTURAPA
 
-Le modèle peut-il exprimer « établi en FR, immatriculé en IT » ?
+Le modèle peut-il exprimer « siège en FR, établissement stable en IT réalisant CETTE opération » ?
    PartyTaxProfile.establishmentCountry existe dans le type.
    Occurrences dans tout le dépôt hors sa déclaration : voir le grep du rapport — AUCUNE.
    Il n’est ni peuplé par invoices.helpers.ts, ni lu par compliance-engine.ts.

@@ -99,11 +99,16 @@ line(`   un champ « archivage acheteur » existe-t-il ? ${'buyerArchival' in fr
 line(`   un champ « obligations acheteur » existe-t-il ? ${'buyerObligations' in frIt ? 'oui' : 'NON'}`);
 line();
 
-line("=== D. Le cas décisif : société française immatriculée à la TVA en Italie, vente IT → IT ===");
-line("Le droit italien vise l'opération domestique italienne : SdI, clearance bloquante, FatturaPA.");
+line('=== D. Le cas décisif : société française avec établissement stable en Italie, vente IT → IT ===');
+line("ATTENTION à la prémisse : une simple immatriculation TVA italienne (identificazione diretta");
+line("art. 35-ter ou représentant fiscal) ne suffit PAS — l'AdE exclut les « meramente identificati »");
+line('du périmètre SdI (Circ. 13/E §1.2, Circ. 14/E §1.2). Le déclencheur est la « stabile');
+line("organizzazione », et seulement « limitatamente alle operazioni da essa rese o ricevute »");
+line('(art. 7 c. 1 lett. d DPR 633/1972) — donc une propriété de L\'OPÉRATION, pas de l\'entité.');
+line("Dans ce cas-là, le SdI est bien obligatoire : clearance bloquante, FatturaPA.");
 line('Que peut exprimer le modèle ?');
 line();
-line("Ce que l'application construit (invoices.helpers.ts : countryCode = celui de la société) :");
+line("Ce que l'application construit (invoices.helpers.ts : countryCode = celui du siège) :");
 const asBuilt = report('supplier.countryCode=FR, buyer.countryCode=IT', tx('FR', 'IT'));
 line('Ce que la règle italienne exigerait :');
 const asLaw = report('supplier.countryCode=IT, buyer.countryCode=IT', tx('IT', 'IT'));
@@ -113,7 +118,7 @@ line(`   régime   — construit: ${asBuilt.regime.model}/${asBuilt.regime.block
 line(`   canaux   — construit: ${asBuilt.channels.map((c) => c.type).join(',')}   |  requis: ${asLaw.channels.map((c) => c.type).join(',')}`);
 line(`   artefact — construit: ${asBuilt.artifacts[0].syntax}   |  requis: ${asLaw.artifacts[0].syntax}`);
 line();
-line("Le modèle peut-il exprimer « établi en FR, immatriculé en IT » ?");
+line("Le modèle peut-il exprimer « siège en FR, établissement stable en IT réalisant CETTE opération » ?");
 line('   PartyTaxProfile.establishmentCountry existe dans le type.');
 line('   Occurrences dans tout le dépôt hors sa déclaration : voir le grep du rapport — AUCUNE.');
 line('   Il n’est ni peuplé par invoices.helpers.ts, ni lu par compliance-engine.ts.');
