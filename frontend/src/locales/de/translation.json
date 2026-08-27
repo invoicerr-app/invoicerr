@@ -1533,7 +1533,7 @@
                 "button": "Erstelle Webhook"
             },
             "card": {
-                "events": "Warte auf Ereignisse: {{events}}",
+                "events": "Warte auf Ereignisse:",
                 "edit": "Bearbeiten",
                 "delete": "Löschen",
                 "editPrompt": "Geben Sie eine neue webhook URL ein"
