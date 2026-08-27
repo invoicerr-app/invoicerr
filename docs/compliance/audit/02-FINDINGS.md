@@ -862,10 +862,16 @@ techniques de l'art. 29.2.j) LGT ; **1 000 € par système commercialisé** en 
 responsable. *(Montants rapportés par la vérification pays ; la disposition elle-même n'a pas été
 relue verbatim par mes soins — l'échéance, elle, l'a été.)*
 
-À rapprocher de **ES-D1** : le profil déclare `hashChain: false` alors que le chaînage est obligatoire
-dans les deux modalités. Une déclaration responsable attestant la conformité d'un système qui ne
-chaîne pas ses registres serait une déclaration inexacte — c'est-à-dire le cas visé par le premier
-montant, pas le second.
+À rapprocher de **ES-D1**, dont l'analyse a été corrigée après vérification du code : l'algorithme de
+la huella **est** implémenté et vérifié contre les deux exemples chiffrés officiels de l'AEAT — de la
+preuve L3 — mais `previousHuella` n'est alimenté par aucun appelant, si bien que **chaque registre est
+émis comme premier registre d'une chaîne**. Le système produit une chaîne de longueur un, répétée.
+
+Cela ne réduit pas l'exposition, cela la précise : une déclaration responsable attestant la
+conformité d'un système dont la chaîne ne se forme jamais serait une déclaration **inexacte** —
+c'est-à-dire le cas visé par le montant à 150 000 €, pas par celui à 1 000 €. En revanche, le
+correctif ne dépend plus d'une source juridique à obtenir : le `TODO(seam)` du code décrit lui-même
+la requête manquante.
 
 ### Décision attendue
 

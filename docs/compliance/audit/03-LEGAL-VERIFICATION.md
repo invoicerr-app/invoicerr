@@ -533,10 +533,39 @@ dates ne doivent pas être codées comme fermes.**
 
 ### Divergences avec le code — Espagne
 
-**ES-D1 — `hashChain: false` : le code est faux.**
-Le chaînage par empreinte du registre précédent est **obligatoire dans les deux modalités**
-(RD 1007/2023 art. 8.2.b, 10.1.ñ, 11.2.e et 12). L'exception de l'art. 16.3 ne lève que la
-**signature XAdES**, jamais le hash.
+**ES-D1 — le chaînage est obligatoire, l'algorithme existe, et la chaîne n'est jamais formée.**
+
+*Version corrigée. La première rédaction disait « `hashChain: false` : le code est faux » et laissait
+entendre que la capacité était absente. Elle ne l'est pas, et le défaut réel est plus précis.*
+
+**Le droit d'abord.** Le chaînage par empreinte du registre précédent est **obligatoire dans les deux
+modalités** (RD 1007/2023 art. 8.2.b, 10.1.ñ, 11.2.e et 12). L'exception de l'art. 16.3 ne lève que la
+**signature XAdES**, jamais le hash. Le drapeau de profil `hashChain: false` est donc faux comme
+déclaration.
+
+**Ce que le code fait réellement.** `reporting/generators.ts` implémente l'algorithme de la huella —
+chaîne canonique, jeu et ordre des champs, casse, SHA-256 hexadécimal majuscule — construit d'après
+les documents techniques AEAT nommément cités : « Detalle de las especificaciones técnicas para la
+generación de la huella o hash de los registros de facturación » **v0.1.2 du 2024-08-27**, et celui
+du code QR **v0.5.0 du 2025-12-10**. `generators.spec.ts` **reproduit les deux exemples chiffrés
+officiels de l'AEAT** — cas 1, premier registre non chaîné, et cas 2, registre chaînant le
+précédent — avec les SHA-256 publiés par l'autorité en dur. Les 39 tests passent.
+
+> C'est de la **preuve L3** au sens de l'échelle de cet audit : un test vérifié contre un vecteur
+> publié par l'autorité. Mon inventaire de phase 0 l'avait manquée, ayant sondé les providers de
+> *format* et jamais les générateurs de *reporting*.
+
+**Le défaut, exactement.** Le paramètre `previousHuella` vaut `''` par défaut, et **aucun appelant ne
+l'alimente jamais** — vérifié sur tout le dépôt. `handlers.ts:185` le documente d'ailleurs
+explicitement, et `generators.ts:695` porte un `TODO(seam)` disant que la lecture arrière du registre
+précédent est délibérément laissée à la couche d'I/O. Conséquence : **chaque registre est émis avec
+`PrimerRegistro='S'`** — le système produit une chaîne de longueur un, répétée indéfiniment, alors
+que toute la valeur probante du dispositif tient dans le chaînage.
+
+**Ce qui manque n'est donc pas une source légale, c'est une requête.** Le `TODO(seam)` décrit lui-même
+le correctif : lire, par émetteur, la huella du dernier registre VERIFACTU via `ReportingStore`, et
+la passer au générateur. Aucune recherche juridique supplémentaire n'est nécessaire pour cela — ce
+qui déplace la séquence de F-018 (voir `06-REMEDIATION.md`).
 
 **ES-D2 — `reporting: SII + VERIFACTU` : le code est faux s'il cumule.**
 Les deux régimes sont **mutuellement exclusifs** : « El presente Reglamento **no se aplicará** a los
