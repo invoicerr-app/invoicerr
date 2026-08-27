@@ -1,0 +1,569 @@
+# 02 — Findings (Phase 1)
+
+> Audit contradictoire, branche `audit/compliance-truth`. **Aucune correction n'a été apportée.**
+> Chaque finding porte une reproduction exécutable ou une référence `fichier:ligne` vérifiable.
+> Les reproductions vivent dans `scripts/audit/repro/`, leurs sorties dans `evidence/`.
+>
+> Sévérité `critical` réservée à : perte de preuve légale, promesse publique fausse, corruption de
+> séquence, suppression d'un document légalement immuable.
+
+## Sommaire
+
+| # | Sévérité | Titre | Point |
+| --- | --- | --- | :-: |
+| [F-001](#f-001) | **critical** | Un document de zéro octet traverse tout le pipeline et est archivé | 1 |
+| [F-002](#f-002) | **critical** | La séquence « sans trou » perd des numéros sous concurrence | 3 |
+| [F-003](#f-003) | **critical** | Une facture émise et acquittée est supprimable, sans aucune garde en base | 2 |
+| [F-004](#f-004) | **critical** | 106 pages publiques de conformité pour 5 canaux réellement câblés | 7 |
+| [F-005](#f-005) | high | Le journal d'événements n'est pas append-only ; un document CLEARED est réécrivable | 4 |
+| [F-006](#f-006) | high | Le document transmis n'est jamais stocké — il est reconstruit à l'affichage | 4 |
+| [F-007](#f-007) | high | `REJECTED` est un cul-de-sac : ni re-soumission, ni correction, ni annulation | 5 |
+| [F-008](#f-008) | high | Un rejet d'autorité est invisible sur la facture que voit l'utilisateur | 5 |
+| [F-009](#f-009) | high | L'UI invite à connecter 16 canaux qui ne peuvent rien émettre | 6 |
+| [F-010](#f-010) | high | Le reçu d'archivage n'est ni vérifié ni persisté nulle part | 1 |
+| [F-011](#f-011) | medium | `resetAll()` ne supprime rien et répond « All data reset successfully » | 2 |
+| [F-012](#f-012) | medium | OTP des opérations destructives : en mémoire, `Math.random()`, mauvais destinataire | 2 |
+| [F-013](#f-013) | medium | Aucune trace machine-lisible d'une exécution live réussie | 6 |
+| [F-014](#f-014) | medium | Un spec écrit dans l'arbre de travail du développeur | 1 |
+| [F-016](#f-016) | high | Les 10 handlers de reporting sont mockés mais renvoient `EMITTED` | 1 |
+| [F-015](#f-015) | low | Un document CLEARED ne peut pas être corrigé sans passer par DELIVERED | 5 |
+
+---
+
+<a id="f-001"></a>
+## F-001 — `critical` — Un document de zéro octet traverse tout le pipeline et est archivé
+
+**Point 1.** Reproduction : `scripts/audit/repro/f001-empty-archive.ts` — sortie complète dans
+`evidence/f001-empty-archive.txt`.
+
+### Constat
+
+Un cycle complet `ComplianceExecutor.execute()` pour le Brésil produit **0 octet** et n'est bloqué
+nulle part :
+
+```
+plan.artifacts : ["AUTHORITATIVE/NFE","HUMAN/PLAIN_PDF"]
+  AUTHORITATIVE/NFE: 0 octets — validation.valid=true errors=0
+  HUMAN/PLAIN_PDF:   0 octets — validation.valid=true errors=0
+octets réellement produits par tout le pipeline : 0
+archive : {"providerId":"s3-worm","region":"BR","retentionUntil":"2037-08-27T…","contentHash":"d31edef…"}
+fichiers archivés : authoritative-nfe.xml (0 octets), human-plain_pdf.pdf (0 octets)
+```
+
+Trois mécanismes s'additionnent, chacun raisonnable isolément :
+
+1. **Les builders émettent du vide.** `national-formats.ts:44-50` — les 42 providers de format
+   nationaux renvoient `bytes: new Uint8Array()`. C'est assumé (« stub »), mais rien en aval ne le
+   sait.
+2. **La validation déclare le vide valide.** `providers/format/providers.ts:145` :
+   `if (!rendered.bytes.length) return okValidation('… validation skipped (no bytes — stub path)')`.
+   Les stubs nationaux, eux, renvoient inconditionnellement `{ valid: true, warnings: ['… (stub)'] }`.
+   Sonde de la phase 0 : **54 syntaxes sur 54 déclarent `valid: true` pour un document vide.**
+   Aucune ne le rejette.
+3. **La garde de l'exécuteur ne peut donc jamais se déclencher.** `execution/executor.ts:250-262`
+   bloque sur `a.validation && !a.validation.valid`. La condition est structurellement inatteignable
+   pour un artefact vide.
+
+Le seul signal émis est un `warning` non bloquant, noyé dans `result.warnings`.
+
+### Reproduction
+
+```bash
+cd backend
+COMPLIANCE_ARCHIVE_DIR=/tmp/audit npx tsx ../scripts/audit/repro/f001-empty-archive.ts
+```
+
+### Impact
+
+Pour les **35 pays déclarés `CLEARANCE`** et l'ensemble du palier stub, « archivé » signifie
+aujourd'hui « un fichier vide porte le nom d'une facture ». En cas de contrôle, l'archive ne prouve
+rien — et pire, elle a l'apparence d'une archive valide (chemin, hash, rétention à 10 ans).
+
+Note : cela n'affecte pas les syntaxes réellement implémentées (EN 16931, CFDI, FatturaPA, FA_VAT,
+Facturae) tant qu'elles produisent des octets — la garde reste inopérante mais n'a rien à bloquer.
+
+---
+
+<a id="f-002"></a>
+## F-002 — `critical` — La séquence « sans trou » perd des numéros sous concurrence
+
+**Point 3.** Reproduction : `scripts/audit/repro/f007-numbering-concurrency.ts` — sortie dans
+`evidence/f007-numbering-concurrency.txt`.
+
+### Constat
+
+L'allocation SQL elle-même est correcte. `utils/numbering.ts:61-72` utilise un
+`INSERT … ON CONFLICT DO UPDATE SET counter = counter + 1 RETURNING counter` atomique, et huit
+brouillons **distincts** émis en parallèle donnent bien `[1..8]`, sans doublon ni trou.
+
+Le défaut est ailleurs : `invoices.service.ts:436-447` lit la facture et évalue ses gardes
+(`status !== 'DRAFT'`, `number !== null`) **hors transaction**, puis ouvre la transaction qui alloue.
+C'est un TOCTOU classique. Huit émissions concurrentes de **la même** facture :
+
+```
+appels ayant franchi la garde et alloué un numéro : 8/8
+numéros alloués : [10,13,9,12,15,11,16,14]
+compteur consommé : 8 → 16
+numéro finalement porté par la facture : 16
+NUMÉROS MANQUANTS DANS LA SÉRIE : [9,10,11,12,13,14,15]
+```
+
+Sept valeurs de séquence sont consommées puis perdues définitivement. Aucun document ne les porte,
+et rien ne les enregistre comme annulées.
+
+### Déclencheur réaliste
+
+Deux requêtes `POST /api/invoices/:id/issue` concurrentes : double-clic sur le bouton d'émission,
+rejeu automatique d'un client HTTP après timeout, ou deux onglets. Aucun accès privilégié requis.
+
+### Reproduction
+
+```bash
+cd backend
+npx dotenv -e .env.test -- npx tsx ../scripts/audit/repro/f007-numbering-concurrency.ts
+```
+
+Le script crée sa propre société marquée `AUDIT-CONCURRENCY-<pid>` et la supprime en `finally` ;
+il ne touche aucune ligne préexistante.
+
+### Impact
+
+Une numérotation chronologique et continue est exigée par la plupart des régimes de facturation
+(les profils du dépôt déclarent eux-mêmes `GAPLESS_SELF` pour la quasi-totalité des pays). Des trous
+inexpliqués dans la série sont exactement ce qu'un contrôle cherche. La règle précise par pays
+relève de la phase 2 — mais l'écart avec la propre déclaration `GAPLESS_SELF` du dépôt, lui, est
+établi ici.
+
+---
+
+<a id="f-003"></a>
+## F-003 — `critical` — Une facture émise et acquittée est supprimable, sans aucune garde en base
+
+**Point 2.** Reproduction : `scripts/audit/repro/f004-delete-issued-invoice.ts` (transactions
+annulées) — sortie dans `evidence/f004-delete-issued-invoice.txt`.
+
+### Constat
+
+Sur une facture `SENT`, numérotée `FA-2026-0042`, dont le `ComplianceDocument` est `CLEARED` avec un
+identifiant d'autorité :
+
+```
+== 1. prisma.invoice.deleteMany({ where: { companyId } }) sur une facture SENT/CLEARED ==
+   RÉSULTAT : 1 facture(s) supprimée(s) définitivement — aucune erreur
+   ComplianceDocument : conservé, invoiceId = null
+   événements conservés : 1 — identifiants autorité conservés : 1
+
+== 5. existe-t-il une garde en base ? ==
+   triggers applicatifs sur le schéma public : 0
+   contraintes CHECK sur Invoice/ComplianceDocument/ComplianceEvent/NumberSeries : 0
+```
+
+La protection existe, mais **uniquement dans le code applicatif** : `invoices.service.ts:1114-1123`
+refuse `deleteInvoice` sur tout ce qui n'est pas `DRAFT`, et fait un soft-delete (`isActive: false`).
+C'est correct. Le problème est que ce n'est pas la seule porte :
+
+- `danger.service.ts:64` appelle `prisma.invoice.deleteMany({ where: { companyId } })` **sans aucun
+  filtre de statut** — hard delete de toutes les factures d'une société, émises et acquittées
+  comprises.
+- Aucun trigger, aucune contrainte CHECK, aucun `deletedAt` obligatoire : la base accepte la
+  suppression de n'importe quelle facture, quel que soit son état.
+- La contrainte `ComplianceDocument_invoiceId_fkey` est `ON DELETE SET NULL`
+  (`prisma/migrations/20260624131458_compliance_lifecycle/migration.sql:44`). Le dossier de
+  conformité survit donc à la facture — mais **orphelin** : `invoiceId = null`, plus aucun moyen de
+  savoir à quelle facture il se rapportait.
+
+### Ce qui empêche aujourd'hui le pire, et pourquoi ça ne compte pas
+
+`resetApp()` exécute d'abord `prisma.company.deleteMany`, et `Invoice_companyId_fkey` est
+`ON DELETE RESTRICT` :
+
+```
+== 2. prisma.company.deleteMany({ where: { id } }) ==
+   BLOQUÉ par la base : Foreign key constraint violated on the constraint: `Invoice_companyId_fkey`
+```
+
+`resetApp()` lève donc dès sa première instruction dès qu'une facture existe, et la ligne 64 n'est
+jamais atteinte. Mais c'est un **accident d'ordonnancement**, pas une garde : inverser deux lignes,
+ou passer cette FK en `CASCADE` dans une migration future, transforme silencieusement l'appel en
+suppression massive de documents émis. Les instructions ne sont d'ailleurs pas dans une transaction.
+
+### Impact
+
+Pour tout régime à journal inaltérable, une contrainte purement applicative ne vaut rien : elle ne
+protège que les chemins qu'on a pensé à protéger. Ici, un chemin non protégé existe déjà dans le
+code.
+
+---
+
+<a id="f-004"></a>
+## F-004 — `critical` — 106 pages publiques de conformité pour 5 canaux réellement câblés
+
+**Point 7.** Source : `00-INVENTORY.md` §1 à §3, entièrement mécanique.
+
+### Constat
+
+Le site publie **106 pages `/compliance/<cc>`**, présentées dans un navigateur à facettes
+(`documentation/src/pages/compliance/index.tsx`) avec un badge « {count} countries », des filtres
+par région, statut et format. En face :
+
+| Ce qui est publié | Ce qui existe |
+| --- | --- |
+| 106 pays avec une page de conformité | 5 providers sur 62 disposent d'un transport atteignable (`peppol`, `pdp`, `ksef`, `choruspro`, `email`) |
+| 54 syntaxes déclarées par les profils | 5 syntaxes rejettent un document invalide (`CFDI`, `ES_FACTURAE`, `FA_VAT`, `FATTURAPA`, `PEPPOL_BIS`) |
+| 66 pays marqués `status: mandatory` | 0 trace d'une transmission réelle acquittée dans le dépôt |
+
+**48 pays** ont une page publique alors qu'aucun `ChannelSpec` de leur profil ne résout vers un
+provider capable d'émettre quoi que ce soit (catégorie 1a de l'inventaire). **8 pays de plus** — AL,
+EG, HR, **IT**, MY, NG, RO, SA — déclarent dans leur *propre* profil un régime `CLEARANCE` bloquant,
+et le seul transport joignable pour eux est `email` (catégorie 1b).
+
+### Nuance importante, en faveur du dépôt
+
+Le corps des fiches est très majoritairement écrit à la voix **prescriptive**, pas assertive : sur
+les 106 fiches, on compte 15 tournures « Invoicerr must / should / needs to » contre seulement
+**7 tournures de capacité au présent**, réparties sur 6 pays (CH, GB, GR, IN, IT, SG). Aucune fiche
+ne contient de « ✅ ». Le texte, pris ligne à ligne, promet donc peu.
+
+**C'est la structure qui promet, pas la prose.** Un répertoire nommé « Compliance », filtrable par
+pays, affichant un compteur de pays et une page dédiée par juridiction, se lit comme une matrice de
+couverture — quelle que soit la prudence du texte à l'intérieur. Un lecteur qui filtre sur « Brazil »
+et atterrit sur une page détaillée n'a aucun moyen d'apprendre que `sefaz` ne peut pas émettre un
+octet.
+
+### Impact
+
+C'est le finding le plus lourd de l'audit : il ne s'agit pas d'un défaut technique mais d'une
+promesse publique qu'aucune preuve ne soutient. Il est aussi le plus facile à corriger sans toucher
+au code — voir la proposition de dérivation depuis `compliance-truth.json` (phase 4).
+
+---
+
+<a id="f-005"></a>
+## F-005 — `high` — Le journal d'événements n'est pas append-only ; un document CLEARED est réécrivable
+
+**Point 4.** Reproduction : `f004-delete-issued-invoice.ts`, étapes 3 et 4.
+
+```
+== 3. le journal ComplianceEvent est-il append-only en base ? ==
+   UPDATE d'un événement : ACCEPTÉ (type "CLEAR" → "FALSIFIE")
+   DELETE d'un événement : ACCEPTÉ — reste 0 événement(s)
+
+== 4. un ComplianceDocument CLEARED peut-il être réécrit ? ==
+   UPDATE ACCEPTÉ : number "FA-2026-0042" → "FA-2026-9999",
+                    immutableHash "deadbeef" → "cafebabe",
+                    status "CLEARED" → "DRAFT"
+```
+
+L'architecture décrit le statut comme « une projection d'un journal append-only ». Le journal est
+append-only **par convention de code** : `apply-signal.ts` n'écrit qu'en ajout et protège la
+transition par un CAS (`transitionIfStatus`, `apply-signal.ts:151`), ce qui est un bon design pour
+la concurrence. Mais rien au niveau de la base ne l'impose : ni révocation de `UPDATE`/`DELETE`, ni
+trigger, ni chaînage vérifié.
+
+La chaîne de hash, elle, existe bel et bien : `compliance-service.ts:243-253` chaîne chaque document
+au précédent de sa série, et `audit-export.controller.ts:28-29` exporte `immutableHash` et
+`previousHash` — un auditeur externe pourrait donc la vérifier. Deux réserves néanmoins :
+
+1. **Rien dans le code ne la vérifie.** Aucune routine ne recalcule ni ne compare la chaîne ;
+   `immutableHash` n'est jamais relu autrement que pour être chaîné au suivant. Une réécriture comme
+   celle de l'étape 4 ci-dessus casse silencieusement la chaîne, et rien ne le détecte.
+2. **Elle ne couvre pas le document.** `compliance-service.ts:169-171` calcule
+   `sha256(JSON.stringify(ctx) + previousHash)` : le hash porte sur le *contexte de transaction*, pas
+   sur les octets réellement émis et transmis. Même vérifiée, la chaîne n'attesterait pas de ce qui a
+   été envoyé à l'autorité — voir F-006.
+
+**Impact.** Un journal réécrivable ne fait pas foi. Pour les régimes qui exigent un journal
+inaltérable, la propriété revendiquée par l'architecture n'est pas tenue au niveau où elle compte.
+
+---
+
+<a id="f-006"></a>
+## F-006 — `high` — Le document transmis n'est jamais stocké — il est reconstruit à l'affichage
+
+**Point 4.**
+
+`invoice-rendering.service.ts:178-182` : `renderPdf(id)` relit la ligne `Invoice` et **re-génère** le
+PDF à chaque appel. Le schéma Prisma ne contient aucune colonne d'octets de document (recherche
+`Bytes` dans `schema.prisma` : seul `encryptedPfx`, sans rapport). Le `ArchiveReceipt`
+(`uri`, `contentHash`, `retentionUntil`) est retourné en mémoire par
+`compliance-service.ts:725-726` et **n'est persisté dans aucune table**.
+
+Conséquence directe : il n'existe, à aucun endroit du système, une copie de ce qui a été réellement
+émis et transmis. Le document affiché aujourd'hui est une reconstruction à partir de lignes
+mutables — et F-005 montre que ces lignes sont mutables jusque dans le dossier de conformité.
+
+**Impact.** Rien ne permet de prouver ce qui a été transmis à une autorité ni envoyé à un acheteur.
+Pour un régime de clearance, où le document acquitté fait foi, c'est disqualifiant. La règle exacte
+par pays relève de la phase 2 ; l'absence de stockage, elle, est établie.
+
+---
+
+<a id="f-007"></a>
+## F-007 — `high` — `REJECTED` est un cul-de-sac : ni re-soumission, ni correction, ni annulation
+
+**Point 5.** Source : `lifecycle/state-machine.ts:38-69`.
+
+```ts
+PENDING_CLEARANCE: { CLEAR: 'CLEARED', REJECT: 'REJECTED', ENTER_CONTINGENCY: 'CONTINGENCY' },
+REJECTED: {},          // ← aucune transition sortante
+```
+
+Après un rejet d'autorité, le document est figé : aucun chemin vers une re-soumission après
+correction, aucun vers `CORRECTED`, aucun vers `CANCELLED`. Le numéro alloué reste consommé (voir
+F-002 pour ce que cela implique sur la série).
+
+À comparer avec `TRANSMISSION_FAILED`, qui est correctement conçu comme rejouable
+(`SUBMIT_CLEARANCE` et `DELIVER` en sortie, commentaire F-4 explicite). Le rejet applicatif est
+donc traité comme rejouable, mais le rejet **de l'autorité** ne l'est pas.
+
+**Ce que cet audit ne dit pas :** quelle est la règle correcte par pays. Selon les régimes, un
+document rejeté n'a jamais existé juridiquement et doit être renvoyé — parfois sous le même numéro,
+parfois sous un nouveau. Vérifier cela contre les sources primaires est le travail de la phase 2 ;
+c'est enregistré comme `open_question` dans `compliance-truth.json`.
+
+---
+
+<a id="f-008"></a>
+## F-008 — `high` — Un rejet d'autorité est invisible sur la facture que voit l'utilisateur
+
+**Point 5.**
+
+- L'énumération `InvoiceStatus` (`prisma/schema.prisma`) comporte `DRAFT, ISSUED, PAID, UNPAID,
+  OVERDUE, SENT, ARCHIVED, PENDING_CLEARANCE, CLEARED, CANCELLED, CORRECTED` — **pas de `REJECTED`**.
+- `apply-signal.ts`, qui traite les signaux d'autorité, n'écrit que `ComplianceDocument.status`
+  (ligne 151). Recherche `prisma.invoice.update` dans tout `src/compliance` : **aucun résultat**.
+- Les 10 écritures de `Invoice.status` du dépôt correspondent toutes à des actions utilisateur
+  (`SENT`, `CANCELLED`, `CORRECTED`, `ARCHIVED`, paiement).
+
+Une facture rejetée par KSeF, SdI ou un PDP reste donc affichée `SENT` ou `ISSUED` dans la liste des
+factures. Le rejet n'existe que dans une table que l'écran principal ne lit pas.
+
+**Impact.** L'utilisateur croit avoir facturé. Dans un régime de clearance où le rejet signifie que
+la facture n'existe pas juridiquement, l'écart entre l'écran et la réalité est total, et silencieux.
+
+---
+
+<a id="f-009"></a>
+## F-009 — `high` — L'UI invite à connecter 16 canaux qui ne peuvent rien émettre
+
+**Point 6.**
+
+Le garde-fou existe et fonctionne pour un palier : `channels.settings.tsx:218` calcule
+`isStub = (maturity ?? "STUB") === "STUB"` et supprime le contrôle « Connect » pour les 41 providers
+STUB. C'est correct et volontaire (commentaire F-8/M-16).
+
+Mais `channel-connect-prompt.tsx:73` traite `IMPLEMENTED` comme équivalent à `PROVEN` :
+
+```ts
+const isLiveProvider = maturity === "PROVEN" || maturity === "IMPLEMENTED"
+```
+
+et affiche alors : *« Your country requires connecting {channels} to send compliant invoices. »*
+
+Or l'inventaire mécanique montre que **16 des 17 providers `IMPLEMENTED` n'ont aucun site d'appel
+réseau** dans leur voisinage source à deux sauts, et que le registre de production ne leur injecte
+jamais de port HTTP (`registry.ts:70-88` ne passe que `credentials`) :
+
+| Provider | Pays | Transport tel que câblé |
+| --- | --- | --- |
+| `anaf` | RO | port stub `STUB_HTTP` **codé en dur** (`anaf-transmission.ts:79-89`, passé au client ligne 137 — aucun point d'injection) |
+| `sdi` | IT | port par défaut dont chaque méthode `throw` (`sdi-transmission.ts:119`) |
+| `sii`, `dian`, `sri`, `uy-dgi` | CL, CO, EC, UY | port par défaut = stub explicite |
+| `es-face` | ES | court-circuit `SKIPPED` si aucun port |
+| `afip`, `sefaz`, `gib`, `eg-eta`, `firs`, `ke-kra`, `id-coretax`, `in-irp`, `myinvois` | AR, BR, TR, EG, NG, KE, ID, IN, MY | aucun site d'appel réseau |
+
+Seul `choruspro` (FR) a réellement 2 sites d'appel.
+
+**Impact.** L'utilisateur roumain, brésilien, chilien, colombien, égyptien, indien, indonésien,
+kényan, malaisien, nigérian, turc, uruguayen, argentin ou espagnol est invité par le produit à
+saisir des identifiants pour un canal qui ne peut structurellement rien transmettre — et le fera
+sans avertissement bloquant. `provider-maturity.spec.ts` verrouille cette classification
+`IMPLEMENTED` en la faisant reposer sur `COMPLIANCE_AUDIT.md`, c'est-à-dire sur de la prose.
+
+---
+
+<a id="f-010"></a>
+## F-010 — `high` — Le reçu d'archivage n'est ni vérifié ni persisté nulle part
+
+**Point 1.** Reproduction : `f001-empty-archive.ts`, étape A.
+
+```
+receipt : {"providerId":"s3-worm","region":"EU","uri":"file://…/EU/e3b0c44…","retentionUntil":"2036-08-27T…","contentHash":"e3b0c44…"}
+contentHash == SHA-256 de la chaîne vide ? true
+répertoire créé, contenu : []
+le receipt signale-t-il l'absence de contenu ? NON
+```
+
+`ArchiveProvider.store()` accepte une liste d'artefacts **vide**, crée le répertoire, n'écrit aucun
+fichier, et renvoie un reçu indiscernable d'un succès : `providerId`, `uri`, `retentionUntil` à
+10 ans, et un `contentHash`. Ce hash est la SHA-256 de la chaîne vide — une constante universelle,
+donc trivialement reproductible par quiconque et sans valeur probante.
+
+`ArchiveReceipt` ne porte ni `artifactCount` ni total d'octets, et n'est écrit dans aucune table
+(voir F-006). Aucun code ne relit l'archive pour vérifier que le contenu correspond au hash.
+
+**Impact.** « Archivé » n'est pas une information vérifiable dans ce système : c'est une valeur de
+retour jetée.
+
+---
+
+<a id="f-011"></a>
+## F-011 — `medium` — `resetAll()` ne supprime rien et répond « All data reset successfully »
+
+**Point 2.** Source : `danger.service.ts:75-92`.
+
+Le corps de la méthode ne contient aucun appel Prisma — seulement un commentaire
+`// Reset all data logic here`, la remise à zéro de l'OTP, puis :
+
+```ts
+return { message: 'All data reset successfully' };
+```
+
+La documentation OpenAPI de l'endpoint (`danger.controller.ts`) annonce pourtant : *« Deletes all
+data including documents, clients, and configuration for the active company. The company returns to
+its initial state. »*
+
+**Impact.** L'utilisateur qui exécute une opération destructive explicite, confirmée par OTP, reçoit
+une confirmation de succès pour une opération qui n'a pas eu lieu. Il croira ses données effacées.
+Sévérité `medium` et non `critical` parce que le sens de l'erreur est conservateur : rien n'est
+détruit. Le manquement est la fausse confirmation.
+
+---
+
+<a id="f-012"></a>
+## F-012 — `medium` — OTP des opérations destructives : en mémoire, `Math.random()`, mauvais destinataire
+
+**Point 2.** Source : `danger.service.ts:11-45`.
+
+Quatre observations sur le seul garde-fou des opérations destructives :
+
+1. `private OTP: string | null` — champ d'instance en mémoire du processus. En déploiement scalé
+   (`docker-compose.scale.yml`), l'OTP émis par une instance est invalide sur les autres, et un
+   redémarrage l'invalide.
+2. `Math.floor(10000000 + Math.random() * 90000000)` — `Math.random()` n'est pas
+   cryptographiquement sûr ; 8 chiffres, sans limite de tentatives ni verrouillage observés.
+3. L'OTP est envoyé à `process.env.SMTP_FROM || process.env.SMTP_USER` — **l'adresse technique de
+   l'instance**, pas celle de l'utilisateur qui le demande. Le corps du message mentionne bien
+   l'utilisateur (« An OTP code was sent to {user.email} ») alors qu'il ne lui a pas été envoyé.
+4. `resetApp()` **n'invalide pas** l'OTP après usage (seul `resetAll()` le fait) : il reste rejouable
+   pendant toute sa fenêtre de 10 minutes.
+
+`@Roles(CompanyRole.OWNER)` protège correctement le contrôleur — c'est le second facteur qui est
+faible, pas le premier.
+
+**Impact.** Le facteur censé protéger la destruction de données ne protège pas ce qu'il prétend.
+Sévérité `medium` parce que le rôle OWNER reste requis et que F-003 montre que `resetApp` échoue de
+toute façon dès qu'une facture existe.
+
+---
+
+<a id="f-013"></a>
+## F-013 — `medium` — Aucune trace machine-lisible d'une exécution live réussie
+
+**Point 6.**
+
+`live-gate.ts` et `portal-live.spec.ts` sont bien conçus : double barrière (drapeau `<PREFIX>_LIVE=1`
+**et** présence de credentials), échec dur sur `REJECTED`/`SKIPPED`, et un harnais paramétré qui
+couvre les 54 portails nationaux. Le dispositif est honnête.
+
+Ce qui manque est la preuve d'exécution. Le dépôt ne contient :
+
+- aucun fichier de résultat de run live,
+- aucun horodatage de dernier succès,
+- aucun artefact de réponse d'autorité versionné (pas d'UPO KSeF, pas de ricevuta SdI, pas d'accusé
+  PDP).
+
+Les dates de « dernier run réussi » n'existent que dans de la prose (`COMPLIANCE_TODO.md`,
+`LIVE_TESTING.md`, notes de handoff). Cet audit ne les infirme pas — il constate qu'il ne peut ni
+les confirmer ni les dater.
+
+Il n'existe par ailleurs que **10 specs live dédiées**, couvrant 6 providers (`ksef`, `pdp`,
+`peppol`, `email`, `sdi`, `choruspro`) : **56 providers sur 62 n'ont jamais eu de spec live dédiée**.
+
+**Impact.** La maturité `PROVEN` n'est pas falsifiable en l'état. Un niveau L4/L5 ne peut pas être
+attribué sans un artefact daté et versionné.
+
+---
+
+<a id="f-014"></a>
+## F-014 — `medium` — Un spec écrit dans l'arbre de travail du développeur
+
+**Point 1.** Ceci corrige l'hypothèse de départ de l'audit.
+
+Les répertoires `backend/.compliance-archive/{EU,MX,SA,BR,GLOBAL}/e3b0c44298fc1c149afbf4c8996fb924…/`
+signalés comme suspects sont **des résidus de test, pas des archives de production**. Ils sont
+produits par `archive-registry.spec.ts:17-30`, qui appelle
+`defaultArchiveRegistry.store([], policy(region), log)` — liste d'artefacts vide — sans définir
+`COMPLIANCE_ARCHIVE_DIR`. `storage.ts:39` retombe alors sur `<cwd>/.compliance-archive`, et le `cwd`
+de Jest est `backend/`. Le répertoire est gitignoré (`backend/.gitignore:65`) et non suivi par git.
+
+Le spec voisin `providers.spec.ts` définit correctement `COMPLIANCE_ARCHIVE_DIR` ; seul
+`archive-registry.spec.ts` ne le fait pas.
+
+Le hash `e3b0c44…855` est bien SHA-256(""), mais parce que la liste est vide, **pas** parce qu'un
+document vide aurait été archivé. Le vrai défaut derrière cette observation est F-010 (le reçu ment)
+et F-001 (le pipeline archive du vide) — tous deux reproduits indépendamment.
+
+**Impact.** Faible en soi : pollution de l'arbre de travail. Consigné parce que l'observation initiale
+aurait pu être surinterprétée comme une preuve de production.
+
+---
+
+<a id="f-015"></a>
+## F-015 — `low` — Un document CLEARED ne peut pas être corrigé sans passer par DELIVERED
+
+**Point 5.** Source : `lifecycle/state-machine.ts:56-63`.
+
+```ts
+CLEARED:   { DELIVER: 'DELIVERED', CANCEL: 'CANCELLED' },   // pas de CORRECT
+DELIVERED: { OPEN_RESPONSE, REPORT, CORRECT: 'CORRECTED', CANCEL },
+```
+
+Un document acquitté par l'autorité mais pas encore marqué livré à l'acheteur ne peut donc pas être
+corrigé : il faut d'abord le faire transiter par `DELIVERED`. Si la livraison acheteur échoue ou
+n'est pas modélisée pour ce pays, la correction est inatteignable.
+
+Classé `low` : c'est une rigidité de graphe, contournable, et il se peut que ce soit délibéré. À
+confronter aux règles réelles de correction en phase 2.
+
+---
+
+<a id="f-016"></a>
+## F-016 — `high` — Les 10 handlers de reporting sont mockés mais renvoient `EMITTED`
+
+**Point 1 (honnêteté des statuts).** Source : `reporting/handlers.ts:44-90`.
+
+Les dix obligations déclaratives (`E_REPORTING`, `SAFT`, `OSS`, `IOSS`, `EC_SALES_LIST`, `INTRASTAT`,
+`SALES_PURCHASE_LEDGER`, `CUSTOMS_EXPORT`, `SII`, `VERIFACTU`) passent toutes par la même fabrique
+`makeReportingHandler`. Le corps partagé génère un payload structuré, le persiste en `PENDING`, puis :
+
+```ts
+// Mocked submission seam — real I/O plugged in per-kind when authority creds available
+log.info(`reporting/${kind}`, `[MOCK] ${submitLabel} — period=… record=…`);
+return { kind, status: 'EMITTED', ref: record.id };
+```
+
+Aucune soumission n'a lieu, et le résultat renvoyé est `EMITTED` — un statut de succès. Le caractère
+mocké n'apparaît que dans une ligne `log.info`, jamais dans la valeur de retour ni dans le statut
+persisté.
+
+Le seam est correctement isolé et la génération de payload est réelle ; c'est le **statut retourné**
+qui est faux. `SKIPPED` ou un `EMITTED` assorti d'un indicateur `mocked: true` diraient la vérité
+sans rien changer d'autre.
+
+**Impact.** Toute la couche déclarative rapporte un succès. Un appelant — ou un futur tableau de bord
+de conformité — ne dispose d'aucun moyen programmatique de distinguer une déclaration réellement
+transmise d'une déclaration jamais envoyée.
+
+---
+
+## Ce que la phase 1 n'a pas tranché
+
+- **La correction des règles légales.** Aucune source primaire n'a été consultée (phase 2). F-007 et
+  F-015 en dépendent directement.
+- **L'existence de sandboxes.** F-009 et F-013 supposent qu'un provider `IMPLEMENTED` *pourrait* être
+  testé. Si aucun sandbox n'existe, le plafond est L2 quoi qu'il arrive (phase 3).
+- **`Log`** — le modèle applicatif de journalisation n'a pas été audité ; seul `ComplianceEvent` l'a
+  été. À reprendre.
+- **Le chaînage de hash** (`previousHash`/`immutableHash`) : constaté non vérifié, mais l'analyse de
+  ce que le chaînage devrait couvrir reste à faire.

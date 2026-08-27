@@ -498,9 +498,18 @@ async function buildCountry(code: string) {
         ),
       )
     : [];
+  // The LEGALLY REQUIRED artifact, separate from the human companion. Scoring a country's format
+  // capability on the merged list would credit Brazil's stub NFE with the plain-PDF human copy.
+  const primarySyntaxes = profile
+    ? uniq(
+        allValues(profile.formats)
+          .map((r) => r.primary?.syntax)
+          .filter((x): x is DocumentSyntax => Boolean(x)),
+      )
+    : [];
 
-  const formatProbes: FormatProbe[] = [];
-  for (const s of syntaxes) formatProbes.push(await probeSyntax(s));
+  const formatProbes: (FormatProbe & { primary: boolean })[] = [];
+  for (const s of syntaxes) formatProbes.push({ ...(await probeSyntax(s)), primary: primarySyntaxes.includes(s) });
 
   const lifecycles = profile ? allValues(profile.lifecycle) : [];
   const archivals = profile ? allValues(profile.archival) : [];
@@ -528,6 +537,7 @@ async function buildCountry(code: string) {
             numbering: profile.numbering.length,
           },
           syntaxes,
+          primarySyntaxes,
           mandatoryReceiveSyntax: profile.mandatoryReceiveSyntax ?? null,
           channels,
           immutableAfter: uniq(lifecycles.map((l) => l.immutableAfter)),

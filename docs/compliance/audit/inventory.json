@@ -3613,6 +3613,9 @@
           "PEPPOL_BIS",
           "PLAIN_PDF"
         ],
+        "primarySyntaxes": [
+          "PEPPOL_BIS"
+        ],
         "mandatoryReceiveSyntax": "PEPPOL_BIS",
         "channels": [
           "PEPPOL",
@@ -3721,7 +3724,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -3734,7 +3738,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -3762,6 +3767,10 @@
           "numbering": 1
         },
         "syntaxes": [
+          "PLAIN_PDF",
+          "AL_FISCALIZATION"
+        ],
+        "primarySyntaxes": [
           "PLAIN_PDF",
           "AL_FISCALIZATION"
         ],
@@ -3862,7 +3871,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "AL_FISCALIZATION",
@@ -3875,7 +3885,8 @@
           "warnings": [
             "Albania fiscalization validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         }
       ]
     },
@@ -3904,6 +3915,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -4009,7 +4023,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -4022,7 +4037,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -4051,6 +4067,9 @@
         "syntaxes": [
           "AR_FE",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "AR_FE"
         ],
         "mandatoryReceiveSyntax": "AR_FE",
         "channels": [
@@ -4129,7 +4148,8 @@
           "warnings": [
             "Argentina Factura Electrónica validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -4142,7 +4162,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -4171,6 +4192,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -4279,7 +4303,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -4292,7 +4317,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -4321,6 +4347,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -4427,7 +4456,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -4440,7 +4470,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -4469,6 +4500,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -4549,7 +4583,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -4560,7 +4595,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -4589,6 +4625,9 @@
         "syntaxes": [
           "BD_NBR",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "BD_NBR"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -4664,7 +4703,8 @@
           "warnings": [
             "Bangladesh NBR e-invoice validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -4677,7 +4717,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -4708,6 +4749,9 @@
         "syntaxes": [
           "PEPPOL_BIS",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "PEPPOL_BIS"
         ],
         "mandatoryReceiveSyntax": "PEPPOL_BIS",
         "channels": [
@@ -4817,7 +4861,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -4830,7 +4875,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -4859,6 +4905,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -4966,7 +5015,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -4979,7 +5029,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -5008,6 +5059,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -5087,7 +5141,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -5098,7 +5153,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -5127,6 +5183,9 @@
         "syntaxes": [
           "BJ_MECEF",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "BJ_MECEF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -5204,7 +5263,8 @@
           "warnings": [
             "Benin e-MECeF validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -5217,7 +5277,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -5246,6 +5307,9 @@
         "syntaxes": [
           "BO_FE",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "BO_FE"
         ],
         "mandatoryReceiveSyntax": "BO_FE",
         "channels": [
@@ -5319,7 +5383,8 @@
           "warnings": [
             "Bolivia Facturación Electrónica validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -5332,7 +5397,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -5361,6 +5427,9 @@
         "syntaxes": [
           "NFE",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "NFE"
         ],
         "mandatoryReceiveSyntax": "NFE",
         "channels": [
@@ -5440,7 +5509,8 @@
           "warnings": [
             "Brazil NF-e family validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -5453,7 +5523,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -5482,6 +5553,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -5559,7 +5633,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -5570,7 +5645,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -5599,6 +5675,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -5674,7 +5753,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -5685,7 +5765,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -5714,6 +5795,9 @@
         "syntaxes": [
           "CI_FNE",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "CI_FNE"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -5789,7 +5873,8 @@
           "warnings": [
             "Ivory Coast FNE validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -5802,7 +5887,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -5831,6 +5917,9 @@
         "syntaxes": [
           "CL_DTE",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "CL_DTE"
         ],
         "mandatoryReceiveSyntax": "CL_DTE",
         "channels": [
@@ -5909,7 +5998,8 @@
           "warnings": [
             "Chile DTE validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -5922,7 +6012,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -5951,6 +6042,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -6028,7 +6122,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -6039,7 +6134,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -6068,6 +6164,9 @@
         "syntaxes": [
           "CN_EFAPIAO",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "CN_EFAPIAO"
         ],
         "mandatoryReceiveSyntax": "CN_EFAPIAO",
         "channels": [
@@ -6144,7 +6243,8 @@
           "warnings": [
             "China e-Fapiao validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -6157,7 +6257,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -6186,6 +6287,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": "EN16931_UBL",
         "channels": [
@@ -6263,7 +6367,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -6276,7 +6381,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -6305,6 +6411,9 @@
         "syntaxes": [
           "CR_FE",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "CR_FE"
         ],
         "mandatoryReceiveSyntax": "CR_FE",
         "channels": [
@@ -6378,7 +6487,8 @@
           "warnings": [
             "Costa Rica Factura Electrónica v4.4 validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -6391,7 +6501,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -6420,6 +6531,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -6527,7 +6641,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -6540,7 +6655,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -6569,6 +6685,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -6677,7 +6796,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -6690,7 +6810,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -6719,6 +6840,9 @@
         "syntaxes": [
           "XRECHNUNG",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "XRECHNUNG"
         ],
         "mandatoryReceiveSyntax": "XRECHNUNG",
         "channels": [
@@ -6828,7 +6952,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -6841,7 +6966,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -6870,6 +6996,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -6978,7 +7107,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -6991,7 +7121,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -7020,6 +7151,9 @@
         "syntaxes": [
           "DO_ECF",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "DO_ECF"
         ],
         "mandatoryReceiveSyntax": "DO_ECF",
         "channels": [
@@ -7093,7 +7227,8 @@
           "warnings": [
             "Dominican Republic e-CF validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -7106,7 +7241,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -7135,6 +7271,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -7212,7 +7351,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -7223,7 +7363,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -7252,6 +7393,9 @@
         "syntaxes": [
           "EC_FE",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EC_FE"
         ],
         "mandatoryReceiveSyntax": "EC_FE",
         "channels": [
@@ -7327,7 +7471,8 @@
           "warnings": [
             "Ecuador comprobantes electrónicos validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -7340,7 +7485,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -7369,6 +7515,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -7476,7 +7625,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -7489,7 +7639,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -7517,6 +7668,10 @@
           "numbering": 1
         },
         "syntaxes": [
+          "PLAIN_PDF",
+          "EG_ETA"
+        ],
+        "primarySyntaxes": [
           "PLAIN_PDF",
           "EG_ETA"
         ],
@@ -7616,7 +7771,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EG_ETA",
@@ -7629,7 +7785,8 @@
           "warnings": [
             "Egypt ETA e-invoice validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         }
       ]
     },
@@ -7657,6 +7814,10 @@
           "numbering": 1
         },
         "syntaxes": [
+          "PLAIN_PDF",
+          "ES_FACTURAE"
+        ],
+        "primarySyntaxes": [
           "PLAIN_PDF",
           "ES_FACTURAE"
         ],
@@ -7806,7 +7967,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "ES_FACTURAE",
@@ -7817,7 +7979,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         }
       ]
     },
@@ -7846,6 +8009,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -7923,7 +8089,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -7934,7 +8101,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -7963,6 +8131,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -8071,7 +8242,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -8084,7 +8256,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -8115,6 +8288,9 @@
         "syntaxes": [
           "EN16931_CII",
           "FACTURX"
+        ],
+        "primarySyntaxes": [
+          "EN16931_CII"
         ],
         "mandatoryReceiveSyntax": "FACTURX",
         "channels": [
@@ -8272,7 +8448,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "FACTURX",
@@ -8283,7 +8460,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -8312,6 +8490,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -8387,7 +8568,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -8398,7 +8580,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -8427,6 +8610,9 @@
         "syntaxes": [
           "GH_EVAT",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "GH_EVAT"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -8502,7 +8688,8 @@
           "warnings": [
             "Ghana E-VAT validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -8515,7 +8702,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -8545,6 +8733,9 @@
         "syntaxes": [
           "NATIONAL_XML",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "NATIONAL_XML"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -8623,7 +8814,8 @@
           "warnings": [
             "national XML validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -8636,7 +8828,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -8665,6 +8858,9 @@
         "syntaxes": [
           "GT_FEL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "GT_FEL"
         ],
         "mandatoryReceiveSyntax": "GT_FEL",
         "channels": [
@@ -8738,7 +8934,8 @@
           "warnings": [
             "Guatemala FEL validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -8751,7 +8948,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -8780,6 +8978,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -8857,7 +9058,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -8868,7 +9070,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -8896,6 +9099,10 @@
           "numbering": 1
         },
         "syntaxes": [
+          "PLAIN_PDF",
+          "HR_ERACUN"
+        ],
+        "primarySyntaxes": [
           "PLAIN_PDF",
           "HR_ERACUN"
         ],
@@ -8998,7 +9205,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "HR_ERACUN",
@@ -9011,7 +9219,8 @@
           "warnings": [
             "Croatia e-Račun validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         }
       ]
     },
@@ -9041,6 +9250,9 @@
         "syntaxes": [
           "NATIONAL_XML",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "NATIONAL_XML"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -9119,7 +9331,8 @@
           "warnings": [
             "national XML validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -9132,7 +9345,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -9161,6 +9375,9 @@
         "syntaxes": [
           "ID_EFAKTUR",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "ID_EFAKTUR"
         ],
         "mandatoryReceiveSyntax": "ID_EFAKTUR",
         "channels": [
@@ -9238,7 +9455,8 @@
           "warnings": [
             "Indonesia e-Faktur validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -9251,7 +9469,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -9282,6 +9501,9 @@
         "syntaxes": [
           "PEPPOL_BIS",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "PEPPOL_BIS"
         ],
         "mandatoryReceiveSyntax": "PEPPOL_BIS",
         "channels": [
@@ -9391,7 +9613,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -9404,7 +9627,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -9433,6 +9657,9 @@
         "syntaxes": [
           "IN_IRP",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "IN_IRP"
         ],
         "mandatoryReceiveSyntax": "IN_IRP",
         "channels": [
@@ -9511,7 +9738,8 @@
           "warnings": [
             "India GST e-invoice validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -9524,7 +9752,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -9552,6 +9781,10 @@
           "numbering": 1
         },
         "syntaxes": [
+          "PLAIN_PDF",
+          "FATTURAPA"
+        ],
+        "primarySyntaxes": [
           "PLAIN_PDF",
           "FATTURAPA"
         ],
@@ -9661,7 +9894,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "FATTURAPA",
@@ -9672,7 +9906,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         }
       ]
     },
@@ -9701,6 +9936,9 @@
         "syntaxes": [
           "JO_JOFOTARA",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "JO_JOFOTARA"
         ],
         "mandatoryReceiveSyntax": "JO_JOFOTARA",
         "channels": [
@@ -9774,7 +10012,8 @@
           "warnings": [
             "Jordan JoFotara validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -9787,7 +10026,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -9816,6 +10056,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -9921,7 +10164,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -9934,7 +10178,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -9964,6 +10209,9 @@
         "syntaxes": [
           "KE_ETIMS",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "KE_ETIMS"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -10041,7 +10289,8 @@
           "warnings": [
             "Kenya eTIMS validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -10054,7 +10303,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -10083,6 +10333,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -10162,7 +10415,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -10173,7 +10427,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -10202,6 +10457,9 @@
         "syntaxes": [
           "KZ_ESF",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "KZ_ESF"
         ],
         "mandatoryReceiveSyntax": "KZ_ESF",
         "channels": [
@@ -10275,7 +10533,8 @@
           "warnings": [
             "Kazakhstan ESF validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -10288,7 +10547,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -10317,6 +10577,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -10423,7 +10686,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -10436,7 +10700,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -10465,6 +10730,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -10542,7 +10810,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -10553,7 +10822,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -10582,6 +10852,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -10689,7 +10962,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -10702,7 +10976,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -10731,6 +11006,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -10838,7 +11116,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -10851,7 +11130,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -10881,6 +11161,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -10958,7 +11241,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -10971,7 +11255,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -11000,6 +11285,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -11077,7 +11365,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -11088,7 +11377,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -11113,6 +11403,7 @@
           "numbering": 0
         },
         "syntaxes": [],
+        "primarySyntaxes": [],
         "mandatoryReceiveSyntax": null,
         "channels": [],
         "immutableAfter": [],
@@ -11173,6 +11464,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -11280,7 +11574,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -11293,7 +11588,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -11323,6 +11619,9 @@
         "syntaxes": [
           "ME_FISCAL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "ME_FISCAL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -11401,7 +11700,8 @@
           "warnings": [
             "Montenegro fiscalization validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -11414,7 +11714,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -11443,6 +11744,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -11523,7 +11827,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -11534,7 +11839,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -11563,6 +11869,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -11670,7 +11979,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -11683,7 +11993,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -11712,6 +12023,9 @@
         "syntaxes": [
           "CFDI",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "CFDI"
         ],
         "mandatoryReceiveSyntax": "CFDI",
         "channels": [
@@ -11785,7 +12099,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -11798,7 +12113,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -11826,6 +12142,10 @@
           "numbering": 1
         },
         "syntaxes": [
+          "PLAIN_PDF",
+          "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
         ],
@@ -11928,7 +12248,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -11939,7 +12260,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         }
       ]
     },
@@ -11968,6 +12290,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -12073,7 +12398,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -12086,7 +12412,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -12114,6 +12441,10 @@
           "numbering": 1
         },
         "syntaxes": [
+          "PLAIN_PDF",
+          "NG_FIRS"
+        ],
+        "primarySyntaxes": [
           "PLAIN_PDF",
           "NG_FIRS"
         ],
@@ -12213,7 +12544,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "NG_FIRS",
@@ -12226,7 +12558,8 @@
           "warnings": [
             "Nigeria FIRS e-invoice validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         }
       ]
     },
@@ -12255,6 +12588,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -12332,7 +12668,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -12343,7 +12680,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -12372,6 +12710,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -12480,7 +12821,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -12493,7 +12835,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -12522,6 +12865,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -12630,7 +12976,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -12643,7 +12990,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -12672,6 +13020,9 @@
         "syntaxes": [
           "NP_CBMS",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "NP_CBMS"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -12747,7 +13098,8 @@
           "warnings": [
             "Nepal CBMS validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -12760,7 +13112,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -12789,6 +13142,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -12895,7 +13251,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -12908,7 +13265,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -12937,6 +13295,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -13016,7 +13377,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -13027,7 +13389,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -13056,6 +13419,9 @@
         "syntaxes": [
           "PA_FE",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "PA_FE"
         ],
         "mandatoryReceiveSyntax": "PA_FE",
         "channels": [
@@ -13129,7 +13495,8 @@
           "warnings": [
             "Panama FE/CF validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -13142,7 +13509,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -13171,6 +13539,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": "EN16931_UBL",
         "channels": [
@@ -13248,7 +13619,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -13261,7 +13633,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -13290,6 +13663,9 @@
         "syntaxes": [
           "PH_EIS",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "PH_EIS"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -13365,7 +13741,8 @@
           "warnings": [
             "Philippines EIS validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -13378,7 +13755,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -13407,6 +13785,9 @@
         "syntaxes": [
           "PK_FBR",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "PK_FBR"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -13482,7 +13863,8 @@
           "warnings": [
             "Pakistan FBR XIR validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -13495,7 +13877,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -13523,6 +13906,10 @@
           "numbering": 1
         },
         "syntaxes": [
+          "PLAIN_PDF",
+          "FA_VAT"
+        ],
+        "primarySyntaxes": [
           "PLAIN_PDF",
           "FA_VAT"
         ],
@@ -13633,7 +14020,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "FA_VAT",
@@ -13644,7 +14032,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         }
       ]
     },
@@ -13673,6 +14062,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -13781,7 +14173,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -13794,7 +14187,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -13823,6 +14217,9 @@
         "syntaxes": [
           "PY_DE",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "PY_DE"
         ],
         "mandatoryReceiveSyntax": "PY_DE",
         "channels": [
@@ -13896,7 +14293,8 @@
           "warnings": [
             "Paraguay e-Kuatia DE validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -13909,7 +14307,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -13938,6 +14337,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -14017,7 +14419,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -14028,7 +14431,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -14056,6 +14460,10 @@
           "numbering": 1
         },
         "syntaxes": [
+          "PLAIN_PDF",
+          "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
         ],
@@ -14160,7 +14568,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -14171,7 +14580,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         }
       ]
     },
@@ -14200,6 +14610,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": "EN16931_UBL",
         "channels": [
@@ -14275,7 +14688,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -14288,7 +14702,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -14317,6 +14732,9 @@
         "syntaxes": [
           "RW_EBM",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "RW_EBM"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -14392,7 +14810,8 @@
           "warnings": [
             "Rwanda EBM validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -14405,7 +14824,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -14433,6 +14853,10 @@
           "numbering": 1
         },
         "syntaxes": [
+          "PLAIN_PDF",
+          "KSA_UBL"
+        ],
+        "primarySyntaxes": [
           "PLAIN_PDF",
           "KSA_UBL"
         ],
@@ -14534,7 +14958,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "KSA_UBL",
@@ -14547,7 +14972,8 @@
           "warnings": [
             "KSA UBL validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         }
       ]
     },
@@ -14576,6 +15002,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -14677,7 +15106,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -14690,7 +15120,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -14721,6 +15152,9 @@
         "syntaxes": [
           "PEPPOL_BIS",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "PEPPOL_BIS"
         ],
         "mandatoryReceiveSyntax": "PEPPOL_BIS",
         "channels": [
@@ -14827,7 +15261,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -14840,7 +15275,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -14871,6 +15307,9 @@
         "syntaxes": [
           "PEPPOL_BIS",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "PEPPOL_BIS"
         ],
         "mandatoryReceiveSyntax": "PEPPOL_BIS",
         "channels": [
@@ -14981,7 +15420,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -14994,7 +15434,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -15024,6 +15465,9 @@
         "syntaxes": [
           "EN16931_UBL",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "EN16931_UBL"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -15101,7 +15545,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -15114,7 +15559,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -15143,6 +15589,9 @@
         "syntaxes": [
           "FATTURAPA",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "FATTURAPA"
         ],
         "mandatoryReceiveSyntax": "FATTURAPA",
         "channels": [
@@ -15223,7 +15672,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -15236,7 +15686,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -15265,6 +15716,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -15342,7 +15796,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -15353,7 +15808,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -15382,6 +15838,9 @@
         "syntaxes": [
           "SV_DTE",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "SV_DTE"
         ],
         "mandatoryReceiveSyntax": "SV_DTE",
         "channels": [
@@ -15455,7 +15914,8 @@
           "warnings": [
             "El Salvador DTE (JSON) validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -15468,7 +15928,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -15497,6 +15958,9 @@
         "syntaxes": [
           "TH_ETAX",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "TH_ETAX"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -15572,7 +16036,8 @@
           "warnings": [
             "Thailand e-Tax Invoice validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -15585,7 +16050,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -15614,6 +16080,9 @@
         "syntaxes": [
           "TN_TEIF",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "TN_TEIF"
         ],
         "mandatoryReceiveSyntax": "TN_TEIF",
         "channels": [
@@ -15687,7 +16156,8 @@
           "warnings": [
             "Tunisia TEIF validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -15700,7 +16170,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -15729,6 +16200,9 @@
         "syntaxes": [
           "TR_EFATURA",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "TR_EFATURA"
         ],
         "mandatoryReceiveSyntax": "TR_EFATURA",
         "channels": [
@@ -15808,7 +16282,8 @@
           "warnings": [
             "Turkey UBL-TR validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -15821,7 +16296,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -15850,6 +16326,9 @@
         "syntaxes": [
           "TW_EGUI",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "TW_EGUI"
         ],
         "mandatoryReceiveSyntax": "TW_EGUI",
         "channels": [
@@ -15926,7 +16405,8 @@
           "warnings": [
             "Taiwan eGUI validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -15939,7 +16419,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -15968,6 +16449,9 @@
         "syntaxes": [
           "TZ_VFD",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "TZ_VFD"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -16043,7 +16527,8 @@
           "warnings": [
             "Tanzania VFD validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -16056,7 +16541,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -16085,6 +16571,9 @@
         "syntaxes": [
           "UA_TAXINVOICE",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "UA_TAXINVOICE"
         ],
         "mandatoryReceiveSyntax": "UA_TAXINVOICE",
         "channels": [
@@ -16161,7 +16650,8 @@
           "warnings": [
             "Ukraine tax-invoice validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -16174,7 +16664,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -16203,6 +16694,9 @@
         "syntaxes": [
           "UG_EFRIS",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "UG_EFRIS"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -16278,7 +16772,8 @@
           "warnings": [
             "Uganda EFRIS validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -16291,7 +16786,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -16318,6 +16814,9 @@
           "numbering": 1
         },
         "syntaxes": [
+          "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
           "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
@@ -16395,7 +16894,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         }
       ]
     },
@@ -16424,6 +16924,9 @@
         "syntaxes": [
           "UY_CFE",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "UY_CFE"
         ],
         "mandatoryReceiveSyntax": "UY_CFE",
         "channels": [
@@ -16499,7 +17002,8 @@
           "warnings": [
             "Uruguay CFE/DFE validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -16512,7 +17016,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -16541,6 +17046,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -16621,7 +17129,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -16632,7 +17141,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -16661,6 +17171,9 @@
         "syntaxes": [
           "VE_FE",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "VE_FE"
         ],
         "mandatoryReceiveSyntax": "VE_FE",
         "channels": [
@@ -16734,7 +17247,8 @@
           "warnings": [
             "Venezuela Factura Electrónica validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -16747,7 +17261,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -16776,6 +17291,9 @@
         "syntaxes": [
           "VN_TT78",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "VN_TT78"
         ],
         "mandatoryReceiveSyntax": "VN_TT78",
         "channels": [
@@ -16851,7 +17369,8 @@
           "warnings": [
             "Vietnam TT78 e-invoice validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -16864,7 +17383,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -16893,6 +17413,9 @@
         "syntaxes": [
           "PLAIN_PDF",
           "EN16931_UBL"
+        ],
+        "primarySyntaxes": [
+          "PLAIN_PDF"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -16971,7 +17494,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "EN16931_UBL",
@@ -16982,7 +17506,8 @@
           "emptyAccepted": true,
           "emptyErrors": 0,
           "warnings": [],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -17011,6 +17536,9 @@
         "syntaxes": [
           "ZM_SMARTINVOICE",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "ZM_SMARTINVOICE"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -17086,7 +17614,8 @@
           "warnings": [
             "Zambia Smart Invoice validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -17099,7 +17628,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     },
@@ -17128,6 +17658,9 @@
         "syntaxes": [
           "ZW_FDMS",
           "PLAIN_PDF"
+        ],
+        "primarySyntaxes": [
+          "ZW_FDMS"
         ],
         "mandatoryReceiveSyntax": null,
         "channels": [
@@ -17205,7 +17738,8 @@
           "warnings": [
             "Zimbabwe FDMS validation not implemented (stub)"
           ],
-          "threw": null
+          "threw": null,
+          "primary": true
         },
         {
           "syntax": "PLAIN_PDF",
@@ -17218,7 +17752,8 @@
           "warnings": [
             "plain PDF has no structured validation"
           ],
-          "threw": null
+          "threw": null,
+          "primary": false
         }
       ]
     }
