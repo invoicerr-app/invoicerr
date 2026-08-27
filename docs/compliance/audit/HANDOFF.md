@@ -1,203 +1,167 @@
 # HANDOFF — audit de conformité Invoicerr
 
-**Branche** `audit/compliance-truth` — 4 commits locaux, **rien n'a été poussé**.
-**Phases 0 et 1 terminées.** Arrêt volontaire ici, comme convenu.
-**Aucune correction, aucun refactor, aucun test supprimé, aucun appel vers un portail.**
-`git diff HEAD -- backend frontend documentation e2e` est vide : aucun fichier produit n'a été touché.
+**Branche** `audit/compliance-truth`, **poussée**. Une branche de correction séparée,
+`fix/channel-ui-gate-on-reachable-transport`, est poussée elle aussi.
+**Phases 0, 1 et 3 terminées. Phase 2 aux quatre septièmes.**
+Aucune correction sur la branche d'audit : `git diff feat/compliance-architecture..HEAD` n'y contient
+que des ajouts sous `docs/compliance/audit/` et `scripts/audit/`.
 
 ---
 
-## 1. Les quatre findings `critical`, en tête
+## 1. Blocage en cours
+
+**Cinq des six agents de la phase 2 ont été interrompus par une limite de service**
+(réinitialisation annoncée à **18 h 20, Europe/Paris**). Les appels web sont tombés au même moment.
+
+| Pays | Rapport principal | Volet transfrontalier |
+| --- | --- | --- |
+| France | ✅ | ✅ |
+| Pologne | ✅ | ❌ interrompu |
+| Allemagne | ✅ | ❌ interrompu |
+| Italie | ✅ | ❌ interrompu |
+| **Espagne** | ❌ **jamais transmis** (seul un addendum est arrivé) | ❌ |
+| **Mexique** | ❌ **rien** | ❌ |
+
+**À reprendre en premier, dans cet ordre :** (1) rapport principal Espagne — l'agent l'a produit mais
+ne me l'a jamais transmis, il suffit de le lui redemander ; (2) rapport Mexique, à relancer depuis
+zéro ; (3) ViDA sur EUR-Lex ; (4) les cinq volets transfrontaliers manquants.
+
+---
+
+## 2. Les cinq findings `critical`
+
+### F-017 — Le plan est résolu sur le seul pays du fournisseur *(nouveau, et le plus structurant)*
+
+L'unité de rattachement n'est pas un pays mais un **corridor**. Mesuré : sur sept couches du plan,
+**deux seulement** varient avec le corridor (syntaxe de réception de l'acheteur, et indicateurs de
+reporting dérivés de la TVA). Régime, canaux, cycle de vie, archivage et numérotation sont lus
+**exclusivement** sur le profil fournisseur.
+
+Cas décisif — société française immatriculée en Italie, vente IT→IT : le moteur produit le plan
+**français** (`DECENTRALIZED_CTC`, non bloquant, PDP) là où la loi italienne exige SdI, clearance
+bloquante et FatturaPA. L'art. 1 c. 6 du D.Lgs. 127/2015 répute une telle facture *« non emessa »*.
+
+Le modèle ne peut pas l'exprimer : `PartyTaxProfile.establishmentCountry` **n'apparaît qu'une fois
+dans tout le dépôt — sa propre déclaration**, et `countryCode` est alimenté par le pays de la
+société, avec repli silencieux sur `'FR'`.
+
+Confirmé par les trois juridictions vérifiées, qui posent toutes le **même** schéma : mandat
+domestique à déclencheur **bilatéral**, transfrontalier renvoyé vers une obligation déclarative
+distincte. France : art. 289 bis I — « l'émetteur **et** son destinataire […] établis […] en
+France », sinon e-reporting art. 290 (flux F10, statuts 300/301, rythme périodique, rectification par
+remplacement de période). Allemagne : § 14 Abs. 2 S. 3 UStG, les deux parties établies. Italie :
+art. 1 c. 3-bis, bascule sur transmission de données.
+
+Reproduction : `scripts/audit/repro/f017-corridor-resolution.ts`
 
 ### F-001 — Un document de zéro octet traverse tout le pipeline et est archivé
+54 syntaxes sur 54 déclarent valide un document vide. Un cycle complet pour le Brésil produit
+0 octet, passe la validation, est signé, et est archivé avec une rétention de 10 ans.
 
-Un cycle complet pour le Brésil produit **0 octet**, passe la validation, est signé, et est archivé
-avec un reçu portant une rétention de 10 ans et un hash. Trois mécanismes s'additionnent : les 42
-builders de `national-formats.ts` renvoient `new Uint8Array()` ; `providers.ts:145` court-circuite la
-validation quand il n'y a pas d'octets ; la garde bloquante de l'exécuteur devient donc inatteignable.
-Sonde mécanique : **54 syntaxes sur 54 déclarent `valid: true` pour un document vide. Aucune ne le
-rejette.**
-
-Reproduction : `npx tsx ../scripts/audit/repro/f001-empty-archive.ts`
-
-### F-002 — La séquence « sans trou » perd des numéros sous concurrence
-
-Le SQL d'allocation est correct (upsert atomique) et huit brouillons distincts en parallèle donnent
-bien `[1..8]`. Mais `invoices.service.ts:447` évalue la garde `number !== null` **hors transaction**.
+### F-002 — La séquence « sans trou » perd des numéros
 Huit émissions concurrentes de la même facture consomment 8 valeurs et en perdent 7 : série finale
-`[1..8, 16]`, **numéros 9 à 15 manquants**. Déclencheur : un double-clic ou un rejeu HTTP.
+`[1..8, 16]`. Garde `number !== null` évaluée hors transaction. Déclencheur : un double-clic.
 
-Reproduction : `npx dotenv -e .env.test -- npx tsx ../scripts/audit/repro/f007-numbering-concurrency.ts`
+### F-003 — Une facture émise et acquittée est supprimable
+Hard delete d'une facture `SENT`/`CLEARED` sans erreur. **0 trigger, 0 contrainte CHECK** en base.
 
-### F-003 — Une facture émise et acquittée est supprimable, sans aucune garde en base
+### F-004 — 106 pages publiques pour 4 canaux réellement câblés
+F-017 en aggrave la lecture : les pages ne décrivent pas seulement des capacités absentes, elles
+décrivent la **mauvaise unité d'analyse**. Un fournisseur français vendant en Italie ne trouve sa
+réponse ni sur la fiche FR ni sur la fiche IT.
 
-`prisma.invoice.deleteMany` supprime définitivement une facture `SENT` numérotée dont le document de
-conformité est `CLEARED`, sans erreur. Le dossier de conformité survit mais **orphelin**
-(`invoiceId = null`). Vérifié en base : **0 trigger, 0 contrainte CHECK**. La protection n'existe que
-dans `deleteInvoice()`, et `danger.service.ts:64` la contourne déjà.
+---
 
-### F-004 — 106 pages publiques de conformité pour 4 canaux réellement câblés
+## 3. La divergence transverse de la phase 2
 
-| Publié | Réel |
+**`GAPLESS_SELF` n'est juridiquement exact qu'en France.**
+
+| Pays | Règle réelle | Verdict |
+| --- | --- | --- |
+| France | « séquence chronologique **et continue** » (242 nonies A, 7°) | exact |
+| Allemagne | « **einmalig** vergeben » ; BMF : « eine lückenlose Abfolge … **ist nicht zwingend** » | **faux** |
+| Pologne | « kolejny numer … w ramach jednej lub więcej serii » ; seule l'**unicité** est contrôlée | sur-contrainte |
+| Italie | « numero progressivo che la identifichi in modo **univoco** » ; Ris. 1/E 2013 | **faux** |
+
+Le produit impose donc une séquence sans trou que trois de ses quatre marchés vérifiés n'exigent
+pas — pendant que F-002 démontre qu'il ne la tient pas là où elle compte.
+
+Deux autres constantes : **l'e-mail n'est un canal licite ni en France, ni en Pologne, ni en
+Italie** dans le champ du mandat domestique, alors que les trois profils le déclarent ; et **aucun
+profil ne modélise de contrainte de localisation des données**, alors que la France (LPF L102 C),
+l'Allemagne (§ 14b Abs. 2 UStG, autorisation préalable hors UE sous peine de 2 500 à 250 000 €) et
+l'Italie en imposent une.
+
+---
+
+## 4. Décisions déjà prises, et ce qui reste à trancher
+
+**Décision 2 — livrée.** Les canaux `IMPLEMENTED` ne sont plus proposés dans l'UI. Correction
+apportée à ton instruction : `choruspro` a lui aussi un `STUB_HTTP` codé en dur qui `throw` — les
+2 « sites d'appel réseau » que ma sonde lui attribuait étaient le mot `axios` dans des commentaires.
+Résultat corrigé : **4 providers sur 62** ont un transport atteignable ; les **17** `IMPLEMENTED`,
+choruspro compris, n'en ont aucun. J'ai donc appliqué ton critère plutôt que ta liste. La France ne
+perd rien : elle garde PDP et Peppol.
+
+**En attente de toi :**
+
+1. **Périmètre de remédiation de F-004** — recommandation : retirer du navigateur public les pays non
+   soutenus, puis ajouter un bandeau dérivé de `compliance-truth.json`.
+2. **Structure de `compliance-truth.json` face à F-017** — laissée **intacte**, comme demandé. La
+   question est réelle : un pays par ligne ne peut pas porter un corridor. Passer aux corridors
+   multiplie le fichier par le carré du nombre de pays. Piste intermédiaire : garder un pays par
+   ligne pour les capacités **techniques** (format, transmission, réception) et ajouter un bloc
+   `territorial_scope` par pays — déclencheur (unilatéral/bilatéral), périmètre (domestique/
+   transfrontalier), obligation de substitution. Cela capte ce que la phase 2 a établi sans exploser
+   la structure. **À valider avant que je touche au fichier.**
+3. **Socle de garanties en base** (F-002, F-003, F-005) — mon avis : continuer l'audit d'abord, sauf
+   F-002, petit et isolé, que je corrigerais tout de suite.
+4. **Preuve datée d'un run live KSeF/PDP hors dépôt ?** Si ces artefacts existent, les verser dans
+   `evidence/` ferait passer ces deux canaux en L4.
+
+---
+
+## 5. Livrables
+
+| Fichier | État |
 | --- | --- |
-| 106 pages `/compliance/<cc>` dans un navigateur à facettes | 4 providers sur 62 ont un transport atteignable |
-| 54 syntaxes déclarées | 5 syntaxes rejettent un document invalide |
-| 66 pays `status: mandatory` | 0 preuve de transmission acquittée dans le dépôt |
+| `00-INVENTORY.md` + `inventory.json` | phase 0, à jour après correction de la sonde |
+| `02-FINDINGS.md` | **17 findings**, F-001…F-017 |
+| `03-LEGAL-VERIFICATION.md` | FR, PL, DE, IT + volet transfrontalier FR + statut honnête des manques |
+| `04-TESTABILITY.md` | phase 3, 9 cibles |
+| `compliance-truth.json` | 106 pays, testabilité intégrée, **structure non modifiée** |
+| `scripts/audit/repro/` | 4 reproductions exécutables |
+| `evidence/` | sorties capturées |
 
-Nuance en faveur du dépôt : la prose des fiches est **prescriptive** (15 « Invoicerr must ») et non
-assertive (7 tournures de capacité au présent, sur 6 pays). **C'est la structure qui promet, pas le
-texte.**
-
----
-
-## 2. Deux hypothèses de départ que l'audit a corrigées
-
-Consigné parce qu'un audit qui ne dit que ce qu'on attendait ne sert à rien.
-
-1. **Les archives à hash vide ne sont pas des archives de production.** Les répertoires
-   `backend/.compliance-archive/{EU,MX,SA,BR}/e3b0c44…/` sont produits par
-   `archive-registry.spec.ts:17-30`, qui appelle `store([], …)` sans définir
-   `COMPLIANCE_ARCHIVE_DIR` ; Jest tombe alors sur `<cwd>/.compliance-archive`. Le répertoire est
-   gitignoré et non suivi. C'est **F-014**, `medium`.
-   Le vrai défaut derrière l'observation est ailleurs, et il est réel : F-010 (le reçu d'archivage
-   ment) et F-001 (le pipeline archive du vide).
-
-2. **`resetApp()` ne peut pas supprimer de factures aujourd'hui** — mais pas parce qu'on l'en
-   empêche. Sa première instruction, `company.deleteMany`, est bloquée par
-   `Invoice_companyId_fkey ON DELETE RESTRICT` dès qu'une facture existe, donc la méthode lève avant
-   d'atteindre son `invoice.deleteMany` sans filtre (ligne 64). C'est un **accident
-   d'ordonnancement**, pas une garde : inverser deux lignes, ou passer cette FK en `CASCADE`,
-   transforme silencieusement l'appel en suppression massive de documents émis.
+Non écrit : `01-CLAIM-AUDIT.md` (F-004 en contient la substance ; la comparaison page par page
+attend le seuil de la décision 1), `05-FEASIBILITY.md` et `06-REMEDIATION.md` (phase 4).
 
 ---
 
-## 3. Ce qui est fait
-
-| Livrable | État |
-| --- | --- |
-| `scripts/audit/inventory.ts` | script d'inventaire, jetable, hors build |
-| `00-INVENTORY.md` | matrice de divergence, 4 catégories + 1b |
-| `inventory.json` | faits bruts machine-lisibles |
-| `02-FINDINGS.md` | 16 findings, F-001…F-016, sévérité + repro + impact |
-| `compliance-truth.json` | amorce, 106 pays |
-| `scripts/audit/repro/` | 3 reproductions exécutables |
-| `evidence/` | sorties capturées des 3 reproductions |
-
-**Méthode.** L'inventaire **charge et exécute les registres réels** (`defaultTransmissionRegistry`,
-`defaultFormatRegistry`, `ALL_PROFILES`) plutôt que de gratter le source : les identifiants,
-maturités et résolutions de canaux viennent du code qui tourne en production, pas d'une doc. Deux
-sondes portent l'essentiel du signal :
-
-- **Transport réellement câblé.** Le registre de production ne passe que `credentials`, jamais de port
-  HTTP (`registry.ts:70-88`). Un provider sans site d'appel réseau atteignable ne peut donc rien
-  émettre. **58 sur 62 sont dans ce cas, dont les 17 `IMPLEMENTED`.**
-- **Validation de format.** Chaque syntaxe demandée par un profil reçoit `<garbage/>` puis zéro
-  octet. La première sonde porte une réserve Schematron explicite (une règle hors contexte ne lève
-  rien) ; la seconde n'en porte aucune.
-
-Trois faux signaux ont été détectés et corrigés en cours de route, plutôt que publiés : la détection
-« mentionne `HttpPort` » (tous les portails en mentionnent, c'est la couture) ; la contamination du
-voisinage source par le fichier agrégateur `national-portals.ts` (qui créditait `zatca` des appels de
-ChorusPro) ; et la lecture des seuls `providerId` explicites, qui rapportait « aucun provider » pour
-tous les pays Peppol.
-
----
-
-## 4. Ce que j'attends de toi
-
-### Décision 1 — Périmètre de la remédiation de F-004 (la promesse publique)
-
-C'est le finding le plus lourd et le seul qui ne se corrige pas dans le code. Trois options, par
-coût croissant :
-
-- **a)** Un bandeau de statut honnête par page, dérivé de `compliance-truth.json`.
-- **b)** Ne publier que les pays au-dessus d'un seuil, et déplacer les autres dans une section
-  « spécifications étudiées » explicitement distincte du support produit.
-- **c)** Refondre le navigateur pour qu'il affiche la capacité réelle par colonne (format /
-  transmission / réception), toujours dérivée du même fichier.
-
-**Ma recommandation : (b) puis (a).** (b) supprime la promesse structurelle, qui est le vrai
-problème ; (a) est ensuite peu coûteux. (c) est le bon état final mais n'est pas urgent.
-Dans les trois cas la proposition de dérivation Docusaurus reste **non implémentée** tant que tu ne
-l'as pas validée, comme demandé.
-
-### Décision 2 — `IMPLEMENTED` doit-il rester visible en production ? (F-009)
-
-Aujourd'hui `channel-connect-prompt.tsx:73` traite `IMPLEMENTED` comme équivalent à `PROVEN` et
-invite l'utilisateur à connecter un canal pour 16 pays où rien ne peut partir. Deux lectures
-défendables :
-
-- **Fermer** : traiter `IMPLEMENTED` comme `STUB` côté UI jusqu'à preuve live. Honnête, mais rend
-  invisible du travail réel et bloque la collecte de credentials qui permettrait justement de prouver.
-- **Avertir** : garder le prompt en le marquant explicitement « non éprouvé — aucune transmission
-  réelle n'a jamais abouti ».
-
-Je penche pour **avertir**, parce que fermer supprime le seul chemin par lequel un utilisateur
-pourrait fournir les credentials qui débloqueraient une preuve L4. Mais c'est un arbitrage produit,
-pas technique : c'est ton appel.
-
-### Décision 3 — Faut-il un socle de garanties en base avant la phase 2 ?
-
-F-002, F-003 et F-005 partagent une racine : **toutes les garanties sont applicatives**. Zéro
-trigger, zéro contrainte CHECK, journal `UPDATE`/`DELETE`-able, hash chaîné mais jamais vérifié —
-et qui porte sur le `ctx`, pas sur les octets émis. La phase 2 va documenter des règles qui, toutes,
-supposent ce socle. Le construire d'abord ou continuer l'audit d'abord ?
-
-Mon avis : **continuer l'audit**. Un socle conçu avant de connaître les règles se refera. Mais
-F-002 (perte de numéros) est indépendant du reste et se corrige en déplaçant une garde dans la
-transaction — c'est petit, isolé, et je le traiterais séparément sans attendre.
-
-### Décision 4 — Une info que je ne peux pas obtenir
-
-Existe-t-il, hors dépôt, une preuve datée d'un run live réussi (UPO KSeF, accusé PDP superpdp) ? La
-mémoire projet en affirme (KSeF 2026-06-28, PDP 2026-06-28), **le dépôt n'en contient aucune trace
-machine-lisible** (F-013). Si ces artefacts existent quelque part, les verser dans
-`evidence/` ferait passer `ksef` et `pdp` en L4 immédiatement. Sinon je les laisse à L2.
-
----
-
-## 5. Ce que je ferais ensuite
-
-1. **Phase 2 sur 6 pays seulement, pas 106.** FR, PL, IT, DE, ES, MX — ceux où le code prétend le
-   plus (profils bespoke, `confidence: OFFICIAL`, schémas d'autorité vendorisés). Un sous-agent par
-   pays avec le même questionnaire, `compliance-truth.json` en écriture exclusive par moi.
-   Les 100 autres n'ont pas d'implémentation à confronter à une règle : les sourcer serait un
-   travail de documentation, pas d'audit.
-2. **Phase 3 en parallèle**, parce qu'elle conditionne le plafond de tout le reste : un portail sans
-   sandbox accessible ne dépassera jamais L2, quelle que soit la qualité du code. C'est aussi ce qui
-   tranche la décision 2.
-3. **`01-CLAIM-AUDIT.md`**, non écrit à ce stade : F-004 en contient la substance, mais la
-   comparaison page par page reste à faire une fois le seuil de la décision 1 fixé.
-4. **Reprendre trois angles laissés ouverts** : le modèle `Log` applicatif (non audité — seul
-   `ComplianceEvent` l'a été) ; ce que le chaînage de hash *devrait* couvrir ; et l'audit des
-   régimes `POST_AUDIT` que la phase 1 n'a pas visités.
-
----
-
-## 6. Comment tout rejouer
+## 6. Rejouer
 
 ```bash
-git checkout audit/compliance-truth
-cd backend
-
-npx tsx ../scripts/audit/inventory.ts     # → 00-INVENTORY.md + inventory.json
-npx tsx ../scripts/audit/seed-truth.ts    # → compliance-truth.json
-
+git checkout audit/compliance-truth && cd backend
+npx tsx ../scripts/audit/inventory.ts
+npx tsx ../scripts/audit/seed-truth.ts
+npx tsx ../scripts/audit/repro/f017-corridor-resolution.ts
 COMPLIANCE_ARCHIVE_DIR=/tmp/audit npx tsx ../scripts/audit/repro/f001-empty-archive.ts
 npx dotenv -e .env.test -- npx tsx ../scripts/audit/repro/f004-delete-issued-invoice.ts
 npx dotenv -e .env.test -- npx tsx ../scripts/audit/repro/f007-numbering-concurrency.ts
 ```
 
-`f004` tourne dans des transactions systématiquement annulées. `f007` doit committer pour pouvoir se
-concurrencer : il crée sa propre société marquée `AUDIT-CONCURRENCY-<pid>` et la supprime en
-`finally`. Aucun des deux ne touche une ligne préexistante. Base cible : `.env.test`, Postgres :5433.
+`f004` tourne dans des transactions annulées ; `f007` crée sa propre société marquée
+`AUDIT-CONCURRENCY-<pid>` et la supprime en `finally`. Aucun ne touche une ligne préexistante.
 
 ---
 
-## 7. Rien n'a bloqué
+## 7. Discipline tenue
 
-Aucun point des sept n'a été abandonné, aucune devinette n'a été nécessaire. La base de test était
-disponible, ce qui a permis de prouver F-002, F-003 et F-005 en base plutôt que par lecture de code.
-Les seules zones laissées vides le sont **par construction** — sources primaires (phase 2), sandboxes
-(phase 3), faisabilité (phase 4) — et sont marquées `null` + `open_question` dans
-`compliance-truth.json`, jamais remplies par une valeur plausible.
+Rien d'inventé. Ce qui n'a pas été établi est resté `null` + `open_question` — y compris **ViDA**,
+pourtant corroborée par deux sources indépendantes : EUR-Lex n'a pas pu être lu avant la coupure,
+donc elle n'est pas retenue comme établie. Aucune divergence espagnole ou mexicaine n'est consignée.
+
+Trois faux signaux de ma propre instrumentation ont été détectés et corrigés plutôt que publiés :
+la détection « mentionne `HttpPort` », la contamination du voisinage source par le fichier
+agrégateur, et le comptage de marqueurs réseau **dans les commentaires** — ce dernier ayant
+faussement crédité `choruspro` d'un transport.
