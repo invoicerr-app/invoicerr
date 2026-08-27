@@ -15,7 +15,7 @@ Rien ici n'est technique. Rien ici n'avancera tant que quelqu'un n'aura pas tran
 | --- | --- | --- | --- |
 | **D1** | **Prévenir ou non les utilisateurs français avant le 2026-09-01.** Quatre défauts produisent un rejet du PPF ou une sanction ; aucun ne se corrige en cinq jours. Texte d'avertissement rédigé, non publié : `07-FR-2026-09-01.md` §3. | La confiance. Un rejet PPF découvert par l'utilisateur coûte plus qu'un avertissement honnête. | **2026-09-01 — cinq jours** |
 | **D2** | **Faire poser la question de rattachement espagnole à un juriste.** Invoicerr est-il « productor » au sens du RD 1007/2023 art. 3.2 sans utilisateur ni commercialisation en Espagne ? Question rédigée avec ses éléments de fait : `09-F018-ES-DECLARATION.md` §2. | Tout F-018. Si la réponse est négative, le seul finding à exposition chiffrée disparaît. | échéance **déjà échue** si la réponse est positive |
-| **D3** | *(devient une vraie décision une fois A1 fait, plus une impasse)* **Répondre sincèrement à l'indicateur 1.e de la déclaration responsable** — ou décider de ne pas déclarer encore. Aucune des deux cases n'est cochable en l'état : « S » engage une transmission continue non implémentée, « N » engage la signature XAdES des registres et un registro de eventos non implémentés. | L'étape 4 de la séquence F-018. | après D2 |
+| **D3** | *(A1 est fait : la chaîne se forme, ce n'est donc plus une impasse mais une vraie décision)* **Répondre sincèrement à l'indicateur 1.e de la déclaration responsable** — ou décider de ne pas déclarer encore. Aucune des deux cases n'est cochable en l'état : « S » engage une transmission continue non implémentée, « N » engage la signature XAdES des registres et un registro de eventos non implémentés. | L'étape 4 de la séquence F-018. | après D2 |
 | **D4** | **Périmètre public de F-004.** Retirer du navigateur les pays non soutenus, ou ajouter un bandeau dérivé, ou refondre par capacité. Recommandation : retirer d'abord, bandeau ensuite. | La promesse publique, et l'exposition de F-004. | aucune, mais c'est le plus gros écart de l'audit |
 | **D5** | **Structure de `compliance-truth.json` face à F-017.** Un pays par ligne ne peut pas porter un corridor. Piste proposée, non implémentée : garder un pays par ligne pour les capacités techniques et ajouter un bloc `territorial_scope`. | La suite de l'audit, et la dérivation du site. | aucune |
 | **D6** | **Résidence des données mexicaines.** `residency: 'MX'` est plus strict que le droit sourcé, mais le retirer déplace les documents d'un bucket in-country vers GLOBAL. C'est un arbitrage de localisation, pas une correction. | MX-D3. | aucune |
@@ -44,7 +44,7 @@ encode.
 
 ## 3. Faisable maintenant
 
-### 3.1 Fait pendant cette session — six branches, poussées
+### 3.1 Fait — neuf branches, poussées
 
 Chaque correction cite sa source dans son commit.
 
@@ -57,14 +57,16 @@ Chaque correction cite sa source dans son commit.
 | `fix/profile-archival-retention` | DE-D1 — huit ans, pas dix | Fin d'une sur-rétention de deux ans de données personnelles |
 | `fix/remove-dead-establishment-country` | F-017 (préparation) | Supprime un champ mort qui ressemblait à la source de vérité |
 | `fix/channel-ui-gate-on-reachable-transport` | F-009 — UI conditionnée à `PROVEN` | 17 canaux incapables d'émettre cessent d'être proposés |
+| `fix/reject-visible-on-invoice` | **F-008** — `REJECTED` ajouté à `InvoiceStatus`, projeté depuis `apply-signal` dans la transaction du CAS ; motif d'autorité conservé sur l'événement ; bannière et filtre côté écran | Une facture rejetée par KSeF ou le SdI **cesse de s'afficher `SENT`** |
+| `fix/verifactu-hash-chain` | **ES-D1** — `previousHuella` alimenté par une requête `ReportingStore` ; **ES-D12** — les deux axes du QR modélisés, chemin `ValidarQRNoVerifactu` | La chaîne espagnole **se forme** ; le QR cesse d'affirmer un mode que le système ne tient pas |
+
+Les sept premières sont fusionnées dans `feat/compliance-architecture` ; les deux dernières sont
+poussées et prêtes.
 
 ### 3.2 Reste faisable sans aucune source
 
 | # | Correction | Coût | Débloque | Note |
 | --- | --- | --- | --- | --- |
-| **A0** | **F-008 — rendre le rejet d'autorité visible** : ajouter `REJECTED` à `InvoiceStatus`, écrire `Invoice.status` depuis `apply-signal` | **modéré** — migration Prisma | Une facture rejetée par KSeF ou le SdI cesse de s'afficher `SENT` | **En tête de la prochaine session.** Deuxième report, et c'est le plus gros dégât utilisateur restant : le raisonnement sur la migration reste juste, mais il justifie une revue dédiée, pas un report indéfini. |
-| **A1** | **Former la chaîne Veri\*Factu** — alimenter `previousHuella` depuis `ReportingStore` | **faible** — le `TODO(seam)` décrit la requête | ES-D1, et l'étape 2 de F-018 | L'algorithme est déjà conforme aux vecteurs officiels. Ne **pas** le réécrire. Le blocage a changé de nature : ce n'est plus une source manquante, c'est **une requête manquante**. |
-| **A3** | **ES-D12 — chemin du QR** : `ValidarQRNoVerifactu` tant que le système n'est pas vérifiable | faible | Le QR cesse d'affirmer un mode que le système ne tient pas | Se referme sur D3 : le mode déclaré et le QR imprimé doivent coïncider. |
 | **A4** | **FR-D8 — contraindre le format du numéro** : 35 caractères, spéciaux limités | faible | Évite un **rejet du flux F1** | À faire avant le 2026-09-01 si possible. |
 | **A5** | **FR-D7 — émettre BT-23** en cardinalité 1..1 | modéré — valeurs limitatives à dériver du type d'opération | Évite l'échec des contrôles fonctionnels PPF | Idem. |
 | **A6** | **IT-D10 — déplacer le déclencheur d'immutabilité** au retour RC/MC | modéré | Débloque le **renvoi après scarto**, chemin nominal de reprise | |
@@ -73,10 +75,47 @@ Chaque correction cite sa source dans son commit.
 | **A9** | **F-001 / F-010 — refuser un artefact vide**, et porter le compte d'artefacts dans le reçu d'archivage | faible | « Archivé » redevient une information vérifiable | Faible urgence : les chemins concernés n'ont pas de transport. |
 | **A10** | **F-014 — `COMPLIANCE_ARCHIVE_DIR` dans `archive-registry.spec.ts`** | trivial | Cesse d'écrire dans l'arbre de travail | |
 
-**Ordre recommandé** : **A0 ouvre la prochaine session** — F-008 a été reporté deux fois et reste le
-plus gros dégât utilisateur ; il lui faut sa revue de migration, pas un troisième report. Puis A4 et
-A5, seuls à avoir une échéance dans cinq jours. Puis A1, qui débloque F-018 et coûte peu. Puis A3
-(QR faux sur chaque facture), A6, A7. A8 à A10 ensuite.
+**A0, A1 et A3 sont faits** — voir §3.1. Ils sortent donc de ce tableau plutôt que d'y rester barrés.
+
+**Ordre recommandé pour la suite** : A4 et A5, seuls à avoir une échéance au 2026-09-01. Puis A6 et
+A7, qui touchent des chemins de reprise après rejet — et qui deviennent lisibles maintenant que le
+rejet est visible, ce qu'il n'était pas quand ce tableau a été écrit. A8 à A10 ensuite.
+
+---
+
+## 3.3 Volet espagnol — arbitrage rendu, et ce qu'il laisse ouvert
+
+Décision prise faute d'avocat disponible, et consignée ici pour ne pas être reconstruite :
+**corriger la chaîne, ne rien déclarer, ne pas présenter l'Espagne comme couverte.**
+
+Ce chemin ne dépend pas de la réponse à la question de rattachement (D2), et c'est ce qui le rend
+praticable maintenant :
+
+- **La chaîne cassée est un bug quel que soit le régime.** Corrigée — branche
+  `fix/verifactu-hash-chain`. Elle ne présuppose aucune qualification juridique.
+- **Déclarer est la seule action qui expose au montant à 150 000 €**, et elle suppose de savoir
+  qu'on est conforme. **Rien n'est déclaré, rédigé ni préparé.** La grille des indicateurs de
+  l'Orden art. 15 reste un document d'audit (`09-F018-ES-DECLARATION.md` §5), pas un brouillon.
+- **Le montant à 1 000 € vise les systèmes commercialisés** ; sans utilisateur espagnol ni transport
+  ES fonctionnel, l'assiette est vraisemblablement vide.
+
+> Ce n'est pas un avis juridique, et ce document n'en produit aucun.
+
+**Vérifié dans le dépôt** : aucun chemin de code ne génère de déclaration responsable. Les seules
+occurrences de l'Orden HAC/1177/2024 sont des références de source en commentaire, dans le profil ES
+et le générateur Veri\*Factu. Il n'y a donc rien à signaler à ce titre — et rien à compléter.
+
+**Ce qui reste ouvert, et par quoi le reprendre.** La question de rattachement (D2) et ses cinq
+sous-questions restent au dossier, formulées et sourcées dans `09-F018-ES-DECLARATION.md` §2, avec
+leurs éléments de fait. Deux voies de résolution, à choisir quand le sujet sera repris :
+
+| Voie | Ce qu'elle produit | Coût |
+| --- | --- | --- |
+| **Consulta vinculante** à la Dirección General de Tributos | Une réponse **opposable à l'administration**, publiée et citable | gratuite ; délai de plusieurs mois |
+| **Asesoría fiscal** espagnole | Une analyse rapide, **non opposable** | honoraires ; quelques jours |
+
+La consulta vinculante est la seule des deux qui ferme la question ; l'asesoría dit surtout s'il
+vaut la peine de la poser.
 
 ---
 

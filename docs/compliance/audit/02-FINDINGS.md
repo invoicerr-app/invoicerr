@@ -405,6 +405,20 @@ c'est enregistré comme `open_question` dans `compliance-truth.json`.
 Une facture rejetée par KSeF, SdI ou un PDP reste donc affichée `SENT` ou `ISSUED` dans la liste des
 factures. Le rejet n'existe que dans une table que l'écran principal ne lit pas.
 
+> **Corrigé** — branche `fix/reject-visible-on-invoice`. `InvoiceStatus` gagne `REJECTED` par
+> migration additive ; `ApplySignalService` le projette **dans la transaction du CAS**, de sorte que
+> la facture ne puisse jamais contredire le document qui l'a causée. L'écriture est un `updateMany`
+> conditionné aux statuts en vol : les dix écritures existantes de `Invoice.status` sont des actions
+> utilisateur, et un signal tardif ne doit pas repasser par-dessus. Le libellé de l'autorité est
+> conservé sur l'événement — seul `INBOUND_STATUS` en porte un — et l'écran affiche une bannière,
+> un badge et un filtre **actif par défaut**, parce que le mappage statut→filtre retombait sur
+> « envoyée » et qu'un rejet absent du filtre par défaut aurait purement disparu de la liste.
+> 9 tests de non-régression, vérifiés rouges sans le correctif.
+>
+> **Résiduel assumé, hors périmètre de cette branche** : `REFUSED` (l'acheteur qui décline) et
+> `TRANSMISSION_FAILED` (jamais parvenu à l'autorité) ne sont pas projetés. Ce sont des faits
+> distincts qui méritent leur propre formulation, et les traiter ici aurait mêlé F-008 à F-007.
+
 **Impact.** L'utilisateur croit avoir facturé. Dans un régime de clearance où le rejet signifie que
 la facture n'existe pas juridiquement, l'écart entre l'écran et la réalité est total, et silencieux.
 
