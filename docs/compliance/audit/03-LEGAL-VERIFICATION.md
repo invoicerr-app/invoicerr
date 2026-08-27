@@ -391,3 +391,201 @@ non-E-Rechnung devient une infraction au 2027-01-01 au-dessus de 800 000 €, pu
 4. Sanctions en cas d'émission d'une non-E-Rechnung après le 2027-01-01 : non établies.
 5. GoBD Rz. 135/136 (conditions de conversion de format) : non lues verbatim — à vérifier avant de
    coder une politique de conversion.
+
+---
+
+## ITALIE
+
+### Sources
+
+D.Lgs. 127/2015 art. 1 et DPR 633/1972 artt. 21, 26, 39 via `normattiva.it` ; **Provvedimento AdE
+prot. 433608 du 2022-11-24** (dont le point 15.1 « sostituisce integralmente il provvedimento del
+30 aprile 2018 ») ; **Allegato A — Specifiche tecniche v1.9.1**, mise à jour du 2026-03-31,
+utilisables depuis le **2026-05-15** ; DM MEF 17/06/2014 ; Linee Guida AgID sur le document
+informatique, applicables depuis le 2022-01-01 ; prassi AdE (Ris. 1/E 2013, Circ. 13/E 2018,
+Circ. 14/E 2019, Circ. 20/E 2021, Risposta 447/2023, Guida AdE **décembre 2025**).
+
+### Règles établies
+
+| # | Règle | Source | Statut |
+| --- | --- | --- | --- |
+| 1 | Les variations **en hausse sont obligatoires** (« devono essere osservate ») → **nota di debito TD05** ; celles en baisse sont **facultatives** (« ha diritto di ») → nota di credito TD04 | art. 26 c. 1 et 2 DPR 633/72 | en vigueur |
+| 2 | Il n'existe **aucune facture rectificative** distincte en droit italien : la liste `TipoDocumento` n'en comporte pas | Provv. 433608 pt 6.1 | en vigueur |
+| 3 | Fenêtre d'un an **uniquement** pour l'accord postérieur entre parties et la rectification d'inexactitudes ex art. 21 c. 7 ; pour nullité, résolution, rescission : **aucun délai d'un an** | art. 26 c. 3 ; Circ. 20/E « senza specifici limiti di tempo » | en vigueur |
+| 4 | Butoir réel : la nota doit être émise avant le **délai de dépôt de la déclaration TVA annuelle** de l'année du fait générateur | Circ. 20/E §3 | en vigueur |
+| 5 | **Consentement de la contrepartie non requis** : « Le richieste […] di variazioni […] **non sono gestite dal SdI** » | Provv. 433608 pt 6.2 | en vigueur |
+| 6 | **Aucune annulation possible** après RC ou MC : « Le ricevute […] attestano che la fattura è emessa ». Seule voie : nota di variazione art. 26 | Provv. 433608 pt 4.4 ; Risposta 447/2023 | en vigueur |
+| 7 | **Date d'émission = le champ `Data` de `DatiGenerali`**, pas la date de transmission. Délai d'émission : **12 jours** depuis l'opération | Provv. 433608 pt 4.1 ; art. 21 c. 4 DPR 633/72 | en vigueur |
+| 8 | Un **scarto (NS) ⇒ la facture n'a jamais été émise**, notifié **sous 5 jours** | Provv. 433608 pt 2.4 | en vigueur |
+| 9 | Renvoi après scarto : **de préférence même date et même numéro** ; le contrôle d'unicité 00404/00409 est levé précisément parce qu'un NS a été émis ; seul le **nom de fichier** doit changer | Circ. 13/E §1.6 ; Specifiche v1.9.1 App. 1 | prassi, reconfirmée en 2025 |
+| 10 | Flux B2B : **RC, NS, MC** seulement (+ MT au destinataire). **NE, DT et AT n'existent que dans le flux B2G** DM 55/2013 | Specifiche v1.9.1 §1.1 | en vigueur |
+| 11 | Archivage **10 ans** (art. 2220 c.c.) **prolongés** « anche oltre il termine stabilito dall'articolo 2220 » jusqu'à définition des contrôles | art. 22 c. 2 DPR 600/73 via art. 39 c. 3 DPR 633/72 | en vigueur |
+| 12 | **Seul l'original XML** doit être conservé ; le PDF est une faculté (« potrà portare in conservazione **anche** copie informatiche ») | art. 39 c. 3 DPR 633/72 ; Circ. 13/E §3.2 | en vigueur |
+| 13 | Ce qui est obligatoire, c'est la signature/sceau du **pacchetto di archiviazione** + un **riferimento temporale opponibile a terzi** — pas la signature de la facture, **optionnelle en B2B** et obligatoire en B2G | DM 17/06/2014 art. 3 c. 2 ; LG AgID §4.8 ; Provv. pt 2.6 | en vigueur |
+| 14 | **Pas de contrainte UE** sur la localisation : conservation possible dans tout État lié par un instrument d'assistance mutuelle, avec accès automatisé garanti ; le lieu doit être déclaré | art. 39 c. 3 DPR 633/72 | en vigueur |
+| 15 | Numérotation : « numero progressivo che la identifichi in modo **univoco** ». La mention « in ordine progressivo per anno solare » a été **supprimée** en 2013 | art. 21 c. 2 lett. b) DPR 633/72 ; Ris. 1/E 2013 | en vigueur |
+| 16 | `Natura` **obligatoire dès que `AliquotaIVA` = 0** (erreurs 00400/00429) et **interdite** si le taux ≠ 0 (00401/00430) | Specifiche v1.9.1 | en vigueur |
+
+### Divergences avec le code — Italie
+
+**IT-D1 — `cancellationAllowed: true` : le code est faux.** Aucune annulation après RC/MC ; seule la
+nota di variazione art. 26 existe. Un flux d'annulation produirait un état incohérent avec le
+registre TVA.
+
+**IT-D2 — `numbering: GAPLESS_SELF` : le code est faux.** La loi n'exige que l'unicité, et la
+Ris. 1/E de 2013 admet « qualsiasi tipologia di numerazione progressiva che garantisca
+l'identificazione univoca ». Une lacune n'invalide rien.
+
+**IT-D3 — `correctionModel: CREDIT_NOTE` seul : le code est incomplet.** Il manque la **nota di
+debito TD05**, qui couvre les variations en hausse — lesquelles sont **obligatoires**, à la
+différence des baisses.
+
+**IT-D4 — `reporting: aucun` : le code est faux, et c'est la divergence la plus structurante.**
+L'art. 1 c. 3-bis du D.Lgs. 127/2015 impose la transmission des données des opérations avec des
+**non-établis**, via le SdI et le tracciato ordinaire depuis le 2022-07-01 — sortantes « entro i
+termini di emissione delle fatture », entrantes « entro il quindicesimo giorno del mese successivo ».
+S'y ajoute la liquidation trimestrielle de l'imposta di bollo. **C'est exactement le basculement
+domestique → reporting décrit en F-017.**
+
+**IT-D5 — `archivedForm: BOTH` et `integrity: SIGNED` : le code confond deux niveaux.** Seul le XML
+doit être conservé. Et la signature obligatoire porte sur le **paquet d'archivage**, pas sur la
+facture — laquelle n'est signée obligatoirement qu'en **B2G**. Le profil ne distingue pas B2B et B2G.
+
+**IT-D6 — `archival: 10 ans` : incomplet.** Les 10 ans sont prolongés jusqu'à la définition des
+contrôles. Une purge à J+10 ans détruirait des pièces encore exigibles.
+
+**IT-D7 — `primarySyntaxes: PLAIN_PDF + FATTURAPA` : le code est faux.** En domestique,
+« sono emesse **esclusivamente** fatture elettroniche utilizzando il Sistema di Interscambio », et
+toute autre modalité ⇒ « la fattura si intende **non emessa** ». Le PDF n'est licite que dans les cas
+d'exonération, ou comme *copia di cortesia* sans valeur fiscale.
+
+**IT-D8 — `canaux: EMAIL` : faux ou ambigu.** Les canaux SdI sont **PEC** (≠ e-mail ordinaire), la
+procédure web/app AdE, **SDICoop** et **SDIFTP**.
+
+**IT-D9 — `requiredIdentifiers: IT_SDI + PEC` cumulés : le code est faux.** Codice destinatario et
+PEC sont **alternatifs**. Manquent les valeurs conventionnelles `0000000` (consommateur, forfettario,
+canal inconnu) et **`XXXXXXX`** (destinataire non établi — contrôle 00313).
+
+**IT-D10 — `immutableAfter: ISSUE puis CLEARANCE` : mauvais déclencheur.** L'immutabilité naît au
+retour **RC ou MC**. Avant la réponse du SdI, ou après un NS, le document peut être librement
+recomposé — y compris avec la même date et le même numéro. Le profil **verrouille trop tôt** et
+bloquerait le renvoi post-scarto.
+
+**IT-D11 — politique de réponse : risque de statuts fantômes.** Si le profil modélise NE, DT ou AT
+en B2B, il attend des messages qui **n'arriveront jamais** — ils n'existent que dans le flux B2G.
+
+**IT-D12 — lacune fonctionnelle majeure** : la règle du renvoi post-scarto sous 5 jours, même date et
+même numéro, n'apparaît nulle part. C'est pourtant le chemin nominal de reprise après rejet.
+
+### Contradiction interne relevée
+
+Le profil déclare simultanément `POST_AUDIT + CLEARANCE` et `reporting: aucun`. Or la jambe
+« post-audit » du dispositif italien **est** précisément le reporting c. 3-bis que le profil nie.
+
+---
+
+## PORTÉE TERRITORIALE — le volet transfrontalier
+
+Cette section répond à la question ajoutée au questionnaire. **Seule la France a pu être achevée** :
+les cinq autres agents ont été interrompus par une limite de service (voir « État de la phase 2 »).
+
+### France — le mandat est bilatéral, et il est domestique
+
+**[CGI art. 289 bis, I](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000044051178/2026-08-27)**,
+version en vigueur au 2026-02-21 (LOI n° 2026-103 du 2026-02-19, art. 123) — l'obligation s'applique
+lorsque « **l'émetteur de la facture et son destinataire sont des assujettis qui sont établis ou ont
+leur domicile ou leur résidence habituelle en France** ».
+
+Trois conséquences, toutes contraires à ce que le moteur suppose :
+
+1. Le critère est **l'établissement**, le domicile ou la résidence habituelle. **L'immatriculation à
+   la TVA en France n'est pas un critère de rattachement.**
+2. La condition est **bilatérale et cumulative** : elle porte sur **les deux parties**.
+3. Le transfrontalier est **hors du mandat** ; l'art. 289 bis V exclut en outre les livraisons
+   intracommunautaires exonérées (art. 262 ter, 1° du I).
+
+Confirmé par l'autorité, DSE v3.2 §2.3.1 : le dispositif vise « les **transactions domestiques**
+entre assujettis à la TVA **établis, domiciliés ou ayant leur résidence habituelle en France** ».
+
+### Ce qui remplace le mandat en transfrontalier : l'e-reporting
+
+[CGI art. 290](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000046195617/2026-08-27) et
+art. 290 A, applicables aux opérations réalisées **à compter du 2026-09-01**, selon les mêmes deux
+vagues que l'e-invoicing.
+
+| Situation | E-invoicing (289 bis) | E-reporting |
+| --- | :-: | --- |
+| Deux assujettis établis en France | **oui** | sans objet |
+| Non établi, mais **immatriculé** TVA en France | **non** | **oui** — art. 290, II |
+| Établi en France, opération **localisée à l'étranger** | **non** | **oui** — art. 290, I-1° |
+
+Format : **flux F10**, XML, distinct du F1 (`tar.gz`, UBL 2.1 ou CII D22B). Statuts propres :
+**300 Déposée / 301 Rejetée**. Rythme **périodique** adossé au régime de TVA (décadaire, mensuel ou
+bimestriel selon le régime), et non transactionnel. Rectification par flux **RE**, qui « annule et
+remplace l'ensemble des données agrégées » de la période — un modèle *replace-period* sans aucun
+rapport avec l'avoir ou le rectificatif de l'e-invoicing.
+
+### Pourquoi cela aggrave F-017
+
+Le fait générateur du mandat français est **l'établissement conjoint des deux parties**. Sans
+connaître le statut d'établissement du **destinataire**, le moteur ne peut pas trancher entre deux
+régimes disjoints — deux formats, deux horloges, deux modèles de correction :
+
+- e-invoicing : F1, plateforme agréée, cycle de vie 200/210/212/213, 24 h ;
+- e-reporting : F10, périodique, rectification par remplacement de période.
+
+Un `country = FR` déduit du seul fournisseur produira un e-invoicing sur des opérations relevant en
+réalité de l'art. 290 — et manquera l'obligation d'e-reporting de l'art. 290 II pour un fournisseur
+non établi mais immatriculé en France, que le moteur classera hors périmètre français.
+
+### Italie — même bascule, déjà établie
+
+Art. 1 c. 3-bis du D.Lgs. 127/2015 : les opérations avec des non-établis sortent du mandat SdI et
+basculent sur une transmission de données. Voir IT-D4.
+
+### Allemagne — le déclencheur est explicitement bilatéral
+
+§ 14 Abs. 2 Satz 2 Nr. 1 et Satz 3 UStG : le mandat ne se déclenche que si **les deux parties** sont
+établies en Allemagne ; une simple immatriculation TVA allemande ne suffit pas. C'est le
+contre-exemple le plus net d'un moteur qui ne consulte que le fournisseur.
+
+### Reste à établir
+
+Pologne, Espagne et Mexique : **non traités** — agents interrompus. Ne rien inférer.
+
+---
+
+## ViDA — non vérifié en source primaire
+
+La directive (UE) 2025/516 a été citée par deux sources indépendantes de cet audit comme entrant en
+vigueur le **2025-04-14**, son art. 6(1) autorisant les États membres à appliquer dès cette date les
+modifications des art. 218 et 232 de la directive 2006/112/CE — ce qui supprimerait le besoin d'une
+dérogation du Conseil pour imposer la facturation électronique domestique. Son art. 5 remplacerait
+intégralement ces deux articles au **2030-07-01**, avec un report possible au **2035-01-01** pour les
+États disposant d'un reporting transactionnel en temps réel avant le 2024-01-01.
+
+**Aucun de ces éléments n'a pu être vérifié sur EUR-Lex dans cette session** : la page CELEX a
+d'abord renvoyé un contenu vide, puis la limite de service a interrompu les appels. Conformément à
+la discipline de l'audit, **ces éléments ne sont donc pas retenus comme établis** et restent
+`open_question`, malgré une double corroboration concordante. À reprendre en premier au prochain
+créneau.
+
+---
+
+## État de la phase 2 au 2026-08-27
+
+| Pays | Rapport principal | Volet transfrontalier |
+| --- | --- | --- |
+| France | **complet** | **complet** |
+| Pologne | **complet** | interrompu |
+| Allemagne | **complet** | interrompu |
+| Italie | **complet** | interrompu |
+| Espagne | **manquant** — seul un addendum a été transmis | interrompu |
+| Mexique | **manquant** | interrompu |
+
+Cinq des six agents ont été interrompus par une limite de service (réinitialisation annoncée à
+18 h 20, Europe/Paris). L'Espagne a produit un addendum substantiel — recalibrant notamment sa durée
+de conservation à un **plancher de 6 ans** (Código de Comercio art. 30.1 combiné à LGT art. 70.2),
+et non 4 — mais son rapport principal, auquel cet addendum se réfère, n'a jamais été transmis.
+**Aucune divergence espagnole ou mexicaine n'est donc consignée ici** : les inférer serait
+exactement ce que cet audit s'interdit.

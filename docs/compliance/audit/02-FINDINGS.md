@@ -661,7 +661,18 @@ que l'unité réelle est un corridor : un fournisseur français qui vend en Ital
 ni sur la fiche FR, ni sur la fiche IT. Les 106 pages ne décrivent pas seulement des capacités
 absentes — elles décrivent la **mauvaise unité d'analyse**.
 
-Deux rapports de la phase 2 confirment que ce n'est pas théorique :
+Trois vérifications de la phase 2 confirment que ce n'est pas théorique — et la première est
+décisive, puisqu'elle porte sur le marché principal, à cinq jours de son mandat :
+
+- **France** — [CGI art. 289 bis, I](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000044051178/2026-08-27)
+  (en vigueur au 2026-02-21) : l'obligation s'applique lorsque « **l'émetteur de la facture et son
+  destinataire sont des assujettis qui sont établis** ou ont leur domicile ou leur résidence
+  habituelle **en France** ». Le critère est donc **bilatéral et cumulatif**, fondé sur
+  l'**établissement** — et non sur l'immatriculation à la TVA. Hors de ce cas, on bascule sur
+  l'**e-reporting** des art. 290 et 290 A : flux **F10** au lieu du F1, statuts 300/301 au lieu de
+  200/210/212/213, rythme **périodique** au lieu de 24 h, et rectification par **remplacement de la
+  période entière** au lieu d'un avoir. Deux régimes disjoints, deux formats, deux horloges — que le
+  moteur ne peut pas distinguer puisqu'il ignore le statut d'établissement du destinataire.
 
 - **Italie** — art. 1 c. 3-bis du D.Lgs. 127/2015 : les opérations avec des non-établis sortent du
   mandat SdI et basculent sur une **transmission de données** via le SdI, sortantes « entro i termini
@@ -670,6 +681,11 @@ Deux rapports de la phase 2 confirment que ce n'est pas théorique :
 - **Allemagne** — § 14 Abs. 2 S. 2 Nr. 1 et S. 3 UStG : le mandat ne se déclenche que si **les deux
   parties** sont établies en Allemagne. C'est un déclencheur explicitement **bilatéral**, que le
   moteur ne peut pas représenter puisqu'il ne consulte que le fournisseur.
+
+Les trois juridictions vérifiées posent donc le **même** schéma : mandat domestique à déclencheur
+bilatéral, transfrontalier renvoyé vers une obligation déclarative distincte. Ce n'est pas une
+particularité nationale, c'est la structure commune — et c'est précisément celle que le modèle à un
+pays par profil ne peut pas porter.
 
 ### Ce qui n'est pas en cause
 
