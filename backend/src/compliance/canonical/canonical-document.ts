@@ -37,9 +37,22 @@ export interface StructuredAddress {
 
 export interface PartyTaxProfile {
   legalName: string;
-  /** Jurisdiction governing the supply for this party (registration relevant to the supply). */
+  /**
+   * Jurisdiction governing the supply for this party.
+   *
+   * In practice this is fed from the company/client row (invoices.helpers.ts), so it carries the
+   * party's OWN country — not a registration tied to this particular supply. That distinction
+   * matters: national mandates key on establishment, judged operation by operation, and the
+   * attachment rule itself differs by country (bilateral in FR/DE, seller-only in PL, buyer-driven
+   * for the Spanish B2B mandate). See docs/compliance/audit/08-CORRIDOR-MODEL.md.
+   *
+   * A previous `establishmentCountry?: ISO3166Alpha2` field sat here to express that. It was
+   * removed: it occurred exactly once in the repository — its own declaration — was never
+   * populated and never read, and a dead field shaped like the source of truth eventually gets read
+   * as one. It would also have been the wrong shape: establishment is a property of the
+   * TRANSACTION (does the fixed establishment intervene in THIS supply), not of the party.
+   */
   countryCode: ISO3166Alpha2;
-  establishmentCountry?: ISO3166Alpha2;
   role: PartyRole;
   identifiers: PartyIdentifier[];
   taxScheme?: TaxScheme;
