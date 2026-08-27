@@ -28,7 +28,7 @@
 | dont produits par la fabrique stub `national-portals.ts` | 54 | runtime |
 | Providers de format produits par `national-formats.ts` (bytes vides) | 42 | runtime |
 | Schémas vendorisés sur disque (.xsd/.sch) | 20 | disque |
-| Specs sous `src/compliance` | 122 | disque |
+| Specs sous `src/compliance` | 123 | disque |
 | dont specs live (nom `-live.spec.ts` ou usage `liveDescribe`) | 12 | disque |
 
 ### Maturités déclarées
@@ -46,8 +46,8 @@
 | `backend/src/compliance/nest/apply-signal.live.spec.ts` | — | (aucune) |
 | `backend/src/compliance/nest/full-pipeline-peppol.live.spec.ts` | `PEPPOL_LIVE` | (aucune) |
 | `backend/src/compliance/providers/signing/tsa-live.spec.ts` | `TSA_LIVE` | `TSA_URL` |
+| `backend/src/compliance/providers/transmission/choruspro-live.spec.ts` | `CHORUSPRO_LIVE` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET` |
 | `backend/src/compliance/providers/transmission/email-live.spec.ts` | `EMAIL_LIVE` | (aucune) |
-| `backend/src/compliance/providers/transmission/europe/choruspro-live.spec.ts` | `CHORUSPRO_LIVE` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET` |
 | `backend/src/compliance/providers/transmission/ksef/ksef-live.spec.ts` | `KSEF_LIVE` | `KSEF_AUTH_TOKEN` |
 | `backend/src/compliance/providers/transmission/pdp/pdp-afnor-live.spec.ts` | `PDP_AFNOR_LIVE` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` |
 | `backend/src/compliance/providers/transmission/pdp/pdp-live.spec.ts` | `PDP_LIVE` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` |
@@ -343,62 +343,62 @@ Le harnais paramétré `portal-live.spec.ts` boucle sur les 54 portails nationau
 
 | Provider | Canal | Maturité | Fabrique | LOC voisinage | Transport tel que câblé | Pays référençants |
 | --- | --- | --- | :-: | ---: | --- | --- |
-| `afip` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1808 | aucun — aucun site d'appel réseau | AR |
-| `anaf` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 2075 | aucun — port stub **codé en dur** | RO |
-| `dian` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1745 | aucun — port par défaut = stub | CO |
-| `eg-eta` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 2125 | aucun — port stub **codé en dur** | EG |
-| `es-face` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 2078 | aucun — court-circuit `SKIPPED` | ES |
-| `firs` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1923 | aucun — aucun site d'appel réseau | NG |
-| `gib` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 2032 | aucun — port stub **codé en dur** | TR |
-| `id-coretax` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1932 | aucun — aucun site d'appel réseau | ID |
-| `in-irp` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1976 | aucun — aucun site d'appel réseau | IN |
-| `ke-kra` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1895 | aucun — aucun site d'appel réseau | KE |
-| `myinvois` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1936 | aucun — aucun site d'appel réseau | MY |
-| `sefaz` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1835 | aucun — aucun site d'appel réseau | BR |
-| `sii` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1776 | aucun — port par défaut = stub | CL |
-| `sri` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1742 | aucun — port par défaut = stub | EC |
-| `uy-dgi` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1705 | aucun — port par défaut = stub | UY |
-| `al-cis` | GOV_PORTAL_API | STUB | générique | 1522 | aucun — fabrique générique, `SKIPPED` | AL |
-| `bd-nbr` | GOV_PORTAL_API | STUB | générique | 1408 | aucun — fabrique générique, `SKIPPED` | BD |
-| `bj-dgi` | GOV_PORTAL_API | STUB | générique | 1390 | aucun — fabrique générique, `SKIPPED` | BJ |
-| `bo-sin` | GOV_PORTAL_API | STUB | générique | 1374 | aucun — fabrique générique, `SKIPPED` | BO |
-| `ci-dgi` | GOV_PORTAL_API | STUB | générique | 1390 | aucun — fabrique générique, `SKIPPED` | CI |
-| `cn-sta` | GOV_PORTAL_API | STUB | générique | 1408 | aucun — fabrique générique, `SKIPPED` | CN |
-| `cr-hacienda` | GOV_PORTAL_API | STUB | générique | 1374 | aucun — fabrique générique, `SKIPPED` | CR |
-| `dgii` | GOV_PORTAL_API | STUB | générique | 1374 | aucun — fabrique générique, `SKIPPED` | DO |
-| `es-aeat` | GOV_PORTAL_API | STUB | générique | 1522 | aucun — fabrique générique, `SKIPPED` | ES |
-| `gh-gra` | GOV_PORTAL_API | STUB | générique | 1390 | aucun — fabrique générique, `SKIPPED` | GH |
-| `gr-aade` | GOV_PORTAL_API | STUB | générique | 1522 | aucun — fabrique générique, `SKIPPED` | GR |
-| `gt-sat` | GOV_PORTAL_API | STUB | générique | 1374 | aucun — fabrique générique, `SKIPPED` | GT |
-| `hr-fiskalizacija` | GOV_PORTAL_API | STUB | générique | 1522 | aucun — fabrique générique, `SKIPPED` | HR |
-| `hu-nav` | GOV_PORTAL_API | STUB | générique | 1522 | aucun — fabrique générique, `SKIPPED` | HU |
-| `jofotara` | GOV_PORTAL_API | STUB | générique | 1187 | aucun — fabrique générique, `SKIPPED` | JO |
-| `kz-isesf` | GOV_PORTAL_API | STUB | générique | 1408 | aucun — fabrique générique, `SKIPPED` | KZ |
-| `lv-vid` | GOV_PORTAL_API | STUB | générique | 1522 | aucun — fabrique générique, `SKIPPED` | LV |
-| `me-fiscal` | GOV_PORTAL_API | STUB | générique | 1522 | aucun — fabrique générique, `SKIPPED` | ME |
-| `np-ird` | GOV_PORTAL_API | STUB | générique | 1408 | aucun — fabrique générique, `SKIPPED` | NP |
-| `ose` | OSE | STUB | dédiée | 1862 | aucun — port par défaut `throw` | PE |
-| `pa-dgi` | GOV_PORTAL_API | STUB | générique | 1374 | aucun — fabrique générique, `SKIPPED` | PA |
-| `pac` | PAC | STUB | dédiée | 1786 | aucun — port par défaut `throw` | MX |
-| `ph-bir` | GOV_PORTAL_API | STUB | générique | 1408 | aucun — fabrique générique, `SKIPPED` | PH |
-| `pk-fbr` | GOV_PORTAL_API | STUB | générique | 1408 | aucun — fabrique générique, `SKIPPED` | PK |
-| `print` | PRINT | STUB | dédiée | 1605 | aucun — aucun site d'appel réseau | — |
-| `rs-sef` | GOV_PORTAL_API | STUB | générique | 1522 | aucun — fabrique générique, `SKIPPED` | RS |
-| `rw-rra` | GOV_PORTAL_API | STUB | générique | 1390 | aucun — fabrique générique, `SKIPPED` | RW |
-| `seniat` | GOV_PORTAL_API | STUB | générique | 1374 | aucun — fabrique générique, `SKIPPED` | VE |
-| `sifen` | GOV_PORTAL_API | STUB | générique | 1374 | aucun — fabrique générique, `SKIPPED` | PY |
-| `sk-financnasprava` | GOV_PORTAL_API | STUB | générique | 1522 | aucun — fabrique générique, `SKIPPED` | SK |
-| `sv-mh` | GOV_PORTAL_API | STUB | générique | 1374 | aucun — fabrique générique, `SKIPPED` | SV |
-| `th-rd` | GOV_PORTAL_API | STUB | générique | 1408 | aucun — fabrique générique, `SKIPPED` | TH |
-| `tn-ttn` | GOV_PORTAL_API | STUB | générique | 1187 | aucun — fabrique générique, `SKIPPED` | TN |
-| `tw-mof` | GOV_PORTAL_API | STUB | générique | 1408 | aucun — fabrique générique, `SKIPPED` | TW |
-| `tz-tra` | GOV_PORTAL_API | STUB | générique | 1390 | aucun — fabrique générique, `SKIPPED` | TZ |
-| `ua-dps` | GOV_PORTAL_API | STUB | générique | 1522 | aucun — fabrique générique, `SKIPPED` | UA |
-| `ug-ura` | GOV_PORTAL_API | STUB | générique | 1390 | aucun — fabrique générique, `SKIPPED` | UG |
-| `vn-gdt` | GOV_PORTAL_API | STUB | générique | 1408 | aucun — fabrique générique, `SKIPPED` | VN |
-| `zatca` | GOV_PORTAL_API | STUB | `log.todo` | 968 | aucun — fabrique `log.todo` | SA |
-| `zm-zra` | GOV_PORTAL_API | STUB | générique | 1390 | aucun — fabrique générique, `SKIPPED` | ZM |
-| `zw-zimra` | GOV_PORTAL_API | STUB | générique | 1390 | aucun — fabrique générique, `SKIPPED` | ZW |
+| `afip` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1843 | aucun — aucun site d'appel réseau | AR |
+| `anaf` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 2110 | aucun — port stub **codé en dur** | RO |
+| `dian` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1780 | aucun — port par défaut = stub | CO |
+| `eg-eta` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 2160 | aucun — port stub **codé en dur** | EG |
+| `es-face` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 2113 | aucun — court-circuit `SKIPPED` | ES |
+| `firs` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1958 | aucun — aucun site d'appel réseau | NG |
+| `gib` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 2067 | aucun — port stub **codé en dur** | TR |
+| `id-coretax` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1967 | aucun — aucun site d'appel réseau | ID |
+| `in-irp` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 2011 | aucun — aucun site d'appel réseau | IN |
+| `ke-kra` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1930 | aucun — aucun site d'appel réseau | KE |
+| `myinvois` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1971 | aucun — aucun site d'appel réseau | MY |
+| `sefaz` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1870 | aucun — aucun site d'appel réseau | BR |
+| `sii` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1811 | aucun — port par défaut = stub | CL |
+| `sri` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1777 | aucun — port par défaut = stub | EC |
+| `uy-dgi` | GOV_PORTAL_API | IMPLEMENTED | dédiée | 1740 | aucun — port par défaut = stub | UY |
+| `al-cis` | GOV_PORTAL_API | STUB | générique | 1168 | aucun — fabrique générique, `SKIPPED` | AL |
+| `bd-nbr` | GOV_PORTAL_API | STUB | générique | 1161 | aucun — fabrique générique, `SKIPPED` | BD |
+| `bj-dgi` | GOV_PORTAL_API | STUB | générique | 1169 | aucun — fabrique générique, `SKIPPED` | BJ |
+| `bo-sin` | GOV_PORTAL_API | STUB | générique | 1160 | aucun — fabrique générique, `SKIPPED` | BO |
+| `ci-dgi` | GOV_PORTAL_API | STUB | générique | 1162 | aucun — fabrique générique, `SKIPPED` | CI |
+| `cn-sta` | GOV_PORTAL_API | STUB | générique | 1168 | aucun — fabrique générique, `SKIPPED` | CN |
+| `cr-hacienda` | GOV_PORTAL_API | STUB | générique | 1160 | aucun — fabrique générique, `SKIPPED` | CR |
+| `dgii` | GOV_PORTAL_API | STUB | générique | 1167 | aucun — fabrique générique, `SKIPPED` | DO |
+| `es-aeat` | GOV_PORTAL_API | STUB | générique | 1168 | aucun — fabrique générique, `SKIPPED` | ES |
+| `gh-gra` | GOV_PORTAL_API | STUB | générique | 1161 | aucun — fabrique générique, `SKIPPED` | GH |
+| `gr-aade` | GOV_PORTAL_API | STUB | générique | 1175 | aucun — fabrique générique, `SKIPPED` | GR |
+| `gt-sat` | GOV_PORTAL_API | STUB | générique | 1160 | aucun — fabrique générique, `SKIPPED` | GT |
+| `hr-fiskalizacija` | GOV_PORTAL_API | STUB | générique | 1174 | aucun — fabrique générique, `SKIPPED` | HR |
+| `hu-nav` | GOV_PORTAL_API | STUB | générique | 1189 | aucun — fabrique générique, `SKIPPED` | HU |
+| `jofotara` | GOV_PORTAL_API | STUB | générique | 1169 | aucun — fabrique générique, `SKIPPED` | JO |
+| `kz-isesf` | GOV_PORTAL_API | STUB | générique | 1167 | aucun — fabrique générique, `SKIPPED` | KZ |
+| `lv-vid` | GOV_PORTAL_API | STUB | générique | 1161 | aucun — fabrique générique, `SKIPPED` | LV |
+| `me-fiscal` | GOV_PORTAL_API | STUB | générique | 1169 | aucun — fabrique générique, `SKIPPED` | ME |
+| `np-ird` | GOV_PORTAL_API | STUB | générique | 1161 | aucun — fabrique générique, `SKIPPED` | NP |
+| `ose` | OSE | STUB | dédiée | 1897 | aucun — port par défaut `throw` | PE |
+| `pa-dgi` | GOV_PORTAL_API | STUB | générique | 1160 | aucun — fabrique générique, `SKIPPED` | PA |
+| `pac` | PAC | STUB | dédiée | 1821 | aucun — port par défaut `throw` | MX |
+| `ph-bir` | GOV_PORTAL_API | STUB | générique | 1162 | aucun — fabrique générique, `SKIPPED` | PH |
+| `pk-fbr` | GOV_PORTAL_API | STUB | générique | 1161 | aucun — fabrique générique, `SKIPPED` | PK |
+| `print` | PRINT | STUB | dédiée | 1640 | aucun — aucun site d'appel réseau | — |
+| `rs-sef` | GOV_PORTAL_API | STUB | générique | 1168 | aucun — fabrique générique, `SKIPPED` | RS |
+| `rw-rra` | GOV_PORTAL_API | STUB | générique | 1162 | aucun — fabrique générique, `SKIPPED` | RW |
+| `seniat` | GOV_PORTAL_API | STUB | générique | 1161 | aucun — fabrique générique, `SKIPPED` | VE |
+| `sifen` | GOV_PORTAL_API | STUB | générique | 1167 | aucun — fabrique générique, `SKIPPED` | PY |
+| `sk-financnasprava` | GOV_PORTAL_API | STUB | générique | 1168 | aucun — fabrique générique, `SKIPPED` | SK |
+| `sv-mh` | GOV_PORTAL_API | STUB | générique | 1166 | aucun — fabrique générique, `SKIPPED` | SV |
+| `th-rd` | GOV_PORTAL_API | STUB | générique | 1161 | aucun — fabrique générique, `SKIPPED` | TH |
+| `tn-ttn` | GOV_PORTAL_API | STUB | générique | 1162 | aucun — fabrique générique, `SKIPPED` | TN |
+| `tw-mof` | GOV_PORTAL_API | STUB | générique | 1162 | aucun — fabrique générique, `SKIPPED` | TW |
+| `tz-tra` | GOV_PORTAL_API | STUB | générique | 1162 | aucun — fabrique générique, `SKIPPED` | TZ |
+| `ua-dps` | GOV_PORTAL_API | STUB | générique | 1161 | aucun — fabrique générique, `SKIPPED` | UA |
+| `ug-ura` | GOV_PORTAL_API | STUB | générique | 1162 | aucun — fabrique générique, `SKIPPED` | UG |
+| `vn-gdt` | GOV_PORTAL_API | STUB | générique | 1162 | aucun — fabrique générique, `SKIPPED` | VN |
+| `zatca` | GOV_PORTAL_API | STUB | `log.todo` | 1504 | aucun — fabrique `log.todo` | SA |
+| `zm-zra` | GOV_PORTAL_API | STUB | générique | 1162 | aucun — fabrique générique, `SKIPPED` | ZM |
+| `zw-zimra` | GOV_PORTAL_API | STUB | générique | 1162 | aucun — fabrique générique, `SKIPPED` | ZW |
 
 ### Catégorie 4 — Maturité déclarée que rien dans le dépôt ne justifie
 

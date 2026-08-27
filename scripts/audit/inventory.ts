@@ -223,9 +223,14 @@ function sourceFactsFor(id: string) {
   }
   // Two distinct stub tiers, told apart by WHICH FILE declares the id — not by membership of
   // NATIONAL_PORTAL_PROVIDERS, which also contains the dedicated per-authority classes:
-  //   *smaller-portals.ts → buildGenericPortalProvider(): returns SKIPPED unless a port is injected
+  //   portals/<cc>.ts → buildGenericPortalProviders(): returns SKIPPED unless a port is injected
   //   national-portals.ts → nationalPortal(): a pure log.todo note, no I/O code path at all
-  const genericPortalStubFactory = declaring.some((f) => /smaller-portals\.ts$/.test(f));
+  //
+  // The upstream refactor "flatten the regional transmission folders" replaced the regional
+  // *smaller-portals.ts bundles with one spec file per country under portals/. Matching the old
+  // name silently classified every generic portal as "dedicated", so this pattern is load-bearing
+  // and must be re-checked whenever that layout moves.
+  const genericPortalStubFactory = declaring.some((f) => /\/portals\/[a-z0-9-]+\.ts$/.test(f));
   const logTodoStubFactory = declaring.some((f) => /\/national-portals\.ts$/.test(f));
   return {
     declaredIn: declaring.map((f) => path.relative(REPO, f)),

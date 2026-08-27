@@ -10,7 +10,7 @@
     "nationalPortalStubs": 54,
     "nationalFormatStubs": 42,
     "schemaFiles": 20,
-    "specs": 122,
+    "specs": 123,
     "liveSpecs": 12
   },
   "transmissionProviders": [
@@ -40,7 +40,7 @@
           "backend/src/compliance/engine/classification.ts",
           "backend/src/compliance/engine/tax-engine.ts"
         ],
-        "loc": 1573,
+        "loc": 1608,
         "httpCallSites": 0,
         "mailPort": true,
         "throwingDefaultPort": false,
@@ -52,53 +52,53 @@
         "noDefaultTransport": false
       },
       "countries": [
-        "DE",
-        "ES",
-        "GB",
-        "IE",
+        "AE",
+        "AO",
+        "AT",
+        "AU",
+        "BA",
+        "BE",
         "BG",
+        "BH",
+        "CA",
+        "CH",
+        "CM",
         "CY",
         "CZ",
         "DK",
+        "DZ",
         "EE",
+        "ET",
         "FI",
+        "GB",
+        "HN",
+        "IE",
+        "JP",
+        "KW",
+        "LI",
+        "LK",
         "LT",
         "LU",
-        "MT",
-        "SI",
-        "BA",
-        "MK",
-        "MD",
-        "LI",
-        "VA",
-        "AT",
-        "BE",
-        "NL",
-        "SE",
-        "NO",
-        "CH",
-        "PT",
-        "HN",
-        "NI",
-        "AE",
-        "BH",
-        "OM",
-        "QA",
-        "KW",
-        "DZ",
         "MA",
-        "AO",
+        "MD",
+        "MK",
+        "MT",
         "MZ",
-        "ZA",
-        "CM",
-        "SN",
-        "ET",
-        "LK",
-        "SG",
-        "JP",
-        "CA",
-        "AU",
+        "NI",
+        "NL",
+        "NO",
         "NZ",
+        "OM",
+        "PT",
+        "QA",
+        "SE",
+        "SG",
+        "SI",
+        "SN",
+        "VA",
+        "ZA",
+        "DE",
+        "ES",
         "FR",
         "US"
       ],
@@ -148,7 +148,7 @@
           "backend/src/compliance/providers/transmission/peppol/peppol-sh-client.ts",
           "backend/src/compliance/providers/transmission/peppol/storecove-client.ts"
         ],
-        "loc": 3111,
+        "loc": 3146,
         "httpCallSites": 11,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -160,34 +160,34 @@
         "noDefaultTransport": false
       },
       "countries": [
-        "DE",
-        "ES",
-        "IE",
+        "AE",
+        "AO",
+        "AT",
+        "AU",
+        "BE",
         "BG",
         "CY",
         "CZ",
         "DK",
         "EE",
         "FI",
+        "IE",
+        "JP",
+        "LI",
         "LT",
         "LU",
-        "MT",
-        "SI",
         "MD",
-        "LI",
-        "AT",
-        "BE",
-        "NL",
-        "SE",
-        "NO",
-        "PT",
-        "AE",
-        "AO",
+        "MT",
         "MZ",
+        "NL",
+        "NO",
+        "NZ",
+        "PT",
+        "SE",
         "SG",
-        "JP",
-        "AU",
-        "NZ"
+        "SI",
+        "DE",
+        "ES"
       ],
       "specs": [
         {
@@ -264,7 +264,7 @@
           "backend/src/compliance/engine/classification.ts",
           "backend/src/compliance/engine/tax-engine.ts"
         ],
-        "loc": 2638,
+        "loc": 2673,
         "httpCallSites": 2,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -327,14 +327,14 @@
           "backend/src/compliance/types.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts",
-          "backend/src/compliance/providers/transmission/latam/pac-client.ts",
+          "backend/src/compliance/providers/transmission/pac-client.ts",
           "backend/src/compliance/profiles/schema.ts",
           "backend/src/compliance/profiles/registry.ts",
           "backend/src/compliance/profiles/temporal.ts",
           "backend/src/compliance/engine/classification.ts",
           "backend/src/compliance/engine/tax-engine.ts"
         ],
-        "loc": 1786,
+        "loc": 1821,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": true,
@@ -350,7 +350,7 @@
       ],
       "specs": [
         {
-          "file": "backend/src/compliance/providers/transmission/latam/pac-client.spec.ts",
+          "file": "backend/src/compliance/providers/transmission/pac-client.spec.ts",
           "live": false,
           "flags": []
         }
@@ -382,7 +382,7 @@
           "backend/src/compliance/engine/classification.ts",
           "backend/src/compliance/engine/tax-engine.ts"
         ],
-        "loc": 1974,
+        "loc": 2009,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": true,
@@ -446,7 +446,7 @@
           "backend/src/compliance/engine/classification.ts",
           "backend/src/compliance/engine/tax-engine.ts"
         ],
-        "loc": 2531,
+        "loc": 2566,
         "httpCallSites": 7,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -519,14 +519,14 @@
           "backend/src/compliance/types.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts",
-          "backend/src/compliance/providers/transmission/latam/ose-client.ts",
+          "backend/src/compliance/providers/transmission/ose-client.ts",
           "backend/src/compliance/profiles/schema.ts",
           "backend/src/compliance/profiles/registry.ts",
           "backend/src/compliance/profiles/temporal.ts",
           "backend/src/compliance/engine/classification.ts",
           "backend/src/compliance/engine/tax-engine.ts"
         ],
-        "loc": 1862,
+        "loc": 1897,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": true,
@@ -542,7 +542,7 @@
       ],
       "specs": [
         {
-          "file": "backend/src/compliance/providers/transmission/latam/ose-client.spec.ts",
+          "file": "backend/src/compliance/providers/transmission/ose-client.spec.ts",
           "live": false,
           "flags": []
         }
@@ -573,7 +573,7 @@
           "backend/src/compliance/engine/tax-engine.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts"
         ],
-        "loc": 1605,
+        "loc": 1640,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -601,10 +601,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/latam/afip-transmission.ts"
+          "backend/src/compliance/providers/transmission/afip-transmission.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/latam/afip-transmission.ts",
+          "backend/src/compliance/providers/transmission/afip-transmission.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
           "backend/src/compliance/execution/logger.ts",
@@ -612,14 +612,14 @@
           "backend/src/compliance/types.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts",
-          "backend/src/compliance/providers/transmission/latam/afip-client.ts",
+          "backend/src/compliance/providers/transmission/afip-client.ts",
           "backend/src/compliance/profiles/schema.ts",
           "backend/src/compliance/profiles/registry.ts",
           "backend/src/compliance/profiles/temporal.ts",
           "backend/src/compliance/engine/classification.ts",
           "backend/src/compliance/engine/tax-engine.ts"
         ],
-        "loc": 1808,
+        "loc": 1843,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -635,7 +635,7 @@
       ],
       "specs": [
         {
-          "file": "backend/src/compliance/providers/transmission/latam/afip-client.spec.ts",
+          "file": "backend/src/compliance/providers/transmission/afip-client.spec.ts",
           "live": false,
           "flags": []
         }
@@ -649,10 +649,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/latam/sefaz-transmission.ts"
+          "backend/src/compliance/providers/transmission/sefaz-transmission.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/latam/sefaz-transmission.ts",
+          "backend/src/compliance/providers/transmission/sefaz-transmission.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
           "backend/src/compliance/execution/logger.ts",
@@ -660,14 +660,14 @@
           "backend/src/compliance/types.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts",
-          "backend/src/compliance/providers/transmission/latam/sefaz-client.ts",
+          "backend/src/compliance/providers/transmission/sefaz-client.ts",
           "backend/src/compliance/profiles/schema.ts",
           "backend/src/compliance/profiles/registry.ts",
           "backend/src/compliance/profiles/temporal.ts",
           "backend/src/compliance/engine/classification.ts",
           "backend/src/compliance/engine/tax-engine.ts"
         ],
-        "loc": 1835,
+        "loc": 1870,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -683,7 +683,7 @@
       ],
       "specs": [
         {
-          "file": "backend/src/compliance/providers/transmission/latam/sefaz-client.spec.ts",
+          "file": "backend/src/compliance/providers/transmission/sefaz-client.spec.ts",
           "live": false,
           "flags": []
         }
@@ -697,10 +697,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/latam/sii-transmission.ts"
+          "backend/src/compliance/providers/transmission/sii-transmission.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/latam/sii-transmission.ts",
+          "backend/src/compliance/providers/transmission/sii-transmission.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
           "backend/src/compliance/execution/logger.ts",
@@ -708,14 +708,14 @@
           "backend/src/compliance/types.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts",
-          "backend/src/compliance/providers/transmission/latam/sii-client.ts",
+          "backend/src/compliance/providers/transmission/sii-client.ts",
           "backend/src/compliance/profiles/schema.ts",
           "backend/src/compliance/profiles/registry.ts",
           "backend/src/compliance/profiles/temporal.ts",
           "backend/src/compliance/engine/classification.ts",
           "backend/src/compliance/engine/tax-engine.ts"
         ],
-        "loc": 1776,
+        "loc": 1811,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -731,7 +731,7 @@
       ],
       "specs": [
         {
-          "file": "backend/src/compliance/providers/transmission/latam/sii-client.spec.ts",
+          "file": "backend/src/compliance/providers/transmission/sii-client.spec.ts",
           "live": false,
           "flags": []
         }
@@ -745,10 +745,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/latam/dian-client.ts"
+          "backend/src/compliance/providers/transmission/dian-client.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/latam/dian-client.ts",
+          "backend/src/compliance/providers/transmission/dian-client.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
           "backend/src/compliance/execution/logger.ts",
@@ -762,7 +762,7 @@
           "backend/src/compliance/engine/classification.ts",
           "backend/src/compliance/engine/tax-engine.ts"
         ],
-        "loc": 1745,
+        "loc": 1780,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -778,7 +778,7 @@
       ],
       "specs": [
         {
-          "file": "backend/src/compliance/providers/transmission/latam/dian-client.spec.ts",
+          "file": "backend/src/compliance/providers/transmission/dian-client.spec.ts",
           "live": false,
           "flags": []
         }
@@ -792,10 +792,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/latam/sri-transmission.ts"
+          "backend/src/compliance/providers/transmission/sri-transmission.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/latam/sri-transmission.ts",
+          "backend/src/compliance/providers/transmission/sri-transmission.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
           "backend/src/compliance/execution/logger.ts",
@@ -803,14 +803,14 @@
           "backend/src/compliance/types.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts",
-          "backend/src/compliance/providers/transmission/latam/sri-client.ts",
+          "backend/src/compliance/providers/transmission/sri-client.ts",
           "backend/src/compliance/profiles/schema.ts",
           "backend/src/compliance/profiles/registry.ts",
           "backend/src/compliance/profiles/temporal.ts",
           "backend/src/compliance/engine/classification.ts",
           "backend/src/compliance/engine/tax-engine.ts"
         ],
-        "loc": 1742,
+        "loc": 1777,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -826,7 +826,7 @@
       ],
       "specs": [
         {
-          "file": "backend/src/compliance/providers/transmission/latam/sri-client.spec.ts",
+          "file": "backend/src/compliance/providers/transmission/sri-client.spec.ts",
           "live": false,
           "flags": []
         }
@@ -840,10 +840,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/latam/uy-dgi-transmission.ts"
+          "backend/src/compliance/providers/transmission/uy-dgi-transmission.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/latam/uy-dgi-transmission.ts",
+          "backend/src/compliance/providers/transmission/uy-dgi-transmission.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
           "backend/src/compliance/execution/logger.ts",
@@ -851,14 +851,14 @@
           "backend/src/compliance/types.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts",
-          "backend/src/compliance/providers/transmission/latam/uy-dgi-client.ts",
+          "backend/src/compliance/providers/transmission/uy-dgi-client.ts",
           "backend/src/compliance/profiles/schema.ts",
           "backend/src/compliance/profiles/registry.ts",
           "backend/src/compliance/profiles/temporal.ts",
           "backend/src/compliance/engine/classification.ts",
           "backend/src/compliance/engine/tax-engine.ts"
         ],
-        "loc": 1705,
+        "loc": 1740,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -874,7 +874,7 @@
       ],
       "specs": [
         {
-          "file": "backend/src/compliance/providers/transmission/latam/uy-dgi-client.spec.ts",
+          "file": "backend/src/compliance/providers/transmission/uy-dgi-client.spec.ts",
           "live": false,
           "flags": []
         }
@@ -888,10 +888,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/latam/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/cr-hacienda.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/latam/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/cr-hacienda.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -901,7 +901,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1374,
+        "loc": 1160,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -925,10 +925,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/latam/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/do-dgii.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/latam/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/do-dgii.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -938,7 +938,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1374,
+        "loc": 1167,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -962,10 +962,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/latam/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/gt-sat.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/latam/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/gt-sat.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -975,7 +975,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1374,
+        "loc": 1160,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -999,10 +999,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/latam/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/pa-dgi.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/latam/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/pa-dgi.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -1012,7 +1012,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1374,
+        "loc": 1160,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1036,10 +1036,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/latam/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/py-sifen.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/latam/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/py-sifen.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -1049,7 +1049,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1374,
+        "loc": 1167,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1073,10 +1073,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/latam/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/sv-mh.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/latam/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/sv-mh.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -1086,7 +1086,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1374,
+        "loc": 1166,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1110,10 +1110,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/latam/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/ve-seniat.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/latam/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/ve-seniat.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -1123,7 +1123,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1374,
+        "loc": 1161,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1147,10 +1147,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/latam/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/bo-sin.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/latam/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/bo-sin.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -1160,7 +1160,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1374,
+        "loc": 1160,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1191,17 +1191,19 @@
           "backend/src/compliance/execution/logger.ts",
           "backend/src/compliance/execution/types.ts",
           "backend/src/compliance/types.ts",
+          "backend/src/compliance/providers/transmission/portal-registry.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
+          "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts"
         ],
-        "loc": 968,
+        "loc": 1504,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
         "stubDefaultPort": false,
-        "noPortShortCircuit": false,
+        "noPortShortCircuit": true,
         "hardcodedStubPort": false,
         "genericPortalStubFactory": false,
         "logTodoStubFactory": true,
@@ -1220,10 +1222,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/mena/mena-smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/jo-jofotara.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/mena/mena-smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/jo-jofotara.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -1233,7 +1235,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1187,
+        "loc": 1169,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1257,10 +1259,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/mena/mena-smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/tn-ttn.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/mena/mena-smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/tn-ttn.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -1270,7 +1272,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1187,
+        "loc": 1162,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1294,10 +1296,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/mena/gib-transmission.ts"
+          "backend/src/compliance/providers/transmission/gib-transmission.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/mena/gib-transmission.ts",
+          "backend/src/compliance/providers/transmission/gib-transmission.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
           "backend/src/compliance/execution/logger.ts",
@@ -1305,7 +1307,7 @@
           "backend/src/compliance/types.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts",
-          "backend/src/compliance/providers/transmission/mena/gib-client.ts",
+          "backend/src/compliance/providers/transmission/gib-client.ts",
           "backend/src/compliance/profiles/schema.ts",
           "backend/src/compliance/profiles/registry.ts",
           "backend/src/compliance/profiles/temporal.ts",
@@ -1313,7 +1315,7 @@
           "backend/src/compliance/engine/tax-engine.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts"
         ],
-        "loc": 2032,
+        "loc": 2067,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1329,7 +1331,7 @@
       ],
       "specs": [
         {
-          "file": "backend/src/compliance/providers/transmission/mena/gib-client.spec.ts",
+          "file": "backend/src/compliance/providers/transmission/gib-client.spec.ts",
           "live": false,
           "flags": []
         }
@@ -1343,10 +1345,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/mena/eg-eta-transmission.ts"
+          "backend/src/compliance/providers/transmission/eg-eta-transmission.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/mena/eg-eta-transmission.ts",
+          "backend/src/compliance/providers/transmission/eg-eta-transmission.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
           "backend/src/compliance/execution/logger.ts",
@@ -1354,7 +1356,7 @@
           "backend/src/compliance/types.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts",
-          "backend/src/compliance/providers/transmission/mena/eg-eta-client.ts",
+          "backend/src/compliance/providers/transmission/eg-eta-client.ts",
           "backend/src/compliance/profiles/schema.ts",
           "backend/src/compliance/profiles/registry.ts",
           "backend/src/compliance/profiles/temporal.ts",
@@ -1363,7 +1365,7 @@
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/providers/transmission/token-cache.ts"
         ],
-        "loc": 2125,
+        "loc": 2160,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1379,7 +1381,7 @@
       ],
       "specs": [
         {
-          "file": "backend/src/compliance/providers/transmission/mena/eg-eta-client.spec.ts",
+          "file": "backend/src/compliance/providers/transmission/eg-eta-client.spec.ts",
           "live": false,
           "flags": []
         }
@@ -1393,10 +1395,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/africa/firs-transmission.ts"
+          "backend/src/compliance/providers/transmission/firs-transmission.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/africa/firs-transmission.ts",
+          "backend/src/compliance/providers/transmission/firs-transmission.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
           "backend/src/compliance/execution/logger.ts",
@@ -1404,14 +1406,14 @@
           "backend/src/compliance/types.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts",
-          "backend/src/compliance/providers/transmission/africa/firs-client.ts",
+          "backend/src/compliance/providers/transmission/firs-client.ts",
           "backend/src/compliance/profiles/schema.ts",
           "backend/src/compliance/profiles/registry.ts",
           "backend/src/compliance/profiles/temporal.ts",
           "backend/src/compliance/engine/classification.ts",
           "backend/src/compliance/engine/tax-engine.ts"
         ],
-        "loc": 1923,
+        "loc": 1958,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1427,7 +1429,7 @@
       ],
       "specs": [
         {
-          "file": "backend/src/compliance/providers/transmission/africa/firs-client.spec.ts",
+          "file": "backend/src/compliance/providers/transmission/firs-client.spec.ts",
           "live": false,
           "flags": []
         }
@@ -1441,10 +1443,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/africa/ke-kra-transmission.ts"
+          "backend/src/compliance/providers/transmission/ke-kra-transmission.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/africa/ke-kra-transmission.ts",
+          "backend/src/compliance/providers/transmission/ke-kra-transmission.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
           "backend/src/compliance/execution/logger.ts",
@@ -1452,14 +1454,14 @@
           "backend/src/compliance/types.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts",
-          "backend/src/compliance/providers/transmission/africa/ke-kra-client.ts",
+          "backend/src/compliance/providers/transmission/ke-kra-client.ts",
           "backend/src/compliance/profiles/schema.ts",
           "backend/src/compliance/profiles/registry.ts",
           "backend/src/compliance/profiles/temporal.ts",
           "backend/src/compliance/engine/classification.ts",
           "backend/src/compliance/engine/tax-engine.ts"
         ],
-        "loc": 1895,
+        "loc": 1930,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1475,7 +1477,7 @@
       ],
       "specs": [
         {
-          "file": "backend/src/compliance/providers/transmission/africa/ke-kra-client.spec.ts",
+          "file": "backend/src/compliance/providers/transmission/ke-kra-client.spec.ts",
           "live": false,
           "flags": []
         }
@@ -1489,10 +1491,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/africa/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/gh-gra.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/africa/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/gh-gra.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -1502,7 +1504,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1390,
+        "loc": 1161,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1526,10 +1528,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/africa/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/rw-rra.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/africa/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/rw-rra.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -1539,7 +1541,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1390,
+        "loc": 1162,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1563,10 +1565,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/africa/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/tz-tra.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/africa/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/tz-tra.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -1576,7 +1578,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1390,
+        "loc": 1162,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1600,10 +1602,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/africa/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/ug-ura.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/africa/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/ug-ura.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -1613,7 +1615,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1390,
+        "loc": 1162,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1637,10 +1639,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/africa/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/zm-zra.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/africa/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/zm-zra.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -1650,7 +1652,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1390,
+        "loc": 1162,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1674,10 +1676,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/africa/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/zw-zimra.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/africa/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/zw-zimra.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -1687,7 +1689,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1390,
+        "loc": 1162,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1711,10 +1713,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/africa/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/ci-dgi.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/africa/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/ci-dgi.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -1724,7 +1726,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1390,
+        "loc": 1162,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1748,10 +1750,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/africa/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/bj-dgi.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/africa/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/bj-dgi.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -1761,7 +1763,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1390,
+        "loc": 1169,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1785,10 +1787,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/asia/id-coretax-transmission.ts"
+          "backend/src/compliance/providers/transmission/id-coretax-transmission.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/asia/id-coretax-transmission.ts",
+          "backend/src/compliance/providers/transmission/id-coretax-transmission.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
           "backend/src/compliance/execution/logger.ts",
@@ -1796,7 +1798,7 @@
           "backend/src/compliance/types.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts",
-          "backend/src/compliance/providers/transmission/asia/id-coretax-client.ts",
+          "backend/src/compliance/providers/transmission/id-coretax-client.ts",
           "backend/src/compliance/profiles/schema.ts",
           "backend/src/compliance/profiles/registry.ts",
           "backend/src/compliance/profiles/temporal.ts",
@@ -1804,7 +1806,7 @@
           "backend/src/compliance/engine/tax-engine.ts",
           "backend/src/compliance/providers/transmission/token-cache.ts"
         ],
-        "loc": 1932,
+        "loc": 1967,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1820,7 +1822,7 @@
       ],
       "specs": [
         {
-          "file": "backend/src/compliance/providers/transmission/asia/id-coretax-client.spec.ts",
+          "file": "backend/src/compliance/providers/transmission/id-coretax-client.spec.ts",
           "live": false,
           "flags": []
         }
@@ -1834,10 +1836,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/asia/in-irp-transmission.ts"
+          "backend/src/compliance/providers/transmission/in-irp-transmission.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/asia/in-irp-transmission.ts",
+          "backend/src/compliance/providers/transmission/in-irp-transmission.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
           "backend/src/compliance/execution/logger.ts",
@@ -1845,14 +1847,14 @@
           "backend/src/compliance/types.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts",
-          "backend/src/compliance/providers/transmission/asia/in-irp-client.ts",
+          "backend/src/compliance/providers/transmission/in-irp-client.ts",
           "backend/src/compliance/profiles/schema.ts",
           "backend/src/compliance/profiles/registry.ts",
           "backend/src/compliance/profiles/temporal.ts",
           "backend/src/compliance/engine/classification.ts",
           "backend/src/compliance/engine/tax-engine.ts"
         ],
-        "loc": 1976,
+        "loc": 2011,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1868,7 +1870,7 @@
       ],
       "specs": [
         {
-          "file": "backend/src/compliance/providers/transmission/asia/in-irp-client.spec.ts",
+          "file": "backend/src/compliance/providers/transmission/in-irp-client.spec.ts",
           "live": false,
           "flags": []
         }
@@ -1882,10 +1884,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/asia/myinvois-transmission.ts"
+          "backend/src/compliance/providers/transmission/myinvois-transmission.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/asia/myinvois-transmission.ts",
+          "backend/src/compliance/providers/transmission/myinvois-transmission.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
           "backend/src/compliance/execution/logger.ts",
@@ -1893,7 +1895,7 @@
           "backend/src/compliance/types.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts",
-          "backend/src/compliance/providers/transmission/asia/myinvois-client.ts",
+          "backend/src/compliance/providers/transmission/myinvois-client.ts",
           "backend/src/compliance/profiles/schema.ts",
           "backend/src/compliance/profiles/registry.ts",
           "backend/src/compliance/profiles/temporal.ts",
@@ -1901,7 +1903,7 @@
           "backend/src/compliance/engine/tax-engine.ts",
           "backend/src/compliance/providers/transmission/token-cache.ts"
         ],
-        "loc": 1936,
+        "loc": 1971,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1917,7 +1919,7 @@
       ],
       "specs": [
         {
-          "file": "backend/src/compliance/providers/transmission/asia/myinvois-client.spec.ts",
+          "file": "backend/src/compliance/providers/transmission/myinvois-client.spec.ts",
           "live": false,
           "flags": []
         }
@@ -1931,10 +1933,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/asia/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/tw-mof.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/asia/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/tw-mof.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -1944,7 +1946,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1408,
+        "loc": 1162,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -1968,10 +1970,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/asia/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/kz-isesf.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/asia/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/kz-isesf.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -1981,7 +1983,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1408,
+        "loc": 1167,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2005,10 +2007,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/asia/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/ph-bir.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/asia/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/ph-bir.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -2018,7 +2020,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1408,
+        "loc": 1162,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2042,10 +2044,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/asia/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/th-rd.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/asia/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/th-rd.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -2055,7 +2057,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1408,
+        "loc": 1161,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2079,10 +2081,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/asia/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/np-ird.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/asia/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/np-ird.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -2092,7 +2094,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1408,
+        "loc": 1161,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2116,10 +2118,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/asia/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/bd-nbr.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/asia/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/bd-nbr.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -2129,7 +2131,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1408,
+        "loc": 1161,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2153,10 +2155,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/asia/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/pk-fbr.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/asia/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/pk-fbr.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -2166,7 +2168,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1408,
+        "loc": 1161,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2190,10 +2192,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/asia/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/cn-sta.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/asia/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/cn-sta.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -2203,7 +2205,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1408,
+        "loc": 1168,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2227,10 +2229,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/asia/smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/vn-gdt.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/asia/smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/vn-gdt.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -2240,7 +2242,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1408,
+        "loc": 1162,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2264,10 +2266,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/europe/choruspro-transmission.ts"
+          "backend/src/compliance/providers/transmission/choruspro-transmission.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/europe/choruspro-transmission.ts",
+          "backend/src/compliance/providers/transmission/choruspro-transmission.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
           "backend/src/compliance/execution/logger.ts",
@@ -2275,14 +2277,14 @@
           "backend/src/compliance/types.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts",
-          "backend/src/compliance/providers/transmission/europe/choruspro-client.ts",
+          "backend/src/compliance/providers/transmission/choruspro-client.ts",
           "backend/src/compliance/profiles/schema.ts",
           "backend/src/compliance/profiles/registry.ts",
           "backend/src/compliance/profiles/temporal.ts",
           "backend/src/compliance/engine/classification.ts",
           "backend/src/compliance/engine/tax-engine.ts"
         ],
-        "loc": 1982,
+        "loc": 2017,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2296,12 +2298,12 @@
       "countries": [],
       "specs": [
         {
-          "file": "backend/src/compliance/providers/transmission/europe/choruspro-client.spec.ts",
+          "file": "backend/src/compliance/providers/transmission/choruspro-client.spec.ts",
           "live": false,
           "flags": []
         },
         {
-          "file": "backend/src/compliance/providers/transmission/europe/choruspro-live.spec.ts",
+          "file": "backend/src/compliance/providers/transmission/choruspro-live.spec.ts",
           "live": true,
           "flags": [
             "CHORUSPRO_LIVE"
@@ -2317,10 +2319,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/europe/face-transmission.ts"
+          "backend/src/compliance/providers/transmission/face-transmission.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/europe/face-transmission.ts",
+          "backend/src/compliance/providers/transmission/face-transmission.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
           "backend/src/compliance/execution/logger.ts",
@@ -2328,14 +2330,14 @@
           "backend/src/compliance/types.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts",
-          "backend/src/compliance/providers/transmission/europe/face-client.ts",
+          "backend/src/compliance/providers/transmission/face-client.ts",
           "backend/src/compliance/profiles/schema.ts",
           "backend/src/compliance/profiles/registry.ts",
           "backend/src/compliance/profiles/temporal.ts",
           "backend/src/compliance/engine/classification.ts",
           "backend/src/compliance/engine/tax-engine.ts"
         ],
-        "loc": 2078,
+        "loc": 2113,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2359,10 +2361,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/europe/anaf-transmission.ts"
+          "backend/src/compliance/providers/transmission/anaf-transmission.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/europe/anaf-transmission.ts",
+          "backend/src/compliance/providers/transmission/anaf-transmission.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
           "backend/src/compliance/execution/logger.ts",
@@ -2370,7 +2372,7 @@
           "backend/src/compliance/types.ts",
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts",
-          "backend/src/compliance/providers/transmission/europe/anaf-client.ts",
+          "backend/src/compliance/providers/transmission/anaf-client.ts",
           "backend/src/compliance/profiles/schema.ts",
           "backend/src/compliance/profiles/registry.ts",
           "backend/src/compliance/profiles/temporal.ts",
@@ -2379,7 +2381,7 @@
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/providers/transmission/token-cache.ts"
         ],
-        "loc": 2075,
+        "loc": 2110,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2395,7 +2397,7 @@
       ],
       "specs": [
         {
-          "file": "backend/src/compliance/providers/transmission/europe/anaf-client.spec.ts",
+          "file": "backend/src/compliance/providers/transmission/anaf-client.spec.ts",
           "live": false,
           "flags": []
         }
@@ -2409,10 +2411,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/ua-dps.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/ua-dps.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -2422,7 +2424,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1522,
+        "loc": 1161,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2446,10 +2448,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/me-fiscal.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/me-fiscal.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -2459,7 +2461,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1522,
+        "loc": 1169,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2483,10 +2485,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/hr-fiskalizacija.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/hr-fiskalizacija.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -2496,7 +2498,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1522,
+        "loc": 1174,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2520,10 +2522,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/al-cis.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/al-cis.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -2533,7 +2535,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1522,
+        "loc": 1168,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2557,10 +2559,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/lv-vid.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/lv-vid.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -2570,7 +2572,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1522,
+        "loc": 1161,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2594,10 +2596,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/sk-financnasprava.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/sk-financnasprava.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -2607,7 +2609,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1522,
+        "loc": 1168,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2631,10 +2633,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/rs-sef.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/rs-sef.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -2644,7 +2646,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1522,
+        "loc": 1168,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2668,10 +2670,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/es-aeat.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/es-aeat.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -2681,7 +2683,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1522,
+        "loc": 1168,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2705,10 +2707,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/gr-aade.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/gr-aade.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -2718,7 +2720,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1522,
+        "loc": 1175,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -2742,10 +2744,10 @@
       "hasConfigSchema": true,
       "source": {
         "declaredIn": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+          "backend/src/compliance/providers/transmission/portals/hu-nav.ts"
         ],
         "neighbourhood": [
-          "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts",
+          "backend/src/compliance/providers/transmission/portals/hu-nav.ts",
           "backend/src/compliance/providers/transmission/generic-portal.ts",
           "backend/src/compliance/canonical/canonical-document.ts",
           "backend/src/compliance/engine/compliance-engine.ts",
@@ -2755,7 +2757,7 @@
           "backend/src/compliance/providers/transmission/channel-credentials-port.ts",
           "backend/src/compliance/providers/transmission/transmission-provider.ts"
         ],
-        "loc": 1522,
+        "loc": 1189,
         "httpCallSites": 0,
         "mailPort": false,
         "throwingDefaultPort": false,
@@ -3040,6 +3042,12 @@
       "requiredEnv": []
     },
     {
+      "file": "backend/src/compliance/profiles/archival-retention.spec.ts",
+      "live": false,
+      "flags": [],
+      "requiredEnv": []
+    },
+    {
       "file": "backend/src/compliance/profiles/coverage.spec.ts",
       "live": false,
       "flags": [],
@@ -3140,31 +3148,13 @@
       ]
     },
     {
-      "file": "backend/src/compliance/providers/transmission/africa/firs-client.spec.ts",
+      "file": "backend/src/compliance/providers/transmission/afip-client.spec.ts",
       "live": false,
       "flags": [],
       "requiredEnv": []
     },
     {
-      "file": "backend/src/compliance/providers/transmission/africa/ke-kra-client.spec.ts",
-      "live": false,
-      "flags": [],
-      "requiredEnv": []
-    },
-    {
-      "file": "backend/src/compliance/providers/transmission/asia/id-coretax-client.spec.ts",
-      "live": false,
-      "flags": [],
-      "requiredEnv": []
-    },
-    {
-      "file": "backend/src/compliance/providers/transmission/asia/in-irp-client.spec.ts",
-      "live": false,
-      "flags": [],
-      "requiredEnv": []
-    },
-    {
-      "file": "backend/src/compliance/providers/transmission/asia/myinvois-client.spec.ts",
+      "file": "backend/src/compliance/providers/transmission/anaf-client.spec.ts",
       "live": false,
       "flags": [],
       "requiredEnv": []
@@ -3177,6 +3167,35 @@
     },
     {
       "file": "backend/src/compliance/providers/transmission/buyer-directory.spec.ts",
+      "live": false,
+      "flags": [],
+      "requiredEnv": []
+    },
+    {
+      "file": "backend/src/compliance/providers/transmission/choruspro-client.spec.ts",
+      "live": false,
+      "flags": [],
+      "requiredEnv": []
+    },
+    {
+      "file": "backend/src/compliance/providers/transmission/choruspro-live.spec.ts",
+      "live": true,
+      "flags": [
+        "CHORUSPRO_LIVE"
+      ],
+      "requiredEnv": [
+        "CHORUSPRO_CLIENT_ID",
+        "CHORUSPRO_CLIENT_SECRET"
+      ]
+    },
+    {
+      "file": "backend/src/compliance/providers/transmission/dian-client.spec.ts",
+      "live": false,
+      "flags": [],
+      "requiredEnv": []
+    },
+    {
+      "file": "backend/src/compliance/providers/transmission/eg-eta-client.spec.ts",
       "live": false,
       "flags": [],
       "requiredEnv": []
@@ -3196,42 +3215,49 @@
       "requiredEnv": []
     },
     {
-      "file": "backend/src/compliance/providers/transmission/europe/anaf-client.spec.ts",
+      "file": "backend/src/compliance/providers/transmission/face-client.spec.ts",
       "live": false,
       "flags": [],
       "requiredEnv": []
     },
     {
-      "file": "backend/src/compliance/providers/transmission/europe/choruspro-client.spec.ts",
+      "file": "backend/src/compliance/providers/transmission/face-transmission.spec.ts",
       "live": false,
       "flags": [],
       "requiredEnv": []
     },
     {
-      "file": "backend/src/compliance/providers/transmission/europe/choruspro-live.spec.ts",
-      "live": true,
-      "flags": [
-        "CHORUSPRO_LIVE"
-      ],
-      "requiredEnv": [
-        "CHORUSPRO_CLIENT_ID",
-        "CHORUSPRO_CLIENT_SECRET"
-      ]
-    },
-    {
-      "file": "backend/src/compliance/providers/transmission/europe/face-client.spec.ts",
-      "live": false,
-      "flags": [],
-      "requiredEnv": []
-    },
-    {
-      "file": "backend/src/compliance/providers/transmission/europe/face-transmission.spec.ts",
+      "file": "backend/src/compliance/providers/transmission/firs-client.spec.ts",
       "live": false,
       "flags": [],
       "requiredEnv": []
     },
     {
       "file": "backend/src/compliance/providers/transmission/generic-portal.spec.ts",
+      "live": false,
+      "flags": [],
+      "requiredEnv": []
+    },
+    {
+      "file": "backend/src/compliance/providers/transmission/gib-client.spec.ts",
+      "live": false,
+      "flags": [],
+      "requiredEnv": []
+    },
+    {
+      "file": "backend/src/compliance/providers/transmission/id-coretax-client.spec.ts",
+      "live": false,
+      "flags": [],
+      "requiredEnv": []
+    },
+    {
+      "file": "backend/src/compliance/providers/transmission/in-irp-client.spec.ts",
+      "live": false,
+      "flags": [],
+      "requiredEnv": []
+    },
+    {
+      "file": "backend/src/compliance/providers/transmission/ke-kra-client.spec.ts",
       "live": false,
       "flags": [],
       "requiredEnv": []
@@ -3277,67 +3303,25 @@
       "requiredEnv": []
     },
     {
-      "file": "backend/src/compliance/providers/transmission/latam/afip-client.spec.ts",
-      "live": false,
-      "flags": [],
-      "requiredEnv": []
-    },
-    {
-      "file": "backend/src/compliance/providers/transmission/latam/dian-client.spec.ts",
-      "live": false,
-      "flags": [],
-      "requiredEnv": []
-    },
-    {
-      "file": "backend/src/compliance/providers/transmission/latam/ose-client.spec.ts",
-      "live": false,
-      "flags": [],
-      "requiredEnv": []
-    },
-    {
-      "file": "backend/src/compliance/providers/transmission/latam/pac-client.spec.ts",
-      "live": false,
-      "flags": [],
-      "requiredEnv": []
-    },
-    {
-      "file": "backend/src/compliance/providers/transmission/latam/sefaz-client.spec.ts",
-      "live": false,
-      "flags": [],
-      "requiredEnv": []
-    },
-    {
-      "file": "backend/src/compliance/providers/transmission/latam/sii-client.spec.ts",
-      "live": false,
-      "flags": [],
-      "requiredEnv": []
-    },
-    {
-      "file": "backend/src/compliance/providers/transmission/latam/sri-client.spec.ts",
-      "live": false,
-      "flags": [],
-      "requiredEnv": []
-    },
-    {
-      "file": "backend/src/compliance/providers/transmission/latam/uy-dgi-client.spec.ts",
-      "live": false,
-      "flags": [],
-      "requiredEnv": []
-    },
-    {
-      "file": "backend/src/compliance/providers/transmission/mena/eg-eta-client.spec.ts",
-      "live": false,
-      "flags": [],
-      "requiredEnv": []
-    },
-    {
-      "file": "backend/src/compliance/providers/transmission/mena/gib-client.spec.ts",
+      "file": "backend/src/compliance/providers/transmission/myinvois-client.spec.ts",
       "live": false,
       "flags": [],
       "requiredEnv": []
     },
     {
       "file": "backend/src/compliance/providers/transmission/national-portals.spec.ts",
+      "live": false,
+      "flags": [],
+      "requiredEnv": []
+    },
+    {
+      "file": "backend/src/compliance/providers/transmission/ose-client.spec.ts",
+      "live": false,
+      "flags": [],
+      "requiredEnv": []
+    },
+    {
+      "file": "backend/src/compliance/providers/transmission/pac-client.spec.ts",
       "live": false,
       "flags": [],
       "requiredEnv": []
@@ -3485,6 +3469,30 @@
     },
     {
       "file": "backend/src/compliance/providers/transmission/sdi/sdi-transmission.spec.ts",
+      "live": false,
+      "flags": [],
+      "requiredEnv": []
+    },
+    {
+      "file": "backend/src/compliance/providers/transmission/sefaz-client.spec.ts",
+      "live": false,
+      "flags": [],
+      "requiredEnv": []
+    },
+    {
+      "file": "backend/src/compliance/providers/transmission/sii-client.spec.ts",
+      "live": false,
+      "flags": [],
+      "requiredEnv": []
+    },
+    {
+      "file": "backend/src/compliance/providers/transmission/sri-client.spec.ts",
+      "live": false,
+      "flags": [],
+      "requiredEnv": []
+    },
+    {
+      "file": "backend/src/compliance/providers/transmission/uy-dgi-client.spec.ts",
       "live": false,
       "flags": [],
       "requiredEnv": []
@@ -3677,7 +3685,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -3704,7 +3712,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -3843,9 +3851,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1522,
+          "sourceLoc": 1168,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/al-cis.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -3979,7 +3987,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -4006,7 +4014,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -4143,12 +4151,12 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1808,
+          "sourceLoc": 1843,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/latam/afip-transmission.ts"
+            "backend/src/compliance/providers/transmission/afip-transmission.ts"
           ],
           "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/latam/afip-client.spec.ts"
+            "backend/src/compliance/providers/transmission/afip-client.spec.ts"
           ],
           "liveSpecs": []
         }
@@ -4284,7 +4292,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -4311,7 +4319,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -4450,7 +4458,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -4477,7 +4485,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -4614,7 +4622,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -4750,9 +4758,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1408,
+          "sourceLoc": 1161,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/asia/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/bd-nbr.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -4893,7 +4901,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -4920,7 +4928,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -5060,7 +5068,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -5087,7 +5095,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -5223,7 +5231,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -5361,9 +5369,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1390,
+          "sourceLoc": 1169,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/africa/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/bj-dgi.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -5493,9 +5501,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1374,
+          "sourceLoc": 1160,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/latam/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/bo-sin.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -5629,12 +5637,12 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1835,
+          "sourceLoc": 1870,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/latam/sefaz-transmission.ts"
+            "backend/src/compliance/providers/transmission/sefaz-transmission.ts"
           ],
           "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/latam/sefaz-client.spec.ts"
+            "backend/src/compliance/providers/transmission/sefaz-client.spec.ts"
           ],
           "liveSpecs": []
         }
@@ -5763,7 +5771,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -5895,7 +5903,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -6031,9 +6039,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1390,
+          "sourceLoc": 1162,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/africa/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/ci-dgi.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -6166,12 +6174,12 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1776,
+          "sourceLoc": 1811,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/latam/sii-transmission.ts"
+            "backend/src/compliance/providers/transmission/sii-transmission.ts"
           ],
           "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/latam/sii-client.spec.ts"
+            "backend/src/compliance/providers/transmission/sii-client.spec.ts"
           ],
           "liveSpecs": []
         }
@@ -6300,7 +6308,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -6437,9 +6445,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1408,
+          "sourceLoc": 1168,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/asia/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/cn-sta.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -6573,12 +6581,12 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1745,
+          "sourceLoc": 1780,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/latam/dian-client.ts"
+            "backend/src/compliance/providers/transmission/dian-client.ts"
           ],
           "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/latam/dian-client.spec.ts"
+            "backend/src/compliance/providers/transmission/dian-client.spec.ts"
           ],
           "liveSpecs": []
         }
@@ -6705,9 +6713,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1374,
+          "sourceLoc": 1160,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/latam/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/cr-hacienda.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -6843,7 +6851,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -6870,7 +6878,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -7011,7 +7019,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -7038,7 +7046,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -7097,7 +7105,7 @@
           "formats": 1,
           "transmission": 1,
           "lifecycle": 1,
-          "archival": 1,
+          "archival": 2,
           "reporting": 0,
           "numbering": 1
         },
@@ -7123,11 +7131,11 @@
         "responsePolicyDefined": false,
         "contingencyDefined": false,
         "archival": [
-          "10y/BOTH/NONE"
+          "8y/BOTH/NONE"
         ],
         "reportingKinds": [],
         "numbering": [
-          "GAPLESS_SELF"
+          "UNIQUE_SELF"
         ],
         "requiredIdentifiers": [
           "VAT",
@@ -7180,7 +7188,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -7207,7 +7215,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -7348,7 +7356,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -7375,7 +7383,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -7509,9 +7517,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1374,
+          "sourceLoc": 1167,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/latam/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/do-dgii.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -7641,7 +7649,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -7775,12 +7783,12 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1742,
+          "sourceLoc": 1777,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/latam/sri-transmission.ts"
+            "backend/src/compliance/providers/transmission/sri-transmission.ts"
           ],
           "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/latam/sri-client.spec.ts"
+            "backend/src/compliance/providers/transmission/sri-client.spec.ts"
           ],
           "liveSpecs": []
         }
@@ -7915,7 +7923,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -7942,7 +7950,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -8078,12 +8086,12 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 2125,
+          "sourceLoc": 2160,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/mena/eg-eta-transmission.ts"
+            "backend/src/compliance/providers/transmission/eg-eta-transmission.ts"
           ],
           "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/mena/eg-eta-client.spec.ts"
+            "backend/src/compliance/providers/transmission/eg-eta-client.spec.ts"
           ],
           "liveSpecs": []
         }
@@ -8224,9 +8232,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 2078,
+          "sourceLoc": 2113,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/europe/face-transmission.ts"
+            "backend/src/compliance/providers/transmission/face-transmission.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -8241,9 +8249,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1522,
+          "sourceLoc": 1168,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/es-aeat.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -8258,7 +8266,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -8285,7 +8293,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -8419,7 +8427,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -8560,7 +8568,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -8587,7 +8595,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -8699,7 +8707,7 @@
             "2026-09-01:REAL_TIME_REPORTING"
           ],
           "transmission": [
-            "2026-09-01:PDP+GOV_PORTAL_API+PEPPOL+EMAIL"
+            "2026-09-01:PDP+GOV_PORTAL_API+PEPPOL"
           ],
           "numbering": [],
           "archival": []
@@ -8736,7 +8744,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -8866,7 +8874,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -9002,9 +9010,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1390,
+          "sourceLoc": 1161,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/africa/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/gh-gra.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -9140,9 +9148,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1522,
+          "sourceLoc": 1175,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/gr-aade.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -9272,9 +9280,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1374,
+          "sourceLoc": 1160,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/latam/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/gt-sat.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -9404,7 +9412,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -9545,9 +9553,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1522,
+          "sourceLoc": 1174,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/hr-fiskalizacija.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -9683,9 +9691,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1522,
+          "sourceLoc": 1189,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/hu-nav.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -9817,12 +9825,12 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1932,
+          "sourceLoc": 1967,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/asia/id-coretax-transmission.ts"
+            "backend/src/compliance/providers/transmission/id-coretax-transmission.ts"
           ],
           "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/asia/id-coretax-client.spec.ts"
+            "backend/src/compliance/providers/transmission/id-coretax-client.spec.ts"
           ],
           "liveSpecs": []
         }
@@ -9962,7 +9970,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -9989,7 +9997,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -10126,12 +10134,12 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1976,
+          "sourceLoc": 2011,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/asia/in-irp-transmission.ts"
+            "backend/src/compliance/providers/transmission/in-irp-transmission.ts"
           ],
           "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/asia/in-irp-client.spec.ts"
+            "backend/src/compliance/providers/transmission/in-irp-client.spec.ts"
           ],
           "liveSpecs": []
         }
@@ -10214,7 +10222,7 @@
         ],
         "reportingKinds": [],
         "numbering": [
-          "GAPLESS_SELF"
+          "UNIQUE_SELF"
         ],
         "requiredIdentifiers": [
           "LEGAL_ID",
@@ -10268,7 +10276,7 @@
           "stubFactory": false,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1974,
+          "sourceLoc": 2009,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/sdi-transmission.ts"
           ],
@@ -10403,9 +10411,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1187,
+          "sourceLoc": 1169,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/mena/mena-smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/jo-jofotara.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -10539,7 +10547,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -10566,7 +10574,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -10703,12 +10711,12 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1895,
+          "sourceLoc": 1930,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/africa/ke-kra-transmission.ts"
+            "backend/src/compliance/providers/transmission/ke-kra-transmission.ts"
           ],
           "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/africa/ke-kra-client.spec.ts"
+            "backend/src/compliance/providers/transmission/ke-kra-client.spec.ts"
           ],
           "liveSpecs": []
         }
@@ -10839,7 +10847,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -10973,9 +10981,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1408,
+          "sourceLoc": 1167,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/asia/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/kz-isesf.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -11110,7 +11118,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -11137,7 +11145,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -11271,7 +11279,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -11411,7 +11419,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -11438,7 +11446,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -11578,7 +11586,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -11605,7 +11613,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -11746,9 +11754,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1522,
+          "sourceLoc": 1161,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/lv-vid.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -11876,7 +11884,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -12081,7 +12089,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -12108,7 +12116,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -12248,9 +12256,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1522,
+          "sourceLoc": 1169,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/me-fiscal.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -12383,7 +12391,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -12523,7 +12531,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -12550,7 +12558,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -12638,11 +12646,12 @@
         ],
         "reportingKinds": [],
         "numbering": [
-          "AUTHORITY_RANGE"
+          "UNIQUE_SELF"
         ],
         "requiredIdentifiers": [
           "RFC",
-          "CURP"
+          "MX_DOMICILIO_FISCAL",
+          "MX_REGIMEN_FISCAL"
         ],
         "taxSystem": "VAT",
         "everDeclaredChannels": [
@@ -12684,12 +12693,12 @@
           "stubFactory": false,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1786,
+          "sourceLoc": 1821,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/pac-transmission.ts"
           ],
           "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/latam/pac-client.spec.ts"
+            "backend/src/compliance/providers/transmission/pac-client.spec.ts"
           ],
           "liveSpecs": []
         }
@@ -12821,12 +12830,12 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1936,
+          "sourceLoc": 1971,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/asia/myinvois-transmission.ts"
+            "backend/src/compliance/providers/transmission/myinvois-transmission.ts"
           ],
           "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/asia/myinvois-client.spec.ts"
+            "backend/src/compliance/providers/transmission/myinvois-client.spec.ts"
           ],
           "liveSpecs": []
         }
@@ -12957,7 +12966,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -12984,7 +12993,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -13120,12 +13129,12 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1923,
+          "sourceLoc": 1958,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/africa/firs-transmission.ts"
+            "backend/src/compliance/providers/transmission/firs-transmission.ts"
           ],
           "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/africa/firs-client.spec.ts"
+            "backend/src/compliance/providers/transmission/firs-client.spec.ts"
           ],
           "liveSpecs": []
         }
@@ -13254,7 +13263,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -13395,7 +13404,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -13422,7 +13431,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -13563,7 +13572,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -13590,7 +13599,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -13726,9 +13735,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1408,
+          "sourceLoc": 1161,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/asia/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/np-ird.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -13863,7 +13872,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -13890,7 +13899,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -14026,7 +14035,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -14160,9 +14169,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1374,
+          "sourceLoc": 1160,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/latam/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/pa-dgi.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -14296,12 +14305,12 @@
           "stubFactory": false,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1862,
+          "sourceLoc": 1897,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/ose-transmission.ts"
           ],
           "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/latam/ose-client.spec.ts"
+            "backend/src/compliance/providers/transmission/ose-client.spec.ts"
           ],
           "liveSpecs": []
         }
@@ -14430,9 +14439,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1408,
+          "sourceLoc": 1162,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/asia/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/ph-bir.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -14564,9 +14573,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1408,
+          "sourceLoc": 1161,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/asia/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/pk-fbr.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -14650,7 +14659,7 @@
         ],
         "reportingKinds": [],
         "numbering": [
-          "GAPLESS_SELF"
+          "UNIQUE_SELF"
         ],
         "requiredIdentifiers": [
           "LEGAL_ID",
@@ -14700,7 +14709,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 7,
-          "sourceLoc": 2531,
+          "sourceLoc": 2566,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/ksef-transmission.ts"
           ],
@@ -14846,7 +14855,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -14873,7 +14882,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -15007,9 +15016,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1374,
+          "sourceLoc": 1167,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/latam/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/py-sifen.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -15141,7 +15150,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -15282,12 +15291,12 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 2075,
+          "sourceLoc": 2110,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/europe/anaf-transmission.ts"
+            "backend/src/compliance/providers/transmission/anaf-transmission.ts"
           ],
           "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/europe/anaf-client.spec.ts"
+            "backend/src/compliance/providers/transmission/anaf-client.spec.ts"
           ],
           "liveSpecs": []
         }
@@ -15418,9 +15427,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1522,
+          "sourceLoc": 1168,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/rs-sef.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -15550,9 +15559,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1390,
+          "sourceLoc": 1162,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/africa/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/rw-rra.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -15688,7 +15697,7 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 968,
+          "sourceLoc": 1504,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/national-portals.ts"
           ],
@@ -15820,7 +15829,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -15847,7 +15856,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -15989,7 +15998,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -16016,7 +16025,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -16162,7 +16171,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 11,
-          "sourceLoc": 3111,
+          "sourceLoc": 3146,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/peppol-transmission.ts"
           ],
@@ -16189,7 +16198,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -16330,9 +16339,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1522,
+          "sourceLoc": 1168,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/sk-financnasprava.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -16464,7 +16473,7 @@
           "stubFactory": false,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1974,
+          "sourceLoc": 2009,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/sdi-transmission.ts"
           ],
@@ -16599,7 +16608,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -16733,9 +16742,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1374,
+          "sourceLoc": 1166,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/latam/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/sv-mh.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -16867,9 +16876,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1408,
+          "sourceLoc": 1161,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/asia/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/th-rd.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -16999,9 +17008,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1187,
+          "sourceLoc": 1162,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/mena/mena-smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/tn-ttn.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -17135,12 +17144,12 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 2032,
+          "sourceLoc": 2067,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/mena/gib-transmission.ts"
+            "backend/src/compliance/providers/transmission/gib-transmission.ts"
           ],
           "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/mena/gib-client.spec.ts"
+            "backend/src/compliance/providers/transmission/gib-client.spec.ts"
           ],
           "liveSpecs": []
         }
@@ -17272,9 +17281,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1408,
+          "sourceLoc": 1162,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/asia/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/tw-mof.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -17406,9 +17415,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1390,
+          "sourceLoc": 1162,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/africa/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/tz-tra.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -17541,9 +17550,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1522,
+          "sourceLoc": 1161,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/europe/europe-smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/ua-dps.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -17675,9 +17684,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1390,
+          "sourceLoc": 1162,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/africa/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/ug-ura.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -17805,7 +17814,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -17927,12 +17936,12 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1705,
+          "sourceLoc": 1740,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/latam/uy-dgi-transmission.ts"
+            "backend/src/compliance/providers/transmission/uy-dgi-transmission.ts"
           ],
           "mockedSpecs": [
-            "backend/src/compliance/providers/transmission/latam/uy-dgi-client.spec.ts"
+            "backend/src/compliance/providers/transmission/uy-dgi-client.spec.ts"
           ],
           "liveSpecs": []
         }
@@ -18064,7 +18073,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -18198,9 +18207,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1374,
+          "sourceLoc": 1161,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/latam/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/ve-seniat.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -18332,9 +18341,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1408,
+          "sourceLoc": 1162,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/asia/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/vn-gdt.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -18465,7 +18474,7 @@
           "stubFactory": false,
           "noDefaultTransport": false,
           "httpCallSites": 0,
-          "sourceLoc": 1573,
+          "sourceLoc": 1608,
           "declaredIn": [
             "backend/src/compliance/providers/transmission/email-transmission.ts"
           ],
@@ -18601,9 +18610,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1390,
+          "sourceLoc": 1162,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/africa/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/zm-zra.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
@@ -18737,9 +18746,9 @@
           "stubFactory": true,
           "noDefaultTransport": true,
           "httpCallSites": 0,
-          "sourceLoc": 1390,
+          "sourceLoc": 1162,
           "declaredIn": [
-            "backend/src/compliance/providers/transmission/africa/smaller-portals.ts"
+            "backend/src/compliance/providers/transmission/portals/zw-zimra.ts"
           ],
           "mockedSpecs": [],
           "liveSpecs": []
