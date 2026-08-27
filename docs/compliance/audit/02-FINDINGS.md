@@ -682,10 +682,31 @@ décisive, puisqu'elle porte sur le marché principal, à cinq jours de son mand
   parties** sont établies en Allemagne. C'est un déclencheur explicitement **bilatéral**, que le
   moteur ne peut pas représenter puisqu'il ne consulte que le fournisseur.
 
-Les trois juridictions vérifiées posent donc le **même** schéma : mandat domestique à déclencheur
-bilatéral, transfrontalier renvoyé vers une obligation déclarative distincte. Ce n'est pas une
-particularité nationale, c'est la structure commune — et c'est précisément celle que le modèle à un
-pays par profil ne peut pas porter.
+- **Pologne** — art. 106ga ust. 2 pkt 1 et 2 de l'ustawa o VAT : le rattachement est posé « **przez
+  podatnika** », l'assujetti **émetteur** seul. Le ministère précise qu'un acheteur polonais « **nie
+  są zobowiązani do dokonywania weryfikacji** » de l'établissement de son fournisseur étranger. Le
+  déclencheur polonais est donc **unilatéral**, et la Pologne **garde le transfrontalier dans le
+  champ de l'émission** (« Faktury dokumentujące np. WDT, eksport […] są obowiązkowo wystawiane w
+  KSeF »), traitant l'extranéité au stade distinct de la **mise à disposition** (art. 106gb ust. 4,
+  six branches alternatives, plus code QR obligatoire).
+
+**La règle de rattachement varie d'un pays à l'autre**, et c'est le cœur du problème. Une première
+version de ce finding généralisait un déclencheur bilatéral à partir de la France, de l'Allemagne et
+de l'Italie ; la Pologne l'a infirmé. Le constat correct est plus lourd :
+
+| Pays | Déclencheur | Transfrontalier |
+| --- | --- | --- |
+| France | **bilatéral** | hors mandat → e-reporting art. 290 |
+| Allemagne | **bilatéral** | hors mandat → ZM § 18a |
+| Italie | résidents ou établis | hors mandat → données c. 3-bis |
+| Pologne | **unilatéral — vendeur seul** | **dans le mandat** |
+
+Une stratégie de résolution unique est donc fausse **quel que soit le choix retenu**. La résolution
+« fournisseur seul » du moteur se trouve juste pour la Pologne et fausse pour la France et
+l'Allemagne — par accident, pas par conception. Il ne suffit pas d'ajouter le pays de l'acheteur :
+**le déclencheur lui-même doit devenir une donnée du profil**, au même titre que le régime ou
+l'archivage. Et le canal de remise doit être un prédicat **séparé** de l'obligation d'émission —
+la Pologne le démontre, en les distinguant explicitement.
 
 ### Ce qui n'est pas en cause
 

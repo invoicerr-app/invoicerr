@@ -543,15 +543,84 @@ non établi mais immatriculé en France, que le moteur classera hors périmètre
 Art. 1 c. 3-bis du D.Lgs. 127/2015 : les opérations avec des non-établis sortent du mandat SdI et
 basculent sur une transmission de données. Voir IT-D4.
 
-### Allemagne — le déclencheur est explicitement bilatéral
+### Allemagne — déclencheur bilatéral
 
 § 14 Abs. 2 Satz 2 Nr. 1 et Satz 3 UStG : le mandat ne se déclenche que si **les deux parties** sont
-établies en Allemagne ; une simple immatriculation TVA allemande ne suffit pas. C'est le
-contre-exemple le plus net d'un moteur qui ne consulte que le fournisseur.
+établies en Allemagne ; une simple immatriculation TVA allemande ne suffit pas.
+
+### Pologne — déclencheur **unilatéral**, et cela invalide une généralisation
+
+Sources : texte consolidé de l'ustawa o VAT (Dz.U. 2025 poz. 775), surchargé par la loi du
+2025-08-05 (Dz.U. 2025 poz. 1203) ; **Objaśnienia podatkowe MF du 2026-01-28** sur le
+`stałe miejsce prowadzenia działalności` (SMPD) pour les besoins du KSeF — document opposable au
+titre de l'art. 14n § 4 pkt 1 de l'Ordynacja podatkowa. Contrôle négatif effectué : les actes
+modificatifs postérieurs (Dz.U. 2025 poz. 1811 et Dz.U. 2026 poz. 846) ne touchent ni l'art. 106a,
+ni 106ga, ni 106gb.
+
+L'art. 106ga ust. 2 pose le rattachement par **exclusion négative**, et ses points 1 et 2 sont tous
+deux rédigés « **przez podatnika** » — par l'assujetti **émetteur** :
+
+> 1) « przez podatnika nieposiadającego siedziby działalności gospodarczej ani stałego miejsca
+> prowadzenia działalności gospodarczej na terytorium kraju ;
+> 2) przez podatnika nieposiadającego siedziby […] qui possède un SMPD sur le territoire national,
+> **przy czym to stałe miejsce prowadzenia działalności nie uczestniczy w dostawie towarów lub
+> świadczeniu usług**, dla których wystawiono fakturę »
+
+Le seul point où l'acquéreur apparaît est le pkt 4, et il ne vise que sa **qualité** (personne
+physique non entrepreneur), jamais sa localisation. Le ministère l'énonce explicitement :
+
+> « Podatnicy z siedzibą na terytorium Polski, nabywający towary lub usługi od podatników z siedzibą
+> za granicą, **dla celów stosowania KSeF nie są zobowiązani do dokonywania weryfikacji, czy taki
+> zagraniczny podatnik posiada SMPD w Polsce**. »
+
+**Conséquences :**
+
+| Situation | Émission KSeF |
+| --- | --- |
+| Assujetti étranger **immatriculé** en Pologne, sans établissement | **non** — art. 106ga ust. 2 pkt 1 ; option ouverte et **révocable transaction par transaction** |
+| Étranger avec SMPD polonais **participant** à l'opération | **oui** |
+| Étranger avec SMPD polonais **passif** | **non** |
+| Assujetti polonais réalisant **WDT, export, prestation B2B intracommunautaire** | **oui** — « Faktury dokumentujące np. WDT, eksport towarów czy świadczenie usług na rzecz zagranicznych podatników są **obowiązkowo wystawiane w KSeF** » |
+
+**La Pologne n'exclut donc pas le transfrontalier du mandat** — contrairement à la France et à
+l'Italie. Elle le maintient dans le champ de l'**émission**, et traite l'extranéité à l'étape
+suivante, distincte : la **mise à disposition**. L'art. 106gb ust. 4 est une **disjonction à six
+branches** dont la première est purement géographique (`miejsce świadczenia ∉ PL`), imposant une
+remise « w sposób z nim uzgodniony » assortie d'un **code QR** obligatoire (art. 106gb ust. 5,
+spécifié par Dz.U. 2025 poz. 1815, norme ISO/IEC 18004:2024). Pour l'acquéreur étranger, le document
+porteur du QR **est** la facture.
+
+Effet secondaire à modéliser : **deux horloges de date de réception** — date d'attribution du numéro
+KSeF pour un acquéreur ordinaire, date de réception effective hors KSeF pour tout acquéreur relevant
+de l'art. 106gb ust. 4.
+
+Seule dérogation réellement transfrontalière : l'**autofacturation** par un acquéreur UE dépourvu de
+NIP polonais (rozporządzenie Dz.U. 2025 poz. 1740, § 2 pkt 5 et § 3).
+
+### La généralisation que je retire
+
+J'avais écrit que les juridictions vérifiées posaient toutes « le même schéma : mandat domestique à
+déclencheur bilatéral, transfrontalier renvoyé vers une obligation déclarative distincte ». **C'est
+faux.** La Pologne est unilatérale et garde le transfrontalier dans le champ de l'émission.
+
+Le constat correct est plus fort, pas plus faible :
+
+| Pays | Déclencheur | Transfrontalier |
+| --- | --- | --- |
+| France | **bilatéral** (art. 289 bis I) | hors mandat → e-reporting art. 290 |
+| Allemagne | **bilatéral** (§ 14 Abs. 2 S. 3 UStG) | hors mandat → ZM § 18a |
+| Italie | résidents ou établis (à préciser) | hors mandat → données c. 3-bis |
+| **Pologne** | **unilatéral — vendeur seul** | **dans le mandat**, extranéité traitée au canal de remise |
+
+**La règle de rattachement varie d'un pays à l'autre.** Une stratégie de résolution unique est donc
+fausse quel que soit le choix retenu : la résolution « fournisseur seul » du moteur se trouve être
+juste pour la Pologne et fausse pour la France et l'Allemagne. Cela ne réhabilite pas F-017, cela
+l'aggrave — il ne suffit pas d'ajouter le pays de l'acheteur, il faut que **le déclencheur lui-même
+soit une donnée du profil**, au même titre que le régime ou l'archivage.
 
 ### Reste à établir
 
-Pologne, Espagne et Mexique : **non traités** — agents interrompus. Ne rien inférer.
+Espagne et Mexique : agents relancés, résultats non parvenus. Ne rien inférer.
 
 ---
 
