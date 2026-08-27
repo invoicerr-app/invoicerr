@@ -1,0 +1,393 @@
+# 03 — Vérification juridique contre sources primaires (Phase 2)
+
+> Six pays : ceux où le code prétend le plus — profils bespoke, `confidence: OFFICIAL`, schémas
+> d'autorité vendorisés. Les 100 autres n'ont pas d'implémentation à confronter à une règle ;
+> les sourcer serait un travail de documentation, pas d'audit.
+>
+> **Discipline de sourçage.** Sources primaires uniquement : administration fiscale nationale,
+> journal officiel, spécification technique publiée par l'autorité. Documentation d'opérateur
+> accrédité acceptée mais marquée `authority: "vendor"`. Blogs, cabinets, éditeurs : jamais.
+> Chaque règle porte son URL, sa date de consultation, sa date d'entrée en vigueur et son statut.
+> **Ce qui n'a pas été établi reste `open_question` — jamais une valeur plausible.**
+>
+> **Toutes les consultations : 2026-08-27.**
+>
+> Méthode : un agent par pays, questionnaire identique, chacun confronté à ce que le profil du
+> logiciel affirme. Les affirmations porteuses ont ensuite été **recontrôlées directement** ; les
+> recontrôles sont signalés par ✓✓.
+
+---
+
+## FRANCE
+
+### Sources
+
+Dossier de spécifications externes de la facturation électronique (DSE) **v3.2 du 2026-04-30**,
+publié par l'AIFE/DGFiP — [page d'autorité](https://www.impots.gouv.fr/specifications-externes-b2b),
+archive `specifications-externes-v3.2.zip` (Document général v3.2, DSE Chorus Pro v1.1, Annexe 1
+format sémantique v1.2, Annexe 2 CDV v2.3, Annexe 7 règles de gestion v1.9). Légifrance et BOFiP
+pour le droit dur.
+
+### Calendrier ✓✓
+
+Recontrôlé directement sur [economie.gouv.fr](https://www.economie.gouv.fr/tout-savoir-sur-la-facturation-electronique-pour-les-entreprises)
+et [impots.gouv.fr](https://www.impots.gouv.fr/professionnel/je-passe-la-facturation-electronique)
+(page modifiée le 2026-07-10), consultés le 2026-08-27 :
+
+| Obligation | Périmètre | Date | Statut |
+| --- | --- | --- | --- |
+| **Réception** | **toutes** les entreprises, quelle que soit la taille | **2026-09-01** | en vigueur dans 5 jours |
+| **Émission** | grandes entreprises, ETI, membres d'un assujetti unique | **2026-09-01** | idem |
+| **Émission** | PME, TPE, micro-entreprises | **2027-09-01** | annoncé |
+
+Les micro-entrepreneurs et les entreprises en franchise de TVA sont dans le champ, en réception
+comme en émission.
+
+**Réserve** : l'alinéa final de l'art. 1737 CGI autorise un décret à repousser l'application
+« sans pouvoir être postérieure au 1er décembre 2026 ». **Aucun décret publié au 2026-08-27.**
+À re-vérifier avant toute mise en production.
+
+### Règles établies
+
+| # | Règle | Source | Entrée en vigueur | Statut |
+| --- | --- | --- | --- | --- |
+| 1 | Correction par **facture rectificative (384)** OU **avoir (381)** — les deux voies sont ouvertes ; les autres types UNTDID 1001 sont interdits | DSE Annexe 7 v1.9, règle G1.01 ; DSE Chorus Pro §3.4.2.2 citant AFNOR XP Z12-014 | 2026-09-01 | en vigueur |
+| 2 | Troisième voie : **avoir interne**, non transmis à l'acheteur et **ne devant générer aucun flux F1** vers le PPF | DSE général §3.6.4 | 2026-09-01 | en vigueur |
+| 3 | Le contenu d'une facture émise est **intangible** — aucune opération d'annulation n'existe dans le circuit | DSE Chorus Pro §2.4.2 | 2026-09-01 | en vigueur |
+| 4 | Authenticité / intégrité / lisibilité par **quatre moyens alternatifs** : piste d'audit fiable, signature électronique qualifiée, EDI, cachet électronique qualifié | [CGI art. 289, VII](https://www.legifrance.gouv.fr/codes/id/LEGISCTA000006191855) | — | en vigueur, **abrogé au 2027-01-01** |
+| 5 | **Aucun identifiant d'État n'est attribué à la facture.** L'unicité se calcule : numéro de facture + SIREN fournisseur + année | DSE §3.6.8 note 109 | 2026-09-01 | en vigueur |
+| 6 | Quatre statuts obligatoires : **200 Déposée, 210 Refusée, 212 Encaissée** (sous conditions art. 290 A CGI), **213 Rejetée** | DSE §3.6.4 tableau 8 ; Annexe 2 | 2026-09-01 | en vigueur |
+| 7 | Délai de **24 h** — pour le flux F1 à compter de l'horodatage du statut « Déposée », et pour les flux de cycle de vie à compter de l'horodatage du statut | DSE §3.6.5 et §3.6.6 | 2026-09-01 | en vigueur |
+| 8 | Conservation **fiscale : 6 ans**. Les documents établis ou reçus sur support informatique **doivent être conservés sous cette forme** ✓✓ | [LPF art. L102 B](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000041471233/) — version en vigueur 2023-01-01 → 2027-01-01 | — | en vigueur |
+| 9 | Conservation **commerciale : 10 ans** pour les documents comptables et pièces justificatives | [C. com. art. L123-22](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006219327/) | — | en vigueur |
+| 10 | **Localisation** : stockage en France sauf accès en ligne immédiat, complet, avec téléchargement et utilisation ; interdiction dans un pays sans convention d'assistance mutuelle ; **le lieu de stockage doit être déclaré** et tout changement signalé | [LPF art. L102 C](https://www.legifrance.gouv.fr/codes/section_lc/LEGITEXT000006069583/LEGISCTA000006147333/) | — | en vigueur |
+| 11 | Numérotation « **basée sur une séquence chronologique et continue** » | [CGI ann. II art. 242 nonies A, 7°](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000046086694/) | — | en vigueur |
+| 12 | Identifiant de facture : **35 caractères max**, alphanumériques, spéciaux limités à espace `-` `+` `_` `/`, sans espace en tête/fin ni consécutif | DSE Annexe 7 v1.9, règle G1.05 | 2026-09-01 | en vigueur |
+| 13 | Socle de formats : **UBL, CII et Factur-X**. Mais le flux F1 vers le PPF n'accepte que **UBL 2.1 ou CII D22B** — pas Factur-X | DSE §2.3.10 et §3.6.3 | 2026-09-01 | en vigueur |
+| 14 | Mentions nouvelles : appartenance à un assujetti unique (5° bis), **catégorie d'opération biens/services (8° bis → BT-23, 1..1)**, option paiement TVA sur les débits (11° bis) ; **adresse de livraison (7° bis → BG-15) à compter du 2027-09-01** | [CGI ann. II art. 242 nonies A](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000046086694/), décret n° 2024-1195 du 2024-12-21 | 2026-09-01 / 2027-09-01 | en vigueur / annoncé |
+| 15 | Sanctions : omission ou inexactitude **15 €** par mention (plafond ¼ du montant) ; défaut d'émission électronique **50 €/facture**, plafond 15 000 €/an ; refus de recourir à une plateforme agréée **500 €** puis **1 000 €** par trimestre | [CGI art. 1737](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000046869201) (mod. LOI n° 2026-103 du 2026-02-19) | 2026-09-01 | en vigueur |
+
+### Divergences avec le code — France
+
+Classées par gravité. « Le code est faux » signifie : le profil affirme quelque chose que la source
+primaire contredit.
+
+**FR-D1 — `canaux: EMAIL` est illicite dans le champ B2B domestique. ✓✓**
+À compter du 2026-09-01, « seule une plateforme agréée est habilitée à assurer toutes les
+fonctionnalités prévues » ; l'émission, la transmission et la réception passent par une plateforme
+agréée. L'e-mail n'est pas un canal licite pour une facture dans le champ. Sanctions : 50 €/facture,
+puis 500 € et 1 000 €/trimestre. Le profil FR déclare pourtant `EMAIL` parmi ses canaux — et
+l'inventaire montre que c'est, avec PDP et Peppol, l'un des seuls réellement joignables.
+*(Terminologie : « PDP » est périmé ; le terme officiel depuis la LF 2026 est **plateforme agréée**.)*
+
+**FR-D2 — `correctionModel: CREDIT_NOTE` seul : le code est faux.**
+G1.01 autorise **Facture rectificative (384)** au même titre qu'**Avoir (381)**, et le modèle
+sémantique porte BG-3 « facture antérieure qui doit être **rectifiée** ou faire l'objet d'une facture
+d'avoir ». Un moteur qui ne sait émettre qu'un avoir ne peut pas représenter la voie rectificative.
+
+**FR-D3 — l'avoir interne est ignoré : risque de sur-déclaration.**
+Sur statut « Refusée » ou « Rejetée », l'annulation comptable se fait par avoir interne, qui
+« **ne doit pas générer de flux de données réglementaires (F1) au PPF** » et ne doit pas être
+transmis à l'acheteur. Un code qui émet systématiquement un avoir *via* la plateforme transmet à
+l'administration précisément dans le cas où la spécification l'interdit.
+
+**FR-D4 — contrainte de localisation absente : lacune de conformité réelle.**
+LPF L102 C impose France / pays sous convention avec accès en ligne, **et impose de déclarer le lieu
+de stockage**. Le profil FR ne déclare aucune contrainte de résidence
+(`10y/BOTH/HASH_CHAIN`, sans `residency`). C'est la divergence la plus opérationnelle pour un
+hébergement SaaS ou self-hosted hors de France.
+
+**FR-D5 — `integrity: HASH_CHAIN` n'a aucune base légale française.**
+L'art. 289 VII offre quatre moyens alternatifs ; le chaînage de hash n'en fait pas partie. La seule
+« inaltérabilité » du droit fiscal français est celle de l'art. 286, I-3° bis, dont le champ est le
+**logiciel de caisse enregistrant des règlements de clients particuliers** — obligation distincte,
+amende de 7 500 €. Le profil applique donc une contrainte qui n'existe pas, et n'implémente aucun des
+quatre moyens qui, eux, existent.
+
+**FR-D6 — `mandatoryReceiveSyntax: FACTURX` : le code est faux, deux fois.**
+Le socle compte **trois** formats (UBL, CII, Factur-X) et la plateforme de réception doit convertir
+vers un autre format du socle à la demande du client : rien n'impose Factur-X en réception.
+Symétriquement, le PPF **n'accepte pas** Factur-X pour le flux F1 — UBL 2.1 ou CII D22B uniquement.
+
+**FR-D7 — BT-23 « Cadre de facturation » manquant, cardinalité 1..1.**
+Traduction machine de la mention statutaire 8° bis, obligatoire dès le 2026-09-01, valeurs
+limitatives (`B1`, `S1`, `M1`, `B2`/`S2`/`M2`, `B4`/`S4`/`M4`, `S5`, `S6`, `B7`/`S7`). Une facture
+sans BT-23 valide échoue aux contrôles fonctionnels du PPF.
+
+**FR-D8 — contrainte de format du numéro non implémentée, et bloquante.**
+G1.05 : 35 caractères maximum, spéciaux restreints à espace `-` `+` `_` `/`. Un générateur émettant
+`#`, `.` ou un identifiant plus long fera **rejeter le flux F1**. À rapprocher de F-002 : la
+numérotation est déjà le point faible du système.
+
+**FR-D9 — `archival: 10 ans` : approximatif et mal fondé. ✓✓**
+La durée **fiscale** est de **6 ans** (LPF L102 B) ; les 10 ans relèvent du **droit commercial**
+(C. com. L123-22). 10 ans est une enveloppe prudente, mais l'étiqueter comme la règle fiscale est
+faux et empêche tout raisonnement correct sur les deux échéances. La contrainte réellement
+structurante — conserver le **format d'origine** — n'est, elle, pas modélisée.
+
+**FR-D10 — `REAL_TIME_REPORTING` est inexact.**
+Le régime n'est pas temps réel : **24 h** à compter de l'horodatage du statut, avec allotissement.
+En revanche `non bloquant` est **correct** : le PPF n'exerce aucun clearance, il ne peut qu'accepter
+(250) ou rejeter (251) les données réglementaires **après** émission, sans effet sur la validité de
+la facture.
+
+**FR-D11 — `cancellationAllowed: true` à nuancer.**
+Aucune annulation d'une facture émise n'existe. Il existe un **statut** 220 « Annulée », inter-
+plateformes, signifiant « remplacée par une facture rectificative » et **non transmis à
+l'administration**, plus l'annulation comptable par avoir interne. En revanche
+`immutableAfter: ISSUE` est **exact et bien fondé** — c'est l'un des rares points où le profil dit
+juste.
+
+**FR-D12 — granularité temporelle absente : le blocage serait sur-strict. ✓✓**
+L'obligation d'**émission** au 2026-09-01 ne vise que GE, ETI et membres d'un assujetti unique ;
+PME/TPE/micro n'émettent qu'au **2027-09-01**. Seule la **réception** est universelle au 2026-09-01.
+Un profil qui bloque l'émission de toute entreprise française au 2026-09-01 serait plus strict que
+la loi. De même, l'adresse de livraison (BG-15) est CIBLE au 2027-09-01, pas au démarrage.
+
+**FR-D13 — obsolescence programmée des références.**
+Les articles 289 et 289 bis CGI sont **abrogés au 2027-01-01** par l'ordonnance n° 2025-1247 du
+2025-12-17 (recodification TVA vers le CIBS), certaines dispositions étant maintenues jusqu'à reprise
+réglementaire. Les profils étant temporels, la bascule de référence devra être portée.
+
+### Ce que le code fait juste — France
+
+À signaler, parce qu'un audit qui ne relève que les fautes est un mauvais audit :
+
+- `immutableAfter: ISSUE` est exact et correspond au principe d'intangibilité du DSE ;
+- `GAPLESS_SELF` est exact : 242 nonies A, 7° exige bien une séquence chronologique **et** continue,
+  sanctionnée par l'art. 1737, II ;
+- `regimeBlocking: false` est exact : le PPF n'exerce aucun clearance ;
+- l'architecture par canal PDP — se raccorder à une plateforme agréée tierce — est le seul chemin
+  praticable sans immatriculation DGFiP (voir `04-TESTABILITY.md` §2).
+
+### Open questions — France
+
+1. Délai légal d'émission d'un avoir ou d'une facture rectificative après la facture initiale.
+2. Consentement de la contrepartie pour une facture rectificative.
+3. Fenêtre de forclusion au-delà de laquelle une rectification n'est plus possible.
+4. Texte désignant **ce qui fait foi** en contrôle — aucun texte identifié ne consacre un document
+   unique ; le faisceau semble être facture + piste d'audit fiable (289 VII) + CDV 200 horodaté.
+5. Obligation et durée de conservation des messages de cycle de vie et accusés de plateforme ;
+   qualification en « pièces justificatives » au sens de L102 B non tranchée.
+6. Format d'archivage imposé (XML natif seul, XML + PDF, PDF/A-3). Seule règle sûre : conservation
+   du **format d'origine**.
+7. **AFNOR XP Z12-012 / 013 / 014 sont payantes et n'ont pas été consultées.** Tout ce qui précède à
+   leur sujet provient de leur citation par le DSE Chorus Pro v1.1. Elles portent la liste complète
+   des statuts (dont 220, 224, 225, 227, 228) et les cas d'usage de correction.
+8. Décret de report au 2026-12-01 (art. 1737, dernier alinéa) — aucun publié au 2026-08-27.
+9. Mise à jour post-réforme de la doctrine d'archivage BOI-CF-COM-10-10-30, datée du 2012-09-12 et
+   donc antérieure au dispositif.
+
+---
+
+## POLOGNE
+
+### Sources
+
+*Podręcznik KSeF 2.0, Cz. II — Wystawianie i otrzymywanie faktur*, MF, **état du droit au
+2026-02-01** ; ustawa du 2025-08-05 (**Dz.U. 2025 poz. 1203**) et du 2023-06-16 (**Dz.U. 2023 poz.
+1598**) via `eli.gov.pl` ; **spécification OpenAPI de production** `api.ksef.mf.gov.pl/docs/v2/openapi.json` ;
+broszura FA(3) ; pages `ksef.podatki.gov.pl`.
+
+### Assujettissement échelonné — non modélisé par le profil
+
+| Date | Règle | Statut |
+| --- | --- | --- |
+| 2026-02-01 | Émission obligatoire si vente TTC 2024 **> 200 000 000 zł** ; **réception obligatoire pour tous** | en vigueur |
+| 2026-04-01 | Émission obligatoire pour **tous les autres** | en vigueur |
+| 2026-04-01 → 2026-12-31 | Dérogation si vente TTC **≤ 10 000 zł/mois**, perdue dès la facture qui dépasse le seuil (art. 145m) | en vigueur, expire |
+| 2026-02-01 → 2026-12-31 | Factures de caisse hors KSeF (art. 145n) | en vigueur, expire |
+| 2027-01-01 | Sanctions art. 106ni ; numéro KSeF obligatoire dans les paiements MPP | annoncé |
+
+### Règles établies
+
+| # | Règle | Source | Statut |
+| --- | --- | --- | --- |
+| 1 | **Aucune annulation n'est possible** après attribution d'un numéro KSeF ✓✓ — « Faktura po przyjęciu do KSeF staje się dokumentem prawnym i nie można jej zmieniać » | [ksef.podatki.gov.pl Q&R](https://ksef.podatki.gov.pl/pytania-i-odpowiedzi-ksef-20/) ; Podręcznik §1.6.3 | en vigueur |
+| 2 | Fichier **rejeté ⇒ la facture n'a jamais été émise** ✓✓ — « Nie można więc wystawić faktury korygującej ani anulować faktury ». On corrige le XML et on **renvoie sous le même numéro `P_2`** | idem ; Podręcznik §1.6.7 | en vigueur |
+| 3 | Seule voie de correction : la **faktura korygująca**. La *nota korygująca* est **supprimée depuis le 2026-02-01** | Podręcznik §1.6.2 | en vigueur |
+| 4 | **Consentement de l'acheteur non requis** pour une korygująca structurée (art. 29a ust. 13 nouvelle rédaction ; ust. 15 pkt 5 abrogé) | Dz.U. 2023 poz. 1598 | en vigueur 2026-02-01 |
+| 5 | Date d'émission = **date de transmission** à KSeF si elle coïncide avec `P_1` (art. 106na ust. 1) — **pas** la date d'attribution du numéro. `P_1` au futur ⇒ **rejet** | Podręcznik §1.4 | en vigueur |
+| 6 | Le **numéro KSeF n'est pas un champ de la facture** ; il est restitué dans l'**UPO** | Podręcznik §4.1 | en vigueur |
+| 7 | Archivage **10 ans par KSeF**, art. 112aa : « art. 112 i art. 112a **nie stosuje się** » — le contribuable **est dispensé** de conserver ✓✓. Suppression automatique au terme, sans récupération | Podręcznik §7 ; Q&R | en vigueur |
+| 8 | Trois modes offline permanents : **offline24** (libre choix, envoi J+1 ouvrable), **niedostępność** (J+1 après fin), **awaryjny** (7 jours ouvrables) | art. 106nda / 106nh / 106nf | en vigueur |
+| 9 | Anti-doublon sur (NIP vendeur, `P_2`, `RodzajFaktury`), **10 ans en arrière** ⇒ code `440` | Podręcznik §3.4 | en vigueur |
+| 10 | KSeF **ne vérifie pas l'arithmétique** : « Nie odrzuci faktury w przypadku wystąpienia na niej błędów rachunkowych » | Podręcznik §1.6.2 | en vigueur |
+| 11 | Numérotation : « kolejny numer nadany w ramach **jednej lub więcej serii** » — seule l'**unicité** est contrôlée ; la transmission dans le désordre n'est **pas** un motif de rejet ni de korygująca | art. 106e ust. 1 pkt 2 ; Podręcznik §1.6.7 | en vigueur |
+
+### Divergences avec le code — Pologne
+
+**PL-D1 — `cancellationAllowed: true` : le code est faux. La divergence la plus grave. ✓✓**
+« W KSeF nie jest możliwe anulowanie wystawionej faktury » — jamais, quelle que soit l'erreur, et
+l'assujetti ne peut pas non plus supprimer la facture. La substitution passe par une korygująca
+« do zera » suivie d'une nouvelle facture primitive. Permettre une annulation produit un état
+juridiquement inexistant côté autorité.
+
+**PL-D2 — `correctionModel: CREDIT_NOTE + CORRECTIVE_INVOICE` : le code est faux.**
+Seule la **faktura korygująca** existe ; il n'y a pas de note de crédit distincte en droit polonais,
+et la *nota korygująca* est abrogée depuis le 2026-02-01. La branche `CREDIT_NOTE` produit un
+document non conforme.
+
+**PL-D3 — `primarySyntaxes: PLAIN_PDF + FA_VAT` : le code est faux deux fois.**
+L'unique syntaxe légale d'émission est **FA(3)** (`kodSystemowy "FA (3)"`, `wersjaSchemy 1-0E`) depuis
+le 2026-02-01 ; « FA_VAT » / FA(2) est périmé. Le PDF n'est jamais une syntaxe primaire : c'est une
+visualisation pour les acquéreurs de l'art. 106gb ust. 4, qui doit alors porter un code QR.
+
+**PL-D4 — `canaux: EMAIL` : le code est faux en modélisation.**
+KSeF est le **seul** canal d'émission légale. L'e-mail n'est qu'un mode convenu de **mise à
+disposition** pour les acquéreurs de l'art. 106gb ust. 4 — jamais un substitut. Traiter `EMAIL`
+comme un canal pair risque une émission hors KSeF, sanctionnable dès le 2027-01-01.
+
+**PL-D5 — `archival: 10y / BOTH / SIGNED` : durée juste, tout le reste faux. ✓✓**
+Les 10 ans sont exacts (art. 112aa) mais **à la charge de KSeF**, le contribuable en étant dispensé.
+Aucune obligation de conserver un PDF. La facture XML **n'est pas signée** : l'intégrité vient de
+KSeF, et l'empreinte SHA-2 256 bits figure dans l'UPO. **Obligation résiduelle non modélisée** : si
+la prescription dépasse les 10 ans, il faut extraire les factures **avant** leur suppression
+automatique.
+
+**PL-D6 — `reporting: aucun` : le code est incomplet.**
+Depuis les déclarations de février 2026, `JPK_V7M(3)` / `JPK_V7K(3)` exigent le **numéro KSeF de
+chaque facture de vente et d'achat**. Cela impose de persister le numéro KSeF **dans les deux
+directions**, émission comme réception.
+
+**PL-D7 — `numbering: GAPLESS_SELF` : sur-contrainte.**
+La loi exige « kolejny numer […] w ramach jednej lub więcej serii » ; le ministère tolère
+explicitement la transmission dans le désordre **sans korygująca**, et KSeF ne contrôle que
+l'**unicité**. Un gapless strict côté client forcerait des corrections inutiles. *(« sans chaînage de
+hash » est en revanche correct.)*
+
+**PL-D8 — `requiredIdentifiers: LEGAL_ID + VAT` : sur-contrainte et modèle incomplet.**
+Côté vendeur, FA(3) n'exige que **NIP + Nazwa + Adres** — aucun KRS/REGON sur la facture. Côté
+acheteur, il faut modéliser **quatre cas exclusifs** : `NIP`, `KodUE`+`NrVatUE`, `KodKraju`+`NrID`,
+ou **`BrakID="1"`**. Un identifiant mal placé fait que la facture n'est **pas délivrée à l'acquéreur,
+silencieusement**.
+
+**PL-D9 — lacunes entières.** Les trois modes offline et leurs délais ; le certificat KSeF `Offline`
+et les deux codes QR ; le rejet si `P_1` est au futur ; l'anti-doublon sur 10 ans ; la *korekta
+techniczna* ; la procédure NIP acheteur erroné (korekta à zéro **sur le NIP erroné**, puis nouvelle
+facture — corriger le NIP est explicitement interdit) ; les statuts par facture (`200` seul succès,
+`550` retryable, `440` doublon).
+
+### Ce que le code fait juste — Pologne
+
+`regimeBlocking: true` est **exact** : pas de numéro KSeF, pas de facture. `hashChain: false` est
+exact. Et le fait que KSeF **ne valide pas l'arithmétique** confirme qu'un `CLEARANCE` ne dispense
+d'aucun contrôle applicatif — le profil ne prétend pas le contraire.
+
+---
+
+## ALLEMAGNE
+
+### Sources
+
+`gesetze-im-internet.de` (UStG, UStDV, AO, ERechV) ; BMF — FAQ E-Rechnung **Stand März 2026**,
+BMF-Schreiben du **2025-10-15** (GZ III C 2 - S 7287-a/00019/007/243) introduisant le nouvel UStAE,
+BMF-Schreiben GoBD du **2025-07-14** ; KoSIT / xeinkauf.de pour XRechnung **3.0.2**.
+
+### Calendrier B2B
+
+Déclencheur : **les deux parties établies en Allemagne** (§ 14 Abs. 2 Satz 3). Une simple
+immatriculation TVA allemande ne suffit pas.
+
+| Phase | Date | Contenu | Statut |
+| --- | --- | --- | --- |
+| **Réception** | **2025-01-01** | Toute entreprise établie en DE doit pouvoir recevoir. **Aucune exception, aucun seuil** — Kleinunternehmer inclus | en vigueur |
+| Tolérance émission | → **2026-12-31** | Papier, ou autre format électronique avec accord du destinataire (§ 27 Abs. 38 Nr. 1) | en vigueur |
+| **Émission** | **2027-01-01** | Obligatoire si `Gesamtumsatz` N-1 **> 800 000 €** | annoncé, dans 4 mois |
+| Tolérance PME | → **2027-12-31** | `Gesamtumsatz` N-1 ≤ 800 000 € (Nr. 2) ; EDI 94/820/EG avec accord, sans condition de CA (Nr. 3) | en vigueur |
+| **Obligation générale** | **2028-01-01** | Plus aucune dérogation | annoncé |
+
+**Aucun régime CTC, aucune clearance, aucun reporting n'est en vigueur.** Un `Meldesystem` est
+annoncé « zu gegebener Zeit », **sans date ni projet de loi** ; le JStG 2026 (Regierungsentwurf du
+2026-05-19) ne le contient pas.
+
+### Règles établies
+
+| # | Règle | Source | Statut |
+| --- | --- | --- | --- |
+| 1 | Archivage **8 ans** ✓✓ — « acht Jahre aufzubewahren » ; réduction 10 → 8 par le BEG IV | [§ 14b Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__14b.html) | en vigueur 2025-01-01 |
+| 2 | § 147 Abs. 3 AO : **8 ans** pour les Buchungsbelege ; **10 ans** subsiste pour livres, bilans, inventaires | § 147 AO | en vigueur |
+| 3 | **Localisation** ✓✓ — conservation en Allemagne ; ailleurs dans l'UE **seulement** si accès à distance complet et téléchargement, **avec notification du lieu au Finanzamt** ; **hors UE ⇒ autorisation préalable** (§ 146 Abs. 2b AO), sanction 2 500 – 250 000 € | § 14b Abs. 2/4/5 UStG | en vigueur |
+| 4 | Intégrité **obligatoire mais à moyen libre** : contrôle interne à piste d'audit fiable, **ou** signature/cachet qualifié eIDAS, **ou** EDI — et elle doit tenir **pendant toute la durée d'archivage** | § 14 Abs. 3 et § 14b Abs. 1 S. 2 UStG ; UStAE 14.4 | en vigueur |
+| 5 | Format : **tout** format EN 16931 / dir. 2014/55/UE, ou format convenu bilatéralement permettant l'extraction correcte et complète. ZUGFeRD ≥ 2.0.1 admis (hors profils MINIMUM et BASIC-WL) | § 14 Abs. 1 S. 6 UStG ; UStAE 14.1 | en vigueur |
+| 6 | En format hybride, **la partie structurée prime** en cas de divergence avec l'image | UStAE 14.4 Abs. 3 | en vigueur |
+| 7 | Numérotation : « eine fortlaufende Nummer …, die … **einmalig vergeben** wird ». Doctrine : « Eine **lückenlose Abfolge … ist nicht zwingend** ». Kleinbetragsrechnungen ≤ 250 €, Fahrausweise et Kleinunternehmer : **aucun numéro requis** | § 14 Abs. 4 Nr. 4 UStG ; UStAE 14.5 Abs. 10/11/14 | en vigueur |
+| 8 | Identifiant vendeur : **Steuernummer OU USt-IdNr.** — alternative, pas cumul | § 14 Abs. 4 Nr. 2 UStG | en vigueur |
+| 9 | Correction par **document rectificatif** se référant spécifiquement à l'original, dans la **même forme** ; voie de référence `BT-3 = 384` + `BG-3` (BR-DE-26). Aucune correction requise pour les variations § 17 (escompte, remise) | § 31 Abs. 5 UStDV ; UStAE 14.11 | en vigueur |
+| 10 | Annulation en cas de `unberechtigter Steuerausweis` : **demande écrite au Finanzamt et accord** de celui-ci (§ 14c Abs. 2) | § 14c UStG | en vigueur |
+| 11 | Leitweg-ID : obligatoire **en B2G seulement** (§ 5 Abs. 1 Nr. 1 ERechV) ; en B2B « wird grundsätzlich keine Leitweg-ID benötigt », et BT-10 manquant est « umsatzsteuerlich unbeachtlich » | BMF FAQ 6 ; BMF Rn. 35a | en vigueur |
+
+### Divergences avec le code — Allemagne
+
+**DE-D1 — `archival: 10 ans` : le code est faux. ✓✓**
+C'est **8 ans** depuis le 2025-01-01 (§ 14b Abs. 1 Satz 1, texte vérifié verbatim : « acht Jahre »).
+Sur-rétention de deux ans, avec les conséquences RGPD que cela implique.
+
+**DE-D2 — `integrity: NONE` : le code est faux.**
+§ 14 Abs. 3 impose Echtheit der Herkunft, Unversehrtheit des Inhalts **et** Lesbarkeit, et
+§ 14b Abs. 1 Satz 2 impose de les garantir **pendant toute la durée d'archivage**. Ce n'est pas
+« aucune exigence », c'est « exigence à moyen libre ». Modélisation correcte :
+`AUDIT_TRAIL | QES | EDI` — jamais `NONE`.
+
+**DE-D3 — `mandatoryReceiveSyntax: XRECHNUNG` : le code est faux.**
+Tout format EN 16931 est admis, ainsi qu'un format convenu bilatéralement. Le profil rejetterait des
+factures parfaitement légales (ZUGFeRD, Factur-X, UBL/CII étrangers, EDIFACT). Aggravant : le
+destinataire « **hat kein Anrecht auf eine alternative Ausstellung** » — il ne peut pas exiger un
+autre format.
+
+**DE-D4 — `numbering: GAPLESS_SELF` : le code est faux.**
+Le critère légal est **`einmalig`** (unique), pas `lückenlos` (sans trou). La doctrine BMF l'énonce
+explicitement : « Eine lückenlose Abfolge der ausgestellten Rechnungsnummern ist nicht zwingend ».
+Plusieurs séries non contiguës sont admises. Le profil impose donc une contrainte que la loi
+allemande ne connaît pas.
+
+**DE-D5 — `requiredIdentifiers: VAT` obligatoire : le code est faux.**
+§ 14 Abs. 4 Nr. 2 offre l'alternative **Steuernummer ou USt-IdNr.** Exiger la seconde bloque les
+fournisseurs domestiques qui n'en ont pas.
+
+**DE-D6 — `requiredIdentifiers: LEITWEG_ID` : le code est faux en B2B.**
+Correct en B2G, faux en B2B. Doit être conditionné à la nature du destinataire.
+
+**DE-D7 — `archivedForm: BOTH` : sur-spécifié.**
+La partie structurée seule suffit (GoBD Rz. 119/131) ; le PDF n'est requis que s'il porte des
+informations supplémentaires pertinentes fiscalement. Pour les factures sortantes, aucune copie image
+n'est requise si un duplicata identique est reproductible à la demande (Rz. 76).
+
+**DE-D8 — `correctionModel: CREDIT_NOTE` : sous-modélisé, avec un piège terminologique.**
+La voie allemande de référence est la **Rechnungsberichtigung** (`BT-3 = 384`), pas l'avoir. Et
+surtout : en droit allemand, **`Gutschrift` au sens du § 14 Abs. 2 Satz 5 signifie autofacturation**,
+mention imposée par le § 14 Abs. 4 Nr. 10. Employer ce terme pour un avoir commercial est un risque
+documenté au regard du § 14c.
+
+**DE-D9 — `cancellationAllowed: true` inconditionnel : le code est incomplet.**
+En cas de `unberechtigter Steuerausweis` (§ 14c Abs. 2), la correction exige la suppression du risque
+fiscal, **une demande écrite séparée au Finanzamt et son accord**. Porte d'autorisation étatique non
+modélisée.
+
+**DE-D10 — `canaux: PEPPOL + EMAIL` : à la fois trop étroit et trop large.**
+En B2B, la loi ne prescrit **aucun** canal. En B2G fédéral en revanche, le § 4 Abs. 3 ERechV impose
+le **portail (OZG-RE) avec enregistrement préalable** : un e-mail direct à l'acheteur public ne
+satisfait pas l'obligation.
+
+**DE-D11 — lacunes** : contrainte de localisation (§ 14b Abs. 2) ; déclencheur d'établissement des
+deux parties ; seuils et exemptions d'émission (≤ 250 € TTC, Fahrausweise, Kleinunternehmer, B2C,
+§ 4 Nr. 8–29) alors que la **réception n'en connaît aucune** ; primauté de la partie structurée ;
+obligation que **toutes** les mentions figurent dans la partie structurée.
+
+### Ce que le code fait juste — Allemagne
+
+`regime: POST_AUDIT, non bloquant` et `reporting: aucun` sont **exacts au 2026-08-27**. C'est le seul
+des six pays où le régime déclaré correspond exactement à la réalité. Fragile toutefois : émettre une
+non-E-Rechnung devient une infraction au 2027-01-01 au-dessus de 800 000 €, puis pour tous au
+2028-01-01.
+
+### Open questions — Allemagne
+
+1. **Date du Meldesystem** : `null`. Aucun projet de loi au 2026-08-27. **Le « 2028 » qui circule
+   n'apparaît dans aucune source primaire consultée — ne pas le coder.**
+2. Articulation avec ViDA : non traitée par une source primaire allemande.
+3. Délai légal de la Rechnungsberichtigung : `null` — ni § 31 Abs. 5 UStDV ni § 14 UStG ne fixent de
+   fenêtre.
+4. Sanctions en cas d'émission d'une non-E-Rechnung après le 2027-01-01 : non établies.
+5. GoBD Rz. 135/136 (conditions de conversion de format) : non lues verbatim — à vérifier avant de
+   coder une politique de conversion.
