@@ -65,6 +65,20 @@ export const MX: CountryComplianceProfile = {
   archival: [
     {
       validFrom: '2014-01-01',
+      // MX-D3, NOT changed here — deliberately. The audit found `residency: 'MX'` stricter than the
+      // sourced law: CFF art. 28 fr. III requires the documentation to "estar disponible en el
+      // domicilio fiscal del contribuyente" and art. 30 to keep it "a disposición de las
+      // autoridades", and no primary source found prohibits storage outside Mexico — the
+      // requirement is availability at the tax domicile, not physical residency. But `residency`
+      // also drives archive routing (ArchiveProviderRegistry.select picks a regional WORM bucket),
+      // so dropping it moves existing Mexican documents from an in-country bucket to GLOBAL. That
+      // is a data-location decision for the business, not an audit correction. Left as-is.
+      //
+      // MX-D4, NOT fixable here: the five years of CFF art. 30 run from the FILING of the relevant
+      // return, not from invoice issuance, and are open-ended for constitutive acts, capital
+      // movements, mergers, demergers, dividends and transfer-pricing evidence — and until a
+      // dispute becomes final. ArchivalPolicy has only `retentionYears`, with no start point and no
+      // per-document-class override, so the model cannot say this. Recorded rather than approximated.
       value: { retentionYears: 5, residency: 'MX', archivedForm: 'AUTHORITATIVE_XML', integrity: 'SIGNED' },
     },
   ],

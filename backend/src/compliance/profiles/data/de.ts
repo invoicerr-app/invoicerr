@@ -61,10 +61,26 @@ export const DE: CountryComplianceProfile = {
   ],
 
   archival: [
+    // DE-D1: EIGHT years, not ten. § 14b Abs. 1 Satz 1 UStG reads "acht Jahre aufzubewahren"
+    // since the Viertes Bürokratieentlastungsgesetz, in force 2025-01-01 (§ 27 Abs. 40 UStG applies
+    // it to every invoice whose period had not expired on 2024-12-31). § 147 Abs. 3 AO keeps ten
+    // years for books, balance sheets and inventories — not for Buchungsbelege, which invoices are.
+    // Over-retaining is not the safe direction: it is personal data kept two years too long.
     {
-      // GoBD: 10 years for invoices, digital or paper; electronic archival must preserve integrity
       validFrom: '1900-01-01',
+      validTo: '2025-01-01',
       value: { retentionYears: 10, archivedForm: 'BOTH', integrity: 'NONE' },
+    },
+    {
+      validFrom: '2025-01-01',
+      // DE-D2: `integrity: NONE` is also wrong — § 14 Abs. 3 UStG requires Echtheit der Herkunft,
+      // Unversehrtheit des Inhalts and Lesbarkeit, and § 14b Abs. 1 S. 2 requires them for the whole
+      // retention period. The means is free (internal controls with a reliable audit trail, a
+      // qualified eIDAS signature/seal, or EDI), which this enum cannot express — it offers only
+      // NONE | HASH_CHAIN | SIGNED, none of which is "mandatory, means free". Left at NONE with this
+      // note rather than asserting HASH_CHAIN or SIGNED, neither of which German law requires.
+      // Modelling that properly is a schema change, not a value change.
+      value: { retentionYears: 8, archivedForm: 'BOTH', integrity: 'NONE' },
     },
   ],
 
