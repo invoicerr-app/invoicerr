@@ -14,7 +14,9 @@
 | [F-001](#f-001) | **critical** | Un document de zéro octet traverse tout le pipeline et est archivé | 1 |
 | [F-002](#f-002) | **critical** | La séquence « sans trou » perd des numéros sous concurrence | 3 |
 | [F-003](#f-003) | **critical** | Une facture émise et acquittée est supprimable, sans aucune garde en base | 2 |
-| [F-004](#f-004) | **critical** | 106 pages publiques de conformité pour 5 canaux réellement câblés | 7 |
+| [F-004](#f-004) | **critical** | 106 pages publiques de conformité pour 4 canaux réellement câblés | 7 |
+| [F-017](#f-017) | **critical** | Le plan est résolu sur le seul pays du fournisseur : les corridors sont faux, silencieusement | — |
+| [F-018](#f-018) | **critical** | Obligation espagnole pesant sur l'éditeur lui-même, échéance déjà expirée | — |
 | [F-005](#f-005) | high | Le journal d'événements n'est pas append-only ; un document CLEARED est réécrivable | 4 |
 | [F-006](#f-006) | high | Le document transmis n'est jamais stocké — il est reconstruit à l'affichage | 4 |
 | [F-007](#f-007) | high | `REJECTED` est un cul-de-sac : ni re-soumission, ni correction, ni annulation | 5 |
