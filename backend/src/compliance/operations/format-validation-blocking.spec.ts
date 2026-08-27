@@ -114,11 +114,16 @@ describe('M-1 — valid documents proceed past the format-validation gate', () =
     expect(issued.status).toBe('ISSUED');
 
     const { document } = await service.send(draft.id);
+    // What this test is about: the FORMAT gate. A valid CII must not raise VALIDATION_BLOCKED and
+    // send() must not throw.
     expect(document.events.some((e) => e.type === 'VALIDATION_BLOCKED')).toBe(false);
-    // Moved past the format gate — email (mocked) accepts, so delivery proceeds (FR then opens its
-    // bidirectional response window, per plan.lifecycle.response) instead of staying at ISSUED.
+    // It moved past the gate — the document did not stay at ISSUED.
     expect(document.status).not.toBe('ISSUED');
-    expect(document.events.some((e) => e.type === 'DELIVER')).toBe(true);
+    // FR-D1: it no longer reaches DELIVER here. EMAIL was removed from France's post-2026-09-01
+    // channels as illicit, and this harness configures no PDP/PEPPOL credentials, so transmission
+    // honestly fails. That is downstream of the format gate and does not weaken what is asserted
+    // above; the transmission gap itself is asserted in compliance-service.spec.ts.
+    expect(document.status).toBe('TRANSMISSION_FAILED');
   });
 
   it('PL (FA_VAT/KSeF): valid FA_VAT passes, send() does not throw, no VALIDATION_BLOCKED event', async () => {
