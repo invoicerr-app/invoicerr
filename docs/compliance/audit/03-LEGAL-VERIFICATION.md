@@ -921,3 +921,154 @@ de cotejo, paramètres, variante selon la modalité). L'Orden HAC/1177/2024 y re
 d'assujettissement au SII (c'est pourtant le flag qui arbitre ES-D2), la publication de l'orden
 ministerial du mandat B2B, et le cas d'un fournisseur non établi mais immatriculé réalisant une
 opération localisée en Espagne vers un acheteur établi.
+
+---
+
+## MEXIQUE
+
+### Sources
+
+CFF (art. 28, 29, 29-A, 30) via `sat.gob.mx` ; **RMF 2026, DOF 2025-12-28**, reglas 2.7.1.34 et
+2.7.1.35 ; Anexo 20 v4.0 ; et — vérification la plus forte de tout cet audit — **les schémas de
+l'autorité eux-mêmes, vendorisés dans le dépôt** : `backend/src/compliance/schemas/mx/cfdv40.xsd` et
+`catCFDI.xsd`, plus `TimbreFiscalDigitalv11.xsd` récupéré en ligne.
+
+**Version en vigueur au 2026-08-27 : CFDI 4.0.** Aucune version postérieure publiée ni annoncée.
+
+### Divergences avec le code — Mexique
+
+**MX-D1 — `numbering: AUTHORITY_RANGE` : le code est faux. ✓✓ Vérifié sur le schéma du dépôt.**
+
+Il n'existe **aucune plage de folios attribuée par l'autorité** sous CFDI. Contrôle direct sur
+`cfdv40.xsd` :
+
+```
+name="Serie" use="optional"
+name="Folio" use="optional"
+```
+
+L'Anexo 20 les qualifie de « para **control interno del contribuyente** ». L'identifiant fiscal est
+l'**`UUID`**, attribué **par document, par le PAC, au moment du timbrado** — le
+`TimbreFiscalDigital` porte d'ailleurs `RfcProvCertif`, « el RFC del proveedor de certificación […]
+que genera el timbre fiscal digital ». Le « folio » du CFF art. 29 fr. IV désigne cet UUID, pas une
+plage. Le mécanisme de plages a existé sous les régimes CFD/CBB, **abrogés**.
+
+C'est une divergence coûteuse : `AUTHORITY_RANGE` implique une pré-allocation, un compteur
+consommable et une gestion d'épuisement — tout cet appareillage est **sans objet** au Mexique, et
+produira au mieux du code mort, au pire un blocage d'émission artificiel. Le modèle correct est celui
+déjà nécessaire pour KSeF et SdI : **numéro interne libre + identifiant fiscal reçu en retour du
+clearance**.
+
+**MX-D2 — `requiredIdentifiers: RFC + CURP` : le code est faux. ✓✓ Vérifié sur le schéma du dépôt.**
+
+`grep -c -i "curp" cfdv40.xsd` → **0**. Le CURP n'apparaît **nulle part** dans le schéma CFDI : ni sur
+`Comprobante`, ni sur `Emisor`, ni sur `Receptor`. Il n'existe que dans certains compléments,
+principalement **Nómina 1.2**, pour les personnes physiques.
+
+À l'inverse, le `Receptor` exige trois champs que le profil ignore :
+
+```
+Rfc -> required · Nombre -> required · DomicilioFiscalReceptor -> required
+RegimenFiscalReceptor -> required · UsoCFDI -> required
+```
+
+Et `Comprobante` porte `Exportacion` en `use="required"` — l'export n'est pas hors champ, c'est un
+cas **paramétré** du CFDI.
+
+**MX-D3 — `archival.residency: MX` : le code est plus strict que le droit sourcé.**
+
+Les sources primaires imposent la **disponibilité au domicilio fiscal** : « La documentación
+comprobatoria […] deberá estar **disponible en el domicilio fiscal** del contribuyente » (CFF art. 28
+fr. III), et la conservation « **a disposición de las autoridades** » (art. 30). **Aucune source
+primaire prononçant une interdiction de stockage hors du Mexique n'a été trouvée.** L'exigence réelle
+est une **résidence d'accès**, pas une résidence physique des données. Le profil invente donc ici une
+contrainte — le symétrique exact de FR-D4 et DE-D13, où il en **omet** de réelles.
+
+**MX-D4 — `archival: 5 ans` : durée juste, point de départ faux.**
+Le CFF art. 30 compte les cinq ans **depuis le dépôt de la déclaration** concernée, non depuis
+l'émission de la facture. Et la conservation est **perpétuelle** pour les actes constitutifs, les
+mouvements de capital, fusions, scissions, distributions de dividendes et justificatifs de prix de
+transfert — et court jusqu'à ce que la résolution mettant fin à un contentieux soit **ferme**.
+
+**MX-D5 — `cancellationAllowed: true` : un booléen ne peut pas porter cette règle.**
+L'annulation est **bilatérale par défaut** — acceptation du récepteur, **tacite au bout de trois
+jours** (RMF 2026 regla 2.7.1.34) — sauf hydrocarbures et Carta Porte carburants où l'acceptation
+**expresse** est exigée et où le silence ne vaut donc pas accord. Elle exige un **motivo**
+(`01`…`04`), le `01` imposant de fournir l'UUID du CFDI de substitution. Elle est **bloquée** tant
+qu'un document relié est *vigente*. Elle est bornée à **l'exercice fiscal d'émission**. Et douze cas
+limitatifs (regla 2.7.1.35) la dispensent entièrement d'acceptation.
+
+**MX-D6 — `correctionModel: CREDIT_NOTE` : incomplet.**
+Manque la voie **annulation + substitution** — `motivo 01` avec l'UUID du substitut, puis nouveau
+CFDI portant `TipoRelacion = "04"` (« Sustitución de los CFDI previos »). C'est le chemin **normal**
+de rectification d'une erreur au Mexique. La nota de crédito (`TipoDeComprobante = E` +
+`TipoRelacion 01`) ne couvre que l'ajustement d'une opération qui subsiste.
+
+### Ce que le code fait juste — Mexique
+
+`CLEARANCE` bloquant, canal `PAC`, syntaxe `CFDI`, `immutableAfter: CLEARANCE`,
+`archivedForm: AUTHORITATIVE_XML`, `integrity: SIGNED` et `reporting: aucun` sont **tous exacts**.
+Le `SelloSAT` scelle le XML et toute modification post-timbrado l'invalide. C'est, avec l'Allemagne,
+le profil dont le noyau est le mieux posé.
+
+### Portée territoriale — déclencheur unilatéral, cycle de vie bilatéral
+
+L'obligation d'émettre dépend **exclusivement du statut de l'émetteur** (résident fiscal mexicain ou
+établissement permanent). Le pays de l'acheteur ne conditionne **jamais** l'applicabilité : il ne
+modifie que le contenu des champs (`Exportacion`, RFC générique étranger, `ResidenciaFiscal`,
+`NumRegIdTrib`, complemento Comercio Exterior le cas échéant).
+
+**Conséquence directe pour le correctif `f6888eb2`** : le hard-block sur pays acheteur non résolu est
+correct pour la TVA, mais **ne doit pas être réutilisé pour décider si un CFDI est dû**. Au Mexique,
+une adresse acheteur non résolue ne doit jamais désactiver l'émission — au pire bloquer sur le choix
+`Exportacion` / RFC générique.
+
+Le **cycle de vie**, lui, est bilatéral et temporisé : c'est un cas d'usage direct du runtime
+événementiel — `COMMAND(cancel)` → `AWAIT_CALLBACK` + `ARM_TIMER(3 jours)` → `INBOUND_STATUS` ou
+`TIMER_ELAPSED`. Avec deux pièges : les douze exceptions doivent être évaluées **avant** d'armer le
+timer, et pour les hydrocarbures **le timer ne doit pas conclure**.
+
+---
+
+# SYNTHÈSE DES SIX PAYS
+
+La phase 2 est complète. Trois constats transversaux, chacun vérifié dans plusieurs juridictions.
+
+## 1. La numérotation est fausse dans cinq pays sur six
+
+| Pays | Ce que le profil déclare | Ce que le droit exige |
+| --- | --- | --- |
+| France | `GAPLESS_SELF` | **exact** — « séquence chronologique **et continue** » |
+| Allemagne | `GAPLESS_SELF` | **faux** — « **einmalig** » ; « eine lückenlose Abfolge […] ist nicht zwingend » |
+| Pologne | `GAPLESS_SELF` | sur-contrainte — seule l'**unicité** est contrôlée |
+| Italie | `GAPLESS_SELF` | **faux** — « numero progressivo che la identifichi in modo **univoco** » |
+| Espagne | `GAPLESS_SELF` | non sourcé — « correlativa **dentro de cada serie** », l'interdiction des trous n'est écrite nulle part ; et **cinq cas de séries obligatoirement séparées** sont ignorés |
+| Mexique | `AUTHORITY_RANGE` | **faux** — `Serie` et `Folio` sont `optional`, l'UUID vient du PAC |
+
+**Un seul pays sur six est correctement modélisé.** Et le rapprochement avec **F-002** est cruel : le
+produit impose une contrainte que cinq de ses six marchés n'exigent pas — tout en ne la tenant pas
+là où elle est réellement exigée.
+
+## 2. L'archivage est mal modélisé dans les six
+
+| Pays | Profil | Réalité |
+| --- | --- | --- |
+| France | 10 ans | **6 ans** fiscal (LPF L102 B) ; les 10 ans sont commerciaux |
+| Allemagne | 10 ans | **8 ans** depuis le 2025-01-01 (§ 14b Abs. 1 S. 1) |
+| Italie | 10 ans | 10 ans **prolongés** jusqu'à définition des contrôles |
+| Pologne | 10 ans, à la charge du contribuable | 10 ans **à la charge de KSeF**, le contribuable en est **dispensé** |
+| Espagne | 10 ans | plancher **6 ans**, jusqu'à ~14 ans pour l'immobilier |
+| Mexique | 5 ans depuis l'émission | 5 ans **depuis le dépôt de la déclaration**, perpétuel pour certains actes |
+
+Aucun des six n'est juste. Et la **localisation des données** est fausse dans les deux sens : la
+France (LPF L102 C), l'Allemagne (§ 14b Abs. 2, autorisation préalable hors UE) et l'Italie imposent
+des contraintes que les profils **omettent**, tandis que le Mexique se voit **imposer** une résidence
+que le droit sourcé n'exige pas.
+
+## 3. Le canal déclaré est illicite dans trois pays
+
+`EMAIL` figure dans les profils FR, PL et IT. Dans les trois, il n'est **pas un canal licite** dans le
+champ du mandat domestique. En Italie, le canal SdI est **PEC**, qui n'est pas un e-mail ordinaire.
+Et l'inventaire de la phase 0 montre que `email` est l'un des quatre seuls canaux réellement
+joignables — le seul qui fonctionne est donc, dans ces trois pays, celui qui n'a pas le droit d'être
+utilisé.
