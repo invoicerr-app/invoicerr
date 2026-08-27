@@ -555,22 +555,39 @@ Pologne, Espagne et Mexique : **non traités** — agents interrompus. Ne rien i
 
 ---
 
-## ViDA — non vérifié en source primaire
+## ViDA — vérifié en source primaire
 
-La directive (UE) 2025/516 a été citée par deux sources indépendantes de cet audit comme entrant en
-vigueur le **2025-04-14**, son art. 6(1) autorisant les États membres à appliquer dès cette date les
-modifications des art. 218 et 232 de la directive 2006/112/CE — ce qui supprimerait le besoin d'une
-dérogation du Conseil pour imposer la facturation électronique domestique. Son art. 5 remplacerait
-intégralement ces deux articles au **2030-07-01**, avec un report possible au **2035-01-01** pour les
-États disposant d'un reporting transactionnel en temps réel avant le 2024-01-01.
+Directive (UE) 2025/516, texte consolidé sur
+[EUR-Lex, CELEX 32025L0516](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32025L0516),
+consulté le **2026-08-27**. Publication au JO : **2025-03-25** (série L, 2025/516).
 
-**Aucun de ces éléments n'a pu être vérifié sur EUR-Lex dans cette session** : la page CELEX a
-d'abord renvoyé un contenu vide, puis la limite de service a interrompu les appels. Conformément à
-la discipline de l'audit, **ces éléments ne sont donc pas retenus comme établis** et restent
-`open_question`, malgré une double corroboration concordante. À reprendre en premier au prochain
-créneau.
+| Disposition | Contenu établi | Statut |
+| --- | --- | --- |
+| **Art. 6(1)** | « Member States may apply the laws, regulations and administrative provisions regarding Article 1, points 2 and 3 **from 14 April 2025** » — soit les modifications des art. 218 et 232 de la directive 2006/112/CE | **en vigueur** |
+| **Art. 6(4)** | « Member States shall adopt and publish, **by 30 June 2030** […] necessary to comply with Article 5 […] They shall apply those measures **from 1 July 2030** » | annoncé |
+| **Art. 5 → nouvel art. 218** | Impose la facture électronique conforme à **la norme européenne** et à la liste de ses syntaxes au titre de la **directive 2014/55/UE**, avec données structurées selon les art. 262 et 271b | annoncé, 2030-07-01 |
+| **Art. 5 → nouvel art. 232** | Une facture électronique conforme à la norme européenne **ne requiert pas l'acceptation du destinataire** ; les autres formats peuvent y rester soumis selon le droit national | annoncé, 2030-07-01 |
+| **Art. 5(6) → art. 222** | Émission « **no later than 10 days following the chargeable event** » | annoncé, 2030-07-01 |
 
----
+**Conséquence immédiate, et elle est datée du 2025-04-14** : un État membre n'a plus besoin d'une
+dérogation du Conseil au titre de l'art. 395 pour imposer la facturation électronique domestique sans
+acceptation du destinataire. L'option figure désormais directement dans la directive. Cela explique
+que ni la France ni l'Espagne n'aient eu à en demander une pour leurs dispositifs récents.
+
+### Ce qui reste ouvert sur ViDA
+
+1. **Report au 2035-01-01** pour les États disposant d'un reporting transactionnel en temps réel
+   avant le 2024-01-01 : **non établi**. L'art. 6(5) est tronqué dans le rendu obtenu ; une échéance
+   2035 apparaît au **considérant 24**, mais elle y vise les systèmes **domestiques**, et un
+   considérant n'est pas une disposition opérative. Deux sources indépendantes de cet audit
+   l'affirment ; je ne le retiens pas tant que l'art. 6(5) n'a pas été lu. Enjeu réel : si l'Espagne
+   en bénéficie au titre du SII (2017), son horizon d'alignement glisse de cinq ans.
+2. **EN 16931-1:2026** : la directive renvoie à « la norme européenne […] au titre de la directive
+   2014/55/UE » **sans nommer de version**. Qu'une version 2026 ait été publiée par le CEN en mars
+   2026, et qu'elle soit « figée », **n'a pas été vérifié** et ne figure pas dans le texte de la
+   directive. `open_question`.
+3. **Art. 7** (entrée en vigueur de la directive elle-même) : non lisible dans le rendu obtenu. La
+   date du 2025-04-14 est établie par l'art. 6(1), pas par l'art. 7.
 
 ## État de la phase 2 au 2026-08-27
 
