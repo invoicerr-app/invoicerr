@@ -722,7 +722,21 @@ de l'Italie ; la Pologne l'a infirmé. Le constat correct est plus lourd :
 
 Une stratégie de résolution unique est donc fausse **quel que soit le choix retenu**. La résolution
 « fournisseur seul » du moteur se trouve juste pour la Pologne et fausse pour la France et
-l'Allemagne — par accident, pas par conception. Il ne suffit pas d'ajouter le pays de l'acheteur :
+l'Allemagne — par accident, pas par conception.
+
+L'Allemagne fournit d'ailleurs l'illustration la plus nette de ce que « juste par accident »
+signifie. Le **§ 14 Abs. 7 UStG** transpose l'art. 219 bis : quand le fournisseur n'est pas établi en
+Allemagne et que le preneur est redevable au titre du § 13b, « **so gelten abweichend von den
+Absätzen 1 bis 6** für die Rechnungserteilung die **Vorschriften des Mitgliedstaats** » du
+fournisseur — sauf convention d'autofacturation. Dans ce cas précis, résoudre sur le pays du
+fournisseur donne le **bon** résultat. Mais le moteur l'applique sans connaître la condition qui l'y
+autorise, donc il l'appliquerait identiquement aux cas où elle est fausse.
+
+Le même rapport montre en outre que **le mot « établi » n'a pas une seule définition, même à
+l'intérieur d'une seule loi** : le UStG en compte trois — `§ 14 Abs. 2 S. 3` pour le déclencheur
+d'émission (Betriebsstätte **participante**), un prédicat **unilatéral** pour l'obligation de
+réception, et `§ 14b Abs. 3` pour la localisation d'archivage (**Zweigniederlassung**, Wohnsitz sans
+condition). Un unique booléen `isEstablished` ne peut servir les trois. Il ne suffit pas d'ajouter le pays de l'acheteur :
 **le déclencheur lui-même doit devenir une donnée du profil**, au même titre que le régime ou
 l'archivage. Et le canal de remise doit être un prédicat **séparé** de l'obligation d'émission —
 la Pologne le démontre, en les distinguant explicitement.

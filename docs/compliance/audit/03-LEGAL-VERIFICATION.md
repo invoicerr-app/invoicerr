@@ -588,10 +588,88 @@ portant sa partita IVA italienne. Ce sont deux branches disjointes, pas un repli
 TD17 (services étrangers), TD18 (biens intracommunautaires), TD19 (art. 17 c. 2), TD28
 (Saint-Marin).
 
-### Allemagne — déclencheur bilatéral
+### Allemagne — déclencheur bilatéral conjonctif, et trois prédicats d'établissement distincts
 
-§ 14 Abs. 2 Satz 2 Nr. 1 et Satz 3 UStG : le mandat ne se déclenche que si **les deux parties** sont
-établies en Allemagne ; une simple immatriculation TVA allemande ne suffit pas.
+Sources : UStG « zuletzt geändert durch Art. 5 G v. 29.6.2026 » ; **UStAE consolidé, Stand
+2026-04-09** ; BMF-Schreiben du 2025-10-15 ; BMF FAQ E-Rechnung, Stand mars 2026.
+
+**§ 14 Abs. 2 Satz 2 Nr. 1** : la facture est électronique « wenn der leistende Unternehmer **und**
+der Leistungsempfänger im Inland […] ansässig sind ». Et l'UStAE tranche le cas contraire sans
+ambiguïté :
+
+> « Ist **mindestens einer** der am Umsatz beteiligten Unternehmer nicht im Inland […] ansässig,
+> besteht **keine Pflicht** zur Ausstellung einer E-Rechnung » — UStAE Abschnitt 14.1 Abs. 6 S. 3
+
+Le régime de repli n'est ni l'interdiction ni l'obligation : le papier reste **toujours licite**, et
+l'électronique — E-Rechnung comme PDF — est licite **sous consentement du destinataire**
+(§ 14 Abs. 1 S. 5), consentement « bedarf **keiner besonderen Form** » et pouvant être **tacite**,
+donné par CGV, ou même **a posteriori** (UStAE 14.1 Abs. 7).
+
+**Le territoire n'est pas « l'Allemagne ».** Le test porte sur « im Inland **oder in einem der in
+§ 1 Absatz 3 bezeichneten Gebiete** » — ports francs, eaux et estrans. Un moteur qui teste
+`country == "DE"` est sous-inclusif.
+
+**L'établissement stable ne compte que s'il participe** — § 14 Abs. 2 Satz 3 :
+
+> « […] eine Betriebsstätte, **die an dem Umsatz beteiligt ist** […] »
+
+Et la doctrine précise ce que « participer » exclut :
+
+> « **Nicht als Nutzung** […] gelten **unterstützende Arbeiten** durch die Betriebsstätte wie
+> **Buchhaltung, Rechnungsausstellung oder Einziehung von Forderungen**. » — UStAE 13b.11 Abs. 1 S. 5
+
+Avec une règle **auto-référentielle** à connaître : porter sur la facture le numéro de TVA de
+l'établissement stable **vaut présomption de participation** (UStAE 13b.11 Abs. 1 S. 6, renvoi à
+l'art. 53 du règlement 282/2011). Autrement dit, le numéro de TVA choisi pour la facture décide de
+l'obligation qui pèse sur cette même facture.
+
+**L'immatriculation ne figure dans aucune des quatre branches** du § 14 Abs. 2 S. 3. Le BMF ne
+l'écrit pas ainsi mais en tire la conséquence opérationnelle (FAQ Frage 3) : un assujetti étranger
+immatriculé sans établissement « können auf diesen Umstand in ihrer Rechnung hinweisen, um zu
+begründen, warum sie **keine E-Rechnung** stellen », et le destinataire peut s'y fier.
+
+#### Trois prédicats d'établissement distincts dans le seul UStG
+
+C'est le point le plus lourd pour la modélisation, et il n'apparaît nulle part dans le profil :
+
+| Usage | Base | Définition |
+| --- | --- | --- |
+| Déclencheur d'**émission** | § 14 Abs. 2 S. 3 | Sitz, Geschäftsleitung, **Betriebsstätte participante**, ou à défaut de Sitz : Wohnsitz / gewöhnlicher Aufenthalt |
+| Obligation de **réception** | UStAE 14.1 Abs. 5 S. 1 ; FAQ Frage 12 | **unilatéral** — porte sur le seul destinataire établi |
+| Localisation d'**archivage** | § 14b Abs. 3 | **Wohnsitz** (sans condition), Sitz, Geschäftsleitung, ou **Zweigniederlassung** — pas « Betriebsstätte participante » |
+
+Un unique booléen `isEstablishedDE` ne peut donc servir les trois.
+
+#### § 14 Abs. 7 — l'art. 219 bis transposé, et il retourne le problème
+
+> « […] so gelten **abweichend von den Absätzen 1 bis 6** für die Rechnungserteilung die
+> **Vorschriften des Mitgliedstaats**, in dem der Unternehmer seinen Sitz, seine Geschäftsleitung,
+> eine Betriebsstätte, von der aus der Umsatz ausgeführt wird […] hat. »
+
+Lorsque le fournisseur n'est pas établi en Allemagne et que le preneur est redevable au titre du
+§ 13b — et **sauf** convention d'autofacturation (S. 2) — ce n'est plus le droit allemand qui régit
+la facturation, mais celui de l'État du **fournisseur**.
+
+C'est exactement la dérogation de l'art. 219 bis de la directive 2006/112/CE. Elle a une conséquence
+inconfortable pour l'audit : dans ce cas précis, la résolution « fournisseur seul » du moteur donne
+le **bon** résultat. Mais elle le donne sans connaître la condition qui l'y autorise — donc elle
+l'appliquerait tout aussi bien aux cas où elle est fausse. Une règle juste par accident n'est pas
+une règle.
+
+#### Zusammenfassende Meldung — ce qui couvre le transfrontalier
+
+§ 18a UStG, déclaration au Bundeszentralamt für Steuern, **sortant uniquement**. Périmètre :
+livraisons intracommunautaires et prestations § 3a Abs. 2 imposables dans un autre État membre où le
+preneur est redevable. Hors périmètre : exportations pays tiers, acquisitions, services reçus, B2C,
+Kleinunternehmer. Délai : **25e jour** après le mois (biens ; option trimestrielle sous 50 000 €) ou
+après le trimestre (services). Sanction : Bußgeld jusqu'à **5 000 €**, sans Verspätungszuschlag.
+
+**Aucune transmission de facture n'y est jointe** : le § 18a Abs. 7 énumère limitativement le numéro
+de TVA de chaque acquéreur, la **somme** des bases par acquéreur, et des indicateurs de nature. Ni
+numéro de facture, ni date, ni ligne, ni document. C'est un agrégat périodique par client.
+
+Le `Meldesystem` transactionnel reste `annoncé` sans texte ni date : le Regierungsentwurf du JStG
+2026 ne le contient pas, et ne touche ni le § 14 ni le § 27 Abs. 38.
 
 ### Pologne — déclencheur **unilatéral**, et cela invalide une généralisation
 
