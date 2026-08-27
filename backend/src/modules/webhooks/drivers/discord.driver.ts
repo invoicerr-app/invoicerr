@@ -11,8 +11,9 @@ export class DiscordDriver implements WebhookDriver {
 
     async send(url: string, payload: any): Promise<boolean> {
         const hook = new Webhook(url);
+        const instanceUrl = process.env.APP_URL || 'https://invoicerr.app';
 
-        hook.setUsername('Invoicerr').setAvatarUrl('https://invoicerr.app/favicon.png');
+        hook.setUsername('Invoicerr').setAvatarUrl('https://invoicerr.app/favicon.svg');
 
         const eventType = payload.event as WebhookEvent;
         const eventStyle = EVENT_STYLES[eventType] || {
@@ -30,12 +31,12 @@ export class DiscordDriver implements WebhookDriver {
             .setColor(eventStyle.color)
             .setAuthor({
                 name: 'Invoicerr',
-                url: 'https://invoicerr.app',
-                icon_url: 'https://invoicerr.app/favicon.png',
+                url: instanceUrl,
+                icon_url: 'https://invoicerr.app/favicon.svg',
             })
             .setFooter({
                 text: 'Invoicerr Webhooks',
-                icon_url: 'https://invoicerr.app/favicon.png',
+                icon_url: 'https://invoicerr.app/favicon.svg',
             });
 
         if (payload.company?.name) {
