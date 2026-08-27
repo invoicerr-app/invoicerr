@@ -187,6 +187,33 @@ function svcMxFlaky() {
 
 const FR = () => ctx('FR', 'FR', 'B2B', 'SERVICES', '2027-01-15');
 const US = () => ctx('US', 'US', 'B2B', 'GOODS', '2027-01-15');
+/**
+ * A PDP that accepts. Post-2026-09-01 France has no channel that delivers without configuration —
+ * EMAIL was removed as illicit (FR-D1), PEPPOL needs credentials and ChorusPro has no transport.
+ * A French company operating under the mandate necessarily has an accredited platform configured,
+ * so tests whose subject is the lifecycle AFTER delivery model that company rather than an
+ * unconfigured one. The unconfigured case has its own test asserting TRANSMISSION_FAILED.
+ */
+function acceptingPdp() {
+  return {
+    id: 'pdp',
+    channel: 'PDP' as const,
+    maturity: 'PROVEN' as const,
+    transmit: async () => ({ channel: 'PDP' as const, status: 'SENT' as const, ref: 'pdp-test-ref' }),
+  };
+}
+
+function svcWithConfiguredPdp() {
+  const log = new RecordingComplianceLogger();
+  const transmission = new TransmissionProviderRegistry([acceptingPdp() as never]);
+  const service = new ComplianceService({
+    store: new InMemoryComplianceDocumentStore(),
+    numbering: new NumberingRegistry(),
+    executor: new ComplianceExecutor({ logger: log, numbering: new NumberingRegistry(), transmission }),
+    logger: log,
+  });
+  return { service, log };
+}
 const MX = () => ctx('MX', 'MX', 'B2B', 'GOODS', '2024-06-01');
 /** MX context carrying a supplierCompanyId so transmitAll() actually resolves per-company config. */
 const MX_CONFIGURED = (): TransactionContext => ({ ...MX(), supplierCompanyId: 'mx-test-co' });
@@ -208,11 +235,24 @@ describe('ComplianceService — issuance & immutability', () => {
 });
 
 describe('ComplianceService — sending by regime', () => {
-  it('FR (non-blocking CTC) issueAndSend → DELIVERED then AWAITING_RESPONSE (mandatory statuses)', async () => {
+  /**
+   * FR-D1 CONSEQUENCE — recorded, deliberately not compensated.
+   *
+   * This test used to reach AWAITING_RESPONSE because EMAIL was in the post-2026-09-01 channel
+   * list and e-mail is the one channel that delivers without credentials. E-mail is not a licit
+   * channel inside the French mandate, so it was removed — and with it, France's only channel that
+   * works out of the box. What remains is PDP and PEPPOL, which need configured credentials, and
+   * ChorusPro, which has no transport at all (audit F-009).
+   *
+   * The honest end state is therefore TRANSMISSION_FAILED, and the test asserts it rather than
+   * papering over it with a fake transport. This is the gap made visible, not a regression: the
+   * product must not offer a sanctioned channel merely because it is the only one wired.
+   */
+  it('FR (non-blocking CTC) issueAndSend plans PDP but cannot deliver without configured credentials', async () => {
     const { service } = svc();
     const { document, execution } = await service.issueAndSend(FR());
-    expect(document.status).toBe('AWAITING_RESPONSE');
     expect(execution.transmissions.some((t) => t.channel === 'PDP')).toBe(true);
+    expect(document.status).toBe('TRANSMISSION_FAILED');
   });
 
   it('US (post-audit) issueAndSend → DELIVERED', async () => {
@@ -422,7 +462,10 @@ describe('ComplianceService — modification & corrections', () => {
 
 describe('ComplianceService — bidirectional response & inbound', () => {
   it('records a buyer refusal', async () => {
-    const { service } = svc();
+    // Models a French company that HAS an accredited platform configured — the only lawful shape
+    // after 2026-09-01. The response cycle needs a delivered document and a profile that opens a
+    // response window; the US profile opens none, and unconfigured France cannot deliver.
+    const { service } = svcWithConfiguredPdp();
     const { document } = await service.issueAndSend(FR());
     const refused = await service.applyResponse(document.id, { status: 'REFUSE', source: 'BUYER' });
     expect(refused.status).toBe('REFUSED');
