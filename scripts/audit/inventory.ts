@@ -176,11 +176,21 @@ function abortIfBroken(): void {
   process.exit(1);
 }
 
-/** The tree actually measured. A number without this is not reproducible. */
+/**
+ * The tree actually measured. A number without this is not reproducible.
+ *
+ * "Dirty" is scoped to the paths this script reads — the compliance source and the country
+ * docs — and not to the whole repo: an unrelated untracked file says nothing about whether
+ * these numbers can be reproduced, and a warning that fires on everything is read as noise
+ * and then ignored, which is how a real one gets missed.
+ */
+const MEASURED_PATHS = ['backend/src/compliance', 'documentation/compliance'];
 const TREE = (() => {
   try {
     const sha = execSync('git rev-parse HEAD', { cwd: REPO, encoding: 'utf8' }).trim();
-    const dirty = execSync('git status --porcelain', { cwd: REPO, encoding: 'utf8' }).trim().length > 0;
+    const dirty =
+      execSync(`git status --porcelain -- ${MEASURED_PATHS.join(' ')}`, { cwd: REPO, encoding: 'utf8' })
+        .trim().length > 0;
     return { sha, dirty };
   } catch {
     return { sha: 'unknown', dirty: false };
@@ -849,7 +859,7 @@ function md(countries: Country[], generatedAt: string): string {
   P();
   P(`> Généré par \`scripts/audit/inventory.ts\` le ${generatedAt}, **en vigueur au ${AS_OF.toISOString().slice(0, 10)}**.`);
   P('>');
-  P(`> **Arbre mesuré** : \`${TREE.sha}\`${TREE.dirty ? ' — **arbre de travail modifié**, chiffres non reproductibles en l’état' : ''}.`);
+  P(`> **Arbre mesuré** : \`${TREE.sha}\`${TREE.dirty ? ' — ⚠️ **modifications non commitées sous `backend/src/compliance` ou `documentation/compliance`** : ces chiffres ne sont pas reproductibles depuis ce SHA' : ' (propre sur les chemins mesurés)'}.`);
   P(`> **Date de référence** : \`${AS_OF.toISOString().slice(0, 10)}\` (\`AUDIT_AS_OF\` pour la déplacer). Tout champ dérivé`);
   P('> d’un profil est calculé **en vigueur à cette date**, jamais aplati sur toutes les périodes.');
   P('>');

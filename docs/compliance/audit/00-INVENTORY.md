@@ -2,7 +2,7 @@
 
 > Généré par `scripts/audit/inventory.ts` le 2026-08-27, **en vigueur au 2026-08-27**.
 >
-> **Arbre mesuré** : `7fbf8e4fe779a8aaebfcbd0e88259d327f7a0803` — **arbre de travail modifié**, chiffres non reproductibles en l’état.
+> **Arbre mesuré** : `d59073253213cb6f4771e9e1172bad65760d6ec7` (propre sur les chemins mesurés).
 > **Date de référence** : `2026-08-27` (`AUDIT_AS_OF` pour la déplacer). Tout champ dérivé
 > d’un profil est calculé **en vigueur à cette date**, jamais aplati sur toutes les périodes.
 >
