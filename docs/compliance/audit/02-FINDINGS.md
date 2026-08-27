@@ -415,9 +415,24 @@ factures. Le rejet n'existe que dans une table que l'écran principal ne lit pas
 > « envoyée » et qu'un rejet absent du filtre par défaut aurait purement disparu de la liste.
 > 9 tests de non-régression, vérifiés rouges sans le correctif.
 >
-> **Résiduel assumé, hors périmètre de cette branche** : `REFUSED` (l'acheteur qui décline) et
-> `TRANSMISSION_FAILED` (jamais parvenu à l'autorité) ne sont pas projetés. Ce sont des faits
-> distincts qui méritent leur propre formulation, et les traiter ici aurait mêlé F-008 à F-007.
+> **Résiduel — corrigé à son tour**, branche `fix/reject-residual-visible`. `REFUSED` (l'acheteur
+> qui décline) et `TRANSMISSION_FAILED` (jamais parvenu à l'autorité) sont désormais projetés eux
+> aussi, avec leur propre libellé : un rejet est terminal, un refus se répond par une facture
+> rectificative, un échec de transmission se rejoue.
+>
+> Ce dernier point a obligé la projection à devenir **bidirectionnelle**. `TRANSMISSION_FAILED` est
+> le seul état d'échec dont la machine à états permet de sortir — `SUBMIT_CLEARANCE` et `DELIVER`
+> en sortent tous deux — donc une garde purement unidirectionnelle aurait remplacé un mensonge par
+> un autre : une facture bloquée sur « transmission échouée » alors que la re-transmission a
+> réussi. Les deux directions ont des gardes **délibérément asymétriques** : un échec s'écrit
+> par-dessus une facture en vol ou par-dessus un autre échec écrit par la projection ; une reprise
+> s'écrit **uniquement** par-dessus un échec écrit par la projection. C'est cette asymétrie qui la
+> rend sûre — une reprise ne peut pas atteindre une facture qui n'a jamais échoué, et aucune des
+> deux directions n'atteint une action utilisateur. 18 tests, dont 9 nouveaux ; les deux directions
+> vérifiées contre un vrai Postgres 16.11.
+>
+> **Reste hors périmètre** : F-007, la sortie de `REJECTED`, qui est terminal (`REJECTED: {}`) et
+> dont la reprise dépend de règles par pays divergentes.
 
 **Impact.** L'utilisateur croit avoir facturé. Dans un régime de clearance où le rejet signifie que
 la facture n'existe pas juridiquement, l'écart entre l'écran et la réalité est total, et silencieux.

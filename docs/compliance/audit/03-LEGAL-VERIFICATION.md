@@ -599,6 +599,34 @@ axe** : bascule l'hôte et l'on reste sur le chemin des factures vérifiables.
 > `09-F018-ES-DECLARATION.md` §5) : le QR imprimé affirme au destinataire un mode que le système ne
 > tient pas. Ce n'est pas une divergence de plus, c'est la même incohérence vue depuis la facture.
 
+**ES-D13 — l'horodatage du registro est en UTC, pas à l'heure de Madrid.** *(nouveau)*
+
+`generators.ts` produit `FechaHoraHusoGenRegistro` avec un décalage `+00:00` fixe :
+
+```ts
+const fechaHoraHusoGenRegistro = `${new Date().toISOString().slice(0, 19)}+00:00`;
+```
+
+Le nom du champ le dit — *huso* signifie fuseau horaire. Les exemples chiffrés de l'AEAT emploient
+le décalage local de Madrid (`+01:00` en heure d'hiver, `+02:00` en heure d'été). La valeur produite
+est **syntaxiquement valide** — elle respecte le motif de la spécification, et c'est pourquoi les
+vecteurs de test passent — mais elle n'est pas exacte quant au fuseau déclaré.
+
+**Portée réelle, et pourquoi ce n'est pas un simple détail cosmétique.** Ce champ **entre dans la
+huella** : il est le dernier élément de la chaîne canonique hachée. Une facture émise à 10h00 à
+Madrid en été est horodatée `08:00:00+00:00` au lieu de `10:00:00+02:00`. Les deux désignent le même
+instant, mais **produisent des condensats différents**, et un contrôle qui recalculerait la huella à
+partir de l'horodatage attendu localement ne retrouverait pas la valeur enregistrée.
+
+**Pourquoi ce n'est pas corrigé ici.** La correction demande une conversion DST-aware vers
+`Europe/Madrid`, et surtout de trancher ce que « l'heure de génération » désigne pour un serveur
+hébergé hors d'Espagne — question qui n'est pas résolue par le seul document technique. Consigné
+plutôt que corrigé au jugé.
+
+> Consigné comme divergence numérotée à la demande explicite, et non laissé en commentaire de code,
+> parce qu'un commentaire dans `generators.ts` disparaît au premier refactor du fichier — c'est
+> exactement ce qui est arrivé au motif `smaller-portals` (F-020).
+
 **ES-D2 — `reporting: SII + VERIFACTU` : le code est faux s'il cumule.**
 Les deux régimes sont **mutuellement exclusifs** : « El presente Reglamento **no se aplicará** a los
 contribuyentes que lleven los libros registros en los términos […] del artículo 62 del Reglamento del
