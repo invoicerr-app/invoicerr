@@ -68,16 +68,24 @@ Elle est contrainte et ne s'inverse pas. **Elle a changé depuis la correction d
 
 | # | Étape | État | Bloqué par |
 | --- | --- | --- | --- |
-| 1 | Confirmer que les spécifications techniques AEAT encodées dans le code sont toujours à jour | à faire | rien — recherche bornée (P4) |
+| 1 | Confirmer que les spécifications techniques AEAT encodées dans le code sont toujours à jour | **fait** — voir ci-dessous | — |
 | 2 | **Former la chaîne** : alimenter `previousHuella` depuis `ReportingStore` | **faisable maintenant** | rien |
 | 3 | Vérifier — les vecteurs officiels sont déjà dans la suite de tests | faisable après 2 | rien |
 | 4 | Déclarer | **décision d'entreprise** | question §2, puis étapes 1–3 |
 
-**Ce qui a changé.** La première rédaction posait « obtenir les deux documents techniques AEAT » en
-étape bloquante. Cette étape est **en substance déjà faite** : le code les cite nommément avec leurs
-versions — huella **v0.1.2 du 2024-08-27**, QR **v0.5.0 du 2025-12-10** — et `generators.spec.ts`
-reproduit les **deux exemples chiffrés officiels** de l'AEAT. Il reste à confirmer que ces versions
-sont les versions courantes, ce qui est une vérification, pas un déblocage.
+**Ce qui a changé, et l'étape 1 est close.** La première rédaction posait « obtenir les deux
+documents techniques AEAT » en étape bloquante. **Les deux ont été obtenus et lus le 2026-08-27**, et
+ce sont exactement les versions que le code cite :
+
+- *Detalle de las especificaciones técnicas para la generación de la huella o hash…* — **v0.1.2,
+  27/08/2024**. Son exemple chiffré donne
+  `3C464DAF61ACB827C65FDA19F352A4E3BDC2C640E9E9FC4CC058073F38F12F60`, valeur que
+  `generators.spec.ts` affirme **à l'octet près**. Vérifié indépendamment sur le PDF de l'autorité.
+- *Detalle de las especificaciones técnicas del código «QR» de la factura…* — **v0.5.0, 10/12/2025**.
+
+La lecture du second a toutefois produit un **défaut neuf**, ES-D12 : la spec distingue le chemin
+`ValidarQR` (systèmes vérifiables) du chemin `ValidarQRNoVerifactu` (non vérifiables), et le code
+code en dur le premier. Voir `03-LEGAL-VERIFICATION.md`.
 
 **Ce qui manque réellement est une requête, pas une source.** Le `TODO(seam)` de
 `generators.ts:695` décrit lui-même le correctif : lire par émetteur la huella du dernier registre

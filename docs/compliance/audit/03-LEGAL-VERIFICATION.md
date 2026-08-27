@@ -567,6 +567,30 @@ le correctif : lire, par émetteur, la huella du dernier registre VERIFACTU via 
 la passer au générateur. Aucune recherche juridique supplémentaire n'est nécessaire pour cela — ce
 qui déplace la séquence de F-018 (voir `06-REMEDIATION.md`).
 
+**ES-D12 — l'URL du QR est celle d'un système vérifiable, que le produit n'est pas.** *(nouveau)*
+
+Le document AEAT « Detalle de las especificaciones técnicas del código QR de la factura… »
+**v0.5.0 du 2025-12-10**, obtenu et lu, distingue **deux axes** et non un seul :
+
+| | Environnement de test | Production |
+| --- | --- | --- |
+| **5.1** Système émettant des factures **vérifiables** | `prewww2.aeat.es/…/ValidarQR` | `www2.agenciatributaria.gob.es/…/ValidarQR` |
+| **5.2** Système émettant des factures **non vérifiables** | `prewww2.aeat.es/…/ValidarQRNoVerifactu` | `www2.agenciatributaria.gob.es/…/ValidarQRNoVerifactu` |
+
+Le **chemin** change avec le mode, pas seulement l'hôte avec l'environnement. `generators.ts:656`
+code en dur `…/ValidarQR`, c'est-à-dire l'URL d'un **système vérifiable**. Or le produit ne
+transmet rien en continu — le handler de reporting journalise `[MOCK]` (F-016) — il est donc un
+système **non vérifiable**, qui devrait imprimer `ValidarQRNoVerifactu`.
+
+Le commentaire du code (`generators.ts:653-655`) décrit `prewww2` comme un simple hôte de
+préproduction « à basculer par configuration ». C'est exact quant à l'environnement — le PDF le
+qualifie bien d'« Entorno de pruebas (Portal de Pruebas Externas) » — mais cela **manque le second
+axe** : bascule l'hôte et l'on reste sur le chemin des factures vérifiables.
+
+> Ce défaut se referme sur l'indicateur **1.e** de la déclaration responsable (voir
+> `09-F018-ES-DECLARATION.md` §5) : le QR imprimé affirme au destinataire un mode que le système ne
+> tient pas. Ce n'est pas une divergence de plus, c'est la même incohérence vue depuis la facture.
+
 **ES-D2 — `reporting: SII + VERIFACTU` : le code est faux s'il cumule.**
 Les deux régimes sont **mutuellement exclusifs** : « El presente Reglamento **no se aplicará** a los
 contribuyentes que lleven los libros registros en los términos […] del artículo 62 del Reglamento del
@@ -1041,10 +1065,51 @@ consulté le **2026-08-27**. Publication au JO : **2025-03-25** (série L, 2025/
 | Disposition | Contenu établi | Statut |
 | --- | --- | --- |
 | **Art. 6(1)** | « Member States may apply the laws, regulations and administrative provisions regarding Article 1, points 2 and 3 **from 14 April 2025** » — soit les modifications des art. 218 et 232 de la directive 2006/112/CE | **en vigueur** |
-| **Art. 6(4)** | « Member States shall adopt and publish, **by 30 June 2030** […] necessary to comply with Article 5 […] They shall apply those measures **from 1 July 2030** » | annoncé |
+| **Art. 6(4)** | Article **4** : adoption au 2029-06-30, application au **2029-07-01** | annoncé |
+| **Art. 6(5)** | Article **5** : adoption au 2030-06-30, application au **2030-07-01** | annoncé |
+| **Art. 6(5), 3ᵉ alinéa** | **Report au 2035-01-01** — disposition opérative, voir ci-dessous | annoncé |
 | **Art. 5 → nouvel art. 218** | Impose la facture électronique conforme à **la norme européenne** et à la liste de ses syntaxes au titre de la **directive 2014/55/UE**, avec données structurées selon les art. 262 et 271b | annoncé, 2030-07-01 |
 | **Art. 5 → nouvel art. 232** | Une facture électronique conforme à la norme européenne **ne requiert pas l'acceptation du destinataire** ; les autres formats peuvent y rester soumis selon le droit national | annoncé, 2030-07-01 |
 | **Art. 5(6) → art. 222** | Émission « **no later than 10 days following the chargeable event** » | annoncé, 2030-07-01 |
+| **Art. 7** | Entrée en vigueur « on the **twentieth day** following that of its publication » — publication au JO le 2025-03-25, directive adoptée à Bruxelles le **2025-03-11** | en vigueur |
+
+### Le report au 2035 : établi, et c'est une disposition opérative
+
+*Correction. Deux rendus HTML successifs de la page CELEX se sont tronqués au même endroit, et
+j'avais consigné le report comme non établi, en notant qu'un considérant n'est pas une disposition
+opérative. Le PDF du Journal officiel, converti localement, donne le texte. J'avais aussi attribué
+par erreur la date du 2030-07-01 à l'art. 6(4) : celui-ci porte sur l'**article 4** et le
+2029-07-01. C'est l'art. 6(5) qui porte l'article 5.*
+
+Troisième alinéa de l'art. 6(5), verbatim :
+
+> « By way of derogation from the second subparagraph of this paragraph, Member States **having a
+> domestic digital real-time transaction-based reporting obligation in place on 1 January 2024** or
+> having been granted an authorisation on the basis of Article 395 before 1 January 2024 allowing
+> them to put such an obligation in place, or where such authorisation was not necessary, having
+> adopted national legislation before 1 January 2024 providing for the introduction of such a
+> domestic digital real-time transaction-based reporting obligation, **shall apply the measures
+> regarding Article 5, point (5), related to Article 218, and the measures regarding Article 5,
+> point (19), related to Articles 271a and 271b, by 1 January 2035**, in so far as **domestic**
+> electronic invoicing and reporting are concerned. »
+
+Trois voies d'éligibilité, alternatives : obligation **déjà en place** au 2024-01-01 ; **autorisation
+art. 395** obtenue avant cette date ; ou, si l'autorisation n'était pas nécessaire, **législation
+nationale adoptée** avant cette date prévoyant l'introduction d'une telle obligation.
+
+Le report est **borné** : il ne couvre que l'art. 218 et les art. 271a/271b, et **uniquement pour la
+facturation et le reporting domestiques**. L'intracommunautaire reste au 2030-07-01. Une clause de
+revoyure permet en outre à la Commission, si le rapport intermédiaire de l'art. 271c révèle des
+lacunes, de proposer un report supplémentaire.
+
+**Portée pratique.** L'Espagne (SII depuis juillet 2017), l'Italie (SdI) et la Hongrie relèvent
+manifestement de la première voie ; la France et la Pologne, dont les dispositifs ont été adoptés
+avant 2024, relèvent au moins de la troisième. Un profil qui coderait « EN 16931 obligatoire au
+2030-07-01 » pour ces pays serait donc trop strict de cinq ans sur leur périmètre domestique.
+
+`open_question` subsistante : la qualification de « **real-time** transaction-based » pour un
+dispositif comme le SII espagnol, dont le délai de remise est de quatre jours. La directive ne
+définit pas le terme. Ne pas trancher.
 
 **Conséquence immédiate, et elle est datée du 2025-04-14** : un État membre n'a plus besoin d'une
 dérogation du Conseil au titre de l'art. 395 pour imposer la facturation électronique domestique sans
@@ -1053,18 +1118,12 @@ que ni la France ni l'Espagne n'aient eu à en demander une pour leurs dispositi
 
 ### Ce qui reste ouvert sur ViDA
 
-1. **Report au 2035-01-01** pour les États disposant d'un reporting transactionnel en temps réel
-   avant le 2024-01-01 : **non établi**. L'art. 6(5) est tronqué dans le rendu obtenu ; une échéance
-   2035 apparaît au **considérant 24**, mais elle y vise les systèmes **domestiques**, et un
-   considérant n'est pas une disposition opérative. Deux sources indépendantes de cet audit
-   l'affirment ; je ne le retiens pas tant que l'art. 6(5) n'a pas été lu. Enjeu réel : si l'Espagne
-   en bénéficie au titre du SII (2017), son horizon d'alignement glisse de cinq ans.
-2. **EN 16931-1:2026** : la directive renvoie à « la norme européenne […] au titre de la directive
+1. **EN 16931-1:2026** : la directive renvoie à « la norme européenne […] au titre de la directive
    2014/55/UE » **sans nommer de version**. Qu'une version 2026 ait été publiée par le CEN en mars
    2026, et qu'elle soit « figée », **n'a pas été vérifié** et ne figure pas dans le texte de la
    directive. `open_question`.
-3. **Art. 7** (entrée en vigueur de la directive elle-même) : non lisible dans le rendu obtenu. La
-   date du 2025-04-14 est établie par l'art. 6(1), pas par l'art. 7.
+2. La qualification de « real-time » pour le SII espagnol (remise à quatre jours) au sens du
+   troisième alinéa de l'art. 6(5) — la directive ne définit pas le terme.
 
 ---
 
