@@ -22,7 +22,14 @@
  * Outputs (both overwritten on each run):
  *   docs/compliance/audit/inventory.json   raw machine-readable facts
  *   docs/compliance/audit/00-INVENTORY.md  the divergence matrix
+ *
+ * THIS INSTRUMENT HAS LIED TWICE — see F-020 in 02-FINDINGS.md. Both times it failed
+ * OPEN: it returned a clean, well-formed, wrong answer that no one could tell from a
+ * good run. Section 0 below therefore arms every load-bearing measurement with an
+ * invariant, and a violated invariant ABORTS before anything is written. Read section 0
+ * before adding a probe here.
  */
+import { execSync } from 'node:child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -70,6 +77,12 @@ function walk(dir: string, out: string[] = []): string[] {
 const AS_OF = new Date(process.env.AUDIT_AS_OF ?? '2026-08-27');
 
 /** Every temporal value, flattened — repealed periods included. Historical view, NOT current state. */
+/**
+ * Flattens every period of a temporal rule, ABROGATED ONES INCLUDED. This is the function that
+ * produced the audit's two false findings when it was used where inForce() was meant. It has
+ * exactly one legitimate use left — the everDeclared* fields, which are documentary. If you are
+ * reaching for it to answer "what does country X do?", you want inForce().
+ */
 function allValues<T>(rules: Temporal<T>[] | undefined): T[] {
   return (rules ?? []).map((r) => r.value);
 }
@@ -91,6 +104,88 @@ function future<T>(rules: Temporal<T>[] | undefined, asOf: Date = AS_OF): Array<
 function uniq<T>(xs: T[]): T[] {
   return Array.from(new Set(xs));
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 0. INSTRUMENT INVARIANTS
+//
+// Two silent failures, both of which produced publishable-looking numbers:
+//
+//   1. Temporal flattening. Profile rules were read with every period merged, abrogated
+//      ones included, so channels withdrawn years ago made countries look reachable.
+//      It yielded two findings that were simply false (PL-D4, IT-D8, both retracted).
+//   2. A file-name pattern that stopped matching. The generic-portal tier was recognised
+//      by /smaller-portals\.ts$/; an upstream refactor deleted those files, the pattern
+//      matched nothing, and all 37 generic stubs were promoted to "dedicated".
+//
+// Neither threw. Neither logged. Both were caught by cross-checking against something
+// else — and there will not always be something else. A probe that fails open is worse
+// than no probe, because its output is believed.
+//
+// Hence: a pattern that matches nothing GIVES UP, it does not return zero; partitions
+// must add up to the population they partition; a count the instrument cannot honestly
+// observe as zero is asserted non-zero; and nothing is written while an invariant is
+// violated. These are not defensive decoration — each one guards a failure that has
+// actually happened here.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const violations: string[] = [];
+
+function check(ok: boolean, label: string, detail: string): void {
+  if (!ok) violations.push(`${label}\n      ${detail}`);
+}
+
+/** A quantity the instrument cannot legitimately observe as zero: zero means broken, not empty. */
+function nonZero(label: string, n: number, detail: string): void {
+  check(n > 0, `${label} — observed 0`, detail);
+}
+
+/** The parts of a partition must add up to the population, or some case is silently dropped. */
+function partition(label: string, parts: Record<string, number>, total: number, of: string): void {
+  const sum = Object.values(parts).reduce((a, b) => a + b, 0);
+  const shown = Object.entries(parts)
+    .map(([k, v]) => `${k}=${v}`)
+    .join(' + ');
+  check(sum === total, `${label} does not reconcile`, `${shown} = ${sum}, but ${of} = ${total}`);
+}
+
+/**
+ * A file-name pattern used to CLASSIFY providers. Matching zero files across the scanned
+ * tree means the layout moved under the probe — exactly failure 2 above. Returns the regex
+ * so the classification site reads normally and cannot forget to register it.
+ */
+function loadBearingPattern(label: string, re: RegExp, files: string[], detail: string): RegExp {
+  nonZero(
+    `classification pattern ${label} (${re.source}) matches no file`,
+    files.filter((f) => re.test(f)).length,
+    detail,
+  );
+  return re;
+}
+
+/** Called before any write. Nothing partially-correct leaves this script. */
+function abortIfBroken(): void {
+  if (violations.length === 0) return;
+  process.stderr.write(
+    `\nINSTRUMENT BROKEN — ${violations.length} invariant(s) violated. Nothing written.\n\n` +
+      violations.map((v) => `  ✗ ${v}\n`).join('\n') +
+      '\nThis inventory feeds published findings. Measuring the wrong thing quietly is worse\n' +
+      'than not measuring at all, so the run aborts rather than emit a plausible file.\n' +
+      'If a pattern above matches nothing, the tree it describes has moved: repoint it and\n' +
+      'diff the result provider by provider before trusting the new numbers.\n\n',
+  );
+  process.exit(1);
+}
+
+/** The tree actually measured. A number without this is not reproducible. */
+const TREE = (() => {
+  try {
+    const sha = execSync('git rev-parse HEAD', { cwd: REPO, encoding: 'utf8' }).trim();
+    const dirty = execSync('git status --porcelain', { cwd: REPO, encoding: 'utf8' }).trim().length > 0;
+    return { sha, dirty };
+  } catch {
+    return { sha: 'unknown', dirty: false };
+  }
+})();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. runtime registries
@@ -179,6 +274,31 @@ for (const f of transmissionFiles) {
   declaredIdsByFile.set(f, ids);
 }
 
+/**
+ * The two stub tiers are told apart by WHICH FILE declares the provider id. Both patterns are
+ * registered as load-bearing: if either stops matching, the run aborts instead of silently
+ * reclassifying a whole tier. This is the invariant that failure 2 lacked.
+ */
+const RE_GENERIC_PORTAL_FILE = loadBearingPattern(
+  'generic-portal spec file',
+  /\/portals\/[a-z0-9-]+\.ts$/,
+  transmissionFiles,
+  'buildGenericPortalProviders() reads one spec file per country under providers/transmission/portals/. ' +
+    'Zero matches means that layout moved, and every generic stub is about to be reported as dedicated.',
+);
+const RE_LOG_TODO_FILE = loadBearingPattern(
+  'national-portals aggregator',
+  /\/national-portals\.ts$/,
+  transmissionFiles,
+  'nationalPortal() builds the pure log.todo tier in providers/transmission/national-portals.ts. ' +
+    'Zero matches means that tier is about to be reported as dedicated.',
+);
+
+// Content patterns are load-bearing too, but per-file rather than per-name: each must fire
+// somewhere in the tree. Zero hits for "a network call exists" or "a hardcoded stub port exists"
+// is an instrument fault, not a finding — the repo demonstrably contains both.
+const contentHits = { httpCall: 0, mailPort: 0, hardcodedStubPort: 0, throwingDefaultPort: 0 };
+
 function sourceFactsFor(id: string) {
   // A provider "declares" an id when a non-spec file assigns it: id = 'x' | id: 'x'.
   const declaring = transmissionFiles.filter((f) => declaredIdsByFile.get(f)!.has(id));
@@ -214,24 +334,33 @@ function sourceFactsFor(id: string) {
     const raw = fs.readFileSync(f, 'utf8');
     const src = stripComments(raw);
     loc += raw.split('\n').length;
-    httpCallSites += (src.match(RE_HTTP_CALL) ?? []).length;
-    if (RE_MAIL_PORT.test(src)) mailPort = true;
-    if (RE_THROWING_DEFAULT_PORT.test(src)) throwingDefaultPort = true;
+    const httpHere = (src.match(RE_HTTP_CALL) ?? []).length;
+    httpCallSites += httpHere;
+    contentHits.httpCall += httpHere;
+    if (RE_MAIL_PORT.test(src)) {
+      mailPort = true;
+      contentHits.mailPort++;
+    }
+    if (RE_THROWING_DEFAULT_PORT.test(src)) {
+      throwingDefaultPort = true;
+      contentHits.throwingDefaultPort++;
+    }
     if (RE_STUB_DEFAULT_PORT.test(src)) stubDefaultPort = true;
     if (RE_NO_PORT_SHORT_CIRCUIT.test(src)) noPortShortCircuit = true;
-    if (RE_HARDCODED_STUB_PORT.test(src)) hardcodedStubPort = true;
+    if (RE_HARDCODED_STUB_PORT.test(src)) {
+      hardcodedStubPort = true;
+      contentHits.hardcodedStubPort++;
+    }
   }
   // Two distinct stub tiers, told apart by WHICH FILE declares the id — not by membership of
   // NATIONAL_PORTAL_PROVIDERS, which also contains the dedicated per-authority classes:
   //   portals/<cc>.ts → buildGenericPortalProviders(): returns SKIPPED unless a port is injected
   //   national-portals.ts → nationalPortal(): a pure log.todo note, no I/O code path at all
   //
-  // The upstream refactor "flatten the regional transmission folders" replaced the regional
-  // *smaller-portals.ts bundles with one spec file per country under portals/. Matching the old
-  // name silently classified every generic portal as "dedicated", so this pattern is load-bearing
-  // and must be re-checked whenever that layout moves.
-  const genericPortalStubFactory = declaring.some((f) => /\/portals\/[a-z0-9-]+\.ts$/.test(f));
-  const logTodoStubFactory = declaring.some((f) => /\/national-portals\.ts$/.test(f));
+  // Both patterns are registered above via loadBearingPattern(), so a layout move aborts the run
+  // rather than reclassifying a tier in silence.
+  const genericPortalStubFactory = declaring.some((f) => RE_GENERIC_PORTAL_FILE.test(f));
+  const logTodoStubFactory = declaring.some((f) => RE_LOG_TODO_FILE.test(f));
   return {
     declaredIn: declaring.map((f) => path.relative(REPO, f)),
     neighbourhood: [...neighbourhood].map((f) => path.relative(REPO, f)),
@@ -266,6 +395,49 @@ function sourceFactsFor(id: string) {
 }
 
 const providerSource = new Map(transmissionProviders.map((p) => [p.id, sourceFactsFor(p.id)]));
+
+// ── reconciliation: the three stub tiers must partition the registry ─────────────────────
+// This is the check that would have caught failure 2 on its own. When /smaller-portals.ts$/
+// went dead, "generic" collapsed to 0 and "dedicated" absorbed 37 providers — the sum still
+// equalled 62, so this alone would not have fired. What fires is the non-zero assertion just
+// below: a tier the repo demonstrably contains cannot be observed empty.
+{
+  const tier = { dedicated: 0, generic: 0, logTodo: 0 };
+  for (const p of transmissionProviders) {
+    const src = providerSource.get(p.id)!;
+    if (src.logTodoStubFactory) tier.logTodo++;
+    else if (src.genericPortalStubFactory) tier.generic++;
+    else tier.dedicated++;
+    nonZero(
+      `provider '${p.id}' is declared in no source file`,
+      src.declaredIn.length,
+      'Every registered provider id must be assignable to a declaring file; zero means the ' +
+        'id-scan no longer recognises how ids are written in this tree.',
+    );
+  }
+  partition('transmission stub tiers', tier, transmissionProviders.length, 'registered providers');
+  nonZero(
+    'generic-portal tier',
+    tier.generic,
+    'The repo builds dozens of portals through buildGenericPortalProviders(); an empty tier means ' +
+      'the classification pattern is dead, not that the tier was removed.',
+  );
+  nonZero('dedicated-provider tier', tier.dedicated, 'ksef, pdp, peppol, email and the per-authority classes.');
+  nonZero(
+    'providers with a reachable transport',
+    transmissionProviders.filter((p) => !providerSource.get(p.id)!.noDefaultTransport).length,
+    'email/peppol/pdp/ksef are wired; observing zero means the transport probe itself is broken, ' +
+      'which is a far stronger claim than any finding and must not be published as one.',
+  );
+  nonZero('network call sites found anywhere', contentHits.httpCall, 'RE_HTTP_CALL no longer matches real calls.');
+  nonZero('mail-port sites found anywhere', contentHits.mailPort, 'RE_MAIL_PORT no longer matches nodemailer/InvoiceMailPort.');
+  nonZero(
+    'hardcoded-stub-port sites found anywhere',
+    contentHits.hardcodedStubPort,
+    'RE_HARDCODED_STUB_PORT is the pattern that demoted choruspro (F-009). Zero hits means that ' +
+      'demotion can no longer be reproduced by this instrument.',
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 3. spec inventory — mocked vs live, and which live flag / creds each live spec needs
@@ -606,6 +778,22 @@ async function buildCountry(code: string) {
           requiredIdentifiers: profile.requiredIdentifiers?.map((i) => i.scheme) ?? [],
           taxSystem: profile.taxSystem.kind,
           /** Historical view — every period ever declared, repealed included. */
+          /**
+           * ⚠️ NOT A STATEMENT ABOUT THE STATE IN FORCE. The two everDeclared* fields flatten
+           * every temporal period of the rule, ABROGATED PERIODS INCLUDED. Reading them as
+           * current is the exact mistake that produced two false findings (PL-D4, IT-D8, both
+           * retracted): they reported an e-mail channel that Poland dropped on 2026-02-01 and
+           * Italy on 2019-01-01. They exist to answer "was this ever true?", nothing else, and
+           * NO FINDING MAY REST ON THEM. For the state in force, read `channels` / `regimeModels`,
+           * which are computed at `as_of`.
+           *
+           * The warning is repeated as a sibling key in the emitted JSON so it travels with the
+           * data — a reader who greps `everDeclaredChannels` out of the file must see it too.
+           */
+          everDeclared__warning:
+            'FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state ' +
+            'in force at as_of; no audit finding may rest on these two fields. Use channels / ' +
+            'regimeModels instead.',
           everDeclaredChannels: uniq(
             allValues(profile.transmission).flatMap((r) =>
               (r.channels ?? []).map((c) => `${c.type}${c.providerId ? `:${c.providerId}` : ''}`),
@@ -660,6 +848,10 @@ function md(countries: Country[], generatedAt: string): string {
   P('# 00 — Inventaire mécanique (Phase 0)');
   P();
   P(`> Généré par \`scripts/audit/inventory.ts\` le ${generatedAt}, **en vigueur au ${AS_OF.toISOString().slice(0, 10)}**.`);
+  P('>');
+  P(`> **Arbre mesuré** : \`${TREE.sha}\`${TREE.dirty ? ' — **arbre de travail modifié**, chiffres non reproductibles en l’état' : ''}.`);
+  P(`> **Date de référence** : \`${AS_OF.toISOString().slice(0, 10)}\` (\`AUDIT_AS_OF\` pour la déplacer). Tout champ dérivé`);
+  P('> d’un profil est calculé **en vigueur à cette date**, jamais aplati sur toutes les périodes.');
   P('>');
   P('> ⚠️ **Les champs `everDeclared*` de `inventory.json` n’établissent RIEN sur l’état en vigueur.**');
   P('> Ils aplatissent toutes les périodes temporelles, périodes **abrogées** comprises. C’est');
@@ -801,6 +993,40 @@ function md(countries: Country[], generatedAt: string): string {
     if (reachable.length === 0) return false; // already in 1a
     return !reachable.some((p) => AUTHORITY_CHANNELS.has(p.channelType));
   });
+  // ── reconciliation: 1a / 1b / the rest must cover every documented country exactly once ──
+  // Non-vacuous on two counts. The buckets are recomputed here from `reachable` independently of
+  // cat1/cat1b's own predicates, so a divergence between the two computations shows up as a sum
+  // mismatch; and 1a ∩ 1b must be empty, which is a real claim because the two use different
+  // predicate paths (1a filters withDoc, 1b filters all countries).
+  {
+    const reachableOf = (c: Country) => c.providers.filter((p) => p.registered && !p.noDefaultTransport);
+    const buckets = { none: 0, emailOnly: 0, hasAuthorityPath: 0 };
+    for (const c of withDoc) {
+      const r = reachableOf(c);
+      if (r.length === 0) buckets.none++;
+      else if (r.every((p) => p.id === 'email')) buckets.emailOnly++;
+      else buckets.hasAuthorityPath++;
+    }
+    partition('documented-country categories', buckets, withDoc.length, 'countries with a public page');
+    check(
+      buckets.none === cat1.length,
+      'category 1a disagrees with the reconciliation bucket',
+      `published 1a = ${cat1.length}, recomputed "no reachable transport" = ${buckets.none}`,
+    );
+    const cat1Codes = new Set(cat1.map((c) => c.code));
+    const overlap = cat1b.filter((c) => cat1Codes.has(c.code)).map((c) => c.code);
+    check(
+      overlap.length === 0,
+      'categories 1a and 1b overlap',
+      `a country cannot both have no outbound path and have e-mail as its only one: ${overlap.join(', ')}`,
+    );
+    nonZero(
+      'documented countries',
+      withDoc.length,
+      'documentation/compliance/*.md is the population being audited; zero means the doc scan broke.',
+    );
+  }
+
   P(
     `### Catégorie 1b — Régime clearance/temps réel avec le courriel pour seule sortie (${cat1b.length})`,
   );
@@ -982,6 +1208,10 @@ async function main() {
   for (const c of codes) countries.push(await buildCountry(c));
 
   const generatedAt = new Date().toISOString().slice(0, 10);
+  // Nothing partially-correct leaves this script: every invariant registered during the scan is
+  // adjudicated here, before the first byte is written.
+  abortIfBroken();
+
   fs.mkdirSync(OUT_DIR, { recursive: true });
   fs.writeFileSync(
     path.join(OUT_DIR, 'inventory.json'),
@@ -990,6 +1220,8 @@ async function main() {
         generated_at: generatedAt,
         generator: 'scripts/audit/inventory.ts',
         as_of: AS_OF.toISOString().slice(0, 10),
+        measured_tree: TREE.sha,
+        measured_tree_dirty: TREE.dirty,
         temporal_note:
           'Profile-derived fields are the rules IN FORCE at as_of. everDeclared* keeps the flattened ' +
           'historical view, and startsLater lists rules beginning after as_of. Override with AUDIT_AS_OF.',

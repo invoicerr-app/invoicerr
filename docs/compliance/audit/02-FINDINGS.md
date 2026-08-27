@@ -78,6 +78,7 @@ Sévérité conservée telle quelle. Aucun de ces findings ne relève des trois 
 | [F-014](#f-014) | medium | Un spec écrit dans l'arbre de travail du développeur | 1 |
 | [F-015](#f-015) | low | Un document CLEARED ne peut pas être corrigé sans passer par DELIVERED | 5 |
 | [F-019](#f-019) | high | Le frontend n'a **aucune infrastructure de test** — zéro runner, zéro spec | — |
+| [F-020](#f-020) | high | **L'instrument de cet audit a rendu deux fois un résultat propre et faux** | — |
 
 > **F-001 et F-003 restent `critical` et ne sont pourtant dans aucun axe de décision.** C'est
 > délibéré : F-001 archive du vide sur des chemins qu'aucun transport ne permet d'emprunter, et F-003
@@ -938,6 +939,99 @@ Ce finding ne dit pas quel runner adopter. Il dit qu'une correction frontend ne 
 être accompagnée d'aucune assertion — ce qui est la raison pour laquelle
 `fix/channel-ui-gate-on-reachable-transport` est la seule des sept branches sans test, et la seule
 dont l'absence de test ne soit pas justifiable.
+
+---
+
+<a id="f-020"></a>
+## F-020 — `high` — L'instrument de cet audit a rendu deux fois un résultat propre et faux
+
+**Finding de méthode.** Il ne porte pas sur le produit : il porte sur `scripts/audit/inventory.ts`,
+la sonde dont tous les chiffres de cet audit descendent. Il est publié ici, et pas seulement dans le
+handoff, parce qu'un lecteur qui s'appuie sur ces chiffres doit savoir comment ils ont failli.
+
+### Les deux pannes
+
+**Panne 1 — aplatissement temporel.** Les profils sont temporels : chaque règle est une liste de
+périodes `validFrom`/`validTo`. La première version de la sonde lisait les règles avec toutes les
+périodes fusionnées, **périodes abrogées comprises**. Des canaux e-mail retirés depuis longtemps
+faisaient donc paraître des pays joignables, et des pays réellement injoignables paraissaient
+n'avoir que le courriel.
+
+**Panne 2 — un motif de nom de fichier devenu mort.** Les deux paliers de stub de transmission
+étaient distingués par le fichier déclarant l'identifiant, reconnu par `/smaller-portals\.ts$/`. Le
+refactor amont « flatten the regional transmission folders » a supprimé ces fichiers. Le motif ne
+correspondait plus à rien, `genericPortalStubFactory` est devenu faux partout, et **37 portails à
+fabrique générique auraient été publiés comme des implémentations dédiées**.
+
+### Ce qui rend ces pannes graves
+
+Ni l'une ni l'autre n'a levé d'exception, écrit un avertissement, ou produit un fichier
+malformé. **Les deux ont rendu un résultat propre, plausible, publiable — et faux.** Aucune
+inspection de la sortie ne pouvait les distinguer d'un bon run.
+
+Les deux ont été attrapées par recoupement avec autre chose : la première parce que les profils
+polonais et italien ont été relus à la main, la seconde parce que le diff fournisseur par
+fournisseur a été refait après un merge. **Il n'y aura pas toujours de recoupement.** Une sonde qui
+échoue en ouvert est pire qu'une sonde absente : sa sortie est crue.
+
+### Ce que les corrections ont donné — dans les deux sens
+
+C'est le point qui compte pour la confiance qu'on peut accorder au reste.
+
+| Correction | Avant (faux) | Après (corrigé) | Sens |
+| --- | --- | --- | --- |
+| Aplatissement, catégorie 1a | 48 pays sans transport | **56 pays** sans transport | **plus lourd** |
+| Aplatissement, catégorie 1b | 8 pays « le courriel pour seule sortie » | **0** — ils n'ont aucune sortie, et sont les 8 que 1a a gagnés | **plus lourd** |
+| Aplatissement, e-mail illicite | 3 pays (FR, PL, IT) | **1 pays** (FR) — PL-D4 et IT-D8 rétractés | plus léger |
+| Motif mort, paliers de stub | *(rattrapé avant publication)* | 24 dédiés / 37 génériques / 1 log.todo, inchangé | neutre |
+
+Les corrections ne vont donc **pas dans le sens du confort de l'auditeur** : la plus lourde des deux
+aggrave le finding central, et la plus légère a consisté à retirer deux findings que l'audit avait
+déjà publiés à son propre crédit. Cela ne rachète pas les pannes — cela dit seulement que le biais
+de l'instrument n'était pas orienté.
+
+### Correction apportée à l'instrument
+
+`scripts/audit/inventory.ts` §0 arme désormais chaque mesure porteuse, et **une invariante violée
+interrompt le run avant toute écriture** :
+
+- un motif de classification qui ne correspond à **aucun** fichier abandonne — il ne rend pas zéro ;
+- les paliers de stub doivent se réconcilier avec le nombre de fournisseurs du registre, et les
+  catégories 1a / 1b / reste avec le nombre de pays documentés ; 1a et 1b doivent être disjointes ;
+- les comptes qu'un instrument sain ne peut pas observer nuls le sont assertés : palier générique,
+  palier dédié, fournisseurs à transport atteignable, sites d'appel réseau, sites de port stub
+  codé en dur. Zéro y est **une panne d'instrument avant d'être un résultat** ;
+- chaque fournisseur enregistré doit être rattaché à au moins un fichier déclarant ;
+- l'en-tête de `00-INVENTORY.md` et `inventory.json` portent la **date de référence** et le **SHA de
+  l'arbre mesuré**, plus un avertissement si l'arbre de travail est modifié.
+
+Régression rejouée pour vérifier que l'abandon est réel — le motif d'avant le refactor amont,
+réintroduit tel quel :
+
+```
+INSTRUMENT BROKEN — 2 invariant(s) violated. Nothing written.
+
+  ✗ classification pattern generic-portal spec file (smaller-portals\.ts$) matches no file — observed 0
+      buildGenericPortalProviders() reads one spec file per country under
+      providers/transmission/portals/. Zero matches means that layout moved, and every generic
+      stub is about to be reported as dedicated.
+
+  ✗ generic-portal tier — observed 0
+      The repo builds dozens of portals through buildGenericPortalProviders(); an empty tier
+      means the classification pattern is dead, not that the tier was removed.
+
+[code de sortie : 1]
+```
+
+**Impact.** Tout chiffre de cet audit antérieur à `19003a9f` (correction temporelle) et `a0d62736`
+(correction de la sonde de transport) doit être considéré comme non fiable. Les chiffres publiés
+aujourd'hui ont été rejoués après les deux corrections et après le merge amont. Ils restent des
+mesures d'un instrument, pas des faits : la réponse est de pouvoir le casser exprès et de voir qu'il
+s'arrête, ce que la section ci-dessus documente.
+
+**Ce que ce finding ne dit pas.** Il ne dit pas que les chiffres actuels sont justes. Il dit qu'ils
+sont désormais **falsifiables** : les invariantes convertissent une classe de panne silencieuse en
+arrêt franc. Une panne d'une autre classe reste possible.
 
 ---
 

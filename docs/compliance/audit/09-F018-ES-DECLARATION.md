@@ -42,13 +42,25 @@ soins. L'échéance, elle, l'a été — voir F-018.)*
 > Espagne et n'y est pas commercialisé ?**
 >
 > Sous-questions :
-> 1. Le rattachement naît-il de la **mise à disposition effective** à un obligé espagnol, ou de la
->    simple **disponibilité** du logiciel (open source, téléchargeable, hébergeable par n'importe qui) ?
+> 1. **Quel fait déclenche le rattachement de l'art. 3.2 ?** Le règlement énonce-t-il un critère, et
+>    lequel ? Notamment, ce critère se rattache-t-il à la mise à disposition d'un système à un obligé
+>    tributaire déterminé, à la disponibilité publique du logiciel sans destinataire identifié, à un
+>    acte de commercialisation, ou à un autre fait ?
 > 2. Dans un modèle **auto-hébergé** par un tiers, sans relation contractuelle ni connaissance de
 >    l'éditeur, **qui porte l'obligation de l'art. 13**, et à quel titre ?
-> 3. Si un seul utilisateur espagnol apparaît ultérieurement, le rattachement est-il **rétroactif** au
->    regard d'une échéance déjà échue, ou court-il à compter de cette mise à disposition ?
-> 4. La qualification de « comercializador » dépend-elle d'une contrepartie financière ?
+> 3. Si un utilisateur espagnol apparaît après une échéance déjà échue, **à quelle date le
+>    rattachement prend-il effet**, et quelles conséquences en tire le règlement quant à l'échéance
+>    passée ?
+> 4. **Quel rôle joue, le cas échéant, l'existence d'une contrepartie financière** dans la
+>    qualification de « productor » et dans celle de « comercializador » ? Ces deux qualifications
+>    obéissent-elles au même critère ?
+
+> **Note de rédaction.** Les cinq questions sont formulées de manière à ne pas orienter la réponse.
+> La sous-question 1 posait auparavant une alternative entre « mise à disposition effective » et
+> « **simple** disponibilité » : l'adjectif disqualifiait l'une des deux branches avant que le
+> juriste ne se prononce. Les sous-questions 3 et 4 portaient le même défaut sous une forme plus
+> discrète — « rétroactif », et un oui/non sur la contrepartie financière. Elles sont désormais
+> ouvertes : elles demandent le critère, pas une confirmation.
 
 ### Éléments de fait à joindre à la question
 

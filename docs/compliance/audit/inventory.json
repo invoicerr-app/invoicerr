@@ -2,6 +2,8 @@
   "generated_at": "2026-08-27",
   "generator": "scripts/audit/inventory.ts",
   "as_of": "2026-08-27",
+  "measured_tree": "7fbf8e4fe779a8aaebfcbd0e88259d327f7a0803",
+  "measured_tree_dirty": true,
   "temporal_note": "Profile-derived fields are the rules IN FORCE at as_of. everDeclared* keeps the flattened historical view, and startsLater lists rules beginning after as_of. Override with AUDIT_AS_OF.",
   "totals": {
     "profiles": 106,
@@ -3639,6 +3641,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -3807,6 +3810,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL",
           "GOV_PORTAL_API:al-cis"
@@ -3947,6 +3951,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -4109,6 +4114,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:afip"
         ],
@@ -4247,6 +4253,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -4415,6 +4422,7 @@
           "VAT"
         ],
         "taxSystem": "GST",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -4580,6 +4588,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -4719,6 +4728,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:bd-nbr"
         ],
@@ -4855,6 +4865,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -5024,6 +5035,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -5190,6 +5202,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -5328,6 +5341,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:bj-dgi"
         ],
@@ -5462,6 +5476,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:bo-sin"
         ],
@@ -5594,6 +5609,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:sefaz"
         ],
@@ -5732,6 +5748,7 @@
           "VAT"
         ],
         "taxSystem": "GST",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -5866,6 +5883,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -6000,6 +6018,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:ci-dgi"
         ],
@@ -6132,6 +6151,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:sii"
         ],
@@ -6269,6 +6289,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -6403,6 +6424,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:cn-sta"
         ],
@@ -6538,6 +6560,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:dian"
         ],
@@ -6674,6 +6697,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:cr-hacienda"
         ],
@@ -6807,6 +6831,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -6974,6 +6999,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -7143,6 +7169,7 @@
           "LEITWEG_ID"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -7311,6 +7338,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -7478,6 +7506,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:dgii"
         ],
@@ -7610,6 +7639,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -7744,6 +7774,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:sri"
         ],
@@ -7879,6 +7910,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -8045,6 +8077,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL",
           "GOV_PORTAL_API:eg-eta"
@@ -8186,6 +8219,7 @@
           "LEGAL_ID"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL",
@@ -8388,6 +8422,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -8523,6 +8558,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -8690,6 +8726,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL",
           "PDP",
@@ -8837,6 +8874,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -8971,6 +9009,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:gh-gra"
         ],
@@ -9105,6 +9144,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:gr-aade"
         ],
@@ -9241,6 +9281,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:gt-sat"
         ],
@@ -9373,6 +9414,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -9507,6 +9549,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL",
           "GOV_PORTAL_API:hr-fiskalizacija"
@@ -9648,6 +9691,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:hu-nav"
         ],
@@ -9784,6 +9828,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:id-coretax"
         ],
@@ -9921,6 +9966,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -10092,6 +10138,7 @@
           "VAT"
         ],
         "taxSystem": "GST",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:in-irp"
         ],
@@ -10231,6 +10278,7 @@
           "PEC"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL",
           "SDI"
@@ -10372,6 +10420,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:jofotara"
         ],
@@ -10505,6 +10554,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -10671,6 +10721,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:ke-kra"
         ],
@@ -10806,6 +10857,7 @@
           "VAT"
         ],
         "taxSystem": "NONE",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -10942,6 +10994,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:kz-isesf"
         ],
@@ -11075,6 +11128,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -11240,6 +11294,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -11375,6 +11430,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -11542,6 +11598,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -11710,6 +11767,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:lv-vid"
         ],
@@ -11845,6 +11903,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -11959,6 +12018,7 @@
         "numbering": [],
         "requiredIdentifiers": [],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [],
         "everDeclaredRegimes": [],
         "startsLater": {
@@ -12045,6 +12105,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -12213,6 +12274,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:me-fiscal"
         ],
@@ -12349,6 +12411,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -12487,6 +12550,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -12654,6 +12718,7 @@
           "MX_REGIMEN_FISCAL"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PAC"
         ],
@@ -12786,6 +12851,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL",
           "GOV_PORTAL_API:myinvois"
@@ -12926,6 +12992,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -13088,6 +13155,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL",
           "GOV_PORTAL_API:firs"
@@ -13224,6 +13292,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -13359,6 +13428,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -13527,6 +13597,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -13696,6 +13767,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:np-ird"
         ],
@@ -13829,6 +13901,7 @@
           "VAT"
         ],
         "taxSystem": "GST",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -13994,6 +14067,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -14130,6 +14204,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:pa-dgi"
         ],
@@ -14262,6 +14337,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "OSE"
         ],
@@ -14400,6 +14476,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:ph-bir"
         ],
@@ -14534,6 +14611,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:pk-fbr"
         ],
@@ -14666,6 +14744,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL",
           "GOV_PORTAL_API:ksef"
@@ -14812,6 +14891,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -14977,6 +15057,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:sifen"
         ],
@@ -15109,6 +15190,7 @@
           "VAT"
         ],
         "taxSystem": "NONE",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -15245,6 +15327,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL",
           "GOV_PORTAL_API:anaf"
@@ -15384,6 +15467,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:rs-sef"
         ],
@@ -15520,6 +15604,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:rw-rra"
         ],
@@ -15652,6 +15737,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL",
           "GOV_PORTAL_API:zatca"
@@ -15791,6 +15877,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -15955,6 +16042,7 @@
           "VAT"
         ],
         "taxSystem": "GST",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -16121,6 +16209,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "PEPPOL",
           "EMAIL"
@@ -16293,6 +16382,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:sk-financnasprava"
         ],
@@ -16430,6 +16520,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "SDI"
         ],
@@ -16569,6 +16660,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -16703,6 +16795,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:sv-mh"
         ],
@@ -16837,6 +16930,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:th-rd"
         ],
@@ -16969,6 +17063,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:tn-ttn"
         ],
@@ -17101,6 +17196,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:gib"
         ],
@@ -17239,6 +17335,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:tw-mof"
         ],
@@ -17376,6 +17473,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:tz-tra"
         ],
@@ -17508,6 +17606,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:ua-dps"
         ],
@@ -17645,6 +17744,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:ug-ura"
         ],
@@ -17775,6 +17875,7 @@
           "LEGAL_ID"
         ],
         "taxSystem": "SALES_TAX",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -17897,6 +17998,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:uy-dgi"
         ],
@@ -18031,6 +18133,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -18168,6 +18271,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:seniat"
         ],
@@ -18300,6 +18404,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:vn-gdt"
         ],
@@ -18434,6 +18539,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "EMAIL"
         ],
@@ -18571,6 +18677,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:zm-zra"
         ],
@@ -18705,6 +18812,7 @@
           "VAT"
         ],
         "taxSystem": "VAT",
+        "everDeclared__warning": "FLATTENED HISTORY, abrogated periods included. Establishes nothing about the state in force at as_of; no audit finding may rest on these two fields. Use channels / regimeModels instead.",
         "everDeclaredChannels": [
           "GOV_PORTAL_API:zw-zimra"
         ],

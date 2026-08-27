@@ -2,6 +2,10 @@
 
 > Généré par `scripts/audit/inventory.ts` le 2026-08-27, **en vigueur au 2026-08-27**.
 >
+> **Arbre mesuré** : `7fbf8e4fe779a8aaebfcbd0e88259d327f7a0803` — **arbre de travail modifié**, chiffres non reproductibles en l’état.
+> **Date de référence** : `2026-08-27` (`AUDIT_AS_OF` pour la déplacer). Tout champ dérivé
+> d’un profil est calculé **en vigueur à cette date**, jamais aplati sur toutes les périodes.
+>
 > ⚠️ **Les champs `everDeclared*` de `inventory.json` n’établissent RIEN sur l’état en vigueur.**
 > Ils aplatissent toutes les périodes temporelles, périodes **abrogées** comprises. C’est
 > exactement cet aplatissement qui a produit deux findings faux (PL-D4, IT-D8) et une synthèse
