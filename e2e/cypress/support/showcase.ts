@@ -135,6 +135,52 @@ export function send(id: string) {
 	});
 }
 
+/**
+ * Wait for transmission to SETTLE before looking at the screen.
+ *
+ * `send` enqueues a BullMQ job; the outcome lands milliseconds or seconds later. Opening the dialog
+ * straight afterwards is a race, and it reads as a flake: the same country shows "awaiting delivery
+ * confirmation" on a fast machine and "never reached the authority" on a slow one. A full-suite run
+ * caught exactly that on Poland after fourteen green ones.
+ *
+ * So poll the contract until the document stops moving, and say what it settled on if it never
+ * does — a timeout that names the last status is debuggable; a four-second assertion is not.
+ */
+export function waitForSettled(
+	id: string,
+	attempts = 20,
+): Cypress.Chainable<string> {
+	const PENDING = [
+		"PENDING",
+		"SUBMITTED",
+		"IN_PROGRESS",
+		"QUEUED",
+		null,
+		undefined,
+	];
+	const poll = (
+		left: number,
+		last: string | null,
+	): Cypress.Chainable<string> => {
+		if (left === 0) {
+			throw new Error(
+				`transmission never settled; last compliance status was ${last}`,
+			);
+		}
+		return cy
+			.request({
+				url: `${api}/api/invoices/${id}/available-actions`,
+				failOnStatusCode: false,
+			})
+			.then((res) => {
+				const status = res.body?.complianceStatus ?? null;
+				if (!PENDING.includes(status)) return cy.wrap(status as string);
+				return cy.wait(500).then(() => poll(left - 1, status));
+			});
+	};
+	return poll(attempts, null);
+}
+
 /** Open the invoice detail dialog and wait for the compliance payload to have landed. */
 export function openInvoice() {
 	cy.visit("/invoices");

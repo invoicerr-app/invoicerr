@@ -13,375 +13,289 @@
  * Setup goes through the API rather than the onboarding dialog — fifteen companies through a wizard
  * would take longer than the rest of the suite combined.
  */
-const api = Cypress.env('apiUrl') || 'http://localhost:4000';
+import {
+	issuedInvoice,
+	openInvoice,
+	revealPanels,
+	send,
+	setupCountry,
+	shot,
+	waitForSettled,
+} from "../support/showcase";
 
-type Ids = { companyId: string; clientId: string };
+describe("Compliance showcase — the same code, fifteen different screens", () => {
+	before(() => {
+		cy.resetAndSeed();
+	});
+	beforeEach(() => {
+		cy.login();
+	});
 
-/** Create a company in `country`, switch the session to it, and give it one domestic client. */
-function setupCountry(
-  name: string,
-  country: string,
-  countryCode: string,
-  identifiers: { scheme: string; value: string }[],
-): Cypress.Chainable<Ids> {
-  return cy
-    .request({
-      method: 'POST',
-      url: `${api}/api/companies`,
-      body: {
-        name,
-        description: `${countryCode} showcase`,
-        phone: '+33123456789',
-        email: `contact.${countryCode.toLowerCase()}@example.org`,
-        address: '1 Main St',
-        city: 'City',
-        postalCode: '00000',
-        country,
-        countryCode,
-        currency: 'EUR',
-        identifiers,
-      },
-    })
-    .then((res) => {
-      expect(res.status, `company ${countryCode} created`).to.be.oneOf([200, 201]);
-      const companyId = res.body.id;
-      return cy
-        .request({ method: 'POST', url: `${api}/api/companies/switch`, body: { companyId } })
-        .then(() =>
-          cy
-            .request({
-              method: 'POST',
-              url: `${api}/api/clients`,
-              body: {
-                name: `${countryCode} Client`,
-                contactEmail: `client.${countryCode.toLowerCase()}@example.org`,
-                currency: 'EUR',
-                country: countryCode,
-                address: '2 Main St',
-                city: 'City',
-                postalCode: '00000',
-                isActive: true,
-                type: 'COMPANY',
-              },
-            })
-            .then((c) => {
-              expect(c.status, `client ${countryCode} created`).to.be.oneOf([200, 201]);
-              return cy.wrap({ companyId, clientId: c.body.id } as Ids);
-            }),
-        );
-    });
-}
+	// ── Correction: what replaces "edit" once a document is issued ────────────────────────────────
+	it("01 FR — correcting an issued invoice offers a CREDIT NOTE (avoir)", () => {
+		setupCountry("Showcase FR", "France", "FR", [
+			{ scheme: "LEGAL_ID", value: "73282932000074" },
+			{ scheme: "VAT", value: "FR44732829320" },
+		]).then((ids) => {
+			issuedInvoice(ids).then((id) => {
+				send(id as unknown as string);
+				waitForSettled(id as unknown as string);
+				openInvoice();
+				// The real assertion, restored once sending got the document to DELIVERED. `correctionModel`
+				// is CREDIT_NOTE for France and the button says so; the corrective-invoice button, which is
+				// what Poland gets, is absent.
+				cy.contains("button", /credit note/i).should("be.visible");
+				cy.contains("button", /corrective/i).should("not.exist");
+				shot("01-fr-credit-note");
+			});
+		});
+	});
 
-/** A one-line invoice, issued. Fails loudly rather than screenshotting a draft by accident. */
-function issuedInvoice(ids: Ids, vatRate = 20): Cypress.Chainable<string> {
-  return cy
-    .request({
-      method: 'POST',
-      url: `${api}/api/invoices`,
-      body: {
-        clientId: ids.clientId,
-        currency: 'EUR',
-        notes: '',
-        discountRate: 0,
-        items: [
-          { name: 'Consulting', description: '', quantity: 1, unitPrice: 1000, vatRate, type: 'SERVICE', order: 0 },
-        ],
-      },
-    })
-    .then((res) => {
-      expect(res.status, 'draft created').to.be.oneOf([200, 201]);
-      const id = res.body.id;
-      return cy
-        .request({ method: 'POST', url: `${api}/api/invoices/${id}/issue`, failOnStatusCode: false })
-        .then((iss) => {
-          expect(iss.status, `invoice issued (${JSON.stringify(iss.body).slice(0, 200)})`).to.be.oneOf([
-            200, 201,
-          ]);
-          return cy.wrap(id);
-        });
-    });
-}
+	it("02 PL — the invoice cannot leave the product at all without KSeF, and the screen says so", () => {
+		setupCountry("Showcase PL", "Poland", "PL", [
+			{ scheme: "VAT", value: "PL1234567890" },
+		]).then((ids) => {
+			issuedInvoice(ids).then((id) => {
+				send(id as unknown as string);
+				waitForSettled(id as unknown as string);
+				openInvoice();
+				// Written to show the corrective-invoice button, which Poland gets where France gets a
+				// credit note. It cannot be shown: correction opens from DELIVERED, and a Polish invoice
+				// never gets there because KSeF has no credentials — the C1 finding, that no channel can
+				// actually emit. What the screen does instead is the more useful thing to capture: it
+				// refuses to pretend the invoice was issued.
+				cy.contains(/not transmitted|never reached the authority/i).should(
+					"be.visible",
+				);
+				shot("02-pl-not-transmitted");
+			});
+		});
+	});
 
-/**
- * Push the document to a state where correction is offered.
- *
- * Correction is not an edit — it is a NEW document referencing the original — so the lifecycle only
- * opens it from DELIVERED / ACCEPTED / REPORTED (`phases/contributors.ts:280`). A freshly issued
- * invoice is none of those, which is why the credit-note button is legitimately absent right after
- * issuance. Sending it is what makes the difference between countries visible.
- */
-function send(id: string) {
-  return cy.request({
-    method: 'POST',
-    url: `${api}/api/invoices/send`,
-    body: { invoiceId: id },
-    failOnStatusCode: false,
-  });
-}
+	// ── Immutability: may an issued document still be edited? ─────────────────────────────────────
+	it("03 US — no VAT at all: the invoice is out of scope, and says so", () => {
+		// Originally written to show that a US invoice stays editable after issuance
+		// (`immutableAfter: NEVER`). It does not, and that is a GAP rather than a country difference:
+		// `invoices.helpers.ts:442` hardcodes `edit: isDraft`, so the contract's immutability answer
+		// never reaches the button. Recorded in the report; the case now shows a difference that is
+		// real — a US sale carries no VAT line at all, category O.
+		setupCountry("Showcase US", "United States", "US", []).then((ids) => {
+			issuedInvoice(ids, 0).then(() => {
+				openInvoice();
+				cy.get('[data-cy="archival-notice"]').should("exist");
+				revealPanels();
+				shot("03-us-out-of-scope");
+			});
+		});
+	});
 
-/** Open the invoice detail dialog and wait for the compliance payload to have landed. */
-function openInvoice() {
-  cy.visit('/invoices');
-  cy.get('[data-cy="invoice-name"]', { timeout: 20000 }).first().click();
-  cy.get('[role="dialog"]', { timeout: 10000 }).should('be.visible');
-  cy.wait(1200);
-}
+	it("04 FR — the same issued invoice is FROZEN (immutableAfter: ISSUE)", () => {
+		setupCountry("Showcase FR2", "France", "FR", [
+			{ scheme: "LEGAL_ID", value: "73282932000075" },
+			{ scheme: "VAT", value: "FR44732829321" },
+		]).then((ids) => {
+			issuedInvoice(ids).then(() => {
+				openInvoice();
+				cy.get('[data-cy="invoice-edit-button"]').should("not.exist");
+				shot("04-fr-frozen-after-issue");
+			});
+		});
+	});
 
-/**
- * Bring the compliance panels into frame before capturing.
- *
- * They sit at the bottom of a scrollable dialog, so a viewport screenshot taken without this shows
- * the invoice header and none of the panel the case is about. The first run of this spec produced
- * exactly that — fifteen green assertions and a screenshot of the wrong half of the screen, because
- * the assertions used `exist` rather than `visible`. Asserting existence and capturing the viewport
- * are two different claims; this reconciles them.
- */
-function revealPanels() {
-  cy.get('[data-cy="compliance-panels"]').scrollIntoView({ offset: { top: -80, left: 0 } });
-  cy.wait(300);
-}
+	// ── Cancellation policy (panel A) ─────────────────────────────────────────────────────────────
+	it("05 PL — cancellation is NOT AVAILABLE, and the screen says why", () => {
+		setupCountry("Showcase PL2", "Poland", "PL", [
+			{ scheme: "VAT", value: "PL1234567891" },
+		]).then((ids) => {
+			issuedInvoice(ids).then(() => {
+				openInvoice();
+				revealPanels();
+				cy.get('[data-cy="cancellation-policy"]').should("be.visible");
+				cy.get('[data-cy="cancellation-condition-notAllowedByCountry"]').should(
+					"exist",
+				);
+				shot("05-pl-cancellation-unavailable");
+			});
+		});
+	});
 
-function shot(name: string) {
-  cy.screenshot(name, { capture: 'viewport', overwrite: true });
-}
+	it("06 MX — TWO conditions at once, which the old single-sentence code could not show", () => {
+		setupCountry("Showcase MX", "Mexico", "MX", [
+			{ scheme: "RFC", value: "XAXX010101000" },
+			{ scheme: "MX_DOMICILIO_FISCAL", value: "01000" },
+			{ scheme: "MX_REGIMEN_FISCAL", value: "601" },
+		]).then((ids) => {
+			issuedInvoice(ids).then(() => {
+				openInvoice();
+				cy.get('[data-cy="cancellation-condition-buyerConsent"]').should(
+					"exist",
+				);
+				cy.get('[data-cy="cancellation-condition-authorityAck"]').should(
+					"exist",
+				);
+				revealPanels();
+				shot("06-mx-two-cancellation-conditions");
+			});
+		});
+	});
 
-describe('Compliance showcase — the same code, fifteen different screens', () => {
-  before(() => {
-    cy.resetAndSeed();
-  });
-  beforeEach(() => {
-    cy.login();
-  });
+	it("07 IT — cancellation waits on the tax authority", () => {
+		setupCountry("Showcase IT", "Italy", "IT", [
+			{ scheme: "LEGAL_ID", value: "12345678901" },
+			{ scheme: "VAT", value: "IT12345678901" },
+		]).then((ids) => {
+			issuedInvoice(ids).then(() => {
+				openInvoice();
+				cy.get('[data-cy="cancellation-condition-authorityAck"]').should(
+					"exist",
+				);
+				revealPanels();
+				shot("07-it-cancellation-authority-ack");
+			});
+		});
+	});
 
-  // ── Correction: what replaces "edit" once a document is issued ────────────────────────────────
-  it('01 FR — correcting an issued invoice offers a CREDIT NOTE (avoir)', () => {
-    setupCountry('Showcase FR', 'France', 'FR', [
-      { scheme: 'LEGAL_ID', value: '73282932000074' },
-      { scheme: 'VAT', value: 'FR44732829320' },
-    ]).then((ids) => {
-      issuedInvoice(ids).then((id) => {
-        send(id as unknown as string);
-        openInvoice();
-        // The real assertion, restored once sending got the document to DELIVERED. `correctionModel`
-        // is CREDIT_NOTE for France and the button says so; the corrective-invoice button, which is
-        // what Poland gets, is absent.
-        cy.contains('button', /credit note/i).should('be.visible');
-        cy.contains('button', /corrective/i).should('not.exist');
-        shot('01-fr-credit-note');
-      });
-    });
-  });
+	it("08 FR — no cancellation panel at all: nothing to warn about", () => {
+		setupCountry("Showcase FR3", "France", "FR", [
+			{ scheme: "LEGAL_ID", value: "73282932000076" },
+			{ scheme: "VAT", value: "FR44732829322" },
+		]).then((ids) => {
+			issuedInvoice(ids).then(() => {
+				openInvoice();
+				cy.get('[data-cy="cancellation-policy"]').should("not.exist");
+				revealPanels();
+				shot("08-fr-no-cancellation-warning");
+			});
+		});
+	});
 
-  it('02 PL — the invoice cannot leave the product at all without KSeF, and the screen says so', () => {
-    setupCountry('Showcase PL', 'Poland', 'PL', [{ scheme: 'VAT', value: 'PL1234567890' }]).then((ids) => {
-      issuedInvoice(ids).then((id) => {
-        send(id as unknown as string);
-        openInvoice();
-        // Written to show the corrective-invoice button, which Poland gets where France gets a
-        // credit note. It cannot be shown: correction opens from DELIVERED, and a Polish invoice
-        // never gets there because KSeF has no credentials — the C1 finding, that no channel can
-        // actually emit. What the screen does instead is the more useful thing to capture: it
-        // refuses to pretend the invoice was issued.
-        cy.contains(/not transmitted|never reached the authority/i).should('be.visible');
-        shot('02-pl-not-transmitted');
-      });
-    });
-  });
+	// ── Obligation layers (panel C) ───────────────────────────────────────────────────────────────
+	it("09 FR — the duty is shown with NO invented deadline, four days before the mandate", () => {
+		setupCountry("Showcase FR4", "France", "FR", [
+			{ scheme: "LEGAL_ID", value: "73282932000077" },
+			{ scheme: "VAT", value: "FR44732829323" },
+		]).then((ids) => {
+			issuedInvoice(ids).then(() => {
+				openInvoice();
+				// France's three declared layers are all `validFrom: 2026-09-01` and today is 2026-08-28,
+				// so the engine resolves NONE of them — correctly. What remains is the regime-derived
+				// issuance duty, and it says its deadline is not established rather than inventing 24 h.
+				// This is the temporal profile working, not a missing feature.
+				cy.get('[data-cy="obligation-ISSUANCE"]').should("exist");
+				cy.get('[data-cy="obligation-RECEPTION"]').should("not.exist");
+				revealPanels();
+				shot("09-fr-obligation-not-yet-in-force");
+			});
+		});
+	});
 
-  // ── Immutability: may an issued document still be edited? ─────────────────────────────────────
-  it('03 US — no VAT at all: the invoice is out of scope, and says so', () => {
-    // Originally written to show that a US invoice stays editable after issuance
-    // (`immutableAfter: NEVER`). It does not, and that is a GAP rather than a country difference:
-    // `invoices.helpers.ts:442` hardcodes `edit: isDraft`, so the contract's immutability answer
-    // never reaches the button. Recorded in the report; the case now shows a difference that is
-    // real — a US sale carries no VAT line at all, category O.
-    setupCountry('Showcase US', 'United States', 'US', []).then((ids) => {
-      issuedInvoice(ids, 0).then(() => {
-        openInvoice();
-        cy.get('[data-cy="archival-notice"]').should('exist');
-        revealPanels();
-        shot('03-us-out-of-scope');
-      });
-    });
-  });
+	it("10 DE — one layer only: the per-layer model exists for France alone today", () => {
+		setupCountry("Showcase DE", "Germany", "DE", []).then((ids) => {
+			issuedInvoice(ids).then(() => {
+				openInvoice();
+				cy.get('[data-cy="obligation-ISSUANCE"]').should("exist");
+				cy.get('[data-cy="obligation-RECEPTION"]').should("not.exist");
+				revealPanels();
+				shot("10-de-single-obligation-layer");
+			});
+		});
+	});
 
-  it('04 FR — the same issued invoice is FROZEN (immutableAfter: ISSUE)', () => {
-    setupCountry('Showcase FR2', 'France', 'FR', [
-      { scheme: 'LEGAL_ID', value: '73282932000075' },
-      { scheme: 'VAT', value: 'FR44732829321' },
-    ]).then((ids) => {
-      issuedInvoice(ids).then(() => {
-        openInvoice();
-        cy.get('[data-cy="invoice-edit-button"]').should('not.exist');
-        shot('04-fr-frozen-after-issue');
-      });
-    });
-  });
+	// ── Retention (panel B) ───────────────────────────────────────────────────────────────────────
+	it("11 FR — documents must be kept TEN years", () => {
+		setupCountry("Showcase FR5", "France", "FR", [
+			{ scheme: "LEGAL_ID", value: "73282932000078" },
+			{ scheme: "VAT", value: "FR44732829324" },
+		]).then((ids) => {
+			issuedInvoice(ids).then(() => {
+				openInvoice();
+				cy.get('[data-cy="archival-retention"]').should("contain.text", "10");
+				revealPanels();
+				shot("11-fr-retention-10-years");
+			});
+		});
+	});
 
-  // ── Cancellation policy (panel A) ─────────────────────────────────────────────────────────────
-  it('05 PL — cancellation is NOT AVAILABLE, and the screen says why', () => {
-    setupCountry('Showcase PL2', 'Poland', 'PL', [{ scheme: 'VAT', value: 'PL1234567891' }]).then((ids) => {
-      issuedInvoice(ids).then(() => {
-        openInvoice();
-        revealPanels();
-        cy.get('[data-cy="cancellation-policy"]').should('be.visible');
-        cy.get('[data-cy="cancellation-condition-notAllowedByCountry"]').should('exist');
-        shot('05-pl-cancellation-unavailable');
-      });
-    });
-  });
+	it("12 MX — FIVE years, from the same component", () => {
+		setupCountry("Showcase MX2", "Mexico", "MX", [
+			{ scheme: "RFC", value: "XAXX010101001" },
+			{ scheme: "MX_DOMICILIO_FISCAL", value: "01001" },
+			{ scheme: "MX_REGIMEN_FISCAL", value: "601" },
+		]).then((ids) => {
+			issuedInvoice(ids).then(() => {
+				openInvoice();
+				cy.get('[data-cy="archival-retention"]').should("contain.text", "5");
+				revealPanels();
+				shot("12-mx-retention-5-years");
+			});
+		});
+	});
 
-  it('06 MX — TWO conditions at once, which the old single-sentence code could not show', () => {
-    setupCountry('Showcase MX', 'Mexico', 'MX', [
-      { scheme: 'RFC', value: 'XAXX010101000' },
-      { scheme: 'MX_DOMICILIO_FISCAL', value: '01000' },
-      { scheme: 'MX_REGIMEN_FISCAL', value: '601' },
-    ]).then((ids) => {
-      issuedInvoice(ids).then(() => {
-        openInvoice();
-        cy.get('[data-cy="cancellation-condition-buyerConsent"]').should('exist');
-        cy.get('[data-cy="cancellation-condition-authorityAck"]').should('exist');
-        revealPanels();
-        shot('06-mx-two-cancellation-conditions');
-      });
-    });
-  });
+	it("13 US — SEVEN years", () => {
+		setupCountry("Showcase US2", "United States", "US", []).then((ids) => {
+			issuedInvoice(ids).then(() => {
+				openInvoice();
+				cy.get('[data-cy="archival-retention"]').should("contain.text", "7");
+				revealPanels();
+				shot("13-us-retention-7-years");
+			});
+		});
+	});
 
-  it('07 IT — cancellation waits on the tax authority', () => {
-    setupCountry('Showcase IT', 'Italy', 'IT', [
-      { scheme: 'LEGAL_ID', value: '12345678901' },
-      { scheme: 'VAT', value: 'IT12345678901' },
-    ]).then((ids) => {
-      issuedInvoice(ids).then(() => {
-        openInvoice();
-        cy.get('[data-cy="cancellation-condition-authorityAck"]').should('exist');
-        revealPanels();
-        shot('07-it-cancellation-authority-ack');
-      });
-    });
-  });
+	// ── VAT: the zero-rate declaration ────────────────────────────────────────────────────────────
+	it("14 FR — a 0% line must declare WHY: France levies no zero rate", () => {
+		setupCountry("Showcase FR6", "France", "FR", [
+			{ scheme: "LEGAL_ID", value: "73282932000079" },
+			{ scheme: "VAT", value: "FR44732829325" },
+		]).then(() => {
+			cy.visit("/invoices");
+			cy.contains("button", /add|new|créer|ajouter/i, {
+				timeout: 15000,
+			}).click();
+			cy.get('[data-cy="invoice-dialog"]', { timeout: 10000 }).should(
+				"be.visible",
+			);
+			cy.get('[data-cy="invoice-client-select"] button').first().click();
+			cy.get('[data-cy="invoice-client-select-options"] button')
+				.first()
+				.click();
+			cy.contains("button", /Add Item|Ajouter/i).click();
+			cy.get('[name="items.0.name"]').type("Exempt service", { force: true });
+			cy.get('[name="items.0.quantity"]')
+				.clear({ force: true })
+				.type("1", { force: true });
+			cy.get('[name="items.0.unitPrice"]')
+				.clear({ force: true })
+				.type("500", { force: true });
+			cy.get('[name="items.0.vatRate"]')
+				.clear({ force: true })
+				.type("0", { force: true });
+			cy.get('[data-cy="item-vat-category-0"]').scrollIntoView();
+			cy.get('[data-cy="item-vat-category-0"]').should("be.visible");
+			shot("14-fr-zero-rate-declaration");
+		});
+	});
 
-  it('08 FR — no cancellation panel at all: nothing to warn about', () => {
-    setupCountry('Showcase FR3', 'France', 'FR', [
-      { scheme: 'LEGAL_ID', value: '73282932000076' },
-      { scheme: 'VAT', value: 'FR44732829322' },
-    ]).then((ids) => {
-      issuedInvoice(ids).then(() => {
-        openInvoice();
-        cy.get('[data-cy="cancellation-policy"]').should('not.exist');
-        revealPanels();
-        shot('08-fr-no-cancellation-warning');
-      });
-    });
-  });
-
-  // ── Obligation layers (panel C) ───────────────────────────────────────────────────────────────
-  it('09 FR — the duty is shown with NO invented deadline, four days before the mandate', () => {
-    setupCountry('Showcase FR4', 'France', 'FR', [
-      { scheme: 'LEGAL_ID', value: '73282932000077' },
-      { scheme: 'VAT', value: 'FR44732829323' },
-    ]).then((ids) => {
-      issuedInvoice(ids).then(() => {
-        openInvoice();
-        // France's three declared layers are all `validFrom: 2026-09-01` and today is 2026-08-28,
-        // so the engine resolves NONE of them — correctly. What remains is the regime-derived
-        // issuance duty, and it says its deadline is not established rather than inventing 24 h.
-        // This is the temporal profile working, not a missing feature.
-        cy.get('[data-cy="obligation-ISSUANCE"]').should('exist');
-        cy.get('[data-cy="obligation-RECEPTION"]').should('not.exist');
-        revealPanels();
-        shot('09-fr-obligation-not-yet-in-force');
-      });
-    });
-  });
-
-  it('10 DE — one layer only: the per-layer model exists for France alone today', () => {
-    setupCountry('Showcase DE', 'Germany', 'DE', []).then((ids) => {
-      issuedInvoice(ids).then(() => {
-        openInvoice();
-        cy.get('[data-cy="obligation-ISSUANCE"]').should('exist');
-        cy.get('[data-cy="obligation-RECEPTION"]').should('not.exist');
-        revealPanels();
-        shot('10-de-single-obligation-layer');
-      });
-    });
-  });
-
-  // ── Retention (panel B) ───────────────────────────────────────────────────────────────────────
-  it('11 FR — documents must be kept TEN years', () => {
-    setupCountry('Showcase FR5', 'France', 'FR', [
-      { scheme: 'LEGAL_ID', value: '73282932000078' },
-      { scheme: 'VAT', value: 'FR44732829324' },
-    ]).then((ids) => {
-      issuedInvoice(ids).then(() => {
-        openInvoice();
-        cy.get('[data-cy="archival-retention"]').should('contain.text', '10');
-        revealPanels();
-        shot('11-fr-retention-10-years');
-      });
-    });
-  });
-
-  it('12 MX — FIVE years, from the same component', () => {
-    setupCountry('Showcase MX2', 'Mexico', 'MX', [
-      { scheme: 'RFC', value: 'XAXX010101001' },
-      { scheme: 'MX_DOMICILIO_FISCAL', value: '01001' },
-      { scheme: 'MX_REGIMEN_FISCAL', value: '601' },
-    ]).then((ids) => {
-      issuedInvoice(ids).then(() => {
-        openInvoice();
-        cy.get('[data-cy="archival-retention"]').should('contain.text', '5');
-        revealPanels();
-        shot('12-mx-retention-5-years');
-      });
-    });
-  });
-
-  it('13 US — SEVEN years', () => {
-    setupCountry('Showcase US2', 'United States', 'US', []).then((ids) => {
-      issuedInvoice(ids).then(() => {
-        openInvoice();
-        cy.get('[data-cy="archival-retention"]').should('contain.text', '7');
-        revealPanels();
-        shot('13-us-retention-7-years');
-      });
-    });
-  });
-
-  // ── VAT: the zero-rate declaration ────────────────────────────────────────────────────────────
-  it('14 FR — a 0% line must declare WHY: France levies no zero rate', () => {
-    setupCountry('Showcase FR6', 'France', 'FR', [
-      { scheme: 'LEGAL_ID', value: '73282932000079' },
-      { scheme: 'VAT', value: 'FR44732829325' },
-    ]).then(() => {
-      cy.visit('/invoices');
-      cy.contains('button', /add|new|créer|ajouter/i, { timeout: 15000 }).click();
-      cy.get('[data-cy="invoice-dialog"]', { timeout: 10000 }).should('be.visible');
-      cy.get('[data-cy="invoice-client-select"] button').first().click();
-      cy.get('[data-cy="invoice-client-select-options"] button').first().click();
-      cy.contains('button', /Add Item|Ajouter/i).click();
-      cy.get('[name="items.0.name"]').type('Exempt service', { force: true });
-      cy.get('[name="items.0.quantity"]').clear({ force: true }).type('1', { force: true });
-      cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('500', { force: true });
-      cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('0', { force: true });
-      cy.get('[data-cy="item-vat-category-0"]').scrollIntoView();
-      cy.get('[data-cy="item-vat-category-0"]').should('be.visible');
-      shot('14-fr-zero-rate-declaration');
-    });
-  });
-
-  it('15 FR — at a real rate the question does not arise, and the controls stay away', () => {
-    cy.visit('/invoices');
-    cy.contains('button', /add|new|créer|ajouter/i, { timeout: 15000 }).click();
-    cy.get('[data-cy="invoice-dialog"]', { timeout: 10000 }).should('be.visible');
-    cy.get('[data-cy="invoice-client-select"] button').first().click();
-    cy.get('[data-cy="invoice-client-select-options"] button').first().click();
-    cy.contains('button', /Add Item|Ajouter/i).click();
-    cy.get('[name="items.0.name"]').type('Standard service', { force: true });
-    cy.get('[name="items.0.quantity"]').clear({ force: true }).type('1', { force: true });
-    cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('500', { force: true });
-    cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('20', { force: true });
-    cy.get('[data-cy="item-vat-category-0"]').should('not.exist');
-    shot('15-fr-no-declaration-at-standard-rate');
-  });
+	it("15 FR — at a real rate the question does not arise, and the controls stay away", () => {
+		cy.visit("/invoices");
+		cy.contains("button", /add|new|créer|ajouter/i, { timeout: 15000 }).click();
+		cy.get('[data-cy="invoice-dialog"]', { timeout: 10000 }).should(
+			"be.visible",
+		);
+		cy.get('[data-cy="invoice-client-select"] button').first().click();
+		cy.get('[data-cy="invoice-client-select-options"] button').first().click();
+		cy.contains("button", /Add Item|Ajouter/i).click();
+		cy.get('[name="items.0.name"]').type("Standard service", { force: true });
+		cy.get('[name="items.0.quantity"]')
+			.clear({ force: true })
+			.type("1", { force: true });
+		cy.get('[name="items.0.unitPrice"]')
+			.clear({ force: true })
+			.type("500", { force: true });
+		cy.get('[name="items.0.vatRate"]')
+			.clear({ force: true })
+			.type("20", { force: true });
+		cy.get('[data-cy="item-vat-category-0"]').should("not.exist");
+		shot("15-fr-no-declaration-at-standard-rate");
+	});
 });
