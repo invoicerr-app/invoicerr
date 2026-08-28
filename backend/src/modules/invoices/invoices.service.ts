@@ -171,7 +171,12 @@ export class InvoicesService {
       const flow = describeFlow(plan, doc.status as ComplianceStatus);
       return {
         ...inv,
-        actions: deriveInvoiceActions(inv, new Set(flow.manualActions), plan.lifecycle?.correctionModel),
+        actions: deriveInvoiceActions(
+          inv,
+          new Set(flow.manualActions),
+          plan.lifecycle?.correctionModel,
+          plan.lifecycle?.immutableAfter,
+        ),
         complianceDocuments: [
           {
             id: doc.id,
@@ -2213,7 +2218,12 @@ export class InvoicesService {
         deadline: o.deadline ?? null,
         openQuestion: o.openQuestion ?? null,
       })),
-      actions: deriveInvoiceActions(invoice, manualActions, lifecycle.correctionModel),
+      actions: deriveInvoiceActions(
+        invoice,
+        manualActions,
+        lifecycle.correctionModel,
+        lifecycle.immutableAfter,
+      ),
       correctionKinds,
       flow: describeFlow(plan, complianceDoc.status as ComplianceStatus),
     };

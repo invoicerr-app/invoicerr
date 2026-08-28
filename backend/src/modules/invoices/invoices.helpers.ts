@@ -425,11 +425,14 @@ export interface InvoiceActionFlags {
  *                       (from LifecycleRuntime.availableActions() or FlowDescriptor.manualActions);
  *                       `null` when the invoice has no compliance plan yet.
  * @param correctionModel lifecycle correction model (e.g. 'CANCEL_AND_REPLACE'), when a plan exists.
+ * @param immutableAfter  when the document freezes — 'ISSUE', 'CLEARANCE' or 'NEVER'. Without it
+ *                        the flag falls back to "drafts only", which is what it used to hardcode.
  */
 export function deriveInvoiceActions(
   invoice: { status: string; kind?: string | null },
   manualActions: ReadonlySet<string> | null,
   correctionModel?: string,
+  immutableAfter?: string,
 ): InvoiceActionFlags {
   const isDraft = invoice.status === 'DRAFT';
   const isProforma = invoice.kind === 'PROFORMA';
@@ -438,8 +441,19 @@ export function deriveInvoiceActions(
   const isIssued = invoice.status === 'ISSUED' || invoice.status === 'SENT';
   const canCancel = manualActions?.has('cancel') ?? false;
 
+  // A country whose profile says the document NEVER freezes keeps it editable after issuance —
+  // the United States and the fallback profile. `editInvoice` has always allowed this
+  // (invoices.service.ts:1007 falls through for `immutableAfter === 'NEVER'`); the flag that drives
+  // the button did not, so the answer the country profile gave never reached the screen. The
+  // showcase caught it: a US invoice is frozen on the screen and editable through the API.
+  //
+  // Narrower than the API on purpose: the API permits any non-draft, which would offer "edit" on a
+  // CANCELLED document. Stricter on the screen than in the service is the safe direction for a
+  // mismatch; the reverse is what produced this one.
+  const staysEditable = immutableAfter === 'NEVER' && isIssued;
+
   return {
-    edit: isDraft && !isDeposit,
+    edit: !isDeposit && (isDraft || staysEditable),
     issue: isDraft && !isProforma,
     correct: manualActions?.has('correct') ?? false,
     cancel: canCancel,
