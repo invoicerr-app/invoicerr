@@ -293,7 +293,22 @@ que `PROVEN` **n'est donc pas falsifiable en l'état**.
 **Ce qui la ferait basculer en catégorie 1** : un artefact d'acquittement versionné, daté, par
 canal. C'est peu de travail et cela change le statut de la promesse commerciale du produit.
 
-### 5.2 Le chaînage de hash générique des documents
+### 5.2 Le chaînage de hash — **deux chaînes distinctes, que ce document confondait**
+
+**Correction du 2026-08-28, établie en lisant le journal d'un système qui tourne** (run e2e complet,
+branche `feat/compliance-engine-v2`). Ce qui était traité ici comme une seule chaîne en est deux, et
+elles ne sont pas au même stade :
+
+| Chaîne | État réel | Preuve |
+| --- | --- | --- |
+| **`immutableHash` du document** — `compliance-service.ts:244-251` | **alimentée**, jamais vérifiée | le seul test assert `toBeDefined()` |
+| **chaîne de la numérotation** — exigée par `numbering.hashChain: true` du profil FR | **pas implémentée du tout** | `lifecycle/numbering.ts:37` : `log.todo('numbering/gapless', 'hash-chain link to the previous document in series …')` — 3 occurrences pendant le run |
+
+La France exige la **seconde**. Un `log.todo` n'est pas une implémentation partielle : c'est
+l'absence, annoncée. La formulation initiale de ce paragraphe — « alimenté, mais le seul test assert
+`toBeDefined()` » — décrivait la première et laissait croire que la seconde existait.
+
+### 5.2 bis Le chaînage de hash générique des documents
 
 `compliance-service.ts:244-251` lit l'`immutableHash` du document précédent et le chaîne — donc,
 contrairement au cas espagnol d'avant correction, **la chaîne est alimentée**.

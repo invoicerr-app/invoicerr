@@ -24,6 +24,7 @@
 | # | Manque | Bloqué par | Coût |
 | --- | --- | --- | --- |
 | **B1** | **Le chaînage de hash générique n'est pas vérifié.** Le profil FR exige `hashChain: true`. Le code chaîne (`compliance-service.ts:244-251`) mais le seul test assert `toBeDefined()`. Personne ne sait si la chaîne relie. | rien — le modèle existe : `verifactu-chain.spec.ts` fait exactement ça pour l'Espagne | **1–2 j** |
+| **B1 bis** | **La chaîne de hachage de la NUMÉROTATION n'existe pas.** Le profil FR exige `numbering.hashChain: true` ; `lifecycle/numbering.ts:37` y répond par un `log.todo`. Distincte de B1, qui porte sur l'`immutableHash` du document — celle-là est alimentée mais non vérifiée, celle-ci est absente. | rien | **2–3 j** |
 | **B2** | **Factur-X n'est pas validé.** Le XML embarqué dans le PDF/A-3 n'est jamais extrait ; c'est la copie remise à l'acheteur. | rien ; extraction de pièce jointe PDF/A-3 | **2–3 j** |
 | **B3** | **Un test dont le nom ment.** `it('rejects completely empty XML')` assert `errorCount === 0`. Il documente le trou sous un nom qui affirme l'inverse. | rien | **0,5 j** |
 | **B4** | **Le CAS de numérotation n'est pas exercé en CI.** Le test TOCTOU est derrière `COMPLIANCE_LIVE_DB_TESTS`, positionné seulement dans un workflow `workflow_dispatch`. La séquence gapless française repose dessus. | rien — **correction : le job `queue-integration` a déjà Postgres 16, `DATABASE_URL` et `prisma migrate deploy`**. Il ne manque qu'un drapeau et un motif de test | **0,25 j** |
