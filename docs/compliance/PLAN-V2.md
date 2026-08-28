@@ -426,8 +426,28 @@ c'est **`BR-AE-02`** qui a tiré, pas `BR-Z-02`.
 délibérément domestique et ne le couvre pas : **un vendeur français sans identifiant TVA facturant
 0 % à un acheteur allemand est toujours bloqué à la transmission aujourd'hui.**
 
-Coût estimé : faible, la garde existe et il s'agit d'étendre sa condition — mais il faut lire
-`BR-AE-02` et `BR-IC-02` plutôt que d'extrapoler depuis `BR-Z-02`.
+**✅ Corrigé — `132da085`**, et lire les règles plutôt que les extrapoler a montré que C1 était faux
+**des deux côtés** :
+
+| Cat. | Règle | Exige du vendeur |
+| --- | --- | --- |
+| `Z` | BR-Z-02 | id TVA **ou** id d'immatriculation fiscale **ou** représentant |
+| `E` | BR-E-02 | idem |
+| `AE` | BR-AE-02 | idem, **plus** un identifiant acheteur |
+| `K` | BR-IC-02 | id TVA ou représentant — **pas** l'immatriculation fiscale |
+| `G` | BR-G-02 | id TVA ou représentant — **pas** l'immatriculation fiscale |
+| `O` | BR-O-02 | **interdit** l'identifiant TVA vendeur |
+
+**`O` rend une garde fondée sur le taux indéfendable** : taux 0, et elle *interdit* ce que les cinq
+autres exigent. Une règle « taux 0 ⇒ identifiant TVA requis » aurait refusé des factures que la
+norme interdit d'en porter un.
+
+La garde porte donc sur la **catégorie résolue**, que le moteur calcule déjà, et la distinction
+`K`/`G` est encodée plutôt qu'aplatie. **Cela referme aussi le trou de la correction de routage** :
+FR→IT et FR→US sont exactement les flux corrigés en P2-T02/T03, et leurs taux zéro sont `AE`, `K` et
+`G` — tous bloqués à la transmission par une règle que la garde domestique de C1 ne couvrait pas.
+
+**Reste ouvert, nommé** : les exigences côté **acheteur** de `BR-AE-02` et `BR-IC-02`.
 
 ## Instabilité connue, non résolue
 
