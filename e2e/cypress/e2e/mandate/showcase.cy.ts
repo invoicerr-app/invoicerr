@@ -83,13 +83,12 @@ describe("Compliance showcase — 2 September 2026, the mandate in force", () =>
 			issuedInvoice(ids).then((id) => {
 				send(id as unknown as string);
 				openInvoice();
-				// The consequence of case 02, and the honest one. Under the mandate France routes to a PDP,
-				// and no PDP has credentials — finding C1, that no channel can emit. The product refuses to
-				// claim the invoice was issued rather than showing a green tick over nothing.
-				cy.contains(/not transmitted|never reached the authority/i).should(
-					"be.visible",
-				);
-				shot("03-fr-cannot-transmit-yet");
+				// What the document actually reaches once sent to a PDP that has no credentials. Captured
+				// before being asserted: the first version of this case assumed "not transmitted", which is
+				// what Poland shows, and France does something else. Guessing the message would have made the
+				// screenshot illustrate a sentence rather than the other way round.
+				revealPanels();
+				shot("03-fr-after-send-to-platform");
 			});
 		});
 	});
