@@ -25,6 +25,23 @@ git -C "$ROOT" worktree add --detach --force "$WT" HEAD >/dev/null
 for d in backend frontend e2e; do ln -sfn "$ROOT/$d/node_modules" "$WT/$d/node_modules"; done
 ln -sfn "$ROOT/backend/prisma/generated" "$WT/backend/prisma/generated"
 
+# A backend already bound to :4000 makes this whole mechanism a lie: the worktree's own backend
+# dies with EADDRINUSE, the readiness loop below still gets a 200 from the SQUATTER, and Cypress
+# drives an unknown tree against an unknown database while the log says the run was frozen. That
+# happened — a leftover `nest start --watch` on the MAIN tree served a full run, which is exactly
+# the editable-during-a-run failure this script exists to prevent, arriving through the door nobody
+# was watching. Refusing to start is the only honest response; a health check cannot tell a healthy
+# stranger from a healthy self.
+for port in 4000 6284; do
+  if (exec 3<>/dev/tcp/127.0.0.1/$port) 2>/dev/null; then
+    exec 3<&- 3>&-
+    echo "✗ port ${port} is already in use — refusing to run against a stack this script does not own." >&2
+    echo "  holder: $(ss -lptnH "sport = :${port}" 2>/dev/null | head -1 | sed 's/.*users://')" >&2
+    echo "  stop it first (e.g. a leftover 'npm run start:test' or 'nest start --watch')." >&2
+    exit 2
+  fi
+done
+
 echo "→ database ${DB}"
 docker exec invoicerr-postgres psql -U invoicerr -d postgres \
   -c "DROP DATABASE IF EXISTS \"${DB}\";" -c "CREATE DATABASE \"${DB}\";" >/dev/null
@@ -47,6 +64,14 @@ STATUS=$?
 set -e
 
 pkill -f "$WT" 2>/dev/null || true
-docker exec invoicerr-postgres psql -U invoicerr -d postgres -c "DROP DATABASE IF EXISTS \"${DB}\";" >/dev/null 2>&1 || true
+
+# E2E_KEEP_DB=1 leaves the database behind. A failing spec is a claim about DATA — "two rows share
+# this email", "three companies exist where two were expected" — and dropping the database at the
+# end means the only way to answer is to guess from the assertion message. Keep it and query it.
+if [ "${E2E_KEEP_DB:-0}" = "1" ]; then
+  echo "→ database ${DB} kept: psql -h localhost -p 5433 -U invoicerr -d ${DB}"
+else
+  docker exec invoicerr-postgres psql -U invoicerr -d postgres -c "DROP DATABASE IF EXISTS \"${DB}\";" >/dev/null 2>&1 || true
+fi
 git -C "$ROOT" worktree remove --force "$WT" 2>/dev/null || true
 exit $STATUS
