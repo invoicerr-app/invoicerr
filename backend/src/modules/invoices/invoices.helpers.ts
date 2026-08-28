@@ -95,6 +95,29 @@ export function resolveBuyerCountryOrThrow(client: BuyerParty): string {
   return countryCode;
 }
 
+/**
+ * P2-T01 (A3) — the SUPPLIER's side of the same guard, which did not exist.
+ *
+ * `resolveBuyerCountryOrThrow` above blocks issuance when the BUYER's country is unresolved; the
+ * supplier's was never checked, and `buildComplianceContext` silently fell back to `'FR'` for both.
+ * That fallback is not a default, it is a verdict: it puts an operation inside the French mandate.
+ *
+ * CGI art. 289 bis I makes the attachment of BOTH parties the trigger (Légifrance, consulted
+ * 2026-08-28 — see docs/compliance/FR-RATTACHEMENT.md), so a company with no resolved country was
+ * being told it must issue through a PDP on the strength of a `??`. The predicate models this as
+ * undecidable rather than false precisely so it can block here instead of guessing.
+ */
+export function resolveSupplierCountryOrThrow(company: SupplierParty): string {
+  const countryCode = company.countryCode ?? guessCountryCode(company.country);
+  if (!countryCode) {
+    throw new BadRequestException(
+      "The company's country is required to determine which national e-invoicing rules apply. " +
+        "Set the company's country in its settings first.",
+    );
+  }
+  return countryCode;
+}
+
 /** Map invoice/DTO items to compliance DocumentLines. */
 export function toComplianceLines(
   items: Array<{
@@ -127,13 +150,16 @@ export function buildComplianceContext(
   return {
     supplier: {
       legalName: company.name,
-      countryCode: company.countryCode ?? guessCountryCode(company.country) ?? 'FR',
+      // P2-T01 (A3): no `?? 'FR'`. The fallback was not a default — it was a verdict, placing an
+      // operation inside the French mandate on the strength of a missing field. Both throws name
+      // the field to fix.
+      countryCode: resolveSupplierCountryOrThrow(company),
       role: 'B2B',
       identifiers: company.partyIdentifiers?.map((pi) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
     },
     buyer: {
       legalName: client.name,
-      countryCode: client.countryCode ?? guessCountryCode(client.country) ?? 'FR',
+      countryCode: resolveBuyerCountryOrThrow(client),
       role: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
       identifiers: client.partyIdentifiers?.map((pi) => ({ scheme: pi.scheme, value: pi.value })) ?? [],
     },
