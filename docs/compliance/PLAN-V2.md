@@ -118,7 +118,7 @@ Deux chiffres publiés étaient faux. Ils sont corrigés ici **et** dans les doc
 - **Dépend de** : P1-T03a
 - **Accepte si** : `peppol-f7-reachability.spec.ts` passe en utilisant la fixture extraite, sans
   changement de comportement — suite complète verte.
-- **État** : à faire
+- **État** : ✅ **fait — `5024cf18`**
 
 ### P1-T03c — les suites du chemin français construisent de vrais artefacts
 - **Fait** : les 8 suites qui construisent aujourd'hui des artefacts vides reçoivent le port de la
@@ -163,7 +163,8 @@ Deux chiffres publiés étaient faux. Ils sont corrigés ici **et** dans les doc
 - **Accepte si** : une table de cas — 35 et 36 caractères, chaque caractère spécial autorisé, un
   interdit, espace en tête, en fin, double espace — passe, avec le cas limite accepté à 35 et refusé
   à 36. Test nommé, rouge sans la garde.
-- **État** : à faire
+- **État** : ✅ **fait — `e4fe5438`**, 19 tests. Garde à l'**allocation**, pas à la transmission :
+  un numéro sort d'une série sans trou, le refuser plus tard le laisserait brûlé.
 
 ### P1-T06 — B4 : le test CAS de numérotation entre en CI
 - **Fait** : `apply-signal.live.spec.ts` sort de son drapeau `COMPLIANCE_LIVE_DB_TESTS` et s'exécute
@@ -172,7 +173,8 @@ Deux chiffres publiés étaient faux. Ils sont corrigés ici **et** dans les doc
 - **Dépend de** : rien
 - **Accepte si** : le job CI exécute le test TOCTOU déterministe et **échouerait** si le CAS était
   retiré. Vérifié localement contre un Postgres jetable avant de pousser.
-- **État** : à faire
+- **État** : ✅ **fait — `d2207df6`**. Vérifié contre Postgres 16.11 dans les deux sens : 8 verts
+  avec le CAS, **2 rouges sans** (les deux preuves M-12b).
 
 ---
 
@@ -333,4 +335,7 @@ consommation, deux endpoints entrants. **On l'étend, on ne le refait pas.***
 | 2026-08-28 | **P1-T01** | ✅ fait | `8b3f0aa2`. Deux tests rouges à dessein, comme le critère l'exige. |
 | 2026-08-28 | **P1-T02** | ✅ fait | Mesure : 6 suites / 31 tests. Hypothèse des « 42 builders stub » **infirmée** — ce sont les tests du chemin français, port de rendu non injecté. P1-T03 découpée en a/b. |
 | 2026-08-28 | **P1-T03a** | ✅ fait | `6a6d2d5c`. **Défaut de production** : `ComplianceService` n'était pas câblée avec `formats` — `sendViaChannel`, `archiveDocument` et `validate` opéraient sur des artefacts vides. Gardé par un test de métadonnées de module. |
+| 2026-08-28 | **P1-T05** | ✅ fait | `e4fe5438`. G1.05 gardée à l'allocation, 19 tests, bornes 35/36 comprises. |
+| 2026-08-28 | **P1-T06** | ✅ fait | `d2207df6`. Le job CI avait déjà Postgres ; seul le drapeau manquait. Vérifié dans les deux sens. |
+| 2026-08-28 | **P1-T03b** | ✅ fait | `5024cf18`. Fixture de port extraite depuis `peppol-f7-reachability`. |
 | 2026-08-28 | **P1-T03d** | ↩ tenté, annulé | Mesure P1-T02 corrigée : 8 suites / 52 tests, pas 6/31 — je n'avais inversé qu'un des cinq court-circuits. Redécoupée en T03b/c/d. |
