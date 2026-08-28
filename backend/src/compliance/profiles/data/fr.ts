@@ -1,6 +1,22 @@
 import type { CountryComplianceProfile } from '../schema';
 
 /**
+ * ⚠️ THE LEGAL BASIS CITED THROUGHOUT THIS FILE EXPIRES ON 2027-01-01.
+ *
+ * CGI arts. 289 bis and 290 are both "Abrogé par Ordonnance n° 2025-1247 du 17 décembre 2025 -
+ * art. 9", repealed as of 2027-01-01 and maintained in force only until taken over by the code des
+ * impositions sur les biens et services — L. 215-39 and L. 216-44 for e-invoicing, L. 215-39 /
+ * L. 216-55 / L. 216-56 for e-reporting. (Légifrance, consulted 2026-08-28.)
+ *
+ * The mandate starts 2026-09-01 on the CGI and its basis moves four months later. Every `CGI art.
+ * 289 bis` citation in this repository — eight files carry one — therefore has a known expiry date,
+ * and this note is the only place that says so.
+ *
+ * OPEN, and deliberately not assumed: whether the recodification is at constant law ON THE TRIGGER
+ * itself. The CIBS articles have not been read. Nothing here is coded on a supposed equivalence;
+ * the model follows the CGI text, which is in force until at least 2027-01-01. See
+ * docs/compliance/FR-RATTACHEMENT.md §4.
+ *
  * France — see documentation/compliance/FR-France.md and COMPLIANCE_ARCHITECTURE.md §16.0.
  * Decentralized CTC (Y-model) via PDP + PPF annuaire from 2026-09-01; VAT with the
  * franchise-en-base (art. 293 B) scheme; gapless hash-chained numbering; e-invoicing
