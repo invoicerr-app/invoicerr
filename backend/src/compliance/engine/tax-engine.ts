@@ -36,6 +36,10 @@ const MENTION = {
     code: 'IMPORT_SELF_ASSESS',
     text: 'Buyer to self-assess VAT on import (reverse charge in destination country)',
   },
+  noTaxSystem: {
+    code: 'NO_TAX_SYSTEM',
+    text: "No VAT or equivalent turnover tax exists in the supplier's country",
+  },
   usNoNexus: {
     code: 'US_NO_NEXUS',
     text: 'No sales tax collected — no nexus in destination state (buyer may owe use tax)',
@@ -70,10 +74,17 @@ export function determineLineTax(
   if (sys.kind === 'SALES_TAX') return salesTax(supplier, buyer, sys, buyerProfile);
   if (sys.kind === 'NONE') {
     return treatment(
-      { taxSystem: 'NONE', name: 'None', category: 'O', rate: 0, jurisdiction: sCountry },
+      {
+        taxSystem: 'NONE',
+        name: 'None',
+        category: 'O',
+        rate: 0,
+        jurisdiction: sCountry,
+        reason: MENTION.noTaxSystem.text,
+      },
       false,
       [],
-      [],
+      [MENTION.noTaxSystem],
     );
   }
 
@@ -291,7 +302,14 @@ function salesTax(
     const destIsVat =
       !!destUnion || buyerProfile?.taxSystem.kind === 'VAT' || buyerProfile?.taxSystem.kind === 'GST';
     return treatment(
-      { taxSystem: 'SALES_TAX', name: 'Sales Tax', category: 'O', rate: 0, jurisdiction: sCountry },
+      {
+        taxSystem: 'SALES_TAX',
+        name: 'Sales Tax',
+        category: 'O',
+        rate: 0,
+        jurisdiction: sCountry,
+        reason: MENTION.outOfScope.text,
+      },
       destIsVat, // buyer self-assesses in the destination country
       [],
       destIsVat ? [MENTION.importSelfAssess] : [],
@@ -310,6 +328,7 @@ function salesTax(
         rate: 0,
         jurisdiction: bCountry,
         subdivision: state || undefined,
+        reason: MENTION.usNoNexus.text,
       },
       false,
       [],

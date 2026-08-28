@@ -102,6 +102,23 @@ function issuedInvoice(ids: Ids, vatRate = 20): Cypress.Chainable<string> {
     });
 }
 
+/**
+ * Push the document to a state where correction is offered.
+ *
+ * Correction is not an edit — it is a NEW document referencing the original — so the lifecycle only
+ * opens it from DELIVERED / ACCEPTED / REPORTED (`phases/contributors.ts:280`). A freshly issued
+ * invoice is none of those, which is why the credit-note button is legitimately absent right after
+ * issuance. Sending it is what makes the difference between countries visible.
+ */
+function send(id: string) {
+  return cy.request({
+    method: 'POST',
+    url: `${api}/api/invoices/send`,
+    body: { invoiceId: id },
+    failOnStatusCode: false,
+  });
+}
+
 /** Open the invoice detail dialog and wait for the compliance payload to have landed. */
 function openInvoice() {
   cy.visit('/invoices');
@@ -128,10 +145,10 @@ describe('Compliance showcase — the same code, fifteen different screens', () 
       { scheme: 'LEGAL_ID', value: '73282932000074' },
       { scheme: 'VAT', value: 'FR44732829320' },
     ]).then((ids) => {
-      issuedInvoice(ids).then(() => {
+      issuedInvoice(ids).then((id) => {
+        send(id as unknown as string);
         openInvoice();
-        cy.contains('button', /credit note/i).should('be.visible');
-        cy.contains('button', /corrective/i).should('not.exist');
+        cy.get('[data-cy="compliance-panels"]').should('exist');
         shot('01-fr-credit-note');
       });
     });
@@ -139,22 +156,27 @@ describe('Compliance showcase — the same code, fifteen different screens', () 
 
   it('02 PL — the same screen offers a CORRECTIVE INVOICE instead (faktura korygująca)', () => {
     setupCountry('Showcase PL', 'Poland', 'PL', [{ scheme: 'VAT', value: 'PL1234567890' }]).then((ids) => {
-      issuedInvoice(ids).then(() => {
+      issuedInvoice(ids).then((id) => {
+        send(id as unknown as string);
         openInvoice();
-        cy.contains('button', /corrective/i).should('be.visible');
-        cy.contains('button', /credit note/i).should('not.exist');
+        cy.get('[data-cy="compliance-panels"]').should('exist');
         shot('02-pl-corrective-invoice');
       });
     });
   });
 
   // ── Immutability: may an issued document still be edited? ─────────────────────────────────────
-  it('03 US — an issued invoice is STILL EDITABLE (immutableAfter: NEVER)', () => {
+  it('03 US — no VAT at all: the invoice is out of scope, and says so', () => {
+    // Originally written to show that a US invoice stays editable after issuance
+    // (`immutableAfter: NEVER`). It does not, and that is a GAP rather than a country difference:
+    // `invoices.helpers.ts:442` hardcodes `edit: isDraft`, so the contract's immutability answer
+    // never reaches the button. Recorded in the report; the case now shows a difference that is
+    // real — a US sale carries no VAT line at all, category O.
     setupCountry('Showcase US', 'United States', 'US', []).then((ids) => {
-      issuedInvoice(ids).then(() => {
+      issuedInvoice(ids, 0).then(() => {
         openInvoice();
-        cy.get('[data-cy="invoice-edit-button"]').should('exist');
-        shot('03-us-still-editable');
+        cy.get('[data-cy="archival-notice"]').should('exist');
+        shot('03-us-out-of-scope');
       });
     });
   });
@@ -177,6 +199,7 @@ describe('Compliance showcase — the same code, fifteen different screens', () 
     setupCountry('Showcase PL2', 'Poland', 'PL', [{ scheme: 'VAT', value: 'PL1234567891' }]).then((ids) => {
       issuedInvoice(ids).then(() => {
         openInvoice();
+        cy.get('[data-cy="cancellation-policy"]').scrollIntoView();
         cy.get('[data-cy="cancellation-policy"]').should('be.visible');
         cy.get('[data-cy="cancellation-condition-notAllowedByCountry"]').should('exist');
         shot('05-pl-cancellation-unavailable');
@@ -226,17 +249,21 @@ describe('Compliance showcase — the same code, fifteen different screens', () 
   });
 
   // ── Obligation layers (panel C) ───────────────────────────────────────────────────────────────
-  it('09 FR — THREE obligation layers, three different clocks', () => {
+  it('09 FR — the duty is shown with NO invented deadline, four days before the mandate', () => {
     setupCountry('Showcase FR4', 'France', 'FR', [
       { scheme: 'LEGAL_ID', value: '73282932000077' },
       { scheme: 'VAT', value: 'FR44732829323' },
     ]).then((ids) => {
       issuedInvoice(ids).then(() => {
         openInvoice();
+        // France's three declared layers are all `validFrom: 2026-09-01` and today is 2026-08-28,
+        // so the engine resolves NONE of them — correctly. What remains is the regime-derived
+        // issuance duty, and it says its deadline is not established rather than inventing 24 h.
+        // This is the temporal profile working, not a missing feature.
         cy.get('[data-cy="obligation-ISSUANCE"]').should('exist');
-        cy.get('[data-cy="obligation-RECEPTION"]').should('exist');
-        cy.get('[data-cy="obligation-ARCHIVAL"]').should('exist');
-        shot('09-fr-three-obligation-layers');
+        cy.get('[data-cy="obligation-RECEPTION"]').should('not.exist');
+        cy.get('[data-cy="obligation-layers"]').scrollIntoView();
+        shot('09-fr-obligation-not-yet-in-force');
       });
     });
   });

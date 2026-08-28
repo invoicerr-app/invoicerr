@@ -188,6 +188,27 @@ describe('the invoice path carries the corrected category', () => {
     expect(invoice('FR', 'FR', 0, 'B2C').itemVatCategories).toEqual(['E']);
   });
 
+  it('every out-of-scope path carries a reason — BR-O-10, and a US invoice must stay issuable', () => {
+    // Regression, found by the country showcase and not by any unit test: the BR-E-10 / BR-O-10
+    // issuance guard refuses category `O` without a reason, and three of the four `O` branches in
+    // the engine set none. A domestic US invoice takes the no-nexus branch by default, so EVERY US
+    // invoice had become unissuable — the same shape as the franchise-en-base near-miss, one
+    // category over. The guard was right; the engine was silent.
+    const us = invoice('US', 'US', 0);
+    expect(us.itemVatCategories).toEqual(['O']);
+    expect(us.itemVatExemptionReasons[0]).toBeTruthy();
+
+    // The other two branches that were mute, reached from a supplier with no turnover tax at all
+    // and from a cross-border sales-tax supply.
+    const noTax = invoice('AE', 'AE', 0);
+    expect(noTax.itemVatExemptionReasons.every((r, i) => noTax.itemVatCategories[i] !== 'O' || !!r)).toBe(
+      true,
+    );
+    const usExport = invoice('US', 'FR', 0);
+    expect(usExport.itemVatCategories).toEqual(['O']);
+    expect(usExport.itemVatExemptionReasons[0]).toBeTruthy();
+  });
+
   it('a French invoice at a real rate is untouched, category and amount', () => {
     const r = invoice('FR', 'FR', 20);
     expect(r.itemVatCategories).toEqual(['S']);
