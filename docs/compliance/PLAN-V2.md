@@ -261,17 +261,20 @@ conception, et les faire après reviendrait à concevoir sur une hypothèse.*
 ### P2-T04 — A1 : migrer les lecteurs, lot 1 — moteur et exécution
 - **Fait** : `compliance-engine.ts`, `execution/executor.ts`, `operations/compliance-service.ts`
   lisent `obligations` directement.
-- **Dépend de** : P2-T03 · **Accepte si** : suite complète verte après le lot. **État** : à faire
+- **Dépend de** : P2-T03 · **Accepte si** : suite complète verte après le lot. **État** : ✅ **fait — `558f88a4`** (executor 2, compliance-service 1)
 
 ### P2-T05 — A1 : migrer les lecteurs, lot 2 — cycle de vie
 - **Fait** : `lifecycle/runtime.ts`, `lifecycle/phases/contributors.ts`, `lifecycle/flow-descriptor.ts`.
-- **Dépend de** : P2-T04 · **Accepte si** : suite complète verte après le lot. **État** : à faire
+- **Dépend de** : P2-T04 · **Accepte si** : suite complète verte après le lot. **État** : ✅ **fait — `558f88a4`** (contributors 6, flow-descriptor 1)
 
 ### P2-T06 — A1 : migrer les lecteurs, lot 3 — file et signaux
 - **Fait** : `nest/apply-signal.ts`, `nest/queue/processors/transmit.processor.ts`. L'adaptateur est
   ensuite supprimé.
 - **Dépend de** : P2-T05 · **Accepte si** : plus aucune occurrence de `plan.regime` hors specs ;
-  suite complète verte. **État** : à faire
+  suite complète verte. **État** : ✅ **fait — `558f88a4`**. Le lot 3 était **vide** : `apply-signal`
+  et `transmit.processor` lisent `execution.regime`, le champ du **résultat d'exécution**, pas le
+  plan. Lire les deux fichiers plutôt que la liste du plan est ce qui l'a montré. Le champ
+  `plan.regime` est **supprimé**, pas seulement contourné.
 
 ### P2-T07 — A2 : e-invoicing et e-reporting disjoints
 - **Fait** : les deux régimes deviennent deux obligations distinctes — **F1 contre F10**, statuts
@@ -287,7 +290,19 @@ conception, et les faire après reviendrait à concevoir sur une hypothèse.*
   | FR→FR B2C | e-reporting, **aucun** canal PDP |
   | FR→IT B2B | **e-reporting**, aucun canal PDP *(produit `DECENTRALIZED_CTC` + PDP aujourd'hui)* |
   | FR→US B2B | **e-reporting**, aucun canal PDP *(idem)* |
-- **État** : à faire
+- **État** : ⏳ **seule tâche de phase 2 restante.** Trois lignes sur quatre passent déjà
+  (`obligations.spec.ts`). **La ligne 2 échoue** : `FR→FR B2C` résout `REAL_TIME_REPORTING` mais se
+  voit offrir `[PDP, GOV_PORTAL_API, PEPPOL]`.
+- **Blocage nommé, et une justification à corriger** : `profiles/data/fr.ts` justifie ce report en
+  écrivant que filtrer le B2C « couperait aussi le chemin des données » d'e-reporting (art. 290 III).
+  **Vérifié dans le code : ce chemin n'existe pas.** Les douze consommateurs de `plan.channels` sont
+  tous des chemins de transmission de la **facture** (`registry.ts`, `assembler.ts`,
+  `apply-signal.ts`), et la soumission d'e-reporting est un *mock* —
+  `report.processor.ts` écrit `mock-period-close:…` sans jamais lire `channels`. Ce qui serait
+  réellement coupé, c'est l'assemblage du cycle de vie, qui part de `channels[0]`.
+- **Ce que la tâche exige donc** : des canaux **par obligation**, pas une liste unique — et une
+  décision sur le canal d'une facture B2C domestique française, qui est une question de droit et
+  non de code.
 
 ### P2-T08 — A4 : BT-23 en cardinalité 1..1
 - **Fait** : émet la catégorie d'opération biens/services en 1..1, valeurs limitatives dérivées du
@@ -538,4 +553,8 @@ mémoïsation l'a réduit mais je n'ai pas mesuré l'effet.
 | 2026-08-28 | **§3 — spec 17** | ✅ fait | `3f3c54f4`. Ni la mémoire, ni la spec 17 : plantage **Electron** sur un select Radix, localisé par instrumentation côté Node. **Firefox : 17/17.** |
 | 2026-08-28 | **§4 — inventaire** | ✅ fait | `ae4a2d82`. `12-SUPPRESSION.md`. 79 fichiers / 2 064 lignes certains. Blocage réel : le schéma ne sait pas dire « pas de sortie ». |
 | 2026-08-28 | **Vérification sur HEAD** | ✅ fait | La présomption laissée au rapport précédent est levée. Electron : **2 échecs, tous deux le plantage** (`grep -c` = 2). **Firefox : 167/167, 17 specs sur 17** — suite complète verte pour la première fois. Backend 1 926, `biome ci` 0/0, build frontend, i18n. |
+| 2026-08-28 | **Phase 2 rouverte** | ⚠️ | Le journal comptait **P2-T03 fait** ; le corps de tâche disait « à faire » et **le code confirmait** — `plan.obligations` n'existait pas. `0cf83366` avait livré le *résultat* de routage (tableau de P2-T07), pas la structure de T03. Journal dérivé de l'arbre, publié tel quel. |
+| 2026-08-28 | **P2-T03** | ✅ fait | `85c2e74a`. `obligations` plurielles ; `regime` conservé en adaptateur ; 12 tests. |
+| 2026-08-28 | **P2-T04/T05/T06** | ✅ fait | `558f88a4`. 16 lecteurs migrés, **`plan.regime` supprimé**. Lot 3 vide — `execution.regime` est un autre objet. Un test devenu tautologique (`x === x`) réécrit plutôt que laissé vert. |
+| 2026-08-28 | **P2-T07** | ⏳ reste | Seule tâche de phase 2 ouverte. `FR→FR B2C` se voit encore offrir un PDP. La justification écrite dans `fr.ts` est **infirmée par le code** : aucun chemin de données d'e-reporting ne passe par `channels` (soumission *mockée*). |
 | 2026-08-28 | *(historique)* **P1-T03d** | ↩ tenté, annulé | Mesure P1-T02 corrigée : 8 suites / 52 tests, pas 6/31 — je n'avais inversé qu'un des cinq court-circuits. Redécoupée en T03b/c/d. |
