@@ -104,6 +104,11 @@ export class RecurringInvoicesCronService {
                   quantity: item.quantity,
                   unitPrice: item.unitPrice,
                   vatRate: item.vatRate,
+                  // The template's declaration travels onto each generated invoice. Dropping it
+                  // here would make autoIssue fail on every cycle for a 0% line, with the error
+                  // swallowed into "stays DRAFT, retried next run" — a loop nobody watches.
+                  vatCategory: item.requestedVatCategory ?? undefined,
+                  vatExemptionReason: item.requestedVatExemptionReason ?? undefined,
                   type: (item as any).type,
                   order: item.order,
                 })),

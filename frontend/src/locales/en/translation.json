@@ -792,6 +792,19 @@
             "deposit": "Deposit/Down payment",
             "service": "Service",
             "product": "Product"
+          },
+          "vatCategory": {
+            "label": "VAT category",
+            "auto": "Decide automatically",
+            "exempt": "Exempt (E)",
+            "zeroRated": "Zero-rated (Z)",
+            "outOfScope": "Outside the scope of VAT (O)",
+            "hint": "A 0% rate does not say which of these it is. Leave it automatic unless you know."
+          },
+          "vatExemptionReason": {
+            "label": "Reason",
+            "placeholder": "e.g. Exempt under Article 261-4-4 of the CGI",
+            "hint": "Required for exempt and out-of-scope lines. The legal basis, or its VATEX code."
           }
         },
         "notes": {
@@ -1149,6 +1162,19 @@
             "deposit": "Deposit/Down payment",
             "service": "Service",
             "product": "Product"
+          },
+          "vatCategory": {
+            "label": "VAT category",
+            "auto": "Decide automatically",
+            "exempt": "Exempt (E)",
+            "zeroRated": "Zero-rated (Z)",
+            "outOfScope": "Outside the scope of VAT (O)",
+            "hint": "A 0% rate does not say which of these it is. Leave it automatic unless you know."
+          },
+          "vatExemptionReason": {
+            "label": "Reason",
+            "placeholder": "e.g. Exempt under Article 261-4-4 of the CGI",
+            "hint": "Required for exempt and out-of-scope lines. The legal basis, or its VATEX code."
           }
         },
         "paymentDetails": {

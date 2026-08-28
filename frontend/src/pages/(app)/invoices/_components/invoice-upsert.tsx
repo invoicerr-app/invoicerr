@@ -162,6 +162,11 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
           quantity: item.quantity || 1,
           unitPrice: item.unitPrice || 0,
           vatRate: item.vatRate || 0,
+          // The DECLARATION, not the engine's resolution. Mapping the resolved `vatCategory` here
+          // would show the user an answer they never gave and re-submit it as if they had.
+          // Reopening a draft has to restore what was typed.
+          vatCategory: item.requestedVatCategory ?? undefined,
+          vatExemptionReason: item.requestedVatExemptionReason ?? undefined,
           type: item.type || "SERVICE",
           order: item.order || 0,
         })),

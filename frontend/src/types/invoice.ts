@@ -122,6 +122,13 @@ export interface InvoiceItem {
   quantity: number
   unitPrice: number
   vatRate: number // 20 for 20%
+  /** EN 16931 BT-151 as the ENGINE resolved it — read-only here. */
+  vatCategory?: string | null
+  vatExemptionReason?: string | null
+  /** What the ISSUER declared, which is what the form edits. Distinct from the two above: one is
+   *  the answer, the other the question, and reloading the form must restore the question. */
+  requestedVatCategory?: "E" | "Z" | "O" | null
+  requestedVatExemptionReason?: string | null
   type: InvoiceItemType
   order: number
   discountRate?: number
@@ -231,6 +238,9 @@ export interface RecurringInvoiceItem {
   quantity: number
   unitPrice: number
   vatRate: number // 20 for 20%
+  /** Declared on the template, carried onto every invoice it generates. */
+  requestedVatCategory?: "E" | "Z" | "O" | null
+  requestedVatExemptionReason?: string | null
   type: InvoiceItemType
   order: number
 }

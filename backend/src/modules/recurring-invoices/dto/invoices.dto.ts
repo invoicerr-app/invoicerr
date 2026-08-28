@@ -26,6 +26,10 @@ export class UpsertInvoicesDto {
     quantity: number;
     unitPrice: number;
     vatRate: number;
+    /** Declared BT-151 — only meaningful on a 0% line. See InvoiceItem.requestedVatCategory. */
+    vatCategory?: string;
+    /** BT-120/BT-121 — why the line is exempt. */
+    vatExemptionReason?: string;
     type?: 'HOUR' | 'DAY' | 'DEPOSIT' | 'SERVICE' | 'PRODUCT';
     order: number;
   }[];

@@ -688,6 +688,8 @@ model RecurringInvoiceItem {
   unitPrice          Float
   unitPriceMinor     Int?
   vatRate            Float // 20 for 20%
+  requestedVatCategory        String? // Carried onto every invoice this template generates. Without it a recurring 0% line in a country with no zero rate resolves to E, and BR-E-10 refuses the generated invoice at issuance with nothing on the template able to fix it — autoIssue would fail silently every cycle.
+  requestedVatExemptionReason String? // BT-120/BT-121, same journey.
   type               ItemType         @default(SERVICE)
   order              Int
 }
