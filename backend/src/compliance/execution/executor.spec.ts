@@ -3,6 +3,8 @@ import { PartyTaxProfile, TransactionContext } from '../canonical/canonical-docu
 import { resolve } from '../engine/compliance-engine';
 import { NumberingRegistry } from '../lifecycle/numbering';
 import { ComplianceExecutor } from './executor';
+import { FormatProviderRegistry } from '../providers/format/registry';
+import { defaultArtifactPort } from '../__fixtures__/artifact-port';
 import { RecordingComplianceLogger } from './logger';
 
 function party(country: string, role: PartyRole, state?: string): PartyTaxProfile {
@@ -31,13 +33,30 @@ function tx(
     lines: [{ id: 'l1', description: 'x', quantity: 1, unitNetMinor: 10000, supplyType: supply }],
     issueDate: new Date(date),
     currency: 'EUR',
+    // P1-T03c: the format providers build real bytes only when the rendering port AND
+    // `ctx.externalRef` are both present (providers.ts:96). In production externalRef is a REQUIRED
+    // parameter of the context builder (invoices.helpers.ts:125), so it is always set; omitting it
+    // here made every artifact a zero-byte stub and the whole suite green over an empty pipeline.
+    externalRef: 'FA-2026-000001',
   };
 }
 
-/** Fresh executor per test so the in-memory numbering counters/folio pools are isolated. */
+/**
+ * Fresh executor per test so the in-memory numbering counters/folio pools are isolated.
+ *
+ * P1-T03c: `formats` is injected. Without it the executor falls back to `defaultFormatRegistry`,
+ * built with no rendering port, and every artifact comes out ZERO BYTES — which is the
+ * configuration production no longer has (ComplianceCoreModule wires the port; see
+ * nest/__tests__/core-module-wiring.spec.ts). A suite asserting on empty artifacts asserts on a
+ * shape that cannot occur, and would go green through a pipeline that transmits nothing.
+ */
 async function run(ctx: TransactionContext) {
   const log = new RecordingComplianceLogger();
-  const executor = new ComplianceExecutor({ numbering: new NumberingRegistry(), logger: log });
+  const executor = new ComplianceExecutor({
+    numbering: new NumberingRegistry(),
+    logger: log,
+    formats: new FormatProviderRegistry({ artifacts: defaultArtifactPort() }),
+  });
   const plan = resolve(ctx);
   const result = await executor.execute(ctx, plan);
   return { plan, result, log };
@@ -49,6 +68,24 @@ describe('ComplianceExecutor — France (decentralized CTC)', () => {
 
   beforeAll(async () => {
     ({ result, log } = await run(tx('FR', 'FR', 'B2B', 'SERVICES', '2027-01-15')));
+  });
+
+  /**
+   * P1-T03c — the assertion that pins what the wiring buys. Before the rendering port was injected
+   * here, all three French artifacts came out at ZERO BYTES and every test below passed anyway:
+   * the pipeline signed nothing, archived nothing and "transmitted" nothing without objection.
+   * Byte length is the cheapest possible check, and it was the missing one.
+   */
+  it('builds all three French artifacts with real bytes', () => {
+    expect(result.artifacts).toHaveLength(3);
+    for (const a of result.artifacts) {
+      expect(a.bytes.length).toBeGreaterThan(0);
+    }
+    expect(result.artifacts.map((a) => `${a.syntax}/${a.role}`).sort()).toEqual([
+      'EN16931_CII/AUTHORITATIVE',
+      'FACTURX/BUYER',
+      'FACTURX/HUMAN',
+    ]);
   });
 
   it('builds Factur-X via the EN 16931 provider', () => {
@@ -82,7 +119,13 @@ describe('ComplianceExecutor — United States (post-audit, sales tax)', () => {
   });
 
   it('builds a plain PDF and transmits by email', () => {
-    expect(log.hasScope('format/plain-pdf')).toBe(true);
+    // P1-T03c: asserted `log.hasScope('format/plain-pdf')`, which is the todo the provider logs on
+    // its STUB path — a test named "builds" that passed precisely because nothing was built. With
+    // the rendering port injected the provider takes the real path and logs nothing, so the
+    // assertion now looks at the artifact.
+    const pdf = result.artifacts.find((a) => a.syntax === 'PLAIN_PDF');
+    expect(pdf).toBeDefined();
+    expect(pdf!.bytes.length).toBeGreaterThan(0);
     expect(result.transmissions.map((t) => t.channel)).toContain('EMAIL');
   });
   it('applies the destination state sales-tax rate (CA 7.25%)', () => {
@@ -101,9 +144,15 @@ describe('ComplianceExecutor — Mexico (blocking clearance)', () => {
     ({ result, log } = await run(tx('MX', 'MX', 'B2B', 'GOODS', '2024-06-01')));
   });
 
-  it('builds the national CFDI format', () => {
-    expect(log.hasScope('format/cfdi')).toBe(true);
-    expect(result.artifacts.some((a) => a.syntax === 'CFDI')).toBe(true);
+  it('plans the national CFDI format (rendering it is not exercised here)', () => {
+    // P1-T03c: same correction as the plain-PDF test above — `log.hasScope('format/cfdi')` was the
+    // stub-path todo. Renamed too: the shared artifact port returns '' for the national renderers
+    // on purpose (they run blocking XSD validation and a stub document would fail the gate), so
+    // this suite plans the CFDI artifact without rendering it. Mexican rendering is proven in the
+    // format specs, not here — and the name now says which of the two this test does.
+    const cfdi = result.artifacts.find((a) => a.syntax === 'CFDI');
+    expect(cfdi).toBeDefined();
+    expect(cfdi!.role).toBe('AUTHORITATIVE');
   });
   it('invokes the XAdES signer because clearance + signed archive are required', () => {
     // XAdES signer is invoked (executor selects XAdES algo for blocking/signed-archive plans).
