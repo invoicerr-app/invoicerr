@@ -127,6 +127,20 @@ function openInvoice() {
   cy.wait(1200);
 }
 
+/**
+ * Bring the compliance panels into frame before capturing.
+ *
+ * They sit at the bottom of a scrollable dialog, so a viewport screenshot taken without this shows
+ * the invoice header and none of the panel the case is about. The first run of this spec produced
+ * exactly that — fifteen green assertions and a screenshot of the wrong half of the screen, because
+ * the assertions used `exist` rather than `visible`. Asserting existence and capturing the viewport
+ * are two different claims; this reconciles them.
+ */
+function revealPanels() {
+  cy.get('[data-cy="compliance-panels"]').scrollIntoView({ offset: { top: -80, left: 0 } });
+  cy.wait(300);
+}
+
 function shot(name: string) {
   cy.screenshot(name, { capture: 'viewport', overwrite: true });
 }
@@ -185,6 +199,7 @@ describe('Compliance showcase — the same code, fifteen different screens', () 
       issuedInvoice(ids, 0).then(() => {
         openInvoice();
         cy.get('[data-cy="archival-notice"]').should('exist');
+        revealPanels();
         shot('03-us-out-of-scope');
       });
     });
@@ -208,7 +223,7 @@ describe('Compliance showcase — the same code, fifteen different screens', () 
     setupCountry('Showcase PL2', 'Poland', 'PL', [{ scheme: 'VAT', value: 'PL1234567891' }]).then((ids) => {
       issuedInvoice(ids).then(() => {
         openInvoice();
-        cy.get('[data-cy="cancellation-policy"]').scrollIntoView();
+        revealPanels();
         cy.get('[data-cy="cancellation-policy"]').should('be.visible');
         cy.get('[data-cy="cancellation-condition-notAllowedByCountry"]').should('exist');
         shot('05-pl-cancellation-unavailable');
@@ -226,6 +241,7 @@ describe('Compliance showcase — the same code, fifteen different screens', () 
         openInvoice();
         cy.get('[data-cy="cancellation-condition-buyerConsent"]').should('exist');
         cy.get('[data-cy="cancellation-condition-authorityAck"]').should('exist');
+        revealPanels();
         shot('06-mx-two-cancellation-conditions');
       });
     });
@@ -239,6 +255,7 @@ describe('Compliance showcase — the same code, fifteen different screens', () 
       issuedInvoice(ids).then(() => {
         openInvoice();
         cy.get('[data-cy="cancellation-condition-authorityAck"]').should('exist');
+        revealPanels();
         shot('07-it-cancellation-authority-ack');
       });
     });
@@ -252,6 +269,7 @@ describe('Compliance showcase — the same code, fifteen different screens', () 
       issuedInvoice(ids).then(() => {
         openInvoice();
         cy.get('[data-cy="cancellation-policy"]').should('not.exist');
+        revealPanels();
         shot('08-fr-no-cancellation-warning');
       });
     });
@@ -271,7 +289,7 @@ describe('Compliance showcase — the same code, fifteen different screens', () 
         // This is the temporal profile working, not a missing feature.
         cy.get('[data-cy="obligation-ISSUANCE"]').should('exist');
         cy.get('[data-cy="obligation-RECEPTION"]').should('not.exist');
-        cy.get('[data-cy="obligation-layers"]').scrollIntoView();
+        revealPanels();
         shot('09-fr-obligation-not-yet-in-force');
       });
     });
@@ -283,6 +301,7 @@ describe('Compliance showcase — the same code, fifteen different screens', () 
         openInvoice();
         cy.get('[data-cy="obligation-ISSUANCE"]').should('exist');
         cy.get('[data-cy="obligation-RECEPTION"]').should('not.exist');
+        revealPanels();
         shot('10-de-single-obligation-layer');
       });
     });
@@ -297,6 +316,7 @@ describe('Compliance showcase — the same code, fifteen different screens', () 
       issuedInvoice(ids).then(() => {
         openInvoice();
         cy.get('[data-cy="archival-retention"]').should('contain.text', '10');
+        revealPanels();
         shot('11-fr-retention-10-years');
       });
     });
@@ -311,6 +331,7 @@ describe('Compliance showcase — the same code, fifteen different screens', () 
       issuedInvoice(ids).then(() => {
         openInvoice();
         cy.get('[data-cy="archival-retention"]').should('contain.text', '5');
+        revealPanels();
         shot('12-mx-retention-5-years');
       });
     });
@@ -321,6 +342,7 @@ describe('Compliance showcase — the same code, fifteen different screens', () 
       issuedInvoice(ids).then(() => {
         openInvoice();
         cy.get('[data-cy="archival-retention"]').should('contain.text', '7');
+        revealPanels();
         shot('13-us-retention-7-years');
       });
     });
