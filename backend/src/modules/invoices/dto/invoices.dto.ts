@@ -36,6 +36,16 @@ export class CreateInvoiceDto {
     quantity: number;
     unitPrice: number;
     vatRate: number;
+    /**
+     * EN 16931 BT-151, DECLARED by the issuer — S, Z, E, AE, K, G, O.
+     *
+     * Optional, and absent means "let the engine decide", which is what every existing client does
+     * and keeps doing. It matters only where the engine cannot decide: a 0 rate, where Z, E and O
+     * are all possible and no country fact separates them.
+     */
+    vatCategory?: string;
+    /** BT-120/BT-121 — why the line is exempt. Required by BR-E-10 when `vatCategory` is `E`. */
+    vatExemptionReason?: string;
     type: ItemType;
     order: number;
     discountRate?: number;

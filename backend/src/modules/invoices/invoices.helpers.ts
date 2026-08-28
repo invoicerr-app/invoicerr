@@ -44,6 +44,13 @@ interface TaxItemInput {
   type?: string | null;
   /** Pre-resolved supply type wins over the ItemType mapping. */
   supplyType?: SupplyType;
+  /**
+   * What the user DECLARED, and it lands in `InvoiceItem.requestedVatCategory` — exactly the
+   * relationship `vatRate` already has with `requestedVatRate`. Absent, the engine derives.
+   */
+  vatCategory?: string | null;
+  /** Why, for the categories that must say why (BR-E-10, BR-O-10). */
+  vatExemptionReason?: string | null;
 }
 
 /**
@@ -90,6 +97,8 @@ export function resolveTax(
       unitPrice: item.unitPrice,
       vatRate: item.vatRate,
       supplyType: item.supplyType ?? ((item.type === 'PRODUCT' ? 'GOODS' : 'SERVICES') as SupplyType),
+      vatCategory: item.vatCategory,
+      vatExemptionReason: item.vatExemptionReason,
     })),
   });
 }
@@ -188,6 +197,49 @@ const BUYER_ID_REQUIRED: Record<string, readonly string[]> = {
   AE: ['VAT', 'LEGAL_ID'],
   K: ['VAT'],
 };
+
+/**
+ * Which categories must carry an exemption reason, and under which rule.
+ *
+ * Read from the vendored Schematron rather than assumed, like its neighbours. Note what is NOT
+ * here: `Z`. A zero-rated supply is TAXED, at 0, and BR-Z-* asks it for no reason — requiring one
+ * would refuse documents the standard accepts, which is the mistake C1 made in the other direction.
+ * `AE`, `K` and `G` have the same requirement (BR-AE-10, BR-IC-10, BR-G-10) but the engine already
+ * supplies their reason from the cross-border branch, so they cannot reach this guard empty.
+ */
+const CATEGORIES_REQUIRING_REASON: Record<string, string> = { E: 'BR-E-10', O: 'BR-O-10' };
+
+/**
+ * BR-E-10 / BR-O-10 — an exempt or out-of-scope line must state why.
+ *
+ * This guard is the other half of the correction that stopped deriving the VAT category from the
+ * rate. A French domestic 0% line used to be called `Z`, which asks for no reason and so always
+ * validated; it is now correctly `E`, which asks for one — and the engine has none to give, because
+ * `E` covers a dozen different exemptions with a dozen different VATEX codes and choosing one would
+ * be inventing a legal basis for the user's business.
+ *
+ * So the person issuing the invoice supplies it. Blocked at issuance, not at transmission: the
+ * document is refused by the Schematron either way, and the difference is whether the user finds
+ * out while they can still act on it.
+ */
+export function resolveExemptionReasonOrThrow(
+  itemVatCategories: string[],
+  itemVatExemptionReasons: (string | undefined)[],
+): void {
+  const offendingIndex = itemVatCategories.findIndex(
+    (c, i) => CATEGORIES_REQUIRING_REASON[c] && !itemVatExemptionReasons[i]?.trim(),
+  );
+  if (offendingIndex === -1) return;
+
+  const category = itemVatCategories[offendingIndex];
+  const rule = CATEGORIES_REQUIRING_REASON[category];
+  const what = category === 'E' ? 'exempt from VAT' : 'outside the scope of VAT';
+  throw new BadRequestException(
+    `Line ${offendingIndex + 1} resolves to VAT category "${category}" (${what}), which must state ` +
+      `the reason for it (EN 16931 rule ${rule}). Add an exemption reason to that line — the legal ` +
+      'basis, or its VATEX code. Without it the invoice would be refused at transmission.',
+  );
+}
 
 export function resolveZeroRatedSellerVatOrThrow(
   company: SupplierParty,
@@ -310,6 +362,10 @@ export function invoiceItemData<TType>(
      * `vatRate` param below, which is the ENGINE-RESOLVED rate. Persisted verbatim so issuance
      * can recompute tax FROM the original hint instead of the (possibly stale-0) resolved rate. */
     vatRate?: number | null;
+    /** Same relationship, one level up: the DECLARED category, against the RESOLVED one passed as
+     *  the `vatCategory` parameter below. Both are stored, in different columns. */
+    vatCategory?: string | null;
+    vatExemptionReason?: string | null;
   },
   currency: string,
   vatRate: number,
@@ -329,6 +385,11 @@ export function invoiceItemData<TType>(
     vatCategory: vatCategory ?? null,
     vatExemptionReason: vatExemptionReason ?? null,
     requestedVatRate: item.vatRate ?? null,
+    // The DECLARATION, kept beside the RESOLUTION for the same reason `requestedVatRate` is kept
+    // beside `vatRate`: issuance recomputes from the hint, so a hint that is not stored is a hint
+    // that silently disappears on the second pass.
+    requestedVatCategory: item.vatCategory ?? null,
+    requestedVatExemptionReason: item.vatExemptionReason ?? null,
     type: item.type,
     order: item.order || 0,
     discountRate: item.discountRate ?? 0,

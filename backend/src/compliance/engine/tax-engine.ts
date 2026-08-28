@@ -159,7 +159,19 @@ function domesticVat(line: DocumentLine, sys: VatSystemSpec, supplier: PartyTaxP
   if (supplier.taxScheme === 'FRANCHISE_BASE') {
     const mention = supplier.countryCode.toUpperCase() === 'FR' ? MENTION.fr293b : MENTION.franchise;
     return treatment(
-      { taxSystem: sys.kind, name: 'VAT', category: 'E', rate: 0, jurisdiction: supplier.countryCode },
+      {
+        taxSystem: sys.kind,
+        name: 'VAT',
+        category: 'E',
+        rate: 0,
+        jurisdiction: supplier.countryCode,
+        // BR-E-10 wants a reason, and this branch HAS one — it is the mention it already prints on
+        // the document ("TVA non applicable, art. 293 B du CGI"). Carried into BT-120 as free text
+        // rather than as a VATEX code, because the text is what this engine actually asserts; a
+        // code would be a second claim nobody sourced. Missing before, which made every
+        // franchise-en-base invoice fail BR-E-10 the moment the category stopped being mis-derived.
+        reason: mention.text,
+      },
       false,
       [],
       [mention],
@@ -167,7 +179,14 @@ function domesticVat(line: DocumentLine, sys: VatSystemSpec, supplier: PartyTaxP
   }
   if (supplier.taxScheme === 'EXEMPT') {
     return treatment(
-      { taxSystem: sys.kind, name: 'VAT', category: 'E', rate: 0, jurisdiction: supplier.countryCode },
+      {
+        taxSystem: sys.kind,
+        name: 'VAT',
+        category: 'E',
+        rate: 0,
+        jurisdiction: supplier.countryCode,
+        reason: MENTION.franchise.text,
+      },
       false,
       [],
       [],
@@ -176,7 +195,17 @@ function domesticVat(line: DocumentLine, sys: VatSystemSpec, supplier: PartyTaxP
   const rate = zeroByHint(line) ? 0 : (line.taxRateHint ?? sys.standardRate);
   const category = line.taxCategoryHint ?? domesticCategoryFor(rate, sys);
   return treatment(
-    { taxSystem: sys.kind, name: 'VAT', category, rate, jurisdiction: supplier.countryCode },
+    {
+      taxSystem: sys.kind,
+      name: 'VAT',
+      category,
+      rate,
+      jurisdiction: supplier.countryCode,
+      // Only where the category needs one. Attaching a reason to an `S` line would put a BT-120 on
+      // a standard-rated breakdown, which BR-E-10's siblings do not ask for and the Schematron
+      // does not expect.
+      reason: NEEDS_EXEMPTION_REASON.has(category) ? line.taxExemptionReasonHint : undefined,
+    },
     false,
     [],
     [],
@@ -185,6 +214,14 @@ function domesticVat(line: DocumentLine, sys: VatSystemSpec, supplier: PartyTaxP
 
 /** Categories that mean "no VAT is charged on this line". They all imply a 0 rate. */
 const UNTAXED_HINTS: ReadonlySet<TaxCategoryCode> = new Set(['Z', 'E', 'O']);
+
+/**
+ * Which declared categories carry an exemption reason through to the document.
+ *
+ * `E` because BR-E-10 requires one. `O` because BR-O-10 does. `Z` is NOT here: BR-Z-* asks for no
+ * reason, and a zero-rated supply has none to give — it is taxed, at 0.
+ */
+const NEEDS_EXEMPTION_REASON: ReadonlySet<TaxCategoryCode> = new Set(['E', 'O']);
 
 function zeroByHint(line: DocumentLine): boolean {
   return !!line.taxCategoryHint && UNTAXED_HINTS.has(line.taxCategoryHint);

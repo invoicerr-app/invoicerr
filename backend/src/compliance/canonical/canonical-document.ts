@@ -67,7 +67,21 @@ export interface DocumentLine {
   unitNetMinor: number; // unit net price, minor units
   supplyType: SupplyType;
   taxRateHint?: number; // explicit rate (e.g. a reduced rate); domestic falls back to standard
+  /**
+   * The category the ISSUER declared for this line, when they declared one.
+   *
+   * It exists because a 0 rate does not determine its category and no country fact settles it
+   * either: France levying no zero rate rules `Z` out, but `E` and `O` both remain and only the
+   * issuer knows which. Absent, the engine derives — see `domesticCategoryFor`.
+   */
   taxCategoryHint?: TaxCategoryCode;
+  /**
+   * Why, when the declared category is one that has to say why. BR-E-10 requires a reason on any
+   * exempt line — BT-120 free text or a BT-121 VATEX code — and the engine cannot supply it: `E`
+   * covers a dozen different exemptions with a dozen different codes, and picking one would be
+   * inventing a legal basis. Carried through to `TaxComponent.reason`.
+   */
+  taxExemptionReasonHint?: string;
 }
 
 /** One tax on a line — a single line may carry several at once (BR, IN, US local). */

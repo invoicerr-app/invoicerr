@@ -1,13 +1,25 @@
 import { resolve } from '../engine/compliance-engine';
 import type { DocumentTaxResult } from '../engine/tax-engine';
 import { accumulateTotals, decimalsFor } from '../taxsystems/tax-system';
-import type { PartyRole, SupplyType } from '../types';
+import type { PartyRole, SupplyType, TaxCategoryCode } from '../types';
 
 export interface InvoiceTaxLineInput {
   quantity: number;
   unitPrice: number;
   vatRate?: number | null;
   supplyType?: SupplyType;
+  /**
+   * The category the user DECLARED for this line, if any — `InvoiceItem.requestedVatCategory`.
+   *
+   * This is the writer `taxCategoryHint` never had. The field has been declared on `DocumentLine`
+   * and read by the engine all along, with nothing in production ever setting it, so the `??` in
+   * `domesticVat` could not fire and the derivation was unconditional. That is the same shape as
+   * the `establishmentCountry` field deleted from `PartyTaxProfile` for being dead — except this
+   * one is worth wiring rather than removing, because a 0 rate genuinely needs someone to speak.
+   */
+  vatCategory?: string | null;
+  /** BT-120/BT-121 — why the line is exempt. Required by BR-E-10 for `E`, BR-O-10 for `O`. */
+  vatExemptionReason?: string | null;
 }
 
 export interface InvoiceTaxInput {
@@ -110,6 +122,8 @@ export function resolveInvoiceTax(input: InvoiceTaxInput): InvoiceTaxResult {
       unitNetMinor: Math.round(item.unitPrice * discountFactor * 10 ** decimals),
       supplyType: (item.supplyType ?? 'SERVICES') as SupplyType,
       taxRateHint: item.vatRate ?? undefined,
+      taxCategoryHint: (item.vatCategory ?? undefined) as TaxCategoryCode | undefined,
+      taxExemptionReasonHint: item.vatExemptionReason ?? undefined,
     })),
     issueDate: input.issueDate,
     currency: input.currency,

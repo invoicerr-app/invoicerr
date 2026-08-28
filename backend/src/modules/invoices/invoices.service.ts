@@ -32,6 +32,7 @@ import {
   deriveInvoiceActions,
   invoiceItemData,
   resolveBuyerCountryOrThrow,
+  resolveExemptionReasonOrThrow,
   resolveZeroRatedSellerVatOrThrow,
   resolveTax,
   toComplianceLines,
@@ -432,6 +433,11 @@ export class InvoicesService {
         // reverse-charge still resolve to 0% regardless. `??` (not `||`) so a genuine stored 0 hint
         // is honored. Legacy rows (requestedVatRate null) fall back to country-derivation.
         vatRate: item.requestedVatRate ?? undefined,
+        // Same reasoning one field over: re-hint from what the user DECLARED, not from what the
+        // engine resolved last time. Without this the declaration is written at draft time and
+        // silently dropped at issuance — the exact failure mode `requestedVatRate` exists to avoid.
+        vatCategory: item.requestedVatCategory ?? undefined,
+        vatExemptionReason: item.requestedVatExemptionReason ?? undefined,
         type: item.type,
       })),
     });
@@ -440,6 +446,10 @@ export class InvoicesService {
     // (EN 16931 BR-Z-02). Checked here, right after the rates are resolved and before the invoice
     // is claimed, so the failure lands where the user can act on it instead of at transmission.
     resolveZeroRatedSellerVatOrThrow(invoice.company, invoice.client, taxResult.itemVatCategories);
+    // BR-E-10: an exempt line must say WHY — BT-120 text or BT-121 code. Blocked here rather than
+    // at transmission for the same reason as the guard above: an invoice that cannot be transmitted
+    // must not reach a state where the user believes it was issued.
+    resolveExemptionReasonOrThrow(taxResult.itemVatCategories, taxResult.itemVatExemptionReasons);
 
     if (taxResult.warnings.length > 0) {
       logger.warn('Tax resolution warnings at issuance', {

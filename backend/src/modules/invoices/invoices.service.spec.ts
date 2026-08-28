@@ -391,11 +391,24 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
       // be honored verbatim (via `??`, not `||`) rather than discarded in favor of the standard
       // rate. This locks in the over-charge fix: `item.vatRate || undefined` would have wrongly
       // discarded this genuine 0 and bumped the line to 20%.
+      //
+      // The line now also carries an exemption REASON, and that is not incidental. France levies
+      // no zero rate, so this resolves to `E`, and BR-E-10 requires E to say why. The guarantee
+      // this test exists for — a deliberate 0 survives issuance — is unchanged; what changed is
+      // that the document is now also valid. The case WITHOUT a reason is its own test below.
       (prisma.invoice.findFirst as jest.Mock).mockResolvedValue(
         draftInvoice({
           client: { name: 'Buyer', type: 'INDIVIDUAL', countryCode: 'FR', partyIdentifiers: [] },
           items: [
-            { id: 'item-1', quantity: 1, unitPrice: 100, vatRate: 0, requestedVatRate: 0, type: 'SERVICE' },
+            {
+              id: 'item-1',
+              quantity: 1,
+              unitPrice: 100,
+              vatRate: 0,
+              requestedVatRate: 0,
+              requestedVatExemptionReason: 'Exempt supply — reason stated by the issuer',
+              type: 'SERVICE',
+            },
           ],
         }),
       );
@@ -412,9 +425,72 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
       expect(data.items.update).toEqual([
         {
           where: { id: 'item-1' },
-          data: { vatRate: 0, vatCategory: expect.any(String), vatExemptionReason: null },
+          data: {
+            vatRate: 0,
+            vatCategory: 'E',
+            vatExemptionReason: 'Exempt supply — reason stated by the issuer',
+          },
         },
       ]);
+    });
+
+    it('(e) domestic 0% with NO stated reason is refused at issuance, and never numbered — BR-E-10', async () => {
+      // The other side of (d), and the reason the correction is not finished at the engine.
+      //
+      // France levies no zero rate (CGI art. 278 ter, the only one, abrogated 2023-01-01), so a 0%
+      // French domestic line is an exemption and BR-E-10 makes it say why. The engine cannot supply
+      // that: `E` covers a dozen exemptions with a dozen VATEX codes, and picking one would invent
+      // a legal basis for someone else's business. Before this guard the document was called `Z`,
+      // sailed through issuance, and was refused at TRANSMISSION — after the number was burned and
+      // the user believed the invoice was out.
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValue(
+        draftInvoice({
+          client: { name: 'Buyer', type: 'INDIVIDUAL', countryCode: 'FR', partyIdentifiers: [] },
+          items: [
+            { id: 'item-1', quantity: 1, unitPrice: 100, vatRate: 0, requestedVatRate: 0, type: 'SERVICE' },
+          ],
+        }),
+      );
+      mockTransactionCapturingUpdate();
+
+      const service = buildService();
+      await expect(service.issueInvoice('co-1', 'inv-cc')).rejects.toThrow(/BR-E-10/);
+      // The message has to be actionable, not just correct: it names the line, the category and
+      // the way out.
+      await expect(service.issueInvoice('co-1', 'inv-cc')).rejects.toThrow(/exemption reason/i);
+    });
+
+    it('(f) a franchise-en-base supplier still issues: the engine has its reason, art. 293 B', async () => {
+      // The regression this guard could easily have caused, pinned so it cannot come back. Every
+      // French auto-entrepreneur invoices at 0% under CGI art. 293 B and resolves to `E`. Their
+      // reason is not the user's to type — the engine already prints it as a legal mention, so it
+      // now also carries it into BT-120 and BR-E-10 is satisfied without anyone doing anything.
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValue(
+        draftInvoice({
+          // A SIRET, not a VAT number: BR-E-02 accepts a tax registration identifier for E (it does
+          // NOT for G or K), and a franchise-en-base business is exactly the case that has the
+          // former and often not the latter. So this also exercises the lenient branch.
+          company: {
+            id: 'co-1',
+            countryCode: 'FR',
+            exemptVat: true,
+            partyIdentifiers: [{ scheme: 'LEGAL_ID', value: '73282932000074' }],
+          },
+          client: { name: 'Buyer', type: 'INDIVIDUAL', countryCode: 'FR', partyIdentifiers: [] },
+          items: [
+            { id: 'item-1', quantity: 1, unitPrice: 100, vatRate: 0, requestedVatRate: 0, type: 'SERVICE' },
+          ],
+        }),
+      );
+      const getCapturedUpdateArgs = mockTransactionCapturingUpdate();
+
+      const service = buildService();
+      const result = await service.issueInvoice('co-1', 'inv-cc');
+
+      expect(result.status).toBe('ISSUED');
+      const item = getCapturedUpdateArgs().data.items.update[0].data;
+      expect(item.vatCategory).toBe('E');
+      expect(item.vatExemptionReason).toContain('293 B');
     });
   });
 
