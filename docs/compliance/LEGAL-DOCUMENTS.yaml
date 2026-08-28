@@ -21,9 +21,9 @@
 
 meta:
   updated: 2026-08-29
-  status: en cours — FR, PL, IT intégrés ; DE+ES et MX+US en recherche
-  covered: [ EN16931, IT, FR, PL ]
-  pending: [ DE, ES, MX, US ]
+  status: en cours — EN16931, FR, IT, PL, DE, ES intégrés ; MX+US en recherche
+  covered: [ EN16931, IT, FR, PL, DE, ES ]
+  pending: [ MX, US ]
   # Comment reprendre si la session est interrompue — c'est déjà arrivé une fois, au milieu de six
   # recherches lancées en parallèle, dont quatre ont été perdues.
   resume: docs/compliance/LEGAL-DOCUMENTS.RESUME.md
@@ -393,6 +393,227 @@ countries:
       - id: pl_variantes_de_marquage
         what: "faktura marża, faktura VAT MP / metoda kasowa, faktura zbiorcza sont des VARIANTES DE MARQUAGE (art. 106e ust. 1 pkt 16, ust. 2–3 ; art. 106j ust. 3), pas des types distincts."
         settled_by: "Décision produit, pas juridique — les traiter comme des modules serait un choix, pas une obligation."
+
+  DE:
+    provenance: sourced
+    consulted: 2026-08-29
+    caveat: >
+      UStG et UStDV lus sur gesetze-im-internet.de (droit primaire). L'UStAE n'a pu être atteint que
+      via un miroir : l'hôte officiel du BMF est derrière un mur anti-robot. Ce miroir porte encore
+      la numérotation de phrases d'avant 2025 — à revérifier avant de figer une citation.
+    documents:
+      - key: angebot
+        local: "Angebot / Kostenvoranschlag"
+        en: "Quote"
+        what: "Offre de contracter ; l'offrant est lié sauf exclusion. Aucune existence en droit de la TVA."
+        nature: commercial
+        obligation: optional
+        source: "BGB § 145"
+      - key: rechnung
+        local: "Rechnung"
+        en: "Invoice"
+        what: "Tout document par lequel une livraison ou une prestation est décomptée. Numéro séquentiel requis."
+        nature: legal
+        obligation: conditional
+        source: "UStG § 14 (2) S. 2 Nr. 1–3, § 14 (4) Nr. 4"
+        note: >
+          Obligatoire sous 6 MOIS en B2B, vers une personne morale non assujettie, et pour les
+          travaux immobiliers envers quiconque. Simplement PERMISE ailleurs — le verbe de la loi est
+          « berechtigt ».
+      - key: erechnung
+        local: "eRechnung"
+        en: "Structured e-invoice"
+        what: "Format structuré permettant le traitement électronique, sémantique EN 16931 ; tout le reste est une « sonstige Rechnung »."
+        nature: legal
+        obligation: mandatory
+        source: "UStG § 14, § 27 (38)"
+        note: >
+          Transition : papier toléré jusqu'au 2026-12-31 pour tous, jusqu'au 2027-12-31 si le
+          chiffre d'affaires de l'année précédente <= 800 000 EUR ou via EDI. AUCUN report pour la
+          RÉCEPTION — asymétrie identique au mandat français.
+      - key: kleinbetragsrechnung
+        local: "Kleinbetragsrechnung"
+        en: "Small-amount invoice"
+        what: "Total TTC <= 250 EUR : mentions réduites, TVA en un seul montant global."
+        nature: legal
+        obligation: optional
+        source: "UStDV § 33"
+        note: >
+          INTERDITE pour les ventes à distance (§ 3c), les livraisons intracommunautaires (§ 6a) et
+          l'autoliquidation (§ 13b). Et elle échappe au format eRechnung : toujours émissible en
+          « sonstige Rechnung ».
+      - key: anzahlungsrechnung
+        local: "Anzahlungs- / Vorausrechnung"
+        en: "Advance invoice"
+        what: "Facture d'un montant encaissé avant la livraison ; doit être reconnaissable comme telle."
+        nature: legal
+        obligation: mandatory
+        source: "UStG § 14 (1)–(4) ; UStAE 14.8"
+      - key: schlussrechnung
+        local: "Schlussrechnung / Endrechnung"
+        en: "Final invoice"
+        what: "Facture l'opération entière une fois exécutée."
+        nature: legal
+        obligation: mandatory
+        source: "UStG § 14c (1) ; UStAE 14.8"
+        note: >
+          DOIT DÉDUIRE les acomptes déjà facturés ET leur TVA. À défaut, § 14c (1) rend redevable de
+          la TVA excédentaire. Notre kind FINAL déduit les acomptes fonctionnellement mais rien
+          n'impose la règle ni n'en signale la sanction.
+      - key: gutschrift_selbstabrechnung
+        local: "Gutschrift (Selbstabrechnung)"
+        en: "Self-billed invoice"
+        what: "Facture émise par le CLIENT pour la livraison du fournisseur, sur accord préalable."
+        nature: legal
+        obligation: optional
+        source: "UStG § 14 (2) et § 14 (4) Nr. 10 ; UStAE 14c.1"
+        note: >
+          La MENTION « Gutschrift » est un élément obligatoire de la facture. Le document perd sa
+          qualité de facture dès que le fournisseur s'y oppose, même s'il était exact sur le fond.
+      - key: kaufmaennische_gutschrift
+        local: "Kaufmännische Gutschrift"
+        en: "Commercial credit note"
+        what: "Annulation ou correction par l'émetteur de sa PROPRE facture antérieure."
+        nature: commercial
+        obligation: optional
+        source: "UStAE 14c.1 (3) S. 3"
+        note: >
+          LE PIÈGE ALLEMAND, résolu. Deux documents pour un seul mot, et la loi les sépare par QUI
+          décompte LA LIVRAISON DE QUI, pas par l'étiquette. L'UStAE le dit deux fois : « Keine
+          Gutschrift ist die im allgemeinen Sprachgebrauch ebenso bezeichnete Stornierung oder
+          Korrektur der ursprünglichen Rechnung. »
+          Soupape asymétrique à modéliser : mal étiqueter un avoir « Gutschrift » ne déclenche PAS
+          le § 14c — mais une vraie auto-facturation SANS le mot est une facture défectueuse.
+      - key: mahnung
+        local: "Mahnung"
+        en: "Dunning letter"
+        what: "Relance de paiement."
+        nature: commercial
+        obligation: optional
+        source: "UStAE 14.1"
+        note: >
+          EXPRESSÉMENT PAS une facture, même si elle porte toutes les mentions du § 14 (4) — parce
+          qu'elle relève du trafic de paiement et non du décompte d'une livraison. Utile : montre
+          que le critère allemand est la FONCTION, pas le contenu.
+    open_questions:
+      - id: de_proformarechnung
+        what: "Aucun traitement de la Proformarechnung trouvé dans l'UStG, l'UStDV ni les sections d'UStAE lues."
+        settled_by: "UStAE 14.1 et 14.4 en entier, ou une lettre du BMF."
+      - id: de_ustae_numerotation
+        what: "Le miroir UStAE consulté porte les renvois de phrases d'avant 2025 ; l'UStG actuel lit § 14 Abs. 2 Satz 5, 6 et 7."
+        settled_by: "Une édition à jour de l'UStAE depuis l'hôte officiel."
+
+  ES:
+    provenance: sourced
+    consulted: 2026-08-29
+    documents:
+      - key: presupuesto
+        local: "Presupuesto"
+        en: "Quote"
+        what: "Devis."
+        nature: commercial
+        obligation: optional
+        source: "Absent de l'index complet du RD 1619/2012, art. 1 à 26"
+        note: "Obligations sectorielles éventuelles en droit de la consommation : non vérifiées, et non extrapolées."
+      - key: factura
+        local: "Factura completa / ordinaria"
+        en: "Invoice"
+        what: "Facture complète ; numérotation corrélative par série."
+        nature: legal
+        obligation: mandatory
+        source: "RD 1619/2012 art. 2, art. 6"
+      - key: factura_simplificada
+        local: "Factura simplificada"
+        en: "Simplified invoice"
+        what: "Contenu réduit. Admise jusqu'à 400 EUR TTC, ou 3 000 EUR pour une liste fermée de secteurs."
+        nature: legal
+        obligation: optional
+        source: "RD 1619/2012 art. 7, art. 4"
+        note: >
+          INTERDITE pour les livraisons intracommunautaires (art. 25 LIVA), les opérations de
+          l'art. 68.Tres.a), et l'autoliquidation auto-facturée. La variante « cualificada »
+          (art. 7.2), qui porte le NIF du destinataire, est la SEULE simplifiée touchée par
+          l'obligation de facture électronique B2B.
+      - key: factura_rectificativa
+        local: "Factura rectificativa"
+        en: "Corrective invoice"
+        what: "L'instrument de correction. Exige sa PROPRE SÉRIE dédiée."
+        nature: legal
+        obligation: mandatory
+        source: "RD 1619/2012 art. 15, art. 6.1.a).2º"
+        note: >
+          SEULE VOIE au niveau facture — art. 15.4 : « La rectificación se realizará mediante la
+          emisión de una nueva factura ». Il n'existe AUCUN annuler-et-remplacer d'une facture
+          valablement émise en Espagne.
+          Deux modalités : par différences, ou par substitution en affichant les chiffres corrigés
+          tout en indiquant le montant de la rectification. Délai 4 ans.
+          CONTRAINTE QUE LE PRODUIT N'A PAS : la série dédiée. Notre numérotation ne connaît pas la
+          notion de série par type de document.
+      - key: factura_recapitulativa
+        local: "Factura recapitulativa"
+        en: "Recapitulative invoice"
+        what: "Une facture pour plusieurs opérations vers le même destinataire dans un mois civil."
+        nature: legal
+        obligation: optional
+        source: "RD 1619/2012 art. 13"
+      - key: recibo_reagp
+        local: "Recibo (REAGP)"
+        en: "Receipt to a flat-rate farmer"
+        what: "L'ACHETEUR l'émet au profit d'un agriculteur ou pêcheur du régime spécial, avec le pourcentage et le montant de compensation, SIGNÉ PAR L'AGRICULTEUR."
+        nature: legal
+        obligation: mandatory
+        source: "RD 1619/2012 art. 16"
+        note: >
+          TROISIÈME occurrence du même document sous un troisième nom — après l'autofattura agricole
+          italienne (art. 34 c. 6) et la faktura VAT RR polonaise (art. 116). Trois pays, trois
+          noms, une seule forme : l'acheteur émet pour un producteur agricole sous régime spécial.
+          L'Espagne ajoute une exigence que les deux autres n'ont pas — la SIGNATURE du producteur.
+      - key: autofactura_es
+        local: "Autofactura / factura expedida por el destinatario"
+        en: "Self-billing"
+        what: "Émission par le client ou un tiers, sur accord."
+        nature: legal
+        obligation: optional
+        source: "RD 1619/2012 art. 5, art. 6.1.a).1º"
+        note: "Chaque émetteur exige une SÉRIE DISTINCTE — même contrainte de numérotation que la rectificativa."
+      - key: duplicado
+        local: "Duplicado"
+        en: "Duplicate"
+        what: "Un seul original par facture ; duplicata uniquement si plusieurs destinataires partagent une opération, ou si l'original est perdu."
+        nature: legal
+        obligation: conditional
+        source: "RD 1619/2012 art. 14"
+        note: "RESTREINT : interdit hors de ces deux cas. Doit porter le mot « duplicado »."
+      - key: estados_factura
+        local: "Estados de la factura"
+        en: "Invoice status messages"
+        what: "Le DESTINATAIRE doit signaler en retour l'acceptation ou le refus commercial, et le paiement effectif intégral, sous 4 jours ouvrables."
+        nature: legal
+        obligation: mandatory
+        source: "RD 238/2026"
+        note: >
+          CLASSE D'OBLIGATION QUE LE PRODUIT N'A PAS DU TOUT. Ce n'est pas un document émis mais une
+          réponse due par le receveur — proche du sens entrant de reception/, sans équivalent dans
+          nos profils. Facultatifs en plus : acceptation partielle, paiement partiel, cession.
+      - key: registro_verifactu
+        local: "Registro de facturación de alta / de anulación"
+        en: "Veri*Factu billing record"
+        what: "Pas un document remis au client : un enregistrement chaîné et haché, généré avec ou juste avant chaque facture."
+        nature: legal
+        obligation: mandatory
+        source: "RD 1007/2023 art. 9, 10, 11 ; art. 8.2.a)"
+        note: >
+          COUCHE DISTINCTE, et c'est le point de conception. L'ANNULATION n'existe QUE là — jamais au
+          niveau de la facture — et même là c'est un enregistrement AJOUTÉ, jamais une suppression :
+          les originaux restent inaltérables. Obligatoire au 2027-01-01 pour les assujettis à l'IS,
+          au 2027-07-01 pour les autres. Les déclarants SII en sont exclus.
+    open_questions:
+      - id: es_fecha_b2b
+        what: "Le mandat de facture électronique B2B (RD 238/2026) est indexé sur l'entrée en vigueur d'un arrêté ministériel non publié : 12 mois pour les entreprises > 8 M EUR, 24 mois pour les autres. AUCUNE date absolue ne peut être avancée."
+        settled_by: "Publication de l'orden ministerial."
+      - id: es_factura_anticipo
+        what: "AUCUN type « factura de anticipo » n'existe dans le RD 1619/2012 : un acompte déclenche le devengo à l'encaissement et se facture par une factura ordinaire."
+        settled_by: "Établi — consigné ici parce que c'est une DIFFÉRENCE avec l'Allemagne et la France, qui ont toutes deux un document d'acompte nommé."
 
   IT:
     provenance: sourced
