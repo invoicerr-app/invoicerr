@@ -384,8 +384,19 @@ facture porte donc réellement une ligne à taux zéro sans BT-31, et le Schemat
 2. **La suite e2e passe quand même** : aucune spec n'assert que l'envoi aboutit. Deux transmissions
    échouent en silence dans un run vert.
 
-À reprendre : soit la saisie de l'identifiant TVA devient obligatoire pour une société soumise à un
-mandat, soit l'incompatibilité est signalée à la création de la ligne, pas à l'envoi.
+**✅ Corrigé — `b1d139cd`.** La garde est posée **à l'émission**, à côté des gardes de pays et pour la
+même raison : une facture qui ne peut pas être transmise ne doit pas atteindre un état où
+l'utilisateur croit l'avoir émise. Le message nomme la règle et les **deux** sorties — ajouter le
+numéro de TVA, ou sortir du taux zéro. 8 tests.
+
+Volontairement **étroite** : France domestique, taux 0, pas d'identifiant TVA vendeur. Les
+exportations (catégories G/K) et l'autoliquidation (AE) portent aussi un taux 0 et relèvent de
+BR-IC-02 / BR-AE-02, dont les conditions diffèrent — bloquer sur « le taux vaut 0 » refuserait des
+factures parfaitement valides. Deux tests assertent que le transfrontalier et le vendeur non
+français sont laissés tranquilles.
+
+**Reste ouvert** : aucune spec e2e n'assert encore qu'un envoi aboutit, donc un échec de
+transmission peut toujours se loger dans un run vert.
 
 ### C2 — la fixture de port d'artefacts rend un document FIGÉ
 
