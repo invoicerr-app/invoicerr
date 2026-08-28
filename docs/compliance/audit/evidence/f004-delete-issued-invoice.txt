@@ -1,0 +1,28 @@
+base cible : postgresql://invoicerr:***@localhost:5433/invoicerr_db
+fixture (recréée à chaque étape) : facture SENT n° FA-2026-0042 + document conformité CLEARED
+                                   + 1 événement CLEAR + 1 identifiant autorité
+
+== 1. prisma.invoice.deleteMany({ where: { companyId } }) sur une facture SENT/CLEARED ==
+   (c’est littéralement danger.service.ts:64, sans aucun filtre de statut)
+   RÉSULTAT : 1 facture(s) supprimée(s) définitivement — aucune erreur
+   factures restantes : 0
+   ComplianceDocument : conservé, invoiceId = null
+   événements conservés : 1 — identifiants autorité conservés : 1
+
+== 2. prisma.company.deleteMany({ where: { id } }) — 1re instruction de resetApp() ==
+   BLOQUÉ par la base : Foreign key constraint violated on the constraint: `Invoice_companyId_fkey`
+
+== 3. le journal ComplianceEvent est-il append-only en base ? ==
+   UPDATE d'un événement : ACCEPTÉ (type "CLEAR" → "FALSIFIE")
+   DELETE d'un événement : ACCEPTÉ — reste 0 événement(s)
+
+== 4. un ComplianceDocument CLEARED peut-il être réécrit ? ==
+   UPDATE ACCEPTÉ : number "FA-2026-0042" → "FA-2026-9999",
+                    immutableHash "deadbeef" → "cafebabe",
+                    status "CLEARED" → "DRAFT"
+
+== 5. existe-t-il une garde en base (trigger / règle / contrainte) ? ==
+   triggers applicatifs sur le schéma public : 0
+   contraintes CHECK sur Invoice/ComplianceDocument/ComplianceEvent/NumberSeries : 0
+
+— toutes les transactions ont été annulées : la base de test est inchangée —

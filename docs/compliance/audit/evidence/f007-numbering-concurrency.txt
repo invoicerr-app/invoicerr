@@ -1,0 +1,24 @@
+base cible : postgresql://invoicerr:***@localhost:5433/invoicerr_db
+marqueur   : AUDIT-CONCURRENCY-2980119 (tout ce qui est créé ici est supprimé à la fin)
+
+== A. 8 brouillons DISTINCTS émis en parallèle ==
+   émissions réussies : 8/8
+   numéros attribués  : [1,2,3,4,5,6,7,8]
+   doublons           : 0
+   séquence sans trou : OUI
+   compteur NumberSeries : 8 — factures numérotées : 8
+
+== B. LE MÊME brouillon émis 8 fois en parallèle ==
+   (garde `invoice.number !== null` évaluée hors transaction — invoices.service.ts:447)
+   appels ayant franchi la garde et alloué un numéro : 8/8
+   numéros alloués : [14,9,15,13,11,10,12,16]
+   compteur consommé : 8 → 16 (soit 8 valeur(s))
+   numéro finalement porté par la facture : 16 (INV-2026-0016)
+   valeurs de séquence consommées puis perdues : 7
+
+== C. état final de la série ==
+   numéros portés par une facture : [1,2,3,4,5,6,7,8,16]
+   compteur de la série           : 16
+   NUMÉROS MANQUANTS DANS LA SÉRIE : [9,10,11,12,13,14,15]
+
+— nettoyage : toutes les lignes AUDIT-CONCURRENCY-2980119 ont été supprimées —

@@ -1,0 +1,107 @@
+=== A. Le corridor change-t-il le plan ? ===
+Même fournisseur français, trois destinations.
+
+── FR → FR (domestique)
+   supplier=FR  buyer=FR  crossBorder=false
+   régime        : DECENTRALIZED_CTC (bloquant=false)
+   canaux        : PDP, GOV_PORTAL_API:choruspro, PEPPOL, EMAIL
+   artefacts     : AUTHORITATIVE/EN16931_CII, HUMAN/FACTURX, BUYER/FACTURX
+   cycle de vie  : immutableAfter=ISSUE correction=CREDIT_NOTE
+   archivage     : 10y BOTH HASH_CHAIN
+   numérotation  : GAPLESS_SELF
+   reporting     : —
+   TVA           : {"lines":[{"lineId":"l1","treatment":{"components":[{"taxSystem":"VAT","name":"VAT","category":"S","rate":20,"jurisdicti
+   confiance     : OFFICIAL
+
+── FR → IT (intracommunautaire B2B)
+   supplier=FR  buyer=IT  crossBorder=true
+   régime        : DECENTRALIZED_CTC (bloquant=false)
+   canaux        : PDP, GOV_PORTAL_API:choruspro, PEPPOL, EMAIL
+   artefacts     : AUTHORITATIVE/EN16931_CII, HUMAN/FACTURX, BUYER/FATTURAPA
+   cycle de vie  : immutableAfter=ISSUE correction=CREDIT_NOTE
+   archivage     : 10y BOTH HASH_CHAIN
+   numérotation  : GAPLESS_SELF
+   reporting     : EC_SALES_LIST
+   TVA           : {"lines":[{"lineId":"l1","treatment":{"components":[{"taxSystem":"VAT","name":"VAT","category":"AE","rate":0,"reason":"V
+   confiance     : OFFICIAL
+
+── FR → US (export hors UE)
+   supplier=FR  buyer=US  crossBorder=true
+   régime        : DECENTRALIZED_CTC (bloquant=false)
+   canaux        : PDP, GOV_PORTAL_API:choruspro, PEPPOL, EMAIL
+   artefacts     : AUTHORITATIVE/EN16931_CII, HUMAN/FACTURX
+   cycle de vie  : immutableAfter=ISSUE correction=CREDIT_NOTE
+   archivage     : 10y BOTH HASH_CHAIN
+   numérotation  : GAPLESS_SELF
+   reporting     : —
+   TVA           : {"lines":[{"lineId":"l1","treatment":{"components":[{"taxSystem":"VAT","name":"VAT","category":"O","rate":0,"reason":"VA
+   confiance     : OFFICIAL
+
+=== B. Quelles couches ont réellement bougé ? ===
+| couche | FR→FR | FR→IT | FR→US | varie ? |
+| --- | --- | --- | --- | --- |
+| régime | DECENTRALIZED_CTC/false | DECENTRALIZED_CTC/false | DECENTRALIZED_CTC/false | non |
+| canaux | PDP,GOV_PORTAL_API:choruspro,PEPPOL,EMAIL | PDP,GOV_PORTAL_API:choruspro,PEPPOL,EMAIL | PDP,GOV_PORTAL_API:choruspro,PEPPOL,EMAIL | non |
+| artefacts | AUTHORITATIVE/EN16931_CII,HUMAN/FACTURX,BUYER/FACTURX | AUTHORITATIVE/EN16931_CII,HUMAN/FACTURX,BUYER/FATTURAPA | AUTHORITATIVE/EN16931_CII,HUMAN/FACTURX | **OUI** |
+| cycle de vie | ISSUE/CREDIT_NOTE | ISSUE/CREDIT_NOTE | ISSUE/CREDIT_NOTE | non |
+| archivage | 10y/BOTH/HASH_CHAIN | 10y/BOTH/HASH_CHAIN | 10y/BOTH/HASH_CHAIN | non |
+| numérotation | GAPLESS_SELF | GAPLESS_SELF | GAPLESS_SELF | non |
+| reporting | — | EC_SALES_LIST | — | **OUI** |
+
+=== C. Les obligations du récepteur apparaissent-elles ? ===
+Pour FR → IT, l'acheteur italien a ses propres obligations de réception et d'archivage.
+Le plan porte-t-il quoi que ce soit du profil acheteur, hors fiscalité ?
+   plan.buyer            : {"country":"IT","confidence":"OFFICIAL"}
+   archivage du plan     : 10y — celui du FOURNISSEUR (FR)
+   un champ « archivage acheteur » existe-t-il ? NON
+   un champ « obligations acheteur » existe-t-il ? NON
+
+=== D. Le cas décisif : société française avec établissement stable en Italie, vente IT → IT ===
+ATTENTION à la prémisse : une simple immatriculation TVA italienne (identificazione diretta
+art. 35-ter ou représentant fiscal) ne suffit PAS — l'AdE exclut les « meramente identificati »
+du périmètre SdI (Circ. 13/E §1.2, Circ. 14/E §1.2). Le déclencheur est la « stabile
+organizzazione », et seulement « limitatamente alle operazioni da essa rese o ricevute »
+(art. 7 c. 1 lett. d DPR 633/1972) — donc une propriété de L'OPÉRATION, pas de l'entité.
+Dans ce cas-là, le SdI est bien obligatoire : clearance bloquante, FatturaPA.
+Que peut exprimer le modèle ?
+
+Ce que l'application construit (invoices.helpers.ts : countryCode = celui du siège) :
+── supplier.countryCode=FR, buyer.countryCode=IT
+   supplier=FR  buyer=IT  crossBorder=true
+   régime        : DECENTRALIZED_CTC (bloquant=false)
+   canaux        : PDP, GOV_PORTAL_API:choruspro, PEPPOL, EMAIL
+   artefacts     : AUTHORITATIVE/EN16931_CII, HUMAN/FACTURX, BUYER/FATTURAPA
+   cycle de vie  : immutableAfter=ISSUE correction=CREDIT_NOTE
+   archivage     : 10y BOTH HASH_CHAIN
+   numérotation  : GAPLESS_SELF
+   reporting     : EC_SALES_LIST
+   TVA           : {"lines":[{"lineId":"l1","treatment":{"components":[{"taxSystem":"VAT","name":"VAT","category":"AE","rate":0,"reason":"V
+   confiance     : OFFICIAL
+
+Ce que la règle italienne exigerait :
+── supplier.countryCode=IT, buyer.countryCode=IT
+   supplier=IT  buyer=IT  crossBorder=false
+   régime        : CLEARANCE (bloquant=true)
+   canaux        : SDI
+   artefacts     : AUTHORITATIVE/FATTURAPA, HUMAN/PLAIN_PDF
+   cycle de vie  : immutableAfter=CLEARANCE correction=CREDIT_NOTE
+   archivage     : 10y BOTH SIGNED
+   numérotation  : GAPLESS_SELF
+   reporting     : —
+   TVA           : {"lines":[{"lineId":"l1","treatment":{"components":[{"taxSystem":"VAT","name":"VAT","category":"S","rate":22,"jurisdicti
+   confiance     : OFFICIAL
+
+Comparaison :
+   régime   — construit: DECENTRALIZED_CTC/false   |  requis: CLEARANCE/true
+   canaux   — construit: PDP,GOV_PORTAL_API,PEPPOL,EMAIL   |  requis: SDI
+   artefact — construit: EN16931_CII   |  requis: FATTURAPA
+
+Le modèle peut-il exprimer « siège en FR, établissement stable en IT réalisant CETTE opération » ?
+   PartyTaxProfile.establishmentCountry existe dans le type.
+   Occurrences dans tout le dépôt hors sa déclaration : voir le grep du rapport — AUCUNE.
+   Il n’est ni peuplé par invoices.helpers.ts, ni lu par compliance-engine.ts.
+
+=== E. Ce qui alimente countryCode en production ===
+   invoices.helpers.ts : company.countryCode ?? guessCountryCode(company.country) ?? "FR"
+   → c’est le pays de la SOCIÉTÉ, jamais un pays d’immatriculation lié à l’opération,
+     et un pays non résolu retombe silencieusement sur la France.
