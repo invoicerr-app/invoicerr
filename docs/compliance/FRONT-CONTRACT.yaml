@@ -1,0 +1,3533 @@
+# FRONT-CONTRACT — what the interface must do, per country
+#
+# GENERATED FILE. Do not edit by hand; run:
+#     cd backend && npx ts-node scripts/front-contract.ts
+#
+# WHAT THIS IS. Input to the front-end design, and to phase 3. It answers, per country, "what must
+# the screen do differently here?" — ordered by how much this product needs the country, France
+# first.
+#
+# WHERE THE VALUES COME FROM. Every one is READ from src/compliance/profiles/data/*.ts, the sourced
+# and temporal country rules the engine itself uses, resolved as of 2026-10-01
+# (post-mandate, so France shows its e-invoicing shape). `from:` names the exact field. Nothing here
+# is typed in from memory, because a second hand-written per-country document would drift from the
+# profiles the day after it was written — and would invite filling forty countries with plausible
+# prose nobody sourced, which is the failure this audit exists to correct.
+#
+# HOW TO READ AN ENTRY
+#   value:          the machine answer, from the profile
+#   ui:             what the screen must therefore do. This sentence is a DESIGN statement, derived
+#                   mechanically from the value. It is not legal advice.
+#   from:           provenance — a profile field, or one of:
+#                     unverified    nobody has established this; the profile has no rule
+#                     not-modelled  the schema cannot express it yet
+#                     fallback-profile  this country has no real profile, only the generic fallback
+#   open_question:  present whenever value is null. THESE ARE THE POINT. A null is not a gap in this
+#                   document, it is a gap in what anyone has verified, and no screen may be designed
+#                   against it until it is sourced (P3-T01).
+#
+# A WARNING ABOUT CONFIDENCE. `profile.confidence` below is the profile's own self-assessment.
+# OFFICIAL means the rules were sourced; anything else means they were inferred from an archetype.
+# Five countries are bespoke (FR, IT, PL, MX, US); the rest inherit defaults that are plausible and
+# largely unverified. Treat a non-OFFICIAL country as a starting point for research, not an answer.
+as_of: "2026-10-01"
+countries:
+  FR:
+    priority: 1
+    why_this_rank: primary market; mandate 2026-09-01 reception, staged issuance
+    display_name: France
+    profile:
+      confidence: OFFICIAL
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: profiles/data/fr.ts → lifecycle.correctionModel
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: profiles/data/fr.ts → lifecycle.immutableAfter
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: profiles/data/fr.ts → lifecycle.cancellation
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently. The series
+        is hash-chained, so any renumbering after the fact is impossible by design.
+      from: profiles/data/fr.ts → numbering.model
+    zero_rate_declaration:
+      value: false
+      ui: >-
+        There is no zero rate, so a 0% line is an exemption or out of scope. The screen MUST let the
+        user state which, and a reason, or issuance is refused (BR-E-10).
+      from: profiles/data/fr.ts → taxSystem.hasDomesticZeroRate
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: BOTH
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/fr.ts → archival
+    transmission:
+      value:
+        - PDP
+        - GOV_PORTAL_API:choruspro
+        - PEPPOL
+        - EMAIL
+        - PDP
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: profiles/data/fr.ts → transmission[].channels
+    regime:
+      value: REAL_TIME_REPORTING
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/fr.ts → regime.model
+    obligation_layers:
+      value:
+        - layer: ISSUANCE
+          deadline:
+            value: 24
+            unit: HOURS
+        - layer: RECEPTION
+          deadline:
+            value: 24
+            unit: HOURS
+        - layer: ARCHIVAL
+          deadline:
+            value: 6
+            unit: YEARS
+      ui: >-
+        Issuance, reception and archival have separate triggers and deadlines; the screen must not
+        present them as one switch.
+      from: profiles/data/fr.ts → obligations[]
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value:
+        - LEGAL_ID
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: profiles/data/fr.ts → requiredIdentifiers
+  DE:
+    priority: 2
+    why_this_rank: largest EU economy; B2B reception mandate in force
+    display_name: Germany
+    profile:
+      confidence: OFFICIAL
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: profiles/data/de.ts → lifecycle.correctionModel
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: profiles/data/de.ts → lifecycle.immutableAfter
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: profiles/data/de.ts → lifecycle.cancellation
+    numbering_control:
+      value: UNIQUE_SELF
+      ui: >-
+        The app allocates the number; it must be unique but gaps are tolerated. A user-chosen prefix
+        or series is acceptable.
+      from: profiles/data/de.ts → numbering.model
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 8
+        residency: null
+        form: BOTH
+      ui: >-
+        Documents are kept 8 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/de.ts → archival
+    transmission:
+      value:
+        - PEPPOL
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: profiles/data/de.ts → transmission[].channels
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/de.ts → regime.model
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: profiles/data/de.ts → requiredIdentifiers
+  IT:
+    priority: 3
+    why_this_rank: primary market; SdI clearance live since 2019
+    display_name: Italy
+    profile:
+      confidence: OFFICIAL
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: profiles/data/it.ts → lifecycle.correctionModel
+    editable_after_issue:
+      value: CLEARANCE
+      ui: >-
+        The document freezes at clearance. After that the edit form must be closed and replaced by
+        the correction flow above.
+      from: profiles/data/it.ts → lifecycle.immutableAfter
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: true
+      ui: >-
+        Cancellation exists as its own action, distinct from correction. It is not final until the
+        authority acknowledges it, so the UI must show a pending state.
+      from: profiles/data/it.ts → lifecycle.cancellation
+    numbering_control:
+      value: UNIQUE_SELF
+      ui: >-
+        The app allocates the number; it must be unique but gaps are tolerated. A user-chosen prefix
+        or series is acceptable.
+      from: profiles/data/it.ts → numbering.model
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: BOTH
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/it.ts → archival
+    transmission:
+      value:
+        - SDI
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: profiles/data/it.ts → transmission[].channels
+    regime:
+      value: CLEARANCE
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/it.ts → regime.model
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value:
+        - LEGAL_ID
+        - VAT
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: profiles/data/it.ts → requiredIdentifiers
+  US:
+    priority: 4
+    why_this_rank: largest market overall; no mandate, sales tax by state
+    display_name: United States
+    profile:
+      confidence: OFFICIAL
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: profiles/data/us.ts → lifecycle.correctionModel
+    editable_after_issue:
+      value: NEVER
+      ui: The document stays editable. The edit form may remain open after issuance.
+      from: profiles/data/us.ts → lifecycle.immutableAfter
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: profiles/data/us.ts → lifecycle.cancellation
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: profiles/data/us.ts → numbering.model
+    zero_rate_declaration:
+      value: N_A
+      ui: Not a VAT/GST system, so the EN 16931 zero-rate question does not arise in this form.
+      from: profiles/data/us.ts → taxSystem.kind
+    archival:
+      value:
+        years: 7
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 7 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/us.ts → archival
+    transmission:
+      value:
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: profiles/data/us.ts → transmission[].channels
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/us.ts → regime.model
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: profiles/data/us.ts → requiredIdentifiers
+  PL:
+    priority: 5
+    why_this_rank: primary market; KSeF
+    display_name: Poland
+    profile:
+      confidence: OFFICIAL
+      is_fallback: false
+    invoice_modification:
+      value: CORRECTIVE_INVOICE
+      ui: >-
+        An issued invoice is corrected by a new corrective document that supersedes it and carries
+        the reference to the original. The screen needs a "correct this invoice" flow, not an edit
+        form.
+      from: profiles/data/pl.ts → lifecycle.correctionModel
+    editable_after_issue:
+      value: CLEARANCE
+      ui: >-
+        The document freezes at clearance. After that the edit form must be closed and replaced by
+        the correction flow above.
+      from: profiles/data/pl.ts → lifecycle.immutableAfter
+    invoice_cancellation:
+      value:
+        allowed: false
+        requiresAuthorityAck: true
+      ui: Cancellation is not available. The screen must not offer it; correction is the only route.
+      from: profiles/data/pl.ts → lifecycle.cancellation
+    numbering_control:
+      value: UNIQUE_SELF
+      ui: >-
+        The app allocates the number; it must be unique but gaps are tolerated. A user-chosen prefix
+        or series is acceptable.
+      from: profiles/data/pl.ts → numbering.model
+    zero_rate_declaration:
+      value: true
+      ui: >-
+        A 0% line may legitimately be zero-rated (Z). The category select should default to
+        automatic and the exemption reason is not required.
+      from: profiles/data/pl.ts → taxSystem.hasDomesticZeroRate
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: BOTH
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/pl.ts → archival
+    transmission:
+      value:
+        - GOV_PORTAL_API:ksef
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: profiles/data/pl.ts → transmission[].channels
+    regime:
+      value: CLEARANCE
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/pl.ts → regime.model
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value:
+        - VAT
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: profiles/data/pl.ts → requiredIdentifiers
+  ES:
+    priority: 6
+    why_this_rank: Veri*Factu / B2B mandate; bespoke rules already sourced
+    display_name: Spain
+    profile:
+      confidence: OFFICIAL
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: profiles/data/es.ts → lifecycle.correctionModel
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: profiles/data/es.ts → lifecycle.immutableAfter
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: profiles/data/es.ts → lifecycle.cancellation
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: profiles/data/es.ts → numbering.model
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: BOTH
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/es.ts → archival
+    transmission:
+      value:
+        - GOV_PORTAL_API:es-face
+        - GOV_PORTAL_API:es-aeat
+        - PEPPOL
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: profiles/data/es.ts → transmission[].channels
+    regime:
+      value: REAL_TIME_REPORTING
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/es.ts → regime.model
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value:
+        - VAT
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: profiles/data/es.ts → requiredIdentifiers
+  MX:
+    priority: 7
+    why_this_rank: CFDI clearance via PAC; bespoke profile exists
+    display_name: Mexico
+    profile:
+      confidence: OFFICIAL
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: profiles/data/mx.ts → lifecycle.correctionModel
+    editable_after_issue:
+      value: CLEARANCE
+      ui: >-
+        The document freezes at clearance. After that the edit form must be closed and replaced by
+        the correction flow above.
+      from: profiles/data/mx.ts → lifecycle.immutableAfter
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: true
+        requiresBuyerConsent: true
+      ui: >-
+        Cancellation exists as its own action, distinct from correction. It also requires the buyer
+        to agree, so the flow needs a counterparty step. It is not final until the authority
+        acknowledges it, so the UI must show a pending state.
+      from: profiles/data/mx.ts → lifecycle.cancellation
+    numbering_control:
+      value: UNIQUE_SELF
+      ui: >-
+        The app allocates the number; it must be unique but gaps are tolerated. A user-chosen prefix
+        or series is acceptable.
+      from: profiles/data/mx.ts → numbering.model
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 5
+        residency: MX
+        form: AUTHORITATIVE_XML
+      ui: >-
+        Documents are kept 5 years, stored in MX. The screen should say so where a user might
+        otherwise delete something.
+      from: profiles/data/mx.ts → archival
+    transmission:
+      value:
+        - PAC
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: profiles/data/mx.ts → transmission[].channels
+    regime:
+      value: CLEARANCE
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/mx.ts → regime.model
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value:
+        - RFC
+        - MX_DOMICILIO_FISCAL
+        - MX_REGIMEN_FISCAL
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: profiles/data/mx.ts → requiredIdentifiers
+  GB:
+    priority: 8
+    why_this_rank: large market adjacent to the EU; post-Brexit divergence
+    display_name: United Kingdom
+    profile:
+      confidence: OFFICIAL
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: profiles/data/gb.ts → lifecycle.correctionModel
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: profiles/data/gb.ts → lifecycle.immutableAfter
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: profiles/data/gb.ts → lifecycle.cancellation
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: profiles/data/gb.ts → numbering.model
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 7
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 7 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/gb.ts → archival
+    transmission:
+      value:
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: profiles/data/gb.ts → transmission[].channels
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/gb.ts → regime.model
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: profiles/data/gb.ts → requiredIdentifiers
+  NL:
+    priority: 9
+    why_this_rank: high e-invoicing maturity, Peppol-native
+    display_name: Netherlands
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/nl.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: >-
+        profiles/data/nl.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: >-
+        profiles/data/nl.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/nl.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/nl.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - PEPPOL
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/nl.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/nl.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/nl.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  BE:
+    priority: 10
+    why_this_rank: B2B mandate 2026-01-01
+    display_name: Belgium
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/be.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: >-
+        profiles/data/be.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: >-
+        profiles/data/be.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/be.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/be.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - PEPPOL
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/be.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: REAL_TIME_REPORTING
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/be.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/be.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  PT:
+    priority: 11
+    why_this_rank: ATCUD / SAF-T, strong existing obligations
+    display_name: Portugal
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/pt.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: >-
+        profiles/data/pt.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: >-
+        profiles/data/pt.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/pt.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/pt.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - PEPPOL
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/pt.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: PERIODIC_REPORTING
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/pt.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/pt.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  IN:
+    priority: 12
+    why_this_rank: IRP e-invoicing at scale; GST
+    display_name: India
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/in.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: CLEARANCE
+      ui: >-
+        The document freezes at clearance. After that the edit form must be closed and replaced by
+        the correction flow above.
+      from: >-
+        profiles/data/in.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: true
+      ui: >-
+        Cancellation exists as its own action, distinct from correction. It is not final until the
+        authority acknowledges it, so the UI must show a pending state.
+      from: >-
+        profiles/data/in.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/in.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: AUTHORITATIVE_XML
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/in.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - GOV_PORTAL_API:in-irp
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/in.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: CLEARANCE
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/in.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/in.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  CN:
+    priority: 13
+    why_this_rank: largest Asian market; fully digital fapiao rollout
+    display_name: China
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/cn.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: CLEARANCE
+      ui: >-
+        The document freezes at clearance. After that the edit form must be closed and replaced by
+        the correction flow above.
+      from: >-
+        profiles/data/cn.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: true
+      ui: >-
+        Cancellation exists as its own action, distinct from correction. It is not final until the
+        authority acknowledges it, so the UI must show a pending state.
+      from: >-
+        profiles/data/cn.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/cn.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: AUTHORITATIVE_XML
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/cn.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - GOV_PORTAL_API:cn-sta
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/cn.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: CLEARANCE
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/cn.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/cn.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  CA:
+    priority: 14
+    why_this_rank: GST/HST plus provincial variation
+    display_name: Canada
+    profile:
+      confidence: OFFICIAL
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: profiles/data/ca.ts → lifecycle.correctionModel
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: profiles/data/ca.ts → lifecycle.immutableAfter
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: profiles/data/ca.ts → lifecycle.cancellation
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: profiles/data/ca.ts → numbering.model
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 7
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 7 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/ca.ts → archival
+    transmission:
+      value:
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: profiles/data/ca.ts → transmission[].channels
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/ca.ts → regime.model
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: profiles/data/ca.ts → requiredIdentifiers
+  CH:
+    priority: 15
+    why_this_rank: non-EU, adjacent, common for FR/DE/IT businesses
+    display_name: Switzerland
+    profile:
+      confidence: OFFICIAL
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: profiles/data/ch.ts → lifecycle.correctionModel
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: profiles/data/ch.ts → lifecycle.immutableAfter
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: profiles/data/ch.ts → lifecycle.cancellation
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: profiles/data/ch.ts → numbering.model
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 7
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 7 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/ch.ts → archival
+    transmission:
+      value:
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: profiles/data/ch.ts → transmission[].channels
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/ch.ts → regime.model
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: profiles/data/ch.ts → requiredIdentifiers
+  SE:
+    priority: 16
+    why_this_rank: Peppol-native, high digital maturity
+    display_name: Sweden
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/se.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: >-
+        profiles/data/se.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: >-
+        profiles/data/se.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/se.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/se.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - PEPPOL
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/se.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/se.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/se.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  BR:
+    priority: 17
+    why_this_rank: NF-e, one of the oldest clearance regimes
+    display_name: Brazil
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/br.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: CLEARANCE
+      ui: >-
+        The document freezes at clearance. After that the edit form must be closed and replaced by
+        the correction flow above.
+      from: >-
+        profiles/data/br.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: true
+      ui: >-
+        Cancellation exists as its own action, distinct from correction. It is not final until the
+        authority acknowledges it, so the UI must show a pending state.
+      from: >-
+        profiles/data/br.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/br.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 11
+        residency: BR
+        form: AUTHORITATIVE_XML
+      ui: >-
+        Documents are kept 11 years, stored in BR. The screen should say so where a user might
+        otherwise delete something.
+      from: profiles/data/br.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - GOV_PORTAL_API:sefaz
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/br.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: CLEARANCE
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/br.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/br.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  JP:
+    priority: 18
+    why_this_rank: qualified invoice system since 2023
+    display_name: Japan
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/jp.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: >-
+        profiles/data/jp.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: >-
+        profiles/data/jp.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/jp.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/jp.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - PEPPOL
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/jp.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/jp.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/jp.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  AU:
+    priority: 19
+    why_this_rank: Peppol, GST
+    display_name: Australia
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/au.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: >-
+        profiles/data/au.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: >-
+        profiles/data/au.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/au.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/au.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - PEPPOL
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/au.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/au.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/au.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  AT:
+    priority: 20
+    why_this_rank: EU, B2G e-invoicing established
+    display_name: Austria
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/at.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: >-
+        profiles/data/at.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: >-
+        profiles/data/at.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/at.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/at.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - PEPPOL
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/at.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/at.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/at.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  DK:
+    priority: 21
+    why_this_rank: Nemhandel / Peppol
+    display_name: Denmark
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/dk.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: >-
+        profiles/data/dk.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: >-
+        profiles/data/dk.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/dk.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/dk.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - PEPPOL
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/dk.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/dk.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/dk.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  "NO":
+    priority: 22
+    why_this_rank: EHF / Peppol, non-EU EEA
+    display_name: Norway
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/no.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: >-
+        profiles/data/no.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: >-
+        profiles/data/no.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/no.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/no.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - PEPPOL
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/no.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/no.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/no.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  FI:
+    priority: 23
+    why_this_rank: Peppol-native
+    display_name: Finland
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/fi.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: >-
+        profiles/data/fi.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: >-
+        profiles/data/fi.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/fi.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/fi.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - PEPPOL
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/fi.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/fi.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/fi.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  IE:
+    priority: 24
+    why_this_rank: EU, English-speaking, common holding jurisdiction
+    display_name: Ireland
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/ie.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: >-
+        profiles/data/ie.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: >-
+        profiles/data/ie.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/ie.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/ie.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - PEPPOL
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/ie.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/ie.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/ie.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  LU:
+    priority: 25
+    why_this_rank: EU, high density of holding companies
+    display_name: Luxembourg
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/lu.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: >-
+        profiles/data/lu.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: >-
+        profiles/data/lu.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/lu.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/lu.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - PEPPOL
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/lu.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/lu.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/lu.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  CZ:
+    priority: 26
+    why_this_rank: EU, sizeable SME base
+    display_name: Czechia
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/cz.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: >-
+        profiles/data/cz.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: >-
+        profiles/data/cz.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/cz.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/cz.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - PEPPOL
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/cz.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/cz.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/cz.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  RO:
+    priority: 27
+    why_this_rank: RO e-Factura mandate in force
+    display_name: Romania
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/ro.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: CLEARANCE
+      ui: >-
+        The document freezes at clearance. After that the edit form must be closed and replaced by
+        the correction flow above.
+      from: >-
+        profiles/data/ro.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: true
+      ui: >-
+        Cancellation exists as its own action, distinct from correction. It is not final until the
+        authority acknowledges it, so the UI must show a pending state.
+      from: >-
+        profiles/data/ro.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/ro.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: AUTHORITATIVE_XML
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/ro.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - GOV_PORTAL_API:anaf
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/ro.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: CLEARANCE
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/ro.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/ro.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  HU:
+    priority: 28
+    why_this_rank: RTIR real-time reporting since 2018
+    display_name: Hungary
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/hu.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: >-
+        profiles/data/hu.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: >-
+        profiles/data/hu.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/hu.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 7
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 7 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/hu.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - GOV_PORTAL_API:hu-nav
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/hu.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: REAL_TIME_REPORTING
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/hu.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/hu.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  GR:
+    priority: 29
+    why_this_rank: myDATA
+    display_name: Greece
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/gr.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: >-
+        profiles/data/gr.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: >-
+        profiles/data/gr.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/gr.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 7
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 7 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/gr.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - GOV_PORTAL_API:gr-aade
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/gr.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: REAL_TIME_REPORTING
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/gr.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/gr.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  KR:
+    priority: 30
+    why_this_rank: long-standing e-Tax invoice regime
+    display_name: Unknown / unsupported jurisdiction
+    profile:
+      confidence: FALLBACK
+      is_fallback: true
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: fallback-profile (no kr.ts exists) → lifecycle.correctionModel
+    editable_after_issue:
+      value: NEVER
+      ui: The document stays editable. The edit form may remain open after issuance.
+      from: fallback-profile (no kr.ts exists) → lifecycle.immutableAfter
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: fallback-profile (no kr.ts exists) → lifecycle.cancellation
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: fallback-profile (no kr.ts exists) → numbering.model
+    zero_rate_declaration:
+      value: N_A
+      ui: Not a VAT/GST system, so the EN 16931 zero-rate question does not arise in this form.
+      from: fallback-profile (no kr.ts exists) → taxSystem.kind
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: fallback-profile (no kr.ts exists) → archival
+    transmission:
+      value:
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: fallback-profile (no kr.ts exists) → transmission[].channels
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: fallback-profile (no kr.ts exists) → regime.model
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: null
+      ui: null
+      from: fallback-profile
+      open_question: Which identifiers must a counterparty carry here?
+  SG:
+    priority: 31
+    why_this_rank: InvoiceNow / Peppol
+    display_name: Singapore
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/sg.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: >-
+        profiles/data/sg.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: >-
+        profiles/data/sg.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/sg.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/sg.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - PEPPOL
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/sg.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: REAL_TIME_REPORTING
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/sg.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/sg.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  AE:
+    priority: 32
+    why_this_rank: VAT since 2018, e-invoicing programme
+    display_name: United Arab Emirates
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/ae.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: >-
+        profiles/data/ae.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: >-
+        profiles/data/ae.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/ae.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/ae.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - PEPPOL
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/ae.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: REAL_TIME_REPORTING
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/ae.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/ae.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  SA:
+    priority: 33
+    why_this_rank: ZATCA Fatoora clearance
+    display_name: Saudi Arabia
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/sa.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: CLEARANCE
+      ui: >-
+        The document freezes at clearance. After that the edit form must be closed and replaced by
+        the correction flow above.
+      from: >-
+        profiles/data/sa.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: true
+      ui: >-
+        Cancellation exists as its own action, distinct from correction. It is not final until the
+        authority acknowledges it, so the UI must show a pending state.
+      from: >-
+        profiles/data/sa.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/sa.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 6
+        residency: SA
+        form: AUTHORITATIVE_XML
+      ui: >-
+        Documents are kept 6 years, stored in SA. The screen should say so where a user might
+        otherwise delete something.
+      from: profiles/data/sa.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - GOV_PORTAL_API:zatca
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/sa.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: CLEARANCE
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/sa.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/sa.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  TR:
+    priority: 34
+    why_this_rank: e-Fatura, mature clearance regime
+    display_name: Turkey
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/tr.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: CLEARANCE
+      ui: >-
+        The document freezes at clearance. After that the edit form must be closed and replaced by
+        the correction flow above.
+      from: >-
+        profiles/data/tr.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: true
+      ui: >-
+        Cancellation exists as its own action, distinct from correction. It is not final until the
+        authority acknowledges it, so the UI must show a pending state.
+      from: >-
+        profiles/data/tr.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/tr.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: AUTHORITATIVE_XML
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/tr.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - GOV_PORTAL_API:gib
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/tr.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: CLEARANCE
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/tr.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/tr.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  ZA:
+    priority: 35
+    why_this_rank: largest African market
+    display_name: South Africa
+    profile:
+      confidence: OFFICIAL
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: profiles/data/za.ts → lifecycle.correctionModel
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: profiles/data/za.ts → lifecycle.immutableAfter
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: profiles/data/za.ts → lifecycle.cancellation
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: profiles/data/za.ts → numbering.model
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 7
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 7 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/za.ts → archival
+    transmission:
+      value:
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: profiles/data/za.ts → transmission[].channels
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/za.ts → regime.model
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: profiles/data/za.ts → requiredIdentifiers
+  AR:
+    priority: 36
+    why_this_rank: AFIP clearance
+    display_name: Argentina
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/ar.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: CLEARANCE
+      ui: >-
+        The document freezes at clearance. After that the edit form must be closed and replaced by
+        the correction flow above.
+      from: >-
+        profiles/data/ar.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: true
+      ui: >-
+        Cancellation exists as its own action, distinct from correction. It is not final until the
+        authority acknowledges it, so the UI must show a pending state.
+      from: >-
+        profiles/data/ar.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/ar.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: AUTHORITATIVE_XML
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/ar.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - GOV_PORTAL_API:afip
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/ar.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: CLEARANCE
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/ar.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/ar.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  CL:
+    priority: 37
+    why_this_rank: SII clearance, oldest in the region
+    display_name: Chile
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/cl.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: CLEARANCE
+      ui: >-
+        The document freezes at clearance. After that the edit form must be closed and replaced by
+        the correction flow above.
+      from: >-
+        profiles/data/cl.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: true
+      ui: >-
+        Cancellation exists as its own action, distinct from correction. It is not final until the
+        authority acknowledges it, so the UI must show a pending state.
+      from: >-
+        profiles/data/cl.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: AUTHORITY_RANGE
+      ui: >-
+        Numbers come from a range the tax authority grants. The screen must show how much of the
+        range is left and refuse issuance when it is exhausted, because no number can be invented
+        locally.
+      from: >-
+        profiles/data/cl.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: AUTHORITATIVE_XML
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/cl.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - GOV_PORTAL_API:sii
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/cl.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: CLEARANCE
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/cl.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/cl.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  CO:
+    priority: 38
+    why_this_rank: DIAN clearance
+    display_name: Colombia
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/co.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: CLEARANCE
+      ui: >-
+        The document freezes at clearance. After that the edit form must be closed and replaced by
+        the correction flow above.
+      from: >-
+        profiles/data/co.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: true
+      ui: >-
+        Cancellation exists as its own action, distinct from correction. It is not final until the
+        authority acknowledges it, so the UI must show a pending state.
+      from: >-
+        profiles/data/co.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/co.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: CO
+        form: AUTHORITATIVE_XML
+      ui: >-
+        Documents are kept 10 years, stored in CO. The screen should say so where a user might
+        otherwise delete something.
+      from: profiles/data/co.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - GOV_PORTAL_API:dian
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/co.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: CLEARANCE
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/co.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/co.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+  IL:
+    priority: 39
+    why_this_rank: clearance rollout under way
+    display_name: Unknown / unsupported jurisdiction
+    profile:
+      confidence: FALLBACK
+      is_fallback: true
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: fallback-profile (no il.ts exists) → lifecycle.correctionModel
+    editable_after_issue:
+      value: NEVER
+      ui: The document stays editable. The edit form may remain open after issuance.
+      from: fallback-profile (no il.ts exists) → lifecycle.immutableAfter
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: fallback-profile (no il.ts exists) → lifecycle.cancellation
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: fallback-profile (no il.ts exists) → numbering.model
+    zero_rate_declaration:
+      value: N_A
+      ui: Not a VAT/GST system, so the EN 16931 zero-rate question does not arise in this form.
+      from: fallback-profile (no il.ts exists) → taxSystem.kind
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: fallback-profile (no il.ts exists) → archival
+    transmission:
+      value:
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: fallback-profile (no il.ts exists) → transmission[].channels
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: fallback-profile (no il.ts exists) → regime.model
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: null
+      ui: null
+      from: fallback-profile
+      open_question: Which identifiers must a counterparty carry here?
+  NZ:
+    priority: 40
+    why_this_rank: Peppol, GST
+    display_name: New Zealand
+    profile:
+      confidence: BEST_EFFORT
+      is_fallback: false
+    invoice_modification:
+      value: CREDIT_NOTE
+      ui: >-
+        An issued invoice is never edited. Correcting it means issuing a separate credit note that
+        references it, so the screen needs a dedicated credit-note flow and must refuse in-place
+        edits.
+      from: >-
+        profiles/data/nz.ts → lifecycle.correctionModel [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    editable_after_issue:
+      value: ISSUE
+      ui: >-
+        The document freezes at issue. After that the edit form must be closed and replaced by the
+        correction flow above.
+      from: >-
+        profiles/data/nz.ts → lifecycle.immutableAfter [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    invoice_cancellation:
+      value:
+        allowed: true
+        requiresAuthorityAck: false
+      ui: Cancellation exists as its own action, distinct from correction.
+      from: >-
+        profiles/data/nz.ts → lifecycle.cancellation [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    numbering_control:
+      value: GAPLESS_SELF
+      ui: >-
+        The app allocates the number and the series must have no holes. The user must NOT be able to
+        type, skip or reuse a number, and a failed issuance must not burn one silently.
+      from: >-
+        profiles/data/nz.ts → numbering.model [BEST_EFFORT — inherited from an archetype, not
+        sourced]
+    zero_rate_declaration:
+      value: null
+      ui: null
+      from: unverified
+      open_question: >-
+        Does this country levy a domestic ZERO RATE (taxable at 0%, input tax deductible), as
+        opposed to exemptions only? Until answered, a 0% line keeps resolving to Z by default.
+    archival:
+      value:
+        years: 10
+        residency: null
+        form: HYBRID_PDF
+      ui: >-
+        Documents are kept 10 years. The screen should say so where a user might otherwise delete
+        something.
+      from: profiles/data/nz.ts → archival [BEST_EFFORT — inherited from an archetype, not sourced]
+    transmission:
+      value:
+        - PEPPOL
+        - EMAIL
+      ui: >-
+        The user must connect these channels in settings before an invoice can leave the product. A
+        country whose channel is not connected should say so before issuance, not at send time.
+      from: >-
+        profiles/data/nz.ts → transmission[].channels [BEST_EFFORT — inherited from an archetype,
+        not sourced]
+    regime:
+      value: POST_AUDIT
+      ui: Regime model in force at 2026-10-01.
+      from: profiles/data/nz.ts → regime.model [BEST_EFFORT — inherited from an archetype, not sourced]
+    obligation_layers:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        This profile has no per-layer obligations yet (only FR does). Reception and archival duties
+        may start on different dates from issuance — unverified for this country.
+    rejection_recovery:
+      value: null
+      ui: null
+      from: not-modelled
+      open_question: >-
+        What may a user do after the authority REJECTS an invoice — resubmit under the same number,
+        correct, or cancel? `REJECTED` is a terminal state in the runtime today (F-007 / D1), so no
+        screen can be designed for this until the routes are sourced per country (P3-T01).
+    buyer_identifiers_required:
+      value: []
+      ui: The client form must require these before an invoice can be issued to that client.
+      from: >-
+        profiles/data/nz.ts → requiredIdentifiers [BEST_EFFORT — inherited from an archetype, not
+        sourced]
