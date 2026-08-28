@@ -119,42 +119,60 @@ export function resolveSupplierCountryOrThrow(company: SupplierParty): string {
 }
 
 /**
- * C1 — a zero-rated line on a domestic French invoice requires the seller's VAT identifier.
+ * C1 + C3 — the EN 16931 identifier rules for zero-rate VAT categories, enforced at ISSUANCE.
  *
- * EN 16931 **BR-Z-02**: "An Invoice that contains an Invoice line where the Invoiced item VAT
- * category code (BT-151) is 'Zero rated' shall contain the Seller VAT Identifier (BT-31), the
- * Seller tax registration identifier (BT-32) and/or the Seller tax representative VAT identifier
- * (BT-63)."
+ * Observed on a full e2e run, not deduced: French sends blocked by BR-Z-02 inside an otherwise
+ * green suite. The product let a company exist with no VAT identifier, let a 0% invoice be issued,
+ * and only said so at SEND — a Schematron error in a server log, nothing the user could act on.
  *
- * Observed on a full e2e run, not deduced: two French sends were blocked by BR-Z-02 inside an
- * otherwise green suite. The product let a French company exist with NO VAT identifier, let an
- * invoice be issued at 0%, and only said so at SEND — as a Schematron error in a server log, with
- * nothing the user could act on. The suite passed because no spec asserts that a send succeeds.
+ * C1 keyed this on "rate is 0", domestic France only. That was too narrow AND would have been
+ * wrong if widened naively, because the rules read from
+ * `schemas/en16931/EN16931-CII-validation-preprocessed.sch` do not agree with each other:
  *
- * The guard belongs at issuance, next to the country guards above and for the same reason: an
- * invoice that cannot be transmitted must not reach a state where the user believes it was issued.
+ *   Z   BR-Z-02   zero rated            seller VAT id, tax registration id, or representative
+ *   E   BR-E-02   exempt from VAT       same
+ *   AE  BR-AE-02  reverse charge        same, PLUS a buyer VAT id or buyer legal registration id
+ *   K   BR-IC-02  intra-community       seller VAT id or representative, PLUS a buyer VAT id
+ *   G   BR-G-02   export outside the EU seller VAT id or representative (NOT a tax registration id)
+ *   O   BR-O-02   not subject to VAT    shall NOT contain a seller VAT identifier
  *
- * Deliberately NARROW — domestic France, rate 0, no seller VAT id. Exports (category G/K) and
- * reverse charge (AE) also carry a 0 rate and are governed by BR-IC-02 / BR-AE-02, whose conditions
- * differ; blocking on "rate is 0" alone would refuse invoices that are perfectly valid. Widening
- * this to the other zero-rate categories needs their own rules read, not an extrapolation.
+ * O is the one that makes a rate-based guard indefensible: it carries a 0 rate and FORBIDS what the
+ * other five require. So the guard keys on the resolved CATEGORY, which the engine already computes.
+ *
+ * The buyer-side requirements of AE and K are deliberately not enforced here yet — see the note on
+ * `CATEGORIES_REQUIRING_SELLER_ID`.
  */
+const CATEGORIES_REQUIRING_SELLER_ID = new Set(['Z', 'E', 'AE', 'K', 'G']);
+
+/**
+ * Which identifier satisfies each category. G and K accept only a VAT identifier or a tax
+ * representative's; Z, E and AE also accept a plain tax registration identifier. The distinction is
+ * in the Schematron and is not cosmetic, so it is encoded rather than flattened.
+ */
+const CATEGORIES_ACCEPTING_TAX_REGISTRATION = new Set(['Z', 'E', 'AE']);
+
 export function resolveZeroRatedSellerVatOrThrow(
   company: SupplierParty,
-  client: BuyerParty,
-  itemVatRates: number[],
+  _client: BuyerParty,
+  itemVatCategories: string[],
 ): void {
-  const supplierCountry = company.countryCode ?? guessCountryCode(company.country);
-  const buyerCountry = client.countryCode ?? guessCountryCode(client.country);
-  if (supplierCountry !== 'FR' || buyerCountry !== 'FR') return;
-  if (!itemVatRates.some((rate) => rate === 0)) return;
-  const hasVatId = company.partyIdentifiers?.some((pi) => pi.scheme === 'VAT' && !!pi.value);
-  if (hasVatId) return;
+  const offending = itemVatCategories.find((c) => CATEGORIES_REQUIRING_SELLER_ID.has(c));
+  if (!offending) return;
 
+  const ids = company.partyIdentifiers ?? [];
+  const hasVat = ids.some((pi) => pi.scheme === 'VAT' && !!pi.value);
+  if (hasVat) return;
+  // LEGAL_ID stands in for the "seller tax registration identifier" (BT-32) the three lenient
+  // categories accept. Not accepted for G/K, per BR-G-02 and BR-IC-02.
+  if (CATEGORIES_ACCEPTING_TAX_REGISTRATION.has(offending)) {
+    if (ids.some((pi) => pi.scheme === 'LEGAL_ID' && !!pi.value)) return;
+  }
+
+  const rule = { Z: 'BR-Z-02', E: 'BR-E-02', AE: 'BR-AE-02', K: 'BR-IC-02', G: 'BR-G-02' }[offending];
   throw new BadRequestException(
-    'This invoice has a zero-rated line, which requires the company\'s VAT identifier ' +
-      '(EN 16931 rule BR-Z-02). Add the VAT number to the company, or use a non-zero VAT rate. ' +
-      'Without it the invoice would be refused at transmission.',
+    `This invoice has a line in VAT category "${offending}", which requires the company's VAT ` +
+      `identifier (EN 16931 rule ${rule}). Add the VAT number to the company, or use a standard-rate ` +
+      'VAT treatment. Without it the invoice would be refused at transmission.',
   );
 }
 

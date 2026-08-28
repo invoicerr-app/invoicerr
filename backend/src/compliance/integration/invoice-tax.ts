@@ -28,6 +28,14 @@ export interface InvoiceTaxResult {
   totalTTC: number;
   totalsMinor: { netMinor: number; taxMinor: number; grossMinor: number };
   itemVatRates: number[];
+  /**
+   * C3 — the resolved VAT CATEGORY per line (EN 16931 BT-151: S, Z, E, AE, K, G, O …).
+   *
+   * The rate alone cannot drive a seller-identifier guard: Z, E, AE, K and G all carry a 0 rate and
+   * REQUIRE the seller's identifier, while O carries a 0 rate and FORBIDS it (BR-O-02). A guard
+   * keyed on "rate is 0" would be wrong for one of the six.
+   */
+  itemVatCategories: string[];
   warnings: string[];
 }
 
@@ -95,6 +103,7 @@ export function resolveInvoiceTax(input: InvoiceTaxInput): InvoiceTaxResult {
       grossMinor: totals.gross.minor,
     },
     itemVatRates: plan.tax.lines.map((l) => l.treatment.components[0]?.rate ?? 0),
+    itemVatCategories: plan.tax.lines.map((l) => l.treatment.components[0]?.category ?? 'S'),
     warnings: plan.warnings,
   };
 }
