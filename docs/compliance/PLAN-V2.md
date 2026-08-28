@@ -340,6 +340,22 @@ consommation, deux endpoints entrants. **On l'étend, on ne le refait pas.***
 
 ---
 
+## Limites assumées de P2-T02/T03, à reprendre en A2
+
+Consignées ici parce qu'elles sont **modélisées à moitié ou pas du tout**, et qu'une limite tue est
+une dette invisible :
+
+1. **Le B2C domestique garde ses canaux actuels.** Il est hors mandat par le rôle, mais l'art. 290 III
+   veut que les **données** d'e-reporting transitent par la plateforme agréée — et `channels` est
+   aujourd'hui une seule liste qui sert à la fois au routage de la facture et au chemin des données.
+   Les séparer est précisément l'objet du modèle d'obligations d'A2.
+2. **L'art. 290 I est plus large que « transfrontalier »** : livraisons domestiques à un assujetti
+   non établi (1° b), B2C situé en France (2° b, f), acquisitions (3°). Seul le complément du test
+   bilatéral est encodé.
+3. **Monaco** : le rattachement est évalué sur le pays **résolu**, donc MC hérite de FR par
+   délégation — la décision existante du dépôt, préservée et non rejugée. Mais l'art. 290 I 4° a)
+   range explicitement les opérations FR↔Monaco en e-reporting. À sourcer à part.
+
 ## Instabilité connue, non résolue
 
 `ksef-transmission.spec.ts` — « transmit() receives the resolved config from the registry » et
@@ -361,6 +377,7 @@ mémoïsation l'a réduit mais je n'ai pas mesuré l'effet.
 - **Lire la sortie brute avant de traiter un symptôme.** Le plantage du renderer a coûté cinq tentatives ; la clé dupliquée était dans le log depuis le début.
 - **`git add -A` est proscrit.** Chemins explicites. `CLAUDE.md` a été repris deux fois.
 - **Ne présumer d'aucun artefact.** Une migration se vérifie contre Postgres ; un test contre son contenu, pas son nom ; un comptage ne vaut pas une lecture.
+- **`tsc -b` est incrémental et ment.** Il a rapporté « compile » alors que `TransmissionRule` n'avait pas `appliesTo` ; 44 suites avaient déjà échoué à compiler. Utiliser `tsc --noEmit -p tsconfig.json` après avoir supprimé le cache, ou `npm run build`.
 - **Ne jamais corriger un chiffre dans une sonde sans le corriger dans le texte publié.**
 - **Ce document est mis à jour à chaque tâche terminée.** C'est ce qui permet de reprendre après interruption.
 
@@ -380,4 +397,5 @@ mémoïsation l'a réduit mais je n'ai pas mesuré l'effet.
 | 2026-08-28 | **P2-V01** | ✅ fait | `447eb2f3`. Légifrance, source primaire. Critère **triple**, **deux** règles pour la France, art. 290 bien plus large que « transfrontalier », et articles **abrogés au 2027-01-01**. |
 | 2026-08-28 | **P2-V02** | ✅ fait | `291a91c1`. Six pivots, 14 tests. Italie : `EITHER` confirmé. Espagne : une seule règle. |
 | 2026-08-28 | **P2-T01** | ✅ fait | `c5dfc682`. Repli `?? 'FR'` supprimé des **deux** côtés ; le fournisseur n'était pas gardé du tout. Pas de migration : le champ existait. |
+| 2026-08-28 | **P2-T02 + P2-T03** | ✅ fait | `0cf83366`. **Le routage français est corrigé** : FR→IT et FR→US passent de `DECENTRALIZED_CTC` + PDP à `REAL_TIME_REPORTING` + EMAIL. Profils non migrés inchangés (asserté PL→DE). |
 | 2026-08-28 | *(historique)* **P1-T03d** | ↩ tenté, annulé | Mesure P1-T02 corrigée : 8 suites / 52 tests, pas 6/31 — je n'avais inversé qu'un des cinq court-circuits. Redécoupée en T03b/c/d. |
