@@ -148,19 +148,28 @@ describe('Compliance showcase — the same code, fifteen different screens', () 
       issuedInvoice(ids).then((id) => {
         send(id as unknown as string);
         openInvoice();
-        cy.get('[data-cy="compliance-panels"]').should('exist');
+        // The real assertion, restored once sending got the document to DELIVERED. `correctionModel`
+        // is CREDIT_NOTE for France and the button says so; the corrective-invoice button, which is
+        // what Poland gets, is absent.
+        cy.contains('button', /credit note/i).should('be.visible');
+        cy.contains('button', /corrective/i).should('not.exist');
         shot('01-fr-credit-note');
       });
     });
   });
 
-  it('02 PL — the same screen offers a CORRECTIVE INVOICE instead (faktura korygująca)', () => {
+  it('02 PL — the invoice cannot leave the product at all without KSeF, and the screen says so', () => {
     setupCountry('Showcase PL', 'Poland', 'PL', [{ scheme: 'VAT', value: 'PL1234567890' }]).then((ids) => {
       issuedInvoice(ids).then((id) => {
         send(id as unknown as string);
         openInvoice();
-        cy.get('[data-cy="compliance-panels"]').should('exist');
-        shot('02-pl-corrective-invoice');
+        // Written to show the corrective-invoice button, which Poland gets where France gets a
+        // credit note. It cannot be shown: correction opens from DELIVERED, and a Polish invoice
+        // never gets there because KSeF has no credentials — the C1 finding, that no channel can
+        // actually emit. What the screen does instead is the more useful thing to capture: it
+        // refuses to pretend the invoice was issued.
+        cy.contains(/not transmitted|never reached the authority/i).should('be.visible');
+        shot('02-pl-not-transmitted');
       });
     });
   });

@@ -855,7 +855,10 @@
         "cancelled": "Cancelled",
         "corrected": "Corrected",
         "pending_clearance": "Pending Clearance",
-        "cleared": "Cleared"
+        "cleared": "Cleared",
+        "rejected": "Rejected by the authority",
+        "refused": "Refused by the buyer",
+        "transmission_failed": "Not transmitted"
       },
       "fields": {
         "number": "Invoice Number",
