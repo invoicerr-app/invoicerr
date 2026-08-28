@@ -12,7 +12,7 @@
 
 | # | Manque | Bloqué par | Coût |
 | --- | --- | --- | --- |
-| **A1** | **Le déclencheur bilatéral.** Une facture FR→étranger est routée en `DECENTRALIZED_CTC` vers un PDP, au lieu de l'e-reporting. Deux flux français sur quatre produisent un plan faux. | rien — conception faite (`08-CORRIDOR-MODEL.md`) | **11–18 j** |
+| **A1** | **Le déclencheur bilatéral.** Une facture FR→étranger est routée en `DECENTRALIZED_CTC` vers un PDP, au lieu de l'e-reporting. Deux flux français sur quatre produisent un plan faux. | rien — conception faite (`08-CORRIDOR-MODEL.md`) | **7–12 j** |
 | **A2** | **E-invoicing et e-reporting disjoints.** F1 contre F10, statuts 200/210/212/213 contre 300/301, 24 h contre périodique, avoir contre remplacement de période. Le moteur n'en produit qu'un. | A1 (même modèle) | inclus dans A1 |
 | **A3** | **`establishmentIntervening` sur l'opération.** `countryCode` vient de la société avec repli **silencieux** sur `'FR'` (`invoices.helpers.ts:130`, `:136`). Une société sans pays devient française et tombe dans le mandat. | rien | **2–3 j** |
 | **A4** | **BT-23 en cardinalité 1..1** — catégorie d'opération biens/services. Son absence fait échouer les contrôles fonctionnels PPF. | rien ; valeurs limitatives à dériver du type d'opération | **2–3 j** |
@@ -26,7 +26,7 @@
 | **B1** | **Le chaînage de hash générique n'est pas vérifié.** Le profil FR exige `hashChain: true`. Le code chaîne (`compliance-service.ts:244-251`) mais le seul test assert `toBeDefined()`. Personne ne sait si la chaîne relie. | rien — le modèle existe : `verifactu-chain.spec.ts` fait exactement ça pour l'Espagne | **1–2 j** |
 | **B2** | **Factur-X n'est pas validé.** Le XML embarqué dans le PDF/A-3 n'est jamais extrait ; c'est la copie remise à l'acheteur. | rien ; extraction de pièce jointe PDF/A-3 | **2–3 j** |
 | **B3** | **Un test dont le nom ment.** `it('rejects completely empty XML')` assert `errorCount === 0`. Il documente le trou sous un nom qui affirme l'inverse. | rien | **0,5 j** |
-| **B4** | **Le CAS de numérotation n'est pas exercé en CI.** Le test TOCTOU est derrière `COMPLIANCE_LIVE_DB_TESTS`, positionné seulement dans un workflow `workflow_dispatch`. La séquence gapless française repose dessus. | rien — le job jest CI provisionne déjà Redis, il lui manque Postgres | **0,5 j** |
+| **B4** | **Le CAS de numérotation n'est pas exercé en CI.** Le test TOCTOU est derrière `COMPLIANCE_LIVE_DB_TESTS`, positionné seulement dans un workflow `workflow_dispatch`. La séquence gapless française repose dessus. | rien — **correction : le job `queue-integration` a déjà Postgres 16, `DATABASE_URL` et `prisma migrate deploy`**. Il ne manque qu'un drapeau et un motif de test | **0,25 j** |
 
 ## C. Ce qui empêche de la transmettre
 
@@ -58,6 +58,6 @@
 6. **C1–C3** quand les credentials tombent ; **C4** est une décision, pas un développement.
 7. **D3, D4** en fond.
 
-**Total hors credentials : environ 30 à 45 jours.** L'incertitude est concentrée sur A1 (l'adaptateur
+**Total hors credentials : environ 26 à 39 jours** (révisé depuis 30–45 après comptage réel des lecteurs de `plan.regime` — 16, pas ~40 — et vérification du job CI). L'incertitude est concentrée sur A1 (l'adaptateur
 de compatibilité, ~40 sites lisent `plan.regime`) et sur D1 (dont le périmètre dépend d'un arbitrage
 métier autant que technique).
