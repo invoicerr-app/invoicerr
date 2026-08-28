@@ -290,19 +290,16 @@ conception, et les faire après reviendrait à concevoir sur une hypothèse.*
   | FR→FR B2C | e-reporting, **aucun** canal PDP |
   | FR→IT B2B | **e-reporting**, aucun canal PDP *(produit `DECENTRALIZED_CTC` + PDP aujourd'hui)* |
   | FR→US B2B | **e-reporting**, aucun canal PDP *(idem)* |
-- **État** : ⏳ **seule tâche de phase 2 restante.** Trois lignes sur quatre passent déjà
-  (`obligations.spec.ts`). **La ligne 2 échoue** : `FR→FR B2C` résout `REAL_TIME_REPORTING` mais se
-  voit offrir `[PDP, GOV_PORTAL_API, PEPPOL]`.
-- **Blocage nommé, et une justification à corriger** : `profiles/data/fr.ts` justifie ce report en
-  écrivant que filtrer le B2C « couperait aussi le chemin des données » d'e-reporting (art. 290 III).
-  **Vérifié dans le code : ce chemin n'existe pas.** Les douze consommateurs de `plan.channels` sont
-  tous des chemins de transmission de la **facture** (`registry.ts`, `assembler.ts`,
-  `apply-signal.ts`), et la soumission d'e-reporting est un *mock* —
-  `report.processor.ts` écrit `mock-period-close:…` sans jamais lire `channels`. Ce qui serait
-  réellement coupé, c'est l'assemblage du cycle de vie, qui part de `channels[0]`.
-- **Ce que la tâche exige donc** : des canaux **par obligation**, pas une liste unique — et une
-  décision sur le canal d'une facture B2C domestique française, qui est une question de droit et
-  non de code.
+- **État** : ✅ **fait — `fed4c693`**, 6 tests, **rouge avant / vert après** vérifié en remisant
+  `fr.ts` : une seule assertion sur six tombe, celle que le plan nommait.
+- **Correction d'une erreur que j'avais publiée** : j'avais écrit que la justification de `fr.ts`
+  (« filtrer le B2C couperait le chemin des données ») était infirmée par le code. Elle ne l'était
+  pas. J'avais lu `report.processor.ts` — clôture de période, mockée — et généralisé.
+  `compliance-service.spec.ts` a échoué et montré l'autre chemin : `transmitStatus()` résout son
+  canal depuis le plan, donc une facture B2C payée n'aurait plus eu où déclarer son « encaissée ».
+- **Le correctif est celui que cette note demandait** : `TransmissionRule.serves`, et un plan qui
+  porte `reportingChannels` à côté de `channels` — où vont les **données**, distinct d'où va la
+  **facture**. Les autres profils le laissent vide et retombent sur le canal de facture, inchangés.
 
 ### P2-T08 — A4 : BT-23 en cardinalité 1..1
 - **Fait** : émet la catégorie d'opération biens/services en 1..1, valeurs limitatives dérivées du
@@ -556,5 +553,5 @@ mémoïsation l'a réduit mais je n'ai pas mesuré l'effet.
 | 2026-08-28 | **Phase 2 rouverte** | ⚠️ | Le journal comptait **P2-T03 fait** ; le corps de tâche disait « à faire » et **le code confirmait** — `plan.obligations` n'existait pas. `0cf83366` avait livré le *résultat* de routage (tableau de P2-T07), pas la structure de T03. Journal dérivé de l'arbre, publié tel quel. |
 | 2026-08-28 | **P2-T03** | ✅ fait | `85c2e74a`. `obligations` plurielles ; `regime` conservé en adaptateur ; 12 tests. |
 | 2026-08-28 | **P2-T04/T05/T06** | ✅ fait | `558f88a4`. 16 lecteurs migrés, **`plan.regime` supprimé**. Lot 3 vide — `execution.regime` est un autre objet. Un test devenu tautologique (`x === x`) réécrit plutôt que laissé vert. |
-| 2026-08-28 | **P2-T07** | ⏳ reste | Seule tâche de phase 2 ouverte. `FR→FR B2C` se voit encore offrir un PDP. La justification écrite dans `fr.ts` est **infirmée par le code** : aucun chemin de données d'e-reporting ne passe par `channels` (soumission *mockée*). |
+| 2026-08-28 | **P2-T07** | ✅ fait | `fed4c693`. Tableau des quatre flux complet, rouge-avant/vert-après vérifié. **`PHASE 2 CLOSE`, pour de bon.** Et une correction : ma vérification précédente était fausse — le chemin de données existait, `transmitStatus()` l'emprunte ; la suite m'a corrigé. |
 | 2026-08-28 | *(historique)* **P1-T03d** | ↩ tenté, annulé | Mesure P1-T02 corrigée : 8 suites / 52 tests, pas 6/31 — je n'avais inversé qu'un des cinq court-circuits. Redécoupée en T03b/c/d. |
