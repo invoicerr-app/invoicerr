@@ -1,0 +1,240 @@
+# LEGAL-DOCUMENTS — inventaire des documents légaux, en vue du refactor modulaire
+#
+# CE QUE C'EST. La liste des documents qu'une entreprise émet, séparée en ce qui est COMMUN à tous
+# les pays et ce qui est PROPRE à l'un d'eux. Elle prépare un refactor où chaque document devient un
+# module activé selon le pays. Elle ne décrit pas le produit tel qu'il est ; elle décrit le terrain.
+#
+# CE QU'ELLE N'EST PAS. Une source de droit. Chaque entrée porte sa provenance :
+#   repo          établi par le code de ce dépôt (profils, moteur) — vérifiable par lecture
+#   sourced       établi contre une source primaire, avec URL et date de consultation
+#   unverified    PERSONNE ne l'a établi. Ni le dépôt, ni une source. À ne pas coder.
+#
+# Un `unverified` n'est pas un trou dans ce document : c'est un trou dans ce que quelqu'un a
+# vérifié, et le signaler est tout l'intérêt du fichier. Une règle inventée coûte plus cher qu'une
+# règle absente — c'est le constat qui a ouvert ce chantier.
+#
+# COMMENT LIRE LA MODULARITÉ. La découverte structurante de la recherche EN 16931 est que les
+# 62 codes de document du standard ne sont PAS 62 documents : ce sont quelques AXES orthogonaux
+# croisés. Modéliser les axes et dériver les codes évite sept quasi-doublons que personne ne
+# choisira jamais dans un menu. Voir `axes:` ci-dessous — c'est la partie qui devrait piloter le
+# refactor.
+
+meta:
+  updated: 2026-08-29
+  status: en cours — 4 recherches pays lancées (FR, PL, DE+ES, MX+US)
+  covered: [ EN16931, IT ]
+  pending: [ FR, PL, DE, ES, MX, US ]
+  # Comment reprendre si la session est interrompue — c'est déjà arrivé une fois, au milieu de six
+  # recherches lancées en parallèle, dont quatre ont été perdues.
+  resume: docs/compliance/LEGAL-DOCUMENTS.RESUME.md
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# LES AXES — la vraie structure, et ce sur quoi le refactor devrait s'appuyer
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+axes:
+  provenance: sourced
+  source:
+    what: "Dérivé des 62 codes UNTDID 1001 admis par EN 16931 (règle BR-CL-01, sévérité fatal)"
+    urls:
+      - "https://github.com/ConnectingEurope/eInvoicing-EN16931/blob/master/cii/schematron/codelist/EN16931-CII-codes.sch"
+      - "https://ec.europa.eu/digital-building-blocks/sites/spaces/DIGITAL/pages/467108974/Registry+of+supporting+artefacts+to+implement+EN16931"
+    consulted: 2026-08-28
+    note: >
+      Trois artefacts officiels indépendants concordent exactement — Schematron CEN/TC 434 UBL,
+      Schematron CII, et le genericode 1001.gc de la Commission (2026-05-15). La classification en
+      axes ci-dessous est en revanche une ANALYSE, pas une classification officielle : aucun
+      standard ne classe les codes en « document » contre « qualificatif ».
+
+  sign:
+    description: "Facture ou avoir. Le seul axe déjà modélisé dans ce dépôt."
+    values: [ invoice, credit_note ]
+    note: "UBL le porte structurellement (deux types de document) ; le genericode le porte en colonne Remark."
+  authorship:
+    description: "Émis par le vendeur, ou auto-facturé par l'acheteur pour le compte du vendeur."
+    values: [ supplier_issued, self_billed ]
+    codes_touched: [ 389, 261, 527, 471, 473, 500, 501, 502 ]
+  stage:
+    description: "Où l'on se situe dans la séquence de facturation."
+    values: [ proforma, prepayment, partial, interim, final, consolidated ]
+    codes_touched: [ 325, 386, 326, 875, 211, 218, 876, 877, 385, 262 ]
+  correction:
+    description: "Le document corrige-t-il un document antérieur ? C'est une RELATION, pas un type."
+    values: [ none, corrective ]
+    codes_touched: [ 384, 471, 472, 473, 502, 503 ]
+    note: >
+      384 est le meilleur exemple de qualificatif traité à tort comme un type : XRechnung BR-DE-26 et
+      Peppol le lient tous deux à BG-3, la référence au document précédent. Ce qui le définit est le
+      lien, pas la nature.
+  financing:
+    description: "La créance a-t-elle été cédée ? Affacturage, del credere."
+    values: [ none, factored, del_credere ]
+    codes_touched: [ 393, 396, 472, 473, 501, 502, 390, 308 ]
+  industry:
+    description: "Variantes métier : construction, transport, assurance, énergie, douane."
+    codes_touched: [ 875, 876, 877, 202, 203, 204, 211, 623, 780, 532, 553, 633, 575, 82, 387, 394, 870, 935 ]
+
+  why_this_matters: >
+    Le bloc 471–503 est la preuve. Ces sept codes n'existent que parce qu'UNTDID avait besoin d'un
+    code plat par combinaison — auto-facturé × affacturé × correctif × acompte. Avec des drapeaux
+    indépendants ils se DÉRIVENT au lieu de s'écrire, et le produit n'expose pas sept quasi-doublons.
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# CE QUE LE PRODUIT SAIT FAIRE AUJOURD'HUI — établi par lecture du code, pas par déclaration
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+product_today:
+  provenance: repo
+  actually_produced:
+    description: "Types que du code crée réellement. Vérifié par grep sur invoices.service.ts et lifecycle/corrections.ts."
+    kinds: [ INVOICE, DEPOSIT, FINAL, PROFORMA, CREDIT_NOTE, CORRECTIVE_INVOICE ]
+    note: "CREDIT_NOTE et CORRECTIVE_INVOICE ne naissent que par la voie de correction, jamais directement."
+  declared_never_produced:
+    description: >
+      Présents dans le type DocumentKind du moteur et créés par AUCUNE ligne. Six types qui existent
+      en tant que vocabulaire et pas en tant que fonctionnalité — à retirer ou à implémenter, mais
+      pas à laisser croire qu'ils marchent.
+    kinds: [ PREPAYMENT, SELF_BILLED, EXPORT_INVOICE, CASH_RECEIPT, WITHHOLDING_RECEIPT, PAYMENT_RECEIPT ]
+    note: "DEBIT_NOTE a 2 occurrences hors type et specs — statut intermédiaire, à trancher."
+  already_country_driven:
+    description: "La seule dimension déjà pilotée par le pays : quel document corrige une facture."
+    field: "profiles/data/<cc>.ts → lifecycle.correctionModel"
+    values: { CREDIT_NOTE: "avoir", CORRECTIVE_INVOICE: "facture rectificative", CANCEL_AND_REPLACE: "aucun document de correction propre" }
+
+  # Les deux anomalies de frontière, et elles comptent pour le refactor.
+  boundary_problems:
+    - id: quote_outside_compliance
+      what: "Le DEVIS porte une numérotation sans trou et sa propre machine à états, et la couche conformité l'ignore totalement — zéro occurrence de Quote dans compliance/."
+      why_it_matters: "Un document que le produit traite comme légal et que le moteur ne voit pas."
+      provenance: repo
+    - id: proforma_inside_documentkind
+      what: "La PROFORMA est dans DocumentKind alors qu'elle n'entre dans aucune série légale : invoices.helpers.ts refuse de l'émettre."
+      why_it_matters: "L'inverse du précédent. La frontière « document légal » ne passe pas là où le code la met."
+      provenance: repo
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# ITALIE — le seul pays entièrement sourcé à ce stade
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+countries:
+  IT:
+    provenance: sourced
+    consulted: 2026-08-28
+    documents:
+      - key: fattura
+        local: "Fattura (TD01)"
+        en: "Invoice"
+        what: "La facture ordinaire. Émise dans les 12 jours suivant l'effettuazione de l'opération."
+        nature: legal
+        obligation: mandatory
+        source: "DPR 633/1972 art. 21 c. 4 — normattiva.it"
+      - key: fattura_differita
+        local: "Fattura differita (TD24 / TD25)"
+        en: "Deferred invoice"
+        what: "Une facture unique récapitulant les opérations du mois vers un même client, émise jusqu'au 15 du mois suivant. Exige un DDT pour les biens, une « idonea documentazione » pour les services."
+        nature: legal
+        obligation: optional
+        source: "DPR 633/1972 art. 21 c. 4 lett. a) — quatre dérogations a) à d), pas davantage"
+        note: "La TVA reste liquidée au mois de l'opération, SAUF pour la lett. b) où l'exigibilité glisse au mois suivant (art. 6 c. 5)."
+      - key: nota_di_credito
+        local: "Nota di credito (TD04)"
+        en: "Credit note"
+        what: "Variation à la baisse de la base ou de la taxe."
+        nature: legal
+        obligation: optional
+        source: "DPR 633/1972 art. 26 c. 2"
+        note: >
+          C'est une FACULTÉ, pas une obligation — l'article dit « ha diritto » et emploie trois fois
+          « la facoltà di cui al comma 2 ». Asymétrie à modéliser : une fois exercée, elle crée une
+          OBLIGATION corrélative chez l'acheteur (c. 5), sauf en procédure collective.
+      - key: nota_di_debito
+        local: "Nota di debito (TD05)"
+        en: "Debit note"
+        what: "Variation à la hausse. Le miroir de la nota di credito."
+        nature: legal
+        obligation: mandatory
+        source: "DPR 633/1972 art. 26 c. 1 — « devono essere osservate »"
+        note: "Obligatoire là où l'avoir est facultatif. C'est l'asymétrie centrale du droit italien sur ce point."
+      - key: autofattura_agricola
+        local: "Autofattura per agricoltore esonerato (TD01)"
+        en: "Self-billed invoice for an exempt farmer"
+        what: "L'ACHETEUR émet la facture pour le compte d'un producteur agricole sous le seuil de 7 000 €, aux pourcentages de compensation."
+        nature: legal
+        obligation: mandatory
+        source: "DPR 633/1972 art. 34 c. 6 ; AdE FAQ n. 85 du 19/07/2019 pour le code TD01"
+        note: >
+          PIÈGE DE MODÉLISATION : malgré son nom courant d'« autofattura », c'est de
+          l'AUTO-FACTURATION au nom du vendeur, pas une autofattura propre. Le CedentePrestatore
+          porte les données du FERMIER. La modéliser à côté des TD16–TD21 remplirait ce bloc avec la
+          mauvaise partie.
+      - key: documento_commerciale
+        local: "Documento commerciale"
+        en: "Commercial document (retail receipt)"
+        what: "Ce que reçoit un client au détail depuis que les corrispettivi sont télématiques. Numéroté, contenu obligatoire, mais sans valeur fiscale pour l'acheteur sauf s'il porte son code fiscal."
+        nature: legal
+        obligation: mandatory
+        source: "DM MEF 7 dicembre 2016, art. 2 lett. b) pour la numérotation"
+        note: "L'émetteur n'a AUCUNE obligation de conserver les copies — contrairement aux anciennes ricevute."
+      - key: ricevuta_scontrino
+        local: "Ricevuta fiscale / scontrino fiscale"
+        en: "Fiscal receipt / till receipt"
+        what: "Les anciens justificatifs de détail."
+        nature: legal
+        obligation: mandatory
+        source: "L. 249/1976 art. 8 ; L. 18/1983 ; DM 10 maggio 2019 art. 1 c. 2"
+        note: >
+          À NE PAS MODÉLISER COMME ABOLIS. Aucune norme ne les abroge : D.Lgs. 127/2015 art. 2 c. 5
+          substitue le MODE d'accomplissement, et le DM 10 maggio 2019 les maintient en obligation
+          vivante pour les catégories exonérées b-bis), c) et d). « Supprimés en 2020 » est faux aux
+          bords.
+      - key: ddt
+        local: "Documento di trasporto (DDT)"
+        en: "Delivery note"
+        what: "Accompagne les biens. Contenu minimal : date, parties, éventuel transporteur, nature/qualité/quantité."
+        nature: legal
+        obligation: conditional
+        source: "DPR 472/1996 art. 1 c. 3"
+        note: "Non obligatoire en général depuis 1996 — mais NÉCESSAIRE pour avoir droit à la facturation différée et pour renverser les présomptions de l'art. 53."
+      - key: fattura_proforma
+        local: "Fattura proforma"
+        en: "Pro forma invoice"
+        what: "Demande de paiement commerciale, sans effet fiscal."
+        nature: commercial
+        obligation: optional
+        source: "AdE FAQ n. 22 du 27/11/2018 — la présuppose comme « idonea documentazione » justifiant le report"
+        note: >
+          Sa non-fiscalité n'est affirmée EN TOUTES LETTRES par aucun document AdE trouvé ; elle
+          découle de l'art. 21 c. 1 (un document est une facture par sa substance, pas par son titre)
+          et de l'art. 6 c. 4 (émettre une facture rend la TVA exigible). Marqué comme inféré.
+      - key: preventivo
+        local: "Preventivo"
+        en: "Quote / estimate"
+        what: "Devis."
+        nature: commercial
+        obligation: conditional
+        source: "DL 1/2012 art. 9 c. 4, modifié par L. 124/2017 art. 1 c. 150"
+        note: >
+          OBLIGATOIRE, par écrit ou sous forme numérique, pour les PROFESSIONS RÉGLEMENTÉES depuis
+          le 29/08/2017. Aucune obligation trouvée en commerce B2B général, ni dans le Codice del
+          consumo — dont le texte intégral a été recherché : le mot « preventivo » n'y apparaît
+          jamais comme substantif.
+      - key: fattura_accompagnatoria
+        local: "Fattura accompagnatoria"
+        en: "Invoice serving as transport document"
+        what: "Une facture faisant office de document d'accompagnement."
+        nature: legal
+        obligation: forbidden
+        source: "Circolare 225/E del 16/09/1996 §2.1 — « non avente peraltro natura accompagnatoria »"
+        note: >
+          A perdu sa fonction fiscale en 1996, PAS en 2019 comme le disent les sources secondaires.
+          Aucun code TD ne lui correspond. Aucune décision AdE postérieure à 2019 ne la nomme :
+          conclusion construite, non citée.
+    open_questions:
+      - id: it_testo_unico_2027
+        what: "TOUT le DPR 633/1972 cité ci-dessus est abrogé au 2027-01-01 par le Testo Unico IVA (D.Lgs. 19 gennaio 2026, n. 10)."
+        impact: "art. 21 → art. 72 ; art. 23 → art. 86 ; art. 26 → art. 92 ; art. 34 → art. 133 ; art. 19 → art. 56."
+        note: >
+          Recodification et non réforme — mais toute citation d'article du dépôt périmera à cette
+          date, exactement comme les art. 289 bis / 290 français signalés dans FR-RATTACHEMENT.md §4.
+          Deux changements de fond survivent au passage : « decreto che omologa » devient
+          « sentenza », et « fallimento » devient « liquidazione giudiziale ».
+      - id: it_percentuali_compensazione
+        what: "Les pourcentages de compensation agricoles (art. 34 c. 1) n'ont PAS été sourcés."
+        settled_by: "Texte consolidé du DM 26 gennaio 2016 et de ses modificatifs, plus la loi de finances de l'année de référence pour les majorations temporaires."
