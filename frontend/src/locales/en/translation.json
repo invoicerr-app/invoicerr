@@ -688,7 +688,8 @@
         "correctError": "Failed to issue credit note",
         "cancelSuccess": "Invoice cancelled",
         "cancelError": "Failed to cancel invoice",
-        "sendByEmailError": "Failed to send the invoice by email"
+        "sendByEmailError": "Failed to send the invoice by email",
+        "sendSubmitted": "Submitted for transmission — the status will update when the platform answers."
       },
       "title": "All Invoices",
       "description": "Manage and view all your invoices in one place.",
@@ -916,7 +917,8 @@
         "refreshStatusSuccess": "Status refreshed",
         "retryTransmission": "Retry",
         "retryTransmissionError": "Failed to retry",
-        "retryTransmissionSuccess": "Retry submitted"
+        "retryTransmissionSuccess": "Retry submitted",
+        "sendSubmitted": "Submitted for transmission — the status will update when the platform answers."
       },
       "rejected": {
         "title": "Rejected by the authority",

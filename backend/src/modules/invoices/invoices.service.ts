@@ -1558,30 +1558,62 @@ export class InvoicesService {
       throw new BadRequestException('Failed to send invoice email. Please check your SMTP configuration.');
     }
 
-    try {
-      await prisma.invoice.update({
-        where: { id: invoiceId },
-        data: { status: 'SENT' },
-      });
-    } catch (error) {
-      logger.error('Failed to update invoice status after sending', {
+    // Whether the document has ACTUALLY left, or has merely been handed to a queue.
+    //
+    // `feedback === 'NONE'` is fire-and-forget — plain email — and by the time we get here it is
+    // genuinely gone. Every other channel (PDP, KSeF, SdI, Peppol, PAC, OSE) was ENQUEUED one
+    // block above: nothing has been transmitted, no authority has seen anything, and the outcome
+    // arrives later through the lifecycle projection.
+    //
+    // This block used to make no such distinction. It wrote `status: 'SENT'`, fired an
+    // INVOICE_SENT webhook at third parties, and answered "Invoice sent successfully" — for a job
+    // that had not run. On a French invoice after the mandate that is a lie about the one fact the
+    // product exists to get right: the transmission then failed, the projection moved the invoice
+    // to TRANSMISSION_FAILED, and the user had already been told it reached the customer.
+    //
+    // So the synchronous case keeps its behaviour, and the asynchronous one says what is true:
+    // submitted, not sent. The status is left to the projection, which is the only thing that
+    // knows — it is what set TRANSMISSION_FAILED in the first place.
+    const hasActuallyLeft = feedback === 'NONE';
+
+    if (hasActuallyLeft) {
+      try {
+        await prisma.invoice.update({
+          where: { id: invoiceId },
+          data: { status: 'SENT' },
+        });
+      } catch (error) {
+        logger.error('Failed to update invoice status after sending', {
+          category: 'invoice',
+          details: { error },
+        });
+      }
+
+      try {
+        await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_SENT, {
+          invoice,
+          client: invoice.client,
+          company: invoice.company,
+          sentAt: new Date(),
+        });
+      } catch (error) {
+        logger.error('Failed to dispatch INVOICE_SENT webhook', {
+          category: 'invoice',
+          details: { error },
+        });
+      }
+    } else {
+      logger.info('Invoice submitted for transmission; outcome will arrive asynchronously', {
         category: 'invoice',
-        details: { error },
+        details: { invoiceId, channel: primaryChannel?.type, feedback },
       });
     }
 
-    try {
-      await this.webhookDispatcher.dispatch(WebhookEvent.INVOICE_SENT, {
-        invoice,
-        client: invoice.client,
-        company: invoice.company,
-        sentAt: new Date(),
-      });
-    } catch (error) {
-      logger.error('Failed to dispatch INVOICE_SENT webhook', { category: 'invoice', details: { error } });
-    }
-
-    return { message: 'Invoice sent successfully' };
+    // `delivered` is what the screen needs to word itself honestly. A caller that ignores it and
+    // announces "sent" is back where this started.
+    return hasActuallyLeft
+      ? { message: 'Invoice sent successfully', delivered: true }
+      : { message: 'Invoice submitted for transmission', delivered: false };
   }
 
   // ──────────────────────────────────────────────────────────────────────

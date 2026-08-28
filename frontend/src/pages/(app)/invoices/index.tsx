@@ -174,11 +174,19 @@ export default function Invoices() {
   const handleSendInvoice = (invoice: Invoice) => {
     triggerSendInvoiceByEmail({ id: invoice.id })
       .then((result) => {
-        if (result) {
-          toast.success(t("invoices.list.messages.sendByEmailSuccess"))
-          queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
-        } else {
+        if (!result) {
           toast.error(t("invoices.list.messages.sendByEmailError"))
+        } else {
+          // Same distinction as the detail dialog: `delivered === false` means the document is in
+          // a queue, and the outcome — including failure — arrives afterwards.
+          toast[result.delivered === false ? "info" : "success"](
+            t(
+              result.delivered === false
+                ? "invoices.list.messages.sendSubmitted"
+                : "invoices.list.messages.sendByEmailSuccess",
+            ),
+          )
+          queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })
         }
       })
       .catch(() => {

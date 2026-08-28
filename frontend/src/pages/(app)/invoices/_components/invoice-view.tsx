@@ -148,6 +148,15 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
         }
         if (action === "cancel" && !data.accepted) {
           toast.error(data.reason || t("invoices.list.messages.cancelError"))
+        } else if (action === "send" && data.delivered === false) {
+          // The document was handed to a queue, not to the customer. Saying "sent" here is how the
+          // product came to announce a delivery that had failed: for every channel but plain email
+          // the transmission has not been attempted yet, and the outcome lands seconds later.
+          //
+          // The dialog deliberately stays OPEN. Closing it on a pending outcome is what hid the
+          // eventual failure — the user was returned to a list that still showed the old status.
+          toast.info(t("invoices.view.actions.sendSubmitted"))
+          onMutate?.()
         } else {
           toast.success(t(`invoices.view.actions.${action}Success`))
           onMutate?.()

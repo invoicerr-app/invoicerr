@@ -244,10 +244,15 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
       triggerSendInvoiceByEmail({ id: sendInvoiceDialog.id })
         .then((result) => {
           setSendInvoiceDialog(null)
-          if (result) {
-            toast.success(t("invoices.list.messages.sendByEmailSuccess"))
-          } else {
+          if (!result) {
             toast.error(t("invoices.list.messages.sendByEmailError"))
+          } else if (result.delivered === false) {
+            // Handed to a queue, not to the customer. Every channel but plain email transmits
+            // later, and announcing a delivery here is what told a user their invoice had reached
+            // the customer when the transmission went on to fail.
+            toast.info(t("invoices.list.messages.sendSubmitted"))
+          } else {
+            toast.success(t("invoices.list.messages.sendByEmailSuccess"))
           }
         })
         .catch((error) => {
