@@ -36,6 +36,38 @@ function formatNumber(counter: number, date: Date, pattern: string): string {
   });
 }
 
+/**
+ * P1-T05 (A5) — the PPF's constraint on an invoice number, règle **G1.05** of the DSE Annexe 7
+ * v1.9: at most 35 characters, and the only special characters allowed are space, `-`, `+`, `_`
+ * and `/` — no leading space, no trailing space, no consecutive spaces.
+ *
+ * Enforced at assignment rather than at transmission on purpose. The number is allocated from a
+ * gapless series and written onto the invoice; discovering at transmission that the PPF refuses
+ * the flux F1 means the number is already burnt and the sequence already advanced. A number that
+ * cannot be transmitted must never be allocated.
+ *
+ * The pattern is company-configurable (`invoiceNumberFormat`), so a company can compose one that
+ * violates the rule without ever seeing a French screen — which is exactly how this reaches
+ * production unnoticed.
+ */
+const G105_MAX_LENGTH = 35;
+/** Letters, digits, and the five permitted specials. Deliberately explicit rather than a negation. */
+const G105_ALLOWED = /^[A-Za-z0-9 \-+_/]*$/;
+
+export function violatesG105(rawNumber: string): string | null {
+  if (rawNumber.length > G105_MAX_LENGTH) {
+    return `${rawNumber.length} characters, maximum is ${G105_MAX_LENGTH}`;
+  }
+  if (!G105_ALLOWED.test(rawNumber)) {
+    const offending = [...rawNumber].filter((c) => !/[A-Za-z0-9 \-+_/]/.test(c));
+    return `forbidden character(s) ${[...new Set(offending)].map((c) => `"${c}"`).join(', ')} — only space - + _ / are allowed`;
+  }
+  if (rawNumber.startsWith(' ')) return 'leading space';
+  if (rawNumber.endsWith(' ')) return 'trailing space';
+  if (rawNumber.includes('  ')) return 'consecutive spaces';
+  return null;
+}
+
 @Injectable()
 export class NumberingService {
   /**
@@ -73,6 +105,19 @@ export class NumberingService {
 
     const result = rows[0].counter;
     const rawNumber = formatNumber(result, issueDate, pattern);
+
+    // G1.05: refuse before the number leaves this method. The counter has already advanced in the
+    // statement above, and this throw rolls back the caller's transaction — which is why
+    // nextNumber() documents that it MUST run inside one. Failing here loses nothing; failing at
+    // transmission would leave a burnt number in a gapless series.
+    const violation = violatesG105(rawNumber);
+    if (violation) {
+      throw new BadRequestException(
+        `Invoice number "${rawNumber}" violates PPF rule G1.05 (DSE Annexe 7 v1.9): ${violation}. ` +
+          `Adjust the company's number format (currently "${pattern}").`,
+      );
+    }
+
     return { counter: result, rawNumber };
   }
 
