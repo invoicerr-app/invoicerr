@@ -42,6 +42,79 @@ function okValidation(warning: string): ValidationReport {
   return { valid: true, errors: [], warnings: [warning] };
 }
 
+/**
+ * P1-T03d — a zero-byte artifact is INVALID on the EN 16931 family.
+ *
+ * Zero bytes means two different things, and collapsing them into `okValidation` is the defect:
+ *
+ *   no rendering port configured   -> nothing COULD have been built. A statement about the
+ *                                     PIPELINE. Legitimate in a unit test exercising planning
+ *                                     rather than rendering.
+ *   a port configured, and it
+ *   still returned nothing         -> the builder FAILED. A statement about the DOCUMENT, and the
+ *                                     honest answer is that validation fails.
+ *
+ * That conflation is why an empty document travelled build → validate → sign → archive → transmit
+ * without one objection: the only gate that could have stopped it declared it valid, and every
+ * stage downstream trusted the verdict.
+ *
+ * Production always has the port (ComplianceCoreModule wires it — see
+ * nest/__tests__/core-module-wiring.spec.ts), so production gets the strict answer. That is the
+ * point: the case this guards is the one that reaches users.
+ *
+ * Applied to the EN16931 family here (EN16931_CII, FACTURX, EN16931_UBL, PEPPOL_BIS, XRECHNUNG,
+ * PDF_A3) — the one carrying the French path. The four national providers keep the old behaviour
+ * until their renderers are honest, country by country.
+ *
+ * Five providers answered `okValidation(… 'no bytes — stub path')` here. That short-circuit is why
+ * an empty document travelled build → validate → sign → archive → transmit without a single
+ * objection: the one gate that could have stopped it declared it valid, and every stage downstream
+ * trusted the verdict.
+ *
+ * "There are no bytes yet" is a statement about the pipeline, not about the document, and it must
+ * never be reported as validity. A builder that produced nothing is a failure to build, and the
+ * honest answer is a failure to validate.
+ */
+/**
+ * The root element each XML syntax must carry. Local names only — namespaces vary by prefix and
+ * are already the Schematron's business.
+ */
+const EXPECTED_ROOT: Partial<Record<string, string>> = {
+  EN16931_CII: 'CrossIndustryInvoice',
+  FACTURX: 'CrossIndustryInvoice',
+  EN16931_UBL: 'Invoice',
+  PEPPOL_BIS: 'Invoice',
+  XRECHNUNG: 'Invoice',
+};
+
+/** Returns a message when the document's root element is not the one the syntax requires. */
+function wrongRootElement(syntax: DocumentSyntax | string, xml: string): string | null {
+  const expected = EXPECTED_ROOT[syntax as string];
+  if (!expected) return null;
+  // First element name after the prolog/comments, prefix stripped.
+  const match = xml.match(/<\s*(?:[A-Za-z_][\w.-]*:)?([A-Za-z_][\w.-]*)[\s/>]/);
+  const actual = match?.[1];
+  if (!actual) return `${syntax}: no XML element found — the artifact is not a document`;
+  if (actual !== expected) {
+    return `${syntax}: root element is <${actual}>, expected <${expected}> — this is not a ${syntax} document`;
+  }
+  return null;
+}
+
+function emptyArtifact(syntax: DocumentSyntax | string, rendererWired: boolean): ValidationReport {
+  if (!rendererWired) {
+    return okValidation(`${syntax} validation skipped (no bytes, no rendering port — stub path)`);
+  }
+  return {
+    valid: false,
+    errors: [
+      `${syntax}: zero-byte artifact — a rendering port is configured but produced nothing, ` +
+        `so the build failed and there is nothing to validate`,
+    ],
+    warnings: [],
+  };
+}
+
 /** Hybrid PDF/A-3 formats — use `embedInPdf()` (embeds XML inside a PDF container). */
 const SYNTAX_TO_PDF_FORMAT: Partial<Record<DocumentSyntax, ExportFormat>> = {
   FACTURX: 'facturx',
@@ -143,7 +216,7 @@ export class En16931FormatProvider implements FormatProvider {
   }
   async validate(rendered: RenderedArtifact, log: ComplianceLogger): Promise<ValidationReport> {
     if (!rendered.bytes.length) {
-      return okValidation(`${rendered.syntax} validation skipped (no bytes — stub path)`);
+      return emptyArtifact(rendered.syntax, Boolean(this.artifacts));
     }
     // FACTURX/ZUGFERD/PDF_A3 are hybrid PDF/A-3 containers (embedInPdf()) — `rendered.bytes` is a
     // PDF, not XML, and validate() only receives the already-rendered artifact (no access back to
@@ -163,6 +236,22 @@ export class En16931FormatProvider implements FormatProvider {
       );
     }
     const xml = new TextDecoder().decode(rendered.bytes);
+
+    // P1-T04 — the root element must be the one this syntax expects, checked BEFORE Schematron.
+    //
+    // Schematron cannot do this. Its rules are keyed on contexts inside the document, so a
+    // well-formed XML with no CII structure — `<root/>` — matches no rule and comes back with ZERO
+    // errors, i.e. a clean pass. That is the correct Schematron answer and a useless gate: any
+    // document at all validates as long as it contains none of the elements the rules look for.
+    //
+    // The consequence is not theoretical: a builder returning the wrong document, or a PDF decoded
+    // as text, would sail through validation and be signed, archived and transmitted as a valid
+    // invoice.
+    const rootViolation = wrongRootElement(rendered.syntax, xml);
+    if (rootViolation) {
+      log.warn('format/en16931', rootViolation);
+      return { valid: false, errors: [rootViolation], warnings: [] };
+    }
 
     // EN16931_CII / FACTURX-as-XML — the real EN16931 Schematron for the CII binding. Validated
     // directly against the built XML (never round-tripped through @fin.cx/einvoice's fromXml,

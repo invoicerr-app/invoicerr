@@ -32,6 +32,7 @@ import { NumberingRegistry } from '../lifecycle/numbering';
 import { En16931FormatProvider } from '../providers/format/providers';
 import { FR_B2B_STANDARD, IT_B2B, PL_B2B, DE_B2B } from '../providers/format/__fixtures__/invoices';
 import { InvoiceArtifactPort, XmlExportFormat } from '../providers/format/invoice-artifact-port';
+import { defaultArtifactPort } from '../__fixtures__/artifact-port';
 import { FormatProviderRegistry } from '../providers/format/registry';
 import { InvoiceMailPort } from '../providers/transmission/invoice-mail-port';
 import { TransmissionProviderRegistry } from '../providers/transmission/registry';
@@ -42,10 +43,21 @@ const renderService = new InvoiceRenderingService();
 
 /** Default port: every artifact is a stub (empty bytes) — each provider takes its "no bytes, skip
  *  validation" path. Individual tests override just the syntax under test. */
+/**
+ * P1-T03d: the PDF renderers used to return `new Uint8Array()`, so Factur-X — two of the three
+ * French artifacts — came out at zero bytes while the CII came out real. The tests passed anyway,
+ * because a zero-byte artifact was reported as VALID. Now that a wired port producing nothing is a
+ * build failure, they cannot: the base port delegates PDF rendering to the shared fixture, which
+ * builds a real PDF/A-3 container.
+ *
+ * Overrides still work the same way — a test that wants a broken document supplies its own
+ * renderer, which is what this helper exists for.
+ */
 function makePort(overrides: Partial<InvoiceArtifactPort> = {}): InvoiceArtifactPort {
+  const shared = defaultArtifactPort();
   return {
-    renderPdf: async () => new Uint8Array(),
-    renderPdfFormat: async () => new Uint8Array(),
+    renderPdf: shared.renderPdf,
+    renderPdfFormat: shared.renderPdfFormat,
     renderXmlFormat: async () => '',
     renderFatturaPa: async () => '',
     renderCfdi: async () => '',

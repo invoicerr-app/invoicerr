@@ -15,7 +15,8 @@
  */
 
 import { type SchematronResult, validateSchematron } from '@/compliance/schemas/validate';
-import { defaultFormatRegistry } from '../format/registry';
+import { FormatProviderRegistry } from '../format/registry';
+import { defaultArtifactPort } from '../../__fixtures__/artifact-port';
 import type { DocumentSyntax } from '../../types';
 import type { ComplianceLogger } from '../../execution/logger';
 import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
@@ -201,8 +202,13 @@ describe('L1 — Format validation harness', () => {
      * zero errors is the correct Schematron answer. The rejection has to come from the layer above,
      * which is the point.
      */
+    // P1-T03d: the registry must be built WITH a rendering port. Zero bytes from a registry that
+    // has no renderer is a statement about the pipeline, not the document, and is legitimately
+    // lenient — so asserting a rejection through `defaultFormatRegistry` would assert the wrong
+    // configuration. Production always has the port; that is the configuration under test.
+    const wiredRegistry = new FormatProviderRegistry({ artifacts: defaultArtifactPort() });
     const validateThroughProvider = async (syntax: DocumentSyntax, bytes: Uint8Array) => {
-      const provider = defaultFormatRegistry.resolve(syntax);
+      const provider = wiredRegistry.resolve(syntax);
       expect(provider).not.toBeNull();
       return provider!.validate(
         { role: 'AUTHORITATIVE', syntax, mime: 'application/xml', bytes },

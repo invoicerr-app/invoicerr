@@ -49,15 +49,30 @@ const MINIMAL_PDF = Buffer.from(
 );
 
 export function makeArtifactPort(fixtureData: InvoiceRenderData): InvoiceArtifactPort {
+  /**
+   * Memoised per (fixture, format). Building an e-invoice and embedding it in a PDF/A-3 container
+   * costs seconds, and a suite that renders three artifacts per document across a dozen tests
+   * blew jest's 5 s default. The cache is per-port, so a test that wants a different document
+   * makes a different port and shares nothing.
+   */
+  const pdfCache = new Map<string, Promise<Uint8Array>>();
+  const xmlCache = new Map<string, Promise<string>>();
+
   return {
     renderPdf: async () => new Uint8Array(MINIMAL_PDF),
-    renderPdfFormat: async (_invoiceId: string, format: string) => {
-      const inv = renderService.buildEInvoice(fixtureData);
-      return inv.embedInPdf(MINIMAL_PDF, format);
+    renderPdfFormat: (_invoiceId: string, format: string) => {
+      const hit = pdfCache.get(format);
+      if (hit) return hit;
+      const built = renderService.buildEInvoice(fixtureData).embedInPdf(MINIMAL_PDF, format);
+      pdfCache.set(format, built);
+      return built;
     },
-    renderXmlFormat: async (_invoiceId: string, format: XmlExportFormat) => {
-      const inv = renderService.buildEInvoice(fixtureData);
-      return inv.exportXml(format);
+    renderXmlFormat: (_invoiceId: string, format: XmlExportFormat) => {
+      const hit = xmlCache.get(format);
+      if (hit) return hit;
+      const built = renderService.buildEInvoice(fixtureData).exportXml(format);
+      xmlCache.set(format, built);
+      return built;
     },
     renderFatturaPa: async () => '',
     renderCfdi: async () => '',
