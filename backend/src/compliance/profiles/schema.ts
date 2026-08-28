@@ -82,6 +82,19 @@ export interface ChannelSpec {
 }
 
 export interface TransmissionRule {
+  /**
+   * P2-T07 — WHICH duty these channels discharge.
+   *
+   * Omitted, they carry the INVOICE: that is what every profile written before this field meant,
+   * and what `plan.channels` has always held. `serves: 'E_REPORTING'` marks channels that carry
+   * DATA to the administration instead — France's flux F10, the "encaissée" status of art. 290 III.
+   *
+   * The two are genuinely different destinations for the same operation. A domestic B2C sale is
+   * outside the e-invoicing mandate, so its invoice must NOT go to a PDP (art. 289 bis I covers
+   * B2B/B2G only) — while its payment data must. One list cannot say both, and trying to make it
+   * do so is what put a PDP on the B2C invoice.
+   */
+  serves?: ObligationKind;
   channels: ChannelSpec[]; // ordered, with fallbacks
   deliverToBuyerWithinHours?: number;
   /**

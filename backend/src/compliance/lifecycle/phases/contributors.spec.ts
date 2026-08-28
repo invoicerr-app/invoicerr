@@ -25,6 +25,7 @@ function plan(over: Partial<CompliancePlan> = {}): CompliancePlan {
     obligations: [{ kind: 'NONE', model: 'POST_AUDIT', blocking: false }],
     artifacts: [],
     channels: [],
+    reportingChannels: [],
     numbering: { model: 'GAPLESS_SELF' },
     lifecycle,
     archival: { retentionYears: 10, archivedForm: 'HYBRID_PDF', integrity: 'NONE' },

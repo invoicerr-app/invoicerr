@@ -494,7 +494,10 @@ export class ComplianceService {
   async transmitStatus(id: string, status: string): Promise<TransmissionResult | null> {
     const rec = await this.require(id);
     const plan = rec.plan ?? resolve(rec.ctx);
-    const spec = plan.channels?.[0];
+    // P2-T07 — a lifecycle STATUS is reporting data, not the invoice, so it follows the reporting
+    // channel where the profile declares one. Falling back to the invoice channel keeps every
+    // profile that does not separate the two behaving exactly as before.
+    const spec = plan.reportingChannels?.[0] ?? plan.channels?.[0];
     const provider = spec ? this.transmission.resolve(spec) : null;
     if (!provider?.sendStatus) {
       this.log.todo('operations/transmitStatus', `no outbound-status channel for "${status}" on ${id}`);

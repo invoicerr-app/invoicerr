@@ -657,13 +657,27 @@ describe('ComplianceService — outgoing lifecycle status (sendStatus)', () => {
     expect(log.hasScope('operations/transmitStatus')).toBe(true);
   });
 
-  it('markPaid on FR triggers sendStatus for "encaissée" alongside e-reporting', async () => {
+  it('markPaid on a domestic B2C invoice reports "encaissée" WITHOUT having sent it via a PDP', async () => {
+    // P2-T07 changed what this test is about, and the third assertion had to be rewritten rather
+    // than repaired: it asserted `log.hasScope('transmission/pdp')`, and that scope was written by
+    // send() — the INVOICE going to a PDP. For a B2C sale that is the defect, not the behaviour.
+    // Art. 289 bis I covers B2B and B2G, so a consumer invoice is not in scope; art. 290 III still
+    // requires the payment data to reach the administration through the platform.
+    //
+    // The two halves are now separate and both are asserted: the invoice went out by e-mail, and
+    // the status still goes to the PDP.
     const { service, log } = svc();
     const { document } = await service.issueAndSend(ctx('FR', 'FR', 'B2C', 'SERVICES', '2027-01-15'));
+
+    expect(log.hasScope('transmission/pdp')).toBe(false);
+
     const paid = await service.markPaid(document.id, { paidAt: '2027-02-01T00:00:00.000Z' });
     expect(paid.events.some((e) => e.type === 'STATUS:encaissée')).toBe(true);
     expect(log.hasScope('reporting/E_REPORTING')).toBe(true);
-    expect(log.hasScope('transmission/pdp')).toBe(true);
+
+    const pushed = await service.transmitStatus(document.id, 'encaissée');
+    expect(pushed).not.toBeNull();
+    expect(pushed!.channel).toBe('PDP');
   });
 });
 

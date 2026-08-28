@@ -55,6 +55,7 @@ describe('document mappers', () => {
       obligations: [{ kind: 'NONE', model: 'POST_AUDIT', blocking: false }],
       artifacts: [],
       channels: [{ type: 'PEPPOL' }],
+      reportingChannels: [],
       numbering: { model: 'GAPLESS_SELF' },
       lifecycle: {
         immutableAfter: 'ISSUE',

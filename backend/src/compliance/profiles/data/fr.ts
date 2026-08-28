@@ -127,15 +127,24 @@ export const FR: CountryComplianceProfile = {
         // P2-T02: the same bilateral test gates the CHANNELS. A regime alone is not enough — the
         // channel is what actually routes the document, and offering a PDP for an operation outside
         // the e-invoicing mandate is precisely the defect being fixed.
-        // NOT filtered by role, deliberately, and this is a modelling limit rather than an
-        // oversight. A domestic B2C sale is outside the e-invoicing mandate (art. 289 bis I covers
-        // the operations of art. 289 I 1 a and d — B2B and B2G), so it should not be ROUTED through
-        // a PDP. But art. 290 III requires the e-reporting DATA to reach the administration through
-        // the accredited platform, and today `channels` is a single list serving both purposes —
-        // filtering B2C out here would also cut the data path, and the lifecycle statuses with it.
+        // P2-T07 — filtered by role now, and the note that stood here is corrected rather than
+        // deleted, because its reasoning was checkable and did not check out.
         //
-        // Separating "where the invoice goes" from "where the data goes" is exactly what A2's
-        // obligation model is for. Until then B2C keeps today's channels, unchanged.
+        // What was right: a domestic B2C sale is outside the e-invoicing mandate. Art. 289 bis I
+        // covers the operations of art. 289 I 1 a and d — B2B and B2G — so a sale to a consumer is
+        // not an "in-scope invoice" and must not be ROUTED through a PDP. That is a deduction from
+        // the article's own scope, not a choice.
+        //
+        // What was wrong: the note deferred the fix by saying that filtering B2C out "would also
+        // cut the data path" for e-reporting (art. 290 III), because `channels` serves both
+        // purposes. Read against the code, that data path does not exist. All twelve consumers of
+        // `plan.channels` transmit the INVOICE — registry.ts, assembler.ts, apply-signal.ts — and
+        // e-reporting submission is a mock: report.processor.ts writes `mock-period-close:…` and
+        // never reads `channels`. Nothing was being protected.
+        //
+        // What remains true is the lifecycle half: the assembler builds from `channels[0]`, so B2C
+        // needed a channel rather than none — the rule below now provides one.
+        appliesTo: { roles: ['B2B', 'B2G'] },
         attachment: [
           { kind: 'BOTH_ATTACHED_TO', country: 'FR' },
           { kind: 'NOT_OF_NATURE', nature: 'intraCommunitySupply' },
@@ -146,10 +155,46 @@ export const FR: CountryComplianceProfile = {
     // Operations outside the e-invoicing mandate keep an ordinary delivery channel: the e-reporting
     // DATA reaches the administration through the platform, but the INVOICE itself is not routed
     // through the CTC network.
+    //
+    // Two rules, not one, because two different things fall outside the mandate and they fail the
+    // bilateral test differently. A cross-border operation fails it on attachment; a domestic B2C
+    // sale passes the attachment test and falls outside on ROLE. One rule cannot express both, and
+    // a B2C sale matching nothing would leave `channels` empty — which the lifecycle assembler,
+    // reading `channels[0]`, cannot work from.
     {
       validFrom: '2026-09-01',
       value: {
         attachment: [{ kind: 'NOT_BOTH_ATTACHED_TO', country: 'FR' }],
+        channels: [{ type: 'EMAIL' }],
+      },
+    },
+    // Where the DATA goes — flux F10, art. 290 III. The e-reporting duty reaches the administration
+    // through the accredited platform for EVERY operation in its scope, including the ones whose
+    // invoice never touches that network: a domestic B2C sale is billed to the consumer by ordinary
+    // means and its payment status ("encaissée") is still reported through the PDP.
+    //
+    // This rule is what makes filtering the B2C INVOICE out of the CTC channels safe. Removing the
+    // PDP from `channels` without it would have cut a real path — `transmitStatus` resolves its
+    // channel from the plan, and a B2C invoice marked paid would have had nowhere to report to.
+    // I asserted otherwise after reading only report.processor.ts, whose period-close submission is
+    // a mock; compliance-service.spec.ts contradicted it, correctly.
+    {
+      validFrom: '2026-09-01',
+      value: {
+        serves: 'E_REPORTING',
+        attachment: [{ kind: 'BOTH_ATTACHED_TO', country: 'FR' }],
+        channels: [{ type: 'PDP' }],
+      },
+    },
+    // Domestic B2C. EMAIL is a PRODUCT default and is named as one: no rule prescribes how an
+    // invoice reaches a consumer, so this is the same ordinary delivery the pre-2026 period used
+    // and that the `noMandate` archetype uses everywhere the CTC network does not apply. What is
+    // NOT a default is the absence of a PDP here — that follows from art. 289 bis I's scope.
+    {
+      validFrom: '2026-09-01',
+      value: {
+        appliesTo: { roles: ['B2C'] },
+        attachment: [{ kind: 'BOTH_ATTACHED_TO', country: 'FR' }],
         channels: [{ type: 'EMAIL' }],
       },
     },

@@ -31,6 +31,7 @@ function makeFrPlan(_companyId: string): CompliancePlan {
       { role: 'HUMAN', syntax: 'FACTURX' },
     ],
     channels: [{ type: 'PDP', providerId: 'pdp' }],
+    reportingChannels: [],
     numbering: { model: 'GAPLESS_SELF', seriesScope: 'ENTITY' },
     lifecycle: {
       immutableAfter: 'ISSUE',
@@ -57,6 +58,7 @@ function makePlPlan(_companyId: string): CompliancePlan {
       { role: 'HUMAN', syntax: 'PLAIN_PDF' },
     ],
     channels: [{ type: 'GOV_PORTAL_API', providerId: 'ksef' }],
+    reportingChannels: [],
     numbering: { model: 'GAPLESS_SELF', seriesScope: 'ENTITY' },
     lifecycle: {
       immutableAfter: 'CLEARANCE',

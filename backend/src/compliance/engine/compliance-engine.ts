@@ -60,6 +60,14 @@ export interface CompliancePlan {
   obligations: ResolvedObligation[];
   artifacts: PlannedArtifact[];
   channels: ChannelSpec[];
+  /**
+   * P2-T07 — where the DATA goes, as distinct from where the invoice goes.
+   *
+   * Empty for almost every profile, and that is not a gap: only a country that separates the two
+   * destinations needs it. France does — art. 290 III sends the "encaissée" status to the
+   * administration through the accredited platform for operations whose INVOICE never touches it.
+   */
+  reportingChannels: ChannelSpec[];
   numbering: NumberingRule;
   lifecycle: LifecyclePolicy;
   archival: ArchivalPolicy;
@@ -231,7 +239,30 @@ export function resolve(ctx: TransactionContext, deps: ResolveDeps = {}): Compli
     nature,
     warnings,
   );
-  const channels: ChannelSpec[] = transmission?.channels ?? [{ type: 'EMAIL' }];
+  // P2-T07 — the channels that carry the INVOICE. A rule marked `serves: 'E_REPORTING'` carries
+  // DATA instead and must not be picked here, or a domestic B2C invoice ends up on a PDP again by
+  // the other door.
+  const invoiceRule =
+    transmission && transmission.serves !== 'E_REPORTING'
+      ? transmission
+      : allWithSelector(sp.transmission, ctx.issueDate, buyerRole, supplyTypes, parties, nature).find(
+          (r) => r.serves !== 'E_REPORTING',
+        );
+  const channels: ChannelSpec[] = invoiceRule?.channels ?? [{ type: 'EMAIL' }];
+
+  // Where the DATA goes, when the profile says so. Empty is a legitimate answer — most countries
+  // have no separate reporting destination — and callers fall back to the invoice channel, which is
+  // the behaviour every profile had before this field existed.
+  const reportingChannels: ChannelSpec[] = allWithSelector(
+    sp.transmission,
+    ctx.issueDate,
+    buyerRole,
+    supplyTypes,
+    parties,
+    nature,
+  )
+    .filter((r) => r.serves === 'E_REPORTING')
+    .flatMap((r) => r.channels);
 
   // Formats — supplier primary (+ human) plus buyer-mandated receive syntax when negotiable,
   // plus (F-7) a Peppol-transmittable artifact when the plan actually carries a PEPPOL channel.
@@ -263,6 +294,7 @@ export function resolve(ctx: TransactionContext, deps: ResolveDeps = {}): Compli
     obligations: obligationsFrom(regime, matchingRegimes),
     artifacts,
     channels,
+    reportingChannels,
     numbering,
     lifecycle,
     archival,
