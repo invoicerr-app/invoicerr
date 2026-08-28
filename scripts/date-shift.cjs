@@ -16,9 +16,43 @@
 const target = process.env.DATE_SHIFT_TO;
 if (target) {
   const RealDate = Date;
-  const offset = new RealDate(target).getTime() - RealDate.now();
-  if (Number.isNaN(offset)) {
-    throw new Error(`DATE_SHIFT_TO is not a date: ${target}`);
+
+  /**
+   * The offset is computed ONCE and remembered, never recomputed per process.
+   *
+   * The first version derived it as `target - now` at every boot, which pins the shifted clock back
+   * to `target` each time. A long-running dev stack restarts constantly — every save recompiles —
+   * so the clock REWOUND on each restart, and rows written before and after a restart came out
+   * non-monotonic. That is not academic: a BUILD_FAILED event landed a minute BEFORE the CREATED
+   * event of its own document, and the screen reads the LAST event to decide what to show, so a
+   * real failure became invisible. A demo tool that fabricates a symptom indistinguishable from a
+   * product defect is worse than no demo tool.
+   *
+   * Persisted per target so two different targets do not fight, and so deleting the file is the
+   * obvious way to re-anchor.
+   */
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const key = Buffer.from(target).toString('base64url');
+  const stamp = path.join(os.tmpdir(), `invoicerr-date-shift-${key}.offset`);
+
+  let offset;
+  try {
+    offset = Number.parseInt(fs.readFileSync(stamp, 'utf8'), 10);
+  } catch {
+    offset = undefined;
+  }
+  if (!Number.isFinite(offset)) {
+    offset = new RealDate(target).getTime() - RealDate.now();
+    if (Number.isNaN(offset)) {
+      throw new Error(`DATE_SHIFT_TO is not a date: ${target}`);
+    }
+    try {
+      fs.writeFileSync(stamp, String(offset), 'utf8');
+    } catch {
+      // Not fatal: an un-persisted offset still shifts this process, it just re-anchors on restart.
+    }
   }
 
   class ShiftedDate extends RealDate {
@@ -37,5 +71,7 @@ if (target) {
   globalThis.Date = ShiftedDate;
 
   const days = Math.round(offset / 86400000);
-  process.stderr.write(`[date-shift] clock moved ${days >= 0 ? '+' : ''}${days} day(s) → ${new ShiftedDate().toISOString()}\n`);
+  process.stderr.write(
+    `[date-shift] clock moved ${days >= 0 ? '+' : ''}${days} day(s) → ${new ShiftedDate().toISOString()} (offset from ${stamp})\n`,
+  );
 }
