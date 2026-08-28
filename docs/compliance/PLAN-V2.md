@@ -362,6 +362,44 @@ une dette invisible :
    délégation — la décision existante du dépôt, préservée et non rejugée. Mais l'art. 290 I 4° a)
    range explicitement les opérations FR↔Monaco en e-reporting. À sourcer à part.
 
+## Constats du run e2e complet (2026-08-28), non corrigés
+
+Trouvés en lisant le journal d'un système qui **tourne**, pas le code.
+
+### C1 — un envoi français est bloqué par `BR-Z-02`, et l'utilisateur ne peut pas le savoir
+
+8 avertissements et **2 envois bloqués** pendant le run :
+
+> `[BR-Z-02]` An Invoice that contains an Invoice line where the Invoiced item VAT category code
+> (BT-151) is "Zero rated" shall contain the Seller VAT Identifier (BT-31) […]
+
+**Ce n'est pas un faux positif.** La société e2e n'a **aucun identifiant TVA** — ni l'onboarding ni
+les réglages n'en saisissent — et la spec `07-invoices` saisit délibérément un taux de `0`. La
+facture porte donc réellement une ligne à taux zéro sans BT-31, et le Schematron a raison.
+
+**Le défaut n'est pas la garde, c'est ce qui l'entoure :**
+
+1. Le produit laisse créer une société française **sans identifiant TVA**, puis émettre une facture
+   à 0 %, et ne le signale **qu'au moment de l'envoi**.
+2. **La suite e2e passe quand même** : aucune spec n'assert que l'envoi aboutit. Deux transmissions
+   échouent en silence dans un run vert.
+
+À reprendre : soit la saisie de l'identifiant TVA devient obligatoire pour une société soumise à un
+mandat, soit l'incompatibilité est signalée à la création de la ligne, pas à l'envoi.
+
+### C2 — la fixture de port d'artefacts rend un document FIGÉ
+
+Limite de mon propre travail (P1-T03b/c), trouvée en essayant de reproduire C1 hors ligne.
+
+`makeArtifactPort(fixtureData)` rend toujours **le même document** — `FR_B2B_STANDARD` — quel que
+soit le `TransactionContext` passé à `buildAll()`. Conséquence : dans toute suite qui l'utilise, la
+validation de format **ne valide pas le contexte sous test**. Un contexte à taux zéro produit un
+artefact à 20 %, et le test le déclare valide.
+
+C'est suffisant pour ce que P1-T03c visait — prouver que les artefacts ne sont plus vides — et
+**insuffisant pour toute assertion sur le contenu**. Ne pas s'y fier pour valider une règle
+métier ; c'est ce qui m'a empêché de reproduire C1.
+
 ## Instabilité connue, non résolue
 
 `ksef-transmission.spec.ts` — « transmit() receives the resolved config from the registry » et
