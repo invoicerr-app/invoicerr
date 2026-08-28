@@ -68,3 +68,21 @@ beforeEach(() => {
     cy.intercept('POST', '**/api/auth/**').as('authRequest');
     cy.intercept('GET', '**/invitations/**').as('invitationsRequest');
 });
+
+// ---------------------------------------------------------------------------
+// Per-spec isolation.
+//
+// One `resetDatabase` in `01-register` served all seventeen specs, so each one inherited whatever
+// the previous ones had left behind. Measured over three full runs in different orders: 11, 9 and
+// 13 failures, overlapping only on the two that were real defects. A spec that passes at position 7
+// and fails at position 2 is not testing the product.
+//
+// The reset lives here rather than in each spec so it cannot be forgotten by the next spec added —
+// the same reasoning as the required DI token on the VAT validation client. `01-register` opts out
+// through `Cypress.env('skipSeed')`, set in the spec itself: it registers the first user, which
+// requires that no user exists.
+// ---------------------------------------------------------------------------
+before(() => {
+    if (Cypress.env('skipSeed')) return;
+    cy.resetAndSeed();
+});

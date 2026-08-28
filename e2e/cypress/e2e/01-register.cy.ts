@@ -1,4 +1,9 @@
 // filepath: /users/but/info/chevrier/Projets/invoicerr/e2e/cypress/e2e/1-register.cy.ts
+// This spec registers the FIRST user, so it needs a database with no user in it — the opposite of
+// the baseline every other spec now gets from the global `before` in support/e2e.ts. Opting out has
+// to happen at load time, before that hook runs.
+Cypress.env('skipSeed', true);
+
 describe('First User Registration E2E', () => {
     before(() => {
         cy.task('resetDatabase');

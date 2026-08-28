@@ -14,6 +14,13 @@ declare namespace Cypress {
         resetDatabase(): Chainable<void>
 
         /**
+         * Truncate, then rebuild the baseline world (user john.doe + company Acme Corp) via the API.
+         * Runs before every spec; see the implementation for why one reset for seventeen specs was
+         * producing order-dependent failures.
+         */
+        resetAndSeed(): Chainable<void>
+
+        /**
          * Custom command to get the last email
          * @example cy.getLastEmail()
          */
