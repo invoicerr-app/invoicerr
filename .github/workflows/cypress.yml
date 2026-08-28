@@ -13,6 +13,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       # Biome is the only linter/formatter (eslint+prettier removed). biome ci = check without writes.
       - name: Lint backend (biome ci)
@@ -20,6 +22,16 @@ jobs:
 
       - name: Lint frontend (biome ci)
         run: cd frontend && npx --yes @biomejs/biome@2.5.2 ci .
+
+      # The frontend unit tests (vitest + testing-library) ride along in this job rather than
+      # claiming a runner of their own: they take seconds, and this is already the "static checks on
+      # both projects" job. `npm ci` is needed here — the biome steps above deliberately use npx and
+      # install nothing, but vitest and jsdom have to come from the lockfile.
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Run frontend unit tests (vitest)
+        run: cd frontend && npm test
 
   i18n-check:
     runs-on: ubuntu-latest
