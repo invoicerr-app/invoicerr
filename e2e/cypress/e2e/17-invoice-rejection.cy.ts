@@ -25,23 +25,39 @@ beforeEach(() => {
  * what each test is actually about.
  */
 function createInvoice(note: string) {
+  // Instrumented through cy.task, which prints from the Node process: the renderer crash that has
+  // killed this spec in every measured run takes the browser console with it, so anything logged
+  // in the browser is lost exactly when it becomes interesting.
+  const step = (m: string) => cy.task('logStep', `17/createInvoice: ${m}`);
+
+  step('visit /invoices');
   cy.visit('/invoices');
+  step('click add');
   cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+  step('await dialog');
   cy.get('[data-cy="invoice-dialog"]', { timeout: 5000 }).should('be.visible');
 
+  step('open client select');
   cy.get('[data-cy="invoice-client-select"] button').first().click();
   cy.get('[data-cy="invoice-client-select-options"]').should('be.visible');
+  step('pick client');
   cy.get('[data-cy="invoice-client-select-options"] button').first().click();
 
+  step('type notes');
   cy.get('[name="notes"]').type(note);
+  step('add item row');
   cy.contains('button', /Add Item|Ajouter/i).click();
+  step('fill item');
   cy.get('[name="items.0.name"]').type('Consulting', { force: true });
   cy.get('[name="items.0.quantity"]').clear({ force: true }).type('1', { force: true });
   cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('100', { force: true });
   cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('20', { force: true });
 
+  step('submit');
   cy.get('[data-cy="invoice-submit"]').click();
+  step('await dialog closed');
   cy.get('[data-cy="invoice-dialog"]').should('not.exist');
+  step('done');
 }
 
 /** Opens the newest invoice's detail dialog. */

@@ -19,6 +19,19 @@ export default defineConfig({
     },
     setupNodeEvents(on) {
       on("task", {
+        /**
+         * Print a step to the RUNNER's stdout, not the browser console.
+         *
+         * 17-invoice-rejection crashes the Electron renderer partway through its first test, and a
+         * crashed renderer takes its console with it — which is why five runs produced the same
+         * eleven-line "we detected that the renderer crashed" and nothing about where. A task runs
+         * in the Node process, so whatever it printed before the crash survives in the run log.
+         */
+        logStep(message: string) {
+          // eslint-disable-next-line no-console
+          console.log(`[step ${new Date().toISOString().slice(11, 23)}] ${message}`);
+          return null;
+        },
         // `prisma migrate reset --force` used to run here, but it DROPS and recreates
         // the whole schema while the backend is still running and holding pooled
         // connections — the backend's own logger writes to `Log` on every request, so
