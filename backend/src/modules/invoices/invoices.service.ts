@@ -2070,7 +2070,21 @@ export class InvoicesService {
         complianceError: deriveComplianceError(complianceDoc?.events),
         immutableAfter: 'ISSUE',
         correctionModel: 'CREDIT_NOTE',
-        cancellation: { allowed: false },
+        // Same SHAPE as the resolved branch. A payload that changes shape when a plan is missing
+        // makes every consumer test for two worlds, and the one that forgets crashes on a draft.
+        cancellation: {
+          allowed: false,
+          policy: {
+            allowedByCountry: false,
+            windowHours: null,
+            expiresAt: null,
+            requiresAuthorityAck: false,
+            requiresBuyerConsent: false,
+          },
+          conditions: [] as string[],
+        },
+        archival: null,
+        obligations: [],
         actions: deriveInvoiceActions(invoice, null),
         correctionKinds: ['CREDIT_NOTE'],
         flow: null,
@@ -2102,14 +2116,28 @@ export class InvoicesService {
         correctionKinds = ['CREDIT_NOTE'];
     }
 
-    let cancelReason: string | undefined;
-    if (!lifecycle.cancellation?.allowed) {
-      cancelReason = 'Cancellation not allowed by country policy; issue a credit note.';
-    } else if (lifecycle.cancellation?.requiresAuthorityAck) {
-      cancelReason = 'Requires authority acknowledgement.';
-    } else if (lifecycle.cancellation?.requiresBuyerConsent) {
-      cancelReason = 'Requires buyer consent.';
-    }
+    // A — the cancellation policy, whole and translatable.
+    //
+    // This used to be an `else if` chain producing ONE hardcoded English sentence. Three defects in
+    // six lines: several conditions can apply at once and only the first was ever shown; a
+    // `windowHours` deadline never left the server at all, so a user was never told they were on a
+    // clock; and the prose was English literals in a product with ten Weblate locales, so it could
+    // not be translated. The conditions now travel as KEYS and the numbers as numbers — the screen
+    // does the wording, which is where wording belongs.
+    const cancelPolicy = lifecycle.cancellation;
+    const conditions: string[] = [];
+    if (!cancelPolicy?.allowed) conditions.push('notAllowedByCountry');
+    if (cancelPolicy?.windowHours) conditions.push('window');
+    if (cancelPolicy?.requiresAuthorityAck) conditions.push('authorityAck');
+    if (cancelPolicy?.requiresBuyerConsent) conditions.push('buyerConsent');
+
+    // The deadline as an instant, not as a duration the user has to add up themselves. Null when
+    // the country sets no window, or when the invoice has not been issued yet — the clock starts at
+    // issuance, so before that there is no deadline to state rather than a deadline of "now".
+    const expiresAt =
+      cancelPolicy?.windowHours && invoice.issuedAt
+        ? new Date(invoice.issuedAt.getTime() + cancelPolicy.windowHours * 3_600_000).toISOString()
+        : null;
 
     return {
       invoiceId: id,
@@ -2121,8 +2149,38 @@ export class InvoicesService {
       correctionModel: lifecycle.correctionModel,
       cancellation: {
         allowed: manualActions.has('cancel'),
-        reason: cancelReason,
+        /** What the COUNTRY permits, as opposed to what this document can do right now. */
+        policy: {
+          allowedByCountry: !!cancelPolicy?.allowed,
+          windowHours: cancelPolicy?.windowHours ?? null,
+          expiresAt,
+          requiresAuthorityAck: !!cancelPolicy?.requiresAuthorityAck,
+          requiresBuyerConsent: !!cancelPolicy?.requiresBuyerConsent,
+        },
+        /** i18n keys. Plural on purpose: a window and an authority acknowledgement coexist. */
+        conditions,
       },
+      // B — retention had NO interface at all: zero occurrences of `retention` or `archival` in the
+      // whole frontend, while the French profile obliges ten years. A user could reasonably think
+      // deleting a document was theirs to decide.
+      archival: {
+        retentionYears: plan.archival.retentionYears,
+        residency: plan.archival.residency ?? null,
+        archivedForm: plan.archival.archivedForm,
+        integrity: plan.archival.integrity,
+      },
+      // C — the layers P2-T02 built, which nothing displayed. Issuing, receiving and archiving do
+      // not attach at the same moment and do not share a deadline; showing only one of them is what
+      // the single boolean used to do. `openQuestion` travels too, so a screen can say "this duty
+      // exists and its timing is not sourced" rather than inventing a date.
+      obligations: plan.obligations.map((o) => ({
+        kind: o.kind,
+        layer: o.layer,
+        model: o.model ?? null,
+        blocking: o.blocking,
+        deadline: o.deadline ?? null,
+        openQuestion: o.openQuestion ?? null,
+      })),
       actions: deriveInvoiceActions(invoice, manualActions, lifecycle.correctionModel),
       correctionKinds,
       flow: describeFlow(plan, complianceDoc.status as ComplianceStatus),

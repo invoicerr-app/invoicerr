@@ -929,6 +929,46 @@
         "title": "Not transmitted",
         "body": "This invoice never reached the authority. It has not been legally issued. Retry transmission once the channel is configured.",
         "reason": "Reason given"
+      },
+      "compliance": {
+        "cancellation": {
+          "title": "Cancelling this invoice",
+          "notAllowedByCountry": "Cancellation is not available in this country — issue a credit note instead.",
+          "window": "There is a time limit.",
+          "windowHours": "It can only be cancelled within {{hours}} hours of being issued.",
+          "windowUntil": "It can only be cancelled until {{deadline}}.",
+          "windowExpired": "The cancellation window closed on {{deadline}}.",
+          "authorityAck": "It is not final until the tax authority acknowledges it.",
+          "buyerConsent": "The buyer has to agree before it takes effect."
+        },
+        "archival": {
+          "title": "Retention",
+          "retention": "This document must be kept for {{years}} years.",
+          "residency": "It must be stored in {{country}}.",
+          "integrity": {
+            "HASH_CHAIN": "It is chained to the previous document, so it cannot be altered afterwards.",
+            "SIGNED": "It is electronically signed, so any alteration is detectable."
+          }
+        },
+        "obligations": {
+          "title": "What this operation obliges you to",
+          "layer": {
+            "ISSUANCE": "Issuing",
+            "RECEPTION": "Receiving",
+            "ARCHIVAL": "Archiving"
+          },
+          "deadline": "within {{value}}",
+          "notSourced": "no deadline established — not sourced",
+          "blocking": "(the invoice is not valid until this clears)",
+          "unit": {
+            "HOURS": "{{count}} hours",
+            "HOURS_one": "{{count}} hour",
+            "DAYS": "{{count}} days",
+            "DAYS_one": "{{count}} day",
+            "YEARS": "{{count}} years",
+            "YEARS_one": "{{count}} year"
+          }
+        }
       }
     },
     "sendConfirmation": {

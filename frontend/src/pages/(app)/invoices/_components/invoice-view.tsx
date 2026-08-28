@@ -17,6 +17,7 @@ import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useAvailableActions } from "@/hooks/queries/use-available-actions"
+import { ArchivalPanel, CancellationPolicyPanel, ObligationLayersPanel } from "./compliance-panels"
 import { useGet } from "@/hooks/use-fetch"
 import { authenticatedFetch } from "@/hooks/use-fetch"
 import { toast } from "sonner"
@@ -679,19 +680,15 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
               </div>
             )}
 
-            {/* Cancellation rejection reason */}
-            {actions &&
-              !actions.cancellation.allowed &&
-              actions.cancellation.reason &&
-              invoice.status !== "CANCELLED" &&
-              invoice.status !== "DRAFT" && (
-                <div
-                  className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-sm text-amber-800"
-                  data-cy="cancellation-rejection"
-                >
-                  {t("invoices.view.messages.cancellationNotAllowed")}: {actions.cancellation.reason}
-                </div>
-              )}
+            {/* Compliance panels — every line of them comes from the country profile, via the
+                available-actions payload. No country is named in the frontend. */}
+            {actions && invoice.status !== "DRAFT" && (
+              <div className="space-y-2" data-cy="compliance-panels">
+                <CancellationPolicyPanel actions={actions} />
+                <ObligationLayersPanel actions={actions} />
+                <ArchivalPanel actions={actions} />
+              </div>
+            )}
 
             {/* Linked deposit invoices (for FINAL kind or parent with deposits) */}
             {invoice.depositInvoices && invoice.depositInvoices.length > 0 && (
