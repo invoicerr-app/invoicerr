@@ -48,7 +48,23 @@ const MINIMAL_PDF = Buffer.from(
   'utf-8',
 );
 
-export function makeArtifactPort(fixtureData: InvoiceRenderData): InvoiceArtifactPort {
+/**
+ * C2 — the port resolves its data BY INVOICE ID, so a suite can make the rendered document match
+ * the context under test.
+ *
+ * The first version took one `InvoiceRenderData` and returned it whatever was asked. That is enough
+ * to prove artifacts are no longer empty (P1-T03c) and USELESS for any assertion about content: a
+ * zero-rated context produced a 20% artifact and the test called it valid. It is what stopped C1
+ * from being reproducible offline — the document validated was never the one under test.
+ *
+ * A resolver keeps the simple case simple (pass the data, get it back for every id) and lets a test
+ * register data per `ctx.externalRef`, which is the id the providers actually pass through.
+ */
+export type RenderDataResolver = InvoiceRenderData | ((invoiceId: string) => InvoiceRenderData);
+
+export function makeArtifactPort(source: RenderDataResolver): InvoiceArtifactPort {
+  const dataFor = (invoiceId: string): InvoiceRenderData =>
+    typeof source === 'function' ? source(invoiceId) : source;
   /**
    * Memoised per (fixture, format). Building an e-invoice and embedding it in a PDF/A-3 container
    * costs seconds, and a suite that renders three artifacts per document across a dozen tests
@@ -60,18 +76,21 @@ export function makeArtifactPort(fixtureData: InvoiceRenderData): InvoiceArtifac
 
   return {
     renderPdf: async () => new Uint8Array(MINIMAL_PDF),
-    renderPdfFormat: (_invoiceId: string, format: string) => {
-      const hit = pdfCache.get(format);
+    renderPdfFormat: (invoiceId: string, format: string) => {
+      // Keyed on (invoiceId, format), not format alone: with a resolver, two ids are two documents.
+      const key = `${invoiceId}\u0000${format}`;
+      const hit = pdfCache.get(key);
       if (hit) return hit;
-      const built = renderService.buildEInvoice(fixtureData).embedInPdf(MINIMAL_PDF, format);
-      pdfCache.set(format, built);
+      const built = renderService.buildEInvoice(dataFor(invoiceId)).embedInPdf(MINIMAL_PDF, format);
+      pdfCache.set(key, built);
       return built;
     },
-    renderXmlFormat: (_invoiceId: string, format: XmlExportFormat) => {
-      const hit = xmlCache.get(format);
+    renderXmlFormat: (invoiceId: string, format: XmlExportFormat) => {
+      const key = `${invoiceId}\u0000${format}`;
+      const hit = xmlCache.get(key);
       if (hit) return hit;
-      const built = renderService.buildEInvoice(fixtureData).exportXml(format);
-      xmlCache.set(format, built);
+      const built = renderService.buildEInvoice(dataFor(invoiceId)).exportXml(format);
+      xmlCache.set(key, built);
       return built;
     },
     renderFatturaPa: async () => '',
