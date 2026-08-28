@@ -113,6 +113,20 @@ jobs:
       - name: Run compliance queue integration specs (real Redis + Postgres)
         run: cd backend && npx jest --ci --runInBand --forceExit --testPathPattern 'compliance/nest/queue/__tests__'
 
+      # P1-T06 (B4): the deterministic TOCTOU proof for the compliance-document CAS
+      # (transitionIfStatus). It was gated behind COMPLIANCE_LIVE_DB_TESTS and that flag was set
+      # only in compliance-live.yml, which is workflow_dispatch — so the CAS that the French
+      # gapless sequence depends on was never exercised automatically.
+      #
+      # Nothing had to be provisioned: this job already has Postgres 16, DATABASE_URL, and has just
+      # run `prisma migrate deploy` above. Only the flag was missing. The spec truncates the
+      # compliance tables around itself, which is why it runs after the queue specs and not
+      # alongside them.
+      - name: Run the live-DB CAS proof (real Postgres)
+        env:
+          COMPLIANCE_LIVE_DB_TESTS: '1'
+        run: cd backend && npx jest --ci --runInBand --forceExit --testPathPattern 'compliance/nest/apply-signal.live.spec'
+
   cypress-run:
     runs-on: ubuntu-latest
     services:
