@@ -87,8 +87,8 @@ function renderData(): InvoiceRenderData {
       partyIdentifiers: [{ scheme: 'VAT', value: 'DE811907980' }],
     },
     items: [
-      { name: 'Consulting', quantity: 10, unitPrice: 100, vatRate: 19, type: 'SERVICE' },
-      { name: 'Licence', quantity: 2, unitPrice: 50, vatRate: 19, type: 'PRODUCT' },
+      { name: 'Consulting', quantity: 10, unitPrice: 100, vatRate: 19, vatCategory: 'S', type: 'SERVICE' },
+      { name: 'Licence', quantity: 2, unitPrice: 50, vatRate: 19, vatCategory: 'S', type: 'PRODUCT' },
     ],
   } as InvoiceRenderData;
 }

@@ -111,7 +111,7 @@ describe('ComplianceEngine — P2-T02/T03: the attachment trigger routes the fou
    * A profile that carries no attachment predicate must behave exactly as before — the migration is
    * opt-in, one country at a time, and nothing else may shift underneath it.
    */
-  it('an unmigrated profile is unaffected: PL→DE still resolves Poland\'s regime', () => {
+  it("an unmigrated profile is unaffected: PL→DE still resolves Poland's regime", () => {
     const plan = resolve(tx('PL', 'DE', 'B2B', 'GOODS', '2027-01-15'));
     expect(plan.regime.model).toBe('CLEARANCE');
   });

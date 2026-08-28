@@ -54,7 +54,9 @@ function baseData(overrides: Partial<InvoiceRenderData> = {}): InvoiceRenderData
       country: 'Germany',
       partyIdentifiers: [{ scheme: 'VAT', value: 'DE987654321' }],
     },
-    items: [{ name: 'Consulting', quantity: 10, unitPrice: 100, vatRate: 19, type: 'SERVICE' }],
+    items: [
+      { name: 'Consulting', quantity: 10, unitPrice: 100, vatRate: 19, vatCategory: 'S', type: 'SERVICE' },
+    ],
     ...overrides,
   };
 }
@@ -248,7 +250,9 @@ describe('buildEInvoice AllowanceCharge (document discount)', () => {
     const inv = service.buildEInvoice(
       baseData({
         discountRate: 20,
-        items: [{ name: 'Service', quantity: 10, unitPrice: 100, vatRate: 0, type: 'SERVICE' }],
+        items: [
+          { name: 'Service', quantity: 10, unitPrice: 100, vatRate: 0, vatCategory: 'Z', type: 'SERVICE' },
+        ],
       }),
     );
     const xml = await inv.exportXml('ubl');
@@ -271,7 +275,9 @@ describe('buildEInvoice AllowanceCharge (document discount)', () => {
     const inv = service.buildEInvoice(
       baseData({
         discountRate: 5,
-        items: [{ name: 'License', quantity: 2, unitPrice: 500, vatRate: 19, type: 'SERVICE' }],
+        items: [
+          { name: 'License', quantity: 2, unitPrice: 500, vatRate: 19, vatCategory: 'S', type: 'SERVICE' },
+        ],
       }),
     );
     const xml = await inv.exportXml('ubl');
@@ -285,8 +291,8 @@ describe('buildEInvoice AllowanceCharge (document discount)', () => {
     const inv = service.buildEInvoice(
       baseData({
         items: [
-          { name: 'Service', quantity: 1, unitPrice: 5000, vatRate: 20, type: 'SERVICE' },
-          { name: 'Remise', quantity: 1, unitPrice: -500, vatRate: 20, type: 'SERVICE' },
+          { name: 'Service', quantity: 1, unitPrice: 5000, vatRate: 20, vatCategory: 'S', type: 'SERVICE' },
+          { name: 'Remise', quantity: 1, unitPrice: -500, vatRate: 20, vatCategory: 'S', type: 'SERVICE' },
         ],
       }),
     );
@@ -345,6 +351,7 @@ describe('buildEInvoice line-level AllowanceCharge (BG-27)', () => {
             quantity: 1,
             unitPrice: 1000,
             vatRate: 20,
+            vatCategory: 'S',
             type: 'SERVICE',
             allowances: [{ reason: 'Volume discount', reasonCode: '95', amount: 100 }],
           },
@@ -370,10 +377,11 @@ describe('buildEInvoice line-level AllowanceCharge (BG-27)', () => {
             quantity: 1,
             unitPrice: 500,
             vatRate: 0,
+            vatCategory: 'Z',
             type: 'SERVICE',
             allowances: [{ reason: 'Early payment', amount: 50 }],
           },
-          { name: 'B', quantity: 1, unitPrice: 200, vatRate: 0, type: 'SERVICE' },
+          { name: 'B', quantity: 1, unitPrice: 200, vatRate: 0, vatCategory: 'Z', type: 'SERVICE' },
         ],
       }),
     );

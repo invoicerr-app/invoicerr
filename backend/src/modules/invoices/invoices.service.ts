@@ -327,6 +327,8 @@ export class InvoicesService {
               item,
               body.currency || client.currency || company.currency,
               taxResult.itemVatRates[i],
+              taxResult.itemVatCategories[i],
+              taxResult.itemVatExemptionReasons[i],
             ),
             name: item.name ?? item.description,
             quoteItemId: item.quoteItemId,
@@ -488,7 +490,13 @@ export class InvoicesService {
           items: {
             update: invoice.items.map((item, i) => ({
               where: { id: item.id },
-              data: { vatRate: taxResult.itemVatRates[i] },
+              // The category travels with the rate. Writing one without the other is what let the
+              // document disagree with the plan that produced it.
+              data: {
+                vatRate: taxResult.itemVatRates[i],
+                vatCategory: taxResult.itemVatCategories[i] ?? null,
+                vatExemptionReason: taxResult.itemVatExemptionReasons[i] ?? null,
+              },
             })),
           },
         },

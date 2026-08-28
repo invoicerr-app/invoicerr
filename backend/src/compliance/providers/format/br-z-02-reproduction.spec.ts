@@ -32,7 +32,10 @@ function zeroRated(withSellerVat: boolean): InvoiceRenderData {
     // of BR-Z-02. That the category follows the document's own data is exactly what the frozen
     // fixture hid.
     client: { ...base.client, country: 'France', city: 'Lyon', postalCode: '69002' },
-    items: base.items.map((i: Record<string, unknown>) => ({ ...i, vatRate: 0 })),
+    // The category is DECLARED, not implied by the zeroed rate — that implication is the defect
+    // this file's sibling (vat-category-from-plan.spec.ts) removed. A domestic zero-rated line is Z,
+    // and Z is what makes BR-Z-02 the applicable rule.
+    items: base.items.map((i: Record<string, unknown>) => ({ ...i, vatRate: 0, vatCategory: 'Z' })),
   } as InvoiceRenderData;
 }
 

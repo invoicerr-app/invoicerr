@@ -313,6 +313,12 @@ export function invoiceItemData<TType>(
   },
   currency: string,
   vatRate: number,
+  /** BT-151 as the ENGINE resolved it. Stored beside the rate because the rate does not determine
+   *  it — six categories share rate 0 and ask contradictory things of the document. Optional only
+   *  so callers that have no plan (deposits derived from a stored rate) still compile; those write
+   *  null and the renderer refuses them rather than guessing. */
+  vatCategory?: string | null,
+  vatExemptionReason?: string | null,
 ) {
   return {
     description: item.description,
@@ -320,6 +326,8 @@ export function invoiceItemData<TType>(
     unitPrice: item.unitPrice,
     unitPriceMinor: toMinor(item.unitPrice, currency),
     vatRate,
+    vatCategory: vatCategory ?? null,
+    vatExemptionReason: vatExemptionReason ?? null,
     requestedVatRate: item.vatRate ?? null,
     type: item.type,
     order: item.order || 0,

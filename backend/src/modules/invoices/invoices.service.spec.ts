@@ -338,7 +338,12 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
       expect(data.totalHTMinor).toBe(10000);
       expect(data.totalVATMinor).toBe(2000);
       expect(data.totalTTCMinor).toBe(12000);
-      expect(data.items.update).toEqual([{ where: { id: 'item-1' }, data: { vatRate: 20 } }]);
+      expect(data.items.update).toEqual([
+        {
+          where: { id: 'item-1' },
+          data: { vatRate: 20, vatCategory: expect.any(String), vatExemptionReason: null },
+        },
+      ]);
     });
 
     it('(c) stale-VAT: a draft created country-less (stored VAT 0) recomputes to the correct non-zero VAT once the client has a country at issuance', async () => {
@@ -371,7 +376,12 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
       expect(data.totalHT).toBe(100);
       expect(data.totalVAT).toBe(20);
       expect(data.totalTTC).toBe(120);
-      expect(data.items.update).toEqual([{ where: { id: 'item-1' }, data: { vatRate: 20 } }]);
+      expect(data.items.update).toEqual([
+        {
+          where: { id: 'item-1' },
+          data: { vatRate: 20, vatCategory: expect.any(String), vatExemptionReason: null },
+        },
+      ]);
     });
 
     it('(d) deliberate domestic 0%: a requestedVatRate of 0 for a resolved-country client is PRESERVED at issuance, not bumped to the standard rate', async () => {
@@ -399,7 +409,12 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
       expect(data.totalHT).toBe(100);
       expect(data.totalVAT).toBe(0);
       expect(data.totalTTC).toBe(100);
-      expect(data.items.update).toEqual([{ where: { id: 'item-1' }, data: { vatRate: 0 } }]);
+      expect(data.items.update).toEqual([
+        {
+          where: { id: 'item-1' },
+          data: { vatRate: 0, vatCategory: expect.any(String), vatExemptionReason: null },
+        },
+      ]);
     });
   });
 

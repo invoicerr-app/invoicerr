@@ -627,6 +627,8 @@ model InvoiceItem {
   unitPriceMinor     Int?
   vatRate            Float // 20 for 20%
   requestedVatRate   Float?  // user's originally-requested per-line VAT hint; issuance recomputes tax FROM this (not the resolved vatRate) so a stored 0 is never ambiguous. Null for legacy rows.
+  vatCategory        String? // EN 16931 BT-151 as RESOLVED BY THE ENGINE (S, Z, E, AE, K, G, O). Persisted because the rate does not determine it: Z, E, AE, K, G and O all carry rate 0 and demand contradictory things of the document. The renderer used to re-derive it from the rate with three outcomes for an engine that produces five, so a K came out as AE and an O came out as Z — a document no identifier could make valid. Null for legacy rows; the renderer refuses them rather than guessing.
+  vatExemptionReason String? // BT-121, the engine's own exemption reason (VATEX-EU-AE, VATEX-EU-IC, ...). BR-AE-10, BR-IC-10, BR-G-10 and BR-O-10 each require one, and the category alone does not always fix which.
   type               ItemType      @default(SERVICE)
   order              Int
   discountRate       Float         @default(0) // line-level discount percentage

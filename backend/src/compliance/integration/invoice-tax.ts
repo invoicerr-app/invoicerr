@@ -44,6 +44,14 @@ export interface InvoiceTaxResult {
    * keyed on "rate is 0" would be wrong for one of the six.
    */
   itemVatCategories: string[];
+  /**
+   * BT-121 per line — the engine's own exemption reason code, when it has one.
+   *
+   * Needed because BR-AE-10, BR-IC-10, BR-G-10 and BR-O-10 each require a reason on the breakdown,
+   * and the category does not always fix which: E covers a dozen different exemptions with a dozen
+   * different VATEX codes. Carrying the engine's answer avoids the renderer inventing one.
+   */
+  itemVatExemptionReasons: (string | undefined)[];
   warnings: string[];
 }
 
@@ -123,6 +131,7 @@ export function resolveInvoiceTax(input: InvoiceTaxInput): InvoiceTaxResult {
     },
     itemVatRates: plan.tax.lines.map((l) => l.treatment.components[0]?.rate ?? 0),
     itemVatCategories: plan.tax.lines.map((l) => l.treatment.components[0]?.category ?? 'S'),
+    itemVatExemptionReasons: plan.tax.lines.map((l) => l.treatment.components[0]?.reason),
     warnings: [...plan.warnings, ...unverifiedVatWarnings(input, plan)],
   };
 }

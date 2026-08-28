@@ -87,6 +87,12 @@ export interface InvoiceRenderData {
     quantity: number;
     unitPrice: number;
     vatRate: number;
+    /** BT-151 as the ENGINE resolved it (S, Z, E, AE, K, G, O). Not derivable from vatRate: six
+     *  categories share rate 0. Absent on rows created before the column existed — the renderer
+     *  refuses those rather than guessing. */
+    vatCategory?: string | null;
+    /** BT-121, the engine's exemption reason where it has one. */
+    vatExemptionReason?: string | null;
     type: string;
     /** Per-line allowances (BG-27). EN16931-compliant alternative to negative unitPrice. */
     allowances?: LineAllowance[];

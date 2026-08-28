@@ -340,27 +340,61 @@ export class InvoiceRenderingService {
     const sellerCountryCode = guessCountryCode(data.company.country) ?? 'FR';
     const buyerCountryCode = guessCountryCode(data.client.country) ?? 'FR';
 
-    const sellerVat = getIdentifier(data.company, 'VAT');
-    const buyerVat = getIdentifier(data.client, 'VAT');
+    // BR-O-02, read off the Schematron after it fired on a real render: an invoice with a line in
+    // category "Not subject to VAT" SHALL NOT contain the seller VAT identifier (BT-31), the seller
+    // tax representative's (BT-63) or the buyer's (BT-48). O is a whole-document mode — BR-O-11..14
+    // likewise forbid mixing it with any other breakdown — so the identifiers come out of the
+    // document. Not a judgement of ours: the operation is outside the scope of VAT, and the
+    // standard refuses a document that claims a VAT registration for it.
+    const outOfScope = data.items.some((i) => i.unitPrice >= 0 && i.vatCategory === 'O');
+    const sellerVat = outOfScope ? undefined : getIdentifier(data.company, 'VAT');
+    const buyerVat = outOfScope ? undefined : getIdentifier(data.client, 'VAT');
 
-    // Intra-EU B2B reverse charge (Art. 44 / Art. 196 Directive 2006/112/EC): a zero-rated
-    // (vatRate === 0) line between two DIFFERENT EU member states, where the buyer carries a VAT
-    // identifier (the invoice's own signal that they are a VAT-registered business able to
-    // self-account), is a genuine "Reverse charge" supply — EN16931 requires VAT category code
-    // "AE" (not the generic "Zero rated" Z) plus a VAT exemption reason (BR-AE-10 requires
-    // BT-121 and/or BT-120). An ordinary rate=0 line outside this shape (domestic zero-rating,
-    // non-EU export, out-of-scope supply, …) keeps using "Z", unchanged.
-    const isEuReverseCharge =
-      sellerCountryCode !== buyerCountryCode &&
-      EU_MEMBERS.has(sellerCountryCode) &&
-      EU_MEMBERS.has(buyerCountryCode) &&
-      !!buyerVat;
-    const vatCategoryFor = (rate: number): 'S' | 'Z' | 'AE' => {
-      if (rate !== 0) return 'S';
-      return isEuReverseCharge ? 'AE' : 'Z';
+    // BT-151 comes from the PLAN, persisted on the line at creation and refreshed at issuance.
+    //
+    // It used to be re-derived here, from the rate, with three outcomes — S, AE, Z — for an engine
+    // that produces five. The comment that stood here even listed what it was collapsing:
+    // "domestic zero-rating, non-EU export, out-of-scope supply, ... keeps using Z". Measured
+    // against the rendered XML, three cases in five came out wrong: an intra-EU supply of GOODS (K)
+    // was declared as a reverse-charged service (AE), and an out-of-scope supply (O) was declared
+    // zero-rated (Z) — a document no identifier could make valid, since BR-O-02 forbids the seller
+    // VAT identifier that BR-Z-02 requires. The tax was computed correctly and the artifact said
+    // something else.
+    //
+    // A rate cannot carry that decision: Z, E, AE, K, G and O all sit at rate 0 and demand
+    // contradictory things. So the renderer does not decide any more — it reads, and refuses when
+    // there is nothing to read. A guess here is worse than a refusal: it produces a document that
+    // looks filed and is wrong.
+    const missing = data.items.filter((i) => i.unitPrice >= 0 && !i.vatCategory);
+    if (missing.length > 0) {
+      throw new Error(
+        `Cannot build an e-invoice: ${missing.length} line(s) carry no resolved VAT category ` +
+          '(BT-151). The category is resolved by the compliance engine and stored on the line; ' +
+          'a line without one predates that column. Re-save the invoice to resolve it. The ' +
+          'renderer will not infer a category from the rate — six categories share rate 0 and ' +
+          'require contradictory things of the document.',
+      );
+    }
+    const categoryOf = (item: { vatCategory?: string | null }) => item.vatCategory as string;
+
+    /**
+     * BT-121. BR-AE-10, BR-IC-10, BR-G-10 and BR-O-10 each require an exemption reason on the
+     * breakdown. The engine supplies one where it has one; the fallbacks below are the single
+     * canonical VATEX code the EN 16931 code list defines for that category, not a choice. E is
+     * absent on purpose: it covers a dozen exemptions with a dozen different codes, so there is
+     * nothing to fall back TO, and inventing one would be inventing a legal basis.
+     */
+    const CATEGORY_VATEX: Record<string, { code: string; text: string }> = {
+      AE: { code: 'VATEX-EU-AE', text: 'Reverse charge — Autoliquidation, Art. 196 Directive 2006/112/EC' },
+      K: { code: 'VATEX-EU-IC', text: 'Intra-Community supply — Art. 138 Directive 2006/112/EC' },
+      G: { code: 'VATEX-EU-G', text: 'Export outside the EU — Art. 146 Directive 2006/112/EC' },
+      O: { code: 'VATEX-EU-O', text: 'Not subject to VAT' },
     };
-    const REVERSE_CHARGE_EXEMPTION_CODE = 'VATEX-EU-AE';
-    const REVERSE_CHARGE_EXEMPTION_TEXT = 'Reverse charge — Autoliquidation, Art. 196 Directive 2006/112/EC';
+    const exemptionFor = (category: string, reason?: string | null) => {
+      const fallback = CATEGORY_VATEX[category];
+      if (!fallback) return undefined;
+      return { code: reason || fallback.code, text: fallback.text };
+    };
 
     // BT-10 Buyer reference / DE Leitweg-ID (M-9 part 2): the mandatory routing key for German
     // federal/state B2G invoices. When the buyer carries a LEITWEG_ID party identifier, it MUST
@@ -391,7 +425,7 @@ export class InvoiceRenderingService {
       0,
     );
 
-    const vatGroups = new Map<number, { taxable: number; tax: number }>();
+    const vatGroups = new Map<string, { taxable: number; tax: number }>();
     let lineExtensionTotal = 0;
 
     for (const item of positiveItems) {
@@ -400,10 +434,15 @@ export class InvoiceRenderingService {
       const lineAllowanceTotal = (item.allowances ?? []).reduce((s, a) => s + a.amount, 0);
       const net = item.quantity * item.unitPrice - lineAllowanceTotal;
       lineExtensionTotal += net;
-      const g = vatGroups.get(rate) ?? { taxable: 0, tax: 0 };
+      // BG-23 is keyed on (category, rate), not on rate alone. Grouping by rate was harmless while
+      // every 0 collapsed to Z; with real categories an invoice can carry a K line and an AE line
+      // both at 0, and merging them into one breakdown would report an intra-Community supply of
+      // goods as a reverse-charged service — the same error, moved from the line to the summary.
+      const key = `${categoryOf(item)}|${rate}`;
+      const g = vatGroups.get(key) ?? { taxable: 0, tax: 0 };
       g.taxable += net;
       g.tax += (net * rate) / 100;
-      vatGroups.set(rate, g);
+      vatGroups.set(key, g);
     }
 
     // Document-level discount (AllowanceCharge BT-92/BT-93).
@@ -419,16 +458,17 @@ export class InvoiceRenderingService {
     // Re-compute VAT on the fully-discounted base (proportional reduction across all VAT groups)
     const discountRatio = lineExtensionTotal > 0 ? taxableBase / lineExtensionTotal : 1;
     let totalVat = 0;
-    const taxSubtotalsAfterDiscount = [...vatGroups.entries()].map(([rate, g]) => {
+    const taxSubtotalsAfterDiscount = [...vatGroups.entries()].map(([key, g]) => {
+      const [category, rateStr] = key.split('|');
+      const rate = Number(rateStr);
       const discountedTaxable = g.taxable * discountRatio;
       const discountedTax = (discountedTaxable * rate) / 100;
       totalVat += discountedTax;
-      return { rate, taxable: discountedTaxable, tax: discountedTax };
+      return { rate, category, taxable: discountedTaxable, tax: discountedTax };
     });
     const totalIncl = taxableBase + totalVat;
 
-    const taxSubtotals = taxSubtotalsAfterDiscount.map(({ rate, taxable, tax }) => {
-      const category = vatCategoryFor(rate);
+    const taxSubtotals = taxSubtotalsAfterDiscount.map(({ rate, category, taxable, tax }) => {
       return {
         'cbc:TaxableAmount': fmt2(taxable),
         'cbc:TaxableAmount@currencyID': currency,
@@ -436,14 +476,13 @@ export class InvoiceRenderingService {
         'cbc:TaxAmount@currencyID': currency,
         'cac:TaxCategory': {
           'cbc:ID': category,
-          'cbc:Percent': String(rate),
-          // BR-AE-10: a "Reverse charge" VAT breakdown must carry a VAT exemption reason.
-          ...(category === 'AE'
-            ? {
-                'cbc:TaxExemptionReasonCode': REVERSE_CHARGE_EXEMPTION_CODE,
-                'cbc:TaxExemptionReason': REVERSE_CHARGE_EXEMPTION_TEXT,
-              }
-            : {}),
+          ...(category === 'O' ? {} : { 'cbc:Percent': String(rate) }),
+          // BR-AE-10 / BR-IC-10 / BR-G-10 / BR-O-10: each of these categories must carry a
+          // reason on the breakdown. Only AE was handled while AE was the only one reachable.
+          ...(() => {
+            const ex = exemptionFor(category);
+            return ex ? { 'cbc:TaxExemptionReasonCode': ex.code, 'cbc:TaxExemptionReason': ex.text } : {};
+          })(),
           'cac:TaxScheme': { 'cbc:ID': 'VAT' },
         },
       };
@@ -467,8 +506,11 @@ export class InvoiceRenderingService {
         'cac:Item': {
           'cbc:Name': item.name,
           'cac:ClassifiedTaxCategory': {
-            'cbc:ID': vatCategoryFor(item.vatRate || 0),
-            'cbc:Percent': String(item.vatRate || 0),
+            'cbc:ID': categoryOf(item),
+            // BR-O-05: an O line shall NOT carry an invoiced item VAT rate (BT-152). Emitting "0"
+            // is not the same as emitting nothing — the rule is about the field's presence, and a
+            // rate of zero still asserts that a rate applies.
+            ...(categoryOf(item) === 'O' ? {} : { 'cbc:Percent': String(item.vatRate || 0) }),
             'cac:TaxScheme': { 'cbc:ID': 'VAT' },
           },
         },
@@ -618,7 +660,10 @@ export class InvoiceRenderingService {
     // negative-price items (if any). Both are ChargeIndicator=false (= reduction).
     // EN16931 requires AllowanceTotalAmount in LegalMonetaryTotal to match their sum.
     const allowanceCharges: Record<string, unknown>[] = [];
-    const vatCategoryId = vatCategoryFor(taxSubtotalsAfterDiscount[0]?.rate ?? 0);
+    // The document-level allowance carries the category of the breakdown it reduces (BR-CO-* pair
+    // it with an existing BG-23). Same source as everything else now: the first breakdown's own
+    // category, not a second guess from its rate.
+    const vatCategoryId = taxSubtotalsAfterDiscount[0]?.category ?? 'S';
     const vatPercent = String(taxSubtotalsAfterDiscount[0]?.rate ?? 0);
     if (rateDiscountAmount > 0) {
       allowanceCharges.push({

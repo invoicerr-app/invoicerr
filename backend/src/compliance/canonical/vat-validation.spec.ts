@@ -68,7 +68,7 @@ describe('C4 — the three verdicts, and none of them may be collapsed', () => {
     });
   });
 
-  it('UNAVAILABLE — a country VIES does not cover is not the number\'s fault', async () => {
+  it("UNAVAILABLE — a country VIES does not cover is not the number's fault", async () => {
     const client = new ViesVatValidationClient(new ViesProvider());
     expect((await client.validate('US', '123456789')).status).toBe('UNAVAILABLE');
   });

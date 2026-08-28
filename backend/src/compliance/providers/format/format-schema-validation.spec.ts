@@ -521,7 +521,16 @@ describe('XRechnung real Schematron — base EN16931-UBL + KoSIT BR-DE delta (M-
         country: 'France',
         partyIdentifiers: [{ scheme: 'VAT', value: 'FR12345678901' }],
       },
-      items: [{ name: 'Software License', quantity: 1, unitPrice: 1200, vatRate: 20, type: 'PRODUCT' }],
+      items: [
+        {
+          name: 'Software License',
+          quantity: 1,
+          unitPrice: 1200,
+          vatRate: 20,
+          vatCategory: 'S',
+          type: 'PRODUCT',
+        },
+      ],
     };
 
     const xml = await service.buildEInvoice(deFrWithVat).exportXml('xrechnung');
@@ -580,7 +589,16 @@ describe('XRechnung real Schematron — base EN16931-UBL + KoSIT BR-DE delta (M-
         country: 'France',
         partyIdentifiers: [{ scheme: 'VAT', value: 'FR12345678901' }],
       },
-      items: [{ name: 'Software License', quantity: 1, unitPrice: 1200, vatRate: 20, type: 'PRODUCT' }],
+      items: [
+        {
+          name: 'Software License',
+          quantity: 1,
+          unitPrice: 1200,
+          vatRate: 20,
+          vatCategory: 'S',
+          type: 'PRODUCT',
+        },
+      ],
     };
     const xml = await service.buildEInvoice(noVatData).exportXml('xrechnung');
     const sellerBlock = xml.slice(

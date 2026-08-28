@@ -245,7 +245,11 @@ export class ClientsService {
       data: { ...dataFields, isActive: true },
     });
 
-    await this.upsertPartyIdentifiers(updatedClient.id, identifiers, updatedClient.countryCode ?? updatedClient.country);
+    await this.upsertPartyIdentifiers(
+      updatedClient.id,
+      identifiers,
+      updatedClient.countryCode ?? updatedClient.country,
+    );
 
     logger.info('Client updated', { category: 'client', details: { clientId: updatedClient.id } });
 

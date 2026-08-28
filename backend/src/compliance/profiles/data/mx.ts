@@ -121,7 +121,8 @@ export const MX: CountryComplianceProfile = {
       appliesTo: 'BOTH',
       required: true,
       pattern: '^\\d{5}$',
-      helpText: "5-digit postal code of the party's registered tax domicile (CFDI 4.0 DomicilioFiscalReceptor)",
+      helpText:
+        "5-digit postal code of the party's registered tax domicile (CFDI 4.0 DomicilioFiscalReceptor)",
     },
     {
       scheme: 'MX_REGIMEN_FISCAL',

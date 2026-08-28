@@ -178,7 +178,9 @@ export function resolve(ctx: TransactionContext, deps: ResolveDeps = {}): Compli
 }
 
 /** Pick the rule in force at the date whose selector matches the transaction class. */
-function pickWithSelector<T extends { appliesTo?: ClassificationSelector; attachment?: AttachmentPredicate[] }>(
+function pickWithSelector<
+  T extends { appliesTo?: ClassificationSelector; attachment?: AttachmentPredicate[] },
+>(
   rules: Temporal<T>[],
   date: Date,
   buyerRole: PartyRole,

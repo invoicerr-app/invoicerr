@@ -377,7 +377,9 @@ describe('FR→BE intra-EU B2B service — CI-red investigation (fr-be Business 
       createdAt: new Date('2025-06-15'),
       company: frSellerNoVat,
       client: beBuyer,
-      items: [{ name: 'Consulting', quantity: 5, unitPrice: 200, vatRate: 21, type: 'SERVICE' }],
+      items: [
+        { name: 'Consulting', quantity: 5, unitPrice: 200, vatRate: 21, vatCategory: 'S', type: 'SERVICE' },
+      ],
     };
     const port = makePort({
       renderXmlFormat: async (_id: string, format: XmlExportFormat) =>
@@ -411,7 +413,12 @@ describe('FR→BE intra-EU B2B service — CI-red investigation (fr-be Business 
       },
       client: beBuyer,
       // Reverse charge: the FR seller does not charge VAT — the BE buyer self-accounts.
-      items: [{ name: 'Consulting', quantity: 5, unitPrice: 200, vatRate: 0, type: 'SERVICE' }],
+      items: [
+        // AE, not Z. FR->BE B2B services is a reverse charge (Art. 44/196), and the two are not
+        // interchangeable just because both sit at 0: Z would put the document back in the
+        // category whose rule this file exists to keep out of a green run.
+        { name: 'Consulting', quantity: 5, unitPrice: 200, vatRate: 0, vatCategory: 'AE', type: 'SERVICE' },
+      ],
     };
     const port = makePort({
       renderXmlFormat: async (_id: string, format: XmlExportFormat) =>

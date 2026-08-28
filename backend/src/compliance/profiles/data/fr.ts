@@ -140,11 +140,7 @@ export const FR: CountryComplianceProfile = {
           { kind: 'BOTH_ATTACHED_TO', country: 'FR' },
           { kind: 'NOT_OF_NATURE', nature: 'intraCommunitySupply' },
         ],
-        channels: [
-          { type: 'PDP' },
-          { type: 'GOV_PORTAL_API', providerId: 'choruspro' },
-          { type: 'PEPPOL' },
-        ],
+        channels: [{ type: 'PDP' }, { type: 'GOV_PORTAL_API', providerId: 'choruspro' }, { type: 'PEPPOL' }],
       },
     },
     // Operations outside the e-invoicing mandate keep an ordinary delivery channel: the e-reporting

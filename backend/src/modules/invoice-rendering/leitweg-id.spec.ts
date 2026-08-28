@@ -48,7 +48,9 @@ function baseData(overrides: Partial<InvoiceRenderData> = {}): InvoiceRenderData
       country: 'Germany',
       partyIdentifiers: [{ scheme: 'VAT', value: 'DE987654321' }],
     },
-    items: [{ name: 'Consulting', quantity: 1, unitPrice: 1000, vatRate: 19, type: 'SERVICE' }],
+    items: [
+      { name: 'Consulting', quantity: 1, unitPrice: 1000, vatRate: 19, vatCategory: 'S', type: 'SERVICE' },
+    ],
     ...overrides,
   };
 }

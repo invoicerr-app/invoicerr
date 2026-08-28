@@ -21,10 +21,25 @@ const opts = {
 };
 
 const company = (over: Record<string, unknown> = {}) =>
-  ({ id: 'co-1', name: 'Acme', countryCode: 'FR', country: 'France', partyIdentifiers: [], ...over }) as never;
+  ({
+    id: 'co-1',
+    name: 'Acme',
+    countryCode: 'FR',
+    country: 'France',
+    partyIdentifiers: [],
+    ...over,
+  }) as never;
 
 const client = (over: Record<string, unknown> = {}) =>
-  ({ id: 'cl-1', name: 'Buyer', countryCode: 'FR', country: 'France', type: 'COMPANY', partyIdentifiers: [], ...over }) as never;
+  ({
+    id: 'cl-1',
+    name: 'Buyer',
+    countryCode: 'FR',
+    country: 'France',
+    type: 'COMPANY',
+    partyIdentifiers: [],
+    ...over,
+  }) as never;
 
 describe('P2-T01 — an unresolved country blocks instead of defaulting to France', () => {
   it('both countries resolved: the context is built', () => {

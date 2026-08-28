@@ -169,7 +169,9 @@ beforeAll(async () => {
         country: 'Germany',
         partyIdentifiers: [{ scheme: 'VAT', value: 'DE811907980' }],
       },
-      items: [{ name: 'Service', quantity: 1, unitPrice: 100, vatRate: 20, type: 'SERVICE' }],
+      items: [
+        { name: 'Service', quantity: 1, unitPrice: 100, vatRate: 20, vatCategory: 'S', type: 'SERVICE' },
+      ],
     } as never)
     .exportXml('ubl');
 });
