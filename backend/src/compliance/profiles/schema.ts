@@ -188,6 +188,23 @@ export interface VatSystemSpec {
   kind: 'VAT' | 'GST';
   standardRate: number;
   reducedRates?: number[];
+  /**
+   * Does this country levy a domestic ZERO RATE — a taxable supply at 0% that still carries the
+   * right to deduct input tax — as opposed to an EXEMPTION, which is untaxed and deducts nothing?
+   *
+   * This exists because the RATE CANNOT ANSWER IT. Both are 0, and EN 16931 keeps them apart:
+   * `Z` answers to BR-Z-*, `E` to BR-E-* and additionally demands an exemption reason
+   * (BT-120 text or BT-121 code, BR-E-10). A document that calls an exemption a zero-rated supply
+   * is wrong in a way no validator downstream can repair, because both are internally consistent.
+   *
+   * Three states, and the third is the point:
+   *   `true`      the country has a zero rate — a 0% domestic line may legitimately be `Z`.
+   *   `false`     it has none — a 0% domestic line is NOT `Z`; it is an exemption or out of scope.
+   *   `undefined` NOT ESTABLISHED for this country. The engine keeps its previous answer rather
+   *               than reclassifying ~100 archetype profiles nobody has sourced. Absence of a
+   *               declaration is not a declaration of absence.
+   */
+  hasDomesticZeroRate?: boolean;
   schemes?: TaxScheme[];
   requiresTaxCurrency?: string;
 }

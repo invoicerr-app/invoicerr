@@ -35,7 +35,16 @@ export const PL: CountryComplianceProfile = {
     { validFrom: '2026-02-01', value: { channels: [{ type: 'GOV_PORTAL_API', providerId: 'ksef' }] } },
   ],
 
-  taxSystem: { kind: 'VAT', standardRate: 23, reducedRates: [8, 5, 0], schemes: ['STANDARD'] },
+  // `hasDomesticZeroRate` makes explicit what `reducedRates` already asserted by listing 0 among
+  // Poland's rates — this adds no new legal claim, it names one the data was carrying implicitly.
+  // `data-integrity.spec.ts` now binds the two so they cannot drift apart.
+  taxSystem: {
+    kind: 'VAT',
+    standardRate: 23,
+    reducedRates: [8, 5, 0],
+    hasDomesticZeroRate: true,
+    schemes: ['STANDARD'],
+  },
 
   lifecycle: [
     // Pre-KSeF: standard post-audit lifecycle — immutable after issue, credit-note corrections.

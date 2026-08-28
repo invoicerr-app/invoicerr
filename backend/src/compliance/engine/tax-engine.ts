@@ -13,7 +13,7 @@ import {
   TransactionContext,
 } from '../canonical/canonical-document';
 import { CountryComplianceProfile, SalesTaxSystemSpec, VatSystemSpec } from '../profiles/schema';
-import { ReportingKind } from '../types';
+import { ReportingKind, TaxCategoryCode } from '../types';
 import { TaxUnion, VatValidator, taxUnionOf } from './classification';
 
 const MENTION = {
@@ -173,14 +173,51 @@ function domesticVat(line: DocumentLine, sys: VatSystemSpec, supplier: PartyTaxP
       [],
     );
   }
-  const rate = line.taxCategoryHint === 'Z' ? 0 : (line.taxRateHint ?? sys.standardRate);
-  const category = line.taxCategoryHint ?? (rate === 0 ? 'Z' : 'S');
+  const rate = zeroByHint(line) ? 0 : (line.taxRateHint ?? sys.standardRate);
+  const category = line.taxCategoryHint ?? domesticCategoryFor(rate, sys);
   return treatment(
     { taxSystem: sys.kind, name: 'VAT', category, rate, jurisdiction: supplier.countryCode },
     false,
     [],
     [],
   );
+}
+
+/** Categories that mean "no VAT is charged on this line". They all imply a 0 rate. */
+const UNTAXED_HINTS: ReadonlySet<TaxCategoryCode> = new Set(['Z', 'E', 'O']);
+
+function zeroByHint(line: DocumentLine): boolean {
+  return !!line.taxCategoryHint && UNTAXED_HINTS.has(line.taxCategoryHint);
+}
+
+/**
+ * The category of a DOMESTIC line, when nobody has declared one.
+ *
+ * A positive rate is `S` and that is not an approximation: EN 16931 uses `S` for the standard rate
+ * AND every reduced rate — BT-152 carries the rate, BT-151 only says which regime it belongs to.
+ * So the `rate > 0` half of the old expression was already right.
+ *
+ * The `rate === 0` half was not, and could not be. A 0 rate is the one value that does NOT
+ * determine its category: `Z` (zero-rated), `E` (exempt) and `O` (out of scope) all carry it and
+ * demand contradictory things of the document — `Z` and `E` require the seller's identifier
+ * (BR-Z-02, BR-E-02) while `O` FORBIDS it (BR-O-02); `E` additionally requires an exemption reason
+ * (BR-E-10) that `Z` has no place for. Answering `Z` unconditionally, as this did, was a coin flip
+ * dressed as a derivation — and it was the wrong side of the flip for France, which has no zero
+ * rate at all (see `fr.ts`).
+ *
+ * So the country decides as far as it can, and no further:
+ *   - it HAS a zero rate  → `Z` stays available and stays the answer.
+ *   - it has NONE         → `Z` is impossible. The line is untaxed for some other reason, and the
+ *                           closest thing the engine can justify is `E` — the exemption. It cannot
+ *                           choose between `E` and `O` on its own, so `E` is deliberate: it is the
+ *                           one that FAILS LOUDLY, because BR-E-10 will demand a reason the engine
+ *                           does not have. `O` would sail through and be silently wrong.
+ *   - not established     → the previous answer, unchanged. Reclassifying ~100 unsourced profiles
+ *                           on the strength of a missing field would be the same guess in reverse.
+ */
+function domesticCategoryFor(rate: number, sys: VatSystemSpec): TaxCategoryCode {
+  if (rate > 0) return 'S';
+  return sys.hasDomesticZeroRate === false ? 'E' : 'Z';
 }
 
 function ossDestinationVat(
@@ -243,11 +280,17 @@ function salesTax(
     );
   }
   const rate = sys.stateRates[state] ?? 0;
+  // The second rate-to-category derivation, and `Z` was the wrong answer here for a different
+  // reason than in `domesticVat`: a sales-tax system has no concept of a zero-RATED supply. A 0
+  // here means the subdivision levies no sales tax at all — Oregon, Montana, New Hampshire and
+  // Delaware, which `us.ts` records as "absent → 0" — so the supply is OUTSIDE THE SCOPE of the
+  // tax, exactly like the no-nexus branch above, which already answers `O`. Reachable, not
+  // theoretical: a seller with nexus in one of those four states lands here.
   return treatment(
     {
       taxSystem: 'SALES_TAX',
       name: `Sales Tax (${state})`,
-      category: rate > 0 ? 'S' : 'Z',
+      category: rate > 0 ? 'S' : 'O',
       rate,
       jurisdiction: bCountry,
       subdivision: state,

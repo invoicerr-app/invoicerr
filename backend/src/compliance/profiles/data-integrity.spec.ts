@@ -69,6 +69,27 @@ describe('profile data integrity', () => {
     }
   });
 
+  it('hasDomesticZeroRate and reducedRates cannot contradict each other', () => {
+    // The fact is stated twice: once explicitly, once implicitly by whether 0 appears among the
+    // country's rates. Poland carries both (`[8, 5, 0]` + `true`). Two statements of one fact drift
+    // unless something binds them, and a profile claiming "no zero rate" while listing 0 as a rate
+    // would send `domesticVat` down the wrong branch for that whole country.
+    //
+    // Only a CONTRADICTION fails. `undefined` is not a contradiction — it is the honest "nobody has
+    // sourced this", and ~100 archetype profiles are in exactly that state on purpose.
+    for (const p of concrete) {
+      const t = p.taxSystem;
+      if (t.kind !== 'VAT' && t.kind !== 'GST') continue;
+      if (t.hasDomesticZeroRate === undefined) continue;
+      const listsZero = (t.reducedRates ?? []).includes(0);
+      expect({ country: p.countryCode, declares: t.hasDomesticZeroRate, listsZero }).toEqual({
+        country: p.countryCode,
+        declares: t.hasDomesticZeroRate,
+        listsZero: t.hasDomesticZeroRate,
+      });
+    }
+  });
+
   it('every temporal rule list is chronologically ordered with valid dates', () => {
     const check = (entries: Temporal<unknown>[]) => {
       for (const e of entries) {

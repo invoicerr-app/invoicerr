@@ -269,6 +269,28 @@ export const FR: CountryComplianceProfile = {
     kind: 'VAT',
     standardRate: 20,
     reducedRates: [10, 5.5, 2.1],
+    /**
+     * France levies NO zero rate today. Its rates are 20 (CGI art. 278), 10 (art. 279 / 278 bis),
+     * 5,5 (art. 278-0 bis) and 2,1 (art. 281 octies) — 0 is not among them.
+     *
+     * It is `false` rather than merely absent because France DID have one and it was repealed:
+     * art. 278 ter taxed covid-19 vaccines and tests "au taux de 0 %" from 2021-01-01 and was
+     * ABROGATED at 2023-01-01. So a 0% French domestic line is not a zero-rated supply; it is an
+     * exemption (art. 261 and following — medical, education, financial) or outside the scope.
+     * Légifrance, section « Taux » du CGI, consultée le 2026-08-28.
+     *
+     * KNOWN LIMIT, not an oversight: `taxSystem` is NOT `Temporal<>`, unlike every rule list on
+     * this profile, so this field cannot say "true until 2023-01-01, false after". It states
+     * TODAY's law. An invoice back-dated into the 2021–2022 window would be resolved on the
+     * current rate table. Out of scope here — the mandate this profile serves starts 2026-09-01 —
+     * and consciously left rather than half-built.
+     *
+     * Same expiry as the rest of this profile's citations: the whole « Taux » section is abrogated
+     * at 2027-01-01 by Ord. n° 2025-1247, the same ordonnance FR-RATTACHEMENT.md §4 flags for
+     * art. 289 bis and 290. The rates are not expected to change — recodification to the CIBS —
+     * but the article numbers above go stale on that date.
+     */
+    hasDomesticZeroRate: false,
     schemes: ['STANDARD', 'FRANCHISE_BASE'],
   },
 
