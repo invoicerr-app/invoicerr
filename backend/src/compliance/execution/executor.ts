@@ -277,7 +277,12 @@ export class ComplianceExecutor {
     );
 
     // 5. Regime-specific handling (clearance gates validity; CTC routes & e-reports).
-    const regime = this.regimes.get(primaryObligation(plan).model).handle(ctx, plan, signed, log);
+    // `model` is optional on a ResolvedObligation because RECEPTION and ARCHIVAL duties have none.
+    // The primary one is always ISSUANCE — obligationsFrom puts it first — so this is total in
+    // practice; POST_AUDIT is the right fallback if a caller ever hands us a plan built otherwise.
+    const regime = this.regimes
+      .get(primaryObligation(plan).model ?? 'POST_AUDIT')
+      .handle(ctx, plan, signed, log);
 
     // 6. Transmit over every planned channel.
     const transmissions = await this.transmission.transmitAll(signed, ctx, plan, idempotencyKey, log);

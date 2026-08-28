@@ -7,6 +7,9 @@ import { TransactionContext } from '../canonical/canonical-document';
 import {
   ArchivalPolicy,
   ChannelSpec,
+  ObligationDeadline,
+  ObligationLayer,
+  ObligationRule,
   ClassificationSelector,
   CountryComplianceProfile,
   FormatRule,
@@ -79,10 +82,20 @@ export interface CompliancePlan {
 /** One duty, resolved for this operation. */
 export interface ResolvedObligation {
   kind: ObligationKind;
-  /** How it is discharged — the historical `RegimeModel`. */
-  model: RegimeModel;
+  /**
+   * P2-T02 — WHEN the duty attaches. Regime-derived obligations are ISSUANCE by construction: a
+   * regime describes how an invoice reaches the authority. RECEPTION and ARCHIVAL come from the
+   * profile's own `obligations` list, which only France carries today.
+   */
+  layer: ObligationLayer;
+  /** How it is discharged — the historical `RegimeModel`. Absent for non-issuance layers. */
+  model?: RegimeModel;
   /** Clearance: is the invoice invalid until the authority has authorised it? */
   blocking: boolean;
+  /** null = the duty exists and its timing is not sourced. See `openQuestion`. */
+  deadline: ObligationDeadline | null;
+  /** What would have to be read to establish an absent deadline. */
+  openQuestion?: string;
 }
 
 /**
@@ -125,9 +138,56 @@ function obligationsFrom(regime: RegimeRule, matching: RegimeRule[]): ResolvedOb
     const key = `${kind}|${r.model}|${r.blocking}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ kind, model: r.model, blocking: r.blocking });
+    // Regime-derived duties are ISSUANCE, and their deadline is null rather than invented: no
+    // regime model carries one, and guessing "24 h" because the French reform is often summarised
+    // that way would put a number nobody sourced into an enforced field.
+    out.push({
+      kind,
+      layer: 'ISSUANCE',
+      model: r.model,
+      blocking: r.blocking,
+      deadline: null,
+      openQuestion:
+        kind === 'NONE'
+          ? undefined
+          : 'Issuance deadline not established from a primary source for this jurisdiction.',
+    });
   }
   return out;
+}
+
+/**
+ * P2-T02 — the regime-derived ISSUANCE duty, enriched by what the profile declares, plus the layers
+ * the regime cannot express.
+ *
+ * The two sources overlap on exactly one point: issuance. A regime says HOW an invoice reaches the
+ * authority and carries no deadline; a profile's ISSUANCE obligation carries the deadline and
+ * nothing about the mechanism. Merging them rather than listing both keeps `primaryObligation()`
+ * meaning what every migrated reader expects — the issuance duty, singular — while giving it the
+ * timing it never had.
+ *
+ * Profiles that declare nothing (107 of 108) produce a plan identical to before.
+ */
+function mergeObligations(
+  fromRegime: ResolvedObligation[],
+  fromProfile: ObligationRule[],
+): ResolvedObligation[] {
+  const declaredIssuance = fromProfile.find((r) => r.layer === 'ISSUANCE');
+  const merged = fromRegime.map((o, i) =>
+    i === 0 && declaredIssuance
+      ? { ...o, deadline: declaredIssuance.deadline, openQuestion: declaredIssuance.openQuestion }
+      : o,
+  );
+  const others = fromProfile
+    .filter((r) => r !== declaredIssuance)
+    .map((r) => ({
+      kind: r.kind,
+      layer: r.layer,
+      blocking: false,
+      deadline: r.deadline,
+      openQuestion: r.openQuestion,
+    }));
+  return [...merged, ...others];
 }
 
 export function primaryObligation(plan: Pick<CompliancePlan, 'obligations'>): ResolvedObligation {
@@ -291,7 +351,10 @@ export function resolve(ctx: TransactionContext, deps: ResolveDeps = {}): Compli
     taxSystemKind: sp.taxSystem.kind,
     // P2-T06 — `regime` is gone; `obligations` is the single source. The primary one is built from
     // the rule `regime` used to expose, so the removal is a deletion and not a change of answer.
-    obligations: obligationsFrom(regime, matchingRegimes),
+    obligations: mergeObligations(
+      obligationsFrom(regime, matchingRegimes),
+      allWithSelector(sp.obligations ?? [], ctx.issueDate, buyerRole, supplyTypes, parties, nature),
+    ),
     artifacts,
     channels,
     reportingChannels,

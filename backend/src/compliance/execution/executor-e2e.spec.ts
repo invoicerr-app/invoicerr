@@ -25,7 +25,9 @@ function makeFrPlan(_companyId: string): CompliancePlan {
     classification: { buyerRole: 'B2B', crossBorder: false, supplyTypes: ['SERVICES'] },
     tax: { kind: 'VAT', rate: 20, lines: [], totals: { net: 10000, tax: 2000, gross: 12000 } } as any,
     taxSystemKind: 'VAT',
-    obligations: [{ kind: 'E_INVOICING', model: 'DECENTRALIZED_CTC', blocking: false }],
+    obligations: [
+      { kind: 'E_INVOICING', layer: 'ISSUANCE', model: 'DECENTRALIZED_CTC', blocking: false, deadline: null },
+    ],
     artifacts: [
       { role: 'AUTHORITATIVE', syntax: 'EN16931_CII' },
       { role: 'HUMAN', syntax: 'FACTURX' },
@@ -52,7 +54,9 @@ function makePlPlan(_companyId: string): CompliancePlan {
     classification: { buyerRole: 'B2B', crossBorder: false, supplyTypes: ['GOODS'] },
     tax: { kind: 'VAT', rate: 23, lines: [], totals: { net: 10000, tax: 2300, gross: 12300 } } as any,
     taxSystemKind: 'VAT',
-    obligations: [{ kind: 'E_INVOICING', model: 'CLEARANCE', blocking: true }],
+    obligations: [
+      { kind: 'E_INVOICING', layer: 'ISSUANCE', model: 'CLEARANCE', blocking: true, deadline: null },
+    ],
     artifacts: [
       { role: 'AUTHORITATIVE', syntax: 'FA_VAT' },
       { role: 'HUMAN', syntax: 'PLAIN_PDF' },

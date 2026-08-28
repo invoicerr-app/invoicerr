@@ -52,7 +52,9 @@ describe('document mappers', () => {
       classification: { buyerRole: 'B2B', crossBorder: true, supplyTypes: ['GOODS'] } as any,
       tax: { lines: [], reportingFlags: [], mentions: [], buyerSelfAssess: false },
       taxSystemKind: 'VAT',
-      obligations: [{ kind: 'NONE', model: 'POST_AUDIT', blocking: false }],
+      obligations: [
+        { kind: 'NONE', layer: 'ISSUANCE', model: 'POST_AUDIT', blocking: false, deadline: null },
+      ],
       artifacts: [],
       channels: [{ type: 'PEPPOL' }],
       reportingChannels: [],

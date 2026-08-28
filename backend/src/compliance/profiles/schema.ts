@@ -81,6 +81,41 @@ export interface ChannelSpec {
   providerId?: string;
 }
 
+/**
+ * P2-T02 — the three layers an obligation can sit in.
+ *
+ * A country's duties do not all attach to the same moment. Issuing carries one (get the invoice or
+ * its data to the authority), receiving carries another (return a status the sender is entitled to),
+ * and keeping carries a third (retain, in a given form, for a given time). They have different
+ * deadlines and different failure modes, and flattening them into one `regime` is why the profile
+ * could express "France runs a decentralized CTC model" and not "France expects a status back
+ * within N days".
+ */
+export type ObligationLayer = 'ISSUANCE' | 'RECEPTION' | 'ARCHIVAL';
+
+/** A deadline with its unit, because hours are wrong for a ten-year retention. */
+export interface ObligationDeadline {
+  value: number;
+  unit: 'HOURS' | 'DAYS' | 'YEARS';
+}
+
+/**
+ * One duty, as the PROFILE declares it.
+ *
+ * `deadline: null` is a first-class answer and not a hole to be filled with a plausible number: it
+ * says the duty exists and its timing has not been established from a primary source. `openQuestion`
+ * then carries what would have to be read to establish it. A wrong deadline is worse than an absent
+ * one — it would be enforced.
+ */
+export interface ObligationRule {
+  layer: ObligationLayer;
+  kind: ObligationKind;
+  deadline: ObligationDeadline | null;
+  openQuestion?: string;
+  appliesTo?: ClassificationSelector;
+  attachment?: AttachmentPredicate[];
+}
+
 export interface TransmissionRule {
   /**
    * P2-T07 — WHICH duty these channels discharge.
@@ -181,6 +216,12 @@ export interface CountryComplianceProfile {
   regime: Temporal<RegimeRule>[];
   formats: Temporal<FormatRule>[];
   transmission: Temporal<TransmissionRule>[];
+  /**
+   * P2-T02 — duties by LAYER. Optional, and France is the only profile that carries it: the other
+   * 107 keep their current shape, and the engine derives an ISSUANCE obligation from their regime
+   * exactly as before. Migrating them is a per-country sourcing job, not a refactor.
+   */
+  obligations?: Temporal<ObligationRule>[];
   taxSystem: TaxSystemSpec;
   lifecycle: Temporal<LifecyclePolicy>[];
   archival: Temporal<ArchivalPolicy>[];

@@ -22,7 +22,7 @@ function plan(over: Partial<CompliancePlan> = {}): CompliancePlan {
     classification: { buyerRole: 'B2B', crossBorder: false, supplyTypes: ['GOODS'] },
     tax: { lines: [], reportingFlags: [], mentions: [], buyerSelfAssess: false },
     taxSystemKind: 'VAT',
-    obligations: [{ kind: 'NONE', model: 'POST_AUDIT', blocking: false }],
+    obligations: [{ kind: 'NONE', layer: 'ISSUANCE', model: 'POST_AUDIT', blocking: false, deadline: null }],
     artifacts: [],
     channels: [],
     reportingChannels: [],
@@ -49,7 +49,17 @@ describe('phase contributors — gating & drivers', () => {
     expect(get(new ClearancePhase(), plan())).toBeNull();
     const f = get(
       new ClearancePhase(),
-      plan({ obligations: [{ kind: obligationKindFor('CLEARANCE'), model: 'CLEARANCE', blocking: true }] }),
+      plan({
+        obligations: [
+          {
+            kind: obligationKindFor('CLEARANCE'),
+            layer: 'ISSUANCE' as const,
+            model: 'CLEARANCE',
+            blocking: true,
+            deadline: null,
+          },
+        ],
+      }),
       {
         channelFeedback: 'ASYNC_POLL',
         pollPolicy: { everySeconds: 30, timeoutHours: 24 },
@@ -64,7 +74,17 @@ describe('phase contributors — gating & drivers', () => {
   it('Clearance binds a CALLBACK driver when the channel pushes statuses', () => {
     const f = get(
       new ClearancePhase(),
-      plan({ obligations: [{ kind: obligationKindFor('CLEARANCE'), model: 'CLEARANCE', blocking: true }] }),
+      plan({
+        obligations: [
+          {
+            kind: obligationKindFor('CLEARANCE'),
+            layer: 'ISSUANCE' as const,
+            model: 'CLEARANCE',
+            blocking: true,
+            deadline: null,
+          },
+        ],
+      }),
       {
         channelFeedback: 'ASYNC_CALLBACK',
       },
@@ -76,7 +96,17 @@ describe('phase contributors — gating & drivers', () => {
     expect(
       get(
         new DeliveryPhase(),
-        plan({ obligations: [{ kind: obligationKindFor('CLEARANCE'), model: 'CLEARANCE', blocking: true }] }),
+        plan({
+          obligations: [
+            {
+              kind: obligationKindFor('CLEARANCE'),
+              layer: 'ISSUANCE' as const,
+              model: 'CLEARANCE',
+              blocking: true,
+              deadline: null,
+            },
+          ],
+        }),
       )!.transitions[0].from,
     ).toBe('CLEARED');
     const nonBlocking = get(new DeliveryPhase(), plan(), { channelFeedback: 'NONE' })!;
@@ -107,7 +137,9 @@ describe('phase contributors — gating & drivers', () => {
 
   it('Corrections: cancel guard reflects buyer consent', () => {
     const p = plan({
-      obligations: [{ kind: 'E_INVOICING', model: 'CLEARANCE', blocking: true }],
+      obligations: [
+        { kind: 'E_INVOICING', layer: 'ISSUANCE', model: 'CLEARANCE', blocking: true, deadline: null },
+      ],
       lifecycle: {
         immutableAfter: 'CLEARANCE',
         correctionModel: 'CREDIT_NOTE',

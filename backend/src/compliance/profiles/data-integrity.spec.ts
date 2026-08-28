@@ -19,6 +19,29 @@ describe('profile data integrity', () => {
     expect(defaultRegistry.countries().length).toBeGreaterThanOrEqual(100);
   });
 
+  it('P2-T02 — declared obligations are well-formed, and an absent deadline says why', () => {
+    // The rule that keeps `deadline: null` honest. Null is a legitimate answer — "the duty exists,
+    // its timing is not established" — but only when it is accompanied by what would establish it.
+    // A null with no question is not a considered gap, it is a forgotten field, and the two must
+    // not look alike.
+    const LAYERS = ['ISSUANCE', 'RECEPTION', 'ARCHIVAL'];
+    const UNITS = ['HOURS', 'DAYS', 'YEARS'];
+    for (const p of concrete) {
+      for (const rule of p.obligations ?? []) {
+        const o = rule.value;
+        expect(`${p.countryCode} layer`).toBe(LAYERS.includes(o.layer) ? `${p.countryCode} layer` : o.layer);
+        if (o.deadline) {
+          expect(UNITS).toContain(o.deadline.unit);
+          expect(o.deadline.value).toBeGreaterThan(0);
+        } else {
+          expect(`${p.countryCode}/${o.layer} openQuestion`).toBe(
+            o.openQuestion ? `${p.countryCode}/${o.layer} openQuestion` : 'MISSING',
+          );
+        }
+      }
+    }
+  });
+
   it('every concrete profile is well-formed', () => {
     for (const p of concrete) {
       expect(p.countryCode).toMatch(/^[A-Z]{2}$/);
@@ -62,6 +85,9 @@ describe('profile data integrity', () => {
     };
     for (const p of concrete) {
       check(p.regime);
+      // P2-T02 — the layered obligations, where a profile carries them. Validated like every other
+      // temporal rule list rather than trusted: a layer nobody checks is a layer that can rot.
+      if (p.obligations) check(p.obligations);
       check(p.formats);
       check(p.transmission);
       check(p.lifecycle);

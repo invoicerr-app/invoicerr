@@ -200,6 +200,71 @@ export const FR: CountryComplianceProfile = {
     },
   ],
 
+  /**
+   * P2-T02 — the three layers, France only. Deadlines taken from
+   * `docs/compliance/audit/03-LEGAL-VERIFICATION.md`, which sourced them against the
+   * *spécifications externes* v3.2 and Légifrance; not re-sourced here.
+   *
+   * The ISSUANCE duty is also declared, not because the engine cannot derive one from `regime` —
+   * it does — but because the regime carries no deadline and this layer has one.
+   */
+  obligations: [
+    {
+      validFrom: '2026-09-01',
+      value: {
+        layer: 'ISSUANCE' as const,
+        kind: 'E_INVOICING' as const,
+        // 24 h for the F1 flow, counted from the "Déposée" status timestamp — DSE §3.6.5.
+        deadline: { value: 24, unit: 'HOURS' as const },
+        // The DATE this binds depends on company SIZE — 2026-09-01 for large firms, ETI and members
+        // of a single taxable entity; 2027-09-01 for SMEs, micro-enterprises and VAT-franchise
+        // businesses (03-LEGAL-VERIFICATION §1). TransactionContext has no size field, so the rule
+        // below binds from the earlier date for everyone, which over-states the duty for a small
+        // supplier in the 2026-09-01 -> 2027-09-01 window. Said out loud rather than encoded wrong.
+        openQuestion:
+          'Entry into force is size-phased (GE/ETI 2026-09-01, PME/TPE 2027-09-01) and ' +
+          'TransactionContext carries no company-size field, so this rule binds a year early for ' +
+          'small suppliers. Needs a size input before the second date can be expressed.',
+        appliesTo: { roles: ['B2B', 'B2G'] },
+        attachment: [{ kind: 'BOTH_ATTACHED_TO' as const, country: 'FR' as const }],
+      },
+    },
+    {
+      validFrom: '2026-09-01',
+      value: {
+        layer: 'RECEPTION' as const,
+        kind: 'E_INVOICING' as const,
+        // Reception binds EVERY company from 2026-09-01, whatever its size — no phasing, unlike
+        // issuance (03-LEGAL-VERIFICATION §1). The 24 h is the lifecycle-flow delay of DSE §3.6.6,
+        // counted from the status timestamp; the statuses themselves are the four this profile
+        // already lists under `lifecycle.response.statuses`.
+        deadline: { value: 24, unit: 'HOURS' as const },
+        // "Toutes les entreprises, quelle que soit la taille" — every COMPANY, which is the point
+        // of contrast with issuance's size phasing. It is not every OPERATION: receiving an
+        // e-invoice presupposes a taxable person on the buyer side, so a B2C sale carries no
+        // reception duty. The universality is about who, not about what.
+        appliesTo: { roles: ['B2B', 'B2G'] },
+      },
+    },
+    {
+      validFrom: '2026-09-01',
+      value: {
+        layer: 'ARCHIVAL' as const,
+        kind: 'NONE' as const,
+        // SIX years, LPF art. L102 B — the FISCAL retention, and the one an e-invoicing mandate
+        // attaches to. `archival.retentionYears: 10` below is NOT this duty: ten years is
+        // commercial law (C. com. art. L123-22) on its own clock, and 03-LEGAL-VERIFICATION flags
+        // the profile's 10 as FR-D9, "approximatif et mal fondé", precisely for conflating them.
+        // Left unchanged here because changing what the runtime retains is its own decision with
+        // its own consequences; this states the fiscal duty correctly beside it.
+        deadline: { value: 6, unit: 'YEARS' as const },
+        openQuestion:
+          'FR-D9: archival.retentionYears is 10 (commercial law, separate clock) while the fiscal ' +
+          'duty is 6 (LPF L102 B). Which one the runtime should enforce is undecided.',
+      },
+    },
+  ],
+
   taxSystem: {
     kind: 'VAT',
     standardRate: 20,
