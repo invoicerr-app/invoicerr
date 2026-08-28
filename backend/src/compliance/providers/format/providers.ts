@@ -3,7 +3,7 @@ import { CompliancePlan, PlannedArtifact } from '../../engine/compliance-engine'
 import { ComplianceLogger } from '../../execution/logger';
 import { RenderedArtifact, ValidationReport } from '../../execution/types';
 import { SchematronResult, validateSchematron, validateXsd } from '../../schemas/validate';
-import { ArtifactRole, DocumentSyntax } from '../../types';
+import { ArtifactRole, DocumentSyntax, SupplyType } from '../../types';
 import { FormatProvider } from './format-provider';
 import { ExportFormat, InvoiceArtifactPort, XmlExportFormat } from './invoice-artifact-port';
 
@@ -75,6 +75,56 @@ function okValidation(warning: string): ValidationReport {
  * never be reported as validity. A builder that produced nothing is a failure to build, and the
  * honest answer is a failure to validate.
  */
+/**
+ * P2-T08 (A4) — BT-23, the French "cadre de facturation", in cardinality 1..1.
+ *
+ * The machine translation of the statutory mention 8° bis of CGI ann. II art. 242 nonies A: the
+ * CATEGORY OF OPERATION — goods, services, or both — mandatory from 2026-09-01, with limitative
+ * values `B1 S1 M1 B2 S2 M2 B4 S4 M4 S5 S6 B7 S7`. An invoice without a valid BT-23 fails the PPF's
+ * functional controls.
+ *
+ * The letter is the category: B = biens, S = services, M = mixte. The digit is the invoicing frame.
+ *
+ * @e-invoice-eu/core emits `M1` — HARDCODED, from the UBL ProfileID. So today every French invoice
+ * declares itself "mixte" whatever it contains: a pure services invoice claims to carry goods, and
+ * a pure goods invoice claims to carry services. The value is present but wrong on two thirds of
+ * the cases.
+ *
+ * Only frame 1 is derived. Frames 2 (auto-facturation), 4 (mandat de facturation) and 5/6/7 depend
+ * on who issues the invoice for whom, which this codebase does not model — inventing a frame would
+ * be worse than keeping the one the library already assumes. Recorded as an open point rather than
+ * guessed.
+ */
+export function frenchBusinessProcessCode(supplyTypes: readonly SupplyType[]): 'B1' | 'S1' | 'M1' {
+  const hasGoods = supplyTypes.includes('GOODS');
+  const hasServices = supplyTypes.includes('SERVICES');
+  if (hasGoods && hasServices) return 'M1';
+  if (hasGoods) return 'B1';
+  if (hasServices) return 'S1';
+  // No supply type at all: the category cannot be derived, and 'mixte' is the only value that does
+  // not assert something false about the content.
+  return 'M1';
+}
+
+/**
+ * Rewrite BT-23 in a CII document. Cardinality 1..1 is a French requirement, so an absent element
+ * is inserted rather than silently left out.
+ */
+export function applyFrenchBusinessProcess(ciiXml: string, code: string): string {
+  const existing =
+    /(<(?:ram:)?BusinessProcessSpecifiedDocumentContextParameter>\s*<(?:ram:)?ID>)[^<]*(<\/(?:ram:)?ID>)/;
+  if (existing.test(ciiXml)) return ciiXml.replace(existing, `$1${code}$2`);
+
+  // Absent: insert it as the first child of ExchangedDocumentContext, which is where EN 16931 puts
+  // it (before GuidelineSpecifiedDocumentContextParameter).
+  const ctxOpen = /(<(?:rsm:)?ExchangedDocumentContext>)/;
+  if (!ctxOpen.test(ciiXml)) return ciiXml;
+  return ciiXml.replace(
+    ctxOpen,
+    `$1<ram:BusinessProcessSpecifiedDocumentContextParameter><ram:ID>${code}</ram:ID></ram:BusinessProcessSpecifiedDocumentContextParameter>`,
+  );
+}
+
 /**
  * The root element each XML syntax must carry. Local names only — namespaces vary by prefix and
  * are already the Schematron's business.
@@ -200,6 +250,18 @@ export class En16931FormatProvider implements FormatProvider {
         // ProfileID is left untouched: XRechnung does not mandate a specific ProfileID value.
         if (syntax === 'XRECHNUNG') {
           xml = xml.replace('urn:cen.eu:en16931:2017', XRECHNUNG_CUSTOMIZATION_ID);
+        }
+        // P2-T08: BT-23 for France. The library hardcodes `M1`; the category has to come from what
+        // the invoice actually contains.
+        // Optional chaining on purpose: callers exist that build an artifact from a partial
+        // context (format-only specs pass no parties), and a formatting concern must not be the
+        // thing that throws on them.
+        if (
+          ctx.supplier?.countryCode?.toUpperCase() === 'FR' &&
+          (syntax === 'EN16931_CII' || syntax === 'FACTURX')
+        ) {
+          const supplyTypes = [...new Set((ctx.lines ?? []).map((l) => l.supplyType))];
+          xml = applyFrenchBusinessProcess(xml, frenchBusinessProcessCode(supplyTypes));
         }
         const bytes = new TextEncoder().encode(xml);
         return { role: artifact.role as ArtifactRole, syntax, mime: 'application/xml', bytes };
