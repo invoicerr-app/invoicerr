@@ -114,6 +114,15 @@ function svc(port: InvoiceArtifactPort) {
   return { service, log };
 }
 
+/**
+ * 30 s, not jest's 5 s default. Every test here builds a REAL e-invoice — and, since P1-T03d, a
+ * real PDF/A-3 container for Factur-X — then runs Schematron over it. That costs seconds on a quiet
+ * machine and tips over the default under parallel load. Declaring the cost is honest; leaving the
+ * suite to fail intermittently on a timeout would make a real regression indistinguishable from a
+ * busy machine.
+ */
+jest.setTimeout(30_000);
+
 describe('M-1 — valid documents proceed past the format-validation gate', () => {
   it('FR (EN16931_CII authoritative / Factur-X human): valid CII passes, send() does not throw, no VALIDATION_BLOCKED event', async () => {
     const port = makePort({

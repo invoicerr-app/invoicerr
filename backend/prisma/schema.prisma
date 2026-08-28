@@ -444,6 +444,12 @@ model PartyIdentifier {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // C4: the outcome of validating this identifier, and WHEN. NULL means never checked — distinct
+  // from checked-and-invalid, a distinction both the engine and the user need.
+  validationStatus String?   // VALID | INVALID | UNAVAILABLE
+  validatedAt      DateTime?
+  validationSource String?   // e.g. eu-vies
+
   @@unique([companyId, scheme])
   @@unique([clientId, scheme])
 }

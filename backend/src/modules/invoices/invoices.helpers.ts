@@ -50,6 +50,24 @@ interface TaxItemInput {
  * Resolve invoice tax with the supplier/buyer profile derived from the
  * company and client rows (country, VAT exemption, VAT numbers, B2B/B2C role).
  */
+/**
+ * C4 — has this identifier actually been verified against the issuing authority?
+ *
+ * `validationStatus === 'VALID'` and nothing else. `UNAVAILABLE` (we could not ask) and `null`
+ * (never asked) both mean "not verified", and neither may unlock reverse charge — that is the
+ * under-charge guard the previous hardcoded `false` existed to provide, preserved.
+ *
+ * What changes is that a number someone DID verify now counts, which is what makes an intra-EU
+ * reverse charge reachable from the invoice path at all.
+ */
+export function isIdentifierValidated(
+  party: { partyIdentifiers?: { scheme: string; value: string; validationStatus?: string | null }[] },
+  scheme: string,
+): boolean {
+  const id = party.partyIdentifiers?.find((pi) => pi.scheme === scheme && !!pi.value);
+  return id?.validationStatus === 'VALID';
+}
+
 export function resolveTax(
   company: SupplierParty,
   client: BuyerParty,
@@ -59,9 +77,11 @@ export function resolveTax(
     supplierCountryCode: company.countryCode ?? guessCountryCode(company.country),
     supplierExemptVat: !!company.exemptVat,
     supplierVatNumber: getIdentifier(company, 'VAT'),
+    supplierVatValidated: isIdentifierValidated(company, 'VAT'),
     buyerCountryCode: client.countryCode ?? guessCountryCode(client.country),
     buyerRole: client.type === 'INDIVIDUAL' ? 'B2C' : 'B2B',
     buyerVatNumber: getIdentifier(client, 'VAT'),
+    buyerVatValidated: isIdentifierValidated(client, 'VAT'),
     currency: opts.currency,
     issueDate: new Date(),
     discountRate: opts.discountRate,
