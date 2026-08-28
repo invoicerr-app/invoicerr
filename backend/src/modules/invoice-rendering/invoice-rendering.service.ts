@@ -32,8 +32,28 @@ export { computeKsaInvoiceHash, ZATCA_PIH_INIT } from './national/ksa-ubl';
 export { selectFaVatVersion, FA_VAT_3_EFFECTIVE_DATE } from './national/fa-vat';
 export type { FaVatVersion } from './national/fa-vat';
 
-/** Silent logger for @e-invoice-eu/core — validation errors surface as thrown exceptions. */
-const EU_LOGGER = { log: () => {}, warn: () => {}, error: () => {} };
+/**
+ * Logger for @e-invoice-eu/core: quiet on chatter, LOUD on errors.
+ *
+ * It used to silence everything, on the reasoning that "validation errors surface as thrown
+ * exceptions". They do — but the exception's message is the bare string `validation failed`, and
+ * the part that names the offending field lives on `.errors`, which this library ALSO writes to
+ * `logger.error` as formatted JSON. Muting that threw away the only readable copy of the diagnosis
+ * and left an operator with a four-word error to act on.
+ *
+ * `log` and `warn` stay silent: the library narrates every conversion step and this service runs on
+ * every rendered document, so relaying them would drown the journal that matters.
+ */
+const EU_LOGGER = {
+  log: () => {},
+  warn: () => {},
+  error: (message: unknown) => {
+    logger.error('e-invoice library rejected the document', {
+      category: 'invoice-rendering',
+      details: { message: typeof message === 'string' ? message : JSON.stringify(message) },
+    });
+  },
+};
 
 /** Format name mapping: our ExportFormat strings → @e-invoice-eu/core format names. */
 const EU_FORMAT_MAP: Record<string, string> = {
