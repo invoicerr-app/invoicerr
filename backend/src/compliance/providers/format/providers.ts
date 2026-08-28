@@ -245,8 +245,13 @@ export class En16931FormatProvider implements FormatProvider {
             return o?.message ? `${o.instancePath ?? ''} ${o.message}`.trim() : JSON.stringify(e);
           })
         : [];
+      // Put the DETAIL in the message, not only in the payload. The library's own message is
+      // "validation failed", which tells a user nothing they can act on; the AJV entries name the
+      // field — "/cac:InvoiceLine must NOT have fewer than 1 items" is a sentence someone can do
+      // something about. The screen shows the message, so the message has to carry it.
+      const summary = details.length ? `${detail} — ${details.slice(0, 3).join('; ')}` : detail;
       throw new FormatBuildError(
-        `could not build ${artifact.syntax}/${artifact.role}: ${detail}`,
+        `could not build ${artifact.syntax}/${artifact.role}: ${summary}`,
         artifact.syntax as DocumentSyntax,
         artifact.role as ArtifactRole,
         details,

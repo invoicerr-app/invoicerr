@@ -79,8 +79,23 @@ export class TransmitProcessor extends WorkerHost {
         // the outcome the comment above says this branch exists to prevent; it just had no type to
         // recognise the case by, so the failure went out through the transient door.
         await this.complianceService.recordBuildFailed(documentId, err);
+        // And PROJECT it, because an event nobody surfaces is an event nobody has.
+        //
+        // Recording BUILD_FAILED left the document at ISSUED, and the invoice screen keys its
+        // failure banner on the invoice STATUS — so the first version of this fix produced a
+        // perfectly good event that changed nothing a user could see. Which is the same defect,
+        // one layer along, as the ones this whole sequence was fixing.
+        //
+        // TRANSMISSION_FAILED is the honest projection and not a convenience: the artifact could
+        // not be produced, so nothing was ever transmitted and no authority ever saw anything.
+        // That is precisely what the status means, and the runtime already allows the transition
+        // from ISSUED.
+        await this.applySignal.apply(documentId, {
+          type: 'COMMAND',
+          event: 'TRANSMISSION_FAIL',
+        });
         this.logger.warn(
-          `[TRANSMIT] document ${documentId} could not be built — recorded BUILD_FAILED, not retrying (job ${job.id}): ${err.message}`,
+          `[TRANSMIT] document ${documentId} could not be built — recorded BUILD_FAILED and projected TRANSMISSION_FAILED, not retrying (job ${job.id}): ${err.message}`,
         );
         return;
       }
