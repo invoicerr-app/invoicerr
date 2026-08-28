@@ -88,7 +88,13 @@ Deux chiffres publiés étaient faux. Ils sont corrigés ici **et** dans les doc
 >
 > **Correction d'un chiffre de ce plan** : « `providers.ts:145` — **un** endroit à retourner » est
 > faux. Il y a **cinq** court-circuits identiques : lignes **146, 346, 393, 521, 566**
-> (EN16931, CFDI, FatturaPA, FA_VAT, Facturae). P1-T03 les traite tous les cinq.
+> (EN16931, CFDI, FatturaPA, FA_VAT, Facturae).
+>
+> **Et la mesure elle-même était incomplète** — même défaut, un cran plus bas. Je n'avais inversé
+> **qu'un** des cinq court-circuits, donc « 6 suites / 31 tests » ne mesurait qu'EN16931. Les cinq
+> inversés : **8 suites / 52 tests**, avec `execution/europe.spec.ts` et
+> `execution/peppol-f7-reachability.spec.ts` en plus. Mesurer une partie et nommer le total est la
+> version chiffrée de compter au lieu de lire.
 >
 > **Conséquence sur P1-T03** : ce n'est plus une tâche d'une ligne. Faire rejeter le zéro octet sans
 > câbler le port de rendu rendrait la suite rouge sur le chemin français. P1-T03 est donc découpée.
@@ -104,13 +110,38 @@ Deux chiffres publiés étaient faux. Ils sont corrigés ici **et** dans les doc
   sur l'arbre actuel.
 - **État** : à faire
 
-### P1-T03b — A6 : l'artefact vide n'est plus accepté
-- **Fait** : les **cinq** court-circuits (`providers.ts:146, 346, 393, 521, 566`) renvoient un
-  rapport **invalide** au lieu de `okValidation(…'stub path')`.
-- **Fichiers** : `backend/src/compliance/providers/format/providers.ts` + les specs recensées
+### P1-T03b — extraire un port de rendu partagé pour les tests
+- **Fait** : `peppol-f7-reachability.spec.ts:63` porte déjà un `makeArtifactPort(fixtureData)` — un
+  **vrai** `InvoiceArtifactPort` adossé au pipeline de rendu, sans base. Extrait-le en fixture
+  partagée sous `compliance/__fixtures__/`.
+- **Fichiers** : nouvelle fixture, `peppol-f7-reachability.spec.ts` (devient consommateur)
 - **Dépend de** : P1-T03a
-- **Accepte si** : un artefact de zéro octet produit `valid: false` pour les cinq syntaxes du chemin
-  français, prouvé par un test nommé qui échouait avant ; **et** la suite complète repasse au vert.
+- **Accepte si** : `peppol-f7-reachability.spec.ts` passe en utilisant la fixture extraite, sans
+  changement de comportement — suite complète verte.
+- **État** : à faire
+
+### P1-T03c — les suites du chemin français construisent de vrais artefacts
+- **Fait** : les 8 suites qui construisent aujourd'hui des artefacts vides reçoivent le port de la
+  fixture : `executor`, `compliance-service`, `format-validation-blocking`, `lifecycle-coherence`,
+  `europe`, `cached-existence-client`, `peppol-f7-reachability`, `format-validation`.
+- **Dépend de** : P1-T03b
+- **Accepte si** : une assertion `bytes.length > 0` sur les trois artefacts français
+  (`EN16931_CII/AUTHORITATIVE`, `FACTURX/HUMAN`, `FACTURX/BUYER`) passe dans `executor.spec.ts`, et
+  échouait avant. Suite complète verte.
+- **Découpe** : si plus de deux suites résistent, cette tâche se scinde par suite — aucune ne doit
+  dépasser la journée.
+- **État** : à faire
+
+### P1-T03d — A6 : l'artefact vide n'est plus accepté
+- **Fait** : les **cinq** court-circuits renvoient un rapport **invalide** au lieu de
+  `okValidation(…'stub path')`.
+- **Fichiers** : `backend/src/compliance/providers/format/providers.ts`
+- **Dépend de** : P1-T03c
+- **Accepte si** : un artefact de zéro octet produit `valid: false` pour les cinq syntaxes, prouvé
+  par un test nommé qui échouait avant ; **et** la suite complète repasse au vert.
+- **Tenté et annulé le 2026-08-28** : appliqué avant P1-T03c, il met **8 suites / 52 tests** au
+  rouge. Le code a été restauré plutôt que de laisser la branche rouge, et la tâche redécoupée. Le
+  correctif lui-même est juste — c'est son préalable qui manquait.
 - **État** : à faire
 
 ### P1-T04 — B3 : refermer, ou nommer le reste
@@ -118,7 +149,7 @@ Deux chiffres publiés étaient faux. Ils sont corrigés ici **et** dans les doc
   `<root/>`, bien formé et **non vide** — A6 ne traite que zéro octet, donc P1-T03 pourrait ne pas
   suffire. Si le test reste rouge, ajoute une garde d'élément racine dans le provider CII.
 - **Fichiers** : `providers.ts`, `format-validation.spec.ts`
-- **Dépend de** : P1-T03b
+- **Dépend de** : P1-T03d
 - **Accepte si** : le test passe au vert **en assertant le rejet**, et le rapport dit laquelle des
   deux causes l'a fermé.
 - **État** : à faire
@@ -301,3 +332,5 @@ consommation, deux endpoints entrants. **On l'étend, on ne le refait pas.***
 | 2026-08-28 | — | — | Plan écrit. Branche créée depuis `f71cfb9b`. 11 branches `fix/` supprimées du remote après vérification qu'elles sont ancêtres de `feat/compliance-architecture`. |
 | 2026-08-28 | **P1-T01** | ✅ fait | `8b3f0aa2`. Deux tests rouges à dessein, comme le critère l'exige. |
 | 2026-08-28 | **P1-T02** | ✅ fait | Mesure : 6 suites / 31 tests. Hypothèse des « 42 builders stub » **infirmée** — ce sont les tests du chemin français, port de rendu non injecté. P1-T03 découpée en a/b. |
+| 2026-08-28 | **P1-T03a** | ✅ fait | `6a6d2d5c`. **Défaut de production** : `ComplianceService` n'était pas câblée avec `formats` — `sendViaChannel`, `archiveDocument` et `validate` opéraient sur des artefacts vides. Gardé par un test de métadonnées de module. |
+| 2026-08-28 | **P1-T03d** | ↩ tenté, annulé | Mesure P1-T02 corrigée : 8 suites / 52 tests, pas 6/31 — je n'avais inversé qu'un des cinq court-circuits. Redécoupée en T03b/c/d. |
