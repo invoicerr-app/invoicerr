@@ -15,6 +15,9 @@
  */
 
 import { type SchematronResult, validateSchematron } from '@/compliance/schemas/validate';
+import { defaultFormatRegistry } from '../format/registry';
+import type { DocumentSyntax } from '../../types';
+import type { ComplianceLogger } from '../../execution/logger';
 import { InvoiceRenderingService } from '@/modules/invoice-rendering/invoice-rendering.service';
 import { type ExpectedResult, type ExportableFormat, FIXTURES } from './__fixtures__/invoices';
 
@@ -25,6 +28,14 @@ const CII_REQUIRED_SECTIONS = [
   'ExchangedDocument',
   'SupplyChainTradeTransaction',
 ] as const;
+
+/** Silent logger: provider.validate() logs its findings; the assertions are on the report. */
+const silentLogger: ComplianceLogger = {
+  todo: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+};
 
 /** EN16931 CII Schematron path (relative to schemas/ dir). Uses preprocessed .sch with node-schematron. */
 const CII_SCH_PATH = 'en16931/EN16931-CII-validation-preprocessed.sch';
@@ -176,10 +187,44 @@ describe('L1 — Format validation harness', () => {
       expect(ids).toContain('BR-16'); // at least one invoice line required
     });
 
-    it('rejects completely empty XML', () => {
-      const empty = '<?xml version="1.0"?>\n<root/>';
-      const result = validateSchematron(empty, CII_SCH_PATH);
-      // Empty XML has no CII structure, so no CII-specific rules fire.
+    /**
+     * P1-T01 — this test used to assert `expect(result.errorCount).toBe(0)` under the name
+     * "rejects completely empty XML". It documented the hole under a name claiming the opposite,
+     * which is worse than no test: a reader greps for coverage and finds a guarantee that is not
+     * there.
+     *
+     * Two changes. It now goes through the PRODUCTION path — `defaultFormatRegistry.resolve(syntax)
+     * .validate(...)`, what ComplianceExecutor actually calls — instead of `validateSchematron()`
+     * directly, because that is the path a real document travels. And it asserts a rejection.
+     *
+     * Raw Schematron genuinely cannot reject `<root/>`: rules keyed on CII contexts never fire, so
+     * zero errors is the correct Schematron answer. The rejection has to come from the layer above,
+     * which is the point.
+     */
+    const validateThroughProvider = async (syntax: DocumentSyntax, bytes: Uint8Array) => {
+      const provider = defaultFormatRegistry.resolve(syntax);
+      expect(provider).not.toBeNull();
+      return provider!.validate(
+        { role: 'AUTHORITATIVE', syntax, mime: 'application/xml', bytes },
+        silentLogger,
+      );
+    };
+
+    it('rejects XML that is well-formed but is not a CII invoice', async () => {
+      const notAnInvoice = new TextEncoder().encode('<?xml version="1.0"?>\n<root/>');
+      const report = await validateThroughProvider('EN16931_CII', notAnInvoice);
+      expect(report.valid).toBe(false);
+    });
+
+    it('rejects a zero-byte artifact', async () => {
+      const report = await validateThroughProvider('EN16931_CII', new Uint8Array());
+      expect(report.valid).toBe(false);
+    });
+
+    it('raw Schematron cannot reject a non-CII document — which is why the provider must', () => {
+      // Kept, and renamed to say what it establishes. This is the FACT that motivates the two
+      // tests above: no CII rule has a context to fire on, so Schematron alone reports success.
+      const result = validateSchematron('<?xml version="1.0"?>\n<root/>', CII_SCH_PATH);
       expect(result.errorCount).toBe(0);
     });
   });
