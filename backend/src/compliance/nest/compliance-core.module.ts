@@ -228,8 +228,25 @@ import { InboundInvoiceDocumentSink } from '../reception/inbound-invoice-documen
         docStore: PrismaComplianceDocumentStore,
         executor: ComplianceExecutor,
         rangeSource: ConfigAuthorityRangeSource,
-      ) => new ComplianceService({ store: docStore, executor, rangeSource }),
-      inject: [PrismaComplianceDocumentStore, ComplianceExecutor, 'AUTHORITY_RANGE_SOURCE'],
+        // P1-T03a: `formats` was NOT injected here. ComplianceService falls back to
+        // `defaultFormatRegistry` when it is absent (compliance-service.ts:119) — the module-level
+        // singleton built with NO rendering port. Three operations rebuild artifacts through it:
+        // sendViaChannel() (line 483), archiveDocument() (724) and validate() (738). The EN16931
+        // provider emits real bytes only when the rendering port is present (providers.ts:96-142);
+        // without it every artifact is zero bytes. So production transmitted an empty document,
+        // archived nothing, and validated emptiness as valid — the empty-bytes short-circuit
+        // reporting `okValidation`. That is F-001, on the live DI path, not only in tests.
+        //
+        // The executor above was already wired; only this facade was not, and nothing pointed at
+        // the difference because an empty artifact fails silently at every stage.
+        formats: FormatProviderRegistry,
+      ) => new ComplianceService({ store: docStore, executor, rangeSource, formats }),
+      inject: [
+        PrismaComplianceDocumentStore,
+        ComplianceExecutor,
+        'AUTHORITY_RANGE_SOURCE',
+        FormatProviderRegistry,
+      ],
     },
     // IdentifierExistencePort — offline-safe default (NullIdentifierExistenceClient wrapped in cache) (§7)
     // To enable live checks: replace NullIdentifierExistenceClient with ViesExistenceClient /
