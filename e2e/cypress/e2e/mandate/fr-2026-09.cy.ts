@@ -92,14 +92,14 @@ function issue(clientId: string) {
 }
 
 function openInvoice() {
-  cy.visit('/invoices', {
-    // The browser half of the shift. `['Date']` only — freezing timers as well would stall
-    // TanStack Query's retries and the dialog would never finish loading.
-    onBeforeLoad: (win) => {
-      cy.clock(MANDATE_DAY, ['Date'], { log: false });
-      void win;
-    },
-  });
+  // The browser half of the shift, and it has to come BEFORE the visit: `cy.clock` installs itself
+  // on the next page load and persists across it. Calling it inside `onBeforeLoad` returns a
+  // chainable from a callback, which Cypress refuses outright.
+  //
+  // `['Date']` only — freezing timers too would stall TanStack Query's retries and the dialog would
+  // never finish loading.
+  cy.clock(MANDATE_DAY, ['Date'], { log: false });
+  cy.visit('/invoices');
   cy.get('[data-cy="invoice-name"]', { timeout: 20000 }).first().click();
   cy.get('[role="dialog"]', { timeout: 10000 }).should('be.visible');
   cy.wait(1200);
