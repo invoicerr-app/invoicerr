@@ -33,6 +33,7 @@ import {
   invoiceItemData,
   resolveBuyerCountryOrThrow,
   resolveExemptionReasonOrThrow,
+  resolveInvoiceLinesOrThrow,
   resolveZeroRatedSellerVatOrThrow,
   resolveTax,
   toComplianceLines,
@@ -450,6 +451,9 @@ export class InvoicesService {
     // C1: a zero-rated line on a domestic French invoice needs the seller's VAT identifier
     // (EN 16931 BR-Z-02). Checked here, right after the rates are resolved and before the invoice
     // is claimed, so the failure lands where the user can act on it instead of at transmission.
+    // BR-16 first: it is the cheapest check and the one whose failure is least recoverable — a
+    // number burned on a document nothing can ever build.
+    resolveInvoiceLinesOrThrow(invoice.items);
     resolveZeroRatedSellerVatOrThrow(invoice.company, invoice.client, taxResult.itemVatCategories);
     // BR-E-10: an exempt line must say WHY — BT-120 text or BT-121 code. Blocked here rather than
     // at transmission for the same reason as the guard above: an invoice that cannot be transmitted

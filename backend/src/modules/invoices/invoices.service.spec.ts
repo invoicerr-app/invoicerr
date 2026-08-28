@@ -150,7 +150,11 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
         number: null,
         currency: 'EUR',
         discountRate: 0,
-        items: [],
+        // BR-16: an invoice with no lines is no longer issuable — it would take a number from the
+        // gapless series and could never be built. Same reasoning as the M-16 note below: this
+        // fixture was modelling an invoice the product refuses, and the test's subject is the
+        // WIRING_FAILED path, not the line count.
+        items: [{ id: 'item-1', quantity: 1, unitPrice: 100, vatRate: 20, type: 'SERVICE' }],
         // M-16 (buyer-country hard-block): issuance now re-resolves the buyer country and
         // recomputes tax, so the client fixture needs a resolvable country like any real issuable
         // invoice — this test isn't exercising that guard, it's exercising the WIRING_FAILED path.
@@ -195,7 +199,11 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
         number: null,
         currency: 'EUR',
         discountRate: 0,
-        items: [],
+        // BR-16: an invoice with no lines is no longer issuable — it would take a number from the
+        // gapless series and could never be built. Same reasoning as the M-16 note below: this
+        // fixture was modelling an invoice the product refuses, and the test's subject is the
+        // WIRING_FAILED path, not the line count.
+        items: [{ id: 'item-1', quantity: 1, unitPrice: 100, vatRate: 20, type: 'SERVICE' }],
         // M-16 (buyer-country hard-block): see the sibling test above for why the client needs a
         // resolvable country now.
         client: { countryCode: 'FR' },

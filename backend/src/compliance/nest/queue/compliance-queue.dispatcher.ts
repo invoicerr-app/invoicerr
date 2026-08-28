@@ -45,11 +45,37 @@ export class ComplianceQueueDispatcher {
 
   async enqueueTransmit(documentId: string, idempotencyKey?: string): Promise<void> {
     const attempts = parseInt(process.env.QUEUE_TRANSMIT_ATTEMPTS ?? '3', 10);
+    const jobId = `transmit-${documentId}`;
+
+    // A SPENT job must not silently swallow the next request.
+    //
+    // The deterministic `jobId` is what makes this queue idempotent, and that is right: two
+    // concurrent sends of one document must not transmit it twice. But BullMQ refuses to add a job
+    // whose id already exists — including one that has already FINISHED — and `removeOnFail`
+    // deliberately retains failures for diagnosis. So once a transmission had exhausted its
+    // attempts, every later "Send" was accepted by the API, logged as enqueued, and did precisely
+    // nothing: no new attempt, no error, no change on screen. That is how an invoice sat at ISSUED
+    // with a Retry button that could not retry.
+    //
+    // Only a job in a TERMINAL state is cleared. One that is waiting, delayed or running is the
+    // idempotency this id exists to provide, and it is left strictly alone.
+    const existing = await this.transmitQueue.getJob(jobId);
+    if (existing) {
+      const state = await existing.getState();
+      if (state === 'completed' || state === 'failed') {
+        await existing.remove();
+        this.logger.log(`[TRANSMIT] cleared ${state} job ${jobId} so the new request can run`);
+      } else {
+        this.logger.log(`[TRANSMIT] job ${jobId} already ${state} — not enqueuing a duplicate`);
+        return;
+      }
+    }
+
     await this.transmitQueue.add(
       'transmit',
       { documentId, idempotencyKey },
       {
-        jobId: `transmit-${documentId}`,
+        jobId,
         attempts,
         backoff: { type: 'exponential', delay: 5000 },
         removeOnComplete: true,

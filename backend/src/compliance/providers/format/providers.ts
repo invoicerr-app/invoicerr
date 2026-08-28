@@ -1,7 +1,7 @@
 import { TransactionContext } from '../../canonical/canonical-document';
 import { CompliancePlan, PlannedArtifact } from '../../engine/compliance-engine';
 import { ComplianceLogger } from '../../execution/logger';
-import { RenderedArtifact, ValidationReport } from '../../execution/types';
+import { FormatBuildError, RenderedArtifact, ValidationReport } from '../../execution/types';
 import { SchematronResult, validateSchematron, validateXsd } from '../../schemas/validate';
 import { ArtifactRole, DocumentSyntax, SupplyType } from '../../types';
 import { FormatProvider } from './format-provider';
@@ -220,6 +220,44 @@ export class En16931FormatProvider implements FormatProvider {
     artifact: PlannedArtifact,
     ctx: TransactionContext,
     _plan: CompliancePlan,
+    log: ComplianceLogger,
+  ): Promise<RenderedArtifact> {
+    try {
+      return await this.buildOrThrow(artifact, ctx, log);
+    } catch (err) {
+      if (err instanceof FormatBuildError) throw err;
+      // The renderer, or the library under it, refused to produce the document. Give that a TYPE.
+      //
+      // `@e-invoice-eu/core` throws a bare `Error: validation failed` with the detail nowhere in the
+      // message, so this arrived at the transmit processor as an anonymous error, fell through to
+      // its "any OTHER error is transient" branch, burned three retries on something that could
+      // never succeed, and left the invoice at ISSUED with no state on screen. Naming it is what
+      // lets the processor tell "cannot ever work" apart from "try again in five seconds".
+      const detail = err instanceof Error ? err.message : String(err);
+      // AJV reports objects, not strings — `String(e)` on one yields "[object Object]", which is
+      // how a detailed diagnosis becomes noise. Serialise, and keep the human-readable fields first
+      // so a log line is useful even truncated.
+      const nested = (err as { errors?: unknown })?.errors;
+      const details = Array.isArray(nested)
+        ? nested.map((e) => {
+            if (typeof e === 'string') return e;
+            const o = e as { instancePath?: string; message?: string };
+            return o?.message ? `${o.instancePath ?? ''} ${o.message}`.trim() : JSON.stringify(e);
+          })
+        : [];
+      throw new FormatBuildError(
+        `could not build ${artifact.syntax}/${artifact.role}: ${detail}`,
+        artifact.syntax as DocumentSyntax,
+        artifact.role as ArtifactRole,
+        details,
+        err,
+      );
+    }
+  }
+
+  private async buildOrThrow(
+    artifact: PlannedArtifact,
+    ctx: TransactionContext,
     log: ComplianceLogger,
   ): Promise<RenderedArtifact> {
     if (this.artifacts && ctx.externalRef) {

@@ -2,7 +2,7 @@ import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { ApplySignalService } from '../../apply-signal';
-import { FormatValidationError } from '../../../execution/types';
+import { FormatBuildError, FormatValidationError } from '../../../execution/types';
 import { PrismaComplianceDocumentStore } from '../../../persistence/prisma-document-store';
 import { ComplianceService } from '../../../operations/compliance-service';
 import { TransmitJobData, Q_TRANSMIT } from '../queue.constants';
@@ -67,6 +67,20 @@ export class TransmitProcessor extends WorkerHost {
         await this.complianceService.recordValidationBlocked(documentId, err);
         this.logger.warn(
           `[TRANSMIT] document ${documentId} blocked by format validation — recorded VALIDATION_BLOCKED, not retrying (job ${job.id}): ${err.message}`,
+        );
+        return;
+      }
+      if (err instanceof FormatBuildError) {
+        // Same reasoning one step earlier in the pipeline. A validation failure means an artifact
+        // was produced and then refused; a BUILD failure means the renderer would not produce one
+        // at all. Both are deterministic — the same document from the same data fails identically —
+        // so retrying is pure delay, and after `removeOnFail` the document sat at ISSUED with no
+        // event, which a user cannot tell apart from "nothing has happened yet". That is exactly
+        // the outcome the comment above says this branch exists to prevent; it just had no type to
+        // recognise the case by, so the failure went out through the transient door.
+        await this.complianceService.recordBuildFailed(documentId, err);
+        this.logger.warn(
+          `[TRANSMIT] document ${documentId} could not be built — recorded BUILD_FAILED, not retrying (job ${job.id}): ${err.message}`,
         );
         return;
       }

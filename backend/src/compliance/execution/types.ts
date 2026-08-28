@@ -39,6 +39,30 @@ export class FormatValidationError extends Error {
   }
 }
 
+/**
+ * The artifact could not be BUILT — the renderer refused to produce it at all.
+ *
+ * Distinct from `FormatValidationError`, which means an artifact was produced and then failed its
+ * rules. Both are DETERMINISTIC: rebuilding the same document from the same data fails identically,
+ * so neither is worth a queue retry. That distinction had no type, so a build failure arrived at
+ * the transmit processor as a bare `Error` from a third-party library, fell through to `throw err`,
+ * burned three attempts and left the document at ISSUED with nothing on screen — the exact outcome
+ * the processor's own comment says it exists to prevent.
+ */
+export class FormatBuildError extends Error {
+  constructor(
+    message: string,
+    public readonly syntax: DocumentSyntax,
+    public readonly role: ArtifactRole,
+    /** Whatever the renderer or its library could tell us. Often empty; the message then carries it. */
+    public readonly details: string[] = [],
+    public readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = 'FormatBuildError';
+  }
+}
+
 export interface AuthorityIdentifier {
   scheme: string; // UUID | IRN | SDI | CHNFE | CUFE | CDR | PROTOCOL | FOLIO ...
   value: string;

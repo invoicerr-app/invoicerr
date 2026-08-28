@@ -14,6 +14,7 @@ import { ComplianceLogger, defaultLogger } from '../execution/logger';
 import {
   AuthorityIdentifier,
   ExecutionResult,
+  FormatBuildError,
   FormatValidationError,
   SignedArtifact,
   TransmissionResult,
@@ -348,6 +349,34 @@ export class ComplianceService {
       ],
     });
     this.log.warn('operations/validation', `format validation blocked for ${id}: ${reason}`);
+    return updated;
+  }
+
+  /**
+   * The artifact could not be built at all — record it and stop.
+   *
+   * Sibling of `recordValidationBlocked`, and deterministic for the same reason: the renderer will
+   * refuse the same document from the same data every time, so a queue retry only delays the moment
+   * nobody is told. Before this existed the failure escaped as an anonymous library error, was
+   * retried three times, and left the document at ISSUED with no event — which is the state a user
+   * cannot distinguish from "nothing happened yet".
+   */
+  async recordBuildFailed(id: string, err: FormatBuildError): Promise<ComplianceDocumentRecord> {
+    const rec = await this.require(id);
+    const updated = await this.store.update(id, {
+      events: [
+        ...rec.events,
+        {
+          id: randomUUID(),
+          type: 'BUILD_FAILED',
+          at: now(),
+          actor: 'system',
+          detail: err.message,
+          payload: { syntax: err.syntax, role: err.role, details: err.details },
+        },
+      ],
+    });
+    this.log.warn('operations/build', `artifact build failed for ${id}: ${err.message}`);
     return updated;
   }
 

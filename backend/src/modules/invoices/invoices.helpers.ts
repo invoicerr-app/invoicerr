@@ -222,6 +222,29 @@ const CATEGORIES_REQUIRING_REASON: Record<string, string> = { E: 'BR-E-10', O: '
  * document is refused by the Schematron either way, and the difference is whether the user finds
  * out while they can still act on it.
  */
+/**
+ * EN 16931 BR-16 — an invoice shall have at least one line.
+ *
+ * The rule that was missing, and it is the one that produced the worst state this product can
+ * reach. An invoice with no lines was issuable: it took a number from the gapless series, moved to
+ * ISSUED, and then could never be built — the EN 16931 schema refuses it before any XML exists, so
+ * no artifact, no transmission, no authority, ever. The document simply stopped, at a status that
+ * a user cannot tell apart from "waiting".
+ *
+ * Checked at issuance beside the country, BR-Z-02 and BR-E-10 guards, for the reason their own
+ * comment gives: an invoice that cannot be transmitted must not reach a state where the user
+ * believes it was issued. A draft with no lines stays perfectly legal — that is a document being
+ * written.
+ */
+export function resolveInvoiceLinesOrThrow(items: unknown[] | undefined | null): void {
+  if (items && items.length > 0) return;
+  throw new BadRequestException(
+    'This invoice has no lines. An invoice must have at least one line (EN 16931 rule BR-16). ' +
+      'Add a line before issuing it — an invoice issued without one takes a number from the legal ' +
+      'series and can never be transmitted.',
+  );
+}
+
 export function resolveExemptionReasonOrThrow(
   itemVatCategories: string[],
   itemVatExemptionReasons: (string | undefined)[],
@@ -481,6 +504,25 @@ export function deriveComplianceError(
   if (!events || events.length === 0) return null;
   const sorted = [...events].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
   const last = sorted[sorted.length - 1];
-  if (last.type !== 'WIRING_FAILED') return null;
-  return last.detail ?? 'Compliance wiring failed';
+  const fallback = FAILURE_EVENT_FALLBACK[last.type];
+  if (!fallback) return null;
+  return last.detail ?? fallback;
 }
+
+/**
+ * The events that mean "this document did not get where it was going", and what to say when the
+ * event carries no detail of its own.
+ *
+ * `WIRING_FAILED` used to be the only one here, which is why a document could be blocked and the
+ * screen show nothing at all: `VALIDATION_BLOCKED` is recorded precisely so a user learns their
+ * invoice was refused before any transmission, and it was recorded into silence. `BUILD_FAILED` is
+ * newer and worse — the artifact could not even be produced.
+ *
+ * Only the LAST event is consulted, deliberately: a failure followed by a successful retry is not a
+ * failure any more, and showing the old one would be its own kind of lie.
+ */
+const FAILURE_EVENT_FALLBACK: Record<string, string> = {
+  WIRING_FAILED: 'Compliance wiring failed',
+  VALIDATION_BLOCKED: 'The invoice failed format validation and was not transmitted',
+  BUILD_FAILED: 'The compliant document could not be produced, so nothing was transmitted',
+};
