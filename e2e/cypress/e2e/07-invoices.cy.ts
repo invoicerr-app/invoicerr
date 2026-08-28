@@ -260,8 +260,13 @@ describe('Invoices E2E', () => {
             cy.reload();
             cy.wait(2000);
 
-            // Find the row for the created invoice
-            cy.contains('[data-cy="invoice-row"]', 'Jane Doe').within(() => {
+            // The row is found by the client's name, and the client is whichever one the select
+            // offered FIRST — the baseline 'Test Client' that resetAndSeed creates. It used to say
+            // 'Jane Doe', a client this spec never creates: it was reading what 05-clients happened
+            // to leave behind, and picking the first option only found her because of the ordering
+            // that leftover produced. Per-spec isolation removed the leftover and the assumption
+            // with it.
+            cy.contains('[data-cy="invoice-row"]', 'Test Client').within(() => {
                 // Check status
                 cy.get('[data-cy="invoice-status"]').invoke('text').should('match', /Draft|Brouillon/i);
 
@@ -278,7 +283,7 @@ describe('Invoices E2E', () => {
             cy.reload();
             cy.wait(2000);
 
-            cy.contains('[data-cy="invoice-row"]', 'Jane Doe').within(() => {
+            cy.contains('[data-cy="invoice-row"]', 'Test Client').within(() => {
                 cy.get('[data-cy="invoice-name"]').click();
             });
             cy.get('[role="dialog"]').should('be.visible');
