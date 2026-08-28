@@ -232,9 +232,13 @@ conception, et les faire après reviendrait à concevoir sur une hypothèse.*
 - **Fichiers** : `invoices.helpers.ts`, `canonical-document.ts`, migration Prisma, UI de saisie
 - **Dépend de** : P2-V02
 - **Accepte si** : une société sans pays renseigné **ne devient plus française** — l'émission est
-  refusée avec un message nommant le champ manquant. Test rouge sans la garde. **Migration vérifiée
-  contre un vrai Postgres**, pas seulement `prisma generate`.
-- **État** : à faire
+  refusée avec un message nommant le champ manquant. Test rouge sans la garde.
+- **État** : ✅ **fait — `c5dfc682`**, 5 tests, 3 rouges avec le repli restauré.
+- **Périmètre revu à la lecture du code** : aucune migration Prisma n'était nécessaire. Le champ
+  `countryCode` existe déjà des deux côtés ; le défaut n'était pas un stockage manquant mais le
+  **repli `?? 'FR'`** dans le constructeur de contexte. Le côté acheteur avait déjà une garde à
+  l'émission (F-006) — mais le constructeur repliait **en dessous d'elle**, et le côté
+  **fournisseur**, celui qui décide quel régime national s'applique, n'en avait aucune.
 
 ### P2-T02 — A1 : `ObligationRule` dans le schéma de profil, France seule
 - **Fait** : introduit `ObligationLayer` et `ObligationRule` dans le schéma, et réécrit le **seul**
@@ -375,4 +379,5 @@ mémoïsation l'a réduit mais je n'ai pas mesuré l'effet.
 | 2026-08-28 | **P1-T03d + P1-T04** | ✅ fait | `6a51ac48`. Sémantique conditionnelle au port ; garde d'élément racine. **Suite entièrement verte : 139 suites / 1837 tests / 0 échec.** |
 | 2026-08-28 | **P2-V01** | ✅ fait | `447eb2f3`. Légifrance, source primaire. Critère **triple**, **deux** règles pour la France, art. 290 bien plus large que « transfrontalier », et articles **abrogés au 2027-01-01**. |
 | 2026-08-28 | **P2-V02** | ✅ fait | `291a91c1`. Six pivots, 14 tests. Italie : `EITHER` confirmé. Espagne : une seule règle. |
+| 2026-08-28 | **P2-T01** | ✅ fait | `c5dfc682`. Repli `?? 'FR'` supprimé des **deux** côtés ; le fournisseur n'était pas gardé du tout. Pas de migration : le champ existait. |
 | 2026-08-28 | *(historique)* **P1-T03d** | ↩ tenté, annulé | Mesure P1-T02 corrigée : 8 suites / 52 tests, pas 6/31 — je n'avais inversé qu'un des cinq court-circuits. Redécoupée en T03b/c/d. |
