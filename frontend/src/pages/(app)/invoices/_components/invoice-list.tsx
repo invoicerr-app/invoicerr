@@ -109,6 +109,10 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
     } = useDocumentListDialogs<Invoice>(ref)
 
     const flowOf = (inv: Invoice) => inv.complianceDocuments?.[0]?.flow
+    /** The channel class of the document the send dialog is currently asking about. */
+    const sendChannelClass = sendInvoiceDialog
+      ? (flowOf(sendInvoiceDialog)?.channelClass ?? "EMAIL")
+      : "EMAIL"
     const can = (inv: Invoice, a: string) => flowOf(inv)?.manualActions?.includes(a) ?? false
 
     /**
@@ -661,14 +665,24 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
           }}
         />
 
+        {/* Channel-aware, because the button two hundred lines above already is.
+            This dialog said "Send Invoice by Email — this invoice will be sent to the client's
+            email address" for EVERY channel, including a French invoice bound for a PDP where no
+            email is sent to anyone. The icon and tooltip followed the plan; the confirmation that
+            actually asks the user to commit did not, so the last thing they read before clicking
+            was the one thing that was false. `flowOf` is the same accessor the button uses. */}
         <SendConfirmationDialog
           open={sendInvoiceDialog != null}
           onOpenChange={(open: boolean) => {
             if (!open) setSendInvoiceDialog(null)
           }}
-          title={t("invoices.sendConfirmation.title")}
-          description={t("invoices.sendConfirmation.description")}
-          email={sendInvoiceDialog?.client.contactEmail ?? ""}
+          title={t(`invoices.sendConfirmation.title.${sendChannelClass}`, {
+            defaultValue: t("invoices.sendConfirmation.title.EMAIL"),
+          })}
+          description={t(`invoices.sendConfirmation.description.${sendChannelClass}`, {
+            defaultValue: t("invoices.sendConfirmation.description.EMAIL"),
+          })}
+          email={sendChannelClass === "EMAIL" ? (sendInvoiceDialog?.client.contactEmail ?? "") : ""}
           emailLabel={t("invoices.sendConfirmation.emailLabel")}
           confirmLabel={t("invoices.sendConfirmation.confirm")}
           cancelLabel={t("invoices.sendConfirmation.cancel")}

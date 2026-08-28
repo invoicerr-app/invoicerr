@@ -41,10 +41,15 @@ export function SendConfirmationDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <div className="rounded-md bg-muted p-3 text-sm">
-          <span className="font-medium text-muted-foreground">{emailLabel}</span>{" "}
-          <span className="font-semibold text-foreground">{email}</span>
-        </div>
+        {/* A recipient line only when there IS a recipient. A document going to a tax platform
+            has no client address to show, and printing an empty one under "Recipient:" was part
+            of what made this dialog claim an email that never happens. */}
+        {email ? (
+          <div className="rounded-md bg-muted p-3 text-sm">
+            <span className="font-medium text-muted-foreground">{emailLabel}</span>{" "}
+            <span className="font-semibold text-foreground">{email}</span>
+          </div>
+        ) : null}
         <DialogFooter className="flex !flex-col-reverse gap-2 justify-end">
           <Button
             variant="outline"

@@ -986,8 +986,20 @@
       }
     },
     "sendConfirmation": {
-      "title": "Send Invoice by Email",
-      "description": "This invoice will be sent to the client's email address.",
+      "title": {
+        "EMAIL": "Send invoice by email",
+        "CLEARANCE": "Submit invoice for clearance",
+        "PORTAL": "Send invoice to the platform",
+        "PEPPOL": "Send invoice via Peppol",
+        "PRINT": "Print invoice"
+      },
+      "description": {
+        "EMAIL": "This invoice will be sent to the client's email address.",
+        "CLEARANCE": "This invoice will be submitted to the tax authority. It is not valid until the authority clears it.",
+        "PORTAL": "This invoice will be sent to your accredited platform. No email is sent to the client.",
+        "PEPPOL": "This invoice will be delivered through the Peppol network.",
+        "PRINT": "This invoice will be prepared for printing."
+      },
       "emailLabel": "Recipient:",
       "confirm": "Send",
       "cancel": "Cancel"
