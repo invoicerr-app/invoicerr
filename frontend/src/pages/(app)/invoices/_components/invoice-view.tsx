@@ -213,7 +213,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
             </div>
           )}
           <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+            <DialogTitle className="text-xl font-semibold flex flex-wrap items-center gap-2 min-w-0 pr-8 break-words">
               {t("invoices.view.title", {
                 number: invoice.rawNumber || invoice.number?.toString() || "DRAFT",
               })}
@@ -245,11 +245,11 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                 >
                   <div className="flex items-start gap-3">
                     <AlertTriangle className={`h-5 w-5 shrink-0 ${banner.icon}`} />
-                    <div className="space-y-1">
+                    <div className="space-y-1 min-w-0">
                       <p className={`text-sm font-semibold ${banner.title}`}>{t(`${banner.key}.title`)}</p>
                       <p className={`text-sm ${banner.body}`}>{t(`${banner.key}.body`)}</p>
                       {reason && (
-                        <p className={`text-sm ${banner.body}`} data-cy="invoice-failure-reason">
+                        <p className={`text-sm break-words ${banner.body}`} data-cy="invoice-failure-reason">
                           <span className="font-medium">{t(`${banner.key}.reason`)}</span>
                           {" : "}
                           {reason}
@@ -381,57 +381,59 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
             </div>
           )}
 
-          <div className="overflow-auto mt-2 flex-1 flex flex-col gap-2">
+          <div className="overflow-y-auto overflow-x-hidden mt-2 flex-1 flex flex-col gap-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-muted/50 p-4 rounded-lg">
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">{t("invoices.view.fields.number")}</p>
-                <p className="font-medium">{invoice.rawNumber || invoice.number?.toString() || "DRAFT"}</p>
+                <p className="font-medium break-words">
+                  {invoice.rawNumber || invoice.number?.toString() || "DRAFT"}
+                </p>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">{t("invoices.view.fields.title")}</p>
-                <p className="font-medium">{invoice.title || "—"}</p>
+                <p className="font-medium break-words">{invoice.title || "—"}</p>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">{t("invoices.view.fields.status")}</p>
-                <p className="font-medium">{getStatusLabel(invoice.status)}</p>
+                <p className="font-medium break-words">{getStatusLabel(invoice.status)}</p>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">{t("invoices.view.fields.createdAt")}</p>
                 <p className="font-medium">{formatDate(invoice.createdAt)}</p>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">{t("invoices.view.fields.dueDate")}</p>
                 <p className="font-medium">{formatDate(invoice.dueDate)}</p>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">{t("invoices.view.fields.paidAt")}</p>
                 <p className="font-medium">{formatDate(invoice.paidAt)}</p>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">{t("invoices.view.fields.updatedAt")}</p>
                 <p className="font-medium">{formatDate(invoice.updatedAt)}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-muted/50 p-4 rounded-lg">
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">{t("invoices.view.fields.client")}</p>
-                <p className="font-medium">
+                <p className="font-medium break-words">
                   {invoice.client?.name ||
                     `${invoice.client?.contactFirstname} ${invoice.client?.contactLastname}` ||
                     invoice.clientId}
                 </p>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">{t("invoices.view.fields.paymentMethod")}</p>
-                <p className="font-medium">
+                <p className="font-medium break-words">
                   {(() => {
                     const pm = invoice.paymentMethod
                     if (pm) {
@@ -458,7 +460,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-muted/50 p-4 rounded-lg">
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">{t("invoices.view.fields.totalHT")}</p>
                 <p className="font-medium">
                   {t("common.valueWithCurrency", {
@@ -468,7 +470,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                 </p>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">{t("invoices.view.fields.totalVAT")}</p>
                 <p className="font-medium">
                   {t("common.valueWithCurrency", {
@@ -478,7 +480,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                 </p>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">{t("invoices.view.fields.totalTTC")}</p>
                 <p className="font-medium">
                   {t("common.valueWithCurrency", {
@@ -490,11 +492,11 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-muted/50 p-4 rounded-lg">
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">{t("invoices.view.fields.discountRate")}</p>
                 <p className="font-medium">{discountRateValue.toFixed(2).replace(/\.00$/, "")}%</p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">{t("invoices.view.fields.discountAmount")}</p>
                 <p className="font-medium">
                   {t("common.valueWithCurrency", {
@@ -508,7 +510,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
             {invoice.notes && (
               <div className="bg-muted/50 p-4 rounded-lg">
                 <p className="text-sm text-muted-foreground mb-2">{t("invoices.view.fields.notes")}</p>
-                <p className="font-medium">{invoice.notes}</p>
+                <p className="font-medium break-words">{invoice.notes}</p>
               </div>
             )}
 
@@ -541,9 +543,11 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                       )}
                     </div>
                     {warnings && warnings.length > 0 && (
-                      <ul className="mt-2 text-sm text-amber-700 list-disc list-inside">
+                      <ul className="mt-2 text-sm text-amber-700 list-disc list-outside pl-5">
                         {warnings.map((w, i) => (
-                          <li key={i}>{w}</li>
+                          <li key={i} className="break-words">
+                            {w}
+                          </li>
                         ))}
                       </ul>
                     )}
@@ -586,10 +590,12 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
               const isTransmissionFailed = compDoc.status === "TRANSMISSION_FAILED"
               return (
                 <div className="mt-6 border-t pt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium text-muted-foreground">Compliance</span>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${color}`}>
+                  <div className="flex items-center justify-between gap-2 mb-3 min-w-0">
+                    <span className="text-sm font-medium text-muted-foreground min-w-0">Compliance</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${color}`}
+                      >
                         {compDoc.status.replace(/_/g, " ")}
                       </span>
                       {isTransmissionFailed ? (
@@ -627,7 +633,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                         <li key={i} className="ml-4">
                           <span className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-muted-foreground/40" />
                           <p className="text-xs font-medium text-foreground">{ev.type.replace(/_/g, " ")}</p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-muted-foreground break-words">
                             {new Date(ev.at).toLocaleString()}
                             {ev.actor && ev.actor !== "system" && ` · ${ev.actor}`}
                             {ev.detail && ` — ${ev.detail}`}
@@ -666,11 +672,13 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                 <p className="text-sm text-muted-foreground mb-2">{t("invoices.view.fields.corrections")}</p>
                 <div className="flex flex-col gap-1">
                   {correctedBy.map((c) => (
-                    <div key={c.id} className="flex items-center gap-2 text-sm">
+                    <div key={c.id} className="flex flex-wrap items-center gap-2 text-sm">
                       <Badge variant="secondary" className={`text-xs ${getInvoiceKindColor(c.kind)}`}>
                         {getInvoiceKindLabel(c.kind)}
                       </Badge>
-                      <span className="font-medium">{c.rawNumber || c.number?.toString()}</span>
+                      <span className="font-medium min-w-0 break-words">
+                        {c.rawNumber || c.number?.toString()}
+                      </span>
                       <span className="text-muted-foreground">
                         {c.totalTTC.toFixed(2)} {c.currency}
                       </span>
@@ -698,11 +706,13 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                 </p>
                 <div className="flex flex-col gap-1">
                   {invoice.depositInvoices.map((dep) => (
-                    <div key={dep.id} className="flex items-center gap-2 text-sm">
+                    <div key={dep.id} className="flex flex-wrap items-center gap-2 text-sm">
                       <Badge variant="secondary" className={`text-xs ${getInvoiceKindColor(dep.kind)}`}>
                         {getInvoiceKindLabel(dep.kind)}
                       </Badge>
-                      <span className="font-medium">{dep.rawNumber || dep.number?.toString()}</span>
+                      <span className="font-medium min-w-0 break-words">
+                        {dep.rawNumber || dep.number?.toString()}
+                      </span>
                       <span className="text-muted-foreground">
                         {dep.totalTTC.toFixed(2)} {dep.currency}
                       </span>

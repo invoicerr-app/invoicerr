@@ -33,8 +33,8 @@ function Panel({
     blue: "bg-blue-50 border-blue-200 text-blue-900",
   }
   return (
-    <div className={`rounded-lg border p-3 text-sm ${tones[tone]}`} data-cy={dataCy}>
-      <div className="mb-1 flex items-center gap-2 font-medium">
+    <div className={`rounded-lg border p-3 text-sm break-words ${tones[tone]}`} data-cy={dataCy}>
+      <div className="mb-1 flex items-start gap-2 font-medium">
         {icon}
         {title}
       </div>
@@ -68,7 +68,7 @@ export function CancellationPolicyPanel({ actions }: { actions: AvailableActions
   return (
     <Panel
       tone="amber"
-      icon={<AlertTriangle className="h-4 w-4" />}
+      icon={<AlertTriangle className="h-4 w-4 shrink-0" />}
       title={t("invoices.view.compliance.cancellation.title")}
       dataCy="cancellation-policy"
     >
@@ -109,7 +109,7 @@ export function ArchivalPanel({ actions }: { actions: AvailableActions }) {
   return (
     <Panel
       tone="slate"
-      icon={<Archive className="h-4 w-4" />}
+      icon={<Archive className="h-4 w-4 shrink-0" />}
       title={t("invoices.view.compliance.archival.title")}
       dataCy="archival-notice"
     >
@@ -143,7 +143,7 @@ export function ObligationLayersPanel({ actions }: { actions: AvailableActions }
   return (
     <Panel
       tone="blue"
-      icon={<CalendarClock className="h-4 w-4" />}
+      icon={<CalendarClock className="h-4 w-4 shrink-0" />}
       title={t("invoices.view.compliance.obligations.title")}
       dataCy="obligation-layers"
     >
@@ -160,7 +160,7 @@ export function ObligationLayersPanel({ actions }: { actions: AvailableActions }
               })
             ) : (
               <span className="inline-flex items-center gap-1 italic" data-cy={`obligation-open-${o.layer}`}>
-                <Info className="h-3 w-3" />
+                <Info className="h-3 w-3 shrink-0" />
                 {t("invoices.view.compliance.obligations.notSourced")}
               </span>
             )}
