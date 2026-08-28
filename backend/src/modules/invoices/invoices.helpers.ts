@@ -171,13 +171,52 @@ const CATEGORIES_REQUIRING_SELLER_ID = new Set(['Z', 'E', 'AE', 'K', 'G']);
  */
 const CATEGORIES_ACCEPTING_TAX_REGISTRATION = new Set(['Z', 'E', 'AE']);
 
+/**
+ * The BUYER-side half of the same rules, read from the same Schematron rather than assumed.
+ * Only two categories have one, and they do not ask for the same thing:
+ *
+ *   AE  BR-AE-02  `BuyerTradeParty/SpecifiedTaxRegistration/ID[@schemeID='VA']`
+ *                 OR `BuyerTradeParty/SpecifiedLegalOrganization/ID`
+ *                 — a VAT identifier OR a legal registration identifier
+ *   K   BR-IC-02  `BuyerTradeParty/SpecifiedTaxRegistration/ID[@schemeID='VA']`
+ *                 — the VAT identifier, and nothing else will do
+ *
+ * Z, E and G ask nothing of the buyer. Requiring an identifier there would refuse invoices the
+ * standard accepts, which is the mirror of the mistake C1 made on the seller side.
+ */
+const BUYER_ID_REQUIRED: Record<string, readonly string[]> = {
+  AE: ['VAT', 'LEGAL_ID'],
+  K: ['VAT'],
+};
+
 export function resolveZeroRatedSellerVatOrThrow(
   company: SupplierParty,
-  _client: BuyerParty,
+  client: BuyerParty,
   itemVatCategories: string[],
 ): void {
   const offending = itemVatCategories.find((c) => CATEGORIES_REQUIRING_SELLER_ID.has(c));
   if (!offending) return;
+
+  // Buyer side first: BR-AE-02 and BR-IC-02 demand it IN ADDITION to the seller's, so an invoice
+  // can satisfy the seller half and still be refused. Checking it second would let a user fix the
+  // company, retry, and hit a different wall — two round trips for one document.
+  const requiredBuyerSchemes = BUYER_ID_REQUIRED[offending];
+  if (requiredBuyerSchemes) {
+    const buyerIds = client.partyIdentifiers ?? [];
+    const satisfied = requiredBuyerSchemes.some((scheme) =>
+      buyerIds.some((pi) => pi.scheme === scheme && !!pi.value),
+    );
+    if (!satisfied) {
+      const rule = offending === 'AE' ? 'BR-AE-02' : 'BR-IC-02';
+      const wanted =
+        offending === 'AE' ? 'VAT identifier or legal registration identifier' : 'VAT identifier';
+      throw new BadRequestException(
+        `This invoice has a line in VAT category "${offending}", which requires the client's ` +
+          `${wanted} (EN 16931 rule ${rule}). Add it to the client, or use a standard-rate VAT ` +
+          'treatment. Without it the invoice would be refused at transmission.',
+      );
+    }
+  }
 
   const ids = company.partyIdentifiers ?? [];
   const hasVat = ids.some((pi) => pi.scheme === 'VAT' && !!pi.value);
