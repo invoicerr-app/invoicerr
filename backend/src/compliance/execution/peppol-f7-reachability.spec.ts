@@ -27,13 +27,12 @@
  * No HTTP calls: the Peppol AP + SMP ports are injected fakes (same pattern as
  * peppol/peppol-transmission.spec.ts and execution/executor-e2e.spec.ts).
  */
-import { InvoiceRenderingService } from '../../modules/invoice-rendering/invoice-rendering.service';
 import { TransactionContext } from '../canonical/canonical-document';
 import { resolve } from '../engine/compliance-engine';
 import { ComplianceExecutor } from './executor';
 import { NumberingRegistry } from '../lifecycle/numbering';
 import { DE_B2B, ES_B2B } from '../providers/format/__fixtures__/invoices';
-import { InvoiceArtifactPort, XmlExportFormat } from '../providers/format/invoice-artifact-port';
+import { makeArtifactPort } from '../__fixtures__/artifact-port';
 import { FormatProviderRegistry } from '../providers/format/registry';
 import {
   ChannelCredentialsPort,
@@ -50,36 +49,11 @@ import {
 import { SmpLookupPort, SmpLookupResult } from '../providers/transmission/peppol/smp-client';
 import type { InvoiceRenderData } from '../../modules/invoice-rendering/invoice-rendering.service';
 
-const renderService = new InvoiceRenderingService();
-
 /**
- * A real InvoiceArtifactPort backed by the actual rendering pipeline (no DB — buildEInvoice()
- * takes plain data, exactly like peppol-sh-live.spec.ts). renderXmlFormat is genuinely wired: it
- * asks @e-invoice-eu/core for the requested export ('ubl' for PEPPOL_BIS, 'xrechnung' for
- * XRECHNUNG) from the SAME canonical fixture data regardless of which syntax is requested — proof
- * that the PEPPOL_BIS/UBL artifact is not derived from any other rendered syntax. Everything else
- * (PDF/national XML) is a minimal stub — irrelevant to what this spec asserts.
+ * P1-T03b: the port this spec used to declare inline now lives in
+ * `compliance/__fixtures__/artifact-port.ts` — more than one suite needs it, and a second copy
+ * would drift. Behaviour is unchanged; the doc comment moved with it.
  */
-function makeArtifactPort(fixtureData: InvoiceRenderData): InvoiceArtifactPort {
-  return {
-    renderPdf: async () => new Uint8Array(),
-    renderPdfFormat: async () => new Uint8Array(),
-    renderXmlFormat: async (_invoiceId: string, format: XmlExportFormat) => {
-      const inv = renderService.buildEInvoice(fixtureData);
-      return inv.exportXml(format);
-    },
-    // M-1: these providers now run real, blocking format validation (XSD/Schematron). '<stub/>' is
-    // not a valid document for any of them and would fail that gate — return '' instead so each
-    // provider takes its "no real bytes, nothing to validate" stub path, matching the "irrelevant
-    // to what this spec asserts" intent above (only PEPPOL_BIS/UBL is exercised here).
-    renderFatturaPa: async () => '',
-    renderCfdi: async () => '',
-    renderFacturae: async () => '',
-    renderKsaUbl: async () => '',
-    renderFaVat: async () => '',
-    renderNationalXml: async () => '',
-  };
-}
 
 /** Only resolves for the 'peppol' providerId — any other channel (e.g. ES's es-aeat GOV_PORTAL_API,
  *  unrelated to this F-7 test) correctly sees "not configured for company", exactly like prod. */
