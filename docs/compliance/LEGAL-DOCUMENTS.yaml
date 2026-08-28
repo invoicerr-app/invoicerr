@@ -21,9 +21,9 @@
 
 meta:
   updated: 2026-08-29
-  status: en cours — EN16931, FR, IT, PL, DE, ES intégrés ; MX+US en recherche
-  covered: [ EN16931, IT, FR, PL, DE, ES ]
-  pending: [ MX, US ]
+  status: inventaire complet pour les 7 pays pivots — le refactor lui-même n'est pas commencé
+  covered: [ EN16931, FR, IT, PL, DE, ES, MX, US ]
+  pending: []
   # Comment reprendre si la session est interrompue — c'est déjà arrivé une fois, au milieu de six
   # recherches lancées en parallèle, dont quatre ont été perdues.
   resume: docs/compliance/LEGAL-DOCUMENTS.RESUME.md
@@ -614,6 +614,183 @@ countries:
       - id: es_factura_anticipo
         what: "AUCUN type « factura de anticipo » n'existe dans le RD 1619/2012 : un acompte déclenche le devengo à l'encaissement et se facture par une factura ordinaire."
         settled_by: "Établi — consigné ici parce que c'est une DIFFÉRENCE avec l'Allemagne et la France, qui ont toutes deux un document d'acompte nommé."
+
+  MX:
+    provenance: sourced
+    consulted: 2026-08-29
+    caveat: >
+      www.sat.gob.mx renvoie 403 depuis ce réseau (géo-blocage) ; tout vient de l'hôte d'archive
+      omawww.sat.gob.mx, du DOF et d'ordenjuridico.gob.mx. Le CFF consolidé lu porte « última
+      reforma DOF 12-11-2021 » — cohérent avec les renvois de la RMF 2026, mais non confirmé
+      contre diputados.gob.mx, injoignable.
+    documents:
+      - key: cfdi_ingreso
+        local: "CFDI tipo I — Ingreso"
+        en: "Income invoice"
+        what: "Émis pour tout revenu obtenu : services, loyers, honoraires, ventes de biens, exportations."
+        nature: legal
+        obligation: mandatory
+        source: "Anexo 20 Guía de llenado, Apéndice 2 ; CFF art. 29, 29-A"
+      - key: cfdi_egreso
+        local: "CFDI tipo E — Egreso"
+        en: "Credit note"
+        what: "Retours, remises et rabais, et correction d'un CFDI de revenu quant aux MONTANTS qu'il documente."
+        nature: legal
+        obligation: mandatory
+        source: "Anexo 20 Guía de llenado, Apéndice 2 p. 57 et Apéndice 5"
+        note: >
+          Le SAT le dit mot pour mot : « Este comprobante es conocido como nota de crédito ». Se
+          relie au CFDI d'origine par CfdiRelacionado avec TipoRelacion 01 ou 03.
+      - key: cfdi_traslado
+        local: "CFDI tipo T — Traslado"
+        en: "Transfer document"
+        what: "Couvre le transport et la possession légale de marchandises en transit. Total obligatoirement zéro."
+        nature: legal
+        obligation: mandatory
+        source: "Anexo 20 Guía de llenado, Apéndice 2"
+      - key: cfdi_nomina
+        local: "CFDI tipo N — Nómina"
+        en: "Payroll receipt"
+        what: "CFDI portant le complemento de paie, pour les salaires et rémunérations assimilées."
+        nature: legal
+        obligation: mandatory
+        source: "RMF 2026 regla 2.7.5.1 (LISR 99 fr. III)"
+        note: "Le produit ne fait pas de paie — mais c'est un document du même système, et il compte pour l'inventaire."
+      - key: cfdi_pago
+        local: "CFDI tipo P + Complemento para recepción de pagos (REP)"
+        en: "Payment receipt"
+        what: "Émis quand le prix est réglé en plusieurs fois ou n'était pas payé à la facturation. Total zéro."
+        nature: legal
+        obligation: mandatory
+        source: "Guía de llenado Pagos ; CFF art. 29-A fr. VII b) ; RMF 2.7.1.29 et 2.7.1.32"
+        note: >
+          ÉCHÉANCE FERME : le 5 du mois civil suivant le paiement, sous peine d'amende (CFF 83-VII /
+          84-IV). Un document DÉCLENCHÉ PAR LE PAIEMENT — le produit n'a rien de tel, et notre
+          PAYMENT_RECEIPT déclaré n'est produit par aucune ligne.
+      - key: cfdi_retenciones
+        local: "CFDI de Retenciones e información de pagos"
+        en: "Withholding statement"
+        what: "Déclare les retenues, y compris les paiements à des non-résidents."
+        nature: legal
+        obligation: mandatory
+        source: "Anexo 20, rubro II"
+        note: "PAS dans c_TipoDeComprobante : c'est un standard séparé. Notre WITHHOLDING_RECEIPT déclaré n'est produit nulle part."
+      - key: carta_porte
+        local: "Complemento Carta Porte v3.1"
+        en: "Bill of lading complement"
+        what: "Complément sur un CFDI I ou T : marchandises, origine, destination, mode de transport. Porte son propre folio IdCCP et un QR."
+        nature: legal
+        obligation: mandatory
+        source: "RMF 2026 reglas 2.7.7.1.1, 2.7.7.1.2, 2.7.7.2.1"
+        note: "Le transport LOCAL hors routes fédérales en est exempté."
+      - key: cfdi_global
+        local: "CFDI global / operaciones con el público en general"
+        en: "Aggregate retail invoice"
+        what: "CFDI agrégé quotidien, hebdomadaire ou mensuel vers le RFC générique, listant les tickets de caisse."
+        nature: legal
+        obligation: optional
+        source: "RMF 2026 regla 2.7.1.21"
+        note: "Mécanisme optionnel — mais les tickets de caisse sous-jacents, eux, sont obligatoires."
+      - key: cancelacion_sustitucion
+        local: "Solicitud de cancelación + sustitución (TipoRelacion 04)"
+        en: "Cancellation with substitution"
+        what: "Pas un document : une demande signée contre un folio existant. Le destinataire a 3 jours pour accepter ou refuser ; le silence vaut acceptation."
+        nature: legal
+        obligation: conditional
+        source: "CFF art. 29-A ¶4 et ¶6 ; RMF 2026 reglas 2.7.1.34, 2.7.1.35"
+        note: >
+          LA LIGNE DE PARTAGE MEXICAINE, et elle est nette : E quand les MONTANTS sont faux ou ont
+          changé — le document reste valide ; annulation-substitution quand le DOCUMENT lui-même est
+          faux. Ordre imposé par le SAT : émettre d'abord le CFDI correct avec TipoRelacion 04 et le
+          folio remplacé, PUIS demander l'annulation avec le motif 01.
+          CONTRAINTE TEMPORELLE que rien chez nous n'exprime : l'annulation n'est possible QUE
+          pendant l'exercice d'émission. Le E, lui, n'est pas borné.
+    open_questions:
+      - id: mx_motivos_cancelacion
+        what: "Seul le motif 01 est sourcé. Les valeurs 02, 03 et 04 de c_MotivoCancelacion n'ont PAS été trouvées — absentes du catalogue catCFDI_V_4 (48 Mo, 28 feuilles énumérées) et de la RMF 2026."
+        settled_by: "La page sat.gob.mx/consultas/91447 ou la documentation technique du service d'annulation — toutes deux en 403 depuis ce réseau."
+        note: "NE PAS coder 02/03/04 de mémoire."
+      - id: mx_e_pour_erreur_non_monetaire
+        what: "Aucune source n'INTERDIT explicitement d'utiliser un E pour corriger une donnée non monétaire (RFC erroné, code d'usage)."
+        settled_by: "Une règle SAT explicite ; en l'absence, ne pas présumer."
+
+  US:
+    provenance: sourced
+    consulted: 2026-08-29
+    headline: >
+      IL N'EXISTE AUCUNE FACTURE FÉDÉRALE AMÉRICAINE. Pas de TVA fédérale, et aucun texte fédéral ne
+      prescrit un document, son contenu, sa numérotation ni son format pour une vente commerciale
+      intérieure. L'obligation porte sur les REGISTRES, pas sur un DOCUMENT : 26 U.S.C. § 6001
+      impose de tenir des registres, et l'IRS Publication 583 dit « Except in a few cases, the law
+      does not require any specific kind of records. » La facture n'y figure que comme UNE preuve
+      possible de recettes, à côté des bandes de caisse et des bordereaux de dépôt.
+      Un négatif bien établi est ici la bonne réponse, pas un échec de recherche.
+    documents:
+      - key: sales_invoice
+        local: "Sales invoice / bill"
+        en: "Invoice"
+        what: "Demande de paiement commerciale. Aucun contenu, numéro, séquence, langue, devise, signature ni format d'archivage prescrits."
+        nature: commercial
+        obligation: optional
+        source: "IRS Pub 583 ; 26 U.S.C. § 6001"
+      - key: invoice_ny_sales_tax
+        local: "Invoice with separately stated sales tax (New York)"
+        en: "Invoice showing sales tax separately"
+        what: "Un vendeur new-yorkais DOIT toujours indiquer séparément le montant de la taxe sur la facture ou le reçu remis au client."
+        nature: legal
+        obligation: mandatory
+        source: "NY TB-ST-770"
+        note: >
+          LIMITE ARCHITECTURALE, et c'est le résultat le plus utile de la partie américaine : nos
+          profils sont indexés PAR PAYS, et ici la règle est INFRA-NATIONALE. New York l'impose, la
+          Californie ne l'impose pas — CDTFA Regulation 1700 : l'affichage n'est qu'une des trois
+          façons d'établir l'accord de l'acheteur, et l'ajout de la taxe « depends solely upon the
+          terms of the agreement of sale ». Deux États, deux règles, un seul countryCode.
+      - key: exemption_certificate
+        local: "Resale / exemption certificate"
+        en: "Exemption certificate"
+        what: "Émis par l'ACHETEUR au vendeur. Sans lui, le vendeur est redevable de la taxe non collectée ; reçu de bonne foi, il transfère la charge."
+        nature: legal
+        obligation: mandatory
+        source: "NY TB-ST-240 ; Texas Comptroller"
+        note: "Document émis par l'acheteur VERS le vendeur — direction que notre modèle ne connaît pas, et qui n'est ni de l'auto-facturation ni de la réception."
+      - key: commercial_invoice_cbp
+        local: "Commercial invoice (import)"
+        en: "Customs commercial invoice"
+        what: "Déposée par l'IMPORTATEUR pour chaque envoi. Contenu fixé par règlement : parties, description détaillée, quantités, prix, devise, charges, PAYS D'ORIGINE."
+        nature: legal
+        obligation: mandatory
+        source: "19 CFR 141.83, 141.86 ; 19 U.S.C. 1481"
+        note: "La seule facture fédérale américaine obligatoire — et elle est douanière, pas fiscale, et à l'IMPORT."
+      - key: proper_invoice_far
+        local: "Proper invoice (FAR)"
+        en: "Federal contractor invoice"
+        what: "Contenu prescrit : nom, date, NUMÉRO de facture, numéro de contrat et de poste, quantités, conditions, TIN, données de virement."
+        nature: legal
+        obligation: mandatory
+        source: "FAR 32.905(b)"
+        note: >
+          LE SEUL ENDROIT où le droit américain impose un numéro de facture — et seulement pour les
+          fournisseurs de l'État fédéral. Une facture incomplète est renvoyée sous 7 jours, 3 pour
+          les denrées périssables.
+      - key: credit_memo_us
+        local: "Credit memo / debit memo"
+        en: "Credit / debit memo"
+        what: "Ajuste une vente antérieure."
+        nature: commercial
+        obligation: optional
+        source: "Aucun instrument fédéral ni d'État trouvé — négatif"
+        note: "Aucune identité fiscale, aucune déclaration à une autorité."
+    open_questions:
+      - id: us_retention_profil
+        what: "Notre profil us.ts déclare retentionYears: 7. La réponse sourcée est un ÉVENTAIL : 3 ans en principe, 6 si plus de 25 % des revenus sont omis, 7 pour créances irrécouvrables, 4 pour les taxes sur salaires, indéfini si aucune déclaration ou déclaration frauduleuse. Et les États ont leur propre horloge — NY 3 ans, TX 4."
+        settled_by: "Décision produit : 7 est le maximum d'une branche, pas la règle. Le conserver sur-couvre, ce qui est le sens sûr, mais l'affirmer comme LA durée américaine est faux."
+      - id: us_numerotation_etats
+        what: "Aucune obligation de numérotation séquentielle trouvée — mais seuls NY, CA et TX ont été vérifiés."
+        settled_by: "Les 47 autres juridictions. Ne pas généraliser « aucun État n'impose de numérotation » à partir de trois."
+      - id: us_facture_export
+        what: "Aucun instrument américain n'impose à l'exportateur d'émettre une facture à l'acheteur étranger."
+        settled_by: "Probablement réellement absent — c'est le pays d'IMPORT qui l'exige — mais consigné comme non vérifié plutôt qu'affirmé."
 
   IT:
     provenance: sourced
