@@ -449,6 +449,42 @@ FR→IT et FR→US sont exactement les flux corrigés en P2-T02/T03, et leurs ta
 
 **Reste ouvert, nommé** : les exigences côté **acheteur** de `BR-AE-02` et `BR-IC-02`.
 
+### C4 — le produit **sur-facture** la TVA sur une prestation intracommunautaire B2B *(nouveau)*
+
+Trouvé en vérifiant que la garde C3 couvre bien l'export. Sondé sur le chemin **produit**
+(`resolveInvoiceTax`), sans forcer de taux :
+
+```
+FR→IT B2B services, TVA acheteur fournie    cat=[S] taux=[20] TVA=20
+FR→IT B2B services, sans TVA acheteur       cat=[S] taux=[20] TVA=20
+FR→US B2B services                          cat=[O] taux=[0]  TVA=0
+```
+
+Une prestation de services B2B à un assujetti italien relève de l'**autoliquidation** — art. 44 de
+la directive 2006/112, CGI art. 259-1° : le lieu d'imposition est en Italie, la France ne facture
+rien, le preneur autoliquide. Le produit facture **20 % de TVA française**, catégorie `S`.
+
+**Ce n'est pas le moteur.** `tax-matrix.spec.ts` prouve que `determineTax` rend correctement
+l'autoliquidation — il l'appelle avec des identifiants `validated: true`. C'est le **câblage** :
+`invoice-tax.ts:59-62` code en dur `validated: false as const`, et `TrustFlagVatValidator`
+(`classification.ts:61`) n'ouvre l'autoliquidation que pour `validated === true`. Depuis le chemin
+facture, **aucun numéro de TVA n'est jamais validé**, donc les catégories `AE` et `K` sont
+**inatteignables en production**.
+
+**Le choix est délibéré et documenté** : le commentaire explique qu'accepter un numéro non vérifié
+laisserait n'importe qui saisir un faux numéro et obtenir 0 % — une **sous**-facturation. Ils ont
+préféré la sur-facturation. C'est défendable comme garde-fou, mais la conséquence n'est écrite
+nulle part : **le produit ne sait pas émettre une facture intracommunautaire B2B correcte**, et une
+sur-facturation de TVA est elle aussi une erreur de conformité — le client paie une taxe non due et
+la catégorie TVA de la facture est fausse.
+
+**À ne pas « corriger » en basculant le drapeau** : ce serait rétablir exactement le risque que le
+commentaire écarte. Le correctif est une **validation VIES réelle**, c'est-à-dire une tâche, pas un
+booléen.
+
+*Conséquence secondaire* : la branche `K` de la garde C3 est correcte et testée, mais **inatteignable
+depuis le chemin facture** tant que C4 tient.
+
 ## Instabilité connue, non résolue
 
 `ksef-transmission.spec.ts` — « transmit() receives the resolved config from the registry » et
