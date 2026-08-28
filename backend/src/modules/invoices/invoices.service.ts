@@ -1063,6 +1063,8 @@ export class InvoicesService {
                   i,
                   body.currency || client.currency || company.currency,
                   taxResult.itemVatRates[originalIdx],
+                  taxResult.itemVatCategories[originalIdx],
+                  taxResult.itemVatExemptionReasons[originalIdx],
                 ),
                 name: i.name,
               },
@@ -1075,6 +1077,8 @@ export class InvoicesService {
                 i,
                 body.currency || client.currency || company.currency,
                 taxResult.itemVatRates[originalIdx],
+                taxResult.itemVatCategories[originalIdx],
+                taxResult.itemVatExemptionReasons[originalIdx],
               ),
               name: i.name ?? i.description,
             })),
@@ -1623,6 +1627,8 @@ export class InvoicesService {
               item,
               body.currency || client.currency || company.currency,
               taxResult.itemVatRates[i],
+              taxResult.itemVatCategories[i],
+              taxResult.itemVatExemptionReasons[i],
             ),
             name: item.name,
           })),
@@ -1825,6 +1831,8 @@ export class InvoicesService {
                 unitPrice: depositHT,
                 unitPriceMinor: toMinor(depositHT, currency),
                 vatRate: depositItemVatRate,
+                vatCategory: taxResult.itemVatCategories[0] ?? null,
+                vatExemptionReason: taxResult.itemVatExemptionReasons[0] ?? null,
                 requestedVatRate: vatRate,
                 type: 'DEPOSIT',
                 order: 0,
@@ -1946,6 +1954,8 @@ export class InvoicesService {
       unitPrice: deductionHT,
       unitPriceMinor: toMinor(deductionHT, currency),
       vatRate: deductionTaxResult.itemVatRates[0] ?? depositVatRate,
+      vatCategory: deductionTaxResult.itemVatCategories[0] ?? null,
+      vatExemptionReason: deductionTaxResult.itemVatExemptionReasons[0] ?? null,
       requestedVatRate: depositVatRate,
       type: 'DEPOSIT' as const,
       order: items?.length ?? 0,
@@ -1954,7 +1964,10 @@ export class InvoicesService {
 
     const allItems = [
       ...(items ?? []).map((item: any, i: number) => ({
-        ...invoiceItemData(item, currency, item.vatRate),
+        // The deduction path re-uses the deposit's STORED rate and category rather than resolving
+        // afresh: the final invoice must deduct exactly what the deposit charged, and a re-resolve
+        // between the two dates could legitimately return something else.
+        ...invoiceItemData(item, currency, item.vatRate, item.vatCategory, item.vatExemptionReason),
         order: i,
       })),
       deductionLine,
