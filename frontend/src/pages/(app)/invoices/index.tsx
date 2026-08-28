@@ -1,11 +1,11 @@
-import { ReceiptText, Plus, List, FileText, Repeat, GitBranch, Table2 } from "lucide-react"
+import { ReceiptText, Plus, List, FileText, Repeat, GitBranch, Table2, ScrollText } from "lucide-react"
 import { InvoiceList, type InvoiceListHandle } from "@/pages/(app)/invoices/_components/invoice-list"
 import { InvoiceProgression } from "@/pages/(app)/invoices/_components/invoice-progression"
 import { InvoiceTable } from "@/pages/(app)/invoices/_components/invoice-table"
 import { InvoiceViewDialog } from "@/pages/(app)/invoices/_components/invoice-view"
 import { useEffect, useRef, useState } from "react"
 import { useGetRaw, usePost, authenticatedFetch } from "@/hooks/use-fetch"
-import { useInvoices, useRecurringInvoices } from "@/hooks/queries"
+import { useCompany, useDocumentKinds, useInvoices, useRecurringInvoices } from "@/hooks/queries"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
@@ -17,7 +17,19 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
-type InvoiceFilter = "all" | "oneTime" | "recurring"
+const DEFAULT_FILTERS = ["all", "oneTime", "recurring"] as const
+type DefaultInvoiceFilter = (typeof DEFAULT_FILTERS)[number]
+
+/**
+ * A tab value: one of the three built-ins, or `kind:<KIND>` for a document kind the backend
+ * reported as non-legal. Kept as a plain string on purpose — the kinds are country data, so this
+ * component must never enumerate them.
+ */
+const KIND_FILTER_PREFIX = "kind:"
+
+const isDefaultFilter = (value: string): value is DefaultInvoiceFilter =>
+  (DEFAULT_FILTERS as readonly string[]).includes(value)
+
 type InvoiceView = "list" | "progression" | "table"
 
 const INVOICE_VIEWS: InvoiceView[] = ["list", "progression", "table"]
@@ -30,6 +42,15 @@ export default function Invoices() {
   const [page, setPage] = useState(1)
   const { data: invoices } = useInvoices(page)
   const { data: recurringInvoices } = useRecurringInvoices()
+  // Which document kinds this company's country uses, and which of them are NOT legal documents.
+  // The answer is the compliance engine's, never this component's: a pro forma is not an invoice —
+  // it takes no number from the legal series, is never issued, transmitted or archived — but where
+  // that line falls is a country rule. Asking keeps the rule in the profiles and out of the UI.
+  // No country resolved (company still loading, countryCode never filled in) means no answer, and
+  // the page then renders exactly as it always did rather than guessing.
+  const { data: company } = useCompany()
+  const { data: documentKinds } = useDocumentKinds(company?.countryCode)
+  const commercialKinds = (documentKinds ?? []).filter((rule) => !rule.legalDocument).map((rule) => rule.kind)
   const [downloadInvoicePdf, setDownloadInvoicePdf] = useState<Invoice | null>(null)
   const [viewInvoiceDialog, setViewInvoiceDialog] = useState<Invoice | null>(null)
   const { data: pdf } = useGetRaw<Response>(
@@ -57,7 +78,7 @@ export default function Invoices() {
   }, [downloadInvoicePdf, pdf])
 
   const [searchTerm, setSearchTerm] = useState("")
-  const [filter, setFilter] = useState<InvoiceFilter>("all")
+  const [filter, setFilter] = useState<string>("all")
   const [searchParams, setSearchParams] = useSearchParams()
   const viewParam = searchParams.get("view")
   const view: InvoiceView = INVOICE_VIEWS.includes(viewParam as InvoiceView)
@@ -119,6 +140,14 @@ export default function Invoices() {
 
   const matchesStatus = (invoice: Invoice) => statusFilter.includes(getStatusFilterKey(invoice))
 
+  const selectedKind = commercialKinds.find((kind) => filter === `${KIND_FILTER_PREFIX}${kind}`) ?? null
+  // Self-healing: a kind tab can stop being offered between renders (the kinds arrive after the
+  // first paint, the active company changes country). Falling back to "all" keeps the group from
+  // showing no active tab over an empty list.
+  const activeFilter = selectedKind !== null || isDefaultFilter(filter) ? filter : "all"
+
+  const isCommercialDocument = (invoice: Invoice) => !!invoice.kind && commercialKinds.includes(invoice.kind)
+
   const upcomingInvoices: Invoice[] = (recurringInvoices?.recurringInvoices || [])
     .filter((recurringInvoice) => !!recurringInvoice.nextInvoiceDate)
     .map((recurringInvoice) => ({
@@ -146,27 +175,42 @@ export default function Invoices() {
     }))
 
   const filteredInvoices = [
-    ...(invoices?.invoices.filter(
-      (invoice) =>
-        matchesSearch(invoice) &&
-        matchesStatus(invoice) &&
-        (filter === "all" ||
-          (filter === "recurring" ? !!invoice.recurringInvoiceId : !invoice.recurringInvoiceId)),
-    ) || []),
-    ...(filter !== "oneTime"
+    ...(invoices?.invoices.filter((invoice) => {
+      if (!matchesSearch(invoice) || !matchesStatus(invoice)) return false
+      // A commercial-kind tab shows that kind and nothing else — including no recurring/one-time
+      // split, which is a property of the legal series and says nothing about a pro forma.
+      if (selectedKind) return invoice.kind === selectedKind
+      // ...and the three built-in tabs are the legal series only. This is the separation the whole
+      // feature exists for: a document the country does not number, issue or archive must not sit
+      // in the same list as the ones it does.
+      if (isCommercialDocument(invoice)) return false
+      return (
+        activeFilter === "all" ||
+        (activeFilter === "recurring" ? !!invoice.recurringInvoiceId : !invoice.recurringInvoiceId)
+      )
+    }) || []),
+    // Upcoming rows are projections of recurring templates, not stored documents: they carry no
+    // kind, so a commercial-kind tab never shows them.
+    ...(!selectedKind && activeFilter !== "oneTime"
       ? upcomingInvoices.filter((invoice) => matchesSearch(invoice) && matchesStatus(invoice))
       : []),
   ]
 
+  // Counted over the same document scope the list is showing, so a status badge never counts a
+  // document the active tab hides.
+  const countedInvoices = (invoices?.invoices || []).filter((invoice) =>
+    selectedKind ? invoice.kind === selectedKind : !isCommercialDocument(invoice),
+  )
+
   const invoiceStatusCounts = {
-    draft: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "draft").length || 0,
-    issued: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "issued").length || 0,
-    sent: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "sent").length || 0,
-    paid: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "paid").length || 0,
-    archived: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "archived").length || 0,
-    cancelled: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "cancelled").length || 0,
-    corrected: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "corrected").length || 0,
-    rejected: invoices?.invoices.filter((i) => getStatusFilterKey(i) === "rejected").length || 0,
+    draft: countedInvoices.filter((i) => getStatusFilterKey(i) === "draft").length,
+    issued: countedInvoices.filter((i) => getStatusFilterKey(i) === "issued").length,
+    sent: countedInvoices.filter((i) => getStatusFilterKey(i) === "sent").length,
+    paid: countedInvoices.filter((i) => getStatusFilterKey(i) === "paid").length,
+    archived: countedInvoices.filter((i) => getStatusFilterKey(i) === "archived").length,
+    cancelled: countedInvoices.filter((i) => getStatusFilterKey(i) === "cancelled").length,
+    corrected: countedInvoices.filter((i) => getStatusFilterKey(i) === "corrected").length,
+    rejected: countedInvoices.filter((i) => getStatusFilterKey(i) === "rejected").length,
   }
 
   usePageHeader(t("sidebar.navigation.invoices"))
@@ -244,7 +288,7 @@ export default function Invoices() {
       )}
     >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <Tabs value={filter} onValueChange={(value) => setFilter(value as InvoiceFilter)}>
+        <Tabs value={activeFilter} onValueChange={setFilter}>
           <TabsList>
             <TabsTrigger value="all" data-cy="invoice-filter-all">
               <List className="h-4 w-4 mr-2" />
@@ -258,6 +302,20 @@ export default function Invoices() {
               <Repeat className="h-4 w-4 mr-2" />
               {t("invoices.filters.recurring")}
             </TabsTrigger>
+            {/* One tab per non-legal kind the country offers — today that is the pro forma, and
+                nowhere here says so. A jurisdiction that stops offering it drops the tab by
+                returning one less rule. The label falls back to the kind itself so a kind this
+                build predates still reads as something. */}
+            {commercialKinds.map((kind) => (
+              <TabsTrigger
+                key={kind}
+                value={`${KIND_FILTER_PREFIX}${kind}`}
+                data-cy={`invoice-filter-kind-${kind.toLowerCase()}`}
+              >
+                <ScrollText className="h-4 w-4 mr-2" />
+                {t(`invoices.filters.kinds.${kind.toLowerCase()}`, kind)}
+              </TabsTrigger>
+            ))}
           </TabsList>
         </Tabs>
 

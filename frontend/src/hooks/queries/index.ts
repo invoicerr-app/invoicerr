@@ -10,6 +10,7 @@ export { useClients, useClientSearch, type ClientsListResponse } from "./use-cli
 export { useCompany } from "./use-company"
 export { useCompanies } from "./use-companies"
 export { useDashboard, type DashboardData } from "./use-dashboard"
+export { useDocumentKinds, type DocumentKindRule } from "./use-document-kinds"
 export {
   useInvoices,
   useInvoiceSearch,

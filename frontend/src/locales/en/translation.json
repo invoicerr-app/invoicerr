@@ -534,7 +534,16 @@
     "filters": {
       "all": "All",
       "oneTime": "One-time",
-      "recurring": "Recurring"
+      "recurring": "Recurring",
+      "kinds": {
+        "invoice": "Invoices",
+        "credit_note": "Credit notes",
+        "debit_note": "Debit notes",
+        "corrective_invoice": "Corrective invoices",
+        "proforma": "Pro forma",
+        "deposit": "Deposits",
+        "final": "Final invoices"
+      }
     },
     "progression": {
       "title": "Progression",
