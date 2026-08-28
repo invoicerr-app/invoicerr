@@ -407,9 +407,27 @@ soit le `TransactionContext` passé à `buildAll()`. Conséquence : dans toute s
 validation de format **ne valide pas le contexte sous test**. Un contexte à taux zéro produit un
 artefact à 20 %, et le test le déclare valide.
 
-C'est suffisant pour ce que P1-T03c visait — prouver que les artefacts ne sont plus vides — et
-**insuffisant pour toute assertion sur le contenu**. Ne pas s'y fier pour valider une règle
-métier ; c'est ce qui m'a empêché de reproduire C1.
+C'était suffisant pour ce que P1-T03c visait — prouver que les artefacts ne sont plus vides — et
+**insuffisant pour toute assertion sur le contenu**. C'est ce qui m'a empêché de reproduire C1.
+
+**✅ Corrigé — `253178b5`.** Le port accepte désormais un **résolveur par identifiant de facture**,
+et les caches sont clés sur `(invoiceId, format)`. Le cas simple reste simple ; une suite peut
+enregistrer des données par `ctx.externalRef`. **C1 est reproduit par un test** : le même document
+français à taux zéro est **invalide** sans l'identifiant TVA du vendeur et valide avec, `BR-Z-02`
+nommé dans les erreurs.
+
+### C3 — `BR-AE-02` bloque le transfrontalier, et la garde C1 ne le couvre pas *(nouveau)*
+
+Trouvé en construisant la reproduction. Premier essai avec la fixture standard telle quelle : son
+acheteur est une société **allemande**, donc un taux 0 est de l'**autoliquidation** (catégorie AE) et
+c'est **`BR-AE-02`** qui a tiré, pas `BR-Z-02`.
+
+`BR-AE-02` exige le même identifiant TVA vendeur **plus** un identifiant acheteur. La garde C1 est
+délibérément domestique et ne le couvre pas : **un vendeur français sans identifiant TVA facturant
+0 % à un acheteur allemand est toujours bloqué à la transmission aujourd'hui.**
+
+Coût estimé : faible, la garde existe et il s'agit d'étendre sa condition — mais il faut lire
+`BR-AE-02` et `BR-IC-02` plutôt que d'extrapoler depuis `BR-Z-02`.
 
 ## Instabilité connue, non résolue
 
