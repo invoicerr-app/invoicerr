@@ -30,8 +30,19 @@ function ensurePayableInvoice() {
             if (status !== 200 && status !== 201) return;
             if (!invoice?.id) return;
 
-            cy.request({ method: 'POST', url: `${apiUrl}/api/invoices/${invoice.id}/issue`, failOnStatusCode: false });
-            cy.request({ method: 'POST', url: `${apiUrl}/api/invoices/send`, body: { id: invoice.id }, failOnStatusCode: false });
+            // C1's residual, closed. Both calls used `failOnStatusCode: false`, so an invoice that
+            // could not be issued or could not be sent left no trace: the payment test went on and
+            // the suite stayed green. That is exactly how BR-Z-02 blocked two French sends inside a
+            // green run without anyone noticing.
+            //
+            // A failure here is now a test failure. If the fixture legitimately cannot be issued,
+            // the fixture is what should change — the silence is not an acceptable substitute.
+            cy.request({ method: 'POST', url: `${apiUrl}/api/invoices/${invoice.id}/issue` })
+                .its('status')
+                .should('be.oneOf', [200, 201]);
+            cy.request({ method: 'POST', url: `${apiUrl}/api/invoices/send`, body: { id: invoice.id } })
+                .its('status')
+                .should('be.oneOf', [200, 201]);
         });
     });
 }
