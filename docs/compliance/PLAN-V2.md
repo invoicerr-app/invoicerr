@@ -17,7 +17,7 @@
 
 | | Valeur | Mesurée le |
 | --- | --- | --- |
-| Suite backend | **137 suites / 1812 tests / 0 échec** (+16 suites gatées) | 2026-08-28 |
+| Suite backend | 137 suites / 1812 tests / 0 échec → **139 / 1837 / 0** | 2026-08-28 |
 | Cypress | **17 specs / 167 tests / 0 échec** | 2026-08-28 |
 | Base | `f71cfb9b` | — |
 
@@ -128,31 +128,32 @@ Deux chiffres publiés étaient faux. Ils sont corrigés ici **et** dans les doc
 - **Accepte si** : une assertion `bytes.length > 0` sur les trois artefacts français
   (`EN16931_CII/AUTHORITATIVE`, `FACTURX/HUMAN`, `FACTURX/BUYER`) passe dans `executor.spec.ts`, et
   échouait avant. Suite complète verte.
-- **Découpe** : si plus de deux suites résistent, cette tâche se scinde par suite — aucune ne doit
-  dépasser la journée.
-- **État** : à faire
+- **État** : ✅ **fait — `7e899b9a`**. Deux manques, pas un : le port **et** `ctx.externalRef`
+  (`providers.ts:96` exige les deux ; en production `externalRef` est un paramètre requis du
+  constructeur de contexte). Résultat : CII 6469 o, Factur-X 11557 o ×2. Deux assertions existantes
+  corrigées — elles vérifiaient le `log.todo` du chemin **stub** sous un nom disant « builds ».
 
 ### P1-T03d — A6 : l'artefact vide n'est plus accepté
 - **Fait** : les **cinq** court-circuits renvoient un rapport **invalide** au lieu de
   `okValidation(…'stub path')`.
 - **Fichiers** : `backend/src/compliance/providers/format/providers.ts`
 - **Dépend de** : P1-T03c
-- **Accepte si** : un artefact de zéro octet produit `valid: false` pour les cinq syntaxes, prouvé
-  par un test nommé qui échouait avant ; **et** la suite complète repasse au vert.
-- **Tenté et annulé le 2026-08-28** : appliqué avant P1-T03c, il met **8 suites / 52 tests** au
-  rouge. Le code a été restauré plutôt que de laisser la branche rouge, et la tâche redécoupée. Le
-  correctif lui-même est juste — c'est son préalable qui manquait.
-- **État** : à faire
+- **Accepte si** : un artefact de zéro octet produit `valid: false`, prouvé par un test nommé qui
+  échouait avant ; **et** la suite complète repasse au vert.
+- **État** : ✅ **fait — `6a51ac48`**, mais **pas comme énoncé**. Le rejet à plat mettait 8 suites /
+  46 tests au rouge. La distinction juste n'est pas « zéro octet » mais **« un moteur de rendu
+  était câblé et n'a rien produit »** — sans port, zéro octet parle du *pipeline* et reste toléré ;
+  avec port, la construction a **échoué**. La production a toujours le port, donc elle est stricte.
+  Retombée : 46 tests → 5, et les 5 étaient réels.
+- **Restriction assumée** : appliqué à la famille EN 16931 (le chemin français). Les quatre
+  providers nationaux gardent l'ancien comportement — leurs renderers de test rendent `''`.
 
 ### P1-T04 — B3 : refermer, ou nommer le reste
-- **Fait** : rejoue P1-T01. **Hypothèse à vérifier, pas à supposer** : le document du test est
-  `<root/>`, bien formé et **non vide** — A6 ne traite que zéro octet, donc P1-T03 pourrait ne pas
-  suffire. Si le test reste rouge, ajoute une garde d'élément racine dans le provider CII.
-- **Fichiers** : `providers.ts`, `format-validation.spec.ts`
-- **Dépend de** : P1-T03d
-- **Accepte si** : le test passe au vert **en assertant le rejet**, et le rapport dit laquelle des
-  deux causes l'a fermé.
-- **État** : à faire
+- **État** : ✅ **fait — `6a51ac48`**. L'hypothèse était **juste** : A6 n'a pas suffi. `<root/>` est
+  bien formé et **non vide**, donc la garde du zéro octet ne l'atteint pas. Fermé par une **garde
+  d'élément racine**, placée avant Schematron — lequel ne peut structurellement pas l'attraper :
+  ses règles sont ancrées sur des contextes internes, donc un document qui n'en contient aucun
+  ressort avec **zéro erreur**, ce qui est la bonne réponse Schematron et une garde inutile.
 
 ### P1-T05 — A5 : format du numéro de facture
 - **Fait** : contraint le numéro à la règle **G1.05 du DSE Annexe 7 v1.9** — 35 caractères maximum,
@@ -338,4 +339,6 @@ consommation, deux endpoints entrants. **On l'étend, on ne le refait pas.***
 | 2026-08-28 | **P1-T05** | ✅ fait | `e4fe5438`. G1.05 gardée à l'allocation, 19 tests, bornes 35/36 comprises. |
 | 2026-08-28 | **P1-T06** | ✅ fait | `d2207df6`. Le job CI avait déjà Postgres ; seul le drapeau manquait. Vérifié dans les deux sens. |
 | 2026-08-28 | **P1-T03b** | ✅ fait | `5024cf18`. Fixture de port extraite depuis `peppol-f7-reachability`. |
-| 2026-08-28 | **P1-T03d** | ↩ tenté, annulé | Mesure P1-T02 corrigée : 8 suites / 52 tests, pas 6/31 — je n'avais inversé qu'un des cinq court-circuits. Redécoupée en T03b/c/d. |
+| 2026-08-28 | **P1-T03c** | ✅ fait | `7e899b9a`. Port **et** `externalRef` manquaient. |
+| 2026-08-28 | **P1-T03d + P1-T04** | ✅ fait | `6a51ac48`. Sémantique conditionnelle au port ; garde d'élément racine. **Suite entièrement verte : 139 suites / 1837 tests / 0 échec.** |
+| 2026-08-28 | *(historique)* **P1-T03d** | ↩ tenté, annulé | Mesure P1-T02 corrigée : 8 suites / 52 tests, pas 6/31 — je n'avais inversé qu'un des cinq court-circuits. Redécoupée en T03b/c/d. |
