@@ -56,18 +56,61 @@ Deux chiffres publiés étaient faux. Ils sont corrigés ici **et** dans les doc
 - **Dépend de** : rien
 - **Accepte si** : la liste des suites et tests en échec est publiée dans le rapport, avec leur
   nombre. Un tiers reproduit la mesure en inversant la même ligne.
-- **Pourquoi séparée** : faire échouer les 42 builders stub d'un coup est le résultat **correct**,
-  mais c'est le genre de changement qu'on annule à mi-chemin faute d'en connaître l'ampleur.
+- **Pourquoi séparée** : c'est le genre de changement qu'on annule à mi-chemin faute d'en connaître
+  l'ampleur.
+- **État** : ✅ **fait — 2026-08-28**
+
+> ### Mesure P1-T02 — et elle infirme l'hypothèse de départ
+>
+> **6 suites, 31 tests** en échec (1812 → 1783 passants ; le total passe de 1909 à 1911 à cause des
+> deux tests rouges de P1-T01, dont l'un — *zero-byte artifact* — devient vert sous A6).
+>
+> | Suite | Ce qui casse |
+> | --- | --- |
+> | `execution/executor.spec.ts` | ComplianceExecutor — France (CTC décentralisé) : numéro, Factur-X, TVA, signature, transmission PDP |
+> | `operations/compliance-service.spec.ts` | émission FR, avoirs, notes de débit, statut *encaissée*, e-reporting FR→IT |
+> | `operations/format-validation-blocking.spec.ts` | garde de blocage à la validation |
+> | `lifecycle/lifecycle-coherence.spec.ts` | cohérence du cycle de vie |
+> | `providers/format/format-validation.spec.ts` | dont les 2 tests de P1-T01 |
+> | `canonical/cached-existence-client.spec.ts` | câblage d'existence §7 |
+>
+> **Ce ne sont pas les 42 builders stub.** L'hypothèse était que faire rejeter le zéro octet les
+> ferait tomber d'un coup ; la mesure dit autre chose, et c'est plus grave. Les suites qui cassent
+> sont celles du **chemin français**, et la cause est en `providers.ts:96-142` : le provider EN16931
+> ne produit de vrais octets que si le port de rendu `this.artifacts` **et** `ctx.externalRef` sont
+> présents. Sinon il retombe sur `rendered(artifact)` — zéro octet — avec un simple `log.todo`.
+>
+> `executor.spec.ts` instancie le **vrai** `ComplianceExecutor` avec le registre par défaut, sans
+> injecter de port de rendu. Les trois artefacts français — `EN16931_CII/AUTHORITATIVE`,
+> `FACTURX/HUMAN`, `FACTURX/BUYER` — sont donc **réellement vides**, et le pipeline les signe, les
+> archive et les « transmet » aujourd'hui sans objection. C'est F-001, vu depuis un autre angle, et
+> c'est le même motif que C1 : **une couture d'injection qui n'est câblée que sur certains chemins.**
+>
+> **Correction d'un chiffre de ce plan** : « `providers.ts:145` — **un** endroit à retourner » est
+> faux. Il y a **cinq** court-circuits identiques : lignes **146, 346, 393, 521, 566**
+> (EN16931, CFDI, FatturaPA, FA_VAT, Facturae). P1-T03 les traite tous les cinq.
+>
+> **Conséquence sur P1-T03** : ce n'est plus une tâche d'une ligne. Faire rejeter le zéro octet sans
+> câbler le port de rendu rendrait la suite rouge sur le chemin français. P1-T03 est donc découpée.
+
+### P1-T03a — A6 : injecter le port de rendu là où il manque
+- **Fait** : les chemins qui construisent des artefacts sans port de rendu injecté en reçoivent un.
+  C'est le préalable rendu obligatoire par la mesure P1-T02 : sans lui, refuser le zéro octet rend
+  la suite rouge sur le chemin français au lieu de corriger quoi que ce soit.
+- **Fichiers** : `execution/executor.ts`, `operations/compliance-service.ts`, specs concernées
+- **Dépend de** : P1-T02
+- **Accepte si** : `executor.spec.ts` produit des artefacts français à **octets non nuls** —
+  `EN16931_CII` et les deux `FACTURX` — vérifié par une assertion sur `bytes.length > 0` qui échoue
+  sur l'arbre actuel.
 - **État** : à faire
 
-### P1-T03 — A6 : l'artefact vide n'est plus accepté
-- **Fait** : `providers.ts:145` renvoie un rapport **invalide** au lieu de `okValidation(…'stub
-  path')`. Propage aux tests que P1-T02 a recensés.
+### P1-T03b — A6 : l'artefact vide n'est plus accepté
+- **Fait** : les **cinq** court-circuits (`providers.ts:146, 346, 393, 521, 566`) renvoient un
+  rapport **invalide** au lieu de `okValidation(…'stub path')`.
 - **Fichiers** : `backend/src/compliance/providers/format/providers.ts` + les specs recensées
-- **Dépend de** : P1-T02
-- **Accepte si** : un artefact de zéro octet produit `valid: false` pour **les cinq syntaxes du
-  chemin français** (`EN16931_CII`, `FACTURX`, `EN16931_UBL`, `PEPPOL_BIS`, `PDF_A3`), prouvé par un
-  test nommé qui échouait avant ; **et** la suite complète repasse au vert.
+- **Dépend de** : P1-T03a
+- **Accepte si** : un artefact de zéro octet produit `valid: false` pour les cinq syntaxes du chemin
+  français, prouvé par un test nommé qui échouait avant ; **et** la suite complète repasse au vert.
 - **État** : à faire
 
 ### P1-T04 — B3 : refermer, ou nommer le reste
@@ -75,7 +118,7 @@ Deux chiffres publiés étaient faux. Ils sont corrigés ici **et** dans les doc
   `<root/>`, bien formé et **non vide** — A6 ne traite que zéro octet, donc P1-T03 pourrait ne pas
   suffire. Si le test reste rouge, ajoute une garde d'élément racine dans le provider CII.
 - **Fichiers** : `providers.ts`, `format-validation.spec.ts`
-- **Dépend de** : P1-T03
+- **Dépend de** : P1-T03b
 - **Accepte si** : le test passe au vert **en assertant le rejet**, et le rapport dit laquelle des
   deux causes l'a fermé.
 - **État** : à faire
@@ -256,3 +299,5 @@ consommation, deux endpoints entrants. **On l'étend, on ne le refait pas.***
 | Date | Tâche | État | Note |
 | --- | --- | --- | --- |
 | 2026-08-28 | — | — | Plan écrit. Branche créée depuis `f71cfb9b`. 11 branches `fix/` supprimées du remote après vérification qu'elles sont ancêtres de `feat/compliance-architecture`. |
+| 2026-08-28 | **P1-T01** | ✅ fait | `8b3f0aa2`. Deux tests rouges à dessein, comme le critère l'exige. |
+| 2026-08-28 | **P1-T02** | ✅ fait | Mesure : 6 suites / 31 tests. Hypothèse des « 42 builders stub » **infirmée** — ce sont les tests du chemin français, port de rendu non injecté. P1-T03 découpée en a/b. |
