@@ -18,7 +18,7 @@
 | | Valeur | Mesurée le |
 | --- | --- | --- |
 | Suite backend | 137 suites / 1812 tests / 0 échec → **139 / 1837 / 0** | 2026-08-28 |
-| Cypress | **17 specs / 167 tests / 0 échec** | 2026-08-28 |
+| Cypress | 17 specs / 167 tests / 0 échec → **17 / 168 / 0** | 2026-08-28 |
 | Base | `f71cfb9b` | — |
 
 ## Corrections aux documents d'audit, établies en préparant ce plan
@@ -512,6 +512,82 @@ booléen.
 *Conséquence secondaire* : la branche `K` de la garde C3 est correcte et testée, mais **inatteignable
 depuis le chemin facture** tant que C4 tient.
 
+### C5 — la catégorie TVA était dérivée du taux **dans le moteur lui-même** *(fermé)*
+
+Suite directe de §4 et §1 : le rendu a été corrigé pour consommer la catégorie du plan, mais le plan
+la dérivait du taux, donc le défaut avait seulement remonté d'un étage. Les deux sites nommés à la
+reprise : `tax-engine.ts:177` et `:250`.
+
+**Une moitié de l'expression était juste, et ce point a failli m'échapper.** Un taux positif rend
+`S`, et c'est correct : `S` couvre le taux normal *et* tous les taux réduits — BT-152 porte le taux,
+BT-151 seulement le régime. Un test épingle désormais cette moitié pour qu'on ne la « corrige » pas.
+
+**L'autre moitié ne pouvait pas l'être.** 0 est la seule valeur qui ne détermine pas sa catégorie :
+`Z`, `E` et `O` la portent toutes et exigent du document des choses contradictoires. Répondre `Z`
+sans condition était un pile ou face déguisé en dérivation — et le mauvais côté pour la France.
+
+**Correction d'une prémisse de la reprise** : « deux sorties là où il en faut six » décrit la forme,
+pas le compte. Le site `domesticVat` n'est atteint qu'après que `AE`, `K`, `G` et `O` ont été
+tranchés en amont ; les catégories atteignables y sont `S`, `Z`, `E` (+ `L`/`M` pour Canaries et
+Ceuta-Melilla). Le défaut réel est **`Z` là où `E` est dû**, pas « 2 sur 6 ».
+
+**Source primaire, et elle a infirmé ma propre proposition initiale.** J'allais encoder « la France
+n'a pas de taux zéro » comme un fait simple. Vérification faite : l'**art. 278 ter du CGI** fixait un
+taux de **0 %** pour les vaccins et tests covid-19, en vigueur du **2021-01-01**, **abrogé au
+2023-01-01**. La France n'en a donc pas *aujourd'hui*, mais elle en a eu un — et surtout, même sans
+taux zéro, une ligne domestique à 0 % reste ambiguë entre `E` et `O`. **Le moteur ne peut pas
+trancher seul**, quoi qu'on mette dans les profils. Légifrance, section « Taux », consultée le
+2026-08-28. *(À noter : toute la section est abrogée au 2027-01-01 par l'Ord. n° 2025-1247 — la même
+que celle signalée en `FR-RATTACHEMENT.md` §4 pour les art. 289 bis et 290.)*
+
+**Ce qui est livré** — `493d3730`, `7ed89a39`, `9e084610` :
+
+1. `VatSystemSpec.hasDomesticZeroRate`, à **trois** états. `undefined` = NON ÉTABLI, et les ~100
+   profils d'archétype gardent leur réponse actuelle : reclasser une centaine de pays non sourcés
+   sur la foi d'un champ absent aurait été la même devinette en sens inverse. FR `false` (sourcé),
+   PL `true` — ce que son profil affirmait **déjà** en listant `0` dans `reducedRates`, donc aucune
+   nouvelle affirmation juridique. Un invariant `data-integrity` lie les deux.
+2. Site US : un 0 y signifie que l'État ne lève aucune sales tax (OR, MT, NH, DE). Un système de
+   sales tax n'a pas de notion de livraison à taux *zéro* ; la branche voisine sans nexus répond
+   déjà `O`. Atteignable, pas théorique.
+3. **La couture morte est câblée.** `taxCategoryHint` était déclaré, lu, et écrit **nulle part** hors
+   d'un helper de test — le `??` ne pouvait pas se déclencher en production. Il reçoit un écrivain :
+   deux colonnes `requested*`, le DTO, l'écran, et le report à l'émission.
+4. Garde **BR-E-10** à l'émission, à côté de BR-Z-02.
+
+**Ce que la correction a rendu visible, et qui n'était pas prévu** : elle casse la **franchise en
+base**. Tout auto-entrepreneur français facture à 0 % sous l'art. 293 B et résout en `E` — la garde
+les aurait tous bloqués. Le moteur imprimait déjà la mention légale sans la porter en BT-120 ; il le
+fait désormais. Épinglé par un test, avec un SIRET et non un numéro de TVA, parce que BR-E-02 accepte
+l'identifiant d'immatriculation pour `E` (pas pour `G` ni `K`).
+
+**Le chemin récurrent a dû suivre**, et ce n'était pas du zèle : l'éditeur de lignes sert aux deux,
+donc sans les colonnes sur `RecurringInvoiceItem` une récurrente française à 0 % aurait généré à
+chaque cycle une facture que `autoIssue` ne peut pas émettre — l'échec avalé dans « reste en DRAFT,
+retenté au prochain run », une boucle que personne ne regarde.
+
+**Limite assumée, nommée plutôt que corrigée** : `taxCategoryHint` n'est consulté que dans
+`domesticVat`. Une déclaration posée sur une ligne **transfrontalière** est donc ignorée en silence.
+Sans dommage de conformité — le moteur y résout `G`/`K`/`AE`/`O` correctement et avec motif — mais
+l'écran laisse saisir quelque chose qui n'a aucun effet. Le corriger demande que le formulaire
+compare le pays du client à celui de la société ; c'est une tâche à part, pas un ajout à celle-ci.
+
+**Vérification** : backend **151 suites / 1953 tests → 153 / 1973**, 0 échec. Cypress sur arbre gelé
+en `git worktree`, Firefox : **17 specs / 167 tests, 0 échec** sur `9e084610`, aucun `BR-*` dans le
+log backend — puis **17 specs / 168 tests, 0 échec** une fois le test d'aller-retour ajouté.
+`07-invoices` le prouve à travers la pile réelle :
+contrôles **absents** à 20 %, présents à 0 %, catégorie et motif saisis, sauvés, rechargés, et
+**restaurés depuis la déclaration** et non depuis la résolution du moteur. Les tests backend ne
+pouvaient pas l'établir : ils prouvent que la déclaration atteint le moteur, pas que l'**écran**
+atteint le backend — et c'est exactement la classe de défaut que ce dépôt produit à répétition.
+
+**Deux frictions d'environnement rencontrées, sans rapport avec la tâche mais coûteuses** :
+`CLAUDE.md` affirme que le client Prisma généré est **commité** ; il est en réalité **gitignoré**
+(`backend/.gitignore:62`), ce qui fait échouer tout montage de `git worktree` tant qu'on ne le
+régénère pas. Et le `:6379` de cette machine appartient à un autre projet et exige une
+authentification, alors que le Redis d'Invoicerr est publié sur `:6399` — `backend/.env.test` ne
+déclare aucune variable Redis et tombe donc sur le mauvais serveur.
+
 ## Instabilité connue, non résolue
 
 `ksef-transmission.spec.ts` — « transmit() receives the resolved config from the registry » et
@@ -571,4 +647,8 @@ mémoïsation l'a réduit mais je n'ai pas mesuré l'effet.
 | 2026-08-28 | **P2-T07** | ✅ fait | `fed4c693`. Tableau des quatre flux complet, rouge-avant/vert-après vérifié. Tableau des quatre flux clos — mais **la phase 2 ne l'est pas** : voir P2-T02. Et une correction : ma vérification précédente était fausse — le chemin de données existait, `transmitStatus()` l'emprunte ; la suite m'a corrigé. |
 | 2026-08-28 | **Audit des états du plan** | ⚠️ | Quatre corps de tâche disaient encore « à faire ». Vérifiés **contre le code**, pas contre le journal : P1-T01 ✅, P1-T03a ✅, P2-T03 ✅ — et **P2-T02 ❌ réellement non faite** (`grep -c ObligationRule\|ObligationLayer schema.ts` = **0**). Le symptôme avait été résolu par une autre route ; le modèle **par couche** n'existe pas. Phase 2 **pas close**. |
 | 2026-08-28 | **P2-T02** | ✅ fait | `1f23f2e4`. Trois couches, trois horloges, échéances sourcées. **PHASE 2 CLOSE.** J'ai failli publier une citation fausse — L102 B dit 6 ans, pas 10 ; `03-LEGAL-VERIFICATION` signalait déjà la confusion sous FR-D9. |
+| 2026-08-28 | **Documents d'audit remontés** | ✅ fait | `af768db1`. Les dix documents vivaient sur `audit/compliance-truth` ; la section 3 de l'embarquement pointait vers des chemins vides. Deux chiffres périmés avaient survécu à la passe de correction — « ~40 sites » dans la phrase même qui le corrigeait, et « ajouter Postgres au job CI » que P1-T06 a déjà fait. |
+| 2026-08-28 | **C5 — dérivation de catégorie (b)** | ✅ fait | `493d3730`. 9 tests, **3 rouges avant** ; les 6 autres épinglent ce qui était déjà juste. La source primaire a **infirmé ma propre proposition** : l'art. 278 ter a existé, donc le fait est daté, et même sans taux zéro `E` et `O` restent indiscernables — le moteur ne peut pas trancher seul. |
+| 2026-08-28 | **C5 — déclaration (c), back** | ✅ fait | `7ed89a39`. `taxCategoryHint` reçoit son premier écrivain. Garde BR-E-10. **Régression évitée de justesse** : la franchise en base résout aussi en `E` et aurait été bloquée pour tous les auto-entrepreneurs. |
+| 2026-08-28 | **C5 — déclaration (c), front** | ✅ fait | `9e084610`. Écran, types, rechargement depuis la déclaration. Le chemin **récurrent** a dû suivre, sans quoi `autoIssue` échouait à chaque cycle dans une boucle silencieuse. |
 | 2026-08-28 | *(historique)* **P1-T03d** | ↩ tenté, annulé | Mesure P1-T02 corrigée : 8 suites / 52 tests, pas 6/31 — je n'avais inversé qu'un des cinq court-circuits. Redécoupée en T03b/c/d. |

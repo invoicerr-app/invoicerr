@@ -169,6 +169,71 @@ describe('Invoices E2E', () => {
             cy.get('body').type('{esc}');
         });
 
+        it('a 0% line can declare its VAT category and reason, and they survive a reload', () => {
+            // The round trip nothing else proves. Backend tests establish that a declared category
+            // reaches the engine and is persisted; they cannot establish that the SCREEN reaches the
+            // backend. This repository has produced four frontend defects invisible to every backend
+            // test, so the wiring is asserted here or not at all.
+            //
+            // Why it matters at all: France levies no zero rate (CGI art. 278 ter, the only one,
+            // abrogated 2023-01-01), so a 0% domestic line resolves to E — and BR-E-10 refuses an
+            // exempt line that does not say why. Without these two fields the invoice reaches
+            // "cannot be issued" with no way out.
+            cy.visit('/invoices');
+            cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+            cy.wait(500);
+
+            cy.get('[data-cy="invoice-dialog"]', { timeout: 5000 }).should('be.visible');
+
+            cy.get('[data-cy="invoice-client-select"] button').first().click();
+            cy.wait(300);
+            cy.get('[data-cy="invoice-client-select-options"]').should('be.visible');
+            cy.get('[data-cy="invoice-client-select-options"] button').first().click();
+
+            cy.contains('button', /Add Item|Ajouter/i).click();
+            cy.get('[name="items.0.name"]').type('Exempt Service', { force: true });
+            cy.get('[name="items.0.quantity"]').clear({ force: true }).type('1', { force: true });
+            cy.get('[name="items.0.unitPrice"]').clear({ force: true }).type('400', { force: true });
+
+            // The controls must NOT be there yet: at a positive rate there is nothing to ask, and
+            // showing them anyway would be clutter on every line of every invoice.
+            cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('20', { force: true });
+            cy.get('[data-cy="item-vat-category-0"]').should('not.exist');
+
+            // Drop to 0 and they appear.
+            cy.get('[name="items.0.vatRate"]').clear({ force: true }).type('0', { force: true });
+            // scrollIntoView first: Cypress only auto-scrolls for ACTIONS, not for `be.visible`,
+            // and this block sits below the fold in the dialog's scroll container.
+            cy.get('[data-cy="item-vat-category-0"]').scrollIntoView();
+            cy.get('[data-cy="item-vat-category-0"]').should('be.visible').click();
+            cy.wait(300);
+            cy.contains('[role="option"]', /Exempt \(E\)/i).click();
+            cy.get('[data-cy="item-vat-exemption-reason-0"]').type('Exempt under Article 261 of the CGI', {
+                force: true,
+            });
+
+            cy.get('[data-cy="invoice-submit"]').click();
+            cy.get('[data-cy="invoice-dialog"]').should('not.exist');
+
+            cy.wait(2000);
+            cy.reload();
+            cy.wait(2000);
+
+            // Reopening must restore what was TYPED, not what the engine resolved. Mapping the
+            // resolved category back into the form would show the user an answer they never gave.
+            cy.contains('[data-cy="invoice-row"]', 'Test Client').within(() => {
+                cy.get('[data-cy="invoice-edit-button"]').click();
+            });
+            cy.get('[data-cy="invoice-dialog"]').should('be.visible');
+            cy.get('[data-cy="item-vat-exemption-reason-0"]').scrollIntoView();
+            cy.get('[data-cy="item-vat-exemption-reason-0"]').should(
+                'have.value',
+                'Exempt under Article 261 of the CGI',
+            );
+            cy.get('[data-cy="item-vat-category-0"]').should('contain.text', 'Exempt');
+            cy.get('body').type('{esc}');
+        });
+
         it('handles decimal prices', () => {
             cy.visit('/invoices');
             cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
