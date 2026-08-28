@@ -46,7 +46,8 @@ Deux chiffres publiés étaient faux. Ils sont corrigés ici **et** dans les doc
   accepté à tort. Un tiers relance `npx jest format-validation.spec.ts` et voit l'échec.
 - **Note** : il est attendu rouge à l'issue de cette tâche. C'est P1-T03 qui le fera passer — ou pas,
   voir P1-T04.
-- **État** : à faire
+- **État** : ✅ **fait — `8b3f0aa2`**. Vérifié dans le code : le test passe par
+  `defaultFormatRegistry.resolve(syntax).validate(...)`, le chemin de production, et assert un rejet.
 
 ### P1-T02 — A6 : mesurer avant de propager
 - **Fait** : rend `providers.ts:145` refusant sur `bytes.length === 0`, **dans une copie de travail
@@ -108,7 +109,7 @@ Deux chiffres publiés étaient faux. Ils sont corrigés ici **et** dans les doc
 - **Accepte si** : `executor.spec.ts` produit des artefacts français à **octets non nuls** —
   `EN16931_CII` et les deux `FACTURX` — vérifié par une assertion sur `bytes.length > 0` qui échoue
   sur l'arbre actuel.
-- **État** : à faire
+- **État** : ✅ **fait — `6a6d2d5c`**. Vérifié : `ComplianceService` prend `deps.formats`.
 
 ### P1-T03b — extraire un port de rendu partagé pour les tests
 - **Fait** : `peppol-f7-reachability.spec.ts:63` porte déjà un `makeArtifactPort(fixtureData)` — un
@@ -247,7 +248,15 @@ conception, et les faire après reviendrait à concevoir sur une hypothèse.*
 - **Dépend de** : P2-T01
 - **Accepte si** : `data-integrity.spec.ts` valide la nouvelle forme, et le profil FR exprime les
   trois couches (émission, réception, archivage) avec leurs échéances distinctes.
-- **État** : à faire
+- **État** : ❌ **NON FAIT, et c'est la dernière tâche ouverte de la phase 2.** Vérifié plutôt que
+  supposé : `grep -c "ObligationRule\|ObligationLayer" profiles/schema.ts` renvoie **0**.
+- **Ce qui a été livré à la place**, par une autre route et qui a résolu le symptôme sans construire
+  le modèle : `AttachmentPredicate` (`0cf83366`) a corrigé le routage FR→IT / FR→US, `ObligationKind`
+  + `ResolvedObligation` (`85c2e74a`) ont rendu les obligations plurielles, et `serves` +
+  `reportingChannels` (`fed4c693`) ont séparé la facture des données.
+- **Ce qui manque donc** : les **couches** — le titre même de la phase est « obligations **par
+  couche** ». Émission, réception et archivage restent portés par des champs séparés
+  (`transmission`, `reception/`, `archival`) sans échéances distinctes exprimées comme obligations.
 
 ### P2-T03 — A1 : `plan.obligations` + adaptateur de compatibilité
 - **Fait** : `resolve()` produit `obligations: ResolvedObligation[]`. Un accesseur
@@ -256,7 +265,7 @@ conception, et les faire après reviendrait à concevoir sur une hypothèse.*
 - **Dépend de** : P2-T02
 - **Accepte si** : les **16 lecteurs de `plan.regime` hors specs, répartis sur 8 fichiers**, passent
   par l'adaptateur ; suite complète verte. *(Chiffre mesuré, contre « ~40 sites » publié à tort.)*
-- **État** : à faire
+- **État** : ✅ **fait — `85c2e74a`**, 12 tests.
 
 ### P2-T04 — A1 : migrer les lecteurs, lot 1 — moteur et exécution
 - **Fait** : `compliance-engine.ts`, `execution/executor.ts`, `operations/compliance-service.ts`
@@ -553,5 +562,6 @@ mémoïsation l'a réduit mais je n'ai pas mesuré l'effet.
 | 2026-08-28 | **Phase 2 rouverte** | ⚠️ | Le journal comptait **P2-T03 fait** ; le corps de tâche disait « à faire » et **le code confirmait** — `plan.obligations` n'existait pas. `0cf83366` avait livré le *résultat* de routage (tableau de P2-T07), pas la structure de T03. Journal dérivé de l'arbre, publié tel quel. |
 | 2026-08-28 | **P2-T03** | ✅ fait | `85c2e74a`. `obligations` plurielles ; `regime` conservé en adaptateur ; 12 tests. |
 | 2026-08-28 | **P2-T04/T05/T06** | ✅ fait | `558f88a4`. 16 lecteurs migrés, **`plan.regime` supprimé**. Lot 3 vide — `execution.regime` est un autre objet. Un test devenu tautologique (`x === x`) réécrit plutôt que laissé vert. |
-| 2026-08-28 | **P2-T07** | ✅ fait | `fed4c693`. Tableau des quatre flux complet, rouge-avant/vert-après vérifié. **`PHASE 2 CLOSE`, pour de bon.** Et une correction : ma vérification précédente était fausse — le chemin de données existait, `transmitStatus()` l'emprunte ; la suite m'a corrigé. |
+| 2026-08-28 | **P2-T07** | ✅ fait | `fed4c693`. Tableau des quatre flux complet, rouge-avant/vert-après vérifié. Tableau des quatre flux clos — mais **la phase 2 ne l'est pas** : voir P2-T02. Et une correction : ma vérification précédente était fausse — le chemin de données existait, `transmitStatus()` l'emprunte ; la suite m'a corrigé. |
+| 2026-08-28 | **Audit des états du plan** | ⚠️ | Quatre corps de tâche disaient encore « à faire ». Vérifiés **contre le code**, pas contre le journal : P1-T01 ✅, P1-T03a ✅, P2-T03 ✅ — et **P2-T02 ❌ réellement non faite** (`grep -c ObligationRule\|ObligationLayer schema.ts` = **0**). Le symptôme avait été résolu par une autre route ; le modèle **par couche** n'existe pas. Phase 2 **pas close**. |
 | 2026-08-28 | *(historique)* **P1-T03d** | ↩ tenté, annulé | Mesure P1-T02 corrigée : 8 suites / 52 tests, pas 6/31 — je n'avais inversé qu'un des cinq court-circuits. Redécoupée en T03b/c/d. |
