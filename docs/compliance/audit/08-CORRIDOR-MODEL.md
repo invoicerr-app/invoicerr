@@ -179,13 +179,14 @@ manière de ne rien dire.
 | --- | --- | --- |
 | `EstablishmentPredicate` + évaluateur | **1–2 j** | Type pur + fonction pure ; testable sans base ni réseau |
 | `ObligationRule` dans le schéma de profil, FR seule | **2–3 j** | Réécriture du profil FR en obligations ; les autres profils gardent la forme actuelle derrière un adaptateur |
-| `plan.obligations` + adaptateur de compatibilité | **3–5 j** | Le point dur : ~40 sites lisent `plan.regime`. Un accesseur `primaryObligation()` évite de tous les toucher d'un coup |
+| `plan.obligations` + adaptateur de compatibilité | **2–3 j** | **Mesuré le 2026-08-28 : 16 lecteurs de `plan.regime` hors specs, dans 8 fichiers** (+28 occurrences en specs) — et non « ~40 sites », chiffre avancé sans compter. Un accesseur `primaryObligation()` évite de tous les toucher d'un coup |
 | Champ d'opération `establishmentIntervening` + blocage sur `null` | **2–3 j** | Migration Prisma, UI de saisie, et la garde dure — modèle : le blocage F-006 déjà en place |
 | Extension des 5 autres profils | **3–5 j** | Mécanique une fois FR faite |
-| **Total** | **11–18 j** | Hors validation de format et chaînage (liste §6, indépendants) |
+| **Total** | **7–12 j** | Hors validation de format et chaînage (liste §6, indépendants). Révisé à la baisse après comptage réel des lecteurs |
 
-Le lot 3 est celui qui peut déraper : l'adaptateur est ce qui évite un big-bang, et c'est aussi ce
-qui peut faire vivre deux modèles en parallèle plus longtemps que prévu.
+Le lot 3 reste celui qui peut déraper — l'adaptateur évite un big-bang mais peut faire vivre deux
+modèles en parallèle plus longtemps que prévu. Son ampleur, elle, était surestimée : 16 lecteurs
+répartis sur 8 fichiers se migrent en trois lots, pas quarante.
 
 ---
 
