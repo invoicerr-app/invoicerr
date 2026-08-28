@@ -66,9 +66,13 @@ describe('ComplianceExecutor — France (decentralized CTC)', () => {
   let result: Awaited<ReturnType<typeof run>>['result'];
   let log: Awaited<ReturnType<typeof run>>['log'];
 
+  // 30 s, not jest's 5 s default: this hook builds a REAL e-invoice and embeds it in a PDF/A-3
+  // container through the shared artifact port. That costs seconds on a quiet machine and tips over
+  // the default under parallel load — an honest declaration of the cost, not a workaround for a
+  // slow assertion. The port memoises, so only the first suite to reach it pays.
   beforeAll(async () => {
     ({ result, log } = await run(tx('FR', 'FR', 'B2B', 'SERVICES', '2027-01-15')));
-  });
+  }, 30_000);
 
   /**
    * P1-T03c — the assertion that pins what the wiring buys. Before the rendering port was injected

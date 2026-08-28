@@ -244,7 +244,12 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
       name: 'Acme SAS',
       countryCode: 'FR',
       exemptVat: false,
-      partyIdentifiers: [],
+      // C1: a French company subject to the mandate has a VAT identifier, and case (d) below issues
+      // a deliberate domestic 0% line — which EN 16931 BR-Z-02 refuses without BT-31. The fixture
+      // had none, so it was modelling a company that cannot legally issue the invoice the test
+      // asserts. Giving it one keeps the test's subject (a deliberate 0% is preserved, not bumped)
+      // and stops it from depending on the absence of a guard.
+      partyIdentifiers: [{ scheme: 'VAT', value: 'FR12345678901' }],
     };
 
     function draftInvoice(overrides: Record<string, any> = {}) {

@@ -32,6 +32,7 @@ import {
   deriveInvoiceActions,
   invoiceItemData,
   resolveBuyerCountryOrThrow,
+  resolveZeroRatedSellerVatOrThrow,
   resolveTax,
   toComplianceLines,
 } from './invoices.helpers';
@@ -432,6 +433,11 @@ export class InvoicesService {
         type: item.type,
       })),
     });
+
+    // C1: a zero-rated line on a domestic French invoice needs the seller's VAT identifier
+    // (EN 16931 BR-Z-02). Checked here, right after the rates are resolved and before the invoice
+    // is claimed, so the failure lands where the user can act on it instead of at transmission.
+    resolveZeroRatedSellerVatOrThrow(invoice.company, invoice.client, taxResult.itemVatRates);
 
     if (taxResult.warnings.length > 0) {
       logger.warn('Tax resolution warnings at issuance', {

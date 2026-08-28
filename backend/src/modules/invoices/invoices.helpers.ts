@@ -118,6 +118,46 @@ export function resolveSupplierCountryOrThrow(company: SupplierParty): string {
   return countryCode;
 }
 
+/**
+ * C1 — a zero-rated line on a domestic French invoice requires the seller's VAT identifier.
+ *
+ * EN 16931 **BR-Z-02**: "An Invoice that contains an Invoice line where the Invoiced item VAT
+ * category code (BT-151) is 'Zero rated' shall contain the Seller VAT Identifier (BT-31), the
+ * Seller tax registration identifier (BT-32) and/or the Seller tax representative VAT identifier
+ * (BT-63)."
+ *
+ * Observed on a full e2e run, not deduced: two French sends were blocked by BR-Z-02 inside an
+ * otherwise green suite. The product let a French company exist with NO VAT identifier, let an
+ * invoice be issued at 0%, and only said so at SEND — as a Schematron error in a server log, with
+ * nothing the user could act on. The suite passed because no spec asserts that a send succeeds.
+ *
+ * The guard belongs at issuance, next to the country guards above and for the same reason: an
+ * invoice that cannot be transmitted must not reach a state where the user believes it was issued.
+ *
+ * Deliberately NARROW — domestic France, rate 0, no seller VAT id. Exports (category G/K) and
+ * reverse charge (AE) also carry a 0 rate and are governed by BR-IC-02 / BR-AE-02, whose conditions
+ * differ; blocking on "rate is 0" alone would refuse invoices that are perfectly valid. Widening
+ * this to the other zero-rate categories needs their own rules read, not an extrapolation.
+ */
+export function resolveZeroRatedSellerVatOrThrow(
+  company: SupplierParty,
+  client: BuyerParty,
+  itemVatRates: number[],
+): void {
+  const supplierCountry = company.countryCode ?? guessCountryCode(company.country);
+  const buyerCountry = client.countryCode ?? guessCountryCode(client.country);
+  if (supplierCountry !== 'FR' || buyerCountry !== 'FR') return;
+  if (!itemVatRates.some((rate) => rate === 0)) return;
+  const hasVatId = company.partyIdentifiers?.some((pi) => pi.scheme === 'VAT' && !!pi.value);
+  if (hasVatId) return;
+
+  throw new BadRequestException(
+    'This invoice has a zero-rated line, which requires the company\'s VAT identifier ' +
+      '(EN 16931 rule BR-Z-02). Add the VAT number to the company, or use a non-zero VAT rate. ' +
+      'Without it the invoice would be refused at transmission.',
+  );
+}
+
 /** Map invoice/DTO items to compliance DocumentLines. */
 export function toComplianceLines(
   items: Array<{
