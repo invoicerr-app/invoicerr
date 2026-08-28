@@ -204,4 +204,29 @@ Cypress.Commands.add('resetAndSeed', () => {
     }).then((res) => {
         expect(res.status, 'the baseline company must exist').to.be.oneOf([200, 201]);
     });
+
+    // One baseline client, because a world with a company and no client is a world several specs
+    // cannot start in: 06-quotes, 07-invoices and 10-recurring all open a picker and click its
+    // first option. Before per-spec isolation they were reading clients that 05 happened to leave
+    // behind, which is precisely the dependency being removed — so the world has to contain one on
+    // purpose instead of by accident. French, domestic, so a quote or an invoice built on it is the
+    // simple case and not an unintended cross-border test.
+    cy.request({
+        method: 'POST',
+        url: `${apiUrl}/api/clients`,
+        body: {
+            name: 'Test Client',
+            contactEmail: 'test.client@example.com',
+            currency: 'EUR',
+            country: 'FR',
+            address: '123 Test St',
+            city: 'Paris',
+            postalCode: '75001',
+            isActive: true,
+            type: 'COMPANY',
+        },
+        failOnStatusCode: false,
+    }).then((res) => {
+        expect(res.status, 'the baseline client must exist').to.be.oneOf([200, 201]);
+    });
 });
