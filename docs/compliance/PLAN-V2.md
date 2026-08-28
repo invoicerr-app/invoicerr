@@ -537,4 +537,5 @@ mémoïsation l'a réduit mais je n'ai pas mesuré l'effet.
 | 2026-08-28 | **§2 — isolation e2e** | ✅ fait | `9f74e7e2`+. Un seul `resetDatabase` pour 17 specs ⇒ 11/9/13 échecs selon l'ordre. Reset+seed par spec. Trois ordres : **2, 2, 2 échecs**, tous le même plantage Electron. |
 | 2026-08-28 | **§3 — spec 17** | ✅ fait | `3f3c54f4`. Ni la mémoire, ni la spec 17 : plantage **Electron** sur un select Radix, localisé par instrumentation côté Node. **Firefox : 17/17.** |
 | 2026-08-28 | **§4 — inventaire** | ✅ fait | `ae4a2d82`. `12-SUPPRESSION.md`. 79 fichiers / 2 064 lignes certains. Blocage réel : le schéma ne sait pas dire « pas de sortie ». |
+| 2026-08-28 | **Vérification sur HEAD** | ✅ fait | La présomption laissée au rapport précédent est levée. Electron : **2 échecs, tous deux le plantage** (`grep -c` = 2). **Firefox : 167/167, 17 specs sur 17** — suite complète verte pour la première fois. Backend 1 926, `biome ci` 0/0, build frontend, i18n. |
 | 2026-08-28 | *(historique)* **P1-T03d** | ↩ tenté, annulé | Mesure P1-T02 corrigée : 8 suites / 52 tests, pas 6/31 — je n'avais inversé qu'un des cinq court-circuits. Redécoupée en T03b/c/d. |
