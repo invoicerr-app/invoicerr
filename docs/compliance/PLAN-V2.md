@@ -195,17 +195,35 @@ conception, et les faire après reviendrait à concevoir sur une hypothèse.*
 - **Dépend de** : rien
 - **Accepte si** : chaque affirmation porte URL + date. Si la source ne tranche pas, la question est
   écrite en `open_question` avec ce qui la trancherait — **aucune valeur plausible**.
-- **État** : à faire
+- **État** : ✅ **fait — `447eb2f3`**, dans `docs/compliance/FR-RATTACHEMENT.md`. Quatre résultats,
+  dont trois non anticipés :
+  1. Le déclencheur bilatéral est confirmé **littéralement**, mais le critère est **triple** —
+     « établis **ou** domicile **ou** résidence habituelle ». Le type se renomme `Attachment`.
+  2. La **double exclusion tient**, et les deux voies sont **indépendantes** : sans la seconde,
+     FR→IT aurait le bon verdict *par accident*. La France a besoin de **deux règles**.
+  3. L'art. 290 est **bien plus large que « transfrontalier »** — il couvre aussi des opérations
+     domestiques et les acquisitions. Le profil FR le réduit au rôle `B2C`.
+  4. **Trouvé en lisant, non cherché** : les deux articles sont **abrogés au 2027-01-01**
+     (Ord. n° 2025-1247), fondement transféré au CIBS. Toute citation `CGI art. 289 bis` du dépôt
+     périme quatre mois après le début du mandat. `open_question` ouverte : la recodification
+     est-elle à droit constant **sur le déclencheur** ? Non vérifié, rien codé dessus.
 
 ### P2-V02 — Jouer le prédicat contre les six pivots
 - **Fait** : écrit la fonction de prédicat `EstablishmentPredicate` **seule**, et six jeux d'entrées
   construits à la main (FR, DE, IT, PL, ES, MX). Pas d'intégration au moteur.
 - **Fichiers** : nouveau `backend/src/compliance/engine/establishment-predicate.ts` + son spec
 - **Dépend de** : P2-V01
-- **Accepte si** : les six pivots rendent le verdict attendu. **Deux questions à trancher par
-  l'épreuve, pas par l'intuition** : `EITHER_ESTABLISHED_IN` donne-t-il le bon verdict pour l'Italie,
-  et l'Espagne a-t-elle besoin de deux règles ? Le rapport dit oui ou non, avec le cas qui le montre.
-- **État** : à faire
+- **Accepte si** : les six pivots rendent le verdict attendu. **Deux questions tranchées par
+  l'épreuve** :
+  - **Italie** — `EITHER_ATTACHED_TO` est la bonne forme, et la mauvaise est visible : un prédicat
+    bilatéral **refuse IT→FR**, que le SdI achemine. Asserté dans les deux sens.
+  - **Espagne** — **une seule** règle de rattachement suffit. Sa seconde règle est l'exclusivité
+    SII / Veri\*Factu (RD 1007/2023 art. 3.3), un **choix de régime**, pas un rattachement : elle
+    n'a pas sa place dans ce type.
+  - *(non prévu)* **la France**, elle, en a besoin de deux — voir P2-V01 §2.
+- **État** : ✅ **fait — `291a91c1`**, 14 tests. L'indécidabilité est modélisée : un rattachement
+  non résolu renvoie `null`, `null` domine `true` et `false` domine `null`. C'est ce qui permettra
+  à A3 de **bloquer** au lieu de retomber sur la France.
 
 ### P2-T01 — A3 : `establishmentIntervening` porté par l'opération
 - **Fait** : ajoute l'établissement intervenant au contexte d'opération et **supprime le repli
@@ -318,6 +336,20 @@ consommation, deux endpoints entrants. **On l'étend, on ne le refait pas.***
 
 ---
 
+## Instabilité connue, non résolue
+
+`ksef-transmission.spec.ts` — « transmit() receives the resolved config from the registry » et
+« includes KSEF_NUMBER authority ID » échouent **par intermittence dans le run complet**, jamais
+isolément (3 exécutions isolées de suite : 44/44). Taux observé ≈ 50 % sur 4 runs complets.
+
+**Mécanisme plausible, non prouvé** : le test effectue une vraie tentative de transmission avec des
+clés RSA invalides, donc du travail cryptographique sensible au temps sous charge parallèle. Ma
+fixture d'artefacts alourdit la suite (construction de PDF), ce qui pourrait y contribuer — la
+mémoïsation l'a réduit mais je n'ai pas mesuré l'effet.
+
+**C'est une hypothèse, pas un diagnostic.** Consigné plutôt que supposé résolu ; à reprendre avec un
+`--runInBand` ciblé pour confirmer ou infirmer la piste temporelle.
+
 # Discipline permanente
 
 - Suite backend **après chaque tâche**. Cypress après chaque tâche touchant le front, et en fin de phase.
@@ -341,4 +373,6 @@ consommation, deux endpoints entrants. **On l'étend, on ne le refait pas.***
 | 2026-08-28 | **P1-T03b** | ✅ fait | `5024cf18`. Fixture de port extraite depuis `peppol-f7-reachability`. |
 | 2026-08-28 | **P1-T03c** | ✅ fait | `7e899b9a`. Port **et** `externalRef` manquaient. |
 | 2026-08-28 | **P1-T03d + P1-T04** | ✅ fait | `6a51ac48`. Sémantique conditionnelle au port ; garde d'élément racine. **Suite entièrement verte : 139 suites / 1837 tests / 0 échec.** |
+| 2026-08-28 | **P2-V01** | ✅ fait | `447eb2f3`. Légifrance, source primaire. Critère **triple**, **deux** règles pour la France, art. 290 bien plus large que « transfrontalier », et articles **abrogés au 2027-01-01**. |
+| 2026-08-28 | **P2-V02** | ✅ fait | `291a91c1`. Six pivots, 14 tests. Italie : `EITHER` confirmé. Espagne : une seule règle. |
 | 2026-08-28 | *(historique)* **P1-T03d** | ↩ tenté, annulé | Mesure P1-T02 corrigée : 8 suites / 52 tests, pas 6/31 — je n'avais inversé qu'un des cinq court-circuits. Redécoupée en T03b/c/d. |
