@@ -21,9 +21,9 @@
 
 meta:
   updated: 2026-08-29
-  status: en cours — 4 recherches pays lancées (FR, PL, DE+ES, MX+US)
-  covered: [ EN16931, IT ]
-  pending: [ FR, PL, DE, ES, MX, US ]
+  status: en cours — FR, PL, IT intégrés ; DE+ES et MX+US en recherche
+  covered: [ EN16931, IT, FR, PL ]
+  pending: [ DE, ES, MX, US ]
   # Comment reprendre si la session est interrompue — c'est déjà arrivé une fois, au milieu de six
   # recherches lancées en parallèle, dont quatre ont été perdues.
   resume: docs/compliance/LEGAL-DOCUMENTS.RESUME.md
@@ -114,6 +114,286 @@ product_today:
 # ITALIE — le seul pays entièrement sourcé à ce stade
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 countries:
+  FR:
+    provenance: sourced
+    consulted: 2026-08-29
+    caveat: >
+      Le budget de recherche web de l'agent s'est épuisé avant d'atteindre le BOFiP : les entrées
+      ci-dessous s'appuient sur Légifrance (droit primaire) et service-public.gouv.fr (doctrine
+      administrative publiée). Aucun permalien BOFiP n'a pu être obtenu — voir open_questions.
+    documents:
+      - key: devis
+        local: "Devis"
+        en: "Quote"
+        what: "Offre chiffrée avant commande ; engage le professionnel dès acceptation du client."
+        nature: commercial
+        obligation: conditional
+        source: "service-public F31144 — consulté 2026-08-29"
+        note: >
+          Obligatoire PAR SECTEUR, pas en général : bâtiment, déménagement, location de véhicule
+          < 3,5 t, optique, audioprothèse, services à la personne >= 100 EUR/mois, aides à
+          l'autonomie >= 500 EUR, chirurgie esthétique >= 300 EUR, obsèques. Devient un contrat une
+          fois accepté — donc pas un simple document commercial dans ces secteurs.
+      - key: facture
+        local: "Facture"
+        en: "Invoice"
+        what: "Émise dès la réalisation de la livraison ou de la prestation."
+        nature: legal
+        obligation: conditional
+        source: "CGI art. 289 ; C. com. L441-9 ; CGI ann. II art. 242 nonies A"
+        note: >
+          Obligatoire en B2B, vers personne publique, et en B2C pour les services >= 25 EUR TTC ou
+          sur demande. OPTIONNELLE en B2C sur les biens — nuance que le produit ne modélise pas.
+          Numéro unique, séquence chronologique continue, conservation 10 ans (C. com. L123-22).
+      - key: note_client
+        local: "Note"
+        en: "Note (hotel, restaurant, services to individuals)"
+        what: "Document remis au consommateur à partir de 25 EUR TTC dans l'hôtellerie, la restauration et les services aux particuliers."
+        nature: legal
+        obligation: mandatory
+        source: "Arrêté n° 83-50/A du 3 octobre 1983 ; service-public F18960"
+        note: "SPÉCIFICITÉ FRANÇAISE sans équivalent dans les autres pays couverts. Le produit ne la connaît pas."
+      - key: facture_acompte
+        local: "Facture d'acompte"
+        en: "Prepayment invoice"
+        what: "Émise pour tout acompte encaissé avant l'opération."
+        nature: legal
+        obligation: mandatory
+        source: "CGI art. 289 I-1-c ; CGI art. 269"
+        note: >
+          OBLIGATOIRE, et le produit la traite comme optionnelle (kind DEPOSIT). Elle rend la TVA
+          exigible à l'encaissement. Exceptions : livraisons exonérées des art. 262 ter I et
+          298 sexies II.
+      - key: facture_solde
+        local: "Facture de solde"
+        en: "Final invoice"
+        what: "Facture finale déduisant les acomptes déjà facturés."
+        nature: legal
+        obligation: optional
+        source: unverified
+        note: >
+          Aucun texte ne consacre le terme : juridiquement c'est une facture ordinaire. Le produit a
+          un kind FINAL distinct — utile fonctionnellement, mais ce n'est pas une catégorie
+          juridique française.
+      - key: document_modificatif
+        local: "Avoir / facture rectificative"
+        en: "Credit note / corrected invoice"
+        what: "Tout document qui modifie une facture émise en y faisant référence de façon spécifique et non équivoque."
+        nature: legal
+        obligation: mandatory
+        source: "CGI art. 289 I-5 ; service-public F23208"
+        note: >
+          RÉSULTAT LE PLUS UTILE POUR LE REFACTOR. Le CGI ne définit NI « avoir » NI « facture
+          rectificative » : il pose une règle unique — tout document modifiant la facture initiale
+          et y renvoyant est ASSIMILÉ À UNE FACTURE. Ce sont donc, en droit, un seul type, avec
+          numéro dans la séquence, mentions de l'art. 242 nonies A, conservation 10 ans, et à partir
+          de 2026/2027 le même canal électronique.
+          La distinction est doctrinale et pratique : la rectificative corrige avant règlement et
+          porte « annule et remplace la facture n° … », l'avoir constate après coup une annulation,
+          un retour ou une remise. Pour le moteur : UN type de document modificatif avec un lien
+          obligatoire vers la facture initiale, et un sous-type d'affichage — pas deux types.
+      - key: note_de_debit
+        local: "Note de débit"
+        en: "Debit note"
+        what: "Complément de facturation — pénalités, frais."
+        nature: commercial
+        obligation: optional
+        source: unverified
+        note: >
+          Aucune consécration en droit fiscal français trouvée. Et la conséquence est nette : si
+          elle modifie une facture, elle tombe sous l'art. 289 I-5 et devient une facture. Donc soit
+          elle est purement commerciale, soit elle n'est pas une note de débit.
+      - key: autofacturation
+        local: "Autofacturation (mandat de facturation)"
+        en: "Self-billing"
+        what: "Le client ou un tiers émet matériellement la facture au nom et pour le compte du fournisseur."
+        nature: legal
+        obligation: optional
+        source: "CGI art. 289 I-2 ; CGI ann. II art. 242 nonies A I-14°"
+        note: >
+          Trois conditions dans la loi : un mandat donné par l'assujetti-fournisseur, une
+          ACCEPTATION PAR LUI DE CHAQUE FACTURE, et l'émission au nom et pour son compte — le
+          fournisseur reste l'émetteur juridique. La mention « Autofacturation » est obligatoire.
+          Les conditions de forme du mandat relèvent du BOFiP et ne sont pas sourcées.
+      - key: facture_proforma
+        local: "Facture proforma"
+        en: "Pro forma invoice"
+        what: "Facture simulée — douane, demande de financement."
+        nature: commercial
+        obligation: optional
+        source: unverified
+        note: "Aucun texte français trouvé. On ne peut pas dire si elle est interdite, tolérée ou simplement non réglementée."
+      - key: chorus_pro
+        local: "Demande de paiement Chorus Pro"
+        en: "Payment request to a public entity"
+        what: "Facture vers une personne publique, obligatoirement dématérialisée via Chorus Pro."
+        nature: legal
+        obligation: mandatory
+        source: "service-public F23386 (renvoie CPP R2192-10 à R2192-12)"
+        note: "SPÉCIFICITÉ FRANÇAISE. Le profil FR déclare déjà un canal GOV_PORTAL_API:choruspro."
+      - key: decompte_marches_travaux
+        local: "Décompte / décompte général et définitif (DGD)"
+        en: "Payment statement for public works contracts"
+        what: "Documents de paiement propres aux marchés publics de travaux."
+        nature: legal
+        obligation: mandatory
+        source: "service-public F23386 — détail par document non vérifié"
+        note: "SPÉCIFICITÉ FRANÇAISE. Famille entière que le produit ignore."
+    open_questions:
+      - id: fr_bofip_mandat
+        what: "Les conditions de FORME du mandat de facturation — écrit ? préalable ? qui numérote ? — ne sont pas sourcées."
+        settled_by: "BOI-TVA-DECLA-30-20-10 et suivants."
+      - id: fr_tva_avoir
+        what: "Le régime TVA de l'avoir (récupération, TVA facturée à tort) n'a pas été consulté."
+        settled_by: "CGI art. 272-1 et 283-4-a."
+      - id: fr_ordonnance_2027
+        what: "L'art. 289 est abrogé au 2027-01-01 par l'ordonnance n° 2025-1247 du 17 décembre 2025, dispositions « partiellement reconduites »."
+        settled_by: "Lecture de l'ordonnance."
+        note: >
+          MÊME ORDONNANCE que celle déjà signalée dans FR-RATTACHEMENT.md §4 pour les art. 289 bis et
+          290 — et même échéance que la recodification italienne. Deux des trois marchés primaires
+          voient leur numérotation d'articles périmer le même jour. À vérifier avant de figer un
+          modèle de données.
+      - id: fr_facture_periodique
+        what: "La facture périodique / récapitulative (CGI 289 I-3 al. 2) n'a pas été lue littéralement ; son existence n'est pas affirmée."
+        settled_by: "Texte intégral du CGI art. 289 I-3."
+
+  PL:
+    provenance: sourced
+    consulted: 2026-08-29
+    caveat: >
+      Établi en lisant et en grepant les textes statutaires téléchargés (ustawa o VAT t.j. Dz.U.
+      2025 poz. 775, lois KSeF Dz.U. 2023/1598 et 2025/1203, Ordynacja podatkowa), plus la FAQ
+      officielle KSeF du Ministère des finances. Aucune lecture de commentaire secondaire.
+    documents:
+      - key: oferta
+        local: "Oferta / Wycena"
+        en: "Quote"
+        what: "Offre de prix avant contrat. Aucune existence en droit de la TVA."
+        nature: commercial
+        obligation: optional
+        source: "MF FAQ KSeF #7"
+        note: "Hors KSeF — le système ne couvre que les faktury."
+      - key: faktura_proforma
+        local: "Faktura pro forma"
+        en: "Pro forma invoice"
+        what: "Demande de paiement ou aperçu de règlement."
+        nature: commercial
+        obligation: optional
+        source: "MF FAQ KSeF #6 ; le mot « pro forma » apparaît 0 fois dans la loi TVA"
+        note: >
+          Le MF le dit en toutes lettres : « W rozumieniu ustawy o VAT "proforma" nie jest fakturą.
+          Wystawianie tego typu dokumentów nie będzie odbywać się KSeF. » À comparer avec la France,
+          où AUCUN texte ne la mentionne — deux silences de nature différente : ici c'est une
+          exclusion explicite, là une absence de règle.
+      - key: faktura
+        local: "Faktura (VAT)"
+        en: "Invoice"
+        what: "Documente une vente B2B, une WSTO ou une WDT. Numéro séquentiel obligatoire."
+        nature: legal
+        obligation: mandatory
+        source: "ustawa o VAT art. 106b, 106e"
+        note: "Obligatoire en B2B ; sur demande sous 3 mois pour les opérations exonérées et le B2C."
+      - key: faktura_zaliczkowa
+        local: "Faktura zaliczkowa"
+        en: "Advance invoice"
+        what: "À l'encaissement de tout ou partie du prix avant la livraison."
+        nature: legal
+        obligation: mandatory
+        source: "ustawa o VAT art. 106b ust. 1 pkt 4, art. 106f"
+        note: >
+          DÉROGATION que le produit ne modélise pas : non requise si le paiement et la livraison
+          tombent le MÊME MOIS (art. 106b ust. 1a).
+      - key: faktura_koncowa
+        local: "Faktura końcowa / rozliczeniowa"
+        en: "Final invoice"
+        what: "Après livraison, quand les acomptes n'ont pas couvert la totalité ; déduit les acomptes."
+        nature: legal
+        obligation: mandatory
+        source: "ustawa o VAT art. 106f ust. 3–4"
+        note: "Doit porter les NUMÉROS KSEF des factures d'acompte — une contrainte de lien que le produit n'a pas."
+      - key: faktura_korygujaca
+        local: "Faktura korygująca"
+        en: "Corrective invoice"
+        what: "Émise par le VENDEUR. Corrige tout : base, taxe, retour de marchandise, remboursement d'acompte, et toute erreur sur n'importe quelle position."
+        nature: legal
+        obligation: mandatory
+        source: "ustawa o VAT art. 106j"
+        note: "Correspond au correctionModel CORRECTIVE_INVOICE que le profil PL déclare déjà."
+      - key: nota_korygujaca
+        local: "Nota korygująca"
+        en: "Buyer's correction note"
+        what: "Émise par l'ACHETEUR, avec acceptation du vendeur ; ne pouvait corriger que des données descriptives."
+        nature: legal
+        obligation: forbidden
+        source: "ustawa o VAT art. 106k, ABROGÉ ; loi Dz.U. 2023/1598 art. 1 pkt 15 ; MF FAQ #73"
+        note: >
+          ABROGÉE AU 2026-02-01. Ma prémisse de recherche était « faktura korygująca contre nota
+          korygująca, les confondre est une vraie erreur » — la réponse est plus radicale : la
+          seconde n'existe plus. Un produit qui expédie aujourd'hui doit la modéliser comme NON
+          ÉMISSIBLE en Pologne. Elle ne pouvait de toute façon jamais corriger les points 8 à 15 de
+          l'art. 106e — quantités, prix unitaires, remises, valeurs nettes, taux, totaux, montant de
+          taxe.
+      - key: faktura_vat_rr
+        local: "Faktura VAT RR"
+        en: "Flat-rate farmer invoice"
+        what: "L'ACHETEUR assujetti émet la facture lorsqu'il achète des produits ou services agricoles à un rolnik ryczałtowy."
+        nature: legal
+        obligation: mandatory
+        source: "ustawa o VAT art. 116 ; loi Dz.U. 2025/1203 art. 17c"
+        note: >
+          JUMEAU STRUCTUREL de l'autofattura agricole italienne (DPR 633/72 art. 34 c. 6) : même
+          forme — l'acheteur émet pour un producteur agricole sous seuil — deux noms, deux pays,
+          aucun lien dans nos profils. C'est l'argument le plus net pour le modèle par axes :
+          authorship=self_billed croisé avec industry=agriculture, plutôt que deux types nationaux.
+          Dans KSeF seulement à partir du 2026-04-01, et seulement si le fermier y dépose une
+          oświadczenie nommant cet acheteur.
+      - key: samofakturowanie
+        local: "Samofakturowanie"
+        en: "Self-billing"
+        what: "Pas un type de document : une faktura ordinaire émise par l'acheteur au nom du vendeur, portant la mention « samofakturowanie »."
+        nature: legal
+        obligation: optional
+        source: "ustawa o VAT art. 106d, art. 106e ust. 1 pkt 17"
+        note: >
+          Même conclusion qu'en France (CGI 289 I-2) : ce n'est pas un TYPE, c'est un AXE. Exige un
+          accord écrit préalable avec procédure d'approbation, et le vendeur doit d'abord accorder
+          l'autorisation KSeF à l'acheteur.
+      - key: paragon_fiskalny
+        local: "Paragon fiskalny"
+        en: "Fiscal receipt"
+        what: "Enregistrement en caisse de toute vente à un consommateur ou à un rolnik ryczałtowy."
+        nature: legal
+        obligation: mandatory
+        source: "ustawa o VAT art. 111 ust. 1 ; art. 145n pour l'exclusion KSeF"
+        note: "Hors KSeF, et les reçus avec NIP <= 450 zł le restent jusqu'au 2026-12-31."
+      - key: rachunek
+        local: "Rachunek"
+        en: "Plain bill"
+        what: "Émis à la demande de l'acheteur quand aucune obligation de facture ne naît d'ailleurs ; délai 7 jours."
+        nature: legal
+        obligation: conditional
+        source: "Ordynacja podatkowa art. 87 §§ 1–3"
+        note: "SPÉCIFICITÉ : document légal qui ne relève PAS de la loi TVA mais du code de procédure fiscale. Utilisé par les non-assujettis."
+      - key: nota_ksiegowa
+        local: "Nota księgowa / obciążeniowa"
+        en: "Accounting note"
+        what: "Charge hors TVA — pénalités, dommages, refacturation de non-livraisons."
+        nature: commercial
+        obligation: optional
+        source: "MF FAQ KSeF #49, #55"
+        note: "Explicitement hors KSeF. Équivalent fonctionnel de la « note de débit » française, elle aussi hors du champ fiscal."
+    open_questions:
+      - id: pl_nota_korygujaca_transitoire
+        what: "Aucune disposition transitoire trouvée préservant l'art. 106k pour les factures émises avant le 2026-02-01."
+        settled_by: "Grep des art. 12 à 22 de la loi Dz.U. 2023/1598, ou une interpretacja ogólna du MF."
+      - id: pl_rozporzadzenie_106s
+        what: "Le rozporządzenie de l'art. 106s listant les livraisons exclues de KSeF n'a pas été récupéré."
+        settled_by: "Le règlement lui-même."
+      - id: pl_variantes_de_marquage
+        what: "faktura marża, faktura VAT MP / metoda kasowa, faktura zbiorcza sont des VARIANTES DE MARQUAGE (art. 106e ust. 1 pkt 16, ust. 2–3 ; art. 106j ust. 3), pas des types distincts."
+        settled_by: "Décision produit, pas juridique — les traiter comme des modules serait un choix, pas une obligation."
+
   IT:
     provenance: sourced
     consulted: 2026-08-28
