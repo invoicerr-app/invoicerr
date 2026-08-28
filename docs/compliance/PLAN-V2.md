@@ -248,15 +248,21 @@ conception, et les faire après reviendrait à concevoir sur une hypothèse.*
 - **Dépend de** : P2-T01
 - **Accepte si** : `data-integrity.spec.ts` valide la nouvelle forme, et le profil FR exprime les
   trois couches (émission, réception, archivage) avec leurs échéances distinctes.
-- **État** : ❌ **NON FAIT, et c'est la dernière tâche ouverte de la phase 2.** Vérifié plutôt que
-  supposé : `grep -c "ObligationRule\|ObligationLayer" profiles/schema.ts` renvoie **0**.
+- **État** : ✅ **fait — `1f23f2e4`**, 8 tests + 1 invariant `data-integrity`. Trois couches, trois
+  horloges : ISSUANCE 24 h (DSE §3.6.5), RECEPTION 24 h (DSE §3.6.6), ARCHIVAL 6 ans (LPF L102 B).
+  Échéances reprises de `03-LEGAL-VERIFICATION.md`, non re-sourcées.
+- **Deux refus assumés** : l'entrée en vigueur échelonnée par taille est une `openQuestion` — le
+  contexte n'a pas de champ taille — et `data-integrity` **refuse** désormais un `deadline: null`
+  sans `openQuestion` à côté.
+- **Décisions** : `DECISIONS.md` D-001 (les 10 ans de `retentionYears` restent : les réduire à 6
+  diminuerait ce que le produit conserve) et D-002 (les échéances ne sont branchées à rien ; la
+  phase 3 doit les relier au `deadlineHours` **existant**, pas en construire un troisième).
 - **Ce qui a été livré à la place**, par une autre route et qui a résolu le symptôme sans construire
   le modèle : `AttachmentPredicate` (`0cf83366`) a corrigé le routage FR→IT / FR→US, `ObligationKind`
   + `ResolvedObligation` (`85c2e74a`) ont rendu les obligations plurielles, et `serves` +
   `reportingChannels` (`fed4c693`) ont séparé la facture des données.
-- **Ce qui manque donc** : les **couches** — le titre même de la phase est « obligations **par
-  couche** ». Émission, réception et archivage restent portés par des champs séparés
-  (`transmission`, `reception/`, `archival`) sans échéances distinctes exprimées comme obligations.
+- **Ce qui manquait** — les **couches** — est livré. Reste, hors périmètre de cette tâche : les 107
+  autres profils gardent leur forme (migration = travail de sourçage par pays, pas un refactor).
 
 ### P2-T03 — A1 : `plan.obligations` + adaptateur de compatibilité
 - **Fait** : `resolve()` produit `obligations: ResolvedObligation[]`. Un accesseur
@@ -564,4 +570,5 @@ mémoïsation l'a réduit mais je n'ai pas mesuré l'effet.
 | 2026-08-28 | **P2-T04/T05/T06** | ✅ fait | `558f88a4`. 16 lecteurs migrés, **`plan.regime` supprimé**. Lot 3 vide — `execution.regime` est un autre objet. Un test devenu tautologique (`x === x`) réécrit plutôt que laissé vert. |
 | 2026-08-28 | **P2-T07** | ✅ fait | `fed4c693`. Tableau des quatre flux complet, rouge-avant/vert-après vérifié. Tableau des quatre flux clos — mais **la phase 2 ne l'est pas** : voir P2-T02. Et une correction : ma vérification précédente était fausse — le chemin de données existait, `transmitStatus()` l'emprunte ; la suite m'a corrigé. |
 | 2026-08-28 | **Audit des états du plan** | ⚠️ | Quatre corps de tâche disaient encore « à faire ». Vérifiés **contre le code**, pas contre le journal : P1-T01 ✅, P1-T03a ✅, P2-T03 ✅ — et **P2-T02 ❌ réellement non faite** (`grep -c ObligationRule\|ObligationLayer schema.ts` = **0**). Le symptôme avait été résolu par une autre route ; le modèle **par couche** n'existe pas. Phase 2 **pas close**. |
+| 2026-08-28 | **P2-T02** | ✅ fait | `1f23f2e4`. Trois couches, trois horloges, échéances sourcées. **PHASE 2 CLOSE.** J'ai failli publier une citation fausse — L102 B dit 6 ans, pas 10 ; `03-LEGAL-VERIFICATION` signalait déjà la confusion sous FR-D9. |
 | 2026-08-28 | *(historique)* **P1-T03d** | ↩ tenté, annulé | Mesure P1-T02 corrigée : 8 suites / 52 tests, pas 6/31 — je n'avais inversé qu'un des cinq court-circuits. Redécoupée en T03b/c/d. |
