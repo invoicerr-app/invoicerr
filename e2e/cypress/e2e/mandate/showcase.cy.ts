@@ -75,7 +75,7 @@ describe("Compliance showcase — 2 September 2026, the mandate in force", () =>
 		});
 	});
 
-	it("03 FR — and it cannot actually leave: no PDP is connected, and the screen says so", () => {
+	it("03 FR — sent to a platform that will never answer, and the wait is open-ended", () => {
 		setupCountry("Mandat FR 3", "France", "FR", [
 			{ scheme: "LEGAL_ID", value: "73282932000092" },
 			{ scheme: "VAT", value: "FR44732829332" },
@@ -87,8 +87,14 @@ describe("Compliance showcase — 2 September 2026, the mandate in force", () =>
 				// before being asserted: the first version of this case assumed "not transmitted", which is
 				// what Poland shows, and France does something else. Guessing the message would have made the
 				// screenshot illustrate a sentence rather than the other way round.
+				// Captured before being asserted: the first version assumed "not transmitted", which is what
+				// Poland shows. France does something else, and the difference matters. Poland fails
+				// honestly; France goes to "awaiting delivery confirmation" — a pending state that cannot
+				// ever resolve, because no PDP has credentials (finding C1). An optimistic wait reads as
+				// progress, and this one is not.
+				cy.contains(/awaiting delivery confirmation/i).should("be.visible");
 				revealPanels();
-				shot("03-fr-after-send-to-platform");
+				shot("03-fr-awaiting-forever");
 			});
 		});
 	});
