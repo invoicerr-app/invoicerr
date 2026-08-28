@@ -131,11 +131,17 @@ describe('M-1 — valid documents proceed past the format-validation gate', () =
     expect(document.events.some((e) => e.type === 'VALIDATION_BLOCKED')).toBe(false);
     // It moved past the gate — the document did not stay at ISSUED.
     expect(document.status).not.toBe('ISSUED');
-    // FR-D1: it no longer reaches DELIVER here. EMAIL was removed from France's post-2026-09-01
-    // channels as illicit, and this harness configures no PDP/PEPPOL credentials, so transmission
-    // honestly fails. That is downstream of the format gate and does not weaken what is asserted
-    // above; the transmission gap itself is asserted in compliance-service.spec.ts.
-    expect(document.status).toBe('TRANSMISSION_FAILED');
+    // P2-T03: this used to assert TRANSMISSION_FAILED, and the reason it did was the routing defect
+    // this task fixes. The operation is FR→DE — CROSS-BORDER — so it is outside the e-invoicing
+    // mandate (CGI art. 289 bis I: both parties attached to France) and falls under e-reporting
+    // (art. 290 I 1° a/c). It used to be handed France's post-mandate channels — PDP, ChorusPro,
+    // Peppol — none of which this harness credentials, so transmission failed.
+    //
+    // FR-D1 removed EMAIL from France's post-mandate channels as illicit, and that remains right
+    // for a DOMESTIC operation. It was never right for this one: e-mail delivery of an invoice
+    // outside the mandate is not the sanctioned conduct art. 1737 III describes. The document now
+    // reaches the buyer and awaits a response, which is what should always have happened.
+    expect(document.status).toBe('AWAITING_RESPONSE');
   });
 
   it('PL (FA_VAT/KSeF): valid FA_VAT passes, send() does not throw, no VALIDATION_BLOCKED event', async () => {

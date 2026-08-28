@@ -20,11 +20,45 @@ export const FR: CountryComplianceProfile = {
       value: { model: 'POST_AUDIT', blocking: false },
     },
     // From 2026-09-01: domestic B2B/B2G e-invoicing via the decentralized CTC network.
+    // P2-T02 — TWO attachment predicates, not one, and P2-V01 established why (Légifrance,
+    // consulted 2026-08-28; see docs/compliance/FR-RATTACHEMENT.md):
+    //
+    //   art. 289 bis I  applies "lorsque l'émetteur de la facture ET son destinataire sont des
+    //                   assujettis qui sont établis ou ont leur domicile ou leur résidence
+    //                   habituelle en France" — a BILATERAL attachment test.
+    //   art. 289 bis V  "Le présent article ne s'applique pas aux opérations mentionnées […] au 1°
+    //                   du I de l'article 262 ter" — intra-Community exempt supplies, excluded
+    //                   WHATEVER the parties' attachment.
+    //
+    // The two are independent: a rule carrying only the bilateral test gives FR→IT the right answer
+    // by accident, and the wrong one for an intra-EU supply between two French-attached parties.
     {
       validFrom: '2026-09-01',
       value: {
         model: 'DECENTRALIZED_CTC',
         appliesTo: { roles: ['B2B', 'B2G'] },
+        attachment: [
+          { kind: 'BOTH_ATTACHED_TO', country: 'FR' },
+          { kind: 'NOT_OF_NATURE', nature: 'intraCommunitySupply' },
+        ],
+        blocking: false,
+      },
+    },
+    // B2B/B2G operations that are NOT domestic fall under e-reporting, not e-invoicing — CGI
+    // art. 290 I 1°: a) supplies exempt under arts. 262 and 262 ter, c) services not situated in
+    // France under arts. 259/259 A. This is the rule the engine was missing: those operations
+    // resolved to DECENTRALIZED_CTC and were routed to a PDP.
+    //
+    // Known gap rather than an oversight: art. 290 I is WIDER than "cross-border" — it also covers
+    // domestic supplies to a taxable person not established in France (1° b), B2C supplies situated
+    // in France (2° b, f) and acquisitions (3°). Only the complement of the bilateral test is
+    // encoded here; the rest is its own task.
+    {
+      validFrom: '2026-09-01',
+      value: {
+        model: 'REAL_TIME_REPORTING',
+        appliesTo: { roles: ['B2B', 'B2G'] },
+        attachment: [{ kind: 'NOT_BOTH_ATTACHED_TO', country: 'FR' }],
         blocking: false,
       },
     },
@@ -74,11 +108,37 @@ export const FR: CountryComplianceProfile = {
         // using an accredited platform.
         //
         // The pre-2026-09-01 period above keeps EMAIL and is untouched — it was licit then.
+        // P2-T02: the same bilateral test gates the CHANNELS. A regime alone is not enough — the
+        // channel is what actually routes the document, and offering a PDP for an operation outside
+        // the e-invoicing mandate is precisely the defect being fixed.
+        // NOT filtered by role, deliberately, and this is a modelling limit rather than an
+        // oversight. A domestic B2C sale is outside the e-invoicing mandate (art. 289 bis I covers
+        // the operations of art. 289 I 1 a and d — B2B and B2G), so it should not be ROUTED through
+        // a PDP. But art. 290 III requires the e-reporting DATA to reach the administration through
+        // the accredited platform, and today `channels` is a single list serving both purposes —
+        // filtering B2C out here would also cut the data path, and the lifecycle statuses with it.
+        //
+        // Separating "where the invoice goes" from "where the data goes" is exactly what A2's
+        // obligation model is for. Until then B2C keeps today's channels, unchanged.
+        attachment: [
+          { kind: 'BOTH_ATTACHED_TO', country: 'FR' },
+          { kind: 'NOT_OF_NATURE', nature: 'intraCommunitySupply' },
+        ],
         channels: [
           { type: 'PDP' },
           { type: 'GOV_PORTAL_API', providerId: 'choruspro' },
           { type: 'PEPPOL' },
         ],
+      },
+    },
+    // Operations outside the e-invoicing mandate keep an ordinary delivery channel: the e-reporting
+    // DATA reaches the administration through the platform, but the INVOICE itself is not routed
+    // through the CTC network.
+    {
+      validFrom: '2026-09-01',
+      value: {
+        attachment: [{ kind: 'NOT_BOTH_ATTACHED_TO', country: 'FR' }],
+        channels: [{ type: 'EMAIL' }],
       },
     },
   ],

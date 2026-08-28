@@ -17,6 +17,12 @@ import {
 } from '../profiles/schema';
 import { ProfileRegistry, defaultRegistry } from '../profiles/registry';
 import { allByDate, pickByDate } from '../profiles/temporal';
+import {
+  type AttachmentPredicate,
+  type OperationNature,
+  type OperationParties,
+  evaluateAll,
+} from './attachment-predicate';
 import { TrustFlagVatValidator, VatValidator, selectorMatches } from './classification';
 import { DocumentTaxResult, determineTax } from './tax-engine';
 import { ArtifactRole, Confidence, PartyRole, ReportingKind, SupplyType, TaxSystemKind } from '../types';
@@ -91,12 +97,47 @@ export function resolve(ctx: TransactionContext, deps: ResolveDeps = {}): Compli
   // Tax — the only step that reads both profiles deeply.
   const tax = determineTax(ctx, sp, vat, bp);
 
-  // Regime — supplier-driven, by date AND classification.
-  const regime =
-    pickWithSelector(sp.regime, ctx.issueDate, buyerRole, supplyTypes) ?? fallbackRegime(sp, warnings);
+  // P2-T03 — the attachment of the two parties, and the nature of the supply, as the predicate
+  // evaluates them. This is what `appliesTo` could not express: it selects on the buyer's ROLE and
+  // the supply type, never on "both parties attached to France".
+  //
+  // The country used is the one the profile registry RESOLVED, not the raw one on the party. That
+  // matters for delegation: Monaco has no profile of its own and delegates to France
+  // (`delegatedFrom: 'MC'`), which is the repository's existing decision that a Monegasque
+  // operation is governed by French rules. Evaluating the predicate on the raw 'MC' would silently
+  // reverse that decision here, and this is not the place to re-litigate it.
+  //
+  // Note the limit, and it is a real one: CGI art. 290 I 4° a) lists FR↔Monaco operations under
+  // e-reporting explicitly, so the treatment of Monaco deserves its own sourced pass. Following the
+  // existing delegation preserves today's behaviour rather than inventing a rule.
+  const parties: OperationParties = {
+    supplier: sp.countryCode.toUpperCase(),
+    buyer: bp.countryCode.toUpperCase(),
+  };
+  const nature: OperationNature = {
+    // An intra-Community supply as CGI art. 262 ter I 1° means it: goods leaving for another EU
+    // member state, between taxable persons. Derived from the tax treatment the engine already
+    // computed rather than re-deduced, so the two can never disagree.
+    intraCommunitySupply: tax.reportingFlags.includes('EC_SALES_LIST'),
+  };
 
-  // Channels — resolved BEFORE artifacts so buildArtifacts() can cross-check them (F-7).
-  const transmission = pickByDate(sp.transmission, ctx.issueDate);
+  // Regime — supplier-driven, by date, classification AND attachment.
+  const regime =
+    pickWithSelector(sp.regime, ctx.issueDate, buyerRole, supplyTypes, parties, nature, warnings) ??
+    fallbackRegime(sp, warnings);
+
+  // Channels — resolved BEFORE artifacts so buildArtifacts() can cross-check them (F-7). The same
+  // predicate gates them: the channel is what actually routes the document, so a regime alone would
+  // still have offered a PDP for an operation outside the mandate.
+  const transmission = pickWithSelector(
+    sp.transmission,
+    ctx.issueDate,
+    buyerRole,
+    supplyTypes,
+    parties,
+    nature,
+    warnings,
+  );
   const channels: ChannelSpec[] = transmission?.channels ?? [{ type: 'EMAIL' }];
 
   // Formats — supplier primary (+ human) plus buyer-mandated receive syntax when negotiable,
@@ -137,13 +178,34 @@ export function resolve(ctx: TransactionContext, deps: ResolveDeps = {}): Compli
 }
 
 /** Pick the rule in force at the date whose selector matches the transaction class. */
-function pickWithSelector<T extends { appliesTo?: ClassificationSelector }>(
+function pickWithSelector<T extends { appliesTo?: ClassificationSelector; attachment?: AttachmentPredicate[] }>(
   rules: Temporal<T>[],
   date: Date,
   buyerRole: PartyRole,
   supplyTypes: SupplyType[],
+  parties?: OperationParties,
+  nature?: OperationNature,
+  warnings?: string[],
 ): T | null {
-  const inForce = allByDate(rules, date).filter((v) => selectorMatches(v.appliesTo, buyerRole, supplyTypes));
+  const inForce = allByDate(rules, date)
+    .filter((v) => selectorMatches(v.appliesTo, buyerRole, supplyTypes))
+    .filter((v) => {
+      // A rule with no attachment predicate is unconditional on attachment — every profile that has
+      // not been migrated behaves exactly as before.
+      if (!v.attachment || v.attachment.length === 0 || !parties) return true;
+      const verdict = evaluateAll(v.attachment, parties, nature ?? {});
+      if (verdict === null) {
+        // Undecidable, never silently inapplicable. The attachment guard in invoices.helpers.ts
+        // blocks before this point in the product path, so reaching here means a caller built a
+        // context another way — worth saying out loud rather than dropping the rule.
+        warnings?.push(
+          `A rule's attachment could not be decided (supplier=${parties.supplier ?? '?'}, ` +
+            `buyer=${parties.buyer ?? '?'}); it was not applied.`,
+        );
+        return false;
+      }
+      return verdict;
+    });
   if (inForce.length === 0) return null;
   // Prefer a selector-specific rule over a wildcard one.
   const specific = inForce.find((v) => !!v.appliesTo);

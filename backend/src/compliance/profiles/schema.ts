@@ -3,6 +3,7 @@
  * jurisdiction (COMPLIANCE_ARCHITECTURE.md §7). A profile references provider behaviour as data;
  * the engine resolves it against a point in time (the issue date).
  */
+import type { AttachmentPredicate } from '../engine/attachment-predicate';
 import {
   ChannelType,
   Confidence,
@@ -33,6 +34,18 @@ export interface ClassificationSelector {
 export interface RegimeRule {
   model: RegimeModel;
   appliesTo?: ClassificationSelector;
+  /**
+   * P2-T02 — which OPERATIONS this regime catches, by the attachment of the parties.
+   *
+   * `appliesTo` selects on the buyer's ROLE and the supply type; it cannot say "when both parties
+   * are attached to France". That gap is why FR→IT and FR→US resolve to DECENTRALIZED_CTC today and
+   * are routed to a PDP, where CGI art. 289 bis I reserves e-invoicing to parties BOTH attached to
+   * France, and art. 290 puts those supplies under e-reporting.
+   *
+   * All predicates must hold. An unresolved attachment makes the rule UNDECIDABLE rather than
+   * inapplicable — see evaluateAll — so a missing country can never quietly select a regime.
+   */
+  attachment?: AttachmentPredicate[];
   blocking: boolean; // clearance: is the invoice invalid until authorised?
 }
 
@@ -61,6 +74,19 @@ export interface ChannelSpec {
 export interface TransmissionRule {
   channels: ChannelSpec[]; // ordered, with fallbacks
   deliverToBuyerWithinHours?: number;
+  /**
+   * P2-T02 — the buyer role and supply type, as every other rule kind already carries.
+   * TransmissionRule did not have it, so channels could not be selected by role: a domestic B2C
+   * sale is bilaterally attached to France and still outside the e-invoicing mandate (art. 289 bis I
+   * covers the operations of art. 289 I 1 a and d — B2B and B2G), yet it was offered a PDP.
+   */
+  appliesTo?: ClassificationSelector;
+  /**
+   * P2-T02 — same predicate, on the channels. A regime alone is not enough: France must not offer a
+   * PDP channel for an operation that is outside the e-invoicing mandate, because the channel is
+   * what actually routes the document.
+   */
+  attachment?: AttachmentPredicate[];
 }
 
 export interface ResponsePolicy {

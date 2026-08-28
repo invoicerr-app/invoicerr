@@ -67,6 +67,56 @@ describe('ComplianceEngine — France, temporal correctness', () => {
   });
 });
 
+describe('ComplianceEngine — P2-T02/T03: the attachment trigger routes the four French flows', () => {
+  /**
+   * The defect this pins, and it was the critical path of the whole plan: FR→IT and FR→US resolved
+   * to DECENTRALIZED_CTC and were handed a PDP channel, where CGI art. 289 bis I reserves
+   * e-invoicing to parties BOTH attached to France and art. 290 I 1° puts those supplies under
+   * e-reporting (Légifrance, consulted 2026-08-28 — docs/compliance/FR-RATTACHEMENT.md).
+   *
+   * Wrong in both directions: an e-invoice was emitted where the law asks for a data transmission,
+   * and the data transmission that IS owed was not emitted.
+   */
+  it('FR→FR B2B domestic: e-invoicing, PDP channel', () => {
+    const plan = resolve(tx('FR', 'FR', 'B2B', 'SERVICES', '2027-01-15'));
+    expect(plan.regime.model).toBe('DECENTRALIZED_CTC');
+    expect(plan.channels.map((c) => c.type)).toContain('PDP');
+  });
+
+  it('FR→IT B2B services: e-reporting, and NO PDP — it used to get both wrong', () => {
+    const plan = resolve(tx('FR', 'IT', 'B2B', 'SERVICES', '2027-01-15'));
+    expect(plan.regime.model).toBe('REAL_TIME_REPORTING');
+    expect(plan.channels.map((c) => c.type)).not.toContain('PDP');
+  });
+
+  it('FR→IT B2B goods: excluded twice over — bilateral test AND art. 289 bis V', () => {
+    const plan = resolve(tx('FR', 'IT', 'B2B', 'GOODS', '2027-01-15'));
+    expect(plan.regime.model).toBe('REAL_TIME_REPORTING');
+    expect(plan.channels.map((c) => c.type)).not.toContain('PDP');
+  });
+
+  it('FR→US B2B export: e-reporting, no PDP', () => {
+    const plan = resolve(tx('FR', 'US', 'B2B', 'GOODS', '2027-01-15'));
+    expect(plan.regime.model).toBe('REAL_TIME_REPORTING');
+    expect(plan.channels.map((c) => c.type)).not.toContain('PDP');
+  });
+
+  it('before the mandate, a domestic FR B2B operation is untouched by the predicate', () => {
+    const plan = resolve(tx('FR', 'FR', 'B2B', 'SERVICES', '2025-06-01'));
+    expect(plan.regime.model).toBe('POST_AUDIT');
+    expect(plan.channels.map((c) => c.type)).toEqual(['EMAIL']);
+  });
+
+  /**
+   * A profile that carries no attachment predicate must behave exactly as before — the migration is
+   * opt-in, one country at a time, and nothing else may shift underneath it.
+   */
+  it('an unmigrated profile is unaffected: PL→DE still resolves Poland\'s regime', () => {
+    const plan = resolve(tx('PL', 'DE', 'B2B', 'GOODS', '2027-01-15'));
+    expect(plan.regime.model).toBe('CLEARANCE');
+  });
+});
+
 describe('ComplianceEngine — cross-border composition', () => {
   it('US→FR B2B: US post-audit supplier, FR buyer drives a Factur-X receive artifact', () => {
     const plan = resolve(tx('US', 'FR', 'B2B', 'SERVICES', '2027-01-15'));

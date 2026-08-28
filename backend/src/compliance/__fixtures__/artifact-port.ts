@@ -88,6 +88,13 @@ export function makeArtifactPort(fixtureData: InvoiceRenderData): InvoiceArtifac
  * document. Backed by FR_B2B_STANDARD — the canonical French invoice the format fixtures already
  * carry, so nothing new is invented here.
  */
+let shared: InvoiceArtifactPort | undefined;
+
 export function defaultArtifactPort(): InvoiceArtifactPort {
-  return makeArtifactPort(FR_B2B_STANDARD.data);
+  // Module-level, not per call. Each port memoises its own builds, so returning a fresh one per
+  // call made every caller pay the full e-invoice + PDF/A-3 cost again — enough to blow a jest
+  // beforeAll hook's 5 s default. Callers that need a DIFFERENT document still use
+  // makeArtifactPort() and get their own cache.
+  shared ??= makeArtifactPort(FR_B2B_STANDARD.data);
+  return shared;
 }
