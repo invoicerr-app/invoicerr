@@ -179,6 +179,8 @@ perd rien : elle garde PDP et Peppol.
 | `08-CORRIDOR-MODEL.md` | note de conception du corridor (F-017) — **sans code** |
 | `09-F018-ES-DECLARATION.md` | la séquence espagnole |
 | `10-ACQUIS.md` | **ce qui tient** — cinq catégories, chacune avec ce qui l'établit |
+| `08-CORRIDOR-MODEL.md` | le modèle de déclenchement — prédicat d'établissement, obligations par couche |
+| `11-FRANCE-RESTE-A-FAIRE.md` | **le plan de dev France**, ordonné, chaque ligne avec bloqueur et coût |
 | `compliance-truth.json` | 106 pays, testabilité intégrée, **structure non modifiée** |
 | `scripts/audit/repro/` | 5 reproductions exécutables |
 | `evidence/` | sorties capturées |

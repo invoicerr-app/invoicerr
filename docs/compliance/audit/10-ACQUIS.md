@@ -13,6 +13,18 @@
 >
 > Chiffres de référence, arbre `dbd22664` : suite backend **137 suites / 1812 tests / 0 échec**,
 > plus **16 suites délibérément ignorées** (specs `.live` gatées par drapeau + credentials).
+>
+> ---
+>
+> **Dette de méthode, soldée sur le chemin français.** La première version de ce document classait
+> les composants sur des **comptes de tests**, pas sur leur contenu. Un seul composant avait été lu
+> — et c'est le seul où il avait fallu corriger, ce qui suffisait à disqualifier la méthode. Les
+> **cinq composants du chemin français** ont depuis été relus au contenu : composition de deux
+> profils, validation de format, chaînage générique, moteur `resolve()`, profils temporels. Une
+> catégorie a bougé (§4.1, **4 → 3**), deux citations de preuve étaient fausses (§1.1, §1.2), et la
+> relecture a mis au jour un défaut que le compte masquait : le régime des opérations françaises
+> **transfrontalières** (§1.2). **Les douze autres composants restent classés sur des comptes** et
+> doivent être lus avant d'être invoqués pour décider quoi que ce soit.
 
 ---
 
@@ -22,11 +34,23 @@
 
 `Temporal<T>` avec `validFrom`/`validTo` exclusif, 106 pays, résolution à date.
 
-**Ce qui l'établit.** 128 tests sur trois specs qui ne se contentent pas de vérifier des valeurs :
-`temporal.spec.ts` exerce la résolution à date ; `coverage.spec.ts` **lit
-`documentation/compliance/*.md`** et échoue si un pays documenté n'a pas de profil ;
-`data-integrity.spec.ts` échoue si une syntaxe ou un `providerId` référencé ne résout pas. Ce sont
-des tests qui cassent quand la donnée dérive, pas quand le code change.
+**Ce qui l'établit — après relecture du contenu, la première citation était fausse.** J'avais
+avancé « 128 tests » comme une preuve de largeur. Elle n'en est pas une : `temporal.spec.ts` ne
+compte que **5 tests**, et ils portent sur les fonctions `pickByDate`/`allByDate`, pas sur les
+profils ; `coverage.spec.ts` déclare 4 tests dont un `it.each(codes)` qui répète **une seule**
+assertion sur 106 pays ; `data-integrity.spec.ts` en a ~14, tous de bonne forme et d'intégrité
+référentielle. Le total est réel mais il mesure surtout une propriété répétée cent six fois.
+
+**La vraie preuve est ailleurs, et elle est meilleure.** `compliance-engine.spec.ts` contient quatre
+tests dédiés à la **correction temporelle française**, au niveau du plan : FR→FR B2B après le mandat
+(régime, canal PDP, artefacts CII + Factur-X, statuts obligatoires, rétention 10 ans), FR→FR B2B
+avant le mandat (post-audit, e-mail seul), FR→FR B2C après le mandat, et la négative — FR→FR B2B ne
+porte **pas** l'e-reporting B2C. C'est le chemin français vérifié de bout en bout, ce que
+`temporal.spec.ts` ne fait pas.
+
+S'y ajoutent : `coverage.spec.ts` **lit `documentation/compliance/*.md`** et échoue si un pays
+documenté n'a pas de profil ; `data-integrity.spec.ts` échoue si une syntaxe ou un `providerId`
+référencé ne résout pas. Ce sont des tests qui cassent quand la donnée dérive.
 
 **La preuve la plus parlante n'est pas un test.** La dimension temporelle a piégé **mon propre
 inventaire** : l'aplatir a produit deux findings faux (PL-D4, IT-D8), tous deux rétractés, parce
@@ -40,9 +64,25 @@ faire échouer un auditeur qui le simplifie est un modèle qui porte de l'inform
 
 `resolve(ctx) → CompliancePlan` : 9 dimensions de politique produites depuis les profils.
 
-**Ce qui l'établit.** 5 specs, **58 tests**, dont `tax-matrix.spec.ts` qui parcourt des corridors
-réels et `mexico.spec.ts` qui exerce un régime non-européen. Le moteur est aussi la seule voie
-d'accès du produit aux règles — il n'y a pas de chemin parallèle qui contournerait les profils.
+**Ce qui l'établit.** 5 specs, 58 tests — mais cette fois le contenu vaut mieux que le compte :
+`compliance-engine.spec.ts` seul porte 17 tests, dont les quatre tests temporels français ci-dessus,
+la délégation monégasque, le repli sur pays inconnu avec avertissement visible, et le croisement
+canal Peppol × artefact sur cinq pays. Le moteur est aussi la seule voie d'accès du produit aux
+règles : aucun chemin parallèle ne contourne les profils.
+
+**Et la relecture a trouvé un défaut que le compte de tests masquait.** Aucun test n'assert le
+`regime` d'une opération française **transfrontalière**. En sondant le moteur directement :
+
+```
+FR→FR B2B   regime=DECENTRALIZED_CTC   reporting=[]
+FR→IT B2B   regime=DECENTRALIZED_CTC   reporting=[EC_SALES_LIST]      ← devrait être e-reporting
+FR→US B2B   regime=DECENTRALIZED_CTC   reporting=[]                   ← devrait être e-reporting
+```
+
+Une facture transfrontalière est routée vers le régime **domestique**, canal PDP compris, alors que
+l'art. 289 bis I réserve l'e-invoicing aux opérations entre parties **toutes deux établies** en
+France. La catégorie 1 tient — le moteur fait correctement ce qu'on lui a demandé de faire — mais
+ce qu'on lui a demandé est incomplet. C'est le sujet de `08-CORRIDOR-MODEL.md`.
 
 ### 1.3 Les registres de fournisseurs, comme architecture
 
@@ -154,6 +194,13 @@ prises **du seul profil fournisseur**. C'est exactement F-017, et c'est le chemi
 que `regime` n'est pas composé, e-invoicing et e-reporting ne se distinguent pas, et la France
 devra être codée deux fois.
 
+**Confirmé par relecture, et la conséquence est chiffrable.** `US→FR B2B` fait bien produire par le
+profil **acheteur** un artefact Factur-X de réception — la composition marche pour les artefacts.
+`FR→IT B2C` prend le taux de destination italien lu dans le profil italien. Mais `FR→IT B2B` et
+`FR→US B2B` reçoivent le régime **domestique** `DECENTRALIZED_CTC`, canal PDP compris, parce que
+`regime` n'emprunte pas cette porte. La limite n'est pas théorique : elle produit un plan faux sur
+deux des quatre flux français.
+
 **À étendre, pas à refaire.** La signature est déjà la bonne ; c'est le nombre de dimensions qui
 l'empruntent qui doit changer.
 
@@ -184,21 +231,35 @@ par le schéma.
 
 ## 4. À refaire
 
-### 4.1 La couche de validation de format
+### 4.1 La couche de validation de format — **catégorie corrigée : 4 → 3 sur le chemin français**
 
-**Le fait, mesuré** : **54 syntaxes sur 54 déclarent `valid: true` pour un document de zéro octet**,
-et 49 sur 54 pour `<garbage/>`. Cinq seulement rejettent un document manifestement invalide
-(`CFDI`, `ES_FACTURAE`, `FA_VAT`, `FATTURAPA`, `PEPPOL_BIS`).
+**Ce que j'avais écrit** : « à refaire », sur la foi du chiffre mesuré — 54 syntaxes sur 54
+déclarent `valid: true` pour un document de zéro octet, 49 sur 54 pour `<garbage/>`. Le chiffre est
+juste. **La conclusion était trop large**, et la relecture du contenu des tests l'a montrée.
 
-**Pourquoi refaire plutôt que rafistoler.** Un `validate()` qui renvoie `true` par défaut n'est pas
-une validation incomplète, c'est une **inversion de la valeur par défaut**. Corriger 49 providers un
-par un reproduirait la même erreur 49 fois. Ce qu'il faut est l'inverse : `validate()` échoue tant
-qu'un schéma n'est pas vendorisé, et la registry refuse de servir une syntaxe sans validateur. 20
-schémas existent pour 7 espaces de noms — la matière est là, c'est la valeur par défaut qui est à
-retourner.
+**Ce que la relecture établit.** Il existe de vraies portes de validation, avec tests positifs *et*
+négatifs : XSD FatturaPA (`Schema_VFPR12.xsd`), XSD CFDI 4.0, et surtout — pour la France —
+`providers.ts:171` fait passer l'artefact **`EN16931_CII` par le Schematron EN 16931**. Le test
+négatif correspondant attrape BR-06 (nom du vendeur), BR-07 (nom de l'acheteur) et BR-16 (au moins
+une ligne), avec au moins 8 erreurs sur un CII structurellement incomplet.
 
-**Impact direct sur la France** : le PPF rejette un flux F1 non conforme. Un validateur qui accepte
-tout ne prévient rien.
+**Donc, sur le chemin français, la validation n'est pas à refaire : elle existe et elle mord.** Ce
+qui reste est nommable en trois points, ce qui est le propre d'une catégorie 3 :
+
+1. **Le court-circuit sur artefact vide.** `providers.ts:145` :
+   `if (!rendered.bytes.length) return okValidation(…'stub path')`. Un artefact de zéro octet
+   traverse build → validate sans objection, quelle que soit la syntaxe. C'est **un** endroit à
+   retourner, pas 54.
+2. **Factur-X n'est pas validé, honnêtement.** `rendered.bytes` est un PDF/A-3 ; extraire le XML
+   embarqué n'est pas implémenté, et le code le dit plutôt que de faire semblant. Or Factur-X est la
+   copie humaine française. Le défaut est réel, la posture est saine.
+3. **Un test dont le nom ment.** `format-validation.spec.ts` contient
+   `it('rejects completely empty XML')` qui assert `expect(result.errorCount).toBe(0)` — il
+   **documente** que rien ne se déclenche, sous un nom qui affirme l'inverse. Un lecteur pressé y
+   lit une garantie ; c'est un trou.
+
+**Ce qui reste vraiment en catégorie 4** : les 42 providers de `national-formats.ts` qui renvoient
+`{ valid: true, warnings: ['… (stub)'] }` quoi qu'on leur passe. Aucun n'est sur le chemin français.
 
 ### 4.2 L'infrastructure de test du frontend
 
@@ -237,7 +298,9 @@ canal. C'est peu de travail et cela change le statut de la promesse commerciale 
 `compliance-service.ts:244-251` lit l'`immutableHash` du document précédent et le chaîne — donc,
 contrairement au cas espagnol d'avant correction, **la chaîne est alimentée**.
 
-**Ce qui manque.** Le seul test qui l'approche assert `expect(document.immutableHash).toBeDefined()`.
+**Ce qui manque — confirmé par relecture, la catégorie tient.** Le seul test qui l'approche assert
+littéralement `expect(document.immutableHash).toBeDefined()`, dans un test dont le sujet est
+l'interdiction d'éditer après émission.
 Personne ne vérifie que la chaîne **relie** deux documents, ni qu'un recalcul reproduit la valeur
 stockée. C'est précisément la propriété que `verifactu-chain.spec.ts` établit pour l'Espagne et que
 le chaînage générique n'a pas. La France l'exige (`numbering.hashChain: true`).
