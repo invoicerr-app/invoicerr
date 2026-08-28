@@ -296,7 +296,13 @@ conception, et les faire après reviendrait à concevoir sur une hypothèse.*
 - **Dépend de** : P2-T07
 - **Accepte si** : tout artefact FR post-mandat porte BT-23 avec une valeur de la liste ; test rouge
   sans la contrainte ; le Schematron EN 16931 passe toujours.
-- **État** : à faire
+- **État** : ✅ **fait — `96ecaf0f`**, 9 tests, dérivation vérifiée sur un **artefact réel**
+  (`SERVICES → S1`, `GOODS → B1`).
+- **Le défaut n'était pas l'absence.** `@e-invoice-eu/core` émet `M1` **en dur** : la valeur était
+  présente et **fausse dans deux cas sur trois**. Un contrôle de présence ne l'aurait pas vu — c'est
+  pourquoi l'audit l'avait classée « absente ».
+- **Limite** : seul le cadre **1** est dérivé. Les cadres 2 (auto-facturation), 4 (mandat) et 5/6/7
+  dépendent de qui facture pour qui, ce que le dépôt ne modélise pas. Consigné plutôt que deviné.
 
 > ### ⏸ POINT D'ARRÊT — fin de phase 2
 > Le modèle est présenté avant de se propager. **La phase 3 ne démarre pas sans feu vert.**
@@ -398,4 +404,6 @@ mémoïsation l'a réduit mais je n'ai pas mesuré l'effet.
 | 2026-08-28 | **P2-V02** | ✅ fait | `291a91c1`. Six pivots, 14 tests. Italie : `EITHER` confirmé. Espagne : une seule règle. |
 | 2026-08-28 | **P2-T01** | ✅ fait | `c5dfc682`. Repli `?? 'FR'` supprimé des **deux** côtés ; le fournisseur n'était pas gardé du tout. Pas de migration : le champ existait. |
 | 2026-08-28 | **P2-T02 + P2-T03** | ✅ fait | `0cf83366`. **Le routage français est corrigé** : FR→IT et FR→US passent de `DECENTRALIZED_CTC` + PDP à `REAL_TIME_REPORTING` + EMAIL. Profils non migrés inchangés (asserté PL→DE). |
+| 2026-08-28 | **P2-T08** | ✅ fait | `96ecaf0f`. BT-23 dérivé du contenu. `M1` en dur était **faux 2 fois sur 3**, pas absent. |
+| 2026-08-28 | **⏸ PHASE 2 CLOSE** | — | **Point d'arrêt atteint.** Le modèle est présenté ; la phase 3 attend le feu vert. |
 | 2026-08-28 | *(historique)* **P1-T03d** | ↩ tenté, annulé | Mesure P1-T02 corrigée : 8 suites / 52 tests, pas 6/31 — je n'avais inversé qu'un des cinq court-circuits. Redécoupée en T03b/c/d. |
