@@ -25,7 +25,16 @@ import {
 } from './attachment-predicate';
 import { TrustFlagVatValidator, VatValidator, selectorMatches } from './classification';
 import { DocumentTaxResult, determineTax } from './tax-engine';
-import { ArtifactRole, Confidence, PartyRole, ReportingKind, SupplyType, TaxSystemKind } from '../types';
+import {
+  ArtifactRole,
+  Confidence,
+  ObligationKind,
+  PartyRole,
+  RegimeModel,
+  ReportingKind,
+  SupplyType,
+  TaxSystemKind,
+} from '../types';
 
 export interface PlannedArtifact {
   role: ArtifactRole;
@@ -39,6 +48,16 @@ export interface CompliancePlan {
   classification: { buyerRole: string; crossBorder: boolean; supplyTypes: SupplyType[] };
   tax: DocumentTaxResult;
   taxSystemKind: TaxSystemKind;
+  /**
+   * P2-T03 — the duties this operation carries. Plural, because they genuinely are.
+   *
+   * `regime` below is the FIRST of these, kept so the sixteen existing readers across eight files
+   * keep working untouched; `primaryObligation(plan)` is the accessor they migrate to, lot by lot,
+   * after which `regime` goes. Today `obligations` almost always holds one entry — the profiles
+   * were written against a singular model — and that is the point: the shape changes before the
+   * data does, so the migration is not also a behaviour change.
+   */
+  obligations: ResolvedObligation[];
   regime: RegimeRule;
   artifacts: PlannedArtifact[];
   channels: ChannelSpec[];
@@ -48,6 +67,70 @@ export interface CompliancePlan {
   reporting: ReportingKind[];
   confidence: Confidence;
   warnings: string[];
+}
+
+/** One duty, resolved for this operation. */
+export interface ResolvedObligation {
+  kind: ObligationKind;
+  /** How it is discharged — the historical `RegimeModel`. */
+  model: RegimeModel;
+  /** Clearance: is the invoice invalid until the authority has authorised it? */
+  blocking: boolean;
+}
+
+/**
+ * Which duty a regime model expresses, when the profile has not said.
+ *
+ * A convention, and named as one so a profile can override it: CLEARANCE and DECENTRALIZED_CTC are
+ * mechanisms for getting the INVOICE to the authority, the two reporting models are mechanisms for
+ * getting DATA there, and POST_AUDIT is the absence of either duty rather than a third kind of it.
+ */
+export function obligationKindFor(model: RegimeModel): ObligationKind {
+  switch (model) {
+    case 'CLEARANCE':
+    case 'DECENTRALIZED_CTC':
+      return 'E_INVOICING';
+    case 'REAL_TIME_REPORTING':
+    case 'PERIODIC_REPORTING':
+      return 'E_REPORTING';
+    case 'POST_AUDIT':
+      return 'NONE';
+  }
+}
+
+/**
+ * The one obligation the pre-P2-T03 code assumed. Readers migrate to this before `regime` is
+ * removed, so the removal is a deletion and not a rewrite.
+ */
+/**
+ * `regime` first, then any other rule that also matched, de-duplicated.
+ *
+ * `regime` leads because it is what every existing reader sees; putting anything else first would
+ * make `primaryObligation()` disagree with `plan.regime` and turn a structural change into a
+ * behavioural one, which is exactly what the lot-by-lot migration is designed to avoid.
+ */
+function obligationsFrom(regime: RegimeRule, matching: RegimeRule[]): ResolvedObligation[] {
+  const ordered = [regime, ...matching.filter((r) => r !== regime)];
+  const seen = new Set<string>();
+  const out: ResolvedObligation[] = [];
+  for (const r of ordered) {
+    const kind = r.obligation ?? obligationKindFor(r.model);
+    const key = `${kind}|${r.model}|${r.blocking}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ kind, model: r.model, blocking: r.blocking });
+  }
+  return out;
+}
+
+export function primaryObligation(plan: Pick<CompliancePlan, 'obligations'>): ResolvedObligation {
+  // `resolve` always produces at least one — the POST_AUDIT default — so this cannot be empty for
+  // a plan it built. A non-null assertion would hide the day that stops being true.
+  const first = plan.obligations[0];
+  if (!first) {
+    throw new Error('CompliancePlan carries no obligation; resolve() always produces at least one.');
+  }
+  return first;
 }
 
 export interface ResolveDeps {
@@ -122,6 +205,17 @@ export function resolve(ctx: TransactionContext, deps: ResolveDeps = {}): Compli
   };
 
   // Regime — supplier-driven, by date, classification AND attachment.
+  // P2-T03 — every regime rule in force that matches, in profile order, turned into obligations.
+  // Today the French rules are mutually exclusive so this yields one; the shape is what changes.
+  const matchingRegimes = allWithSelector(
+    sp.regime,
+    ctx.issueDate,
+    buyerRole,
+    supplyTypes,
+    parties,
+    nature,
+    warnings,
+  );
   const regime =
     pickWithSelector(sp.regime, ctx.issueDate, buyerRole, supplyTypes, parties, nature, warnings) ??
     fallbackRegime(sp, warnings);
@@ -166,6 +260,9 @@ export function resolve(ctx: TransactionContext, deps: ResolveDeps = {}): Compli
     tax,
     taxSystemKind: sp.taxSystem.kind,
     regime,
+    // The primary obligation is `regime`'s own — the same rule, so `plan.obligations[0]` and
+    // `plan.regime` can never disagree while both exist. Any further matching rule follows it.
+    obligations: obligationsFrom(regime, matchingRegimes),
     artifacts,
     channels,
     numbering,
@@ -178,7 +275,21 @@ export function resolve(ctx: TransactionContext, deps: ResolveDeps = {}): Compli
 }
 
 /** Pick the rule in force at the date whose selector matches the transaction class. */
-function pickWithSelector<
+/**
+ * P2-T03 — EVERY rule in force that matches, not just the first.
+ *
+ * `regime` is singular and that singularity is a modelling choice, not a fact: France carries two
+ * duties over the same operation — e-invoicing (flux F1, art. 289 bis) and e-reporting (flux F10,
+ * art. 290) — and they are discharged differently, on different deadlines, through different
+ * corrections. Returning one rule forces them to be modelled as mutually exclusive, which is why
+ * the transmission block in profiles/data/fr.ts documents a B2C sale being offered a PDP as a
+ * limit it cannot express: one channel list serves both "where the invoice goes" and "where the
+ * data goes".
+ *
+ * This returns the set. `pickWithSelector` below keeps the historical single answer on top of it,
+ * so nothing changes for the sixteen existing readers of `plan.regime`.
+ */
+function allWithSelector<
   T extends { appliesTo?: ClassificationSelector; attachment?: AttachmentPredicate[] },
 >(
   rules: Temporal<T>[],
@@ -188,7 +299,7 @@ function pickWithSelector<
   parties?: OperationParties,
   nature?: OperationNature,
   warnings?: string[],
-): T | null {
+): T[] {
   const inForce = allByDate(rules, date)
     .filter((v) => selectorMatches(v.appliesTo, buyerRole, supplyTypes))
     .filter((v) => {
@@ -208,8 +319,27 @@ function pickWithSelector<
       }
       return verdict;
     });
+  return inForce;
+}
+
+/**
+ * The single rule that applies — the historical behaviour, unchanged.
+ *
+ * Prefer a selector-specific rule over a wildcard one.
+ */
+function pickWithSelector<
+  T extends { appliesTo?: ClassificationSelector; attachment?: AttachmentPredicate[] },
+>(
+  rules: Temporal<T>[],
+  date: Date,
+  buyerRole: PartyRole,
+  supplyTypes: SupplyType[],
+  parties?: OperationParties,
+  nature?: OperationNature,
+  warnings?: string[],
+): T | null {
+  const inForce = allWithSelector(rules, date, buyerRole, supplyTypes, parties, nature, warnings);
   if (inForce.length === 0) return null;
-  // Prefer a selector-specific rule over a wildcard one.
   const specific = inForce.find((v) => !!v.appliesTo);
   return specific ?? inForce[0];
 }

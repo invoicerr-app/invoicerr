@@ -23,6 +23,7 @@ function plan(over: Partial<CompliancePlan> = {}): CompliancePlan {
     tax: { lines: [], reportingFlags: [], mentions: [], buyerSelfAssess: false },
     taxSystemKind: 'VAT',
     regime: { model: 'POST_AUDIT', blocking: false },
+    obligations: [{ kind: 'NONE', model: 'POST_AUDIT', blocking: false }],
     artifacts: [],
     channels: [],
     numbering: { model: 'GAPLESS_SELF' },
@@ -96,6 +97,7 @@ describe('phase contributors — gating & drivers', () => {
   it('Corrections: cancel guard reflects buyer consent', () => {
     const p = plan({
       regime: { model: 'CLEARANCE', blocking: true },
+      obligations: [{ kind: 'E_INVOICING', model: 'CLEARANCE', blocking: true }],
       lifecycle: {
         immutableAfter: 'CLEARANCE',
         correctionModel: 'CREDIT_NOTE',

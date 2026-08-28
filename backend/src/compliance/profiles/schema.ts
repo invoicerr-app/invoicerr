@@ -16,6 +16,7 @@ import {
   ReportingKind,
   SupplyType,
   TaxScheme,
+  ObligationKind,
 } from '../types';
 
 /** Every rule list is temporal. `validTo` is EXCLUSIVE; absence means "open-ended". */
@@ -46,6 +47,15 @@ export interface RegimeRule {
    * inapplicable — see evaluateAll — so a missing country can never quietly select a regime.
    */
   attachment?: AttachmentPredicate[];
+  /**
+   * P2-T03 — WHICH duty this rule expresses, when the model alone does not say.
+   *
+   * Left out, it is derived from `model` (see obligationKindFor). The override exists because the
+   * mapping is a convention, not a law: a country could run a CLEARANCE model to discharge a
+   * reporting duty rather than an invoicing one, and a profile must be able to say so without the
+   * engine guessing from the mechanism.
+   */
+  obligation?: ObligationKind;
   blocking: boolean; // clearance: is the invoice invalid until authorised?
 }
 

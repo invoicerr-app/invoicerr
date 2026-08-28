@@ -26,6 +26,7 @@ function makeFrPlan(_companyId: string): CompliancePlan {
     tax: { kind: 'VAT', rate: 20, lines: [], totals: { net: 10000, tax: 2000, gross: 12000 } } as any,
     taxSystemKind: 'VAT',
     regime: { model: 'DECENTRALIZED_CTC', blocking: false },
+    obligations: [{ kind: 'E_INVOICING', model: 'DECENTRALIZED_CTC', blocking: false }],
     artifacts: [
       { role: 'AUTHORITATIVE', syntax: 'EN16931_CII' },
       { role: 'HUMAN', syntax: 'FACTURX' },
@@ -52,6 +53,7 @@ function makePlPlan(_companyId: string): CompliancePlan {
     tax: { kind: 'VAT', rate: 23, lines: [], totals: { net: 10000, tax: 2300, gross: 12300 } } as any,
     taxSystemKind: 'VAT',
     regime: { model: 'CLEARANCE', blocking: true },
+    obligations: [{ kind: 'E_INVOICING', model: 'CLEARANCE', blocking: true }],
     artifacts: [
       { role: 'AUTHORITATIVE', syntax: 'FA_VAT' },
       { role: 'HUMAN', syntax: 'PLAIN_PDF' },

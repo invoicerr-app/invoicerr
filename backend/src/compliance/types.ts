@@ -27,6 +27,21 @@ export type SupplyType = 'GOODS' | 'SERVICES' | 'DIGITAL' | 'MIXED';
 
 export type PartyRole = 'B2B' | 'B2C' | 'B2G';
 
+/**
+ * P2-T03 — WHICH duty an operation falls under, as distinct from HOW it is discharged.
+ *
+ * `RegimeModel` answers "how" (post-audit, clearance, decentralized CTC, reporting). It cannot
+ * answer "which", and France needs both: over one domestic B2B operation there is an e-invoicing
+ * duty (flux F1, CGI art. 289 bis) AND, on payment, an e-reporting duty (flux F10, art. 290) —
+ * different deadlines, different corrections, different destinations. A single `regime` forces them
+ * to be exclusive.
+ *
+ * NONE is not the absence of an obligation object; it is the explicit statement that an operation
+ * carries no continuous-transaction duty at all, which is what POST_AUDIT means. Saying it is a
+ * verdict; leaving the list empty would be a silence.
+ */
+export type ObligationKind = 'E_INVOICING' | 'E_REPORTING' | 'NONE';
+
 export type RegimeModel =
   | 'POST_AUDIT'
   | 'PERIODIC_REPORTING'

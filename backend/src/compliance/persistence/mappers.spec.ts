@@ -53,6 +53,7 @@ describe('document mappers', () => {
       tax: { lines: [], reportingFlags: [], mentions: [], buyerSelfAssess: false },
       taxSystemKind: 'VAT',
       regime: { model: 'POST_AUDIT', blocking: false },
+      obligations: [{ kind: 'NONE', model: 'POST_AUDIT', blocking: false }],
       artifacts: [],
       channels: [{ type: 'PEPPOL' }],
       numbering: { model: 'GAPLESS_SELF' },
