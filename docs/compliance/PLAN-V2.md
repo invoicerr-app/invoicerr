@@ -396,7 +396,7 @@ qu'émettre une fausseté vers un système tiers ; ça ne clôt pas le sujet.
 
 | # | Tâche | Dépend de | Accepte si |
 | --- | --- | --- | --- |
-| **P4-T01** | **D4 — un runner** : Vitest + testing-library, aligné sur l'outillage existant (Vite 7, React 19) | phase 3 | `npm test` existe côté frontend, tourne en CI, et échoue si un test échoue |
+| **P4-T01** ✅ **fait — `c9273b0f`** | **D4 — un runner** : Vitest + testing-library, aligné sur l'outillage existant (Vite 7, React 19) | ~~phase 3~~ — sorti de l'ordre sur arbitrage : il précède le SSE, faute de quoi rien ne pourrait vérifier ce dernier autrement qu'à l'œil | ✅ 12 tests, en CI dans le job `lint`. **Rouge-puis-vert vérifié en cassant le CODE DE PRODUCTION**, pas une assertion : énumération `vatCategory` élargie à `AE` → 1 échec / 11 passants, `npm test` exit 1. L'i18n utilise l'instance réelle et non un mock — un `t()` renvoyant sa clé rendrait l'assertion de rétention creuse |
 | **P4-T02** | Couverture des **parcours** de conformité : émission, rejet, correction, avoir, annulation. Pas la couverture de lignes | P4-T01 | Un parcours par test nommé ; chacun échoue si l'écran cesse de montrer l'état |
 | **P4-T03** | `17-invoice-rejection.cy.ts` s'étend aux nouveaux états | P4-T02 | La spec couvre les états ajoutés en phase 3 ; suite Cypress verte |
 
