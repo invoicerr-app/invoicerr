@@ -353,6 +353,45 @@ consommation, deux endpoints entrants. **On l'étend, on ne le refait pas.***
 
 ---
 
+# Phase 3 bis — Ce que l'essai en conditions réelles a révélé
+
+*Trouvé par le mandant en manipulant l'application, pas par la suite. Aucun test unitaire ne
+voyait ces défauts : ils vivent tous à la jonction entre ce que le moteur sait et ce que l'écran
+dit.*
+
+| # | Constat | État |
+| --- | --- | --- |
+| **R1** | **Le produit annonçait un envoi qui n'avait pas eu lieu.** `status: 'SENT'` écrit inconditionnellement après la mise en file, webhook `INVOICE_SENT` émis vers des tiers, « sent successfully » renvoyé — pour un job qui n'avait pas tourné. Sur une facture française post-mandat, un mensonge sur le seul fait que ce produit existe pour bien traiter | ✅ **fait — `085919bf`** |
+| **R2** | **Le dialogue de confirmation promettait un courriel** pour tous les canaux, y compris une facture routée PDP où aucun mail ne part. La dernière chose lue avant de cliquer était la seule qui était fausse | ✅ **fait — `2691fc76`** |
+| **R3** | **23 dialogues sur 37 bridés à 512 px** — `sm:max-w-lg` de la classe de base survivait à tout override, `twMerge` ne dédoublonnant qu'à modificateur égal. Puis les débordements que cette largeur révélait | ✅ **fait — `cedcb8a6`** |
+| **R4** | **`immutableAfter` n'atteignait pas le bouton d'édition.** L'API autorisait l'édition d'une facture américaine émise depuis toujours ; le drapeau lisait `isDraft` seul | ✅ **fait — `04b1bc6d`** |
+| **R5** | **La proforma vivait parmi les documents légaux**, et les avoirs n'étaient visibles nulle part. `DocumentKindRule` sépare le fait PRODUIT (entre-t-il dans la série légale) du fait PAYS (le pays le permet-il) | ✅ **fait — `6152ff4d`, `b0fb1c28`** |
+| **R6** | **Trois statuts F-008 affichaient leur clé i18n brute** dans le détail. `i18n:check` ne peut pas les voir : la clé est construite dynamiquement | ✅ **fait — `5158aa31`** |
+| **R7** | **Toute facture américaine était devenue inémettable** — ma garde BR-O-10 refusait `O` sans motif, et trois des quatre branches `O` du moteur n'en posaient aucun | ✅ **fait — `6e55e835`** |
+
+### R8 — Le statut ne se met pas à jour tout seul *(à faire)*
+
+- **Constat** : après un envoi, l'écran garde l'ancien statut jusqu'à un rechargement manuel. La
+  transmission est asynchrone — file BullMQ, issue projetée plus tard — et rien ne pousse le
+  changement vers le navigateur. Les trois panneaux de conformité sont justes mais **figés**.
+- **Ce qui a été fait en attendant, et qui ne suffit pas** : le dialogue reste désormais ouvert sur
+  une issue en attente au lieu de se fermer sur un faux succès (R1). L'utilisateur voit donc l'état
+  réel *au moment où il regarde*, mais pas son évolution.
+- **Le vrai correctif** : du SSE, demandé explicitement par le mandant — « faudra faire du SSE
+  propre à un moment ». Priorité **arbitrée : après** P4-T01 et P3-T01.
+- **Accepte si** : une transmission qui se stabilise en `TRANSMISSION_FAILED` fait passer l'écran de
+  « en attente » à « échec » **sans rechargement**, et le bouton *Retry* apparaît de lui-même.
+- **Dépendance non évidente** : sans runner de test frontend (P4-T01), rien ne pourra vérifier ce
+  comportement autrement qu'à l'œil — ce qui est précisément l'ordre retenu.
+
+### R9 — Le webhook `INVOICE_SENT` n'est plus émis du tout sur le chemin asynchrone *(à faire)*
+
+Conséquence assumée de R1 : il partait pour une transmission jamais tentée, il ne part plus. Mais il
+devrait partir **quand elle aboutit réellement**, depuis la projection. Ne rien émettre vaut mieux
+qu'émettre une fausseté vers un système tiers ; ça ne clôt pas le sujet.
+
+---
+
 # Phase 4 — Socle de test frontend
 
 | # | Tâche | Dépend de | Accepte si |
