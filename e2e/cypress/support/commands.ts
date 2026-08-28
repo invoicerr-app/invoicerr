@@ -186,10 +186,19 @@ Cypress.Commands.add('resetAndSeed', () => {
             address: '123 Main St',
             city: 'Paris',
             postalCode: '75001',
-            country: 'FR',
+            // `country` is the human name (the column the app stores from the picker) and
+            // `countryCode` its ISO override — both, because FR compliance resolves on the code and
+            // refuses to guess. The identifiers do NOT live on Company: createCompany peels
+            // `identifiers` off the DTO and spreads the rest straight into prisma.company.create,
+            // so a stray legalId/VAT key is a PrismaClientValidationError, which is exactly the 500
+            // the first run of this seed produced.
+            country: 'France',
+            countryCode: 'FR',
             currency: 'EUR',
-            legalId: '73282932000074',
-            VAT: 'FR44732829320',
+            identifiers: [
+                { scheme: 'LEGAL_ID', value: '73282932000074' },
+                { scheme: 'VAT', value: 'FR44732829320' },
+            ],
         },
         failOnStatusCode: false,
     }).then((res) => {
