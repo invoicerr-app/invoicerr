@@ -8,6 +8,22 @@ export default defineConfig({
   // release each spec's memory instead of keeping every test's DOM snapshots around.
   experimentalMemoryManagement: true,
   numTestsKeptInMemory: 0,
+  //
+  // Those two settings are NOT enough, and the record should say so rather than leave the next
+  // person to re-derive it. With both enabled, the Electron renderer still crashes intermittently:
+  // measured across eight runs it hit 17-invoice-rejection, 08-payments and 10-recurring-invoices,
+  // at position 2 of 17 as readily as at position 17, and in a three-spec run as readily as a
+  // seventeen-spec one. Instrumenting the spec through a Node-side task — the browser console dies
+  // with the renderer — put the crash at one exact step: clicking the first option of a Radix
+  // select inside a dialog. Same step, three different specs.
+  //
+  // The same suite on FIREFOX passes: 17/17, including 17-invoice-rejection, which had never once
+  // been green under Electron. So this is an Electron/Chromium-headless problem with Radix's
+  // select, not a memory budget and not a defect in the specs. Running e2e on Firefox is the known
+  // workaround:  ./scripts/e2e-worktree.sh --browser firefox
+  //
+  // Left on Electron by default because that is what CI uses; changing the default is a CI
+  // decision, not a config tweak.
   e2e: {
     video: true,
     experimentalStudio: true,
