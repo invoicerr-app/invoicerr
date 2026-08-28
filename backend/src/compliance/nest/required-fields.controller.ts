@@ -1,6 +1,7 @@
 import { Controller, Get, HttpException, HttpStatus, Logger, Query, SetMetadata } from '@nestjs/common';
+import { documentKindsFor } from '../profiles/document-kinds';
 import { defaultRegistry } from '../profiles/registry';
-import { IdentifierRequirement } from '../profiles/schema';
+import { DocumentKindRule, IdentifierRequirement } from '../profiles/schema';
 
 // AuthGuard (src/guards/auth.guard.ts) bypasses any handler carrying the
 // 'PUBLIC' metadata key. We set it directly here rather than via
@@ -20,6 +21,36 @@ export class RequiredFieldsController {
   // settled session) exists; gating it behind AuthGuard meant a transient 401
   // here hard-redirected the user out of the onboarding dialog to /auth/sign-in
   // (frontend authenticatedFetch redirects on any 401). Public + context-free.
+  /**
+   * Which document kinds this country's businesses use, and what each one is.
+   *
+   * Sits beside `required-fields` and for the same reason: it is static reference data derived from
+   * the country registry, it reads nothing from the session, and the interface needs it to decide
+   * what to OFFER — which is a country question the frontend must not answer for itself. Without
+   * it, "hide pro formas" or "show credit notes" would end up as a country name in a React
+   * component, which is the one thing this architecture forbids.
+   *
+   * Resolved at a date because everything in a profile is temporal: a country that changes its
+   * correction model changes which correction document exists, and that is exactly what Poland did
+   * in 2026.
+   */
+  @Public()
+  @Get('document-kinds')
+  getDocumentKinds(
+    @Query('countryCode') countryCode: string,
+    @Query('at') at?: string,
+  ): DocumentKindRule[] {
+    if (!countryCode) {
+      throw new HttpException('countryCode query parameter is required', HttpStatus.BAD_REQUEST);
+    }
+    const when = at ? new Date(at) : new Date();
+    if (Number.isNaN(when.getTime())) {
+      throw new HttpException('at must be a valid date', HttpStatus.BAD_REQUEST);
+    }
+    const { profile } = defaultRegistry.resolve(countryCode);
+    return documentKindsFor(profile, when);
+  }
+
   @Public()
   @Get('required-fields')
   getRequiredFields(
