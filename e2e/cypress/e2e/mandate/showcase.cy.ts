@@ -206,13 +206,18 @@ describe("Compliance showcase — 2 September 2026, the mandate in force", () =>
 		});
 	});
 
-	it("11 US — no VAT at all: the sale is outside the scope of the tax", () => {
+	it("11 US — no VAT at all, and the invoice stays editable after issuance", () => {
 		setupCountry("Mandat US", "United States", "US", []).then((ids) => {
 			issuedInvoice(ids, 0).then(() => {
 				openInvoice();
 				revealPanels();
+				// And the other half of the American difference, which this showcase itself uncovered:
+				// the United States profile says a document NEVER freezes, so an issued invoice stays
+				// editable. The flag driving this button used to read `isDraft` alone, so the country's
+				// answer never reached the screen — editable through the API, frozen on the screen.
+				cy.get('[data-cy="invoice-edit-button"]').should("exist");
 				cy.get('[data-cy="archival-notice"]').should("be.visible");
-				shot("11-us-out-of-scope");
+				shot("11-us-out-of-scope-and-editable");
 			});
 		});
 	});
