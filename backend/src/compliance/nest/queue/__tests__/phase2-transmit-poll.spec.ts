@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '@/prisma/prisma.service';
 import { PartyRole } from '../../../types';
 import { PartyTaxProfile, TransactionContext } from '../../../canonical/canonical-document';
-import { resolve } from '../../../engine/compliance-engine';
+import { primaryObligation, resolve } from '../../../engine/compliance-engine';
 import { PrismaComplianceDocumentStore } from '../../../persistence/prisma-document-store';
 import { FormatProviderRegistry, defaultFormatRegistry } from '../../../providers/format/registry';
 import { SigningProviderRegistry, defaultSigningRegistry } from '../../../providers/signing/registry';
@@ -160,7 +160,7 @@ describeWithRedis('Phase 2: real queue transmit -> poll -> CLEARED (F-3 proof)',
       currency: 'MXN',
     };
     const plan = resolve(ctx);
-    expect(plan.regime.blocking).toBe(true); // MX clearance — required so "accepted" => SUBMIT_CLEARANCE
+    expect(primaryObligation(plan).blocking).toBe(true); // MX clearance — required so "accepted" => SUBMIT_CLEARANCE
 
     const id = `phase2-mx-${Date.now()}`;
     const nowIso = new Date().toISOString();

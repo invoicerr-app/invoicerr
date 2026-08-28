@@ -1,4 +1,4 @@
-import { CompliancePlan } from '../../engine/compliance-engine';
+import { CompliancePlan, obligationKindFor } from '../../engine/compliance-engine';
 import { LifecyclePolicy } from '../../profiles/schema';
 import {
   BuyerResponsePhase,
@@ -22,7 +22,6 @@ function plan(over: Partial<CompliancePlan> = {}): CompliancePlan {
     classification: { buyerRole: 'B2B', crossBorder: false, supplyTypes: ['GOODS'] },
     tax: { lines: [], reportingFlags: [], mentions: [], buyerSelfAssess: false },
     taxSystemKind: 'VAT',
-    regime: { model: 'POST_AUDIT', blocking: false },
     obligations: [{ kind: 'NONE', model: 'POST_AUDIT', blocking: false }],
     artifacts: [],
     channels: [],
@@ -47,10 +46,14 @@ describe('phase contributors — gating & drivers', () => {
 
   it('Clearance contributes only when the regime is blocking', () => {
     expect(get(new ClearancePhase(), plan())).toBeNull();
-    const f = get(new ClearancePhase(), plan({ regime: { model: 'CLEARANCE', blocking: true } }), {
-      channelFeedback: 'ASYNC_POLL',
-      pollPolicy: { everySeconds: 30, timeoutHours: 24 },
-    })!;
+    const f = get(
+      new ClearancePhase(),
+      plan({ obligations: [{ kind: obligationKindFor('CLEARANCE'), model: 'CLEARANCE', blocking: true }] }),
+      {
+        channelFeedback: 'ASYNC_POLL',
+        pollPolicy: { everySeconds: 30, timeoutHours: 24 },
+      },
+    )!;
     expect(f.states).toEqual(
       expect.arrayContaining(['PENDING_CLEARANCE', 'CLEARED', 'REJECTED', 'CONTINGENCY']),
     );
@@ -58,15 +61,22 @@ describe('phase contributors — gating & drivers', () => {
   });
 
   it('Clearance binds a CALLBACK driver when the channel pushes statuses', () => {
-    const f = get(new ClearancePhase(), plan({ regime: { model: 'CLEARANCE', blocking: true } }), {
-      channelFeedback: 'ASYNC_CALLBACK',
-    })!;
+    const f = get(
+      new ClearancePhase(),
+      plan({ obligations: [{ kind: obligationKindFor('CLEARANCE'), model: 'CLEARANCE', blocking: true }] }),
+      {
+        channelFeedback: 'ASYNC_CALLBACK',
+      },
+    )!;
     expect(f.transitions.find((t) => t.on === 'CLEAR')!.trigger.kind).toBe('CALLBACK');
   });
 
   it('Delivery starts from CLEARED when blocking, ISSUED otherwise', () => {
     expect(
-      get(new DeliveryPhase(), plan({ regime: { model: 'CLEARANCE', blocking: true } }))!.transitions[0].from,
+      get(
+        new DeliveryPhase(),
+        plan({ obligations: [{ kind: obligationKindFor('CLEARANCE'), model: 'CLEARANCE', blocking: true }] }),
+      )!.transitions[0].from,
     ).toBe('CLEARED');
     const nonBlocking = get(new DeliveryPhase(), plan(), { channelFeedback: 'NONE' })!;
     expect(nonBlocking.transitions[0].from).toBe('ISSUED');
@@ -96,7 +106,6 @@ describe('phase contributors — gating & drivers', () => {
 
   it('Corrections: cancel guard reflects buyer consent', () => {
     const p = plan({
-      regime: { model: 'CLEARANCE', blocking: true },
       obligations: [{ kind: 'E_INVOICING', model: 'CLEARANCE', blocking: true }],
       lifecycle: {
         immutableAfter: 'CLEARANCE',

@@ -12,7 +12,7 @@
  * `regime` already said, and the readers move over one lot at a time without a behaviour change
  * hiding inside the refactor.
  */
-import { primaryObligation, obligationKindFor, resolve } from './compliance-engine';
+import { obligationKindFor, primaryObligation, resolve } from './compliance-engine';
 
 const ctx = (buyerCountry: string, role: string, date = '2027-01-15') =>
   ({
@@ -63,17 +63,26 @@ describe('plan.obligations — the shape changes, the answers do not', () => {
     expect(primaryObligation(plan).model).toBe('POST_AUDIT');
   });
 
-  it('the primary obligation and plan.regime can never disagree while both exist', () => {
-    for (const [c, r] of [
-      ['FR', 'B2B'],
-      ['FR', 'B2C'],
-      ['IT', 'B2B'],
-      ['US', 'B2B'],
-      ['DE', 'B2C'],
-    ]) {
-      const plan = resolve(ctx(c, r));
-      expect(primaryObligation(plan).model).toBe(plan.regime.model);
-      expect(primaryObligation(plan).blocking).toBe(plan.regime.blocking);
+  it('P2-T06 — the adapter is gone: a plan exposes obligations and nothing else', () => {
+    // This assertion used to compare primaryObligation() against plan.regime, and the migration
+    // turned it into `x === x`: a test that passes whatever the code does. Rewritten to guard what
+    // the removal actually has to hold — the field is gone, and its answer survives in obligations.
+    const plan = resolve(ctx('FR', 'B2B'));
+    expect('regime' in plan).toBe(false);
+    expect(primaryObligation(plan).model).toBe('DECENTRALIZED_CTC');
+  });
+
+  it('the obligation matches the profile rule the engine selected, corridor by corridor', () => {
+    const expected: Record<string, string> = {
+      'FR|B2B': 'DECENTRALIZED_CTC',
+      'FR|B2C': 'REAL_TIME_REPORTING',
+      'IT|B2B': 'REAL_TIME_REPORTING',
+      'US|B2B': 'REAL_TIME_REPORTING',
+      'DE|B2C': 'REAL_TIME_REPORTING',
+    };
+    for (const [key, model] of Object.entries(expected)) {
+      const [c, r] = key.split('|');
+      expect(`${key} -> ${primaryObligation(resolve(ctx(c, r))).model}`).toBe(`${key} -> ${model}`);
     }
   });
 

@@ -8,7 +8,7 @@
  */
 import { randomUUID, createHash } from 'node:crypto';
 import { TransactionContext } from '../canonical/canonical-document';
-import { resolve } from '../engine/compliance-engine';
+import { primaryObligation, resolve } from '../engine/compliance-engine';
 import { ComplianceExecutor, defaultExecutor } from '../execution/executor';
 import { ComplianceLogger, defaultLogger } from '../execution/logger';
 import {
@@ -312,7 +312,7 @@ export class ComplianceService {
 
     const event: ComplianceEvent = !acceptedTransmission
       ? 'TRANSMISSION_FAIL'
-      : plan.regime.blocking
+      : primaryObligation(plan).blocking
         ? 'SUBMIT_CLEARANCE'
         : 'DELIVER';
 

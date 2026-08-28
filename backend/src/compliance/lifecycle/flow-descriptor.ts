@@ -4,7 +4,7 @@
  * and the ordered progression pipeline. No I/O — reusable by both the list mapping and the detail
  * endpoint.
  */
-import { CompliancePlan } from '../engine/compliance-engine';
+import { CompliancePlan, primaryObligation } from '../engine/compliance-engine';
 import { ChannelType } from '../types';
 import { ChannelFeedback } from '../providers/transmission/transmission-provider';
 import { defaultTransmissionRegistry } from '../providers/transmission/registry';
@@ -56,7 +56,7 @@ export function channelClassOf(plan: CompliancePlan): ChannelClass {
     case 'OSE':
     case 'GOV_PORTAL_API':
     case 'PDP':
-      return plan.regime?.blocking ? 'CLEARANCE' : 'PORTAL';
+      return primaryObligation(plan).blocking ? 'CLEARANCE' : 'PORTAL';
     default:
       return 'EMAIL';
   }

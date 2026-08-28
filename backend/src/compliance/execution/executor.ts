@@ -11,7 +11,7 @@ import {
   IdentifierExistencePort,
   NullIdentifierExistenceClient,
 } from '../canonical/identifier-existence.port';
-import { CompliancePlan } from '../engine/compliance-engine';
+import { CompliancePlan, primaryObligation } from '../engine/compliance-engine';
 import { ArchiveProviderRegistry, defaultArchiveRegistry } from '../providers/archive/registry';
 import { FormatProviderRegistry, defaultFormatRegistry } from '../providers/format/registry';
 import { SigningProviderRegistry, defaultSigningRegistry } from '../providers/signing/registry';
@@ -141,7 +141,7 @@ export class ComplianceExecutor {
 
   /** Whether the plan requires signed artifacts at all (clearance regime, or a signed-integrity archive). */
   private requiresSignature(plan: CompliancePlan): boolean {
-    return plan.regime.blocking || plan.archival.integrity === 'SIGNED';
+    return primaryObligation(plan).blocking || plan.archival.integrity === 'SIGNED';
   }
 
   /**
@@ -277,7 +277,7 @@ export class ComplianceExecutor {
     );
 
     // 5. Regime-specific handling (clearance gates validity; CTC routes & e-reports).
-    const regime = this.regimes.get(plan.regime.model).handle(ctx, plan, signed, log);
+    const regime = this.regimes.get(primaryObligation(plan).model).handle(ctx, plan, signed, log);
 
     // 6. Transmit over every planned channel.
     const transmissions = await this.transmission.transmitAll(signed, ctx, plan, idempotencyKey, log);

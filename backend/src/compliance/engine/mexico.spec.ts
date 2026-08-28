@@ -4,7 +4,7 @@ import { FR } from '../profiles/data/fr';
 import { MX } from '../profiles/data/mx';
 import { US } from '../profiles/data/us';
 import { TrustFlagVatValidator } from './classification';
-import { resolve } from './compliance-engine';
+import { primaryObligation, resolve } from './compliance-engine';
 import { determineLineTax } from './tax-engine';
 
 const vat = new TrustFlagVatValidator();
@@ -45,8 +45,8 @@ describe('Mexico — CLEARANCE plan (the new regime path)', () => {
   const plan = resolve(tx('MX', 'MX', 'B2B', 'GOODS', '2024-06-01'));
 
   it('regime is blocking clearance', () => {
-    expect(plan.regime.model).toBe('CLEARANCE');
-    expect(plan.regime.blocking).toBe(true);
+    expect(primaryObligation(plan).model).toBe('CLEARANCE');
+    expect(primaryObligation(plan).blocking).toBe(true);
   });
 
   it('routes through a PAC and emits the national CFDI 4.0 format', () => {

@@ -64,7 +64,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '@/prisma/prisma.service';
 import { isEncryptionAvailable } from '@/utils/secret-crypto';
 import { TransactionContext } from '../canonical/canonical-document';
-import { resolve } from '../engine/compliance-engine';
+import { primaryObligation, resolve } from '../engine/compliance-engine';
 import { defaultLogger } from '../execution/logger';
 import { TransmissionResult } from '../execution/types';
 import { PrismaComplianceDocumentStore } from '../persistence/prisma-document-store';
@@ -336,7 +336,7 @@ describeLive(
       // ── The real engine — same call any DE invoice actually goes through in production. ──
       const plan = resolve(ctx);
       expect(plan.channels.map((c) => c.type)).toEqual(expect.arrayContaining(['PEPPOL', 'EMAIL']));
-      expect(plan.regime.blocking).toBe(false); // DE: POST_AUDIT, non-blocking (profiles/data/de.ts)
+      expect(primaryObligation(plan).blocking).toBe(false); // DE: POST_AUDIT, non-blocking (profiles/data/de.ts)
       // F-7: DE's primary/authoritative format is XRECHNUNG — PEPPOL_BIS only exists in the plan
       // because buildArtifacts() cross-checks the plan's channels (the F-7 fix).
       expect(plan.artifacts).toEqual(

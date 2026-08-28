@@ -1,6 +1,6 @@
 import { PartyRole, SupplyType } from '../types';
 import { PartyTaxProfile, TransactionContext } from '../canonical/canonical-document';
-import { resolve } from '../engine/compliance-engine';
+import { primaryObligation, resolve } from '../engine/compliance-engine';
 import { NumberingRegistry } from '../lifecycle/numbering';
 import { ComplianceExecutor } from './executor';
 import { RecordingComplianceLogger } from './logger';
@@ -41,8 +41,8 @@ describe('Italy — SdI clearance (building blocks already shared)', () => {
   });
 
   it('is a blocking clearance regime', () => {
-    expect(plan.regime.model).toBe('CLEARANCE');
-    expect(plan.regime.blocking).toBe(true);
+    expect(primaryObligation(plan).model).toBe('CLEARANCE');
+    expect(primaryObligation(plan).blocking).toBe(true);
   });
   it('builds FatturaPA and transmits via SdI', () => {
     expect(log.hasScope('format/fatturapa')).toBe(true);
@@ -55,7 +55,7 @@ describe('Italy — SdI clearance (building blocks already shared)', () => {
 describe('Poland — KSeF selected via providerId (no portal collision)', () => {
   it('after the 2026 mandate: clearance, FA_VAT, routed specifically through KSeF (not the generic portal)', async () => {
     const { plan, result, log } = await run(tx('PL', 'B2B', 'GOODS', '2027-01-15'));
-    expect(plan.regime.model).toBe('CLEARANCE');
+    expect(primaryObligation(plan).model).toBe('CLEARANCE');
     expect(plan.channels[0]).toMatchObject({ type: 'GOV_PORTAL_API', providerId: 'ksef' });
     expect(log.hasScope('transmission/ksef')).toBe(true);
     expect(log.hasScope('transmission/gov-portal')).toBe(false);
@@ -65,7 +65,7 @@ describe('Poland — KSeF selected via providerId (no portal collision)', () => 
 
   it('before the mandate: post-audit over email', async () => {
     const { plan, log } = await run(tx('PL', 'B2B', 'GOODS', '2025-06-01'));
-    expect(plan.regime.model).toBe('POST_AUDIT');
+    expect(primaryObligation(plan).model).toBe('POST_AUDIT');
     expect(log.hasScope('transmission/email')).toBe(true);
     expect(log.hasScope('transmission/ksef')).toBe(false);
   });

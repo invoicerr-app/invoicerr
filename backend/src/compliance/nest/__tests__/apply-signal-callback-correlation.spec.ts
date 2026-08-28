@@ -19,7 +19,7 @@
 import { PrismaService } from '@/prisma/prisma.service';
 import { PartyRole } from '../../types';
 import { PartyTaxProfile, TransactionContext } from '../../canonical/canonical-document';
-import { resolve } from '../../engine/compliance-engine';
+import { primaryObligation, resolve } from '../../engine/compliance-engine';
 import { RecordingComplianceLogger } from '../../execution/logger';
 import { InboundRouter } from '../../lifecycle/drivers/inbound-router';
 import { PrismaCallbackStore } from '../../persistence/prisma-callback-store';
@@ -231,7 +231,7 @@ describe('F-2: AWAIT_CALLBACK correlates on ctx.transmitRef (the external ref), 
 
     const ctx = itCtx();
     const plan = resolve(ctx);
-    expect(plan.regime.blocking).toBe(true); // IT/SdI clearance — SUBMIT_CLEARANCE is legal from ISSUED
+    expect(primaryObligation(plan).blocking).toBe(true); // IT/SdI clearance — SUBMIT_CLEARANCE is legal from ISSUED
 
     const id = 'f2-it-1';
     const nowIso = new Date().toISOString();

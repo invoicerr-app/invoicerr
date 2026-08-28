@@ -3,7 +3,7 @@
  * by the plan; the assembler composes them. Every (from,on,to) triple here is a subset of the legal
  * superset in state-machine.ts, so the composed graph is always valid.
  */
-import { CompliancePlan } from '../../engine/compliance-engine';
+import { CompliancePlan, primaryObligation } from '../../engine/compliance-engine';
 import { PhaseContext, PhaseContributor, PhaseFragment } from './phase-contributor';
 import { triggerForFeedback } from '../triggers';
 
@@ -65,7 +65,7 @@ export class TransmissionFailurePhase implements PhaseContributor {
 export class ClearancePhase implements PhaseContributor {
   readonly id = 'clearance';
   contributes(plan: CompliancePlan, pctx: PhaseContext): PhaseFragment | null {
-    if (!plan.regime.blocking) return null;
+    if (!primaryObligation(plan).blocking) return null;
     const driver = triggerForFeedback(pctx.channelFeedback, {
       poll: pctx.pollPolicy,
       providerId: pctx.channelProviderId,
@@ -131,10 +131,10 @@ export class ClearancePhase implements PhaseContributor {
 export class DeliveryPhase implements PhaseContributor {
   readonly id = 'delivery';
   contributes(plan: CompliancePlan, pctx: PhaseContext): PhaseFragment {
-    const from = plan.regime.blocking ? 'CLEARED' : 'ISSUED';
+    const from = primaryObligation(plan).blocking ? 'CLEARED' : 'ISSUED';
     // Already-cleared docs deliver immediately; otherwise the channel's feedback model decides
     // (email = IMMEDIATE, Peppol = CALLBACK confirmation, a polled portal = POLL).
-    const driver = plan.regime.blocking
+    const driver = primaryObligation(plan).blocking
       ? ({ kind: 'IMMEDIATE' } as const)
       : triggerForFeedback(pctx.channelFeedback, {
           poll: pctx.pollPolicy,
@@ -143,7 +143,7 @@ export class DeliveryPhase implements PhaseContributor {
     const transitions: PhaseFragment['transitions'] = [
       { on: 'DELIVER', from, to: 'DELIVERED', trigger: driver, description: 'transmit to the recipient' },
     ];
-    if (!plan.regime.blocking) {
+    if (!primaryObligation(plan).blocking) {
       // Phase 4 (QUEUE_IMPL_PLAN.md §5.9/§9): retry path mirroring ClearancePhase's above — only for
       // non-blocking regimes, where TRANSMISSION_FAILED's retry (via computeSendOutcome) resolves
       // straight to DELIVER (a blocking regime's retry instead re-enters clearance, handled by
@@ -215,7 +215,7 @@ export class ReportingPhase implements PhaseContributor {
   contributes(plan: CompliancePlan): PhaseFragment | null {
     if (!plan.reporting || plan.reporting.length === 0) return null;
     const trigger =
-      plan.regime.model === 'PERIODIC_REPORTING'
+      primaryObligation(plan).model === 'PERIODIC_REPORTING'
         ? ({ kind: 'TIMER', onElapse: 'REPORT' } as const) // filed on a period close
         : ({ kind: 'IMMEDIATE' } as const); // real-time / CTC e-reporting
     const transitions: PhaseFragment['transitions'] = [
@@ -257,7 +257,7 @@ export class CorrectionsPhase implements PhaseContributor {
         : lc.cancellation.requiresAuthorityAck
           ? 'authorityAck'
           : undefined;
-      if (plan.regime.blocking) {
+      if (primaryObligation(plan).blocking) {
         transitions.push({
           on: 'CANCEL',
           from: 'CLEARED',

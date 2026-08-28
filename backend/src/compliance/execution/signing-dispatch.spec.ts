@@ -16,7 +16,7 @@
 import * as forge from 'node-forge';
 import { PartyRole, SupplyType, DocumentSyntax } from '../types';
 import { PartyTaxProfile, TransactionContext } from '../canonical/canonical-document';
-import { resolve } from '../engine/compliance-engine';
+import { primaryObligation, resolve } from '../engine/compliance-engine';
 import { NumberingRegistry } from '../lifecycle/numbering';
 import { FormatProviderRegistry } from '../providers/format/registry';
 import { FormatProvider } from '../providers/format/format-provider';
@@ -134,7 +134,7 @@ describe('F-5 — signature algorithm dispatched per artifact syntax (not one al
     ]);
     const ctx = tx('IT', 'IT', 'B2B', 'GOODS', '2027-01-15');
     const plan = resolve(ctx);
-    expect(plan.regime.blocking).toBe(true); // sanity: the signing gate is open
+    expect(primaryObligation(plan).blocking).toBe(true); // sanity: the signing gate is open
 
     const result = await executor.execute(ctx, plan);
     const fatturaPa = result.signed.find((a) => a.syntax === 'FATTURAPA');
@@ -149,7 +149,7 @@ describe('F-5 — signature algorithm dispatched per artifact syntax (not one al
     ]);
     const ctx = tx('PL', 'PL', 'B2B', 'GOODS', '2027-01-15'); // post-2026-02-01 KSeF era
     const plan = resolve(ctx);
-    expect(plan.regime.blocking).toBe(true);
+    expect(primaryObligation(plan).blocking).toBe(true);
     expect(plan.archival.integrity).toBe('SIGNED'); // gate says "signed" — FA_VAT overrides it anyway
 
     const result = await executor.execute(ctx, plan);
@@ -166,7 +166,7 @@ describe('F-5 — signature algorithm dispatched per artifact syntax (not one al
     ]);
     const ctx = tx('ES', 'ES', 'B2B', 'GOODS', '2027-01-15');
     const plan = resolve(ctx);
-    expect(plan.regime.blocking).toBe(false); // ES gate comes from archival.integrity, not blocking
+    expect(primaryObligation(plan).blocking).toBe(false); // ES gate comes from archival.integrity, not blocking
     expect(plan.archival.integrity).toBe('SIGNED');
 
     const result = await executor.execute(ctx, plan);
@@ -181,7 +181,7 @@ describe('F-5 — signature algorithm dispatched per artifact syntax (not one al
     ]);
     const ctx = tx('FR', 'FR', 'B2B', 'SERVICES', '2027-01-15');
     const plan = resolve(ctx);
-    expect(plan.regime.blocking).toBe(false);
+    expect(primaryObligation(plan).blocking).toBe(false);
     expect(plan.archival.integrity).toBe('HASH_CHAIN'); // gate stays closed
 
     const result = await executor.execute(ctx, plan);

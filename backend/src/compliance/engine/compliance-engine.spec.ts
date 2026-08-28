@@ -1,6 +1,6 @@
 import { PartyRole, SupplyType } from '../types';
 import { PartyTaxProfile, TransactionContext } from '../canonical/canonical-document';
-import { resolve } from './compliance-engine';
+import { primaryObligation, resolve } from './compliance-engine';
 
 function party(country: string, role: PartyRole, validatedVat = role === 'B2B'): PartyTaxProfile {
   return {
@@ -30,8 +30,8 @@ function tx(
 describe('ComplianceEngine — France, temporal correctness', () => {
   it('FR→FR B2B AFTER the 2026 mandate: decentralized CTC, PDP channel, Factur-X, mandatory statuses', () => {
     const plan = resolve(tx('FR', 'FR', 'B2B', 'SERVICES', '2027-01-15'));
-    expect(plan.regime.model).toBe('DECENTRALIZED_CTC');
-    expect(plan.regime.blocking).toBe(false);
+    expect(primaryObligation(plan).model).toBe('DECENTRALIZED_CTC');
+    expect(primaryObligation(plan).blocking).toBe(false);
     expect(plan.channels.map((c) => c.type)).toContain('PDP');
     // Post-mandate FR: the AUTHORITATIVE e-invoice sent to the PDP is the CII XML (CTC
     // post-processing applies); the human/buyer copy is the Factur-X PDF/A-3 hybrid.
@@ -50,14 +50,14 @@ describe('ComplianceEngine — France, temporal correctness', () => {
 
   it('FR→FR B2B BEFORE the mandate: post-audit, email only, no mandatory statuses', () => {
     const plan = resolve(tx('FR', 'FR', 'B2B', 'SERVICES', '2025-06-01'));
-    expect(plan.regime.model).toBe('POST_AUDIT');
+    expect(primaryObligation(plan).model).toBe('POST_AUDIT');
     expect(plan.channels.map((c) => c.type)).toEqual(['EMAIL']);
     expect(plan.lifecycle.response).toBeUndefined();
   });
 
   it('FR→FR B2C after the mandate: real-time reporting (e-reporting)', () => {
     const plan = resolve(tx('FR', 'FR', 'B2C', 'SERVICES', '2027-01-15'));
-    expect(plan.regime.model).toBe('REAL_TIME_REPORTING');
+    expect(primaryObligation(plan).model).toBe('REAL_TIME_REPORTING');
     expect(plan.reporting).toContain('E_REPORTING');
   });
 
@@ -79,31 +79,31 @@ describe('ComplianceEngine — P2-T02/T03: the attachment trigger routes the fou
    */
   it('FR→FR B2B domestic: e-invoicing, PDP channel', () => {
     const plan = resolve(tx('FR', 'FR', 'B2B', 'SERVICES', '2027-01-15'));
-    expect(plan.regime.model).toBe('DECENTRALIZED_CTC');
+    expect(primaryObligation(plan).model).toBe('DECENTRALIZED_CTC');
     expect(plan.channels.map((c) => c.type)).toContain('PDP');
   });
 
   it('FR→IT B2B services: e-reporting, and NO PDP — it used to get both wrong', () => {
     const plan = resolve(tx('FR', 'IT', 'B2B', 'SERVICES', '2027-01-15'));
-    expect(plan.regime.model).toBe('REAL_TIME_REPORTING');
+    expect(primaryObligation(plan).model).toBe('REAL_TIME_REPORTING');
     expect(plan.channels.map((c) => c.type)).not.toContain('PDP');
   });
 
   it('FR→IT B2B goods: excluded twice over — bilateral test AND art. 289 bis V', () => {
     const plan = resolve(tx('FR', 'IT', 'B2B', 'GOODS', '2027-01-15'));
-    expect(plan.regime.model).toBe('REAL_TIME_REPORTING');
+    expect(primaryObligation(plan).model).toBe('REAL_TIME_REPORTING');
     expect(plan.channels.map((c) => c.type)).not.toContain('PDP');
   });
 
   it('FR→US B2B export: e-reporting, no PDP', () => {
     const plan = resolve(tx('FR', 'US', 'B2B', 'GOODS', '2027-01-15'));
-    expect(plan.regime.model).toBe('REAL_TIME_REPORTING');
+    expect(primaryObligation(plan).model).toBe('REAL_TIME_REPORTING');
     expect(plan.channels.map((c) => c.type)).not.toContain('PDP');
   });
 
   it('before the mandate, a domestic FR B2B operation is untouched by the predicate', () => {
     const plan = resolve(tx('FR', 'FR', 'B2B', 'SERVICES', '2025-06-01'));
-    expect(plan.regime.model).toBe('POST_AUDIT');
+    expect(primaryObligation(plan).model).toBe('POST_AUDIT');
     expect(plan.channels.map((c) => c.type)).toEqual(['EMAIL']);
   });
 
@@ -113,14 +113,14 @@ describe('ComplianceEngine — P2-T02/T03: the attachment trigger routes the fou
    */
   it("an unmigrated profile is unaffected: PL→DE still resolves Poland's regime", () => {
     const plan = resolve(tx('PL', 'DE', 'B2B', 'GOODS', '2027-01-15'));
-    expect(plan.regime.model).toBe('CLEARANCE');
+    expect(primaryObligation(plan).model).toBe('CLEARANCE');
   });
 });
 
 describe('ComplianceEngine — cross-border composition', () => {
   it('US→FR B2B: US post-audit supplier, FR buyer drives a Factur-X receive artifact', () => {
     const plan = resolve(tx('US', 'FR', 'B2B', 'SERVICES', '2027-01-15'));
-    expect(plan.regime.model).toBe('POST_AUDIT');
+    expect(primaryObligation(plan).model).toBe('POST_AUDIT');
     expect(plan.classification.crossBorder).toBe(true);
     expect(plan.tax.buyerSelfAssess).toBe(true);
     expect(plan.artifacts).toEqual(
@@ -201,7 +201,7 @@ describe('ComplianceEngine — delegation & fail-safe', () => {
     const plan = resolve(tx('MC', 'MC', 'B2B', 'SERVICES', '2027-01-15'));
     expect(plan.supplier.country).toBe('FR');
     expect(plan.supplier.delegatedFrom).toBe('MC');
-    expect(plan.regime.model).toBe('DECENTRALIZED_CTC');
+    expect(primaryObligation(plan).model).toBe('DECENTRALIZED_CTC');
   });
 
   it('Unknown buyer country falls back safely with a visible warning', () => {

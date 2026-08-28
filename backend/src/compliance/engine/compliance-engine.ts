@@ -58,7 +58,6 @@ export interface CompliancePlan {
    * data does, so the migration is not also a behaviour change.
    */
   obligations: ResolvedObligation[];
-  regime: RegimeRule;
   artifacts: PlannedArtifact[];
   channels: ChannelSpec[];
   numbering: NumberingRule;
@@ -103,11 +102,11 @@ export function obligationKindFor(model: RegimeModel): ObligationKind {
  * removed, so the removal is a deletion and not a rewrite.
  */
 /**
- * `regime` first, then any other rule that also matched, de-duplicated.
+ * The selected rule first, then any other rule that also matched, de-duplicated.
  *
- * `regime` leads because it is what every existing reader sees; putting anything else first would
- * make `primaryObligation()` disagree with `plan.regime` and turn a structural change into a
- * behavioural one, which is exactly what the lot-by-lot migration is designed to avoid.
+ * The selected rule leads because it is the answer `plan.regime` used to give: keeping it first is
+ * what made the migration a shape change rather than a behaviour change, and it stays first now
+ * that the field is gone so the removal did not quietly reorder anything either.
  */
 function obligationsFrom(regime: RegimeRule, matching: RegimeRule[]): ResolvedObligation[] {
   const ordered = [regime, ...matching.filter((r) => r !== regime)];
@@ -259,9 +258,8 @@ export function resolve(ctx: TransactionContext, deps: ResolveDeps = {}): Compli
     classification: { buyerRole, crossBorder, supplyTypes },
     tax,
     taxSystemKind: sp.taxSystem.kind,
-    regime,
-    // The primary obligation is `regime`'s own — the same rule, so `plan.obligations[0]` and
-    // `plan.regime` can never disagree while both exist. Any further matching rule follows it.
+    // P2-T06 — `regime` is gone; `obligations` is the single source. The primary one is built from
+    // the rule `regime` used to expose, so the removal is a deletion and not a change of answer.
     obligations: obligationsFrom(regime, matchingRegimes),
     artifacts,
     channels,
@@ -287,7 +285,8 @@ export function resolve(ctx: TransactionContext, deps: ResolveDeps = {}): Compli
  * data goes".
  *
  * This returns the set. `pickWithSelector` below keeps the historical single answer on top of it,
- * so nothing changes for the sixteen existing readers of `plan.regime`.
+ * which is how the sixteen readers across eight files were migrated without a behaviour change
+ * hiding inside the refactor.
  */
 function allWithSelector<
   T extends { appliesTo?: ClassificationSelector; attachment?: AttachmentPredicate[] },

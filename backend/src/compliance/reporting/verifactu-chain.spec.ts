@@ -121,7 +121,7 @@ function esPlan(): CompliancePlan {
       buyerSelfAssess: false,
     },
     taxSystemKind: 'VAT',
-    regime: { model: 'REAL_TIME_REPORTING', blocking: false },
+    obligations: [{ kind: 'E_REPORTING', model: 'REAL_TIME_REPORTING', blocking: false }],
     artifacts: [{ role: 'AUTHORITATIVE', syntax: 'ES_FACTURAE' }],
     channels: [{ type: 'GOV_PORTAL_API', providerId: 'es-aeat' }],
     numbering: { model: 'GAPLESS_SELF' },
