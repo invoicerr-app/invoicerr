@@ -8,15 +8,16 @@ import {
   ChannelType,
   Confidence,
   CorrectionModel,
+  DocumentKind,
   DocumentSyntax,
   ISO3166Alpha2,
   NumberingModel,
+  ObligationKind,
   PartyRole,
   RegimeModel,
   ReportingKind,
   SupplyType,
   TaxScheme,
-  ObligationKind,
 } from '../types';
 
 /** Every rule list is temporal. `validTo` is EXCLUSIVE; absence means "open-ended". */
@@ -245,11 +246,56 @@ export interface CountryComplianceProfile {
   reporting: Temporal<ReportingObligation>[];
   numbering: Temporal<NumberingRule>[];
 
+  /**
+   * Which document kinds this country's businesses use. Optional, and absent means "derive".
+   *
+   * The engine already knows part of the answer without anyone declaring it: `correctionModel`
+   * fixes whether a correction is a credit note, a corrective invoice or a cancel-and-replace, so
+   * the correction kind is derivable for all 108 profiles. What no profile knows is whether a
+   * proforma is permitted here — hence the UNVERIFIED default rather than an invented AVAILABLE.
+   */
+  documentKinds?: Temporal<DocumentKindRule>[];
+
   /** Per-country required identifiers for companies/individuals. */
   requiredIdentifiers: IdentifierRequirement[];
 
   /** What this country's buyers are mandated to *receive* (drives buyer-format negotiation). */
   mandatoryReceiveSyntax?: DocumentSyntax;
+}
+
+/**
+ * What a document KIND is in a given country, and whether the product should offer it.
+ *
+ * WHY THIS IS DATA. A proforma is not an invoice: it carries no number from the legal series, it is
+ * never issued, never transmitted, never archived under a retention duty. A deposit invoice is the
+ * opposite — it is a full legal document that happens to be partial. Putting both in one list
+ * whose every other row is a legal document is a category error, and the line between them is not
+ * the same everywhere. Hard-coding "hide proformas" in the interface would put a country's rule in
+ * a React component, which is the one thing this architecture forbids.
+ *
+ * `legalDocument` is a PRODUCT fact and universal: it says whether this repository's pipeline
+ * numbers, issues, transmits and archives the kind. `availability` is a COUNTRY fact, and mostly
+ * unverified — which is why `UNVERIFIED` exists and is the default rather than a polite `AVAILABLE`.
+ */
+export interface DocumentKindRule {
+  kind: DocumentKind;
+  /**
+   * Does this kind enter the legal series — numbered, issued, transmitted, archived?
+   *
+   * Not a country question. It describes what the product does with the kind, and it is what tells
+   * an interface whether the document belongs beside invoices or beside quotes.
+   */
+  legalDocument: boolean;
+  /**
+   * Whether the country permits it, and this one IS a country question.
+   *
+   * `UNVERIFIED` is the honest default and covers almost everything today: nobody has sourced, per
+   * country, whether a proforma is permitted, regulated or meaningless. A screen may still offer an
+   * UNVERIFIED kind — the product has always offered them — but it must not claim the country
+   * endorses it, and `openQuestion` says what would have to be read.
+   */
+  availability: 'AVAILABLE' | 'REQUIRED' | 'FORBIDDEN' | 'UNVERIFIED';
+  openQuestion?: string;
 }
 
 export interface IdentifierRequirement {

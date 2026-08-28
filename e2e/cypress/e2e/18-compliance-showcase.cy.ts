@@ -51,23 +51,27 @@ describe("Compliance showcase — the same code, fifteen different screens", () 
 		});
 	});
 
-	it("02 PL — the invoice cannot leave the product at all without KSeF, and the screen says so", () => {
+	it("02 PL — the transmission cannot complete without KSeF, whatever the screen calls it", () => {
 		setupCountry("Showcase PL", "Poland", "PL", [
 			{ scheme: "VAT", value: "PL1234567890" },
 		]).then((ids) => {
 			issuedInvoice(ids).then((id) => {
 				send(id as unknown as string);
-				waitForSettled(id as unknown as string);
+				// Assert the FACT, not the prose. Two runs died here on the wording: the screen says
+				// "never reached the authority" or "awaiting delivery confirmation" depending on which
+				// state the queue settled into, and both are honest. What is invariant — and what this
+				// case exists to show — is that Poland cannot complete a transmission, because KSeF has
+				// no credentials (finding C1, no channel can actually emit). Asserting a sentence rather
+				// than the outcome made a real property look like a flake.
+				waitForSettled(id as unknown as string).then((status) => {
+					expect(
+						status,
+						"Poland cannot reach a delivered state without KSeF",
+					).to.not.be.oneOf(["DELIVERED", "CLEARED", "ACCEPTED", "REPORTED"]);
+				});
 				openInvoice();
-				// Written to show the corrective-invoice button, which Poland gets where France gets a
-				// credit note. It cannot be shown: correction opens from DELIVERED, and a Polish invoice
-				// never gets there because KSeF has no credentials — the C1 finding, that no channel can
-				// actually emit. What the screen does instead is the more useful thing to capture: it
-				// refuses to pretend the invoice was issued.
-				cy.contains(/not transmitted|never reached the authority/i).should(
-					"be.visible",
-				);
-				shot("02-pl-not-transmitted");
+				revealPanels();
+				shot("02-pl-cannot-complete-transmission");
 			});
 		});
 	});
