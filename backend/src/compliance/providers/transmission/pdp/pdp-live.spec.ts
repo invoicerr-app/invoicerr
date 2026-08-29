@@ -82,7 +82,21 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
           { scheme: 'LEGAL_ID', value: '000000001' },
         ],
       },
-      items: [{ name: 'Prestation de test', quantity: 1, unitPrice: 100, vatRate: 20, type: 'SERVICE' }],
+      // `vatCategory` is not optional any more: buildEInvoice refuses a line without a resolved
+      // BT-151 (invoice-rendering.service.ts:388) because six categories share rate 0. This fixture
+      // predates that column, so the spec threw before it ever reached the network — which is why
+      // "PDP ✅ Proven live" in LIVE_TESTING.md had stopped meaning anything. 'S' = standard rated,
+      // matching the 20 % rate.
+      items: [
+        {
+          name: 'Prestation de test',
+          quantity: 1,
+          unitPrice: 100,
+          vatRate: 20,
+          vatCategory: 'S',
+          type: 'SERVICE',
+        },
+      ],
     } as any);
 
     // Mirror the REAL executor path: FR profile primary = EN16931_CII → exportXml('cii').

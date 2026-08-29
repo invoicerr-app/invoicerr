@@ -41,11 +41,18 @@ describe("Compliance showcase — the same code, fifteen different screens", () 
 				send(id as unknown as string);
 				waitForSettled(id as unknown as string);
 				openInvoice();
-				// The real assertion, restored once sending got the document to DELIVERED. `correctionModel`
-				// is CREDIT_NOTE for France and the button says so; the corrective-invoice button, which is
-				// what Poland gets, is absent.
+				// `correctionModel` is CREDIT_NOTE for France, and the button says so.
+				//
+				// The second half of this case used to assert that no CORRECTIVE-INVOICE button existed
+				// — "which is what Poland gets". It held only because `send()` posted `{ invoiceId }` to
+				// an endpoint reading `@Body('id')` and therefore sent nothing, so the document never
+				// reached the state where corrections are offered at all. With that helper fixed, France
+				// offers BOTH, and its own profile says why: fr.ts declares
+				// `{ route: 'CORRECTIVE_INVOICE', status: 'OPEN' }` for "toute modification référencée de
+				// la facture initiale" (CGI art. 289, I, 5 ; ann. II art. 242 nonies A, I). A credit note
+				// is France's correction MODEL, not its only correction route. Asserting the absence of a
+				// route the country profile declares open was asserting the bug.
 				cy.contains("button", /credit note/i).should("be.visible");
-				cy.contains("button", /corrective/i).should("not.exist");
 				shot("01-fr-credit-note");
 			});
 		});

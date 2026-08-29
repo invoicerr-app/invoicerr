@@ -232,7 +232,14 @@ export class ApplySignalService {
     documentId: string,
     signal: LifecycleSignal,
     log?: ComplianceLogger,
-    ctx?: { transmitRef?: string },
+    // `ctx.detail` carries the reason a COMMAND was issued, for the events a signal cannot explain
+    // by itself. `authorityReason()` below only knows how to read an INBOUND_STATUS, so the async
+    // transmit path — a plain COMMAND — recorded TRANSMISSION_FAIL with `detail: null` while the
+    // synchronous `ComplianceService.send()` recorded the channels' own notes. Same failure, two
+    // different amounts of truth depending on which path the country's channel happened to take,
+    // and the FR PDP always takes the silent one: the invoice screen showed "not transmitted" and
+    // the authority's actual complaint existed only in the server log.
+    ctx?: { transmitRef?: string; detail?: string },
   ): Promise<void> {
     const l = log ?? this.log;
     const docStore = new PrismaComplianceDocumentStore(this.prisma);
@@ -273,7 +280,7 @@ export class ApplySignalService {
           // F-008: keep the authority's own wording on the event. It is the only place a rejection
           // motive exists, and the invoice screen reads it from here to show WHY a document was
           // rejected rather than just that it was.
-          const reason = authorityReason(signal);
+          const reason = authorityReason(signal) ?? ctx?.detail;
           const cas = await txDocStore.transitionIfStatus(documentId, rec.status, {
             status: applied.to,
             events: [

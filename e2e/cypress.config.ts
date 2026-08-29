@@ -135,6 +135,56 @@ export default defineConfig({
             await client.end();
           }
         },
+
+        /**
+         * Read back everything the compliance layer recorded for one invoice.
+         *
+         * The transmission reference an authority hands back — for the FR PDP,
+         * `"<companyId>|<superpdp invoice id>"` — is on no HTTP response. `POST /api/invoices/send`
+         * answers `{ delivered: false }` and nothing else, because the send is queued; the ref
+         * arrives later and is written to `ScheduledJob.ref` (the poll job) and to
+         * `ComplianceCallbackRegistration.correlationKey`. Neither table is exposed by
+         * `GET /api/invoices/:id`.
+         *
+         * So the only way to assert "the platform really answered, and this is the number it gave"
+         * is to read the rows the runtime wrote. That is the FACT; the invoice screen's wording,
+         * which lags a queue, is not.
+         */
+        async complianceRefs(invoiceId: string) {
+          const client = new Client({
+            connectionString:
+              process.env.DATABASE_URL ||
+              "postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db?schema=public",
+          });
+          await client.connect();
+          try {
+            const { rows: docs } = await client.query(
+              `SELECT id, status, number, kind FROM "ComplianceDocument" WHERE "invoiceId" = $1`,
+              [invoiceId],
+            );
+            if (docs.length === 0) return null;
+            const documentId = docs[0].id as string;
+            const { rows: events } = await client.query(
+              `SELECT type, detail, at FROM "ComplianceEvent" WHERE "documentId" = $1 ORDER BY at`,
+              [documentId],
+            );
+            const { rows: jobs } = await client.query(
+              `SELECT kind, status, "providerId", ref, awaiting FROM "ScheduledJob" WHERE "documentId" = $1`,
+              [documentId],
+            );
+            const { rows: callbacks } = await client.query(
+              `SELECT channel, "correlationKey", awaiting, status FROM "ComplianceCallbackRegistration" WHERE "documentId" = $1`,
+              [documentId],
+            );
+            const { rows: authorityIds } = await client.query(
+              `SELECT scheme, value FROM "ComplianceAuthorityId" WHERE "documentId" = $1`,
+              [documentId],
+            );
+            return { ...docs[0], events, jobs, callbacks, authorityIds };
+          } finally {
+            await client.end();
+          }
+        },
       });
     },
   }

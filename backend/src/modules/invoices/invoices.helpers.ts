@@ -545,4 +545,10 @@ const FAILURE_EVENT_FALLBACK: Record<string, string> = {
   WIRING_FAILED: 'Compliance wiring failed',
   VALIDATION_BLOCKED: 'The invoice failed format validation and was not transmitted',
   BUILD_FAILED: 'The compliant document could not be produced, so nothing was transmitted',
+  // The one failure that actually reached an authority and was turned away, and the one that was
+  // missing here — so a document that a PDP refused for a namable reason ("La date de facture
+  // (BT-2) DOIT ETRE antérieure ou égale à…") showed the user nothing but a red status. The event
+  // has carried the channels' own notes on the synchronous path all along, and now does on the
+  // queued path too (TransmitProcessor); this is what lets them reach the screen.
+  TRANSMISSION_FAIL: 'No transmission channel accepted the document',
 };

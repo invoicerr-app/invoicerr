@@ -111,8 +111,17 @@ export class TransmitProcessor extends WorkerHost {
       });
     }
 
+    // Parity with `ComplianceService.send()` on the sync path (compliance-service.ts): when nothing
+    // was accepted, the channels' own notes ARE the explanation — "PDP …: 400 — La date de facture
+    // (BT-2) …", "channel ksef not configured for company". Without them the document lands on
+    // TRANSMISSION_FAILED with a null detail, and the screen can only say that something went wrong.
+    const reasons =
+      outcome.event === 'TRANSMISSION_FAIL'
+        ? outcome.execution.transmissions.flatMap((t) => t.notes).join('; ')
+        : '';
     await this.applySignal.apply(documentId, { type: 'COMMAND', event: outcome.event }, undefined, {
       transmitRef: outcome.transmitRef,
+      detail: reasons || undefined,
     });
 
     this.logger.log(

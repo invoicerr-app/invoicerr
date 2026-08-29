@@ -127,10 +127,15 @@ export function issuedInvoice(
  * opens it from DELIVERED / ACCEPTED / REPORTED. A freshly issued invoice is none of those.
  */
 export function send(id: string) {
+	// `{ id }`, not `{ invoiceId }`: the controller reads `@Body('id')` (invoices.controller.ts).
+	// With the old key the parameter arrived `undefined`, the lookup found no invoice, and
+	// `failOnStatusCode: false` swallowed the answer — so every caller of this helper believed it had
+	// sent a document it had never sent. Spec 18's "restored once sending got the document to
+	// DELIVERED" was written against that silence.
 	return cy.request({
 		method: "POST",
 		url: `${api}/api/invoices/send`,
-		body: { invoiceId: id },
+		body: { id },
 		failOnStatusCode: false,
 	});
 }

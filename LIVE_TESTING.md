@@ -19,7 +19,7 @@ Hard-success contract (enforced per-spec):
 | Channel | Flag | Key creds | Spec file | Status |
 |---|---|---|---|---|
 | KSeF (PL) | `KSEF_LIVE=1` | `KSEF_AUTH_TOKEN`, `KSEF_NIP` | `ksef/ksef-live.spec.ts` | ✅ Proven live |
-| PDP superpdp (FR) | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp-live.spec.ts` | ✅ Proven live |
+| PDP superpdp (FR) | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp-live.spec.ts` | 🟡 Transport proven — document then **REJECTED** (BR-FR-05), see below |
 | PDP AFNOR (FR) | `PDP_AFNOR_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp-afnor-live.spec.ts` | ✅ Transport proven (content TBD) |
 | Email SMTP | `EMAIL_LIVE=1` | _(none — Ethereal auto-creates account)_ | `email-live.spec.ts` | ✅ Proven live |
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdi-live.spec.ts` | 🔴 Deferred (AdE accreditation) |
@@ -34,6 +34,32 @@ Hard-success contract (enforced per-spec):
 
 ---
 
+> ### ⚠️ « PDP ✅ Proven live » était un faux vert — corrigé le 2026-08-29
+>
+> Le transport marche : OAuth, XSD, espaces de noms, routage, et superpdp **accepte le dépôt**. Puis
+> il **rejette le document**. Vérifié en interrogeant la plateforme, `GET /v1.beta/invoices/374891` :
+>
+> > événement `fr:213 Rejetée` — « BR-FR-05/BT-22 : La mention relative aux frais de recouvrement
+> > (code PMT) est absente. Elle est obligatoire dans les notes (BG-1). »
+>
+> Idem pour **PMD** (pénalités de retard) et **AAB** (escompte). Invoicerr n'émet aucune des trois :
+> **toute facture française qu'il produit est refusée par le contrôle de conformité.** C'est un
+> manque produit, pas un problème d'identifiants — et le libellé de ces mentions relève des
+> conditions commerciales du vendeur, donc il ne s'invente pas.
+>
+> **Pourquoi personne ne l'a vu**, et c'est la leçon transposable : le spec assertait `PENDING` juste
+> après le dépôt et ne sondait qu'une fois, avant que le verdict existe. `PENDING` est un état réel,
+> mais transitoire — asserter un état transitoire, c'est asserter que la requête est partie, pas
+> qu'elle a abouti. Et le spec avait en outre cessé de compiler (fixture sans `vatCategory`, devenu
+> obligatoire quand BT-151 est passé sous la résolution du moteur) : il levait avant d'atteindre le
+> réseau, et le gate live gardait le silence.
+>
+> **Deux contraintes du bac à sable**, vérifiées le même jour. superpdp refuse tout dépôt dont la
+> BT-2 dépasse le jour courant, donc décaler l'horloge ne sert à rien : la France ne route vers un
+> PDP qu'à partir du 2026-09-01, et les deux fenêtres ne se recouvrent que ce jour-là. Et le bac à
+> sable contient déjà Burger Queen (`000000002`) et Tricatel (`000000001`) — utiliser un autre SIREN
+> suppose de créer l'entreprise côté superpdp.
+
 ## Running a single live spec
 
 ```bash
@@ -41,7 +67,7 @@ Hard-success contract (enforced per-spec):
 KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> [KSEF_NIP=<nip>] \
   npx jest ksef-live --no-coverage --runInBand
 
-# PDP superpdp (FR) — proven live against https://api.superpdp.tech
+# PDP superpdp (FR) — transport proven; the document is then REJECTED (BR-FR-05), see the warning above
 set -a; . .env.pdp.local; set +a
 PDP_LIVE=1 npx jest pdp-live --no-coverage --runInBand
 

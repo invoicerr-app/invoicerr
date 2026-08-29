@@ -640,14 +640,32 @@ export class InvoicesService {
       let totalVAT: number;
       let totalTTC: number;
 
+      // `name` is NOT optional on InvoiceItem (schema.prisma:623) and was the one field this copy
+      // never carried, so `tx.invoice.create()` threw "Argument `name` is missing" for EVERY
+      // correction of an invoice that has lines — i.e. always. No credit note, corrective invoice or
+      // debit note could be produced at all; the button was there and the endpoint 400ed behind it.
+      // Nothing caught it because the correction specs stub the store and the showcase spec only
+      // asserts the BUTTON exists.
+      //
+      // The VAT resolution fields travel with the line for the same reason they are persisted at
+      // all: `vatCategory` is what the ENGINE resolved (schema.prisma:630 — "the renderer refuses
+      // them rather than guessing"), and a rate alone does not determine it. A credit note that
+      // dropped them would reverse the invoice with a different tax answer than the invoice it
+      // reverses.
       const copyItems = (negate: boolean) =>
         invoice.items.map((item, i) => ({
+          name: item.name,
           description: item.description,
           quantity: negate ? -item.quantity : item.quantity,
           unitPrice: item.unitPrice,
           unitPriceMinor:
             item.unitPriceMinor != null ? (negate ? -item.unitPriceMinor : item.unitPriceMinor) : null,
           vatRate: item.vatRate,
+          requestedVatRate: item.requestedVatRate,
+          vatCategory: item.vatCategory,
+          vatExemptionReason: item.vatExemptionReason,
+          requestedVatCategory: item.requestedVatCategory,
+          requestedVatExemptionReason: item.requestedVatExemptionReason,
           type: item.type,
           order: i,
           discountRate: item.discountRate,

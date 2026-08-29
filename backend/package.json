@@ -8,7 +8,7 @@
     "build": "nest build",
     "format": "biome format --write .",
     "start": "nest start",
-    "start:test": "dotenv -e .env.test -- nest start --watch",
+    "start:test": "dotenv -e .env.test.local -e .env.test -- nest start --watch",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
