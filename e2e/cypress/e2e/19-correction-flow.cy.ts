@@ -214,4 +214,45 @@ describe("Correction flow — a draft the user finishes, not a fait accompli", (
 			});
 		});
 	});
+	it("07 the credit note settles what it corrects — Odoo's « Crédits en circulation »", () => {
+		// The invoice and the credit note correcting it used to ignore each other completely: a fully
+		// credited invoice stayed UNPAID for ever and kept chasing a customer who owed nothing.
+		anIssuedInvoice().then((originalId) => {
+			cy.request({ url: `${api}/api/invoices/${originalId}/settlement` })
+				.its("body")
+				.then((before: { outstandingMinor: number; creditedMinor: number; settled: boolean }) => {
+					expect(before.creditedMinor, "nothing credited yet").to.eq(0);
+					expect(before.settled).to.eq(false);
+					expect(before.outstandingMinor).to.be.greaterThan(0);
+
+					correct(originalId).then((res) => {
+						// A DRAFT correction settles nothing: it is a document the user has not finished,
+						// and counting it would promise a reduction that has not happened.
+						cy.request({ url: `${api}/api/invoices/${originalId}/settlement` })
+							.its("body")
+							.then((whileDraft: { creditedMinor: number }) => {
+								expect(whileDraft.creditedMinor, "a draft credits nothing").to.eq(0);
+							});
+
+						cy.request({
+							method: "POST",
+							url: `${api}/api/invoices/${res.correctionInvoiceId}/issue`,
+							failOnStatusCode: false,
+						});
+
+						cy.request({ url: `${api}/api/invoices/${originalId}/settlement` })
+							.its("body")
+							.then((after: { creditedMinor: number; paidMinor: number; settled: boolean }) => {
+								expect(after.creditedMinor, "the issued credit note counts").to.eq(
+									before.outstandingMinor,
+								);
+								// Reported SEPARATELY from payments, on purpose: a credit is not cash that
+								// arrived, and a product that files it as one reports revenue it never got.
+								expect(after.paidMinor, "and it is not filed as a payment").to.eq(0);
+								expect(after.settled, "the invoice owes nothing now").to.eq(true);
+							});
+					});
+				});
+		});
+	});
 });

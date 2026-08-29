@@ -28,6 +28,7 @@ import { defaultRegistry as profileRegistry } from '@/compliance/profiles/regist
 import { correctionDocumentKinds, internalOnlyCorrection } from '@/compliance/lifecycle/correction-routes';
 import { ComplianceQueueDispatcher } from '@/compliance/nest/queue/compliance-queue.dispatcher';
 import { clampDiscountRate, toMinor } from '@/utils/financial';
+import { settlementOf } from './settlement';
 import type { SupplyType, DocumentKind } from '@/compliance/types';
 import { enrichWithPaymentMethod, enrichWithPaymentMethods } from '@/utils/enrich-payment-methods';
 import {
@@ -396,7 +397,99 @@ export class InvoicesService {
     return invoice;
   }
 
+  /**
+   * Recompute what the corrected invoice still owes, once a correction becomes real.
+   *
+   * A credit note only settles anything when it is ISSUED — a draft is a document the user has not
+   * finished. So the balance of the invoice it corrects is stale from the moment the correction
+   * leaves DRAFT, and nothing used to notice: the pair lived side by side and a fully credited
+   * invoice stayed UNPAID for ever, chasing a customer who owed nothing.
+   */
+  /**
+   * What this invoice still owes, and what has reduced it — Odoo's "Crédits en circulation".
+   *
+   * Payments and credits are reported SEPARATELY, never summed into one "paid" figure: a payment is
+   * cash that arrived, a credit is an amount withdrawn from the claim. A screen that showed them as
+   * one number would let a business report revenue it never received.
+   */
+  async settlementFor(companyId: string, invoiceId: string) {
+    const invoice = await prisma.invoice.findFirst({ where: { id: invoiceId, companyId } });
+    if (!invoice) throw new NotFoundException('Invoice not found');
+
+    const [payments, credits] = await Promise.all([
+      prisma.payment.findMany({
+        where: { invoiceId },
+        select: { id: true, rawNumber: true, totalPaid: true, totalPaidMinor: true, paidAt: true },
+      }),
+      prisma.invoice.findMany({
+        where: { correctsInvoiceId: invoiceId, status: { not: 'DRAFT' }, isActive: true },
+        select: {
+          id: true,
+          rawNumber: true,
+          kind: true,
+          totalTTC: true,
+          totalTTCMinor: true,
+          issuedAt: true,
+        },
+      }),
+    ]);
+
+    const balance = settlementOf({
+      totalMinor: invoice.totalTTCMinor ?? toMinor(invoice.totalTTC, invoice.currency),
+      paymentsMinor: payments.map((p) => p.totalPaidMinor ?? toMinor(p.totalPaid, invoice.currency)),
+      credits: credits.map((c) => ({
+        id: c.id,
+        amountMinor: c.totalTTCMinor ?? toMinor(c.totalTTC, invoice.currency),
+      })),
+    });
+
+    return {
+      invoiceId,
+      currency: invoice.currency,
+      ...balance,
+      payments: payments.map((p) => ({ id: p.id, number: p.rawNumber, at: p.paidAt })),
+      // Drafts are absent on purpose: a correction the user has not issued settles nothing, and
+      // showing it here would promise a reduction that has not happened.
+      credits: credits.map((c) => ({ id: c.id, number: c.rawNumber, kind: c.kind, at: c.issuedAt })),
+    };
+  }
+
+  private async recomputeSettlement(correctedInvoiceId: string): Promise<void> {
+    const target = await prisma.invoice.findUnique({ where: { id: correctedInvoiceId } });
+    if (!target || target.status === 'ARCHIVED') return;
+
+    const [payments, credits] = await Promise.all([
+      prisma.payment.findMany({
+        where: { invoiceId: correctedInvoiceId },
+        select: { totalPaid: true, totalPaidMinor: true },
+      }),
+      prisma.invoice.findMany({
+        where: { correctsInvoiceId: correctedInvoiceId, status: { not: 'DRAFT' }, isActive: true },
+        select: { id: true, totalTTC: true, totalTTCMinor: true },
+      }),
+    ]);
+
+    const balance = settlementOf({
+      totalMinor: target.totalTTCMinor ?? toMinor(target.totalTTC, target.currency),
+      paymentsMinor: payments.map((p) => p.totalPaidMinor ?? toMinor(p.totalPaid, target.currency)),
+      credits: credits.map((c) => ({
+        id: c.id,
+        amountMinor: c.totalTTCMinor ?? toMinor(c.totalTTC, target.currency),
+      })),
+    });
+
+    // CORRECTED is not touched: it says what happened to the document, not what is owed on it, and
+    // overwriting it would lose the fact that a correction exists at all.
+    if (balance.settled && target.status !== 'CORRECTED') {
+      await prisma.invoice.update({ where: { id: correctedInvoiceId }, data: { status: 'PAID' } });
+    }
+  }
+
   async issueInvoice(companyId: string, id: string) {
+    // Recomputed AFTER the transaction commits, never inside: the balance must be read from
+    // committed rows, and the Prisma extension that formats numbers has already taught us what
+    // happens when a nested call reads through the global client mid-transaction.
+    let correctedTarget: string | null = null;
     const invoice = await prisma.invoice.findFirst({
       where: { id, companyId },
       include: {
@@ -522,6 +615,9 @@ export class InvoicesService {
         throw new BadRequestException('Invoice is already being issued or has already been issued');
       }
 
+      // A correction that has just become real changes what its target still owes.
+      if (invoice.correctsInvoiceId) correctedTarget = invoice.correctsInvoiceId;
+
       const { counter, rawNumber } = await this.numberingService.nextNumber(
         tx,
         invoice.companyId,
@@ -605,6 +701,9 @@ export class InvoicesService {
         );
       }
     }
+
+    // The transaction has committed; the balance can now be read from real rows.
+    if (correctedTarget) await this.recomputeSettlement(correctedTarget);
 
     logger.info('Invoice issued', {
       category: 'invoice',

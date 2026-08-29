@@ -32,6 +32,9 @@ jest.mock('@/prisma/prisma.service', () => ({
     invoice: {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
+      // Settling an invoice now reads the credit notes correcting it: a fully credited invoice used
+      // to stay UNPAID for ever. Defaults to none, which is what these tests are about.
+      findMany: jest.fn().mockResolvedValue([]),
       update: jest.fn(),
     },
     payment: {

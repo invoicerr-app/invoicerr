@@ -407,6 +407,19 @@ export class InvoicesController {
     return this.invoicesService.cancelAndReplaceInvoice(companyId, id, reason);
   }
 
+  @Get(':id/settlement')
+  @ApiOperation({
+    summary: 'What an invoice still owes',
+    description:
+      'Total, payments received, credit notes applied, and what remains. Payments and credits are ' +
+      'reported separately: a payment is cash that arrived, a credit is an amount withdrawn from ' +
+      'the claim.',
+  })
+  @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
+  settlement(@ActiveCompany() companyId: string, @Param('id') id: string) {
+    return this.invoicesService.settlementFor(companyId, id);
+  }
+
   @Get(':id/available-actions')
   @ApiOperation({
     summary: 'Get available actions for an invoice',

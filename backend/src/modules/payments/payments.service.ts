@@ -6,6 +6,7 @@ import { getInvertColor, getPDF } from '@/utils/pdf';
 
 import { MailService } from '@/mail/mail.service';
 import { NumberingService } from '@/utils/numbering';
+import { settlementOf } from '@/modules/invoices/settlement';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { Prisma, WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { baseTemplate } from '@/modules/payments/templates/base.template';
@@ -230,12 +231,26 @@ export class PaymentsService {
         select: { totalPaid: true, totalPaidMinor: true },
       });
 
-      const totalPaidMinor = payments.reduce(
-        (sum, payment) => sum + (payment.totalPaidMinor ?? toMinor(payment.totalPaid, invoice.currency)),
-        0,
-      );
-      const invoiceTotalTTCMinor = invoice.totalTTCMinor ?? toMinor(invoice.totalTTC, invoice.currency);
-      if (totalPaidMinor >= invoiceTotalTTCMinor) {
+      // Credit notes settle the balance too, and this used to ignore them entirely: a fully credited
+      // invoice stayed UNPAID for ever and kept chasing a customer who owed nothing. Only ISSUED
+      // corrections count — a draft is a document the user has not finished.
+      const credits = await prisma.invoice.findMany({
+        where: { correctsInvoiceId: invoiceId, status: { not: 'DRAFT' }, isActive: true },
+        select: { id: true, totalTTC: true, totalTTCMinor: true },
+      });
+
+      const balance = settlementOf({
+        totalMinor: invoice.totalTTCMinor ?? toMinor(invoice.totalTTC, invoice.currency),
+        paymentsMinor: payments.map(
+          (payment) => payment.totalPaidMinor ?? toMinor(payment.totalPaid, invoice.currency),
+        ),
+        credits: credits.map((c) => ({
+          id: c.id,
+          amountMinor: c.totalTTCMinor ?? toMinor(c.totalTTC, invoice.currency),
+        })),
+      });
+
+      if (balance.settled) {
         await prisma.invoice.update({
           where: { id: invoiceId },
           data: { status: 'PAID' },
