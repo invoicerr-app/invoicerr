@@ -14,17 +14,18 @@
  *   ASSERTIONS read the API — the recorded fact, never a sentence the screen shows while a queue is
  *   still running. Screen prose is a timing race; the record is not.
  *
- * Fixtures (company, client, the invoice being corrected) stay on the API deliberately: they are the
- * situation, not the behaviour under test, and driving them through forms would make every failure
- * ambiguous.
+ * The fixture used to build its issued invoice with three `cy.request()` calls (create, issue,
+ * send). That was the same shortcut this file's own header warns against — a fixture that
+ * "half-worked" (an invoice that was never actually issuable, or a send the UI could never trigger)
+ * would have gone unnoticed. So the fixture now drives the same three steps from the screen: the
+ * creation form, the row's issue button, and the row's send button behind its confirmation dialog.
+ *
+ * Only the SITUATION stays on the API: the company and the client (`setupCountry`). They are
+ * covered by specs 02 and 05, and driving them through onboarding forms here would make every
+ * failure in this file ambiguous — a broken company wizard and a broken correction button would
+ * fail the same test.
  */
-import {
-	api,
-	issuedInvoice,
-	send,
-	setupCountry,
-	waitForSettled,
-} from "../support/showcase";
+import { api, setupCountry, waitForSettled } from "../support/showcase";
 
 type InvoiceRow = {
 	id: string;
@@ -72,13 +73,55 @@ const draftCorrectionOf = (originalId: string, tries = 10) => {
 	return attempt(tries);
 };
 
-/** Click a control on the row of a SPECIFIC invoice — never `.first()`, which drifts. */
+/**
+ * The draft the CREATION FORM just produced, in this test's own freshly-made company.
+ *
+ * Same race as `draftCorrectionOf`, one step earlier: the dialog closes the tick `useDocumentUpsert`
+ * gets its 2xx back, but the list it closes onto is a separate refetch. Filtering on
+ * `status === "DRAFT" && number === null` rather than just "the only row" keeps this correct even if
+ * a later change makes the fixture share a company across calls.
+ */
+const draftJustCreated = (tries = 10) => {
+	const attempt = (left: number): Cypress.Chainable<InvoiceRow> =>
+		cy
+			.request({ url: `${api}/api/invoices` })
+			.its("body")
+			.then((body: unknown) => {
+				const rows = (
+					Array.isArray(body)
+						? body
+						: ((body as { invoices?: InvoiceRow[] }).invoices ?? [])
+				) as InvoiceRow[];
+				const found = rows.find(
+					(r) => r.status === "DRAFT" && r.number === null,
+				);
+				if (found) return cy.wrap(found);
+				if (left <= 1) {
+					expect(
+						rows.map((r) => `${r.kind}:${r.status}`).join(" | ") || "(no rows)",
+						"the creation form produced a draft — the page holds",
+					).to.eq("a fresh draft");
+				}
+				return cy.wait(700).then(() => attempt(left - 1));
+			});
+	return attempt(tries);
+};
+
+/**
+ * Click a control on the row of a SPECIFIC invoice — never `.first()`, which drifts.
+ *
+ * Both queries carry the timeout, not just the outer one: a `{timeout}` on `cy.get` only governs
+ * that command's own wait for the ROW to exist, not the `.find()` chained after it. Every previous
+ * caller happened to follow a fresh `cy.visit`, where the row already had its final button set on
+ * first paint — so the default 4s on `.find()` never mattered until a fixture stayed on the SAME
+ * page across an in-place refetch (issue, then send, without navigating between them) and hit it.
+ */
 const onRow = (invoiceId: string, dataCy: string) =>
 	cy
 		.get(`[data-cy="invoice-row"][data-invoice-id="${invoiceId}"]`, {
 			timeout: 20000,
 		})
-		.find(`[data-cy="${dataCy}"]`)
+		.find(`[data-cy="${dataCy}"]`, { timeout: 20000 })
 		.click();
 
 /**
@@ -108,6 +151,69 @@ const eventually = (
 	return attempt(tries);
 };
 
+/**
+ * Confirm a send actually landed the document where correction is offered from —
+ * DELIVERED / ACCEPTED / REPORTED, per the lifecycle comment `send()` used to carry — rather than
+ * trusting that clicking the confirmation button produced a 2xx somewhere. A UI-driven send has no
+ * HTTP response for the test to inspect the way the old `cy.request`-based helper did; reading the
+ * backend-derived action back is the equivalent check on the record, not a weaker one — it fails
+ * exactly when the fixture would have been half-worked (queued, then rejected).
+ */
+const eventuallyCorrectable = (id: string, tries = 15) => {
+	const attempt = (left: number): Cypress.Chainable<unknown> =>
+		cy
+			.request<{
+				complianceStatus: string | null;
+				actions: Record<string, boolean>;
+			}>({
+				url: `${api}/api/invoices/${id}/available-actions`,
+			})
+			.its("body")
+			.then((body) => {
+				if (body.actions?.correct) return cy.wrap(body);
+				if (left <= 1) {
+					expect(
+						`complianceStatus=${body.complianceStatus} actions=${JSON.stringify(body.actions)}`,
+						"the send settled somewhere correction is offered from",
+					).to.eq("the send settled somewhere correction is offered from");
+				}
+				return cy.wait(700).then(() => attempt(left - 1));
+			});
+	return attempt(tries);
+};
+
+/**
+ * Fill in and submit the invoice CREATION form: the client, one line, submit.
+ *
+ * Assumes the create dialog is already open. `clientSlug` is the option's `data-cy` suffix
+ * (`SearchSelect` slugs it from the option's label), so this only works for a client whose name is
+ * known up front — exactly what `setupCountry` hands back.
+ */
+const fillAndSubmitInvoiceForm = (
+	clientSlug: string,
+	unitPrice: number,
+	vatRate: number,
+) => {
+	cy.get('[data-cy="invoice-dialog"]', { timeout: 15000 }).should("be.visible");
+	cy.get('[data-cy="invoice-client-select"]').find("button").click();
+	cy.get(`[data-cy="invoice-client-select-option-${clientSlug}"]`, {
+		timeout: 10000,
+	}).click();
+	cy.contains("button", /Add Item/i, { timeout: 15000 }).click();
+	cy.get('[name="items.0.name"]').type("Consulting", { force: true });
+	cy.get('[name="items.0.quantity"]')
+		.clear({ force: true })
+		.type("1", { force: true });
+	cy.get('[name="items.0.unitPrice"]')
+		.clear({ force: true })
+		.type(String(unitPrice), { force: true });
+	cy.get('[name="items.0.vatRate"]')
+		.clear({ force: true })
+		.type(String(vatRate), { force: true });
+	cy.get('[data-cy="invoice-submit"]').click();
+	cy.get('[data-cy="invoice-dialog"]', { timeout: 15000 }).should("not.exist");
+};
+
 describe("Correction flow — driven by the interface, asserted on the record", () => {
 	before(() => {
 		cy.resetAndSeed();
@@ -117,25 +223,40 @@ describe("Correction flow — driven by the interface, asserted on the record", 
 		cy.login();
 	});
 
-	/** One issued, settled French invoice to correct. Fixture only. */
+	/** One issued, settled French invoice to correct — built entirely from the screen. */
 	const anIssuedInvoice = () =>
 		setupCountry("Correction FR", "France", "FR", [
 			{ scheme: "LEGAL_ID", value: "73282932000074" },
 			{ scheme: "VAT", value: "FR44732829320" },
-		]).then((ids) =>
-			issuedInvoice(ids).then((id) => {
-				// The shared helper swallows a refused send; a fixture that half-worked is how a spec
-				// ends up testing something other than what it claims.
-				send(id as unknown as string).then((res) => {
-					expect(
-						res.status,
-						`send responded — body: ${JSON.stringify(res.body)}`,
-					).to.be.oneOf([200, 201]);
+		]).then(() => {
+			// Create: the add button, the form, the client, one line, submit.
+			cy.visit("/invoices");
+			cy.get('[data-cy="invoice-add-button"]', { timeout: 20000 }).click();
+			fillAndSubmitInvoiceForm("fr-client", 1000, 20);
+
+			return draftJustCreated().then((draft) => {
+				// Issue: a SEPARATE click, on the row the draft just landed on.
+				onRow(draft.id, "invoice-issue-button");
+
+				return eventually(
+					draft.id,
+					(r) => r.status === "ISSUED" && r.number !== null,
+					"the fixture invoice reached ISSUED, through its own issue button",
+				).then(() => {
+					// Send: the row's send button, THEN its confirmation dialog. Skipping the
+					// confirmation is not a shortcut to the same result — it is a different action
+					// that sends nothing, which is exactly what `send-confirmation-confirm` exists
+					// to prevent a test (or a distracted user) from doing by accident.
+					onRow(draft.id, "invoice-send-button");
+					cy.get('[data-cy="send-confirmation-confirm"]', {
+						timeout: 15000,
+					}).click();
+
+					waitForSettled(draft.id);
+					return eventuallyCorrectable(draft.id).then(() => cy.wrap(draft.id));
 				});
-				waitForSettled(id as unknown as string);
-				return cy.wrap(id as unknown as string);
-			}),
-		);
+			});
+		});
 
 	it("01 clicking Correct in the LIST produces a draft, and lands the user on it", () => {
 		anIssuedInvoice().then((originalId) => {

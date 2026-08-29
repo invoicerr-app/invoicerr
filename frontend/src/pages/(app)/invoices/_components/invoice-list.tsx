@@ -615,6 +615,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                     handleSendInvoiceByEmail(invoice)
                                   }}
                                   className="text-gray-600 hover:text-purple-600"
+                                  dataCy="invoice-send-button"
                                 >
                                   <SendIcon className="h-4 w-4" />
                                 </Button>

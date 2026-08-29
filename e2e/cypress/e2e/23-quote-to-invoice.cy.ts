@@ -118,6 +118,51 @@ const expectQuoteSigned = (quoteId: string, attempts = 8) => {
 		});
 };
 
+/**
+ * La facture que la conversion vient de produire pour `quoteId`, quel que soit son id.
+ *
+ * `cy.click()` revient dès que l'événement DOM est traité — pas quand la promesse de
+ * `triggerCreateInvoice` a fini son aller-retour HTTP (`create-invoice-from-quote-dialog.tsx` ne
+ * ferme le dialogue et ne navigue vers le PDF que dans le `.then()` de cette promesse). Une lecture
+ * immédiate de la liste peut donc arriver avant que `POST /invoices/create-from-quote` ait fini
+ * d'écrire — l'endpoint est pourtant synchrone (create + brouillon compliance + webhook, tous
+ * attendus côté service), la course est côté test, pas côté backend.
+ *
+ * Vérifié séparément : la taille de page fixée à 10 sur `GET /api/invoices` (R-P3-10, `?limit=`
+ * ignoré) N'EST PAS en cause ici — chaque test de ce fichier tourne dans une société fraîchement
+ * créée par `setupCountry`, et la requête est filtrée par `companyId` côté service ; il n'y a jamais
+ * plus d'une poignée de factures à lire. La vraie cause est uniquement la course ci-dessus, donc le
+ * correctif est une LECTURE QUI RÉESSAIE — même famille que `eventually`/`draftCorrectionOf` dans la
+ * spec 19 — et non un assouplissement de l'assertion finale.
+ */
+const invoiceFromQuote = (quoteId: string, tries = 10) => {
+	const attempt = (
+		left: number,
+	): Cypress.Chainable<{ quoteId?: string; status?: string } | undefined> =>
+		cy
+			.request({ url: `${api}/api/invoices` })
+			.its("body")
+			.then((body: unknown) => {
+				const rows = (
+					Array.isArray(body)
+						? body
+						: ((body as { invoices?: { quoteId?: string; status?: string }[] })
+								.invoices ?? [])
+				) as { quoteId?: string; status?: string }[];
+				const found = rows.find((r) => r.quoteId === quoteId);
+				if (found) return cy.wrap(found);
+				if (left <= 1) {
+					expect(
+						rows.map((r) => `${r.quoteId ?? "?"}:${r.status}`).join(" | ") ||
+							"(aucune ligne)",
+						`une facture issue du devis ${quoteId} — la liste contient`,
+					).to.eq(`une facture issue du devis ${quoteId}`);
+				}
+				return cy.wait(500).then(() => attempt(left - 1));
+			});
+	return attempt(tries);
+};
+
 describe("Du devis à la facture, sans quitter l'écran", () => {
 	before(() => {
 		cy.resetAndSeed();
@@ -170,23 +215,14 @@ describe("Du devis à la facture, sans quitter l'écran", () => {
 					.should("be.enabled")
 					.click();
 
-				cy.request({ url: `${api}/api/invoices` })
-					.its("body")
-					.then((body: unknown) => {
-						const rows = (
-							Array.isArray(body)
-								? body
-								: ((body as { invoices?: { quoteId?: string }[] }).invoices ??
-									[])
-						) as { quoteId?: string; status?: string }[];
-						const born = rows.find((r) => r.quoteId === quote.id);
-						expect(born, `une facture issue du devis ${quote.id}`).to.not.eq(
-							undefined,
-						);
-						// Brouillon, comme toute facture naissante : la conversion ne doit pas brûler un
-						// numéro avant que l'utilisateur ait relu.
-						expect(born?.status, "elle naît brouillon").to.eq("DRAFT");
-					});
+				invoiceFromQuote(quote.id).then((born) => {
+					expect(born, `une facture issue du devis ${quote.id}`).to.not.eq(
+						undefined,
+					);
+					// Brouillon, comme toute facture naissante : la conversion ne doit pas brûler un
+					// numéro avant que l'utilisateur ait relu.
+					expect(born?.status, "elle naît brouillon").to.eq("DRAFT");
+				});
 			});
 		});
 	});

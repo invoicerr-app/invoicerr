@@ -381,6 +381,12 @@ export default function Invoices() {
           setPage={setPage}
           emptyState={invoiceEmptyState}
           showCreateButton={true}
+          // `mutate` is what InvoiceList's own row actions (issue/correct/cancel/send) call after
+          // a 2xx — it was never passed here, so `mutate?.()` silently no-op'd and the List view
+          // kept showing the pre-action status until the next full page load. The Progression view
+          // a few lines up never had this gap: `onIssue`/`onSend`/`onArchive` there are this page's
+          // own handlers, which already invalidate this exact query.
+          mutate={() => queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })}
         />
       )}
     </div>
