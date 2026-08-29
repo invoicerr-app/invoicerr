@@ -15,6 +15,7 @@ export {
   useDocumentInstances,
   useDocumentInstance,
   useRunDocumentAction,
+  useResolveActionParamsDefaults,
   useReferenceSearch,
   useReferenceResolve,
 } from "./use-document-types"

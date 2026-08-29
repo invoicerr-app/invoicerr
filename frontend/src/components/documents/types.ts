@@ -34,6 +34,19 @@ export interface DocumentActionDescriptor {
   label: string
   /** 'always', or the list of record statuses this action is offered for. */
   availableWhen: "always" | string[]
+  /** The action's OWN inputs — the exact same field vocabulary as a document's `fields`, rendered
+   *  by the exact same DocumentField components, in a small dialog of their own (see
+   *  action-params-dialog.tsx) rather than a second form system. Absent/empty: no dialog, the
+   *  action just runs. */
+  params?: DocumentFieldDescriptor[]
+}
+
+/** What running an action hands back — see the backend's ActionResult for the full contract. */
+export interface ActionResult {
+  document?: DocumentInstance
+  changed: boolean
+  /** Plain data (not an i18n key), same convention as a descriptor's `label` — shown as-is. */
+  message?: string
 }
 
 export interface DocumentTypeDescriptor {

@@ -5,14 +5,16 @@ import {
   Injectable,
   NotFoundException,
   NotImplementedException,
+  OnModuleInit,
 } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
 
-import { ActionRegistry, DocumentInstanceResult } from './actions/action-registry';
+import { ActionExtensionRegistry } from './actions/action-extensions';
+import { ActionRegistry, ActionResult } from './actions/action-registry';
 import { FieldKindRegistry } from './descriptors/field-kinds';
 import { DocumentTypeRegistry, UnknownDocumentTypeError } from './descriptors/type-registry';
-import { DocumentTypeDescriptor, isActionAvailable } from './descriptors/types';
+import { DocumentActionDescriptor, DocumentTypeDescriptor, isActionAvailable } from './descriptors/types';
 import { validateAgainstDescriptor } from './descriptors/validate';
 import { RunActionDto } from './dto/documents.dto';
 import { findOwnedDocument, listDocuments } from './persistence';
@@ -22,6 +24,7 @@ import {
   UnknownEntityReferenceError,
 } from './references/reference-registry';
 import {
+  ACTION_EXTENSION_REGISTRY,
   ACTION_REGISTRY,
   DOCUMENT_TYPE_REGISTRY,
   ENTITY_REFERENCE_REGISTRY,
@@ -29,13 +32,27 @@ import {
 } from './tokens';
 
 @Injectable()
-export class DocumentsService {
+export class DocumentsService implements OnModuleInit {
   constructor(
     @Inject(DOCUMENT_TYPE_REGISTRY) private readonly typeRegistry: DocumentTypeRegistry,
     @Inject(FIELD_KIND_REGISTRY) private readonly fieldKindRegistry: FieldKindRegistry,
     @Inject(ACTION_REGISTRY) private readonly actionRegistry: ActionRegistry,
+    @Inject(ACTION_EXTENSION_REGISTRY) private readonly actionExtensionRegistry: ActionExtensionRegistry,
     @Inject(ENTITY_REFERENCE_REGISTRY) private readonly referenceRegistry: EntityReferenceRegistry,
   ) {}
+
+  /**
+   * Forces every registered type's extension actions to be merged once at boot, so an id collision
+   * between a type's own descriptor and a third party's extension (two different modules declaring
+   * the same action id) fails loudly when the app starts — not on whichever request happens to hit
+   * it first. This is the "booting the app is the real check of the wiring" rule applied to this
+   * specific composition point.
+   */
+  onModuleInit(): void {
+    for (const { id } of this.typeRegistry.list()) {
+      this.mergedDescriptor(id);
+    }
+  }
 
   /** The list a front-end nav can render without knowing any type by name. */
   listTypes(): { id: string; label: string }[] {
@@ -43,7 +60,7 @@ export class DocumentsService {
   }
 
   getType(typeId: string): DocumentTypeDescriptor {
-    return this.resolveType(typeId);
+    return this.mergedDescriptor(typeId);
   }
 
   private resolveType(typeId: string): DocumentTypeDescriptor {
@@ -55,6 +72,42 @@ export class DocumentsService {
       }
       throw error;
     }
+  }
+
+  /**
+   * The type's own descriptor, PLUS whatever a third party attached through ActionExtensionRegistry
+   * — the one place these two sources of actions are combined. Everything downstream (the frontend's
+   * form, runAction's lookup) only ever sees this merged shape, never the two sources separately.
+   */
+  private mergedDescriptor(typeId: string): DocumentTypeDescriptor {
+    const native = this.resolveType(typeId);
+    const extensions = this.actionExtensionRegistry.listFor(typeId);
+    if (extensions.length === 0) return native;
+
+    const nativeIds = new Set(native.actions.map((action) => action.id));
+    for (const extension of extensions) {
+      if (nativeIds.has(extension.id)) {
+        // A configuration bug (two different registrations for the same id), not a request-time
+        // condition — deliberately a plain Error, surfaced at boot by onModuleInit above.
+        throw new Error(
+          `Action "${extension.id}" is declared both natively and as an extension for document type "${typeId}".`,
+        );
+      }
+    }
+
+    return { ...native, actions: [...native.actions, ...extensions] };
+  }
+
+  private resolveAction(
+    typeId: string,
+    actionId: string,
+  ): { descriptor: DocumentTypeDescriptor; action: DocumentActionDescriptor } {
+    const descriptor = this.mergedDescriptor(typeId);
+    const action = descriptor.actions.find((candidate) => candidate.id === actionId);
+    if (!action) {
+      throw new NotFoundException(`Document type "${typeId}" has no action "${actionId}".`);
+    }
+    return { descriptor, action };
   }
 
   async searchReferences(companyId: string, entity: string, query: string): Promise<EntityReferenceOption[]> {
@@ -80,40 +133,62 @@ export class DocumentsService {
     }
   }
 
-  async listDocuments(companyId: string, typeId?: string): Promise<DocumentInstanceResult[]> {
+  async listDocuments(companyId: string, typeId?: string) {
     return listDocuments(companyId, typeId);
   }
 
-  async getDocument(companyId: string, typeId: string, id: string): Promise<DocumentInstanceResult> {
+  async getDocument(companyId: string, typeId: string, id: string) {
     return findOwnedDocument(companyId, typeId, id);
+  }
+
+  /**
+   * Default values for one action's own `params` (see DocumentActionDescriptor.params), given the
+   * document's current data — e.g. "send" pre-filling `recipient` from the quote's client. Returns
+   * `{}` (never throws for this) when the action declares no defaults resolver: that just means the
+   * params form opens empty, not that anything is wrong.
+   */
+  async resolveActionParamsDefaults(
+    companyId: string,
+    typeId: string,
+    actionId: string,
+    payload: RunActionDto,
+  ): Promise<Record<string, unknown>> {
+    this.resolveAction(typeId, actionId); // 404s for an unknown type/action, same as runAction.
+
+    const resolver = this.actionRegistry.resolveParamsDefaults(typeId, actionId);
+    if (!resolver) return {};
+
+    return resolver({
+      companyId,
+      typeId,
+      documentId: payload.documentId,
+      data: payload.data ?? {},
+      params: {},
+    });
   }
 
   /**
    * Runs one declared action of one document type. Every way this can fail is deliberate and
    * distinct, so the caller (and the frontend) never has to guess which one happened:
-   *  - unknown type / action not declared on it -> 404
+   *  - unknown type / action not declared on it (native OR extension) -> 404
    *  - action declared but not available for the record's current status -> 409
    *  - action declared, available, but no implementation registered -> 501, clearly worded
-   *  - data does not match the descriptor's fields -> 400 with per-field errors
+   *  - document data or the action's own params don't match their descriptors -> 400, per-field
    */
   async runAction(
     companyId: string,
     typeId: string,
     actionId: string,
     payload: RunActionDto,
-  ): Promise<DocumentInstanceResult> {
-    const descriptor = this.resolveType(typeId);
-    const actionDescriptor = descriptor.actions.find((action) => action.id === actionId);
-    if (!actionDescriptor) {
-      throw new NotFoundException(`Document type "${typeId}" has no action "${actionId}".`);
-    }
+  ): Promise<ActionResult> {
+    const { descriptor, action } = this.resolveAction(typeId, actionId);
 
     let currentStatus: string | undefined;
     if (payload.documentId) {
       const existing = await findOwnedDocument(companyId, typeId, payload.documentId);
       currentStatus = existing.status;
     }
-    if (!isActionAvailable(actionDescriptor, currentStatus)) {
+    if (!isActionAvailable(action, currentStatus)) {
       throw new ConflictException(
         currentStatus === undefined
           ? `Action "${actionId}" is not available before the document has been saved.`
@@ -132,11 +207,25 @@ export class DocumentsService {
       );
     }
 
-    const errors = validateAgainstDescriptor(descriptor.fields, payload.data ?? {}, this.fieldKindRegistry);
-    if (errors.length > 0) {
+    const dataErrors = validateAgainstDescriptor(
+      descriptor.fields,
+      payload.data ?? {},
+      this.fieldKindRegistry,
+    );
+    const paramErrors = action.params
+      ? validateAgainstDescriptor(action.params, payload.params ?? {}, this.fieldKindRegistry)
+      : [];
+    if (dataErrors.length > 0 || paramErrors.length > 0) {
+      const errors = [...dataErrors, ...paramErrors];
       throw new BadRequestException({ message: 'Invalid document data', errors });
     }
 
-    return handler({ companyId, typeId, documentId: payload.documentId, data: payload.data ?? {} });
+    return handler({
+      companyId,
+      typeId,
+      documentId: payload.documentId,
+      data: payload.data ?? {},
+      params: payload.params ?? {},
+    });
   }
 }

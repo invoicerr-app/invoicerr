@@ -67,6 +67,14 @@ export interface DocumentActionDescriptor {
    * record never satisfies this, since it has no status to match.
    */
   availableWhen: 'always' | string[];
+  /**
+   * The action's OWN inputs — reusing the exact same field vocabulary as a document's `fields`
+   * (DocumentFieldDescriptor), validated by the same FieldKindRegistry and rendered by the same
+   * frontend field renderers. This is a deliberately separate namespace from the document's `data`:
+   * a "send" action's `recipient` is a parameter of the OPERATION, not a value stored on the
+   * document. Absent or empty means the action takes no parameters (e.g. "duplicate").
+   */
+  params?: DocumentFieldDescriptor[];
 }
 
 /**

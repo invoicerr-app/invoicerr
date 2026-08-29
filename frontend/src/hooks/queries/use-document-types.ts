@@ -1,6 +1,7 @@
 import { useApiMutation, useApiQuery } from "@/hooks/use-api-query"
 
 import type {
+  ActionResult,
   DocumentInstance,
   DocumentTypeDescriptor,
   DocumentTypeSummary,
@@ -36,15 +37,36 @@ interface RunActionVariables {
   actionId: string
   documentId?: string
   data: Record<string, unknown>
+  /** The action's OWN params (see DocumentActionDescriptor.params) — a separate namespace from `data`. */
+  params?: Record<string, unknown>
 }
 
-/** Runs one declared action of one document type (e.g. "save-draft"). A 501 means the action is
- *  declared on the descriptor but has no implementation registered yet — see ApiError.status. */
+/** Runs one declared action of one document type (e.g. "save-draft"), native or attached by a third
+ *  party — this hook never knows which. A 501 means the action is declared on the descriptor but has
+ *  no implementation registered yet — see ApiError.status. */
 export function useRunDocumentAction() {
-  return useApiMutation<RunActionVariables, DocumentInstance>(
+  return useApiMutation<RunActionVariables, ActionResult>(
     "POST",
     (vars) => `/api/documents/types/${vars.typeId}/actions/${vars.actionId}`,
     { invalidateKeys: [["documents"]] },
+  )
+}
+
+interface ActionParamsDefaultsVariables {
+  typeId: string
+  actionId: string
+  documentId?: string
+  data: Record<string, unknown>
+}
+
+/** Optional pre-fill for an action's params dialog (e.g. "send" pre-filling the recipient from the
+ *  document's client) — resolves to `{}` when the action has no defaults resolver, never an error. A
+ *  mutation rather than a query: it depends on the form's current, possibly-unsaved values, fetched
+ *  once when the params dialog opens rather than kept live. */
+export function useResolveActionParamsDefaults() {
+  return useApiMutation<ActionParamsDefaultsVariables, Record<string, unknown>>(
+    "POST",
+    (vars) => `/api/documents/types/${vars.typeId}/actions/${vars.actionId}/params/defaults`,
   )
 }
 

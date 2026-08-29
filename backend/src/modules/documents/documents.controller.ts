@@ -75,13 +75,13 @@ export class DocumentsController {
   @ApiOperation({
     summary: 'Run a document action',
     description:
-      'Runs one action declared on a document type (e.g. "save-draft"). 501 if the action is ' +
-      'declared but has no registered implementation.',
+      'Runs one action declared on a document type (e.g. "save-draft"), native or attached by a ' +
+      'third party. 501 if the action is declared but has no registered implementation.',
   })
   @ApiParam({ name: 'typeId', type: String })
   @ApiParam({ name: 'actionId', type: String })
-  @ApiResponse({ status: 200, description: 'Action ran, the resulting document instance is returned' })
-  @ApiResponse({ status: 400, description: 'Data does not match the descriptor' })
+  @ApiResponse({ status: 200, description: 'Action ran, a result envelope (document/changed/message)' })
+  @ApiResponse({ status: 400, description: "Document data, or the action's own params, are invalid" })
   @ApiResponse({ status: 404, description: 'Unknown type, or action not declared on it' })
   @ApiResponse({ status: 409, description: "Action not available for the record's current status" })
   @ApiResponse({ status: 501, description: 'Action declared but not implemented' })
@@ -92,6 +92,26 @@ export class DocumentsController {
     @Body() body: RunActionDto,
   ) {
     return this.documentsService.runAction(companyId, typeId, actionId, body);
+  }
+
+  @Post('types/:typeId/actions/:actionId/params/defaults')
+  @ApiOperation({
+    summary: "Get default values for an action's own parameters",
+    description:
+      'Optional pre-fill for the action params form (e.g. "send" pre-filling the recipient from ' +
+      "the document's client) — {} when the action declares no defaults resolver, never an error.",
+  })
+  @ApiParam({ name: 'typeId', type: String })
+  @ApiParam({ name: 'actionId', type: String })
+  @ApiResponse({ status: 200, description: 'Default param values retrieved (possibly empty)' })
+  @ApiResponse({ status: 404, description: 'Unknown type, or action not declared on it' })
+  resolveActionParamsDefaults(
+    @ActiveCompany() companyId: string,
+    @Param('typeId') typeId: string,
+    @Param('actionId') actionId: string,
+    @Body() body: RunActionDto,
+  ) {
+    return this.documentsService.resolveActionParamsDefaults(companyId, typeId, actionId, body);
   }
 
   @Get()

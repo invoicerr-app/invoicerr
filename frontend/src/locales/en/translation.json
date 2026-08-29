@@ -2966,6 +2966,12 @@
       "unknownType": "Unknown document type \"{{typeId}}\".",
       "editingTitle": "Editing: {{label}}",
       "newButton": "New",
+      "actionParams": {
+        "title": "{{label}}",
+        "description": "This action needs a few details before it runs.",
+        "confirm": "Confirm",
+        "cancel": "Cancel"
+      },
       "messages": {
         "invalid": "Please fix the highlighted fields before continuing.",
         "actionSuccess": "Done.",
