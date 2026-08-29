@@ -316,6 +316,7 @@ model Company {
   apiKeys          ApiKey[]
   invitationCodes  InvitationCode[]
   Expense          Expense[]
+  documents        DocumentInstance[]
 }
 
 // Join table linking users to the companies they belong to, with a role
@@ -820,6 +821,29 @@ model Log {
 }
 
 // ======= END OF LOGGING SYSTEM ======= //
+
+// ======= START OF DOCUMENT DESCRIPTOR SYSTEM ======= //
+// backend/src/modules/documents. A document TYPE (its fields, its actions) is declared in code as
+// a descriptor (see descriptors/quote.descriptor.ts) — nothing here names a document type. This is
+// the one generic envelope every type's instances are stored in: `typeId` says which descriptor
+// produced `data`, `status` is whatever vocabulary that type's actions use (no fixed enum — a
+// second document type may need statuses this one never will), and `data` is the field values
+// keyed by the descriptor's field.key, exactly as the form submitted them.
+
+model DocumentInstance {
+  id        String   @id @default(cuid())
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+  typeId    String
+  status    String   @default("draft")
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, typeId])
+}
+
+// ======= END OF DOCUMENT DESCRIPTOR SYSTEM ======= //
 
 // ======= START OF COMPLIANCE LIFECYCLE PERSISTENCE ======= //
 // See COMPLIANCE_ARCHITECTURE.md §13 + TODO_PRISMA.md §4. Additive only.

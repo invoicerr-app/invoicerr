@@ -26,9 +26,14 @@ import prisma from '@/prisma/prisma.service';
 
 @Injectable()
 export class ClientsService {
-  constructor(
-    private readonly webhookDispatcher: WebhookDispatcherService,
-  ) {}
+  constructor(private readonly webhookDispatcher: WebhookDispatcherService) {}
+
+  /** Single client by id, scoped to the company — used by the document descriptor system's generic
+   *  entity-reference resolution (a 'reference' field only stores an id; resolving it to a label
+   *  for display, e.g. a quote's client, goes through here). */
+  async getClientById(companyId: string, id: string) {
+    return prisma.client.findFirst({ where: { id, companyId } });
+  }
 
   async getClients(companyId: string, page: string) {
     const pageNumber = parseInt(page, 10) || 1;
@@ -136,7 +141,6 @@ export class ClientsService {
       }
     }
   }
-
 
   async createClient(companyId: string, editClientsDto: EditClientsDto) {
     const { id, identifiers, ...data } = editClientsDto;

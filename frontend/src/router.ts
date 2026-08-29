@@ -11,10 +11,13 @@ export type Path =
   | `/auth/sign-up`
   | `/clients`
   | `/dashboard`
+  | `/documents`
+  | `/documents/:typeId`
   | `/expenses`
   | `/settings/:tab?`
 
 export type Params = {
+  '/documents/:typeId': { typeId: string }
   '/settings/:tab?': { tab?: string }
 }
 

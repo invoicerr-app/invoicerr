@@ -12,6 +12,9 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** The parsed JSON error body, when the response had one (e.g. `{ message, errors }` from a
+     *  Nest exception) — lets a caller show more than the top-line message when it needs to. */
+    public body?: unknown,
   ) {
     super(message)
   }
@@ -21,7 +24,16 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const fullUrl = url.startsWith("http") ? url : `${import.meta.env.VITE_BACKEND_URL || ""}${url}`
   const res = await authenticatedFetch(fullUrl, init)
   if (!res.ok) {
-    throw new ApiError(res.status, `${init?.method || "GET"} ${url} failed`)
+    // Nest exceptions (NotFoundException, ConflictException, NotImplementedException, ...) reply
+    // with a JSON body carrying a human-readable `message` — surfacing it is what turns "an action
+    // is blocked" from a fact only the server log knows into something the caller can show.
+    const body = await res
+      .clone()
+      .json()
+      .catch(() => undefined)
+    const message =
+      typeof body?.message === "string" ? body.message : `${init?.method || "GET"} ${url} failed`
+    throw new ApiError(res.status, message, body)
   }
   if (res.status === 204) {
     return undefined as T

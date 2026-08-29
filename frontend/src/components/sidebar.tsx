@@ -3,6 +3,7 @@ import {
   Check,
   ChevronsUpDown,
   CreditCard,
+  FileStack,
   FileText,
   Inbox,
   LayoutDashboard,
@@ -110,6 +111,12 @@ export function Sidebar() {
       icon: <LayoutDashboard className="w-4 h-4" />,
       url: "/dashboard",
       dataCy: "sidebar-dashboard-link",
+    },
+    {
+      title: t("sidebar.navigation.documents"),
+      icon: <FileStack className="w-4 h-4" />,
+      url: "/documents",
+      dataCy: "sidebar-documents-link",
     },
     {
       title: t("sidebar.navigation.quotes"),

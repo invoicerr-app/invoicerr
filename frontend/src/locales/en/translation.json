@@ -2247,7 +2247,8 @@
       "settings": "Settings",
       "receivedInvoices": "Received Invoices",
       "compliance": "Compliance",
-      "expenses": "Expenses"
+      "expenses": "Expenses",
+      "documents": "Documents"
     },
     "company": {
       "plan": "Entreprise",
@@ -2945,5 +2946,39 @@
       "description": "Are you sure you want to delete \"{{description}}\"? This action cannot be undone."
     }
   },
-  "noOptions": "No options available. Create a new client."
+  "noOptions": "No options available. Create a new client.",
+  "documents": {
+    "index": {
+      "title": "Documents",
+      "description": "Every document type registered on the backend, rendered here without any type-specific code.",
+      "empty": "No document type is registered yet."
+    },
+    "form": {
+      "reference": {
+        "searchPlaceholder": "Search...",
+        "noResults": "No matches"
+      },
+      "array": {
+        "addRow": "Add row",
+        "removeRow": "Remove row"
+      },
+      "unsupportedKind": "Field \"{{label}}\" has kind \"{{kind}}\", which no renderer is registered for.",
+      "unknownType": "Unknown document type \"{{typeId}}\".",
+      "editingTitle": "Editing: {{label}}",
+      "newButton": "New",
+      "messages": {
+        "invalid": "Please fix the highlighted fields before continuing.",
+        "actionSuccess": "Done.",
+        "actionError": "Something went wrong running this action."
+      }
+    },
+    "list": {
+      "title": "Saved",
+      "empty": "Nothing saved yet.",
+      "columns": {
+        "status": "Status",
+        "updatedAt": "Updated"
+      }
+    }
+  }
 }
