@@ -162,6 +162,19 @@ export const baseTemplate = `
         <div class="notes-content">{{{notes}}}</div>
     </div>
     {{/if}}
+
+    {{!--
+        Mentions the seller's country makes mandatory on the READABLE invoice — for France, the three
+        of C. com. art. L441-9 I al. 5. Kept in their own block, deliberately: the notes above belong
+        to the user and can be emptied, these cannot. No heading, and small print, because that is
+        how they appear on a real invoice — they are a legal footer, not a section.
+        Empty for every country whose profile declares none, which is all of them but France today.
+    --}}
+    {{#if legalMentionsExist}}
+    <div class="legal-mentions">
+        {{#each legalMentions}}<p>{{this}}</p>{{/each}}
+    </div>
+    {{/if}}
 </body>
 </html>
 `;

@@ -217,6 +217,14 @@ export class InvoiceRenderingService {
 
     const template = Handlebars.compile(baseTemplate);
 
+    // Frozen at the issue date exactly like the XML: a rate that moved in July must not rewrite a
+    // June invoice when someone reprints it.
+    const mentionsAt = invoice.issuedAt ?? invoice.createdAt ?? new Date();
+    const mentionsIso = invoice.company?.country ? guessCountryCode(invoice.company.country) : undefined;
+    const pdfLegalMentions = mentionsIso
+      ? resolveInvoiceNotes(defaultRegistry.resolve(mentionsIso).profile, mentionsAt).map((n) => n.text)
+      : [];
+
     // Default payment display values
     let paymentMethodName = invoice.paymentMethod;
     let paymentMethodDetails = invoice.paymentDetails;
@@ -319,6 +327,11 @@ export class InvoiceRenderingService {
 
       noteExists: !!invoice.notes,
       notes: formatNotes(invoice.notes),
+      // The readable half of the obligation. L441-9 is about what the invoice SAYS, so the XML
+      // carrying the mentions is not enough on its own — the document the client reads must too.
+      // Same resolver as the structured path, so the two can never disagree.
+      legalMentions: pdfLegalMentions,
+      legalMentionsExist: pdfLegalMentions.length > 0,
 
       // Labels
       labels: {
