@@ -286,6 +286,25 @@
 | 9 | **Round‑trips live restants** (§11/§219) | Creds + (AFNOR) contenu | **PDP‑AFNOR** : transport prouvé (`flowId i_90103`) mais **ack=Error** → itérer le **payload AFNOR** contre le live (creds PDP + spec Flux) ; SdI/Peppol/KSeF prod/portails : creds | Lancer le `*_LIVE` du canal ; pour AFNOR : `PDP_AFNOR_LIVE=1` + corriger le mapping jusqu'à `ack=OK` |
 | 10 | **KSeF prod** (§13/§243) | Clés MF prod absentes | **PEM publics MF KSeF prod** + URLs prod | Vendoriser `certs/ksef/prod/*.pem` + `KSEF_*` prod ; `KSEF_LIVE=1` sur l'env prod |
 
+### Ce que l'absence de creds coûte, mesuré à l'écran (2026-08-29)
+
+Relevé par `e2e/cypress/e2e/22-country-flow-ui.cy.ts`, sur la même fixture dans quatre pays :
+
+| Pays | Canal | Statut après envoi | Ce que l'écran offre |
+| --- | --- | --- | --- |
+| FR | e-mail | `DELIVERED` | correction, avoir, facture corrective, annulation — **pas** de modification |
+| US | e-mail | `DELIVERED` | idem **+ modification** (rien n'y gèle la facture) |
+| IT | SdI | `ISSUED` (en file, rien n'acquittera) | rien à corriger |
+| MX | PAC | `TRANSMISSION_FAILED` | bannière d'échec + bouton de réessai |
+
+Conséquence directe : **le parcours de correction italien et mexicain ne peut pas être démontré de
+bout en bout aujourd'hui**, non parce que leurs profils sont incomplets — ils déclarent bien leurs
+voies — mais parce que le document ne part jamais. Les deux échouent différemment, et c'est le
+canal qui fait la différence, pas les documents.
+
+Le test 03 de la spec 22 est écrit comme un **canari** : il échouera le jour où les creds
+existeront. C'est à ce moment-là qu'il faudra écrire les démonstrations complètes IT et MX.
+
 ### Récap creds à demander à l'utilisateur (par priorité marché FR/PL/IT)
 - **FR** : creds PDP (annuaire + AFNOR contenu) — *le plus proche d'être bouclé* (transport déjà prouvé).
 - **PL** : clés MF **KSeF prod** (test déjà prouvé).
