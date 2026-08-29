@@ -50,16 +50,26 @@ export function SendConfirmationDialog({
             <span className="font-semibold text-foreground">{email}</span>
           </div>
         ) : null}
-        <DialogFooter className="flex !flex-col-reverse gap-2 justify-end">
+        {/* Test hooks, and not only for convenience: this dialog stands between the user and THREE
+            send flows (quotes, invoices, payments). Without a stable handle, a test either clicks
+            it by its translated label — which breaks in every other locale — or skips it by calling
+            the API, and then proves nothing about the button a person actually presses. */}
+        <DialogFooter className="flex !flex-col-reverse gap-2 justify-end" data-cy="send-confirmation">
           <Button
             variant="outline"
             className="w-full bg-transparent"
             onClick={() => onOpenChange(false)}
             disabled={loading}
+            dataCy="send-confirmation-cancel"
           >
             {cancelLabel}
           </Button>
-          <Button className="w-full" onClick={onConfirm} disabled={loading}>
+          <Button
+            className="w-full"
+            onClick={onConfirm}
+            disabled={loading}
+            dataCy="send-confirmation-confirm"
+          >
             {confirmLabel}
           </Button>
         </DialogFooter>
