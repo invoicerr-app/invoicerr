@@ -1,5 +1,4 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { VatValidationPort } from '@/compliance/canonical/vat-validation.port';
 
 /**
  * C4 — how stale a verdict may be before it is asked again.
@@ -29,7 +28,6 @@ import prisma from '@/prisma/prisma.service';
 export class ClientsService {
   constructor(
     private readonly webhookDispatcher: WebhookDispatcherService,
-    @Inject('VAT_VALIDATION_CLIENT') private readonly vatValidation: VatValidationPort,
   ) {}
 
   async getClients(companyId: string, page: string) {
@@ -135,34 +133,10 @@ export class ClientsService {
       // A changed value invalidates any previous verdict: it is a different number.
       const valueChanged = before?.value !== entry.value;
       if (entry.scheme === 'VAT' && countryCode && (valueChanged || needsRevalidation(before))) {
-        await this.validateAndPersistVat(row.id, countryCode, entry.value);
       }
     }
   }
 
-  /**
-   * C4 — validate a VAT number and persist the verdict with its date.
-   *
-   * Never throws: the port's contract is that a transport failure is an UNAVAILABLE verdict, and
-   * saving a client must not fail because the European Commission's service is down.
-   */
-  private async validateAndPersistVat(identifierId: string, countryCode: string, value: string) {
-    const result = await this.vatValidation.validate(countryCode, value);
-    await prisma.partyIdentifier.update({
-      where: { id: identifierId },
-      data: {
-        validationStatus: result.status,
-        validatedAt: result.checkedAt,
-        validationSource: result.source,
-      },
-    });
-    if (result.status !== 'VALID') {
-      logger.warn('VAT number not verified', {
-        category: 'client',
-        details: { identifierId, status: result.status, source: result.source },
-      });
-    }
-  }
 
   async createClient(companyId: string, editClientsDto: EditClientsDto) {
     const { id, identifiers, ...data } = editClientsDto;

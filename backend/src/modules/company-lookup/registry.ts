@@ -9,7 +9,6 @@
  * Countries with no entry are reported as UNAVAILABLE with a note explaining why, so
  * the UI can hide the lookup button instead of offering something that cannot work.
  */
-import { defaultRegistry } from '@/compliance/profiles/registry';
 // One file per country — adding a jurisdiction means adding a file and a line below.
 import { AustraliaAbrProvider } from './providers/au.provider';
 import { BrazilCnpjProvider } from './providers/br.provider';
@@ -203,7 +202,9 @@ export class CompanyLookupRegistry {
 
   /** Capabilities for every country the compliance profiles know about, plus any extra a provider covers. */
   capabilities(): CountryLookupCapability[] {
-    const countries = new Set<string>(defaultRegistry.countries());
+    // La liste venait des profils pays du moteur de conformité, supprimé : seuls les pays
+    // que les fournisseurs de recherche couvrent réellement subsistent.
+    const countries = new Set<string>();
     for (const p of this.providers) {
       if (p.countries === 'ALL') continue; // worldwide providers add no country of their own
       for (const c of p.countries) countries.add(c);

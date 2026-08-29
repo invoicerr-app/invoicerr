@@ -1331,7 +1331,8 @@
       },
       "latestTitle": "Recent Invoices",
       "noRecent": "No recent invoices"
-    }
+    },
+    "rebuilding": "The document system (quotes, invoices, payments) has been removed and is being redesigned. Clients, articles and expenses are unaffected."
   },
   "articles": {
     "description": "Manage a reusable catalog of products and services.",

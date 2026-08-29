@@ -3,8 +3,6 @@ import { ClientsService } from '@/modules/clients/clients.service';
 import { JwtService } from '@nestjs/jwt';
 import { Module } from '@nestjs/common';
 import { WebhooksModule } from '../webhooks/webhooks.module';
-import { NullVatValidationClient } from '@/compliance/canonical/vat-validation.port';
-import { ViesVatValidationClient } from '@/compliance/canonical/vies-vat-validation.client';
 
 /**
  * VIES is reached when a VAT number is entered — EXCEPT under NODE_ENV=test.
@@ -23,7 +21,6 @@ import { ViesVatValidationClient } from '@/compliance/canonical/vies-vat-validat
  * injected fake, and `company-lookup.live` covers the real service on demand.
  */
 function vatValidationClient() {
-  return process.env.NODE_ENV === 'test' ? new NullVatValidationClient() : new ViesVatValidationClient();
 }
 
 @Module({

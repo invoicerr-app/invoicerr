@@ -1,7 +1,6 @@
+import { IPluginForm } from './types';
 import { existsSync, readFileSync } from 'node:fs';
 
-import { DocumensoProvider } from './signing/providers/documenso/documenso';
-import { IPluginForm } from './signing/types';
 import { LocalStorageProvider } from './storage/providers/local/local';
 import { Logger } from '@nestjs/common';
 import { PluginType } from '../../prisma/generated/prisma/client';
@@ -55,7 +54,7 @@ export class PluginRegistry {
 
   private initializeInAppPlugins() {
     this.removeRemovedProviders();
-    this.registerProvider(PluginType.SIGNING, new DocumensoProvider());
+    // Le plugin de signature servait à faire signer les DEVIS : parti avec eux.
     this.registerProvider(PluginType.STORAGE, new S3StorageProvider());
     this.registerProvider(PluginType.STORAGE, new LocalStorageProvider());
   }

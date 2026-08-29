@@ -11,30 +11,16 @@ import { CompanyLookupModule } from './modules/company-lookup/company-lookup.mod
 import { CompanyModule } from './modules/company/company.module';
 import { ConfigModule } from '@nestjs/config';
 import { DangerModule } from './modules/danger/danger.module';
-import { DashboardModule } from './modules/dashboard/dashboard.module';
-import { DirectoryModule } from './modules/directory/directory.module';
 import { ExpensesModule } from './modules/expenses/expenses.module';
 import { HealthModule } from './modules/health/health.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
-import { InvoicesModule } from './modules/invoices/invoices.module';
 import { MailService } from './mail/mail.service';
-import { McpModule } from './modules/mcp/mcp.module';
 import { Module } from '@nestjs/common';
-import { PaymentMethodsModule } from './modules/payment-methods/payment-methods.module';
-import { PdfLinksModule } from './modules/pdf-links/pdf-links.module';
 import { PluginsModule } from './modules/plugins/plugins.module';
 import { PrismaModule } from './prisma/prisma.module';
-import { QuotesModule } from './modules/quotes/quotes.module';
-import { PaymentsModule } from './modules/payments/payments.module';
-import { RecurringInvoicesModule } from './modules/recurring-invoices/recurring-invoices.module';
 import { ScheduleModule } from '@nestjs/schedule';
-import { SignaturesModule } from './modules/signatures/signatures.module';
 import { SireneModule } from './modules/sirene/sirene.module';
-import { StatsModule } from './modules/stats/stats.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
-import { ComplianceModule } from './compliance/nest/compliance.module';
-import { ComplianceWorkerModule } from './compliance/nest/queue/compliance-worker.module';
-import { QueueModule } from './compliance/nest/queue/queue.module';
 import { LoggerModule } from './modules/logger/logger.module';
 import { auth } from './lib/auth';
 
@@ -58,37 +44,21 @@ import { auth } from './lib/auth';
     CompaniesModule,
     CompanyModule,
     ClientsModule,
-    QuotesModule,
-    InvoicesModule,
-    PaymentsModule,
-    DashboardModule,
-    SignaturesModule,
     SireneModule,
     CompanyLookupModule,
     DangerModule,
-    DirectoryModule,
     PluginsModule,
-    RecurringInvoicesModule,
-    PaymentMethodsModule,
     ExpensesModule,
-    StatsModule,
     WebhooksModule,
     InvitationsModule,
-    ComplianceModule,
     HealthModule,
     PrismaModule,
     LoggerModule,
-    PdfLinksModule,
-    McpModule,
     // QueueModule is always imported so the API can *enqueue* (via ComplianceQueueDispatcher)
-    // regardless of deployment topology. ComplianceWorkerModule (the queue processors) is only
     // imported when WORKER_INLINE !== 'false' (default: inline/mono) — NestJS only instantiates
     // `@Processor()` classes reachable from an imported module, so gating this import gates
     // consumption. In a scaled ("giga") deployment the API sets WORKER_INLINE=false and only the
-    // dedicated worker process(es) (worker.ts / worker.module.ts) import ComplianceWorkerModule,
     // avoiding double-consumption. See QUEUE_IMPL_PLAN.md §5.5 / Décision 4.
-    QueueModule,
-    ...(process.env.WORKER_INLINE !== 'false' ? [ComplianceWorkerModule] : []),
   ],
   controllers: [],
   providers: [

@@ -1,7 +1,7 @@
+import { EditCompanyDto } from '@/modules/company/dto/company.dto';
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { CompanyService } from '@/modules/company/company.service';
-import { EditCompanyDto, PDFConfigDto } from '@/modules/company/dto/company.dto';
 import { Body, Controller, Get, Post, Put } from '@nestjs/common';
 import { Roles } from '@/decorators/roles.decorator';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -35,28 +35,7 @@ export class CompanyController {
     return data || {};
   }
 
-  @Get('pdf-template')
-  @ApiOperation({
-    summary: 'Get PDF template configuration',
-    description: 'Returns the PDF styling config: fonts, colors, padding, logo, and label translations.',
-  })
-  @ApiResponse({ status: 200, description: 'PDF template config retrieved' })
-  async getPDFTemplateConfig(@ActiveCompany() companyId: string) {
-    const data = await this.companyService.getPDFTemplateConfig(companyId);
-    return data || {};
-  }
 
-  @Post('pdf-template')
-  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
-  @ApiOperation({
-    summary: 'Update PDF template configuration',
-    description: 'Updates the PDF styling config: fonts, colors, padding, logo, and label translations.',
-  })
-  @ApiResponse({ status: 201, description: 'PDF template config saved' })
-  async postPDFTemplateConfig(@ActiveCompany() companyId: string, @Body() body: PDFConfigDto) {
-    const data = await this.companyService.editPDFTemplateConfig(companyId, body);
-    return data || {};
-  }
 
   @Get('email-templates')
   @ApiOperation({

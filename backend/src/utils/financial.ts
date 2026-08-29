@@ -1,4 +1,20 @@
-import { decimalsFor } from '../compliance/taxsystems/tax-system';
+/**
+ * Décimales par devise (ISO 4217). Vivait dans le moteur de conformité, supprimé — mais ce n'est
+ * pas une règle fiscale : c'est la subdivision de la monnaie. Le yen n'a pas de centimes, le dinar
+ * koweïtien en a mille. Tout le reste vaut 2.
+ */
+const CURRENCY_DECIMALS: Record<string, number> = {
+  JPY: 0,
+  KRW: 0,
+  KWD: 3,
+  BHD: 3,
+  OMR: 3,
+  TND: 3,
+};
+
+export function decimalsFor(currency: string): number {
+  return CURRENCY_DECIMALS[currency?.toUpperCase()] ?? 2;
+}
 
 export function toMinor(amount: number, currency: string): number {
   return Math.round(amount * 10 ** decimalsFor(currency));

@@ -1,16 +1,8 @@
-import { defaultRegistry } from '@/compliance/profiles/registry';
 import { CompanyLookupRegistry, defaultLookupRegistry } from './registry';
 
 describe('CompanyLookupRegistry', () => {
   const registry = defaultLookupRegistry;
 
-  it('reports a capability for every country the compliance profiles know about', () => {
-    const capabilities = registry.capabilities();
-    const covered = new Set(capabilities.map((c) => c.countryCode));
-    for (const country of defaultRegistry.countries()) {
-      expect(covered.has(country)).toBe(true);
-    }
-  });
 
   it('always explains itself: partial coverage carries a note', () => {
     for (const capability of registry.capabilities()) {

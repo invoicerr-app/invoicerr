@@ -61,14 +61,8 @@ export class DangerService {
 
     // Reset everything for this company only, but the user data
     await prisma.company.deleteMany({ where: { id: companyId } });
-    await prisma.pDFConfig.deleteMany({ where: { Company: { id: companyId } } });
     await prisma.mailTemplate.deleteMany({ where: { companyId } });
     await prisma.client.deleteMany({ where: { companyId } });
-    await prisma.quoteItem.deleteMany({ where: { quote: { companyId } } });
-    await prisma.quote.deleteMany({ where: { companyId } });
-    await prisma.invoiceItem.deleteMany({ where: { invoice: { companyId } } });
-    await prisma.invoice.deleteMany({ where: { companyId } });
-    await prisma.signature.deleteMany({ where: { quote: { companyId } } });
 
     // F-012: resetApp did not clear the OTP (only resetAll did), leaving it replayable for the rest
     // of its ten-minute window. A confirmation code authorises one action.
