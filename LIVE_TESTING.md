@@ -23,7 +23,7 @@ Hard-success contract (enforced per-spec):
 | PDP AFNOR (FR) | `PDP_AFNOR_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp-afnor-live.spec.ts` | ✅ Transport proven (content TBD) |
 | Email SMTP | `EMAIL_LIVE=1` | _(none — Ethereal auto-creates account)_ | `email-live.spec.ts` | ✅ Proven live |
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdi-live.spec.ts` | 🔴 Deferred (AdE accreditation) |
-| Peppol via peppol.sh | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — spec self-signs-up on the peppol.sh sandbox)_ | `peppol/peppol-sh-live.spec.ts` | ✅ Proven live (sandbox round-trip 2026-07-11) |
+| Peppol via peppol.sh | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — spec self-signs-up on the peppol.sh sandbox)_ | `peppol/peppol-sh-live.spec.ts` | 🔴 **Cassé le 2026-08-29** — `invalid_country` sur FR à la création de société (voir ci-dessous) |
 | Peppol generic AP | `PEPPOL_LIVE=1` | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | `peppol/peppol-live.spec.ts` | 🔴 Deferred (connected AP required) |
 | Peppol via Storecove | _(mocked only)_ | `apProvider=storecove` config: `apiKey`, `legalEntityId` | `peppol/storecove-client.spec.ts` | 🔴 Deferred (30-day manual trial, no self-serve signup) |
 | National portals | `<PREFIX>_LIVE=1` (per portal) | `<PREFIX>_*` namespaced creds | `portal-live.spec.ts` | 🟡 Parametrized (per-portal namespaced creds) |
@@ -86,6 +86,26 @@ Hard-success contract (enforced per-spec):
 > PDP qu'à partir du 2026-09-01, et les deux fenêtres ne se recouvrent que ce jour-là. Et le bac à
 > sable contient déjà Burger Queen (`000000002`) et Tricatel (`000000001`) — utiliser un autre SIREN
 > suppose de créer l'entreprise côté superpdp.
+
+> ### 🔴 Peppol via peppol.sh — cassé le 2026-08-29, et c'est un rappel utile
+>
+> Le spec échoue AVANT toute transmission, à la création de la société :
+>
+> > `HTTP 400 — {"error":{"code":"invalid_country","message":"country must be an active Peppol
+> > country code","param":"country"}}`
+>
+> Il envoie `country: 'FR'`. La plateforme ne l'accepte plus — hypothèse plausible, NON vérifiée :
+> la France est passée au mandat PDP et peppol.sh l'aurait retirée de ses destinations actives.
+> **Ce qui le trancherait** : la liste des pays actifs publiée par peppol.sh, ou leur support.
+>
+> Le spec lui-même est bien construit — il exige `CLEARED` et dit explicitement que `PENDING` est
+> un échec, ce qui est exactement la discipline qui manquait au PDP. Ce n'est donc pas un faux vert
+> mais une **preuve périmée** : « Proven live (2026-07-11) » décrivait un monde qui a changé
+> depuis, sans que personne ne rejoue le test. Un canal live non rejoué n'est pas un canal prouvé.
+>
+> Non corrigé : changer le pays de la fixture ferait repasser le test, mais prouverait autre chose
+> que ce qu'il prétend prouver. La question à trancher d'abord est de savoir si la France est
+> encore une destination Peppol.
 
 ## Running a single live spec
 
