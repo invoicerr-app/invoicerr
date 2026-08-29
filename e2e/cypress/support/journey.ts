@@ -246,3 +246,25 @@ export const issuedSentInvoice = (c: JourneyCountry, unitPrice = 1000) =>
 			});
 		});
 	});
+
+/**
+ * Une facture ÉMISE, pas envoyée — construite depuis l'écran, dans le pays donné.
+ *
+ * L'immuabilité s'applique dès l'émission : elle est donc observable dans les pays dont le canal
+ * n'a pas d'identifiants ici (Italie, Mexique), là où `issuedSentInvoice` ne peut pas aboutir.
+ */
+export const issuedInvoiceOnly = (c: JourneyCountry, unitPrice = 1000) =>
+	setupCountry(c.label, c.name, c.iso, c.identifiers).then(() => {
+		cy.visit("/invoices");
+		cy.get('[data-cy="invoice-add-button"]', { timeout: 20000 }).click();
+		fillAndSubmitInvoiceForm(c.clientSlug, unitPrice, c.vatRate);
+
+		return draftJustCreated().then((draft) => {
+			onRow(draft.id, "invoice-issue-button");
+			return eventually(
+				draft.id,
+				(r) => r.status === "ISSUED" && r.number !== null,
+				"la facture a atteint ISSUED, par son propre bouton",
+			).then(() => cy.wrap(draft.id));
+		});
+	});
