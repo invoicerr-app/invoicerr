@@ -353,6 +353,15 @@ export default function Invoices() {
               if (!open) setViewInvoiceDialog(null)
             }}
             onMutate={() => queryClient.invalidateQueries({ queryKey: queryKeys.invoices.listsAll() })}
+            onOpenInvoice={(id: string) => {
+              // Fetch it rather than hunt the list: the draft was created a moment ago and the
+              // list query may not have refreshed yet.
+              authenticatedFetch(`/api/invoices/${id}`)
+                .then((res) => (res.ok ? res.json() : null))
+                .then((next) => {
+                  if (next) setViewInvoiceDialog(next as Invoice)
+                })
+            }}
           />
         </>
       ) : view === "table" ? (

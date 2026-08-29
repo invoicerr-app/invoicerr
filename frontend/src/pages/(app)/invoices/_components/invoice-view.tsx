@@ -78,9 +78,22 @@ interface InvoiceViewDialogProps {
   invoice: Invoice | null
   onOpenChange: (open: boolean) => void
   onMutate?: () => void
+  /**
+   * Open another invoice in place of this one.
+   *
+   * Used after a correction: the draft it produces is the thing the user now has to finish, and
+   * sending them back to a list to find it is asking them to remember what just happened. Odoo lands
+   * you on the draft credit note for the same reason.
+   */
+  onOpenInvoice?: (invoiceId: string) => void
 }
 
-export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceViewDialogProps) {
+export function InvoiceViewDialog({
+  invoice,
+  onOpenChange,
+  onMutate,
+  onOpenInvoice,
+}: InvoiceViewDialogProps) {
   const { t, i18n } = useTranslation()
   const { data: actions } = useAvailableActions(invoice?.id)
   const [depositOpen, setDepositOpen] = useState(false)
@@ -164,6 +177,13 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
           // eventual failure — the user was returned to a list that still showed the old status.
           toast.info(t("invoices.view.actions.sendSubmitted"))
           onMutate?.()
+        } else if (action === "correct" && data.correctionInvoiceId && onOpenInvoice) {
+          // A correction is now a DRAFT the user still has to finish. Closing on a toast would leave
+          // them with a document they must find again, and the whole point of the draft is that they
+          // edit it before issuing.
+          toast.success(t(`invoices.view.actions.${action}Success`))
+          onMutate?.()
+          onOpenInvoice(data.correctionInvoiceId as string)
         } else {
           toast.success(t(`invoices.view.actions.${action}Success`))
           onMutate?.()

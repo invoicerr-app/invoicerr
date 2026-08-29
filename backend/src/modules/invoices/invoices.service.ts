@@ -23,7 +23,7 @@ import {
 } from '@/compliance/providers/transmission/registry';
 import { describeFlow } from '@/compliance/lifecycle/flow-descriptor';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
-import { checkIssuable } from '@/compliance/profiles/action-conditions';
+import { checkAction, checkIssuable, type DocumentAction } from '@/compliance/profiles/action-conditions';
 import { defaultRegistry as profileRegistry } from '@/compliance/profiles/registry';
 import { correctionDocumentKinds, internalOnlyCorrection } from '@/compliance/lifecycle/correction-routes';
 import { ComplianceQueueDispatcher } from '@/compliance/nest/queue/compliance-queue.dispatcher';
@@ -627,6 +627,51 @@ export class InvoicesService {
     return updated;
   }
 
+  /**
+   * The country's own conditions on an ACTION, checked before the product does it.
+   *
+   * One helper for the five actions rather than five copies, because a guard that exists on four of
+   * them is the same as no guard: the fifth is the one someone will reach. ISSUE had it first; the
+   * others went unchecked, so a profile could declare "deletion is impossible here" and the product
+   * would delete anyway.
+   *
+   * A country that declares nothing — every shipped profile today — is unconstrained, so this is a
+   * no-op for them and stays one.
+   */
+  private async assertActionAllowed(
+    invoice: {
+      kind?: string | null;
+      company?: { country?: string | null } | null;
+      quoteId?: string | null;
+      quote?: { status?: string } | null;
+    } & Record<string, unknown>,
+    action: DocumentAction,
+  ): Promise<void> {
+    const iso = invoice.company?.country ? guessCountryCode(invoice.company.country) : undefined;
+    if (!iso) return;
+
+    const existing = invoice.quote
+      ? [{ kind: 'QUOTE', state: String((invoice.quote as { status?: string }).status ?? '') }]
+      : [];
+
+    const verdict = checkAction(
+      profileRegistry.resolve(iso).profile,
+      (invoice.kind as string) ?? 'INVOICE',
+      action,
+      { at: new Date(), existing, document: invoice as Record<string, unknown> },
+    );
+
+    if (!verdict.allowed) {
+      // Blockers travel as CODES with the country's own words; the screen does the wording. A
+      // sentence assembled here would put an English literal in front of a user whose country wrote
+      // the rule in its own language.
+      throw new BadRequestException({
+        message: `This document cannot be ${action.toLowerCase()}ed here`,
+        blockers: verdict.blockers,
+      });
+    }
+  }
+
   async correctInvoice(companyId: string, id: string, reason?: string, requestedKind?: DocumentKind) {
     const invoice = await prisma.invoice.findFirst({
       where: { id, companyId },
@@ -656,6 +701,23 @@ export class InvoicesService {
       // being handed the single one the enum implies. Italy is the case that forced this — art. 26
       // comma 1 compels a debit note on any increase, and there was no way to ask for one: both
       // correction buttons posted the same request and the server picked from `correctionModel`.
+      await this.assertActionAllowed(invoice, 'CORRECT');
+
+      // The lifecycle must actually allow correcting, and until now nothing here checked.
+      //
+      // `available-actions` computed `correct` from the assembled graph and the screen obeyed it —
+      // but the endpoint accepted anything, so a scripted client, a stale tab or a retry could
+      // correct a document the country's lifecycle does not let anyone correct. A guard the
+      // interface respects and the API ignores is not a guard.
+      const manual = new Set(
+        describeFlow(storedPlan as CompliancePlan, complianceDoc.status as ComplianceStatus).manualActions,
+      );
+      if (storedPlan?.lifecycle && !manual.has('correct')) {
+        throw new BadRequestException(
+          `This document cannot be corrected from status ${complianceDoc.status}.`,
+        );
+      }
+
       const allowedKinds = correctionDocumentKinds(
         storedPlan?.lifecycle?.correctionRoutes,
         complianceDoc.status,
@@ -896,6 +958,10 @@ export class InvoicesService {
     const invoice = await prisma.invoice.findFirst({ where: { id, companyId } });
     if (!invoice) throw new NotFoundException('Invoice not found');
     if (invoice.status === 'DRAFT') throw new BadRequestException('Only issued invoices can be cancelled');
+    await this.assertActionAllowed(
+      (await prisma.invoice.findFirst({ where: { id, companyId }, include: { company: true } }))!,
+      'CANCEL',
+    );
 
     try {
       const complianceDoc = await prisma.complianceDocument.findFirst({
@@ -1099,13 +1165,17 @@ export class InvoicesService {
 
     const existingInvoice = await prisma.invoice.findFirst({
       where: { id, companyId },
-      include: { items: true },
+      // `company` for the country's own conditions on EDIT: they are checked before the product's
+      // `immutableAfter` rule, so a profile that forbids editing wins over a permissive default.
+      include: { items: true, company: true },
     });
 
     if (!existingInvoice) {
       logger.error('Invoice not found', { category: 'invoice' });
       throw new NotFoundException('Invoice not found');
     }
+
+    await this.assertActionAllowed(existingInvoice, 'EDIT');
 
     if (existingInvoice.status !== 'DRAFT') {
       // Check immutableAfter from the compliance plan — NEVER means always editable
@@ -1273,6 +1343,10 @@ export class InvoicesService {
       logger.error('Invoice not found', { category: 'invoice' });
       throw new NotFoundException('Invoice not found');
     }
+
+    // The country may forbid deletion outright, or allow more than a draft. Checked BEFORE the
+    // product's own draft-only rule, so a profile that says "nothing is ever deleted here" wins.
+    await this.assertActionAllowed(existingInvoice, 'DELETE');
 
     if (existingInvoice.status !== 'DRAFT') {
       logger.error('Only DRAFT invoices can be deleted', {
@@ -1633,6 +1707,8 @@ export class InvoicesService {
     if (!complianceDoc) {
       throw new BadRequestException('No compliance document for invoice');
     }
+
+    await this.assertActionAllowed(invoice, 'SEND');
 
     // P3-T03 — a correction the country forbids transmitting stops here, before any channel is even
     // resolved. The screen already hides the button (deriveInvoiceActions), but the API is the layer
