@@ -42,7 +42,9 @@ function createExtendedClient() {
           // Backfill missing rawNumbers (legacy rows created before the numbering hooks).
           if (['Quote', 'Invoice', 'Payment'].includes(model)) {
             if (model === 'Quote') {
-              const toUpdate = await prisma.quote.findMany({ where: { rawNumber: null } });
+              const toUpdate = await prisma.quote.findMany({
+                where: { rawNumber: null, number: { not: null } },
+              });
               await Promise.all(
                 toUpdate.map(async (quote) => {
                   const formattedNumber = await formatPattern(
@@ -60,7 +62,9 @@ function createExtendedClient() {
             }
 
             if (model === 'Invoice') {
-              const toUpdate = await prisma.invoice.findMany({ where: { rawNumber: null } });
+              const toUpdate = await prisma.invoice.findMany({
+                where: { rawNumber: null, number: { not: null } },
+              });
               await Promise.all(
                 toUpdate.map(async (invoice) => {
                   const formattedNumber = await formatPattern(
@@ -79,7 +83,7 @@ function createExtendedClient() {
 
             if (model === 'Payment') {
               const toUpdate = await prisma.payment.findMany({
-                where: { rawNumber: null },
+                where: { rawNumber: null, number: { not: null } },
                 include: { invoice: true },
               });
               await Promise.all(
@@ -110,7 +114,9 @@ function createExtendedClient() {
               | Prisma.QuoteGetPayload<Record<string, never>>
               | Prisma.InvoiceGetPayload<Record<string, never>>
               | Prisma.PaymentGetPayload<Record<string, never>>;
-            if (!typedResult.rawNumber) {
+            // `number` null = brouillon : pas de numéro, donc pas de numéro formaté. Sans cette
+            // garde, tous les brouillons recevaient le même `…-0000`.
+            if (!typedResult.rawNumber && typedResult.number !== null && typedResult.number !== undefined) {
               const companyId = await resolveCompanyId(model, typedResult);
               const formattedNumber = await formatPattern(
                 model.toLowerCase() as 'quote' | 'invoice' | 'payment',
@@ -140,7 +146,9 @@ function createExtendedClient() {
               | Prisma.QuoteGetPayload<Record<string, never>>
               | Prisma.InvoiceGetPayload<Record<string, never>>
               | Prisma.PaymentGetPayload<Record<string, never>>;
-            if (!typedResult.rawNumber) {
+            // `number` null = brouillon : pas de numéro, donc pas de numéro formaté. Sans cette
+            // garde, tous les brouillons recevaient le même `…-0000`.
+            if (!typedResult.rawNumber && typedResult.number !== null && typedResult.number !== undefined) {
               const companyId = await resolveCompanyId(model, typedResult);
               const formattedNumber = await formatPattern(
                 model.toLowerCase() as 'quote' | 'invoice' | 'payment',

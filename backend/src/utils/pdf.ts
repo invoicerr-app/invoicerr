@@ -14,6 +14,18 @@ export async function formatPattern(
   date: Date = new Date(),
   companyId: string,
 ): Promise<string> {
+  // Un document SANS numéro n'a pas de numéro formaté — il n'en a pas, point.
+  //
+  // `value = number + startingNumber - 1` donnait 0 pour `number = null` (JS additionne null comme
+  // zéro), donc `…-0000` : TOUS les brouillons d'une société affichaient le même numéro, et
+  // l'utilisateur voyait des doublons. Le pire était que la chaîne produite était plausible, donc
+  // le défaut restait invisible. On refuse bruyamment plutôt que d'inventer.
+  if (number === null || number === undefined || Number.isNaN(number)) {
+    throw new BadRequestException(
+      `Cannot format a ${type} number: this document has no number yet. A number is allocated at issuance.`,
+    );
+  }
+
   const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
   const prisma = new PrismaClient({ adapter });
   const company = await prisma.company.findUnique({ where: { id: companyId } });

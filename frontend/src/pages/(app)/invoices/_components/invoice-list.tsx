@@ -446,7 +446,14 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                   data-cy="invoice-name"
                                 >
                                   {t("invoices.list.item.title", {
-                                    number: invoice.rawNumber || invoice.number,
+                                    // Un brouillon n'a PAS de numéro : il n'en reçoit un qu'à
+                                    // l'émission. Le back en fabriquait un (`…-0000`, identique
+                                    // pour tous), ce qui affichait des doublons. La vue
+                                    // Progression, elle, avait déjà ce repli.
+                                    number:
+                                      invoice.rawNumber ||
+                                      invoice.number ||
+                                      t("invoices.progression.noNumberYet"),
                                     title: invoice.title,
                                   })}
                                 </button>

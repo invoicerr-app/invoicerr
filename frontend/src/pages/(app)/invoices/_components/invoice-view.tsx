@@ -313,6 +313,21 @@ export function InvoiceViewDialog({
           {/* Available actions from the compliance plan */}
           {actions && (
             <div className="flex flex-wrap gap-2 flex-shrink-0" data-cy="available-actions">
+              {/* Ni modifier, ni corriger : dire POURQUOI, et quoi faire.
+               *
+               * Un document gelé à l'émission dont la correction n'est pas encore ouverte laissait
+               * l'utilisateur devant un panneau muet : il ne pouvait plus modifier et ne
+               * comprenait pas pourquoi aucun avoir n'était proposé. La correction est un
+               * document qui référence un document que l'autre partie DÉTIENT — elle s'ouvre donc
+               * une fois l'envoi abouti. On l'écrit, avec l'état réel du document sous les yeux,
+               * plutôt que de laisser deviner. */}
+              {!actions.actions.edit && !actions.actions.correct && actions.actions.send && (
+                <p className="w-full text-sm text-muted-foreground" data-cy="correction-unavailable-hint">
+                  {t("invoices.view.actions.correctionAfterSend", {
+                    status: actions.complianceStatus ?? invoice.status,
+                  })}
+                </p>
+              )}
               {actions.actions.edit && (
                 <Button
                   size="sm"
