@@ -1,3 +1,4 @@
+import { splitCiiIncludedNotes } from '@/compliance/schemas/cii-post-process';
 import { resolveInvoiceNotes, toUblNote } from '@/compliance/profiles/invoice-notes';
 import { defaultRegistry } from '@/compliance/profiles/registry';
 import { documentTypeCode } from './document-type-code';
@@ -78,7 +79,11 @@ export class BuiltEInvoice {
     const fmtName = EU_FORMAT_MAP[format] ?? 'CII';
     const svc = new EuInvoiceService(EU_LOGGER);
     const result = await svc.generate(this.invoice, { format: fmtName, lang: 'en' });
-    return result.toString();
+    // The generator packs several notes into one `IncludedNote`, which is invalid CII. Fixed here
+    // rather than only in the CTC post-processor, so every CII consumer gets a valid document —
+    // the transmitting path is not the only one that reads this. No-op on UBL and on CII with at
+    // most one plain note.
+    return splitCiiIncludedNotes(result.toString());
   }
 
   async embedInPdf(pdfBuffer: Buffer, _format: string): Promise<Uint8Array> {

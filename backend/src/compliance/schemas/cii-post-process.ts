@@ -74,6 +74,41 @@ export function normalizeCiiNamespaces(ciiXml: string): string {
 }
 
 /**
+ * Split the one-note-many-contents block the generator emits into one note per mention.
+ *
+ * `@fin.cx/einvoice` maps an array of `cbc:Note` onto a SINGLE `ram:IncludedNote` holding several
+ * `ram:Content`. That is invalid CII — `Content` occurs at most once in a note — and superpdp says so
+ * in as many words: "Element 'ram:Content' must occur exactly 1 times", pointing at
+ * `ExchangedDocument/IncludedNote`. Measured, not deduced: three French mentions in, one note with
+ * three contents out.
+ *
+ * The same pass recovers BT-21. EN 16931 UBL carries the subject code as a `#CODE#` prefix on the
+ * note text (the shape BR-CL-08 validates); CII wants it as its own `ram:SubjectCode`, and the
+ * generator does not translate between the two, so the prefix was travelling into CII as literal
+ * text. Element order follows the CII NoteType sequence — `Content` then `SubjectCode`.
+ *
+ * A no-op when there is nothing to split, so it is safe to run on any CII document.
+ */
+export function splitCiiIncludedNotes(ciiXml: string): string {
+  return ciiXml.replace(/<ram:IncludedNote>([\s\S]*?)<\/ram:IncludedNote>/g, (whole, inner: string) => {
+    const contents = [...String(inner).matchAll(/<ram:Content>([\s\S]*?)<\/ram:Content>/g)].map((m) => m[1]);
+    // Leave a well-formed note alone — including one that already carries a SubjectCode.
+    if (contents.length <= 1 && !/^#[A-Z0-9]{3}#/.test(contents[0] ?? '')) return whole;
+
+    return contents
+      .map((raw) => {
+        const m = raw.match(/^#([A-Z0-9]{3})#([\s\S]*)$/);
+        const text = m ? m[2] : raw;
+        const code = m ? m[1] : undefined;
+        return code
+          ? `<ram:IncludedNote><ram:Content>${text}</ram:Content><ram:SubjectCode>${code}</ram:SubjectCode></ram:IncludedNote>`
+          : `<ram:IncludedNote><ram:Content>${text}</ram:Content></ram:IncludedNote>`;
+      })
+      .join('');
+  });
+}
+
+/**
  * Post-process CII XML for the French CTC (Contrôle de Conformité Technique).
  *
  * @e-invoice-eu/core emits GlobalID schemeID="0225" and URIUniversalCommunication/URIID
@@ -125,7 +160,11 @@ export function postProcessCiiForCtc(
     );
   }
 
-  // 2. Normalize namespace style: rsm:/ram:/udt: → inline xmlns= per element (superpdp requirement).
+  // 2. One note per mention, and BT-21 where CII expects it. Before namespace normalization, which
+  //    rewrites the prefixes these regexes match on.
+  result = splitCiiIncludedNotes(result);
+
+  // 3. Normalize namespace style: rsm:/ram:/udt: → inline xmlns= per element (superpdp requirement).
   return normalizeCiiNamespaces(result);
 }
 

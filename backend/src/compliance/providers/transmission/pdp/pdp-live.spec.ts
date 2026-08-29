@@ -37,7 +37,18 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
     const SELLER_ROUTING = '315143296_1422';
     const BUYER_ROUTING = '315143296_1421';
 
+    // Mirror production: renderXml() resolves the seller country's mandatory mentions before
+    // building. A fixture that skipped them would test a document this product no longer sends —
+    // and would keep reproducing the BR-FR-05 rejection for a reason that is no longer real.
+    const { resolveInvoiceNotes } = await import('../../../profiles/invoice-notes.js');
+    const { defaultRegistry } = await import('../../../profiles/registry.js');
+    const notes = resolveInvoiceNotes(defaultRegistry.resolve('FR').profile, now).map((n) => ({
+      subjectCode: n.subjectCode,
+      text: n.text,
+    }));
+
     const inv = service.buildEInvoice({
+      notes,
       rawNumber: `INV-${timestamp}`,
       number: null,
       issuedAt: now,
@@ -200,11 +211,18 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
     expect(depositId).toBeTruthy();
     console.log('Deposit/invoice id:', depositId);
 
-    // ── Poll for the real fr:* lifecycle status ──
+    // ── Poll until the platform has actually JUDGED the document ──
+    //
+    // This loop used to stop at `PENDING` and the assertion below accepted it, which is how
+    // "PDP ✅ Proven live" survived for months while every deposit was in fact being rejected:
+    // PENDING is a real state, but it means "uploaded, not yet judged". It proves the request left,
+    // never that it succeeded. The conformity verdict (`fr:2xx`) lands a few seconds later.
+    //
+    // So we wait for a TERMINAL answer and fail on a timeout rather than passing on the transient.
     await new Promise((r) => setTimeout(r, 4000));
     let pollResult = await pdp.poll!(transmitResult.ref!, log);
-    for (let i = 0; i < 8 && pollResult.status === 'PENDING'; i++) {
-      await new Promise((r) => setTimeout(r, 4000));
+    for (let i = 0; i < 12 && pollResult.status === 'PENDING'; i++) {
+      await new Promise((r) => setTimeout(r, 5000));
       pollResult = await pdp.poll!(transmitResult.ref!, log);
     }
     console.log('Poll result:', JSON.stringify(pollResult, null, 2));
@@ -219,6 +237,15 @@ describeLive('PDP live round-trip (superpdp sandbox)', () => {
       throw new Error(`PDP poll returned ${pollResult.status} — hard failure. Notes: ${notes}`);
     }
     expect(pollResult.ref).toBeTruthy();
-    expect(['PENDING', 'SENT', 'DELIVERED', 'CLEARED']).toContain(pollResult.status);
-  }, 90_000);
+
+    // Still PENDING after a minute is a FAILURE, not a pass. Either the platform is not judging, or
+    // the poll is not reading the verdict — both are things this test exists to catch.
+    if (pollResult.status === 'PENDING') {
+      throw new Error(
+        'PDP never returned a verdict — the document stayed PENDING. A transient state is not a ' +
+          `round-trip. Notes: ${noteStr}`,
+      );
+    }
+    expect(['SENT', 'DELIVERED', 'CLEARED']).toContain(pollResult.status);
+  }, 180_000);
 });

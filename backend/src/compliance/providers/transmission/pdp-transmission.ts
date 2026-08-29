@@ -365,7 +365,12 @@ export class PdpTransmissionProvider implements TransmissionProvider {
   }
 
   private async pollSuperPdp(
-    client: { getInvoice(id: number): Promise<{ status_code?: string[] }> },
+    client: {
+      getInvoice(id: number): Promise<{
+        status_code?: string[];
+        events?: { status_code?: string; data?: { reason?: string } }[];
+      }>;
+    },
     invoiceId: string,
     ref: string,
     _log: ComplianceLogger,
@@ -376,14 +381,29 @@ export class PdpTransmissionProvider implements TransmissionProvider {
     }
 
     const invoice = await client.getInvoice(id);
-    const latestStatus = invoice.status_code?.[invoice.status_code.length - 1];
+    // The lifecycle arrives as `events[]`; the flat `status_code` array is a shape this sandbox does
+    // not return. Reading only the latter made every poll answer PENDING, for ever.
+    const fromEvents = (invoice.events ?? [])
+      .map((e) => e.status_code)
+      .filter((c): c is string => typeof c === 'string' && c.length > 0);
+    const codes = fromEvents.length ? fromEvents : (invoice.status_code ?? []);
+    // The last `fr:` code is the verdict; `api:uploaded` is transport noise that would otherwise
+    // shadow it when it happens to arrive last.
+    const frCodes = codes.filter((c) => c.startsWith('fr:'));
+    const latestStatus = (frCodes.length ? frCodes : codes)[(frCodes.length ? frCodes : codes).length - 1];
 
     if (!latestStatus) {
       return { channel: 'PDP', status: 'PENDING', ref, notes: ['pdp: no status codes'] };
     }
 
     // Map SuperPDP status codes to lifecycle outcomes
-    return this.mapSuperPdpStatus(latestStatus, ref, invoice.status_code);
+    // Carry the platform's own explanation through, so a rejection says WHY instead of just failing.
+    const reason = (invoice.events ?? [])
+      .map((e) => e.data?.reason)
+      .filter((r): r is string => typeof r === 'string' && r.length > 0)
+      .pop();
+    const mapped = this.mapSuperPdpStatus(latestStatus, ref, codes);
+    return reason ? { ...mapped, notes: [...(mapped.notes ?? []), `reason: ${reason}`] } : mapped;
   }
 
   private async pollAfnor(
@@ -422,11 +442,28 @@ export class PdpTransmissionProvider implements TransmissionProvider {
     const notes: string[] = [];
     if (allStatuses?.length) notes.push(`statuses: ${allStatuses.join(', ')}`);
 
-    // --- fr:* lifecycle statuses (XP Z12-012) ---
-    // fr:200 = Submitted, fr:201 = Sent, fr:202 = Received,
-    // fr:203 = Made available, fr:204 = Acknowledged
-    if (['fr:200', 'fr:201', 'fr:202', 'fr:203', 'fr:204'].includes(status)) {
+    // --- fr:* lifecycle statuses (XP Z12-012), with the platform's own French labels ---
+    //
+    // These five used to collapse onto PENDING, and that conflation is what hid the rejections for
+    // months: it made "the platform has not judged yet" indistinguishable from "the platform
+    // validated it and the recipient has it". The labels say otherwise, and they are not ambiguous.
+    //
+    // fr:200 "Déposée (validée)" — accepted for processing, conformity passed, not yet emitted.
+    //   Still PENDING: it is in the platform's hands and has not left.
+    if (status === 'fr:200') {
       return { channel: 'PDP', status: 'PENDING', ref, notes };
+    }
+    // fr:201 "Émise par la plateforme" — it left.
+    if (status === 'fr:201') {
+      return { channel: 'PDP', status: 'SENT', ref, notes };
+    }
+    // fr:202 "Reçue par la plateforme" (the recipient's), fr:203 "Mise à disposition",
+    // fr:204 "Prise en charge" — it reached the other side. `TransmissionStatus` has no DELIVERED,
+    // and adding one would ripple through the whole engine for no gain here: SENT already means "it
+    // left and was taken", and acceptance by the BUYER is fr:205 → CLEARED, which is the distinction
+    // that actually matters. Delivery is not acceptance.
+    if (['fr:202', 'fr:203', 'fr:204'].includes(status)) {
+      return { channel: 'PDP', status: 'SENT', ref, notes };
     }
     // fr:205 = Accepted, fr:206 = Partly accepted, fr:209 = Completed
     if (['fr:205', 'fr:206', 'fr:209'].includes(status)) {

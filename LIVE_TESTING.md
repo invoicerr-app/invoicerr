@@ -19,7 +19,7 @@ Hard-success contract (enforced per-spec):
 | Channel | Flag | Key creds | Spec file | Status |
 |---|---|---|---|---|
 | KSeF (PL) | `KSEF_LIVE=1` | `KSEF_AUTH_TOKEN`, `KSEF_NIP` | `ksef/ksef-live.spec.ts` | ✅ Proven live |
-| PDP superpdp (FR) | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp-live.spec.ts` | 🟡 Transport proven — document then **REJECTED** (BR-FR-05), see below |
+| PDP superpdp (FR) | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp-live.spec.ts` | ✅ **Round-trip prouvé** — `fr:200 → fr:201 → fr:202`, dépôt 375037, 2026-08-29 |
 | PDP AFNOR (FR) | `PDP_AFNOR_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp-afnor-live.spec.ts` | ✅ Transport proven (content TBD) |
 | Email SMTP | `EMAIL_LIVE=1` | _(none — Ethereal auto-creates account)_ | `email-live.spec.ts` | ✅ Proven live |
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdi-live.spec.ts` | 🔴 Deferred (AdE accreditation) |
@@ -34,7 +34,34 @@ Hard-success contract (enforced per-spec):
 
 ---
 
-> ### ⚠️ « PDP ✅ Proven live » était un faux vert — corrigé le 2026-08-29
+> ### ✅ Round-trip prouvé le 2026-08-29 — après deux faux verts corrigés le même jour
+>
+> **Le résultat**, vérifié en interrogeant la plateforme et non en croyant le spec :
+> `api:uploaded → fr:200 Déposée (validée) → fr:201 Émise par la plateforme → fr:202 Reçue par la
+> plateforme`. Dépôt **375037**. Le contrôle de conformité française passe.
+>
+> **Ce qui manquait** : les trois mentions de C. com. art. L441-9 I al. 5. Une fois ajoutées, le
+> rejet `BR-FR-05` a disparu — remplacé par un défaut purement structurel que la plateforme a
+> nommé pour nous : « Element 'ram:Content' must occur exactly 1 times ». Le générateur empilait
+> trois `ram:Content` dans une seule `IncludedNote`, ce qui est invalide en CII. Corrigé dans le
+> post-traitement, qui répartit une note par mention et récupère BT-21 depuis le préfixe `#CODE#`.
+>
+> **DEUX faux verts, pas un.** Le premier : le spec assertait `PENDING` juste après le dépôt, avant
+> que le verdict existe — asserter un état transitoire, c'est asserter que la requête est partie,
+> pas qu'elle a abouti. Le second, plus profond : **`poll()` ne pouvait rien renvoyer d'autre que
+> `PENDING`**. Il lisait `invoice.status_code`, un champ que l'API ne renvoie pas ; le cycle de vie
+> arrive dans `events[]`. Le poll répondait donc « no status codes » à chaque appel, depuis toujours.
+> Et le mappage écrasait `fr:200`, `fr:201` et `fr:202` sur `PENDING`, confondant « pas encore
+> jugée » avec « validée et reçue par le destinataire ».
+>
+> Le spec **échoue désormais si le document reste `PENDING`** : un état transitoire n'est plus un
+> succès.
+>
+> **Deux contraintes du bac à sable**, vérifiées le même jour. superpdp refuse tout dépôt dont la
+> BT-2 dépasse le jour courant — mais cela n'empêche PAS de tester : il suffit de dater la facture
+> du jour. Et le bac à sable contient déjà Burger Queen (`000000002`) et Tricatel (`000000001`).
+>
+> ### Note historique — le diagnostic intermédiaire, conservé
 >
 > Le transport marche : OAuth, XSD, espaces de noms, routage, et superpdp **accepte le dépôt**. Puis
 > il **rejette le document**. Vérifié en interrogeant la plateforme, `GET /v1.beta/invoices/374891` :
@@ -67,7 +94,7 @@ Hard-success contract (enforced per-spec):
 KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> [KSEF_NIP=<nip>] \
   npx jest ksef-live --no-coverage --runInBand
 
-# PDP superpdp (FR) — transport proven; the document is then REJECTED (BR-FR-05), see the warning above
+# PDP superpdp (FR) — round-trip prouvé : déposée, validée, émise, reçue (voir l'encadré)
 set -a; . .env.pdp.local; set +a
 PDP_LIVE=1 npx jest pdp-live --no-coverage --runInBand
 

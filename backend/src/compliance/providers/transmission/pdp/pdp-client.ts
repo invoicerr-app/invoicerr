@@ -29,11 +29,29 @@ export type PdpApiStyle = 'superpdp' | 'afnor';
 
 // --- SuperPDP proprietary types ---
 
+/** One lifecycle event as superpdp actually returns it. */
+export interface SuperPdpInvoiceEvent {
+  id?: number;
+  created_at?: string;
+  status_code?: string;
+  status_text?: string;
+  /** Carries `reason` on a rejection — the only place the conformity failure is explained. */
+  data?: { reason?: string; [key: string]: unknown };
+}
+
 export interface SuperPdpInvoice {
   id: number;
   direction: 'in' | 'out';
   external_id?: string;
-  status_code: string[];
+  /**
+   * VERIFIED against the live sandbox on 2026-08-29: `GET /v1.beta/invoices/{id}` returns the
+   * lifecycle as `events[]`, NOT as a `status_code` array. The flat field is kept optional for
+   * older payloads, but reading it alone is why `poll()` answered "no status codes" — and therefore
+   * PENDING — for every deposit, which is how "PDP proven live" stayed green while every document
+   * was in fact being rejected.
+   */
+  status_code?: string[];
+  events?: SuperPdpInvoiceEvent[];
   created_at: string;
   updated_at: string;
   en_invoice?: Record<string, unknown>;
