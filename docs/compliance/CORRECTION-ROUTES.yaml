@@ -270,6 +270,15 @@ synthesis:
       established_by: "invoices.service.ts getInvoices — `const pageSize = 10`"
       status: "constaté, non corrigé — un correctif change un contrat d'API public"
 
+    - id: R-P3-11
+      what: >
+        `PATCH /api/invoices/:id` rend un 500 « Internal server error » sur un corps mal formé
+        (`{ clientId: null, items: [] }`) au lieu d'un 400. Un client qui se trompe de payload ne
+        reçoit donc pas de quoi se corriger, et le journal enregistre une erreur serveur pour une
+        faute d'appelant.
+      established_by: "observé pendant le run de 24-us-journey.cy.ts, 2026-08-29 — corps de réponse relevé dans l'assertion"
+      status: "constaté, non corrigé — la validation du DTO d'édition est hors du périmètre correction"
+
   what_p3_t02_must_not_do: >
     Construire un TROISIÈME mécanisme d'échéance. D-002 signalait déjà que `obligations[].deadline`
     doublonnait `deadlineHours`. Les délais trouvés ici — 5 jours italiens, 3 jours mexicains,
