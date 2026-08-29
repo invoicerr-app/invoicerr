@@ -563,6 +563,9 @@ model Invoice {
   kind               DocumentKind      @default(INVOICE)
   correctsInvoiceId  String?
   correctsInvoice    Invoice?          @relation("Correction", fields: [correctsInvoiceId], references: [id])
+  // Pourquoi cette correction existe. Champ propre, et non les `notes` de l'utilisateur : le motif
+  // appartient au document, les notes lui appartiennent à lui, et les confondre écrasait les siennes.
+  correctionReason   String?
   correctedBy        Invoice[]         @relation("Correction")
   depositOfInvoiceId String?
   depositOfInvoice   Invoice?          @relation("Deposit", fields: [depositOfInvoiceId], references: [id])

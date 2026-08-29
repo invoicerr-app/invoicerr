@@ -65,6 +65,14 @@ export interface InvoiceRenderData {
    */
   precedingInvoice?: { number: string; issueDate: string } | null;
   /**
+   * Why this correction exists — shown on the document, not buried in the user's own notes.
+   *
+   * Odoo puts it on the credit-note dialog as "Motif affiché sur l'avoir" and prints it, which is
+   * the right instinct: a recipient who gets a credit note and cannot tell what it corrects has to
+   * telephone. It used to be written into `notes`, overwriting whatever the user had put there.
+   */
+  correctionReason?: string | null;
+  /**
    * BG-15 — where the goods or services actually went, when that is not the buyer's address.
    *
    * The columns existed on `Invoice` (schema.prisma:492-497) and reached NOTHING: zero occurrences

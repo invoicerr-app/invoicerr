@@ -870,7 +870,7 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
       expect(caught.message).not.toMatch(/SMTP/i);
     });
 
-    it('still reports the generic SMTP message for a genuine (non-validation) transport failure', async () => {
+    it('a transport failure carries ITS OWN cause, and names no subsystem it did not check', async () => {
       (prisma.invoice.findFirst as jest.Mock).mockResolvedValue(issuedInvoice('inv-fv-2'));
       (prisma.complianceDocument.findFirst as jest.Mock).mockResolvedValue({
         id: 'doc-fv-2',
@@ -887,7 +887,15 @@ describe('InvoicesService — M-2: compliance wiring failures are recorded, not 
       }
 
       expect(caught).toBeInstanceOf(BadRequestException);
-      expect(caught.message).toMatch(/SMTP configuration/i);
+      // REWRITTEN. This used to assert "check your SMTP configuration" for ANY non-validation
+      // failure, and the assertion was encoding a guess: this catch block sees every failure of
+      // send(), not only transport ones. On 2026-08-29 it answered "check your SMTP configuration"
+      // for a MISSING CHROME — puppeteer could not render the Factur-X human artifact — and three
+      // separate investigations that day ended at a generic sentence naming the wrong subsystem.
+      //
+      // The real requirement is the one below: whatever failed says what failed.
+      expect(caught.message).toContain('ECONNREFUSED 127.0.0.1:1025');
+      expect(caught.message).not.toMatch(/SMTP configuration/i);
     });
   });
 });

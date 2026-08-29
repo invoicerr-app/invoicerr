@@ -172,6 +172,16 @@ export const baseTemplate = `
     </div>
     {{/if}}
 
+    {{!--
+        Le motif de la correction, au-dessus des notes de l'utilisateur et distinct d'elles. Un
+        destinataire qui reçoit un avoir sans savoir ce qu'il corrige doit téléphoner.
+    --}}
+    {{#if correctionReasonExists}}
+    <div class="notes">
+        <p><strong>{{correctionReason}}</strong></p>
+    </div>
+    {{/if}}
+
     {{#if noteExists}}
     <div class="notes">
         <h4>{{labels.notes}}</h4>

@@ -337,6 +337,8 @@ export class InvoiceRenderingService {
       // Same resolver as the structured path, so the two can never disagree.
       legalMentions: pdfLegalMentions,
       legalMentionsExist: pdfLegalMentions.length > 0,
+      correctionReason: invoice.correctionReason,
+      correctionReasonExists: !!invoice.correctionReason,
       // BG-15 on the readable invoice, for the same reason: the structured document is only half.
       delivery: {
         address: invoice.deliveryAddress,
@@ -762,7 +764,16 @@ export class InvoiceRenderingService {
         'cbc:InvoiceTypeCode': documentTypeCode(data.kind),
         // BG-1 — the mentions the country requires (France: C. com. L441-9 I al. 5). `#CODE#text` is
         // how EN 16931 UBL carries BT-21 alongside BT-22; the generator splits it for CII.
-        ...(data.notes?.length ? { 'cbc:Note': data.notes.map(toUblNote) } : {}),
+        ...(data.notes?.length || data.correctionReason
+          ? {
+              'cbc:Note': [
+                // The motive first: it is what the recipient needs before anything else on a
+                // correction. No subject code — none of UNTDID 4451 means "why this credit note".
+                ...(data.correctionReason ? [data.correctionReason] : []),
+                ...(data.notes ?? []).map(toUblNote),
+              ],
+            }
+          : {}),
         // BG-3 / BT-25 / BT-26 — the invoice this one corrects. Emitted whenever the link exists,
         // not only for credit notes: a corrective invoice and a replacement reference their
         // predecessor for the same reason, and a document that carries no link is unreadable to the

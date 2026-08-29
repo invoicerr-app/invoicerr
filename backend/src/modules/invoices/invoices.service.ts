@@ -758,46 +758,53 @@ export class InvoicesService {
             : null
           : invoice.totalTTCMinor;
 
-      // Create the correction invoice as ISSUED (numbered — it's a legal document)
-      const issueDate = new Date();
-      const correctionInvoice = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        const { counter, rawNumber } = await this.numberingService.nextNumber(
-          tx,
-          invoice.companyId,
-          'invoice',
-          issueDate,
-        );
-
-        return tx.invoice.create({
-          data: {
-            kind: correctionKind as any,
-            correctsInvoiceId: id,
-            clientId: invoice.clientId,
-            companyId: invoice.companyId,
-            currency: invoice.currency,
-            number: counter,
-            rawNumber,
-            issuedAt: issueDate,
-            status: 'ISSUED',
-            dueDate: invoice.dueDate,
-            notes: reason || `Correction of ${invoice.rawNumber || invoice.number}`,
-            discountRate: invoice.discountRate,
-            totalHT,
-            totalVAT,
-            totalTTC,
-            totalHTMinor,
-            totalVATMinor,
-            totalTTCMinor,
-            items: {
-              create: correctionItems,
-            },
+      // No transaction any more, and that is not laziness — it is required.
+      //
+      // It used to wrap the number allocation and the create together, which was right while the
+      // correction was born numbered. Now there is nothing to make atomic, and keeping it BREAKS:
+      // the Prisma `create` extension (prisma.service.ts:105) formats `rawNumber` after the fact and
+      // calls the GLOBAL client to do it, so from inside a transaction it looks for a row that has
+      // not been committed — "No record was found for an update". A latent defect this change was
+      // the first to reach.
+      const correctionInvoice = await prisma.invoice.create({
+        data: {
+          kind: correctionKind as any,
+          correctsInvoiceId: id,
+          clientId: invoice.clientId,
+          companyId: invoice.companyId,
+          currency: invoice.currency,
+          // DRAFT, and no number. The correction used to be born ISSUED with every line of the
+          // original copied, which made a PARTIAL correction impossible — and "j'ai oublié un
+          // truc" is almost always partial. Now it arrives as a draft the user edits: remove a
+          // line, change a quantity, then issue. `issueInvoice` allocates the number at that
+          // point, which is also where the country's own issuance conditions are checked.
+          //
+          // The gapless series is the second reason. A correction that is never sent used to have
+          // consumed a number for ever; a draft consumes nothing.
+          number: null,
+          rawNumber: null,
+          issuedAt: null,
+          status: 'DRAFT',
+          dueDate: invoice.dueDate,
+          // The motive belongs to the DOCUMENT; `notes` belong to the user. Writing the reason
+          // into `notes` overwrote whatever they had put there.
+          correctionReason: reason ?? null,
+          discountRate: invoice.discountRate,
+          totalHT,
+          totalVAT,
+          totalTTC,
+          totalHTMinor,
+          totalVATMinor,
+          totalTTCMinor,
+          items: {
+            create: correctionItems,
           },
-          include: {
-            items: true,
-            client: { include: { partyIdentifiers: true } },
-            company: { include: { partyIdentifiers: true } },
-          },
-        });
+        },
+        include: {
+          items: true,
+          client: { include: { partyIdentifiers: true } },
+          company: { include: { partyIdentifiers: true } },
+        },
       });
 
       // Update original invoice status → CORRECTED
@@ -832,7 +839,9 @@ export class InvoicesService {
           complianceDoc.id,
         );
         correctionDocId = correctionDoc.id;
-        await this.complianceService.issue(correctionDoc.id);
+        // NOT issued here. The compliance document follows the invoice: both stay DRAFT until the
+        // user has finished editing and issues deliberately. Issuing on creation is what made the
+        // correction un-editable, and it allocated a number to a document that might never be sent.
 
         // P3-T03 — the French avoir interne, and the Italian variazione contabile after a scarto.
         // Both countries REQUIRE a correction document on these statuses and FORBID it leaving:
@@ -864,15 +873,18 @@ export class InvoicesService {
         );
       }
 
-      logger.info('Invoice corrected', {
+      logger.info('Correction drafted', {
         category: 'invoice',
         details: { invoiceId: id, correctionInvoiceId: correctionInvoice.id, correctionKind },
       });
       return {
-        message: 'Correction issued',
+        // A draft, and the caller is told so: the previous message said "issued", which a screen
+        // could reasonably relay to a user who then never issued the thing.
+        message: 'Correction drafted',
         correctionInvoiceId: correctionInvoice.id,
         correctionNumber: correctionInvoice.rawNumber,
         correctionKind,
+        status: 'DRAFT' as const,
       };
     } catch (error) {
       logger.error('Failed to correct invoice', { category: 'invoice', details: { error: String(error) } });
@@ -1671,8 +1683,15 @@ export class InvoicesService {
           `Invoice failed compliance format validation and was not sent: ${details || error.message}`,
         );
       }
-      logger.error('Failed to send invoice', { category: 'invoice', details: { error } });
-      throw new BadRequestException('Failed to send invoice email. Please check your SMTP configuration.');
+      // The cause travels with the message, and both are logged as TEXT.
+      //
+      // `details: { error }` serialised an Error object to `{}`, and "check your SMTP
+      // configuration" was a guess about a failure this block never looked at — it catches
+      // everything, not only transport. Three separate investigations today ended at a generic
+      // sentence that named the wrong subsystem; the fix each time was to carry the real cause.
+      const cause = error instanceof Error ? error.message : String(error);
+      logger.error('Failed to send invoice', { category: 'invoice', details: { error: cause } });
+      throw new BadRequestException(`Failed to send invoice: ${cause}`);
     }
 
     // Whether the document has ACTUALLY left, or has merely been handed to a queue.
