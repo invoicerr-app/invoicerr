@@ -237,7 +237,10 @@ export default function ChannelsSettings() {
             : null
 
           return (
-            <Card key={ch.providerId}>
+            // Un crochet par canal EXIGÉ, portant l'identifiant du fournisseur. Sans lui, un test
+            // ne peut pas dire qu'un utilisateur italien voit bien qu'il lui faut un accès SdI —
+            // il ne peut que le lire dans une réponse JSON, ce qui ne prouve rien de l'écran.
+            <Card key={ch.providerId} data-cy={`required-channel-${ch.providerId}`}>
               <CardContent className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-3">
                   <div className="shrink-0">
