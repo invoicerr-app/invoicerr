@@ -23,7 +23,7 @@ import {
 } from '@/compliance/providers/transmission/registry';
 import { describeFlow } from '@/compliance/lifecycle/flow-descriptor';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
-import { checkIssuable } from '@/compliance/profiles/issuance-rules';
+import { checkIssuable } from '@/compliance/profiles/action-conditions';
 import { defaultRegistry as profileRegistry } from '@/compliance/profiles/registry';
 import { correctionDocumentKinds, internalOnlyCorrection } from '@/compliance/lifecycle/correction-routes';
 import { ComplianceQueueDispatcher } from '@/compliance/nest/queue/compliance-queue.dispatcher';

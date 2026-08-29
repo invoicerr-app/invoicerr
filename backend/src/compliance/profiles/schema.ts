@@ -422,8 +422,19 @@ export interface DocumentKindRule {
    * quote" without a single line of code knowing what a quote is.
    */
   requires?: DocumentPrerequisite[];
-  /** When it may be issued. Absent = whenever. */
+  /** When it may be issued. Absent = whenever. Sugar for a `calendarWindow` condition. */
   issuableOn?: IssuanceWindow;
+  /**
+   * Conditions on any action, as the general form the three fields above are sugar for.
+   *
+   * This is THE extension point. `requires` and `issuableOn` cover the two cases that come up
+   * constantly and read better spelled out; everything else — a threshold on the amount, a status,
+   * a rule only a plugin can express — goes here without the core learning a new field. Enumerating
+   * one field per national quirk is how a schema becomes an N×N matrix with extra steps.
+   */
+  conditions?: Partial<
+    Record<import('./action-conditions').DocumentAction, import('./action-conditions').ActionCondition[]>
+  >;
   /**
    * Does this kind enter the legal series — numbered, issued, transmitted, archived?
    *
