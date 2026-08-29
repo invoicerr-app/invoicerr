@@ -155,6 +155,9 @@ export const IT: CountryComplianceProfile = {
             status: 'REQUIRED',
             transmission: 'FORBIDDEN',
             appliesTo: 'Après scarto SdI, si la facture avait déjà été comptabilisée',
+            // A scarto is the SdI REJECTING the file — there is no Italian equivalent of the French
+            // buyer-side refusal in B2B, which is why this list is shorter than France's by one.
+            whenOriginalStatus: ['REJECTED'],
             // Italy has the same trap as France, and nobody was looking for it here: "una variazione
             // contabile valida ai soli fini interni SENZA LA TRASMISSIONE DI ALCUNA NOTA DI
             // VARIAZIONE AL SdI". Two countries, same route, same forbidden transmission.

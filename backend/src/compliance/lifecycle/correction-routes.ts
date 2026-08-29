@@ -20,6 +20,7 @@
  * must never invent. It needs its own sourced task first.
  */
 import { CorrectionRouteRule } from '../profiles/schema';
+import { ComplianceStatus } from './state-machine';
 import { CorrectionModel, CorrectionRoute, RouteStatus, VariationDirection } from '../types';
 
 /**
@@ -125,4 +126,31 @@ export function primaryCorrectionModel(routes: readonly CorrectionRouteRule[] | 
   const pick = (order: readonly CorrectionModel[], status: RouteStatus): CorrectionModel | undefined =>
     order.find((m) => legacy.some((r) => r.route === m && r.status === status));
   return pick(REQUIRED_PRECEDENCE, 'REQUIRED') ?? pick(OPEN_PRECEDENCE, 'OPEN') ?? 'CREDIT_NOTE';
+}
+
+/**
+ * P3-T03 — does correcting a document in this status produce a correction that must NOT leave?
+ *
+ * Returns the rule that says so, or undefined. France answers on statuses Refusée and Rejetée
+ * (spécifications externes DGFiP v3.2 §3.6.4: the supplier "doit procéder à une annulation comptable
+ * (avoir interne)" and it "ne doit pas générer de flux de données réglementaires (F1) au PPF").
+ * Italy answers on Rejetée alone, a scarto having no buyer-refusal counterpart in B2B.
+ *
+ * The three conditions are ANDed on purpose. A route that is merely OPEN does not suppress anything;
+ * a route whose transmission is unconstrained does not either; and a rule with no status list is
+ * prose about a case the runtime cannot recognise. Anything less than all three and the engine would
+ * be suppressing transmissions on a guess.
+ */
+export function internalOnlyCorrection(
+  routes: readonly CorrectionRouteRule[] | undefined,
+  originalStatus: ComplianceStatus | string | undefined,
+): CorrectionRouteRule | undefined {
+  if (!originalStatus) return undefined;
+  return (routes ?? []).find(
+    (r) =>
+      r.route === 'INTERNAL_CREDIT_NOTE' &&
+      r.status === 'REQUIRED' &&
+      r.transmission === 'FORBIDDEN' &&
+      r.whenOriginalStatus?.includes(originalStatus as ComplianceStatus),
+  );
 }

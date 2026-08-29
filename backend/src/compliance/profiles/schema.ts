@@ -4,6 +4,7 @@
  * the engine resolves it against a point in time (the issue date).
  */
 import type { AttachmentPredicate } from '../engine/attachment-predicate';
+import type { ComplianceStatus } from '../lifecycle/state-machine';
 import {
   ChannelType,
   Confidence,
@@ -180,6 +181,14 @@ export interface CorrectionRouteRule {
   direction?: VariationDirection;
   /** The case in which the status applies — free text, for the screen and for the reader. */
   appliesTo?: string;
+  /**
+   * P3-T03 — the machine-readable half of `appliesTo`, for the cases where the RUNTIME must act.
+   *
+   * "Sur les statuts Refusée ou Rejetée" is a rule about the ORIGINAL document, and prose cannot
+   * gate a transmission. Only the routes that change what the engine does carry this; the rest stay
+   * prose, because inventing a status list for a rule nobody has to enforce would be noise.
+   */
+  whenOriginalStatus?: ComplianceStatus[];
   /** The article, ruling or specification. REQUIRED unless the status is UNVERIFIED. */
   legalRef?: string;
   /** What would settle it. REQUIRED when the status is UNVERIFIED — guarded in data-integrity. */

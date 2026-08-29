@@ -433,6 +433,7 @@ export const FR: CountryComplianceProfile = {
             status: 'REQUIRED',
             transmission: 'FORBIDDEN',
             appliesTo: 'Statuts Refusée (210) et Rejetée (213)',
+            whenOriginalStatus: ['REFUSED', 'REJECTED'],
             // The sentence P3-T03 exists to honour: "le fournisseur doit procéder à une annulation
             // comptable (avoir interne). Cette opération ne doit pas générer de flux de données
             // réglementaires (F1) au PPF." Present only from v3.1 (30/10/2025) — a recent rule.

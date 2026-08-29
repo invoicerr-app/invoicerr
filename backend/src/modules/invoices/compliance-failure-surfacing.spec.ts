@@ -73,7 +73,12 @@ describe('FormatBuildError — a deterministic failure that can be recognised as
     // Without a type, this arrived at the transmit processor as an anonymous library error and fell
     // through its "any OTHER error is transient" branch — three retries on something that could
     // never succeed, then nothing on screen.
-    const err = new FormatBuildError('could not build EN16931_CII/AUTHORITATIVE: validation failed', 'EN16931_CII', 'AUTHORITATIVE', ['/cac:InvoiceLine must NOT have fewer than 1 items']);
+    const err = new FormatBuildError(
+      'could not build EN16931_CII/AUTHORITATIVE: validation failed',
+      'EN16931_CII',
+      'AUTHORITATIVE',
+      ['/cac:InvoiceLine must NOT have fewer than 1 items'],
+    );
     expect(err).toBeInstanceOf(Error);
     expect(err.name).toBe('FormatBuildError');
     expect(err.syntax).toBe('EN16931_CII');

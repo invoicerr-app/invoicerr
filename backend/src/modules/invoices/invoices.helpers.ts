@@ -451,11 +451,31 @@ export interface InvoiceActionFlags {
  * @param immutableAfter  when the document freezes — 'ISSUE', 'CLEARANCE' or 'NEVER'. Without it
  *                        the flag falls back to "drafts only", which is what it used to hardcode.
  */
+/**
+ * P3-T03 — has this document been marked as an internal-only correction?
+ *
+ * One event lookup rather than a walk back to the corrected document and a re-reading of its status
+ * at send time. The decision was taken once, when the correction was created and the original's
+ * status was known for certain; re-deriving it later would risk a different answer if the original
+ * moved on.
+ */
+export function isTransmissionSuppressed(
+  events: ReadonlyArray<{ type: string }> | null | undefined,
+): boolean {
+  return (events ?? []).some((e) => e.type === 'TRANSMISSION_SUPPRESSED');
+}
+
 export function deriveInvoiceActions(
   invoice: { status: string; kind?: string | null },
   manualActions: ReadonlySet<string> | null,
   correctionModel?: string,
   immutableAfter?: string,
+  /**
+   * P3-T03 — the document is a correction the country forbids transmitting. The button must not be
+   * there: offering "Send" on a document whose whole legal point is that it stays in the accounts
+   * invites the one action that breaks the rule.
+   */
+  internalOnly?: boolean,
 ): InvoiceActionFlags {
   const isDraft = invoice.status === 'DRAFT';
   const isProforma = invoice.kind === 'PROFORMA';
@@ -481,7 +501,7 @@ export function deriveInvoiceActions(
     correct: manualActions?.has('correct') ?? false,
     cancel: canCancel,
     cancelAndReplace: canCancel && correctionModel === 'CANCEL_AND_REPLACE',
-    send: isIssued,
+    send: isIssued && !internalOnly,
     convertToInvoice: isProforma && isDraft,
     deposit: isPlainInvoice && isIssued,
   };

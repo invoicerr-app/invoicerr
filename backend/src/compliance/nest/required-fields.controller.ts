@@ -36,10 +36,7 @@ export class RequiredFieldsController {
    */
   @Public()
   @Get('document-kinds')
-  getDocumentKinds(
-    @Query('countryCode') countryCode: string,
-    @Query('at') at?: string,
-  ): DocumentKindRule[] {
+  getDocumentKinds(@Query('countryCode') countryCode: string, @Query('at') at?: string): DocumentKindRule[] {
     if (!countryCode) {
       throw new HttpException('countryCode query parameter is required', HttpStatus.BAD_REQUEST);
     }

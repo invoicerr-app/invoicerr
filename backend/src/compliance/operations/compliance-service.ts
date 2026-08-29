@@ -396,6 +396,36 @@ export class ComplianceService {
    * swallowed here — it does not propagate and does not replace the original error the caller is
    * already handling.
    */
+  /**
+   * P3-T03 — record that this correction must never be transmitted, and why.
+   *
+   * Written to the log rather than inferred at send time, for a reason that is legal before it is
+   * technical: on statuses Refusée and Rejetée the French supplier is REQUIRED to produce an
+   * accounting credit note and REQUIRED not to send it. "We did not transmit" is therefore a fact
+   * the business may have to evidence, and an append-only event is evidence. A guard that merely
+   * refused at send time would leave no trace that the refusal was the correct behaviour.
+   */
+  async recordTransmissionSuppressed(docId: string, legalRef: string, appliesTo?: string): Promise<void> {
+    const rec = await this.store.get(docId);
+    if (!rec) {
+      this.log.error('operations/suppress', `cannot record suppression — document "${docId}" not found`);
+      return;
+    }
+    await this.store.update(docId, {
+      events: [
+        ...rec.events,
+        {
+          id: randomUUID(),
+          type: 'TRANSMISSION_SUPPRESSED',
+          at: now(),
+          actor: 'system',
+          detail: appliesTo ? `${appliesTo} — ${legalRef}` : legalRef,
+        },
+      ],
+    });
+    this.log.info('operations/suppress', `document ${docId} is internal-only: ${legalRef}`);
+  }
+
   async recordWiringFailure(docId: string, operation: string, err: unknown): Promise<void> {
     const reason = err instanceof Error ? err.message : String(err);
     try {

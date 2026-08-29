@@ -280,6 +280,23 @@ describe('profile data integrity', () => {
       }
     });
 
+    it('P3-T03 — a forbidden transmission names the statuses it applies to', () => {
+      // Otherwise the rule is prose the runtime cannot recognise, and the suppression silently never
+      // fires. `appliesTo` is for the reader; `whenOriginalStatus` is what actually gates a send, and
+      // a route that suppresses transmission without one is a no-op wearing a rule's clothes.
+      for (const p of concrete) {
+        for (const t of p.lifecycle) {
+          for (const r of t.value.correctionRoutes ?? []) {
+            if (r.transmission !== 'FORBIDDEN') continue;
+            const at = `${p.countryCode}/${r.route}`;
+            expect(`${at} whenOriginalStatus`).toBe(
+              r.whenOriginalStatus?.length ? `${at} whenOriginalStatus` : 'MISSING',
+            );
+          }
+        }
+      }
+    });
+
     it('every pivot expresses its routes — the P3-T02 acceptance criterion', () => {
       for (const cc of ['FR', 'IT', 'PL', 'DE', 'ES', 'MX', 'US']) {
         const p = defaultRegistry.resolve(cc).profile;

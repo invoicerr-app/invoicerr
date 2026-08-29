@@ -22,6 +22,7 @@ import {
   TransmissionProviderRegistry,
 } from '@/compliance/providers/transmission/registry';
 import { describeFlow } from '@/compliance/lifecycle/flow-descriptor';
+import { internalOnlyCorrection } from '@/compliance/lifecycle/correction-routes';
 import { ComplianceQueueDispatcher } from '@/compliance/nest/queue/compliance-queue.dispatcher';
 import { clampDiscountRate, toMinor } from '@/utils/financial';
 import type { SupplyType, DocumentKind } from '@/compliance/types';
@@ -30,6 +31,7 @@ import {
   buildComplianceContext,
   deriveComplianceError,
   deriveInvoiceActions,
+  isTransmissionSuppressed,
   invoiceItemData,
   resolveBuyerCountryOrThrow,
   resolveExemptionReasonOrThrow,
@@ -177,6 +179,7 @@ export class InvoicesService {
           new Set(flow.manualActions),
           plan.lifecycle?.correctionModel,
           plan.lifecycle?.immutableAfter,
+          isTransmissionSuppressed(doc.events as unknown as { type: string }[]),
         ),
         complianceDocuments: [
           {
@@ -756,6 +759,26 @@ export class InvoicesService {
         );
         correctionDocId = correctionDoc.id;
         await this.complianceService.issue(correctionDoc.id);
+
+        // P3-T03 — the French avoir interne, and the Italian variazione contabile after a scarto.
+        // Both countries REQUIRE a correction document on these statuses and FORBID it leaving:
+        // "Cette opération ne doit pas générer de flux de données réglementaires (F1) au PPF"
+        // (spécifications externes DGFiP v3.2 §3.6.4). Until now the correction became an ordinary
+        // transmittable document and nothing stopped the next click from sending it.
+        //
+        // Decided HERE, while the ORIGINAL's status is known for certain, and written to the log so
+        // the non-transmission is evidenced rather than merely absent.
+        const internalRule = internalOnlyCorrection(
+          storedPlan?.lifecycle?.correctionRoutes,
+          complianceDoc.status,
+        );
+        if (internalRule) {
+          await this.complianceService.recordTransmissionSuppressed(
+            correctionDoc.id,
+            internalRule.legalRef ?? 'internal-only correction',
+            internalRule.appliesTo,
+          );
+        }
       } catch (error) {
         // M-2: prefer the correction's OWN document (created but stuck at DRAFT because issue()
         // failed) — fall back to the ORIGINAL's document when createDraft() itself never produced
@@ -1525,6 +1548,17 @@ export class InvoicesService {
       throw new BadRequestException('No compliance document for invoice');
     }
 
+    // P3-T03 — a correction the country forbids transmitting stops here, before any channel is even
+    // resolved. The screen already hides the button (deriveInvoiceActions), but the API is the layer
+    // that must not be talked into it: a stale tab, a scripted client or a retry would otherwise send
+    // to the PPF exactly the flux the specification says must not exist.
+    if (isTransmissionSuppressed(complianceDoc.events as unknown as { type: string }[])) {
+      throw new BadRequestException(
+        'This correction must not be transmitted: the country requires it to stay an internal ' +
+          'accounting entry. It has been recorded and archived, and no flux was sent.',
+      );
+    }
+
     // QUEUE_IMPL_PLAN.md §5.6 — branch by the PRIMARY channel's feedback model, not by name (despite
     // this method's name, it is the single "send" entry point for every channel: EMAIL, PDP, KSeF,
     // SdI, Peppol, …). feedback === 'NONE' (or no provider resolved) means there is no lifecycle
@@ -2227,6 +2261,7 @@ export class InvoicesService {
         manualActions,
         lifecycle.correctionModel,
         lifecycle.immutableAfter,
+        isTransmissionSuppressed(complianceDoc.events as unknown as { type: string }[]),
       ),
       correctionKinds,
       flow: describeFlow(plan, complianceDoc.status as ComplianceStatus),
