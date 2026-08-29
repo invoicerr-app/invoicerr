@@ -754,6 +754,22 @@ export class InvoiceRenderingService {
         // BG-1 — the mentions the country requires (France: C. com. L441-9 I al. 5). `#CODE#text` is
         // how EN 16931 UBL carries BT-21 alongside BT-22; the generator splits it for CII.
         ...(data.notes?.length ? { 'cbc:Note': data.notes.map(toUblNote) } : {}),
+        // BG-3 / BT-25 / BT-26 — the invoice this one corrects. Emitted whenever the link exists,
+        // not only for credit notes: a corrective invoice and a replacement reference their
+        // predecessor for the same reason, and a document that carries no link is unreadable to the
+        // recipient's system.
+        ...(data.precedingInvoice
+          ? {
+              'cac:BillingReference': [
+                {
+                  'cac:InvoiceDocumentReference': {
+                    'cbc:ID': data.precedingInvoice.number,
+                    'cbc:IssueDate': data.precedingInvoice.issueDate,
+                  },
+                },
+              ],
+            }
+          : {}),
         'cbc:DocumentCurrencyCode': currency,
         // PEPPOL-EN16931-R003: buyer reference or purchase order reference is required.
         // DE Leitweg-ID takes priority (BT-10, mandatory for B2G); otherwise fall back to the
@@ -802,6 +818,8 @@ export class InvoiceRenderingService {
     const invRec = await prisma.invoice.findUnique({
       where: { id },
       include: {
+        // BT-25/BT-26: the corrected invoice's number and date travel with the correction.
+        correctsInvoice: true,
         items: true,
         client: { include: { partyIdentifiers: true } },
         company: {
@@ -828,7 +846,25 @@ export class InvoiceRenderingService {
         }))
       : [];
 
-    return this.buildEInvoice({ ...invRec, notes } as never);
+    // BT-25/BT-26 from the correction link. `correctsInvoice` is included by the query above.
+    const preceding = (
+      invRec as {
+        correctsInvoice?: {
+          rawNumber: string | null;
+          number: number | null;
+          issuedAt: Date | null;
+          createdAt: Date;
+        } | null;
+      }
+    ).correctsInvoice;
+    const precedingInvoice = preceding
+      ? {
+          number: preceding.rawNumber ?? String(preceding.number ?? ''),
+          issueDate: (preceding.issuedAt ?? preceding.createdAt).toISOString().slice(0, 10),
+        }
+      : null;
+
+    return this.buildEInvoice({ ...invRec, notes, precedingInvoice } as never);
   }
 
   async renderXmlFormat(invoiceId: string, format: 'ubl' | 'cii' | 'xrechnung'): Promise<string> {

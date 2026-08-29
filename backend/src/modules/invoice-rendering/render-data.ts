@@ -52,6 +52,19 @@ export interface InvoiceRenderData {
    */
   kind?: string | null;
   /**
+   * BT-25 / BT-26 — the invoice this document corrects, and its date.
+   *
+   * MANDATORY on a French credit note, and the platform is explicit about it:
+   * "BR-FR-CO-05/BT-3 : Si le type de facture (BT-3) est un avoir (261, 381, 396, 502, 503), alors
+   * au moins une référence à une facture antérieure (BT-25) avec sa date (BT-26) doit être présente
+   * au niveau entête. Références entête trouvées : 0." — superpdp, dépôt 375060, 2026-08-29.
+   *
+   * A credit note that does not say WHICH invoice it reverses is not a credit note, it is a negative
+   * invoice. The link was in the database all along (`Invoice.correctsInvoiceId`); nothing carried
+   * it into the document.
+   */
+  precedingInvoice?: { number: string; issueDate: string } | null;
+  /**
    * BG-1 — the mentions the seller's country requires, already resolved and frozen for the issue
    * date. Resolved upstream (`compliance/profiles/invoice-notes.ts`) rather than here, because which
    * mentions exist is a question about a jurisdiction and this module must not answer those.

@@ -29,7 +29,12 @@
  */
 export function normalizeCiiNamespaces(ciiXml: string): string {
   // If already using default namespaces (no prefix), skip
-  if (!ciiXml.includes('rsm:') && !ciiXml.includes('ram:') && !ciiXml.includes('udt:')) {
+  if (
+    !ciiXml.includes('rsm:') &&
+    !ciiXml.includes('ram:') &&
+    !ciiXml.includes('udt:') &&
+    !ciiXml.includes('qdt:')
+  ) {
     return ciiXml;
   }
 
@@ -37,6 +42,11 @@ export function normalizeCiiNamespaces(ciiXml: string): string {
     rsm: 'urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100',
     ram: 'urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100',
     udt: 'urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100',
+    // Was declared-then-stripped but never rewritten, so every qdt: element left with an UNDECLARED
+    // prefix. Invisible until a document actually used one: BT-26 (the corrected invoice's date) is
+    // the first, and superpdp named it exactly — "Element 'qdt:DateTimeString': This element is not
+    // expected. Expected is ( {…QualifiedDataType:100}DateTimeString )".
+    qdt: 'urn:un:unece:uncefact:data:standard:QualifiedDataType:100',
   };
 
   let result = ciiXml;
@@ -46,8 +56,8 @@ export function normalizeCiiNamespaces(ciiXml: string): string {
   result = result.replace(/\s+xmlns:ram="[^"]*"/, '');
   result = result.replace(/\s+xmlns:udt="[^"]*"/, '');
 
-  // Also strip xsi declarations and schemaLocation (not needed after normalization)
   result = result.replace(/\s+xmlns:qdt="[^"]*"/, '');
+  // Also strip xsi declarations and schemaLocation (not needed after normalization)
   result = result.replace(/\s+xmlns:xsi="[^"]*"/, '');
   result = result.replace(/\s+xsi:schemaLocation="[^"]*"/, '');
 
@@ -64,6 +74,11 @@ export function normalizeCiiNamespaces(ciiXml: string): string {
   result = result.replace(/<ram:(\w+)/g, (_m, tag) => `<${tag} xmlns="${NS.ram}"`);
   // Replace closing tags: </ram:XXX → </XXX
   result = result.replace(/<\/ram:(\w+)/g, '</$1');
+
+  // Replace opening tags: <qdt:XXX → <XXX xmlns="..."
+  result = result.replace(/<qdt:(\w+)/g, (_m, tag) => `<${tag} xmlns="${NS.qdt}"`);
+  // Replace closing tags: </qdt:XXX → </XXX
+  result = result.replace(/<\/qdt:(\w+)/g, '</$1');
 
   // Replace opening tags: <udt:XXX → <XXX xmlns="..."
   result = result.replace(/<udt:(\w+)/g, (_m, tag) => `<${tag} xmlns="${NS.udt}"`);

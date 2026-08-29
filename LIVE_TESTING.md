@@ -38,7 +38,17 @@ Hard-success contract (enforced per-spec):
 >
 > **Le résultat**, vérifié en interrogeant la plateforme et non en croyant le spec :
 > `api:uploaded → fr:200 Déposée (validée) → fr:201 Émise par la plateforme → fr:202 Reçue par la
-> plateforme`. Dépôt **375037**. Le contrôle de conformité française passe.
+> plateforme`. Dépôt **375037** pour la facture, **375061** pour l'AVOIR. Le contrôle de conformité
+> française passe pour les deux.
+>
+> **L'avoir a demandé deux correctifs de plus**, chacun nommé par la plateforme :
+> 1. `BR-FR-CO-05/BT-3` — « Si le type de facture est un avoir […] au moins une référence à une
+>    facture antérieure (BT-25) avec sa date (BT-26) doit être présente au niveau entête.
+>    Références entête trouvées : 0. » Le lien était en base depuis toujours
+>    (`Invoice.correctsInvoiceId`) ; rien ne le portait dans le document.
+> 2. `Element 'qdt:DateTimeString': This element is not expected` — le normaliseur d'espaces de noms
+>    SUPPRIMAIT la déclaration `xmlns:qdt` sans jamais réécrire les éléments, qui partaient donc avec
+>    un préfixe non déclaré. Invisible tant qu'aucun document n'en utilisait : BT-26 est le premier.
 >
 > **Ce qui manquait** : les trois mentions de C. com. art. L441-9 I al. 5. Une fois ajoutées, le
 > rejet `BR-FR-05` a disparu — remplacé par un défaut purement structurel que la plateforme a
