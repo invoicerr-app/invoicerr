@@ -1,0 +1,373 @@
+# CORRECTION-JURISDICTION — P3-U01 : quelle loi gouverne une correction transfrontalière ?
+#
+# CE QUE C'EST. P3-T01 a sourcé chaque pays ISOLÉMENT. Dès que l'émetteur et le destinataire
+# diffèrent, aucune de ces réponses ne dit laquelle s'applique. Ce fichier comble ce trou — et sans
+# lui, composer deux profils reviendrait à inventer une règle fiscale.
+#
+# CE QU'IL N'EST PAS. Une matrice de code. 7 pivots font 49 paires ; 108 pays en feraient 11 664,
+# qu'aucun relecteur ne pourrait auditer. L'énumération ci-dessous est une ANALYSE ; le moteur devra
+# composer, comme tax-engine.ts compose déjà vendeur et acheteur.
+
+meta:
+  task: P3-U01
+  updated: 2026-08-29
+  status: règle de rattachement établie ; PL et DE tranchés ; MX corroboré mais non établi
+  covered: [ UE, FR, IT, PL, DE ]
+  pending: [ ES, MX ]
+  access_note: >
+    eur-lex et curia sont derrière un WAF depuis ce réseau. Les textes UE viennent du CELLAR de
+    l'Office des publications — même contenu officiel, autre point d'entrée. Legifrance renvoie 403 ;
+    le CGI est cité via le BOFiP, doctrine opposable, recoupé sur deux versions.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LA TROUVAILLE QUI COMMANDE LE MODÈLE
+# ─────────────────────────────────────────────────────────────────────────────
+
+four_attachments:
+  headline: >
+    IL Y A QUATRE RATTACHEMENTS DISTINCTS, ET NOTRE MOTEUR N'EN CONNAÎT QU'UN. Ils divergent
+    systématiquement dès qu'il y a autoliquidation : le document se rédige selon le droit du
+    FOURNISSEUR, mais le droit de réduire la base et son délai relèvent de l'État D'IMPOSITION.
+  layers:
+    A_invoicing_rules:
+      what: Obligation d'émettre, contenu, délais, simplifications — et le document de correction.
+      attached_to: Art. 219 bis — le plus souvent l'État du FOURNISSEUR en B2B transfrontalier.
+      source: "Directive 2006/112/CE art. 219 bis"
+      our_engine: >
+        VÉRIFIÉ DANS LE CODE : compliance-engine.ts:333 fait
+        `pickByDate(sp.lifecycle, ...)` où `sp` est le profil du FOURNISSEUR (ligne 231).
+        Nos correctionRoutes suivent donc déjà le fournisseur — correct sur le cas dominant, et par
+        construction, pas par chance.
+    B_substantive_vat:
+      what: Réduction de la base imposable, ses conditions et ses DÉLAIS ; régularisation chez le client.
+      attached_to: L'État D'IMPOSITION de l'opération.
+      source: "Art. 90 §1 (« dans les conditions déterminées par les États membres ») ; art. 185 §1"
+      our_engine: >
+        ÉCART RÉEL. Le délai d'un an italien pour une nota di credito résultant d'un accord (art. 26
+        comma 3) est une règle de BASE IMPOSABLE, donc de l'État d'imposition — et nous le portons
+        sur le profil du fournisseur avec le reste. Pour une prestation IT→DE en autoliquidation,
+        c'est l'Allemagne qui commande ce délai, pas l'Italie.
+    C_channel_and_mandate:
+      what: Mandat de facturation électronique, canal national (SdI, PPF, KSeF), reporting.
+      attached_to: L'ÉTABLISSEMENT — ni A, ni B.
+      source: >
+        Décisions d'exécution : FR (UE) 2022/133 art. 1er « taxable persons ESTABLISHED in the
+        French territory » ; IT (UE) 2018/593 modifiée par 2021/2251, même formule ; PL (UE)
+        2022/1003 ; DE idem. Et ViDA (dir. (UE) 2025/516 art. 1 pt 2) pérennise la borne :
+        « exiger des assujettis ÉTABLIS SUR LEUR TERRITOIRE… pour les opérations effectuées SUR LEUR
+        TERRITOIRE, AUTRES QUE CELLES VISÉES À L'ARTICLE 262 ».
+      rule_we_can_use: >
+        RÈGLE EXPLOITABLE, ET NETTE : un fournisseur NON ÉTABLI n'est jamais dans le champ du canal
+        national. Et un mandat domestique ne peut pas couvrir les opérations intra-UE de l'art. 262.
+      our_engine: >
+        Le canal vient aussi du profil fournisseur, ce qui coïncide avec l'établissement dans le cas
+        courant. Mais nous n'avons aucune notion d'« établi » distincte de « pays de la société », ni
+        d'exclusion des opérations intra-UE du canal domestique.
+    D_archival:
+      what: Conservation des factures.
+      attached_to: HORS du champ de 219 bis — son §3 l'exclut expressément.
+      source: "Art. 219 bis §3 renvoyant aux art. 244-248 ; art. 247 §1"
+      our_engine: >
+        Nous le prenons sur le profil fournisseur (compliance-engine.ts:334). Ce n'est pas ce que dit
+        l'art. 247 §1. Écart à instruire, pas encore chiffré.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LA RÈGLE DE RATTACHEMENT
+# ─────────────────────────────────────────────────────────────────────────────
+
+rule:
+  article: "Directive 2006/112/CE art. 219 bis"
+  history: >
+    Inséré par la directive 2010/45/UE (applicable 2013-01-01), puis ENTIÈREMENT REMPLACÉ par la
+    directive (UE) 2017/2455 art. 2 pt 2, dont l'application a été repoussée au 2021-07-01 par la
+    décision (UE) 2020/1109 (COVID). Version consolidée 02006L0112-20250101, marqueur M16.
+  rationale: >
+    Considérant 5 de la directive 2010/45/UE : « To provide legal certainty for businesses regarding
+    their invoicing obligations, it should be clearly stated which Member State's invoicing rules
+    apply. »
+  principle:
+    id: P
+    basis: "219 bis §1"
+    condition: Cas général.
+    governs: État membre du LIEU DE L'OPÉRATION (titre V).
+  exceptions:
+    - id: E1
+      basis: "219 bis §2 a) i)"
+      condition: >
+        Fournisseur non établi dans l'État d'imposition (ou son établissement local n'intervient pas,
+        art. 192 bis b) ET le preneur est le redevable (autoliquidation).
+      governs: État du SIÈGE ou de l'établissement stable du FOURNISSEUR.
+    - id: E1bis
+      basis: "219 bis §2 a) i), in fine"
+      condition: Même cas, mais AUTOFACTURATION par le client.
+      governs: Retour au principe — État du lieu de l'opération.
+    - id: E2
+      basis: "219 bis §2 a) ii)"
+      condition: Opération réputée NON effectuée dans l'UE.
+      governs: État du siège ou de l'établissement stable du fournisseur.
+    - id: E3
+      basis: "219 bis §2 b)"
+      condition: Fournisseur usant d'un régime particulier du titre XII ch. 6 — OSS UE, non-UE, IOSS.
+      governs: État membre d'IDENTIFICATION au régime.
+      note: >
+        Ajoutée en 2017. Les notes explicatives de la Commission datent de 2011 et ne la couvrent
+        donc PAS — aucune version mise à jour trouvée.
+    - id: E5
+      basis: A contrario
+      condition: Fournisseur NON ÉTABLI DANS L'UE, opération située dans un État membre.
+      governs: >
+        Aucune exception ne peut désigner d'État — retour au principe §1, État du lieu.
+        Notes explicatives : « For suppliers not established in the EU […] the exceptions do not
+        apply and the basic invoicing rule always applies. »
+    - id: E6
+      basis: A contrario
+      condition: IMPORTATION — fournisseur hors UE, lieu de livraison hors UE.
+      governs: >
+        AUCUN État membre. « no Member State's invoicing rules will apply. Additionally, there is no
+        invoicing obligation relating to the importation of goods into the EU. »
+  why_it_binds:
+    what: >
+      Art. 273 al. 2 : « La faculté prévue au premier alinéa ne peut être utilisée pour imposer des
+      obligations de facturation SUPPLÉMENTAIRES à celles fixées au chapitre 3. »
+    consequence: >
+      Un État membre qui n'est pas celui désigné par 219 bis ne peut pas imposer ses propres mentions
+      ni son propre document de correction. C'est ce qui rend le rattachement opposable et non
+      facultatif. ViDA le conserve mot pour mot à compter du 2030-01-01.
+
+correction_follows_the_invoice:
+  verdict: OUI
+  article_219: >
+    « Est assimilé à une facture tout document ou message qui modifie la facture initiale et y fait
+    référence de façon spécifique et non équivoque. » Jamais modifié depuis 2006.
+  established_how: >
+    PAR CONSTRUCTION, pas par une phrase unique — et il faut le dire, parce que c'est le maillon le
+    plus faible de la chaîne. Quatre points, tous lus dans le texte :
+      1. Art. 219 est en section 2 du chapitre 3 « Facturation » ; 219 bis ouvre la section 3 du MÊME
+         chapitre et vise « la facturation », objet du chapitre entier.
+      2. Le §3 le prouve a contrario : il exclut expressément les art. 244-248, qui sont en SECTION 6.
+         Si 219 bis ne portait que sur sa propre section, il n'y aurait rien à exclure ailleurs.
+      3. Art. 220 bis §1 b) fait porter une option d'État membre nommément sur « un document ou un
+         message assimilé à une facture conformément à l'article 219 » — et les notes explicatives
+         disent que l'État qui exerce ces options est celui désigné par 219 bis.
+      4. Art. 226 ter e) impose au document de correction ses propres mentions.
+  legislative_confirmation_2025: >
+    ViDA (dir. (UE) 2025/516 art. 3 pt 8, applicable 2030-07-01) ajoute un art. 226 point (16)
+    nommant « la FACTURE RECTIFICATIVE, TELLE QUE VISÉE À L'ARTICLE 219 » et l'insère dans la liste
+    des mentions de la facture. Le législateur qualifie donc lui-même le document de correction par
+    renvoi à l'art. 219.
+  national_confirmations:
+    FR: >
+      CGI art. 289 I-5 : « Tout document ou message qui modifie la facture initiale, ÉMISE EN
+      APPLICATION DE CET ARTICLE… est assimilé à une facture. Il doit comporter l'ensemble des
+      mentions prévues au II. » Et l'art. 289-0 rattache « les règles de facturation prévues à
+      l'article 289 » — donc l'article en BLOC, I-5 compris.
+      La clause « émise en application de cet article » arrime en outre le rectificatif au régime de
+      la facture initiale, ce que le texte UE ne fait pas.
+    IT: >
+      L'art. 26 ne crée aucune règle documentaire propre : « Le disposizioni degli articoli 21 e
+      seguenti DEVONO ESSERE OSSERVATE ». Et l'art. 21-bis nomme « la FATTURA RETTIFICATIVA di cui
+      all'articolo 26 ».
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LES PAIRES  (moitié FR/IT — le reste en recherche)
+# ─────────────────────────────────────────────────────────────────────────────
+
+pairs:
+  caveat: >
+    LA PAIRE DE PAYS NE SUFFIT JAMAIS À DÉCIDER, et c'est l'avertissement le plus important du
+    fichier. Le rattachement dépend de trois choses : le lieu de l'opération, l'établissement du
+    fournisseur dans l'État d'imposition, et l'identité du redevable. Les colonnes ci-dessous donnent
+    les deux cas B2B dominants ; les bascules sont listées après.
+  legend:
+    S: Prestation de services B2B générale — lieu = preneur, autoliquidation → exception E1.
+    G: Livraison de biens expédiés depuis le pays du fournisseur (LIC ou exportation) → principe P.
+  structural_result: >
+    EN B2B TRANSFRONTALIER, C'EST PRESQUE TOUJOURS LE PAYS DU FOURNISSEUR. Par le principe pour les
+    biens (le départ est chez lui), par la dérogation pour les services (parce que le client
+    autoliquide). Le pays de l'ACHETEUR n'est quasiment jamais le facteur de rattachement.
+  table:
+    "FR→IT": { S: FR, G: FR, basis: "CGI 289-0 II-1° / 289-0 I" }
+    "IT→FR": { S: IT, G: IT, basis: "DPR 633/72 art. 21 c. 6-bis a) / art. 21 c. 1" }
+    "FR→DE": { S: FR, G: FR, basis: "CGI 289-0 II-1° — BOFiP § 70 exemple 2" }
+    "DE→FR": { S: DE, G: DE, basis: "CGI 289-0 I dérogation — BOFiP § 20 exemple 1" }
+    "FR→PL": { S: FR, G: FR, basis: "CGI 289-0 II-1° / I" }
+    "PL→FR": { S: PL, G: PL, basis: "CGI 289-0 I dérogation" }
+    "FR→ES": { S: FR, G: FR, basis: "CGI 289-0 II-1° / I" }
+    "ES→FR": { S: ES, G: ES, basis: "CGI 289-0 I dérogation" }
+    "IT→DE": { S: IT, G: IT, basis: "DPR art. 21 c. 6-bis a)" }
+    "DE→IT": { S: DE, G: DE, basis: "219 bis §2 a) i) ; côté IT, art. 17 c. 2 — intégration par le client" }
+    "IT→PL": { S: IT, G: IT, basis: "DPR art. 21 c. 6-bis a)" }
+    "PL→IT": { S: PL, G: PL, basis: "219 bis §2 a) i) + art. 17 c. 2" }
+    "IT→ES": { S: IT, G: IT, basis: "DPR art. 21 c. 6-bis a)" }
+    "ES→IT": { S: ES, G: ES, basis: "219 bis §2 a) i) + art. 17 c. 2" }
+    "FR→MX": { S: FR, G: FR, basis: "289-0 II-2° (lieu hors UE) / 289-0 I (exportation)" }
+    "FR→US": { S: FR, G: FR, basis: "idem" }
+    "IT→MX": { S: IT, G: IT, basis: "DPR art. 21 c. 6-bis b) / art. 21 c. 1" }
+    "IT→US": { S: IT, G: IT, basis: "idem" }
+    "MX→FR": { S: FR, G: AUCUN, basis: "E5 pour les services ; E6 pour les biens — importation, BOFiP § 120" }
+    "US→FR": { S: FR, G: AUCUN, basis: "idem" }
+    "MX→IT": { S: IT, G: AUCUN, basis: "219 bis §1 ; obligations exécutées par le client — autofattura TD17/TD19" }
+    "US→IT": { S: IT, G: AUCUN, basis: "idem" }
+  switches_to_wire:
+    - rank: 1
+      what: AUTOFACTURATION ou mandat de facturation donné au client.
+      effect: Retour au principe — règles de l'État du LIEU de l'opération.
+      source: "CGI 289-0 I et II-1° in fine ; BOFiP § 30 et § 90"
+      trap: >
+        La SOUS-TRAITANCE de la fabrication de la facture n'a PAS cet effet. « L'établissement
+        matériel des factures par un tiers n'a pas pour effet de modifier le champ d'application
+        territorial » (BOFiP § 30, remarque).
+    - rank: 2
+      what: Pas d'autoliquidation dans l'État d'imposition — le fournisseur y est immatriculé et redevable.
+      effect: Principe — règles de CET État.
+      source: "BOFiP § 80, avec l'exemple des travaux immobiliers"
+      note: >
+        Le périmètre dépend de l'usage que l'État de DESTINATION a fait de l'art. 194. C'est une
+        donnée par pays de destination, pas une constante — ce qui interdit de figer la paire.
+    - rank: 3
+      what: OSS / IOSS.
+      effect: Règles de l'État membre d'IDENTIFICATION, quel que soit le lieu d'imposition.
+      source: "CGI 289-0 III ; BOFiP § 40 et § 100"
+    - rank: 4
+      what: Ventes à distance B2C hors OSS.
+      effect: Règles de l'État de DESTINATION.
+    - rank: 5
+      what: Services liés à un immeuble (art. 47), livraison avec montage (art. 36), gaz et électricité (art. 38-39).
+      effect: Le lieu n'est ni chez le fournisseur ni chez l'acheteur — recalculer.
+  third_countries:
+    what: >
+      POINT D'ARCHITECTURE : l'art. 219 bis n'alloue qu'ENTRE ÉTATS MEMBRES. Face à un État tiers il
+      n'y a pas allocation mais CUMUL — le Mexique applique ses règles CFDI à son assujetti et l'UE
+      les siennes au sien, en parallèle. Le moteur ne doit pas modéliser MX et US comme des branches
+      de 219 bis, mais comme un régime distinct.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LES DEUX RÉSULTATS QUI CHANGENT LE PRODUIT  (recherche DE / PL / ES / MX / US)
+# ─────────────────────────────────────────────────────────────────────────────
+
+national_scope:
+  PL:
+    headline: >
+      KSEF S'APPLIQUE AUX FACTURES VERS L'ÉTRANGER. C'est le résultat qui a le plus d'effet pratique
+      de toute la recherche, et il est tranché par le texte de loi, pas par de la doctrine.
+    basis: >
+      Art. 106ga ust. 1 ustawy o VAT. Ses SIX exemptions ne visent jamais le pays de l'acheteur —
+      donc une facture d'un assujetti polonais vers un client français passe par KSeF comme une
+      facture domestique.
+    delivery: >
+      L'acheteur étranger n'a pas accès à KSeF : la facture lui est remise HORS KSeF avec un code QR
+      (art. 106gb ust. 4-5). Le document reste la faktura ustrukturyzowana ; ce qui change est le
+      canal de remise, pas la nature.
+    correction: La faktura korygująca suit exactement le même chemin — art. 106j ust. 4.
+    our_gap: >
+      Notre modèle choisit le canal par le profil du fournisseur, ce qui donne la bonne réponse ici.
+      Mais nous n'avons AUCUNE notion de « remise hors canal avec QR » : pour un acheteur étranger,
+      le produit devrait déposer dans KSeF ET remettre autrement. C'est une action de plus, pas un
+      canal de moins.
+  DE:
+    headline: >
+      LE MANDAT ALLEMAND EXIGE QUE LES DEUX PARTIES SOIENT ÉTABLIES EN ALLEMAGNE — pas seulement
+      l'émetteur, contrairement à ce que la formule des décisions d'exécution laissait attendre.
+    basis: >
+      § 14 Abs. 2 Satz 2 Nr. 1 UStG : « der leistende Unternehmer UND der Leistungsempfänger …
+      ansässig ». Le « und » est la règle.
+    consequence: >
+      Une facture allemande vers un acheteur français sort du mandat de facturation électronique
+      allemand — tout en restant soumise au droit allemand de la FACTURATION (219 bis §2 a) i)).
+      Les deux rattachements se séparent ici de la façon la plus visible.
+  MX:
+    headline: >
+      LE CFDI VERS UN CLIENT ÉTRANGER EST PROBABLE MAIS N'EST PAS ÉTABLI — et c'est consigné comme
+      tel plutôt que corroboré en douce.
+    verified: >
+      RMF 2026 regla 2.7.1.23 (DOF 28/12/2025) : « cuando se trate de operaciones efectuadas con
+      residentes en el extranjero, que no se encuentren inscritos en el RFC, se señalará la clave
+      genérica en el RFC: XEXX010101000 ». La règle PRÉSUPPOSE l'émission d'un CFDI vers un
+      destinataire étranger : elle en règle le COMMENT, jamais le SI.
+    not_verified: >
+      Le texte du CFF art. 29 et 29-A n'a PAS de source vérifiable depuis ce réseau. La copie
+      utilisée se déclare arrêtée à la réforme DOF du 12/11/2021 et son URL n'a pas pu être
+      rétablie. diputados.gob.mx refuse la connexion, sat.gob.mx renvoie 403, et omawww.sat.gob.mx
+      redirige en 301 vers www.sat.gob.mx — ce n'est donc PAS un hôte d'archive indépendant en HTTPS,
+      contrairement à ce que supposaient les consignes précédentes.
+    verdict: >
+      NE PAS ENCODER EN `verified`. Le faisceau est cohérent — l'art. 29 rattacherait l'obligation
+      aux actes de l'émetteur sans condition territoriale, et zéro occurrence de
+      « residente|extranjero|territorio » n'y figure — mais un faisceau n'est pas une source.
+    settled_by: >
+      La recherche DOF, qui FONCTIONNE : POST `textobusqueda` sur dof.gob.mx/busqueda_detalle.php,
+      avec la contrainte que seuls des termes UNIQUES ACCENTUÉS donnent des résultats (une requête
+      multi-mots renvoie silencieusement zéro). Même voie pour le complemento de comercio exterior
+      et pour le catalogue des motivos de cancelación.
+
+temporal_bombs:
+  - country: FR
+    date: 2027-01-01
+    what: >
+      L'ordonnance n° 2025-1247 du 17/12/2025 portant recodification de la TVA, art. 9, ABROGE les
+      CGI art. 289 et 289-0 — les deux articles sur lesquels repose tout le rattachement français.
+      La page Legifrance de 289-0 porte « Version en vigueur du 01/07/2021 au 01/01/2027 ».
+    status: UNVERIFIED au-delà
+    settled_by: >
+      Le Rapport au Président de la République (table de correspondance CGI→CIBS), ou l'ordonnance
+      n° 2026-671 du 27/07/2026 qui modifie la recodification et n'a pas été lue. Le successeur n'a
+      PAS été identifié dans le CIBS.
+  - country: IT
+    date: 2027-01-01
+    what: >
+      Le D.Lgs. 19/01/2026 n. 10 abroge TOUT LE BLOC facturation — art. 21, 21-bis ET 26 — pas
+      seulement l'art. 26 comme noté en P3-T01.
+    verdict: >
+      MAIS LA RÈGLE NE BASCULE PAS. Le TU art. 72 c. 7 reprend l'art. 21 c. 6-bis à l'identique,
+      l'art. 92 reprend l'art. 26 avec le même renvoi (« Le disposizioni degli articoli 72 e seguenti
+      devono essere osservate »), l'art. 73 nomme « la fattura rettificativa di cui all'articolo 92 »
+      et l'art. 64 c. 2 reproduit l'art. 17 c. 2. Renumérotation, pas changement de fond.
+    for_the_engine: "Un profil IT `validFrom` au 2027-01-01, mêmes règles, nouvelles références."
+
+open_questions:
+  - id: pu01_date_du_rattachement
+    what: >
+      À QUELLE DATE SE LIT LE RATTACHEMENT POUR UNE CORRECTION ? L'art. 219 bis désigne un État à
+      partir de « la livraison ou la prestation ». Un document de correction n'a pas d'opération
+      propre. Date de l'opération d'origine, de la facture d'origine, ou de la correction ?
+      AUCUN texte, aucune note explicative, aucune ligne directrice ne le dit.
+    why_it_matters: >
+      Si le fournisseur déplace son siège entre les deux dates, ou si l'État de destination
+      introduit ou supprime l'autoliquidation entre-temps — et le BOFiP § 80 fait précisément de ce
+      paramètre le pivot — la réponse change.
+    settled_by: Un arrêt CJUE, une ligne directrice du Comité TVA, ou un rescrit national.
+    note: >
+      La clause française « émise en application de cet article » plaide pour la date de la facture
+      initiale, mais c'est du droit français et cela ne lie pas les autres États membres.
+  - id: pu01_correction_qui_change_le_rattachement
+    what: >
+      Et si la correction modifie les faits qui fixaient le rattachement — le client se révèle non
+      assujetti, donc pas d'autoliquidation, donc principe au lieu de dérogation ?
+    settled_by: Même chose qu'au point précédent. Aucune source.
+  - id: pu01_portee_226
+    what: >
+      L'art. 226 vise « les factures émises en application des articles 220 et 221 » ; un document de
+      correction est ASSIMILÉ par l'art. 219, il n'est pas ÉMIS EN APPLICATION de l'art. 220.
+      Tension non résolue avec l'art. 273 al. 2. La France et l'Italie tranchent chacune chez elles,
+      mais il n'y a pas de règle UE explicite avant le point 226(16) de ViDA au 2030-07-01.
+    settled_by: Une ligne directrice du Comité TVA ou un arrêt.
+  - id: pu01_jurisprudence_cjue
+    what: >
+      La jurisprudence CJUE sur l'art. 219 bis n'a PAS été recherchée à fond — curia est une SPA non
+      exploitable, eur-lex renvoie un challenge WAF, le budget de recherche était épuisé.
+      Ne pas conclure qu'il n'y en a pas.
+    settled_by: InfoCuria depuis un vrai navigateur, ou une session avec budget de recherche.
+  - id: pu01_prassi_italienne_sens_sortant
+    what: >
+      Aucun document de l'Agenzia delle Entrate n'aborde le SENS SORTANT — fournisseur italien,
+      client étranger, obligation de nota di variazione. Le sens ENTRANT, lui, est couvert par la
+      risposta a interpello n. 308 du 30/04/2021, qui précise que la faculté de l'art. 26 c. 2
+      « prescinde dalla natura del cedente/prestatore » et « si tratta di una possibilità e non di
+      un obbligo ».
+    settled_by: Une prassi AdE sur le sens sortant ; constat négatif sur le corpus atteignable.
+  - id: pu01_mandat_sdi_2025
+    what: >
+      Base juridique du mandat SdI italien entre le 2025-01-01 et le 2025-04-14 : la décision (UE)
+      2018/593 s'appliquait « until 31 December 2024 » et le nouvel art. 218 al. 2 de ViDA n'est en
+      vigueur que depuis le 2025-04-14. Aucune décision de prorogation localisée.
+    settled_by: L'index des dérogations postérieur au 19/04/2024, ou une recherche CELEX 2024-2025.
