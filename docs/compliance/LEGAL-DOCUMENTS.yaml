@@ -543,8 +543,14 @@ countries:
         source: "RD 1619/2012 art. 15, art. 6.1.a).2º"
         note: >
           SEULE VOIE au niveau facture — art. 15.4 : « La rectificación se realizará mediante la
-          emisión de una nueva factura ». Il n'existe AUCUN annuler-et-remplacer d'une facture
-          valablement émise en Espagne.
+          emisión de una nueva factura ».
+          CORRIGÉ LE 2026-08-29 (P3-T01) sur deux points. D'abord, l'art. 15.4 n'est PAS une
+          interdiction : c'est une prescription POSITIVE ET EXCLUSIVE de forme. Le résultat est le
+          même, le fondement diffère, et c'est le fondement qu'on encode.
+          Ensuite, « AUCUN annuler-et-remplacer » était trop absolu : l'art. 15.6 ¶2 en ouvre un,
+          borné — les factures émises « en sustitución o canje » de factures SIMPLIFIÉES antérieures
+          « no tendrán la condición de rectificativas », si la simplifiée était conforme à l'art. 7.1.
+          Voir CORRECTION-ROUTES.yaml, ES.
           Deux modalités : par différences, ou par substitution en affichant les chiffres corrigés
           tout en indiquant le montant de la rectification. Délai 4 ans.
           CONTRAINTE QUE LE PRODUIT N'A PAS : la série dédiée. Notre numérotation ne connaît pas la

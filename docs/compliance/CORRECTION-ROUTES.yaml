@@ -16,9 +16,9 @@
 meta:
   task: P3-T01
   updated: 2026-08-29
-  status: en cours
-  covered: []
-  pending: [ FR, IT, PL, DE, ES, MX, US ]
+  status: table complète pour les 7 pays pivots — P3-T02 (portage au schéma) n'est pas commencée
+  covered: [ FR, IT, PL, DE, ES, MX, US ]
+  pending: []
 
 # ─────────────────────────────────────────────────────────────────────────────
 # LE VOCABULAIRE DES VOIES
@@ -161,6 +161,108 @@ product_today:
         Aucun instrument fédéral ni d'État trouvé pour la correction. Le credit memo américain est
         COMMERCIAL, sans identité fiscale. Déclarer `CREDIT_NOTE` donne à une pratique le statut
         d'une règle.
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CE QUE LA TABLE COMMANDE  —  l'entrée de P3-T02
+# ─────────────────────────────────────────────────────────────────────────────
+
+synthesis:
+
+  the_decisive_finding: >
+    LA MÊME VOIE EST REQUISE DANS UN PAYS ET INTERDITE DANS UN AUTRE. L'avoir interne non transmis
+    est `required` en France (statuts Refusée et Rejetée) et en Italie (après scarto) ; il est
+    `forbidden` en Pologne, en Espagne et au Mexique. Aucun modèle unique ne peut porter ça, et
+    aucun défaut par pays ne peut le deviner. C'est la justification de P3-T02 tout entière, et
+    elle ne vient pas d'un raisonnement : elle vient de cinq textes qui se contredisent.
+
+  no_route_is_universal: >
+    Sur les 11 voies, AUCUNE n'a le même statut dans les 7 pays. Même CREDIT_NOTE, la voie que nos
+    profils déclarent partout, va de `required` (ES) à `forbidden` comme document distinct (PL) en
+    passant par `open` mais jamais obligatoire (DE) et `open` sans aucun texte (US).
+
+  the_enum_must_become_a_matrix:
+    today: "correctionModel: CorrectionModel  — une valeur parmi trois"
+    needed: >
+      Un statut par voie, temporel, avec son cas d'application et sa référence. Et deux dimensions
+      que l'enum ne voit pas du tout :
+        - la TRANSMISSION est un attribut séparé du statut. L'avoir interne est une voie REQUISE
+          dont la transmission est INTERDITE. Un booléen `transmitted` ne suffit pas non plus :
+          l'Espagne distingue « émis » et « remis », et conditionne l'effet TVA à la REMISE.
+        - le SENS de la variation. L'Italie impose la hausse et rend la baisse facultative ; la
+          Pologne traite les deux par le même document ; l'Espagne n'impose la hausse que dans deux
+          cas nommés. `DEBIT_NOTE` n'existe même pas comme CorrectionModel aujourd'hui.
+
+  four_routes_the_plan_did_not_list:
+    routes:
+      - "ANNOTATED_DUPLICATE — FR, `required` pour l'impayé, là où l'avoir est `forbidden`"
+      - "LEDGER_ANNOTATION — IT `open`, ES `required`, MX `forbidden`"
+      - "NO_DOCUMENT_BY_LAW — DE, et c'est la voie PAR DÉFAUT du pays"
+      - "COUNTERPARTY_OBJECTION — DE sans limite de temps ; MX sous une autre forme"
+    note: >
+      Le plan en listait 6 et laissait la porte ouverte. Il en manquait 4, soit 40 % du vocabulaire
+      réel. Rien ne dit qu'un huitième pays n'en apporterait pas une cinquième.
+
+  concrete_repo_defects:
+    - id: R-P3-01
+      what: >
+        `CANCEL_AND_REPLACE` est une affordance morte. Aucun profil ne la déclare, donc
+        `cancelAndReplace` vaut false partout — alors que la stratégie existe (en `log.todo`), que
+        l'API la calcule, que le front la type et que les traductions existent.
+      established_by: lecture du code
+      countries_that_need_it: "MX (`required`), PL (`required` pour un NIP erroné), FR et DE (`open`)"
+    - id: R-P3-02
+      what: >
+        `de.ts:57` déclare `CREDIT_NOTE`. La voie allemande est une Rechnungsberichtigung qui
+        référence l'original, et pour un simple changement de base imposable AUCUN document n'est
+        requis. La valeur déclarée décrit une voie ouverte mais jamais obligatoire, et masque celle
+        qui l'est.
+      established_by: "UStAE 14.11 Abs. 1 et Abs. 4 ; § 31 Abs. 5 UStDV"
+    - id: R-P3-03
+      what: >
+        L'écran polonais affiche deux conditions contradictoires, dont la première conseille un
+        avoir que la Pologne interdit et enferme un remède national dans une chaîne générique.
+      established_by: "invoices.service.ts:2172 + compliance-panels.tsx:76 + locales/en"
+    - id: R-P3-04
+      what: >
+        `pl.ts` déclare `requiresAuthorityAck: true` alors qu'il n'existe aucune procédure
+        d'annulation en Pologne. Sans effet sur le runtime — le garde n'est monté que derrière
+        `allowed` — mais faux, et visible à l'écran via R-P3-03.
+      established_by: "contributors.ts:254-258 (vérifié) ; Podręcznik KSeF 2.0 § 1.6.3"
+    - id: R-P3-05
+      what: >
+        La bascule temporelle polonaise unique au 2026-02-01 est juste pour le modèle de correction
+        et fausse pour le canal : l'art. 145l laisse le papier licite jusqu'au 2026-03-31 sous
+        200 M zł, l'art. 145m jusqu'au 2026-12-31 sous 10 000 zł par mois.
+      established_by: "Dz.U. 2025 poz. 1203, art. 2 pkt 1 lit. o et pkt 5"
+    - id: R-P3-06
+      what: >
+        `correctInvoice()` appelle systématiquement `numberingService.nextNumber()`. Le document
+        correctif allemand n'a PAS besoin de son propre numéro — « eine neue Rechnungsnummer für
+        dieses Dokument ist nicht erforderlich ».
+      established_by: "invoices.service.ts:~745 ; UStAE 14.11 Abs. 1 S. 5"
+    - id: R-P3-07
+      what: >
+        Deux contraintes de fenêtre inexprimables. Le Mexique compte en JOURS OUVRABLES (annulation
+        libre « dentro del día hábil siguiente ») là où `cancellation.windowHours` ne connaît que
+        des heures. Et l'annulation mexicaine est bornée à l'EXERCICE, une borne de calendrier et
+        non de durée.
+      established_by: "RMF 2026 2.7.1.35 fr. IX ; CFF art. 29-A ¶4 ; schema.ts LifecyclePolicy"
+    - id: R-P3-08
+      what: >
+        L'annulation en cascade mexicaine — « estos deberán cancelarse previamente » — impose un
+        ORDRE entre documents liés. Rien dans le runtime ne connaît cette notion.
+      established_by: "RMF 2026 2.7.1.34 ¶5"
+
+  what_p3_t02_must_not_do: >
+    Construire un TROISIÈME mécanisme d'échéance. D-002 signalait déjà que `obligations[].deadline`
+    doublonnait `deadlineHours`. Les délais trouvés ici — 5 jours italiens, 3 jours mexicains,
+    4 jours espagnols du SII, un mois espagnol, un an italien — doivent rejoindre le mécanisme
+    existant, pas en ouvrir un nouveau.
+
+  stop_point: >
+    P3-T01 s'arrête ici. P3-T02 porte ces voies dans le schéma de profil et n'a pas été commencée.
+    P3-T03 à P3-T05 en dépendent.
 
 countries:
 
@@ -793,6 +895,352 @@ countries:
       - id: de_bmf_18_09_2020
         what: Le BMF-Schreiben du 18/09/2020 sur la correction rétroactive n'est connu que par le renvoi de l'UStAE.
         settled_by: "Le PDF du BMF-Schreiben, ou BStBl I 2020, 976."
+
+
+  ES:
+    provenance: sourced
+    consulted: 2026-08-29
+    headline: >
+      L'ART. 15.4 N'EST PAS UNE INTERDICTION, et la nuance change ce qu'il faut coder. Texte réel :
+      « La rectificación SE REALIZARÁ MEDIANTE LA EMISIÓN DE UNA NUEVA FACTURA en la que se haga
+      constar los datos identificativos de la factura rectificada. » C'est une prescription POSITIVE
+      ET EXCLUSIVE DE FORME. Aucun texte espagnol ne dit qu'on ne peut pas annuler une facture.
+      Le résultat opérationnel est le même — il n'existe aucun mécanisme d'annulation — mais le
+      fondement est l'exclusivité de la forme (15.4) combinée au 15.6, pas une prohibition.
+      À encoder comme `forbidden` PAR ABSENCE DE MÉCANISME, en portant ce fondement-là.
+    routes:
+      CORRECTIVE_INVOICE:
+        status: required
+        applies_to: >
+          Facture originale non conforme aux art. 6 ou 7 (15.1) ; cuotas mal déterminées ou
+          survenance d'un cas de l'art. 80 LIVA — 15.2 dit « SERÁ OBLIGATORIA ».
+        deadline: "« tan pronto como… tenga constancia », 4 ans au plus depuis le devengo (15.3)"
+        source: "Art. 15.1, 15.2, 15.3, 15.4, 15.5 RD 1619/2012"
+        two_methods:
+          basis: >
+            Art. 15.5 ¶2, et le choix est LIBRE — « se podrán consignar » : « bien indicando
+            directamente el importe de la rectificación, CON INDEPENDENCIA DE SU SIGNO, bien tal y
+            como queden tras la rectificación efectuada, señalando igualmente en este caso el
+            importe de dicha rectificación ».
+          por_diferencias: Le seul ÉCART, signé.
+          por_sustitucion: Les valeurs FINALES corrigées, ET l'écart.
+          three_things_usually_missed: >
+            (a) l'écart est OBLIGATOIRE dans les DEUX méthodes — la substitution n'en dispense pas ;
+            (b) l'option ne porte que sur les champs f) base et h) cuota de l'art. 6.1, le g) taux
+            exprimant la rectification sans option ;
+            (c) AUCUNE des deux n'est imposée par l'art. 15, y compris dans les cas 80.Tres et
+            80.Cuatro.
+      CREDIT_NOTE:
+        status: required
+        nature: Pas d'instrument distinct — c'est la rectificativa de signe négatif.
+        applies_to: Toute modification de la base à la baisse.
+        basis: >
+          Elle CONDITIONNE la réduction : « La disminución de la base imponible… estarán
+          CONDICIONADAS A LA EXPEDICIÓN Y REMISIÓN de la factura que rectifique ».
+          Art. 80.Uno et 80.Dos : modification automatique. Art. 80.Tres et 80.Cuatro : la réduction
+          est FACULTATIVE — « podrá reducirse » — mais si elle est exercée, la rectificativa devient
+          obligatoire.
+        source: "Art. 15.2 RD 1619/2012 ; art. 80 LIVA ; art. 24.1 RD 1624/1992"
+      DEBIT_NOTE:
+        status: required
+        scope: Dans DEUX cas seulement.
+        nature: Pas d'instrument distinct — rectificativa de signe positif (15.5, « con independencia de su signo »).
+        applies_to: >
+          (a) clôture du concours par art. 176.1 1º, 4º ou 5º — « DEBERÁ modificarla nuevamente al
+          alza mediante la emisión… de una factura rectificativa » ;
+          (b) désistement ou accord de recouvrement après créance irrécouvrable — « DEBERÁ modificar
+          nuevamente la base imponible al alza… EN EL PLAZO DE UN MES ».
+        source: "Art. 80.Tres ¶2 et 80.Cuatro.C ¶2 LIVA ; art. 15.5 RD 1619/2012"
+      CANCEL_AND_REPLACE:
+        status: forbidden
+        nature: Par ABSENCE DE MÉCANISME, non par interdiction expresse — voir headline.
+        basis: >
+          Même le REJET par le destinataire n'annule pas : « tales desavenencias afectarán solo a
+          las relaciones entre partes, SIN PERJUICIO DE LA OBLIGACIÓN DE EMITIR… las facturas
+          rectificativas que procedan ».
+        source: "Art. 15.4 et 15.6 RD 1619/2012 ; RD 238/2026, régime des estados"
+        exception: >
+          UNE brèche, bornée : les factures émises « EN SUSTITUCIÓN O CANJE » de factures
+          SIMPLIFIÉES antérieures « no tendrán la condición de rectificativas », à condition que la
+          simplifiée fût conforme à l'art. 7.1. C'est un vrai annuler-et-remplacer, hors du régime
+          rectificatif. (Art. 15.6 ¶2.)
+      INTERNAL_CREDIT_NOTE:
+        status: forbidden
+        applies_to: Pour l'effet TVA.
+        basis: >
+          La réduction est conditionnée à l'expédition ET À LA REMISE au destinataire ; dans les cas
+          80.Tres et 80.Cuatro l'assujetti « DEBERÁ ACREDITAR ASIMISMO DICHA REMISIÓN ». Une note
+          non transmise ne produit aucun effet.
+        source: "Art. 24.1 ¶2 RD 1624/1992"
+        narrow_exception: >
+          L'AEAT peut habiliter à NE PAS REMETTRE les rectificativas au destinataire — mais elles
+          restent émises en format électronique et déposées. Seule brèche vers un quasi-avoir
+          interne. (RD 238/2026, art. sur les estados, ap. 6.)
+      AUTHORITY_ANNULMENT:
+        status: forbidden
+        nature: Absence de mécanisme.
+        basis: >
+          Aucune procédure de demande adressée à l'AEAT. L'annulation Veri*Factu est AUTO-GÉNÉRÉE
+          par le système de l'assujetti, pas sollicitée : « Procederá la generación de un registro
+          de facturación de anulación cuando se haya emitido erróneamente una factura ».
+        source: "Art. 11.1 RD 1007/2023, par différence"
+      RESUBMIT_SAME_IDENTITY:
+        status: open
+        scope: Couche registre Veri*Factu uniquement.
+        applies_to: Après rejet AEAT — le registre est renvoyé sous la même identité de facture.
+        basis: >
+          Champs `Subsanacion` (S/N) et `RechazoPrevio` (N/S/X) ; les combinaisons Subsanacion=N
+          avec RechazoPrevio=S ou X « NO SE ADMITEN ». L'identité est bien la même : la huella se
+          construit sur NIF émetteur + numéro et série de facture + date d'expédition.
+        source: "Orden HAC/1177/2024, anexo, liste L17 ; art. 13.1"
+      LEDGER_ANNOTATION:
+        status: required
+        applies_to: Erreur MATÉRIELLE dans les annotations registrales.
+        basis: >
+          « DEBERÁN RECTIFICARLAS TAN PRONTO TENGAN CONSTANCIA », par « una anotación o grupo de
+          anotaciones ». Aucun document émis.
+          Cas explicite où AUCUNE rectificativa n'est due : régularisations REAV (agences de
+          voyages) et REBU (biens d'occasion) après remises postérieures au devengo.
+        deadline: "SII : avant le 16 du mois suivant la période de prise de connaissance."
+        source: "Art. 70.1 RD 1624/1992 ; art. 69 bis.1.a) ¶2 et 69 bis.3"
+      NO_DOCUMENT_BY_LAW:
+        status: unverified
+        settled_by: Non recherchée pour l'Espagne — LEDGER_ANNOTATION en couvre une partie.
+      COUNTERPARTY_OBJECTION:
+        status: unverified
+        settled_by: Non recherchée pour l'Espagne.
+      ANNOTATED_DUPLICATE:
+        status: unverified
+        settled_by: Non recherchée pour l'Espagne.
+    verifactu_record_layer:
+      confirmed: >
+        L'annulation n'existe QUE comme enregistrement AJOUTÉ, jamais comme suppression. Fondement
+        exact — art. 8.2.a) ¶3 RD 1007/2023 : « Cualquier necesidad de corrección o anulación de los
+        datos registrados DEBERÁ SER REALIZADA MEDIANTE AL MENOS UN REGISTRO DE FACTURACIÓN
+        ADICIONAL POSTERIOR, de forma que SE CONSERVEN INALTERABLES los datos originalmente
+        registrados. » Le ¶2 qualifie d'« altération » « la ocultación o eliminación de cualquier
+        registro de facturación originalmente generado ».
+      scope: >
+        Le registro de anulación annule LE REGISTRE, pas la facture ni ses effets TVA — ceux-ci ne
+        se corrigent que par rectificativa. Deux couches distinctes, à ne pas confondre.
+      source: "Art. 8.2.a) et art. 11 RD 1007/2023 ; art. 11 + anexo ap. 3 Orden HAC/1177/2024, bloc RegistroAnulacion"
+    temporal:
+      - date: 2027-01-01
+        what: Veri*Factu pour les assujettis de l'art. 3.1.a).
+      - date: 2027-07-01
+        what: Veri*Factu pour les autres.
+        source: >
+          Disposición final cuarta RD 1007/2023, rédaction en vigueur depuis le 04/12/2025, modifiée
+          par RD 254/2025 puis par la disposición final 1 du Real Decreto-ley 15/2025.
+          Les dates 2026-01-01 et 2026-07-01 souvent citées sont PÉRIMÉES.
+        repo_check: >
+          VÉRIFIÉ DANS LE CODE : es.ts porte déjà 2027-01-01 et 2027-07-01, avec le commentaire
+          « POSTPONED one year ». Le profil est juste ; la recherche le confirme au lieu de le
+          corriger.
+    sii_deadlines:
+      rectificativas: >
+        4 jours naturels depuis l'expédition ou l'enregistrement comptable, samedis, dimanches et
+        fériés nationaux exclus. Si la rectification AUGMENTE les cuotas déduites (art. 114.Dos.1º
+        LIVA), c'est le délai des factures reçues qui s'applique.
+      registrales: Avant le 16 du mois suivant.
+      note: Le SII n'a pas de voie d'annulation distincte au niveau légal — il applique l'art. 70.
+      source: "Art. 69 bis RD 1624/1992"
+    aeat_communication:
+      what: >
+        Pour 80.Tres et 80.Cuatro, le créancier DOIT communiquer la modification par voie
+        électronique DANS LE MOIS suivant l'expédition de la rectificativa, copies et justificatifs
+        de réclamation joints. Ce n'est PAS une demande d'annulation — c'est une déclaration.
+      source: "Art. 24.2.a).2º RD 1624/1992"
+    out_of_vocabulary:
+      - name: "Rectification absorbée dans une facture ordinaire ultérieure"
+        what: >
+          Retours de marchandises, emballages et conditionnements lors d'une livraison postérieure
+          au MÊME destinataire : « NO SERÁ NECESARIA LA EXPEDICIÓN DE UNA FACTURA RECTIFICATIVA,
+          sino que se podrá practicar la rectificación en la factura que se expida por dicho
+          suministro, restando el importe… ». Condition : même taux pour toutes les opérations.
+          Ni avoir, ni rectificative — une facture NORMALE qui porte l'écart.
+        source: "Art. 15.2 ¶2 RD 1619/2012"
+      - name: "Rectificative multiple ou par période"
+        what: >
+          Un document unique peut rectifier plusieurs factures ; pour les remises de volume,
+          « NO SERÁ NECESARIA LA IDENTIFICACIÓN DE LAS FACTURAS RECTIFICADAS, bastando la
+          determinación del periodo ».
+        source: "Art. 15.4 ¶2"
+      - name: "Documentos de cargo o abono émis par le DESTINATAIRE"
+        what: >
+          Sur autorisation de l'AEAT ou des Haciendas Forales, l'ACHETEUR émet lui-même les
+          documents de débit ou crédit constatant la rectification et les annote dans son livre de
+          factures reçues AU LIEU des rectificatives du fournisseur.
+          À rapprocher de la nota korygująca polonaise — sauf que la Pologne vient de supprimer la
+          sienne et que l'Espagne conserve la sienne sur autorisation.
+        source: "RD 238/2026, art. sur les estados, ap. 5"
+      - name: "Subsanación de registre Veri*Factu"
+        what: Correction d'un registre déjà remis, DISTINCTE de l'annulation.
+        source: "Orden HAC/1177/2024, L17"
+    open_questions:
+      - id: es_methode_imposee_techniquement
+        what: >
+          L'art. 15 laisse le choix entre les deux méthodes. Mais les spécifications techniques SII
+          contraignent-elles le type `S` (sustitución) ou `I` (diferencias) pour certains types de
+          rectificative, notamment R2 et R3 (art. 80.Tres et 80.Cuatro) ? Déterminant pour le moteur.
+        settled_by: "Descripción del servicio SII — SuministroLR de l'AEAT, schémas SuministroInformacion.xsd, champ TipoRectificativa."
+      - id: es_sii_operation_annulation
+        what: Le service web SII expose-t-il une opération baja/anulación distincte des types A0/A1 ?
+        settled_by: La même spécification technique AEAT.
+
+  MX:
+    provenance: sourced
+    consulted: 2026-08-29
+    headline: >
+      LE MEXIQUE EST LE SEUL PAYS OÙ NE PAS ANNULER EST UNE INFRACTION. Ne pas annuler un CFDI
+      d'ingresos « emitido por error o sin una causa para ello », ou l'annuler hors délai, est
+      sanctionné par le CFF art. 81 fr. XLVI. Ailleurs l'annulation est une faculté, ici c'est une
+      obligation — et elle est bornée à l'exercice d'émission.
+    routes:
+      CREDIT_NOTE:
+        status: open
+        nature: Ouvert en droit, requis de fait pour la déductibilité.
+        applies_to: >
+          « Amparan devoluciones, descuentos y bonificaciones para efectos de deducibilidad y
+          también puede utilizarse para corregir o restar un comprobante de ingresos EN CUANTO A LOS
+          MONTOS QUE DOCUMENTA ». Relation TipoRelacion 01.
+        not_time_bound: >
+          À la différence de l'annulation, le CFDI tipo E n'est PAS borné à l'exercice. Une fois
+          l'exercice clos, c'est la seule route restante.
+        source: "Guía de llenado Anexo 20 v4.0, Apéndice 2 ; catalogue c_TipoRelacion"
+      DEBIT_NOTE:
+        status: open
+        nature: SANS TYPE DE DOCUMENT DÉDIÉ — réponse nette à la question posée.
+        applies_to: >
+          Il n'existe PAS de CFDI « nota de débito ». La hausse se fait par un NOUVEAU CFDI tipo I
+          (Ingreso), relié par TipoRelacion 02 « Nota de débito de los documentos relacionados ».
+        source: "Catalogue c_TipoRelacion 02 (catCFDI_V_4, 21/08/2026) ; Guía de llenado v4.0"
+      CORRECTIVE_INVOICE:
+        status: forbidden
+        nature: Absence de mécanisme.
+        basis: Un CFDI timbré est immuable — aucune voie d'amendement par référence.
+        source: "Par différence : CFF art. 29-A ¶4-6 ; Anexo 20"
+      CANCEL_AND_REPLACE:
+        status: required
+        applies_to: Quand le DOCUMENT lui-même est faux.
+        basis: >
+          Ordre imposé, confirmé mot pour mot : « SE DEBE ACTUAR EN ESTE ORDEN : 1. emitir el
+          comprobante que contiene los datos correctos, registrando la clave "04" (Sustitución de
+          los CFDI previos) relacionando el folio fiscal del comprobante que se sustituye.
+          2. Al registrar la solicitud de cancelación se debe seleccionar la opción "01"… e incluir
+          el folio fiscal del comprobante emitido en el paso 1. 3. … se validará si se requiere la
+          aceptación del receptor. »
+        source: "Guía de llenado Anexo 20 v4.0 Q42 ; Preguntas frecuentes Q42 (fondement : CFF art. 29-A ¶6) ; RMF 2026 2.7.1.34 ¶5"
+        gap: >
+          C'EST LE PAYS QUI A BESOIN DE CANCEL_AND_REPLACE, et son profil déclare CREDIT_NOTE.
+          L'affordance existe dans l'API, le front et les traductions — et ne s'allume jamais.
+      AUTHORITY_ANNULMENT:
+        status: required
+        nature: LA voie mexicaine, et la seule `required` de ce type dans les sept pays.
+        basis: >
+          « cuando el emisor de un CFDI requiera cancelarlo, podrá solicitar la cancelación A TRAVÉS
+          DEL PORTAL DEL SAT ». Ne pas le faire est une INFRACTION (CFF art. 81 fr. XLVI).
+        time_bound: >
+          « los CFDI SÓLO PODRÁN CANCELARSE EN EL EJERCICIO EN EL QUE SE EXPIDAN y siempre que la
+          persona a favor de quien se expidan acepte su cancelación. »
+        justification: >
+          Obligation accessoire : « deberán JUSTIFICAR Y SOPORTAR DOCUMENTALMENTE EL MOTIVO de dicha
+          cancelación, misma que podrá ser verificada por las autoridades fiscales ».
+        source: "CFF art. 29-A ¶4, ¶5, ¶6 ; CFF art. 81 fr. XLVI ; RMF 2026 2.7.1.34"
+      INTERNAL_CREDIT_NOTE:
+        status: forbidden
+        applies_to: Comme voie de correction.
+        basis: >
+          Le seul document interne documenté par le SAT est un contrôle de remise FUTURE : « el
+          contribuyente podrá, PARA EFECTOS DE CONTROL, emitir un documento interno que demuestre
+          contablemente dicho descuento ». Il doit être suivi d'un CFDI E et ne corrige aucun CFDI
+          émis. Aucun effet fiscal propre.
+        source: "Guía de llenado Anexo 20 v4.0, remise globale future"
+      RESUBMIT_SAME_IDENTITY:
+        status: unverified
+        what: >
+          Un CFDI non timbré n'a pas d'existence fiscale et le folio est attribué par l'émetteur —
+          la question se pose surtout au niveau du PAC.
+        settled_by: "Anexo 20 section I.F « Validaciones adicionales a realizar por el proveedor » et les règles de certification PAC (RMF 2.7.2) sur le retimbrage après rejet."
+      LEDGER_ANNOTATION:
+        status: forbidden
+        applies_to: Comme voie AUTONOME.
+        basis: >
+          Aucune correction purement registrale ne produit d'effet — le CFDI est le support fiscal.
+          L'appui documentaire interne existe, mais comme obligation ACCESSOIRE de l'annulation.
+        source: "CFF art. 29-A ¶6"
+      NO_DOCUMENT_BY_LAW:
+        status: forbidden
+        basis: Sans objet — tout passe par un CFDI timbré.
+      COUNTERPARTY_OBJECTION:
+        status: open
+        what: >
+          Le destinataire ne peut pas détruire le document, mais il peut REFUSER l'annulation, ce
+          qui la bloque. C'est une opposition de la contrepartie à la CORRECTION, pas au document —
+          forme distincte de l'allemande.
+        source: "RMF 2026 2.7.1.34 ¶2-3"
+      ANNOTATED_DUPLICATE:
+        status: unverified
+        settled_by: Non recherchée pour le Mexique.
+    buyer_acceptance:
+      confirmed: >
+        3 JOURS, SILENCE VALANT ACCEPTATION — vérifié. « El receptor del CFDI recibirá un mensaje a
+        través del BUZÓN TRIBUTARIO… por lo que deberá manifestar a través del Portal del SAT, A MÁS
+        TARDAR DENTRO DE LOS TRES DÍAS SIGUIENTES… la aceptación o negación de la cancelación.
+        El SAT CONSIDERARÁ QUE EL RECEPTOR ACEPTA LA CANCELACIÓN del CFDI si transcurrido el
+        plazo… no realiza manifestación alguna. »
+      express_acceptance_required: >
+        Deux exceptions où l'acceptation EXPRESSE est exigée : CFDI ingreso/egreso avec complemento
+        Hidrocarburos y Petrolíferos, et CFDI ingreso avec Carta Porte portant les clés 15101505
+        (diesel), 15101514 et 15101515 (essences).
+      no_acceptance_needed: >
+        12 cas d'annulation sans acceptation (règle 2.7.1.35) : montant ≤ 1 000 MXN, nómina,
+        egresos, traslado, RIF, retenciones, público en general, résidents à l'étranger, et
+        l'annulation DANS LE JOUR OUVRABLE SUIVANT L'ÉMISSION (fr. IX).
+      source: "RMF 2026 2.7.1.34 ¶2-3 et 2.7.1.35"
+    motivo_cancelacion:
+      progress: >
+        PROGRÈS SUR HIER : les CODES sont désormais sourcés en primaire. DOF du jeudi 13 janvier
+        2022, Anexo 20 de la RMF 2022, section I.C « Estándar del servicio de cancelación »,
+        attribut Motivo : « Uso : requerido — VALORES PERMITIDOS : 01 02 03 04 », et dans le XSD
+        les quatre xsd:enumeration.
+      label_01: "« Comprobante emitido con errores con relación » (Guía de llenado v4.0 Q42)"
+      labels_02_03_04: >
+        TOUJOURS INTROUVABLES, et je ne les écris pas. Absence VÉRIFIÉE dans catCFDI_V_4 du
+        21/08/2026 re-téléchargé aujourd'hui (28 feuilles, aucune c_MotivoCancelacion), dans
+        catCFDI_V_33, dans MatrizDeErrores_CFDI_v40, dans la RMF 2026 intégrale, dans l'Anexo 20 du
+        13/01/2022, dans la Guía de llenado et dans les Preguntas frecuentes.
+        www.sat.gob.mx répond 403 « SAT Access Gateway » depuis ce réseau ; cinq chemins candidats
+        sur omawww.sat.gob.mx renvoient 404.
+      related_rule: >
+        FolioSustitucion : « Atributo condicional que representa al UUID que sustituye al folio
+        fiscal cancelado. ES REQUERIDO CUANDO LA CLAVE DEL MOTIVO DE CANCELACIÓN ES 01. »
+        Optionnel au schéma, conditionnel au texte — un cas où le XSD ne porte pas la règle.
+    out_of_vocabulary:
+      - name: "Annulation en cascade obligatoire"
+        what: >
+          « Cuando se cancele un CFDI que tiene relacionados otros CFDI, ESTOS DEBERÁN CANCELARSE
+          PREVIAMENTE. » Contrainte d'ORDRE forte pour un moteur : les CFDI liés se purgent avant
+          le parent. Rien dans notre runtime ne connaît cette notion.
+        source: "RMF 2026, 2.7.1.34 ¶5"
+      - name: "Fenêtre d'annulation libre J+1"
+        what: >
+          Annulation sans aucune acceptation du destinataire « cuando la cancelación se realice
+          DENTRO DEL DÍA HÁBIL SIGUIENTE A SU EXPEDICIÓN ». Une fenêtre en JOURS OUVRABLES, là où
+          notre modèle ne connaît que `windowHours`.
+        source: "RMF 2026, 2.7.1.35 fr. IX"
+      - name: "CFDI E non relié, FormaPago 23 Novación"
+        what: >
+          Avoir émis pour une remise globale FUTURE, sans rattachement à un CFDI d'ingreso,
+          régularisé plus tard par un CFDI I relié en TipoRelacion 02.
+        source: "Guía de llenado Anexo 20 v4.0"
+    open_questions:
+      - id: mx_libelles_motifs
+        what: Les libellés des motifs 02, 03 et 04 restent introuvables. Les codes, eux, sont sourcés.
+        settled_by: "Le catalogue publié par le servicio de cancelación lui-même, ou le portail sat.gob.mx — tous deux derrière le 403. Un accès depuis une IP mexicaine, ou l'annexe 1-A de la RMF."
+      - id: mx_delai_trois_jours
+        what: La RMF dit « tres días » sans préciser si ce sont des jours ouvrables.
+        settled_by: "CFF art. 12 sur le calcul des délais, à rapprocher du « día hábil siguiente » explicite de la règle 2.7.1.35 fr. IX."
 
   US:
     provenance: sourced
