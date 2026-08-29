@@ -144,6 +144,44 @@ function toCapability(p: CompanyRegistryProvider): ProviderCapability {
   };
 }
 
+/**
+ * Les États membres de l'UE — un fait public, pas une règle fiscale.
+ *
+ * Cette liste venait des profils pays du moteur de conformité, supprimé. Elle est ici parce que
+ * VIES couvre l'Union et rien d'autre : sans elle, `capabilities()` ne rendait plus que les pays
+ * ayant leur propre registre national, et la couverture annoncée s'effondrait de plus de cent pays
+ * à quarante. Trouvé en rejouant les tests e2e après la suppression.
+ */
+const EU_MEMBER_STATES: readonly string[] = [
+  'AT',
+  'BE',
+  'BG',
+  'HR',
+  'CY',
+  'CZ',
+  'DK',
+  'EE',
+  'FI',
+  'FR',
+  'DE',
+  'GR',
+  'HU',
+  'IE',
+  'IT',
+  'LV',
+  'LT',
+  'LU',
+  'MT',
+  'NL',
+  'PL',
+  'PT',
+  'RO',
+  'SK',
+  'SI',
+  'ES',
+  'SE',
+];
+
 export class CompanyLookupRegistry {
   constructor(private readonly providers: CompanyRegistryProvider[] = buildDefaultProviders()) {}
 
@@ -202,9 +240,7 @@ export class CompanyLookupRegistry {
 
   /** Capabilities for every country the compliance profiles know about, plus any extra a provider covers. */
   capabilities(): CountryLookupCapability[] {
-    // La liste venait des profils pays du moteur de conformité, supprimé : seuls les pays
-    // que les fournisseurs de recherche couvrent réellement subsistent.
-    const countries = new Set<string>();
+    const countries = new Set<string>(EU_MEMBER_STATES);
     for (const p of this.providers) {
       if (p.countries === 'ALL') continue; // worldwide providers add no country of their own
       for (const c of p.countries) countries.add(c);
