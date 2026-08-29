@@ -51,6 +51,12 @@ export interface InvoiceRenderData {
    * is the behaviour every caller had before.
    */
   kind?: string | null;
+  /**
+   * BG-1 — the mentions the seller's country requires, already resolved and frozen for the issue
+   * date. Resolved upstream (`compliance/profiles/invoice-notes.ts`) rather than here, because which
+   * mentions exist is a question about a jurisdiction and this module must not answer those.
+   */
+  notes?: { subjectCode?: string; text: string }[];
   rawNumber: string | null;
   number: number | null;
   issuedAt: Date | null;

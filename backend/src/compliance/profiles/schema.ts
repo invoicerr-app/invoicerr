@@ -195,6 +195,48 @@ export interface CorrectionRouteRule {
   openQuestion?: string;
 }
 
+/**
+ * A mention a country requires on every invoice — BG-1 in EN 16931 terms.
+ *
+ * France is the case that forced this: C. com. art. L441-9 I al. 5 puts THREE mentions in a single
+ * sentence — the early-payment discount terms, the late-payment rate, and the fixed recovery
+ * indemnity — and omitting them is an administrative offence (L441-9 II: up to 75 000 € for a
+ * natural person, 375 000 € for a company). superpdp rejects the document outright.
+ *
+ * Declared as DATA, never as a branch on the country: the engine renders whatever the profile lists
+ * and names no jurisdiction. A country that requires nothing simply lists nothing.
+ *
+ * `text` may carry `{placeholders}` resolved from `values` below — the late-payment rate changes
+ * every six months, so freezing it in a string would silently print a stale rate.
+ */
+export interface InvoiceNoteRule {
+  /** UNTDID 4451 subject code (BT-21). Optional: BT-22 alone is a valid note. */
+  subjectCode?: string;
+  /** BT-22. `{name}` placeholders are substituted from the resolved values. */
+  text: string;
+  /** The article this mention discharges — carried so a reader can check it, and shown in no UI. */
+  legalRef: string;
+  /**
+   * Marks a mention the LAW supplies a value for, as opposed to one that states a commercial choice.
+   * Only the former may be emitted without asking the user anything.
+   */
+  statutory: boolean;
+}
+
+/**
+ * A value that changes on a calendar schedule and must be frozen at issue date, never recomputed.
+ *
+ * France's supplementary late-payment rate is the ECB main refinancing rate plus ten points, read at
+ * 1 January for the first half-year and 1 July for the second (C. com. art. L441-10 II). An invoice
+ * issued in July carries July's rate for ever; recomputing it in January would restate a document
+ * that was correct when issued.
+ */
+export interface TemporalValue {
+  validFrom: string;
+  validTo?: string;
+  value: string;
+}
+
 export interface LifecyclePolicy {
   immutableAfter: 'ISSUE' | 'CLEARANCE' | 'NEVER';
   /**
@@ -308,6 +350,16 @@ export interface CountryComplianceProfile {
    * proforma is permitted here — hence the UNVERIFIED default rather than an invented AVAILABLE.
    */
   documentKinds?: Temporal<DocumentKindRule>[];
+  /**
+   * Mentions this country requires on every invoice (BG-1). Absent = none researched, which is the
+   * state of every country but France today — and honest, since a missing list must not read as
+   * "this country requires nothing".
+   */
+  invoiceNotes?: Temporal<InvoiceNoteRule>[];
+  /**
+   * Named values the notes interpolate, each on its own calendar. Keyed by placeholder name.
+   */
+  noteValues?: Record<string, TemporalValue[]>;
 
   /** Per-country required identifiers for companies/individuals. */
   requiredIdentifiers: IdentifierRequirement[];

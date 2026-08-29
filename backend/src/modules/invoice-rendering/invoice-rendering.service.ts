@@ -1,3 +1,5 @@
+import { resolveInvoiceNotes, toUblNote } from '@/compliance/profiles/invoice-notes';
+import { defaultRegistry } from '@/compliance/profiles/registry';
 import { documentTypeCode } from './document-type-code';
 import { Injectable, BadRequestException } from '@nestjs/common';
 import * as Handlebars from 'handlebars';
@@ -731,6 +733,9 @@ export class InvoiceRenderingService {
         // BT-3, from the document kind. Was the literal '380' for everything, so a credit note
         // left as a commercial invoice with negative amounts.
         'cbc:InvoiceTypeCode': documentTypeCode(data.kind),
+        // BG-1 — the mentions the country requires (France: C. com. L441-9 I al. 5). `#CODE#text` is
+        // how EN 16931 UBL carries BT-21 alongside BT-22; the generator splits it for CII.
+        ...(data.notes?.length ? { 'cbc:Note': data.notes.map(toUblNote) } : {}),
         'cbc:DocumentCurrencyCode': currency,
         // PEPPOL-EN16931-R003: buyer reference or purchase order reference is required.
         // DE Leitweg-ID takes priority (BT-10, mandatory for B2G); otherwise fall back to the
@@ -792,7 +797,20 @@ export class InvoiceRenderingService {
       throw new BadRequestException('Invoice not found');
     }
 
-    return this.buildEInvoice(invRec);
+    // The transmitting path — renderXmlFormat() goes through here — so this is where the country's
+    // mandatory mentions have to be attached. Frozen at the issue date, falling back to today only
+    // for a document that has none yet (a draft preview).
+    const at = invRec.issuedAt ?? invRec.createdAt ?? new Date();
+    const country = invRec.company?.country ?? null;
+    const iso = country ? guessCountryCode(country) : undefined;
+    const notes = iso
+      ? resolveInvoiceNotes(defaultRegistry.resolve(iso).profile, at).map((n) => ({
+          subjectCode: n.subjectCode,
+          text: n.text,
+        }))
+      : [];
+
+    return this.buildEInvoice({ ...invRec, notes } as never);
   }
 
   async renderXmlFormat(invoiceId: string, format: 'ubl' | 'cii' | 'xrechnung'): Promise<string> {

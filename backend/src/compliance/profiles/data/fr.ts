@@ -294,6 +294,85 @@ export const FR: CountryComplianceProfile = {
     schemes: ['STANDARD', 'FRANCHISE_BASE'],
   },
 
+  /**
+   * Les trois mentions de l'article L441-9 I al. 5 du code de commerce, dans une seule phrase :
+   * « Elle précise les conditions d'escompte applicables en cas de paiement à une date antérieure
+   * […], le taux des pénalités exigibles le jour suivant la date de règlement inscrite sur la
+   * facture ainsi que le montant de l'indemnité forfaitaire pour frais de recouvrement due au
+   * créancier en cas de retard de paiement. »
+   *
+   * Les trois sont `statutory: true` : la loi fournit la valeur, l'utilisateur n'a rien à saisir.
+   * Un taux stipulé différent du supplétif serait, lui, un choix commercial — il n'est pas ici.
+   *
+   * Aucun libellé n'est imposé pour les deux premières : seul le CONTENU l'est (un montant, un
+   * taux). Le « néant » de l'escompte est la formulation prescrite par la doctrine administrative
+   * (entreprendre.service-public.gouv.fr, fiche F31808), pas par un texte.
+   *
+   * Sources consultées le 2026-08-29 : C. com. art. L441-9, L441-10 II, D441-5 (via
+   * codes.droit.org, consolidation au 21/08/2026 — legifrance renvoie 403 aux requêtes
+   * automatisées) ; entreprendre.service-public.gouv.fr F31808 et F23211 ; BCE, taux directeurs.
+   *
+   * NUANCE À CONNAÎTRE. superpdp rejette nos factures en invoquant une règle « BR-FR-05 » qui
+   * exigerait ces mentions dans BG-1. Cette règle est INTROUVABLE dans les spécifications externes
+   * DGFiP v3.2 (les règles françaises y sont numérotées G1.xx/G2.xx/G6.xx/P1.xx), et BG-1 y est
+   * `0..n`, donc facultatif. Les porter en BG-1 reste néanmoins conforme — les trois codes sont
+   * dans la liste UNTDID 4451 admise par BR-CL-08 — et c'est ce qui satisfait à la fois
+   * l'obligation légale et le contrôle de la plateforme. Seul `AAB` est adossé à une règle DGFiP
+   * (G1.52) ; `PMT` et `PMD` sont utilisés parce que la plateforme les attend, pas parce qu'un
+   * texte français les désigne.
+   */
+  invoiceNotes: [
+    {
+      validFrom: '1900-01-01',
+      value: {
+        subjectCode: 'PMT',
+        text: 'En cas de retard de paiement, une indemnité forfaitaire pour frais de recouvrement de {recoveryIndemnity} est due (art. L441-10 et D441-5 du code de commerce).',
+        legalRef: 'C. com. art. L441-9 I al. 5, L441-10 II, D441-5',
+        statutory: true,
+      },
+    },
+    {
+      validFrom: '1900-01-01',
+      value: {
+        subjectCode: 'PMD',
+        text: "Tout retard de paiement entraîne des pénalités au taux de {lateFeeRate} l'an, exigibles le jour suivant la date de règlement figurant sur la facture, sans qu'un rappel soit nécessaire (art. L441-10 du code de commerce).",
+        legalRef: 'C. com. art. L441-9 I al. 5, L441-10 II',
+        statutory: true,
+      },
+    },
+    {
+      validFrom: '1900-01-01',
+      value: {
+        subjectCode: 'AAB',
+        text: 'Escompte pour paiement anticipé : néant',
+        legalRef: 'C. com. art. L441-9 I al. 5 ; formulation : service-public F31808',
+        statutory: true,
+      },
+    },
+  ],
+
+  /**
+   * Le taux supplétif est le taux de refinancement de la BCE majoré de 10 points, lu au 1er janvier
+   * pour le premier semestre et au 1er juillet pour le second (L441-10 II). Il est donc daté, et
+   * FIGÉ à l'émission : une facture de juillet garde le taux de juillet pour toujours.
+   *
+   * Plancher légal : un taux stipulé ne peut être inférieur à 3 fois le taux d'intérêt légal
+   * (8,25 % au 2e semestre 2026 selon service-public). Le supplétif le dépasse largement, donc
+   * l'appliquer satisfait le plancher sans calcul.
+   *
+   * À MAINTENIR DEUX FOIS PAR AN. La ligne ouverte ci-dessous porte le dernier taux connu ; quand
+   * la BCE bouge, ajouter une entrée datée plutôt que modifier celle-ci.
+   */
+  noteValues: {
+    recoveryIndemnity: [{ validFrom: '2012-01-01', value: '40 €' }],
+    lateFeeRate: [
+      // BCE MRO 2,15 % au 1er janvier 2026 → 12,15 %
+      { validFrom: '2026-01-01', validTo: '2026-07-01', value: '12,15 %' },
+      // BCE MRO 2,40 % depuis le 17 juin 2026, donc en vigueur au 1er juillet → 12,40 %
+      { validFrom: '2026-07-01', value: '12,40 %' },
+    ],
+  },
+
   lifecycle: [
     // Pre-reform: immutable after issue, credit-note corrections, no mandatory status set.
     {
