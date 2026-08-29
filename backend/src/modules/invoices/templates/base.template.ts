@@ -156,6 +156,22 @@ export const baseTemplate = `
     </div>
     {{/if}}
     
+    {{!--
+        BG-15 — l'adresse de livraison, quand elle diffère de celle du client. Obligatoire en France
+        pour les micro-entreprises et PME à partir du 2027-09-01, et de toute façon utile à qui lit
+        la facture. Rien n'est affiché quand rien n'a été saisi : un cadre « Livraison » vide dirait
+        moins que le silence.
+    --}}
+    {{#if deliveryExists}}
+    <div class="delivery-address">
+        <h4>{{labels.deliveryAddress}}</h4>
+        <p>{{#if delivery.address}}{{delivery.address}}<br>{{/if}}
+        {{#if delivery.addressLine2}}{{delivery.addressLine2}}<br>{{/if}}
+        {{#if delivery.city}}{{delivery.city}}{{#if delivery.postalCode}}, {{delivery.postalCode}}{{/if}}<br>{{/if}}
+        {{#if delivery.country}}{{delivery.country}}{{/if}}</p>
+    </div>
+    {{/if}}
+
     {{#if noteExists}}
     <div class="notes">
         <h4>{{labels.notes}}</h4>

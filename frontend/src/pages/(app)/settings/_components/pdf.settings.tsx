@@ -429,6 +429,8 @@ export interface TemplateSettings {
     discount: string
     vat: string
     grandTotal: string
+    /** BG-15 — obligatoire en France pour les TPE au 2027-09-01 quand elle diffère de celle du client. */
+    deliveryAddress: string
     vatRate: string
     notes: string
     paymentMethod: string
@@ -506,6 +508,7 @@ export default function PDFTemplatesSettings() {
       discount: t("settings.pdfTemplates.defaultLabels.discount"),
       vat: t("settings.pdfTemplates.defaultLabels.vat"),
       grandTotal: t("settings.pdfTemplates.defaultLabels.grandTotal"),
+      deliveryAddress: t("settings.pdfTemplates.defaultLabels.deliveryAddress"),
       vatRate: t("settings.pdfTemplates.defaultLabels.vatRate"),
       notes: t("settings.pdfTemplates.defaultLabels.notes"),
       paymentMethod: t("settings.pdfTemplates.defaultLabels.paymentMethod"),

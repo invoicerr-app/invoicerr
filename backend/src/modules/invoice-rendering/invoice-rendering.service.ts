@@ -337,6 +337,15 @@ export class InvoiceRenderingService {
       // Same resolver as the structured path, so the two can never disagree.
       legalMentions: pdfLegalMentions,
       legalMentionsExist: pdfLegalMentions.length > 0,
+      // BG-15 on the readable invoice, for the same reason: the structured document is only half.
+      delivery: {
+        address: invoice.deliveryAddress,
+        addressLine2: invoice.deliveryAddressLine2,
+        postalCode: invoice.deliveryPostalCode,
+        city: invoice.deliveryCity,
+        country: invoice.deliveryCountry,
+      },
+      deliveryExists: !!(invoice.deliveryAddress || invoice.deliveryCity || invoice.deliveryPostalCode),
 
       // Labels
       labels: {
@@ -777,7 +786,32 @@ export class InvoiceRenderingService {
         'cbc:BuyerReference': buyerLeitwegId || data.rawNumber || (data.number?.toString() ?? '0'),
         'cac:AccountingSupplierParty': { 'cac:Party': sellerParty as any },
         'cac:AccountingCustomerParty': { 'cac:Party': buyerParty as any },
-        'cac:Delivery': { 'cbc:ActualDeliveryDate': issueDateStr },
+        // BG-15 — the delivery location, added to the date that was already here. Emitted only when
+        // an address is actually recorded: an empty `DeliveryLocation` would assert that delivery
+        // happened somewhere unnamed, which is worse than saying nothing.
+        'cac:Delivery': {
+          'cbc:ActualDeliveryDate': issueDateStr,
+          ...(data.deliveryAddress || data.deliveryCity || data.deliveryPostalCode
+            ? {
+                'cac:DeliveryLocation': {
+                  'cac:Address': {
+                    ...(data.deliveryAddress ? { 'cbc:StreetName': data.deliveryAddress } : {}),
+                    ...(data.deliveryAddressLine2
+                      ? { 'cbc:AdditionalStreetName': data.deliveryAddressLine2 }
+                      : {}),
+                    ...(data.deliveryCity ? { 'cbc:CityName': data.deliveryCity } : {}),
+                    ...(data.deliveryPostalCode ? { 'cbc:PostalZone': data.deliveryPostalCode } : {}),
+                    'cac:Country': {
+                      'cbc:IdentificationCode':
+                        guessCountryCode(data.deliveryCountry ?? '') ??
+                        guessCountryCode(data.client.country ?? '') ??
+                        'FR',
+                    },
+                  },
+                },
+              }
+            : {}),
+        },
         // BR-DE-14: payment means code (mandatory in XRechnung). Derived from paymentMethod.
         'cac:PaymentMeans': [paymentMeansEntry] as any,
         // BG-20: document-level allowance/charge (discount). Empty array when no discount.

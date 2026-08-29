@@ -37,6 +37,7 @@ const LABEL_FIELDS: { key: keyof TemplateSettings["labels"]; i18nKey: string }[]
   { key: "discount", i18nKey: "discount" },
   { key: "vat", i18nKey: "vat" },
   { key: "grandTotal", i18nKey: "grandTotal" },
+  { key: "deliveryAddress", i18nKey: "deliveryAddress" },
   { key: "notes", i18nKey: "notes" },
   { key: "paymentMethod", i18nKey: "paymentMethod" },
   { key: "paymentDetails", i18nKey: "paymentDetails" },

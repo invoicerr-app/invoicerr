@@ -302,6 +302,8 @@ model PDFConfig {
   quoteFor       String @default("Quote for:")
   receivedFrom   String @default("Received from:")
   invoiceRefer   String @default("Invoice reference:")
+  // BG-15 : obligatoire en France pour les TPE au 2027-09-01 quand elle diffère de celle du client.
+  deliveryAddress String @default("Delivery address:")
   quantity       String @default("Qty")
   vatRate        String @default("VAT (%)")
   unitPrice      String @default("Unit price")

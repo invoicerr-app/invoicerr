@@ -65,6 +65,23 @@ export interface InvoiceRenderData {
    */
   precedingInvoice?: { number: string; issueDate: string } | null;
   /**
+   * BG-15 — where the goods or services actually went, when that is not the buyer's address.
+   *
+   * The columns existed on `Invoice` (schema.prisma:492-497) and reached NOTHING: zero occurrences
+   * of `deliveryAddress` anywhere in the rendering or compliance layers. A user could fill the field
+   * and the document would never mention it.
+   *
+   * France makes it mandatory for micro-entreprises and PME from 2027-09-01 when it differs from the
+   * client's address (CGI ann. II art. 242 nonies A, via la loi de finances 2024 art. 91). The FIELD
+   * is EN 16931 and universal, so it is emitted whenever it is set — no country decides whether an
+   * address can be written down.
+   */
+  deliveryAddress?: string | null;
+  deliveryAddressLine2?: string | null;
+  deliveryPostalCode?: string | null;
+  deliveryCity?: string | null;
+  deliveryCountry?: string | null;
+  /**
    * BG-1 — the mentions the seller's country requires, already resolved and frozen for the issue
    * date. Resolved upstream (`compliance/profiles/invoice-notes.ts`) rather than here, because which
    * mentions exist is a question about a jurisdiction and this module must not answer those.
