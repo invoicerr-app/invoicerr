@@ -254,6 +254,22 @@ synthesis:
         ORDRE entre documents liés. Rien dans le runtime ne connaît cette notion.
       established_by: "RMF 2026 2.7.1.34 ¶5"
 
+    - id: R-P3-09
+      what: >
+        Le bouton « Modifier » de la vue détail d'une facture ne faisait que fermer la boîte de
+        dialogue. Il était rendu, traduit, testé au niveau API — et ne modifiait rien. Aucun test ne
+        pouvait le voir : ils pilotaient tous l'action par `cy.request`.
+      established_by: "clic réel dans l'écran, 2026-08-28"
+      fixed: "invoice-view.tsx — le bouton appelle `onEditInvoice`; couvert par 19-correction-flow test 02, vérifié par mutation"
+
+    - id: R-P3-10
+      what: >
+        `GET /api/invoices` ignore tout paramètre de pagination sauf `page` : la taille de page est
+        figée à 10 côté service. Les appelants qui passent `?limit=100` croient lire tout le jeu et
+        lisent dix lignes.
+      established_by: "invoices.service.ts getInvoices — `const pageSize = 10`"
+      status: "constaté, non corrigé — un correctif change un contrat d'API public"
+
   what_p3_t02_must_not_do: >
     Construire un TROISIÈME mécanisme d'échéance. D-002 signalait déjà que `obligations[].deadline`
     doublonnait `deadlineHours`. Les délais trouvés ici — 5 jours italiens, 3 jours mexicains,

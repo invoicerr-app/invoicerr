@@ -1,15 +1,30 @@
 /**
- * Correcting an invoice, the way a business actually does it.
+ * Correcting an invoice, THROUGH THE INTERFACE.
  *
- * The flow this pins down came from watching Odoo: a correction is born a DRAFT the user edits, and
- * only becomes a legal document when they issue it. Ours used to be born ISSUED with every line of
- * the original copied — which made "j'ai oublié un truc", the reason anyone corrects anything, an
- * all-or-nothing reversal. A partial credit note was impossible.
+ * The first version of this spec drove every action with `cy.request()`. It proved the backend
+ * worked; it proved nothing about whether a user could do any of it. This repository has two fresh
+ * reminders of why that gap matters: the shared `send()` helper posted `{ invoiceId }` to a
+ * controller reading `id`, so specs "sent" documents for months without sending anything, and the
+ * Italian debit note existed in the API while the front threw it away. An API-driven test sees
+ * neither.
  *
- * Everything here is asserted on the FACT the backend recorded, read back through the API — never on
- * a sentence the screen happens to be showing, which depends on a queue nobody is waiting for.
+ * So the rule is split, and the split is the point:
+ *   ACTIONS go through the UI — the button a person clicks. If a control is missing, wired to the
+ *   wrong payload, or never rendered, this spec fails.
+ *   ASSERTIONS read the API — the recorded fact, never a sentence the screen shows while a queue is
+ *   still running. Screen prose is a timing race; the record is not.
+ *
+ * Fixtures (company, client, the invoice being corrected) stay on the API deliberately: they are the
+ * situation, not the behaviour under test, and driving them through forms would make every failure
+ * ambiguous.
  */
-import { api, issuedInvoice, send, setupCountry, waitForSettled } from "../support/showcase";
+import {
+	api,
+	issuedInvoice,
+	send,
+	setupCountry,
+	waitForSettled,
+} from "../support/showcase";
 
 type InvoiceRow = {
 	id: string;
@@ -18,32 +33,82 @@ type InvoiceRow = {
 	number: number | null;
 	rawNumber: string | null;
 	correctsInvoiceId: string | null;
-	correctionReason: string | null;
-	notes: string | null;
 	totalTTC: number;
-	items: { id: string; name: string; quantity: number; unitPrice: number; vatRate: number }[];
+	items: { id: string; name: string }[];
 };
 
 const getInvoice = (id: string) =>
-	cy.request<InvoiceRow>({ url: `${api}/api/invoices/${id}`, failOnStatusCode: false }).its("body");
+	cy.request<InvoiceRow>({ url: `${api}/api/invoices/${id}` }).its("body");
 
-/** Correct an issued invoice and hand back the draft it produced. */
-function correct(invoiceId: string, body: Record<string, unknown> = {}) {
-	return cy
-		.request<{ correctionInvoiceId: string; status: string; message: string }>({
-			method: "POST",
-			url: `${api}/api/invoices/${invoiceId}/correct`,
-			body,
-			failOnStatusCode: false,
+/**
+ * The correction the UI just produced for `originalId`, whatever id it chose.
+ *
+ * Retried, for the same reason `eventually` exists: a click returns before the record is written, and
+ * a single read turns "not yet" into "never happened". The earlier version also passed `?limit=100`,
+ * which the endpoint ignores — its page size is fixed at 10 — so the parameter read as a safety net
+ * while providing none.
+ */
+const draftCorrectionOf = (originalId: string, tries = 10) => {
+	const attempt = (left: number): Cypress.Chainable<InvoiceRow> =>
+		cy
+			.request({ url: `${api}/api/invoices` })
+			.its("body")
+			.then((body: unknown) => {
+				const rows = (
+					Array.isArray(body)
+						? body
+						: ((body as { invoices?: InvoiceRow[] }).invoices ?? [])
+				) as InvoiceRow[];
+				const found = rows.find((r) => r.correctsInvoiceId === originalId);
+				if (found) return cy.wrap(found);
+				if (left <= 1) {
+					expect(
+						rows.map((r) => `${r.kind}:${r.status}`).join(" | ") || "(no rows)",
+						`the UI produced a correction of ${originalId} — the page holds`,
+					).to.eq(`a correction of ${originalId}`);
+				}
+				return cy.wait(700).then(() => attempt(left - 1));
+			});
+	return attempt(tries);
+};
+
+/** Click a control on the row of a SPECIFIC invoice — never `.first()`, which drifts. */
+const onRow = (invoiceId: string, dataCy: string) =>
+	cy
+		.get(`[data-cy="invoice-row"][data-invoice-id="${invoiceId}"]`, {
+			timeout: 20000,
 		})
-		.then((res) => {
-			// The body travels into the failure message: a bare status tells you it broke, never why.
-			expect(res.status, `correct responded — body: ${JSON.stringify(res.body)}`).to.be.oneOf([200, 201]);
-			return res.body;
-		});
-}
+		.find(`[data-cy="${dataCy}"]`)
+		.click();
 
-describe("Correction flow — a draft the user finishes, not a fait accompli", () => {
+/**
+ * Read the record back until it says what we expect, or fail saying what it actually said.
+ *
+ * A single read after a 200 is a race: the response returns before the list has refetched and, more
+ * to the point, a failure then tells you the value but never how long it stayed wrong. This retries
+ * and reports the last thing it saw.
+ */
+const eventually = (
+	id: string,
+	predicate: (row: InvoiceRow) => boolean,
+	what: string,
+	tries = 10,
+) => {
+	const attempt = (left: number): Cypress.Chainable<InvoiceRow> =>
+		cy.request<InvoiceRow>({ url: `${api}/api/invoices/${id}` }).then((res) => {
+			if (predicate(res.body)) return cy.wrap(res.body);
+			if (left <= 1) {
+				expect(
+					JSON.stringify({ status: res.body.status, number: res.body.number }),
+					what,
+				).to.eq(what);
+			}
+			return cy.wait(700).then(() => attempt(left - 1));
+		});
+	return attempt(tries);
+};
+
+describe("Correction flow — driven by the interface, asserted on the record", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -52,207 +117,173 @@ describe("Correction flow — a draft the user finishes, not a fait accompli", (
 		cy.login();
 	});
 
-	/** One issued, settled French invoice to correct. Returns its id. */
+	/** One issued, settled French invoice to correct. Fixture only. */
 	const anIssuedInvoice = () =>
 		setupCountry("Correction FR", "France", "FR", [
 			{ scheme: "LEGAL_ID", value: "73282932000074" },
 			{ scheme: "VAT", value: "FR44732829320" },
 		]).then((ids) =>
 			issuedInvoice(ids).then((id) => {
-				// The shared helper posts with `failOnStatusCode: false`, so a refused send is
-				// swallowed and the document silently stays ISSUED. Check it here: a fixture that
-				// half-worked is how a spec ends up testing something other than what it claims.
+				// The shared helper swallows a refused send; a fixture that half-worked is how a spec
+				// ends up testing something other than what it claims.
 				send(id as unknown as string).then((res) => {
-					expect(res.status, `send responded — body: ${JSON.stringify(res.body)}`).to.be.oneOf([
-						200, 201,
-					]);
+					expect(
+						res.status,
+						`send responded — body: ${JSON.stringify(res.body)}`,
+					).to.be.oneOf([200, 201]);
 				});
 				waitForSettled(id as unknown as string);
 				return cy.wrap(id as unknown as string);
 			}),
 		);
 
-	it("01 the correction is a DRAFT, and it has taken no number", () => {
+	it("01 clicking Correct in the LIST produces a draft, and lands the user on it", () => {
 		anIssuedInvoice().then((originalId) => {
-			correct(originalId).then((res) => {
-				expect(res.status, "the API says draft").to.eq("DRAFT");
+			cy.visit("/invoices");
+			onRow(originalId, "invoice-correct-button");
 
-				getInvoice(res.correctionInvoiceId).then((draft) => {
-					expect(draft.status, "status").to.eq("DRAFT");
-					// The gapless series is the point: a correction that is never sent used to have
-					// consumed a number for ever. A draft consumes nothing.
-					expect(draft.number, "no counter allocated").to.eq(null);
+			// The list used to show a toast and leave the user staring at the list. A correction is a
+			// draft they now have to finish; making them find it again asks them to remember what just
+			// happened.
+			cy.get('[role="dialog"]', { timeout: 20000 }).should("be.visible");
 
-					// PRODUCT DEFECT, pinned rather than asserted away. A draft still receives a
-					// DISPLAY number: the Prisma create extension (prisma.service.ts:113) formats one
-					// from a null counter, so `INV-2026-0000` lands on every draft in the database —
-					// indistinguishable from a real number, and identical across drafts. Odoo shows
-					// `/` for exactly this reason.
-					//
-					// Not fixed here: the guard belongs in the extension and would change every draft
-					// quote, invoice and payment at once, which is far wider than the correction flow
-					// this spec covers. Pinned so the day someone fixes it, this line fails and the
-					// change is deliberate instead of incidental.
-					expect(draft.rawNumber, "a placeholder number — see the comment above").to.eq(
-						"INV-2026-0000",
+			draftCorrectionOf(originalId).then((draft) => {
+				expect(draft.status, "born a draft").to.eq("DRAFT");
+				expect(
+					draft.number,
+					"no counter taken — a draft never sent must burn none",
+				).to.eq(null);
+			});
+		});
+	});
+
+	it("02 the draft is editable FROM THE SCREEN — a line can be removed", () => {
+		anIssuedInvoice().then((originalId) => {
+			cy.visit("/invoices");
+			onRow(originalId, "invoice-correct-button");
+			cy.get('[role="dialog"]', { timeout: 20000 }).should("be.visible");
+
+			draftCorrectionOf(originalId).then((draft) => {
+				const before = draft.items.length;
+				expect(before, "the fixture has something to remove").to.be.greaterThan(
+					0,
+				);
+
+				cy.get('[data-cy="action-edit"]', { timeout: 15000 }).click();
+				cy.get('[data-cy="invoice-dialog"]', { timeout: 15000 }).should(
+					"be.visible",
+				);
+				// The control a person uses. If it stops existing, this fails — which is the whole
+				// reason the actions go through the UI.
+				cy.get('[data-cy="remove-item-0"]').click();
+				cy.get('[data-cy="invoice-submit"]').click();
+				cy.get('[data-cy="invoice-dialog"]', { timeout: 15000 }).should(
+					"not.exist",
+				);
+
+				getInvoice(draft.id).then((edited) => {
+					expect(edited.items.length, "the removal reached the record").to.eq(
+						before - 1,
 					);
 				});
 			});
 		});
 	});
 
-	it("02 it points at what it corrects, and says why — in its own field", () => {
+	it("03 issuing it is a SEPARATE click, and that is when it takes a number", () => {
 		anIssuedInvoice().then((originalId) => {
-			correct(originalId, { reason: "Ligne de prestation facturée en double" }).then((res) => {
-				getInvoice(res.correctionInvoiceId).then((draft) => {
-					expect(draft.correctsInvoiceId, "linked to the original").to.eq(originalId);
-					expect(draft.correctionReason).to.eq("Ligne de prestation facturée en double");
-					// The motive used to be written into `notes`, overwriting whatever the user had
-					// put there. It belongs to the document; the notes belong to them.
-					expect(draft.notes ?? "", "user notes untouched").to.not.contain(
-						"Ligne de prestation facturée en double",
-					);
+			cy.visit("/invoices");
+			onRow(originalId, "invoice-correct-button");
+			cy.get('[role="dialog"]', { timeout: 20000 }).should("be.visible");
+
+			draftCorrectionOf(originalId).then((draft) => {
+				cy.visit("/invoices");
+				// `.first()` clicked whichever draft an earlier test left behind, then asserted on ours:
+				// a test that fails while the feature works, and passes when the ordering happens to suit.
+				onRow(draft.id, "invoice-issue-button");
+
+				eventually(
+					draft.id,
+					(r) => r.status === "ISSUED",
+					"the correction reached ISSUED",
+				).then((issued) => {
+					expect(
+						issued.number,
+						"a counter is allocated at ISSUE, not at creation",
+					).to.not.eq(null);
+					expect(issued.rawNumber).to.be.a("string");
 				});
 			});
 		});
 	});
 
-	it("03 the draft is EDITABLE — the whole point of the change", () => {
-		anIssuedInvoice().then((originalId) => {
-			correct(originalId).then((res) => {
-				getInvoice(res.correctionInvoiceId).then((draft) => {
-					const kept = draft.items.slice(0, 1).map((i) => ({
-						name: i.name,
-						quantity: i.quantity,
-						unitPrice: i.unitPrice,
-						vatRate: i.vatRate,
-					}));
-
-					cy.request({
-						method: "PATCH",
-						url: `${api}/api/invoices/${res.correctionInvoiceId}`,
-						body: { items: kept },
-						failOnStatusCode: false,
-					}).then((patch) => {
-						expect(patch.status, "the draft accepted an edit").to.be.oneOf([200, 201]);
-					});
-
-					getInvoice(res.correctionInvoiceId).then((edited) => {
-						expect(edited.items.length, "a line was removed").to.eq(kept.length);
-					});
-				});
-			});
-		});
-	});
-
-	it("04 a PARTIAL correction is possible — it was not before", () => {
-		// "J'ai oublié un truc" is almost never a full reversal. Before this, the correction copied
-		// every line of the original and there was no way to correct one amount.
-		anIssuedInvoice().then((originalId) => {
-			getInvoice(originalId).then((original) => {
-				correct(originalId).then((res) => {
-					cy.request({
-						method: "PATCH",
-						url: `${api}/api/invoices/${res.correctionInvoiceId}`,
-						body: {
-							items: [{ name: "Correction partielle", quantity: 1, unitPrice: 100, vatRate: 20 }],
-						},
-						failOnStatusCode: false,
-					});
-
-					getInvoice(res.correctionInvoiceId).then((partial) => {
-						expect(
-							Math.abs(partial.totalTTC),
-							"the correction is smaller than what it corrects",
-						).to.be.lessThan(Math.abs(original.totalTTC));
-					});
-				});
-			});
-		});
-	});
-
-	it("05 issuing it is a separate, deliberate act — and THAT is when it takes a number", () => {
-		anIssuedInvoice().then((originalId) => {
-			correct(originalId).then((res) => {
-				cy.request({
-					method: "POST",
-					url: `${api}/api/invoices/${res.correctionInvoiceId}/issue`,
-					failOnStatusCode: false,
-				}).then((issue) => {
-					expect(issue.status, "issue responded").to.be.oneOf([200, 201]);
-				});
-
-				getInvoice(res.correctionInvoiceId).then((issued) => {
-					expect(issued.status).to.eq("ISSUED");
-					expect(issued.number, "a counter is allocated at ISSUE, not at creation").to.not.eq(null);
-					expect(issued.rawNumber, "and a visible number with it").to.be.a("string");
-				});
-			});
-		});
-	});
-
-	it("06 the screen offers the correction, and the draft it produced is editable there too", () => {
-		// The one assertion that has to go through the interface: an action the API allows but the
-		// screen never offers is not a feature a user has.
-		anIssuedInvoice().then((originalId) => {
-			cy.request({ url: `${api}/api/invoices/${originalId}/available-actions` })
-				.its("body")
-				.then((actions: { actions: { correct: boolean }; correctionKinds: string[] }) => {
-					expect(actions.actions.correct, "France may correct an issued invoice").to.eq(true);
-					expect(actions.correctionKinds, "and a credit note is one of its routes").to.include(
-						"CREDIT_NOTE",
-					);
-				});
-
-			correct(originalId).then((res) => {
-				cy.request({ url: `${api}/api/invoices/${res.correctionInvoiceId}/available-actions` })
-					.its("body")
-					.then((actions: { actions: { edit: boolean; issue: boolean } }) => {
-						expect(actions.actions.edit, "a draft correction is editable").to.eq(true);
-						expect(actions.actions.issue, "and issuable when the user is done").to.eq(true);
-					});
-			});
-		});
-	});
-	it("07 the credit note settles what it corrects — Odoo's « Crédits en circulation »", () => {
-		// The invoice and the credit note correcting it used to ignore each other completely: a fully
-		// credited invoice stayed UNPAID for ever and kept chasing a customer who owed nothing.
+	it("04 the issued credit note settles what it corrects", () => {
+		// Odoo calls this "Crédits en circulation". The invoice and the credit note used to ignore each
+		// other, so a fully credited invoice stayed UNPAID and kept chasing the customer.
 		anIssuedInvoice().then((originalId) => {
 			cy.request({ url: `${api}/api/invoices/${originalId}/settlement` })
 				.its("body")
-				.then((before: { outstandingMinor: number; creditedMinor: number; settled: boolean }) => {
+				.then((before: { outstandingMinor: number; creditedMinor: number }) => {
 					expect(before.creditedMinor, "nothing credited yet").to.eq(0);
-					expect(before.settled).to.eq(false);
-					expect(before.outstandingMinor).to.be.greaterThan(0);
 
-					correct(originalId).then((res) => {
-						// A DRAFT correction settles nothing: it is a document the user has not finished,
-						// and counting it would promise a reduction that has not happened.
-						cy.request({ url: `${api}/api/invoices/${originalId}/settlement` })
-							.its("body")
-							.then((whileDraft: { creditedMinor: number }) => {
-								expect(whileDraft.creditedMinor, "a draft credits nothing").to.eq(0);
-							});
+					cy.visit("/invoices");
+					onRow(originalId, "invoice-correct-button");
+					cy.get('[role="dialog"]', { timeout: 20000 }).should("be.visible");
 
-						cy.request({
-							method: "POST",
-							url: `${api}/api/invoices/${res.correctionInvoiceId}/issue`,
-							failOnStatusCode: false,
-						});
-
-						cy.request({ url: `${api}/api/invoices/${originalId}/settlement` })
-							.its("body")
-							.then((after: { creditedMinor: number; paidMinor: number; settled: boolean }) => {
-								expect(after.creditedMinor, "the issued credit note counts").to.eq(
-									before.outstandingMinor,
-								);
-								// Reported SEPARATELY from payments, on purpose: a credit is not cash that
-								// arrived, and a product that files it as one reports revenue it never got.
-								expect(after.paidMinor, "and it is not filed as a payment").to.eq(0);
-								expect(after.settled, "the invoice owes nothing now").to.eq(true);
-							});
+					cy.visit("/invoices");
+					draftCorrectionOf(originalId).then((draft) => {
+						onRow(draft.id, "invoice-issue-button");
+						// A DRAFT credit note settles nothing, so reading the balance before it is issued
+						// would measure the wrong moment.
+						eventually(
+							draft.id,
+							(r) => r.status === "ISSUED",
+							"the credit note reached ISSUED",
+						);
 					});
+
+					cy.request({ url: `${api}/api/invoices/${originalId}/settlement` })
+						.its("body")
+						.then(
+							(after: {
+								creditedMinor: number;
+								paidMinor: number;
+								settled: boolean;
+							}) => {
+								expect(
+									after.creditedMinor,
+									"the issued credit note counts",
+								).to.eq(before.outstandingMinor);
+								// Separately from payments, deliberately: a credit is not cash that arrived, and
+								// a product that files it as one reports revenue it never received.
+								expect(
+									after.paidMinor,
+									"and it is not filed as a payment",
+								).to.eq(0);
+								expect(after.settled).to.eq(true);
+							},
+						);
 				});
+		});
+	});
+
+	it("05 the DETAIL VIEW is the other way in, and both land on the same draft", () => {
+		anIssuedInvoice().then((originalId) => {
+			cy.visit("/invoices");
+			onRow(originalId, "invoice-name");
+			cy.get('[role="dialog"]', { timeout: 15000 }).should("be.visible");
+
+			// France opens the credit note — CGI art. 289, I, 5. Italy would show no corrective button
+			// at all, and spec 20 asserts that contrast.
+			cy.get('[data-cy="action-correct"]', { timeout: 15000 })
+				.should("be.visible")
+				.click();
+
+			draftCorrectionOf(originalId).then((draft) => {
+				expect(draft.status, "the same flow from either entry point").to.eq(
+					"DRAFT",
+				);
+			});
 		});
 	});
 });

@@ -213,9 +213,20 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
           const data = await res.json()
           if (data.correctionInvoiceId) {
             toast.success(t("invoices.list.messages.correctSuccess"))
-          } else {
-            toast.error(data.message || t("invoices.list.messages.correctError"))
+            mutate?.()
+            // Open the draft, exactly as the detail view does. There are two ways into a correction
+            // and only one of them used to land the user on the document they now have to finish —
+            // from the list they got a toast and were left staring at the list. A correction is a
+            // draft since it stopped being issued on creation; leaving someone to find it again is
+            // asking them to remember what just happened.
+            authenticatedFetch(`/api/invoices/${data.correctionInvoiceId}`)
+              .then((r) => (r.ok ? r.json() : null))
+              .then((draft) => {
+                if (draft) setViewInvoiceDialog(draft as Invoice)
+              })
+            return
           }
+          toast.error(data.message || t("invoices.list.messages.correctError"))
           mutate?.()
         })
         .catch(() => {
@@ -404,7 +415,15 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
             ) : (
               <div className="divide-y">
                 {invoices.map((invoice, index) => (
-                  <div key={index} className="p-4 sm:p-6" data-cy="invoice-row">
+                  <div
+                    key={index}
+                    className="p-4 sm:p-6"
+                    data-cy="invoice-row"
+                    // Which invoice this row is. Without it a test can only reach rows by position,
+                    // and position changes the moment a correction is created — so a spec ends up
+                    // clicking a button on a different document than the one it means.
+                    data-invoice-id={invoice.id}
+                  >
                     <div className="flex flex-row sm:items-center sm:justify-between gap-4">
                       <div className="flex flex-row items-center gap-4 w-full">
                         <div className="p-2 bg-blue-100 rounded-lg mb-4 md:mb-0 w-fit h-fit">
@@ -655,6 +674,7 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
             if (!open) setViewInvoiceDialog(null)
           }}
           onMutate={() => mutate?.()}
+          onEditInvoice={(inv: Invoice) => setEditInvoiceDialog(inv)}
         />
 
         <InvoiceDeleteDialog

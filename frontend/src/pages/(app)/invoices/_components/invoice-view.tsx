@@ -86,6 +86,18 @@ interface InvoiceViewDialogProps {
    * you on the draft credit note for the same reason.
    */
   onOpenInvoice?: (invoiceId: string) => void
+  /**
+   * Open the edit form for the invoice being viewed.
+   *
+   * Without it the Edit button only CLOSED the dialog — a dead control that looked like a feature.
+   * A UI-driven test found it; an API-driven one never could, because the endpoint was fine all
+   * along and nobody could reach it from here.
+   *
+   * LIMIT, named rather than hidden: the progression view mounts this dialog without an edit form of
+   * its own, so the button there still only closes. Editing lives in the list view, which is where
+   * this is wired. Giving progression its own form is a change to that view, not to this one.
+   */
+  onEditInvoice?: (invoice: Invoice) => void
 }
 
 export function InvoiceViewDialog({
@@ -93,6 +105,7 @@ export function InvoiceViewDialog({
   onOpenChange,
   onMutate,
   onOpenInvoice,
+  onEditInvoice,
 }: InvoiceViewDialogProps) {
   const { t, i18n } = useTranslation()
   const { data: actions } = useAvailableActions(invoice?.id)
@@ -306,6 +319,7 @@ export function InvoiceViewDialog({
                   variant="outline"
                   onClick={() => {
                     onOpenChange(false)
+                    if (invoice) onEditInvoice?.(invoice)
                   }}
                   data-cy="action-edit"
                 >
