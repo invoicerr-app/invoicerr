@@ -12,6 +12,7 @@ export type Path =
   | `/clients`
   | `/compliance`
   | `/dashboard`
+  | `/dev/state-machine`
   | `/expenses`
   | `/invoices`
   | `/invoices/pdf/:id`

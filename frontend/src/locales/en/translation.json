@@ -2701,6 +2701,128 @@
     },
     "compliance": {
         "description": "Track e-invoicing submissions and periodic tax filings across all channels.",
+        "devStateMachine": {
+            "archival": {
+                "anywhere": "Anywhere",
+                "archivedForm": "Archived form",
+                "integrity": "Integrity",
+                "residency": "Residency",
+                "retentionYears": "Retention (years)",
+                "title": "Archival"
+            },
+            "artifacts": {
+                "role": "Role",
+                "syntax": "Syntax",
+                "title": "Artifacts"
+            },
+            "channels": {
+                "invoiceChannels": "Invoice channels",
+                "reportingChannels": "Data-reporting channels (distinct from the invoice channel)",
+                "reportingChannelsNone": "None — falls back to the invoice channel",
+                "title": "Channels"
+            },
+            "classification": {
+                "buyerRole": "Buyer role",
+                "crossBorder": "Cross-border",
+                "crossBorderYes": "Cross-border",
+                "domestic": "Domestic",
+                "supplyTypes": "Supply types",
+                "title": "Classification"
+            },
+            "confidence": {
+                "buyerProfile": "Buyer profile",
+                "fallbackNotice": "No profile — FALLBACK",
+                "resolvedAs": "resolved to {{country}}",
+                "supplierProfile": "Supplier profile",
+                "title": "Confidence"
+            },
+            "controls": {
+                "buyerCountry": "Buyer country",
+                "buyerRole": "Buyer role",
+                "countryPlaceholder": "e.g. FR",
+                "documentKind": "Document kind",
+                "documentKindUnspecified": "Unspecified (defaults to invoice)",
+                "issueDate": "Issue date",
+                "supplierCountry": "Supplier country",
+                "supplyType": "Supply type"
+            },
+            "description": "Pick a supplier country, a buyer country, a document kind, a buyer role and a date, and see exactly what the compliance engine resolves for that combination — no invoice or company is created or read.",
+            "errorState": "The engine could not resolve a plan for this combination.",
+            "graph": {
+                "description": "Description",
+                "from": "From",
+                "guardKey": "Guard",
+                "initialState": "Initial state",
+                "on": "Event",
+                "statesLabel": "states",
+                "title": "Lifecycle graph",
+                "to": "To",
+                "transitionsLabel": "transitions",
+                "trigger": "Trigger"
+            },
+            "lifecycle": {
+                "appliesTo": "Applies to",
+                "cancellation": "Cancellation",
+                "cancellationAllowed": "Allowed",
+                "cancellationForbidden": "Forbidden",
+                "correctionModel": "Correction model",
+                "correctionRoutes": "Correction routes",
+                "direction": "Direction",
+                "immutableAfter": "Immutable after",
+                "noRoutesSourced": "No correction routes sourced for this profile yet.",
+                "requiresAuthorityAck": "Requires authority acknowledgement",
+                "requiresBuyerConsent": "Requires buyer consent",
+                "route": "Route",
+                "status": "Status",
+                "title": "Lifecycle",
+                "transmission": "Transmission"
+            },
+            "numbering": {
+                "hashChain": "Hash-chained",
+                "model": "Model",
+                "seriesScope": "Series scope",
+                "title": "Numbering"
+            },
+            "obligations": {
+                "blocking": "Blocking",
+                "blockingNo": "No",
+                "blockingYes": "Yes",
+                "deadline": "Deadline",
+                "deadlineNotEstablished": "Not established",
+                "kind": "Kind",
+                "layer": "Layer",
+                "model": "Model",
+                "title": "Obligations"
+            },
+            "partyRoles": {
+                "B2B": "B2B — business",
+                "B2C": "B2C — consumer",
+                "B2G": "B2G — government"
+            },
+            "reporting": {
+                "none": "None",
+                "title": "Reporting obligations"
+            },
+            "supplyTypes": {
+                "DIGITAL": "Digital",
+                "GOODS": "Goods",
+                "MIXED": "Mixed",
+                "SERVICES": "Services"
+            },
+            "taxSystem": {
+                "buyerSelfAssess": "Buyer self-assesses (reverse charge)",
+                "category": "Category",
+                "jurisdiction": "Jurisdiction",
+                "kind": "Tax system kind",
+                "mentions": "Legal mentions",
+                "rate": "Rate",
+                "title": "Tax system"
+            },
+            "title": "State machine explorer",
+            "warnings": {
+                "title": "Engine warnings"
+            }
+        },
         "pipeline": {
             "actions": {
                 "refresh": "Refresh"

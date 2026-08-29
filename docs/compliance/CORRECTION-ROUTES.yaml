@@ -298,6 +298,16 @@ synthesis:
         moment du timbrage par le PAC.
       status: "unverified — le code est cohérent avec lui-même, mais collapse une valeur déclarée"
 
+    - id: R-P3-13
+      what: >
+        `TransactionContext.documentKind` n'est JAMAIS renseigné par le flux de facturation réel :
+        `buildComplianceContext` (invoices.helpers.ts) ne le fixe pas, et `resolve()` ne le lit
+        jamais. Le champ n'est consommé qu'en aval, dans `executor.ts` et `generators.ts`, derrière
+        des `?? 'INVOICE'`. Le moteur résout donc le plan sans savoir de quel type de document il
+        s'agit — un avoir et une facture obtiennent le même plan.
+      established_by: "absent de invoices.helpers.ts, vérifié 2026-08-29 ; constaté en construisant la page /dev/state-machine, où choisir le type de document ne change rien au plan rendu"
+      status: "constaté, non corrigé — savoir si le type doit influencer la résolution est une question de conception, pas un correctif évident"
+
   what_p3_t02_must_not_do: >
     Construire un TROISIÈME mécanisme d'échéance. D-002 signalait déjà que `obligations[].deadline`
     doublonnait `deadlineHours`. Les délais trouvés ici — 5 jours italiens, 3 jours mexicains,

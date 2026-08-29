@@ -27,13 +27,17 @@ export interface DocumentKindRule {
  *
  * Without a country the query stays disabled and callers get `undefined`: an unknown country must
  * render as "we were told nothing", never as a guess.
+ *
+ * `at` is optional (an ISO date string) — every profile rule is temporal, so the `/dev/state-machine`
+ * preview page passes the same issue date it resolves the rest of the plan at; other callers omit
+ * it and get "as of now", unchanged from before this parameter existed.
  */
-export function useDocumentKinds(countryCode: string | undefined | null) {
-  const url = countryCode
-    ? `/api/compliance/document-kinds?countryCode=${encodeURIComponent(countryCode)}`
-    : null
+export function useDocumentKinds(countryCode: string | undefined | null, at?: string) {
+  const params = countryCode ? new URLSearchParams({ countryCode }) : null
+  if (params && at) params.set("at", at)
+  const url = params ? `/api/compliance/document-kinds?${params.toString()}` : null
 
-  return useApiQuery<DocumentKindRule[]>(["document-kinds", countryCode], url!, {
+  return useApiQuery<DocumentKindRule[]>(["document-kinds", countryCode, at], url!, {
     enabled: !!url,
   })
 }
