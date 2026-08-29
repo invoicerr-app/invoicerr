@@ -10,6 +10,12 @@
  * Le seul détour hors interface est la BOÎTE MAIL du client : lire son courrier n'est pas un
  * raccourci, c'est ce que fait la personne à l'autre bout.
  */
+
+import {
+	expectQuoteSigned,
+	invoiceFromQuote,
+	signThroughTheScreen,
+} from "../support/journey";
 import { api, setupCountry } from "../support/showcase";
 
 const FR = [
@@ -52,117 +58,6 @@ const aQuote = () =>
 	);
 
 /** Le code à huit chiffres, tel qu'il arrive dans le courrier. */
-const otpFromMail = () =>
-	cy.getLastEmail().then((email: { Text?: string; HTML?: string }) => {
-		const text = email.Text || email.HTML || "";
-		const otp = (text.match(/\d{4}-?\d{4}/) || [])[0]?.replace("-", "") ?? "";
-		expect(otp, "un code à 8 chiffres dans le courrier").to.have.length(8);
-		return cy.wrap(otp);
-	});
-
-/** Faire signer le devis comme le client le ferait : le lien, puis le code, puis le bouton. */
-const signThroughTheScreen = (quoteId: string) => {
-	cy.clearEmails();
-	cy.visit("/quotes");
-	cy.get(`[data-cy="send-signature-${quoteId}"]`, { timeout: 20000 }).click();
-	// L'envoi passe par une confirmation, qui montre à qui le devis part. Sauter cette étape était
-	// mon erreur : le clic n'avait produit AUCUNE requête, et j'ai d'abord cru le bouton mort.
-	cy.get('[data-cy="send-confirmation-confirm"]', { timeout: 15000 }).click();
-
-	// Le lien de signature arrive au client. On le suit comme lui plutôt que de fabriquer
-	// l'identifiant : un lien cassé dans le courrier est un défaut que seul ce chemin voit.
-	return cy.getLastEmail().then((email: { Text?: string; HTML?: string }) => {
-		const body = email.Text || email.HTML || "";
-		const sigId = (body.match(/signature\/([0-9a-f-]{36})/) || [])[1];
-		expect(
-			sigId,
-			`un lien de signature dans le courrier — reçu : ${body.slice(0, 200)}`,
-		).to.match(/^[0-9a-f-]{36}$/);
-
-		cy.clearEmails();
-		cy.visit(`/signature/${sigId}`);
-		cy.get('[data-cy="send-otp-btn"]', { timeout: 20000 }).click();
-
-		return otpFromMail().then((otp) => {
-			cy.get("input[data-input-otp]", { timeout: 15000 }).type(
-				otp as unknown as string,
-				{
-					force: true,
-				},
-			);
-			cy.get('[data-cy="sign-quote-btn"]').click();
-			return cy.wrap(quoteId);
-		});
-	});
-};
-
-/**
- * Attendre que le devis soit signé, en relisant l'enregistrement.
- *
- * `/api/quotes/table` rend le TABLEAU directement — pas un objet qui le contient — et la signature
- * atterrit de façon asynchrone. Une lecture unique rendait un tableau là où j'attendais un statut.
- */
-const expectQuoteSigned = (quoteId: string, attempts = 8) => {
-	cy.request<{ id: string; status: string }[]>({
-		url: `${api}/api/quotes/table`,
-	})
-		.its("body")
-		.then((quotes) => {
-			const q = quotes.find((x) => x.id === quoteId);
-			if ((!q || q.status !== "SIGNED") && attempts > 0) {
-				cy.wait(800);
-				return expectQuoteSigned(quoteId, attempts - 1);
-			}
-			expect(q, `le devis ${quoteId} figure dans la liste`).to.exist;
-			expect(q?.status, "le devis est signé").to.eq("SIGNED");
-		});
-};
-
-/**
- * La facture que la conversion vient de produire pour `quoteId`, quel que soit son id.
- *
- * `cy.click()` revient dès que l'événement DOM est traité — pas quand la promesse de
- * `triggerCreateInvoice` a fini son aller-retour HTTP (`create-invoice-from-quote-dialog.tsx` ne
- * ferme le dialogue et ne navigue vers le PDF que dans le `.then()` de cette promesse). Une lecture
- * immédiate de la liste peut donc arriver avant que `POST /invoices/create-from-quote` ait fini
- * d'écrire — l'endpoint est pourtant synchrone (create + brouillon compliance + webhook, tous
- * attendus côté service), la course est côté test, pas côté backend.
- *
- * Vérifié séparément : la taille de page fixée à 10 sur `GET /api/invoices` (R-P3-10, `?limit=`
- * ignoré) N'EST PAS en cause ici — chaque test de ce fichier tourne dans une société fraîchement
- * créée par `setupCountry`, et la requête est filtrée par `companyId` côté service ; il n'y a jamais
- * plus d'une poignée de factures à lire. La vraie cause est uniquement la course ci-dessus, donc le
- * correctif est une LECTURE QUI RÉESSAIE — même famille que `eventually`/`draftCorrectionOf` dans la
- * spec 19 — et non un assouplissement de l'assertion finale.
- */
-const invoiceFromQuote = (quoteId: string, tries = 10) => {
-	const attempt = (
-		left: number,
-	): Cypress.Chainable<{ quoteId?: string; status?: string } | undefined> =>
-		cy
-			.request({ url: `${api}/api/invoices` })
-			.its("body")
-			.then((body: unknown) => {
-				const rows = (
-					Array.isArray(body)
-						? body
-						: ((body as { invoices?: { quoteId?: string; status?: string }[] })
-								.invoices ?? [])
-				) as { quoteId?: string; status?: string }[];
-				const found = rows.find((r) => r.quoteId === quoteId);
-				if (found) return cy.wrap(found);
-				if (left <= 1) {
-					expect(
-						rows.map((r) => `${r.quoteId ?? "?"}:${r.status}`).join(" | ") ||
-							"(aucune ligne)",
-						`une facture issue du devis ${quoteId} — la liste contient`,
-					).to.eq(`une facture issue du devis ${quoteId}`);
-				}
-				return cy.wait(500).then(() => attempt(left - 1));
-			});
-	return attempt(tries);
-};
-
 describe("Du devis à la facture, sans quitter l'écran", () => {
 	before(() => {
 		cy.resetAndSeed();

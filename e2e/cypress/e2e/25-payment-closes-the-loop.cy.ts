@@ -17,6 +17,7 @@ import {
 	getInvoice,
 	issuedSentInvoice,
 	onRow,
+	payThroughTheScreen,
 } from "../support/journey";
 import { api } from "../support/showcase";
 
@@ -44,29 +45,6 @@ const settlementOf = (id: string) =>
 	cy
 		.request<Settlement>({ url: `${api}/api/invoices/${id}/settlement` })
 		.its("body");
-
-/** Enregistrer un paiement DEPUIS L'ÉCRAN, sur la facture désignée par son numéro. */
-const payThroughTheScreen = (rawNumber: string, amount: number) => {
-	cy.visit("/payments");
-	cy.contains("button", /add|new|créer|ajouter/i, { timeout: 20000 }).click();
-	cy.get('[data-cy="payment-dialog"]', { timeout: 15000 }).should("be.visible");
-
-	// Choisie par son NUMÉRO, jamais `.first()` : la liste contient les factures des tests
-	// précédents, et payer celle du voisin passerait pour un succès.
-	cy.get('[data-cy="payment-invoice-select"] button').first().click();
-	cy.get('[data-cy="payment-invoice-select-options"]', {
-		timeout: 10000,
-	}).should("be.visible");
-	cy.get('[data-cy="payment-invoice-select-options"]')
-		.contains("button", rawNumber)
-		.click();
-
-	cy.get('[data-cy="payment-amount-input"]')
-		.clear({ force: true })
-		.type(String(amount), { force: true });
-	cy.get('[data-cy="payment-submit"]').click();
-	cy.get('[data-cy="payment-dialog"]', { timeout: 15000 }).should("not.exist");
-};
 
 describe("Le paiement referme la boucle", () => {
 	before(() => {
