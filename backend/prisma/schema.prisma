@@ -811,6 +811,33 @@ model CurrencyConversion {
   @@unique([fromCurrency, toCurrency])
 }
 
+// The VAT rate catalog offered on invoice/quote line items (backend/src/compliance/tax-rates/).
+// Seeded from backend/src/compliance/tax-rates/data/*.json — this table is a MIRROR of those files,
+// never edited by hand: `seedVatRates()` upserts and prunes it to match on every seed run. It is
+// presentation data for the line-item picker, not a second tax authority — the compliance engine
+// (compliance/engine/tax-engine.ts) resolves actual tax from CountryComplianceProfile.taxSystem,
+// never from this table; compliance/tax-rates/consistency.spec.ts guards the two against drifting
+// apart.
+model VatRate {
+  id              String    @id @default(cuid())
+  countryCode     String    // ISO 3166-1 alpha-2, uppercase
+  sourceId        String    // stable slug from the reference file, e.g. "fr-standard" — the seed's identity key together with countryCode + validFrom
+  rate            Float     // percentage, e.g. 20 for 20%
+  label           String    // the country's own official term, shown to the user as-is (data, not UI chrome)
+  category        String    // STANDARD | REDUCED | SUPER_REDUCED | ZERO | EXEMPT
+  validFrom       DateTime
+  validTo         DateTime?
+  confidence      String    // OFFICIAL | UNVERIFIED
+  source          String    // the legal text or administration page this rate was read from
+  sourceCheckedAt DateTime  // when `source` was last checked against this value
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([countryCode, sourceId, validFrom])
+  @@index([countryCode])
+}
+
 // IN-APP PLUGINS
 
 enum PluginType {

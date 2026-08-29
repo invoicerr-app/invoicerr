@@ -11,6 +11,7 @@ import { CompliancePipelineController } from './compliance-pipeline.controller';
 import { CompliancePipelineService } from './compliance-pipeline.service';
 import { RequiredFieldsController } from './required-fields.controller';
 import { InboundInvoiceController } from './inbound-invoice.controller';
+import { VatRatesService } from '../tax-rates/vat-rates.service';
 
 /**
  * QUEUE_IMPL_PLAN.md §5.3 — Phase 2 rewiring, Phase 3 cron/lock removal (§5.8). The DI-heavy
@@ -48,6 +49,8 @@ import { InboundInvoiceController } from './inbound-invoice.controller';
     ChannelSettingsService,
     // Pipeline summaries (backs CompliancePipelineController: documents + reports read models)
     CompliancePipelineService,
+    // Read side of the VAT rate catalog (backs RequiredFieldsController's GET /vat-rates)
+    VatRatesService,
   ],
   // Whole-module re-export (Nest cannot re-export an individual token that is only provided by an
   // imported module — see ComplianceCoreModule's docstring): this makes every Core token

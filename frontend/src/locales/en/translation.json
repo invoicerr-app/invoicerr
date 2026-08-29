@@ -2384,6 +2384,16 @@
             "edit": "Edit",
             "preview": "Preview",
             "hint": "Markdown supported"
+        },
+        "vatRates": {
+            "selectAriaLabel": "VAT rate",
+            "customOption": "Custom rate…",
+            "backToList": "Choose from the list instead",
+            "unavailable": {
+                "notAVatSystem": "This country has no VAT/GST — enter a rate manually.",
+                "destinationBasedSystem": "This country's tax depends on the buyer's state or destination, not a fixed company-country rate — enter a rate manually.",
+                "noCatalogYet": "No sourced VAT rate list is available yet for this country — enter a rate manually."
+            }
         }
     },
     "payments": {

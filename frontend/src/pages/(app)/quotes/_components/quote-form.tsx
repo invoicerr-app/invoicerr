@@ -22,6 +22,7 @@ import { BetterInput } from "@/components/better-input"
 import { Button } from "@/components/ui/button"
 import { CSS } from "@dnd-kit/utilities"
 import { ArticlePicker } from "@/components/article-picker"
+import { VatRateField } from "@/components/document-form/vat-rate-field"
 import { ClientUpsert } from "../../clients/_components/client-upsert"
 import CurrencySelect from "@/components/currency-select"
 import { DatePicker } from "@/components/date-picker"
@@ -480,32 +481,7 @@ export function QuoteFormFields({ form, formId, onSubmit }: QuoteFormFieldsProps
                             )}
                           />
 
-                          <FormField
-                            control={control}
-                            name={`items.${index}.vatRate`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormControl>
-                                  <BetterInput
-                                    {...field}
-                                    defaultValue={field.value || ""}
-                                    postAdornment="%"
-                                    type="number"
-                                    step="0.01"
-                                    placeholder={t(`quotes.upsert.form.items.vatRate.placeholder`)}
-                                    onChange={(e) =>
-                                      field.onChange(
-                                        e.target.value === ""
-                                          ? undefined
-                                          : Number.parseFloat(e.target.value.replace(",", ".")),
-                                      )
-                                    }
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                          <VatRateField index={index} translationPrefix="quotes" />
 
                           <Button
                             type="button"

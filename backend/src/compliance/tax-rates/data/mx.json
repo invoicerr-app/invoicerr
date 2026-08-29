@@ -1,0 +1,31 @@
+{
+  "countryCode": "MX",
+  "rates": [
+    {
+      "validFrom": "1900-01-01",
+      "value": {
+        "id": "mx-standard",
+        "rate": 16,
+        "label": "Tasa general (IVA)",
+        "category": "STANDARD",
+        "confidence": "OFFICIAL",
+        "source": "Ley del Impuesto al Valor Agregado (LIVA), art. 1.",
+        "sourceCheckedAt": "2026-08-29",
+        "notes": "Valeur identique à taxSystem.standardRate dans backend/src/compliance/profiles/data/mx.ts (confidence OFFICIAL) — voir consistency.spec.ts."
+      }
+    },
+    {
+      "validFrom": "1900-01-01",
+      "value": {
+        "id": "mx-border",
+        "rate": 8,
+        "label": "Tasa región fronteriza (estímulo IVA, zona norte y sur)",
+        "category": "REDUCED",
+        "confidence": "OFFICIAL",
+        "source": "Decreto de estímulos fiscales región fronteriza norte (DOF, 31-dic-2018) et son extension à la frontière sud (DOF, 30-dic-2020) — crédito fiscal equivalente al 50% de la tasa del IVA para contribuyentes établis dans la zone frontalière.",
+        "sourceCheckedAt": "2026-08-29",
+        "notes": "Point important : ce n'est PAS une tasa distincte dans le barème de la LIVA (art. 1/1-A/2), mais un crédit d'impôt accordé par décret présidentiel, dont l'effet net équivaut à une tasa de 8%. C'est déjà comment mx.ts le documente (reducedRates: [8] // northern border region). Les dates exactes des décrets (DOF) ont été relevées de mémoire et non re-vérifiées en direct dans cette session — c'est le mécanisme et la valeur nette (8%) qui sont sûrs, pas la date précise de publication au DOF."
+      }
+    }
+  ]
+}

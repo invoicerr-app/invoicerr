@@ -28,6 +28,7 @@ import { CSS } from "@dnd-kit/utilities"
 import { Input } from "@/components/ui/input"
 import type { LineItemTranslationPrefix } from "@/lib/line-item-schema"
 import { Textarea } from "@/components/ui/textarea"
+import { VatRateField } from "@/components/document-form/vat-rate-field"
 import type React from "react"
 import { useTranslation } from "react-i18next"
 
@@ -288,32 +289,7 @@ export function LineItemsEditor({
                       )}
                     />
 
-                    <FormField
-                      control={control}
-                      name={`items.${index}.vatRate`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormControl>
-                            <BetterInput
-                              {...field}
-                              defaultValue={field.value || 0}
-                              postAdornment="%"
-                              type="number"
-                              step="0.01"
-                              placeholder={t(`${translationPrefix}.upsert.form.items.vatRate.placeholder`)}
-                              onChange={(e) =>
-                                field.onChange(
-                                  e.target.value === ""
-                                    ? undefined
-                                    : Number.parseFloat(e.target.value.replace(",", ".")),
-                                )
-                              }
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <VatRateField index={index} translationPrefix={translationPrefix} />
 
                     <Button
                       type="button"

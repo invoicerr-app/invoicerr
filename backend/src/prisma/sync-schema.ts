@@ -2,6 +2,7 @@ import { execFileSync } from 'child_process';
 import { join } from 'path';
 
 import prisma from './prisma.service';
+import { seedVatRates } from '../compliance/tax-rates/seed';
 
 /**
  * Every self-hosted instance has been running on `prisma db push` since
@@ -139,4 +140,13 @@ export async function syncDatabaseSchema(): Promise<void> {
   await baselineIfNeeded();
   console.log('[sync-schema] Running migrate deploy...');
   runPrisma(['migrate', 'deploy']);
+
+  // Same invocation point as the schema sync above, deliberately: this is the one place that
+  // already runs on every production boot (main.ts, API role only), so self-hosted instances pick
+  // up new/changed VAT rates (backend/src/compliance/tax-rates/data/*.json) the moment they update,
+  // without a second boot-time mechanism. Idempotent — see seedVatRates' docstring — so running it
+  // on every boot is safe and cheap (a handful of small JSON files, upserted).
+  console.log('[sync-schema] Seeding VAT rate catalog...');
+  const summary = await seedVatRates(prisma);
+  console.log(`[sync-schema] VAT rates: ${summary.upserted} upserted, ${summary.deleted} deleted (stale)`);
 }

@@ -6,6 +6,10 @@ export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
     path: 'prisma/migrations',
+    // Runs automatically after `prisma migrate dev` / `migrate reset`, and on demand via
+    // `prisma db seed` — Prisma's own seed hook, not a bespoke entry point. Seeds the VAT rate
+    // catalog (backend/src/compliance/tax-rates/); see prisma/seed.ts.
+    seed: 'tsx prisma/seed.ts',
   },
   datasource: {
     url: env('DATABASE_URL'),

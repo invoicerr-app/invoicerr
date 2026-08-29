@@ -1,13 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { RequiredFieldsController } from './required-fields.controller';
 import { defaultRegistry } from '../profiles/registry';
+import { VatRatesService } from '../tax-rates/vat-rates.service';
 
 describe('RequiredFieldsController', () => {
   let controller: RequiredFieldsController;
+  let ratesFor: jest.Mock;
 
   beforeEach(async () => {
+    ratesFor = jest.fn().mockResolvedValue([]);
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RequiredFieldsController],
+      providers: [{ provide: VatRatesService, useValue: { ratesFor } }],
     }).compile();
 
     controller = module.get<RequiredFieldsController>(RequiredFieldsController);
@@ -64,5 +68,80 @@ describe('RequiredFieldsController', () => {
 
   it('throws on invalid partyType', () => {
     expect(() => controller.getRequiredFields('FR', 'INVALID' as any)).toThrow();
+  });
+
+  describe('getVatRates', () => {
+    it('throws on missing countryCode', async () => {
+      await expect(controller.getVatRates('')).rejects.toThrow();
+    });
+
+    it('throws on an invalid "at" date', async () => {
+      await expect(controller.getVatRates('FR', 'not-a-date')).rejects.toThrow();
+    });
+
+    it('a VAT country delegates to VatRatesService and returns its rates as-is', async () => {
+      const fakeRates = [
+        {
+          id: 'fr-standard',
+          rate: 20,
+          label: 'Taux normal',
+          category: 'STANDARD',
+          confidence: 'OFFICIAL',
+          source: 'CGI art. 278',
+          sourceCheckedAt: new Date('2026-08-29'),
+          notes: null,
+        },
+      ];
+      ratesFor.mockResolvedValue(fakeRates);
+
+      const result = await controller.getVatRates('FR');
+
+      expect(ratesFor).toHaveBeenCalledWith('FR', expect.any(Date));
+      expect(result).toEqual({
+        countryCode: 'FR',
+        resolvedCountryCode: 'FR',
+        taxSystemKind: 'VAT',
+        rates: fakeRates,
+        unavailableReason: undefined,
+      });
+    });
+
+    it('a VAT country with no sourced rates yet reports NO_CATALOG_YET, not an error', async () => {
+      ratesFor.mockResolvedValue([]);
+      const result = await controller.getVatRates('DE');
+      expect(result.taxSystemKind).toBe('VAT');
+      expect(result.rates).toEqual([]);
+      expect(result.unavailableReason).toBe('NO_CATALOG_YET');
+    });
+
+    it('a SALES_TAX country (US) never calls the DB and reports DESTINATION_BASED_SYSTEM', async () => {
+      const result = await controller.getVatRates('US');
+      expect(ratesFor).not.toHaveBeenCalled();
+      expect(result.taxSystemKind).toBe('SALES_TAX');
+      expect(result.rates).toEqual([]);
+      expect(result.unavailableReason).toBe('DESTINATION_BASED_SYSTEM');
+    });
+
+    it('an unknown country (fallback, taxSystem NONE) reports NOT_A_VAT_SYSTEM', async () => {
+      const result = await controller.getVatRates('ZZ');
+      expect(ratesFor).not.toHaveBeenCalled();
+      expect(result.taxSystemKind).toBe('NONE');
+      expect(result.unavailableReason).toBe('NOT_A_VAT_SYSTEM');
+    });
+
+    it('Monaco delegates to France transparently — no Monaco-specific code involved', async () => {
+      ratesFor.mockResolvedValue([]);
+      const result = await controller.getVatRates('MC');
+      expect(result.countryCode).toBe('MC');
+      expect(result.resolvedCountryCode).toBe('FR');
+      expect(ratesFor).toHaveBeenCalledWith('FR', expect.any(Date));
+    });
+
+    it('is case-insensitive on countryCode, like the sibling endpoints', async () => {
+      ratesFor.mockResolvedValue([]);
+      const result = await controller.getVatRates('fr');
+      expect(result.countryCode).toBe('FR');
+      expect(result.resolvedCountryCode).toBe('FR');
+    });
   });
 });
