@@ -1,3 +1,4 @@
+import { documentTypeCode } from './document-type-code';
 import { Injectable, BadRequestException } from '@nestjs/common';
 import * as Handlebars from 'handlebars';
 import type { Invoice as EuInvoice } from '@e-invoice-eu/core';
@@ -727,7 +728,9 @@ export class InvoiceRenderingService {
         'cbc:ProfileID': 'M1',
         'cbc:ID': data.rawNumber || (data.number?.toString() ?? 'DRAFT'),
         'cbc:IssueDate': issueDateStr,
-        'cbc:InvoiceTypeCode': '380',
+        // BT-3, from the document kind. Was the literal '380' for everything, so a credit note
+        // left as a commercial invoice with negative amounts.
+        'cbc:InvoiceTypeCode': documentTypeCode(data.kind),
         'cbc:DocumentCurrencyCode': currency,
         // PEPPOL-EN16931-R003: buyer reference or purchase order reference is required.
         // DE Leitweg-ID takes priority (BT-10, mandatory for B2G); otherwise fall back to the

@@ -39,6 +39,18 @@ export interface CorrectedInvoiceRef {
  *  Matches the Prisma include used by {@link renderXml} / {@link renderPdf} but is
  *  decoupled from Prisma so tests can build invoices from plain objects. */
 export interface InvoiceRenderData {
+  /**
+   * WHICH document this is — BT-3 comes from here and from nowhere else.
+   *
+   * The renderer had no notion of document kind at all, so `InvoiceTypeCode` was the literal `380`
+   * for everything: a credit note went out as a COMMERCIAL INVOICE carrying negative amounts, which
+   * is not the same statement and not what a recipient's system reads. The value was on the Prisma
+   * row all along (`Invoice.kind`) — it simply was never declared here, so nothing could reach it.
+   *
+   * Optional because the fixtures and the plain-PDF path predate it; absent means `INVOICE`, which
+   * is the behaviour every caller had before.
+   */
+  kind?: string | null;
   rawNumber: string | null;
   number: number | null;
   issuedAt: Date | null;
