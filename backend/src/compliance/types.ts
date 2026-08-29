@@ -152,6 +152,51 @@ export type NumberingModel = 'GAPLESS_SELF' | 'UNIQUE_SELF' | 'AUTHORITY_RANGE';
 
 export type CorrectionModel = 'CREDIT_NOTE' | 'CORRECTIVE_INVOICE' | 'CANCEL_AND_REPLACE';
 
+/**
+ * P3-T02 — the correction routes, sourced country by country in
+ * `documentation/../docs/compliance/CORRECTION-ROUTES.yaml` (P3-T01).
+ *
+ * `CorrectionModel` above answers "which strategy builds the correcting document". It cannot answer
+ * "which routes does this country open, require, or forbid", and P3-T01 established that the
+ * distinction is not academic: THE SAME ROUTE IS REQUIRED IN ONE COUNTRY AND FORBIDDEN IN ANOTHER.
+ * `INTERNAL_CREDIT_NOTE` is required in France (statuses Refusée/Rejetée, spécifications externes
+ * DGFiP v3.2 §3.6.4) and in Italy (after a scarto, Provv. 89757/2018 punto 6.3) — and forbidden in
+ * Poland (Podręcznik KSeF 2.0 §1.6.2), Spain (art. 24.1 RD 1624/1992) and Mexico. A single value
+ * cannot hold that, and no per-country default can guess it.
+ *
+ * Four of these twelve were not in the plan's own list; the research found them. They are kept even
+ * where no shipped profile uses them yet, because a route that exists in law and not in the
+ * vocabulary is exactly how a country ends up hard-coded in a branch later.
+ */
+export type CorrectionRoute =
+  | 'CREDIT_NOTE' // separate document that REDUCES, own number, transmitted
+  | 'DEBIT_NOTE' // separate document that INCREASES — required in Italy, non-existent in Mexico
+  | 'CORRECTIVE_INVOICE' // amends the original by reference (faktura korygująca, factura rectificativa)
+  | 'CANCEL_AND_REPLACE' // void the original with the authority, issue a replacement
+  | 'INTERNAL_CREDIT_NOTE' // accounting-only reversal whose transmission is FORBIDDEN
+  | 'AUTHORITY_ANNULMENT' // request addressed to the authority against a filed document
+  | 'RESUBMIT_SAME_IDENTITY' // after rejection, resend under the SAME number (and sometimes date)
+  | 'LEDGER_ANNOTATION' // corrected in the registers, NO document at all (IT art. 26 c.7-8, ES art. 70)
+  | 'NO_DOCUMENT_BY_LAW' // the tax adjusts by operation of law (DE § 17 Abs. 1) — the German default
+  | 'COUNTERPARTY_OBJECTION' // the counterparty destroys the document (DE Widerspruch, unbefristet)
+  | 'ANNOTATED_DUPLICATE' // the SAME document reissued annotated (FR duplicata, required on unpaid)
+  | 'BUYER_CORRECTION_NOTE'; // issued by the BUYER (PL nota korygująca — repealed 2026-02-01)
+
+/**
+ * `UNVERIFIED` is a first-class answer, not a gap: it says nobody established this, and it must be
+ * accompanied by what would settle it (guarded in data-integrity.spec.ts). The alternative — leaving
+ * the route out — makes "not researched" indistinguishable from "not available".
+ */
+export type RouteStatus = 'REQUIRED' | 'OPEN' | 'FORBIDDEN' | 'UNVERIFIED';
+
+/**
+ * Which way the amount moves. Italy is the reason this axis exists: art. 26 DPR 633/72 comma 1 makes
+ * the INCREASE an obligation ("devono essere osservate") while comma 2 leaves the DECREASE a faculty
+ * ("ha diritto di"). Poland is the reason it is optional: art. 106j ust. 1 handles both directions
+ * with one document, so its routes name no direction at all.
+ */
+export type VariationDirection = 'INCREASE' | 'DECREASE';
+
 export type ArtifactRole = 'AUTHORITATIVE' | 'HUMAN' | 'BUYER';
 
 export type DocumentKind =

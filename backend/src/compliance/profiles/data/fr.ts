@@ -302,6 +302,65 @@ export const FR: CountryComplianceProfile = {
       value: {
         immutableAfter: 'ISSUE',
         correctionModel: 'CREDIT_NOTE',
+        correctionRoutes: [
+          {
+            route: 'CREDIT_NOTE',
+            status: 'OPEN',
+            direction: 'DECREASE',
+            appliesTo: 'Ventes résiliées ou annulées, rabais, remises, ristournes',
+            // The BOFiP offers it as one of two: "soit l'envoi d'une facture nouvelle annulant et
+            // remplaçant la précédente, soit […] l'envoi d'une note d'avoir". Never the only way.
+            legalRef: 'CGI art. 272, 1 ; art. 289, I, 5 ; BOI-TVA-DED-40-10-20 § 60 et § 80',
+          },
+          {
+            // Carve-out on the general rule above, and the reason one route needs two entries: the
+            // credit note that is open for a cancelled sale is FORBIDDEN for a mere unpaid invoice —
+            // "le non-paiement d'une facture n'appelle aucune rectification".
+            route: 'CREDIT_NOTE',
+            status: 'FORBIDDEN',
+            appliesTo: 'Impayé pur — défaillance du débiteur',
+            legalRef: 'BOI-TVA-DED-40-10-20 § 110',
+          },
+          {
+            route: 'ANNOTATED_DUPLICATE',
+            status: 'REQUIRED',
+            appliesTo: 'Impayé — la contrepartie du CREDIT_NOTE interdit ci-dessus',
+            // "consiste obligatoirement dans l'envoi d'un duplicata de la facture initiale […]
+            // surchargées de la mention « Facture demeurée impayée pour la somme de … »". Neither a
+            // credit note nor a corrective invoice: the same document, reissued annotated.
+            legalRef: 'CGI art. 272, 1 et al. 3 ; BOI-TVA-DED-40-10-20 § 110',
+          },
+          {
+            route: 'CORRECTIVE_INVOICE',
+            status: 'OPEN',
+            appliesTo: 'Toute modification référencée de la facture initiale',
+            legalRef: 'CGI art. 289, I, 5 ; ann. II art. 242 nonies A, I ; BOI-TVA-DECLA-30-20-20-20 § 180',
+          },
+          {
+            route: 'CANCEL_AND_REPLACE',
+            status: 'OPEN',
+            appliesTo: "Ventes annulées ou résiliées, rabais — mention expresse de l'annulation requise",
+            legalRef: 'BOI-TVA-DED-40-10-20 § 70 ; BOI-TVA-DECLA-30-20-20-20 § 240',
+          },
+          {
+            route: 'DEBIT_NOTE',
+            status: 'OPEN',
+            direction: 'INCREASE',
+            // Open as a mechanism; whether France ever COMPELS one is unverified — unlike Italy,
+            // whose art. 26 comma 1 does compel it. Recorded as open rather than guessed as required.
+            appliesTo:
+              "Hausse du montant — pas d'instrument distinct, une rectificative assimilée à une facture",
+            legalRef: 'CGI art. 289, I, 5 ; BOI-TVA-DECLA-30-20-20-20 § 180',
+          },
+          {
+            route: 'AUTHORITY_ANNULMENT',
+            status: 'FORBIDDEN',
+            // No "cancellation request" flux exists: the administration ANNULS the F1 itself as a
+            // consequence of the lifecycle status. Status 220 "Annulée" is optional, outside the
+            // mandatory set, and Chorus Pro does not relay it — it is not a correction route.
+            legalRef: 'Spécifications externes DGFiP v2.4 p. 56/59/61 ; annexe Chorus Pro v1.1 p. 46-47',
+          },
+        ],
         cancellation: { allowed: true, requiresAuthorityAck: false },
       },
     },
@@ -311,6 +370,87 @@ export const FR: CountryComplianceProfile = {
       value: {
         immutableAfter: 'ISSUE',
         correctionModel: 'CREDIT_NOTE',
+        correctionRoutes: [
+          {
+            route: 'CREDIT_NOTE',
+            status: 'OPEN',
+            direction: 'DECREASE',
+            appliesTo: 'Ventes résiliées ou annulées, rabais, remises, ristournes',
+            // The BOFiP offers it as one of two: "soit l'envoi d'une facture nouvelle annulant et
+            // remplaçant la précédente, soit […] l'envoi d'une note d'avoir". Never the only way.
+            legalRef: 'CGI art. 272, 1 ; art. 289, I, 5 ; BOI-TVA-DED-40-10-20 § 60 et § 80',
+          },
+          {
+            // Carve-out on the general rule above, and the reason one route needs two entries: the
+            // credit note that is open for a cancelled sale is FORBIDDEN for a mere unpaid invoice —
+            // "le non-paiement d'une facture n'appelle aucune rectification".
+            route: 'CREDIT_NOTE',
+            status: 'FORBIDDEN',
+            appliesTo: 'Impayé pur — défaillance du débiteur',
+            legalRef: 'BOI-TVA-DED-40-10-20 § 110',
+          },
+          {
+            route: 'ANNOTATED_DUPLICATE',
+            status: 'REQUIRED',
+            appliesTo: 'Impayé — la contrepartie du CREDIT_NOTE interdit ci-dessus',
+            // "consiste obligatoirement dans l'envoi d'un duplicata de la facture initiale […]
+            // surchargées de la mention « Facture demeurée impayée pour la somme de … »". Neither a
+            // credit note nor a corrective invoice: the same document, reissued annotated.
+            legalRef: 'CGI art. 272, 1 et al. 3 ; BOI-TVA-DED-40-10-20 § 110',
+          },
+          {
+            route: 'CORRECTIVE_INVOICE',
+            status: 'OPEN',
+            appliesTo: 'Toute modification référencée de la facture initiale',
+            legalRef: 'CGI art. 289, I, 5 ; ann. II art. 242 nonies A, I ; BOI-TVA-DECLA-30-20-20-20 § 180',
+          },
+          {
+            route: 'CANCEL_AND_REPLACE',
+            status: 'OPEN',
+            appliesTo: "Ventes annulées ou résiliées, rabais — mention expresse de l'annulation requise",
+            legalRef: 'BOI-TVA-DED-40-10-20 § 70 ; BOI-TVA-DECLA-30-20-20-20 § 240',
+          },
+          {
+            route: 'DEBIT_NOTE',
+            status: 'OPEN',
+            direction: 'INCREASE',
+            // Open as a mechanism; whether France ever COMPELS one is unverified — unlike Italy,
+            // whose art. 26 comma 1 does compel it. Recorded as open rather than guessed as required.
+            appliesTo:
+              "Hausse du montant — pas d'instrument distinct, une rectificative assimilée à une facture",
+            legalRef: 'CGI art. 289, I, 5 ; BOI-TVA-DECLA-30-20-20-20 § 180',
+          },
+          {
+            route: 'AUTHORITY_ANNULMENT',
+            status: 'FORBIDDEN',
+            // No "cancellation request" flux exists: the administration ANNULS the F1 itself as a
+            // consequence of the lifecycle status. Status 220 "Annulée" is optional, outside the
+            // mandatory set, and Chorus Pro does not relay it — it is not a correction route.
+            legalRef: 'Spécifications externes DGFiP v2.4 p. 56/59/61 ; annexe Chorus Pro v1.1 p. 46-47',
+          },
+          {
+            route: 'INTERNAL_CREDIT_NOTE',
+            status: 'REQUIRED',
+            transmission: 'FORBIDDEN',
+            appliesTo: 'Statuts Refusée (210) et Rejetée (213)',
+            // The sentence P3-T03 exists to honour: "le fournisseur doit procéder à une annulation
+            // comptable (avoir interne). Cette opération ne doit pas générer de flux de données
+            // réglementaires (F1) au PPF." Present only from v3.1 (30/10/2025) — a recent rule.
+            // The BUYER half is explicit only in the Chorus Pro annex (B2G) and archived v2.3/v2.4;
+            // AFNOR XP Z12-014 would settle it for pure B2B and is paywalled. Hence the status is
+            // carried on transmission as a whole rather than split per destination.
+            legalRef: 'Spécifications externes DGFiP v3.2, 30/04/2026, § 3.6.4 p. 60',
+          },
+          {
+            route: 'RESUBMIT_SAME_IDENTITY',
+            status: 'OPEN',
+            appliesTo:
+              'Deux cas étroits : rejet portant sur la constitution du F1, ou refus pour erreur de routage',
+            // "peut alors générer à nouveau le fichier […] portant alors le même numéro de facture".
+            // Covers the NUMBER; no version of the specifications addresses the DATE either way.
+            legalRef: 'Spécifications externes DGFiP v3.2 § 3.6.9 p. 62 ; v2.4 p. 58',
+          },
+        ],
         cancellation: { allowed: true, requiresAuthorityAck: false },
         response: {
           statuses: ['déposée', 'rejetée', 'refusée', 'encaissée'],

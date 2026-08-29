@@ -47,6 +47,52 @@ export const US: CountryComplianceProfile = {
       value: {
         immutableAfter: 'NEVER',
         correctionModel: 'CREDIT_NOTE',
+        correctionRoutes: [
+          // The United States is a SOURCED NEGATIVE, and the statuses have to be read that way:
+          // `OPEN` here means "no text forbids it", not "a text organises it". There is no federal
+          // invoice at all — 26 U.S.C. § 6001 imposes RECORDS, not a DOCUMENT, and the IRS states
+          // the law requires no particular kind of record. Recording the negative is what stops a
+          // later reader from inferring a rule from silence.
+          {
+            route: 'CREDIT_NOTE',
+            status: 'OPEN',
+            legalRef: 'IRS Pub 583 ; 26 U.S.C. § 6001 — négatif établi',
+          },
+          {
+            route: 'DEBIT_NOTE',
+            status: 'OPEN',
+            legalRef: "Aucun instrument fédéral ni d'État trouvé — négatif",
+          },
+          {
+            route: 'CORRECTIVE_INVOICE',
+            status: 'OPEN',
+            legalRef: 'Aucune forme prescrite, donc aucune forme interdite — négatif',
+          },
+          {
+            route: 'CANCEL_AND_REPLACE',
+            status: 'OPEN',
+            appliesTo: "Rien à annuler auprès de personne : aucun document n'a été déposé",
+            legalRef: 'négatif',
+          },
+          {
+            route: 'INTERNAL_CREDIT_NOTE',
+            status: 'OPEN',
+            appliesTo: 'Le cas NORMAL ici — toute correction est interne, rien ne part vers une autorité',
+            legalRef: 'négatif',
+          },
+          {
+            route: 'AUTHORITY_ANNULMENT',
+            status: 'FORBIDDEN',
+            // Structural, not prohibitive: there is no recipient authority to address.
+            legalRef: 'Absence de tout portail fiscal de facturation — négatif',
+          },
+          {
+            route: 'RESUBMIT_SAME_IDENTITY',
+            status: 'FORBIDDEN',
+            appliesTo: 'Sans objet — aucun rejet possible, aucun système ne reçoit la facture',
+            legalRef: 'négatif',
+          },
+        ],
         cancellation: { allowed: true, requiresAuthorityAck: false },
       },
     },

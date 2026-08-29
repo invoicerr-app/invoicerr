@@ -8,6 +8,7 @@ import {
   ChannelType,
   Confidence,
   CorrectionModel,
+  CorrectionRoute,
   DocumentKind,
   DocumentSyntax,
   ISO3166Alpha2,
@@ -16,8 +17,10 @@ import {
   PartyRole,
   RegimeModel,
   ReportingKind,
+  RouteStatus,
   SupplyType,
   TaxScheme,
+  VariationDirection,
 } from '../types';
 
 /** Every rule list is temporal. `validTo` is EXCLUSIVE; absence means "open-ended". */
@@ -154,9 +157,50 @@ export interface ResponsePolicy {
   statuses?: string[]; // mandatory status set (FR: déposée, rejetée, refusée, encaissée)
 }
 
+/**
+ * P3-T02 — one correction route, statused, with the text that says so.
+ *
+ * Two axes here are NOT the status, and both were learned the hard way in P3-T01:
+ *
+ * `transmission` — a route can be REQUIRED and its transmission FORBIDDEN at the same time. That is
+ * precisely the French avoir interne on statuses Refusée/Rejetée and the Italian variazione contabile
+ * after a scarto: the document must be produced and must NOT leave. Folding this into the status
+ * would lose the half that matters, because today `correctInvoice()` issues and then transmits, which
+ * is what P3-T03 has to stop.
+ *
+ * `direction` — whether the route serves an increase or a decrease. Undefined means both, which is
+ * Poland's answer (one instrument for either way) and not an omission.
+ */
+export interface CorrectionRouteRule {
+  route: CorrectionRoute;
+  status: RouteStatus;
+  /** Absent = the route says nothing about transmission; the channel plan decides as usual. */
+  transmission?: 'REQUIRED' | 'FORBIDDEN';
+  /** Absent = serves both directions. */
+  direction?: VariationDirection;
+  /** The case in which the status applies — free text, for the screen and for the reader. */
+  appliesTo?: string;
+  /** The article, ruling or specification. REQUIRED unless the status is UNVERIFIED. */
+  legalRef?: string;
+  /** What would settle it. REQUIRED when the status is UNVERIFIED — guarded in data-integrity. */
+  openQuestion?: string;
+}
+
 export interface LifecyclePolicy {
   immutableAfter: 'ISSUE' | 'CLEARANCE' | 'NEVER';
+  /**
+   * The single strategy that BUILDS a correcting document. Kept because six call sites read it —
+   * but it is no longer authored by hand where `correctionRoutes` exists: data-integrity asserts it
+   * equals `primaryCorrectionModel(correctionRoutes)`, so the two cannot drift. D-002 warned that
+   * phase 3 must not add a THIRD representation of something the repo already models twice; a
+   * derived-and-asserted value is the answer to that warning, not another instance of it.
+   */
   correctionModel: CorrectionModel;
+  /**
+   * The full set, sourced. Optional because only the seven pivots carry it today: an absent list
+   * means "not researched", which is honest, whereas an empty list would claim "no route exists".
+   */
+  correctionRoutes?: CorrectionRouteRule[];
   cancellation: {
     allowed: boolean;
     windowHours?: number;

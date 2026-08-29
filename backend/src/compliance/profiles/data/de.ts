@@ -54,7 +54,97 @@ export const DE: CountryComplianceProfile = {
       validFrom: '1900-01-01',
       value: {
         immutableAfter: 'ISSUE',
-        correctionModel: 'CREDIT_NOTE',
+        correctionModel: 'CORRECTIVE_INVOICE',
+        correctionRoutes: [
+          {
+            route: 'CORRECTIVE_INVOICE',
+            status: 'REQUIRED',
+            appliesTo: 'Mentions des § 14 Abs. 4 / § 14a manquantes ou unzutreffend',
+            // THE German route, and the one this profile used to hide behind `CREDIT_NOTE`. Only the
+            // missing items need be sent, and the document must be "spezifisch und eindeutig auf die
+            // Rechnung bezogen" — with a detail our numbering cannot yet express: "eine neue
+            // Rechnungsnummer für dieses Dokument ist nicht erforderlich".
+            legalRef: '§ 31 Abs. 5 UStDV ; UStAE 14.11 Abs. 1 S. 2, 4, 5, 11',
+          },
+          {
+            route: 'NO_DOCUMENT_BY_LAW',
+            status: 'OPEN',
+            appliesTo: 'Skonti, Nachlässe, Rückgängigmachung — tout changement de base imposable',
+            // The German DEFAULT, not a marginal case: § 17 Abs. 1 adjusts the tax by operation of
+            // law and UStAE 14.11 Abs. 4 says "ist keine Rechnungsberichtigung erforderlich".
+            // Modelling this as a credit note is precisely what was wrong before.
+            legalRef: '§ 17 Abs. 1 UStG ; UStAE 14.11 Abs. 4 S. 1 ; UStAE 17.1 Abs. 3a S. 4-5',
+          },
+          {
+            route: 'CREDIT_NOTE',
+            status: 'OPEN',
+            direction: 'DECREASE',
+            // Open, never compelled: "Ein Beleg […] kann, muss aber nicht als umsatzsteuerliche
+            // Rechnung ausgestellt werden."
+            legalRef: 'UStAE 17.1 Abs. 3a S. 4-5',
+          },
+          {
+            route: 'CREDIT_NOTE',
+            status: 'REQUIRED',
+            appliesTo:
+              'Contrepartie modifiée conjointement sur des opérations taxées différemment (Jahresboni)',
+            // The one case where an exchange of document IS prescribed — a Beleg showing the
+            // allocation. "Ein Belegaustausch ist nur für die in § 17 Abs. 4 UStG bezeichneten Fälle
+            // vorgeschrieben."
+            legalRef: '§ 17 Abs. 4 UStG',
+          },
+          {
+            route: 'CANCEL_AND_REPLACE',
+            status: 'OPEN',
+            appliesTo: 'Toute correction — et la rétroactivité de la déduction peut lui être reconnue',
+            // Limit worth carrying: several invoices for one supply not marked "Duplikat"/"Kopie"
+            // trigger § 14c liability on EACH of them.
+            legalRef: 'UStAE 15.2a Abs. 7 S. 5 (BFH 22/01/2020 XI R 10/17) ; limite UStAE 14c.1 Abs. 4 S. 5',
+          },
+          {
+            route: 'INTERNAL_CREDIT_NOTE',
+            status: 'FORBIDDEN',
+            appliesTo: '§ 14c — lorsque la taxe a été mentionnée et la facture délivrée',
+            // A correction that does not reach the recipient is worth nothing: "Dem
+            // Leistungsempfänger muss eine hinreichend bestimmte, schriftliche Berichtigung
+            // tatsächlich zugehen."
+            legalRef: 'UStAE 14c.1 Abs. 7 S. 1-2',
+          },
+          {
+            route: 'AUTHORITY_ANNULMENT',
+            status: 'REQUIRED',
+            appliesTo: 'Unberechtigter Steuerausweis — § 14c Abs. 2, étendu par Abs. 1 S. 3',
+            // The surprise: Germany, filed under "no authority", has one. "Die Berichtigung […] ist
+            // beim Finanzamt gesondert schriftlich zu beantragen und nach dessen Zustimmung […]
+            // vorzunehmen." NOTE it annuls the TAX, not the invoice — which is why
+            // `cancellation.requiresAuthorityAck` below is deliberately left false: that flag gates
+            // cancelling the DOCUMENT, and stretching it to cover a tax-correction procedure would
+            // be a different rule than the one the text states.
+            legalRef: '§ 14c Abs. 2 S. 3-5 UStG ; UStAE 14c.1 Abs. 11',
+          },
+          {
+            route: 'COUNTERPARTY_OBJECTION',
+            status: 'OPEN',
+            appliesTo: "Gutschrift — le fournisseur peut la détruire en s'y opposant",
+            // "verliert die Wirkung einer Rechnung", effective on receipt, ex nunc, and
+            // "grundsätzlich unbefristet möglich" — a cancellation by the counterparty, with no
+            // time limit at all. Nothing in the runtime models an action taken by the other side.
+            legalRef: '§ 14 Abs. 2 Satz 6 UStG ; UStAE 14.3 Abs. 4 S. 7-9',
+          },
+          {
+            route: 'RESUBMIT_SAME_IDENTITY',
+            status: 'OPEN',
+            appliesTo: 'Renvoi du même fichier de facture électronique',
+            legalRef: 'UStAE 14c.1 Abs. 4 S. 6-7',
+          },
+          {
+            route: 'DEBIT_NOTE',
+            status: 'UNVERIFIED',
+            direction: 'INCREASE',
+            openQuestion:
+              'Aucun texte trouvé qui autorise ou interdise un document de débit distinct. UStAE Abschnitt 17.1 dans son intégralité, ou un BMF-Schreiben sur les Entgelterhöhungen, le trancherait.',
+          },
+        ],
         cancellation: { allowed: true, requiresAuthorityAck: false },
       },
     },

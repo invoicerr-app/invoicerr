@@ -8,6 +8,7 @@ import { ALL_PROFILES } from './data/all';
 import { FALLBACK } from './data/fallback';
 import { defaultRegistry } from './registry';
 import { Temporal } from './schema';
+import { primaryCorrectionModel } from '../lifecycle/correction-routes';
 import { defaultFormatRegistry } from '../providers/format/registry';
 import { defaultTransmissionRegistry } from '../providers/transmission/registry';
 
@@ -220,6 +221,70 @@ describe('profile data integrity', () => {
     it('delegating profiles (e.g. MC) have empty requiredIdentifiers (their delegate owns them)', () => {
       for (const p of delegating) {
         expect(p.requiredIdentifiers).toEqual([]);
+      }
+    });
+  });
+  describe('P3-T02 — correction routes', () => {
+    const STATUSES = ['REQUIRED', 'OPEN', 'FORBIDDEN', 'UNVERIFIED'];
+
+    it('a status is either sourced or openly unverified — never silently neither', () => {
+      // Same shape as the P2-T02 deadline rule above, for the same reason. UNVERIFIED is a real
+      // answer, but only when it carries what would settle it; anything else must carry the text it
+      // rests on. A route with neither is not a considered gap, it is a forgotten field.
+      for (const p of concrete) {
+        for (const t of p.lifecycle) {
+          for (const r of t.value.correctionRoutes ?? []) {
+            const at = `${p.countryCode}/${r.route}`;
+            expect(STATUSES).toContain(r.status);
+            if (r.status === 'UNVERIFIED') {
+              expect(`${at} openQuestion`).toBe(r.openQuestion ? `${at} openQuestion` : 'MISSING');
+            } else {
+              expect(`${at} legalRef`).toBe(r.legalRef ? `${at} legalRef` : 'MISSING');
+            }
+          }
+        }
+      }
+    });
+
+    it('a repeated route says which case each entry covers', () => {
+      // France declares CREDIT_NOTE twice — OPEN for a cancelled sale, FORBIDDEN for an unpaid
+      // invoice. That is legitimate and the first entry is the general rule; every later one must
+      // name its carve-out, or the pair is just a contradiction nobody can read.
+      for (const p of concrete) {
+        for (const t of p.lifecycle) {
+          const seen = new Set<string>();
+          for (const r of t.value.correctionRoutes ?? []) {
+            if (seen.has(r.route)) {
+              expect(`${p.countryCode}/${r.route} appliesTo`).toBe(
+                r.appliesTo ? `${p.countryCode}/${r.route} appliesTo` : 'MISSING',
+              );
+            }
+            seen.add(r.route);
+          }
+        }
+      }
+    });
+
+    it('the declared correctionModel IS the derived one — one source of truth, not two', () => {
+      // The answer to D-002, which warned that phase 3 would be tempted to add a third
+      // representation of something already modelled twice. `correctionModel` stays because six call
+      // sites read it, but it is no longer independently authored: if someone edits a route status
+      // and forgets the enum, this fails instead of shipping a silent divergence.
+      for (const p of concrete) {
+        for (const t of p.lifecycle) {
+          if (!t.value.correctionRoutes?.length) continue;
+          expect(`${p.countryCode}: ${t.value.correctionModel}`).toBe(
+            `${p.countryCode}: ${primaryCorrectionModel(t.value.correctionRoutes)}`,
+          );
+        }
+      }
+    });
+
+    it('every pivot expresses its routes — the P3-T02 acceptance criterion', () => {
+      for (const cc of ['FR', 'IT', 'PL', 'DE', 'ES', 'MX', 'US']) {
+        const p = defaultRegistry.resolve(cc).profile;
+        const latest = p.lifecycle[p.lifecycle.length - 1];
+        expect(`${cc}: ${latest.value.correctionRoutes?.length ?? 0} routes`).not.toBe(`${cc}: 0 routes`);
       }
     });
   });

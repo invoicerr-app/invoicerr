@@ -345,7 +345,7 @@ consommation, deux endpoints entrants. **On l'étend, on ne le refait pas.***
 | # | Tâche | Dépend de | Accepte si |
 | --- | --- | --- | --- |
 | **P3-T01** | ✅ **fait** — `docs/compliance/CORRECTION-ROUTES.yaml`. 11 voies × 7 pays = 68 cases statuées, 17 questions ouvertes. Le vocabulaire du plan en listait 6 ; il en manquait **4** | feu vert | ✅ Table sourcée, chaque case avec sa référence légale |
-| **P3-T02** | Porter ces voies dans le schéma de profil | P3-T01 | `data-integrity` valide ; les six pivots expriment leurs voies |
+| **P3-T02** | ✅ **fait** — `CorrectionRouteRule` sur `LifecyclePolicy`, 7 pivots peuplés, `correctionModel` **dérivé** et non plus écrit à la main | P3-T01 | ✅ `data-integrity` valide (4 gardes) ; les **sept** pivots expriment leurs voies |
 | **P3-T03** | **D2 — l'avoir interne français.** Sur statut *Refusée* ou *Rejetée*, l'annulation comptable ne génère **aucun flux F1** vers le PPF et **n'est pas transmise à l'acheteur**. Le code transmet aujourd'hui précisément là où la spécification l'interdit | P3-T02 | Un test prouve qu'aucune transmission n'est déclenchée depuis ces deux statuts, et qu'il échoue sur l'arbre actuel |
 | **P3-T04** | **D1 — sortie de `REJECTED`**, aujourd'hui terminal (`REJECTED: {}`). Le modèle porte la divergence : l'Italie renvoie de préférence sous **mêmes date et numéro** après un *scarto*, la Pologne sous le même **P_2**. La France suffit à démarrer | P3-T02 | Depuis `REJECTED`, la voie française est ouverte et exerçable ; les voies IT et PL sont exprimables dans le profil sans code par pays |
 | **P3-T05** | Fenêtres, délais et consentement de la contrepartie, par pays | P3-T02 | Chaque fenêtre est une donnée de profil ; un délai dépassé produit un effet observable |
@@ -389,6 +389,39 @@ dit.*
 Conséquence assumée de R1 : il partait pour une transmission jamais tentée, il ne part plus. Mais il
 devrait partir **quand elle aboutit réellement**, depuis la projection. Ne rien émettre vaut mieux
 qu'émettre une fausseté vers un système tiers ; ça ne clôt pas le sujet.
+
+---
+
+# Phase 3 ter — Le système par triplet (direction du mandant, 2026-08-29)
+
+*Demandé en ces termes : « un système ultra modulaire qui dit pour chaque triplet
+émetteur/récepteur:type quoi faire par actions. Pour l'annulation c'est un truc spécifique, pour la
+modification un autre. » Inscrit ici pour ne pas vivre seulement dans une conversation.*
+
+**La forme est déjà décidée, et elle n'est pas une matrice.** Le moteur a résolu ce problème une
+fois : `tax-engine.ts` calcule la fiscalité transfrontalière en **composant** le profil vendeur et le
+profil acheteur, jamais en énumérant un tableau N×N. Les actions doivent suivre le même chemin —
+sinon 108 pays donnent 11 664 cases, dont personne ne pourra dire laquelle est fausse.
+
+**Ce que P3-T02 a déjà posé pour ça.** Chaque `CorrectionRouteRule` porte son propre statut, son sens
+de variation et sa contrainte de transmission. Deux jeux de règles sont donc *intersectables* : la
+forme est prête.
+
+**Ce qui manque, et qui n'est pas du code.** P3-T01 a sourcé chaque pays **isolément**. Aucune source
+n'a établi quelle loi gouverne une correction quand l'émetteur et le récepteur divergent — celle de
+l'émetteur, celle du lieu d'imposition, ou les deux cumulativement. Écrire l'intersection aujourd'hui
+serait inventer une règle fiscale, c'est-à-dire précisément la faute que ce chantier combat. C'est
+pourquoi `correction-routes.ts` s'arrête au pays et le dit dans son en-tête.
+
+| # | Tâche | Dépend de | Accepte si |
+| --- | --- | --- | --- |
+| **P3-U01** | Sourcer la règle de conflit : en transfrontalier, quelle loi gouverne la correction ? Chercher la directive TVA 2006/112 (art. 219 bis sur les règles de facturation applicables), et ce que chacun des 7 pivots en dit | — | Table sourcée : pour chaque paire de pivots, quelle loi s'applique à la correction, avec sa référence |
+| **P3-U02** | Composer les voies de deux profils, sur le modèle de `tax-engine.ts` | P3-U01 | Une paire dont les statuts divergent (FR→PL : avoir interne requis d'un côté, interdit de l'autre) rend un verdict, et le verdict est celui que P3-U01 a sourcé |
+| **P3-U03** | Étendre au **type de document** — le `:type` du triplet. `documentKindsFor` répond déjà par pays ; il ne répond pas par action | P3-U02 | Pour un triplet donné, chaque action (annuler, corriger, renvoyer) rend ses voies avec leur statut |
+
+> **Le piège à ne pas retomber dedans.** P3-T02 a livré la donnée et l'a branchée le jour même
+> (`document-kinds.ts` la consomme, et cela a révélé une régression). P3-U02 doit faire pareil :
+> une composition que rien n'appelle serait la troisième occurrence du défaut que D-002 décrit.
 
 ---
 
@@ -692,3 +725,4 @@ mémoïsation l'a réduit mais je n'ai pas mesuré l'effet.
 | 2026-08-28 | **C5 — déclaration (c), front** | ✅ fait | `9e084610`. Écran, types, rechargement depuis la déclaration. Le chemin **récurrent** a dû suivre, sans quoi `autoIssue` échouait à chaque cycle dans une boucle silencieuse. |
 | 2026-08-28 | *(historique)* **P1-T03d** | ↩ tenté, annulé | Mesure P1-T02 corrigée : 8 suites / 52 tests, pas 6/31 — je n'avais inversé qu'un des cinq court-circuits. Redécoupée en T03b/c/d. |
 | 2026-08-29 | **P3-T01** | ✅ fait | `CORRECTION-ROUTES.yaml`. **La même voie est `required` ici et `forbidden` là** : l'avoir interne est imposé en FR et IT, interdit en PL, ES et MX — c'est la justification entière de P3-T02, et elle vient de cinq textes, pas d'un raisonnement. **Aucune** des 11 voies n'a le même statut partout. **4 voies manquaient au plan** (duplicata annoté FR, annotation en registre IT/ES, ajustement de plein droit DE, opposition de la contrepartie DE/MX). **8 défauts** consignés, tous établis par lecture du code : `CANCEL_AND_REPLACE` est une affordance morte qu'aucun profil ne déclare, `de.ts` est faux sur deux points, l'écran polonais conseille un avoir que la Pologne interdit. |
+| 2026-08-29 | **P3-T02** | ✅ fait | `CorrectionRouteRule` sur `LifecyclePolicy` ; 7 pivots, 11 voies. **`correctionModel` n'est plus écrit à la main** : il est dérivé des voies et `data-integrity` assert l'égalité — la réponse à D-002, une seule source de vérité. **Trois profils changent de modèle** : DE et ES → `CORRECTIVE_INVOICE`, MX → `CANCEL_AND_REPLACE`, ce qui allume enfin une affordance morte depuis toujours. **Une régression trouvée et corrigée en cours de route** : dériver le menu du seul enum faisait perdre au Mexique sa *nota de crédito*, et le test censé le voir affirmait le contraire — `document-kinds.ts` dérive maintenant des voies. L'Italie gagne la *nota di debito* que son droit lui impose et que le produit n'a jamais offerte. **2019 tests, 0 échec.** |

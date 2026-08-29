@@ -48,6 +48,52 @@ export const IT: CountryComplianceProfile = {
       value: {
         immutableAfter: 'ISSUE',
         correctionModel: 'CREDIT_NOTE',
+        correctionRoutes: [
+          {
+            route: 'CREDIT_NOTE',
+            status: 'OPEN',
+            direction: 'DECREASE',
+            appliesTo:
+              'Nullità, annullamento, revoca, risoluzione, rescissione e simili ; abbuoni e sconti ; comma 3-bis',
+            // A FACULTY, and the law says so twice: comma 2 "ha diritto di", commas 9 and 10 calling
+            // it "la facoltà di cui al comma 2". One year only when the reduction stems from a
+            // "sopravvenuto accordo fra le parti"; otherwise no time limit at all.
+            legalRef: 'Art. 26 DPR 633/72 commi 2, 3, 9 e 10',
+          },
+          {
+            route: 'DEBIT_NOTE',
+            status: 'REQUIRED',
+            direction: 'INCREASE',
+            appliesTo: 'Toute hausse de la base ou de la taxe, per qualsiasi motivo',
+            // The asymmetry this whole direction axis exists for: "Le disposizioni degli articoli 21
+            // e seguenti DEVONO ESSERE OSSERVATE, in relazione al maggiore ammontare". The increase
+            // compels; the decrease does not. Poland answers the same question with one instrument.
+            legalRef: 'Art. 26 DPR 633/72 comma 1',
+          },
+          {
+            route: 'CORRECTIVE_INVOICE',
+            status: 'FORBIDDEN',
+            // Non-existent rather than prohibited: the provvedimento frames every variation as a
+            // nota di credito or di debito ex art. 26, leaving no amend-by-reference instrument.
+            legalRef: 'Provv. AdE 89757/2018, punto 6.1',
+          },
+          {
+            route: 'LEDGER_ANNOTATION',
+            status: 'OPEN',
+            appliesTo: 'Erreurs matérielles ou de calcul dans les registres et liquidations',
+            // A correction with NO document issued and none transmitted — "possono essere effettuate
+            // […] anche mediante apposite annotazioni in rettifica […] sui registri".
+            legalRef: 'Art. 26 DPR 633/72 commi 7 e 8',
+          },
+          {
+            route: 'AUTHORITY_ANNULMENT',
+            status: 'FORBIDDEN',
+            // Concluded by exhaustiveness of the provvedimento (zero occurrences of "annull-"), not
+            // by a prohibiting sentence — the one status here inferred from silence rather than read.
+            // Punto 6.2: buyer-side variation requests "non sono gestite dal SdI".
+            legalRef: 'Provv. AdE 89757/2018, punti 6.1 e 6.2',
+          },
+        ],
         cancellation: { allowed: true, requiresAuthorityAck: false },
       },
     },
@@ -59,6 +105,77 @@ export const IT: CountryComplianceProfile = {
       value: {
         immutableAfter: 'CLEARANCE',
         correctionModel: 'CREDIT_NOTE',
+        correctionRoutes: [
+          {
+            route: 'CREDIT_NOTE',
+            status: 'OPEN',
+            direction: 'DECREASE',
+            appliesTo:
+              'Nullità, annullamento, revoca, risoluzione, rescissione e simili ; abbuoni e sconti ; comma 3-bis',
+            // A FACULTY, and the law says so twice: comma 2 "ha diritto di", commas 9 and 10 calling
+            // it "la facoltà di cui al comma 2". One year only when the reduction stems from a
+            // "sopravvenuto accordo fra le parti"; otherwise no time limit at all.
+            legalRef: 'Art. 26 DPR 633/72 commi 2, 3, 9 e 10',
+          },
+          {
+            route: 'DEBIT_NOTE',
+            status: 'REQUIRED',
+            direction: 'INCREASE',
+            appliesTo: 'Toute hausse de la base ou de la taxe, per qualsiasi motivo',
+            // The asymmetry this whole direction axis exists for: "Le disposizioni degli articoli 21
+            // e seguenti DEVONO ESSERE OSSERVATE, in relazione al maggiore ammontare". The increase
+            // compels; the decrease does not. Poland answers the same question with one instrument.
+            legalRef: 'Art. 26 DPR 633/72 comma 1',
+          },
+          {
+            route: 'CORRECTIVE_INVOICE',
+            status: 'FORBIDDEN',
+            // Non-existent rather than prohibited: the provvedimento frames every variation as a
+            // nota di credito or di debito ex art. 26, leaving no amend-by-reference instrument.
+            legalRef: 'Provv. AdE 89757/2018, punto 6.1',
+          },
+          {
+            route: 'LEDGER_ANNOTATION',
+            status: 'OPEN',
+            appliesTo: 'Erreurs matérielles ou de calcul dans les registres et liquidations',
+            // A correction with NO document issued and none transmitted — "possono essere effettuate
+            // […] anche mediante apposite annotazioni in rettifica […] sui registri".
+            legalRef: 'Art. 26 DPR 633/72 commi 7 e 8',
+          },
+          {
+            route: 'AUTHORITY_ANNULMENT',
+            status: 'FORBIDDEN',
+            // Concluded by exhaustiveness of the provvedimento (zero occurrences of "annull-"), not
+            // by a prohibiting sentence — the one status here inferred from silence rather than read.
+            // Punto 6.2: buyer-side variation requests "non sono gestite dal SdI".
+            legalRef: 'Provv. AdE 89757/2018, punti 6.1 e 6.2',
+          },
+          {
+            route: 'INTERNAL_CREDIT_NOTE',
+            status: 'REQUIRED',
+            transmission: 'FORBIDDEN',
+            appliesTo: 'Après scarto SdI, si la facture avait déjà été comptabilisée',
+            // Italy has the same trap as France, and nobody was looking for it here: "una variazione
+            // contabile valida ai soli fini interni SENZA LA TRASMISSIONE DI ALCUNA NOTA DI
+            // VARIAZIONE AL SdI". Two countries, same route, same forbidden transmission.
+            legalRef: 'Provv. AdE 89757/2018, punto 6.3 ; circolare 13/E du 02/07/2018 § 1.6 p. 11',
+          },
+          {
+            route: 'RESUBMIT_SAME_IDENTITY',
+            status: 'OPEN',
+            appliesTo: "Après scarto, dans les 5 jours, sous les date et numéro d'origine",
+            // "vada PREFERIBILMENTE emessa […] con la data ed il numero del documento originario" —
+            // recommended, never required. A scartato file "si considera non emessa", which is why
+            // the uniqueness check reopens the number/year pair after a ricevuta di scarto.
+            legalRef: 'Circolare 13/E § 1.6 ; specifiche tecniche allegato A v1.6.3 p. 150',
+          },
+          {
+            route: 'CANCEL_AND_REPLACE',
+            status: 'OPEN',
+            appliesTo: 'Après scarto UNIQUEMENT — inexistant une fois la facture livrée',
+            legalRef: 'Circolare 13/E du 02/07/2018, § 1.6 p. 12',
+          },
+        ],
         cancellation: { allowed: true, requiresAuthorityAck: true },
         response: {
           defaultOnSilence: 'ACCEPT',

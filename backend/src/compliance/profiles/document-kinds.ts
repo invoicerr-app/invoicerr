@@ -15,6 +15,7 @@
 import { CountryComplianceProfile, DocumentKindRule } from './schema';
 import { pickByDate } from './temporal';
 import { CorrectionModel, DocumentKind } from '../types';
+import { statusOf } from '../lifecycle/correction-routes';
 
 /** The correction document each model produces. Mirrors `lifecycle/corrections.ts`, deliberately. */
 const CORRECTION_KIND: Record<CorrectionModel, DocumentKind | null> = {
@@ -64,10 +65,30 @@ export function documentKindsFor(profile: CountryComplianceProfile, at: Date): D
   if (declared.length) return declared;
 
   const lifecycle = pickByDate(profile.lifecycle, at);
-  const correction = lifecycle ? CORRECTION_KIND[lifecycle.correctionModel] : 'CREDIT_NOTE';
 
   const kinds: DocumentKind[] = ['INVOICE', 'DEPOSIT', 'FINAL'];
-  if (correction) kinds.push(correction);
+
+  // P3-T02: where the country's routes are sourced, they decide — a single `correctionModel` cannot.
+  // Mexico is why this branch exists. Deriving from the enum alone made it CANCEL_AND_REPLACE and
+  // therefore offered NO correction document at all, while the SAT calls the CFDI tipo E a nota de
+  // crédito in so many words. A country can require cancel-and-replace for a wrong document AND keep
+  // a credit note for wrong amounts, and Mexico does exactly that.
+  //
+  // Only the three document-PRODUCING routes are consulted. The others correct without producing
+  // anything to offer in a menu: cancel-and-replace issues a fresh INVOICE (already listed), the
+  // internal credit note never leaves, and ledger annotation writes no document at all.
+  const routes = lifecycle?.correctionRoutes;
+  if (routes?.length) {
+    for (const kind of ['CREDIT_NOTE', 'DEBIT_NOTE', 'CORRECTIVE_INVOICE'] as const) {
+      // The FIRST entry is the general rule; later ones are case carve-outs, and a menu describes
+      // the general case (France offers a credit note, and forbids it only for an unpaid invoice).
+      const status = statusOf(routes, kind);
+      if (status === 'REQUIRED' || status === 'OPEN') kinds.push(kind);
+    }
+  } else {
+    const correction = lifecycle ? CORRECTION_KIND[lifecycle.correctionModel] : 'CREDIT_NOTE';
+    if (correction) kinds.push(correction);
+  }
 
   const rules: DocumentKindRule[] = kinds.map((kind) => ({
     kind,
