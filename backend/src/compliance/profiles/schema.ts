@@ -11,6 +11,7 @@ import {
   CorrectionModel,
   CorrectionRoute,
   DocumentKind,
+  DocumentKindCode,
   DocumentSyntax,
   ISO3166Alpha2,
   NumberingModel,
@@ -382,8 +383,47 @@ export interface CountryComplianceProfile {
  * numbers, issues, transmits and archives the kind. `availability` is a COUNTRY fact, and mostly
  * unverified — which is why `UNVERIFIED` exists and is the default rather than a polite `AVAILABLE`.
  */
+/**
+ * When a document may be issued — a calendar constraint, not a legal claim.
+ *
+ * Exists because a jurisdiction can perfectly well say "this document is issued on the first of the
+ * month" or "only in the first quarter", and expressing that must not require touching the engine.
+ * Every field is optional and they AND together; an empty window means "whenever".
+ */
+export interface IssuanceWindow {
+  /** Days of the month on which issuance is allowed, 1–31. */
+  daysOfMonth?: number[];
+  /** Months, 1–12. */
+  months?: number[];
+  /** ISO weekdays, 1 = Monday … 7 = Sunday. */
+  daysOfWeek?: number[];
+  /** Shown to the user when the window blocks them. Free text, in the country's own words. */
+  description?: string;
+}
+
+/** A document that must already exist, in a given state, before this one may be issued. */
+export interface DocumentPrerequisite {
+  kind: DocumentKindCode;
+  /** e.g. 'SIGNED' for a quote. Absent = it need only exist. */
+  state?: string;
+  /** Shown when the prerequisite is not met. */
+  description?: string;
+}
+
 export interface DocumentKindRule {
-  kind: DocumentKind;
+  kind: DocumentKindCode;
+  /**
+   * What to call it on screen when the shipped label does not fit — a country-specific document has
+   * a country-specific name, and `FAKTURA_ZALICZKOWA` is not a label.
+   */
+  label?: string;
+  /**
+   * Documents that must exist first. This is what lets a profile say "no invoice without a signed
+   * quote" without a single line of code knowing what a quote is.
+   */
+  requires?: DocumentPrerequisite[];
+  /** When it may be issued. Absent = whenever. */
+  issuableOn?: IssuanceWindow;
   /**
    * Does this kind enter the legal series — numbered, issued, transmitted, archived?
    *

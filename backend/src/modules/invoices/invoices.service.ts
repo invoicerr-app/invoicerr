@@ -22,6 +22,9 @@ import {
   TransmissionProviderRegistry,
 } from '@/compliance/providers/transmission/registry';
 import { describeFlow } from '@/compliance/lifecycle/flow-descriptor';
+import { guessCountryCode } from '@/utils/country-name-to-iso';
+import { checkIssuable } from '@/compliance/profiles/issuance-rules';
+import { defaultRegistry as profileRegistry } from '@/compliance/profiles/registry';
 import { correctionDocumentKinds, internalOnlyCorrection } from '@/compliance/lifecycle/correction-routes';
 import { ComplianceQueueDispatcher } from '@/compliance/nest/queue/compliance-queue.dispatcher';
 import { clampDiscountRate, toMinor } from '@/utils/financial';
@@ -397,6 +400,8 @@ export class InvoicesService {
     const invoice = await prisma.invoice.findFirst({
       where: { id, companyId },
       include: {
+        // The quote, so a country that requires a signed one before invoicing can check it.
+        quote: true,
         items: true,
         client: { include: { partyIdentifiers: true } },
         company: { include: { partyIdentifiers: true } },
@@ -414,6 +419,34 @@ export class InvoicesService {
         details: { id, status: invoice.status },
       });
       throw new BadRequestException('Only DRAFT invoices can be issued');
+    }
+
+    // The country's own conditions on issuing THIS kind: is it permitted at all, does something have
+    // to exist first, is today a day on which it may be issued. All three are profile data, and a
+    // country that declares none — which is every shipped profile today — is unconstrained.
+    //
+    // Placed before the number is allocated, deliberately: a blocked issuance must not consume a
+    // number from a gapless series. That is the same reasoning as F-9's hard-block on numbering.
+    const issuerIso = invoice.company?.country ? guessCountryCode(invoice.company.country) : undefined;
+    if (issuerIso) {
+      const existing = invoice.quote
+        ? [{ kind: 'QUOTE', state: String((invoice.quote as { status?: string }).status ?? '') }]
+        : [];
+      const verdict = checkIssuable(
+        profileRegistry.resolve(issuerIso).profile,
+        invoice.kind ?? 'INVOICE',
+        new Date(),
+        existing,
+      );
+      if (!verdict.allowed) {
+        // The blockers travel as CODES with the country's own words attached; the screen does the
+        // wording. Assembling a sentence here would put an English literal in front of a user whose
+        // country wrote the rule in its own language.
+        throw new BadRequestException({
+          message: 'This document cannot be issued yet',
+          blockers: verdict.blockers,
+        });
+      }
     }
 
     if (invoice.number !== null) {

@@ -213,3 +213,17 @@ export type DocumentKind =
   | 'CASH_RECEIPT'
   | 'WITHHOLDING_RECEIPT'
   | 'PAYMENT_RECEIPT';
+
+/**
+ * A document kind as a PROFILE may name it — the shipped ones, or a code a country invents.
+ *
+ * `DocumentKind` above is the closed set the engine itself understands: it drives BT-3, the
+ * correction strategies, the numbering series. But a jurisdiction is free to require a document that
+ * exists nowhere else, and a closed union makes that a code change — which is precisely what "a
+ * country is data" forbids. So a profile may declare any code; the engine treats an unknown one as
+ * an ordinary document (BT-3 falls back to 380, see `documentTypeCode`) and the profile carries
+ * whatever else is true about it.
+ *
+ * The `(string & {})` keeps editor completion on the known values while admitting the rest.
+ */
+export type DocumentKindCode = DocumentKind | (string & {});

@@ -62,7 +62,6 @@ export function documentKindsFor(profile: CountryComplianceProfile, at: Date): D
         .filter((t) => new Date(t.validFrom) <= at && (!t.validTo || new Date(t.validTo) > at))
         .map((t) => t.value)
     : [];
-  if (declared.length) return declared;
 
   const lifecycle = pickByDate(profile.lifecycle, at);
 
@@ -104,5 +103,30 @@ export function documentKindsFor(profile: CountryComplianceProfile, at: Date): D
     openQuestion: PROFORMA_QUESTION,
   });
 
-  return rules;
+  return mergeDeclared(rules, declared);
+}
+
+/**
+ * Fold what the profile DECLARES into what the engine DERIVED.
+ *
+ * This used to be all-or-nothing: one declared entry replaced the whole family. So a country that
+ * wanted to add a single document of its own — and countries do; the Polish `faktura zaliczkowa` and
+ * the Mexican REP exist nowhere else — had to re-declare the invoice, the deposit and the rest, and
+ * then keep them in step by hand for ever. That is not an escape hatch, it is a fork.
+ *
+ * Now: a declared entry REPLACES the derived one for the same kind, an unknown kind is APPENDED, and
+ * a `FORBIDDEN` one is REMOVED. A country can therefore add one document, rename one, or take the
+ * plain invoice away entirely — each in one line, and without repeating anything it agrees with.
+ *
+ * `FORBIDDEN` disappears from this list because this list is the MENU. The declaration itself stays
+ * readable through `documentKindRuleFor`, which is what the issuance guard consults — a forbidden
+ * kind must still be able to explain itself when someone reaches it through the API.
+ */
+function mergeDeclared(derived: DocumentKindRule[], declared: DocumentKindRule[]): DocumentKindRule[] {
+  if (!declared.length) return derived;
+
+  const byKind = new Map<string, DocumentKindRule>(derived.map((r) => [r.kind, r]));
+  for (const rule of declared) byKind.set(rule.kind, rule);
+
+  return [...byKind.values()].filter((r) => r.availability !== 'FORBIDDEN');
 }
