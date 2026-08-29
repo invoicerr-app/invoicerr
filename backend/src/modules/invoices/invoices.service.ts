@@ -22,7 +22,7 @@ import {
   TransmissionProviderRegistry,
 } from '@/compliance/providers/transmission/registry';
 import { describeFlow } from '@/compliance/lifecycle/flow-descriptor';
-import { internalOnlyCorrection } from '@/compliance/lifecycle/correction-routes';
+import { correctionDocumentKinds, internalOnlyCorrection } from '@/compliance/lifecycle/correction-routes';
 import { ComplianceQueueDispatcher } from '@/compliance/nest/queue/compliance-queue.dispatcher';
 import { clampDiscountRate, toMinor } from '@/utils/financial';
 import type { SupplyType, DocumentKind } from '@/compliance/types';
@@ -594,7 +594,7 @@ export class InvoicesService {
     return updated;
   }
 
-  async correctInvoice(companyId: string, id: string, reason?: string) {
+  async correctInvoice(companyId: string, id: string, reason?: string, requestedKind?: DocumentKind) {
     const invoice = await prisma.invoice.findFirst({
       where: { id, companyId },
       include: {
@@ -618,6 +618,20 @@ export class InvoicesService {
 
       const storedPlan = complianceDoc.plan as any;
       const correctionModel: string = storedPlan?.lifecycle?.correctionModel ?? 'CREDIT_NOTE';
+
+      // P3-T02 follow-up: the caller may ask for one of the documents the COUNTRY allows, instead of
+      // being handed the single one the enum implies. Italy is the case that forced this — art. 26
+      // comma 1 compels a debit note on any increase, and there was no way to ask for one: both
+      // correction buttons posted the same request and the server picked from `correctionModel`.
+      const allowedKinds = correctionDocumentKinds(
+        storedPlan?.lifecycle?.correctionRoutes,
+        complianceDoc.status,
+      );
+      if (requestedKind && allowedKinds.length && !allowedKinds.includes(requestedKind)) {
+        throw new BadRequestException(
+          `A ${requestedKind} is not a correction this country allows. Available: ${allowedKinds.join(', ')}.`,
+        );
+      }
 
       // Determine the correction kind and compute items/totals
       let correctionKind: DocumentKind;
@@ -645,40 +659,49 @@ export class InvoicesService {
           unitOfMeasure: item.unitOfMeasure,
         }));
 
-      if (correctionModel === 'CANCEL_AND_REPLACE') {
-        correctionKind = 'INVOICE';
-        correctionItems = copyItems(false);
-        totalHT = invoice.totalHT;
-        totalVAT = invoice.totalVAT;
-        totalTTC = invoice.totalTTC;
-      } else if (correctionModel === 'CORRECTIVE_INVOICE') {
-        correctionKind = 'CORRECTIVE_INVOICE';
-        correctionItems = copyItems(false);
-        totalHT = invoice.totalHT;
-        totalVAT = invoice.totalVAT;
-        totalTTC = invoice.totalTTC;
-      } else {
-        correctionKind = 'CREDIT_NOTE';
+      // Branch on the KIND now, not on the model: the model can only name three documents and the
+      // country may allow four. When nothing is requested the model still decides, so an untouched
+      // caller keeps the behaviour it had.
+      correctionKind =
+        requestedKind ??
+        (correctionModel === 'CANCEL_AND_REPLACE'
+          ? 'INVOICE'
+          : correctionModel === 'CORRECTIVE_INVOICE'
+            ? 'CORRECTIVE_INVOICE'
+            : 'CREDIT_NOTE');
+
+      if (correctionKind === 'CREDIT_NOTE') {
+        // The only kind that REVERSES. Everything else restates or adds.
         correctionItems = copyItems(true);
         totalHT = -invoice.totalHT;
         totalVAT = -invoice.totalVAT;
         totalTTC = -invoice.totalTTC;
+      } else {
+        // INVOICE (replacement), CORRECTIVE_INVOICE (restatement) and DEBIT_NOTE (increase) all carry
+        // positive amounts. LIMIT, and it predates this change: all three copy the ORIGINAL's lines
+        // rather than the delta, which is right for a replacement and an approximation for the other
+        // two. Correcting that means letting the caller supply the corrected lines — a bigger change
+        // than making the Italian obligation reachable, and not this one.
+        correctionItems = copyItems(false);
+        totalHT = invoice.totalHT;
+        totalVAT = invoice.totalVAT;
+        totalTTC = invoice.totalTTC;
       }
 
       const totalHTMinor =
-        correctionModel === 'CREDIT_NOTE'
+        correctionKind === 'CREDIT_NOTE'
           ? invoice.totalHTMinor != null
             ? -invoice.totalHTMinor
             : null
           : invoice.totalHTMinor;
       const totalVATMinor =
-        correctionModel === 'CREDIT_NOTE'
+        correctionKind === 'CREDIT_NOTE'
           ? invoice.totalVATMinor != null
             ? -invoice.totalVATMinor
             : null
           : invoice.totalVATMinor;
       const totalTTCMinor =
-        correctionModel === 'CREDIT_NOTE'
+        correctionKind === 'CREDIT_NOTE'
           ? invoice.totalTTCMinor != null
             ? -invoice.totalTTCMinor
             : null
@@ -2180,15 +2203,25 @@ export class InvoicesService {
     );
 
     let correctionKinds: string[];
-    switch (lifecycle.correctionModel) {
-      case 'CORRECTIVE_INVOICE':
-        correctionKinds = ['CORRECTIVE_INVOICE'];
-        break;
-      case 'CANCEL_AND_REPLACE':
-        correctionKinds = ['INVOICE'];
-        break;
-      default:
-        correctionKinds = ['CREDIT_NOTE'];
+    // P3-T02 follow-up. This switch derived the offer from the single `correctionModel`, so a country
+    // was offered exactly ONE correction document — and Italy, whose art. 26 comma 1 COMPELS a debit
+    // note on any increase, was offered only a credit note. The routes already knew better;
+    // `documentKindsFor` was taught to read them and this was not, so the API kept answering with the
+    // enum. Two seams from the same data, and only one of them was wired.
+    const fromRoutes = correctionDocumentKinds(lifecycle.correctionRoutes, complianceDoc.status);
+    if (fromRoutes.length) {
+      correctionKinds = fromRoutes;
+    } else {
+      switch (lifecycle.correctionModel) {
+        case 'CORRECTIVE_INVOICE':
+          correctionKinds = ['CORRECTIVE_INVOICE'];
+          break;
+        case 'CANCEL_AND_REPLACE':
+          correctionKinds = ['INVOICE'];
+          break;
+        default:
+          correctionKinds = ['CREDIT_NOTE'];
+      }
     }
 
     // A — the cancellation policy, whole and translatable.

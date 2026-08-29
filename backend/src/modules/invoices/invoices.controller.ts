@@ -10,6 +10,7 @@ import {
 } from '@/modules/invoices/dto/invoices.dto';
 import { InvoicesService } from '@/modules/invoices/invoices.service';
 import { PluginsService } from '@/modules/plugins/plugins.service';
+import type { DocumentKind } from '@/compliance/types';
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { Roles } from '@/decorators/roles.decorator';
@@ -351,14 +352,26 @@ export class InvoicesController {
     description: 'Issues a credit note / corrective invoice per the country correction model.',
   })
   @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
-  @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } } }, required: false })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        reason: { type: 'string' },
+        // Optional: one of the kinds `available-actions` returns in `correctionKinds`. Omitted, the
+        // country's primary correction model decides, which is what every existing caller relies on.
+        kind: { type: 'string', enum: ['CREDIT_NOTE', 'DEBIT_NOTE', 'CORRECTIVE_INVOICE', 'INVOICE'] },
+      },
+    },
+    required: false,
+  })
   @ApiResponse({ status: 201, description: 'Correction initiated' })
   correctInvoice(
     @ActiveCompany() companyId: string,
     @Param('id') id: string,
     @Body('reason') reason?: string,
+    @Body('kind') kind?: DocumentKind,
   ) {
-    return this.invoicesService.correctInvoice(companyId, id, reason);
+    return this.invoicesService.correctInvoice(companyId, id, reason, kind);
   }
 
   @Post(':id/cancel')

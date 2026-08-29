@@ -127,7 +127,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
     invoice.kind === DocumentKind.DEBIT_NOTE
   const correctedBy = invoice.correctedBy ?? []
 
-  const handleAction = (action: string) => {
+  const handleAction = (action: string, kind?: DocumentKind) => {
     if (!invoice) return
     const url =
       action === "cancelAndReplace"
@@ -137,7 +137,14 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
           : action === "send"
             ? `/api/invoices/send`
             : `/api/invoices/${invoice.id}/${action}`
-    const body = action === "send" ? JSON.stringify({ id: invoice.id }) : JSON.stringify({})
+    // `correct` now carries WHICH document to issue. Without it the server falls back to the
+    // country's primary model — which is why both correction buttons used to do the same thing.
+    const body =
+      action === "send"
+        ? JSON.stringify({ id: invoice.id })
+        : action === "correct" && kind
+          ? JSON.stringify({ kind })
+          : JSON.stringify({})
 
     authenticatedFetch(url, { method: "POST", body })
       .then(async (res) => {
@@ -290,7 +297,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => handleAction("correct")}
+                  onClick={() => handleAction("correct", DocumentKind.CREDIT_NOTE)}
                   data-cy="action-correct"
                 >
                   <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
@@ -301,11 +308,28 @@ export function InvoiceViewDialog({ invoice, onOpenChange, onMutate }: InvoiceVi
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => handleAction("correct")}
+                  onClick={() => handleAction("correct", DocumentKind.CORRECTIVE_INVOICE)}
                   data-cy="action-corrective"
                 >
                   <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
                   {t("invoices.view.actions.correctiveInvoice")}
+                </Button>
+              )}
+              {/*
+                The document Italian law COMPELS and the product never offered. Art. 26 comma 1 DPR
+                633/72: on any increase "le disposizioni degli articoli 21 e seguenti DEVONO ESSERE
+                OSSERVATE" — an obligation, where the credit note on a decrease is only a faculty.
+                It appears wherever a country's routes leave DEBIT_NOTE open, and nowhere else.
+              */}
+              {actions.actions.correct && actions.correctionKinds.includes("DEBIT_NOTE") && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleAction("correct", DocumentKind.DEBIT_NOTE)}
+                  data-cy="action-debit-note"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                  {t("invoices.view.actions.debitNote")}
                 </Button>
               )}
               {actions.actions.cancel && (

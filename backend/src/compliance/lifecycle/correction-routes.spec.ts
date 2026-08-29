@@ -6,6 +6,7 @@
  * jurisdiction before this task.
  */
 import {
+  correctionDocumentKinds,
   isAvailable,
   primaryCorrectionModel,
   routesForDirection,
@@ -164,6 +165,48 @@ describe('P3-T02 — correction routes', () => {
       const jp = defaultRegistry.resolve('JP').profile;
       expect(jp.lifecycle.every((t) => t.value.correctionRoutes === undefined)).toBe(true);
       expect(primaryCorrectionModel(undefined)).toBe('CREDIT_NOTE');
+    });
+  });
+
+  describe('what a user may actually be offered', () => {
+    it('Italy offers the debit note its law compels — the defect that started this', () => {
+      // Reported from the running application: the document-kinds endpoint said DEBIT_NOTE and the
+      // screen showed none. Two seams read the same routes and only one had been taught to; the
+      // invoice view reads `correctionKinds`, which still derived from the single enum, so Italy was
+      // offered a credit note and nothing else. Art. 26 comma 1 makes the debit note an OBLIGATION.
+      expect(correctionDocumentKinds(routesOn('IT', '2026-09-02'), 'DELIVERED')).toEqual([
+        'CREDIT_NOTE',
+        'DEBIT_NOTE',
+      ]);
+      // …and the replacement appears only after a scarto, never on a delivered invoice.
+      expect(correctionDocumentKinds(routesOn('IT', '2026-09-02'), 'REJECTED')).toContain('INVOICE');
+    });
+
+    it('Poland offers only the corrective invoice, Spain likewise', () => {
+      // Spain offers exactly one document. Poland offers the replacement too — but through
+      // corrective invoices ("korygująca do zera" plus a fresh one), and its rule names no status,
+      // so it is available at any time, unlike Italy's.
+      expect(correctionDocumentKinds(routesOn('ES', '2026-09-02'), 'DELIVERED')).toEqual([
+        'CORRECTIVE_INVOICE',
+      ]);
+      expect(correctionDocumentKinds(routesOn('PL', '2026-09-02'), 'DELIVERED')).toEqual([
+        'CORRECTIVE_INVOICE',
+        'INVOICE',
+      ]);
+    });
+
+    it('Mexico offers a credit note AND a replacement invoice, never a corrective one', () => {
+      const kinds = correctionDocumentKinds(routesOn('MX', '2026-09-02'), 'CLEARED');
+      expect(kinds).toContain('CREDIT_NOTE');
+      expect(kinds).toContain('INVOICE');
+      expect(kinds).not.toContain('CORRECTIVE_INVOICE');
+    });
+
+    it('an unresearched country yields nothing, so the caller keeps its old behaviour', () => {
+      // Empty, never a default list: handing an empty menu to ~100 jurisdictions would be worse than
+      // the single-value answer they had. The service falls back to the enum when this is empty.
+      expect(correctionDocumentKinds(undefined)).toEqual([]);
+      expect(correctionDocumentKinds([])).toEqual([]);
     });
   });
 

@@ -21,7 +21,7 @@
  */
 import { CorrectionRouteRule } from '../profiles/schema';
 import { ComplianceStatus } from './state-machine';
-import { CorrectionModel, CorrectionRoute, RouteStatus, VariationDirection } from '../types';
+import { CorrectionModel, CorrectionRoute, DocumentKind, RouteStatus, VariationDirection } from '../types';
 
 /**
  * The three routes the legacy enum can name, and the two precedences used to pick one.
@@ -153,4 +153,42 @@ export function internalOnlyCorrection(
       r.transmission === 'FORBIDDEN' &&
       r.whenOriginalStatus?.includes(originalStatus as ComplianceStatus),
   );
+}
+
+/**
+ * The correction documents a user may actually be offered, from the routes.
+ *
+ * Only four routes produce a document someone can choose in a menu. The others correct without
+ * producing anything to pick: the internal credit note never leaves, ledger annotation writes nothing
+ * at all, an authority annulment is a request rather than a document, and a counterparty objection is
+ * not even our action.
+ *
+ * `CANCEL_AND_REPLACE` maps to `INVOICE` because that is what it produces — the original is voided and
+ * a fresh invoice takes its place; there is no "cancellation document" to issue.
+ *
+ * Empty when the country has no researched routes, so the caller keeps its previous behaviour rather
+ * than being handed an empty menu.
+ */
+const KIND_BY_ROUTE: ReadonlyArray<readonly [CorrectionRoute, DocumentKind]> = [
+  ['CREDIT_NOTE', 'CREDIT_NOTE'],
+  ['DEBIT_NOTE', 'DEBIT_NOTE'],
+  ['CORRECTIVE_INVOICE', 'CORRECTIVE_INVOICE'],
+  ['CANCEL_AND_REPLACE', 'INVOICE'],
+];
+
+export function correctionDocumentKinds(
+  routes: readonly CorrectionRouteRule[] | undefined,
+  originalStatus?: ComplianceStatus | string,
+): DocumentKind[] {
+  if (!routes?.length) return [];
+  return KIND_BY_ROUTE.filter(([route]) => {
+    if (!isAvailable(routes, route)) return false;
+    // A route that names the statuses it applies to is offered ONLY in those. Italy is the case:
+    // cancel-and-replace exists after a scarto and nowhere else, and a menu that ignored the
+    // condition would invite a replacement the law does not allow. A route with no list is
+    // unconditional — Poland's wrong-NIP replacement, available at any time.
+    const rule = findRoute(routes, route);
+    if (!rule?.whenOriginalStatus?.length) return true;
+    return originalStatus ? rule.whenOriginalStatus.includes(originalStatus as ComplianceStatus) : false;
+  }).map(([, kind]) => kind);
 }

@@ -176,6 +176,10 @@ export const IT: CountryComplianceProfile = {
             route: 'CANCEL_AND_REPLACE',
             status: 'OPEN',
             appliesTo: 'Après scarto UNIQUEMENT — inexistant une fois la facture livrée',
+            // The "UNIQUEMENT" has to be machine-readable or the menu offers a replacement on a
+            // delivered invoice, which Italian law does not allow. A file scartato "si considera non
+            // emessa"; once the SdI has accepted it, the nota di variazione is the only way out.
+            whenOriginalStatus: ['REJECTED'],
             legalRef: 'Circolare 13/E du 02/07/2018, § 1.6 p. 12',
           },
         ],
