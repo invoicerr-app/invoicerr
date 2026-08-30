@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
+import { decideRegistration, registrationDenialMessage } from '@/lib/registration-policy';
 import { logger } from '@/logger/logger.service';
 
 @Injectable()
@@ -13,52 +14,34 @@ export class InvitationsService {
     return randomBytes(16).toString('hex').toUpperCase();
   }
 
+  // Same decision the better-auth signup hook enforces (lib/registration-policy.ts) — this
+  // is the front end's pre-flight check, called before the actual `authClient.signUp.email`
+  // call so a bad/expired/used code (or a closed instance) surfaces as a form error instead
+  // of a generic "something went wrong" from better-auth. `requiresCode` tells the caller
+  // whether the only remaining path forward is a valid invitation code.
   async canRegister(
     invitationCode?: string,
   ): Promise<{ allowed: boolean; requiresCode: boolean; message?: string }> {
-    const userCount = await this.prisma.user.count();
+    const isFirstUser = (await this.prisma.user.count()) === 0;
 
-    if (userCount === 0) {
-      return { allowed: true, requiresCode: false };
+    let invitation:
+      | { found: true; usedAt: Date | null; expiresAt: Date | null }
+      | { found: false }
+      | undefined;
+    if (invitationCode) {
+      const record = await this.prisma.invitationCode.findUnique({ where: { code: invitationCode } });
+      invitation = record
+        ? { found: true, usedAt: record.usedAt, expiresAt: record.expiresAt }
+        : { found: false };
     }
 
-    if (!invitationCode) {
-      return {
-        allowed: false,
-        requiresCode: true,
-        message: 'An invitation code is required to register',
-      };
+    const decision = decideRegistration({ invitationCode, invitation, isFirstUser });
+
+    if (!decision.allowed) {
+      return { allowed: false, requiresCode: true, message: registrationDenialMessage(decision.reason) };
     }
 
-    const invitation = await this.prisma.invitationCode.findUnique({
-      where: { code: invitationCode },
-    });
-
-    if (!invitation) {
-      return {
-        allowed: false,
-        requiresCode: true,
-        message: 'Invalid invitation code',
-      };
-    }
-
-    if (invitation.usedAt) {
-      return {
-        allowed: false,
-        requiresCode: true,
-        message: 'This invitation code has already been used',
-      };
-    }
-
-    if (invitation.expiresAt && invitation.expiresAt < new Date()) {
-      return {
-        allowed: false,
-        requiresCode: true,
-        message: 'This invitation code has expired',
-      };
-    }
-
-    return { allowed: true, requiresCode: true };
+    return { allowed: true, requiresCode: false };
   }
 
   async isFirstUser(): Promise<boolean> {

@@ -1,5 +1,6 @@
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { EyeClosedIcon, EyeIcon, TicketIcon } from "lucide-react"
+import { EyeClosedIcon, EyeIcon, TicketIcon, UserX } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -27,8 +28,13 @@ export default function SignupPage() {
   const [errors, setErrors] = useState<Partial<Record<keyof SignupFormData, string[]>>>({})
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [requiresInvitation, setRequiresInvitation] = useState<boolean | null>(null)
-  const [checkingInvitation, setCheckingInvitation] = useState(true)
+  // Whether an account can be created with NO invitation code right now. `null` means
+  // "unknown" (the check hasn't resolved yet, or the backend was unreachable) — treated
+  // as permissive on the client, since the actual gate is enforced server-side regardless
+  // (see backend/src/lib/registration-policy.ts); this is only used to warn the visitor
+  // up front instead of letting them fill the whole form before finding out.
+  const [openSignupAllowed, setOpenSignupAllowed] = useState<boolean | null>(null)
+  const [checkingRegistrationStatus, setCheckingRegistrationStatus] = useState(true)
   const backendHealth = useBackendHealth()
   const backendUnavailable = backendHealth === "unavailable"
 
@@ -38,27 +44,30 @@ export default function SignupPage() {
 
   const backendUrl = getEnvVariable("VITE_BACKEND_URL") || ""
 
-  // Check if invitation is required on page load
+  // Sign-up is open to everyone by default; an invitation code is only ever needed to
+  // join an existing company, or when the operator has closed open sign-up (DISABLE_AUTH).
+  // Ask the backend up front (with no code) so a closed instance can be explained before
+  // the visitor fills in the whole form, instead of only after submitting.
   useEffect(() => {
-    const checkInvitationRequired = async () => {
+    const checkRegistrationStatus = async () => {
       try {
-        const response = await fetch(`${backendUrl}/api/invitations/is-first-user`)
+        const response = await fetch(`${backendUrl}/api/invitations/can-register`)
         if (!response.ok) {
-          // Backend reachable but erroring (e.g. DB down -> 500). Don't silently
-          // require an invitation code; the server-unavailable banner handles the warning.
-          throw new Error(`is-first-user failed with status ${response.status}`)
+          // Backend reachable but erroring (e.g. DB down -> 500). Don't assume closed;
+          // the server-unavailable banner handles the warning.
+          throw new Error(`can-register failed with status ${response.status}`)
         }
         const data = await response.json()
-        setRequiresInvitation(!data.isFirstUser)
+        setOpenSignupAllowed(!!data.allowed)
       } catch (error) {
-        console.error("Error checking invitation requirement:", error)
-        setRequiresInvitation(null)
+        console.error("Error checking registration status:", error)
+        setOpenSignupAllowed(null)
       } finally {
-        setCheckingInvitation(false)
+        setCheckingRegistrationStatus(false)
       }
     }
 
-    checkInvitationRequired()
+    checkRegistrationStatus()
   }, [backendUrl])
 
   const validateInvitationCode = async (code: string, email: string): Promise<boolean> => {
@@ -93,22 +102,23 @@ export default function SignupPage() {
       lastname: formData.get("lastname") as string,
       email: formData.get("email") as string,
       password: formData.get("password") as string,
-      invitationCode: formData.get("invitationCode") as string,
+      invitationCode: (formData.get("invitationCode") as string)?.trim(),
     }
 
-    // Validate invitation code if required
-    if (requiresInvitation) {
-      if (!data.invitationCode) {
-        setErrors({ invitationCode: [t("auth.signup.errors.invitationCodeRequired")] })
-        return
-      }
-
+    if (data.invitationCode) {
+      // A code was typed in: it must check out on its own, regardless of whether open
+      // sign-up is currently allowed — a code is its own authorization to join a company.
       setLoading(true)
       const isValid = await validateInvitationCode(data.invitationCode, data.email)
       if (!isValid) {
         setLoading(false)
         return
       }
+    } else if (openSignupAllowed === false) {
+      // No code, and we already know open sign-up is closed: fail fast instead of
+      // round-tripping through authClient only to get the same answer back.
+      setErrors({ invitationCode: [t("auth.signup.errors.invitationCodeRequired")] })
+      return
     } else {
       setLoading(true)
     }
@@ -147,7 +157,7 @@ export default function SignupPage() {
     })
   }
 
-  if (checkingInvitation) {
+  if (checkingRegistrationStatus) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -164,6 +174,13 @@ export default function SignupPage() {
         </CardHeader>
         <CardContent>
           {backendUnavailable && <ServerUnavailableBanner />}
+          {!backendUnavailable && openSignupAllowed === false && (
+            <Alert className="mb-4" data-cy="auth-signup-closed-banner">
+              <UserX />
+              <AlertTitle>{t("auth.signup.closedBanner.title")}</AlertTitle>
+              <AlertDescription>{t("auth.signup.closedBanner.description")}</AlertDescription>
+            </Alert>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -230,24 +247,25 @@ export default function SignupPage() {
               )}
             </div>
 
-            {requiresInvitation && (
-              <div className="space-y-2">
-                <Label htmlFor="invitationCode">{t("auth.signup.form.invitationCode.label")}</Label>
-                <div className="flex items-center gap-2">
-                  <TicketIcon className="h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="invitationCode"
-                    name="invitationCode"
-                    placeholder={t("auth.signup.form.invitationCode.placeholder")}
-                    disabled={loading}
-                    className="font-mono uppercase"
-                    data-cy="auth-invitation-code-input"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">{t("auth.signup.form.invitationCode.hint")}</p>
-                {errors.invitationCode && <p className="text-sm text-red-600">{errors.invitationCode[0]}</p>}
+            {/* Always shown, always optional: a code only ever serves to join an existing
+                company (see backend/src/lib/registration-policy.ts) — leaving it blank
+                creates a brand-new account that lands on the company-creation onboarding. */}
+            <div className="space-y-2">
+              <Label htmlFor="invitationCode">{t("auth.signup.form.invitationCode.label")}</Label>
+              <div className="flex items-center gap-2">
+                <TicketIcon className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="invitationCode"
+                  name="invitationCode"
+                  placeholder={t("auth.signup.form.invitationCode.placeholder")}
+                  disabled={loading}
+                  className="font-mono uppercase"
+                  data-cy="auth-invitation-code-input"
+                />
               </div>
-            )}
+              <p className="text-xs text-muted-foreground">{t("auth.signup.form.invitationCode.hint")}</p>
+              {errors.invitationCode && <p className="text-sm text-red-600">{errors.invitationCode[0]}</p>}
+            </div>
 
             <Button
               type="submit"

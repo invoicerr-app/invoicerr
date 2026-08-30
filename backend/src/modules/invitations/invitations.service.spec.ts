@@ -24,6 +24,9 @@ describe('InvitationsService', () => {
       findUnique: jest.Mock;
       upsert: jest.Mock;
     };
+    user: {
+      count: jest.Mock;
+    };
   };
 
   beforeEach(() => {
@@ -36,6 +39,9 @@ describe('InvitationsService', () => {
       userCompany: {
         findUnique: jest.fn(),
         upsert: jest.fn(),
+      },
+      user: {
+        count: jest.fn(),
       },
     };
     service = new InvitationsService(prisma as unknown as PrismaService);
@@ -118,6 +124,85 @@ describe('InvitationsService', () => {
 
       await expect(service.useInvitation('CODE123', 'user2')).rejects.toThrow();
       expect(prisma.userCompany.upsert).not.toHaveBeenCalled();
+    });
+  });
+
+  // These exercise the full service (Prisma calls included), on top of
+  // registration-policy.spec.ts's exhaustive coverage of the pure decision itself —
+  // this is what actually wires DISABLE_AUTH and the DB lookup together.
+  describe('canRegister', () => {
+    const originalEnv = process.env.DISABLE_AUTH;
+    afterEach(() => {
+      if (originalEnv === undefined) delete process.env.DISABLE_AUTH;
+      else process.env.DISABLE_AUTH = originalEnv;
+    });
+
+    it('allows the first user with no code, even with DISABLE_AUTH set', async () => {
+      process.env.DISABLE_AUTH = 'true';
+      prisma.user.count.mockResolvedValue(0);
+
+      const result = await service.canRegister();
+
+      expect(result).toEqual({ allowed: true, requiresCode: false });
+    });
+
+    it('allows open signup (no code) when DISABLE_AUTH is unset', async () => {
+      delete process.env.DISABLE_AUTH;
+      prisma.user.count.mockResolvedValue(5);
+
+      const result = await service.canRegister();
+
+      expect(result.allowed).toBe(true);
+    });
+
+    it('rejects open signup (no code) when DISABLE_AUTH is set and this is not the first user', async () => {
+      process.env.DISABLE_AUTH = '1';
+      prisma.user.count.mockResolvedValue(5);
+
+      const result = await service.canRegister();
+
+      expect(result.allowed).toBe(false);
+      expect(result.message).toMatch(/disabled/i);
+    });
+
+    it('rejects an unknown code without ever calling it "disabled"', async () => {
+      delete process.env.DISABLE_AUTH;
+      prisma.user.count.mockResolvedValue(5);
+      prisma.invitationCode.findUnique.mockResolvedValue(null);
+
+      const result = await service.canRegister('NOPE');
+
+      expect(result.allowed).toBe(false);
+      expect(result.message).toMatch(/invalid/i);
+    });
+
+    it('rejects an expired code even though it exists and is unused', async () => {
+      delete process.env.DISABLE_AUTH;
+      prisma.user.count.mockResolvedValue(5);
+      prisma.invitationCode.findUnique.mockResolvedValue({
+        code: 'OLD-CODE',
+        usedAt: null,
+        expiresAt: new Date('2000-01-01'),
+      });
+
+      const result = await service.canRegister('OLD-CODE');
+
+      expect(result.allowed).toBe(false);
+      expect(result.message).toMatch(/expired/i);
+    });
+
+    it('accepts a valid code even when DISABLE_AUTH is set — a code is its own authorization', async () => {
+      process.env.DISABLE_AUTH = 'true';
+      prisma.user.count.mockResolvedValue(5);
+      prisma.invitationCode.findUnique.mockResolvedValue({
+        code: 'GOOD-CODE',
+        usedAt: null,
+        expiresAt: null,
+      });
+
+      const result = await service.canRegister('GOOD-CODE');
+
+      expect(result).toEqual({ allowed: true, requiresCode: false });
     });
   });
 });

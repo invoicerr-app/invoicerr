@@ -2323,15 +2323,19 @@
         "invitationCode": {
           "label": "Invitation Code",
           "placeholder": "Enter your invitation code",
-          "hint": "You need an invitation code from an existing user to register"
+          "hint": "Optional — enter a code to join an existing company. Leave it blank to create your own company instead."
         },
         "creatingAccount": "Creating account...",
         "createButton": "Create Account"
       },
       "hasAccount": "Already have an account?",
       "signInLink": "Sign in",
+      "closedBanner": {
+        "title": "Open sign-up is disabled",
+        "description": "This instance only accepts new accounts with an invitation code from an existing member. Enter one below, or ask an administrator to invite you."
+      },
       "errors": {
-        "invitationCodeRequired": "An invitation code is required to register",
+        "invitationCodeRequired": "An invitation code is required — open sign-up is currently disabled on this instance",
         "invalidInvitationCode": "Invalid or expired invitation code",
         "genericError": "An error occurred while creating your account",
         "firstnameMinLength": "First name must be at least 2 characters",

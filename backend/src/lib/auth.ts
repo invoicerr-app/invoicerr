@@ -5,6 +5,7 @@ import { GenericOAuthConfig, customSession, genericOAuth } from 'better-auth/plu
 import { PrismaClient } from '../../prisma/generated/prisma/client.js';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { betterAuth } from 'better-auth';
+import { InvitationLookupResult, decideRegistration, registrationDenialMessage } from './registration-policy';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
@@ -43,25 +44,27 @@ const createOidcConfig = (): GenericOAuthConfig[] => {
 
 const validateInvitationForSignup = async (
   email: string,
-): Promise<{ valid: boolean; invitationCode?: string }> => {
-  const userCount = await prisma.user.count();
-
-  if (userCount === 0) {
-    return { valid: true };
-  }
-
+): Promise<{ valid: boolean; invitationCode?: string; message?: string }> => {
+  const isFirstUser = (await prisma.user.count()) === 0;
   const invitationCode = pendingInvitationCodes.get(email);
-  if (!invitationCode) {
-    return { valid: false };
+
+  let invitation: InvitationLookupResult | undefined;
+  if (invitationCode) {
+    const record = await prisma.invitationCode.findUnique({ where: { code: invitationCode } });
+    invitation = record
+      ? { found: true, usedAt: record.usedAt, expiresAt: record.expiresAt }
+      : { found: false };
   }
 
-  const invitation = await prisma.invitationCode.findUnique({
-    where: { code: invitationCode },
-  });
+  const decision = decideRegistration({ invitationCode, invitation, isFirstUser });
 
-  if (!invitation || invitation.usedAt || (invitation.expiresAt && invitation.expiresAt < new Date())) {
-    pendingInvitationCodes.delete(email);
-    return { valid: false };
+  if (!decision.allowed) {
+    // A code was supplied and rejected: forget it, it must not be silently retried
+    // (or re-consumed) by a later signup attempt for the same email.
+    if (invitationCode) {
+      pendingInvitationCodes.delete(email);
+    }
+    return { valid: false, message: registrationDenialMessage(decision.reason) };
   }
 
   return { valid: true, invitationCode };
@@ -110,7 +113,7 @@ const userHookFunction = async (user) => {
   if (user.email) {
     const validation = await validateInvitationForSignup(user.email);
     if (!validation.valid) {
-      throw new Error('An invitation code is required to register');
+      throw new Error(validation.message || 'Registration is not allowed');
     }
   }
 
