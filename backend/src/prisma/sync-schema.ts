@@ -2,6 +2,7 @@ import { execFileSync } from 'child_process';
 import { join } from 'path';
 
 import prisma from './prisma.service';
+import { seedCountryPolicies } from '../modules/documents/country-policy/seed';
 
 /**
  * Every self-hosted instance has been running on `prisma db push` since
@@ -140,4 +141,15 @@ export async function syncDatabaseSchema(): Promise<void> {
   console.log('[sync-schema] Running migrate deploy...');
   runPrisma(['migrate', 'deploy']);
 
+  // The document country-action policy (backend/src/modules/documents/country-policy/) is read from
+  // its JSON files and seeded here on every production boot — a self-hosted instance that pulls a
+  // new image with an updated fr.json/us.json (or a newly added country) gets the update on its next
+  // restart, the same way `prisma migrate dev`/`db seed` already re-seeds it for dev and CI (see
+  // prisma.config.ts). Idempotent (seedCountryPolicies' own doc comment): safe to run on every boot,
+  // never just once.
+  console.log('[sync-schema] Seeding document country-action policy...');
+  const summary = await seedCountryPolicies(prisma);
+  console.log(
+    `[sync-schema] Document country policy: ${summary.upserted} upserted, ${summary.deleted} deleted (stale).`,
+  );
 }

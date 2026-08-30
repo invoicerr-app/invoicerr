@@ -850,6 +850,41 @@ model DocumentInstance {
   @@index([companyId, typeId])
 }
 
+// Mirror of backend/src/modules/documents/country-policy/data/*.json, seeded (never hand-edited —
+// see country-policy/seed.ts) by seedCountryPolicies(), which is idempotent on
+// (countryCode, typeId, actionId). A company whose country has NO row at all here has every
+// document action blocked — see country-policy/country-policy.ts's evaluateCountryPolicy(), the
+// one place this table is read at request time. A row's `allowed: false` is a genuine legal or
+// unverified PROHIBITION (see provenanceKind); a (typeId, actionId) simply absent from a country's
+// rows is refused the same way — an allow-list, not a deny-list.
+model DocumentCountryActionRule {
+  id          String  @id @default(cuid())
+  countryCode String // ISO 3166-1 alpha-2, uppercase — matches the source file's own countryCode
+  typeId      String // a DocumentTypeDescriptor.id, e.g. "invoice" — never validated against the
+  // live DocumentTypeRegistry here: the policy file and the descriptor registry are two
+  // independently-maintained sources, exactly like the VAT rate catalog and tax-engine.ts used to be
+  // (see the removed compliance module's tax-rates/consistency.spec.ts for that same shape of risk).
+  actionId String // a DocumentActionDescriptor.id, e.g. "send"
+  allowed  Boolean
+
+  // Provenance — see country-policy/schema.ts's PolicyProvenance. Exactly one of the two shapes
+  // below is populated, enforced by assertValidProvenance() before a row is ever written, never by
+  // a DB constraint: a rule with neither is a bug in the seed, not a state this table should be
+  // able to represent silently.
+  provenanceKind  String // 'legal' | 'unverified'
+  sourceText      String? // 'legal': the exact legal text this rule is based on
+  sourceCheckedAt DateTime? // 'legal': when `sourceText` was last checked against its source
+  resolutionNote  String? // 'unverified': what would have to be checked to settle this rule
+
+  notes String? // free-form caveats, same convention as VatRateFact.notes
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([countryCode, typeId, actionId])
+  @@index([countryCode])
+}
+
 // ======= END OF DOCUMENT DESCRIPTOR SYSTEM ======= //
 
 // ======= START OF COMPLIANCE LIFECYCLE PERSISTENCE ======= //

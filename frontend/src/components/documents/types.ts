@@ -65,6 +65,15 @@ export interface DocumentActionDescriptor {
    *  action-params-dialog.tsx) rather than a second form system. Absent/empty: no dialog, the
    *  action just runs. */
   params?: DocumentFieldDescriptor[]
+  /**
+   * Present only when the active company's COUNTRY forbids this action right now (see the backend's
+   * country-policy/country-policy.ts) — PLAIN TEXT, same convention as `label`/a run result's
+   * `message`, not an i18n key: this never names a country in code, on either side, it only ever
+   * shows what the backend computed. Absent when the action is allowed by the country policy —
+   * `isActionAvailable`'s status check is a completely separate concern from this one; an action can
+   * fail either, both, or neither.
+   */
+  policyBlockedReason?: string
 }
 
 /** What running an action hands back — see the backend's ActionResult for the full contract. */

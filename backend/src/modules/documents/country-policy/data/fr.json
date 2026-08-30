@@ -1,0 +1,78 @@
+{
+  "countryCode": "FR",
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — aucun texte identifié qui l'encadrerait spécifiquement en droit français. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Un devis n'est pas une facture : l'article 289 V du code général des impôts (voir invoice.send ci-dessous) ne couvre que les factures, pas les devis. Le régime général de la valeur probante de l'écrit électronique (code civil, art. 1366 et suivants) est vraisemblablement le bon fondement, mais son texte exact n'a pas pu être consulté directement — Légifrance a renvoyé 404/403 à chaque requête automatisée tentée le 2026-08-30 (voir la note déjà laissée en ce sens dans l'ancien profil FR du moteur de conformité, fr.ts, à propos de codes.droit.org). À vérifier sur legifrance.gouv.fr avant de faire passer cette règle en 'legal'."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte n'impose ni n'interdit ce mécanisme précis en droit français (la seule contrainte légale porterait sur la facture qui en résulte, pas sur l'acte de conversion lui-même). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte identifié ne l'encadre. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal (une facture, par exemple)."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Un brouillon de facture n'est pas encore une facture émise ; aucun texte identifié n'encadre cette étape interne. Le principe bien connu selon lequel une facture ÉMISE ne peut plus être modifiée (et se corrige par avoir) est une vraie règle de droit français, mais elle ne s'applique pas ici tant que ce noyau ne déclare aucune action de modification d'une facture déjà émise — voir la note de tête de invoice.descriptor.ts sur ce même sujet. À revoir si une telle action était ajoutée un jour."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Le CGI art. 289 V est très probablement le fondement, mais il n'a PAS été lu à sa source : Légifrance a refusé toute requête automatisée (403/404) et la citation avait été recoupée sur un article d'encyclopédie — qui parle de l'article sans en être le texte. Une affirmation juridique porte sa source, pas un commentaire de sa source. Ce qui trancherait : lire l'art. 289 V sur legifrance.gouv.fr (ou au BOFiP) et rétablir la mention `legal` avec le texte exact et la date de consultation."
+      },
+      "notes": "Rétrogradée de `legal` à `unverified` à la relecture : le contenu de la règle ne change pas, seule sa PRÉTENTION change. Mieux vaut une règle honnêtement marquée non vérifiée qu'une règle qui a l'air sûre."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil (les obligations comptables portent sur la tenue des comptes eux-mêmes, pas sur ce mécanisme). Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (voir invoice-actions.ts) — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal d'un avoir français (rectification de TVA, mentions obligatoires) est réel mais concerne le CONTENU du document, pas l'acte d'enregistrer un brouillon — voir la note de tête de credit-note.descriptor.ts, qui explicite le même choix de ne pas encoder de règle de contenu ici. À confirmer par une revue dédiée si ce noyau venait à distinguer un statut d'avoir ayant un effet légal propre."
+      }
+    }
+  ]
+}

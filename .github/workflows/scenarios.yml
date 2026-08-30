@@ -55,6 +55,11 @@ jobs:
           npm ci
           DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma generate
           DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma migrate deploy
+          # See the same step in cypress.yml: `migrate deploy` never runs the seed hook, and
+          # `npm run start:test` doesn't call syncDatabaseSchema() (production-only) either — without
+          # this, the document country-action policy table stays empty and every document action
+          # 403s for the whole scenario.
+          DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma db seed
 
       - name: Install frontend dependencies
         run: |

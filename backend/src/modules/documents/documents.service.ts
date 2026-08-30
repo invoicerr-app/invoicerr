@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -12,6 +13,7 @@ import { logger } from '@/logger/logger.service';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry, ActionResult } from './actions/action-registry';
+import { evaluateCountryPolicy } from './country-policy/country-policy';
 import { FieldKindRegistry } from './descriptors/field-kinds';
 import { DocumentTypeRegistry, UnknownDocumentTypeError } from './descriptors/type-registry';
 import { DocumentActionDescriptor, DocumentTypeDescriptor, isActionAvailable } from './descriptors/types';
@@ -38,6 +40,20 @@ import {
   FIELD_KIND_REGISTRY,
   TRANSPORT_REGISTRY,
 } from './tokens';
+
+/** One action, as `describeTypeForCompany` hands it to the frontend — the plain declared shape PLUS
+ *  an optional, country-policy-derived reason it is currently blocked. See that method's own doc
+ *  comment for why this is a separate VIEW type rather than a change to `DocumentActionDescriptor`
+ *  itself. Declared as an `extends`, not an `&` intersection, specifically so the narrower `actions`
+ *  array below resolves to THIS element type when a caller reads `.actions` — an intersection of two
+ *  differently-elemented array types does not simplify the way an interface override does. */
+export interface DocumentActionDescriptorView extends DocumentActionDescriptor {
+  policyBlockedReason?: string;
+}
+
+export interface DocumentTypeDescriptorView extends Omit<DocumentTypeDescriptor, 'actions'> {
+  actions: DocumentActionDescriptorView[];
+}
 
 @Injectable()
 export class DocumentsService implements OnModuleInit {
@@ -77,6 +93,35 @@ export class DocumentsService implements OnModuleInit {
 
   getType(typeId: string): DocumentTypeDescriptor {
     return this.mergedDescriptor(typeId);
+  }
+
+  /**
+   * The descriptor a FRONTEND actually renders — `getType` above, but with each action annotated
+   * with `policyBlockedReason` when the ACTIVE COMPANY's country policy refuses it (see
+   * country-policy/country-policy.ts's evaluateCountryPolicy). This is a country-policy-aware VIEW
+   * layered on top of the plain descriptor, never a change to `DocumentTypeDescriptor` itself: the
+   * descriptor stays pure declarative data (no company, no country), and every other reader of
+   * `mergedDescriptor`/`getType` (row selection, validation, the jest specs that build a service with
+   * no company at all) is unaffected.
+   *
+   * `policyBlockedReason` is PLAIN TEXT, not an i18n key — same convention as `label`/`message`
+   * elsewhere in this module — so the frontend can show it verbatim without knowing any country.
+   * Absent entirely for an action the policy allows: the frontend never has to distinguish "allowed"
+   * from "explicitly not blocked" here, only "has a reason" from "doesn't".
+   */
+  async describeTypeForCompany(companyId: string, typeId: string): Promise<DocumentTypeDescriptorView> {
+    const descriptor = this.mergedDescriptor(typeId);
+    const decisions = await Promise.all(
+      descriptor.actions.map((action) => evaluateCountryPolicy(companyId, typeId, action.id)),
+    );
+
+    return {
+      ...descriptor,
+      actions: descriptor.actions.map((action, index) => {
+        const decision = decisions[index];
+        return decision.allowed ? action : { ...action, policyBlockedReason: decision.reason };
+      }),
+    };
   }
 
   private resolveType(typeId: string): DocumentTypeDescriptor {
@@ -187,9 +232,17 @@ export class DocumentsService implements OnModuleInit {
    * Runs one declared action of one document type. Every way this can fail is deliberate and
    * distinct, so the caller (and the frontend) never has to guess which one happened:
    *  - unknown type / action not declared on it (native OR extension) -> 404
+   *  - the active company's country forbids this action, or has no policy at all -> 403, names the
+   *    country and says what would unblock it (see country-policy/country-policy.ts)
    *  - action declared but not available for the record's current status -> 409
    *  - action declared, available, but no implementation registered -> 501, clearly worded
    *  - document data or the action's own params don't match their descriptors -> 400, per-field
+   *
+   * This is the ONLY place an action actually runs — the HTTP controller has no other route that
+   * reaches an ActionHandler — so this check is what makes "what the screen refuses, the API
+   * refuses" true by construction rather than by the frontend and backend happening to agree: a
+   * scripted client hitting this endpoint directly goes through the exact same policy check a click
+   * would have.
    */
   async runAction(
     companyId: string,
@@ -198,6 +251,11 @@ export class DocumentsService implements OnModuleInit {
     payload: RunActionDto,
   ): Promise<ActionResult> {
     const { descriptor, action } = this.resolveAction(typeId, actionId);
+
+    const policyDecision = await evaluateCountryPolicy(companyId, typeId, actionId);
+    if (!policyDecision.allowed) {
+      throw new ForbiddenException(policyDecision.reason);
+    }
 
     let currentStatus: string | undefined;
     if (payload.documentId) {

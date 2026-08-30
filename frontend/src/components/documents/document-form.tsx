@@ -136,7 +136,14 @@ export function DocumentForm({
     setPendingAction(action)
   }
 
+  // The STATUS gate (isActionAvailable) is unchanged: an action outside its `availableWhen` for the
+  // current status simply never appears here, exactly as before. The COUNTRY POLICY gate is a
+  // second, independent concern layered on top: an action that passes the status gate can still
+  // carry a `policyBlockedReason` (see types.ts), in which case it stays ON SCREEN — rendered
+  // disabled with the reason spelled out — rather than disappearing. A vanished button looks like a
+  // missing feature; a disabled one with a reason looks like a rule, which is what it is.
   const availableActions = descriptor.actions.filter((action) => isActionAvailable(action, currentStatus))
+  const firstRunnableAction = availableActions.find((action) => !action.policyBlockedReason)
 
   return (
     <Form {...form}>
@@ -149,16 +156,31 @@ export function DocumentForm({
 
         <div className="flex flex-wrap gap-2 border-t pt-4">
           {availableActions.map((action) => (
-            <Button
-              key={action.id}
-              type="button"
-              variant={action.id === availableActions[0]?.id ? "default" : "outline"}
-              loading={runAction.isPending && pendingAction === undefined}
-              onClick={() => handleAction(action)}
-              dataCy={`document-action-${action.id}`}
-            >
-              {action.label}
-            </Button>
+            <div key={action.id} className="flex max-w-full flex-col gap-1">
+              <Button
+                type="button"
+                variant={action.id === firstRunnableAction?.id ? "default" : "outline"}
+                loading={runAction.isPending && pendingAction === undefined}
+                disabled={!!action.policyBlockedReason}
+                tooltip={action.policyBlockedReason}
+                onClick={() => handleAction(action)}
+                dataCy={`document-action-${action.id}`}
+              >
+                {action.label}
+              </Button>
+              {action.policyBlockedReason && (
+                // Deliberately NOT prefixed "document-action-" — that prefix is what
+                // 17-document-descriptor.cy.ts's "no button appears that the descriptor didn't
+                // declare" check scans for, and treats every match as an ACTION id to look up in the
+                // descriptor; a reason element sharing that prefix would be misread as a bogus action.
+                <p
+                  className="max-w-xs text-xs text-muted-foreground"
+                  data-cy={`document-blocked-reason-${action.id}`}
+                >
+                  {t("documents.form.actionBlockedByPolicy", { reason: action.policyBlockedReason })}
+                </p>
+              )}
+            </div>
           ))}
         </div>
       </form>

@@ -67,8 +67,20 @@ export default defineConfig({
           try {
             // Read the table list from Postgres instead of hardcoding it so this
             // doesn't silently drift when the Prisma schema gains new models.
+            //
+            // `DocumentCountryActionRule` is excluded on purpose, alongside `_prisma_migrations`:
+            // it is REFERENCE data mirrored from
+            // backend/src/modules/documents/country-policy/data/*.json by seedCountryPolicies()
+            // (seeded once, at migration time — see prisma.config.ts's `migrations.seed` — not
+            // reseeded on every backend request), never per-spec fixture data a test creates and
+            // expects wiped. Truncating it here would leave the backend running with an EMPTY
+            // policy table until the next migration/seed, and this module's whole design is "a
+            // country with no policy rows blocks every document action" (country-policy.ts) — so a
+            // truncate-without-reseed would 403 every single document action in every later spec,
+            // not just this table's own data disappearing quietly.
             const { rows } = await client.query(
-              `SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename != '_prisma_migrations'`,
+              `SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+                 AND tablename NOT IN ('_prisma_migrations', 'DocumentCountryActionRule')`,
             );
             if (rows.length === 0) {
               return null;

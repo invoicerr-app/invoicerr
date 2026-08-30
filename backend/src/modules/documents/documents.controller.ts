@@ -28,13 +28,16 @@ export class DocumentsController {
   @Get('types/:typeId')
   @ApiOperation({
     summary: 'Get a document type descriptor',
-    description: 'The full descriptor (fields, actions) a frontend renders a form from.',
+    description:
+      'The full descriptor (fields, actions) a frontend renders a form from. Each action carries a ' +
+      "policyBlockedReason when the active company's country document-action policy refuses it — " +
+      'absent when the action is allowed.',
   })
   @ApiParam({ name: 'typeId', type: String })
   @ApiResponse({ status: 200, description: 'Descriptor retrieved' })
   @ApiResponse({ status: 404, description: 'Unknown document type' })
-  getType(@Param('typeId') typeId: string) {
-    return this.documentsService.getType(typeId);
+  getType(@ActiveCompany() companyId: string, @Param('typeId') typeId: string) {
+    return this.documentsService.describeTypeForCompany(companyId, typeId);
   }
 
   @Get('types/:typeId/fields/:fieldKey/rows')
@@ -118,6 +121,10 @@ export class DocumentsController {
   @ApiResponse({ status: 200, description: 'Action ran, a result envelope (document/changed/message)' })
   @ApiResponse({ status: 400, description: "Document data, or the action's own params, are invalid" })
   @ApiResponse({ status: 404, description: 'Unknown type, or action not declared on it' })
+  @ApiResponse({
+    status: 403,
+    description: "The active company's country document-action policy forbids this action",
+  })
   @ApiResponse({ status: 409, description: "Action not available for the record's current status" })
   @ApiResponse({ status: 501, description: 'Action declared but not implemented' })
   runAction(

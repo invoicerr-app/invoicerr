@@ -1,0 +1,73 @@
+{
+  "countryCode": "US",
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Saving a quote draft is an internal product operation, not a legal act — no US federal or state text identified that would specifically govern it. Revisit if the product ever gave a draft status some legal effect of its own."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "a signature, contract, or other record relating to such transaction may not be denied legal effect, validity, or enforceability solely because it is in electronic form; […] a contract relating to such transaction may not be denied legal effect, validity, or enforceability solely because an electronic signature or electronic record was used in its formation.",
+        "sourceCheckedAt": "2026-08-30"
+      },
+      "notes": "Electronic Signatures in Global and National Commerce Act (\"E-SIGN Act\"), 15 U.S.C. § 7001(a)(1)-(2), Pub. L. 106-229. Verified live on 2026-08-30 via law.cornell.edu (Legal Information Institute's mirror of the US Code) — the official source is the US Code itself; Cornell's text was used because it is the one government-adjacent mirror this tool could actually reach on the day. This is a GENERAL rule about electronic records/signatures, not a document-specific one, so it applies equally to a quote (not a tax document) — unlike FR's invoice.send rule, which is grounded in a tax-code article specific to invoices."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Turning an accepted quote into an invoice is a product convenience; no US text identified that governs the act of conversion itself (any legal requirement would attach to the resulting invoice, not to this mechanism). Confirm with a dedicated legal review if that ever changes."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "An invoice draft is not yet an issued invoice; no US text identified governing this internal step. Unlike France, the US has no general statutory prohibition on amending an issued invoice that this research turned up — but that absence itself has not been positively confirmed against all 50 states' commercial codes, so it stays unverified rather than being asserted as a fact."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "a signature, contract, or other record relating to such transaction may not be denied legal effect, validity, or enforceability solely because it is in electronic form; […] a contract relating to such transaction may not be denied legal effect, validity, or enforceability solely because an electronic signature or electronic record was used in its formation.",
+        "sourceCheckedAt": "2026-08-30"
+      },
+      "notes": "Same E-SIGN Act basis as quote.send above (15 U.S.C. § 7001(a)(1)-(2)) — the US has no federal e-invoicing mandate and no federally-required transmission channel for a B2B invoice (unlike France's PDP mandate), so a plain electronic transmission is the ordinary case here, not an exception to a stricter default."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Recording a payment is an internal bookkeeping entry; no US text identified governing the act of declaring it in this tool. This action has no implementation registered at all today (see invoice-actions.ts) — the actual block is the 501, not this rule."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Saving a credit note draft is an internal product operation. The US has no federal VAT and therefore no direct equivalent of the French VAT-correction 'avoir' regime; whether any state sales-tax rule attaches to a credit memo specifically has not been checked. Confirm with a dedicated review before asserting anything stronger."
+      }
+    }
+  ],
+  "notes": "Deliberately NOT covering quote.duplicate: this file was written without checking whether any US rule bears on duplicating a quote, and rather than guess 'probably fine', the action is simply left undeclared here — evaluateCountryPolicy() then refuses it as 'not yet declared for this country', not as an invented prohibition. This is also the one deliberate difference from fr.json's coverage, so the two files are genuinely not a copy of one another with only the legal citations swapped."
+}

@@ -3,6 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
 import { registerCreditNoteActions } from './actions/credit-note-actions';
+import * as countryPolicy from './country-policy/country-policy';
 import { DocumentsService } from './documents.service';
 import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-kinds';
 import { buildCreditNoteDescriptor } from './descriptors/credit-note.descriptor';
@@ -14,6 +15,11 @@ import { ROW_ID_KEY } from './row-selection/row-selection';
 import { TransportRegistry } from './transports/transport-registry';
 
 jest.mock('./persistence');
+// See documents.service.spec.ts's own comment on this mock — the real decision code is proven
+// elsewhere (country-policy/country-policy.spec.ts, documents.service.country-policy.spec.ts). The
+// default "allowed" is (re-)installed in `beforeEach` below, not just here, since
+// `afterEach(() => jest.resetAllMocks())` would otherwise wipe it after the first test.
+jest.mock('./country-policy/country-policy');
 
 /**
  * The THIRD document type written entirely as a descriptor (credit-note.descriptor.ts) — this is
@@ -84,6 +90,9 @@ const validCreditNoteData = {
 };
 
 describe('DocumentsService — the credit note type, the THIRD descriptor-only type', () => {
+  beforeEach(() => {
+    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+  });
   afterEach(() => jest.resetAllMocks());
 
   it('is registered', () => {

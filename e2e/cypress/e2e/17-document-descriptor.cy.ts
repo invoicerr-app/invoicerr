@@ -288,4 +288,62 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 			"be.visible",
 		);
 	});
+
+	it("l'API refuse aussi une action que la politique du pays interdit — un client scripté ne contourne pas l'écran", () => {
+		// La société de ce jeu d'essai est française (voir resetAndSeed) — la France est l'un des deux
+		// pays couverts par backend/src/modules/documents/country-policy/data/, donc jusqu'ici chaque
+		// action a été permise par la politique. Ce test bascule la société sur un pays qui n'a AUCUNE
+		// règle déclarée (ni la France ni les États-Unis) pour observer le blocage — puis restaure la
+		// France, dernier `it` de ce fichier ou pas : rien ne garantit qu'un `it` futur ne s'ajoutera
+		// pas après celui-ci.
+		//
+		// L'appel passe directement par `cy.request`, jamais par un clic : ce que l'écran ne montrerait
+		// même pas (le bouton serait grisé — voir document-form.tsx) doit être refusé exactement pareil
+		// pour un client qui ignore l'écran et appelle l'action à la main.
+		cy.request({
+			method: "POST",
+			url: `${api}/api/company/info`,
+			body: { country: "Germany", countryCode: "DE" },
+			failOnStatusCode: false,
+		}).then((changed) => {
+			expect(
+				changed.status,
+				`le pays de la société est changé pour un pays sans règle — ${JSON.stringify(changed.body).slice(0, 200)}`,
+			).to.be.oneOf([200, 201]);
+
+			cy.request({
+				method: "POST",
+				url: `${api}/api/documents/types/invoice/actions/save-draft`,
+				body: {
+					data: {
+						client: "does-not-matter",
+						issueDate: "2026-08-30",
+						dueDate: "2026-09-30",
+						currency: "EUR",
+						lines: [{ description: "Conseil", quantity: 1, unitPrice: 500 }],
+					},
+				},
+				failOnStatusCode: false,
+			}).then((res) => {
+				expect(
+					res.status,
+					`bloquée — ${JSON.stringify(res.body).slice(0, 200)}`,
+				).to.eq(403);
+				expect(
+					String(res.body?.message ?? ""),
+					"le message nomme le pays et dit comment débloquer, jamais un refus muet",
+				).to.match(/"DE"/);
+			});
+		});
+
+		// Restaure l'état attendu par le reste de la suite (une société française couverte), que ce
+		// test ait réussi ou non — sinon un futur `it` ajouté après celui-ci hériterait d'un pays sans
+		// aucune règle et verrait TOUT bloqué sans lien avec ce qu'il teste réellement.
+		cy.request({
+			method: "POST",
+			url: `${api}/api/company/info`,
+			body: { country: "France", countryCode: "FR" },
+			failOnStatusCode: false,
+		});
+	});
 });

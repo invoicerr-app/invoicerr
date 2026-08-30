@@ -3,6 +3,7 @@ import { BadRequestException, ConflictException, NotImplementedException } from 
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
 import { registerInvoiceActions } from './actions/invoice-actions';
+import * as countryPolicy from './country-policy/country-policy';
 import { DocumentsService } from './documents.service';
 import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-kinds';
 import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
@@ -14,6 +15,11 @@ import { TransportRegistry } from './transports/transport-registry';
 
 jest.mock('./persistence');
 jest.mock('./transports/company-transport');
+// See documents.service.spec.ts's own comment on this mock — the real decision code is proven
+// elsewhere (country-policy/country-policy.spec.ts, documents.service.country-policy.spec.ts). The
+// default "allowed" is (re-)installed in `beforeEach` below, not just here, since
+// `afterEach(() => jest.resetAllMocks())` would otherwise wipe it after the first test.
+jest.mock('./country-policy/country-policy');
 
 /**
  * Same wiring discipline as documents.service.spec.ts's quote coverage, applied to the invoice — the
@@ -68,6 +74,9 @@ const noDueDateInvoiceData = {
 };
 
 describe('DocumentsService — the invoice type, the SECOND descriptor-only type', () => {
+  beforeEach(() => {
+    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+  });
   afterEach(() => jest.resetAllMocks());
 
   it('is registered', () => {

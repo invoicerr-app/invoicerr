@@ -1,0 +1,128 @@
+/**
+ * The REAL decision code — only the Prisma CLIENT is mocked (same discipline
+ * transports/company-transport.spec.ts already established for `getCompanyInvoiceTransportId`), not
+ * `evaluateCountryPolicy` itself. This is deliberate: this repository has already hit two false-green
+ * suites that mocked the exact piece they claimed to verify (see this module's own git history and
+ * the project MEMORY on it) — every other spec touching country policy in this codebase (
+ * documents.service.*.spec.ts) mocks THIS module and is honest about only proving the CALLER's
+ * wiring. This file is where "a country with no policy blocks everything, and says so by name" is
+ * actually proven, against the real branching logic.
+ */
+import prisma from '@/prisma/prisma.service';
+
+import { evaluateCountryPolicy } from './country-policy';
+
+jest.mock('@/prisma/prisma.service', () => ({
+  __esModule: true,
+  default: {
+    company: { findUnique: jest.fn() },
+    documentCountryActionRule: { findMany: jest.fn() },
+  },
+}));
+
+const findCompany = prisma.company.findUnique as jest.Mock;
+const findRules = prisma.documentCountryActionRule.findMany as jest.Mock;
+
+describe('evaluateCountryPolicy', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  // DECISION 1, proven directly: a country with NO rows in the policy table blocks EVERY action —
+  // no permissive fallback. If someone changes the `rules.length === 0` branch to return
+  // `{ allowed: true }` (the exact mutation this task asks to rehearse), this test goes red.
+  it('blocks EVERY action for a country with no policy rows at all, and NAMES the country', async () => {
+    findCompany.mockResolvedValue({ country: 'Germany', countryCode: 'DE' });
+    findRules.mockResolvedValue([]);
+
+    const decision = await evaluateCountryPolicy('company-1', 'invoice', 'save-draft');
+
+    expect(decision.allowed).toBe(false);
+    expect(decision.reason).toMatch(/"DE"/);
+    // Says what would unblock it — not just "no", the same discipline the transport 501 keeps.
+    expect(decision.reason).toMatch(/country-policy\/data\/de\.json/);
+  });
+
+  it('blocks an action never declared for a country that DOES have OTHER rules — an allow-list, not a deny-list', async () => {
+    findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+    findRules.mockResolvedValue([
+      { typeId: 'invoice', actionId: 'send', allowed: true, provenanceKind: 'legal', sourceText: 'x' },
+    ]);
+
+    const decision = await evaluateCountryPolicy('company-1', 'quote', 'duplicate');
+
+    expect(decision.allowed).toBe(false);
+    expect(decision.reason).toMatch(/"duplicate"/);
+    expect(decision.reason).toMatch(/quote/);
+    expect(decision.reason).toMatch(/"FR"/);
+  });
+
+  it('allows an action a matching rule marks allowed: true', async () => {
+    findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+    findRules.mockResolvedValue([
+      { typeId: 'invoice', actionId: 'send', allowed: true, provenanceKind: 'legal', sourceText: 'x' },
+    ]);
+
+    const decision = await evaluateCountryPolicy('company-1', 'invoice', 'send');
+
+    expect(decision).toEqual({ allowed: true });
+  });
+
+  it('refuses an action a matching rule explicitly marks allowed: false, naming the action and the country', async () => {
+    findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+    findRules.mockResolvedValue([
+      {
+        typeId: 'invoice',
+        actionId: 'send',
+        allowed: false,
+        provenanceKind: 'legal',
+        sourceText: 'Some exact legal text.',
+      },
+    ]);
+
+    const decision = await evaluateCountryPolicy('company-1', 'invoice', 'send');
+
+    expect(decision.allowed).toBe(false);
+    expect(decision.reason).toMatch(/"send"/);
+    expect(decision.reason).toMatch(/"FR"/);
+    expect(decision.reason).toMatch(/Some exact legal text\./);
+  });
+
+  it('falls back to guessing the ISO code from the free-text country when countryCode is not set', async () => {
+    findCompany.mockResolvedValue({ country: 'France', countryCode: null });
+    findRules.mockResolvedValue([
+      {
+        typeId: 'invoice',
+        actionId: 'send',
+        allowed: true,
+        provenanceKind: 'unverified',
+        resolutionNote: 'x',
+      },
+    ]);
+
+    const decision = await evaluateCountryPolicy('company-1', 'invoice', 'send');
+
+    expect(decision).toEqual({ allowed: true });
+    expect(findRules).toHaveBeenCalledWith({ where: { countryCode: 'FR' } });
+  });
+
+  it('blocks with a distinct message when the country cannot even be resolved to an ISO code', async () => {
+    findCompany.mockResolvedValue({ country: 'Atlantis', countryCode: null });
+
+    const decision = await evaluateCountryPolicy('company-1', 'invoice', 'save-draft');
+
+    expect(decision.allowed).toBe(false);
+    expect(decision.reason).toMatch(/Atlantis/);
+    expect(decision.reason).toMatch(/does not resolve to a recognized ISO/);
+    // Never even queries the rules table for an unresolvable country — nothing to look up yet.
+    expect(findRules).not.toHaveBeenCalled();
+  });
+
+  it('scopes the rules lookup to the resolved country code, not the raw company id', async () => {
+    findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+    findRules.mockResolvedValue([]);
+
+    await evaluateCountryPolicy('company-42', 'invoice', 'save-draft');
+
+    expect(findCompany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'company-42' } }));
+    expect(findRules).toHaveBeenCalledWith({ where: { countryCode: 'FR' } });
+  });
+});

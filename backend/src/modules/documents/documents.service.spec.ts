@@ -5,6 +5,7 @@ import { ActionRegistry } from './actions/action-registry';
 import { registerConvertToInvoiceAction } from './actions/convert-to-invoice';
 import { registerDuplicateExtension } from './actions/duplicate-extension';
 import { registerQuoteActions } from './actions/quote-actions';
+import * as countryPolicy from './country-policy/country-policy';
 import { DocumentsService } from './documents.service';
 import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-kinds';
 import { buildQuoteDescriptor } from './descriptors/quote.descriptor';
@@ -14,6 +15,14 @@ import { EntityReferenceRegistry } from './references/reference-registry';
 import { TransportRegistry } from './transports/transport-registry';
 
 jest.mock('./persistence');
+// Country policy is proven for real, against the real decision code, in
+// country-policy/country-policy.spec.ts (mocking only the Prisma client) and in
+// documents.service.country-policy.spec.ts (proving DocumentsService.runAction respects the
+// decision). This file is about the generic action machinery, not policy — defaulting to "allowed"
+// (reset before EVERY test, since `afterEach(() => jest.resetAllMocks())` below would otherwise wipe
+// this implementation after the first test that runs) keeps every test below exercising exactly what
+// it already tested before country policy existed.
+jest.mock('./country-policy/country-policy');
 
 /**
  * Wires the SAME building blocks documents.module.ts wires (real quote descriptor, real core field
@@ -73,6 +82,9 @@ const validQuoteData = {
 };
 
 describe('DocumentsService — the quote type, wired exactly as documents.module.ts wires it', () => {
+  beforeEach(() => {
+    (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+  });
   afterEach(() => jest.resetAllMocks());
 
   it('lists the quote type', () => {

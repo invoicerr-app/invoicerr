@@ -186,6 +186,12 @@ jobs:
           npm ci
           DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma generate
           DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma migrate deploy
+          # `migrate deploy` does NOT run the seed hook (only `migrate dev`/`migrate reset`/`db seed`
+          # do — see prisma.config.ts) — without this, the document country-action policy table stays
+          # EMPTY and every document action 403s in every spec below (country-policy.ts blocks
+          # everything for a country with no rows). `npm run start:test` doesn't call
+          # syncDatabaseSchema() either (production-only, see main.ts), so nothing else seeds it here.
+          DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma db seed
 
       - name: Install frontend dependencies
         run: |
