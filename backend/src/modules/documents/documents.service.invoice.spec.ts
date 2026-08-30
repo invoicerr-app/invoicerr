@@ -65,14 +65,14 @@ const validInvoiceData = {
   issueDate: '2026-01-01',
   dueDate: '2026-01-31',
   currency: 'EUR',
-  lines: [{ description: 'Widget', quantity: 2, unitPrice: 9.9 }],
+  lines: [{ description: 'Widget', quantity: 2, unit: 'unit', unitPrice: 9.9, vatRate: '20' }],
 };
 
 const noDueDateInvoiceData = {
   client: 'client-1',
   issueDate: '2026-01-01',
   currency: 'EUR',
-  lines: [{ description: 'Widget', quantity: 2, unitPrice: 9.9 }],
+  lines: [{ description: 'Widget', quantity: 2, unit: 'unit', unitPrice: 9.9, vatRate: '20' }],
 };
 
 describe('DocumentsService — the invoice type, the SECOND descriptor-only type', () => {

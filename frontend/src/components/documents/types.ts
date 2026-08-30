@@ -17,6 +17,12 @@ export interface DocumentFieldDescriptor {
   helpText?: string
   /** 'select': the choices offered. */
   options?: DocumentFieldOption[]
+  /** 'select' only: whether a value NOT among `options` is still accepted — but ONLY when `options`
+   *  is itself EMPTY (no known catalog for this field at all, e.g. no VAT rate list for the active
+   *  company's country — see the backend's vat-rates/). A select with zero options is a dead
+   *  control; this is what tells the renderer to fall back to a plain input instead. Never relaxes
+   *  anything once a real, non-empty list exists — the backend enforces the exact same rule. */
+  allowCustomValue?: boolean
   /** 'money': a fixed ISO 4217 currency code. Ignored when `currencyField` is set. */
   currency?: string
   /** 'money': the key of a top-level sibling field whose current value is the currency to show. */

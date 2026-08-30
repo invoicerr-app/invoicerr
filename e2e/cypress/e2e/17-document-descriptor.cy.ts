@@ -152,7 +152,7 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 							issueDate: "2026-08-30",
 							dueDate: "2026-09-30",
 							currency: "EUR",
-							lines: [{ description: "Conseil", quantity: 1, unitPrice: 500 }],
+							lines: [{ description: "Conseil", quantity: 1, unit: "unit", unitPrice: 500, vatRate: "20" }],
 						},
 					},
 					failOnStatusCode: false,
@@ -170,7 +170,7 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 								issueDate: "2026-08-30",
 								dueDate: "2026-09-30",
 								currency: "EUR",
-								lines: [{ description: "Conseil", quantity: 1, unitPrice: 500 }],
+								lines: [{ description: "Conseil", quantity: 1, unit: "unit", unitPrice: 500, vatRate: "20" }],
 							},
 						},
 						failOnStatusCode: false,
@@ -232,7 +232,7 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 						issueDate: "2026-08-30",
 						dueDate: "2026-09-30",
 						currency: "EUR",
-						lines: [{ description: "Conseil", quantity: 1, unitPrice: 500 }],
+						lines: [{ description: "Conseil", quantity: 1, unit: "unit", unitPrice: 500, vatRate: "20" }],
 					};
 
 					cy.request({
@@ -329,7 +329,7 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 						issueDate: "2026-08-30",
 						dueDate: "2026-09-30",
 						currency: "EUR",
-						lines: [{ description: "Conseil", quantity: 1, unitPrice: 500 }],
+						lines: [{ description: "Conseil", quantity: 1, unit: "unit", unitPrice: 500, vatRate: "20" }],
 					},
 				},
 				failOnStatusCode: false,

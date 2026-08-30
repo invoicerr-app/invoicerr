@@ -33,6 +33,32 @@ export interface CountryPolicyDecision {
  *  refusing. */
 const DATA_DIR_HINT = 'backend/src/modules/documents/country-policy/data';
 
+/**
+ * The company/country resolution `evaluateCountryPolicy` and `resolveAvailableDocumentTypes` each
+ * already inline — extracted here as a THIRD, independent copy for country-fields/ and vat-rates/'s
+ * own consumer (descriptors/company-view.ts, wired through documents.service.ts) to use, rather than
+ * refactoring either of the two functions below to share it. This mirrors
+ * `resolveAvailableDocumentTypes`'s own documented choice to duplicate rather than share
+ * ("that function's exact wording is pinned by country-policy.spec.ts, and this one needs a
+ * DIFFERENT reason message [...] a shared helper would either have to parameterize the message
+ * anyway or risk perturbing the already-tested one") — the same argument applies a third time: this
+ * caller needs no "unresolved" ERROR MESSAGE at all (unlike the two below), only the bare code or
+ * `undefined`, so folding it into either existing function would mean adding a branch neither one
+ * needs for its own callers.
+ */
+export async function resolveCompanyCountryCode(companyId: string): Promise<string | undefined> {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { country: true, countryCode: true },
+  });
+
+  const resolvedCode = (company?.countryCode || guessCountryCode(company?.country ?? undefined) || '')
+    .trim()
+    .toUpperCase();
+
+  return resolvedCode || undefined;
+}
+
 export async function evaluateCountryPolicy(
   companyId: string,
   typeId: string,

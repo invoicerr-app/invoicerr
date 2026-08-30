@@ -14,6 +14,8 @@ import { registerQuoteActions } from './actions/quote-actions';
 import { registerCreditNoteActions } from './actions/credit-note-actions';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import { registerInvoiceContributions } from './contributions/invoice-contributions';
+import { CountryFieldOverlayCatalog } from './country-fields/registry';
+import { VatRateCatalog } from './vat-rates/registry';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-kinds';
@@ -31,10 +33,12 @@ import {
   ACTION_EXTENSION_REGISTRY,
   ACTION_REGISTRY,
   CONTRIBUTION_REGISTRY,
+  COUNTRY_FIELD_OVERLAY_REGISTRY,
   DOCUMENT_TYPE_REGISTRY,
   ENTITY_REFERENCE_REGISTRY,
   FIELD_KIND_REGISTRY,
   TRANSPORT_REGISTRY,
+  VAT_RATE_CATALOG_REGISTRY,
 } from './tokens';
 
 function buildDocumentTypeRegistry(): DocumentTypeRegistry {
@@ -149,6 +153,12 @@ function buildEntityReferenceRegistry(clientsService: ClientsService): EntityRef
       inject: [ClientsService],
     },
     { provide: CONTRIBUTION_REGISTRY, useFactory: buildContributionRegistry },
+    // The country FIELD overlay (add/modify/remove) and the VAT rate catalog — see
+    // country-fields/registry.ts and vat-rates/registry.ts. Both default-construct from their own
+    // shipped data files (data/all.ts) the exact same way CountryPolicyCatalog already does for
+    // country-policy's own data — no factory function needed, there is nothing to inject.
+    { provide: COUNTRY_FIELD_OVERLAY_REGISTRY, useValue: new CountryFieldOverlayCatalog() },
+    { provide: VAT_RATE_CATALOG_REGISTRY, useValue: new VatRateCatalog() },
   ],
 })
 export class DocumentsModule {}

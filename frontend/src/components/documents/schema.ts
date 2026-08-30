@@ -17,6 +17,11 @@ function baseSchemaFor(field: DocumentFieldDescriptor): z.ZodTypeAny {
       return z.string()
     case "select": {
       const values = (field.options ?? []).map((o) => o.value)
+      // Mirrors the backend's field-kinds.ts 'select' validator exactly: an empty list always
+      // accepts any non-empty string (there is nothing to check client-side, and — if
+      // `allowCustomValue` isn't even set — this is also the pre-existing, unrelated "no options
+      // configured" tolerance this schema already had); a NON-empty list is enforced regardless of
+      // `allowCustomValue`, which only ever opens the escape hatch for an EMPTY list.
       return values.length > 0 ? z.string().refine((v) => values.includes(v)) : z.string()
     }
     case "reference":

@@ -1,0 +1,57 @@
+{
+  "countryCode": "FR",
+  "rates": [
+    {
+      "id": "fr-standard",
+      "rate": 20,
+      "label": "Taux normal",
+      "category": "STANDARD",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Le taux de 20% est corroboré EN DIRECT le 2026-08-30 sur entreprendre.service-public.gouv.fr (fiche F23567, exemples secteur santé/hygiène citant '20%'), mais le texte exact de l'article 278 du CGI (qui fixe ce taux) n'a pas pu être lu à sa source : legifrance.gouv.fr a renvoyé 404, economie.gouv.fr 403, bofip.impots.gouv.fr 404 à chaque requête automatisée tentée cette session. Une confirmation gouvernementale n'est pas la même chose qu'une citation du texte de loi lui-même — voir la règle de ce dépôt sur les sources secondaires. Ce qui trancherait : lire l'art. 278 du CGI directement sur legifrance.gouv.fr (accès manuel, non automatisé) ou via une consultation BOFiP non bloquée."
+      },
+      "notes": "Ancien taux : 19,6% jusqu'au 2014-01-01 (loi de finances pour 2014, art. 68) — non repris ici, ce catalogue ne modélise pas la temporalité (voir le commentaire de tête de ce fichier)."
+    },
+    {
+      "id": "fr-intermediate",
+      "rate": 10,
+      "label": "Taux intermédiaire",
+      "category": "REDUCED",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Le taux de 10% est cité par documentation/compliance/FR-France.md §3.C et par le catalogue de taux de l'ancien moteur de conformité (repère git avant-refonte-documents), qui l'attribue au CGI art. 278 bis (restauration, transport de voyageurs, travaux de rénovation, etc.). Ni l'un ni l'autre ne cite le texte lui-même — les deux sont des sources secondaires. Le texte de l'article n'a pas pu être consulté cette session (mêmes blocages que fr-standard). Ce qui trancherait : lire l'art. 278 bis du CGI sur legifrance.gouv.fr."
+      }
+    },
+    {
+      "id": "fr-reduced",
+      "rate": 5.5,
+      "label": "Taux réduit",
+      "category": "SUPER_REDUCED",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Le taux de 5,5% est corroboré EN DIRECT le 2026-08-30 sur entreprendre.service-public.gouv.fr (fiche F23567, protections hygiéniques), et attribué au CGI art. 278-0 bis par documentation/compliance/FR-France.md et par l'ancien catalogue de taux (produits alimentaires, livres, équipements pour personnes handicapées, etc.). Le texte de l'article lui-même n'a pas pu être consulté cette session (mêmes blocages que fr-standard). Ce qui trancherait : lire l'art. 278-0 bis du CGI sur legifrance.gouv.fr."
+      }
+    },
+    {
+      "id": "fr-particular",
+      "rate": 2.1,
+      "label": "Taux particulier",
+      "category": "SUPER_REDUCED",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Le taux de 2,1% est corroboré EN DIRECT le 2026-08-30 sur entreprendre.service-public.gouv.fr (fiche F23567, produits médicaux remboursés), et attribué aux CGI art. 281 quater et art. 298 septies par l'ancien catalogue de taux (presse, médicaments remboursables, redevance audiovisuelle). Le texte de ces articles n'a pas pu être consulté cette session (mêmes blocages que fr-standard) ; le numéro exact d'article pour chaque catégorie visée n'a pas non plus été vérifié ligne à ligne. Ce qui trancherait : lire les art. 281 quater et 298 septies du CGI sur legifrance.gouv.fr."
+      }
+    },
+    {
+      "id": "fr-exempt-293b",
+      "rate": 0,
+      "label": "Non applicable — franchise en base (art. 293 B du CGI)",
+      "category": "EXEMPT",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "documentation/compliance/FR-France.md §4.C cite l'art. 293 B du CGI et la mention obligatoire correspondante ('TVA non applicable, art. 293 B du CGI') pour la franchise en base des micro-entreprises et autres petites entreprises sous les seuils légaux — mais ce document est une source SECONDAIRE (il ne cite pas le texte de l'article lui-même) et n'a pas pu être recoupé sur legifrance.gouv.fr cette session (404). Ce n'est pas un taux de TVA au sens strict mais un régime d'exonération très fréquent en France ; il est inclus dans cette liste car c'est un choix courant à l'émission d'une facture. Ce qui trancherait : lire l'art. 293 B du CGI sur legifrance.gouv.fr."
+      }
+    }
+  ],
+  "notes": "Toutes les entrées sont volontairement 'unverified', pas 'legal' : chaque taux est corroboré par au moins une source (une page gouvernementale consultée EN DIRECT le 2026-08-30, et/ou l'ancien catalogue de l'ex-moteur de conformité), mais aucune ne cite le TEXTE EXACT de l'article du CGI qui la fixe — condition que 'legal' exige ici (voir schema.ts). Ce fichier ne modélise pas la temporalité des taux (pas de validFrom/validTo, contrairement à l'ancien catalogue) : seuls les taux ACTUELLEMENT en vigueur sont listés, parce que rien dans ce document (un simple choix dans un formulaire) ne consomme encore une date d'effet — voir descriptors/company-view.ts."
+}

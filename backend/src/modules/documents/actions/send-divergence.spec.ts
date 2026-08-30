@@ -26,7 +26,7 @@ describe('quote "send" and invoice "send" do not share a path', () => {
     client: 'client-1',
     issueDate: '2026-01-01',
     currency: 'EUR',
-    lines: [{ description: 'Widget', quantity: 1, unitPrice: 10 }],
+    lines: [{ description: 'Widget', quantity: 1, unit: 'unit', unitPrice: 10, vatRate: '20' }],
   };
 
   it("the quote's send NEVER consults the company's transport configuration, and calls MailService directly", async () => {

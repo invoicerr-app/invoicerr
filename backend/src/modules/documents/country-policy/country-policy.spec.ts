@@ -10,7 +10,11 @@
  */
 import prisma from '@/prisma/prisma.service';
 
-import { evaluateCountryPolicy, resolveAvailableDocumentTypes } from './country-policy';
+import {
+  evaluateCountryPolicy,
+  resolveAvailableDocumentTypes,
+  resolveCompanyCountryCode,
+} from './country-policy';
 
 jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
@@ -179,5 +183,29 @@ describe('resolveAvailableDocumentTypes', () => {
 
     expect(decision.reason).toBeUndefined();
     expect(decision.typeIds.length).toBeGreaterThan(0);
+  });
+});
+
+describe('resolveCompanyCountryCode', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('prefers the explicit countryCode override over guessing from the free-text name', async () => {
+    findCompany.mockResolvedValue({ country: 'Deutschland', countryCode: 'DE' });
+    expect(await resolveCompanyCountryCode('company-1')).toBe('DE');
+  });
+
+  it('falls back to guessing the ISO code from the free-text country when countryCode is not set', async () => {
+    findCompany.mockResolvedValue({ country: 'France', countryCode: null });
+    expect(await resolveCompanyCountryCode('company-1')).toBe('FR');
+  });
+
+  it('returns undefined — never throws, never an empty string — when nothing resolves', async () => {
+    findCompany.mockResolvedValue({ country: 'Atlantis', countryCode: null });
+    expect(await resolveCompanyCountryCode('company-1')).toBeUndefined();
+  });
+
+  it('returns undefined for a company that does not exist', async () => {
+    findCompany.mockResolvedValue(null);
+    expect(await resolveCompanyCountryCode('company-1')).toBeUndefined();
   });
 });

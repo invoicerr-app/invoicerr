@@ -56,7 +56,7 @@ const validInvoiceData = {
   issueDate: '2026-01-01',
   dueDate: '2026-01-31',
   currency: 'EUR',
-  lines: [{ description: 'Widget', quantity: 2, unitPrice: 9.9 }],
+  lines: [{ description: 'Widget', quantity: 2, unit: 'unit', unitPrice: 9.9, vatRate: '20' }],
 };
 
 describe('DocumentsService.runAction — composed with the country policy', () => {

@@ -87,4 +87,48 @@ describe('FieldKindRegistry', () => {
       ).toEqual([{ key: 'origin', message: '"Origin" must reference one of: quote, invoice.' }]);
     });
   });
+
+  describe("'select' — allowCustomValue is an escape hatch for an EMPTY list only", () => {
+    const registry = new FieldKindRegistry();
+    registerCoreFieldKinds(registry);
+
+    it('without allowCustomValue, a value outside the (non-empty) options is rejected — unchanged behaviour', () => {
+      const field = {
+        key: 'vatRate',
+        kind: 'select',
+        label: 'VAT rate',
+        options: [{ value: '20', label: '20%' }],
+      };
+      expect(validateAgainstDescriptor([field], { vatRate: '20' }, registry)).toEqual([]);
+      expect(validateAgainstDescriptor([field], { vatRate: '19' }, registry)).toEqual([
+        { key: 'vatRate', message: '"VAT rate" is not one of the offered choices.' },
+      ]);
+    });
+
+    it('allowCustomValue accepts ANYTHING when options is empty — the "no known catalog" case', () => {
+      const field = {
+        key: 'vatRate',
+        kind: 'select',
+        label: 'VAT rate',
+        options: [],
+        allowCustomValue: true,
+      };
+      expect(validateAgainstDescriptor([field], { vatRate: '17.5' }, registry)).toEqual([]);
+      expect(validateAgainstDescriptor([field], { vatRate: 'whatever' }, registry)).toEqual([]);
+    });
+
+    it('allowCustomValue does NOT bypass a known, NON-EMPTY list — a scripted client cannot go around a real catalog', () => {
+      const field = {
+        key: 'vatRate',
+        kind: 'select',
+        label: 'VAT rate',
+        options: [{ value: '20', label: '20%' }],
+        allowCustomValue: true,
+      };
+      expect(validateAgainstDescriptor([field], { vatRate: '20' }, registry)).toEqual([]);
+      expect(validateAgainstDescriptor([field], { vatRate: '17.5' }, registry)).toEqual([
+        { key: 'vatRate', message: '"VAT rate" is not one of the offered choices.' },
+      ]);
+    });
+  });
 });

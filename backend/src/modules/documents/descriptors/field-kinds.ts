@@ -81,7 +81,13 @@ export function registerCoreFieldKinds(registry: FieldKindRegistry): void {
   registry.register('select', (value, { field }) => {
     if (typeof value !== 'string') return 'must be one of the offered choices.';
     const options = field.options ?? [];
-    return options.some((o) => o.value === value) ? null : 'is not one of the offered choices.';
+    if (options.some((o) => o.value === value)) return null;
+    // `allowCustomValue` is an escape hatch for "no catalog/options known AT ALL" (see types.ts's own
+    // comment) — it only opens when `options` is itself empty. A NON-empty, known list is enforced
+    // exactly as before regardless of this flag: a scripted client must be refused exactly what the
+    // screen would refuse, never allowed to bypass a real, sourced list by posting directly.
+    if (field.allowCustomValue && options.length === 0) return null;
+    return 'is not one of the offered choices.';
   });
 
   // The referenced entity's existence is deliberately NOT checked here: that would need an async,

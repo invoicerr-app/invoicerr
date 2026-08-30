@@ -167,6 +167,31 @@ export function SelectField({ field, name }: FieldRendererProps) {
   const allOptions = field.options ?? []
   const [search, setSearch] = useState("")
 
+  // No known list AT ALL (e.g. no VAT rate catalog for this company's country — see the backend's
+  // descriptors/company-view.ts, which is what would have filled `options` here) — a dropdown with
+  // zero choices is a dead control, not an honest escape hatch. `field.helpText` already explains
+  // why (the backend sets it for exactly this case), and `allowCustomValue` is what says this
+  // particular field is allowed to degrade this way at all — a select whose emptiness would be a
+  // BUG (e.g. currency) never declares it, and keeps showing the (empty, clearly wrong) list below
+  // instead of silently accepting anything.
+  if (allOptions.length === 0 && field.allowCustomValue) {
+    return (
+      <FormField
+        control={control}
+        name={name}
+        render={({ field: rhfField }) => (
+          <FieldChrome field={field}>
+            <BetterInput
+              {...rhfField}
+              value={rhfField.value ?? ""}
+              data-cy={`document-field-${field.key}-input`}
+            />
+          </FieldChrome>
+        )}
+      />
+    )
+  }
+
   // SearchSelect renders exactly the `options` it's given — filtering as the user types is this
   // kind's own job, same as ReferenceField filters by asking the backend instead.
   const filtered = search

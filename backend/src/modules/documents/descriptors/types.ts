@@ -55,6 +55,27 @@ export interface DocumentFieldDescriptor {
   helpText?: string;
   /** 'select': the choices offered. */
   options?: { value: string; label: string }[];
+  /**
+   * 'select' only: whether a value NOT among `options` is still accepted — but ONLY when `options`
+   * is itself EMPTY, never as a way to bypass a known, non-empty list. This is the escape hatch for
+   * "no known catalog for this field at all" (see vat-rates/ and descriptors/company-view.ts, which
+   * is what actually fills `options` per company for a field like the invoice line's `vatRate`): a
+   * select with zero options is a dead control, so this field is what tells both the backend
+   * validator (field-kinds.ts) and the frontend renderer to fall back to a plain input instead of
+   * leaving the user stuck. It does NOT relax anything once a real catalog IS known — a scripted
+   * client must be refused exactly what the screen would refuse, the same discipline
+   * country-policy's own runAction check already holds for actions.
+   */
+  allowCustomValue?: boolean;
+  /**
+   * 'select' only: this field's `options` are populated PER COMPANY, from the VAT rate catalog
+   * (vat-rates/) for the active company's resolved country — see descriptors/company-view.ts, the
+   * only code that interprets this hint. Declared as a hint on the field (the same treatment
+   * `currencyField`/`entity` already get) rather than hardcoded into any one document type's
+   * descriptor, so it stays reusable the day a second field (or a second document type) also needs a
+   * VAT-rate choice.
+   */
+  usesVatRateCatalog?: boolean;
   /** 'money': a fixed ISO 4217 currency code for this field. Ignored when `currencyField` is set. */
   currency?: string;
   /**

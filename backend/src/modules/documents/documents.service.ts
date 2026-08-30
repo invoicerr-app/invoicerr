@@ -16,7 +16,14 @@ import { ActionRegistry, ActionResult } from './actions/action-registry';
 import { collectWidgets } from './contributions/collect-widgets';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import { Widget } from './contributions/widgets';
-import { evaluateCountryPolicy, resolveAvailableDocumentTypes } from './country-policy/country-policy';
+import {
+  evaluateCountryPolicy,
+  resolveAvailableDocumentTypes,
+  resolveCompanyCountryCode,
+} from './country-policy/country-policy';
+import { applyFieldOverlay } from './country-fields/apply-overlay';
+import { CountryFieldOverlayCatalog } from './country-fields/registry';
+import { applyCompanyFieldView } from './descriptors/company-view';
 import { FieldKindRegistry } from './descriptors/field-kinds';
 import { DocumentTypeRegistry, UnknownDocumentTypeError } from './descriptors/type-registry';
 import {
@@ -40,14 +47,17 @@ import {
 } from './row-selection/resolve-row-selection';
 import { referencedArrayFieldKeys, stampRowIds } from './row-selection/row-selection';
 import { TransportRegistry } from './transports/transport-registry';
+import { VatRateCatalog } from './vat-rates/registry';
 import {
   ACTION_EXTENSION_REGISTRY,
   ACTION_REGISTRY,
   CONTRIBUTION_REGISTRY,
+  COUNTRY_FIELD_OVERLAY_REGISTRY,
   DOCUMENT_TYPE_REGISTRY,
   ENTITY_REFERENCE_REGISTRY,
   FIELD_KIND_REGISTRY,
   TRANSPORT_REGISTRY,
+  VAT_RATE_CATALOG_REGISTRY,
 } from './tokens';
 
 /** One action, as `describeTypeForCompany` hands it to the frontend — the plain declared shape PLUS
@@ -74,6 +84,12 @@ export class DocumentsService implements OnModuleInit {
     @Inject(ENTITY_REFERENCE_REGISTRY) private readonly referenceRegistry: EntityReferenceRegistry,
     @Inject(TRANSPORT_REGISTRY) private readonly transportRegistry: TransportRegistry,
     @Inject(CONTRIBUTION_REGISTRY) private readonly contributionRegistry: ContributionRegistry,
+    @Inject(COUNTRY_FIELD_OVERLAY_REGISTRY)
+    private readonly countryFieldOverlayCatalog: CountryFieldOverlayCatalog = new CountryFieldOverlayCatalog(
+      [],
+    ),
+    @Inject(VAT_RATE_CATALOG_REGISTRY)
+    private readonly vatRateCatalog: VatRateCatalog = new VatRateCatalog([]),
   ) {}
 
   /**
@@ -82,10 +98,19 @@ export class DocumentsService implements OnModuleInit {
    * the same action id) fails loudly when the app starts — not on whichever request happens to hit
    * it first. This is the "booting the app is the real check of the wiring" rule applied to this
    * specific composition point.
+   *
+   * Also exercises every shipped country's FIELD overlay (country-fields/) against every registered
+   * type here, once — a misconfigured overlay (a `path`/`key` that doesn't resolve — see
+   * apply-overlay.ts) fails at boot the same way an action-id collision above does, never on
+   * whichever company's first request happens to hit it. A no-op today (country-fields/data/all.ts
+   * ships none), but it means the day a real file appears, THIS is what catches a typo in it.
    */
   onModuleInit(): void {
     for (const { id } of this.typeRegistry.list()) {
-      this.mergedDescriptor(id);
+      const descriptor = this.mergedDescriptor(id);
+      for (const countryCode of this.countryFieldOverlayCatalog.countries()) {
+        applyFieldOverlay(descriptor.fields, this.countryFieldOverlayCatalog.operationsFor(countryCode, id));
+      }
     }
   }
 
@@ -156,13 +181,17 @@ export class DocumentsService implements OnModuleInit {
   }
 
   /**
-   * The descriptor a FRONTEND actually renders — `getType` above, but with each action annotated
-   * with `policyBlockedReason` when the ACTIVE COMPANY's country policy refuses it (see
-   * country-policy/country-policy.ts's evaluateCountryPolicy). This is a country-policy-aware VIEW
-   * layered on top of the plain descriptor, never a change to `DocumentTypeDescriptor` itself: the
-   * descriptor stays pure declarative data (no company, no country), and every other reader of
-   * `mergedDescriptor`/`getType` (row selection, validation, the jest specs that build a service with
-   * no company at all) is unaffected.
+   * The descriptor a FRONTEND actually renders — `getType` above, but with:
+   *  - each ACTION annotated with `policyBlockedReason` when the ACTIVE COMPANY's country policy
+   *    refuses it (see country-policy/country-policy.ts's evaluateCountryPolicy);
+   *  - each FIELD passed through the company's own field VIEW (descriptors/company-view.ts): the
+   *    country field overlay (add/modify/remove — country-fields/) and the VAT rate catalog
+   *    (vat-rates/) filling in a field like the invoice line's `vatRate`.
+   *
+   * Both are country-aware VIEWS layered on top of the plain descriptor, never a change to
+   * `DocumentTypeDescriptor` itself: the descriptor stays pure declarative data (no company, no
+   * country), and every other reader of `mergedDescriptor`/`getType` (row selection, the jest specs
+   * that build a service with no company at all) is unaffected.
    *
    * `policyBlockedReason` is PLAIN TEXT, not an i18n key — same convention as `label`/`message`
    * elsewhere in this module — so the frontend can show it verbatim without knowing any country.
@@ -171,12 +200,22 @@ export class DocumentsService implements OnModuleInit {
    */
   async describeTypeForCompany(companyId: string, typeId: string): Promise<DocumentTypeDescriptorView> {
     const descriptor = this.mergedDescriptor(typeId);
-    const decisions = await Promise.all(
-      descriptor.actions.map((action) => evaluateCountryPolicy(companyId, typeId, action.id)),
-    );
+    const [decisions, countryCode] = await Promise.all([
+      Promise.all(descriptor.actions.map((action) => evaluateCountryPolicy(companyId, typeId, action.id))),
+      resolveCompanyCountryCode(companyId),
+    ]);
+
+    const fields = applyCompanyFieldView({
+      typeId,
+      fields: descriptor.fields,
+      countryCode,
+      fieldOverlayCatalog: this.countryFieldOverlayCatalog,
+      vatRateCatalog: this.vatRateCatalog,
+    });
 
     return {
       ...descriptor,
+      fields,
       actions: descriptor.actions.map((action, index) => {
         const decision = decisions[index];
         return decision.allowed ? action : { ...action, policyBlockedReason: decision.reason };
@@ -341,11 +380,22 @@ export class DocumentsService implements OnModuleInit {
       );
     }
 
-    const dataErrors = validateAgainstDescriptor(
-      descriptor.fields,
-      payload.data ?? {},
-      this.fieldKindRegistry,
-    );
+    // The FIELDS this company's country actually gets — the same country-field-overlay +
+    // VAT-rate-catalog view describeTypeForCompany hands the frontend (descriptors/company-view.ts).
+    // Validating against the BASE descriptor.fields here would let a scripted client bypass whatever
+    // a country's overlay added/required (or accept a value a REMOVEd field could no longer carry) —
+    // the same "the API refuses exactly what the screen would refuse" discipline the country-policy
+    // check right above already holds for actions, now held for fields too.
+    const countryCode = await resolveCompanyCountryCode(companyId);
+    const fields = applyCompanyFieldView({
+      typeId,
+      fields: descriptor.fields,
+      countryCode,
+      fieldOverlayCatalog: this.countryFieldOverlayCatalog,
+      vatRateCatalog: this.vatRateCatalog,
+    });
+
+    const dataErrors = validateAgainstDescriptor(fields, payload.data ?? {}, this.fieldKindRegistry);
     // Cross-document existence for every 'rowSelection' field — a no-op for a type that declares
     // none (the loop inside just finds nothing), never a DB round-trip for the quote or the invoice.
     // See row-selection/resolve-row-selection.ts's header for why this is a SEPARATE, async pass
@@ -353,7 +403,7 @@ export class DocumentsService implements OnModuleInit {
     // validateAgainstDescriptor's pure, synchronous kinds deliberately never get.
     const rowSelectionErrors = await validateRowSelections({
       companyId,
-      descriptor,
+      descriptor: { ...descriptor, fields },
       typeRegistry: this.typeRegistry,
       data: payload.data ?? {},
     });
@@ -369,11 +419,7 @@ export class DocumentsService implements OnModuleInit {
     // 'rowSelection' field points at (row-selection.ts's `referencedArrayFieldKeys`) — the row-identity
     // prerequisite a selection needs, applied only where something actually selects from, and only to
     // data that has already passed every check above (never to data about to be rejected anyway).
-    const data = stampRowIds(
-      descriptor.fields,
-      payload.data ?? {},
-      referencedArrayFieldKeys(this.typeRegistry, typeId),
-    );
+    const data = stampRowIds(fields, payload.data ?? {}, referencedArrayFieldKeys(this.typeRegistry, typeId));
 
     return handler({
       companyId,
