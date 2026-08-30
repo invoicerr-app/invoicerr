@@ -2939,14 +2939,17 @@
       },
       "item": {
         "fallbackTitle": "{{label}} #{{id}}"
-      }
+      },
+      "downloadPdf": "Download PDF",
+      "downloadPdfError": "The PDF could not be generated."
     },
     "custom": {
       "invoicePreview": {
         "button": "Preview",
         "title": "Preview: {{label}}",
-        "disclaimerTitle": "No PDF renderer available",
-        "disclaimerBody": "This build has no PDF or print engine for documents yet. What follows is the invoice's own stored data, exactly as saved — not a generated document."
+        "previewTitle": "Data Preview",
+        "previewBody": "Below is the invoice's stored data as saved. Use the button to download a rendered PDF.",
+        "downloadPdf": "Download PDF"
       }
     }
   }

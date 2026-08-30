@@ -1,4 +1,6 @@
-import { Eye, TriangleAlert } from "lucide-react"
+import { authenticatedFetch } from "@/hooks/use-fetch"
+import { toast } from "sonner"
+import { Eye } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -33,6 +35,26 @@ function InvoicePreviewButton({ descriptor, instance }: DocumentCustomSlotProps)
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
 
+  const handleDownloadPdf = async () => {
+    try {
+      // `authenticatedFetch`, PAS `fetch` : le front et l'API vivent sur des ports différents. Un
+      // fetch relatif part vers le serveur Vite — qui n'a pas d'API — sans cookie de session. Le
+      // bouton était donc MORT, et l'e2e ne le voyait pas : il ne vérifiait que son existence.
+      // Troisième bouton mort de cette famille dans ce dépôt.
+      const response = await authenticatedFetch(`/api/documents/${instance.id}/pdf?typeId=${descriptor.id}`)
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      window.open(url, "_blank")
+    } catch (error) {
+      // Le message du backend, pas un générique : « le moteur PDF est indisponible » et « document
+      // introuvable » n'appellent pas la même réaction.
+      toast.error(error instanceof Error ? error.message : t("documents.list.downloadPdfError"))
+    }
+  }
+
   return (
     <>
       <Button
@@ -60,10 +82,17 @@ function InvoicePreviewButton({ descriptor, instance }: DocumentCustomSlotProps)
             </DialogTitle>
           </DialogHeader>
 
-          <Alert variant="destructive" data-cy="document-custom-invoice-preview-disclaimer">
-            <TriangleAlert />
-            <AlertTitle>{t("documents.custom.invoicePreview.disclaimerTitle")}</AlertTitle>
-            <AlertDescription>{t("documents.custom.invoicePreview.disclaimerBody")}</AlertDescription>
+          <Alert data-cy="document-custom-invoice-preview-disclaimer">
+            <Eye />
+            <AlertTitle>{t("documents.custom.invoicePreview.previewTitle")}</AlertTitle>
+            <AlertDescription>
+              {t("documents.custom.invoicePreview.previewBody")}
+              <div className="mt-4">
+                <Button onClick={handleDownloadPdf} className="w-full">
+                  {t("documents.custom.invoicePreview.downloadPdf")}
+                </Button>
+              </div>
+            </AlertDescription>
           </Alert>
 
           <dl className="space-y-3 py-2">

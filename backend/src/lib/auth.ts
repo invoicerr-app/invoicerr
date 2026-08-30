@@ -46,6 +46,22 @@ const validateInvitationForSignup = async (
   email: string,
 ): Promise<{ valid: boolean; invitationCode?: string; message?: string }> => {
   const isFirstUser = (await prisma.user.count()) === 0;
+
+  // `pendingInvitationCodes` est une Map DANS LE PROCESSUS : elle survit à une réinitialisation de
+  // la base. Sur une base sans aucun utilisateur, un code en attente est donc forcément un fantôme
+  // d'une tentative antérieure — aucun code ne peut être valide là où aucune entreprise n'existe,
+  // puisqu'un code appartient à une entreprise.
+  //
+  // On l'oublie ICI plutôt que dans la politique : la règle « un code fourni est vérifié, même pour
+  // le premier utilisateur » est juste et testée — quelqu'un qui TAPE un code mérite qu'on lui dise
+  // qu'il est invalide. C'est la provenance du code qui est douteuse, pas la règle.
+  //
+  // Trouvé en rejouant la batterie : le jeu d'essai s'inscrivait après une spec d'auth qui avait
+  // laissé un code invalide pour la même adresse, et vingt-deux tests tombaient derrière lui.
+  if (isFirstUser) {
+    pendingInvitationCodes.delete(email);
+  }
+
   const invitationCode = pendingInvitationCodes.get(email);
 
   let invitation: InvitationLookupResult | undefined;

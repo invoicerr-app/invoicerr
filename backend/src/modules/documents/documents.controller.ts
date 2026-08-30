@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Res } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
 
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 
@@ -223,6 +224,28 @@ export class DocumentsController {
   @ApiResponse({ status: 200, description: 'Instances retrieved' })
   listDocuments(@ActiveCompany() companyId: string, @Query('typeId') typeId?: string) {
     return this.documentsService.listDocuments(companyId, typeId);
+  }
+
+  @Get(':id/pdf')
+  @ApiOperation({
+    summary: 'Get a document instance as PDF',
+    description: 'Renders a document instance as a PDF file.',
+  })
+  @ApiParam({ name: 'id', type: String })
+  @ApiQuery({ name: 'typeId', required: true, type: String })
+  @ApiResponse({ status: 200, description: 'PDF generated', schema: { type: 'string', format: 'binary' } })
+  @ApiResponse({ status: 404, description: 'Not found for this company/type' })
+  @ApiResponse({ status: 500, description: 'PDF rendering failed' })
+  async renderPdf(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Query('typeId') typeId: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const pdfBuffer = await this.documentsService.renderInstancePdf(companyId, typeId, id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${typeId}-${id}.pdf"`);
+    res.send(pdfBuffer);
   }
 
   @Get(':id')

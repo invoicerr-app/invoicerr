@@ -27,7 +27,7 @@
 
 | # | Titre | Description |
 |---|---|---|
-| 1 | **Rendu PDF** | Aucun moteur de rendu n'existe (l'aperçu affiche les données brutes en le disant). Un moteur **générique piloté par le descripteur** — un template par kind de champ, pas par type — pour que tout type de document ait son PDF sans écran dédié. Préalable aux items 4, 12 et 24. |
+| 1 ✅ | **Rendu PDF** (fait, 2026-08-30) | Aucun moteur de rendu n'existe (l'aperçu affiche les données brutes en le disant). Un moteur **générique piloté par le descripteur** — un template par kind de champ, pas par type — pour que tout type de document ait son PDF sans écran dédié. Préalable aux items 4, 12 et 24. |
 | 2 | **Numérotation** ⚖ | Les documents n'ont plus aucun numéro. Compteurs par société et par type, format configurable, numéro pris à l'émission. La règle « séquence sans trou » est du droit à sourcer par pays — l'ancien code (et son bug du `-0000`) est au repère pour référence. |
 | 3 | **Statuts & cycle de vie** | Aujourd'hui : `draft`/`sent` et guère plus. Déclarer les statuts et transitions **par type, en donnée**, et donner à la politique pays la granularité par statut qui lui manque (« corriger, mais seulement une fois parti »). |
 | 4 | **Envoi avec pièce jointe** | L'envoi actuel est un texte. Joindre le PDF (dépend de 1), templates de mail par type de document. |
