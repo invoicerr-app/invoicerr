@@ -28,6 +28,12 @@ export function buildExpenseDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'expense',
     label: 'Expense',
+    // See types.ts's own comment on `listItem`. An expense has no relation field to lead with (no
+    // client, no source document) — `description` is its own required, human-written identifier.
+    listItem: {
+      titleFields: ['description'],
+      secondaryFields: ['amount', 'date'],
+    },
     fields: [
       {
         key: 'description',

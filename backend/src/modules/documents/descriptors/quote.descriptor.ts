@@ -22,6 +22,12 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'quote',
     label: 'Quote',
+    // See types.ts's own comment on `listItem`. `client` is the one field a quote cannot exist
+    // without (required) and the one a reader actually wants to see first in a list of quotes.
+    listItem: {
+      titleFields: ['client'],
+      secondaryFields: ['issueDate', 'dueDate', 'currency'],
+    },
     fields: [
       {
         key: 'client',

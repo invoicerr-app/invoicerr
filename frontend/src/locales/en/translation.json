@@ -2352,7 +2352,7 @@
   "common": {
     "loading": "Loading...",
     "finish": "Finish",
-    "valueWithCurrency": "{{amount}}{{currency}}",
+    "valueWithCurrency": "{{amount}} {{currency}}",
     "cancel": "Cancel",
     "previous": "Previous",
     "next": "Next",
@@ -2905,7 +2905,9 @@
         "create": "New {{label}}"
       },
       "emptyState": {
-        "noResults": "No documents match your search."
+        "noResults": "No documents match your search.",
+        "noResultsHint": "Try a different search term or filter.",
+        "startCreatingHint": "Get started by creating your first {{label}}."
       },
       "tooltips": {
         "edit": "Edit"
@@ -2914,6 +2916,9 @@
         "yes": "Yes",
         "no": "No",
         "rowCount": "{{count}} row(s) selected"
+      },
+      "item": {
+        "fallbackTitle": "{{label}} #{{id}}"
       }
     },
     "custom": {

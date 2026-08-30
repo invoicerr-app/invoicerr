@@ -25,6 +25,33 @@ export interface DocumentTypeDescriptor {
    * leave a type with no operations at all.
    */
   contributions?: WidgetLocation[];
+  /**
+   * The generic LIST screen's only per-type hint (document-list.tsx, frontend): which field KEYS
+   * form this type's card heading, and which show as secondary info beneath it. This is what makes
+   * "cards, not a bare table" possible without the frontend inventing a heuristic ("if it's an
+   * invoice, show the client") — the exact per-type branching this whole model exists to avoid. A
+   * bare table sidesteps the question entirely (every column gets equal weight); a card cannot,
+   * because a card needs SOMETHING to be the title. So the descriptor says which field(s) that is,
+   * the same way it already says which fields exist at all.
+   *
+   * Both lists hold KEYS of THIS type's own top-level `fields` only (never a nested 'array' row
+   * field, and never a dotted path) — resolving one that isn't there (a typo, or a field a future
+   * country overlay removes, see company-view.ts) is a mismatch the frontend skips over silently,
+   * never a crash: the same "degrade honestly instead of breaking" rule the rest of this core holds
+   * for a descriptor/data mismatch elsewhere (an unrecognized field kind, a dangling reference id).
+   * Absent or both empty: the list shows a generic fallback title ("<type label> #<short id>") and
+   * no secondary line — never nothing at all.
+   */
+  listItem?: {
+    /** Rendered as the card's title, in order, joined by " · ". Falls back to a generic
+     *  "<label> #<id>" when omitted, empty, or every named field is unset on a given instance —
+     *  which is why this should name field(s) that are actually REQUIRED on the type (an invoice's
+     *  `client`, an expense's `description`): the fallback exists for the mismatch case above, not
+     *  as a routine substitute for a real title. */
+    titleFields?: string[];
+    /** Rendered as "<field label>: <value>" secondary lines under the title, in order. */
+    secondaryFields?: string[];
+  };
 }
 
 /** The two aggregation screens a document type may contribute WIDGETS to — see contributions/. Kept

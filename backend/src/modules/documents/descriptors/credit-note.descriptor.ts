@@ -47,6 +47,12 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'credit-note',
     label: 'Credit note',
+    // See types.ts's own comment on `listItem`. `invoice` is required and is what a credit note
+    // IS relative to (the invoice it corrects) — the natural heading for a list of credit notes.
+    listItem: {
+      titleFields: ['invoice'],
+      secondaryFields: ['issueDate', 'currency'],
+    },
     fields: [
       {
         key: 'invoice',

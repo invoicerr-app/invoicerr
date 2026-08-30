@@ -90,11 +90,27 @@ export interface ActionResult {
   message?: string
 }
 
+/**
+ * The generic list's (document-list.tsx) only per-type hint: which field KEYS form a card's title,
+ * and which show as secondary info beneath it. This is what lets the list render CARDS — a title
+ * plus a couple of secondary facts, the way clients/articles already do — without inventing a
+ * heuristic per document type ("if it's an invoice, show the client"): the descriptor says which
+ * field(s) that is, the same way it already says which fields exist at all. See the backend's
+ * `DocumentTypeDescriptor.listItem` (descriptors/types.ts) for the full contract this mirrors.
+ */
+export interface DocumentListItemHint {
+  /** Rendered as the card's title, in order, joined by " · ". */
+  titleFields?: string[]
+  /** Rendered as "<field label>: <value>" secondary lines under the title, in order. */
+  secondaryFields?: string[]
+}
+
 export interface DocumentTypeDescriptor {
   id: string
   label: string
   fields: DocumentFieldDescriptor[]
   actions: DocumentActionDescriptor[]
+  listItem?: DocumentListItemHint
 }
 
 export interface DocumentTypeSummary {

@@ -133,6 +133,12 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
     // for this mechanism, and the model for any other type's own. Both locations, so it demonstrates
     // the small widget vocabulary on both.
     contributions: ['dashboard', 'statistics'],
+    // See types.ts's own comment on `listItem`, and quote.descriptor.ts for the same call on the
+    // sibling type: `client` is required and the one thing a reader scans a list of invoices for.
+    listItem: {
+      titleFields: ['client'],
+      secondaryFields: ['issueDate', 'dueDate', 'currency'],
+    },
     fields: [
       {
         key: 'client',

@@ -13,7 +13,11 @@ import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
 import { getDocumentCustomComponent } from "@/components/documents/custom-slots"
 import { DocumentFieldValue } from "@/components/documents/field-value"
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
-import type { DocumentInstance, DocumentTypeDescriptor } from "@/components/documents/types"
+import type {
+  DocumentFieldDescriptor,
+  DocumentInstance,
+  DocumentTypeDescriptor,
+} from "@/components/documents/types"
 import { isActionAvailable } from "@/components/documents/types"
 import { useDocumentActionRunner } from "@/components/documents/use-document-action-runner"
 import BetterPagination from "@/components/pagination"
@@ -22,19 +26,100 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 
 const PAGE_SIZE = 10
 
+/** Looks up `keys` among `descriptor.fields` (top-level only), in order, silently DROPPING any key
+ *  that doesn't resolve — a typo in `listItem`, or a field a country overlay removed for this
+ *  company (see the backend's company-view.ts) — rather than throwing. Shared by the title and the
+ *  secondary-info line below: both are "a few named fields, rendered by kind", never anything a
+ *  document TYPE has to special-case. */
+function resolveListFields(
+  descriptor: DocumentTypeDescriptor,
+  keys: string[] | undefined,
+): DocumentFieldDescriptor[] {
+  if (!keys?.length) return []
+  return keys
+    .map((key) => descriptor.fields.find((field) => field.key === key))
+    .filter((field): field is DocumentFieldDescriptor => !!field)
+}
+
+function isEmptyFieldValue(value: unknown): boolean {
+  return value === undefined || value === null || value === ""
+}
+
+interface DocumentCardTitleProps {
+  descriptor: DocumentTypeDescriptor
+  instance: DocumentInstance
+}
+
 /**
- * Field kinds shown as their own column in the list table. A field whose kind describes a
- * REPEATING structure ('array', 'rowSelection') cannot fit a single flat cell — that boundary is
- * drawn on the field's KIND, exactly like every other decision in this core, never on which
- * document TYPE declared the field. See field-value.tsx's own 'array'/'rowSelection' cases for the
- * richer rendering they get where there IS room for them (the honest invoice preview).
+ * A card's heading — the field(s) the descriptor's own `listItem.titleFields` names (see types.ts),
+ * rendered through the same by-KIND formatter every value in this app goes through
+ * (field-value.tsx), never a bespoke "how do I stringify a client" per type. Falls back to a plain
+ * "<type label> #<short id>" only when the descriptor names nothing, or the named field(s) are all
+ * unset on THIS instance — a mismatch case (see listItem's own doc comment), not the routine path.
  */
-const TABULAR_KINDS = new Set(["text", "number", "money", "date", "boolean", "select", "reference"])
+function DocumentCardTitle({ descriptor, instance }: DocumentCardTitleProps) {
+  const { t } = useTranslation()
+  const titleFields = useMemo(
+    () => resolveListFields(descriptor, descriptor.listItem?.titleFields),
+    [descriptor],
+  )
+  const hasTitle = titleFields.some((field) => !isEmptyFieldValue(instance.data[field.key]))
+
+  if (!hasTitle) {
+    return (
+      <span>
+        {t("documents.list.item.fallbackTitle", { label: descriptor.label, id: instance.id.slice(0, 8) })}
+      </span>
+    )
+  }
+
+  return (
+    <>
+      {titleFields.map((field, index) => (
+        <span key={field.key}>
+          {index > 0 && <span className="text-muted-foreground"> · </span>}
+          <DocumentFieldValue field={field} value={instance.data[field.key]} data={instance.data} />
+        </span>
+      ))}
+    </>
+  )
+}
+
+interface DocumentCardSecondaryInfoProps {
+  descriptor: DocumentTypeDescriptor
+  instance: DocumentInstance
+}
+
+/** The card's secondary line(s): "<field label>: <value>" for every field `listItem.secondaryFields`
+ *  names, plus the record's own `updatedAt` (structural to every document instance, not something
+ *  any one type has to declare). Field LABELS are plain data straight off the descriptor — the same
+ *  convention `field.label` already carries everywhere else it's shown (the form, the old preview). */
+function DocumentCardSecondaryInfo({ descriptor, instance }: DocumentCardSecondaryInfoProps) {
+  const { t } = useTranslation()
+  const secondaryFields = useMemo(
+    () => resolveListFields(descriptor, descriptor.listItem?.secondaryFields),
+    [descriptor],
+  )
+
+  return (
+    <div className="mt-1 flex flex-col gap-1 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:gap-x-4">
+      {secondaryFields.map((field) => (
+        <span key={field.key}>
+          <span className="font-medium text-foreground">{field.label}:</span>{" "}
+          <DocumentFieldValue field={field} value={instance.data[field.key]} data={instance.data} />
+        </span>
+      ))}
+      <span>
+        <span className="font-medium text-foreground">{t("documents.list.columns.updatedAt")}:</span>{" "}
+        {new Date(instance.updatedAt).toLocaleString()}
+      </span>
+    </div>
+  )
+}
 
 interface DocumentRowActionsProps {
   descriptor: DocumentTypeDescriptor
@@ -44,7 +129,7 @@ interface DocumentRowActionsProps {
 }
 
 /**
- * One row's action cell: an explicit "edit" (opens the create/edit modal, the only way to change
+ * One card's action cluster: an explicit "edit" (opens the create/edit modal, the only way to change
  * FIELD values), every action the descriptor declares for this record's current status — run
  * directly against the SAVED instance, no modal involved — and, last, whatever a custom slot adds
  * for this type alone (see custom-slots.ts). None of this branches on which document type it is.
@@ -71,7 +156,7 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
   const blockedReason = availableActions.find((action) => action.policyBlockedReason)?.policyBlockedReason
 
   return (
-    // Stops a click on any action here from also bubbling up to the row's own onClick (which opens
+    // Stops a click on any action here from also bubbling up to the card's own onClick (which opens
     // the edit modal) — an action button and "open this record" are two different intents.
     <div
       className="flex flex-col items-end gap-1"
@@ -139,6 +224,76 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
   )
 }
 
+interface DocumentListCardRowProps {
+  descriptor: DocumentTypeDescriptor
+  instance: DocumentInstance
+  onEdit: (instance: DocumentInstance) => void
+  onActionSuccess: (result: DocumentInstance, actionId: string) => void
+}
+
+/**
+ * One document instance, as a card row: a generic document icon (deliberately the SAME icon for
+ * every type — anything richer would mean naming a type to pick one), a title plus status pill, a
+ * secondary info line, and the action cluster. The layout itself is lifted from the clients and
+ * articles lists (see frontend/src/pages/(app)/clients/index.tsx and
+ * .../articles/_components/article-list.tsx) and from this app's own pre-redesign invoice/quote
+ * lists (git tag `avant-refonte-documents`) — only WHICH fields fill the title/secondary slots comes
+ * from the descriptor.
+ */
+function DocumentListCardRow({ descriptor, instance, onEdit, onActionSuccess }: DocumentListCardRowProps) {
+  return (
+    <div
+      className="cursor-pointer p-4 sm:p-6"
+      onClick={() => onEdit(instance)}
+      data-cy={`document-list-row-${instance.id}`}
+    >
+      <div className="flex flex-row items-start gap-4 sm:items-center sm:justify-between">
+        <div className="flex w-full min-w-0 flex-row items-center gap-4">
+          <div className="h-fit w-fit shrink-0 rounded-lg bg-blue-100 p-2 dark:bg-blue-950/50">
+            <FileStack className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3
+                className="break-words font-medium text-foreground"
+                data-cy={`document-list-title-${instance.id}`}
+              >
+                <DocumentCardTitle descriptor={descriptor} instance={instance} />
+              </h3>
+              <DocumentStatusBadge status={instance.status} />
+            </div>
+            <DocumentCardSecondaryInfo descriptor={descriptor} instance={instance} />
+          </div>
+        </div>
+
+        <DocumentRowActions
+          descriptor={descriptor}
+          instance={instance}
+          onEdit={onEdit}
+          onActionSuccess={onActionSuccess}
+        />
+      </div>
+    </div>
+  )
+}
+
+/** A skeleton card row shaped like `DocumentListCardRow` above, so the loading state doesn't jump
+ *  once real rows arrive. Three literal siblings (not a `.map` over a placeholder array) — there is
+ *  no "identity" for a loading placeholder to carry, so there is no index-as-key question to beg. */
+function DocumentListSkeletonRow() {
+  return (
+    <div className="p-4 sm:p-6">
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-9 w-9 shrink-0 rounded-lg" />
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-4 w-1/3" />
+          <Skeleton className="h-3 w-1/2" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface DocumentListProps {
   descriptor: DocumentTypeDescriptor
   instances: DocumentInstance[]
@@ -149,10 +304,12 @@ interface DocumentListProps {
 }
 
 /**
- * The one generic list: a table whose COLUMNS are deduced from the descriptor's own fields (see
- * TABULAR_KINDS above), a status column driven by DocumentStatusBadge's generic tone heuristic, and
- * an actions column driven entirely by DocumentRowActions above. A new document type needs no list
- * screen of its own — this is it, for every type there is.
+ * The one generic list: a card per document instance (see DocumentListCardRow above) — never a bare
+ * table, which would show every field with equal weight instead of a title a reader can actually
+ * scan for. A status filter driven by DocumentStatusBadge's generic tone heuristic, and an action
+ * cluster driven entirely by DocumentRowActions round it out. A new document type needs no list
+ * screen of its own, and no code here: it declares `listItem` on its descriptor (see types.ts) and
+ * gets this rendering exactly like the other three.
  */
 export function DocumentList({
   descriptor,
@@ -166,11 +323,6 @@ export function DocumentList({
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
   const [page, setPage] = useState(1)
-
-  const tabularFields = useMemo(
-    () => descriptor.fields.filter((field) => TABULAR_KINDS.has(field.kind)),
-    [descriptor.fields],
-  )
 
   // Status categories are DERIVED from the loaded data, never a fixed enum — the same discipline
   // DocumentStatusBadge holds for color: a status this core has never seen still gets a filter chip.
@@ -194,6 +346,8 @@ export function DocumentList({
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, pageCount)
   const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+
+  const hasActiveFilter = !!search || !!statusFilter
 
   const setSearchAndResetPage = (value: string) => {
     setSearch(value)
@@ -248,18 +402,23 @@ export function DocumentList({
 
       <CardContent className="p-0">
         {isLoading ? (
-          <div className="space-y-2 p-6">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
+          <div className="divide-y">
+            <DocumentListSkeletonRow />
+            <DocumentListSkeletonRow />
+            <DocumentListSkeletonRow />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12" data-cy="document-list-empty">
+          <div className="py-12 text-center" data-cy="document-list-empty">
             <FileStack className="mx-auto h-10 w-10 text-muted-foreground opacity-50" />
             <h3 className="mt-2 text-sm font-medium text-foreground">
-              {search || statusFilter ? t("documents.list.emptyState.noResults") : t("documents.list.empty")}
+              {hasActiveFilter ? t("documents.list.emptyState.noResults") : t("documents.list.empty")}
             </h3>
-            {!search && !statusFilter && (
+            <p className="mt-1 text-sm text-primary">
+              {hasActiveFilter
+                ? t("documents.list.emptyState.noResultsHint")
+                : t("documents.list.emptyState.startCreatingHint", { label: descriptor.label })}
+            </p>
+            {!hasActiveFilter && (
               <div className="mt-6">
                 <Button onClick={onCreate} dataCy="document-create-button-empty">
                   <Plus className="h-4 w-4 mr-2" />
@@ -269,52 +428,17 @@ export function DocumentList({
             )}
           </div>
         ) : (
-          <Table data-cy="document-list-table">
-            <TableHeader>
-              <TableRow>
-                {tabularFields.map((field) => (
-                  <TableHead key={field.key}>{field.label}</TableHead>
-                ))}
-                <TableHead>{t("documents.list.columns.status")}</TableHead>
-                <TableHead>{t("documents.list.columns.updatedAt")}</TableHead>
-                <TableHead className="text-right">{t("documents.list.columns.actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paged.map((instance) => (
-                <TableRow
-                  key={instance.id}
-                  className="cursor-pointer"
-                  onClick={() => onEdit(instance)}
-                  data-cy={`document-list-row-${instance.id}`}
-                >
-                  {tabularFields.map((field) => (
-                    <TableCell key={field.key}>
-                      <DocumentFieldValue
-                        field={field}
-                        value={instance.data[field.key]}
-                        data={instance.data}
-                      />
-                    </TableCell>
-                  ))}
-                  <TableCell>
-                    <DocumentStatusBadge status={instance.status} />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {new Date(instance.updatedAt).toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DocumentRowActions
-                      descriptor={descriptor}
-                      instance={instance}
-                      onEdit={onEdit}
-                      onActionSuccess={onActionSuccess}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <div className="divide-y" data-cy="document-list-cards">
+            {paged.map((instance) => (
+              <DocumentListCardRow
+                key={instance.id}
+                descriptor={descriptor}
+                instance={instance}
+                onEdit={onEdit}
+                onActionSuccess={onActionSuccess}
+              />
+            ))}
+          </div>
         )}
       </CardContent>
 
