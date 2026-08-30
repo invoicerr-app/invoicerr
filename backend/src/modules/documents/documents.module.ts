@@ -7,13 +7,16 @@ import { MailService } from '@/mail/mail.service';
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
 import { registerDuplicateExtension } from './actions/duplicate-extension';
+import { registerInvoiceActions } from './actions/invoice-actions';
 import { registerQuoteActions } from './actions/quote-actions';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-kinds';
 import { DocumentTypeRegistry } from './descriptors/type-registry';
+import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
 import { buildQuoteDescriptor } from './descriptors/quote.descriptor';
 import { buildClientReferenceProvider } from './references/client-reference.provider';
+import { buildQuoteReferenceProvider } from './references/quote-reference.provider';
 import { EntityReferenceRegistry } from './references/reference-registry';
 import {
   ACTION_EXTENSION_REGISTRY,
@@ -26,8 +29,10 @@ import {
 function buildDocumentTypeRegistry(): DocumentTypeRegistry {
   const registry = new DocumentTypeRegistry();
   // Adding a document type is exactly this one line — a descriptor, registered. No controller, no
-  // service, no frontend screen of its own.
+  // service, no frontend screen of its own. The invoice (SECOND type) proves it: this is the only
+  // line it needed here.
   registry.register(buildQuoteDescriptor());
+  registry.register(buildInvoiceDescriptor());
   return registry;
 }
 
@@ -40,7 +45,9 @@ function buildFieldKindRegistry(): FieldKindRegistry {
 function buildActionRegistry(clientsService: ClientsService, mailService: MailService): ActionRegistry {
   const registry = new ActionRegistry();
   registerQuoteActions(registry, { clientsService, mailService });
-  // "convert-to-invoice" is intentionally left unregistered here — see quote-actions.ts.
+  registerInvoiceActions(registry, { clientsService, mailService });
+  // "convert-to-invoice" (quote) and "record-payment" (invoice) are intentionally left unregistered
+  // here — see quote-actions.ts and invoice-actions.ts.
   return registry;
 }
 
@@ -58,6 +65,9 @@ function buildActionExtensionRegistry(actionRegistry: ActionRegistry): ActionExt
 function buildEntityReferenceRegistry(clientsService: ClientsService): EntityReferenceRegistry {
   const registry = new EntityReferenceRegistry();
   registry.register('client', buildClientReferenceProvider(clientsService));
+  // The invoice's "origin quote" field is what needed this one: a 'reference' field pointing at
+  // another document TYPE's own instances rather than at a business entity from an existing service.
+  registry.register('quote', buildQuoteReferenceProvider(clientsService));
   return registry;
 }
 
