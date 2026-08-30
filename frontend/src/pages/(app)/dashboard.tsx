@@ -1,23 +1,26 @@
 import { useTranslation } from "react-i18next"
 
+import { WidgetGrid } from "@/components/widgets/widget-grid"
+import { useDashboardWidgets } from "@/hooks/queries"
+import { usePageHeader } from "@/hooks/use-page-header"
+
 /**
- * Le tableau de bord, réduit à ce qui subsiste.
- *
- * Il affichait les derniers devis, les dernières factures, le chiffre d'affaires et les
- * encaissements — tout venait des documents légaux, supprimés sur décision explicite. Plutôt que de
- * laisser une page qui référence des écrans disparus, on dit ce qui s'est passé : une page vide
- * sans explication ressemble à une panne.
- *
- * Il n'y a rien à reconstruire ici tant que le modèle de document qui remplace l'ancien n'est pas
- * décidé. Ce fichier est le point de reprise.
+ * The dashboard, rebuilt on the widget-contribution mechanism (see the backend's
+ * contributions/collect-widgets.ts): every document type that declares a "dashboard" contribution
+ * gets to add its own widgets here — "certaines informations visuelles" per the task's own wording —
+ * this page never names which type produced which widget, or even how many types there are. The
+ * invoice is the first (and, for now, only) real contributor — see
+ * backend/src/modules/documents/contributions/invoice-contributions.ts.
  */
 export default function Dashboard() {
   const { t } = useTranslation()
+  const { data: widgets = [], isLoading } = useDashboardWidgets()
+
+  usePageHeader(t("dashboard.title"))
 
   return (
-    <div className="flex flex-col gap-2 p-6">
-      <h1 className="text-2xl font-semibold">{t("dashboard.title")}</h1>
-      <p className="text-muted-foreground max-w-2xl text-sm">{t("dashboard.rebuilding")}</p>
+    <div className="flex flex-col gap-4 p-6">
+      <WidgetGrid widgets={widgets} isLoading={isLoading} emptyDataCy="dashboard-empty" />
     </div>
   )
 }

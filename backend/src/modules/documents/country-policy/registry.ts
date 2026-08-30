@@ -35,6 +35,20 @@ export class CountryPolicyCatalog {
   rulesFor(countryCode: string): DocumentActionRuleFact[] {
     return this.files[(countryCode ?? '').toUpperCase()]?.rules ?? [];
   }
+
+  /**
+   * Which document TYPES a country's file declares at all — a separate layer from `rulesFor`, which
+   * governs individual ACTIONS on a type already assumed to exist for that country. See schema.ts's
+   * `CountryDocumentPolicyFile.documentTypes` for why this is its own declared list rather than
+   * derived from `rules` (a type could plausibly be declared with zero actions yet, or a country
+   * could want to hide a type its `rules` still mention for historical reasons — nothing here
+   * cross-validates the two against each other, the same declared independence `rulesFor` already
+   * keeps from the live DocumentTypeRegistry). Empty for a country with no file at all — the same
+   * "no permissive fallback" discipline `rulesFor` holds.
+   */
+  typesFor(countryCode: string): string[] {
+    return this.files[(countryCode ?? '').toUpperCase()]?.documentTypes ?? [];
+  }
 }
 
 export const defaultCountryPolicyCatalog = new CountryPolicyCatalog();

@@ -69,6 +69,10 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'invoice',
     label: 'Invoice',
+    // See contributions/invoice-contributions.ts for the implementation — the first real one written
+    // for this mechanism, and the model for any other type's own. Both locations, so it demonstrates
+    // the small widget vocabulary on both.
+    contributions: ['dashboard', 'statistics'],
     fields: [
       {
         key: 'client',

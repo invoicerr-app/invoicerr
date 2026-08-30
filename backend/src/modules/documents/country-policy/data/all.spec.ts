@@ -9,6 +9,7 @@
 import { buildQuoteDescriptor } from '../../descriptors/quote.descriptor';
 import { buildInvoiceDescriptor } from '../../descriptors/invoice.descriptor';
 import { buildCreditNoteDescriptor } from '../../descriptors/credit-note.descriptor';
+import { buildExpenseDescriptor } from '../../descriptors/expense.descriptor';
 import { ALL_COUNTRY_POLICY_FILES } from './all';
 
 // The THIRD-PARTY "duplicate" extension (actions/duplicate-extension.ts) is attached to "quote" in
@@ -20,7 +21,10 @@ const NATIVE_TYPE_ACTIONS: { typeId: string; actionId: string }[] = [
   { typeId: 'quote', actionId: 'duplicate' },
   ...buildInvoiceDescriptor().actions.map((a) => ({ typeId: 'invoice', actionId: a.id })),
   ...buildCreditNoteDescriptor().actions.map((a) => ({ typeId: 'credit-note', actionId: a.id })),
+  ...buildExpenseDescriptor().actions.map((a) => ({ typeId: 'expense', actionId: a.id })),
 ];
+
+const ALL_DOCUMENT_TYPE_IDS = ['quote', 'invoice', 'credit-note', 'expense'];
 
 function fileFor(countryCode: string) {
   const file = ALL_COUNTRY_POLICY_FILES.find((f) => f.countryCode === countryCode);
@@ -69,5 +73,22 @@ describe('country-policy/data — the shipped FR and US files', () => {
     const allRules = ALL_COUNTRY_POLICY_FILES.flatMap((f) => f.rules);
     expect(allRules.some((r) => r.provenance.kind === 'legal')).toBe(true);
     expect(allRules.some((r) => r.provenance.kind === 'unverified')).toBe(true);
+  });
+
+  // The NEW "which types this country has" layer (schema.ts's `documentTypes`) — a separate
+  // declaration from `rules` above, so it needs its own coverage guard the same way `rules` already
+  // has one just above.
+  it('FR and US both declare every document type the core registers today', () => {
+    for (const code of ['FR', 'US']) {
+      const file = fileFor(code);
+      expect((file.documentTypes ?? []).slice().sort()).toEqual(ALL_DOCUMENT_TYPE_IDS.slice().sort());
+    }
+  });
+
+  it('every `documentTypes` entry in every shipped file names a type the core actually registers — no stale or misspelled id', () => {
+    for (const file of ALL_COUNTRY_POLICY_FILES) {
+      const unknown = (file.documentTypes ?? []).filter((typeId) => !ALL_DOCUMENT_TYPE_IDS.includes(typeId));
+      expect(unknown).toEqual([]);
+    }
   });
 });

@@ -59,6 +59,22 @@ export interface DocumentActionRuleFact {
 export interface CountryDocumentPolicyFile {
   /** ISO 3166-1 alpha-2, uppercase — must match the file's own name (data/all.ts checks this). */
   countryCode: string;
+  /**
+   * Which document TYPES this country's Documents sidebar group shows at all — a NEW, separate
+   * layer from `rules` below: `rules` says which ACTIONS a type already assumed to exist may run;
+   * this says which types exist for this country in the first place. Not a legal claim (which is why
+   * it carries no provenance, unlike a rule) — it is a product decision about what to show, the same
+   * category of fact `DocumentTypeDescriptor.label` already is.
+   *
+   * Optional on this TYPE — some test fixtures (seed.spec.ts) build a bare `{ countryCode, rules }`
+   * to exercise `rules`-only machinery and should not have to grow one just to keep compiling — but
+   * data/all.ts's LOADER requires it non-empty for every SHIPPED file: a country file that declares
+   * zero types would mean "this country has a policy file but nothing to show", which is never the
+   * intended state (see country-policy.ts's own "no permissive fallback, no silent gap" discipline)
+   * — a country with genuinely nothing to declare should have NO file at all, exactly like it has
+   * none for `rules`.
+   */
+  documentTypes?: string[];
   rules: DocumentActionRuleFact[];
   /** Free-form, file-level caveats — e.g. "this file deliberately does not cover X" — distinct from
    *  a per-rule `notes`, which explains ONE rule. */

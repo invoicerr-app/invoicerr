@@ -48,10 +48,33 @@ export async function upsertDocument(
   });
 }
 
-export async function listDocuments(companyId: string, typeId?: string): Promise<DocumentInstanceResult[]> {
+/**
+ * `take` defaults to 50 (the list screen's own page size budget) — a contribution that needs to
+ * aggregate over more history (contributions/invoice-contributions.ts) passes a larger explicit
+ * value rather than this function growing a second, uncapped code path. Still ordered by
+ * `updatedAt`, same as ever: a contribution reading a large `take` is an honest "most recently
+ * touched N documents" view, not a full, unbounded table scan.
+ */
+export async function listDocuments(
+  companyId: string,
+  typeId?: string,
+  take = 50,
+): Promise<DocumentInstanceResult[]> {
   return prisma.documentInstance.findMany({
     where: { companyId, ...(typeId ? { typeId } : {}) },
     orderBy: { updatedAt: 'desc' },
-    take: 50,
+    take,
   });
+}
+
+/** Permanently removes an owned instance — used by the generic "delete" action
+ *  (actions/generic-actions.ts's registerDeleteAction). 404s via findOwnedDocument the same way every
+ *  other single-document operation here does, before ever issuing the delete. */
+export async function deleteDocument(
+  companyId: string,
+  typeId: string,
+  id: string,
+): Promise<DocumentInstanceResult> {
+  await findOwnedDocument(companyId, typeId, id);
+  return prisma.documentInstance.delete({ where: { id } });
 }

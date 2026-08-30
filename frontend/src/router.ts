@@ -13,8 +13,8 @@ export type Path =
   | `/dashboard`
   | `/documents`
   | `/documents/:typeId`
-  | `/expenses`
   | `/settings/:tab?`
+  | `/statistics`
 
 export type Params = {
   '/documents/:typeId': { typeId: string }

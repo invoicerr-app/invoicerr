@@ -15,6 +15,25 @@ export function useDocumentTypesList() {
   return useApiQuery<DocumentTypeSummary[]>(["document-types"], "/api/documents/types")
 }
 
+export interface AvailableDocumentTypesResult {
+  types: DocumentTypeSummary[]
+  /** Present, and `types` empty, when the active company's country cannot be resolved or has no
+   *  document-type policy declared at all — plain text, shown as-is: see the backend's
+   *  country-policy/country-policy.ts (resolveAvailableDocumentTypes) for how it is computed. */
+  reason?: string
+}
+
+/** The document types the active company's COUNTRY makes available — what the sidebar's Documents
+ *  group renders. Distinct from `useDocumentTypesList` above (every REGISTERED type, unfiltered): a
+ *  type can be registered on this build and still be absent here for a country whose policy file
+ *  doesn't declare it, or for a country with no policy file at all. */
+export function useAvailableDocumentTypes() {
+  return useApiQuery<AvailableDocumentTypesResult>(
+    ["document-types", "available"],
+    "/api/documents/available-types",
+  )
+}
+
 /** The full descriptor a form is rendered from. */
 export function useDocumentType(typeId: string | undefined) {
   return useApiQuery<DocumentTypeDescriptor>(["document-types", typeId], `/api/documents/types/${typeId}`, {

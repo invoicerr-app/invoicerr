@@ -3,6 +3,7 @@ import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
 import { registerInvoiceActions } from './actions/invoice-actions';
+import { ContributionRegistry } from './contributions/contribution-registry';
 import * as countryPolicy from './country-policy/country-policy';
 import { DocumentsService } from './documents.service';
 import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-kinds';
@@ -46,6 +47,7 @@ function buildService() {
     actionExtensionRegistry,
     referenceRegistry,
     transportRegistry,
+    new ContributionRegistry(),
   );
 }
 

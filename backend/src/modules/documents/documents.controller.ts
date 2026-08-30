@@ -63,6 +63,43 @@ export class DocumentsController {
     return this.documentsService.listSelectableRows(companyId, typeId, fieldKey, sourceId);
   }
 
+  @Get('available-types')
+  @ApiOperation({
+    summary: "List document types available for the active company's country",
+    description:
+      'Which document types the Documents sidebar group should show, id and label only — see ' +
+      "country-policy/country-policy.ts's resolveAvailableDocumentTypes. `reason` is present, and " +
+      '`types` empty, when the country cannot be resolved or has no document-type policy declared ' +
+      'at all — never a silently empty list.',
+  })
+  @ApiResponse({ status: 200, description: 'Available types retrieved (possibly empty, with a reason)' })
+  listAvailableTypes(@ActiveCompany() companyId: string) {
+    return this.documentsService.listAvailableTypes(companyId);
+  }
+
+  @Get('dashboard')
+  @ApiOperation({
+    summary: 'Dashboard widgets',
+    description:
+      'Every widget every document type contributes to the dashboard — see contributions/. A type ' +
+      'that declares a dashboard contribution but has none implemented shows up as an explicit ' +
+      '"unimplemented" widget, never a silent gap.',
+  })
+  @ApiResponse({ status: 200, description: 'Widgets retrieved' })
+  listDashboardWidgets(@ActiveCompany() companyId: string) {
+    return this.documentsService.collectWidgets(companyId, 'dashboard');
+  }
+
+  @Get('statistics')
+  @ApiOperation({
+    summary: 'Statistics widgets',
+    description: 'Same mechanism as GET documents/dashboard, for the Statistics screen.',
+  })
+  @ApiResponse({ status: 200, description: 'Widgets retrieved' })
+  listStatisticsWidgets(@ActiveCompany() companyId: string) {
+    return this.documentsService.collectWidgets(companyId, 'statistics');
+  }
+
   @Get('transports')
   @ApiOperation({
     summary: 'List document transports',

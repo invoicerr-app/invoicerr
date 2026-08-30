@@ -1,7 +1,7 @@
 import { ClientsService } from '@/modules/clients/clients.service';
 import { MailService } from '@/mail/mail.service';
 
-import { upsertDocument } from '../persistence';
+import { deleteDocument, upsertDocument } from '../persistence';
 import { ActionRegistry, DocumentInstanceResult } from './action-registry';
 
 /**
@@ -16,6 +16,30 @@ export function registerSaveDraftAction(registry: ActionRegistry, typeId: string
     document: await upsertDocument(companyId, typeId, documentId, 'draft', data),
     changed: true,
   }));
+}
+
+/**
+ * "delete": permanently removes an instance — generic for the exact same reason "save-draft" is:
+ * nothing here reads a single field of `data`, so one function covers every document type that opts
+ * in. Deliberately NOT wired for the quote/invoice/credit-note today: once a legal document exists,
+ * whether it may ever be deleted (as opposed to corrected, e.g. by a credit note) is plausibly a
+ * question with its own jurisdiction-specific answer — exactly the kind of rule this branch is
+ * careful not to invent by default (see invoice.descriptor.ts's own "deliberately NOT added"
+ * section). "expense" (expense-actions.ts) is the first, deliberately narrow, use: a mis-entered
+ * expense is bookkeeping housekeeping, not a document whose deletion raises that question.
+ */
+export function registerDeleteAction(registry: ActionRegistry, typeId: string): void {
+  registry.register(typeId, 'delete', async ({ companyId, documentId }) => {
+    if (!documentId) {
+      // Unreachable in practice — the descriptor's own `availableWhen` already refuses this before
+      // the handler runs (a never-saved record has no status to match) — but a handler never trusts
+      // that alone, the same discipline duplicate-extension.ts documents.
+      throw new Error(`Cannot delete a "${typeId}" document that has not been saved yet.`);
+    }
+
+    await deleteDocument(companyId, typeId, documentId);
+    return { changed: true, message: 'Deleted.' };
+  });
 }
 
 /**

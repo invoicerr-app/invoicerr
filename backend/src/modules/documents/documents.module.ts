@@ -8,14 +8,18 @@ import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
 import { registerConvertToInvoiceAction } from './actions/convert-to-invoice';
 import { registerDuplicateExtension } from './actions/duplicate-extension';
+import { registerExpenseActions } from './actions/expense-actions';
 import { registerInvoiceActions } from './actions/invoice-actions';
 import { registerQuoteActions } from './actions/quote-actions';
 import { registerCreditNoteActions } from './actions/credit-note-actions';
+import { ContributionRegistry } from './contributions/contribution-registry';
+import { registerInvoiceContributions } from './contributions/invoice-contributions';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-kinds';
 import { DocumentTypeRegistry } from './descriptors/type-registry';
 import { buildCreditNoteDescriptor } from './descriptors/credit-note.descriptor';
+import { buildExpenseDescriptor } from './descriptors/expense.descriptor';
 import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
 import { buildQuoteDescriptor } from './descriptors/quote.descriptor';
 import { buildClientReferenceProvider } from './references/client-reference.provider';
@@ -26,6 +30,7 @@ import { TransportRegistry } from './transports/transport-registry';
 import {
   ACTION_EXTENSION_REGISTRY,
   ACTION_REGISTRY,
+  CONTRIBUTION_REGISTRY,
   DOCUMENT_TYPE_REGISTRY,
   ENTITY_REFERENCE_REGISTRY,
   FIELD_KIND_REGISTRY,
@@ -35,11 +40,23 @@ import {
 function buildDocumentTypeRegistry(): DocumentTypeRegistry {
   const registry = new DocumentTypeRegistry();
   // Adding a document type is exactly this one line — a descriptor, registered. No controller, no
-  // service, no frontend screen of its own. The credit note (THIRD type) proves it again: this is
-  // the only line it needed here.
+  // service, no frontend screen of its own. The credit note (THIRD type) proves it again; the
+  // expense (FOURTH — migrated OUT of its own former bespoke module, see expense.descriptor.ts)
+  // proves it once more, this time for a type that used to be something else entirely.
   registry.register(buildQuoteDescriptor());
   registry.register(buildInvoiceDescriptor());
   registry.register(buildCreditNoteDescriptor());
+  registry.register(buildExpenseDescriptor());
+  return registry;
+}
+
+/** The WIDGET contribution side of the same registration discipline — see
+ *  contributions/contribution-registry.ts. Only the invoice contributes today (the model
+ *  contribution, contributions/invoice-contributions.ts); adding another type's is exactly one more
+ *  line here, the same shape `buildActionRegistry` below already has. */
+function buildContributionRegistry(): ContributionRegistry {
+  const registry = new ContributionRegistry();
+  registerInvoiceContributions(registry);
   return registry;
 }
 
@@ -67,6 +84,7 @@ function buildActionRegistry(
   registerConvertToInvoiceAction(registry);
   registerInvoiceActions(registry, { transportRegistry });
   registerCreditNoteActions(registry);
+  registerExpenseActions(registry);
   // "record-payment" (invoice) is intentionally left unregistered here — see invoice-actions.ts.
   return registry;
 }
@@ -130,6 +148,7 @@ function buildEntityReferenceRegistry(clientsService: ClientsService): EntityRef
       useFactory: buildEntityReferenceRegistry,
       inject: [ClientsService],
     },
+    { provide: CONTRIBUTION_REGISTRY, useFactory: buildContributionRegistry },
   ],
 })
 export class DocumentsModule {}

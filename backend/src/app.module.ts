@@ -12,7 +12,6 @@ import { CompanyModule } from './modules/company/company.module';
 import { ConfigModule } from '@nestjs/config';
 import { DangerModule } from './modules/danger/danger.module';
 import { DocumentsModule } from './modules/documents/documents.module';
-import { ExpensesModule } from './modules/expenses/expenses.module';
 import { HealthModule } from './modules/health/health.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { MailService } from './mail/mail.service';
@@ -50,7 +49,6 @@ import { auth } from './lib/auth';
     DangerModule,
     DocumentsModule,
     PluginsModule,
-    ExpensesModule,
     WebhooksModule,
     InvitationsModule,
     HealthModule,

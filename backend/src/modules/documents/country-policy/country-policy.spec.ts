@@ -10,7 +10,7 @@
  */
 import prisma from '@/prisma/prisma.service';
 
-import { evaluateCountryPolicy } from './country-policy';
+import { evaluateCountryPolicy, resolveAvailableDocumentTypes } from './country-policy';
 
 jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
@@ -124,5 +124,60 @@ describe('evaluateCountryPolicy', () => {
 
     expect(findCompany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'company-42' } }));
     expect(findRules).toHaveBeenCalledWith({ where: { countryCode: 'FR' } });
+  });
+});
+
+/**
+ * `resolveAvailableDocumentTypes` reads the REAL, shipped country-policy catalog (fr.json/us.json —
+ * `defaultCountryPolicyCatalog`, see registry.ts), not a hand-built fixture: this is exactly the
+ * piece under test (schema.ts's `documentTypes`), so faking it here would be the same mistake this
+ * file's own header warns against — a suite that mocks the exact thing it claims to verify. Only the
+ * Prisma company lookup is mocked, same discipline as evaluateCountryPolicy above.
+ */
+describe('resolveAvailableDocumentTypes', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("returns the real FR file's declared document types", async () => {
+    findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+
+    const decision = await resolveAvailableDocumentTypes('company-1');
+
+    expect(decision.reason).toBeUndefined();
+    expect(decision.typeIds.slice().sort()).toEqual(
+      ['quote', 'invoice', 'credit-note', 'expense'].slice().sort(),
+    );
+  });
+
+  // A country with NO policy file at all (e.g. Germany — see the FR/US-only COUNTRY_FILES list in
+  // data/all.ts) must say so BY NAME, never render a silently empty group — this is the "un pays sans
+  // règles n'a aucun type, et son groupe Documents doit le DIRE" requirement, proven against the real
+  // catalog rather than a mock of it.
+  it('a country with no policy file at all has NO types, and says so by name — never a silent empty list', async () => {
+    findCompany.mockResolvedValue({ country: 'Germany', countryCode: 'DE' });
+
+    const decision = await resolveAvailableDocumentTypes('company-1');
+
+    expect(decision.typeIds).toEqual([]);
+    expect(decision.reason).toMatch(/"DE"/);
+    expect(decision.reason).toMatch(/documentTypes/);
+  });
+
+  it('blocks with a distinct message when the country cannot even be resolved to an ISO code', async () => {
+    findCompany.mockResolvedValue({ country: 'Atlantis', countryCode: null });
+
+    const decision = await resolveAvailableDocumentTypes('company-1');
+
+    expect(decision.typeIds).toEqual([]);
+    expect(decision.reason).toMatch(/Atlantis/);
+    expect(decision.reason).toMatch(/does not resolve to a recognized ISO/);
+  });
+
+  it('falls back to guessing the ISO code from the free-text country when countryCode is not set', async () => {
+    findCompany.mockResolvedValue({ country: 'France', countryCode: null });
+
+    const decision = await resolveAvailableDocumentTypes('company-1');
+
+    expect(decision.reason).toBeUndefined();
+    expect(decision.typeIds.length).toBeGreaterThan(0);
   });
 });

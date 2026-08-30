@@ -5,6 +5,7 @@ import { ActionRegistry } from './actions/action-registry';
 import { registerConvertToInvoiceAction } from './actions/convert-to-invoice';
 import { registerDuplicateExtension } from './actions/duplicate-extension';
 import { registerQuoteActions } from './actions/quote-actions';
+import { ContributionRegistry } from './contributions/contribution-registry';
 import * as countryPolicy from './country-policy/country-policy';
 import { DocumentsService } from './documents.service';
 import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-kinds';
@@ -70,6 +71,7 @@ function buildService() {
     actionExtensionRegistry,
     referenceRegistry,
     transportRegistry,
+    new ContributionRegistry(),
   );
   return { service, clientsService, mailService };
 }
@@ -394,6 +396,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
         actionExtensionRegistry,
         referenceRegistry,
         new TransportRegistry(),
+        new ContributionRegistry(),
       );
 
       expect(() => service.onModuleInit()).toThrow(/declared both natively and as an extension/);

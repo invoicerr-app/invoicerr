@@ -13,10 +13,18 @@ import { logger } from '@/logger/logger.service';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry, ActionResult } from './actions/action-registry';
-import { evaluateCountryPolicy } from './country-policy/country-policy';
+import { collectWidgets } from './contributions/collect-widgets';
+import { ContributionRegistry } from './contributions/contribution-registry';
+import { Widget } from './contributions/widgets';
+import { evaluateCountryPolicy, resolveAvailableDocumentTypes } from './country-policy/country-policy';
 import { FieldKindRegistry } from './descriptors/field-kinds';
 import { DocumentTypeRegistry, UnknownDocumentTypeError } from './descriptors/type-registry';
-import { DocumentActionDescriptor, DocumentTypeDescriptor, isActionAvailable } from './descriptors/types';
+import {
+  DocumentActionDescriptor,
+  DocumentTypeDescriptor,
+  isActionAvailable,
+  WidgetLocation,
+} from './descriptors/types';
 import { validateAgainstDescriptor } from './descriptors/validate';
 import { RunActionDto } from './dto/documents.dto';
 import { findOwnedDocument, listDocuments } from './persistence';
@@ -35,6 +43,7 @@ import { TransportRegistry } from './transports/transport-registry';
 import {
   ACTION_EXTENSION_REGISTRY,
   ACTION_REGISTRY,
+  CONTRIBUTION_REGISTRY,
   DOCUMENT_TYPE_REGISTRY,
   ENTITY_REFERENCE_REGISTRY,
   FIELD_KIND_REGISTRY,
@@ -64,6 +73,7 @@ export class DocumentsService implements OnModuleInit {
     @Inject(ACTION_EXTENSION_REGISTRY) private readonly actionExtensionRegistry: ActionExtensionRegistry,
     @Inject(ENTITY_REFERENCE_REGISTRY) private readonly referenceRegistry: EntityReferenceRegistry,
     @Inject(TRANSPORT_REGISTRY) private readonly transportRegistry: TransportRegistry,
+    @Inject(CONTRIBUTION_REGISTRY) private readonly contributionRegistry: ContributionRegistry,
   ) {}
 
   /**
@@ -89,6 +99,56 @@ export class DocumentsService implements OnModuleInit {
    *  point is that the choice is the company's, not derived from where it is. */
   listTransports(): { id: string; label: string }[] {
     return this.transportRegistry.list();
+  }
+
+  /**
+   * Every widget declared for `location` (dashboard/statistics) by a document type the active
+   * company's TYPE registry knows about — see contributions/collect-widgets.ts for the actual
+   * assembly (declared-but-unimplemented handling included). Deliberately NOT filtered by the
+   * country-action policy: a widget is an aggregate view, not an operation a country can forbid —
+   * see country-policy/country-policy.ts's own header for the (separate) mechanism that DOES gate
+   * actions.
+   */
+  async collectWidgets(companyId: string, location: WidgetLocation): Promise<Widget[]> {
+    return collectWidgets({
+      companyId,
+      location,
+      typeRegistry: this.typeRegistry,
+      contributionRegistry: this.contributionRegistry,
+    });
+  }
+
+  /**
+   * The document types the active company's COUNTRY makes available at all — what the frontend's
+   * Documents sidebar group renders (see country-policy/country-policy.ts's
+   * resolveAvailableDocumentTypes for the decision, and its own header for why this is a separate,
+   * lighter-weight declaration than the per-ACTION policy `evaluateCountryPolicy` reads from the
+   * database). `reason` is present, and `types` empty, when the country cannot be resolved or has no
+   * document-type policy at all — never a silently empty list.
+   */
+  async listAvailableTypes(
+    companyId: string,
+  ): Promise<{ types: { id: string; label: string }[]; reason?: string }> {
+    const decision = await resolveAvailableDocumentTypes(companyId);
+    if (decision.typeIds.length === 0) {
+      return { types: [], reason: decision.reason };
+    }
+
+    // A country file may name a typeId that isn't (or isn't yet) registered on this build — skipped
+    // rather than thrown, the same defensive posture data-integrity.spec.ts-style checks exist to
+    // catch at TEST time instead (see country-policy/data/all.spec.ts's own cross-check).
+    const types = decision.typeIds
+      .map((id) => {
+        try {
+          return this.typeRegistry.resolve(id);
+        } catch {
+          return undefined;
+        }
+      })
+      .filter((descriptor): descriptor is DocumentTypeDescriptor => !!descriptor)
+      .map(({ id, label }) => ({ id, label }));
+
+    return { types };
   }
 
   getType(typeId: string): DocumentTypeDescriptor {

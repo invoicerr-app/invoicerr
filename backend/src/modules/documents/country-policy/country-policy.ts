@@ -18,6 +18,8 @@
 import prisma from '@/prisma/prisma.service';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 
+import { defaultCountryPolicyCatalog } from './registry';
+
 export interface CountryPolicyDecision {
   allowed: boolean;
   /** Present only when allowed=false — human-facing PLAIN TEXT (same convention as
@@ -92,4 +94,69 @@ export async function evaluateCountryPolicy(
   }
 
   return { allowed: true };
+}
+
+export interface AvailableDocumentTypesDecision {
+  typeIds: string[];
+  /** Present, and `typeIds` empty, when the country cannot be resolved or has no document-type
+   *  policy declared at all — plain text, same convention as CountryPolicyDecision.reason: never a
+   *  silently empty list with no explanation. */
+  reason?: string;
+}
+
+/**
+ * Which document types the active company's COUNTRY makes available at all — the READ side of the
+ * NEW `documentTypes` layer (schema.ts, registry.ts's `typesFor`), sitting next to
+ * `evaluateCountryPolicy` above rather than folded into it: this answers "which types exist for this
+ * country", not "may this ACTION run on this type", a genuinely different question with its own
+ * empty/unresolved cases.
+ *
+ * Deliberately reads the in-memory CATALOG (`defaultCountryPolicyCatalog.typesFor`), not a database
+ * table the way `evaluateCountryPolicy` reads `DocumentCountryActionRule`: that DB indirection exists
+ * for the per-ACTION policy so it can be inspected/seeded/audited as data of its own; this list is a
+ * lighter product decision ("what does the sidebar show") with no such need yet. Should that change
+ * (e.g. a future admin screen editing this list at runtime), promote it to a seeded table the exact
+ * same way the action rules already are — nothing here would need to change shape to get there.
+ *
+ * The company/country resolution below deliberately duplicates evaluateCountryPolicy's own few lines
+ * rather than sharing a helper: that function's exact wording is pinned by
+ * country-policy.spec.ts, and this one needs a DIFFERENT reason message (no rules table to blame,
+ * only a missing `documentTypes` declaration) — a shared helper would either have to parameterize the
+ * message anyway or risk perturbing the already-tested one for a few lines of reuse.
+ */
+export async function resolveAvailableDocumentTypes(
+  companyId: string,
+): Promise<AvailableDocumentTypesDecision> {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { country: true, countryCode: true },
+  });
+
+  const resolvedCode = (company?.countryCode || guessCountryCode(company?.country ?? undefined) || '')
+    .trim()
+    .toUpperCase();
+
+  if (!resolvedCode) {
+    return {
+      typeIds: [],
+      reason:
+        `This company's country ("${company?.country ?? 'unknown'}") does not resolve to a ` +
+        'recognized ISO 3166-1 country code, so no document types can be determined for it. Set an ' +
+        'explicit country code in company settings, or use a recognized country name.',
+    };
+  }
+
+  const typeIds = defaultCountryPolicyCatalog.typesFor(resolvedCode);
+  if (typeIds.length === 0) {
+    return {
+      typeIds: [],
+      reason:
+        `No document types are declared for "${resolvedCode}" — every document type is hidden for ` +
+        `a company in this country until one is. To unblock it, add "documentTypes" to ` +
+        `${DATA_DIR_HINT}/${resolvedCode.toLowerCase()}.json (see fr.json/us.json in that directory ` +
+        'for the format).',
+    };
+  }
+
+  return { typeIds };
 }

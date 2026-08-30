@@ -1,25 +1,21 @@
 import {
   Building2,
   Check,
+  ChevronDown,
+  ChevronRight,
   ChevronsUpDown,
-  CreditCard,
   FileStack,
   FileText,
-  Inbox,
   LayoutDashboard,
   LogOut,
   Moon,
   Package,
   Plus,
-  Receipt,
-  ReceiptText,
   Settings,
-  ShieldCheck,
   Sun,
   TrendingUp,
   User,
   Users,
-  Wallet,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -39,6 +35,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar"
 
@@ -52,7 +51,7 @@ import { useEffect, useRef, useState } from "react"
 import { usePost } from "@/hooks/use-fetch"
 import type { Company } from "@/types"
 
-import { useCompanies, useCompany } from "@/hooks/queries"
+import { useAvailableDocumentTypes, useCompanies, useCompany } from "@/hooks/queries"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useTheme } from "./theme-provider"
 import { useTranslation } from "react-i18next"
@@ -105,6 +104,15 @@ export function Sidebar() {
     window.location.reload()
   }
 
+  // The static part of the nav — Dashboard, Statistics, Settings never depend on anything: they
+  // exist regardless of what the active company's country allows. "Documents" is deliberately NOT
+  // in this list: it is rendered separately below, populated from useAvailableDocumentTypes() rather
+  // than a fixed url, since which document types even exist is per-country data, not a constant.
+  //
+  // Payment Methods, Received Invoices, Compliance, Quotes, Invoices, and Payments used to be here —
+  // all removed along with the screens they pointed to (see git history's
+  // "suppression des documents légaux et du moteur de conformité"). A link to a page that no longer
+  // exists is worse than no link at all, so none of them were kept as placeholders.
   const items: { title: string; icon: React.ReactNode; url: string; dataCy: string }[] = [
     {
       title: t("sidebar.navigation.dashboard"),
@@ -112,36 +120,9 @@ export function Sidebar() {
       url: "/dashboard",
       dataCy: "sidebar-dashboard-link",
     },
-    {
-      title: t("sidebar.navigation.documents"),
-      icon: <FileStack className="w-4 h-4" />,
-      url: "/documents",
-      dataCy: "sidebar-documents-link",
-    },
-    {
-      title: t("sidebar.navigation.quotes"),
-      icon: <FileText className="w-4 h-4" />,
-      url: "/quotes",
-      dataCy: "sidebar-quotes-link",
-    },
-    {
-      title: t("sidebar.navigation.invoices"),
-      icon: <ReceiptText className="w-4 h-4" />,
-      url: "/invoices",
-      dataCy: "sidebar-invoices-link",
-    },
-    {
-      title: t("sidebar.navigation.payments"),
-      icon: <Receipt className="w-4 h-4" />,
-      url: "/payments",
-      dataCy: "sidebar-payments-link",
-    },
-    {
-      title: t("sidebar.navigation.expenses"),
-      icon: <Wallet className="w-4 h-4" />,
-      url: "/expenses",
-      dataCy: "sidebar-expenses-link",
-    },
+  ]
+
+  const dataItems: { title: string; icon: React.ReactNode; url: string; dataCy: string }[] = [
     {
       title: t("sidebar.navigation.clients"),
       icon: <Users className="w-4 h-4" />,
@@ -154,29 +135,14 @@ export function Sidebar() {
       url: "/articles",
       dataCy: "sidebar-articles-link",
     },
-    {
-      title: t("sidebar.navigation.paymentMethods"),
-      icon: <CreditCard className="w-4 h-4" />,
-      url: "/payment-methods",
-      dataCy: "sidebar-payment-methods-link",
-    },
-    {
-      title: t("sidebar.navigation.receivedInvoices", "Received Invoices"),
-      icon: <Inbox className="w-4 h-4" />,
-      url: "/received-invoices",
-      dataCy: "sidebar-received-invoices-link",
-    },
-    {
-      title: t("sidebar.navigation.compliance", "Compliance"),
-      icon: <ShieldCheck className="w-4 h-4" />,
-      url: "/compliance",
-      dataCy: "sidebar-compliance-link",
-    },
+  ]
+
+  const trailingItems: { title: string; icon: React.ReactNode; url: string; dataCy: string }[] = [
     {
       title: t("sidebar.navigation.stats"),
       icon: <TrendingUp className="w-4 h-4" />,
-      url: "/stats",
-      dataCy: "sidebar-stats-link",
+      url: "/statistics",
+      dataCy: "sidebar-statistics-link",
     },
     {
       title: t("sidebar.navigation.settings"),
@@ -185,6 +151,14 @@ export function Sidebar() {
       dataCy: "sidebar-settings-link",
     },
   ]
+
+  // The Documents group's own content — the ONLY place in the sidebar that reads what the active
+  // company's COUNTRY makes available (see country-policy/country-policy.ts's
+  // resolveAvailableDocumentTypes on the backend). Open by default: a company almost always has at
+  // least one type available (a bare/unresolved country is the exception, not the rule), so starting
+  // collapsed would hide the normal case behind an extra click.
+  const [documentsOpen, setDocumentsOpen] = useState(true)
+  const { data: availableTypes, isLoading: typesLoading } = useAvailableDocumentTypes()
 
   const handleLogout = async () => {
     await authClient.signOut()
@@ -288,8 +262,113 @@ export function Sidebar() {
         <SidebarGroup className="px-0">
           <SidebarGroupLabel>{t("sidebar.menu")}</SidebarGroupLabel>
           <SidebarMenu>
-            {items.map((item, index) => (
-              <SidebarMenuItem key={index}>
+            {items.map((item) => (
+              <SidebarMenuItem key={item.url}>
+                <SidebarMenuButton asChild>
+                  <Link
+                    data-cy={item.dataCy}
+                    to={item.url}
+                    className={`flex items-center gap-2 py-6 ${
+                      location.pathname.startsWith(item.url)
+                        ? "text-sidebar-accent-foreground bg-sidebar-accent"
+                        : ""
+                    }`}
+                  >
+                    {item.icon}
+                    <span>{item.title}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+
+            {/* The Documents group: dépliable, and populated from whatever the active company's
+                country makes available — never a fixed list of urls. See useAvailableDocumentTypes'
+                own comment for the distinction from useDocumentTypesList (every registered type,
+                unfiltered), which this sidebar deliberately does NOT use. */}
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                className="flex items-center gap-2 py-6"
+                onClick={() => setDocumentsOpen((open) => !open)}
+                data-cy="sidebar-documents-group-toggle"
+              >
+                <FileStack className="w-4 h-4" />
+                <span className="flex-1">{t("sidebar.navigation.documents")}</span>
+                {documentsOpen ? (
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                ) : (
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                )}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            {documentsOpen && (
+              <SidebarMenuSub>
+                {typesLoading && (
+                  <SidebarMenuSubItem>
+                    <Skeleton className="h-6 w-full" />
+                  </SidebarMenuSubItem>
+                )}
+
+                {/* A country with no policy at all (or that can't be resolved) has NO document
+                    types — this DIT plainly, with the backend's own reason, rather than leaving the
+                    group silently empty (which would look like a loading bug, not a real state). */}
+                {!typesLoading && (availableTypes?.types.length ?? 0) === 0 && (
+                  <SidebarMenuSubItem>
+                    <p
+                      className="whitespace-normal px-2 py-1.5 text-xs text-muted-foreground"
+                      data-cy="sidebar-documents-empty"
+                    >
+                      {availableTypes?.reason ?? t("sidebar.documents.empty")}
+                    </p>
+                  </SidebarMenuSubItem>
+                )}
+
+                {availableTypes?.types.map((type) => (
+                  <SidebarMenuSubItem key={type.id}>
+                    <SidebarMenuSubButton asChild isActive={location.pathname === `/documents/${type.id}`}>
+                      <Link data-cy={`sidebar-document-type-link-${type.id}`} to={`/documents/${type.id}`}>
+                        <FileText className="h-4 w-4" />
+                        <span>{type.label}</span>
+                      </Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                ))}
+              </SidebarMenuSub>
+            )}
+          </SidebarMenu>
+        </SidebarGroup>
+
+        {/* "Une catégorie de données — Clients, Articles": its own labeled group, deliberately NOT
+            collapsible (unlike Documents) — these two are always the same fixed pair, nothing here
+            depends on the active company's country. */}
+        <SidebarGroup className="px-0">
+          <SidebarGroupLabel>{t("sidebar.groups.data")}</SidebarGroupLabel>
+          <SidebarMenu>
+            {dataItems.map((item) => (
+              <SidebarMenuItem key={item.url}>
+                <SidebarMenuButton asChild>
+                  <Link
+                    data-cy={item.dataCy}
+                    to={item.url}
+                    className={`flex items-center gap-2 py-6 ${
+                      location.pathname.startsWith(item.url)
+                        ? "text-sidebar-accent-foreground bg-sidebar-accent"
+                        : ""
+                    }`}
+                  >
+                    {item.icon}
+                    <span>{item.title}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+
+        <SidebarGroup className="px-0">
+          <SidebarMenu>
+            {trailingItems.map((item) => (
+              <SidebarMenuItem key={item.url}>
                 <SidebarMenuButton asChild>
                   <Link
                     data-cy={item.dataCy}

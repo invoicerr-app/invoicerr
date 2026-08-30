@@ -322,7 +322,6 @@ model Company {
   members          UserCompany[]
   apiKeys          ApiKey[]
   invitationCodes  InvitationCode[]
-  Expense          Expense[]
   documents        DocumentInstance[]
 }
 
@@ -404,20 +403,6 @@ model MailTemplate {
   companyId String
 
   @@unique([companyId, type])
-}
-
-// Gapless numbering series keyed per (company, docType, scopeKey)
-model Expense {
-  id          String   @id @default(cuid())
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  companyId   String
-  description String
-  amount      Float
-  currency    Currency @default(EUR)
-  date        DateTime @default(now())
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 }
 
 model Article {

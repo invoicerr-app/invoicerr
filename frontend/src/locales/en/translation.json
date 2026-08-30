@@ -1297,42 +1297,17 @@
     }
   },
   "dashboard": {
-    "title": "Dashboard",
-    "revenue": {
-      "title": "Revenue Overview",
-      "description": "Track your financial performance over time",
-      "thisMonth": "This Month",
-      "thisYear": "This Year",
-      "real": "Actual",
-      "forecast": "Forecast"
+    "title": "Dashboard"
+  },
+  "widgets": {
+    "empty": "No widget is available yet.",
+    "unsupportedKind": "Widget \"{{label}}\" has kind \"{{kind}}\", which no renderer is registered for.",
+    "shortList": {
+      "empty": "Nothing to show."
     },
-    "quotes": {
-      "title": "Quotes Overview",
-      "description": "Monitor your quote pipeline and conversion rates",
-      "stats": {
-        "total": "Total Quotes",
-        "draft": "Draft",
-        "sent": "Sent",
-        "signed": "Signed",
-        "expired": "Expired"
-      },
-      "latestTitle": "Recent Quotes",
-      "noRecent": "No recent quotes"
-    },
-    "invoices": {
-      "title": "Invoices Overview",
-      "description": "Keep track of your billing and payments",
-      "stats": {
-        "total": "Total Invoices",
-        "unpaid": "Unpaid",
-        "sent": "Sent",
-        "paid": "Paid",
-        "overdue": "Overdue"
-      },
-      "latestTitle": "Recent Invoices",
-      "noRecent": "No recent invoices"
-    },
-    "rebuilding": "The document system (quotes, invoices, payments) has been removed and is being redesigned. Clients, articles and expenses are unaffected."
+    "table": {
+      "empty": "Nothing to show."
+    }
   },
   "articles": {
     "description": "Manage a reusable catalog of products and services.",
@@ -2242,18 +2217,17 @@
   "sidebar": {
     "navigation": {
       "dashboard": "Dashboard",
-      "quotes": "Quotes",
-      "invoices": "Invoices",
-      "payments": "Payments",
       "clients": "Clients",
       "articles": "Articles",
-      "paymentMethods": "Payment Methods",
       "stats": "Statistics",
       "settings": "Settings",
-      "receivedInvoices": "Received Invoices",
-      "compliance": "Compliance",
-      "expenses": "Expenses",
       "documents": "Documents"
+    },
+    "groups": {
+      "data": "Data"
+    },
+    "documents": {
+      "empty": "No document type is available for this company's country."
     },
     "company": {
       "plan": "Entreprise",
@@ -2876,80 +2850,6 @@
       "title": "Reporting"
     },
     "title": "Compliance"
-  },
-  "expenses": {
-    "search": {
-      "placeholder": "Search expenses..."
-    },
-    "actions": {
-      "add": "Add expense",
-      "export": "Export CSV",
-      "cancel": "Cancel",
-      "save": "Save",
-      "delete": "Delete"
-    },
-    "table": {
-      "emptyState": "No expenses for this month",
-      "columns": {
-        "description": "Description",
-        "amount": "Amount",
-        "date": "Date",
-        "notes": "Notes",
-        "actions": "Actions"
-      },
-      "tooltips": {
-        "duplicate": "Duplicate expense",
-        "edit": "Edit expense",
-        "delete": "Delete expense"
-      }
-    },
-    "upsert": {
-      "title": {
-        "create": "Add expense",
-        "edit": "Edit expense"
-      },
-      "form": {
-        "description": {
-          "label": "Description",
-          "placeholder": "e.g. Office supplies",
-          "errors": {
-            "required": "Description is required"
-          }
-        },
-        "amount": {
-          "label": "Amount",
-          "placeholder": "0.00",
-          "errors": {
-            "required": "Amount is required",
-            "min": "Amount must be positive"
-          }
-        },
-        "currency": {
-          "label": "Currency"
-        },
-        "date": {
-          "label": "Date"
-        },
-        "notes": {
-          "label": "Notes",
-          "placeholder": "Optional notes"
-        }
-      },
-      "messages": {
-        "addSuccess": "Expense added",
-        "addError": "Failed to add expense",
-        "updateSuccess": "Expense updated",
-        "updateError": "Failed to update expense",
-        "deleteSuccess": "Expense deleted",
-        "deleteError": "Failed to delete expense",
-        "duplicateSuccess": "Expense duplicated to today's date",
-        "duplicateError": "Failed to duplicate expense"
-      }
-    },
-    "delete": {
-      "title": "Delete expense",
-      "description": "Are you sure you want to delete \"{{description}}\"? This action cannot be undone."
-    }
   },
   "noOptions": "No options available. Create a new client.",
   "documents": {

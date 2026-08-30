@@ -1,5 +1,6 @@
 {
   "countryCode": "FR",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense"],
   "rules": [
     {
       "typeId": "quote",
@@ -72,6 +73,24 @@
       "provenance": {
         "kind": "unverified",
         "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal d'un avoir français (rectification de TVA, mentions obligatoires) est réel mais concerne le CONTENU du document, pas l'acte d'enregistrer un brouillon — voir la note de tête de credit-note.descriptor.ts, qui explicite le même choix de ne pas encoder de règle de contenu ici. À confirmer par une revue dédiée si ce noyau venait à distinguer un statut d'avoir ayant un effet légal propre."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil, migrée depuis l'ancien module `expenses` (CRUD simple, sans statut). Les obligations comptables françaises (tenue d'un livre-journal, conservation des pièces justificatives) portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie est la même opération que l'ancien module `expenses` offrait déjà (DELETE /api/expenses/:id) ; aucun texte identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
       }
     }
   ]

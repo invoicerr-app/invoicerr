@@ -1,5 +1,6 @@
 {
   "countryCode": "US",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense"],
   "rules": [
     {
       "typeId": "quote",
@@ -66,6 +67,24 @@
       "provenance": {
         "kind": "unverified",
         "resolutionNote": "Saving a credit note draft is an internal product operation. The US has no federal VAT and therefore no direct equivalent of the French VAT-correction 'avoir' regime; whether any state sales-tax rule attaches to a credit memo specifically has not been checked. Confirm with a dedicated review before asserting anything stronger."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Recording an expense is an internal bookkeeping entry, migrated from the old `expenses` module (a plain CRUD resource with no status). No US text identified governing this internal recording step itself — federal/state recordkeeping rules (e.g. IRS substantiation requirements) govern what a business must be ABLE to produce, not this specific in-tool mechanism."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Deleting a mis-entered expense is the same capability the old `expenses` module already offered (DELETE /api/expenses/:id); no US text identified specifically governing deletion of such an entry before any accounting close. Confirm with a dedicated review if this core ever needs a \"closed period\" concept."
       }
     }
   ],

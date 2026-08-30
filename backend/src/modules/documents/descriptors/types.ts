@@ -14,7 +14,23 @@ export interface DocumentTypeDescriptor {
   label: string;
   fields: DocumentFieldDescriptor[];
   actions: DocumentActionDescriptor[];
+  /**
+   * Which aggregation screens this type contributes WIDGETS to — see contributions/. Same discipline
+   * as `actions`: declaring a location here only says "this type has something to show there"; the
+   * actual code that produces it is registered separately (contributions/contribution-registry.ts).
+   * A type declared here with no handler registered is not silently skipped — collectWidgets()
+   * (contributions/collect-widgets.ts) emits an explicit "unimplemented" widget instead, the same
+   * "declared but not implemented must be visible" rule `actions` already holds via the 501 path.
+   * Absent or empty: this type shows nothing anywhere aggregated, same as omitting `actions` would
+   * leave a type with no operations at all.
+   */
+  contributions?: WidgetLocation[];
 }
+
+/** The two aggregation screens a document type may contribute WIDGETS to — see contributions/. Kept
+ *  as a closed union (not an open string) because, unlike a field KIND or an action id, these two
+ *  screens are a property of the CORE app's navigation, not something a plugin adds one of. */
+export type WidgetLocation = 'dashboard' | 'statistics';
 
 /**
  * One field of a document. `kind` selects both how the value is validated (FieldKindRegistry,

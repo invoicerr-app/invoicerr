@@ -30,6 +30,12 @@ function loadCountryFile(code: string): CountryDocumentPolicyFile {
         `expected "${code.toUpperCase()}"`,
     );
   }
+  if (!Array.isArray(parsed.documentTypes) || parsed.documentTypes.length === 0) {
+    throw new Error(
+      `documents/country-policy/data/${code}.json must declare a non-empty "documentTypes" array — ` +
+        "see schema.ts's own comment on that field.",
+    );
+  }
   for (const rule of parsed.rules) {
     assertValidProvenance(rule, `documents/country-policy/data/${code}.json`);
   }
