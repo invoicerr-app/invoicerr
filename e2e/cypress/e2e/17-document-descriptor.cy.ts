@@ -74,7 +74,9 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 					// is unchanged; only reaching it now takes one click, on a button the descriptor's own
 					// `label` names ("New {{label}}") rather than nothing at all.
 					cy.visit(`/documents/${type.id}`);
-					cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
+					cy.get('[data-cy="document-create-button"]', {
+						timeout: 15000,
+					}).click();
 					cy.get('[data-cy="document-form"]', { timeout: 15000 }).should(
 						"be.visible",
 					);
@@ -101,7 +103,9 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 					// Same adaptation as the previous test: open the create modal first — see its own
 					// comment above.
 					cy.visit(`/documents/${type.id}`);
-					cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
+					cy.get('[data-cy="document-create-button"]', {
+						timeout: 15000,
+					}).click();
 					cy.get('[data-cy="document-form"]', { timeout: 15000 }).should(
 						"be.visible",
 					);
@@ -152,12 +156,22 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 							issueDate: "2026-08-30",
 							dueDate: "2026-09-30",
 							currency: "EUR",
-							lines: [{ description: "Conseil", quantity: 1, unit: "unit", unitPrice: 500, vatRate: "20" }],
+							lines: [
+								{
+									description: "Conseil",
+									quantity: 1,
+									unit: "unit",
+									unitPrice: 500,
+									vatRate: "20",
+								},
+							],
 						},
 					},
 					failOnStatusCode: false,
 				}).then((saved) => {
-					expect(saved.status, "brouillon de facture créé").to.be.oneOf([200, 201]);
+					expect(saved.status, "brouillon de facture créé").to.be.oneOf([
+						200, 201,
+					]);
 					const id = saved.body?.document?.id;
 
 					cy.request({
@@ -170,7 +184,15 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 								issueDate: "2026-08-30",
 								dueDate: "2026-09-30",
 								currency: "EUR",
-								lines: [{ description: "Conseil", quantity: 1, unit: "unit", unitPrice: 500, vatRate: "20" }],
+								lines: [
+									{
+										description: "Conseil",
+										quantity: 1,
+										unit: "unit",
+										unitPrice: 500,
+										vatRate: "20",
+									},
+								],
 							},
 						},
 						failOnStatusCode: false,
@@ -232,7 +254,15 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 						issueDate: "2026-08-30",
 						dueDate: "2026-09-30",
 						currency: "EUR",
-						lines: [{ description: "Conseil", quantity: 1, unit: "unit", unitPrice: 500, vatRate: "20" }],
+						lines: [
+							{
+								description: "Conseil",
+								quantity: 1,
+								unit: "unit",
+								unitPrice: 500,
+								vatRate: "20",
+							},
+						],
 					};
 
 					cy.request({
@@ -258,9 +288,10 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 								sent.status,
 								`facture réellement envoyée via le transport configuré — ${JSON.stringify(sent.body).slice(0, 220)}`,
 							).to.be.oneOf([200, 201]);
-							expect(sent.body?.document?.status, "la facture est maintenant \"sent\"").to.eq(
-								"sent",
-							);
+							expect(
+								sent.body?.document?.status,
+								'la facture est maintenant "sent"',
+							).to.eq("sent");
 
 							cy.request({
 								method: "POST",
@@ -329,7 +360,15 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 						issueDate: "2026-08-30",
 						dueDate: "2026-09-30",
 						currency: "EUR",
-						lines: [{ description: "Conseil", quantity: 1, unit: "unit", unitPrice: 500, vatRate: "20" }],
+						lines: [
+							{
+								description: "Conseil",
+								quantity: 1,
+								unit: "unit",
+								unitPrice: 500,
+								vatRate: "20",
+							},
+						],
 					},
 				},
 				failOnStatusCode: false,
@@ -354,5 +393,39 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 			body: { country: "France", countryCode: "FR" },
 			failOnStatusCode: false,
 		});
+	});
+
+	it("la sidebar mène vers un type que le pays autorise, sans nommer ce type", () => {
+		// Le groupe Documents ne porte plus de liens écrits à la main : il se remplit depuis la
+		// politique du pays. On navigue comme un utilisateur, en prenant le type que le back annonce
+		// — jamais un nom codé dans le test.
+		//
+		// Le groupe est déplié PAR DÉFAUT : il ne faut surtout pas cliquer la bascule. Ma première
+		// version le faisait « si le lien est absent » — mais la liste arrive de façon asynchrone,
+		// donc la vérification passait avant la réponse, ne voyait rien, et REFERMAIT un groupe déjà
+		// ouvert. Le lien n'apparaissait alors jamais, et j'ai cru à un défaut du produit pendant
+		// trois essais avant de faire parler l'écran.
+		cy.request<{ types?: { id: string }[] }>({
+			url: `${api}/api/documents/available-types`,
+		})
+			.its("body")
+			.then((body) => {
+				const types = body.types ?? [];
+				expect(
+					types,
+					"le pays du jeu d'essai autorise au moins un type",
+				).to.have.length.greaterThan(0);
+
+				cy.visit("/dashboard");
+				cy.get('[data-cy="sidebar-documents-group-toggle"]', {
+					timeout: 20000,
+				}).should("exist");
+				cy.get(`[data-cy="sidebar-document-type-link-${types[0].id}"]`, {
+					timeout: 20000,
+				}).click({
+					force: true,
+				});
+				cy.url().should("include", `/documents/${types[0].id}`);
+			});
 	});
 });
