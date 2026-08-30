@@ -143,7 +143,7 @@ export function DocumentForm({
       <form className="space-y-6" data-cy="document-form" onSubmit={(e) => e.preventDefault()}>
         <div className="space-y-4">
           {descriptor.fields.map((field) => (
-            <DocumentField key={field.key} field={field} name={field.key} />
+            <DocumentField key={field.key} field={field} name={field.key} documentTypeId={descriptor.id} />
           ))}
         </div>
 

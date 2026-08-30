@@ -37,6 +37,29 @@ export class DocumentsController {
     return this.documentsService.getType(typeId);
   }
 
+  @Get('types/:typeId/fields/:fieldKey/rows')
+  @ApiOperation({
+    summary: "A 'rowSelection' field's currently selectable rows",
+    description:
+      "The rows a 'rowSelection' field may currently offer, given the live value of its " +
+      "sourceField sibling (?sourceId=...) — an empty list, never an error, when that source isn't " +
+      'resolvable yet; the actual block on an invalid selection happens at save time (runAction).',
+  })
+  @ApiParam({ name: 'typeId', type: String })
+  @ApiParam({ name: 'fieldKey', type: String })
+  @ApiQuery({ name: 'sourceId', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'Selectable rows retrieved (possibly empty)' })
+  @ApiResponse({ status: 404, description: 'Unknown type, or no such field on it' })
+  @ApiResponse({ status: 400, description: "The field exists but isn't a valid 'rowSelection' field" })
+  listSelectableRows(
+    @ActiveCompany() companyId: string,
+    @Param('typeId') typeId: string,
+    @Param('fieldKey') fieldKey: string,
+    @Query('sourceId') sourceId?: string,
+  ) {
+    return this.documentsService.listSelectableRows(companyId, typeId, fieldKey, sourceId);
+  }
+
   @Get('transports')
   @ApiOperation({
     summary: 'List document transports',

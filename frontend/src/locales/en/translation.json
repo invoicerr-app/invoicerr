@@ -2967,6 +2967,13 @@
         "addRow": "Add row",
         "removeRow": "Remove row"
       },
+      "rowSelection": {
+        "selectSourceFirst": "Select the related document above first.",
+        "loading": "Loading rows...",
+        "noRows": "This document has no rows to select.",
+        "missingRow": "A previously selected row is no longer available.",
+        "removeMissing": "Remove"
+      },
       "unsupportedKind": "Field \"{{label}}\" has kind \"{{kind}}\", which no renderer is registered for.",
       "unknownType": "Unknown document type \"{{typeId}}\".",
       "editingTitle": "Editing: {{label}}",

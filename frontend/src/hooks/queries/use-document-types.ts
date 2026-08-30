@@ -127,3 +127,35 @@ export function useMultiEntityReferenceSearch(entities: string[], query: string)
 export function useDocumentTransports() {
   return useApiQuery<DocumentTypeSummary[]>(["document-transports"], "/api/documents/transports")
 }
+
+/** One row a 'rowSelection' field may currently offer — the source row's own field values, exactly
+ *  as stored (minus the internal identity key), keyed by its stable id. */
+export interface SelectableRow {
+  id: string
+  data: Record<string, unknown>
+}
+
+export interface SelectableRowsResult {
+  sourceTypeId: string
+  sourceArrayField: string
+  rows: SelectableRow[]
+}
+
+/**
+ * What a 'rowSelection' field on document type `typeId`, field `fieldKey`, may currently offer, given
+ * the LIVE value of its sourceField sibling (`sourceId` — read off the form, not necessarily saved
+ * yet). Disabled while `sourceId` is unset: the backend already degrades to an empty list in that
+ * case (see row-selection/resolve-row-selection.ts's listSourceRows), but not even asking avoids a
+ * request that can only ever come back empty.
+ */
+export function useSelectableRows(
+  typeId: string | undefined,
+  fieldKey: string | undefined,
+  sourceId: string | undefined,
+) {
+  return useApiQuery<SelectableRowsResult>(
+    ["document-row-selection", typeId, fieldKey, sourceId],
+    `/api/documents/types/${typeId}/fields/${fieldKey}/rows?sourceId=${encodeURIComponent(sourceId ?? "")}`,
+    { enabled: !!typeId && !!fieldKey && !!sourceId },
+  )
+}

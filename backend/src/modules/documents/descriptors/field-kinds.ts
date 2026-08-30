@@ -1,3 +1,4 @@
+import { registerRowSelectionFieldKind } from '../row-selection/row-selection';
 import { CORE_FIELD_KINDS, DocumentFieldDescriptor, isMultiTargetReference } from './types';
 
 /** Everything a validator needs beyond the raw value: the field's own descriptor, and the whole
@@ -117,6 +118,13 @@ export function registerCoreFieldKinds(registry: FieldKindRegistry): void {
     if (field.max !== undefined && value.length > field.max) return `must have at most ${field.max} row(s).`;
     return null;
   });
+
+  // The 10th kind: a selection of rows belonging to ANOTHER document instance. This ONE line is the
+  // entire extent to which this file knows about it — the actual validator, the row-identity
+  // prerequisite it rests on, and the async cross-document existence check DocumentsService runs
+  // alongside validateAgainstDescriptor all live in row-selection/, deliberately never spread in here
+  // (see row-selection/row-selection.ts's header).
+  registerRowSelectionFieldKind(registry);
 }
 
 export { CORE_FIELD_KINDS };

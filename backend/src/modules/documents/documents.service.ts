@@ -23,6 +23,12 @@ import {
   EntityReferenceRegistry,
   UnknownEntityReferenceError,
 } from './references/reference-registry';
+import {
+  listSourceRows,
+  SelectableRowsResult,
+  validateRowSelections,
+} from './row-selection/resolve-row-selection';
+import { referencedArrayFieldKeys, stampRowIds } from './row-selection/row-selection';
 import { TransportRegistry } from './transports/transport-registry';
 import {
   ACTION_EXTENSION_REGISTRY,
@@ -222,20 +228,64 @@ export class DocumentsService implements OnModuleInit {
       payload.data ?? {},
       this.fieldKindRegistry,
     );
+    // Cross-document existence for every 'rowSelection' field — a no-op for a type that declares
+    // none (the loop inside just finds nothing), never a DB round-trip for the quote or the invoice.
+    // See row-selection/resolve-row-selection.ts's header for why this is a SEPARATE, async pass
+    // rather than one more FieldKindRegistry validator: it needs company-scoped persistence access
+    // validateAgainstDescriptor's pure, synchronous kinds deliberately never get.
+    const rowSelectionErrors = await validateRowSelections({
+      companyId,
+      descriptor,
+      typeRegistry: this.typeRegistry,
+      data: payload.data ?? {},
+    });
     const paramErrors = action.params
       ? validateAgainstDescriptor(action.params, payload.params ?? {}, this.fieldKindRegistry)
       : [];
-    if (dataErrors.length > 0 || paramErrors.length > 0) {
-      const errors = [...dataErrors, ...paramErrors];
+    if (dataErrors.length > 0 || rowSelectionErrors.length > 0 || paramErrors.length > 0) {
+      const errors = [...dataErrors, ...rowSelectionErrors, ...paramErrors];
       throw new BadRequestException({ message: 'Invalid document data', errors });
     }
+
+    // Stamps a stable id onto any row of an 'array' field that at least one CURRENTLY REGISTERED
+    // 'rowSelection' field points at (row-selection.ts's `referencedArrayFieldKeys`) — the row-identity
+    // prerequisite a selection needs, applied only where something actually selects from, and only to
+    // data that has already passed every check above (never to data about to be rejected anyway).
+    const data = stampRowIds(
+      descriptor.fields,
+      payload.data ?? {},
+      referencedArrayFieldKeys(this.typeRegistry, typeId),
+    );
 
     return handler({
       companyId,
       typeId,
       documentId: payload.documentId,
-      data: payload.data ?? {},
+      data,
       params: payload.params ?? {},
     });
+  }
+
+  /**
+   * What a 'rowSelection' field's picker may currently offer — see
+   * row-selection/resolve-row-selection.ts's `listSourceRows` for the full contract (why an
+   * unresolvable source degrades to an empty list here rather than an error, while `runAction` above
+   * is what actually blocks on save). 404s for an unknown type or field the same way `getType` and
+   * `resolveAction` already do; a field that exists but isn't a 'rowSelection' field, or is one but
+   * misconfigured, is a 400 (listSourceRows throws BadRequestException for those).
+   */
+  async listSelectableRows(
+    companyId: string,
+    typeId: string,
+    fieldKey: string,
+    sourceId: string | undefined,
+  ): Promise<SelectableRowsResult> {
+    const descriptor = this.mergedDescriptor(typeId);
+    const field = descriptor.fields.find((candidate) => candidate.key === fieldKey);
+    if (!field) {
+      throw new NotFoundException(`Document type "${typeId}" has no field "${fieldKey}".`);
+    }
+
+    return listSourceRows({ companyId, descriptor, field, typeRegistry: this.typeRegistry, sourceId });
   }
 }

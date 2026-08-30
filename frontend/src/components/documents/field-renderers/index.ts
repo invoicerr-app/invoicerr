@@ -10,6 +10,7 @@ import {
 } from "./primitive-fields"
 import { ReferenceField } from "./reference-field"
 import { registerFieldRenderer } from "./registry"
+import { RowSelectionField } from "./row-selection-field"
 
 /**
  * Registers the closed core set of field-kind renderers. Importing this module is what makes the
@@ -30,6 +31,7 @@ registerFieldRenderer("boolean", BooleanField)
 registerFieldRenderer("select", SelectField)
 registerFieldRenderer("reference", ReferenceField)
 registerFieldRenderer("array", ArrayField)
+registerFieldRenderer("rowSelection", RowSelectionField)
 
 export { getFieldRenderer, registerFieldRenderer } from "./registry"
 export type { FieldRendererComponent, FieldRendererProps } from "./registry"

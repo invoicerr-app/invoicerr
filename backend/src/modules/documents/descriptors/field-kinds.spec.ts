@@ -2,7 +2,7 @@ import { FieldKindRegistry, registerCoreFieldKinds } from './field-kinds';
 import { validateAgainstDescriptor } from './validate';
 
 describe('FieldKindRegistry', () => {
-  it('registers and resolves the 9 core kinds', () => {
+  it('registers and resolves the 10 core kinds', () => {
     const registry = new FieldKindRegistry();
     registerCoreFieldKinds(registry);
 
@@ -16,6 +16,7 @@ describe('FieldKindRegistry', () => {
       'select',
       'reference',
       'array',
+      'rowSelection',
     ]) {
       expect(registry.has(kind)).toBe(true);
     }

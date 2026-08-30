@@ -6,6 +6,11 @@ export interface FieldRendererProps {
   field: DocumentFieldDescriptor
   /** react-hook-form path for this field — e.g. "notes", or "lines.0.description" for a row field. */
   name: string
+  /** The id of the document TYPE this field belongs to (e.g. "credit-note") — undefined when a field
+   *  is rendered outside a document's own form (action params, see action-params-dialog.tsx, which
+   *  has no single document type of its own). Every renderer but one ignores this: only
+   *  row-selection-field.tsx needs it, to know which type's endpoint to ask for selectable rows. */
+  documentTypeId?: string
 }
 
 export type FieldRendererComponent = ComponentType<FieldRendererProps>

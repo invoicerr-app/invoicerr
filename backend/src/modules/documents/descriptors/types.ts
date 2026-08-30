@@ -70,6 +70,29 @@ export interface DocumentFieldDescriptor {
   fields?: DocumentFieldDescriptor[];
   min?: number;
   max?: number;
+  /**
+   * 'rowSelection' — the three hints together say "pick a subset of another document instance's own
+   * repeatable rows". Full design (why this needed a 10th kind, the identity/pointer/moving-source
+   * decisions) lives in row-selection/row-selection.ts, not here — this is only the flat, declarative
+   * shape a descriptor fills in, the same treatment `currencyField`/`entity`/`entities` already get.
+   *  - `sourceField`: the KEY of a 'reference' field ELSEWHERE IN THIS SAME DOCUMENT whose current
+   *    value names the source document instance (e.g. the credit note's own "invoice" field).
+   *  - `sourceEntity`: which EntityReferenceRegistry entry `sourceField` must resolve to — required
+   *    even though `sourceField`'s own descriptor already declares this, because this kind never
+   *    cross-reads another field's descriptor (every kind here stays self-contained); the async
+   *    validator cross-checks the two agree, so a typo here is a caught misconfiguration, not a
+   *    silent mismatch. Only a SINGLE-target `sourceField` is supported (an `entity`, not `entities`)
+   *    — deliberately: nothing in this core needs a row selection sourced from an ambiguous set of
+   *    possible document types, and supporting it would double this kind's branching for no case at
+   *    hand.
+   *  - `sourceArrayField`: the KEY of the 'array' field on the SOURCE document TYPE's own descriptor
+   *    whose rows may be selected.
+   * The stored value is `string[]` — the stable ids (see ROW_ID_KEY) of the selected source rows, a
+   * POINTER into the source document, never a copy of its values.
+   */
+  sourceField?: string;
+  sourceEntity?: string;
+  sourceArrayField?: string;
 }
 
 /** A multi-target 'reference' field's stored value: `entity` says which EntityReferenceRegistry
@@ -131,6 +154,10 @@ export const CORE_FIELD_KINDS = [
   'select',
   'reference',
   'array',
+  // The 10th: a selection of rows belonging to ANOTHER document instance — see
+  // row-selection/row-selection.ts for the mechanism (registered separately, not inline here) and
+  // this file's own `sourceField`/`sourceEntity`/`sourceArrayField` for the declared shape.
+  'rowSelection',
 ] as const;
 
 export type CoreFieldKind = (typeof CORE_FIELD_KINDS)[number];

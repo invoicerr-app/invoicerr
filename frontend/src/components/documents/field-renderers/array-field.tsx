@@ -17,7 +17,7 @@ import type { FieldRendererProps } from "./registry"
  * Controller (each ROW's sub-fields are, individually), so there is no single field name for
  * <FormLabel>'s error-aware styling to attach to here.
  */
-export function ArrayField({ field, name }: FieldRendererProps) {
+export function ArrayField({ field, name, documentTypeId }: FieldRendererProps) {
   const { t } = useTranslation()
   const {
     control,
@@ -50,6 +50,7 @@ export function ArrayField({ field, name }: FieldRendererProps) {
                   key={rowField.key}
                   field={rowField}
                   name={`${name}.${index}.${rowField.key}`}
+                  documentTypeId={documentTypeId}
                 />
               ))}
             </div>

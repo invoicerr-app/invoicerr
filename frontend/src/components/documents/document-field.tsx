@@ -6,6 +6,8 @@ import type { DocumentFieldDescriptor } from "@/components/documents/types"
 interface DocumentFieldProps {
   field: DocumentFieldDescriptor
   name: string
+  /** Forwarded to the renderer as-is — see FieldRendererProps.documentTypeId. */
+  documentTypeId?: string
 }
 
 /**
@@ -14,7 +16,7 @@ interface DocumentFieldProps {
  * declares a field kind without registering its renderer is a configuration bug, and this is where
  * it becomes visible instead of silently dropping a field the user's data actually has.
  */
-export function DocumentField({ field, name }: DocumentFieldProps) {
+export function DocumentField({ field, name, documentTypeId }: DocumentFieldProps) {
   const { t } = useTranslation()
   const Renderer = getFieldRenderer(field.kind)
 
@@ -29,5 +31,5 @@ export function DocumentField({ field, name }: DocumentFieldProps) {
     )
   }
 
-  return <Renderer field={field} name={name} />
+  return <Renderer field={field} name={name} documentTypeId={documentTypeId} />
 }

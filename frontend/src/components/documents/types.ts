@@ -33,6 +33,15 @@ export interface DocumentFieldDescriptor {
   fields?: DocumentFieldDescriptor[]
   min?: number
   max?: number
+  /** 'rowSelection': the KEY of a 'reference' field elsewhere in THIS document naming the source
+   *  document instance — see field-renderers/row-selection-field.tsx and the backend's
+   *  row-selection/row-selection.ts for the full design. The stored value is `string[]` (the
+   *  selected source rows' stable ids) — a POINTER into the source, never a copy of its values. */
+  sourceField?: string
+  /** 'rowSelection': which entity `sourceField` must resolve to. */
+  sourceEntity?: string
+  /** 'rowSelection': the KEY of the 'array' field on the SOURCE type's own descriptor to pick rows from. */
+  sourceArrayField?: string
 }
 
 /** A multi-target 'reference' field's stored value — see `DocumentFieldDescriptor.entities`. */

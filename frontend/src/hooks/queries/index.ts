@@ -20,5 +20,8 @@ export {
   useReferenceResolve,
   useMultiEntityReferenceSearch,
   useDocumentTransports,
+  useSelectableRows,
   type EntityReferenceSearchHit,
+  type SelectableRow,
+  type SelectableRowsResult,
 } from "./use-document-types"

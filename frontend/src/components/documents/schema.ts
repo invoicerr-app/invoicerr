@@ -40,6 +40,15 @@ function baseSchemaFor(field: DocumentFieldDescriptor): z.ZodTypeAny {
       if (field.max !== undefined) schema = schema.max(field.max)
       return schema
     }
+    case "rowSelection": {
+      // Shape only, like 'array' above — whether each selected id still exists on the referenced
+      // source is checked live by the renderer (row-selection-field.tsx) and, authoritatively, by
+      // the backend on save (validateRowSelections); this client-side schema cannot know that.
+      let schema = z.array(z.string())
+      if (field.min !== undefined) schema = schema.min(field.min)
+      if (field.max !== undefined) schema = schema.max(field.max)
+      return schema
+    }
     default:
       return z.any()
   }
@@ -59,7 +68,7 @@ export function buildZodSchema(fields: DocumentFieldDescriptor[]) {
 export function defaultValuesFor(fields: DocumentFieldDescriptor[]): Record<string, unknown> {
   const defaults: Record<string, unknown> = {}
   for (const field of fields) {
-    if (field.kind === "array") defaults[field.key] = []
+    if (field.kind === "array" || field.kind === "rowSelection") defaults[field.key] = []
     else if (field.kind === "boolean") defaults[field.key] = false
     else defaults[field.key] = undefined
   }
