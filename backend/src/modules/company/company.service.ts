@@ -112,8 +112,6 @@ export class CompanyService {
     return await prisma.company.findUnique({ where: { id: companyId }, include: { partyIdentifiers: true } });
   }
 
-
-
   private async upsertPartyIdentifiers(companyId: string, identifiers: IdentifierEntry[] | undefined) {
     if (!identifiers) return;
 

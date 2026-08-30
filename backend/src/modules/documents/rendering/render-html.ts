@@ -1,6 +1,7 @@
 import { CoreFieldKind } from '../descriptors/types';
 import { DocumentTypeDescriptor, DocumentFieldDescriptor } from '../descriptors/types';
-import { decimalsFor } from '@/utils/financial';
+import { decimalsFor, fromMinor } from '@/utils/financial';
+import type { DocumentTotals } from '../totals/compute-totals';
 
 /**
  * Escapes HTML special characters — applied to ALL values from data to prevent injection.
@@ -155,6 +156,7 @@ export interface RenderDocumentHtmlInput {
     country?: string | null;
   };
   referenceLabels: Record<string, string>;
+  totals?: DocumentTotals;
 }
 
 /**
@@ -276,6 +278,48 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
     li {
       margin-bottom: 4px;
     }
+    .totals-section {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 2px solid #ddd;
+    }
+    .totals-label {
+      font-weight: bold;
+      font-size: 13px;
+      color: #007bff;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 14px;
+      border-bottom: 1px solid #eee;
+    }
+    .totals-row.summary {
+      font-weight: bold;
+      border-bottom: 2px solid #333;
+      margin-top: 8px;
+      padding-top: 12px;
+    }
+    .totals-amount {
+      text-align: right;
+      min-width: 120px;
+    }
+    .warnings-section {
+      margin-top: 16px;
+      padding: 8px;
+      background: #fff9f0;
+      border-left: 3px solid #ff9800;
+      border-radius: 2px;
+    }
+    .warning-item {
+      font-size: 11px;
+      color: #e65100;
+      margin-bottom: 4px;
+    }
   </style>
 </head>
 <body>
@@ -307,6 +351,63 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
     <div class="field-row">
       <div class="field-label">${escapeHtmlSafe(field.label)}</div>
       <div class="field-value">${renderedValue}</div>
+    </div>
+`;
+  }
+
+  // Render totals section if provided
+  if (input.totals) {
+    const { totals } = input;
+    const currency = totals.currency || '—';
+    const decimals = decimalsFor(currency);
+
+    html += `
+    <div class="totals-section">
+      <div class="totals-label">Totals</div>
+`;
+
+    // Net amount
+    const netDisplay = `${fromMinor(totals.netMinor, currency).toFixed(decimals)} ${currency}`;
+    html += `
+      <div class="totals-row">
+        <span>Net</span>
+        <span class="totals-amount">${escapeHtmlSafe(netDisplay)}</span>
+      </div>
+`;
+
+    // VAT breakdown (one row per rate)
+    for (const entry of totals.vatBreakdown) {
+      const baseDisplay = `${fromMinor(entry.baseMinor, currency).toFixed(decimals)} ${currency}`;
+      const vatDisplay = `${fromMinor(entry.vatMinor, currency).toFixed(decimals)} ${currency}`;
+      html += `
+      <div class="totals-row">
+        <span>VAT ${escapeHtmlSafe(entry.ratePercent.toString())}% on ${escapeHtmlSafe(baseDisplay)}</span>
+        <span class="totals-amount">${escapeHtmlSafe(vatDisplay)}</span>
+      </div>
+`;
+    }
+
+    // Gross total
+    const grossDisplay = `${fromMinor(totals.grossMinor, currency).toFixed(decimals)} ${currency}`;
+    html += `
+      <div class="totals-row summary">
+        <span>Total</span>
+        <span class="totals-amount">${escapeHtmlSafe(grossDisplay)}</span>
+      </div>
+`;
+
+    // Warnings (if any)
+    if (totals.warnings.length > 0) {
+      html += `
+      <div class="warnings-section">
+`;
+      for (const warning of totals.warnings) {
+        html += `        <div class="warning-item">${escapeHtmlSafe(warning)}</div>\n`;
+      }
+      html += `      </div>\n`;
+    }
+
+    html += `
     </div>
 `;
   }

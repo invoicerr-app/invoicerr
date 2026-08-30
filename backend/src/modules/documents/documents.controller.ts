@@ -226,6 +226,26 @@ export class DocumentsController {
     return this.documentsService.listDocuments(companyId, typeId);
   }
 
+  @Get(':id/totals')
+  @ApiOperation({
+    summary: 'Compute document totals',
+    description: 'Computes net, VAT, and gross totals (in minor units) for a document instance.',
+  })
+  @ApiParam({ name: 'id', type: String })
+  @ApiQuery({ name: 'typeId', required: true, type: String })
+  @ApiResponse({
+    status: 200,
+    description: 'Totals computed',
+  })
+  @ApiResponse({ status: 404, description: 'Not found for this company/type' })
+  computeTotals(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Query('typeId') typeId: string,
+  ) {
+    return this.documentsService.computeTotals(companyId, typeId, id);
+  }
+
   @Get(':id/pdf')
   @ApiOperation({
     summary: 'Get a document instance as PDF',

@@ -35,8 +35,6 @@ export class CompanyController {
     return data || {};
   }
 
-
-
   @Get('email-templates')
   @ApiOperation({
     summary: 'Get email templates',

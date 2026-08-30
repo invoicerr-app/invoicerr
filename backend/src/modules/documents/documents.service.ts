@@ -12,6 +12,7 @@ import {
 import { logger } from '@/logger/logger.service';
 import { renderDocumentHtml } from './rendering/render-html';
 import { renderPdf } from './rendering/render-pdf';
+import { computeDocumentTotals, DocumentTotals } from './totals/compute-totals';
 import prisma from '@/prisma/prisma.service';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
@@ -485,6 +486,16 @@ export class DocumentsService implements OnModuleInit {
   }
 
   /**
+   * Computes totals (net, VAT, gross) for a document instance by parsing its lines and applying
+   * VAT breakdown logic. Pure calculation, scoped by company.
+   */
+  async computeTotals(companyId: string, typeId: string, id: string): Promise<DocumentTotals> {
+    const instance = await findOwnedDocument(companyId, typeId, id);
+    const descriptor = this.mergedDescriptor(typeId);
+    return computeDocumentTotals(descriptor, instance.data as Record<string, unknown>);
+  }
+
+  /**
    * Renders a document instance as a PDF. Loads the instance, descriptor, company info, and resolves
    * reference labels before generating the PDF.
    */
@@ -543,6 +554,9 @@ export class DocumentsService implements OnModuleInit {
       }
     }
 
+    // Calculate totals
+    const totals = computeDocumentTotals(descriptor, instanceData);
+
     // Render HTML
     const html = renderDocumentHtml({
       descriptor,
@@ -554,6 +568,7 @@ export class DocumentsService implements OnModuleInit {
       },
       company,
       referenceLabels,
+      totals,
     });
 
     // Generate PDF

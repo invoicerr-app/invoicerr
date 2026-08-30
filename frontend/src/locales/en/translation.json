@@ -2951,6 +2951,11 @@
         "previewBody": "Below is the invoice's stored data as saved. Use the button to download a rendered PDF.",
         "downloadPdf": "Download PDF"
       }
+    },
+    "totals": {
+      "net": "Net",
+      "vat": "VAT {{rate}}% on {{base}}",
+      "gross": "Total"
     }
   }
 }

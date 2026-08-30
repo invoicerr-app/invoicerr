@@ -3,7 +3,6 @@ import { CompanyLookupRegistry, defaultLookupRegistry } from './registry';
 describe('CompanyLookupRegistry', () => {
   const registry = defaultLookupRegistry;
 
-
   it('always explains itself: partial coverage carries a note', () => {
     for (const capability of registry.capabilities()) {
       if (capability.coverage === 'PARTIAL' || capability.status === 'UNAVAILABLE') {

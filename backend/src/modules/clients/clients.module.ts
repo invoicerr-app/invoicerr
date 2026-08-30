@@ -20,8 +20,7 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
  * because that needs an answer only VIES can give; `vat-validation-e2e.spec.ts` covers it with an
  * injected fake, and `company-lookup.live` covers the real service on demand.
  */
-function vatValidationClient() {
-}
+function vatValidationClient() {}
 
 @Module({
   imports: [WebhooksModule],

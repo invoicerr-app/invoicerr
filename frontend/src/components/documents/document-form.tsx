@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next"
 
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
 import { DocumentField } from "@/components/documents/document-field"
+import { DocumentTotals } from "@/components/documents/document-totals"
 import { buildZodSchema, defaultValuesFor } from "@/components/documents/schema"
 import type { DocumentInstance, DocumentTypeDescriptor } from "@/components/documents/types"
 import { isActionAvailable } from "@/components/documents/types"
@@ -94,6 +95,8 @@ export function DocumentForm({
             <DocumentField key={field.key} field={field} name={field.key} documentTypeId={descriptor.id} />
           ))}
         </div>
+
+        <DocumentTotals descriptor={descriptor} />
 
         <div className="flex flex-wrap gap-2 border-t pt-4">
           {availableActions.map((action) => (

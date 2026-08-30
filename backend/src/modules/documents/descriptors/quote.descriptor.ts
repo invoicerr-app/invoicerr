@@ -89,6 +89,20 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
             min: 0,
             currencyField: 'currency',
           },
+          {
+            // Même champ que sur la facture (invoice.descriptor.ts) : un devis annonce un prix, et
+            // un prix sans son taux de TVA ne dit pas ce que le client paiera. OPTIONNEL ici, là où
+            // la facture l'exige : chiffrer sans détailler la taxe reste un devis valable — c'est un
+            // choix produit, pas une règle de droit. Découvert par la tâche « totaux » : ses tests
+            // posaient un vatRate sur les lignes d'un devis, et le champ n'existait pas.
+            key: 'vatRate',
+            kind: 'select',
+            label: 'VAT rate',
+            options: [],
+            allowCustomValue: true,
+            usesVatRateCatalog: true,
+            helpText: 'The VAT rate that applies to this line.',
+          },
         ],
       },
     ],

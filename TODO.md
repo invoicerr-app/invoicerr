@@ -53,7 +53,7 @@
 | 14 | **Archivage légal** ⚖ | Rétention par pays, intégrité. |
 | 15 | **Mentions obligatoires** ⚖ | Les notes légales sur facture (pénalités de retard, escompte…), en donnée pays sourcée. |
 | 16 | **Transfrontalier** ⚖ | La limite la plus profonde : rien ne compose pays émetteur × pays destinataire (TVA intra-UE, autoliquidation, OSS). Touche la forme même du contexte — deux pays, pas un. |
-| 17 | **Calcul fiscal** | Totaux HT/TVA/TTC à partir du taux choisi par ligne. L'arithmétique domestique d'abord ; base du 16. |
+| 17 ✅ | **Calcul fiscal** (fait, 2026-08-30) | Totaux HT/TVA/TTC à partir du taux choisi par ligne. L'arithmétique domestique d'abord ; base du 16. |
 
 ## D — L'entrée
 
