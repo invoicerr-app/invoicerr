@@ -2,21 +2,15 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
-import { toast } from "sonner"
 
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
 import { DocumentField } from "@/components/documents/document-field"
 import { buildZodSchema, defaultValuesFor } from "@/components/documents/schema"
-import type {
-  DocumentActionDescriptor,
-  DocumentInstance,
-  DocumentTypeDescriptor,
-} from "@/components/documents/types"
+import type { DocumentInstance, DocumentTypeDescriptor } from "@/components/documents/types"
 import { isActionAvailable } from "@/components/documents/types"
+import { useDocumentActionRunner } from "@/components/documents/use-document-action-runner"
 import { Button } from "@/components/ui/button"
 import { Form } from "@/components/ui/form"
-import { useResolveActionParamsDefaults, useRunDocumentAction } from "@/hooks/queries"
-import { ApiError } from "@/hooks/use-api-query"
 
 interface DocumentFormProps {
   descriptor: DocumentTypeDescriptor
@@ -34,6 +28,10 @@ interface DocumentFormProps {
  * document type, nor to any one action. Add a type by writing a descriptor (backend) with fields the
  * field-renderer registry already covers; add an action (native or third-party) with an id, a label,
  * and optionally `params` — this component never changes either way.
+ *
+ * Lives inside a modal now (document-upsert-dialog.tsx) rather than posed directly on the page, but
+ * nothing about ITS OWN contract changed for that move: it still only ever needs a descriptor and,
+ * optionally, an existing instance's id/data/status.
  */
 export function DocumentForm({
   descriptor,
@@ -45,12 +43,6 @@ export function DocumentForm({
   const { t } = useTranslation()
   const [currentDocumentId, setCurrentDocumentId] = useState(documentId)
   const [currentStatus, setCurrentStatus] = useState(status)
-
-  // An action with declared `params` opens a dialog to collect them first; `pendingAction` is which
-  // one is currently open (undefined = closed), `pendingDefaults` is its pre-filled values once the
-  // (optional) defaults resolver has answered.
-  const [pendingAction, setPendingAction] = useState<DocumentActionDescriptor | undefined>()
-  const [pendingDefaults, setPendingDefaults] = useState<Record<string, unknown>>({})
 
   const schema = useMemo(() => buildZodSchema(descriptor.fields), [descriptor])
   const form = useForm({
@@ -72,69 +64,18 @@ export function DocumentForm({
     }
   }, [initialData, status, form])
 
-  const runAction = useRunDocumentAction()
-  const resolveDefaults = useResolveActionParamsDefaults()
-
-  const executeAction = async (actionId: string, params: Record<string, unknown>) => {
-    try {
-      const result = await runAction.mutateAsync({
-        typeId: descriptor.id,
-        actionId,
-        documentId: currentDocumentId,
-        data: form.getValues(),
-        params,
-      })
-      // Only adopt the result as THIS form's own record when it is actually the same document
-      // TYPE — an action can create an instance of a DIFFERENT type instead (e.g. the quote's
-      // "convert-to-invoice" hands back a brand-new INVOICE while this form is still the quote's).
-      // This form must not start behaving as if it were now editing that foreign record; the caller
-      // decides what to do with it via `onActionSuccess` below (see the document type page, which
-      // navigates to the other type's own screen).
-      if (result.document && result.document.typeId === descriptor.id) {
-        setCurrentDocumentId(result.document.id)
-        setCurrentStatus(result.document.status)
-      }
-      toast.success(result.message ?? t("documents.form.messages.actionSuccess"))
-      setPendingAction(undefined)
-      if (result.changed && result.document) {
-        onActionSuccess?.(result.document, actionId)
-      }
-    } catch (error) {
-      // The message IS the point here: a 501 means the action is declared on this document type
-      // but nobody registered an implementation for it yet — say exactly that, never fail silently.
-      const message = error instanceof ApiError ? error.message : t("documents.form.messages.actionError")
-      toast.error(message)
-    }
-  }
-
-  const handleAction = async (action: DocumentActionDescriptor) => {
-    const valid = await form.trigger()
-    if (!valid) {
-      toast.error(t("documents.form.messages.invalid"))
-      return
-    }
-
-    if (!action.params || action.params.length === 0) {
-      await executeAction(action.id, {})
-      return
-    }
-
-    // Params-defaults are best-effort: a failure to pre-fill still opens the dialog, just empty —
-    // it never blocks the action itself.
-    let defaults: Record<string, unknown> = {}
-    try {
-      defaults = await resolveDefaults.mutateAsync({
-        typeId: descriptor.id,
-        actionId: action.id,
-        documentId: currentDocumentId,
-        data: form.getValues(),
-      })
-    } catch {
-      defaults = {}
-    }
-    setPendingDefaults(defaults)
-    setPendingAction(action)
-  }
+  const { pendingAction, pendingDefaults, isRunning, handleAction, executeAction, cancelPendingAction } =
+    useDocumentActionRunner({
+      typeId: descriptor.id,
+      documentId: currentDocumentId,
+      getData: () => form.getValues(),
+      validate: () => form.trigger(),
+      onActionSuccess,
+      onDocumentUpdate: (id, nextStatus) => {
+        setCurrentDocumentId(id)
+        setCurrentStatus(nextStatus)
+      },
+    })
 
   // The STATUS gate (isActionAvailable) is unchanged: an action outside its `availableWhen` for the
   // current status simply never appears here, exactly as before. The COUNTRY POLICY gate is a
@@ -160,7 +101,7 @@ export function DocumentForm({
               <Button
                 type="button"
                 variant={action.id === firstRunnableAction?.id ? "default" : "outline"}
-                loading={runAction.isPending && pendingAction === undefined}
+                loading={isRunning && pendingAction === undefined}
                 disabled={!!action.policyBlockedReason}
                 tooltip={action.policyBlockedReason}
                 onClick={() => handleAction(action)}
@@ -189,8 +130,8 @@ export function DocumentForm({
         <ActionParamsDialog
           action={pendingAction}
           defaultValues={pendingDefaults}
-          submitting={runAction.isPending}
-          onCancel={() => setPendingAction(undefined)}
+          submitting={isRunning}
+          onCancel={cancelPendingAction}
           onConfirm={(params) => executeAction(pendingAction.id, params)}
         />
       )}

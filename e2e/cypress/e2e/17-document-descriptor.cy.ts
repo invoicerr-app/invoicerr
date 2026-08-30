@@ -68,7 +68,13 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 						`${type.id} déclare des champs`,
 					).to.have.length.greaterThan(0);
 
+					// The screen since the redesign: a list page by default, a modal for creation — see
+					// frontend/src/pages/(app)/documents/[typeId].tsx and document-upsert-dialog.tsx. The
+					// form itself (data-cy="document-form", one "document-field-*" per descriptor field)
+					// is unchanged; only reaching it now takes one click, on a button the descriptor's own
+					// `label` names ("New {{label}}") rather than nothing at all.
 					cy.visit(`/documents/${type.id}`);
+					cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
 					cy.get('[data-cy="document-form"]', { timeout: 15000 }).should(
 						"be.visible",
 					);
@@ -92,7 +98,10 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 		listTypes().then((types) => {
 			for (const type of types) {
 				descriptorFor(type.id).then((d) => {
+					// Same adaptation as the previous test: open the create modal first — see its own
+					// comment above.
 					cy.visit(`/documents/${type.id}`);
+					cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
 					cy.get('[data-cy="document-form"]', { timeout: 15000 }).should(
 						"be.visible",
 					);

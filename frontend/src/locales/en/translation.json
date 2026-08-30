@@ -2989,14 +2989,39 @@
         "invalid": "Please fix the highlighted fields before continuing.",
         "actionSuccess": "Done.",
         "actionError": "Something went wrong running this action."
-      }
+      },
+      "newTitle": "New: {{label}}"
     },
     "list": {
       "title": "Saved",
       "empty": "Nothing saved yet.",
       "columns": {
         "status": "Status",
-        "updatedAt": "Updated"
+        "updatedAt": "Updated",
+        "actions": "Actions"
+      },
+      "searchPlaceholder": "Search...",
+      "actions": {
+        "create": "New {{label}}"
+      },
+      "emptyState": {
+        "noResults": "No documents match your search."
+      },
+      "tooltips": {
+        "edit": "Edit"
+      },
+      "fieldValue": {
+        "yes": "Yes",
+        "no": "No",
+        "rowCount": "{{count}} row(s) selected"
+      }
+    },
+    "custom": {
+      "invoicePreview": {
+        "button": "Preview",
+        "title": "Preview: {{label}}",
+        "disclaimerTitle": "No PDF renderer available",
+        "disclaimerBody": "This build has no PDF or print engine for documents yet. What follows is the invoice's own stored data, exactly as saved — not a generated document."
       }
     }
   }

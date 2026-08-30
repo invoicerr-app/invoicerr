@@ -1,38 +1,42 @@
-import { FilePlus2 } from "lucide-react"
+import { FileQuestion } from "lucide-react"
 import { useState } from "react"
 import { useNavigate, useParams } from "react-router"
 import { useTranslation } from "react-i18next"
 
-import { DocumentForm } from "@/components/documents/document-form"
+import { DocumentList } from "@/components/documents/document-list"
+import { DocumentUpsertDialog } from "@/components/documents/document-upsert-dialog"
 import type { DocumentInstance } from "@/components/documents/types"
-import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useDocumentInstance, useDocumentInstances, useDocumentType } from "@/hooks/queries"
+import { useDocumentInstances, useDocumentType } from "@/hooks/queries"
 import { usePageHeader } from "@/hooks/use-page-header"
 
 /**
- * The one generic page: fetches a document type's descriptor and renders DocumentForm from it.
- * Nothing here is specific to "quote" or any other type — a plugin adding a document type needs no
- * page of its own, only a registered descriptor (and, on the frontend, a renderer per any new field
- * kind it introduces — see field-renderers/index.ts).
+ * The one generic page: fetches a document type's descriptor and its saved instances, and renders
+ * DocumentList (the table) plus DocumentUpsertDialog (create/edit) from them. Nothing here is
+ * specific to "quote" or any other type — a plugin adding a document type needs no page of its own,
+ * only a registered descriptor (and, on the frontend, a renderer per any new field kind it
+ * introduces — see field-renderers/index.ts — plus, optionally, a custom slot component registered
+ * in custom-registrations.ts, the one place allowed to name a type).
  */
 export default function DocumentTypePage() {
   const { t } = useTranslation()
   const { typeId } = useParams()
   const navigate = useNavigate()
-  const [editingId, setEditingId] = useState<string | undefined>(undefined)
 
   const { data: descriptor, isLoading, error } = useDocumentType(typeId)
-  const { data: instances = [] } = useDocumentInstances(typeId)
-  const { data: editingInstance } = useDocumentInstance(typeId, editingId)
+  const { data: instances = [], isLoading: instancesLoading } = useDocumentInstances(typeId)
+
+  // undefined = the dialog is closed; null = creating a brand-new draft; a DocumentInstance = editing
+  // that one. The list already hands over each instance's FULL `data` (see the backend's
+  // listDocuments, which selects everything), so editing never needs a second fetch.
+  const [dialogTarget, setDialogTarget] = useState<DocumentInstance | null | undefined>(undefined)
 
   usePageHeader(descriptor?.label ?? typeId)
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto space-y-4 p-6">
-        <Skeleton className="h-8 w-1/3" />
+      <div className="max-w-5xl mx-auto space-y-4 p-6">
+        <Skeleton className="h-10 w-full" />
         <Skeleton className="h-64 w-full" />
       </div>
     )
@@ -40,83 +44,52 @@ export default function DocumentTypePage() {
 
   if (error || !descriptor) {
     return (
-      <div className="max-w-4xl mx-auto p-6" data-cy="document-type-unknown">
+      <div
+        className="max-w-4xl mx-auto p-12 text-center text-muted-foreground"
+        data-cy="document-type-unknown"
+      >
+        <FileQuestion className="mx-auto h-10 w-10 mb-3 opacity-50" />
         {t("documents.form.unknownType", { typeId })}
       </div>
     )
   }
 
-  const formKey = editingId ?? "new"
+  const handleActionSuccess = (result: DocumentInstance) => {
+    // An action can create/update an instance of a DIFFERENT document type (e.g. the quote's
+    // "convert-to-invoice" hands back a brand-new INVOICE) — this page only ever knows how to show
+    // ITS OWN type's fields (they came from `descriptor`), so it navigates to the other type's own
+    // page instead of trying to render a foreign record in this dialog. Nothing here names which
+    // type that might be: `result.typeId` is read from the action's own response.
+    //
+    // Same-type success needs nothing here at all: DocumentForm already tracks its own current
+    // id/status once the first save happens, and the list refetches on its own (useRunDocumentAction
+    // invalidates the "documents" query) — so the dialog just stays open, showing the same record.
+    if (result.typeId !== typeId) {
+      setDialogTarget(undefined)
+      navigate(`/documents/${result.typeId}`)
+    }
+  }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 p-6" data-cy="document-type-page">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-medium">
-          {editingId ? t("documents.form.editingTitle", { label: descriptor.label }) : descriptor.label}
-        </h2>
-        {editingId && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setEditingId(undefined)}
-            dataCy="document-new-button"
-          >
-            <FilePlus2 className="mr-2 h-4 w-4" />
-            {t("documents.form.newButton")}
-          </Button>
-        )}
-      </div>
-
-      <DocumentForm
-        key={formKey}
+    <div className="max-w-6xl mx-auto space-y-6 p-6" data-cy="document-type-page">
+      <DocumentList
         descriptor={descriptor}
-        documentId={editingId}
-        initialData={editingId ? editingInstance?.data : undefined}
-        status={editingId ? editingInstance?.status : undefined}
-        onActionSuccess={(result) => {
-          // An action can create an instance of a DIFFERENT document type (e.g. the quote's
-          // "convert-to-invoice" hands back a brand-new invoice) — this page only ever knows how to
-          // show ITS OWN type's fields (they came from `descriptor`), so it navigates to the other
-          // type's own page instead of trying to render a foreign record here. Nothing here names
-          // which type that might be: `result.typeId` is read from the action's own response.
-          if (result.typeId === typeId) {
-            setEditingId(result.id)
-          } else {
-            navigate(`/documents/${result.typeId}`)
-          }
-        }}
+        instances={instances}
+        isLoading={instancesLoading}
+        onCreate={() => setDialogTarget(null)}
+        onEdit={(instance) => setDialogTarget(instance)}
+        onActionSuccess={handleActionSuccess}
       />
 
-      <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground">{t("documents.list.title")}</h3>
-        {instances.length === 0 ? (
-          <p className="text-sm text-muted-foreground" data-cy="document-list-empty">
-            {t("documents.list.empty")}
-          </p>
-        ) : (
-          <Table data-cy="document-list-table">
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("documents.list.columns.status")}</TableHead>
-                <TableHead>{t("documents.list.columns.updatedAt")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {instances.map((instance: DocumentInstance) => (
-                <TableRow
-                  key={instance.id}
-                  className="cursor-pointer"
-                  onClick={() => setEditingId(instance.id)}
-                  data-cy={`document-list-row-${instance.id}`}
-                >
-                  <TableCell>{instance.status}</TableCell>
-                  <TableCell>{new Date(instance.updatedAt).toLocaleString()}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+      {dialogTarget !== undefined && (
+        <DocumentUpsertDialog
+          descriptor={descriptor}
+          open
+          onOpenChange={(open) => !open && setDialogTarget(undefined)}
+          instance={dialogTarget ?? undefined}
+          onActionSuccess={handleActionSuccess}
+        />
+      )}
     </div>
   )
 }
