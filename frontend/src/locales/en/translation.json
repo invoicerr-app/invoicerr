@@ -1775,9 +1775,23 @@
         }
       },
       "onboarding": {
+        "stepLabelCountry": "Country",
+        "stepLabelIdentifier": "Identifier",
         "stepLabelCompany": "Company",
         "stepLabelChannels": "Channels",
         "stepIndicator": "Step {{current}} of {{total}}",
+        "countryStep": {
+          "title": "Where is your company based?",
+          "description": "This determines which national identifier we'll ask for next."
+        },
+        "identifierStep": {
+          "title": "Company identifier",
+          "descriptionAvailable": "We'll search the official register to help fill in the rest of the form.",
+          "descriptionUnavailable": "Enter it by hand — see below for why automatic search isn't available here.",
+          "genericLabel": "National company identifier",
+          "noAutoSearchTitle": "No automatic search for this country",
+          "noAutoSearchFallback": "No automatic company search is available for this country on this instance — enter the details by hand."
+        },
         "step2Title": "Connect your e-invoicing channel",
         "step2Description": "Your company has been created. Connect an e-invoicing channel now, or do it later from Settings.",
         "connectChannels": "Connect channels",

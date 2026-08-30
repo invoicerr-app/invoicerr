@@ -56,17 +56,22 @@ describe('Company Settings E2E', () => {
             cy.document().then((doc) => {
                 const dialog = doc.querySelector('[data-cy="onboarding-dialog"]');
                 if (dialog) {
-                    cy.get('[data-cy="onboarding-company-name-input"]').clear().type('Acme Corp');
+                    // Step 1 — country only.
                     cy.selectCountry('onboarding-company-country-input', 'France');
-                    // France requires a LEGAL_ID (SIRET) identifier — the input appears
-                    // once the country is picked (compliance required-fields lookup) and
-                    // the dialog refuses to submit without it.
+                    cy.get('[data-cy="onboarding-country-next-btn"]').click();
+                    // Step 2 — the national identifier, labeled by the backend. France
+                    // requires a LEGAL_ID (SIRET) — the wizard refuses to advance without
+                    // it. "Next" also fires the backend company-lookup search before
+                    // moving on; it always advances regardless of what that finds.
                     cy.get('[data-cy="onboarding-legalid-input"]', { timeout: 10000 })
                         .clear({ force: true })
                         .type('73282932000074', { force: true });
+                    cy.get('[data-cy="onboarding-identifier-next-btn"]').click();
+                    // Step 3 — the company form, pre-filled by whatever the search found.
+                    cy.get('[data-cy="onboarding-company-name-input"]', { timeout: 10000 }).clear().type('Acme Corp');
                     cy.get('[data-cy="onboarding-submit-btn"]').click();
-                    // Company creation now advances the wizard to Step 2 (Channels) instead
-                    // of closing the dialog — finish onboarding from there.
+                    // Company creation now advances the wizard to the channels step
+                    // instead of closing the dialog — finish onboarding from there.
                     cy.get('[data-cy="onboarding-finish-btn"]', { timeout: 10000 }).should('be.visible').click();
                     // Company creation switches to the new company and reloads the page —
                     // wait for the dialog to be gone and the reloaded app to settle before

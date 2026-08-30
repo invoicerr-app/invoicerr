@@ -18,15 +18,25 @@ describe('Multi-Company Switcher E2E', () => {
         cy.get('[data-cy="sidebar-create-company-item"]').click();
 
         cy.get('[data-cy="onboarding-dialog"]', { timeout: 10000 }).should('be.visible');
-        cy.get('[data-cy="onboarding-company-name-input"]').clear().type('Globex Corporation');
+
+        // Step 1 — country only. The identifier's label and the next step both
+        // derive from it; nothing here names a country in the assertions below.
         cy.selectCountry('onboarding-company-country-input', 'France');
-        // France requires a LEGAL_ID (SIRET) identifier — the dialog refuses to
-        // submit without it (same required-fields check as the first company).
+        cy.get('[data-cy="onboarding-country-next-btn"]').click();
+
+        // Step 2 — the national identifier. France requires a LEGAL_ID (SIRET) —
+        // the wizard refuses to advance without it (same required-fields check as
+        // the first company). "Next" also fires the backend company-lookup search
+        // before moving on; it always advances regardless of what that finds.
         cy.get('[data-cy="onboarding-legalid-input"]', { timeout: 10000 })
             .clear({ force: true })
             .type('73282932000074', { force: true });
+        cy.get('[data-cy="onboarding-identifier-next-btn"]').click();
+
+        // Step 3 — the company form, pre-filled by whatever the search found.
+        cy.get('[data-cy="onboarding-company-name-input"]', { timeout: 10000 }).clear().type('Globex Corporation');
         cy.get('[data-cy="onboarding-submit-btn"]').click();
-        // Company creation now advances the wizard to Step 2 (Channels) instead of
+        // Company creation now advances the wizard to the channels step instead of
         // closing the dialog — finish onboarding from there.
         cy.get('[data-cy="onboarding-finish-btn"]', { timeout: 10000 }).should('be.visible').click();
         cy.get('[data-cy="onboarding-dialog"]', { timeout: 20000 }).should('not.exist');
