@@ -49,12 +49,52 @@ export interface DocumentFieldDescriptor {
    * not encode. Takes priority over `currency`.
    */
   currencyField?: string;
-  /** 'reference': which EntityReferenceRegistry entry resolves/searches values for this field. */
+  /**
+   * 'reference', SINGLE target: which EntityReferenceRegistry entry resolves/searches values for
+   * this field. The stored value is a plain non-empty id string (e.g. `data.client = "client-1"`) —
+   * unchanged since before `entities` existed, and every existing single-target field (the "client"
+   * field on both the quote and the invoice) keeps this exact shape.
+   */
   entity?: string;
+  /**
+   * 'reference', MULTIPLE possible targets (e.g. an invoice's origin can be a quote OR another
+   * invoice): the EntityReferenceRegistry entries a value may resolve against. Mutually exclusive
+   * with `entity` — a field sets one or the other, never both. Set this (even to a single-element
+   * array) and the field's STORED value stops being a bare id string; a bare id alone can no longer
+   * say which entity it targets, so it becomes `{ entity: string; id: string }` instead, `entity`
+   * being one of the strings listed here. See `targetEntitiesOf` and field-kinds.ts's 'reference'
+   * validator, the only two places that branch on "is this multi-target or not".
+   */
+  entities?: string[];
   /** 'array': the shape of one row. */
   fields?: DocumentFieldDescriptor[];
   min?: number;
   max?: number;
+}
+
+/** A multi-target 'reference' field's stored value: `entity` says which EntityReferenceRegistry
+ *  entry `id` resolves against — see `DocumentFieldDescriptor.entities`. */
+export interface MultiTargetReferenceValue {
+  entity: string;
+  id: string;
+}
+
+/**
+ * Every entity a 'reference' field may target, whichever of `entity`/`entities` it was declared
+ * with — the one place that reconciles the two so callers (the validator, a future consumer) never
+ * duplicate the "which one is set" branch. Empty for a field that is not a 'reference' at all, or a
+ * misconfigured one that sets neither.
+ */
+export function targetEntitiesOf(field: DocumentFieldDescriptor): string[] {
+  if (field.entities) return field.entities;
+  if (field.entity) return [field.entity];
+  return [];
+}
+
+/** Whether `field` was declared with `entities` (multi-target) rather than a single `entity` — the
+ *  one predicate that decides which shape the field's stored value takes. See `entities`'s comment. */
+export function isMultiTargetReference(field: DocumentFieldDescriptor): boolean {
+  return !!field.entities;
 }
 
 export interface DocumentActionDescriptor {

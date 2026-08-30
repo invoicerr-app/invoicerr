@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { useDocumentTransports } from "@/hooks/queries"
 import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
 import { useGet, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
@@ -160,9 +161,14 @@ export default function CompanySettings() {
     // Peppol / electronic routing (stored as PEPPOL_ENDPOINT party identifier)
     peppolSchemeId: z.string().optional(),
     peppolEndpointId: z.string().optional(),
+    // Which registered document transport (GET /api/documents/transports) an invoice's "send"
+    // action delivers through — "" means none chosen yet, which is a valid state (sending blocks
+    // until the company picks one), not something this form needs to refuse.
+    invoiceTransportId: z.string().optional(),
   })
 
   const { data } = useGet<Company>("/api/company/info")
+  const { data: invoiceTransports } = useDocumentTransports()
   const { trigger } = useMutationWithToast(
     usePost<Company>("/api/company/info"),
     t("settings.company.messages.updateError"),
@@ -196,6 +202,7 @@ export default function CompanySettings() {
       identifiers: [],
       peppolSchemeId: "0088",
       peppolEndpointId: "",
+      invoiceTransportId: "",
     },
   })
 
@@ -215,6 +222,7 @@ export default function CompanySettings() {
         state: data.state ?? "",
         foundedAt: new Date(data.foundedAt),
         exemptVat: !!data.exemptVat,
+        invoiceTransportId: data.invoiceTransportId ?? "",
         identifiers: (data.partyIdentifiers || [])
           .filter((pi) => pi.scheme !== "PEPPOL_ENDPOINT")
           .map((pi) => ({
@@ -917,6 +925,40 @@ export default function CompanySettings() {
                     </FormControl>
                     <FormDescription>
                       {t("settings.company.form.invoicePDFFormat.description")}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="invoiceTransportId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("settings.company.form.invoiceTransportId.label")}</FormLabel>
+                    <FormControl>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <SelectTrigger className="w-full" data-cy="company-invoice-transport-select">
+                          <SelectValue
+                            placeholder={t("settings.company.form.invoiceTransportId.placeholder")}
+                          />
+                        </SelectTrigger>
+                        <SelectContent data-cy="company-invoice-transport-options">
+                          {(invoiceTransports ?? []).map((transport) => (
+                            <SelectItem
+                              key={transport.id}
+                              value={transport.id}
+                              data-cy={`company-invoice-transport-option-${transport.id}`}
+                            >
+                              {transport.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormDescription>
+                      {t("settings.company.form.invoiceTransportId.description")}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

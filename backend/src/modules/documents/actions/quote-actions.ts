@@ -4,9 +4,9 @@ import { MailService } from '@/mail/mail.service';
 import { ActionRegistry, DocumentInstanceResult } from './action-registry';
 import { formatLinesText, formatNotesText } from './email-text';
 import {
+  registerEmailRecipientDefaultFromClient,
+  registerEmailSendAction,
   registerSaveDraftAction,
-  registerSendAction,
-  registerSendRecipientDefaultFromClient,
 } from './generic-actions';
 
 export interface QuoteActionDeps {
@@ -27,16 +27,16 @@ export function buildQuoteEmailText(document: Pick<DocumentInstanceResult, 'id' 
 }
 
 /**
- * Registers the quote type's action IMPLEMENTATIONS. "save-draft" and "send" are both implemented,
- * built on the generic save/send mechanism (generic-actions.ts) now shared with the invoice type —
- * this file supplies only what is genuinely quote-specific: the email body. "convert-to-invoice" is
- * declared on the descriptor (quote.descriptor.ts) but deliberately NOT registered — the point of
- * this registry is that a declared-but-unimplemented action is blocked with a clear error
- * (DocumentsService.runAction), never silently accepted or silently dropped, and this is the live
- * case that keeps proving it now that "send" no longer can.
+ * Registers the quote type's action IMPLEMENTATIONS. "save-draft" is the generic mechanism
+ * (generic-actions.ts) shared with every document type; "send" is the QUOTE's OWN send-by-email
+ * mechanism (generic-actions.ts's registerEmailSendAction/registerEmailRecipientDefaultFromClient —
+ * see that file's comment for why this is no longer, and must not become again, shared with the
+ * invoice). "convert-to-invoice" is implemented in its own file (actions/convert-to-invoice.ts,
+ * registered alongside this one in documents.module.ts) rather than here, since it reads a quote's
+ * shape and writes an invoice's — it belongs to neither type alone.
  */
 export function registerQuoteActions(registry: ActionRegistry, deps: QuoteActionDeps): void {
   registerSaveDraftAction(registry, 'quote');
-  registerSendRecipientDefaultFromClient(registry, 'quote', deps.clientsService);
-  registerSendAction(registry, 'quote', 'Quote', buildQuoteEmailText, deps.mailService);
+  registerEmailRecipientDefaultFromClient(registry, 'quote', deps.clientsService);
+  registerEmailSendAction(registry, 'quote', 'Quote', buildQuoteEmailText, deps.mailService);
 }

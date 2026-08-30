@@ -18,4 +18,7 @@ export {
   useResolveActionParamsDefaults,
   useReferenceSearch,
   useReferenceResolve,
+  useMultiEntityReferenceSearch,
+  useDocumentTransports,
+  type EntityReferenceSearchHit,
 } from "./use-document-types"

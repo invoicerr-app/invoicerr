@@ -84,7 +84,13 @@ export function DocumentForm({
         data: form.getValues(),
         params,
       })
-      if (result.document) {
+      // Only adopt the result as THIS form's own record when it is actually the same document
+      // TYPE — an action can create an instance of a DIFFERENT type instead (e.g. the quote's
+      // "convert-to-invoice" hands back a brand-new INVOICE while this form is still the quote's).
+      // This form must not start behaving as if it were now editing that foreign record; the caller
+      // decides what to do with it via `onActionSuccess` below (see the document type page, which
+      // navigates to the other type's own screen).
+      if (result.document && result.document.typeId === descriptor.id) {
         setCurrentDocumentId(result.document.id)
         setCurrentStatus(result.document.status)
       }

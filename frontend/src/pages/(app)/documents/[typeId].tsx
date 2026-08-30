@@ -1,6 +1,6 @@
 import { FilePlus2 } from "lucide-react"
 import { useState } from "react"
-import { useParams } from "react-router"
+import { useNavigate, useParams } from "react-router"
 import { useTranslation } from "react-i18next"
 
 import { DocumentForm } from "@/components/documents/document-form"
@@ -20,6 +20,7 @@ import { usePageHeader } from "@/hooks/use-page-header"
 export default function DocumentTypePage() {
   const { t } = useTranslation()
   const { typeId } = useParams()
+  const navigate = useNavigate()
   const [editingId, setEditingId] = useState<string | undefined>(undefined)
 
   const { data: descriptor, isLoading, error } = useDocumentType(typeId)
@@ -72,7 +73,18 @@ export default function DocumentTypePage() {
         documentId={editingId}
         initialData={editingId ? editingInstance?.data : undefined}
         status={editingId ? editingInstance?.status : undefined}
-        onActionSuccess={(result) => setEditingId(result.id)}
+        onActionSuccess={(result) => {
+          // An action can create an instance of a DIFFERENT document type (e.g. the quote's
+          // "convert-to-invoice" hands back a brand-new invoice) — this page only ever knows how to
+          // show ITS OWN type's fields (they came from `descriptor`), so it navigates to the other
+          // type's own page instead of trying to render a foreign record here. Nothing here names
+          // which type that might be: `result.typeId` is read from the action's own response.
+          if (result.typeId === typeId) {
+            setEditingId(result.id)
+          } else {
+            navigate(`/documents/${result.typeId}`)
+          }
+        }}
       />
 
       <div className="space-y-2">

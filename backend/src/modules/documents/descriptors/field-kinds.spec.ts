@@ -50,4 +50,40 @@ describe('FieldKindRegistry', () => {
       { key: 'rating', message: '"Rating" must be a rating from 1 to 5.' },
     ]);
   });
+
+  describe("'reference' — single- vs multi-target", () => {
+    const registry = new FieldKindRegistry();
+    registerCoreFieldKinds(registry);
+
+    it('a SINGLE-target field (entity) keeps accepting a bare id string — unchanged behaviour', () => {
+      const field = { key: 'client', kind: 'reference', label: 'Client', entity: 'client' };
+      expect(validateAgainstDescriptor([field], { client: 'client-1' }, registry)).toEqual([]);
+      expect(validateAgainstDescriptor([field], { client: '' }, registry)).toEqual([]); // empty ⇒ "missing", not invalid
+      expect(validateAgainstDescriptor([field], { client: { entity: 'client', id: 'x' } }, registry)).toEqual(
+        [{ key: 'client', message: '"Client" must reference an existing record.' }],
+      );
+    });
+
+    it('a MULTI-target field (entities) requires the `{ entity, id }` shape, not a bare id', () => {
+      const field = { key: 'origin', kind: 'reference', label: 'Origin', entities: ['quote', 'invoice'] };
+
+      expect(validateAgainstDescriptor([field], { origin: { entity: 'quote', id: 'q1' } }, registry)).toEqual(
+        [],
+      );
+      expect(
+        validateAgainstDescriptor([field], { origin: { entity: 'invoice', id: 'i1' } }, registry),
+      ).toEqual([]);
+      expect(validateAgainstDescriptor([field], { origin: 'q1' }, registry)).toEqual([
+        { key: 'origin', message: '"Origin" must reference an existing record (with its type).' },
+      ]);
+    });
+
+    it('a MULTI-target field rejects an entity outside its declared list', () => {
+      const field = { key: 'origin', kind: 'reference', label: 'Origin', entities: ['quote', 'invoice'] };
+
+      expect(
+        validateAgainstDescriptor([field], { origin: { entity: 'client', id: 'c1' } }, registry),
+      ).toEqual([{ key: 'origin', message: '"Origin" must reference one of: quote, invoice.' }]);
+    });
+  });
 });

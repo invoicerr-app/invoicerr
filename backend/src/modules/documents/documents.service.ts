@@ -23,12 +23,14 @@ import {
   EntityReferenceRegistry,
   UnknownEntityReferenceError,
 } from './references/reference-registry';
+import { TransportRegistry } from './transports/transport-registry';
 import {
   ACTION_EXTENSION_REGISTRY,
   ACTION_REGISTRY,
   DOCUMENT_TYPE_REGISTRY,
   ENTITY_REFERENCE_REGISTRY,
   FIELD_KIND_REGISTRY,
+  TRANSPORT_REGISTRY,
 } from './tokens';
 
 @Injectable()
@@ -39,6 +41,7 @@ export class DocumentsService implements OnModuleInit {
     @Inject(ACTION_REGISTRY) private readonly actionRegistry: ActionRegistry,
     @Inject(ACTION_EXTENSION_REGISTRY) private readonly actionExtensionRegistry: ActionExtensionRegistry,
     @Inject(ENTITY_REFERENCE_REGISTRY) private readonly referenceRegistry: EntityReferenceRegistry,
+    @Inject(TRANSPORT_REGISTRY) private readonly transportRegistry: TransportRegistry,
   ) {}
 
   /**
@@ -57,6 +60,13 @@ export class DocumentsService implements OnModuleInit {
   /** The list a front-end nav can render without knowing any type by name. */
   listTypes(): { id: string; label: string }[] {
     return this.typeRegistry.list().map(({ id, label }) => ({ id, label }));
+  }
+
+  /** Every registered document transport, id and label only — what a company's settings screen
+   *  offers to choose from for `Company.invoiceTransportId`. Never filtered by country: the whole
+   *  point is that the choice is the company's, not derived from where it is. */
+  listTransports(): { id: string; label: string }[] {
+    return this.transportRegistry.list();
   }
 
   getType(typeId: string): DocumentTypeDescriptor {

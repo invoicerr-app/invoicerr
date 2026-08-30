@@ -23,14 +23,21 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    difference on the same kind, decided per document type exactly the way `required` already
  *    varies per FIELD within one descriptor.
  *
- *  - `originQuote` (kind: 'reference', entity: "quote") — an invoice commonly traces back to an
- *    accepted quote, and recording that link is a purely structural fact about the document, not a
- *    business rule (no conversion, no copied totals, nothing computed). Optional: an invoice can
- *    exist with none. It targets another document TYPE's own instances rather than a business entity
- *    from an existing service — see references/quote-reference.provider.ts, a NEW provider this
- *    field needed, but the 'reference' field KIND and its generic
- *    /documents/references/:entity/... endpoints did not change at all to support it. This is the
- *    one field on this descriptor that is not a plain restatement of something the quote already has.
+ *  - `origin` (kind: 'reference', entities: ['quote', 'invoice']) — an invoice commonly traces back
+ *    to an accepted quote (see "convert-to-invoice" on the quote, actions/quote-actions.ts), and
+ *    recording that link is a purely structural fact about the document, not a business rule (no
+ *    conversion, no copied totals, nothing computed). Optional: an invoice can exist with none. This
+ *    field used to be called `originQuote` and target ONLY "quote" — it is now MULTI-TARGET
+ *    (`entities`, not `entity`) because an invoice can just as well trace back to ANOTHER invoice
+ *    (a corrective re-issue, a follow-up on a partial one) as to a quote; the field itself does not
+ *    judge which case applies, it only records which one it is. Its stored value is therefore
+ *    `{ entity: 'quote' | 'invoice', id: string }`, not a bare id — see types.ts's
+ *    `MultiTargetReferenceValue` for why a bare id stopped being enough the moment more than one
+ *    target became possible. It targets another document TYPE's own instances rather than a business
+ *    entity from an existing service — see references/document-reference.provider.ts, a NEW provider
+ *    THIS field needed (generalized, not duplicated, once the invoice itself also needed one for
+ *    "invoice" — see documents.module.ts) — but the 'reference' field KIND itself and the generic
+ *    /documents/references/:entity/... endpoints did not change at all to support it.
  *
  * Deliberately NOT added, and why — this is where the noyau could have been tempted, not where it
  * broke:
@@ -47,11 +54,16 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    sum from them (see actions/email-text.ts's formatLinesText, which lists lines and computes
  *    nothing either).
  *
- * Actions: save the draft and send are both implemented (actions/invoice-actions.ts), built on the
- * exact same generic save/send mechanism the quote now uses too (actions/generic-actions.ts) — not a
- * second copy of it. "record-payment" is declared and deliberately NOT implemented: reconciling a
- * payment needs a ledger/accounting pipeline this branch does not build, the same discipline
- * "convert-to-invoice" holds the quote to.
+ * Actions: "save-draft" is implemented, built on the exact same generic mechanism the quote uses
+ * (actions/generic-actions.ts). "send" is implemented too, but DELIBERATELY NOT the quote's mechanism
+ * — see actions/invoice-actions.ts's own comment for why an invoice's transport is read from the
+ * ISSUING COMPANY's own configuration (TransportRegistry) rather than always being email. That is
+ * also why, unlike the quote's "send", this action declares NO `params`: there is no user-typed
+ * "recipient" here, because which transport runs — and what addressing it needs — is a company
+ * setting, not something the person clicking "Send" types in on the spot. "record-payment" is
+ * declared and deliberately NOT implemented: reconciling a payment needs a ledger/accounting pipeline
+ * this branch does not build, the same discipline "convert-to-invoice" held the quote to before it
+ * was implemented.
  */
 export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
   return {
@@ -66,12 +78,12 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         entity: 'client',
       },
       {
-        key: 'originQuote',
+        key: 'origin',
         kind: 'reference',
-        label: 'Origin quote',
+        label: 'Origin document',
         required: false,
-        entity: 'quote',
-        helpText: 'The quote this invoice was raised from, if any.',
+        entities: ['quote', 'invoice'],
+        helpText: 'The quote or invoice this invoice was raised from, if any.',
       },
       {
         key: 'issueDate',
@@ -139,15 +151,8 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         id: 'send',
         label: 'Send',
         availableWhen: ['draft'],
-        // Same params vocabulary as the quote's "send" — see quote.descriptor.ts.
-        params: [
-          {
-            key: 'recipient',
-            kind: 'text',
-            label: 'Recipient email',
-            required: true,
-          },
-        ],
+        // No params — see this file's header comment: which transport runs, and what it needs to
+        // address the delivery, is read from the company's own configuration, not typed here.
       },
       {
         id: 'record-payment',

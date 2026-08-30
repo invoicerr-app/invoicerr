@@ -20,7 +20,11 @@ function baseSchemaFor(field: DocumentFieldDescriptor): z.ZodTypeAny {
       return values.length > 0 ? z.string().refine((v) => values.includes(v)) : z.string()
     }
     case "reference":
-      return z.string()
+      // Multi-target (`entities`): the stored value is `{ entity, id }`, not a bare id — see
+      // types.ts's `isMultiTargetReference`. Single-target (`entity`): unchanged, a bare id string.
+      return field.entities?.length
+        ? z.object({ entity: z.string().min(1), id: z.string().min(1) })
+        : z.string()
     case "number":
     case "money": {
       let schema = z.number()

@@ -9,8 +9,11 @@ import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
 import { DocumentTypeRegistry } from './descriptors/type-registry';
 import * as persistence from './persistence';
 import { EntityReferenceRegistry } from './references/reference-registry';
+import * as companyTransport from './transports/company-transport';
+import { TransportRegistry } from './transports/transport-registry';
 
 jest.mock('./persistence');
+jest.mock('./transports/company-transport');
 
 /**
  * Same wiring discipline as documents.service.spec.ts's quote coverage, applied to the invoice — the
@@ -19,22 +22,20 @@ jest.mock('./persistence');
  * exact same generic machinery work UNMODIFIED for an independently-declared second type": no branch
  * of DocumentsService, validateAgainstDescriptor, or ActionRegistry knows the word "invoice" — it is
  * only ever data these registries were handed.
+ *
+ * The invoice's "send" is deliberately NOT the quote's mechanism (see actions/invoice-actions.ts and
+ * actions/send-divergence.spec.ts) — the transport is read from `Company.invoiceTransportId`
+ * (transports/company-transport.ts), mocked here the same way persistence.ts already is.
  */
-function buildService() {
+function buildService(transportRegistry: TransportRegistry = new TransportRegistry()) {
   const typeRegistry = new DocumentTypeRegistry();
   typeRegistry.register(buildInvoiceDescriptor());
 
   const fieldKindRegistry = new FieldKindRegistry();
   registerCoreFieldKinds(fieldKindRegistry);
 
-  const clientsService = { getClientById: jest.fn().mockResolvedValue(null) };
-  const mailService = { sendMail: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }) };
-
   const actionRegistry = new ActionRegistry();
-  registerInvoiceActions(actionRegistry, {
-    clientsService: clientsService as never,
-    mailService: mailService as never,
-  });
+  registerInvoiceActions(actionRegistry, { transportRegistry });
   // "record-payment" is NOT registered here, on purpose — see invoice.descriptor.ts.
 
   const actionExtensionRegistry = new ActionExtensionRegistry();
@@ -46,8 +47,9 @@ function buildService() {
     actionRegistry,
     actionExtensionRegistry,
     referenceRegistry,
+    transportRegistry,
   );
-  return { service, clientsService, mailService };
+  return { service };
 }
 
 const validInvoiceData = {
@@ -127,27 +129,73 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     }
   });
 
-  // The one field the quote does not have at all: an optional link back to the quote it came from.
-  // Structural validation only checks "a non-empty id was submitted" (see field-kinds.ts's own
-  // comment on 'reference') — it never calls the quote-reference provider, the same way it never
-  // calls the client provider for the "client" field.
-  it('accepts an optional reference back to the originating quote', async () => {
-    const dataWithOrigin = { ...validInvoiceData, originQuote: 'quote-doc-1' };
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
-      id: 'doc-1',
-      typeId: 'invoice',
-      status: 'draft',
-      data: dataWithOrigin,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+  describe('"origin" — a MULTI-TARGET reference (quote OR invoice), unlike "client"', () => {
+    it('accepts an origin pointing at a quote', async () => {
+      const dataWithOrigin = { ...validInvoiceData, origin: { entity: 'quote', id: 'quote-doc-1' } };
+      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: dataWithOrigin,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'invoice', 'save-draft', {
+        data: dataWithOrigin,
+      });
+
+      expect(result.changed).toBe(true);
     });
 
-    const { service } = buildService();
-    const result = await service.runAction('company-1', 'invoice', 'save-draft', {
-      data: dataWithOrigin,
+    it('accepts an origin pointing at ANOTHER invoice — the second declared target', async () => {
+      const dataWithOrigin = { ...validInvoiceData, origin: { entity: 'invoice', id: 'invoice-doc-0' } };
+      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: dataWithOrigin,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'invoice', 'save-draft', {
+        data: dataWithOrigin,
+      });
+
+      expect(result.changed).toBe(true);
     });
 
-    expect(result.changed).toBe(true);
+    it('rejects an origin naming an entity that was never declared as a target', async () => {
+      const dataWithOrigin = { ...validInvoiceData, origin: { entity: 'client', id: 'client-1' } };
+
+      expect.assertions(3);
+      try {
+        await buildService().service.runAction('company-1', 'invoice', 'save-draft', {
+          data: dataWithOrigin,
+        });
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        const response = (error as BadRequestException).getResponse() as {
+          errors: { key: string; message: string }[];
+        };
+        expect(response.errors).toContainEqual(
+          expect.objectContaining({ key: 'origin', message: expect.stringMatching(/quote, invoice/) }),
+        );
+      }
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+
+    it('rejects the OLD bare-id shape — a plain string is no longer enough once more than one target is possible', async () => {
+      const dataWithOrigin = { ...validInvoiceData, origin: 'quote-doc-1' };
+
+      await expect(
+        buildService().service.runAction('company-1', 'invoice', 'save-draft', { data: dataWithOrigin }),
+      ).rejects.toThrow(/Invalid document data/);
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
   });
 
   // The behaviour the task explicitly asks to keep proven on THIS second type, not only on the
@@ -192,8 +240,37 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
-  describe('"send" — the exact same generic mechanism the quote uses, not a second copy of it', () => {
-    it('sends the email and marks the document "sent"', async () => {
+  describe('"send" — reads the company\'s OWN transport configuration, not the quote\'s email mechanism', () => {
+    it('blocks with a 501 when the company has not configured a transport', async () => {
+      (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue(null);
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service } = buildService();
+      const action = service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      await expect(action).rejects.toBeInstanceOf(NotImplementedException);
+      await expect(action).rejects.toThrow(/no transport is configured/i);
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+
+    it('delivers through the configured transport and marks the document "sent"', async () => {
+      (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
+      const transportRegistry = new TransportRegistry();
+      const fakeTransport = {
+        send: jest.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' }),
+      };
+      transportRegistry.register('email', 'Email', fakeTransport);
+
       (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
@@ -211,34 +288,24 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         updatedAt: new Date(),
       });
 
-      const { service, mailService } = buildService();
+      const { service } = buildService(transportRegistry);
       const result = await service.runAction('company-1', 'invoice', 'send', {
         documentId: 'doc-1',
         data: validInvoiceData,
-        params: { recipient: 'client@example.com' },
       });
 
       expect(result.changed).toBe(true);
       expect(result.document).toMatchObject({ id: 'doc-1', status: 'sent' });
-      expect(result.message).toMatch(/client@example\.com/);
-      expect(mailService.sendMail).toHaveBeenCalledWith(
-        expect.objectContaining({ to: 'client@example.com', subject: expect.stringContaining('doc-1') }),
+      expect(result.message).toBe('Invoice sent to client-1@example.com.');
+      expect(fakeTransport.send).toHaveBeenCalledWith(
+        expect.objectContaining({ companyId: 'company-1', label: 'Invoice' }),
       );
     });
 
-    it("pre-fills the recipient param default from the document's client", async () => {
-      const { service, clientsService } = buildService();
-      clientsService.getClientById.mockResolvedValue({
-        id: 'client-1',
-        contactEmail: 'client-1@example.com',
-      });
-
-      const defaults = await service.resolveActionParamsDefaults('company-1', 'invoice', 'send', {
-        data: validInvoiceData,
-      });
-
-      expect(defaults).toEqual({ recipient: 'client-1@example.com' });
-      expect(clientsService.getClientById).toHaveBeenCalledWith('company-1', 'client-1');
+    it('declares no params — there is no user-typed recipient, unlike the quote\'s "send"', () => {
+      const descriptor = buildService().service.getType('invoice');
+      const sendAction = descriptor.actions.find((a) => a.id === 'send');
+      expect(sendAction?.params ?? []).toEqual([]);
     });
   });
 });

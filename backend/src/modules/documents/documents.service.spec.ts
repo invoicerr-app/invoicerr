@@ -1,7 +1,8 @@
-import { ConflictException, NotImplementedException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
+import { registerConvertToInvoiceAction } from './actions/convert-to-invoice';
 import { registerDuplicateExtension } from './actions/duplicate-extension';
 import { registerQuoteActions } from './actions/quote-actions';
 import { DocumentsService } from './documents.service';
@@ -10,6 +11,7 @@ import { buildQuoteDescriptor } from './descriptors/quote.descriptor';
 import { DocumentTypeRegistry } from './descriptors/type-registry';
 import * as persistence from './persistence';
 import { EntityReferenceRegistry } from './references/reference-registry';
+import { TransportRegistry } from './transports/transport-registry';
 
 jest.mock('./persistence');
 
@@ -37,7 +39,10 @@ function buildService() {
     clientsService: clientsService as never,
     mailService: mailService as never,
   });
-  // "convert-to-invoice" is NOT registered here, on purpose — see quote-actions.ts.
+  // "convert-to-invoice" IS registered here — see actions/convert-to-invoice.ts. It stopped being
+  // the live "declared but not implemented" example the day it got a real handler; that role now
+  // belongs to the invoice's "record-payment" (documents.service.invoice.spec.ts).
+  registerConvertToInvoiceAction(actionRegistry);
 
   const actionExtensionRegistry = new ActionExtensionRegistry();
   // Exactly what documents.module.ts does to attach a third-party action to an EXISTING type: no
@@ -45,6 +50,9 @@ function buildService() {
   registerDuplicateExtension('quote', actionExtensionRegistry, actionRegistry);
 
   const referenceRegistry = new EntityReferenceRegistry();
+  // The quote's own actions never touch a transport — an empty registry proves that (any accidental
+  // read would throw UnknownTransportError, not silently succeed).
+  const transportRegistry = new TransportRegistry();
 
   const service = new DocumentsService(
     typeRegistry,
@@ -52,6 +60,7 @@ function buildService() {
     actionRegistry,
     actionExtensionRegistry,
     referenceRegistry,
+    transportRegistry,
   );
   return { service, clientsService, mailService };
 }
@@ -105,31 +114,6 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
     expect(persistence.upsertDocument).not.toHaveBeenCalled();
   });
 
-  // The behaviour the task calls "must be BLOCKED and say so": "convert-to-invoice" is a real,
-  // declared action on the real quote descriptor, and genuinely has no implementation registered
-  // (quote-actions.ts). This is not a synthetic double standing in for the mechanism — it IS the
-  // mechanism, exercised through the exact wiring documents.module.ts uses. It replaces "send" in
-  // this role now that "send" has a real implementation (see the "send" describe block below).
-  it('blocks "convert-to-invoice" — declared, no implementation registered — with a clear 501', async () => {
-    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
-      id: 'doc-1',
-      typeId: 'quote',
-      status: 'draft',
-      data: validQuoteData,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    const { service } = buildService();
-    const action = service.runAction('company-1', 'quote', 'convert-to-invoice', {
-      documentId: 'doc-1',
-      data: validQuoteData,
-    });
-
-    await expect(action).rejects.toBeInstanceOf(NotImplementedException);
-    await expect(action).rejects.toThrow(/no registered implementation/);
-  });
-
   it('blocks "send" before the document is even saved — it has no status to match "draft" yet', async () => {
     await expect(
       buildService().service.runAction('company-1', 'quote', 'send', { data: validQuoteData }),
@@ -140,7 +124,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
   // The 409 the task explicitly asks to keep proven: a scripted client cannot get further than the
   // UI would by posting directly for a status the action does not allow. "sent" is a real status a
   // quote can be in, and "convert-to-invoice" genuinely requires "draft" or "sent" — this uses a
-  // status OUTSIDE that list, so the request must be refused before the 501 check is ever reached.
+  // status OUTSIDE that list, so the request must be refused before the handler is ever reached.
   it('refuses an action for a status outside its availableWhen list — 409, not a silent bypass', async () => {
     (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
       id: 'doc-1',
@@ -167,7 +151,60 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
     ).rejects.toThrow(/has no action "archive"/);
   });
 
-  describe('"send" — implemented through the generic action mechanism, no special case', () => {
+  describe('"convert-to-invoice" — implemented, unlike "record-payment" on the invoice', () => {
+    it('creates a new invoice draft, carrying the quote data over and linking back with `origin`', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'quote-doc-1',
+        typeId: 'quote',
+        status: 'draft',
+        data: validQuoteData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+        id: 'invoice-doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: { ...validQuoteData, origin: { entity: 'quote', id: 'quote-doc-1' } },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'quote', 'convert-to-invoice', {
+        documentId: 'quote-doc-1',
+        data: validQuoteData,
+      });
+
+      expect(result.changed).toBe(true);
+      expect(result.document).toMatchObject({ id: 'invoice-doc-1', typeId: 'invoice', status: 'draft' });
+      // A NEW document (undefined id), of the OTHER type, created as a draft — never an update of the
+      // quote itself, and never anything other than "draft" (this is a brand-new record to finish).
+      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+        'company-1',
+        'invoice',
+        undefined,
+        'draft',
+        expect.objectContaining({
+          client: 'client-1',
+          currency: 'EUR',
+          lines: validQuoteData.lines,
+          origin: { entity: 'quote', id: 'quote-doc-1' },
+        }),
+      );
+    });
+
+    it('is still refused with a 409 before ever being saved — "before" is not in its availableWhen list', async () => {
+      await expect(
+        buildService().service.runAction('company-1', 'quote', 'convert-to-invoice', {
+          data: validQuoteData,
+        }),
+      ).rejects.toThrow(/not available before the document has been saved/);
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('"send" — implemented through the quote\'s own send-by-email mechanism, no special case', () => {
     it('validates its own params with the SAME field-kind vocabulary as document data', async () => {
       (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
         id: 'doc-1',
@@ -344,6 +381,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
         actionRegistry,
         actionExtensionRegistry,
         referenceRegistry,
+        new TransportRegistry(),
       );
 
       expect(() => service.onModuleInit()).toThrow(/declared both natively and as an extension/);

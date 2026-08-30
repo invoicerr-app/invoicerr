@@ -11,10 +11,12 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
 /**
  * The quote document type, entirely as data: no bespoke service, no controller of its own. Fields:
  * client (reference), issue date, due date, currency, notes, and repeatable lines (designation,
- * quantity, unit price). Actions: save the draft and send (both implemented, see
- * actions/quote-actions.ts) and convert-to-invoice (declared, deliberately NOT implemented — turning
- * a quote into an invoice needs an invoicing pipeline this branch does not build; see
- * quote-actions.ts for why that is left unregistered on purpose, the same way "send" once was).
+ * quantity, unit price). Actions: save the draft and send by email (both implemented, see
+ * actions/quote-actions.ts — sending a QUOTE by email is this type's own nature, not a mechanism it
+ * shares with the invoice, see invoice-actions.ts) and convert-to-invoice (implemented, see
+ * actions/convert-to-invoice.ts — it used to be the live "declared but not implemented" case this
+ * registry proves a 501 against; that role now belongs to the invoice's "record-payment", see
+ * invoice.descriptor.ts).
  */
 export function buildQuoteDescriptor(): DocumentTypeDescriptor {
   return {

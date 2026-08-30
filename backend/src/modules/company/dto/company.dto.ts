@@ -82,4 +82,8 @@ export class EditCompanyDto {
   paymentStartingNumber: number;
   paymentNumberFormat: string;
   identifiers?: IdentifierEntry[];
+  /** Which registered document transport (documents/transports/transport-registry.ts) the invoice
+   *  "send" action uses — e.g. "email". Null/empty clears the choice, which blocks sending until a
+   *  new one is chosen; see Company.invoiceTransportId's own comment in schema.prisma. */
+  invoiceTransportId?: string | null;
 }

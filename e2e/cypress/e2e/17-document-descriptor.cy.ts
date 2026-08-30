@@ -49,16 +49,17 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 		// Piloté par la donnée à deux niveaux : la liste des TYPES vient de l'API, puis pour
 		// chacun, la liste des CHAMPS vient aussi de l'API. Rien ici ne nomme "quote" ou "invoice".
 		listTypes().then((types) => {
-			// DEUX types au minimum, et c'est une assertion, pas un journal.
+			// TROIS types au minimum (devis, facture, avoir), et c'est une assertion, pas un journal.
 			//
 			// Une boucle sur une liste d'un seul élément passe aussi bien qu'une vraie boucle, et se
 			// donne les airs de la généricité sans la prouver. Si un jour un type disparaît du
 			// registre, ce test doit tomber : c'est le seul moyen que « le front ne connaît aucun
-			// type » reste une propriété vérifiée plutôt qu'une intention.
+			// type » reste une propriété vérifiée plutôt qu'une intention. Le compte : montré ici,
+			// dans le message de l'assertion elle-même, pas seulement dans un commentaire.
 			expect(
 				types.map((t) => t.id),
-				`au moins deux types couverts — vus : ${types.map((t) => t.id).join(", ")}`,
-			).to.have.length.of.at.least(2);
+				`au moins trois types couverts — vus (${types.length}) : ${types.map((t) => t.id).join(", ")}`,
+			).to.have.length.of.at.least(3);
 
 			for (const type of types) {
 				descriptorFor(type.id).then((d) => {
@@ -123,22 +124,78 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 		});
 	});
 
+	it("la facture bloque son envoi quand la société n'a configuré AUCUN transport — jamais un repli silencieux", () => {
+		// La société de test n'a par défaut aucun `invoiceTransportId` (voir cypress/support/commands.ts,
+		// `resetAndSeed` ne le fixe jamais) : c'est l'état "aucun transport choisi" par construction.
+		// Ce test tourne donc délibérément AVANT celui qui suit (lequel configure "email" sur cette
+		// même société pour amener une facture au statut "sent") — l'ordre des `it` dans ce fichier
+		// n'est pas accessoire, `resetAndSeed` ne rejoue qu'une fois par fichier (`before`, pas
+		// `beforeEach`), donc l'état de la société traverse les tests.
+		cy.request({ url: `${api}/api/documents/references/client/search` })
+			.its("body")
+			.then((clients: { id: string }[]) => {
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/invoice/actions/save-draft`,
+					body: {
+						data: {
+							client: clients[0].id,
+							issueDate: "2026-08-30",
+							dueDate: "2026-09-30",
+							currency: "EUR",
+							lines: [{ description: "Conseil", quantity: 1, unitPrice: 500 }],
+						},
+					},
+					failOnStatusCode: false,
+				}).then((saved) => {
+					expect(saved.status, "brouillon de facture créé").to.be.oneOf([200, 201]);
+					const id = saved.body?.document?.id;
+
+					cy.request({
+						method: "POST",
+						url: `${api}/api/documents/types/invoice/actions/send`,
+						body: {
+							documentId: id,
+							data: {
+								client: clients[0].id,
+								issueDate: "2026-08-30",
+								dueDate: "2026-09-30",
+								currency: "EUR",
+								lines: [{ description: "Conseil", quantity: 1, unitPrice: 500 }],
+							},
+						},
+						failOnStatusCode: false,
+					}).then((res) => {
+						expect(
+							res.status,
+							`bloquée — ${JSON.stringify(res.body).slice(0, 200)}`,
+						).to.eq(501);
+						expect(
+							String(res.body?.message ?? ""),
+							"le message dit clairement qu'aucun transport n'est configuré, jamais un envoi silencieux par courriel",
+						).to.match(/no transport is configured/i);
+					});
+				});
+			});
+	});
+
 	it("une action déclarée SANS implémentation est refusée, et l'utilisateur lit pourquoi", () => {
-		// `convert-to-invoice` est déclarée sur le devis et volontairement non implémentée.
+		// `record-payment` est déclarée sur la facture et volontairement non implémentée.
 		//
-		// Il faut d'abord un document ENREGISTRÉ : sur un document jamais sauvé, c'est le contrôle de
-		// disponibilité qui refuse en premier (409, « pas avant que le document soit enregistré »), et
-		// on n'atteint jamais le 501. Ma première version attendait un 501 tout de suite : c'était
-		// l'assertion qui avait tort, pas le produit. Les deux gardes se suivent dans le bon ordre —
-		// la disponibilité d'abord, l'implémentation ensuite.
-		// Un brouillon VALIDE : la validation refuse à juste titre un document incomplet, et c'est
-		// le comportement voulu — on lui donne donc de quoi être accepté, sans rien contourner.
+		// Ce n'est plus `convert-to-invoice` (devis) qui porte ce rôle : cette action a depuis été
+		// implémentée pour de vrai (elle crée une facture liée), donc l'appeler ne renvoie plus 501 —
+		// et figer ce test dessus l'aurait fait mentir sur ce que le produit fait désormais. Le
+		// mécanisme « déclarée mais non implémentée → 501, clair » n'a pas disparu pour autant :
+		// `record-payment`, sur la facture, en est maintenant la seule vitrine vivante (avec
+		// documents.service.invoice.spec.ts côté jest).
 		//
-		// Ce test reste sur UN type précis (le devis) plutôt que de boucler comme les deux précédents :
-		// il lui faut une action réellement déclarée-mais-non-implémentée et connue à l'avance, ce qui
-		// n'est pas une propriété generique de "n'importe quel type enregistré" — la facture a la
-		// sienne (record-payment), couverte côté jest (documents.service.invoice.spec.ts), exactement
-		// pour la même raison de discipline.
+		// Il faut d'abord une facture au statut "sent" : `record-payment` n'est offerte qu'à partir de
+		// là (avant, c'est le 409 de disponibilité qui refuse en premier — le même garde-fou que le
+		// test précédent observe, côté "send", avant même d'atteindre le 501). Pour l'atteindre sans
+		// rien simuler, ce test passe par le vrai chemin : un transport "email" réellement configuré
+		// sur la société (cette fois pour de bon — le test précédent, lui, en dépendait de l'ABSENCE),
+		// un brouillon réel, un envoi réel (qui atterrit dans le vrai Mailpit de la pile e2e) — pas un
+		// raccourci qui forcerait le statut en base.
 		cy.request({ url: `${api}/api/documents/references/client/search` })
 			.its("body")
 			.then((clients: { id: string }[]) => {
@@ -149,38 +206,69 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 
 				cy.request({
 					method: "POST",
-					url: `${api}/api/documents/types/quote/actions/save-draft`,
-					body: {
-						data: {
-							client: clients[0].id,
-							issueDate: "2026-08-30",
-							currency: "EUR",
-							lines: [{ description: "Conseil", quantity: 1, unitPrice: 500 }],
-						},
-					},
+					url: `${api}/api/company/info`,
+					// Une société sans transport configuré bloque l'envoi (voir le test dédié plus bas) —
+					// il faut donc réellement en choisir un ici, comme le ferait un utilisateur dans les
+					// paramètres, avant de pouvoir amener une facture au statut "sent".
+					body: { invoiceTransportId: "email" },
 					failOnStatusCode: false,
-				}).then((saved) => {
+				}).then((companyRes) => {
 					expect(
-						saved.status,
-						`brouillon créé — ${JSON.stringify(saved.body).slice(0, 220)}`,
+						companyRes.status,
+						`transport "email" configuré sur la société — ${JSON.stringify(companyRes.body).slice(0, 200)}`,
 					).to.be.oneOf([200, 201]);
-					const id = saved.body?.document?.id;
-					expect(id, "le brouillon a un identifiant").to.be.a("string");
+
+					const invoiceData = {
+						client: clients[0].id,
+						issueDate: "2026-08-30",
+						dueDate: "2026-09-30",
+						currency: "EUR",
+						lines: [{ description: "Conseil", quantity: 1, unitPrice: 500 }],
+					};
 
 					cy.request({
 						method: "POST",
-						url: `${api}/api/documents/types/quote/actions/convert-to-invoice`,
-						body: { documentId: id },
+						url: `${api}/api/documents/types/invoice/actions/save-draft`,
+						body: { data: invoiceData },
 						failOnStatusCode: false,
-					}).then((res) => {
+					}).then((saved) => {
 						expect(
-							res.status,
-							`refusée — ${JSON.stringify(res.body).slice(0, 200)}`,
-						).to.eq(501);
-						expect(
-							String(res.body?.message ?? ""),
-							"le message nomme l'action et dit qu'elle n'a pas d'implémentation",
-						).to.match(/convert-to-invoice/);
+							saved.status,
+							`brouillon de facture créé — ${JSON.stringify(saved.body).slice(0, 220)}`,
+						).to.be.oneOf([200, 201]);
+						const id = saved.body?.document?.id;
+						expect(id, "le brouillon a un identifiant").to.be.a("string");
+
+						cy.request({
+							method: "POST",
+							url: `${api}/api/documents/types/invoice/actions/send`,
+							body: { documentId: id, data: invoiceData },
+							failOnStatusCode: false,
+						}).then((sent) => {
+							expect(
+								sent.status,
+								`facture réellement envoyée via le transport configuré — ${JSON.stringify(sent.body).slice(0, 220)}`,
+							).to.be.oneOf([200, 201]);
+							expect(sent.body?.document?.status, "la facture est maintenant \"sent\"").to.eq(
+								"sent",
+							);
+
+							cy.request({
+								method: "POST",
+								url: `${api}/api/documents/types/invoice/actions/record-payment`,
+								body: { documentId: id, data: invoiceData },
+								failOnStatusCode: false,
+							}).then((res) => {
+								expect(
+									res.status,
+									`refusée — ${JSON.stringify(res.body).slice(0, 200)}`,
+								).to.eq(501);
+								expect(
+									String(res.body?.message ?? ""),
+									"le message nomme l'action et dit qu'elle n'a pas d'implémentation",
+								).to.match(/record-payment/);
+							});
+						});
 					});
 				});
 			});

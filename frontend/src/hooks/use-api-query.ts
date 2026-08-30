@@ -20,7 +20,10 @@ export class ApiError extends Error {
   }
 }
 
-async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
+/** Exported so a hook that needs to fan out to SEVERAL queries at once (e.g. a multi-target
+ *  'reference' field searching across every entity it allows — see useMultiEntityReferenceSearch)
+ *  can build each one with `useQueries` instead of duplicating this fetch/error-shape logic. */
+export async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const fullUrl = url.startsWith("http") ? url : `${import.meta.env.VITE_BACKEND_URL || ""}${url}`
   const res = await authenticatedFetch(fullUrl, init)
   if (!res.ok) {

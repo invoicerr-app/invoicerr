@@ -11,8 +11,8 @@ import { RunActionDto } from './dto/documents.dto';
 export class DocumentsController {
   constructor(private readonly documentsService: DocumentsService) {}
 
-  // Static segments ('types', 'references/:entity/search') are declared before the dynamic
-  // ':id'/':refId' routes at the same depth so Nest/Express match the literal first — see
+  // Static segments ('types', 'transports', 'references/:entity/search') are declared before the
+  // dynamic ':id'/':refId' routes at the same depth so Nest/Express match the literal first — see
   // documents.module.ts's comment header for why this ordering matters here.
 
   @Get('types')
@@ -35,6 +35,18 @@ export class DocumentsController {
   @ApiResponse({ status: 404, description: 'Unknown document type' })
   getType(@Param('typeId') typeId: string) {
     return this.documentsService.getType(typeId);
+  }
+
+  @Get('transports')
+  @ApiOperation({
+    summary: 'List document transports',
+    description:
+      'Every registered document transport, id and label only — what a company chooses from for ' +
+      'Company.invoiceTransportId. Never scoped by country: the choice is a company setting.',
+  })
+  @ApiResponse({ status: 200, description: 'Transports retrieved' })
+  listTransports() {
+    return this.documentsService.listTransports();
   }
 
   @Get('references/:entity/search')

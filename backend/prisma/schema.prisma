@@ -304,6 +304,13 @@ model Company {
 
   invoicePDFFormat String @default("facturx") // Ex: 'pdf' | 'facturx' | 'zugferd' | 'xrechnung' | 'ubl' | 'cii'
 
+  // Which registered document transport (documents/transports/transport-registry.ts) an invoice's
+  // "send" action delivers through — e.g. "email". No default, deliberately: a company that has
+  // never chosen one gets a clear, loud block when it tries to send an invoice (see
+  // documents/actions/invoice-actions.ts), not a silent fallback to any particular channel. Never a
+  // country/jurisdiction column — the choice belongs to the company, not to where it is.
+  invoiceTransportId String?
+
   dateFormat String @default("dd/MM/yyyy") // Date format for quotes and invoices
 
   createdAt DateTime @default(now())

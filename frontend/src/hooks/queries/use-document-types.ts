@@ -1,4 +1,6 @@
-import { useApiMutation, useApiQuery } from "@/hooks/use-api-query"
+import { useQueries } from "@tanstack/react-query"
+
+import { apiFetch, useApiMutation, useApiQuery } from "@/hooks/use-api-query"
 
 import type {
   ActionResult,
@@ -86,4 +88,42 @@ export function useReferenceResolve(entity: string | undefined, id: string | und
     `/api/documents/references/${entity}/${id}`,
     { enabled: !!entity && !!id },
   )
+}
+
+/** One search result from a MULTI-target 'reference' field's fan-out search, tagged with which
+ *  entity it came from — this is what lets the picker show "of which type" each result is. */
+export interface EntityReferenceSearchHit extends EntityReferenceOption {
+  entity: string
+}
+
+/**
+ * Fans a single search query out to EVERY entity a multi-target 'reference' field allows (e.g.
+ * `entities: ["quote", "invoice"]`), through the exact same generic per-entity search endpoint a
+ * single-target field already uses — no backend endpoint changes needed for "multiple targets" at
+ * all, only calling the existing one more than once and merging. `useQueries` (not a fixed number of
+ * `useReferenceSearch` calls) is what lets `entities` be a runtime-provided list without breaking the
+ * rules of hooks.
+ */
+export function useMultiEntityReferenceSearch(entities: string[], query: string) {
+  return useQueries({
+    queries: entities.map((entity) => ({
+      queryKey: ["document-references", entity, "search", query],
+      queryFn: () =>
+        apiFetch<EntityReferenceOption[]>(
+          `/api/documents/references/${entity}/search?q=${encodeURIComponent(query)}`,
+        ),
+    })),
+    combine: (results) => ({
+      data: results.flatMap((result, index) =>
+        (result.data ?? []).map((option) => ({ ...option, entity: entities[index] })),
+      ) as EntityReferenceSearchHit[],
+      isLoading: results.some((result) => result.isLoading),
+    }),
+  })
+}
+
+/** The registered document transports (documents/transports/transport-registry.ts) — what a
+ *  company's settings screen offers for `invoiceTransportId`. Never scoped by country. */
+export function useDocumentTransports() {
+  return useApiQuery<DocumentTypeSummary[]>(["document-transports"], "/api/documents/transports")
 }

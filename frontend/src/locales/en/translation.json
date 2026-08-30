@@ -1740,6 +1740,11 @@
             "required": "Invoice PDF format is required"
           }
         },
+        "invoiceTransportId": {
+          "label": "Invoice sending method",
+          "placeholder": "Not configured",
+          "description": "How an invoice is delivered once you send it. Choose from the transports registered on this instance; leave unconfigured and sending will block with a clear message."
+        },
         "dateFormat": {
           "label": "Date Format",
           "placeholder": "Select date format",

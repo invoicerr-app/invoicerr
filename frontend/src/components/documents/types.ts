@@ -21,12 +21,29 @@ export interface DocumentFieldDescriptor {
   currency?: string
   /** 'money': the key of a top-level sibling field whose current value is the currency to show. */
   currencyField?: string
-  /** 'reference': which entity the generic search/resolve endpoints target (e.g. "client"). */
+  /** 'reference', SINGLE target: which entity the generic search/resolve endpoints target (e.g.
+   *  "client"). The stored value is a plain non-empty id string. */
   entity?: string
+  /** 'reference', MULTIPLE possible targets (e.g. an invoice's origin can be a quote OR another
+   *  invoice) — mutually exclusive with `entity`. When set, the field's stored value is
+   *  `{ entity, id }` (see `MultiTargetReferenceValue`), not a bare id: a bare id alone can no
+   *  longer say which entity it targets once more than one is possible. */
+  entities?: string[]
   /** 'array': the shape of one row. */
   fields?: DocumentFieldDescriptor[]
   min?: number
   max?: number
+}
+
+/** A multi-target 'reference' field's stored value — see `DocumentFieldDescriptor.entities`. */
+export interface MultiTargetReferenceValue {
+  entity: string
+  id: string
+}
+
+/** Whether `field` was declared with `entities` (multi-target) rather than a single `entity`. */
+export function isMultiTargetReference(field: DocumentFieldDescriptor): boolean {
+  return !!field.entities?.length
 }
 
 export interface DocumentActionDescriptor {

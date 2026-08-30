@@ -1,4 +1,4 @@
-import { CORE_FIELD_KINDS, DocumentFieldDescriptor } from './types';
+import { CORE_FIELD_KINDS, DocumentFieldDescriptor, isMultiTargetReference } from './types';
 
 /** Everything a validator needs beyond the raw value: the field's own descriptor, and the whole
  *  document's data so a kind can read a sibling field (e.g. 'money' resolving `currencyField`). */
@@ -87,9 +87,29 @@ export function registerCoreFieldKinds(registry: FieldKindRegistry): void {
   // company-scoped lookup through EntityReferenceRegistry, which a synchronous structural validator
   // cannot do. This kind only proves "a non-empty id was submitted" — DocumentsService.runAction
   // does not currently cross-check it against the entity, which is the documented limitation.
-  registry.register('reference', (value) =>
-    typeof value === 'string' && value.length > 0 ? null : 'must reference an existing record.',
-  );
+  //
+  // A MULTI-TARGET field (`field.entities` set — see types.ts) additionally has to prove which of
+  // the allowed entities the id belongs to, because a bare id string can no longer say that by
+  // itself once there is more than one possible target: the stored value becomes
+  // `{ entity, id }`, and `entity` must be one of the declared targets. A single-target field
+  // (`field.entity`) is completely unchanged by this — same bare-string check as before.
+  registry.register('reference', (value, { field }) => {
+    if (!isMultiTargetReference(field)) {
+      return typeof value === 'string' && value.length > 0 ? null : 'must reference an existing record.';
+    }
+
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return 'must reference an existing record (with its type).';
+    }
+    const { entity, id } = value as Record<string, unknown>;
+    if (typeof entity !== 'string' || !(field.entities ?? []).includes(entity)) {
+      return `must reference one of: ${(field.entities ?? []).join(', ')}.`;
+    }
+    if (typeof id !== 'string' || id.length === 0) {
+      return 'must reference an existing record.';
+    }
+    return null;
+  });
 
   registry.register('array', (value, { field }) => {
     if (!Array.isArray(value)) return 'must be a list.';

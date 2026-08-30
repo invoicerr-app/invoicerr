@@ -38,4 +38,9 @@ export interface Company {
   invoiceStartingNumber: number
   invoiceNumberFormat: string
   partyIdentifiers?: PartyIdentifier[]
+  /** Which registered document transport (GET /api/documents/transports) the invoice "send" action
+   *  uses — e.g. "email". Null/unset means no transport is configured: sending blocks until one is
+   *  chosen (see backend/src/modules/documents/actions/invoice-actions.ts). Never a country/channel
+   *  the app infers — it is only ever this stored choice. */
+  invoiceTransportId?: string | null
 }
