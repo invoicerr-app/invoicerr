@@ -1,5 +1,6 @@
 import { Currency } from '../../../../prisma/generated/prisma/client';
-import { DocumentTypeDescriptor } from './types';
+import { transitionsAvailableWhen } from './lifecycle';
+import { DocumentActionTransition, DocumentTypeDescriptor } from './types';
 
 /** Same reused, un-invented list as the quote's and the invoice's — see quote.descriptor.ts. */
 const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, label: code }));
@@ -42,11 +43,20 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * le brouillon"), so nothing else is declared: a "send" or a status-changing action here would mean
  * inventing policy (who does a credit note go to? does it need its own transport?) that was never part
  * of this task.
+ *
+ * Lifecycle: a SINGLE status, "draft" — the only one "save-draft" (generic-actions.ts's
+ * registerSaveDraftAction) ever writes, from any current status (`from: 'always'`, trivially true
+ * here since "draft" is the only status this type's own lifecycle has ever reached). No second
+ * status is invented: nothing asked for one, and no handler produces one.
  */
+const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
+
 export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'credit-note',
     label: 'Credit note',
+    statuses: [{ id: 'draft', label: 'Draft' }],
+    initialStatus: 'draft',
     // See types.ts's own comment on `listItem`. `invoice` is required and is what a credit note
     // IS relative to (the invoice it corrects) — the natural heading for a list of credit notes.
     listItem: {
@@ -97,7 +107,8 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
       {
         id: 'save-draft',
         label: 'Save draft',
-        availableWhen: 'always',
+        transitions: SAVE_DRAFT_TRANSITIONS,
+        availableWhen: transitionsAvailableWhen(SAVE_DRAFT_TRANSITIONS),
       },
     ],
   };

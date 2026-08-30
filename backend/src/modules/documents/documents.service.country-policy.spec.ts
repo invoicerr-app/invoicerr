@@ -160,6 +160,59 @@ describe('DocumentsService.runAction — composed with the country policy', () =
     expect(countryPolicy.evaluateCountryPolicy).toHaveBeenCalledWith('company-1', 'invoice', 'save-draft');
   });
 
+  describe("per-status country-policy narrowing (rule.statuses) — composed with the record's own status", () => {
+    it("blocks with a 409 (not a 403) when the restriction excludes the record's current status", async () => {
+      (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({
+        allowed: true,
+        restrictedToStatuses: ['draft'],
+      });
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sent', // outside the restriction, though "save-draft" itself allows "sent" too
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const service = buildService();
+      const action = service.runAction('company-1', 'invoice', 'save-draft', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      await expect(action).rejects.toBeInstanceOf(ConflictException);
+      await expect(action).rejects.not.toBeInstanceOf(ForbiddenException);
+      await expect(action).rejects.toThrow(
+        /restricted by this company's country policy to status\(es\) draft/,
+      );
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+
+    it('allows the exact same action at a status the restriction DOES cover', async () => {
+      (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({
+        allowed: true,
+        restrictedToStatuses: ['draft'],
+      });
+      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const service = buildService();
+      const result = await service.runAction('company-1', 'invoice', 'save-draft', {
+        documentId: undefined,
+        data: validInvoiceData,
+      });
+
+      expect(result.changed).toBe(true);
+    });
+  });
+
   describe('describeTypeForCompany — the frontend-facing view', () => {
     it('leaves an allowed action untouched, and annotates a forbidden one with policyBlockedReason', async () => {
       (countryPolicy.evaluateCountryPolicy as jest.Mock).mockImplementation(

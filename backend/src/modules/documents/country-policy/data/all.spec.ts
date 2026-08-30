@@ -85,6 +85,25 @@ describe('country-policy/data — the shipped FR and US files', () => {
     }
   });
 
+  // The one real, shipped example of the per-status narrowing (schema.ts's
+  // `DocumentActionRuleFact.statuses`) — see this rule's own `resolutionNote` for why it stays
+  // `unverified` (not sourced to the CGI/BOFiP text directly) rather than `legal`.
+  it('FR restricts invoice.save-draft to "draft" — the one real per-status narrowing this file ships', () => {
+    const fr = fileFor('FR');
+    const rule = fr.rules.find((r) => r.typeId === 'invoice' && r.actionId === 'save-draft');
+    expect(rule?.statuses).toEqual(['draft']);
+  });
+
+  it('no OTHER shipped rule declares a per-status narrowing — this stays a single, deliberate example', () => {
+    for (const file of ALL_COUNTRY_POLICY_FILES) {
+      for (const rule of file.rules) {
+        if (rule.typeId === 'invoice' && rule.actionId === 'save-draft' && file.countryCode === 'FR')
+          continue;
+        expect(rule.statuses ?? []).toEqual([]);
+      }
+    }
+  });
+
   it('every `documentTypes` entry in every shipped file names a type the core actually registers — no stale or misspelled id', () => {
     for (const file of ALL_COUNTRY_POLICY_FILES) {
       const unknown = (file.documentTypes ?? []).filter((typeId) => !ALL_DOCUMENT_TYPE_IDS.includes(typeId));

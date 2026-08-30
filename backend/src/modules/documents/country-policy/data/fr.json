@@ -42,9 +42,10 @@
       "typeId": "invoice",
       "actionId": "save-draft",
       "allowed": true,
+      "statuses": ["draft"],
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Un brouillon de facture n'est pas encore une facture émise ; aucun texte identifié n'encadre cette étape interne. Le principe bien connu selon lequel une facture ÉMISE ne peut plus être modifiée (et se corrige par avoir) est une vraie règle de droit français, mais elle ne s'applique pas ici tant que ce noyau ne déclare aucune action de modification d'une facture déjà émise — voir la note de tête de invoice.descriptor.ts sur ce même sujet. À revoir si une telle action était ajoutée un jour."
+        "resolutionNote": "Un brouillon de facture n'est pas encore une facture émise ; aucun texte identifié n'encadre cette étape interne tant que la facture reste au statut 'draft'. Le champ `statuses` ci-dessus restreint en revanche l'action à CE statut, c'est-à-dire qu'il REFUSE de ré-enregistrer en brouillon (`save-draft` réécrit toujours 'draft', voir invoice.descriptor.ts) une facture déjà 'sent' : c'est une application, pas encore vérifiée à la source, du principe bien connu selon lequel une facture ÉMISE ne peut plus être modifiée et se corrige par avoir (une conséquence usuelle du CGI art. 289 et des règles de conservation des pièces comptables, souvent résumée au BOFiP TVA-DECLA-30-20). Ce qui trancherait : lire le texte exact (CGI/BOFiP, ou à défaut la doctrine de l'administration fiscale sur l'intangibilité de la facture émise) et confirmer qu'il vise bien cette opération précise (ré-enregistrer un brouillon en base) et non seulement la facture transmise elle-même."
       }
     },
     {

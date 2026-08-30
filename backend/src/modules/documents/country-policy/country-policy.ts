@@ -26,6 +26,18 @@ export interface CountryPolicyDecision {
    *  ActionResult.message elsewhere in this module, not an i18n key): names the country and says
    *  what would unblock it, so the frontend can show it verbatim without knowing any country. */
   reason?: string;
+  /**
+   * Present only when allowed=true AND the matching rule narrows itself to specific statuses (see
+   * schema.ts's `DocumentActionRuleFact.statuses`) — the STATUS ids the action may run from, on top
+   * of whatever the document type's own `availableWhen`/lifecycle already requires. Absent means the
+   * country imposes no extra narrowing beyond the type's own rules.
+   *
+   * documents.service.ts's `runAction` composes this with `isActionAvailable` into the SAME 409
+   * "not available for this status" refusal `availableWhen` already produces — deliberately not its
+   * own 403: the action IS permitted by the country in principle, just not from this status, which
+   * is exactly what a 409 (a status/state conflict) means elsewhere in this module already.
+   */
+  restrictedToStatuses?: string[];
 }
 
 /** Where a human adds the missing file — spelled out in the block message itself, the same way
@@ -119,7 +131,11 @@ export async function evaluateCountryPolicy(
     };
   }
 
-  return { allowed: true };
+  // `statuses` is meaningless on a forbidden rule (handled above) — only ever read here, once the
+  // rule is already known to allow the action at all. See schema.ts's own comment on the field.
+  const restrictedToStatuses =
+    Array.isArray(rule.statuses) && rule.statuses.length > 0 ? rule.statuses : undefined;
+  return restrictedToStatuses ? { allowed: true, restrictedToStatuses } : { allowed: true };
 }
 
 export interface AvailableDocumentTypesDecision {

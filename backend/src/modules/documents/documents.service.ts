@@ -34,6 +34,11 @@ import { applyFieldOverlay } from './country-fields/apply-overlay';
 import { CountryFieldOverlayCatalog } from './country-fields/registry';
 import { applyCompanyFieldView } from './descriptors/company-view';
 import { FieldKindRegistry } from './descriptors/field-kinds';
+import {
+  checkTransitionResult,
+  findUndeclaredStatusInstances,
+  validateLifecycle,
+} from './descriptors/lifecycle';
 import { DocumentTypeRegistry, UnknownDocumentTypeError } from './descriptors/type-registry';
 import {
   DocumentActionDescriptor,
@@ -77,6 +82,20 @@ import {
  *  differently-elemented array types does not simplify the way an interface override does. */
 export interface DocumentActionDescriptorView extends DocumentActionDescriptor {
   policyBlockedReason?: string;
+  /**
+   * The country policy's own per-status narrowing (country-policy/schema.ts's
+   * `DocumentActionRuleFact.statuses`, surfaced via `evaluateCountryPolicy`'s own
+   * `restrictedToStatuses`) — carried as ITS OWN fact, deliberately NEVER folded into
+   * `availableWhen` above. See lifecycle.ts's own closing comment ("A note on what deliberately does
+   * NOT live in this file") for the real bug that shipped the day this WAS folded in: `availableWhen:
+   * 'always'` means "every existing status, AND a brand-new record"; a country restricting it to,
+   * say, `['draft']` must narrow only the EXISTING-status half — a never-saved record has no status
+   * for the country's rule to have an opinion about (the same reasoning `runAction`'s own per-status
+   * 409 check already holds). The frontend's `isActionAvailable` (types.ts, mirrored from this
+   * field's shape) is what composes the two facts back together for rendering — the exact same
+   * composition `runAction` performs server-side, right next to its own `availableWhen` check.
+   */
+  policyRestrictedToStatuses?: string[];
 }
 
 export interface DocumentTypeDescriptorView extends Omit<DocumentTypeDescriptor, 'actions'> {
@@ -117,9 +136,60 @@ export class DocumentsService implements OnModuleInit {
   onModuleInit(): void {
     for (const { id } of this.typeRegistry.list()) {
       const descriptor = this.mergedDescriptor(id);
+      // Re-validates the FULL merged lifecycle (native actions + whatever a third-party extension
+      // attached, e.g. "duplicate") once more here — DocumentTypeRegistry.register() (type-registry.ts)
+      // already validated the type's OWN declaration the moment it registered, but an extension's
+      // `availableWhen`/`transitions` (duplicate-extension.ts) are never seen by that call at all. A
+      // second, independent gate, same discipline country-policy/schema.ts's assertValidProvenance
+      // documents for its own concern.
+      validateLifecycle(descriptor);
       for (const countryCode of this.countryFieldOverlayCatalog.countries()) {
         applyFieldOverlay(descriptor.fields, this.countryFieldOverlayCatalog.operationsFor(countryCode, id));
       }
+    }
+
+    // Fire-and-forget, deliberately: a DB round-trip has no business making the app wait to finish
+    // booting, and — same discipline as every other check in this method — a data anomaly here is a
+    // loud LOG, never something that takes the whole app down with it. `.catch()` below is what keeps
+    // a query failure (e.g. a migration not yet applied) from becoming an unhandled rejection.
+    this.warnAboutUndeclaredStatuses().catch((error) => {
+      logger.error('Failed to check document instances for an undeclared lifecycle status', {
+        category: 'documents',
+        details: { error: error instanceof Error ? error.message : String(error) },
+      });
+    });
+  }
+
+  /**
+   * The "data migration" question the lifecycle mechanism raises, answered at every boot rather than
+   * once by hand: every DISTINCT (typeId, status) pair actually persisted in `DocumentInstance`,
+   * checked against each type's own declared `statuses` (findUndeclaredStatusInstances,
+   * descriptors/lifecycle.ts). For the four shipped types today, every status any handler has ever
+   * written (draft/sent) is exactly what their descriptors declare — verified by hand, not just by
+   * this check — so this finds nothing to report on a fresh checkout. It exists for what comes
+   * NEXT: a future descriptor change, or a stray manual DB edit, that leaves a status behind no
+   * declaration covers must be a loud, named warning at boot, never a silent mismatch a user only
+   * discovers when a screen renders oddly or an action refuses for a reason nobody can explain.
+   */
+  private async warnAboutUndeclaredStatuses(): Promise<void> {
+    const instances = await prisma.documentInstance.findMany({
+      select: { typeId: true, status: true },
+      distinct: ['typeId', 'status'],
+    });
+
+    const violations = findUndeclaredStatusInstances((typeId) => {
+      try {
+        return this.mergedDescriptor(typeId);
+      } catch {
+        return undefined;
+      }
+    }, instances);
+
+    for (const violation of violations) {
+      logger.warn('A document instance carries a status its type never declares in its lifecycle', {
+        category: 'documents',
+        details: violation,
+      });
     }
   }
 
@@ -250,7 +320,15 @@ export class DocumentsService implements OnModuleInit {
       fields,
       actions: descriptor.actions.map((action, index) => {
         const decision = decisions[index];
-        return decision.allowed ? action : { ...action, policyBlockedReason: decision.reason };
+        if (!decision.allowed) return { ...action, policyBlockedReason: decision.reason };
+        // The country policy allows the action but narrows it to specific statuses (schema.ts's
+        // `DocumentActionRuleFact.statuses`) — carried as its OWN field, `policyRestrictedToStatuses`,
+        // deliberately NEVER merged into `availableWhen` itself. See `DocumentActionDescriptorView`'s
+        // own comment on that field for why folding the two together is the bug this shape replaced.
+        if (decision.restrictedToStatuses) {
+          return { ...action, policyRestrictedToStatuses: decision.restrictedToStatuses };
+        }
+        return action;
       }),
     };
   }
@@ -365,7 +443,9 @@ export class DocumentsService implements OnModuleInit {
    *  - unknown type / action not declared on it (native OR extension) -> 404
    *  - the active company's country forbids this action, or has no policy at all -> 403, names the
    *    country and says what would unblock it (see country-policy/country-policy.ts)
-   *  - action declared but not available for the record's current status -> 409
+   *  - action declared but not available for the record's current status -> 409 (the descriptor's
+   *    own `availableWhen`, OR the country policy's own per-status narrowing — schema.ts's
+   *    `DocumentActionRuleFact.statuses` — refuses it; both land on the same 409, never a second 403)
    *  - action declared, available, but no implementation registered -> 501, clearly worded
    *  - document data or the action's own params don't match their descriptors -> 400, per-field
    *
@@ -374,6 +454,11 @@ export class DocumentsService implements OnModuleInit {
    * refuses" true by construction rather than by the frontend and backend happening to agree: a
    * scripted client hitting this endpoint directly goes through the exact same policy check a click
    * would have.
+   *
+   * Once a handler returns, `checkTransitionResult` (descriptors/lifecycle.ts) makes SURE the status
+   * it actually persisted (if any, on THIS same record) is the one the type's own declared lifecycle
+   * says it must be — a handler bug that persists an undeclared status is a thrown Error here, never
+   * a phantom status quietly reaching the database.
    */
   async runAction(
     companyId: string,
@@ -398,6 +483,28 @@ export class DocumentsService implements OnModuleInit {
         currentStatus === undefined
           ? `Action "${actionId}" is not available before the document has been saved.`
           : `Action "${actionId}" is not available for a document with status "${currentStatus}".`,
+      );
+    }
+    // The country policy's OWN per-status narrowing (schema.ts's `DocumentActionRuleFact.statuses`)
+    // — a SEPARATE restriction from the descriptor's own `availableWhen` just checked above, composed
+    // here rather than folded into `evaluateCountryPolicy`'s allowed/forbidden decision: the action
+    // IS permitted by this country in principle (policyDecision.allowed is already true at this
+    // point), just not from this particular status, which is exactly what a 409 already means for
+    // the descriptor's own `availableWhen` — never a second, redundant 403.
+    //
+    // A brand-new, never-saved record (`currentStatus === undefined`) is NOT checked against this
+    // restriction: there is no status yet for a country's per-status rule to have an opinion about —
+    // the record's eventual status is entirely up to the type's own lifecycle (`transitions`), which
+    // this restriction narrows only once a status actually exists to narrow. The descriptor's own
+    // `availableWhen: 'always'` already treats a never-saved record as satisfied the exact same way.
+    if (
+      currentStatus !== undefined &&
+      policyDecision.restrictedToStatuses &&
+      !policyDecision.restrictedToStatuses.includes(currentStatus)
+    ) {
+      throw new ConflictException(
+        `Action "${actionId}" of document type "${typeId}" is restricted by this company's country ` +
+          `policy to status(es) ${policyDecision.restrictedToStatuses.join(', ')}, not "${currentStatus}".`,
       );
     }
 
@@ -453,13 +560,38 @@ export class DocumentsService implements OnModuleInit {
     // data that has already passed every check above (never to data about to be rejected anyway).
     const data = stampRowIds(fields, payload.data ?? {}, referencedArrayFieldKeys(this.typeRegistry, typeId));
 
-    return handler({
+    const result = await handler({
       companyId,
       typeId,
       documentId: payload.documentId,
       data,
       params: payload.params ?? {},
     });
+
+    // See this method's own header comment on `checkTransitionResult` — a handler is no longer free
+    // to persist an arbitrary status; whatever it actually wrote (on THIS same record) must match
+    // what the type's own declared lifecycle says it should be.
+    const violation = checkTransitionResult(
+      descriptor,
+      typeId,
+      action,
+      payload.documentId,
+      currentStatus,
+      result,
+    );
+    if (violation) {
+      logger.error('Document action wrote a status outside its declared lifecycle', {
+        category: 'documents',
+        details: { typeId, actionId, ...violation },
+      });
+      throw new Error(
+        `Action "${actionId}" of document type "${typeId}" wrote status "${violation.actualStatus}" but its ` +
+          `declared lifecycle requires "${violation.expectedStatus}" here — this is a handler bug, not ` +
+          'something a request can trigger on its own.',
+      );
+    }
+
+    return result;
   }
 
   /**

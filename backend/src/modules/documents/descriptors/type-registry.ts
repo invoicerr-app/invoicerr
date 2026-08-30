@@ -1,3 +1,4 @@
+import { validateLifecycle } from './lifecycle';
 import { DocumentTypeDescriptor } from './types';
 
 /** Thrown by `resolve()` for an id nobody registered. Kept a plain Error (not a Nest exception) so
@@ -21,6 +22,10 @@ export class DocumentTypeRegistry {
     if (this.descriptors.has(descriptor.id)) {
       throw new Error(`Document type "${descriptor.id}" is already registered.`);
     }
+    // Fails the moment a broken lifecycle declaration is registered — at real app boot, or
+    // synchronously in a jest spec that calls .register() directly — never on whichever request
+    // happens to exercise the broken action first. See lifecycle.ts's own header.
+    validateLifecycle(descriptor);
     this.descriptors.set(descriptor.id, descriptor);
   }
 

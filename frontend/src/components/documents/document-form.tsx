@@ -8,7 +8,7 @@ import { DocumentField } from "@/components/documents/document-field"
 import { DocumentTotals } from "@/components/documents/document-totals"
 import { buildZodSchema, defaultValuesFor } from "@/components/documents/schema"
 import type { DocumentInstance, DocumentTypeDescriptor } from "@/components/documents/types"
-import { isActionAvailable } from "@/components/documents/types"
+import { isActionAvailable, resolveTransitionTarget, statusLabel } from "@/components/documents/types"
 import { useDocumentActionRunner } from "@/components/documents/use-document-action-runner"
 import { Button } from "@/components/ui/button"
 import { Form } from "@/components/ui/form"
@@ -99,33 +99,58 @@ export function DocumentForm({
         <DocumentTotals descriptor={descriptor} />
 
         <div className="flex flex-wrap gap-2 border-t pt-4">
-          {availableActions.map((action) => (
-            <div key={action.id} className="flex max-w-full flex-col gap-1">
-              <Button
-                type="button"
-                variant={action.id === firstRunnableAction?.id ? "default" : "outline"}
-                loading={isRunning && pendingAction === undefined}
-                disabled={!!action.policyBlockedReason}
-                tooltip={action.policyBlockedReason}
-                onClick={() => handleAction(action)}
-                dataCy={`document-action-${action.id}`}
-              >
-                {action.label}
-              </Button>
-              {action.policyBlockedReason && (
-                // Deliberately NOT prefixed "document-action-" — that prefix is what
-                // 17-document-descriptor.cy.ts's "no button appears that the descriptor didn't
-                // declare" check scans for, and treats every match as an ACTION id to look up in the
-                // descriptor; a reason element sharing that prefix would be misread as a bogus action.
-                <p
-                  className="max-w-xs text-xs text-muted-foreground"
-                  data-cy={`document-blocked-reason-${action.id}`}
+          {availableActions.map((action) => {
+            // What this action will DO to the status, deduced from the descriptor's own declared
+            // `transitions` (types.ts's resolveTransitionTarget) — never hard-coded here: an action
+            // with no transitions (e.g. "convert-to-invoice", "duplicate") shows no hint at all,
+            // since it never changes THIS record's own status.
+            const transitionTarget = resolveTransitionTarget(action, currentStatus)
+
+            return (
+              <div key={action.id} className="flex max-w-full flex-col gap-1">
+                <Button
+                  type="button"
+                  variant={action.id === firstRunnableAction?.id ? "default" : "outline"}
+                  loading={isRunning && pendingAction === undefined}
+                  disabled={!!action.policyBlockedReason}
+                  tooltip={action.policyBlockedReason}
+                  onClick={() => handleAction(action)}
+                  dataCy={`document-action-${action.id}`}
                 >
-                  {t("documents.form.actionBlockedByPolicy", { reason: action.policyBlockedReason })}
-                </p>
-              )}
-            </div>
-          ))}
+                  {action.label}
+                </Button>
+                {transitionTarget && (
+                  // Deliberately NOT prefixed "document-action-" — see the sibling blocked-reason
+                  // paragraph's own comment on why 17-document-descriptor.cy.ts's action-button scan
+                  // would otherwise misread this as a bogus action.
+                  <p
+                    className="max-w-xs text-xs text-muted-foreground"
+                    data-cy={`document-transition-hint-${action.id}`}
+                  >
+                    {t("documents.form.transitionHint", {
+                      from:
+                        currentStatus !== undefined
+                          ? statusLabel(descriptor, currentStatus)
+                          : t("documents.form.transitionFromNew"),
+                      to: statusLabel(descriptor, transitionTarget),
+                    })}
+                  </p>
+                )}
+                {action.policyBlockedReason && (
+                  // Deliberately NOT prefixed "document-action-" — that prefix is what
+                  // 17-document-descriptor.cy.ts's "no button appears that the descriptor didn't
+                  // declare" check scans for, and treats every match as an ACTION id to look up in the
+                  // descriptor; a reason element sharing that prefix would be misread as a bogus action.
+                  <p
+                    className="max-w-xs text-xs text-muted-foreground"
+                    data-cy={`document-blocked-reason-${action.id}`}
+                  >
+                    {t("documents.form.actionBlockedByPolicy", { reason: action.policyBlockedReason })}
+                  </p>
+                )}
+              </div>
+            )
+          })}
         </div>
       </form>
 

@@ -129,6 +129,85 @@ describe('evaluateCountryPolicy', () => {
     expect(findCompany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'company-42' } }));
     expect(findRules).toHaveBeenCalledWith({ where: { countryCode: 'FR' } });
   });
+
+  // Country-policy per-status narrowing (schema.ts's DocumentActionRuleFact.statuses) — the same
+  // decision code as every other test in this describe block, only the row's own `statuses` column
+  // varies. THE mutation target: making this branch permissive (returning `{allowed:true}` unconditionally
+  // regardless of `rule.statuses`) is exactly what the task's second required mutation exercises —
+  // see documents.service.lifecycle.spec.ts's own per-status tests for the composed, request-level proof.
+  describe('per-status narrowing (rule.statuses)', () => {
+    it('an allowed rule with a non-empty `statuses` reports it as `restrictedToStatuses`', async () => {
+      findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      findRules.mockResolvedValue([
+        {
+          typeId: 'invoice',
+          actionId: 'save-draft',
+          allowed: true,
+          provenanceKind: 'unverified',
+          resolutionNote: 'x',
+          statuses: ['draft'],
+        },
+      ]);
+
+      const decision = await evaluateCountryPolicy('company-1', 'invoice', 'save-draft');
+
+      expect(decision).toEqual({ allowed: true, restrictedToStatuses: ['draft'] });
+    });
+
+    it('an allowed rule with an EMPTY `statuses` array reports no restriction at all', async () => {
+      findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      findRules.mockResolvedValue([
+        {
+          typeId: 'invoice',
+          actionId: 'save-draft',
+          allowed: true,
+          provenanceKind: 'unverified',
+          resolutionNote: 'x',
+          statuses: [],
+        },
+      ]);
+
+      const decision = await evaluateCountryPolicy('company-1', 'invoice', 'save-draft');
+
+      expect(decision).toEqual({ allowed: true });
+    });
+
+    it('an allowed rule with no `statuses` column at all (the ordinary case) reports no restriction', async () => {
+      findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      findRules.mockResolvedValue([
+        {
+          typeId: 'invoice',
+          actionId: 'save-draft',
+          allowed: true,
+          provenanceKind: 'legal',
+          sourceText: 'x',
+        },
+      ]);
+
+      const decision = await evaluateCountryPolicy('company-1', 'invoice', 'save-draft');
+
+      expect(decision).toEqual({ allowed: true });
+    });
+
+    it('`statuses` on a FORBIDDEN rule is irrelevant — the action is already blocked at every status', async () => {
+      findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      findRules.mockResolvedValue([
+        {
+          typeId: 'invoice',
+          actionId: 'save-draft',
+          allowed: false,
+          provenanceKind: 'legal',
+          sourceText: 'Some exact legal text.',
+          statuses: ['draft'],
+        },
+      ]);
+
+      const decision = await evaluateCountryPolicy('company-1', 'invoice', 'save-draft');
+
+      expect(decision.allowed).toBe(false);
+      expect(decision).not.toHaveProperty('restrictedToStatuses');
+    });
+  });
 });
 
 /**

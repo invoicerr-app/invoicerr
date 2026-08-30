@@ -1,5 +1,6 @@
 import { Currency } from '../../../../prisma/generated/prisma/client';
-import { DocumentTypeDescriptor } from './types';
+import { transitionsAvailableWhen } from './lifecycle';
+import { DocumentActionTransition, DocumentTypeDescriptor } from './types';
 
 /** Same reused, un-invented list as the quote's — see quote.descriptor.ts. */
 const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, label: code }));
@@ -124,11 +125,29 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * none — the modeling is free. What DOES need a citation is any claim about WHICH rates exist and
  * what they are worth for a given country, and that citation lives where the claim actually is: the
  * VAT rate catalog (vat-rates/data/fr.json), never repeated here.
+ *
+ * Lifecycle: two statuses, "draft" and "sent" — the only two any invoice handler ever writes today.
+ * "save-draft" (generic-actions.ts's registerSaveDraftAction) always persists "draft", from ANY
+ * current status (`from: 'always'`) — faithful to the handler's actual, literal behavior, not an
+ * invented rule. "send" (invoice-actions.ts) moves "draft" -> "sent". Both `availableWhen`s are
+ * DERIVED from these transitions (lifecycle.ts's header). "record-payment" is declared with an
+ * explicit `availableWhen: ['sent']` and NO transition: it has no registered implementation at all
+ * (invoice-actions.ts), so there is no handler behavior to be faithful TO yet — inventing a "paid"
+ * status here, before any code produces one, would be exactly the kind of unrequested state this
+ * descriptor's own header already refuses to invent for fields.
  */
+const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
+const SEND_TRANSITIONS: DocumentActionTransition[] = [{ from: ['draft'], to: 'sent' }];
+
 export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'invoice',
     label: 'Invoice',
+    statuses: [
+      { id: 'draft', label: 'Draft' },
+      { id: 'sent', label: 'Sent' },
+    ],
+    initialStatus: 'draft',
     // See contributions/invoice-contributions.ts for the implementation — the first real one written
     // for this mechanism, and the model for any other type's own. Both locations, so it demonstrates
     // the small widget vocabulary on both.
@@ -238,19 +257,23 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
       {
         id: 'save-draft',
         label: 'Save draft',
-        availableWhen: 'always',
+        transitions: SAVE_DRAFT_TRANSITIONS,
+        availableWhen: transitionsAvailableWhen(SAVE_DRAFT_TRANSITIONS),
       },
       {
         id: 'send',
         label: 'Send',
-        availableWhen: ['draft'],
+        transitions: SEND_TRANSITIONS,
+        availableWhen: transitionsAvailableWhen(SEND_TRANSITIONS),
         // No params — see this file's header comment: which transport runs, and what it needs to
         // address the delivery, is read from the company's own configuration, not typed here.
       },
       {
         id: 'record-payment',
         label: 'Record payment',
-        // Recording a payment only makes sense once the invoice has actually been sent.
+        // Recording a payment only makes sense once the invoice has actually been sent. NO
+        // `transitions`: see this file's own lifecycle comment above for why — unimplemented, so
+        // there is no handler behavior yet to declare a status effect FOR.
         availableWhen: ['sent'],
       },
     ],

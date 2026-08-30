@@ -52,6 +52,23 @@ export interface DocumentActionRuleFact {
    *  evaluateCountryPolicy for the distinction the two refusal messages make). */
   allowed: boolean;
   provenance: PolicyProvenance;
+  /**
+   * Narrows an ALLOWED rule to specific document STATUSES (the type's own `DocumentTypeDescriptor`
+   * lifecycle statuses — descriptors/lifecycle.ts) — e.g. a country permitting "invoice.save-draft"
+   * only while the record is still "draft". Absent (or empty) means every status the TYPE's own
+   * lifecycle allows the action to run at in the first place — no narrowing beyond what the
+   * descriptor already declares, the same "absent = no extra restriction" convention `notes` below
+   * already follows for a different fact.
+   *
+   * Meaningless, and IGNORED, when `allowed: false` — a forbidden action is already forbidden at
+   * every status; there is nothing left to narrow. Declared flat, beside `allowed`, rather than
+   * nested inside an "allowed-branch-only" shape, to keep this fact as plain as `notes` is.
+   *
+   * This is still a LEGAL/product claim about what the country's own rule covers, same as `allowed`
+   * itself — it needs the same `provenance` this whole rule already carries, never a second one of
+   * its own: a rule saying "allowed, but only from these statuses" is one fact, not two.
+   */
+  statuses?: string[];
   /** Free-form caveats — same convention as the (removed) VAT rate catalog's own VatRateFact.notes. */
   notes?: string;
 }

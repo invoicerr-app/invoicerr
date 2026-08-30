@@ -2897,6 +2897,8 @@
       "unsupportedKind": "Field \"{{label}}\" has kind \"{{kind}}\", which no renderer is registered for.",
       "unknownType": "Unknown document type \"{{typeId}}\".",
       "actionBlockedByPolicy": "Not available: {{reason}}",
+      "transitionHint": "{{from}} → {{to}}",
+      "transitionFromNew": "New",
       "editingTitle": "Editing: {{label}}",
       "newButton": "New",
       "actionParams": {

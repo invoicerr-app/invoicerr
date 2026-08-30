@@ -1,5 +1,6 @@
 import { Currency } from '../../../../prisma/generated/prisma/client';
-import { DocumentTypeDescriptor } from './types';
+import { transitionsAvailableWhen } from './lifecycle';
+import { DocumentActionTransition, DocumentTypeDescriptor } from './types';
 
 /** Same reused, un-invented list as every other document type's — see quote.descriptor.ts. */
 const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, label: code }));
@@ -23,11 +24,20 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * comment for why this is deliberately NOT extended to the quote/invoice/credit-note. There is no
  * "send" here at all: the old module never had one either (an expense was never transmitted
  * anywhere), so none is invented now.
+ *
+ * Lifecycle: a SINGLE status, "draft" — the only one "save-draft" (generic-actions.ts's
+ * registerSaveDraftAction) ever writes, from any current status (`from: 'always'`, trivially true
+ * here since "draft" is the only status this type's own lifecycle has ever reached). "delete"
+ * declares NO transition: the record is removed entirely, never transitioned to another status.
  */
+const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
+
 export function buildExpenseDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'expense',
     label: 'Expense',
+    statuses: [{ id: 'draft', label: 'Draft' }],
+    initialStatus: 'draft',
     // See types.ts's own comment on `listItem`. An expense has no relation field to lead with (no
     // client, no source document) — `description` is its own required, human-written identifier.
     listItem: {
@@ -73,7 +83,8 @@ export function buildExpenseDescriptor(): DocumentTypeDescriptor {
       {
         id: 'save-draft',
         label: 'Save',
-        availableWhen: 'always',
+        transitions: SAVE_DRAFT_TRANSITIONS,
+        availableWhen: transitionsAvailableWhen(SAVE_DRAFT_TRANSITIONS),
       },
       {
         id: 'delete',

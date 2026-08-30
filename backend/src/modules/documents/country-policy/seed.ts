@@ -34,6 +34,7 @@ export interface DocumentCountryActionRuleRow {
   sourceText: string | null;
   sourceCheckedAt: Date | null;
   resolutionNote: string | null;
+  statuses: string[];
   notes: string | null;
 }
 
@@ -77,6 +78,7 @@ function rowFor(countryCode: string, rule: DocumentActionRuleFact): DocumentCoun
     sourceText: legal?.sourceText ?? null,
     sourceCheckedAt: legal ? new Date(legal.sourceCheckedAt) : null,
     resolutionNote: unverified?.resolutionNote ?? null,
+    statuses: rule.statuses ?? [],
     notes: rule.notes ?? null,
   };
 }
@@ -120,6 +122,7 @@ export async function seedCountryPolicies(
             sourceText: row.sourceText,
             sourceCheckedAt: row.sourceCheckedAt,
             resolutionNote: row.resolutionNote,
+            statuses: row.statuses,
             notes: row.notes,
           },
         });

@@ -114,6 +114,16 @@ describe('seedCountryPolicies', () => {
     expect(table.rows[0].allowed).toBe(false);
   });
 
+  it("carries a rule's per-status narrowing (`statuses`) through to the row, and defaults to empty when absent", async () => {
+    const table = new FakeCountryPolicyTable();
+    const restricted: DocumentActionRuleFact = { ...ALLOW_SAVE_DRAFT, statuses: ['draft'] };
+    await seedCountryPolicies(table.client, oneCountryFixture('ZZ', [ALLOW_SEND, restricted]));
+
+    expect(table.rows.find((r) => r.actionId === 'save-draft')?.statuses).toEqual(['draft']);
+    // ALLOW_SEND never declares `statuses` at all — the row still gets a real array, never null/undefined.
+    expect(table.rows.find((r) => r.actionId === 'send')?.statuses).toEqual([]);
+  });
+
   it("seeds several countries independently — one country's rows never leak into another's", async () => {
     const table = new FakeCountryPolicyTable();
     const catalog = new CountryPolicyCatalog([

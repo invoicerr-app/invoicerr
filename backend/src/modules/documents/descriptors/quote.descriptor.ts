@@ -1,5 +1,6 @@
 import { Currency } from '../../../../prisma/generated/prisma/client';
-import { DocumentTypeDescriptor } from './types';
+import { transitionsAvailableWhen } from './lifecycle';
+import { DocumentActionTransition, DocumentTypeDescriptor } from './types';
 
 /**
  * The reference currency list is the existing `Currency` enum (used everywhere else money is
@@ -17,11 +18,30 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * actions/convert-to-invoice.ts — it used to be the live "declared but not implemented" case this
  * registry proves a 501 against; that role now belongs to the invoice's "record-payment", see
  * invoice.descriptor.ts).
+ *
+ * Lifecycle: two statuses, "draft" and "sent" — the only two a quote's own handlers ever write
+ * (actions/generic-actions.ts, actions/quote-actions.ts). "save-draft" is faithful to what
+ * `registerSaveDraftAction` actually does: it persists "draft" REGARDLESS of the record's current
+ * status (even from "sent" — this is the literal, if slightly surprising, behavior the handler
+ * already had before this file's own `transitions` existed to name it), hence `from: 'always'`.
+ * "send" moves "draft" -> "sent" (registerEmailSendAction). Both `availableWhen`s below are DERIVED
+ * from these same transitions (see lifecycle.ts's header) rather than hand-typed a second time.
+ * "convert-to-invoice" declares NO transition: it never changes the QUOTE's own status — its entire
+ * effect is a brand-new INVOICE elsewhere (convert-to-invoice.ts) — so `availableWhen` stays its
+ * own explicit, hand-declared fact, exactly as it was before this cycle mechanism existed.
  */
+const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
+const SEND_TRANSITIONS: DocumentActionTransition[] = [{ from: ['draft'], to: 'sent' }];
+
 export function buildQuoteDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'quote',
     label: 'Quote',
+    statuses: [
+      { id: 'draft', label: 'Draft' },
+      { id: 'sent', label: 'Sent' },
+    ],
+    initialStatus: 'draft',
     // See types.ts's own comment on `listItem`. `client` is the one field a quote cannot exist
     // without (required) and the one a reader actually wants to see first in a list of quotes.
     listItem: {
@@ -110,12 +130,14 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
       {
         id: 'save-draft',
         label: 'Save draft',
-        availableWhen: 'always',
+        transitions: SAVE_DRAFT_TRANSITIONS,
+        availableWhen: transitionsAvailableWhen(SAVE_DRAFT_TRANSITIONS),
       },
       {
         id: 'send',
         label: 'Send',
-        availableWhen: ['draft'],
+        transitions: SEND_TRANSITIONS,
+        availableWhen: transitionsAvailableWhen(SEND_TRANSITIONS),
         // Reuses the exact same field vocabulary as the document's own `fields` above — this is not
         // a second, action-specific shape. `recipient` is deliberately not sourced from `client`
         // automatically: the params-defaults resolver (registerQuoteActions) pre-fills it from the

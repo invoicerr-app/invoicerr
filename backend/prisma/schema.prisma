@@ -861,6 +861,13 @@ model DocumentCountryActionRule {
   sourceCheckedAt DateTime? // 'legal': when `sourceText` was last checked against its source
   resolutionNote  String? // 'unverified': what would have to be checked to settle this rule
 
+  // Narrows an ALLOWED rule to specific document lifecycle statuses (documents/descriptors/
+  // lifecycle.ts) — see country-policy/schema.ts's DocumentActionRuleFact.statuses for the full
+  // contract. Empty (the default) means no narrowing beyond the document type's own rules — same
+  // "empty array, not null, means nothing extra" convention `documentTypes` already established one
+  // layer up (registry.ts's `typesFor`), and ignored entirely when `allowed` is false.
+  statuses String[] @default([])
+
   notes String? // free-form caveats, same convention as VatRateFact.notes
 
   createdAt DateTime @default(now())

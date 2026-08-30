@@ -52,6 +52,30 @@ export interface DocumentTypeDescriptor {
     /** Rendered as "<field label>: <value>" secondary lines under the title, in order. */
     secondaryFields?: string[];
   };
+  /**
+   * The type's LIFECYCLE: every STATUS one of its instances can be in, and which one a brand-new
+   * instance starts at. See lifecycle.ts's header for the full design (why `availableWhen` below is
+   * derived from `DocumentActionDescriptor.transitions` rather than the other way around, and how
+   * the runtime enforces that a handler's write actually lands on the declared status).
+   *
+   * Optional, deliberately: a descriptor built only to exercise an UNRELATED concern (a field kind,
+   * a row-selection cross-check, a widget contribution) in a test has no lifecycle to declare and
+   * should not have to invent one just to keep compiling — `lifecycle.ts`'s `validateLifecycle` (run
+   * by `DocumentTypeRegistry.register()`) treats an ABSENT `statuses` as "this type opts out of the
+   * lifecycle model entirely" and validates nothing for it. Every SHIPPED type (quote, invoice,
+   * credit-note, expense) declares one.
+   */
+  statuses?: DocumentStatusDescriptor[];
+  /** Which `statuses[].id` a brand-new, never-saved instance of this type starts at — required, and
+   *  checked against `statuses`, whenever `statuses` itself is declared (see `validateLifecycle`). */
+  initialStatus?: string;
+}
+
+/** One status a document TYPE's instances can be in — see `DocumentTypeDescriptor.statuses`. Plain
+ *  data, not an i18n key, same convention as `DocumentTypeDescriptor.label`. */
+export interface DocumentStatusDescriptor {
+  id: string;
+  label: string;
 }
 
 /** The two aggregation screens a document type may contribute WIDGETS to — see contributions/. Kept
@@ -202,6 +226,35 @@ export interface DocumentActionDescriptor {
    * document. Absent or empty means the action takes no parameters (e.g. "duplicate").
    */
   params?: DocumentFieldDescriptor[];
+  /**
+   * Declares the STATUS EFFECT this action has on the ACTED-UPON record — see lifecycle.ts's header
+   * for the full contract. In short: each entry's `from` names the starting status(es) it applies to
+   * ('always' = any, including a brand-new, never-saved record), `to` is the resulting status; the
+   * runtime (documents.service.ts's runAction, via lifecycle.ts's `checkTransitionResult`) refuses to
+   * let a handler persist any OTHER status once this is declared.
+   *
+   * Absent means this action never changes the status of the record it acts on — its effect, if any,
+   * lands on a DIFFERENT record entirely ("convert-to-invoice" writes a fresh invoice; "duplicate"
+   * writes a fresh copy rather than modifying the source it read), or it has no implementation to
+   * observe yet ("record-payment"). `availableWhen` then stays the sole, explicit, hand-declared
+   * fact about when it may run — exactly as before this field existed.
+   *
+   * When PRESENT, `availableWhen` must be exactly `lifecycle.ts`'s `transitionsAvailableWhen(transitions)`
+   * — descriptors set it by calling that helper (never by hand-typing a second, possibly-drifting
+   * copy), and `validateLifecycle` re-derives it at registration to catch a mismatch.
+   */
+  transitions?: DocumentActionTransition[];
+}
+
+/** One entry of `DocumentActionDescriptor.transitions` — see that field's own comment, and
+ *  lifecycle.ts's header for the full design. */
+export interface DocumentActionTransition {
+  /** Which starting status(es) this entry applies to. 'always' matches every status, INCLUDING a
+   *  brand-new record that has no status yet (`fromStatus === undefined`) — the same "no status to
+   *  match" case `isActionAvailable`'s own 'always' branch already treats as satisfied. */
+  from: string[] | 'always';
+  /** The status the record must be in immediately after this action runs, given a `from` match. */
+  to: string;
 }
 
 /**

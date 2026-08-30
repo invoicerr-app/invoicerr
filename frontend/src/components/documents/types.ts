@@ -80,6 +80,32 @@ export interface DocumentActionDescriptor {
    * fail either, both, or neither.
    */
   policyBlockedReason?: string
+  /**
+   * The country policy's own per-status narrowing (see the backend's
+   * `DocumentActionDescriptorView.policyRestrictedToStatuses`) — a SEPARATE fact from
+   * `availableWhen`, deliberately never merged into it: `availableWhen: "always"` means "every
+   * existing status, AND a brand-new, never-saved record", and a country restriction only ever
+   * narrows the EXISTING-status half (a never-saved record has no status for it to have an opinion
+   * about — the same reasoning the backend's own `runAction` per-status 409 check holds). Composed
+   * with `availableWhen` by `isActionAvailable` below, the one place both are read together.
+   */
+  policyRestrictedToStatuses?: string[]
+  /**
+   * The STATUS EFFECT this action has on the record it acts on — mirrors the backend's own
+   * `DocumentActionDescriptor.transitions` (descriptors/lifecycle.ts) exactly, wire shape unchanged.
+   * Absent means this action never changes the acted-upon record's own status (its effect, if any,
+   * lands on a different record entirely — "convert-to-invoice", or a third-party "duplicate").
+   * Used ONLY to render a human-facing "this will move it from X to Y" hint (document-form.tsx) —
+   * never to decide whether the action is offered at all, which stays `availableWhen`'s job alone.
+   */
+  transitions?: DocumentActionTransition[]
+}
+
+/** One entry of `DocumentActionDescriptor.transitions` — see that field's own comment. */
+export interface DocumentActionTransition {
+  /** 'always' matches every status, INCLUDING a brand-new, never-saved record. */
+  from: string[] | "always"
+  to: string
 }
 
 /** What running an action hands back — see the backend's ActionResult for the full contract. */
@@ -105,12 +131,30 @@ export interface DocumentListItemHint {
   secondaryFields?: string[]
 }
 
+/** One status a document TYPE's instances can be in — mirrors the backend's
+ *  `DocumentStatusDescriptor` (descriptors/types.ts). Plain data, not an i18n key. */
+export interface DocumentStatusDescriptor {
+  id: string
+  label: string
+}
+
 export interface DocumentTypeDescriptor {
   id: string
   label: string
   fields: DocumentFieldDescriptor[]
   actions: DocumentActionDescriptor[]
   listItem?: DocumentListItemHint
+  /** The type's lifecycle — see the backend's `DocumentTypeDescriptor.statuses`/`initialStatus`.
+   *  Absent for a type that never declared one (the backend's own opt-out). */
+  statuses?: DocumentStatusDescriptor[]
+  initialStatus?: string
+}
+
+/** `statuses[].label` for `statusId`, falling back to the raw id when the descriptor names no
+ *  lifecycle at all or this particular status isn't in it — the same "degrade honestly, never
+ *  crash" rule the rest of this generic model already holds for a descriptor/data mismatch. */
+export function statusLabel(descriptor: DocumentTypeDescriptor, statusId: string): string {
+  return descriptor.statuses?.find((s) => s.id === statusId)?.label ?? statusId
 }
 
 export interface DocumentTypeSummary {
@@ -132,7 +176,45 @@ export interface EntityReferenceOption {
   label: string
 }
 
+/**
+ * Composes the descriptor's OWN `availableWhen` with the country policy's optional per-status
+ * narrowing (`policyRestrictedToStatuses`) — the one place both facts are read together, so every
+ * caller (document-form.tsx, document-list.tsx) gets the composition "for free" by calling this
+ * exactly as before, with no country-awareness of its own.
+ *
+ * The restriction is skipped entirely for `status === undefined` (a brand-new, never-saved record):
+ * see `policyRestrictedToStatuses`'s own comment for why — a country's per-status rule narrows which
+ * EXISTING statuses the action may run from, never whether a fresh record may reach its first save.
+ */
 export function isActionAvailable(action: DocumentActionDescriptor, status: string | undefined): boolean {
-  if (action.availableWhen === "always") return true
-  return status !== undefined && action.availableWhen.includes(status)
+  const availableByDescriptor =
+    action.availableWhen === "always" || (status !== undefined && action.availableWhen.includes(status))
+  if (!availableByDescriptor) return false
+
+  if (status !== undefined && action.policyRestrictedToStatuses) {
+    return action.policyRestrictedToStatuses.includes(status)
+  }
+  return true
+}
+
+/**
+ * Mirrors the backend's own `resolveTransitionTarget` (descriptors/lifecycle.ts) exactly: the status
+ * this action's declared `transitions` say a record currently at `fromStatus` (undefined = not saved
+ * yet) will move to. Undefined when the action declares no `transitions` at all (its effect, if any,
+ * lands on a DIFFERENT record — "convert-to-invoice", "duplicate") or none of them matches.
+ *
+ * Display-only on this side: the backend is what actually ENFORCES the transition (runAction) — this
+ * is only ever read to render the "this will move it from X to Y" hint (document-form.tsx), never to
+ * decide whether an action may run, which stays `isActionAvailable`'s job alone.
+ */
+export function resolveTransitionTarget(
+  action: DocumentActionDescriptor,
+  fromStatus: string | undefined,
+): string | undefined {
+  if (!action.transitions) return undefined
+  for (const transition of action.transitions) {
+    if (transition.from === "always") return transition.to
+    if (fromStatus !== undefined && transition.from.includes(fromStatus)) return transition.to
+  }
+  return undefined
 }
