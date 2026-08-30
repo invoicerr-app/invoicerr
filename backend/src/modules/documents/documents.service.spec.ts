@@ -11,11 +11,21 @@ import { DocumentsService } from './documents.service';
 import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-kinds';
 import { buildQuoteDescriptor } from './descriptors/quote.descriptor';
 import { DocumentTypeRegistry } from './descriptors/type-registry';
+import * as takeNumber from './numbering/take-number';
 import * as persistence from './persistence';
 import { EntityReferenceRegistry } from './references/reference-registry';
 import { TransportRegistry } from './transports/transport-registry';
 
 jest.mock('./persistence');
+// The real quote descriptor now declares `numbering: { onEnterStatus: 'sent' }` (quote.descriptor.ts)
+// — mocked wholesale here for the exact same reason `./persistence` is: this file is about the
+// generic action machinery, not numbering (that mechanism has its own coverage — see
+// documents.service.numbering.spec.ts and numbering/sequence.live.spec.ts), and
+// `takeDocumentNumberForTransition` reaches PAST persistence.ts straight to Prisma, so leaving it
+// unmocked would make a "send" test here hit a real database with a fake companyId. Resolving to
+// `undefined` (its own "nothing to do" case, see sequence.ts) keeps every test below exercising
+// exactly what it already tested before numbering existed.
+jest.mock('./numbering/take-number');
 // Country policy is proven for real, against the real decision code, in
 // country-policy/country-policy.spec.ts (mocking only the Prisma client) and in
 // documents.service.country-policy.spec.ts (proving DocumentsService.runAction respects the
@@ -86,6 +96,7 @@ const validQuoteData = {
 describe('DocumentsService — the quote type, wired exactly as documents.module.ts wires it', () => {
   beforeEach(() => {
     (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
   });
   afterEach(() => jest.resetAllMocks());
 

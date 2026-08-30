@@ -72,7 +72,18 @@ function availableWhenEquals(a: 'always' | string[], b: 'always' | string[]): bo
  * the same way one with no `contributions` opts out of the widget model.
  */
 export function validateLifecycle(descriptor: DocumentTypeDescriptor): void {
-  if (!descriptor.statuses) return;
+  if (!descriptor.statuses) {
+    // `numbering` needs a lifecycle to hook a status onto — a descriptor declaring one with no
+    // `statuses` at all has nothing for `onEnterStatus` to name, the same "opts out of everything
+    // else this file checks" gap `initialStatus`/`transitions` would otherwise silently have too.
+    if (descriptor.numbering) {
+      throw new Error(
+        `Document type "${descriptor.id}" declares "numbering" but no "statuses" at all — numbering ` +
+          'needs a lifecycle status to hook into.',
+      );
+    }
+    return;
+  }
 
   const statusIds = descriptor.statuses.map((s) => s.id);
   const statusSet = new Set(statusIds);
@@ -85,6 +96,14 @@ export function validateLifecycle(descriptor: DocumentTypeDescriptor): void {
     throw new Error(
       `Document type "${descriptor.id}" declares "initialStatus": ${JSON.stringify(descriptor.initialStatus)}, ` +
         `which is not one of its own declared statuses (${statusIds.join(', ')}).`,
+    );
+  }
+
+  if (descriptor.numbering && !statusSet.has(descriptor.numbering.onEnterStatus)) {
+    throw new Error(
+      `Document type "${descriptor.id}" declares "numbering.onEnterStatus": ` +
+        `${JSON.stringify(descriptor.numbering.onEnterStatus)}, which is not one of its own declared ` +
+        `statuses (${statusIds.join(', ')}).`,
     );
   }
 

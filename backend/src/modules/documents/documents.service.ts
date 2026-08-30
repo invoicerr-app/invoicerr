@@ -48,6 +48,7 @@ import {
 } from './descriptors/types';
 import { validateAgainstDescriptor } from './descriptors/validate';
 import { RunActionDto } from './dto/documents.dto';
+import { takeDocumentNumberForTransition } from './numbering/take-number';
 import { findOwnedDocument, listDocuments } from './persistence';
 import {
   EntityReferenceOption,
@@ -560,7 +561,7 @@ export class DocumentsService implements OnModuleInit {
     // data that has already passed every check above (never to data about to be rejected anyway).
     const data = stampRowIds(fields, payload.data ?? {}, referencedArrayFieldKeys(this.typeRegistry, typeId));
 
-    const result = await handler({
+    let result = await handler({
       companyId,
       typeId,
       documentId: payload.documentId,
@@ -589,6 +590,33 @@ export class DocumentsService implements OnModuleInit {
           `declared lifecycle requires "${violation.expectedStatus}" here — this is a handler bug, not ` +
           'something a request can trigger on its own.',
       );
+    }
+
+    // THE NUMBER (numbering/): taken the first time this record's now-persisted status actually
+    // EQUALS the type's own declared `numbering.onEnterStatus` — never before (a draft has none) and
+    // never again once one is set. Checking the RESULTING status against `onEnterStatus`, combined
+    // with `number` still being null, is enough to mean "first time" WITHOUT re-deriving which
+    // transition edge fired: `number` is never cleared once set (see `DocumentInstance`'s own schema
+    // comment), so this exact check can never fire a second time for the same record no matter how
+    // many different actions might be able to reach `onEnterStatus`. Scoped to `result.document`
+    // being THIS SAME type (never a foreign record a side-effect action like "convert-to-invoice"
+    // created) — the same guard `checkTransitionResult` just above already holds for its own concern.
+    if (
+      descriptor.numbering &&
+      result.document &&
+      result.document.typeId === typeId &&
+      result.document.status === descriptor.numbering.onEnterStatus &&
+      result.document.number == null
+    ) {
+      const numbered = await takeDocumentNumberForTransition(companyId, typeId, result.document.id);
+      // `numbered` is undefined only if a concurrent request already numbered this exact record
+      // between the in-memory check just above and the atomic DB write inside `takeDocumentNumber` —
+      // see that function's own header. Nothing to do in that case: the record already has whatever
+      // number that other request gave it, and this response simply doesn't carry it (the caller's
+      // own next read of the record will).
+      if (numbered) {
+        result = { ...result, document: { ...result.document, ...numbered } };
+      }
     }
 
     return result;
@@ -697,6 +725,7 @@ export class DocumentsService implements OnModuleInit {
         status: instance.status,
         data: instanceData,
         createdAt: instance.createdAt,
+        displayNumber: instance.displayNumber,
       },
       company,
       referenceLabels,

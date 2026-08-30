@@ -48,6 +48,17 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * registerSaveDraftAction) ever writes, from any current status (`from: 'always'`, trivially true
  * here since "draft" is the only status this type's own lifecycle has ever reached). No second
  * status is invented: nothing asked for one, and no handler produces one.
+ *
+ * Numbering: NOT declared, despite a real credit note plausibly needing one in actual bookkeeping —
+ * see types.ts's own comment on `numbering`. `numbering.onEnterStatus` must name one of THIS type's
+ * own declared `statuses` (checked by `validateLifecycle`, lifecycle.ts), and this type has only
+ * "draft" — there is no non-draft status to hook a number onto, because there is no "send" (or any
+ * other status-changing) action here at all (see the "Actions" paragraph above). Tried and verified,
+ * not merely asserted: declaring `numbering: { onEnterStatus: 'sent' }` here throws at registration
+ * with `validateLifecycle`'s own "not one of its own declared statuses" error, exactly like a typo'd
+ * status would for `initialStatus`. Adding a "sent"-like status (and the action that would reach it)
+ * purely to make this type numberable would be inventing lifecycle this task never asked for — see
+ * this file's own "Actions" paragraph on the same restraint for a "send" action itself.
  */
 const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
 

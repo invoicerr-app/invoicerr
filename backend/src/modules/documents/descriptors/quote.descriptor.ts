@@ -29,6 +29,11 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * "convert-to-invoice" declares NO transition: it never changes the QUOTE's own status — its entire
  * effect is a brand-new INVOICE elsewhere (convert-to-invoice.ts) — so `availableWhen` stays its
  * own explicit, hand-declared fact, exactly as it was before this cycle mechanism existed.
+ *
+ * Numbering: `onEnterStatus: 'sent'` — a quote receives its number the first time it leaves "draft",
+ * exactly like the old, removed engine numbered at issuance, not at creation (see numbering/ for the
+ * full mechanism). "draft" -> "sent" is the ONLY transition this type's own lifecycle has, so this is
+ * unambiguous: draft quotes stay unnumbered, however many times they are re-saved.
  */
 const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
 const SEND_TRANSITIONS: DocumentActionTransition[] = [{ from: ['draft'], to: 'sent' }];
@@ -42,6 +47,7 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
       { id: 'sent', label: 'Sent' },
     ],
     initialStatus: 'draft',
+    numbering: { onEnterStatus: 'sent' },
     // See types.ts's own comment on `listItem`. `client` is the one field a quote cannot exist
     // without (required) and the one a reader actually wants to see first in a list of quotes.
     listItem: {

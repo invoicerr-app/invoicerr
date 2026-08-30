@@ -29,6 +29,14 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * registerSaveDraftAction) ever writes, from any current status (`from: 'always'`, trivially true
  * here since "draft" is the only status this type's own lifecycle has ever reached). "delete"
  * declares NO transition: the record is removed entirely, never transitioned to another status.
+ *
+ * Numbering: NOT declared — see types.ts's own comment on `DocumentTypeDescriptor.numbering`. An
+ * expense is an internal bookkeeping entry a company records for itself, never a document handed to
+ * a third party the way a quote/invoice/credit-note is; nothing about it needs a display number, and
+ * (same structural reason as credit-note.descriptor.ts) it has no non-"draft" status to hook one onto
+ * even if it did. `expense` never appearing in numbering/sequence.ts's `DocumentNumberSequence` table
+ * is this descriptor's own doing, not an oversight elsewhere: `takeDocumentNumberForTransition` is
+ * only ever called by documents.service.ts's `runAction` when `descriptor.numbering` is present.
  */
 const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
 

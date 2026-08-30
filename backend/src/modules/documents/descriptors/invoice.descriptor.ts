@@ -91,13 +91,11 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * Deliberately NOT added, and why — this is where the noyau could have been tempted, not where it
  * broke:
  *
- *  - An invoice "number". A free-text field would cost nothing to declare, but sequential, gapless,
- *    per-country invoice numbering is precisely a LEGAL rule — the exact kind of thing the removed
- *    compliance engine used to own, and this task explicitly asks not to reinvent. Even an inert,
- *    user-typed text field named "number" would misrepresent what this branch does (nothing here
- *    generates or enforces one), so it is left out rather than added quietly. This is a scope
- *    decision, not a limitation of the field kinds: `text` could hold a number field perfectly well
- *    if one were wanted.
+ *  - An invoice "number" FIELD. This descriptor does NOT declare `number` among its `fields` — the
+ *    number is not a user-typed value at all (see `numbering` below and numbering/), so it has no
+ *    business being one more entry in this array the way a free-text field would be. A structural,
+ *    system-assigned fact gets a structural mechanism (a descriptor-level declaration plus its own
+ *    `DocumentInstance` columns), never a field a user could edit or leave blank.
  *  - A per-line DISCOUNT ("remise"). Neither documentation/compliance/FR-France.md nor the "au
  *    minimum" list this task specified mentions one — adding it now would be exactly the kind of
  *    unrequested modeling this task's own "et rien de plus" instruction rules out. EN 16931 does
@@ -108,6 +106,14 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    amount, or a line/document total, is a fiscal or arithmetic rule this module still does not own
  *    (see contributions/invoice-contributions.ts's own `invoiceTotal`, deliberately quantity×
  *    unitPrice only, "no VAT, no rounding rule invented on top").
+ *
+ * Numbering: `onEnterStatus: 'sent'` — an invoice receives its number the first time it leaves
+ * "draft", the same rule the quote's own descriptor uses (see quote.descriptor.ts) and, deliberately,
+ * still at ISSUANCE rather than at creation, exactly like the old, removed engine. What this does
+ * NOT claim: sequential, GAPLESS, per-country invoice numbering is a LEGAL property some
+ * jurisdictions attach to an issued invoice (see this file's own `invoice.save-draft` note in
+ * country-policy/data/fr.json, and that file's top-level `notes`) — numbering/sequence.ts's own
+ * mechanism never wastes a number, which reduces gap risk without asserting the legal claim itself.
  *
  * Actions: "save-draft" is implemented, built on the exact same generic mechanism the quote uses
  * (actions/generic-actions.ts). "send" is implemented too, but DELIBERATELY NOT the quote's mechanism
@@ -148,6 +154,7 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
       { id: 'sent', label: 'Sent' },
     ],
     initialStatus: 'draft',
+    numbering: { onEnterStatus: 'sent' },
     // See contributions/invoice-contributions.ts for the implementation — the first real one written
     // for this mechanism, and the model for any other type's own. Both locations, so it demonstrates
     // the small widget vocabulary on both.

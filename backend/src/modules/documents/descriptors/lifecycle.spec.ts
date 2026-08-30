@@ -192,6 +192,38 @@ describe('validateLifecycle — boot-time coherence', () => {
     expect(() => registry.register(broken)).toThrow(/not declared in "statuses"/);
     expect(registry.has('widget')).toBe(false);
   });
+
+  describe('numbering — `onEnterStatus` must name a declared status', () => {
+    it('accepts `numbering.onEnterStatus` naming a real, declared status', () => {
+      expect(() =>
+        validateLifecycle(widgetDescriptor({ numbering: { onEnterStatus: 'sent' } })),
+      ).not.toThrow();
+    });
+
+    // THE mutation target: a typo'd (or simply never-declared) onEnterStatus fails loudly, at load
+    // time — the exact same discipline `initialStatus` and a transition's own `to`/`from` already get.
+    it('fails when `numbering.onEnterStatus` names a status this type never declared', () => {
+      const broken = widgetDescriptor({ numbering: { onEnterStatus: 'archived' } });
+      expect(() => validateLifecycle(broken)).toThrow(
+        /numbering\.onEnterStatus.*not one of its own declared statuses/,
+      );
+    });
+
+    it('fails when `numbering` is declared but the type has no `statuses` at all', () => {
+      const broken: DocumentTypeDescriptor = {
+        id: 'no-lifecycle',
+        label: 'No lifecycle',
+        fields: [],
+        actions: [],
+        numbering: { onEnterStatus: 'sent' },
+      };
+      expect(() => validateLifecycle(broken)).toThrow(/declares "numbering" but no "statuses" at all/);
+    });
+
+    it('a descriptor with no `numbering` at all is untouched by this check (e.g. "expense")', () => {
+      expect(() => validateLifecycle(widgetDescriptor())).not.toThrow();
+    });
+  });
 });
 
 describe('checkTransitionResult — request-time enforcement', () => {

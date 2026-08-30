@@ -147,7 +147,17 @@ function renderFieldValue(
 
 export interface RenderDocumentHtmlInput {
   descriptor: DocumentTypeDescriptor;
-  instance: { id: string; status: string; data: Record<string, unknown>; createdAt: Date };
+  instance: {
+    id: string;
+    status: string;
+    data: Record<string, unknown>;
+    createdAt: Date;
+    /** See DocumentInstance's own schema comment and numbering/ — absent/null before the type's own
+     *  `numbering.onEnterStatus` is first reached, or for a type that never declares `numbering` at
+     *  all (e.g. "expense", "credit-note" — see their own descriptors). Optional so every existing
+     *  caller/fixture that never mentions numbering keeps compiling unchanged. */
+    displayNumber?: string | null;
+  };
   company: {
     name: string;
     address?: string | null;
@@ -213,6 +223,11 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       font-size: 24px;
       font-weight: bold;
       margin: 16px 0 8px 0;
+    }
+    .document-number {
+      font-size: 15px;
+      color: #555;
+      margin-bottom: 8px;
     }
     .document-meta {
       display: flex;
@@ -335,6 +350,11 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
         </div>
       </div>
       <div class="document-title">${escapeHtmlSafe(descriptor.label)}</div>
+      ${
+        descriptor.numbering
+          ? `<div class="document-number">${escapeHtmlSafe(instance.displayNumber ?? 'Draft — no number yet')}</div>`
+          : ''
+      }
       <div class="document-meta">
         <div><strong>Status:</strong> ${escapeHtmlSafe(instance.status)}</div>
         <div><strong>Date:</strong> ${escapeHtmlSafe(createdDate)}</div>

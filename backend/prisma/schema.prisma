@@ -304,6 +304,16 @@ model Company {
 
   invoicePDFFormat String @default("facturx") // Ex: 'pdf' | 'facturx' | 'zugferd' | 'xrechnung' | 'ubl' | 'cii'
 
+  // Per-document-type number FORMAT, keyed by DocumentTypeDescriptor.id — e.g.
+  // `{ "invoice": "FAC-{year}-{number:5}" }`. A type absent here (the common case today: no settings
+  // screen writes this column yet) falls back to documents/numbering/format-number.ts's own
+  // `defaultNumberFormatFor(typeId)` — never a hole in the format, only in WHO chose it. Deliberately
+  // NOT the six `quote/invoice/paymentStartingNumber`/`*NumberFormat` columns above: those belonged
+  // to the removed pre-refonte engine (see prisma.service.ts's own comment on the Prisma extension
+  // that used to read them, and the `avant-refonte-documents` git tag) and are left untouched here —
+  // migrating or deleting them is a separate cleanup this task does not do.
+  numberFormats Json?
+
   // Which registered document transport (documents/transports/transport-registry.ts) an invoice's
   // "send" action delivers through — e.g. "email". No default, deliberately: a company that has
   // never chosen one gets a clear, loud block when it tries to send an invoice (see
@@ -323,6 +333,7 @@ model Company {
   apiKeys          ApiKey[]
   invitationCodes  InvitationCode[]
   documents        DocumentInstance[]
+  documentNumberSequences DocumentNumberSequence[]
 }
 
 // Join table linking users to the companies they belong to, with a role
@@ -832,7 +843,42 @@ model DocumentInstance {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // The document's NUMBER — see documents/numbering/. Null for every record until it first enters
+  // its type's own declared `numbering.onEnterStatus` (descriptors/types.ts); a type that declares no
+  // `numbering` at all (e.g. "expense") NEVER sets these, on any record, ever. Once set, NEVER
+  // cleared or reassigned by anything in this codebase — a re-send does not renumber. `number` is the
+  // raw sequence value (for sorting/uniqueness-per-sequence); `displayNumber` is `number` already run
+  // through the company's own format pattern AT THE MOMENT it was taken (numbering/format-number.ts)
+  // — frozen at issuance, deliberately: reformatting on every read would let a LATER change to the
+  // company's format pattern silently rewrite an already-issued document's number.
+  number        Int?
+  displayNumber String?
+
   @@index([companyId, typeId])
+}
+
+// The per-(company, type) monotonic counter numbering/sequence.ts's `bumpSequence` advances — see
+// that file's header for why this is the ONLY code path allowed to write here (a single atomic
+// `INSERT ... ON CONFLICT DO UPDATE ... RETURNING`, run inside the SAME transaction as the
+// DocumentInstance write that actually consumes the number — never on its own). `nextNumber` is the
+// NEXT number this sequence will hand out; a `(companyId, typeId)` pair with no row here yet has
+// never taken a number, meaning the next one is 1 (this column's own default, for any OTHER code
+// path that might create a row — application code never relies on that default, see sequence.ts).
+//
+// ⚖ On "no-gap" sequences: some jurisdictions treat a document numbering sequence's CONTINUITY (no
+// gaps) as a legal property of the numbering itself (France's own invoice.save-draft rule, see
+// country-policy/data/fr.json, is already grounded in the neighboring idea that an ISSUED invoice is
+// intangible) — this table does not assert that claim, sourced or not: see numbering/sequence.ts's
+// own header for exactly what this mechanism does and does not guarantee about gaps, and
+// country-policy/data/fr.json's top-level `notes` for the honest, unverified flag on the legal
+// question itself.
+model DocumentNumberSequence {
+  companyId  String
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  typeId     String
+  nextNumber Int     @default(1)
+
+  @@id([companyId, typeId])
 }
 
 // Mirror of backend/src/modules/documents/country-policy/data/*.json, seeded (never hand-edited —

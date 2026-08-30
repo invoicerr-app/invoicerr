@@ -91,6 +91,31 @@ function DocumentCardTitle({ descriptor, instance }: DocumentCardTitleProps) {
   )
 }
 
+interface DocumentCardNumberProps {
+  descriptor: DocumentTypeDescriptor
+  instance: DocumentInstance
+}
+
+/**
+ * The document's own NUMBER, shown before the card title — see the backend's numbering/ for the
+ * full mechanism. Gated on `descriptor.numbering` being declared at all: a type that never numbers
+ * its instances (an expense, a credit note today — see their own descriptors) shows no badge here,
+ * rather than a permanent, meaningless "no number yet" on every single card. For a NUMBERED type,
+ * `displayNumber` is shown verbatim once set; before that (still "draft"), the translated
+ * `documents.numbering.noneYet` — NEVER a fabricated number, the one rule this whole mechanism
+ * exists to hold (see the backend's numbering/format-number.ts own header on the historical bug).
+ */
+function DocumentCardNumber({ descriptor, instance }: DocumentCardNumberProps) {
+  const { t } = useTranslation()
+  if (!descriptor.numbering) return null
+
+  return (
+    <span className="font-mono text-sm text-muted-foreground" data-cy={`document-number-${instance.id}`}>
+      {instance.displayNumber ?? t("documents.numbering.noneYet")}
+    </span>
+  )
+}
+
 interface DocumentCardSecondaryInfoProps {
   descriptor: DocumentTypeDescriptor
   instance: DocumentInstance
@@ -287,6 +312,7 @@ function DocumentListCardRow({ descriptor, instance, onEdit, onActionSuccess }: 
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
+              <DocumentCardNumber descriptor={descriptor} instance={instance} />
               <h3
                 className="break-words font-medium text-foreground"
                 data-cy={`document-list-title-${instance.id}`}

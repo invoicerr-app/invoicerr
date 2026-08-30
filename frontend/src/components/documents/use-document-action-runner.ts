@@ -22,11 +22,18 @@ interface UseDocumentActionRunnerOptions {
    *  the backend's ActionResult. */
   onActionSuccess?: (result: DocumentInstance, actionId: string) => void
   /** Fired whenever the run produced/updated THIS SAME document type's own record — lets a caller
-   *  that has its own idea of "which id/status is this document" (document-form.tsx, for a brand
-   *  new draft that had no id at all) keep it in sync. A row acting on an already-known instance has
-   *  no such state to update; it relies on the list's own query being invalidated instead (see
-   *  useRunDocumentAction's `invalidateKeys`). */
-  onDocumentUpdate?: (documentId: string, status: string) => void
+   *  that has its own idea of "which id/status/number is this document" (document-form.tsx, for a
+   *  brand new draft that had no id — or number — at all) keep it in sync. A row acting on an
+   *  already-known instance has no such state to update; it relies on the list's own query being
+   *  invalidated instead (see useRunDocumentAction's `invalidateKeys`). `number`/`displayNumber`
+   *  mirror the backend's own ActionResult.document fields — null/undefined before the record is
+   *  numbered, or for a type that never declares `numbering` at all. */
+  onDocumentUpdate?: (
+    documentId: string,
+    status: string,
+    number: number | null | undefined,
+    displayNumber: string | null | undefined,
+  ) => void
 }
 
 /**
@@ -66,7 +73,12 @@ export function useDocumentActionRunner({
       // "convert-to-invoice" hands back a brand-new invoice). See onActionSuccess below, which the
       // caller uses to decide what to do with a foreign record.
       if (result.document && result.document.typeId === typeId) {
-        onDocumentUpdate?.(result.document.id, result.document.status)
+        onDocumentUpdate?.(
+          result.document.id,
+          result.document.status,
+          result.document.number,
+          result.document.displayNumber,
+        )
       }
       toast.success(result.message ?? t("documents.form.messages.actionSuccess"))
       setPendingAction(undefined)

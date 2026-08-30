@@ -148,6 +148,12 @@ export interface DocumentTypeDescriptor {
    *  Absent for a type that never declared one (the backend's own opt-out). */
   statuses?: DocumentStatusDescriptor[]
   initialStatus?: string
+  /** Mirrors the backend's `DocumentTypeDescriptor.numbering` (descriptors/types.ts) — which status
+   *  this type's instances receive a NUMBER on first entering. Absent means this type is NEVER
+   *  numbered (e.g. "expense", "credit-note") — the one flag every number-displaying UI (the list
+   *  card, the edit dialog, the PDF) gates on, so a type that never declares this shows no number
+   *  badge at all rather than a permanent "no number yet" placeholder that would never make sense. */
+  numbering?: { onEnterStatus: string }
 }
 
 /** `statuses[].label` for `statusId`, falling back to the raw id when the descriptor names no
@@ -169,6 +175,13 @@ export interface DocumentInstance {
   data: Record<string, unknown>
   createdAt: string
   updatedAt: string
+  /** Set the first time this record enters its type's own `numbering.onEnterStatus` — null/absent
+   *  before that (a draft has none, and a type with no `numbering` at all never sets it). Never
+   *  cleared or reassigned once set — see the backend's `DocumentInstance` schema comment. */
+  number?: number | null
+  /** `number`, already formatted through the company's own pattern at the moment it was taken — see
+   *  the backend's numbering/format-number.ts. Show this verbatim; never reformat `number` yourself. */
+  displayNumber?: string | null
 }
 
 export interface EntityReferenceOption {

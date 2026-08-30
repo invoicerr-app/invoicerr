@@ -2878,6 +2878,9 @@
       "description": "Every document type registered on the backend, rendered here without any type-specific code.",
       "empty": "No document type is registered yet."
     },
+    "numbering": {
+      "noneYet": "Draft — no number yet"
+    },
     "form": {
       "reference": {
         "searchPlaceholder": "Search...",

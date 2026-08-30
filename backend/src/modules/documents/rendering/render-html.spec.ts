@@ -476,4 +476,60 @@ describe('renderDocumentHtml', () => {
       expect(html).toContain('CHF');
     });
   });
+
+  describe('document numbering (numbering/)', () => {
+    const numberedDescriptor: DocumentTypeDescriptor = {
+      id: 'invoice',
+      label: 'Invoice',
+      fields: [],
+      actions: [],
+      numbering: { onEnterStatus: 'sent' },
+    };
+    const unnumberedDescriptor: DocumentTypeDescriptor = {
+      id: 'expense',
+      label: 'Expense',
+      fields: [],
+      actions: [],
+    };
+
+    it('shows the displayNumber, next to the type label, for a NUMBERED type that already has one', () => {
+      const html = renderDocumentHtml({
+        descriptor: numberedDescriptor,
+        instance: { ...baseInstance, displayNumber: 'INVOICE-2026-0001' },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('INVOICE-2026-0001');
+    });
+
+    // THE rule this whole mechanism exists to hold: a document with no number NEVER shows a
+    // fabricated one — see numbering/format-number.ts's own header on the historical bug this
+    // guards against.
+    it('shows the honest placeholder, NEVER a fabricated number, for a NUMBERED type with none yet', () => {
+      const html = renderDocumentHtml({
+        descriptor: numberedDescriptor,
+        instance: { ...baseInstance, displayNumber: null },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Draft — no number yet');
+      expect(html).not.toMatch(/INVOICE-\d{4}-0000/);
+    });
+
+    it('shows no number badge at all for a type that never declares `numbering` (e.g. "expense")', () => {
+      const html = renderDocumentHtml({
+        descriptor: unnumberedDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      // The `.document-number` CSS RULE is always in the stylesheet (see renderDocumentHtml's own
+      // <style> block) — what must be absent is the ELEMENT that would use it.
+      expect(html).not.toContain('class="document-number"');
+      expect(html).not.toContain('no number yet');
+    });
+  });
 });

@@ -9,6 +9,7 @@ import { DocumentsService } from './documents.service';
 import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-kinds';
 import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
 import { DocumentTypeRegistry } from './descriptors/type-registry';
+import * as takeNumber from './numbering/take-number';
 import * as persistence from './persistence';
 import { EntityReferenceRegistry } from './references/reference-registry';
 import * as companyTransport from './transports/company-transport';
@@ -16,6 +17,10 @@ import { TransportRegistry } from './transports/transport-registry';
 
 jest.mock('./persistence');
 jest.mock('./transports/company-transport');
+// See documents.service.spec.ts's own comment on this mock — the real invoice descriptor now
+// declares `numbering: { onEnterStatus: 'sent' }` too (invoice.descriptor.ts), and
+// `takeDocumentNumberForTransition` reaches Prisma directly, bypassing the mocked `./persistence`.
+jest.mock('./numbering/take-number');
 // See documents.service.spec.ts's own comment on this mock — the real decision code is proven
 // elsewhere (country-policy/country-policy.spec.ts, documents.service.country-policy.spec.ts). The
 // default "allowed" is (re-)installed in `beforeEach` below, not just here, since
@@ -78,6 +83,7 @@ const noDueDateInvoiceData = {
 describe('DocumentsService — the invoice type, the SECOND descriptor-only type', () => {
   beforeEach(() => {
     (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
   });
   afterEach(() => jest.resetAllMocks());
 

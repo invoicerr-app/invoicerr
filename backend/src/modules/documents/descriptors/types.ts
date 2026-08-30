@@ -69,6 +69,26 @@ export interface DocumentTypeDescriptor {
   /** Which `statuses[].id` a brand-new, never-saved instance of this type starts at — required, and
    *  checked against `statuses`, whenever `statuses` itself is declared (see `validateLifecycle`). */
   initialStatus?: string;
+  /**
+   * Declares AT WHICH TRANSITION this type's instances receive a NUMBER — see numbering/ for the
+   * full mechanism (format, atomic sequence, the runtime hook in documents.service.ts's `runAction`).
+   * `onEnterStatus` names one of THIS type's own `statuses`, checked by `validateLifecycle` below the
+   * exact same way `initialStatus`/`transitions` already are.
+   *
+   * A number is taken the FIRST time a record's persisted status actually EQUALS `onEnterStatus` —
+   * never before (a draft has none) and never again afterward, however many different ways there
+   * might be to reach that status: once `DocumentInstance.number` is set it is never cleared, so
+   * "status matches AND number is still null" already means "first time", with no need to track
+   * which transition edge fired.
+   *
+   * Absent means this type is NEVER numbered, on any record, by anything — the deliberate state for
+   * "expense" (no status a number would even make sense to hang off) and, today, for "credit-note"
+   * (its lifecycle has no status besides "draft" to enter — see credit-note.descriptor.ts's own
+   * comment on why `numbering` is not declared for it despite a credit note plausibly needing one in
+   * real bookkeeping). This is the numbering equivalent of `contributions`/`statuses` themselves being
+   * optional: a type that never declares a concern gets none of that concern's machinery.
+   */
+  numbering?: { onEnterStatus: string };
 }
 
 /** One status a document TYPE's instances can be in — see `DocumentTypeDescriptor.statuses`. Plain

@@ -18,6 +18,11 @@ interface DocumentFormProps {
   documentId?: string
   initialData?: Record<string, unknown>
   status?: string
+  /** The record's own displayNumber, as known when this form was opened — see types.ts's
+   *  `DocumentInstance.displayNumber`. Absent/null for a not-yet-numbered (or never-numbered) record;
+   *  re-synced live via `onDocumentUpdate` once an action actually numbers it (e.g. "send"), the same
+   *  way `status` already is. */
+  displayNumber?: string | null
   /** Fires after an action that actually changed the document — e.g. so a caller can refresh a list
    *  or "follow" the document once it exists (a fresh draft is created on the first save). Not
    *  called for an action whose result carries no document (see ActionResult on the backend). */
@@ -39,11 +44,13 @@ export function DocumentForm({
   documentId,
   initialData,
   status,
+  displayNumber,
   onActionSuccess,
 }: DocumentFormProps) {
   const { t } = useTranslation()
   const [currentDocumentId, setCurrentDocumentId] = useState(documentId)
   const [currentStatus, setCurrentStatus] = useState(status)
+  const [currentDisplayNumber, setCurrentDisplayNumber] = useState(displayNumber ?? null)
 
   const schema = useMemo(() => buildZodSchema(descriptor.fields), [descriptor])
   const form = useForm({
@@ -63,7 +70,10 @@ export function DocumentForm({
     if (status !== undefined) {
       setCurrentStatus(status)
     }
-  }, [initialData, status, form])
+    if (displayNumber !== undefined) {
+      setCurrentDisplayNumber(displayNumber ?? null)
+    }
+  }, [initialData, status, displayNumber, form])
 
   const { pendingAction, pendingDefaults, isRunning, handleAction, executeAction, cancelPendingAction } =
     useDocumentActionRunner({
@@ -72,9 +82,10 @@ export function DocumentForm({
       getData: () => form.getValues(),
       validate: () => form.trigger(),
       onActionSuccess,
-      onDocumentUpdate: (id, nextStatus) => {
+      onDocumentUpdate: (id, nextStatus, _nextNumber, nextDisplayNumber) => {
         setCurrentDocumentId(id)
         setCurrentStatus(nextStatus)
+        setCurrentDisplayNumber(nextDisplayNumber ?? null)
       },
     })
 
@@ -90,6 +101,12 @@ export function DocumentForm({
   return (
     <Form {...form}>
       <form className="space-y-6" data-cy="document-form" onSubmit={(e) => e.preventDefault()}>
+        {descriptor.numbering && (
+          <p className="font-mono text-sm text-muted-foreground" data-cy="document-form-number">
+            {currentDisplayNumber ?? t("documents.numbering.noneYet")}
+          </p>
+        )}
+
         <div className="space-y-4">
           {descriptor.fields.map((field) => (
             <DocumentField key={field.key} field={field} name={field.key} documentTypeId={descriptor.id} />

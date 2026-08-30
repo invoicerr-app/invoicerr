@@ -21,6 +21,11 @@ export interface DocumentInstanceResult {
   data: unknown;
   createdAt: Date;
   updatedAt: Date;
+  /** See `DocumentInstance`'s own schema comment and numbering/ — null until this type's own
+   *  declared `numbering.onEnterStatus` is first reached (or forever, for a type that never declares
+   *  `numbering` at all), never cleared or reassigned afterward. */
+  number?: number | null;
+  displayNumber?: string | null;
 }
 
 /**
