@@ -219,10 +219,16 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
 
   const countryCodeValue = form.watch("countryCode")
   const clientTypeWatch = form.watch("type")
-  const { data: requiredIdentifiers } = useRequiredIdentifiers(
+  const { data: requiredIdentifiersResult } = useRequiredIdentifiers(
     countryCodeValue || undefined,
     clientTypeWatch === "INDIVIDUAL" ? "INDIVIDUAL" : "COMPANY",
   )
+  const requiredIdentifiers = requiredIdentifiersResult?.requirements
+  // Present only when the country has NO identifier-requirements file at all — see
+  // use-required-identifiers.ts's own RequiredIdentifiersResult. Surfaced instead of a silently
+  // empty section, so "this country requires nothing" and "we don't know what this country
+  // requires" never look identical to the user.
+  const requiredIdentifiersReason = requiredIdentifiersResult?.reason
 
   // Sync identifier fields with what the country requires
   useEffect(() => {
@@ -484,6 +490,13 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                     })}
                   </div>
                 </div>
+              ) : requiredIdentifiersReason ? (
+                <p className="text-xs text-muted-foreground" data-cy="client-identifiers-unknown-country">
+                  {t(
+                    "clients.upsert.fields.identifiers.unknownCountry",
+                    "No identifier requirements are known for this country yet — you can save the client without one.",
+                  )}
+                </p>
               ) : null}
 
               {/* Peppol / Electronic routing section */}

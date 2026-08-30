@@ -1,0 +1,16 @@
+{
+  "countryCode": "US",
+  "schemes": [
+    {
+      "scheme": "LEGAL_ID",
+      "appliesTo": "COMPANY",
+      "label": "EIN",
+      "required": false,
+      "helpText": "Employer Identification Number (optional for sole proprietors)",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "This entry inherits the removed compliance engine's own choice (git tag avant-refonte-documents, backend/src/compliance/profiles/data/us.ts's requiredIdentifiers: scheme LEGAL_ID, label EIN, required false, 'optional for sole proprietors') — that profile carried NO provenance field at all, so the choice was never sourced there either. A live fetch of https://www.irs.gov/businesses/small-businesses-self-employed/employer-id-numbers on 2026-08-30 returned real IRS text: \"You need an EIN if you: Have employees; Will need to pay employment, excise or alcohol, tobacco, and firearms taxes; Withhold taxes on income, other than wages, paid to a non-resident alien\", and separately that partnerships, LLCs, corporations, tax-exempt organizations, estates, trusts, retirement plans/IRAs, REMICs and farmers' cooperatives must obtain one to operate at all. That page settles WHO must obtain an EIN to exist as a business — it does not settle whether an EIN must appear ON AN INVOICE, which is the actual claim this fact makes; the same fetch's own summary states plainly \"the provided content does not address whether an EIN must appear on invoices.\" No US federal invoice-content mandate was found either (consistent with backend/src/modules/documents/country-policy/data/us.json's own notes on the absence of a federal e-invoicing mandate), so there is no separate invoice-content rule to point to. `required: false` is kept as the best-available default (a sole proprietor with no employees and none of the IRS triggers above genuinely has no EIN to put on anything) but is not itself sourced to a text about invoices. What would settle this: a source addressing invoice content specifically, e.g. a state's own invoicing/sales-tax-registration rules, since there is no federal one to check."
+      }
+    }
+  ]
+}

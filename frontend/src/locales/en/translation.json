@@ -103,7 +103,8 @@
           "placeholder": "Enter country"
         },
         "identifiers": {
-          "label": "Country-specific identifiers"
+          "label": "Country-specific identifiers",
+          "unknownCountry": "No identifier requirements are known for this country yet — you can save the client without one."
         },
         "peppol": {
           "label": "Peppol / Electronic routing (optional)"
@@ -1735,7 +1736,8 @@
           "description": "Display the legal notice 'VAT not applicable, art. 293 B of the CGI' on future documents when enabled and if the company's country is France."
         },
         "identifiers": {
-          "label": "Country-specific identifiers"
+          "label": "Country-specific identifiers",
+          "unknownCountry": "No identifier requirements are known for this country yet — you can save without one."
         },
         "saving": "Saving...",
         "saveSettings": "Save Settings",

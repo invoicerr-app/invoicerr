@@ -254,7 +254,11 @@ export default function CompanySettings() {
   useCountryToCurrency(form)
 
   const countryCodeValue = form.watch("countryCode")
-  const { data: requiredIdentifiers } = useRequiredIdentifiers(countryCodeValue || undefined, "COMPANY")
+  const { data: requiredIdentifiersResult } = useRequiredIdentifiers(countryCodeValue || undefined, "COMPANY")
+  const requiredIdentifiers = requiredIdentifiersResult?.requirements
+  // Present only when the country has NO identifier-requirements file at all — see
+  // use-required-identifiers.ts's own RequiredIdentifiersResult.
+  const requiredIdentifiersReason = requiredIdentifiersResult?.reason
 
   useEffect(() => {
     if (!requiredIdentifiers) return
@@ -515,6 +519,13 @@ export default function CompanySettings() {
                     })}
                   </div>
                 </div>
+              ) : requiredIdentifiersReason ? (
+                <p className="text-xs text-muted-foreground" data-cy="company-identifiers-unknown-country">
+                  {t(
+                    "settings.company.form.identifiers.unknownCountry",
+                    "No identifier requirements are known for this country yet — you can save without one.",
+                  )}
+                </p>
               ) : null}
 
               {/* Peppol / Electronic routing section (seller) */}

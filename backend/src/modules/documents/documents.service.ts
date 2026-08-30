@@ -21,6 +21,11 @@ import {
   resolveAvailableDocumentTypes,
   resolveCompanyCountryCode,
 } from './country-policy/country-policy';
+import {
+  resolveRequiredIdentifiers,
+  RequiredIdentifiersDecision,
+} from './country-identifiers/country-identifiers';
+import { PartyType } from './country-identifiers/schema';
 import { applyFieldOverlay } from './country-fields/apply-overlay';
 import { CountryFieldOverlayCatalog } from './country-fields/registry';
 import { applyCompanyFieldView } from './descriptors/company-view';
@@ -174,6 +179,29 @@ export class DocumentsService implements OnModuleInit {
       .map(({ id, label }) => ({ id, label }));
 
     return { types };
+  }
+
+  /**
+   * Which national identifier SCHEMES (e.g. "LEGAL_ID", "VAT") a party of `partyType` must supply
+   * for `countryCode` — see country-identifiers/country-identifiers.ts's resolveRequiredIdentifiers
+   * for the actual decision. Deliberately NOT scoped by `@ActiveCompany()` (see this controller's
+   * own route and that function's header): the country in question is whatever the CALLER's own
+   * country picker currently holds — a client being created, the active company's own settings
+   * form, or the onboarding wizard before any company exists at all — never the active company's
+   * country by construction.
+   *
+   * Any string other than "INDIVIDUAL" defaults to "COMPANY" rather than rejecting the request:
+   * this endpoint's only two frontend callers pass a `ClientType`-shaped value, and a stray/omitted
+   * query param is far more likely to mean "the company itself" (the onboarding/company-settings
+   * callers never pass anything else) than to be a genuine third party type this catalog doesn't
+   * know yet.
+   */
+  async listRequiredIdentifiers(
+    countryCode: string,
+    partyType: string,
+  ): Promise<RequiredIdentifiersDecision> {
+    const resolvedPartyType: PartyType = partyType === 'INDIVIDUAL' ? 'INDIVIDUAL' : 'COMPANY';
+    return resolveRequiredIdentifiers(countryCode, resolvedPartyType);
   }
 
   getType(typeId: string): DocumentTypeDescriptor {

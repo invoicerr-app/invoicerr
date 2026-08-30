@@ -77,6 +77,27 @@ export class DocumentsController {
     return this.documentsService.listAvailableTypes(companyId);
   }
 
+  @Get('required-identifiers')
+  @ApiOperation({
+    summary: 'Legal identifier requirements for a country and party type',
+    description:
+      'Which identifier schemes (e.g. "LEGAL_ID", "VAT") a party of the given type must supply for ' +
+      "the given country — see country-identifiers/country-identifiers.ts's " +
+      'resolveRequiredIdentifiers. `reason` is present, and `requirements` empty, only when the ' +
+      'country has NO identifier-requirements file declared at all; `requirements` can also be ' +
+      'legitimately empty WITHOUT a reason when the file exists but declares nothing for this ' +
+      'specific party type — never a silently empty form either way. Not scoped by ' +
+      "@ActiveCompany(): the country in question is the CALLER's own country picker (a client, " +
+      'the company itself, or a not-yet-created company during onboarding), never the active ' +
+      "company's.",
+  })
+  @ApiQuery({ name: 'countryCode', required: true, type: String })
+  @ApiQuery({ name: 'partyType', required: true, enum: ['COMPANY', 'INDIVIDUAL'] })
+  @ApiResponse({ status: 200, description: 'Requirements retrieved (possibly empty, with a reason)' })
+  listRequiredIdentifiers(@Query('countryCode') countryCode: string, @Query('partyType') partyType: string) {
+    return this.documentsService.listRequiredIdentifiers(countryCode, partyType);
+  }
+
   @Get('dashboard')
   @ApiOperation({
     summary: 'Dashboard widgets',

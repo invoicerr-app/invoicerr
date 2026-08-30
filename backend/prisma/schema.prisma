@@ -870,6 +870,46 @@ model DocumentCountryActionRule {
   @@index([countryCode])
 }
 
+// Mirror of backend/src/modules/documents/country-identifiers/data/*.json, seeded (never
+// hand-edited — see country-identifiers/seed.ts) by seedCountryIdentifierRequirements(), which is
+// idempotent on (countryCode, scheme). A country with NO row at all here has NO identifier
+// requirement declared at all — see country-identifiers/country-identifiers.ts's
+// resolveRequiredIdentifiers(), the one place this table is read at request time, for why that
+// state is surfaced with a `reason` to the frontend rather than a silently empty form. This is a
+// SEPARATE concern from DocumentCountryActionRule above: that table says which document ACTIONS a
+// country allows; this one says which national identifier SCHEMES (SIRET, EIN, VAT…) a party of a
+// given type must supply — neither reads the other.
+model CountryIdentifierRequirement {
+  id          String @id @default(cuid())
+  countryCode String // ISO 3166-1 alpha-2, uppercase — matches the source file's own countryCode
+  scheme      String // a stable, cross-country key the FRONTEND switches on — e.g. "LEGAL_ID", "VAT"
+  // (see client-upsert.tsx's `data-cy={`client-identifier-${req.scheme}`}` and
+  // company.settings.tsx/onboarding.tsx's own `req.scheme === "LEGAL_ID"` special case). Changing
+  // a shipped scheme string is a breaking change to those data-cy targets, not a free rename.
+  appliesTo String // 'COMPANY' | 'INDIVIDUAL' | 'BOTH'
+  label     String // country-specific display text for this scheme, e.g. "SIRET" (FR), "EIN" (US)
+  required  Boolean
+  pattern   String? // optional validation regex — a legal CLAIM like `required`, covered by the
+  // same provenance below, never a UI-invented default
+  helpText String?
+
+  // Provenance — see country-identifiers/schema.ts's IdentifierProvenance. Exactly one of the two
+  // shapes below is populated, enforced by assertValidProvenance() before a row is ever written,
+  // never by a DB constraint — same discipline as DocumentCountryActionRule above.
+  provenanceKind  String // 'legal' | 'unverified'
+  sourceText      String? // 'legal': the exact legal text this fact is based on
+  sourceCheckedAt DateTime? // 'legal': when `sourceText` was last checked against its source
+  resolutionNote  String? // 'unverified': what would have to be checked to settle this fact
+
+  notes String? // free-form caveats, same convention as DocumentActionRuleFact.notes
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([countryCode, scheme])
+  @@index([countryCode])
+}
+
 // ======= END OF DOCUMENT DESCRIPTOR SYSTEM ======= //
 
 // ======= START OF COMPLIANCE LIFECYCLE PERSISTENCE ======= //

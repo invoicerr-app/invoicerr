@@ -3,9 +3,11 @@
  * `prisma migrate dev` / `migrate reset`, and on demand via `prisma db seed`. Not a new invocation
  * point: this is the existing, standard Prisma extension for "make the DB match reference data after
  * migrating", used here for the document-action country policy
- * (backend/src/modules/documents/country-policy/). Production self-hosted instances get the same
- * seeding from `sync-schema.ts`'s `syncDatabaseSchema()`, already called once on every boot from
- * `main.ts` — see that file's `seedCountryPolicies` call.
+ * (backend/src/modules/documents/country-policy/) and the country identifier-requirements catalog
+ * (backend/src/modules/documents/country-identifiers/) — same "a country is data" family, seeded
+ * the same way. Production self-hosted instances get the same seeding from `sync-schema.ts`'s
+ * `syncDatabaseSchema()`, already called once on every boot from `main.ts` — see that file's own
+ * `seedCountryPolicies`/`seedCountryIdentifierRequirements` calls.
  *
  * This file used to call the (removed) compliance engine's `seedVatRates` — that module no longer
  * exists (see `refactor!: suppression des documents légaux et du moteur de conformité`), which had
@@ -15,11 +17,20 @@
  */
 import prisma from '../src/prisma/prisma.service';
 import { seedCountryPolicies } from '../src/modules/documents/country-policy/seed';
+import { seedCountryIdentifierRequirements } from '../src/modules/documents/country-identifiers/seed';
 
 async function main() {
   const summary = await seedCountryPolicies(prisma);
   console.log(
     `[seed] document country policy: ${summary.upserted} upserted, ${summary.deleted} deleted (stale)`,
+  );
+
+  // Same idempotent reseed, for the SEPARATE country identifier-requirements catalog
+  // (backend/src/modules/documents/country-identifiers/) — see that seed's own header.
+  const identifierSummary = await seedCountryIdentifierRequirements(prisma);
+  console.log(
+    `[seed] country identifier requirements: ${identifierSummary.upserted} upserted, ` +
+      `${identifierSummary.deleted} deleted (stale)`,
   );
 }
 

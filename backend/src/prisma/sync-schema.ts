@@ -3,6 +3,7 @@ import { join } from 'path';
 
 import prisma from './prisma.service';
 import { seedCountryPolicies } from '../modules/documents/country-policy/seed';
+import { seedCountryIdentifierRequirements } from '../modules/documents/country-identifiers/seed';
 
 /**
  * Every self-hosted instance has been running on `prisma db push` since
@@ -151,5 +152,14 @@ export async function syncDatabaseSchema(): Promise<void> {
   const summary = await seedCountryPolicies(prisma);
   console.log(
     `[sync-schema] Document country policy: ${summary.upserted} upserted, ${summary.deleted} deleted (stale).`,
+  );
+
+  // Same reasoning, same idempotency, for the SEPARATE country identifier-requirements catalog
+  // (backend/src/modules/documents/country-identifiers/) — see that seed's own header.
+  console.log('[sync-schema] Seeding country identifier requirements...');
+  const identifierSummary = await seedCountryIdentifierRequirements(prisma);
+  console.log(
+    `[sync-schema] Country identifier requirements: ${identifierSummary.upserted} upserted, ` +
+      `${identifierSummary.deleted} deleted (stale).`,
   );
 }

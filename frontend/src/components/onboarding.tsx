@@ -86,7 +86,11 @@ export default function OnBoarding({
   const loading = isLoading || externalLoading
 
   const countryCodeValue = form.watch("countryCode")
-  const { data: requiredIdentifiers } = useRequiredIdentifiers(countryCodeValue || undefined, "COMPANY")
+  const { data: requiredIdentifiersResult } = useRequiredIdentifiers(countryCodeValue || undefined, "COMPANY")
+  const requiredIdentifiers = requiredIdentifiersResult?.requirements
+  // Present only when the country has NO identifier-requirements file at all — see
+  // use-required-identifiers.ts's own RequiredIdentifiersResult.
+  const requiredIdentifiersReason = requiredIdentifiersResult?.reason
 
   const {
     lookup: onCompanyLookup,
@@ -368,6 +372,13 @@ export default function OnBoarding({
                     })}
                   </div>
                 </div>
+              ) : requiredIdentifiersReason ? (
+                <p className="text-xs text-muted-foreground" data-cy="onboarding-identifiers-unknown-country">
+                  {t(
+                    "settings.company.form.identifiers.unknownCountry",
+                    "No identifier requirements are known for this country yet — you can save without one.",
+                  )}
+                </p>
               ) : null}
 
               <FormField

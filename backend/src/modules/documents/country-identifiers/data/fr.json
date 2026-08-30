@@ -1,0 +1,27 @@
+{
+  "countryCode": "FR",
+  "schemes": [
+    {
+      "scheme": "LEGAL_ID",
+      "appliesTo": "BOTH",
+      "label": "SIRET",
+      "required": true,
+      "pattern": "^\\d{14}$",
+      "helpText": "14 digits (SIRET)",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Two distinct French national identifiers exist for a registered business: SIREN (9 digits, the entity itself) and SIRET (9-digit SIREN + 5-digit NIC, one per establishment). This entry inherits the removed compliance engine's own choice (git tag avant-refonte-documents, backend/src/compliance/profiles/data/fr.ts's requiredIdentifiers: scheme LEGAL_ID, label SIRET, pattern 14 digits) — but that profile carried NO provenance field at all, so its choice of SIRET over SIREN was never sourced there either, only assumed. Two candidate legal bases exist and neither has been read at its own text today (2026-08-30): Code de commerce art. R.123-237 (mandatory SIREN + RCS mention on documents intended for third parties, including invoices, for a registered trader) and CGI ann. II art. 242 nonies A (mandatory invoice mentions under CGI art. 289). Attempts to reach a primary or government-adjacent source today were all blocked: legifrance.gouv.fr/codes/article_lc/LEGIARTI000006308411 resolved to an unrelated article (Légifrance's article ids are opaque and this task's automated guess missed — the same access wall this module's sibling country-policy/data/fr.json already documents for Légifrance), https://www.economie.gouv.fr/entreprises/facture-mentions-obligatoires returned HTTP 403, and https://www.impots.gouv.fr/professionnel/facturation-electronique returned HTTP 404. documentation/compliance/FR-France.md §3C states 'SIREN / SIRET: Legal identifier (9 / 14 digits)' but cites no article for that either, so it cannot upgrade this entry — a project document repeating a claim is not a new source for it. What would settle this: reading Code de commerce art. R.123-237 and CGI ann. II art. 242 nonies A directly, then confirming whether an INVOICE specifically must carry the SIREN or the SIRET — they are not interchangeable, since a company with several establishments has one SIREN but several SIRETs."
+      }
+    },
+    {
+      "scheme": "VAT",
+      "appliesTo": "COMPANY",
+      "label": "N° TVA intracommunautaire",
+      "required": false,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "A French company under the standard VAT regime is issued an intra-Community VAT number, and CGI ann. II art. 242 nonies A very likely requires it on an invoice exchanged between VAT-registered parties — but a company under the franchise-en-base (art. 293 B CGI, see backend/src/modules/documents/country-policy/data/fr.json's own note on this scheme) is not VAT-registered and carries no such number, which is the reasoning behind marking this optional rather than required at the country level (this catalog has no per-company VAT-regime input to condition on). The article itself has not been read at its own text today (2026-08-30) — see the LEGAL_ID entry above in this same file for the exact legifrance.gouv.fr / economie.gouv.fr / impots.gouv.fr access failures hit while researching this file. What would settle this: reading CGI ann. II art. 242 nonies A directly, and deciding whether `required` should depend on the company's own VAT regime rather than being a flat true/false per country."
+      }
+    }
+  ]
+}

@@ -68,19 +68,22 @@ export default defineConfig({
             // Read the table list from Postgres instead of hardcoding it so this
             // doesn't silently drift when the Prisma schema gains new models.
             //
-            // `DocumentCountryActionRule` is excluded on purpose, alongside `_prisma_migrations`:
-            // it is REFERENCE data mirrored from
-            // backend/src/modules/documents/country-policy/data/*.json by seedCountryPolicies()
-            // (seeded once, at migration time — see prisma.config.ts's `migrations.seed` — not
-            // reseeded on every backend request), never per-spec fixture data a test creates and
-            // expects wiped. Truncating it here would leave the backend running with an EMPTY
-            // policy table until the next migration/seed, and this module's whole design is "a
-            // country with no policy rows blocks every document action" (country-policy.ts) — so a
-            // truncate-without-reseed would 403 every single document action in every later spec,
-            // not just this table's own data disappearing quietly.
+            // `DocumentCountryActionRule` and `CountryIdentifierRequirement` are excluded on
+            // purpose, alongside `_prisma_migrations`: both are REFERENCE data mirrored from
+            // backend/src/modules/documents/{country-policy,country-identifiers}/data/*.json by
+            // seedCountryPolicies()/seedCountryIdentifierRequirements() (seeded once, at migration
+            // time — see prisma.config.ts's `migrations.seed` — not reseeded on every backend
+            // request), never per-spec fixture data a test creates and expects wiped. Truncating
+            // either here would leave the backend running EMPTY until the next migration/seed:
+            // `DocumentCountryActionRule` empty means "a country with no policy rows blocks every
+            // document action" (country-policy.ts) — a 403 on every document action in every later
+            // spec; `CountryIdentifierRequirement` empty means every country looks like it has NO
+            // identifier-requirements file at all (country-identifiers.ts) — the client/company/
+            // onboarding identifier fields this task exists to keep visible would silently stop
+            // rendering for the rest of the run, not just this table's own data disappearing quietly.
             const { rows } = await client.query(
               `SELECT tablename FROM pg_tables WHERE schemaname = 'public'
-                 AND tablename NOT IN ('_prisma_migrations', 'DocumentCountryActionRule')`,
+                 AND tablename NOT IN ('_prisma_migrations', 'DocumentCountryActionRule', 'CountryIdentifierRequirement')`,
             );
             if (rows.length === 0) {
               return null;
