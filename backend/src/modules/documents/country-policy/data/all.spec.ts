@@ -12,14 +12,16 @@ import { buildCreditNoteDescriptor } from '../../descriptors/credit-note.descrip
 import { buildExpenseDescriptor } from '../../descriptors/expense.descriptor';
 import { ALL_COUNTRY_POLICY_FILES } from './all';
 
-// The THIRD-PARTY "duplicate" extension (actions/duplicate-extension.ts) is attached to "quote" in
-// documents.module.ts, outside any type's own descriptor — listed here by hand since this test
-// deliberately stays independent of Nest wiring, the same way documents.service.spec.ts's own
-// `buildService()` re-lists it rather than booting the whole module.
+// The THIRD-PARTY "duplicate" extension (actions/duplicate-extension.ts) is attached to BOTH
+// "quote" and "invoice" (documents-core.module.ts, root TODO item 5 — the invoice case needed it
+// for the recurring-documents mechanism), outside either type's own descriptor — listed here by
+// hand since this test deliberately stays independent of Nest wiring, the same way
+// documents.service.spec.ts's own `buildService()` re-lists it rather than booting the whole module.
 const NATIVE_TYPE_ACTIONS: { typeId: string; actionId: string }[] = [
   ...buildQuoteDescriptor().actions.map((a) => ({ typeId: 'quote', actionId: a.id })),
   { typeId: 'quote', actionId: 'duplicate' },
   ...buildInvoiceDescriptor().actions.map((a) => ({ typeId: 'invoice', actionId: a.id })),
+  { typeId: 'invoice', actionId: 'duplicate' },
   ...buildCreditNoteDescriptor().actions.map((a) => ({ typeId: 'credit-note', actionId: a.id })),
   ...buildExpenseDescriptor().actions.map((a) => ({ typeId: 'expense', actionId: a.id })),
 ];

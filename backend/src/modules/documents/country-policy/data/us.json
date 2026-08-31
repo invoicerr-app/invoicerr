@@ -62,6 +62,15 @@
     },
     {
       "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Duplicating an invoice into a new draft (root of the recurring-documents mechanism, item 5) is a pure product convenience — the new document is born 'draft' and re-enters the ordinary issuance path in full (numbering, sending), so no text identified governs the act of duplication itself. Unlike quote.duplicate (deliberately left UNDECLARED in this same file — see this file's own top-level `notes`, a genuine 'never checked' gap kept as a live example rather than guessed shut), this one WAS actually considered: any legal question (26 U.S.C./state sales-tax recordkeeping) would attach to the ISSUED invoice this eventually produces, not to this draft or the automation that triggers it. Confirm with a dedicated legal review if that ever changes."
+      }
+    },
+    {
+      "typeId": "invoice",
       "actionId": "record-payment",
       "allowed": true,
       "provenance": {

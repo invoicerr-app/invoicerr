@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 
@@ -6,15 +6,71 @@ import { ActiveCompany } from '@/decorators/active-company.decorator';
 
 import { DocumentsService } from './documents.service';
 import { RunActionDto } from './dto/documents.dto';
+import { CreateDocumentScheduleDto, UpdateDocumentScheduleDto } from './schedules/schedule.dto';
+import { DocumentSchedulesService } from './schedules/schedules.service';
 
 @ApiTags('documents')
 @Controller('documents')
 export class DocumentsController {
-  constructor(private readonly documentsService: DocumentsService) {}
+  constructor(
+    private readonly documentsService: DocumentsService,
+    private readonly schedulesService: DocumentSchedulesService,
+  ) {}
 
-  // Static segments ('types', 'transports', 'references/:entity/search') are declared before the
-  // dynamic ':id'/':refId' routes at the same depth so Nest/Express match the literal first — see
-  // documents.module.ts's comment header for why this ordering matters here.
+  // Static segments ('types', 'transports', 'references/:entity/search', 'schedules') are declared
+  // before the dynamic ':id'/':refId' routes at the same depth so Nest/Express match the literal
+  // first — see documents.module.ts's comment header for why this ordering matters here.
+
+  @Get('schedules')
+  @ApiOperation({
+    summary: 'List recurrences',
+    description: 'Every DocumentSchedule for the active company — optionally narrowed to one document type.',
+  })
+  @ApiQuery({ name: 'typeId', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'Schedules retrieved' })
+  listSchedules(@ActiveCompany() companyId: string, @Query('typeId') typeId?: string) {
+    return this.schedulesService.list(companyId, typeId);
+  }
+
+  @Post('schedules')
+  @ApiOperation({
+    summary: 'Create a recurrence',
+    description:
+      'Replays `actionId` on `sourceDocumentId` at the given cadence, starting at `firstOccurrenceAt` ' +
+      '(may be in the past — it becomes due at the very next sweep pass).',
+  })
+  @ApiResponse({ status: 201, description: 'Schedule created' })
+  @ApiResponse({ status: 400, description: 'Unknown cadence, or an unparseable firstOccurrenceAt' })
+  @ApiResponse({ status: 404, description: 'Unknown type/action, or the source document does not exist' })
+  createSchedule(@ActiveCompany() companyId: string, @Body() body: CreateDocumentScheduleDto) {
+    return this.schedulesService.create(companyId, body);
+  }
+
+  @Patch('schedules/:id')
+  @ApiOperation({
+    summary: 'Enable or disable a recurrence',
+    description:
+      'The only write the screen offers on an EXISTING schedule — cadence/source/action are fixed at creation.',
+  })
+  @ApiParam({ name: 'id', type: String })
+  @ApiResponse({ status: 200, description: 'Schedule updated' })
+  @ApiResponse({ status: 404, description: 'Not found for this company' })
+  updateSchedule(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Body() body: UpdateDocumentScheduleDto,
+  ) {
+    return this.schedulesService.setEnabled(companyId, id, body);
+  }
+
+  @Delete('schedules/:id')
+  @ApiOperation({ summary: 'Delete a recurrence' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiResponse({ status: 200, description: 'Schedule deleted' })
+  @ApiResponse({ status: 404, description: 'Not found for this company' })
+  deleteSchedule(@ActiveCompany() companyId: string, @Param('id') id: string) {
+    return this.schedulesService.remove(companyId, id);
+  }
 
   @Get('types')
   @ApiOperation({

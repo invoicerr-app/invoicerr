@@ -47,3 +47,25 @@
   seulement `ClientsService` en position de type) le redécouvrira ; le test d'intégration de la file
   (`queue/__tests__`) le contourne en construisant `DocumentsService` à la main. À trancher un jour :
   config ESM de ts-jest, ou remplacer la dépendance du driver Discord.
+
+- **Le rattrapage des récurrences reste automatique, jamais confirmé par un humain** (item 5, tâche
+  "les récurrences") : le balayage tire UNE occurrence par passage (jamais une rafale dans le MÊME
+  passage — voir `documents/schedules/schedule-sweep.ts`), mais rien n'empêche plusieurs PASSAGES
+  successifs de rattraper tout un retard tout seuls. Avec l'intervalle par défaut (60 s), une
+  facture mensuelle en retard de trois mois finit quand même par produire trois duplicatas en trois
+  minutes, sans qu'un humain n'ait rien validé — throttlé, jamais silencieux (chaque occurrence est
+  visible, `lastRunAt`/`lastError` avancent), mais toujours automatique. Une alternative plus prudente
+  existerait (un état "rattrapage en attente, à confirmer" dès qu'un schedule est trouvé plus d'UN
+  cycle en retard, avant de tirer quoi que ce soit) — non retenue ici faute d'un vrai besoin produit
+  exprimé, et pour ne pas inventer un mécanisme de confirmation supplémentaire sans qu'on l'ait
+  demandé. À reconsidérer si un utilisateur relève un jour un rattrapage surprenant.
+
+- **`invoice.duplicate` manquait de règle FR/US** (découvert en écrivant l'item 5, tâche "les
+  récurrences") : l'extension "duplicate" n'était câblée QUE sur `quote` avant cette tâche —
+  l'ajouter à `invoice` (nécessaire pour que le mécanisme de récurrence fonctionne) a immédiatement
+  buté sur `invoice.duplicate` absent des deux fichiers de politique pays (fr.json, us.json), refusé
+  par défaut (403) pour toute société. Ajouté aux deux (motif "commodité produit pure", `"kind":
+  "unverified"` comme le reste), et les deux bases reseedées. À noter : `quote.duplicate` reste NON
+  déclaré côté US — délibérément, comme trou "jamais examiné" gardé vivant et documenté dans us.json
+  même (le bouton "Duplicate" d'un devis y est donc 403 en le disant) ; le combler serait le deviner,
+  pas le trancher.

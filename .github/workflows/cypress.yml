@@ -143,6 +143,11 @@ jobs:
           SMTP_PORT: 1025
           SMTP_SECURE: 'false'
           SMTP_FROM: queue-integration@invoicerr.test
+          # The redis specs gate on this flag EXPLICITLY (not merely on REDIS_URL) so a bare local
+          # `npx jest` — which runs spec files in parallel workers sharing one queue/DB — skips them
+          # instead of failing on pure test-run topology. Removing this line makes this job skip
+          # everything it exists to run, silently. See the specs' own headers.
+          DOCUMENTS_QUEUE_REDIS_TESTS: '1'
         run: cd backend && npx jest --ci --runInBand --forceExit --testPathPattern 'modules/documents/queue/__tests__'
 
   cypress-run:

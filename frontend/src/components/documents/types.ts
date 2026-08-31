@@ -300,3 +300,29 @@ export function resolveTransitionTarget(
   }
   return undefined
 }
+
+/**
+ * A RECURRENCE (root TODO item 5) — mirrors the backend's `DocumentScheduleRecord`
+ * (schedules/schedule.persistence.ts). "Replay `actionId` on `sourceDocumentId`, on this cadence" —
+ * generic, the same way `DocumentInstance` names no document type: the invoice case (cadence ===
+ * "monthly", actionId === "duplicate") is the FIRST consumer, never something this shape hard-codes.
+ */
+export interface DocumentSchedule {
+  id: string
+  typeId: string
+  sourceDocumentId: string
+  actionId: string
+  /** One of "weekly" | "monthly" | "quarterly" | "yearly" — plain string, same convention as
+   *  `DocumentInstance.status`: closed at the backend's own cadence.ts, not typed as a union here. */
+  cadence: string
+  anchorDay: number | null
+  nextRunAt: string
+  lastRunAt: string | null
+  /** The most recent occurrence's failure, if any — VISIBLE, never a silent gap (see the backend's
+   *  `DocumentSchedule.lastError` schema comment). Cleared by the next SUCCESSFUL occurrence. */
+  lastError: string | null
+  enabled: boolean
+  /** Today, only `{ thenSend?: boolean }` — see the backend's duplicate-extension.ts. */
+  params: Record<string, unknown> | null
+  createdAt: string
+}

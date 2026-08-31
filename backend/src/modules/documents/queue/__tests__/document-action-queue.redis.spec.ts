@@ -56,7 +56,17 @@ import { DocumentQueueModule } from '../document-queue.module';
 import { DocumentActionProcessor } from '../processors/document-action.processor';
 import { Q_DOCUMENT_ACTION } from '../queue.constants';
 
-const hasRedis = !!process.env.REDIS_URL;
+// Gated EXPLICITLY (DOCUMENTS_QUEUE_REDIS_TESTS=1), not merely on REDIS_URL being set: a bare local
+// `npx jest` loads `.env` (so REDIS_URL is always set on a dev machine) and runs spec files in
+// PARALLEL workers — this file and its sibling redis spec would then consume the same real queue and
+// database at once, racing each other AND the running test backend's own inline worker/sweep, and
+// fail for reasons that are pure test-run topology, not product defects. The CI `queue-integration`
+// job (.github/workflows/cypress.yml) sets the flag and runs them `--runInBand`, which is the ONE
+// supported way to execute them:
+//   DOCUMENTS_QUEUE_REDIS_TESTS=1 npx jest --runInBand --forceExit --testPathPattern 'modules/documents/queue/__tests__'
+// Do not loosen this back to REDIS_URL alone "because it works on my machine" — it works until the
+// two files land in different workers.
+const hasRedis = !!process.env.REDIS_URL && process.env.DOCUMENTS_QUEUE_REDIS_TESTS === '1';
 const describeWithRedis = hasRedis ? describe : describe.skip;
 
 const MAILPIT_API = 'http://localhost:8025/api/v1';

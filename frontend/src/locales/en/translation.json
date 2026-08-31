@@ -1487,7 +1487,8 @@
       "apiKeys": "API Keys",
       "channels": "E-invoicing",
       "signing": "Signing certs",
-      "members": "Members"
+      "members": "Members",
+      "recurring": "Recurrences"
     },
     "invitations": {
       "create": {
@@ -2912,6 +2913,41 @@
     },
     "numbering": {
       "noneYet": "Draft — no number yet"
+    },
+    "schedules": {
+      "rowAction": {
+        "tooltip": "Set up a recurrence"
+      },
+      "cadence": {
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "quarterly": "Quarterly",
+        "yearly": "Yearly"
+      },
+      "dialog": {
+        "title": "New recurrence",
+        "description": "Replays \"Duplicate\" on this document, on the cadence you choose, starting at the first occurrence date.",
+        "cadence": "Cadence",
+        "firstOccurrenceAt": "First occurrence",
+        "firstOccurrenceAtHelp": "May be in the past — it becomes due at the very next check.",
+        "thenSend": "Send immediately",
+        "thenSendHelp": "Chains \"Send\" onto the fresh duplicate as soon as it's created.",
+        "confirm": "Create",
+        "cancel": "Cancel",
+        "created": "Recurrence created.",
+        "createError": "Could not create the recurrence."
+      },
+      "list": {
+        "description": "Every recurrence currently set up for this company.",
+        "empty": "No recurrence set up yet.",
+        "disabled": "Disabled",
+        "nextRunAt": "Next: {{date}}",
+        "lastRunAt": "Last: {{date}}",
+        "lastError": "Last attempt failed: {{message}}",
+        "deleted": "Recurrence deleted.",
+        "deleteError": "Could not delete the recurrence.",
+        "toggleError": "Could not update the recurrence."
+      }
     },
     "form": {
       "reference": {

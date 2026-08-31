@@ -1,6 +1,8 @@
 import { ForbiddenException } from '@nestjs/common';
 
 import { DocumentsService } from '../../documents.service';
+import { DocumentScheduleSweepRunner } from '../../schedules/schedule-sweep-runner';
+import { SCHEDULE_OCCURRENCE_JOB_NAME, SCHEDULE_SWEEP_JOB_NAME } from '../../schedules/schedule-sweep';
 import * as markSendFailedModule from '../mark-send-failed';
 import { DocumentActionJobData } from '../queue.constants';
 import { DocumentActionProcessor } from './document-action.processor';
@@ -70,6 +72,66 @@ describe('DocumentActionProcessor', () => {
     });
   });
 
+  describe('process() — schedule job names (root TODO item 5)', () => {
+    it('a job named after the sweep runs DocumentScheduleSweepRunner.runSweep, never runAction', async () => {
+      const runAction = jest.fn();
+      const documentsService = { runAction } as unknown as DocumentsService;
+      const runSweep = jest.fn().mockResolvedValue({ due: 2, enqueued: 2 });
+      const sweepRunner = { runSweep, runOccurrence: jest.fn() } as unknown as DocumentScheduleSweepRunner;
+      const processor = new DocumentActionProcessor(documentsService, sweepRunner);
+      const job = {
+        id: 'sweep-1',
+        name: SCHEDULE_SWEEP_JOB_NAME,
+        data: {},
+      } as unknown as import('bullmq').Job;
+
+      const result = await processor.process(job);
+
+      expect(result).toEqual({ due: 2, enqueued: 2 });
+      expect(runSweep).toHaveBeenCalledTimes(1);
+      expect(runAction).not.toHaveBeenCalled();
+    });
+
+    it('a job named after an occurrence runs DocumentScheduleSweepRunner.runOccurrence with its own data, never runAction directly', async () => {
+      const runAction = jest.fn();
+      const documentsService = { runAction } as unknown as DocumentsService;
+      const runOccurrence = jest.fn().mockResolvedValue({ changed: true, document: undefined });
+      const sweepRunner = { runSweep: jest.fn(), runOccurrence } as unknown as DocumentScheduleSweepRunner;
+      const processor = new DocumentActionProcessor(documentsService, sweepRunner);
+      const occurrenceData = {
+        scheduleId: 'sched-1',
+        companyId: 'company-1',
+        typeId: 'invoice',
+        documentId: 'doc-1',
+        actionId: 'duplicate',
+        occurrenceAt: '2026-08-31T00:00:00.000Z',
+        payload: { data: {}, params: { occurrenceDate: '2026-08-31T00:00:00.000Z' } },
+      };
+      const job = {
+        id: 'occ-1',
+        name: SCHEDULE_OCCURRENCE_JOB_NAME,
+        data: occurrenceData,
+      } as unknown as import('bullmq').Job;
+
+      await processor.process(job);
+
+      expect(runOccurrence).toHaveBeenCalledWith(occurrenceData);
+      expect(runAction).not.toHaveBeenCalled();
+    });
+
+    it('throws a named error for a schedule job when no sweepRunner was wired — never silently no-ops', async () => {
+      const documentsService = { runAction: jest.fn() } as unknown as DocumentsService;
+      const processor = new DocumentActionProcessor(documentsService); // no sweepRunner, like every pre-existing spec here
+      const job = {
+        id: 'sweep-1',
+        name: SCHEDULE_SWEEP_JOB_NAME,
+        data: {},
+      } as unknown as import('bullmq').Job;
+
+      await expect(processor.process(job)).rejects.toThrow(/DocumentScheduleSweepRunner/);
+    });
+  });
+
   describe('onFailed()', () => {
     it('does NOT mark "send_failed" while more retries remain (attemptsMade < attempts)', async () => {
       const documentsService = { runAction: jest.fn(), getType: jest.fn() } as unknown as DocumentsService;
@@ -109,6 +171,25 @@ describe('DocumentActionProcessor', () => {
       const processor = new DocumentActionProcessor(documentsService);
 
       await expect(processor.onFailed(undefined, new Error('x'))).resolves.toBeUndefined();
+      expect(markSendFailedModule.markSendFailed).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      SCHEDULE_SWEEP_JOB_NAME,
+      SCHEDULE_OCCURRENCE_JOB_NAME,
+    ])('never calls markSendFailed for a "%s" job — its own failure is recorded elsewhere (DocumentScheduleSweepRunner)', async (jobName) => {
+      const documentsService = { runAction: jest.fn(), getType: jest.fn() } as unknown as DocumentsService;
+      const processor = new DocumentActionProcessor(documentsService);
+      const job = {
+        id: 'x',
+        name: jobName,
+        data: { companyId: 'c', typeId: 'invoice', documentId: 'd', actionId: 'duplicate' },
+        attemptsMade: 1,
+        opts: { attempts: 1 },
+      } as unknown as import('bullmq').Job<DocumentActionJobData>;
+
+      await processor.onFailed(job, new Error('boom'));
+
       expect(markSendFailedModule.markSendFailed).not.toHaveBeenCalled();
     });
   });

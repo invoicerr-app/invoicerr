@@ -6,6 +6,7 @@ import {
   Mail,
   Plug,
   Radio,
+  Repeat,
   ShieldCheck,
   TicketIcon,
   User,
@@ -25,6 +26,7 @@ import InvitationsSettings from "./_components/invitations.settings"
 import MembersSettings from "./_components/members.settings"
 import PDFTemplatesSettings from "./_components/pdf.settings"
 import PluginsSettings from "./_components/plugins.settings"
+import RecurringSettings from "./_components/recurring.settings"
 import SigningCertificatesSettings from "./_components/signing-certificates.settings"
 import WebhooksSettings from "./_components/webhooks.settings"
 import { cn } from "@/lib/utils"
@@ -53,6 +55,7 @@ export default function Settings() {
     "plugins",
     "channels",
     "signing",
+    "recurring",
     "danger",
   ]
   const currentTab = validTabs.includes(tab!) ? tab! : "company"
@@ -123,6 +126,11 @@ export default function Settings() {
       icon: ShieldCheck,
     },
     {
+      value: "recurring",
+      label: t("settings.tabs.recurring"),
+      icon: Repeat,
+    },
+    {
       value: "danger",
       label: t("settings.tabs.dangerZone"),
       icon: AlertTriangle,
@@ -165,6 +173,8 @@ export default function Settings() {
         return <ChannelsSettings />
       case "signing":
         return <SigningCertificatesSettings />
+      case "recurring":
+        return <RecurringSettings />
       case "danger":
         return <DangerZoneSettings />
       default:

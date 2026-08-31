@@ -23,3 +23,9 @@ export {
   type SelectableRowsResult,
 } from "./use-document-types"
 export { useDashboardWidgets, useStatisticsWidgets } from "./use-widgets"
+export {
+  useDocumentSchedules,
+  useCreateDocumentSchedule,
+  useSetDocumentScheduleEnabled,
+  useDeleteDocumentSchedule,
+} from "./use-document-schedules"

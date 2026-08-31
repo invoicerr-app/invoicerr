@@ -213,12 +213,12 @@ enum InvoiceStatus {
   SENT
   ARCHIVED
   PENDING_CLEARANCE // ~ placeholder for clearance countries (PART X)
-  CLEARED           // ~ placeholder for clearance countries (PART X)
-  REJECTED          // F-008: authority rejected it (KSeF, SdI scarto, PDP). Terminal.
-  REFUSED           // F-008: the BUYER declined a correctly transmitted invoice. Exits via CORRECT.
+  CLEARED // ~ placeholder for clearance countries (PART X)
+  REJECTED // F-008: authority rejected it (KSeF, SdI scarto, PDP). Terminal.
+  REFUSED // F-008: the BUYER declined a correctly transmitted invoice. Exits via CORRECT.
   TRANSMISSION_FAILED // F-008: never reached the authority. Retryable — the projection clears it.
-                    // All three are projected from ComplianceDocument.status by ApplySignalService
-                    // and are never set by a user action.
+  // All three are projected from ComplianceDocument.status by ApplySignalService
+  // and are never set by a user action.
   CANCELLED
   CORRECTED
 }
@@ -279,19 +279,19 @@ enum CompanyRole {
 
 // PDF Configuration
 model Company {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  currency    Currency @default(EUR)
-  foundedAt   DateTime
-  exemptVat   Boolean  @default(false)
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  currency     Currency @default(EUR)
+  foundedAt    DateTime
+  exemptVat    Boolean  @default(false)
   address      String
   addressLine2 String? // Second line for address (apartment, suite, etc.)
   postalCode   String
   city         String
   state        String? // State/Province (for US addresses, etc.)
   country      String
-  countryCode  String?  // ISO 3166-1 alpha-2, explicit override; falls back to guessCountryCode(country)
+  countryCode  String? // ISO 3166-1 alpha-2, explicit override; falls back to guessCountryCode(country)
   phone        String
   email        String
 
@@ -348,19 +348,20 @@ model Company {
   // column needs to satisfy too. See CurrencyRate.from/to's own comment for the same choice.
   referenceCurrency String?
 
-  createdAt DateTime @default(now())
-  emailTemplates   MailTemplate[]
-  webhooks         Webhook[]
-  Article          Article[]
-  partyIdentifiers PartyIdentifier[]
-  Client           Client[]
-  members          UserCompany[]
-  apiKeys          ApiKey[]
-  invitationCodes  InvitationCode[]
-  documents        DocumentInstance[]
+  createdAt               DateTime                 @default(now())
+  emailTemplates          MailTemplate[]
+  webhooks                Webhook[]
+  Article                 Article[]
+  partyIdentifiers        PartyIdentifier[]
+  Client                  Client[]
+  members                 UserCompany[]
+  apiKeys                 ApiKey[]
+  invitationCodes         InvitationCode[]
+  documents               DocumentInstance[]
+  documentSchedules       DocumentSchedule[]
   documentNumberSequences DocumentNumberSequence[]
-  documentPayments DocumentPayment[]
-  currencyRates    CurrencyRate[]
+  documentPayments        DocumentPayment[]
+  currencyRates           CurrencyRate[]
 }
 
 // Manually entered exchange rates (item 9, root TODO — "le multi-devises"). The rule that governs
@@ -428,8 +429,8 @@ model UserCompany {
 
 // Client model
 model Client {
-  id               String             @id @default(cuid())
-  company          Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id               String            @id @default(cuid())
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   companyId        String
   name             String
   description      String?
@@ -444,13 +445,13 @@ model Client {
   city             String
   state            String? // State/Province (for US addresses, etc.)
   country          String
-  countryCode      String?  // ISO 3166-1 alpha-2, explicit override; falls back to guessCountryCode(country)
+  countryCode      String? // ISO 3166-1 alpha-2, explicit override; falls back to guessCountryCode(country)
   currency         Currency?
-  type             ClientType         @default(COMPANY)
-  salutation       String             @default("Mr") // Mr, Ms, Mrs (We need a default value for the invoice generation)
-  sex              String             @default("other") // male, female, other (We need a default value for the invoice generation)
-  title            String             @default("Doctor") // Doctor, Professor (We need a default value for the invoice generation)
-  isActive         Boolean            @default(true)
+  type             ClientType        @default(COMPANY)
+  salutation       String            @default("Mr") // Mr, Ms, Mrs (We need a default value for the invoice generation)
+  sex              String            @default("other") // male, female, other (We need a default value for the invoice generation)
+  title            String            @default("Doctor") // Doctor, Professor (We need a default value for the invoice generation)
+  isActive         Boolean           @default(true)
   partyIdentifiers PartyIdentifier[]
 
   @@index([companyId])
@@ -470,9 +471,9 @@ model PartyIdentifier {
 
   // C4: the outcome of validating this identifier, and WHEN. NULL means never checked — distinct
   // from checked-and-invalid, a distinction both the engine and the user need.
-  validationStatus String?   // VALID | INVALID | UNAVAILABLE
+  validationStatus String? // VALID | INVALID | UNAVAILABLE
   validatedAt      DateTime?
-  validationSource String?   // e.g. eu-vies
+  validationSource String? // e.g. eu-vies
 
   @@unique([companyId, scheme])
   @@unique([clientId, scheme])
@@ -491,18 +492,18 @@ model MailTemplate {
 }
 
 model Article {
-  id          String   @id @default(cuid())
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  companyId   String
-  name        String // label shown in the picker
-  description String? // text injected into the line item
-  type        ItemType @default(SERVICE)
-  unitPrice       Float    @default(0)
-  unitPriceMinor  Int?
-  vatRate         Float    @default(0)
-  isActive        Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId      String
+  name           String // label shown in the picker
+  description    String? // text injected into the line item
+  type           ItemType @default(SERVICE)
+  unitPrice      Float    @default(0)
+  unitPriceMinor Int?
+  vatRate        Float    @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 // Signature model
@@ -781,15 +782,15 @@ model InvitationCode {
 // ======= BETTER AUTH INTEGRATION ======= //
 
 model User {
-  id            String    @id
+  id            String        @id
   name          String?
   firstname     String
   lastname      String
   email         String
-  emailVerified Boolean   @default(false)
+  emailVerified Boolean       @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
   sessions      Session[]
   accounts      Account[]
   apiKeys       ApiKey[]
@@ -946,6 +947,87 @@ model DocumentInstance {
   @@index([companyId, typeId])
 }
 
+// A RECURRENCE (root TODO item 5): "replay ACTION on SOURCE DOCUMENT, on this cadence" — generic on
+// purpose, the same way DocumentInstance itself names no document type. The invoice case (a schedule
+// whose actionId is "duplicate", sourceDocumentId a model invoice) is the FIRST consumer, never the
+// only one this table can describe: nothing here mentions "invoice". See
+// documents/schedules/cadence.ts for the pure next-occurrence math this model's own
+// nextRunAt/anchorDay feed, and documents/queue/processors/document-action.processor.ts for how a
+// due schedule's occurrence actually runs (through DocumentsService.runAction — the SAME four gates
+// any other action goes through, country policy included).
+model DocumentSchedule {
+  id        String  @id @default(cuid())
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  // Which document type's registry/descriptor this schedule acts against, and which of ITS OWN
+  // instances is the "template" being replayed — never validated against the live
+  // DocumentTypeRegistry here, the same deliberate looseness DocumentCountryActionRule.typeId
+  // documents for its own typeId column: the schema and the live registry are two independent
+  // sources, reconciled at RUN time (DocumentsService.runAction 404s a typeId/action it doesn't
+  // know), never at the database layer.
+  typeId           String
+  sourceDocumentId String
+  actionId         String
+
+  // One of "weekly" | "monthly" | "quarterly" | "yearly" — a plain string, not a Prisma enum, the
+  // same choice DocumentInstance.status already makes: closed at the APPLICATION layer
+  // (documents/schedules/cadence.ts's own union), not the database's. Deliberately NOT the old,
+  // orphaned `RecurrenceFrequency` enum a few hundred lines up (WEEKLY/BIWEEKLY/MONTHLY/BIMONTHLY/
+  // QUARTERLY/QUADMONTHLY/SEMIANNUALLY/ANNUALLY, git tag `avant-refonte-documents`'s
+  // RecurringInvoice) — this task's own brief asks for four closed cadences, not eight, and no RRULE.
+  cadence String
+
+  // The day-of-month THIS schedule targets for monthly/quarterly/yearly cadences — fixed once, at
+  // creation, from the first occurrence's own UTC day-of-month, and reused for every later
+  // occurrence's clamp-to-month-end math (see cadence.ts's own header for why re-deriving it from
+  // the PREVIOUS occurrence's day, once that day was itself clamped by a short month, would let a
+  // 31-anchored schedule drift down to the 28th forever instead of returning to the 31st the next
+  // long month). Unused (left null) for "weekly", which has no month to anchor a day within.
+  anchorDay Int?
+
+  // The next occurrence's date, UTC-midnight-normalized (see cadence.ts's own header on the timezone
+  // choice) — what the sweep (documents/schedules/schedule-sweep.ts) compares against "now" to decide
+  // this schedule is due. Advanced by the sweep itself, by cadence.ts's pure computeNextOccurrence,
+  // the INSTANT an occurrence is enqueued — never only once that occurrence's own job has finished
+  // (see schedule-sweep-runner.ts's own header for why the two are deliberately independent writes).
+  nextRunAt DateTime
+
+  // The occurrence date most recently DISPATCHED (set by the sweep alongside nextRunAt above) — NOT
+  // "most recently succeeded": a schedule whose latest dispatch failed still moves this forward, the
+  // same "the pointer always advances, only lastError says whether it worked" split
+  // `DocumentInstance.lastActionError` already holds relative to `status`.
+  lastRunAt DateTime?
+
+  // The most recent occurrence's failure, if any — 403 country policy, 400 validation, or a
+  // delivery failure two hops downstream (a chained "then send" — see schedule-sweep-runner.ts's own
+  // header for why that one is NOT reflected here). Cleared (set back to null) the next time an
+  // occurrence of THIS schedule succeeds — never left stale once the underlying cause is fixed, the
+  // same convention `DocumentInstance.lastActionError` already holds for an ordinary document write.
+  // Never causes `enabled` to flip on its own: see `enabled`'s own comment.
+  lastError String?
+
+  // Whether the sweep considers this schedule at all. A schedule that fails an occurrence is NEVER
+  // auto-disabled — only `lastError` above records the failure — because a country-policy block or a
+  // validation gap can be fixed without the human having to remember to re-enable a schedule that
+  // silently stopped running (the task's own explicit rule: "jamais une désactivation silencieuse").
+  // Only a human, from the schedules screen, ever flips this.
+  enabled Boolean @default(true)
+
+  // Per-schedule options the generic engine does not need to understand structurally — today, only
+  // the invoice case's `{ thenSend: boolean }` (chain "send" onto the fresh duplicate — see
+  // duplicate-extension.ts). A future action/type can grow this bag without a migration, the same
+  // "an opaque, action-owned params object" discipline DocumentActionJobData.payload.params already
+  // holds.
+  params Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId, typeId])
+  // What the sweep itself actually queries by — see schedule.persistence.ts's listDueSchedules.
+  @@index([enabled, nextRunAt])
+}
+
 // One PAYMENT recorded against a document instance (the invoice, today — see the "record-payment"
 // action, documents/actions/invoice-actions.ts). Deliberately NOT a document type: no `statuses`, no
 // `initialStatus`, no lifecycle at all — recording one is a single, complete act, not something that
@@ -964,7 +1046,7 @@ model DocumentPayment {
   // The payment's OWN currency — always checked against the document's own before being persisted
   // (see the "record-payment" handler); stored here too so a read never needs to re-resolve the
   // document's field data just to know what `amountMinor` is denominated in.
-  currency String
+  currency    String
 
   // Plain product labels (bank_transfer / card / cash / other), never a legal classification — see
   // invoice.descriptor.ts's own comment on the "record-payment" action's `method` param.
@@ -1015,8 +1097,8 @@ model DocumentCountryActionRule {
   // live DocumentTypeRegistry here: the policy file and the descriptor registry are two
   // independently-maintained sources, exactly like the VAT rate catalog and tax-engine.ts used to be
   // (see the removed compliance module's tax-rates/consistency.spec.ts for that same shape of risk).
-  actionId String // a DocumentActionDescriptor.id, e.g. "send"
-  allowed  Boolean
+  actionId    String // a DocumentActionDescriptor.id, e.g. "send"
+  allowed     Boolean
 
   // Provenance — see country-policy/schema.ts's PolicyProvenance. Exactly one of the two shapes
   // below is populated, enforced by assertValidProvenance() before a row is ever written, never by
@@ -1053,18 +1135,18 @@ model DocumentCountryActionRule {
 // country allows; this one says which national identifier SCHEMES (SIRET, EIN, VAT…) a party of a
 // given type must supply — neither reads the other.
 model CountryIdentifierRequirement {
-  id          String @id @default(cuid())
+  id          String  @id @default(cuid())
   countryCode String // ISO 3166-1 alpha-2, uppercase — matches the source file's own countryCode
   scheme      String // a stable, cross-country key the FRONTEND switches on — e.g. "LEGAL_ID", "VAT"
   // (see client-upsert.tsx's `data-cy={`client-identifier-${req.scheme}`}` and
   // company.settings.tsx/onboarding.tsx's own `req.scheme === "LEGAL_ID"` special case). Changing
   // a shipped scheme string is a breaking change to those data-cy targets, not a free rename.
-  appliesTo String // 'COMPANY' | 'INDIVIDUAL' | 'BOTH'
-  label     String // country-specific display text for this scheme, e.g. "SIRET" (FR), "EIN" (US)
-  required  Boolean
-  pattern   String? // optional validation regex — a legal CLAIM like `required`, covered by the
+  appliesTo   String // 'COMPANY' | 'INDIVIDUAL' | 'BOTH'
+  label       String // country-specific display text for this scheme, e.g. "SIRET" (FR), "EIN" (US)
+  required    Boolean
+  pattern     String? // optional validation regex — a legal CLAIM like `required`, covered by the
   // same provenance below, never a UI-invented default
-  helpText String?
+  helpText    String?
 
   // Provenance — see country-identifiers/schema.ts's IdentifierProvenance. Exactly one of the two
   // shapes below is populated, enforced by assertValidProvenance() before a row is ever written,
@@ -1154,10 +1236,10 @@ enum ChannelEnvironment {
 }
 
 enum InboundInvoiceStatus {
-  RECEIVED  // raw payload stored; parse not yet attempted or failed
-  PARSED    // key fields successfully extracted from the payload
-  ACCEPTED  // buyer explicitly accepted (ack sent)
-  REJECTED  // buyer explicitly rejected (ack sent)
+  RECEIVED // raw payload stored; parse not yet attempted or failed
+  PARSED // key fields successfully extracted from the payload
+  ACCEPTED // buyer explicitly accepted (ack sent)
+  REJECTED // buyer explicitly rejected (ack sent)
 }
 
 /// One row per received supplier invoice document.

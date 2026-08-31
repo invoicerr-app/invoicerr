@@ -31,6 +31,8 @@ import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
 import { buildQuoteDescriptor } from './descriptors/quote.descriptor';
 import { DocumentQueueDispatcher } from './queue/document-queue.dispatcher';
 import { DocumentQueueModule } from './queue/document-queue.module';
+import { DocumentScheduleSweepRunner } from './schedules/schedule-sweep-runner';
+import { DocumentSchedulesService } from './schedules/schedules.service';
 import { buildArticleReferenceProvider } from './references/article-reference.provider';
 import { buildClientReferenceProvider } from './references/client-reference.provider';
 import { buildDocumentReferenceProvider } from './references/document-reference.provider';
@@ -143,10 +145,20 @@ function buildActionRegistry(
  * Where a THIRD PARTY's extra actions get attached to an EXISTING type — none of this touches the
  * type's own descriptor factory above. Adding "duplicate" to quotes is exactly this one line, the
  * same way registering the quote type itself is exactly one line in buildDocumentTypeRegistry.
+ *
+ * Only the invoice gets `dateRecalc`: recomputing `issueDate`/`dueDate` on a scheduled occurrence
+ * (schedules/, root TODO item 5) is exactly what the invoice case needs — the quote has no
+ * recurrence screen wired to it today, so there is no real caller yet to build a `dateRecalc` for
+ * without inventing one. Nothing here wires "send" chaining onto "duplicate" — see
+ * duplicate-extension.ts's own header ("Why 'then send' does NOT live here") for why that is now
+ * schedule-sweep-runner.ts's job instead.
  */
 function buildActionExtensionRegistry(actionRegistry: ActionRegistry): ActionExtensionRegistry {
   const registry = new ActionExtensionRegistry();
   registerDuplicateExtension('quote', registry, actionRegistry);
+  registerDuplicateExtension('invoice', registry, actionRegistry, {
+    dateRecalc: { anchorField: 'issueDate', dependentFields: ['dueDate'] },
+  });
   return registry;
 }
 
@@ -189,6 +201,13 @@ function buildEntityReferenceRegistry(
   providers: [
     DocumentsService,
     MailService,
+    // Recurrences (root TODO item 5) — `DocumentSchedulesService` is the CRUD half
+    // (documents.controller.ts's `schedules/*` routes); `DocumentScheduleSweepRunner` is the
+    // RUNTIME half the queue's own processor calls (queue/processors/document-action.processor.ts).
+    // Both are plain classes (not string-tokened registries) resolved by Nest the same way
+    // `DocumentsService`/`MailService` already are — nothing here needs a factory.
+    DocumentSchedulesService,
+    DocumentScheduleSweepRunner,
     { provide: DOCUMENT_TYPE_REGISTRY, useFactory: buildDocumentTypeRegistry },
     { provide: FIELD_KIND_REGISTRY, useFactory: buildFieldKindRegistry },
     {
@@ -230,6 +249,8 @@ function buildEntityReferenceRegistry(
   ],
   exports: [
     DocumentsService,
+    DocumentSchedulesService,
+    DocumentScheduleSweepRunner,
     DOCUMENT_TYPE_REGISTRY,
     FIELD_KIND_REGISTRY,
     TRANSPORT_REGISTRY,

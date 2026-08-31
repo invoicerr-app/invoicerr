@@ -7,9 +7,11 @@ import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-k
 import { DocumentTypeRegistry } from './descriptors/type-registry';
 import { DocumentTypeDescriptor } from './descriptors/types';
 import { EntityReferenceRegistry } from './references/reference-registry';
+import * as schedulePersistence from './schedules/schedule.persistence';
 import { TransportRegistry } from './transports/transport-registry';
 
 jest.mock('./country-policy/country-policy');
+jest.mock('./schedules/schedule.persistence');
 
 /**
  * Proves DocumentsService's two NEW read surfaces (collectWidgets, listAvailableTypes) delegate
@@ -40,7 +42,10 @@ function buildService(types: DocumentTypeDescriptor[], contributionRegistry = ne
 }
 
 describe('DocumentsService.collectWidgets', () => {
+  afterEach(() => jest.resetAllMocks());
+
   it('delegates to the wired type/contribution registries and returns their widgets', async () => {
+    (schedulePersistence.listSchedules as jest.Mock).mockResolvedValue([]);
     const contributionRegistry = new ContributionRegistry();
     contributionRegistry.register('invoice', 'dashboard', async () => [
       { id: 'w1', kind: 'metric', label: 'Pending', value: 2 },
@@ -48,7 +53,20 @@ describe('DocumentsService.collectWidgets', () => {
     const service = buildService([descriptor({ contributions: ['dashboard'] })], contributionRegistry);
 
     const widgets = await service.collectWidgets('company-1', 'dashboard');
-    expect(widgets).toEqual([{ id: 'w1', kind: 'metric', label: 'Pending', value: 2 }]);
+    // PLUS the "upcoming recurrences" widget (root TODO item 5, point 6) — ADDED alongside every
+    // type's own contribution, never in place of it (documents.service.ts's own collectWidgets).
+    expect(widgets).toEqual([
+      { id: 'w1', kind: 'metric', label: 'Pending', value: 2 },
+      { id: 'document-schedule:upcoming', kind: 'shortList', label: 'Upcoming recurrences', items: [] },
+    ]);
+  });
+
+  it('the "upcoming recurrences" widget is NEVER added for the "statistics" location', async () => {
+    const service = buildService([descriptor({ id: 'expense', contributions: ['statistics'] })]);
+
+    const widgets = await service.collectWidgets('company-1', 'statistics');
+    expect(widgets.some((w) => w.id === 'document-schedule:upcoming')).toBe(false);
+    expect(schedulePersistence.listSchedules).not.toHaveBeenCalled();
   });
 
   it('a type declaring a contribution with no handler surfaces the explicit "unimplemented" marker', async () => {

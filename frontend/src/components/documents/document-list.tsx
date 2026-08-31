@@ -1,6 +1,6 @@
 import { toast } from "sonner"
 import { authenticatedFetch } from "@/hooks/use-fetch"
-import { Download, FileStack, Pencil, Plus, Search } from "lucide-react"
+import { Download, FileStack, Pencil, Plus, Repeat, Search } from "lucide-react"
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next"
 import "@/components/documents/custom-registrations"
 
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
+import { CreateRecurrenceDialog } from "@/components/documents/create-recurrence-dialog"
 import { getDocumentCustomComponent } from "@/components/documents/custom-slots"
 import { DocumentFieldValue } from "@/components/documents/field-value"
 import { DocumentSettlementBadge } from "@/components/documents/document-settlement"
@@ -164,6 +165,7 @@ interface DocumentRowActionsProps {
  */
 function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: DocumentRowActionsProps) {
   const { t } = useTranslation()
+  const [recurrenceDialogOpen, setRecurrenceDialogOpen] = useState(false)
   const { pendingAction, pendingDefaults, isRunning, handleAction, executeAction, cancelPendingAction } =
     useDocumentActionRunner({
       typeId: descriptor.id,
@@ -171,6 +173,18 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
       getData: () => instance.data,
       onActionSuccess,
     })
+
+  // Generic gate, the same shape `showSettlementBadge` below already holds for "record-payment":
+  // a "Recurrence" row action is offered ONLY once the type declares "duplicate" at all (native or
+  // third-party extension — documents-core.module.ts) and it is available from this record's own
+  // current status. Never a per-type name — a plugin's own type gets this for free the moment it
+  // registers "duplicate" too (root TODO item 5).
+  const duplicateAction = descriptor.actions.find((action) => action.id === "duplicate")
+  const showRecurrenceButton = !!duplicateAction && isActionAvailable(duplicateAction, instance.status)
+  // "then send" (the recurrence dialog's own optional toggle) only makes sense for a type that
+  // ALSO declares "send" — offered, never assumed, the same way `showRecurrenceButton` itself never
+  // assumes every type has "duplicate".
+  const offerThenSend = descriptor.actions.some((action) => action.id === "send")
 
   const handleDownloadPdf = async () => {
     try {
@@ -244,6 +258,19 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
           <Download className="h-4 w-4" />
         </Button>
 
+        {showRecurrenceButton && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            tooltip={t("documents.schedules.rowAction.tooltip")}
+            onClick={() => setRecurrenceDialogOpen(true)}
+            dataCy={`document-recurrence-button-${instance.id}`}
+          >
+            <Repeat className="h-4 w-4" />
+          </Button>
+        )}
+
         {CustomExtra && <CustomExtra descriptor={descriptor} instance={instance} />}
 
         {isProcessing && (
@@ -309,6 +336,16 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
           submitting={isRunning}
           onCancel={cancelPendingAction}
           onConfirm={(params) => executeAction(pendingAction.id, params)}
+        />
+      )}
+
+      {showRecurrenceButton && recurrenceDialogOpen && (
+        <CreateRecurrenceDialog
+          typeId={descriptor.id}
+          sourceDocumentId={instance.id}
+          offerThenSend={offerThenSend}
+          open={recurrenceDialogOpen}
+          onOpenChange={setRecurrenceDialogOpen}
         />
       )}
     </div>

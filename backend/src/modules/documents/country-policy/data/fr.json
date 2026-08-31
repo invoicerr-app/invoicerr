@@ -69,6 +69,15 @@
     },
     {
       "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon (racine du mécanisme de récurrence, item 5) est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal (numérotation, envoi), donc aucun texte identifié n'encadre l'acte de duplication lui-même. La question fiscale (art. 289 CGI et suivants) porte sur LA FACTURE ÉMISE qui en résultera éventuellement, pas sur ce brouillon initial ni sur l'automatisation qui le déclenche. À confirmer par une revue dédiée si une règle spécifique venait un jour à s'attacher à la création automatisée et récurrente de brouillons de facture."
+      }
+    },
+    {
+      "typeId": "invoice",
       "actionId": "record-payment",
       "allowed": true,
       "provenance": {

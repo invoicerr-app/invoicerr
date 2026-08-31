@@ -49,6 +49,8 @@ import { validateAgainstDescriptor } from './descriptors/validate';
 import { RunActionDto } from './dto/documents.dto';
 import { takeDocumentNumberForTransition } from './numbering/take-number';
 import { findOwnedDocument, listDocuments } from './persistence';
+import { buildUpcomingSchedulesWidget } from './schedules/schedule-widgets';
+import { listSchedules } from './schedules/schedule.persistence';
 import { computeSettlement, DocumentSettlement } from './settlement/compute-settlement';
 import {
   DocumentCreditResult,
@@ -233,12 +235,25 @@ export class DocumentsService implements OnModuleInit {
    * actions.
    */
   async collectWidgets(companyId: string, location: WidgetLocation): Promise<Widget[]> {
-    return collectWidgets({
+    const widgets = await collectWidgets({
       companyId,
       location,
       typeRegistry: this.typeRegistry,
       contributionRegistry: this.contributionRegistry,
     });
+
+    // "Upcoming recurrences" (root TODO item 5, point 6) — ADDED alongside every existing widget
+    // above, never in place of them. Not a per-TYPE contribution (ContributionRegistry is keyed by
+    // (typeId, location) because a type decides what it shows about ITSELF): this widget spans every
+    // type at once, so it is wired here directly rather than through that registry — see
+    // schedules/schedule-widgets.ts's own header.
+    if (location === 'dashboard') {
+      const schedules = await listSchedules(companyId);
+      const typeLabels = Object.fromEntries(this.typeRegistry.list().map((d) => [d.id, d.label]));
+      widgets.push(buildUpcomingSchedulesWidget(schedules, typeLabels));
+    }
+
+    return widgets;
   }
 
   /**

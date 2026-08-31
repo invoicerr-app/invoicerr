@@ -1,6 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Module, OnApplicationBootstrap } from '@nestjs/common';
 
 import { DocumentsCoreModule } from '../documents-core.module';
+import { DocumentQueueDispatcher } from './document-queue.dispatcher';
 import { DocumentActionProcessor } from './processors/document-action.processor';
 
 /**
@@ -18,9 +19,22 @@ import { DocumentActionProcessor } from './processors/document-action.processor'
  * API process uses, never a second, parallel construction of them. This is the exact split the
  * pre-refonte compliance engine's own `ComplianceWorkerModule` documented for the same reason (git tag
  * `avant-refonte-documents`, compliance/nest/queue/compliance-worker.module.ts).
+ *
+ * `onApplicationBootstrap` registers the ONE recurrence sweep repeatable (root TODO item 5,
+ * schedule-sweep.ts) — same discipline the pre-refonte compliance queue's own worker module
+ * documented for its `registerRepeatables()` call (`avant-refonte-documents`,
+ * compliance-worker.module.ts): idempotent (BullMQ dedups a repeat definition by its own key across
+ * the whole cluster), so calling this on EVERY process that imports this module — the API in-line, or
+ * every scaled worker replica — is safe, never a double-registration.
  */
 @Module({
   imports: [DocumentsCoreModule],
   providers: [DocumentActionProcessor],
 })
-export class DocumentsQueueWorkerModule {}
+export class DocumentsQueueWorkerModule implements OnApplicationBootstrap {
+  constructor(private readonly queueDispatcher: DocumentQueueDispatcher) {}
+
+  async onApplicationBootstrap(): Promise<void> {
+    await this.queueDispatcher.registerScheduleSweepRepeatable();
+  }
+}
