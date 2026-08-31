@@ -1,0 +1,16 @@
+{
+  "countryCode": "FR",
+  "facts": [
+    {
+      "field": "BT-23",
+      "mandatedFrom": "2026-09-01",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "8° bis L'information selon laquelle les opérations donnant lieu à facture sont constituées exclusivement de livraisons de biens ou exclusivement de prestations de services ou sont constituées de ces deux catégories d'opérations ; (CGI, annexe II, art. 242 nonies A, I, 8° bis)",
+        "sourceCheckedAt": "2026-08-31"
+      },
+      "notes": "Texte exact retrouvé au consolidé PDF « Code général des impôts, annexe II » (codes.droit.org, miroir Légifrance déjà utilisé pour ../../mentions/data/fr.json — Légifrance lui-même renvoie 403 aux requêtes automatisées, voir ce fichier-là), version affichée comme mise à jour le 2026-07-29, consultée le 2026-08-31. Le repère git `avant-refonte-documents` (compliance/providers/format/providers.ts, P2-T08) ne portait qu'une PARAPHRASE de ce 8° bis (« the machine translation of the statutory mention 8° bis... ») sans citation verbatim ni date de consultation ; le texte ci-dessus est la citation exacte, vérifiée pour cette tâche, qui manquait. La DATE d'entrée en vigueur (2026-09-01) n'est pas portée par l'article 242 nonies A lui-même (un décret d'application, sans clause de calendrier propre dans le texte consolidé) mais par le régime de facturation électronique obligatoire qu'il vient équiper — CGI art. 289 bis/290, déjà sourcé et daté (consulté 2026-08-28) dans ../../transports/channel-policy/data/fr.json pour le même jalon. BT-23 (EN 16931, UBL cbc:ProfileID / CII BusinessProcessSpecifiedDocumentContextParameter/ID) est la traduction machine de ce 8° bis — la seule limitative value list que la loi française impose n'existe dans aucun texte cité ici mot pour mot (B1/S1/M1/...) : elle vient des spécifications externes DGFiP v3.2, pas du CGI — voir formats/semantic/business-process.ts's own header, qui la porte déjà et n'est pas dupliquée ici."
+    }
+  ],
+  "notes": "Seule la France est câblée aujourd'hui — le seul pays pour lequel le rejet PDP réel (poll informationnel, ../../transports/pdp/pdp.live.spec.ts) citait BT-23. Un futur pays/champ ajoute une entrée ici, jamais un branchement dans le code générique (formats/semantic/business-process.ts)."
+}

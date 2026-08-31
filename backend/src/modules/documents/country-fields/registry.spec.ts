@@ -35,9 +35,17 @@ describe('CountryFieldOverlayCatalog', () => {
     expect(catalog.operationsFor('FR', 'quote')).toEqual([]);
   });
 
-  it('defaults to the real shipped catalog, which is empty today (see data/all.ts)', () => {
+  it('defaults to the real shipped catalog — France now ships its first real overlay (see data/all.ts)', () => {
     const catalog = new CountryFieldOverlayCatalog();
-    expect(catalog.countries()).toEqual([]);
-    expect(catalog.operationsFor('FR', 'invoice')).toEqual([]);
+    expect(catalog.countries()).toEqual(['FR']);
+    expect(catalog.operationsFor('FR', 'invoice')).toEqual([
+      {
+        op: 'add',
+        path: 'lines',
+        field: expect.objectContaining({ key: 'supplyType', kind: 'select' }),
+      },
+    ]);
+    // A country with no file at all still resolves to an empty list, never a throw.
+    expect(catalog.operationsFor('DE', 'invoice')).toEqual([]);
   });
 });

@@ -184,6 +184,41 @@ describe('facturx-provider — embed a CII gated the SAME way cii-provider.ts ga
     expect(embeddedCii).toContain('Merci de votre confiance.'); // the user's own note, still there too
   }, 30_000);
 
+  // Root TODO item 15's own remainder — BT-23. The plain-CII gate above (built the same way
+  // `cii-provider.ts` does) gets its fix from `applyFrenchBusinessProcess` on the rendered STRING;
+  // `@e-invoice-eu/core`'s own internal regeneration for THIS embed step never sees that string, the
+  // exact gap `applyFrenchBusinessProcessInObject` (chained into the SAME `postProcessor` as
+  // `splitCiiIncludedNotesInObject`) exists to close — see `facturx-provider.ts`'s own header.
+  it('the EMBEDDED CII also carries BT-23 — the SAME code the plain-CII gate would have produced', async () => {
+    const document = {
+      id: 'doc-bt23',
+      data: {
+        ...VALID_DATA,
+        issueDate: '2026-09-01', // on the shipped content requirement's own mandatedFrom
+        dueDate: '2026-09-30',
+        lines: [{ ...VALID_DATA.lines[0], supplyType: 'SERVICES' }],
+      },
+      displayNumber: 'INV-2026-BT23',
+      status: 'sent',
+      createdAt: new Date(),
+    };
+
+    const result = await provider.build(descriptor, document, SELLER, BUYER, 'company-1');
+    expect(result.validation.valid).toBe(true);
+
+    const embeddedCii = await extractEmbeddedCii(result.bytes);
+    const schematron = validateSchematron(embeddedCii, EN16931_CII_SCH);
+    expect(schematron.errors).toEqual([]);
+    expect(schematron.valid).toBe(true);
+
+    // Pretty-printed by the embedder (real newlines/indentation between tags) — a plain substring
+    // match would be brittle against that whitespace, so this reuses the exact same
+    // whitespace-tolerant pattern `applyFrenchBusinessProcess`'s own regex is built on.
+    expect(embeddedCii).toMatch(
+      /<(?:ram:)?BusinessProcessSpecifiedDocumentContextParameter>\s*<(?:ram:)?ID>S1<\/(?:ram:)?ID>/,
+    );
+  }, 30_000);
+
   it('an INVALID document (BR-Z-02: zero-rated line, no seller VAT id): NEVER embeds — no PDF is even attempted', async () => {
     const document = {
       id: 'doc-2',

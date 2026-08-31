@@ -3,32 +3,25 @@
  * here, never an engine change. Same shape as country-policy/data/all.ts and
  * vat-rates/data/all.ts.
  *
- * EMPTY today, deliberately — see this directory's own README-in-code below. The mechanism
- * (apply-overlay.ts) is fully implemented and tested against synthetic fixtures
- * (apply-overlay.spec.ts); what is NOT here yet is a real, shipped reason for France (or anyone
- * else) to use it.
- *
- * Why France ships no overlay file, even though this task's whole point was "France, and then a
- * surcouche mechanism": the user's own stated methodology (see the invoice descriptor's own header)
- * is "on fait un pays à la fois — on fait un premier pays [...] Ensuite on fait un autre pays, et si
- * on se rend compte que certains champs étaient spécifiques au premier pays, on les déplace." France
- * IS the first pass: descriptors/invoice.descriptor.ts was written FROM France's own needs directly,
- * so by construction there is nothing yet that needs adding, modifying, or removing FOR France
- * specifically — everything France needs is already sitting in the trunk (marked with a
- * "SUSPECTED FRANCE-SPECIFIC" comment where it might not generalize — see that file). Shipping a
- * synthetic overlay just to exercise all three operations for real would mean inventing a product or
- * legal need nobody asked for, which is precisely what this branch's own audit history (see
- * vat-rates/data/fr.json's own honesty about unverified provenance) warns against doing for a lower
- * stake than "which fields exist". The day a SECOND country's pass reveals a trunk field that turns
- * out to only ever have been France's, THAT country's file gets a `remove`, or France's own first
- * file finally appears with the fields that turned out to be add/modify-worthy — not before.
+ * FIRST REAL FILE LANDED: France's own `data/fr.json`, adding an OPTIONAL `supplyType` subfield to
+ * `invoice.lines` — the concrete "add/modify/remove" need this directory's own header used to say
+ * had not shown up yet. It arrived exactly the way that header predicted a second pass would justify
+ * one: BT-23 (root TODO item 15's own remainder, `formats/semantic/business-process.ts`) needs to
+ * know, PER LINE, whether it is a good or a service, a fact `descriptors/invoice.descriptor.ts`'s own
+ * trunk line shape has no field for and should not gain unconditionally (asserting a French legal
+ * category's INPUT on every country's invoice line would be the same "no business code names a
+ * country" violation the value itself was already refused for — see that file's own header). This is
+ * still NOT a case of "a trunk field turned out to be France's own" (the mechanism `apply-overlay.ts`
+ * was originally built, and kept empty here, to prove) — it is the OTHER honest use of the same
+ * three-operation vocabulary: a field only ONE country's law currently gives any meaning to, added
+ * rather than moved.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { CountryFieldOverlayFile } from '../schema';
 
-const COUNTRY_FILES: readonly string[] = [];
+const COUNTRY_FILES: readonly string[] = ['fr'];
 
 function loadCountryFile(code: string): CountryFieldOverlayFile {
   const path = join(__dirname, `${code}.json`);

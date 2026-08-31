@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, Logger } from '@nestjs/common';
 
 import { DocumentsService } from '../../documents.service';
 import { DocumentScheduleSweepRunner } from '../../schedules/schedule-sweep-runner';
@@ -164,6 +164,35 @@ describe('DocumentActionProcessor', () => {
         actionId: 'send',
         error,
       });
+    });
+
+    // The structural belt: whatever reason markSendFailed might still throw for (its own
+    // "document no longer exists" case is the FIRST belt, in mark-send-failed.ts itself — this test
+    // proves the SECOND, unconditional one right here). `onFailed` is a BullMQ `@OnWorkerEvent`
+    // listener, not a retried job attempt: if it let an exception escape, that becomes an unhandled
+    // promise rejection, and Node kills the ENTIRE process for it — exactly what happened twice on
+    // 2026-08-31. If the try/catch around `markSendFailed` were ever removed, this test would fail via
+    // an unhandled rejection rather than a clean assertion failure — see the mutation note below.
+    it('never rejects even if markSendFailed itself throws — logs the error instead of taking the process down', async () => {
+      const documentsService = {
+        runAction: jest.fn(),
+        getType: jest.fn().mockReturnValue({ id: 'quote' }),
+      } as unknown as DocumentsService;
+      const processor = new DocumentActionProcessor(documentsService);
+      const job = fakeJob(JOB_DATA, { attemptsMade: 3, attempts: 3 });
+      const loggerErrorSpy = jest
+        .spyOn((processor as unknown as { logger: Logger }).logger, 'error')
+        .mockImplementation(() => undefined);
+      (markSendFailedModule.markSendFailed as jest.Mock).mockRejectedValue(
+        new Error('markSendFailed blew up unexpectedly'),
+      );
+
+      await expect(processor.onFailed(job, new Error('SMTP connection refused'))).resolves.toBeUndefined();
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(expect.stringContaining('markSendFailed itself failed'));
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('markSendFailed blew up unexpectedly'),
+      );
     });
 
     it('is a no-op for an undefined job (BullMQ can hand this event no job at all)', async () => {

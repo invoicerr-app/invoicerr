@@ -6,6 +6,7 @@
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { DocumentFormatBuildResult, DocumentFormatParty, DocumentFormatProvider } from './format-provider';
+import { applyFrenchBusinessProcess } from './semantic/business-process';
 import { splitCiiIncludedNotes } from './semantic/cii-post-process';
 import { buildEuInvoiceForDocument, newEuInvoiceService } from './shared-build';
 import { validateStructural } from './structural-check';
@@ -18,6 +19,10 @@ async function build(
   client: DocumentFormatParty,
 ): Promise<DocumentFormatBuildResult> {
   const euInvoice = buildEuInvoiceForDocument(descriptor, document, company, client);
+  // Set by `build-semantic-invoice.ts` only when a country's content requirement actually resolved a
+  // BT-23 code (see `business-process.ts`'s own header) — `undefined` for every other seller, exactly
+  // the pre-existing behaviour.
+  const businessProcessCode = euInvoice['ubl:Invoice']['cbc:ProfileID'];
 
   const service = newEuInvoiceService();
   const raw = (await service.generate(euInvoice, { format: 'CII', lang: 'en' })) as string;
@@ -26,7 +31,13 @@ async function build(
   // `semantic/cii-post-process.ts`'s own header for the real rejection this fixes. A no-op when
   // there is at most one note (the common case: this bridge emits at most one, from the document's
   // own `notes` field — see `shared-build.ts`), so this is always safe to run.
-  const xml = splitCiiIncludedNotes(raw);
+  let xml = splitCiiIncludedNotes(raw);
+  // Belt-and-suspenders reuse of the already-tested `applyFrenchBusinessProcess`: the object-level
+  // `cbc:ProfileID` set above already reaches this same rendered string (verified against the
+  // vendored dependency's own mapping — see `business-process.ts`'s header), but re-asserting it here
+  // costs nothing and survives even if that propagation ever stopped holding for a library-internal
+  // reason this codebase does not control.
+  if (businessProcessCode) xml = applyFrenchBusinessProcess(xml, businessProcessCode);
 
   const structural = validateStructural(xml, 'cii');
   if (!structural.valid) {

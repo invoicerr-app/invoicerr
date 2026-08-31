@@ -143,7 +143,19 @@
   (BR-E-02/BR-E-10, BR-O-02/BR-O-10/BR-O-11..14) — c'est le pont lui-même qui ne peut pas encore les
   produire. Combler ce trou est le vrai contenu de l'item 16, pas une extension de cette tâche-ci.
 
-- **BT-23 (cadre de facturation français) : logique reprise et testée, jamais branchée** (item 12) :
+- ~~**BT-23 (cadre de facturation français) : logique reprise et testée, jamais branchée**~~ —
+  **RÉSOLU** (2026-08-31, suite de l'item 12) : branché conditionnellement par pays via le nouveau
+  `content-requirements/` (même moule que channel-policy : provenance `legal` obligatoire, gel à la
+  date d'émission — citation verbatim 242 nonies A 8° bis vérifiée sur codes.droit.org le
+  2026-08-31), alimenté par le premier VRAI overlay pays de `country-fields/` (sous-champ de ligne
+  `supplyType` GOODS/SERVICES, optionnel, ajouté par fr.json — non déclaré → M1, la seule valeur qui
+  n'affirme rien de faux). **Preuve live : la chaîne de conformité française est PLEINE** —
+  fr:200 → fr:201 → fr:202 sans aucun motif, dépôts 392768/392770/392773 (agent) + 392820 (rejoué en
+  validation de session). Limite honnête : la porte temporelle (mandatedFrom 2026-09-01) ne peut pas
+  être exercée live AUJOURD'HUI (BT-2 ≤ date du jour côté sandbox, mandat demain) — le live prouve la
+  mécanique avec le code appelé directement, la porte est prouvée par jest. Entrée d'origine ci-dessous.
+
+  Ancien texte : (item 12) :
   `formats/semantic/business-process.ts` reprend `frenchBusinessProcessCode`/
   `applyFrenchBusinessProcess` VERBATIM du repère (seul l'import a changé), avec son propre spec
   repris quasi verbatim (`business-process.spec.ts`) — mais rien dans le pont générique

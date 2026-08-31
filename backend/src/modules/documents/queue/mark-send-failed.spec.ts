@@ -1,3 +1,5 @@
+import { NotFoundException } from '@nestjs/common';
+
 import { transitionsAvailableWhen } from '../descriptors/lifecycle';
 import { DocumentActionTransition, DocumentTypeDescriptor } from '../descriptors/types';
 import * as persistence from '../persistence';
@@ -130,6 +132,29 @@ describe('markSendFailed', () => {
         error: new Error('whatever'),
       }),
     ).rejects.toThrow(/declared lifecycle requires one of/);
+  });
+
+  it('logs and returns, rather than throwing, if the document was deleted entirely (the twin case to "already moved on")', async () => {
+    // The real bug this guards: a document deleted while its terminal-failure job was still in
+    // flight (a resetAndSeed racing BullMQ's still-running backoff in e2e, or any production
+    // deletion of a document with a send in flight) must not escape as a throw — this handler runs
+    // from `onFailed`, a BullMQ event handler where an escaped exception becomes an unhandled
+    // rejection that kills the entire process (it did, twice, 2026-08-31).
+    (persistence.findOwnedDocument as jest.Mock).mockRejectedValue(
+      new NotFoundException('Document "doc-1" not found for type "widget".'),
+    );
+
+    await expect(
+      markSendFailed(resolveDescriptor, {
+        companyId: 'company-1',
+        typeId: 'widget',
+        documentId: 'doc-1',
+        actionId: 'send',
+        error: new Error('too late, the document is gone'),
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
   });
 
   it('logs and returns, rather than throwing, if the action id it was handed is not declared at all', async () => {

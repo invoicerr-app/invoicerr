@@ -11,7 +11,7 @@
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
-function createAndSendInvoice() {
+function createAndSendInvoice(overrides: Record<string, unknown> = {}) {
 	return cy
 		.request({ url: `${api}/api/documents/references/client/search` })
 		.its("body")
@@ -30,6 +30,7 @@ function createAndSendInvoice() {
 						vatRate: "20",
 					},
 				],
+				...overrides,
 			};
 			return cy
 				.request({
@@ -235,5 +236,107 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 					});
 				});
 			});
+	});
+
+	// Root TODO item 15's own remainder — BT-23, wired via the FR `country-fields/` overlay
+	// (`supplyType`, a line subfield) and `content-requirements/` (the sourced, dated country rule —
+	// see `formats/semantic/business-process.ts`'s own header). The overlay field is checked THROUGH
+	// THE SCREEN (the form itself, not the API); the resulting code is checked on the real downloaded
+	// XML, the same "screen for the action, network intercept for the assertion" discipline this
+	// file's own two tests above already hold.
+	it("the FR overlay's supplyType field is visible on an invoice line, and the downloaded XML carries the derived BT-23 code", () => {
+		cy.visit("/documents/invoice", { timeout: 20000 });
+		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
+		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("be.visible");
+
+		cy.get('[data-cy="document-field-lines-add-row"]').click();
+		cy.get('[data-cy="document-field-lines-row-0"]', { timeout: 10000 }).should("exist");
+
+		// The overlay field: OPTIONAL, "select"-kind, GOODS/SERVICES only — resetAndSeed's own
+		// baseline company is French, so this is visible with no extra company setup (the same
+		// reason the mentions test above needs none either).
+		cy.get('[data-cy="document-field-lines-row-0"] [data-cy="document-field-supplyType-input"]', {
+			timeout: 10000,
+		}).should("exist");
+		cy.get(
+			'[data-cy="document-field-lines-row-0"] [data-cy="document-field-supplyType-input"] button',
+		)
+			.first()
+			.click({ force: true });
+		cy.get('[data-cy="document-field-supplyType-input-options"]', { timeout: 10000 }).should(
+			"be.visible",
+		);
+		cy.get('[data-cy="document-field-supplyType-input-options"]').within(() => {
+			cy.contains("Goods").should("exist");
+			cy.contains("Services").should("exist");
+		});
+		cy.contains('[data-cy*="-option-"]', "Services").first().click();
+
+		// `issueDate` must be on/after the content requirement's own `mandatedFrom` (2026-09-01) for
+		// BT-23 to be derived at all — but that is the EXACT SAME date root TODO item 11's own channel
+		// MANDATE binds from (32-channel-mandate.cy.ts): the seeded baseline's default transport
+		// ("email", set in this file's own `before()`) is refused at preflight for any invoice issued
+		// on/after it. So, exactly like 31/32, this one test connects PDP with FICTITIOUS credentials
+		// pointing at a closed port and switches the transport to it — "send" then clears the
+		// preflight (the point this test actually needs) and fails downstream at the real deposit
+		// attempt, which does not matter here: numbering already happened at "sending", before that
+		// attempt, and `download-xml` only needs a number (see invoice.descriptor.ts's own numbering
+		// paragraph) — the SAME reasoning `createAndSendInvoice`'s own comment already gives.
+		cy.visit("/settings/channels");
+		cy.get('[data-cy="channel-pdp"]', { timeout: 15000 }).should("exist");
+		cy.get('[data-cy="channel-pdp-baseurl-input"]').clear().type("http://127.0.0.1:1");
+		cy.get('[data-cy="channel-pdp-clientid-input"]').clear().type("e2e-bt23-fake-client-id");
+		cy.get('[data-cy="channel-pdp-clientsecret-input"]').clear().type("e2e-bt23-fake-client-secret");
+		cy.get('[data-cy="channel-pdp-connect-button"]').click();
+		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "Channel connected");
+		cy.request({
+			method: "POST",
+			url: `${api}/api/company/info`,
+			body: { invoiceTransportId: "pdp" },
+		}).then((res) => {
+			expect(res.status, "transport switched to pdp").to.be.oneOf([200, 201]);
+		});
+
+		// The rest of the document is created via the API (same convention as every other spec in
+		// this suite — see 20-document-totals.cy.ts's own comment on this exact split): the field's
+		// SCREEN visibility is what this test proves through the UI, the derived CODE is proven on
+		// the real downloaded artifact.
+		createAndSendInvoice({
+			issueDate: "2026-09-01",
+			dueDate: "2026-09-30",
+			lines: [
+				{
+					description: "Consulting",
+					quantity: 2,
+					unit: "hour",
+					unitPrice: 100,
+					vatRate: "20",
+					supplyType: "SERVICES",
+				},
+			],
+		}).then(({ id }) => {
+			cy.visit("/documents/invoice", { timeout: 20000 });
+			cy.window().then((win) => cy.stub(win, "open").as("windowOpen"));
+
+			cy.intercept({ method: "GET", pathname: `/api/documents/${id}/formats/cii` }).as("xmlCiiBt23");
+			cy.get(`[data-cy="document-xml-button-${id}"]`, { timeout: 10000 }).click();
+			cy.get(`[data-cy="document-xml-cii-${id}"]`, { timeout: 10000 }).should("be.visible").click();
+			cy.wait("@xmlCiiBt23", { timeout: 20000 }).then((x) => {
+				expect(x.response?.statusCode).to.eq(200);
+				// Pretty-printed (real newlines/tabs between elements) — see providers.spec.ts's own
+				// `businessProcessValueFrom` for why this reuses a whitespace-tolerant pattern.
+				expect(String(x.response?.body)).to.match(
+					/<(?:ram:)?BusinessProcessSpecifiedDocumentContextParameter>\s*<(?:ram:)?ID>S1<\/(?:ram:)?ID>/,
+				);
+			});
+
+			cy.intercept({ method: "GET", pathname: `/api/documents/${id}/formats/ubl` }).as("xmlUblBt23");
+			cy.get(`[data-cy="document-xml-button-${id}"]`).click();
+			cy.get(`[data-cy="document-xml-ubl-${id}"]`, { timeout: 10000 }).should("be.visible").click();
+			cy.wait("@xmlUblBt23", { timeout: 20000 }).then((x) => {
+				expect(x.response?.statusCode).to.eq(200);
+				expect(String(x.response?.body)).to.match(/<cbc:ProfileID>S1<\/cbc:ProfileID>/);
+			});
+		});
 	});
 });

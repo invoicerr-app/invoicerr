@@ -17,8 +17,11 @@
  * this call, "send_failed" would be a status nothing ever confirmed the type's OWN lifecycle actually
  * allows from wherever the record was — a hole this whole mechanism exists to close.
  */
+import { NotFoundException } from '@nestjs/common';
+
 import { logger } from '@/logger/logger.service';
 
+import { DocumentInstanceResult } from '../actions/action-registry';
 import { checkTransitionResult } from '../descriptors/lifecycle';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { findOwnedDocument, updateDocumentStatus } from '../persistence';
@@ -56,7 +59,26 @@ export async function markSendFailed(
     return;
   }
 
-  const existing = await findOwnedDocument(companyId, typeId, documentId);
+  let existing: DocumentInstanceResult;
+  try {
+    existing = await findOwnedDocument(companyId, typeId, documentId);
+  } catch (lookupError) {
+    if (!(lookupError instanceof NotFoundException)) {
+      throw lookupError;
+    }
+    // The twin case to "already moved on" below: the document itself is gone entirely — a resetAndSeed
+    // racing this job's still-running BullMQ backoff in e2e, or any production deletion of a document
+    // with a send in flight. Nothing left to mark, same tone as that other case, and specifically NOT a
+    // rethrow: this runs from `onFailed`, a BullMQ event handler where an escaped exception becomes an
+    // unhandled rejection that kills the whole process (it did, twice, 2026-08-31) — only
+    // findOwnedDocument's own 404 is swallowed here, so a genuine write bug from the lifecycle check
+    // below still throws.
+    logger.info('markSendFailed: document no longer exists — nothing to mark', {
+      category: 'documents',
+      details: { companyId, typeId, documentId, actionId },
+    });
+    return;
+  }
   // Idempotency: only a record STILL "sending" gets marked failed. A duplicate delivery of the same
   // BullMQ job (at-least-once delivery is the platform's own contract), or a race against a genuine
   // success landing first, must never clobber an already-"sent" record back to "send_failed".

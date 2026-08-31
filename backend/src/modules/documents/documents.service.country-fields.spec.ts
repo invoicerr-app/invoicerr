@@ -26,10 +26,11 @@ jest.mock('./country-policy/country-policy');
 
 /**
  * A SYNTHETIC field overlay, injected directly into this test's own DocumentsService instance — NOT
- * the real shipped country-fields/data/fr.json (which is deliberately empty today, see that file's
- * own header). This exercises all THREE operations for real, end to end, without inventing a
- * production need nobody asked for: exactly the split this task's own report distinguishes between
- * "the mechanism is proven" and "France doesn't currently need it for anything real".
+ * the real shipped `country-fields/data/fr.json` (which now ships one real `add` — `supplyType` on
+ * `invoice.lines`, for BT-23; see that file's own header). This exercises all THREE operations
+ * (`remove`/`modify`/`add`) for real, end to end, on a FIXTURE independent of whatever the real file
+ * happens to contain: this suite's own job is proving `DocumentsService` WIRES the mechanism, not
+ * re-asserting the real file's own content (that is `country-fields/data/all.spec.ts`'s job).
  */
 const FR_OVERLAY: CountryFieldOverlayFile = {
   countryCode: 'FR',

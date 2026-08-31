@@ -48,6 +48,12 @@
  *    prefix, and CII's `splitCiiIncludedNotes` (below) recovers it into a genuine `ram:SubjectCode`.
  *    A seller in a country with no mentions file gets exactly what this bridge always emitted:
  *    `input.notes` alone, or nothing at all.)
+ *  - BT-23 Business process type       → `cbc:ProfileID`                   set ONLY when a country's
+ *    content requirement (`../../content-requirements/`) is active for `sellerCountryCode` at this
+ *    invoice's own `issueDate` — `business-process.ts#resolveFrenchBusinessProcessCode`. Absent
+ *    entirely for every other seller, exactly the pre-existing behaviour (no `cbc:ProfileID` key at
+ *    all — `@e-invoice-eu/core` fills its own default, unrelated to BT-23). See that file's own
+ *    header for the full wiring (CII, UBL, and the Factur-X embed all read this one derivation).
  *  - BT-24 Specification identifier    → `cbc:CustomizationID` = 'urn:cen.eu:en16931:2017' (fixed —
  *    this bridge builds EXACTLY the base EN 16931 profile, never Peppol BIS or XRechnung)
  *  - BT-27 Seller name                 → `cac:AccountingSupplierParty/.../cbc:RegistrationName`
@@ -139,6 +145,8 @@ import { getIdentifier } from '@/utils/entity-identifiers';
 import { DocumentTotals } from '../../totals/compute-totals';
 import { resolveInvoiceNotes, toUblNote } from '../../mentions/invoice-notes';
 import { defaultMentionsCatalog } from '../../mentions/registry';
+import { resolveFrenchBusinessProcessCode } from './business-process';
+import { SupplyType } from './supply-type';
 import { unitCodeFor } from './unit-code';
 
 export class SemanticBuildError extends Error {}
@@ -167,6 +175,14 @@ export interface SemanticLineInput {
    *  derived from `totals` — see this file's own header on why BT-146 is never re-derived from the
    *  (already-discounted) line net. */
   unitPrice: number;
+  /**
+   * BT-23's own derivation input — see `business-process.ts`'s header for the full wiring. Absent
+   * for a document type/country that has no such subfield at all (every seller today, since the
+   * trunk descriptor has none): treated exactly like a row that HAS the field but left it unset,
+   * i.e. contributes nothing to the derived category. Only ever populated (today) via the FR
+   * `country-fields/` overlay's own `lines[].supplyType` — see `shared-build.ts#extractLines`.
+   */
+  supplyType?: SupplyType;
 }
 
 export interface SemanticInvoiceInput {
@@ -322,6 +338,20 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
     new Date(input.issueDate),
   ).map(toUblNote);
 
+  // BT-23 — see `business-process.ts`'s own header for the full wiring. `supplyTypes` collects only
+  // the lines that actually DECLARED one (the FR `country-fields/` overlay's own `lines[].supplyType`
+  // is optional): a document with none declared reaches `frenchBusinessProcessCode` with an empty
+  // array, which is already documented to resolve to 'M1' — "the only value that does not assert
+  // something false about the content" — never a guess made here.
+  const supplyTypes = input.lines
+    .map((line) => line.supplyType)
+    .filter((supplyType): supplyType is SupplyType => !!supplyType);
+  const businessProcessCode = resolveFrenchBusinessProcessCode(
+    sellerCountryCode,
+    input.issueDate,
+    supplyTypes,
+  );
+
   const sellerLegalId = toSiren(
     getIdentifier({ partyIdentifiers: input.seller.partyIdentifiers }, 'LEGAL_ID'),
     isFrenchSeller,
@@ -436,6 +466,11 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
   const euInvoice: EuInvoice = {
     'ubl:Invoice': {
       'cbc:CustomizationID': 'urn:cen.eu:en16931:2017',
+      // BT-23 — UBL's OWN native field for the French "cadre de facturation" (see this file's own
+      // header, and business-process.ts's header for the full wiring). Set ONLY when
+      // `resolveFrenchBusinessProcessCode` actually resolved a code above; absent entirely otherwise,
+      // which is the exact pre-existing behaviour (the library fills its own, unrelated default).
+      ...(businessProcessCode ? { 'cbc:ProfileID': businessProcessCode } : {}),
       'cbc:ID': input.displayNumber,
       'cbc:IssueDate': input.issueDate,
       'cbc:InvoiceTypeCode': '380',

@@ -61,11 +61,22 @@ export function toDateOnly(value: unknown): string {
 /**
  * Extracts the descriptive line facts (`SemanticLineInput`) straight off the invoice descriptor's
  * OWN field names — `description`/`quantity`/`unit`/`unitPrice`, `invoice.descriptor.ts`'s own line
- * shape. Deliberately hard-coded to THOSE keys rather than re-running `compute-totals.ts`'s own
- * generic array-field detection: this bridge is invoice-specific by construction (EN 16931 is an
- * invoice standard), so naming the fields it reads is honest coupling, not a shortcut around a
- * generic mechanism that exists for a different job (computing totals for ANY document type).
+ * shape, PLUS `supplyType` when a country overlay added that subfield (see `extractSupplyType`
+ * below — today, only the FR `country-fields/` overlay does). Deliberately hard-coded to THOSE keys
+ * rather than re-running `compute-totals.ts`'s own generic array-field detection: this bridge is
+ * invoice-specific by construction (EN 16931 is an invoice standard), so naming the fields it reads
+ * is honest coupling, not a shortcut around a generic mechanism that exists for a different job
+ * (computing totals for ANY document type).
  */
+/** A row's raw `supplyType`, resolved to the strict `SupplyType` union or `undefined` for anything
+ *  else (unset, or any other string) — never a guess. Fed only by the FR `country-fields/` overlay's
+ *  own `lines[].supplyType` today (see `business-process.ts`'s header); a document type/country with
+ *  no such subfield leaves every row's `data.lines[i].supplyType` `undefined`, which is exactly the
+ *  "nothing declared" case `frenchBusinessProcessCode` already documents as resolving to 'M1'. */
+function extractSupplyType(value: unknown): SemanticLineInput['supplyType'] {
+  return value === 'GOODS' || value === 'SERVICES' ? value : undefined;
+}
+
 function extractLines(data: Record<string, unknown>): SemanticLineInput[] {
   const rows = Array.isArray(data.lines) ? (data.lines as Record<string, unknown>[]) : [];
   return rows.map((row) => ({
@@ -73,6 +84,7 @@ function extractLines(data: Record<string, unknown>): SemanticLineInput[] {
     quantity: typeof row.quantity === 'number' ? row.quantity : 0,
     unit: typeof row.unit === 'string' ? row.unit : '',
     unitPrice: typeof row.unitPrice === 'number' ? row.unitPrice : 0,
+    supplyType: extractSupplyType(row.supplyType),
   }));
 }
 

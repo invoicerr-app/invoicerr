@@ -129,12 +129,28 @@ export class DocumentActionProcessor extends WorkerHost {
       `Job ${job.id} failed permanently after ${job.attemptsMade} attempt(s): ${error.message}`,
     );
     const { companyId, typeId, documentId, actionId } = job.data;
-    await markSendFailed((id) => this.documentsService.getType(id), {
-      companyId,
-      typeId,
-      documentId,
-      actionId,
-      error,
-    });
+    // `@OnWorkerEvent` handlers are event listeners, not a BullMQ-retried job attempt: anything they
+    // throw becomes an UNHANDLED REJECTION, which kills the entire Node process — this is not
+    // theoretical, it is exactly what happened here twice on 2026-08-31 (a document deleted while its
+    // failed send's terminal-failure job was still in flight took down two whole e2e backends).
+    // `markSendFailed` already has its own belt for the specific "document no longer exists" case
+    // (mark-send-failed.ts), but this try/catch is the second, unconditional one: whatever reason
+    // markSendFailed might still fail for, this handler must never let it escape — log every bit of
+    // context (both the original job failure and this marking failure) and stop, never rethrow.
+    try {
+      await markSendFailed((id) => this.documentsService.getType(id), {
+        companyId,
+        typeId,
+        documentId,
+        actionId,
+        error,
+      });
+    } catch (markError) {
+      this.logger.error(
+        `markSendFailed itself failed for job ${job.id} (${typeId}/${documentId}, action "${actionId}") — ` +
+          `original failure: ${error.message}; marking failure: ` +
+          `${markError instanceof Error ? markError.message : String(markError)}`,
+      );
+    }
   }
 }

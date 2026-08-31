@@ -34,12 +34,21 @@
  * object right before XML rendering), which is exactly what closes this without a second, divergent
  * regeneration or a hand-rolled CII serializer. See that function's own header for the object shape
  * this mutates and how it was verified against the vendored dependency directly.
+ *
+ * A SECOND, independent gap of the exact same shape, closed the SAME way: BT-23 (root TODO item 15's
+ * own remainder — `semantic/business-process.ts`). The plain CII gate above gets its BT-23 fix from
+ * `applyFrenchBusinessProcess` on the rendered STRING; the embed call's own internal regeneration
+ * never sees that string either, so `applyFrenchBusinessProcessInObject` is chained into the SAME
+ * `postProcessor` below, right after `splitCiiIncludedNotesInObject` — one call, two independent
+ * fixes, both no-ops when nothing applies (no French seller with an active content requirement, no
+ * multi-note packing to split).
  */
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { renderDocumentInstance } from '../rendering/render-instance-pdf';
 import { DocumentFormatBuildResult, DocumentFormatParty, DocumentFormatProvider } from './format-provider';
+import { applyFrenchBusinessProcess, applyFrenchBusinessProcessInObject } from './semantic/business-process';
 import { splitCiiIncludedNotes, splitCiiIncludedNotesInObject } from './semantic/cii-post-process';
 import { buildEuInvoiceForDocument, newEuInvoiceService } from './shared-build';
 import { validateStructural } from './structural-check';
@@ -78,10 +87,17 @@ export function buildFacturxFormatProvider(deps: FacturxProviderDeps): DocumentF
 
     const euInvoice = buildEuInvoiceForDocument(descriptor, document, company, client);
     const service = newEuInvoiceService();
+    // Set by `build-semantic-invoice.ts` only when a country's content requirement actually resolved
+    // a BT-23 code (see `business-process.ts`'s own header) — `undefined` for every other seller.
+    const businessProcessCode = euInvoice['ubl:Invoice']['cbc:ProfileID'];
 
     // 1) The SAME CII `cii-provider.ts` produces, gated the SAME way — see this file's own header.
     const rawCii = (await service.generate(euInvoice, { format: 'CII', lang: 'en' })) as string;
-    const cii = splitCiiIncludedNotes(rawCii);
+    let cii = splitCiiIncludedNotes(rawCii);
+    // Belt-and-suspenders reuse of `applyFrenchBusinessProcess` — see `cii-provider.ts`'s own,
+    // identical comment for why this is safe to run even though the object-level `cbc:ProfileID`
+    // above already reaches this same rendered string.
+    if (businessProcessCode) cii = applyFrenchBusinessProcess(cii, businessProcessCode);
 
     const structural = validateStructural(cii, 'cii');
     if (!structural.valid) {
@@ -118,8 +134,17 @@ export function buildFacturxFormatProvider(deps: FacturxProviderDeps): DocumentF
       // See this file's own header, "ONE GAP THIS USED TO DOCUMENT [...] REACHED, LIVE" — without
       // this, a seller with more than one BG-1 note (any French seller since root TODO item 15) gets
       // an embedded CII with several `ram:Content` under one `ram:IncludedNote`, invalid per the
-      // UN/CEFACT schema, exactly what a real superpdp deposit rejected.
-      postProcessor: async (data) => splitCiiIncludedNotesInObject(data as Record<string, unknown>),
+      // UN/CEFACT schema, exactly what a real superpdp deposit rejected. Chained with
+      // `applyFrenchBusinessProcessInObject` (root TODO item 15's own remainder — BT-23) — the same
+      // public `postProcessor` extension point fixing a SECOND, independent defect the library's
+      // internal CII regeneration would otherwise carry into the embedded copy: the plain CII gate
+      // above already got its BT-23 fix from `applyFrenchBusinessProcess` on the STRING, which this
+      // regeneration never sees (see `business-process.ts`'s own header).
+      postProcessor: async (data) => {
+        const cii = data as Record<string, unknown>;
+        splitCiiIncludedNotesInObject(cii);
+        if (businessProcessCode) applyFrenchBusinessProcessInObject(cii, businessProcessCode);
+      },
     })) as Uint8Array;
 
     return { bytes: embedded, validation: { valid: true, errors: [] } };

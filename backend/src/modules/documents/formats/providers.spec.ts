@@ -64,6 +64,45 @@ const DOCUMENT_DATA = {
 
 const DOCUMENT = { id: 'doc-1', data: DOCUMENT_DATA, displayNumber: 'INV-2026-0001', status: 'sent' };
 
+/** A US seller — carries a (fictional) tax identifier only so BR-S-02/BR-CO-26 (a "Standard rated"
+ *  line needs SOME seller tax identifier — this fixture's own DOCUMENT_DATA is 20% VAT) do not fire
+ *  for a reason unrelated to what this describe block actually tests. Used only by the BT-23 describe
+ *  block below: this bridge's own French-specific checks (SIREN derivation, mentions, BT-23) must
+ *  never fire for it. */
+const US_SELLER: DocumentFormatParty = {
+  name: 'Acme US Inc.',
+  address: '1 Main St',
+  city: 'Wilmington',
+  postalCode: '19801',
+  country: 'United States',
+  email: 'contact@acme-us.example',
+  partyIdentifiers: [{ scheme: 'VAT', value: 'US123456789' }],
+};
+
+/** Reads BT-23's own value back out of either syntax's real output — CII's
+ *  `BusinessProcessSpecifiedDocumentContextParameter/(ram:)ID` (the exact element
+ *  `business-process.ts#applyFrenchBusinessProcess` targets) or UBL's `cbc:ProfileID` (the exact
+ *  field `build-semantic-invoice.ts` sets directly) — whichever the syntax actually carries. */
+function businessProcessValueFrom(xml: string): string | undefined {
+  const cii =
+    /<(?:ram:)?BusinessProcessSpecifiedDocumentContextParameter>\s*<(?:ram:)?ID>([^<]*)<\/(?:ram:)?ID>/.exec(
+      xml,
+    );
+  if (cii) return cii[1];
+  const ubl = /<cbc:ProfileID>([^<]*)<\/cbc:ProfileID>/.exec(xml);
+  return ubl ? ubl[1] : undefined;
+}
+
+/** `@e-invoice-eu/core`'s OWN default BT-23/ProfileID value when nothing sets one — the Peppol BIS
+ *  billing profile URN (checked directly against the vendored dependency, `FormatUBLService`/
+ *  `FormatCIIService#profileID` in `node_modules/@e-invoice-eu/core/dist/e-invoice-eu.cjs.js`), NOT
+ *  the literal string "M1" in the currently-vendored version — see `business-process.ts`'s own
+ *  header for the full reasoning on why either shape is correctly reported as "absente ou n'est pas
+ *  autorisée" by a French PDP's conformity check regardless. Asserted here so a future dependency
+ *  bump that silently changes this default is visible as a test failure, not a surprise.
+ */
+const LIBRARY_DEFAULT_PROFILE_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0';
+
 describe('providers.spec — the master proof (fixture computed by hand)', () => {
   it('compute-totals agrees with the hand computation this fixture claims', () => {
     const totals = computeDocumentTotals(descriptor, DOCUMENT_DATA);
@@ -122,5 +161,89 @@ describe('providers.spec — the master proof (fixture computed by hand)', () =>
       expect(result.validation.errors).toEqual([]);
       expect(result.validation.valid).toBe(true);
     }, 30_000);
+
+    /**
+     * BT-23 — root TODO item 15's own remainder, now wired via `../content-requirements/` (see
+     * `semantic/business-process.ts`'s own header). Every case here is issued ON the shipped content
+     * requirement's own `mandatedFrom` (2026-09-01), and every artifact is still judged by the REAL
+     * vendored Schematron via `result.validation` — a code that broke the base standard would fail
+     * here exactly like any other regression this file's own master proof already catches.
+     */
+    describe('BT-23 — country-conditional, from what the invoice actually contains', () => {
+      const ON_OR_AFTER_MANDATE = '2026-09-01';
+
+      function documentWithSupplyTypes(types: (('GOODS' | 'SERVICES') | undefined)[]) {
+        return {
+          ...DOCUMENT,
+          data: {
+            ...DOCUMENT_DATA,
+            issueDate: ON_OR_AFTER_MANDATE,
+            lines: DOCUMENT_DATA.lines.map((line, i) => ({ ...line, supplyType: types[i] })),
+          },
+        };
+      }
+
+      it('goods-only lines → B1', async () => {
+        const result = await provider.build(
+          descriptor,
+          documentWithSupplyTypes(['GOODS', 'GOODS']),
+          SELLER,
+          BUYER,
+        );
+        expect(result.validation.errors).toEqual([]);
+        expect(result.validation.valid).toBe(true);
+        expect(businessProcessValueFrom(Buffer.from(result.bytes).toString('utf-8'))).toBe('B1');
+      }, 30_000);
+
+      it("services-only lines → S1 — the case @e-invoice-eu/core's own default got wrong", async () => {
+        const result = await provider.build(
+          descriptor,
+          documentWithSupplyTypes(['SERVICES', 'SERVICES']),
+          SELLER,
+          BUYER,
+        );
+        expect(result.validation.errors).toEqual([]);
+        expect(result.validation.valid).toBe(true);
+        expect(businessProcessValueFrom(Buffer.from(result.bytes).toString('utf-8'))).toBe('S1');
+      }, 30_000);
+
+      it('mixed goods + services lines → M1', async () => {
+        const result = await provider.build(
+          descriptor,
+          documentWithSupplyTypes(['GOODS', 'SERVICES']),
+          SELLER,
+          BUYER,
+        );
+        expect(result.validation.errors).toEqual([]);
+        expect(businessProcessValueFrom(Buffer.from(result.bytes).toString('utf-8'))).toBe('M1');
+      }, 30_000);
+
+      it('no supplyType declared on any line → M1 — the value that asserts nothing false about the content', async () => {
+        const result = await provider.build(
+          descriptor,
+          documentWithSupplyTypes([undefined, undefined]),
+          SELLER,
+          BUYER,
+        );
+        expect(result.validation.errors).toEqual([]);
+        expect(businessProcessValueFrom(Buffer.from(result.bytes).toString('utf-8'))).toBe('M1');
+      }, 30_000);
+
+      // MUTATION TARGET (task's own mutation #2): applying BT-23 regardless of seller country would
+      // make this assertion fail — the seller here is American, not French.
+      it("a US seller: no BT-23 imposed — the library's own default is left exactly as it is", async () => {
+        const result = await provider.build(
+          descriptor,
+          documentWithSupplyTypes(['GOODS', 'GOODS']),
+          US_SELLER,
+          BUYER,
+        );
+        expect(result.validation.errors).toEqual([]);
+        expect(result.validation.valid).toBe(true);
+        const value = businessProcessValueFrom(Buffer.from(result.bytes).toString('utf-8'));
+        expect(value).toBe(LIBRARY_DEFAULT_PROFILE_ID);
+        expect(['B1', 'S1', 'M1']).not.toContain(value);
+      }, 30_000);
+    });
   });
 });
