@@ -18,6 +18,7 @@ import { TransportRegistry } from '../transports/transport-registry';
 import * as companyTransport from '../transports/company-transport';
 import { ActionRegistry } from './action-registry';
 import { registerInvoiceActions } from './invoice-actions';
+import * as taxLoadAndResolve from '../tax/load-and-resolve';
 
 jest.mock('../persistence');
 jest.mock('../transports/company-transport');
@@ -28,6 +29,10 @@ jest.mock('../transports/channel-policy/mandate');
 // `documents.service.invoice.spec.ts` already mock it: this file has no Nest, no DB, and does not
 // care about numbering at all, only about the mandate decision.
 jest.mock('../numbering/take-number');
+// Root TODO item 16 ("transfrontalier") — see `send-divergence.spec.ts`'s own comment on this exact
+// mock: a permissive pass-through, this file's own concern is the channel mandate, never cross-border
+// VAT.
+jest.mock('../tax/load-and-resolve');
 
 const FR_MANDATE = {
   providerId: 'pdp',
@@ -77,6 +82,14 @@ function buildRegistry(transportRegistry = new TransportRegistry()) {
 
 describe('invoice "send" — a country channel mandate overrides the company\'s free choice', () => {
   afterEach(() => jest.resetAllMocks());
+  // Root TODO item 16 — see `send-divergence.spec.ts`'s own comment on this exact mock and why it is
+  // re-installed here, in `beforeEach`, rather than relying on the module factory alone.
+  beforeEach(() => {
+    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockImplementation(
+      (_companyId: string, data: Record<string, unknown>) =>
+        Promise.resolve({ data, crossBorder: false, warnings: [] }),
+    );
+  });
 
   it('BLOCKS at the preflight when the company is configured for a DIFFERENT transport — never persisted, message names channel + source', async () => {
     (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');

@@ -3,6 +3,13 @@ import { ClientsService } from '@/modules/clients/clients.service';
 import { JwtService } from '@nestjs/jwt';
 import { Module } from '@nestjs/common';
 import { WebhooksModule } from '../webhooks/webhooks.module';
+import { ViesProvider } from '../company-lookup/providers/vies.provider';
+import {
+  FakeSyntaxOnlyVatValidationClient,
+  NullVatValidationClient,
+  VatValidationPort,
+  ViesVatValidationClient,
+} from '../documents/tax/vat-validation';
 
 /**
  * VIES is reached when a VAT number is entered — EXCEPT under NODE_ENV=test.
@@ -16,11 +23,25 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
  * The null client is not a mock that pretends: it returns UNAVAILABLE, which is exactly true — the
  * question was never asked. So the write path still runs end to end in e2e (a row IS persisted,
  * with a status, a date and a source), and the conservative branch is the one exercised: an
- * unverified number keeps standard-rate VAT. What e2e cannot cover is the VALID -> AE transition,
- * because that needs an answer only VIES can give; `vat-validation-e2e.spec.ts` covers it with an
- * injected fake, and `company-lookup.live` covers the real service on demand.
+ * unverified number keeps standard-rate VAT.
+ *
+ * Root TODO item 16 ("transfrontalier") ADDS one opt-in escape hatch: `VAT_VALIDATION_FAKE=1` (set
+ * only in `backend/.env.test`, the e2e backend's own env — never in dev/prod) swaps in
+ * `FakeSyntaxOnlyVatValidationClient` instead of the null one. This is what makes the
+ * VALID -> B2B/reverse-charge transition observable through a real browser (Cypress spec 35) — the
+ * paragraph above used to end here: "What e2e cannot cover is the VALID -> AE transition, because
+ * that needs an answer only VIES can give." That was true before this task; see
+ * `vat-validation.ts`'s own header on `FakeSyntaxOnlyVatValidationClient` for why answering `VALID`
+ * for a syntactically-valid number is still a network-free, deterministic fake, never a real VIES
+ * call — the "CI must never depend on VIES being up" contract is unchanged. Plain `NODE_ENV=test`
+ * (every jest run, and any Cypress run that did NOT opt in) keeps the ORIGINAL, conservative
+ * behaviour unchanged.
  */
-function vatValidationClient() {}
+function vatValidationClient(): VatValidationPort {
+  if (process.env.VAT_VALIDATION_FAKE === '1') return new FakeSyntaxOnlyVatValidationClient();
+  if (process.env.NODE_ENV === 'test') return new NullVatValidationClient();
+  return new ViesVatValidationClient(new ViesProvider());
+}
 
 @Module({
   imports: [WebhooksModule],

@@ -77,6 +77,23 @@ function extractSupplyType(value: unknown): SemanticLineInput['supplyType'] {
   return value === 'GOODS' || value === 'SERVICES' ? value : undefined;
 }
 
+/**
+ * `__crossBorderCategory`/`__crossBorderExemptionReason` — root TODO item 16 ("transfrontalier")'s
+ * OWN sidecar convention, written ONLY by `tax/resolve-invoice-tax.ts` onto the in-memory, never
+ * persisted, rewritten `data` it hands back for a CROSS-BORDER invoice (see that file's own header,
+ * "Never a blind store"). Absent for every domestic invoice and every OTHER document type — this is
+ * the ONE place they are read back, so `vatCategoryFor`'s own rate-only derivation
+ * (`build-semantic-invoice.ts`) never has to guess AE/K/G/O from a bare 0% rate, which it structurally
+ * cannot (see that file's own header, "VAT category").
+ */
+const VAT_CATEGORY_CODES = new Set(['S', 'Z', 'E', 'AE', 'K', 'G', 'O']);
+
+function extractCrossBorderCategory(value: unknown): SemanticLineInput['vatCategory'] {
+  return typeof value === 'string' && VAT_CATEGORY_CODES.has(value)
+    ? (value as SemanticLineInput['vatCategory'])
+    : undefined;
+}
+
 function extractLines(data: Record<string, unknown>): SemanticLineInput[] {
   const rows = Array.isArray(data.lines) ? (data.lines as Record<string, unknown>[]) : [];
   return rows.map((row) => ({
@@ -85,7 +102,27 @@ function extractLines(data: Record<string, unknown>): SemanticLineInput[] {
     unit: typeof row.unit === 'string' ? row.unit : '',
     unitPrice: typeof row.unitPrice === 'number' ? row.unitPrice : 0,
     supplyType: extractSupplyType(row.supplyType),
+    vatCategory: extractCrossBorderCategory(row.__crossBorderCategory),
+    exemptionReason:
+      typeof row.__crossBorderExemptionReason === 'string' ? row.__crossBorderExemptionReason : undefined,
   }));
+}
+
+/** `__crossBorderMentions` — the document-level twin of the sidecar above: the tax engine's own,
+ *  already-deduplicated `LegalMention[]` for a cross-border invoice (root TODO item 16). Read here,
+ *  once, and handed to `buildSemanticInvoice` as `additionalMentions` — see that function's own
+ *  header for how they join BG-1 through the EXISTING `mentions/invoice-notes.ts#toUblNote`
+ *  mechanism, never a parallel one. */
+function extractCrossBorderMentions(data: Record<string, unknown>): { code: string; text: string }[] {
+  const raw = data.__crossBorderMentions;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (m): m is { code: string; text: string } =>
+      !!m &&
+      typeof m === 'object' &&
+      typeof (m as { code?: unknown }).code === 'string' &&
+      typeof (m as { text?: unknown }).text === 'string',
+  );
 }
 
 /**
@@ -116,5 +153,6 @@ export function buildEuInvoiceForDocument(
     buyer: client,
     lines,
     totals,
+    additionalMentions: extractCrossBorderMentions(data),
   });
 }

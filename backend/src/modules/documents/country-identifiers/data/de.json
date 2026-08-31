@@ -1,0 +1,17 @@
+{
+  "countryCode": "DE",
+  "schemes": [
+    {
+      "scheme": "VAT",
+      "appliesTo": "COMPANY",
+      "label": "Umsatzsteuer-Identifikationsnummer (USt-IdNr.)",
+      "required": false,
+      "pattern": "^DE\\d{9}$",
+      "helpText": "German EU VAT number (DE + 9 digits) — needed to qualify as B2B for cross-border VAT treatment.",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Root TODO item 16 ('transfrontalier') — added so a German CLIENT can carry a VAT number on the client screen at all (the generic `country-identifiers/` mechanism this field rides is per-country: no de.json existed before this task, so a German buyer had no VAT field on screen regardless of the tax engine's own needs). The German Umsatzsteuer-Identifikationsnummer (USt-IdNr.) format (DE + 9 digits, ISO 7064 Mod 11,10 checksum) is well documented (e.g. https://en.wikipedia.org/wiki/VAT_identification_number#Germany, cross-checked against `documents/tax/vat-syntax.ts#validateDeVat`'s own reference) but the UStG (Umsatzsteuergesetz) provision requiring/permitting it on a German invoice (§14a UStG, intra-Community supplies) was not read at its own text in this task. `required: false` because a German consumer (B2C) or a company under a VAT exemption scheme has no such number to give — this catalog has no per-company VAT-regime input to condition on, the exact same reasoning `data/fr.json`'s own VAT entry in this file already gives. What would settle this: reading §14a UStG directly."
+      }
+    }
+  ]
+}

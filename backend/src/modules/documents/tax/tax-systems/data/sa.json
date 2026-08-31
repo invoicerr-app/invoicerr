@@ -1,0 +1,11 @@
+{
+  "countryCode": "SA",
+  "kind": "VAT",
+  "standardRate": 15,
+  "reducedRates": [],
+  "schemes": ["STANDARD"],
+  "provenance": {
+    "kind": "unverified",
+    "resolutionNote": "Reprised from the removed compliance engine's own archetype-built Saudi Arabia profile (git tag avant-refonte-documents, backend/src/compliance/profiles/data/sa.ts: `clearance('SA', 'Saudi Arabia', { ..., tax: vat(15) })`) — an ARCHETYPE-generated profile with no per-field provenance at all in the repère (only a doc-comment naming 'ZATCA FATOORA', no legal article). Never promoted beyond unverified. What would settle this: reading Saudi Arabia's VAT law (Royal Decree No. M/113) directly."
+  }
+}

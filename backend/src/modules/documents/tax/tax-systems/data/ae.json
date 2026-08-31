@@ -1,0 +1,11 @@
+{
+  "countryCode": "AE",
+  "kind": "VAT",
+  "standardRate": 5,
+  "reducedRates": [],
+  "schemes": ["STANDARD"],
+  "provenance": {
+    "kind": "unverified",
+    "resolutionNote": "Reprised from the removed compliance engine's own archetype-built United Arab Emirates profile (git tag avant-refonte-documents, backend/src/compliance/profiles/data/ae.ts: `peppolCtc('AE', 'United Arab Emirates', { ctcFrom: '2026-07-01', tax: vat(5) })`) — an ARCHETYPE-generated profile with no per-field provenance in the repère. Never promoted beyond unverified. What would settle this: reading UAE Federal Decree-Law No. 8 of 2017 on VAT directly."
+  }
+}

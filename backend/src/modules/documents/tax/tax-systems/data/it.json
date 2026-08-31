@@ -1,0 +1,11 @@
+{
+  "countryCode": "IT",
+  "kind": "VAT",
+  "standardRate": 22,
+  "reducedRates": [10, 5, 4],
+  "schemes": ["STANDARD"],
+  "provenance": {
+    "kind": "unverified",
+    "resolutionNote": "Reprised VERBATIM from the removed compliance engine's own bespoke Italy profile (git tag avant-refonte-documents, backend/src/compliance/profiles/data/it.ts: `taxSystem: { kind: 'VAT', standardRate: 22, reducedRates: [10, 5, 4], schemes: ['STANDARD'] }`). That file's own header cites Italy's SdI mandate and DPR 633/72 for OTHER facts (correction routes) but attaches no legal citation to the rate figures themselves, and no Italian legal text was read in this task either — kept unverified rather than promoted. What would settle this: reading DPR 633/72 (Italian VAT decree) directly."
+  }
+}

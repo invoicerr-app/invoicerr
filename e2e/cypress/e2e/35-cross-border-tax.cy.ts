@@ -1,0 +1,280 @@
+/**
+ * Root TODO item 16 ("transfrontalier") — la limite la plus profonde, prouvée par l'écran.
+ *
+ * Même discipline que 30/32 : l'ACTION passe par un vrai clic (créer le client, cliquer "Send",
+ * cliquer le bouton de téléchargement XML), les ASSERTIONS qui comptent relisent l'API ou
+ * interceptent la vraie requête réseau que le clic déclenche — jamais l'écran seul comme preuve de
+ * ce qui a été calculé ou envoyé.
+ *
+ * `issueDate` fixée AVANT le mandat FR/PDP (2026-09-01) sur les DEUX factures de ce fichier — comme
+ * 30/32 — pour que le transport "email" (jamais "pdp") reste le chemin testé ; le mandat lui-même ne
+ * s'appliquerait de toute façon pas à une vente FR→DE (l'attachement bilatéral exige les DEUX
+ * parties en France — voir `channel-policy/data/fr.json`), mais fixer la date évite tout doute et
+ * garde ce fichier lisible sans relire cette règle.
+ *
+ * VIES : le backend de test tourne avec `VAT_VALIDATION_FAKE=1` (backend/.env.test) — un client
+ * FAUX, déterministe, JAMAIS un appel réseau réel, qui répond VALID pour un numéro de TVA
+ * syntaxiquement correct (voir `clients.module.ts` et `documents/tax/vat-validation.ts`'s own
+ * header) : c'est ce qui rend observable, à travers un vrai navigateur, la transition VALID ->
+ * autoliquidation que le client Null (le défaut sous NODE_ENV=test) ne pouvait pas montrer.
+ */
+const api = Cypress.env("apiUrl") || "http://localhost:4000";
+
+function setInvoiceTransport(transportId: string) {
+	return cy
+		.request({ method: "POST", url: `${api}/api/company/info`, body: { invoiceTransportId: transportId } })
+		.then((res) => {
+			expect(res.status, "transport configured").to.be.oneOf([200, 201]);
+		});
+}
+
+describe("Root TODO item 16 — le transfrontalier, à travers l'écran", () => {
+	before(() => {
+		cy.resetAndSeed();
+	});
+
+	beforeEach(() => {
+		cy.login();
+	});
+
+	it('un client allemand avec un numéro de TVA intracommunautaire (champ NOUVEAU) — facture FR→DE en email, 0%, catégorie AE, mention art. 196', () => {
+		setInvoiceTransport("email");
+
+		// 1. Le client allemand, créé PAR L'ÉCRAN — la preuve que le champ VAT est désormais offert
+		// pour un pays qui n'avait AUCUN fichier `country-identifiers/data/*.json` avant cette tâche.
+		cy.visit("/clients");
+		cy.contains("button", /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
+
+		cy.get('[name="name"]').clear().type("Deutsche Autoliquidation GmbH");
+		cy.selectCountry("client-country-select", "Germany");
+
+		// Avant cette tâche, un pays sans country-identifiers/data/xx.json affichait seulement le
+		// message "unknown country" — jamais un champ. Le prouver ABSENT est ce qui distingue "le
+		// champ existe" de "le formulaire affiche juste quelque chose".
+		cy.get('[data-cy="client-identifiers-unknown-country"]').should("not.exist");
+		cy.get('[data-cy="client-identifier-VAT"]', { timeout: 10000 })
+			.should("exist")
+			.clear()
+			.type("DE136695976"); // checksum-valide (ISO 7064 Mod 11,10) — voir vat-syntax.spec.ts
+
+		cy.get('[name="contactEmail"]').clear().type("buchhaltung@deutsche-autoliquidation.example");
+		cy.get('[name="address"]').clear().type("Friedrichstraße 42");
+		cy.get('[name="postalCode"]').clear().type("10117");
+		cy.get('[name="city"]').clear().type("Berlin");
+
+		cy.get('[data-cy="client-currency-select"] button').scrollIntoView().click();
+		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
+		cy.get('[data-cy="client-currency-select"] input').type("Euro");
+		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
+
+		cy.get('[data-cy="client-submit"]').click();
+		cy.get('[data-cy="client-dialog"]').should("not.exist");
+		cy.contains("Deutsche Autoliquidation GmbH", { timeout: 10000 });
+
+		// 2. La facture FR→DE — créée par l'API (même convention que 30/32 : la donnée se prépare
+		// par l'API, l'ACTION testée passe par l'écran), avec une ligne de SERVICES pour que le
+		// moteur résolve l'autoliquidation (AE, art. 196), pas la livraison intra-UE (K, art. 138).
+		cy.request({ url: `${api}/api/documents/references/client/search?q=Deutsche` })
+			.its("body")
+			.then((clients: { id: string; label: string }[]) => {
+				const client = clients.find((c) => c.label.includes("Deutsche Autoliquidation"));
+				expect(client, "le client allemand créé ci-dessus se retrouve par la recherche").to.exist;
+
+				const data = {
+					client: client!.id,
+					issueDate: "2026-08-30",
+					dueDate: "2026-09-30",
+					currency: "EUR",
+					lines: [
+						{
+							description: "Conseil stratégique",
+							quantity: 1,
+							unit: "day",
+							unitPrice: 1000,
+							vatRate: "20",
+							supplyType: "SERVICES",
+						},
+					],
+				};
+
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/invoice/actions/save-draft`,
+					body: { data },
+				}).then((saved) => {
+					const invoiceId = saved.body?.document?.id as string;
+					expect(invoiceId).to.be.a("string");
+
+					cy.visit("/documents/invoice");
+					cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })
+						.find('[data-cy="document-status-badge"]')
+						.should("contain.text", "Draft");
+
+					// L'ACTION : un vrai clic sur "Send" — jamais un appel direct à l'action.
+					cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+
+					cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 20000 })
+						.find('[data-cy="document-status-badge"]')
+						.should("contain.text", "Sent");
+
+					// 3. Le XML téléchargé — la preuve : 0%, catégorie AE, mention d'autoliquidation.
+					cy.window().then((win) => cy.stub(win, "open").as("windowOpen"));
+					cy.intercept({ method: "GET", pathname: `/api/documents/${invoiceId}/formats/cii` }).as(
+						"xmlCiiCrossBorder",
+					);
+					cy.get(`[data-cy="document-xml-button-${invoiceId}"]`, { timeout: 10000 }).click();
+					cy.get(`[data-cy="document-xml-cii-${invoiceId}"]`, { timeout: 10000 })
+						.should("be.visible")
+						.click();
+					cy.wait("@xmlCiiCrossBorder", { timeout: 20000 }).then((x) => {
+						expect(x.response?.statusCode, "le téléchargement CII réussit").to.eq(200);
+						const body = String(x.response?.body);
+						// BT-152/BT-151 — 0%, catégorie AE, jamais les 20% initialement saisis.
+						expect(body).to.match(/<ram:RateApplicablePercent>0<\/ram:RateApplicablePercent>/);
+						expect(body).to.contain("<ram:CategoryCode>AE</ram:CategoryCode>");
+						// BG-1 (BT-22) — la mention du moteur, texte du repère, TEL QUEL.
+						expect(body).to.contain(
+							"Autoliquidation / Reverse charge — Art. 196 Directive 2006/112/EC",
+						);
+						// Les totaux reflètent le traitement RÉSOLU (0%), jamais les 20% du brouillon.
+						expect(body).to.match(
+							/<ram:TaxTotalAmount currencyID="EUR">0\.00<\/ram:TaxTotalAmount>/,
+						);
+						expect(body).to.match(/<ram:GrandTotalAmount>1000\.00<\/ram:GrandTotalAmount>/);
+					});
+
+					// Et c'est bien ce qui est enregistré — l'assertion qui compte relit l'API.
+					cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+						.its("body")
+						.then((doc) => {
+							expect(doc.status).to.eq("sent");
+						});
+
+					// 4. LE DÉFAUT DE LA TÂCHE 16 (correction chirurgicale) — la donnée STOCKÉE (celle que
+					// `instance.data` porte désormais dès l'entrée en "sending") doit être la donnée
+					// RÉSOLUE : la LISTE (le dialogue ouvert depuis une ligne) doit afficher le total
+					// RÉSOLU (1000,00 €, 0 % de TVA), jamais 1 200,00 € (les 20 % saisis au brouillon).
+					// Avant la correction, `instance.data` gardait le taux saisi et ce total aurait affiché
+					// 1200.00 — cette assertion est celle qui aurait échoué sur le défaut.
+					cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
+					cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+					cy.get('[data-cy="document-totals-gross"]', { timeout: 10000 })
+						.should("contain", "1000.00")
+						.and("not.contain", "1200.00");
+					cy.get("body").type("{esc}");
+					cy.get('[data-cy="document-edit-dialog"]').should("not.exist");
+
+					// 5. Le PDF RE-téléchargé — un second téléchargement, après coup, pas seulement celui
+					// qui a accompagné l'envoi — porte lui aussi le traitement résolu (0 %) : la requête
+					// réseau que le clic déclenche réussit, sur le MÊME document déjà "sent".
+					cy.intercept({ method: "GET", pathname: `/api/documents/${invoiceId}/pdf` }).as(
+						"pdfCrossBorderReDownload",
+					);
+					cy.get(`[data-cy="document-pdf-button-${invoiceId}"]`, { timeout: 10000 }).click();
+					cy.wait("@pdfCrossBorderReDownload", { timeout: 20000 }).then((x) => {
+						expect(x.response?.statusCode, "le PDF re-téléchargé réussit").to.eq(200);
+					});
+
+					// 6. LE LETTRAGE d'une transfrontalière — un paiement de 1000,00 € (le total RÉSOLU,
+					// jamais 1200,00 €) règle intégralement la facture : le badge devient "Settled", et
+					// l'API le confirme sur les totaux STOCKÉS (jamais un recalcul caché qui masquerait le
+					// défaut).
+					cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
+					cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+					cy.get('[data-cy="document-action-record-payment"]', { timeout: 15000 }).click();
+					cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
+					cy.get('[data-cy="document-action-params-dialog"]')
+						.find('[data-cy="document-field-amount-input"]')
+						.clear({ force: true })
+						.type("1000", { force: true });
+					cy.get('[data-cy="document-action-params-confirm"]').click();
+					cy.get('[data-cy="document-action-params-dialog"]').should("not.exist");
+
+					cy.get('[data-cy="document-settlement-badge"]', { timeout: 15000 }).should(
+						"contain.text",
+						"Settled",
+					);
+
+					cy.request({ url: `${api}/api/documents/${invoiceId}/settlement?typeId=invoice` })
+						.its("body")
+						.then((body) => {
+							// 1000,00 € résolus, jamais 1200,00 € (20 % du brouillon) — le nombre exact que
+							// ce défaut faussait avant la correction.
+							expect(body.totals.grossMinor, "total résolu : 1000,00 € (0 % AE)").to.eq(100000);
+							expect(body.settlement.paidMinor).to.eq(100000);
+							expect(body.settlement.outstandingMinor, "réglée intégralement").to.eq(0);
+							expect(body.settlement.settled).to.eq(true);
+						});
+				});
+			});
+	});
+
+	it("un client sans pays résolvable — l'envoi est refusé À L'ÉCRAN, message nommé, jamais un 0% silencieux", () => {
+		setInvoiceTransport("email");
+
+		// Le FORMULAIRE client exige un pays (validation zod côté écran) — ce client est donc créé
+		// par l'API directement, comme un scripted client le ferait, pour amener l'invoice dans
+		// l'état que ce test vise : c'est le REFUS À L'ENVOI que ce test prouve par l'écran, pas la
+		// création du client elle-même (déjà prouvée par le test précédent).
+		cy.request({
+			method: "POST",
+			url: `${api}/api/clients`,
+			body: {
+				name: "Sans Pays SARL",
+				contactEmail: `sans-pays-${Date.now()}@example.com`,
+				address: "1 Rue Inconnue",
+				postalCode: "00000",
+				city: "Nulle Part",
+				country: "",
+				currency: "EUR",
+				isActive: true,
+				type: "COMPANY",
+			},
+		}).then((createdClient) => {
+			expect(createdClient.status).to.be.oneOf([200, 201]);
+			const clientId = createdClient.body?.id as string;
+			expect(clientId).to.be.a("string");
+
+			const data = {
+				client: clientId,
+				issueDate: "2026-08-30",
+				dueDate: "2026-09-30",
+				currency: "EUR",
+				lines: [{ description: "Conseil", quantity: 1, unit: "day", unitPrice: 1000, vatRate: "20" }],
+			};
+
+			cy.request({
+				method: "POST",
+				url: `${api}/api/documents/types/invoice/actions/save-draft`,
+				body: { data },
+			}).then((saved) => {
+				const invoiceId = saved.body?.document?.id as string;
+				expect(invoiceId).to.be.a("string");
+
+				cy.visit("/documents/invoice");
+				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })
+					.find('[data-cy="document-status-badge"]')
+					.should("contain.text", "Draft");
+
+				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+
+				// Le préflight bloque de façon SYNCHRONE — un toast nommé le dit tout de suite, même
+				// discipline que 32-channel-mandate.cy.ts pour son propre refus au préflight.
+				cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
+					"contain.text",
+					"buyer's country could not be determined",
+				);
+
+				cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+					.its("body")
+					.then((doc) => {
+						expect(
+							doc.status,
+							'jamais persisté au-delà de "draft" — bloqué avant toute écriture, jamais un 0% silencieux',
+						).to.eq("draft");
+					});
+			});
+		});
+	});
+});

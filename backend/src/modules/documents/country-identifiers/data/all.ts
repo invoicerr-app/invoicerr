@@ -16,7 +16,7 @@ import { join } from 'node:path';
 
 import { assertValidProvenance, CountryIdentifierRequirementsFile } from '../schema';
 
-const COUNTRY_FILES = ['fr', 'us'] as const;
+const COUNTRY_FILES = ['fr', 'us', 'de'] as const;
 
 function loadCountryFile(code: string): CountryIdentifierRequirementsFile {
   const path = join(__dirname, `${code}.json`);

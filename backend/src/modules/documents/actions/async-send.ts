@@ -75,8 +75,23 @@ export interface RunAsyncSendInput {
    * an action with no registered handler at all) means nothing is persisted and nothing is queued —
    * the same "blocked, and says so, before touching anything" behavior this action had before it
    * became asynchronous. Absent for a type with no such precondition (the quote, the credit note).
+   *
+   * Root TODO item 16 ("transfrontalier") — MAY now return the field values to persist INSTEAD OF
+   * `data` (returning `undefined`, the ONLY shape a preflight had before this task, still means
+   * "nothing to rewrite, persist `data` exactly as submitted" — the quote's and the credit note's own
+   * preflights, and every existing caller, are entirely unaffected). The invoice's own preflight
+   * (invoice-actions.ts) uses this to hand back the RESOLVED cross-border treatment: the principle,
+   * carried over from the pre-refonte compliance engine, is that a document's fiscal treatment is
+   * resolved at ISSUANCE, and the record that actually enters "sending" — the one a worker will
+   * transmit, archive, and total a balance against — IS that resolved document, never the raw draft.
+   * The draft was the user's own entry; the moment it leaves "draft" (or "send_failed") it becomes a
+   * legal fact, frozen exactly as resolved. See this file's own header for why "sending" (not "sent")
+   * is where a document's field values freeze for good — the SAME `data` this returns also becomes
+   * the enqueued job's own payload just below, so `deliver()`'s later re-resolution (see
+   * `invoice-actions.ts`'s own header) runs on ALREADY-RESOLVED data — which is why that resolution
+   * has to be idempotent (tax/resolve-invoice-tax.spec.ts proves it is).
    */
-  preflight?: () => Promise<void>;
+  preflight?: () => Promise<Record<string, unknown> | undefined>;
   /**
    * Whether THIS type declares `numbering: { onEnterStatus: 'sending' }` (quote/invoice: true;
    * credit-note: false — see credit-note.descriptor.ts's own comment on why it declares no numbering
@@ -92,17 +107,12 @@ export interface RunAsyncSendInput {
 }
 
 export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<ActionResult> {
-  const {
-    companyId,
-    typeId,
-    documentId,
-    data,
-    params,
-    queueDispatcher,
-    deliver,
-    preflight,
-    numberOnEnqueue,
-  } = input;
+  const { companyId, typeId, documentId, params, queueDispatcher, deliver, preflight, numberOnEnqueue } =
+    input;
+  // Reassigned below, ONLY on the phase-1 path, when `preflight` hands back a resolved replacement —
+  // see `RunAsyncSendInput.preflight`'s own header. Untouched (still exactly `input.data`) for the
+  // phase-2 branch just below, and for any type whose preflight is absent or returns nothing.
+  let data = input.data;
 
   if (!documentId) {
     // Unreachable in practice — every type's own SEND_TRANSITIONS starts from 'draft'/'send_failed',
@@ -136,7 +146,14 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     return { document: sent, changed: true, message };
   }
 
-  if (preflight) await preflight();
+  if (preflight) {
+    // Root TODO item 16 — a resolved replacement REPLACES `data` for everything below: the
+    // "sending" write just after this, AND the job payload enqueued further down. `deliver()` later
+    // re-resolves that SAME (already-resolved) value again — see this function's own `preflight`
+    // header on why that has to be, and is, idempotent.
+    const resolved = await preflight();
+    if (resolved) data = resolved;
+  }
 
   let sending = await upsertDocument(companyId, typeId, documentId, 'sending', data);
 

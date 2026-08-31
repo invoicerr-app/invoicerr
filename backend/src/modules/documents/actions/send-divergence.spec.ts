@@ -12,6 +12,7 @@ import { ActionRegistry } from './action-registry';
 import * as companyEmailTemplates from './company-email-templates';
 import { registerInvoiceActions } from './invoice-actions';
 import { registerQuoteActions } from './quote-actions';
+import * as taxLoadAndResolve from '../tax/load-and-resolve';
 
 jest.mock('../persistence');
 jest.mock('../transports/company-transport');
@@ -29,6 +30,14 @@ jest.mock('./company-email-templates');
 // exactly what it always did (none of them exercises a mandated country on purpose; that is
 // `invoice-channel-mandate.spec.ts`'s own job).
 jest.mock('../country-policy/country-policy');
+// Root TODO item 16 ("transfrontalier") — `invoice-actions.ts`'s "send" now ALSO resolves cross-
+// border VAT (`tax/load-and-resolve.ts`), which reaches Prisma directly, same reason as
+// `country-policy` above. A FACTORY mock (not an automock) — a permissive pass-through — because,
+// unlike `country-policy`'s own "automocked to undefined is already the neutral case", an automocked
+// `undefined` return here would throw on `.data` inside `invoice-actions.ts`'s own deliver/preflight
+// wrappers: this file is about WHICH path each type's "send" takes, never about cross-border tax,
+// which is `tax/resolve-invoice-tax.spec.ts` and `tax/cross-border-formats.spec.ts`'s own job.
+jest.mock('../tax/load-and-resolve');
 
 /**
  * Guardrail against the exact mistake this branch once made: generic-actions.ts used to export a
@@ -47,6 +56,16 @@ jest.mock('../country-policy/country-policy');
  */
 describe('quote "send" and invoice "send" do not share a path', () => {
   afterEach(() => jest.resetAllMocks());
+  // Root TODO item 16 — see this file's own `jest.mock('../tax/load-and-resolve')` comment above.
+  // Re-installed in `beforeEach`, not just once, because `afterEach`'s own `jest.resetAllMocks()`
+  // wipes it after every test — the SAME discipline `documents.service.invoice.spec.ts` already
+  // holds for this exact mock.
+  beforeEach(() => {
+    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockImplementation(
+      (_companyId: string, data: Record<string, unknown>) =>
+        Promise.resolve({ data, crossBorder: false, warnings: [] }),
+    );
+  });
 
   const documentData = {
     client: 'client-1',

@@ -1,0 +1,11 @@
+{
+  "countryCode": "IN",
+  "kind": "GST",
+  "standardRate": 18,
+  "reducedRates": [28, 12, 5],
+  "schemes": ["STANDARD"],
+  "provenance": {
+    "kind": "unverified",
+    "resolutionNote": "Reprised from the removed compliance engine's own archetype-built India profile (git tag avant-refonte-documents, backend/src/compliance/profiles/data/in.ts: `clearance('IN', 'India', { ..., tax: gst(18, [28, 12, 5]) })`) — an ARCHETYPE-generated profile with no per-field provenance in the repère. Never promoted beyond unverified. What would settle this: reading India's CGST Act 2017 and the GST rate schedules directly."
+  }
+}

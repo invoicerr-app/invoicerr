@@ -23,10 +23,16 @@ import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service
 import { WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
+import { guessCountryCode } from '@/utils/country-name-to-iso';
+import { VatValidationPort } from '../documents/tax/vat-validation';
+import { validateVat } from '../documents/tax/vat-syntax';
 
 @Injectable()
 export class ClientsService {
-  constructor(private readonly webhookDispatcher: WebhookDispatcherService) {}
+  constructor(
+    private readonly webhookDispatcher: WebhookDispatcherService,
+    @Inject('VAT_VALIDATION_CLIENT') private readonly vatValidationClient: VatValidationPort,
+  ) {}
 
   /** Single client by id, scoped to the company — used by the document descriptor system's generic
    *  entity-reference resolution (a 'reference' field only stores an id; resolving it to a label
@@ -138,6 +144,40 @@ export class ClientsService {
       // A changed value invalidates any previous verdict: it is a different number.
       const valueChanged = before?.value !== entry.value;
       if (entry.scheme === 'VAT' && countryCode && (valueChanged || needsRevalidation(before))) {
+        // Root TODO item 16 ("transfrontalier") — the SYNTAX gate runs FIRST, before ever asking
+        // VIES: a syntactically wrong number ("un numéro TVA invalide syntaxiquement") is B2C, named,
+        // without spending a network round-trip on a number that cannot possibly be valid. Only a
+        // number that PASSES its own country's format is worth asking the European Commission about.
+        const iso = guessCountryCode(countryCode) ?? countryCode.toUpperCase();
+        const syntax = validateVat(entry.value, iso);
+
+        if (!syntax.valid) {
+          await prisma.partyIdentifier.update({
+            where: { id: row.id },
+            data: { validationStatus: 'INVALID', validatedAt: new Date(), validationSource: 'syntax-check' },
+          });
+          logger.warn('VAT number failed its own syntax check — treated as unverified (B2C)', {
+            category: 'client',
+            details: { clientId, value: entry.value, countryCode: iso, reason: syntax.reason },
+          });
+          continue;
+        }
+
+        const result = await this.vatValidationClient.validate(iso, entry.value);
+        await prisma.partyIdentifier.update({
+          where: { id: row.id },
+          data: {
+            validationStatus: result.status,
+            validatedAt: result.checkedAt,
+            validationSource: result.source,
+          },
+        });
+        if (result.status !== 'VALID') {
+          logger.warn('VAT number not verified', {
+            category: 'client',
+            details: { clientId, value: entry.value, countryCode: iso, status: result.status },
+          });
+        }
       }
     }
   }

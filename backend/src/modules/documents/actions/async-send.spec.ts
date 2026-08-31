@@ -224,6 +224,83 @@ describe('runAsyncSendAction', () => {
       expect(preflight).toHaveBeenCalled();
       expect(queueDispatcher.enqueueAction).toHaveBeenCalled();
     });
+
+    // Root TODO item 16 ("transfrontalier") — THE PLUMBING this task's fix adds: a preflight that
+    // RETURNS resolved field values (invoice-actions.ts's own cross-border resolution) REPLACES
+    // `data` for the "sending" write AND the enqueued job payload, never just for a synchronous
+    // check that then throws its own answer away. See `RunAsyncSendInput.preflight`'s own header.
+    it('a preflight that RETURNS resolved data persists (and enqueues) THAT data — never the raw one it was called with', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const resolvedData = { client: 'client-1', lines: [{ vatRate: '0', __crossBorderCategory: 'AE' }] };
+      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: resolvedData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+      const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+      const preflight = jest.fn().mockResolvedValue(resolvedData);
+
+      await runAsyncSendAction({
+        ...baseInput,
+        typeId: 'invoice',
+        queueDispatcher,
+        deliver: jest.fn(),
+        preflight,
+      });
+
+      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+        'company-1',
+        'invoice',
+        'doc-1',
+        'sending',
+        resolvedData, // NEVER baseInput.data — this is the whole point of the fix
+      );
+      expect(queueDispatcher.enqueueAction).toHaveBeenCalledWith(
+        expect.objectContaining({ payload: { data: resolvedData, params: baseInput.params } }),
+      );
+    });
+
+    it("a preflight returning `undefined` (the quote's, the credit note's — every existing caller) still persists the RAW data untouched", async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'draft',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+      const preflight = jest.fn().mockResolvedValue(undefined);
+
+      await runAsyncSendAction({ ...baseInput, queueDispatcher, deliver: jest.fn(), preflight });
+
+      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+        'company-1',
+        'quote',
+        'doc-1',
+        'sending',
+        baseInput.data,
+      );
+    });
   });
 
   describe('phase 2 — the record is already "sending" (the worker\'s own replay): deliver, then "sent", NEVER enqueue or number again', () => {

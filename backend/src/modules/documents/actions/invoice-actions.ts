@@ -10,6 +10,8 @@ import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { computeSettlement, describeSettlement } from '../settlement/compute-settlement';
 import { resolveCreditsForDocument, toSettlementCreditInputs } from '../settlement/credits';
 import { listPayments, recordPayment } from '../settlement/payments';
+import { isInvoiceTaxBlockError } from '../tax/resolve-invoice-tax';
+import { resolveInvoiceCrossBorderTaxForCompany } from '../tax/load-and-resolve';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { ActiveChannelMandate, activeChannelMandateFor } from '../transports/channel-policy/mandate';
 import { getCompanyInvoiceTransportId } from '../transports/company-transport';
@@ -186,6 +188,49 @@ async function runInvoiceSendPreflight(
 }
 
 /**
+ * Root TODO item 16 ("transfrontalier") — runs at the EXACT SAME moment as the transport/mandate
+ * checks above: phase-1 preflight, before the record is ever transitioned to "sending" and before
+ * anything is numbered or enqueued (see `actions/async-send.ts`'s own header).
+ *
+ * ## The principle (carried over from the pre-refonte compliance engine)
+ *
+ * Fiscal treatment is re-resolved AT ISSUANCE, and the document that is ISSUED **is** the resolved
+ * document — never the raw draft. The draft was the user's own entry (whatever `vatRate` they typed
+ * or picked); the instant it leaves "draft" (or "send_failed") and enters "sending" it becomes a
+ * legal fact, and that fact must be the RESOLVED one: what the buyer receives, what the archive
+ * keeps, and what `computeDocumentTotals`/the settlement balance/the dashboard's "pending" total all
+ * read back must be the SAME number, not three different views of "20%" vs. "0%, autoliquidation".
+ *
+ * Concretely: the RESOLVED `data` this function returns is handed back to `runAsyncSendAction`
+ * (`actions/async-send.ts`'s own `preflight` header), which uses it — instead of the raw submission —
+ * for the "sending" write AND the enqueued job payload. Only the HARD BLOCKS
+ * (`resolve-invoice-tax.ts`'s own named errors — an unresolved buyer country, an uncatalogued OSS
+ * destination, a rate foreign to the seller's own country) can stop a send here; nothing here is
+ * discarded any more.
+ *
+ * `deliver()` below STILL re-resolves, on the exact same (already-resolved) `data` this produced —
+ * deliberately: a worker can replay `deliver()` seconds or minutes after this ran, and the company's
+ * transport/client data could have changed in that gap. Re-resolving an ALREADY-resolved cross-border
+ * line must be — and is — perfectly stable (`resolve-invoice-tax.ts` never reads a line's existing
+ * `vatRate` to decide the cross-border treatment, only `supplyType` plus the seller/buyer identity —
+ * see that file's own idempotence proof, `resolve-invoice-tax.spec.ts`), which is what makes doing
+ * it twice safe rather than a second chance to silently drift from what was just persisted.
+ */
+async function runInvoiceCrossBorderTaxPreflight(
+  companyId: string,
+  data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  try {
+    return (await resolveInvoiceCrossBorderTaxForCompany(companyId, data)).data;
+  } catch (error) {
+    if (isInvoiceTaxBlockError(error)) {
+      throw new BadRequestException(error.message);
+    }
+    throw error;
+  }
+}
+
+/**
  * The invoice's OWN base descriptor, imported directly here rather than resolved through
  * `DocumentTypeRegistry` — deliberate, and only defensible because this file is ALREADY 100%
  * invoice-specific (every handler below hardcodes `'invoice'` as the typeId; unlike
@@ -262,6 +307,11 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
       preflight: async () => {
         const issueDate = typeof data.issueDate === 'string' ? data.issueDate : undefined;
         await runInvoiceSendPreflight(deps.transportRegistry, companyId, issueDate);
+        // Root TODO item 16 — see `runInvoiceCrossBorderTaxPreflight`'s own header. RETURNED (never
+        // discarded): `runAsyncSendAction` persists exactly this as the "sending" document's own
+        // `data`, so the record that just left "draft" already carries the resolved treatment, not
+        // the user's raw entry.
+        return runInvoiceCrossBorderTaxPreflight(companyId, data);
       },
       // No pre-built `text` here — the "email" transport (transports/email-transport.ts) composes
       // its own subject/body from invoice.descriptor.ts's `email` template (or a company override)
@@ -272,11 +322,35 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
       // `deliver`'s own `data` is the SAME value the enqueue call captured (`async-send.ts`'s own
       // header: "the retry IS the action itself"), never re-read from the database — the mandate this
       // re-resolves must judge the SAME issueDate the preflight already judged, not whatever the
-      // document happens to hold by the time a worker gets to it.
+      // document happens to hold by the time a worker gets to it. Since root TODO item 16, `data` here
+      // is ALREADY the resolved value the preflight persisted (see `runInvoiceCrossBorderTaxPreflight`'s
+      // own header) — resolving it again below is deliberately safe, not merely harmless: the ONLY
+      // reachable-here-but-not-at-preflight case is a client/transport reconfiguration in the gap
+      // between the two calls, which must still be judged fresh.
       deliver: async ({ companyId: c, document, data: deliverData }) => {
         const issueDate = typeof deliverData.issueDate === 'string' ? deliverData.issueDate : undefined;
         const transport = await resolveInvoiceTransport(deps.transportRegistry, c, issueDate);
-        return transport.send({ companyId: c, document, label: 'Invoice' });
+        // Root TODO item 16 — RECOMPUTED here (never a value cached from the preflight call above,
+        // same discipline `resolveInvoiceTransport`'s own re-resolution already holds): every
+        // transport (email/pdp/ksef/sdi) reads `ctx.document.data` generically, so rewriting it HERE,
+        // once, is what makes the PDF attached, the CII/UBL/Factur-X/FA(3)/FatturaPA exports built
+        // from it, and the archived artefact all agree on the RESOLVED cross-border treatment — never
+        // the originally-typed domestic-looking rate. A block reachable only here (never at
+        // preflight — e.g. a client's country changed between the two calls) still fails loud, never
+        // silently reverting to the stored rate. Re-resolving `deliverData` here even though it is
+        // ALREADY resolved is exactly the idempotence `resolve-invoice-tax.ts` guarantees (it decides
+        // the cross-border treatment from `supplyType` + seller/buyer identity, never from a line's
+        // existing `vatRate`) — see `resolve-invoice-tax.spec.ts`'s own idempotence proof.
+        let resolvedData = deliverData;
+        try {
+          resolvedData = (await resolveInvoiceCrossBorderTaxForCompany(c, deliverData)).data;
+        } catch (error) {
+          if (isInvoiceTaxBlockError(error)) throw new BadRequestException(error.message);
+          throw error;
+        }
+        const documentForDelivery =
+          resolvedData === deliverData ? document : { ...document, data: resolvedData };
+        return transport.send({ companyId: c, document: documentForDelivery, label: 'Invoice' });
       },
     }),
   );

@@ -132,16 +132,40 @@
   temporairement) et passe avec. BT-23 reste le seul point ouvert de ce dépôt — item 12, pas 15 (voir
   ci-dessous pourquoi le brancher n'est délibérément PAS fait ici).
 
-- **BT-151 (catégorie de TVA) : seules S et Z sont atteignables aujourd'hui** (item 12) : EN 16931
-  distingue six catégories (S, Z, E, AE, K, G, O), chacune avec des exigences contradictoires (voir
-  `formats/semantic/build-semantic-invoice.ts`'s own header, "VAT category"). Le descripteur
-  d'aujourd'hui n'a qu'un `vatRate` (pourcentage) par ligne, sans catégorie — dériver E (exonéré), O
-  (hors champ), AE (autoliquidation), K (livraison intra-UE) ou G (export) exigerait un fait que ce
-  pont, volontairement sans nom de pays, n'a pas (l'ancien moteur fiscal transfrontalier, supprimé —
-  item 16, "transfrontalier", jamais reconstruit). `formats/pitfalls.spec.ts` prouve que le GATE
-  (le Schematron vendoré) réagit correctement à E et O quand on les lui présente directement
-  (BR-E-02/BR-E-10, BR-O-02/BR-O-10/BR-O-11..14) — c'est le pont lui-même qui ne peut pas encore les
-  produire. Combler ce trou est le vrai contenu de l'item 16, pas une extension de cette tâche-ci.
+- ~~**BT-151 (catégorie de TVA) : seules S et Z sont atteignables aujourd'hui**~~ — **AE, K, G et O
+  DÉSORMAIS ATTEIGNABLES** (item 16, 2026-08-31) : EN 16931 distingue six catégories (S, Z, E, AE, K,
+  G, O), chacune avec des exigences contradictoires (voir `formats/semantic/build-semantic-
+  invoice.ts`'s own header, "VAT category"). `documents/tax/resolve-invoice-tax.ts` (item 16, "le
+  transfrontalier") résout désormais le traitement fiscal réel d'une ligne CROISSANT UNE FRONTIÈRE
+  (vendeur/acheteur de pays différents) via le moteur repris du repère
+  (`documents/tax/tax-engine.ts`), et injecte la catégorie résolue dans le pont via un sidecar
+  in-memory (`__crossBorderCategory`/`__crossBorderExemptionReason`/`__crossBorderMentions`, JAMAIS
+  stocké — voir ce fichier's own header, "Never a blind store") — `build-semantic-invoice.ts` la
+  préfère à sa propre dérivation naïve (`vatCategoryFor`, rate>0→S/rate=0→Z) quand elle existe.
+  Preuve, jugée par le VRAI Schematron vendoré, pas une opinion : `documents/tax/cross-border-
+  formats.spec.ts` — FR→DE B2B (VAT valide) → AE + art. 196 Directive 2006/112/EC ; FR→DE B2B biens →
+  K + art. 138 ; FR→US B2B biens → G + art. 146 ; FR→US B2B services → O. `BR-AE-10`/ses sœurs (la
+  raison d'exemption au niveau BG-23, jamais au niveau de la ligne — `@e-invoice-eu/core`'s own ajv
+  schema refuse `cbc:TaxExemptionReasonCode` sur `cac:Item/cac:ClassifiedTaxCategory`, un vrai piège
+  trouvé en poussant contre la vraie librairie, pas deviné) sont satisfaites via un VATEX code réel
+  (`VATEX-EU-AE`/`VATEX-EU-IC`/`VATEX-EU-G`/`VATEX-EU-O`, les valeurs mêmes du moteur repris du
+  repère, qui sont bien dans l'énumération `VATExemptionReasonCode` de `@e-invoice-eu/core`).
+  **Reste NOMMÉ, pas deviné** : `E` (exonéré, franchise en base 293 B) reste INATTEIGNABLE — le
+  chemin DOMESTIQUE (vendeur = acheteur pays) ne passe volontairement PAS par le moteur (item 16's
+  own brief : "un envoi pure-domestique existant : rien ne change" — les tests existants dépendent
+  de rate=0→Z pour une ligne franchise 293B, et les changer aurait été une régression, pas une
+  correction demandée ici) ; une ligne domestique à 0% reste donc `Z`, jamais `E`, même pour un
+  vendeur `hasDomesticZeroRate: false` (le moteur reprisé sait dériver `E` correctement — voir
+  `tax-engine.ts#domesticCategoryFor` — mais la couche de câblage ne l'invoque jamais pour le cas
+  domestique). Une invoice mixant DEUX catégories résolues au MÊME taux à 0% (ex. une ligne K biens
+  + une ligne AE services dans la même facture transfrontalière) verrait tout le sous-total BG-23 à
+  0% rapporté sous la catégorie de la PREMIÈRE ligne qui porte ce taux — `vatBreakdown`
+  (`compute-totals.ts`, pur, inchangé) agrège par TAUX SEUL, jamais par (taux, catégorie) — limitation
+  documentée dans `build-semantic-invoice.ts`'s own header, jamais rencontrée par les scénarios
+  réels de cette tâche (un acheteur, un traitement) mais réelle en théorie. `formats/pitfalls.spec.ts`
+  prouve depuis toujours que le GATE (Schematron) réagit correctement à E et O directement — c'est
+  desormais le pont qui PRODUIT G/AE/K/O pour le cas transfrontalier ; E reste hors d'atteinte, par
+  choix explicite pour ne pas régresser le domestique.
 
 - ~~**BT-23 (cadre de facturation français) : logique reprise et testée, jamais branchée**~~ —
   **RÉSOLU** (2026-08-31, suite de l'item 12) : branché conditionnellement par pays via le nouveau
@@ -308,3 +332,12 @@
   erreur — FR-D9). Ce qui rouvrirait ceci : une décision EXPLICITE du mandant tranchant que les deux
   obligations ne se cumulent PAS en pratique (un texte qui le dirait), ce qu'aucune source consultée
   ne dit aujourd'hui.
+
+- **Le pays VENDEUR irrésolu retombe silencieusement sur FR** (constaté à la relecture de l'item 16) :
+  `tax/resolve-invoice-tax.ts` et `formats/semantic/build-semantic-invoice.ts` partagent la même
+  convention `?? 'FR'` quand le pays de la SOCIÉTÉ ne se résout pas (problème de qualité de données
+  que la fonction ne peut pas réparer en refusant tout envoi — dixit le commentaire). L'acheteur, lui,
+  bloque dur (jamais de repli — le bug du 0 % payé). Risque borné (le pays est obligatoire à
+  l'onboarding) mais le repli reste un pays NOMMÉ dans le code cœur : une société DE aux données
+  cassées serait traitée fiscalement comme française sans le dire. Alternative plus stricte : bloquer
+  l'envoi aussi côté vendeur, avec le même genre de message nommé. À trancher.

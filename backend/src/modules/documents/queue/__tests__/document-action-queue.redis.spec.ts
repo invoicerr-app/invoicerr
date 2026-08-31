@@ -301,8 +301,25 @@ describeWithRedis('document-action queue — real Redis, real Postgres, real Mai
   });
 
   it('an invoice "send" that fails delivery lands on "send_failed" with the error recorded, and a re-send after the fix succeeds', async () => {
+    // A REAL client (root TODO item 16, "transfrontalier" — its own preflight resolves the buyer's
+    // country and would otherwise hard-block a merely-DANGLING id, which this test used to rely on
+    // before that gate existed: an id resolving to `null` is indistinguishable from "no country on
+    // file" from that gate's own point of view). Same country as the company (domestic — this test
+    // is not about cross-border tax at all), no `contactEmail` — `buildEmailTransport` still refuses
+    // for the SAME reason ("no contact email on file"), the actual thing this test proves.
+    const noEmailClient = await prisma.client.create({
+      data: {
+        companyId,
+        name: 'No Email Client',
+        address: '1 Client Street',
+        postalCode: '00000',
+        city: 'Testville',
+        country: 'France',
+        countryCode: 'FR',
+      },
+    });
     const invoiceData = {
-      client: 'dangling-client-id', // resolves to null -> buildEmailTransport refuses -> delivery fails
+      client: noEmailClient.id,
       issueDate: '2026-01-01',
       dueDate: '2026-01-31',
       currency: 'EUR',

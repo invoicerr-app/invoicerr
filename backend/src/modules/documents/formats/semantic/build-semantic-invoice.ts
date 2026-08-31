@@ -143,6 +143,7 @@ import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { getIdentifier } from '@/utils/entity-identifiers';
 
 import { DocumentTotals } from '../../totals/compute-totals';
+import { TaxCategoryCode } from '../../tax/types';
 import { resolveInvoiceNotes, toUblNote } from '../../mentions/invoice-notes';
 import { defaultMentionsCatalog } from '../../mentions/registry';
 import { resolveFrenchBusinessProcessCode } from './business-process';
@@ -183,6 +184,19 @@ export interface SemanticLineInput {
    * `country-fields/` overlay's own `lines[].supplyType` — see `shared-build.ts#extractLines`.
    */
   supplyType?: SupplyType;
+  /**
+   * Root TODO item 16 ("transfrontalier") — the RESOLVED BT-151 category for this line, when
+   * `documents/tax/resolve-invoice-tax.ts` ran (a cross-border invoice). Overrides `vatCategoryFor`'s
+   * own rate-only derivation below, which cannot tell AE/K/G/O apart from a bare 0% rate on its own
+   * (see this file's own header, "VAT category"). `undefined` for every domestic line and every other
+   * document type — behaviour there is BYTE-FOR-BYTE what it was before item 16 existed.
+   */
+  vatCategory?: TaxCategoryCode;
+  /** BT-120 (`cbc:TaxExemptionReason`) — carried through from the SAME resolution, for the categories
+   *  that need one (`E`/`O`). Not emitted below today (no required test path exercises E/O with a
+   *  reason yet — see TODO_ISSUES.md's own item 16 entry) but threaded through so a future E/O path
+   *  does not need to touch this interface again. */
+  exemptionReason?: string;
 }
 
 export interface SemanticInvoiceInput {
@@ -197,6 +211,14 @@ export interface SemanticInvoiceInput {
   /** Same length and order as `totals.lines` — see this file's own header. */
   lines: SemanticLineInput[];
   totals: DocumentTotals;
+  /**
+   * Root TODO item 16 ("transfrontalier") — cross-border legal mentions the tax engine resolved
+   * (reverse charge art. 196, intra-Community supply art. 138, export art. 146, …), joining BG-1
+   * through the SAME `mentions/invoice-notes.ts#toUblNote` encoding the country-mandated ones already
+   * use (see `resolveInvoiceCrossBorderTax`'s own header) — never a parallel note mechanism. Empty
+   * for every domestic invoice.
+   */
+  additionalMentions?: { code: string; text: string }[];
 }
 
 /**
@@ -321,6 +343,21 @@ function vatCategoryFor(ratePercent: number | null, lineIndex: number): 'S' | 'Z
   return ratePercent > 0 ? 'S' : 'Z';
 }
 
+/**
+ * BT-120 (`cbc:TaxExemptionReason`, free text) vs BT-121 (`cbc:TaxExemptionReasonCode`, a VATEX
+ * code) — `tax-engine.ts`'s own `component.reason` is sometimes one, sometimes the other (see
+ * `resolveInvoiceCrossBorderTax`'s own header): a genuine VATEX code always starts with the literal
+ * prefix `'VATEX-'` (the CEF code list's own naming convention, and the exact strings the repère's
+ * engine emits — `'VATEX-EU-AE'`, `'VATEX-EU-IC'`, `'VATEX-EU-G'`, `'VATEX-EU-O'`), so that prefix is
+ * what tells the two BTs apart here — never a guess, never both emitted for the same reason.
+ */
+function exemptionReasonFields(reason: string | undefined): Record<string, string> {
+  if (!reason) return {};
+  return reason.startsWith('VATEX-')
+    ? { 'cbc:TaxExemptionReasonCode': reason }
+    : { 'cbc:TaxExemptionReason': reason };
+}
+
 export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
   const currency = input.totals.currency ?? 'EUR';
   const sellerCountryCode = guessCountryCode(input.seller.country ?? undefined) ?? 'FR';
@@ -337,6 +374,15 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
     defaultMentionsCatalog.fileFor(sellerCountryCode),
     new Date(input.issueDate),
   ).map(toUblNote);
+
+  // Root TODO item 16 ("transfrontalier") — the tax engine's OWN mentions (reverse charge, intra-
+  // Community supply, export, …), appended through the EXACT SAME `toUblNote` encoding as the
+  // country-mandated ones above (see `SemanticInvoiceInput.additionalMentions`'s own header): a
+  // `LegalMention` never carries a UNTDID 4451 subject code (unlike PMT/PMD/AAB), so `subjectCode` is
+  // left undefined and `toUblNote` emits plain text, exactly as the repère's own removed engine did.
+  for (const mention of input.additionalMentions ?? []) {
+    legalMentionNotes.push(toUblNote({ text: mention.text, legalRef: mention.text }));
+  }
 
   // BT-23 — see `business-process.ts`'s own header for the full wiring. `supplyTypes` collects only
   // the lines that actually DECLARED one (the FR `country-fields/` overlay's own `lines[].supplyType`
@@ -426,7 +472,11 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
 
   const invoiceLines = input.lines.map((line, index) => {
     const computed = input.totals.lines[index];
-    const category = vatCategoryFor(computed.vatRatePercent, index);
+    // Root TODO item 16 — a RESOLVED cross-border category (AE/K/G/O/E) always wins over the naive
+    // rate-only derivation, which structurally cannot tell them apart from a bare 0% (see this file's
+    // own header, "VAT category"). `undefined` for every domestic line — behaviour there is
+    // unchanged.
+    const category = line.vatCategory ?? vatCategoryFor(computed.vatRatePercent, index);
     return {
       'cbc:ID': String(index + 1),
       'cbc:InvoicedQuantity': String(line.quantity),
@@ -438,6 +488,12 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
         'cac:ClassifiedTaxCategory': {
           'cbc:ID': category,
           'cbc:Percent': String(computed.vatRatePercent ?? 0),
+          // NOT `exemptionReasonFields(line.exemptionReason)` here — `@e-invoice-eu/core`'s own
+          // internal ajv schema for `cac:Item/cac:ClassifiedTaxCategory` is `additionalProperties:
+          // false` and does not include `cbc:TaxExemptionReasonCode`/`cbc:TaxExemptionReason` at all
+          // (verified against the library directly — it throws "must NOT have additional properties"
+          // when they are added here). BR-AE-10 and its siblings only ever require the reason at
+          // BG-23 (the breakdown's own `cac:TaxCategory`, below), which DOES accept it.
           'cac:TaxScheme': { 'cbc:ID': 'VAT' },
         },
       },
@@ -451,14 +507,40 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
     };
   });
 
+  // BG-23's own category, PER RATE — `input.totals.vatBreakdown` (compute-totals.ts, untouched, pure)
+  // aggregates by RATE alone, never by category, so a resolved cross-border category is looked up
+  // from the first LINE that carries this same rate. Root TODO item 16's own documented limitation
+  // (see this file's own header, "VAT category"): a single invoice mixing two DIFFERENT resolved
+  // categories at the SAME 0% rate (e.g. one intra-Community "K" goods line and one reverse-charge
+  // "AE" services line on the same cross-border invoice) would see every 0% subtotal reported under
+  // whichever category its FIRST such line resolved to — never guessed for a domestic line, where
+  // `line.vatCategory` is always `undefined` and this falls back to the exact pre-existing derivation.
+  const lineIndexForRate = (ratePercent: number): number =>
+    input.totals.lines.findIndex((l) => l.vatRatePercent === ratePercent);
+  const categoryForRate = (ratePercent: number): TaxCategoryCode => {
+    const index = lineIndexForRate(ratePercent);
+    return (index >= 0 ? input.lines[index].vatCategory : undefined) ?? (ratePercent > 0 ? 'S' : 'Z');
+  };
+  const reasonForRate = (ratePercent: number): string | undefined => {
+    const index = lineIndexForRate(ratePercent);
+    return index >= 0 ? input.lines[index].exemptionReason : undefined;
+  };
+
   const taxSubtotals = input.totals.vatBreakdown.map((entry) => ({
     'cbc:TaxableAmount': fmt2(entry.baseMinor, currency),
     'cbc:TaxableAmount@currencyID': currency,
     'cbc:TaxAmount': fmt2(entry.vatMinor, currency),
     'cbc:TaxAmount@currencyID': currency,
     'cac:TaxCategory': {
-      'cbc:ID': entry.ratePercent > 0 ? 'S' : 'Z',
+      'cbc:ID': categoryForRate(entry.ratePercent),
       'cbc:Percent': String(entry.ratePercent),
+      // BR-AE-10/BR-K-*/BR-G-10/BR-O-10/BR-E-10 — the categories that need a reason all need it HERE,
+      // at BG-23 (the breakdown), not merely on the line's own `ClassifiedTaxCategory` above. Root
+      // TODO item 16's resolved `component.reason` (`tax-engine.ts`) is either a genuine VATEX CODE
+      // (BT-121 — 'VATEX-EU-AE'/'VATEX-EU-IC'/'VATEX-EU-G'/'VATEX-EU-O', the repère's own values,
+      // verbatim) or free legal TEXT (BT-120 — France's own 293 B mention) — `exemptionReasonFields`
+      // tells them apart by the 'VATEX-' prefix, never guessing which BT a given string belongs to.
+      ...exemptionReasonFields(reasonForRate(entry.ratePercent)),
       'cac:TaxScheme': { 'cbc:ID': 'VAT' },
     },
   }));

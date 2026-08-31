@@ -1,0 +1,8 @@
+{
+  "countryCode": "QA",
+  "kind": "NONE",
+  "provenance": {
+    "kind": "unverified",
+    "resolutionNote": "Reprised from the removed compliance engine's own archetype-built Qatar profile (git tag avant-refonte-documents, backend/src/compliance/profiles/data/qa.ts: `planned('QA', 'Qatar', { tax: noTax() })`, doc-commented 'no VAT yet'). Qatar signed the GCC VAT framework but had not implemented domestic VAT at the repère's own time of writing; not independently re-checked in this task. What would settle this: checking Qatar's General Tax Authority for a VAT implementation date, if any."
+  }
+}

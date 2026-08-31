@@ -81,6 +81,7 @@ import {
   validateRowSelections,
 } from './row-selection/resolve-row-selection';
 import { referencedArrayFieldKeys, stampRowIds } from './row-selection/row-selection';
+import { isInvoiceTaxBlockError, resolveInvoiceCrossBorderTax } from './tax/resolve-invoice-tax';
 import { TransportRegistry } from './transports/transport-registry';
 import { VatRateCatalog } from './vat-rates/registry';
 import {
@@ -881,11 +882,39 @@ export class DocumentsService implements OnModuleInit {
       );
     }
 
+    // Root TODO item 16 ("transfrontalier") — invoice-only: the download is otherwise a generic
+    // export shared by any future document type's own `download-xml`-style action. Reuses the
+    // company/client rows ALREADY fetched above (with their `partyIdentifiers`) rather than a second
+    // round trip through `tax/load-and-resolve.ts` — the pure resolver
+    // (`tax/resolve-invoice-tax.ts`) is called directly. See `invoice-actions.ts`'s own `deliver()`
+    // for why this same rewrite ALSO has to happen there (every transport, not just this download
+    // button, must agree on the resolved treatment).
+    let dataForBuild = data;
+    if (typeId === 'invoice') {
+      const buyerVatRow = client.partyIdentifiers.find((pi) => pi.scheme === 'VAT');
+      try {
+        dataForBuild = resolveInvoiceCrossBorderTax({
+          seller: { country: company.country, countryCode: company.countryCode },
+          buyer: { country: client.country, countryCode: client.countryCode },
+          buyerVat: buyerVatRow
+            ? { value: buyerVatRow.value, validationStatus: buyerVatRow.validationStatus }
+            : undefined,
+          data,
+        }).data;
+      } catch (error) {
+        if (isInvoiceTaxBlockError(error)) {
+          throw new BadRequestException({ message: error.message, errors: [error.message] });
+        }
+        throw error;
+      }
+    }
+    const instanceForBuild = dataForBuild === data ? instance : { ...instance, data: dataForBuild };
+
     let buildResult: DocumentFormatBuildResult;
     try {
       buildResult = await provider.build(
         descriptor,
-        instance,
+        instanceForBuild,
         companyToFormatParty(company),
         clientToFormatParty(client),
         companyId,

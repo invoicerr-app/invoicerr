@@ -1,0 +1,10 @@
+{
+  "countryCode": "US",
+  "kind": "SALES_TAX",
+  "stateRates": { "CA": 7.25, "NY": 4, "TX": 6.25, "WA": 6.5, "FL": 6, "IL": 6.25 },
+  "nexusSubdivisions": ["CA", "NY", "TX", "WA"],
+  "provenance": {
+    "kind": "unverified",
+    "resolutionNote": "Reprised VERBATIM from the removed compliance engine's own CountryComplianceProfile.taxSystem (git tag avant-refonte-documents, backend/src/compliance/profiles/data/us.ts) — that file's own comment already flags these as 'Illustrative base state rates (state-level only; local add-ons omitted for the demo)', i.e. never claimed as sourced there either, and nexusSubdivisions as 'States where this seller is registered / has nexus and must collect' — a PRODUCT/company fact (which states THIS seller has nexus in), not a universal legal one, hard-coded in the repère as a placeholder. Kept as-is, unverified, because no state-by-state sales-tax-rate legal research was done in this task (root TODO item 21, 'Sourcer FR et US', names exactly this gap). Real state/local sales tax rates change by jurisdiction and by year; a real deployment needs a proper rate-lookup service (e.g. a state department of revenue API), not a hand-typed table. What would settle this: root TODO item 21's own research pass, or wiring a real US sales-tax rate API."
+  }
+}

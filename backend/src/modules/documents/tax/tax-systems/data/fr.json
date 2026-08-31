@@ -1,0 +1,10 @@
+{
+  "countryCode": "FR",
+  "kind": "VAT",
+  "hasDomesticZeroRate": false,
+  "schemes": ["STANDARD", "FRANCHISE_BASE"],
+  "provenance": {
+    "kind": "unverified",
+    "resolutionNote": "hasDomesticZeroRate/schemes reprised VERBATIM from the removed compliance engine's own CountryComplianceProfile.taxSystem (git tag avant-refonte-documents, backend/src/compliance/profiles/data/fr.ts, lines ~268-295): 'France levies NO zero rate today. Its rates are 20 (CGI art. 278), 10 (art. 279 / 278 bis), 5,5 (art. 278-0 bis) and 2,1 (art. 281 octies) — 0 is not among them. It is `false` rather than merely absent because France DID have one and it was repealed: art. 278 ter taxed covid-19 vaccines and tests \"au taux de 0 %\" from 2021-01-01 and was ABROGATED at 2023-01-01.' The repère file cites these article numbers directly but, like this branch's own vat-rates/data/fr.json, never quotes the CGI text itself (Légifrance/economie.gouv.fr/impots.gouv.fr all refused automated requests when checked — same wall vat-rates/data/fr.json and country-identifiers/data/fr.json already document) — kept 'unverified', not promoted to 'legal', for that reason; the repère's own file carried no separate per-field provenance either (its confidence: 'OFFICIAL' was a file-level label under a different, looser vocabulary — see this branch's vat-rates/schema.ts header on why 'legal' here requires the literal statute text). standardRate/reducedRates are NOT duplicated here — see registry.ts, which derives them from vat-rates/registry.ts's own STANDARD/REDUCED/SUPER_REDUCED entries for FR (20/10/5.5/2.1), so the two catalogs cannot silently drift apart. What would settle hasDomesticZeroRate as 'legal': reading CGI art. 278 ter (repealed) and confirming no other article reintroduced a 0% rate since."
+  }
+}

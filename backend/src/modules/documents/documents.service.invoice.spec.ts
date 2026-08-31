@@ -12,8 +12,12 @@ import { DocumentTypeRegistry } from './descriptors/type-registry';
 import * as takeNumber from './numbering/take-number';
 import * as persistence from './persistence';
 import { EntityReferenceRegistry } from './references/reference-registry';
+import { computeSettlement } from './settlement/compute-settlement';
 import * as settlementCredits from './settlement/credits';
 import * as settlementPayments from './settlement/payments';
+import * as taxLoadAndResolve from './tax/load-and-resolve';
+import { resolveInvoiceCrossBorderTax } from './tax/resolve-invoice-tax';
+import { computeDocumentTotals } from './totals/compute-totals';
 import * as companyTransport from './transports/company-transport';
 import { TransportRegistry } from './transports/transport-registry';
 
@@ -29,6 +33,14 @@ jest.mock('./settlement/payments');
 // below so every pre-existing test in this file keeps meaning exactly what it always did; the
 // dedicated credits describe block overrides it to prove the balance actually changes.
 jest.mock('./settlement/credits');
+// Root TODO item 16 ("transfrontalier") — `resolveInvoiceCrossBorderTaxForCompany` (tax/load-and-
+// resolve.ts) ALSO reaches Prisma directly (the seller/buyer country + buyer VAT lookup), same
+// reason, same discipline as every mock above. Defaulted to a permissive PASS-THROUGH in
+// `beforeEach` below (this file's own fixtures never set up a real client/company row, so the real
+// function would otherwise resolve an unknown buyer country and block every "send" — a concern this
+// file does not test; that behaviour is proven directly in `tax/resolve-invoice-tax.spec.ts` and
+// `tax/cross-border-formats.spec.ts` instead).
+jest.mock('./tax/load-and-resolve');
 // See documents.service.spec.ts's own comment on this mock — the real invoice descriptor now
 // declares `numbering: { onEnterStatus: 'sent' }` too (invoice.descriptor.ts), and
 // `takeDocumentNumberForTransition` reaches Prisma directly, bypassing the mocked `./persistence`.
@@ -107,6 +119,10 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     });
     (settlementCredits.toSettlementCreditInputs as jest.Mock).mockImplementation((credits) =>
       credits.map((c: { id: string; amountMinor: number }) => ({ id: c.id, amountMinor: c.amountMinor })),
+    );
+    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockImplementation(
+      (_companyId: string, data: Record<string, unknown>) =>
+        Promise.resolve({ data, crossBorder: false, warnings: [] }),
     );
   });
   afterEach(() => jest.resetAllMocks());
@@ -613,6 +629,252 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       const descriptor = buildService().service.getType('invoice');
       const sendAction = descriptor.actions.find((a) => a.id === 'send');
       expect(sendAction?.params ?? []).toEqual([]);
+    });
+  });
+
+  /**
+   * Root TODO item 16, the SURGICAL FIX — the bug this task exists to close: `resolveInvoiceCrossBorderTax`
+   * ("tax/resolve-invoice-tax.ts") was only ever applied at `deliver()` (what the client received, what
+   * the archive kept), never to the STORED `instance.data` a "sending"/"sent" record actually carries —
+   * so `computeDocumentTotals`, the settlement balance, and the dashboard's own "pending" total all kept
+   * reading the user's raw, unresolved 20% instead of the resolved 0% reverse-charge. Fixed by having the
+   * preflight's OWN resolution flow into the "sending" write (see async-send.ts's `preflight` header and
+   * invoice-actions.ts's `runInvoiceCrossBorderTaxPreflight`) instead of being computed and discarded.
+   *
+   * `resolveInvoiceCrossBorderTaxForCompany` (tax/load-and-resolve.ts) is mocked here exactly like
+   * every other test in this file (it reaches Prisma directly) — but its mock implementation calls the
+   * REAL, pure `resolveInvoiceCrossBorderTax` underneath, so this proves the actual FR→DE reverse-charge
+   * arithmetic, not a hand-rolled fixture standing in for it.
+   */
+  describe('"send" — root TODO item 16: phase 1 persists the RESOLVED cross-border data, never the raw draft', () => {
+    // 1 line, 12 000 EUR net, SERVICES, FR seller → DE buyer with a valid intra-Community VAT number:
+    // reverse charge (art. 196), category AE, 0% — resolved GROSS must be 12 000.00 EUR (1 200 000
+    // minor units), never the 14 400.00 EUR (1 440 000 minor) the user's own drafted 20% would total.
+    const frDeB2bInvoiceData = {
+      client: 'client-1',
+      issueDate: '2026-01-01',
+      dueDate: '2026-01-31',
+      currency: 'EUR',
+      lines: [
+        {
+          description: 'Conseil stratégique',
+          quantity: 1,
+          unit: 'day',
+          unitPrice: 12000,
+          vatRate: '20', // the user's own draft-time entry — MUST NOT survive into "sending"
+          supplyType: 'SERVICES',
+        },
+      ],
+    };
+
+    // Same as the "send" describe's own "phase 1: with a transport configured..." test above — a
+    // real transport must be REGISTERED (not just returned by `getCompanyInvoiceTransportId`),
+    // otherwise `resolveInvoiceTransport` (invoice-actions.ts) 501s before the preflight this
+    // describe cares about ever gets a chance to run.
+    function buildEmailTransportRegistry(): TransportRegistry {
+      const transportRegistry = new TransportRegistry();
+      transportRegistry.register('email', 'Email', { send: jest.fn() });
+      return transportRegistry;
+    }
+
+    beforeEach(() => {
+      (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
+      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockImplementation(
+        (_companyId: string, data: Record<string, unknown>) =>
+          Promise.resolve(
+            resolveInvoiceCrossBorderTax({
+              seller: { countryCode: 'FR' },
+              buyer: { countryCode: 'DE' },
+              buyerVat: { value: 'DE136695976', validationStatus: 'VALID' }, // checksum-valid, see vat-syntax.spec.ts
+              data,
+            }),
+          ),
+      );
+    });
+
+    it('THE DEFECT, closed: instance.data persisted at "sending" carries the RESOLVED rate (0%, AE) — computeDocumentTotals on the STORED data is 12 000.00 EUR, never 14 400.00 EUR', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: frDeB2bInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.upsertDocument as jest.Mock).mockImplementation(
+        async (_companyId, _typeId, _documentId, status, data) => ({
+          id: 'doc-1',
+          typeId: 'invoice',
+          status,
+          data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      );
+
+      const { service } = buildService(buildEmailTransportRegistry());
+      await service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: frDeB2bInvoiceData,
+      });
+
+      expect(persistence.upsertDocument).toHaveBeenCalledTimes(1);
+      const [, , , persistedStatus, persistedData] = (persistence.upsertDocument as jest.Mock).mock
+        .calls[0] as [string, string, string, string, Record<string, unknown>];
+      expect(persistedStatus).toBe('sending');
+
+      const persistedLine = (persistedData.lines as Record<string, unknown>[])[0];
+      expect(persistedLine.vatRate).toBe('0'); // never the drafted "20"
+      expect(persistedLine.__crossBorderCategory).toBe('AE');
+
+      // The number this task's own bug report names: the STORED document's own totals, computed the
+      // exact same way documents.service.ts's own `computeTotals` endpoint and the settlement screen
+      // do, off the exact same descriptor.
+      const totals = computeDocumentTotals(buildInvoiceDescriptor(), persistedData);
+      expect(totals.grossMinor).toBe(1_200_000); // 12 000.00 EUR
+      expect(totals.grossMinor).not.toBe(1_440_000); // NEVER 14 400.00 EUR (20% of the raw draft)
+    });
+
+    it('a domestic FR→FR invoice is UNCHANGED: still persists the raw, user-typed rate (the resolver never touches it)', async () => {
+      // Overrides this describe's own FR→DE mock — proving the domestic path independently of the
+      // FR→DE fixture, same discipline resolve-invoice-tax.spec.ts's own domestic tests hold.
+      const domesticData = validInvoiceData;
+      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockImplementation(
+        (_companyId: string, data: Record<string, unknown>) =>
+          Promise.resolve(
+            resolveInvoiceCrossBorderTax({
+              seller: { countryCode: 'FR' },
+              buyer: { countryCode: 'FR' },
+              data,
+            }),
+          ),
+      );
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: domesticData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.upsertDocument as jest.Mock).mockImplementation(
+        async (_companyId, _typeId, _documentId, status, data) => ({
+          id: 'doc-1',
+          typeId: 'invoice',
+          status,
+          data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      );
+
+      const { service } = buildService(buildEmailTransportRegistry());
+      await service.runAction('company-1', 'invoice', 'send', { documentId: 'doc-1', data: domesticData });
+
+      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+        'company-1',
+        'invoice',
+        'doc-1',
+        'sending',
+        domesticData, // untouched — still 20%, the rate the user actually typed
+      );
+    });
+
+    it('a "send_failed" retry re-submits the ALREADY-RESOLVED data (what the screen re-sends) and stays stable — idempotent, not corrupted further', async () => {
+      // The document already went through phase 1 once: it now holds the RESOLVED treatment, exactly
+      // what document-list.tsx's own `getData()` would hand back for a row acting on this instance —
+      // computed by actually resolving the draft once (the real resolver, mentions/exemption reason
+      // included), never a hand-rolled approximation of what it produces.
+      const alreadyResolvedData = resolveInvoiceCrossBorderTax({
+        seller: { countryCode: 'FR' },
+        buyer: { countryCode: 'DE' },
+        buyerVat: { value: 'DE136695976', validationStatus: 'VALID' },
+        data: frDeB2bInvoiceData,
+      }).data;
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'send_failed', // NOT "sending" — a fresh phase-1 call, exactly like a first send
+        data: alreadyResolvedData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'INV-2026-0001',
+      });
+      (persistence.upsertDocument as jest.Mock).mockImplementation(
+        async (_companyId, _typeId, _documentId, status, data) => ({
+          id: 'doc-1',
+          typeId: 'invoice',
+          status,
+          data,
+          number: 1,
+          displayNumber: 'INV-2026-0001',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      );
+
+      const { service } = buildService(buildEmailTransportRegistry());
+      await service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: alreadyResolvedData,
+      });
+
+      const [, , , , persistedData] = (persistence.upsertDocument as jest.Mock).mock.calls[0] as [
+        string,
+        string,
+        string,
+        string,
+        Record<string, unknown>,
+      ];
+      // Stable: re-resolving the already-resolved line reproduces it exactly, never a second rewrite
+      // that drifts (e.g. onto a different category) or corrupts the sidecar keys.
+      expect(persistedData).toEqual(alreadyResolvedData);
+    });
+
+    it('THE SETTLEMENT PROOF: a 12 000 EUR payment against the STORED (resolved) totals settles the invoice — never "partially paid" against the raw 14 400 EUR the user typed', () => {
+      const resolvedData = {
+        ...frDeB2bInvoiceData,
+        lines: [{ ...frDeB2bInvoiceData.lines[0], vatRate: '0', __crossBorderCategory: 'AE' }],
+      };
+      const totals = computeDocumentTotals(buildInvoiceDescriptor(), resolvedData);
+      expect(totals.grossMinor).toBe(1_200_000);
+
+      const settlement = computeSettlement(totals.grossMinor, [{ amountMinor: 1_200_000 }]);
+      expect(settlement.settled).toBe(true);
+      expect(settlement.outstandingMinor).toBe(0);
+
+      // Against the WRONG (unresolved, 20%) total this task's bug report names, the SAME 12 000 EUR
+      // payment would have wrongly read as a partial payment — spelled out here so a future change
+      // that reintroduces the defect fails LOUDLY on this exact contrast, not silently.
+      const wrongTotals = computeDocumentTotals(buildInvoiceDescriptor(), frDeB2bInvoiceData);
+      expect(wrongTotals.grossMinor).toBe(1_440_000);
+      const wrongSettlement = computeSettlement(wrongTotals.grossMinor, [{ amountMinor: 1_200_000 }]);
+      expect(wrongSettlement.settled).toBe(false);
+      expect(wrongSettlement.outstandingMinor).toBe(240_000); // the phantom "still owed" 2 400 EUR
+    });
+
+    it('"save-draft" NEVER resolves cross-border tax — a draft stays exactly what the user typed', async () => {
+      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: frDeB2bInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service } = buildService();
+      await service.runAction('company-1', 'invoice', 'save-draft', { data: frDeB2bInvoiceData });
+
+      expect(taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany).not.toHaveBeenCalled();
+      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+        'company-1',
+        'invoice',
+        undefined,
+        'draft',
+        frDeB2bInvoiceData, // still 20% — a draft is never rewritten
+      );
     });
   });
 });
