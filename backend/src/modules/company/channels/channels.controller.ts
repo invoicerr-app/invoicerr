@@ -21,16 +21,18 @@ export class ChannelsController {
 
   /**
    * GET /api/company/channels — what is connected (status only — see `ChannelConfigStatus`'s own
-   * header: never a credential value, masked or not) plus what this company's OWN country suggests
-   * connecting (`suggested` — advisory, see `channel-suggestion/schema.ts`'s header on why this is
-   * never a legal requirement).
+   * header: never a credential value, masked or not) plus what this company's OWN country says about
+   * each channel (`suggested` — the field KEPT its item-10 name for backward compatibility, but each
+   * entry may now be a bare `suggested` hint OR a sourced `mandated` requirement, item 11 — see
+   * `channel-policy/schema.ts`'s header on the difference and `channels.service.ts`'s own
+   * `ChannelPolicyStatus` for the exact shape).
    */
   @Get()
   @ApiOperation({
     summary: 'List channel connections',
     description:
       "Returns this company's connected channels (status only — never a credential value) and " +
-      "which channel(s) this company's own country suggests connecting.",
+      "this company's own country channel policy (suggested and/or mandated, item 11).",
   })
   @ApiResponse({ status: 200, description: 'Channel status retrieved' })
   async list(@ActiveCompany() companyId: string) {

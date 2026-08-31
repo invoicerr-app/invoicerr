@@ -2,7 +2,10 @@ import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 
 import prisma from '@/prisma/prisma.service';
 import { resolveCompanyCountryCode } from '@/modules/documents/country-policy/country-policy';
-import { defaultChannelSuggestionCatalog } from '@/modules/documents/transports/channel-suggestion/registry';
+import { PolicyProvenance } from '@/modules/documents/country-policy/schema';
+import { activeChannelMandateFor } from '@/modules/documents/transports/channel-policy/mandate';
+import { defaultChannelPolicyCatalog } from '@/modules/documents/transports/channel-policy/registry';
+import { ChannelRequirement } from '@/modules/documents/transports/channel-policy/schema';
 import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
 import { credentialAudit } from '@/utils/credential-access-audit';
 import { ChannelEnvironment, CompanyChannelConfig } from '../../../../prisma/generated/prisma/client';
@@ -35,6 +38,32 @@ export interface ChannelConfigStatus {
   channel: string;
   environment: ChannelEnvironment;
   isActive: boolean;
+}
+
+/**
+ * What `GET /api/company/channels`'s own `suggested` array now returns — item 10's original
+ * `{ providerId, provenance }` shape, WIDENED (never renamed: `suggestedChannels`/`suggested` stays
+ * the settings screen's "what does this country say about each channel" view regardless of whether a
+ * given fact happens to be a mere suggestion or a mandate — see `channel-policy/schema.ts`'s own
+ * header for why the underlying MODULE was renamed while this controller-facing shape was not: the
+ * blast radius of touching every consumer of this exact JSON key was not worth it for a field that is
+ * still, honestly, "the country's per-channel stance").
+ */
+export interface ChannelPolicyStatus {
+  providerId: string;
+  requirement: ChannelRequirement;
+  /** Present only when `requirement === 'mandated'` (schema.ts guarantees it always is, in that case). */
+  mandatedFrom?: string;
+  /**
+   * Present only when `requirement === 'mandated'`: whether TODAY's date already crosses
+   * `mandatedFrom` — a DIFFERENT clock than the one `invoice-actions.ts`'s preflight uses (the
+   * invoice's own `issueDate`, see `channel-policy/mandate.ts`'s header for why). This settings
+   * screen has no document to anchor to, so it can only ever answer the narrower, honestly-labeled
+   * question "is this mandate already binding as of right now" — a heads-up for a mandate whose start
+   * date is still ahead, never the authority on what a given invoice will actually be allowed to do.
+   */
+  effectiveNow?: boolean;
+  provenance: PolicyProvenance;
 }
 
 export interface UpsertChannelConfigBody {
@@ -265,15 +294,28 @@ export class ChannelCredentialsService {
   }
 
   /**
-   * Which provider(s) this company's OWN country suggests connecting (item 10's "le pays suggère
-   * son canal" — `transports/channel-suggestion/`), regardless of whether it is already connected:
-   * the settings screen decides how to render "already connected" vs "suggested, not yet connected"
-   * by cross-referencing this against `listCompanyChannels` itself, so this method never needs to.
+   * What this company's OWN country says about each channel (item 10's "le pays suggère son canal",
+   * item 11's "le pays impose son canal" — `transports/channel-policy/`), regardless of whether it is
+   * already connected: the settings screen decides how to render "already connected" vs "suggested/
+   * mandated, not yet connected" by cross-referencing this against `listCompanyChannels` itself, so
+   * this method never needs to.
    */
-  async suggestedChannels(companyId: string) {
+  async suggestedChannels(companyId: string): Promise<ChannelPolicyStatus[]> {
     const countryCode = await resolveCompanyCountryCode(companyId);
     if (!countryCode) return [];
-    return defaultChannelSuggestionCatalog.suggestionsFor(countryCode);
+
+    const facts = defaultChannelPolicyCatalog.factsFor(countryCode);
+    // Computed ONCE per call, against "now" — see `ChannelPolicyStatus.effectiveNow`'s own header on
+    // why this is a deliberately different question from the one `invoice-actions.ts` asks.
+    const activeToday = activeChannelMandateFor(countryCode, new Date().toISOString());
+
+    return facts.map((fact) => ({
+      providerId: fact.providerId,
+      requirement: fact.requirement,
+      mandatedFrom: fact.mandatedFrom,
+      effectiveNow: fact.requirement === 'mandated' ? activeToday?.providerId === fact.providerId : undefined,
+      provenance: fact.provenance,
+    }));
   }
 
   /**

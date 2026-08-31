@@ -21,6 +21,14 @@ jest.mock('../transports/company-transport');
 jest.mock('../rendering/render-instance-pdf');
 jest.mock('../numbering/take-number');
 jest.mock('./company-email-templates');
+// Root TODO item 11 — `invoice-actions.ts`'s "send" now ALSO resolves the company's own country
+// (`resolveCompanyCountryCode`) to check for a channel mandate. Mocked here for the same reason
+// `documents.service.invoice.spec.ts` already mocks this module wholesale: the real function reaches
+// Prisma directly, which this file (no Nest, no DB) cannot provide. Automocked to `undefined` by
+// default — no country resolves, so no mandate is ever found, and every test below keeps meaning
+// exactly what it always did (none of them exercises a mandated country on purpose; that is
+// `invoice-channel-mandate.spec.ts`'s own job).
+jest.mock('../country-policy/country-policy');
 
 /**
  * Guardrail against the exact mistake this branch once made: generic-actions.ts used to export a

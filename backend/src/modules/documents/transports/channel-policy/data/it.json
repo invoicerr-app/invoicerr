@@ -1,0 +1,13 @@
+{
+  "countryCode": "IT",
+  "facts": [
+    {
+      "providerId": "sdi",
+      "requirement": "suggested",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Le Sistema di Interscambio (SdI) italien est le canal de facturation électronique B2B/B2C/B2G en place en Italie depuis 2019 (obligation déjà ancienne pour la facturation domestique, via le format FatturaPA) — le repère git `avant-refonte-documents` (compliance/profiles/data/it.ts) encodait déjà cette date (2019-01-01), MAIS sans aucune citation portant sa propre date de consultation directement dans ce fichier — contrairement à fr.ts, qui porte '(impots.gouv.fr, consulted 2026-08-27)' pour son mandat de canal. Un audit du même repère (docs/compliance/audit/03-LEGAL-VERIFICATION.md, section 'Italie — mandat bilatéral') CITE bien l'art. 1 c. 3 du D.Lgs. 127/2015 avec sa propre formule de vérification ('texte consolidé vérifié au 2026-08-27' : « [le operazioni] effettuate tra soggetti residenti o stabiliti nel territorio dello Stato ») et confirme ailleurs (même document) que le profil du repère déclarant EMAIL jusqu'au 2019-01-01 puis SDI est correct — mais cette citation vit dans un document d'AUDIT du repère, pas dans le profil de données `it.ts` lui-même que cette tâche a reçu instruction de vérifier en premier lieu. Par prudence (⚖ 'ne jamais inventer'), cette entrée reste 'suggested', jamais 'mandated' : promouvoir une citation trouvée dans un audit annexe plutôt que dans le fichier de données pays lui-même serait étendre, pas reprendre, ce que le repère portait. Ce qui trancherait, à sa source primaire et avec sa propre date de consultation : lire le D.Lgs. 127/2015 art. 1 (texte consolidé, normattiva.it) et le Provvedimento AdE prot. 433608 du 2022-11-24, puis relever cette entrée à 'mandated' avec 'mandatedFrom': '2019-01-01' et une provenance 'legal' directement sourcée par CETTE tâche plutôt que par renvoi à un audit antérieur."
+      }
+    }
+  ]
+}

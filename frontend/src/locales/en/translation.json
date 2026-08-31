@@ -2203,6 +2203,12 @@
         "sdiCertificatePassword": "Certificate password",
         "sdiIdTrasmittente": "IdTrasmittente"
       },
+      "mandatePrompt": {
+        "cta": "Connect now",
+        "descriptionNotConnected": "{{country}} requires invoices to go through {{channel}} from {{date}} — {{source}}. It isn't connected yet.",
+        "descriptionWrongTransport": "{{country}} requires invoices to go through {{channel}} from {{date}} — {{source}}. This company is currently set to send via \"{{current}}\" instead.",
+        "title": "E-invoicing channel required"
+      },
       "messages": {
         "connectError": "Failed to connect the channel",
         "connectSuccess": "Channel connected",
@@ -2218,6 +2224,7 @@
       },
       "status": {
         "connected": "Connected ({{environment}})",
+        "mandated": "Mandatory from {{date}}",
         "notConnected": "Not connected",
         "suggested": "Suggested for your country"
       },

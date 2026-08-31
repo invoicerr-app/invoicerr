@@ -1,0 +1,13 @@
+{
+  "countryCode": "PL",
+  "facts": [
+    {
+      "providerId": "ksef",
+      "requirement": "suggested",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Le Krajowy System e-Faktur (KSeF) polonais bascule d'un système facultatif à un système à VISA/clearance OBLIGATOIRE pour la facturation B2B, sur un calendrier officiel (grands contribuables en premier, puis les autres, en 2026) — le repère git `avant-refonte-documents` (compliance/profiles/data/pl.ts) encodait déjà la date du 2026-02-01, et le format FA(3) qui l'accompagne (fa3-provider.ts), MAIS sans aucune citation portant sa propre date de consultation directement dans ce fichier — contrairement à fr.ts, qui porte '(impots.gouv.fr, consulted 2026-08-27)' pour son mandat de canal. Un audit du même repère (docs/compliance/audit/03-LEGAL-VERIFICATION.md, section POLOGNE) source bien la date à 'Podręcznik KSeF 2.0, Cz. II […] MF, état du droit au 2026-02-01' et à l'ustawa du 2025-08-05 (Dz.U. 2025 poz. 1203), mais sans la formule explicite de vérification propre à l'auditeur ('vérifié au [date]') que porte, par comparaison, la citation italienne (D.Lgs. 127/2015 art. 1 c. 3, 'texte consolidé vérifié au 2026-08-27', même document). Cette entrée reste donc délibérément 'suggested', jamais 'mandated' : ce format (channel-policy/schema.ts) refuse au chargement un fait 'mandated' dont la provenance ne serait pas 'legal', et transformer cette entrée sans une citation aussi nette que celle de la France aurait été inventer la précision qui manque. Ce qui trancherait : lire le texte officiel du ministère des Finances polonais (podatki.gov.pl/ksef, ustawa o VAT art. 106ga et suivants) à sa source primaire, avec sa propre date de consultation, puis relever cette entrée à 'mandated' avec 'mandatedFrom' et une provenance 'legal'."
+      }
+    }
+  ]
+}

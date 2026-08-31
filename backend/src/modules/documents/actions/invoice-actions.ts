@@ -3,6 +3,7 @@ import { BadRequestException, NotImplementedException } from '@nestjs/common';
 import { logger } from '@/logger/logger.service';
 import { decimalsFor, toMinor } from '@/utils/financial';
 
+import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { findOwnedDocument } from '../persistence';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
@@ -10,6 +11,7 @@ import { computeSettlement, describeSettlement } from '../settlement/compute-set
 import { resolveCreditsForDocument, toSettlementCreditInputs } from '../settlement/credits';
 import { listPayments, recordPayment } from '../settlement/payments';
 import { computeDocumentTotals } from '../totals/compute-totals';
+import { ActiveChannelMandate, activeChannelMandateFor } from '../transports/channel-policy/mandate';
 import { getCompanyInvoiceTransportId } from '../transports/company-transport';
 import {
   DocumentTransport,
@@ -26,18 +28,105 @@ export interface InvoiceActionDeps {
 }
 
 /**
+ * Root TODO item 11, "canal imposé par pays" — resolves the issuing company's own COUNTRY and asks
+ * whether it MANDATES a channel for an invoice issued on `issueDate` (`channel-policy/mandate.ts`,
+ * evaluated against the invoice's own issue date, never the server's clock — see that file's own
+ * header). Undefined for the overwhelming majority of companies today (only FR/pdp ships a mandate,
+ * see `channel-policy/data/fr.json`) and for any company whose country cannot even be resolved —
+ * exactly the same "no permissive fallback, but also no invented block" posture
+ * `country-policy.ts`'s own `resolveCompanyCountryCode` callers already hold elsewhere in this module.
+ */
+async function resolveActiveInvoiceMandate(
+  companyId: string,
+  issueDate: string | undefined,
+): Promise<{ countryCode: string; mandate: ActiveChannelMandate } | undefined> {
+  const countryCode = await resolveCompanyCountryCode(companyId);
+  if (!countryCode) return undefined;
+  const mandate = activeChannelMandateFor(countryCode, issueDate);
+  return mandate ? { countryCode, mandate } : undefined;
+}
+
+/** `${sourceText} (checked ${date})` — the one line every mandate-refusal message below reuses so the
+ *  SOURCE is always named, never just the channel's id (see root TODO item 11's own task brief: "un
+ *  message qui nomme le canal imposé, LA SOURCE de la règle, et ce qu'il faut faire"). */
+function describeMandateSource(mandate: ActiveChannelMandate): string {
+  return `"${mandate.provenance.sourceText}" (checked ${mandate.provenance.sourceCheckedAt})`;
+}
+
+/** The company's configured transport is anything OTHER than the mandated one (including nothing
+ *  configured at all) — see `resolveInvoiceTransport`'s own call site below. */
+function mandateOverridesTransportMessage(
+  countryCode: string,
+  mandate: ActiveChannelMandate,
+  configuredTransportId: string | null,
+): string {
+  const configuredClause = configuredTransportId
+    ? `This company is currently configured to send invoices via "${configuredTransportId}"`
+    : 'No transport is configured for this company';
+  return (
+    `${countryCode} requires invoices issued on or after ${mandate.mandatedFrom} to go through the ` +
+    `"${mandate.providerId}" channel — ${describeMandateSource(mandate)}. ${configuredClause}. ` +
+    `Connect "${mandate.providerId}" in company settings (Channels) and choose it as the invoice ` +
+    'transport before sending.'
+  );
+}
+
+/** The company already chose the mandated channel, but ITS OWN preflight (e.g. "PDP channel is not
+ *  connected") refused — see `runInvoiceSendPreflight` below. `underlyingMessage` is that transport's
+ *  own error text, folded in rather than replaced: the mandate context explains WHY this channel is
+ *  non-negotiable, the transport's own message explains WHAT to fix about it. */
+function mandateChannelNotReadyMessage(
+  countryCode: string,
+  mandate: ActiveChannelMandate,
+  underlyingMessage: string,
+): string {
+  return (
+    `${countryCode} requires invoices issued on or after ${mandate.mandatedFrom} to go through the ` +
+    `"${mandate.providerId}" channel — ${describeMandateSource(mandate)}. This company already chose ` +
+    `"${mandate.providerId}" as its invoice transport, but it is not ready yet: ${underlyingMessage}`
+  );
+}
+
+/**
  * Resolves the ISSUING COMPANY's own configured transport, or throws the exact 501 this action
  * always has for "no transport" / "an unknown one" — shared between the two moments this now runs at
  * (see `registerInvoiceActions`'s own header): the phase-1 PREFLIGHT check (so a doomed send is
  * refused before anything is persisted or queued, never a job enqueued only to fail immediately) and
  * `deliver()` itself (re-resolved there too — the company's configuration could have changed between
  * the two calls, which a job replayed later must still honor, not a value cached from the first one).
+ *
+ * Root TODO item 11 adds ONE more check, BEFORE the company's own free choice is even consulted: does
+ * the company's country MANDATE a different channel for an invoice issued on `issueDate`? A mandate,
+ * once active, overrides `Company.invoiceTransportId` entirely — `transport-registry.ts`'s own header
+ * ("nothing here... ever hard-codes which transport a company should use") still holds for every
+ * country with NO mandate (the overwhelming majority today), but a country that DOES mandate a
+ * channel has, by construction, already made that choice FOR the company; letting a mismatched
+ * `invoiceTransportId` silently win would mean this product believed it did exactly what the company
+ * asked while quietly sending a legally non-compliant invoice.
  */
 async function resolveInvoiceTransport(
   transportRegistry: TransportRegistry,
   companyId: string,
+  issueDate: string | undefined,
 ): Promise<DocumentTransport> {
   const transportId = await getCompanyInvoiceTransportId(companyId);
+
+  const activeMandate = await resolveActiveInvoiceMandate(companyId, issueDate);
+  if (activeMandate && transportId !== activeMandate.mandate.providerId) {
+    logger.warn('Invoice "send" blocked: overridden by a country channel mandate', {
+      category: 'documents',
+      details: {
+        companyId,
+        countryCode: activeMandate.countryCode,
+        mandatedProviderId: activeMandate.mandate.providerId,
+        configuredTransportId: transportId,
+      },
+    });
+    throw new NotImplementedException(
+      mandateOverridesTransportMessage(activeMandate.countryCode, activeMandate.mandate, transportId),
+    );
+  }
+
   if (!transportId) {
     logger.warn('Invoice "send" blocked: no transport configured for this company', {
       category: 'documents',
@@ -56,6 +145,40 @@ async function resolveInvoiceTransport(
       throw new NotImplementedException(
         `The transport "${transportId}" configured for this company is not available. ` +
           'Choose a different one in company settings before sending.',
+      );
+    }
+    throw error;
+  }
+}
+
+/**
+ * The "send" action's OWN preflight closure — resolves the transport (mandate-aware, see
+ * `resolveInvoiceTransport` above) and then runs that transport's OWN readiness check
+ * (`DocumentTransport.preflight`, e.g. "are PDP credentials actually connected"). When a country
+ * mandate is active and the company already chose the mandated channel but that channel itself is
+ * not ready, the transport's own error (already loud, already named) is re-thrown WITH the mandate's
+ * own context folded in — "le canal imposé non connecté → même refus nommé" (root TODO item 11's own
+ * task brief): the refusal still names the channel, still names the source, still says what to do,
+ * exactly like the "wrong transport entirely" case above, not a bare "not connected" with no country
+ * context attached.
+ */
+async function runInvoiceSendPreflight(
+  transportRegistry: TransportRegistry,
+  companyId: string,
+  issueDate: string | undefined,
+): Promise<void> {
+  const transport = await resolveInvoiceTransport(transportRegistry, companyId, issueDate);
+  try {
+    await transport.preflight?.(companyId);
+  } catch (error) {
+    const activeMandate = await resolveActiveInvoiceMandate(companyId, issueDate);
+    if (activeMandate) {
+      throw new NotImplementedException(
+        mandateChannelNotReadyMessage(
+          activeMandate.countryCode,
+          activeMandate.mandate,
+          error instanceof Error ? error.message : String(error),
+        ),
       );
     }
     throw error;
@@ -105,6 +228,13 @@ const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
  * seconds (or, after a retry, much longer) apart, and a job replayed later must honor whatever the
  * company's configuration says AT THAT TIME, not a value cached from when it was first enqueued.
  *
+ * Root TODO item 11 ("canal imposé par pays") folds one more gate into this SAME preflight: a country
+ * can now MANDATE a channel (`transports/channel-policy/data/*.json`, `requirement: 'mandated'`), not
+ * merely suggest one — see `resolveInvoiceTransport`'s own header for how that overrides the
+ * company's free choice once active, and `channel-policy/mandate.ts`'s header for why "active" is
+ * decided by the INVOICE's own `issueDate`, never the server's clock. A country with no mandate (the
+ * overwhelming majority — only FR/pdp ships one today) sees no behavior change at all.
+ *
  * "record-payment" IS registered below — see its own comment for the currency/amount guards and what
  * it hands back. "export-accounting" stays declared on the descriptor (invoice.descriptor.ts) and
  * deliberately NOT registered here: a real accounting export needs a chart-of-accounts mapping and a
@@ -125,20 +255,27 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
       params,
       queueDispatcher: deps.queueDispatcher,
       numberOnEnqueue: true, // invoice.descriptor.ts: numbering.onEnterStatus === 'sending'
+      // Root TODO item 11: the country-mandate check runs as part of THIS preflight — see
+      // `runInvoiceSendPreflight`'s own header. `data.issueDate` is the submitted field value at
+      // ENQUEUE time; `descriptors/invoice.descriptor.ts` requires it, so by the time "send" can even
+      // run the record already has one (validated at "save-draft").
       preflight: async () => {
-        const transport = await resolveInvoiceTransport(deps.transportRegistry, companyId);
-        // See `DocumentTransport.preflight`'s own header: an EXTRA, transport-owned readiness check
-        // (e.g. "pdp": are credentials actually connected?) the registry lookup above cannot see —
-        // absent for a transport with nothing to check ahead of time (e.g. "email").
-        await transport.preflight?.(companyId);
+        const issueDate = typeof data.issueDate === 'string' ? data.issueDate : undefined;
+        await runInvoiceSendPreflight(deps.transportRegistry, companyId, issueDate);
       },
       // No pre-built `text` here — the "email" transport (transports/email-transport.ts) composes
       // its own subject/body from invoice.descriptor.ts's `email` template (or a company override)
       // and attaches the PDF itself; see that file's own header and actions/send-document-email.ts
       // for the shared "compose + attach + send" mechanics. A hypothetical transport that still wants
       // plain text is free to build its own from `document`.
-      deliver: async ({ companyId: c, document }) => {
-        const transport = await resolveInvoiceTransport(deps.transportRegistry, c);
+      //
+      // `deliver`'s own `data` is the SAME value the enqueue call captured (`async-send.ts`'s own
+      // header: "the retry IS the action itself"), never re-read from the database — the mandate this
+      // re-resolves must judge the SAME issueDate the preflight already judged, not whatever the
+      // document happens to hold by the time a worker gets to it.
+      deliver: async ({ companyId: c, document, data: deliverData }) => {
+        const issueDate = typeof deliverData.issueDate === 'string' ? deliverData.issueDate : undefined;
+        const transport = await resolveInvoiceTransport(deps.transportRegistry, c, issueDate);
         return transport.send({ companyId: c, document, label: 'Invoice' });
       },
     }),

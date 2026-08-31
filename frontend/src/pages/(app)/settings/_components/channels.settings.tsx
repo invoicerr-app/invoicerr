@@ -31,6 +31,13 @@ interface ConfiguredChannel {
 }
 interface SuggestedChannel {
   providerId: string
+  // Root TODO item 11 — a country's own policy on this channel: "suggested" is item 10's original,
+  // non-binding hint; "mandated" (with `mandatedFrom`) means an invoice issued on or after that date
+  // is REFUSED at the backend preflight if sent through anything else (see invoice-actions.ts's own
+  // header). Both fields optional so a pre-item-11 response shape still type-checks — nothing here
+  // assumes every provider entry has been through the new schema.
+  requirement?: "suggested" | "mandated"
+  mandatedFrom?: string
   provenance: ChannelProvenance
 }
 interface ChannelsResponse {
@@ -219,6 +226,19 @@ function ChannelRow({
             {suggested && (
               <Badge variant="outline" data-cy={`channel-${providerId}-suggested`}>
                 {t("settings.channels.status.suggested", "Suggested for your country")}
+              </Badge>
+            )}
+            {/* Root TODO item 11 — a STRONGER, visually distinct badge for a channel the country
+                MANDATES, never replacing the "suggested" badge above (a mandate is a strengthened
+                suggestion, not a contradiction of it — see this file's own header on `requirement`).
+                Shown unconditionally whenever the file declares `mandated`, regardless of whether
+                `mandatedFrom` has actually been reached yet — the date itself is spelled out in the
+                badge text so nothing here depends on today's wall-clock date to be TRUTHFUL. */}
+            {suggested?.requirement === "mandated" && (
+              <Badge variant="destructive" data-cy={`channel-${providerId}-mandated`}>
+                {t("settings.channels.status.mandated", "Mandatory from {{date}}", {
+                  date: suggested.mandatedFrom,
+                })}
               </Badge>
             )}
           </div>

@@ -239,15 +239,31 @@ describe('ChannelCredentialsService', () => {
   });
 
   describe('suggestedChannels() — reads the country file, never a hard-coded country check', () => {
-    it("a French company's suggestion includes pdp", async () => {
+    // Root TODO item 11 — France now MANDATES pdp (channel-policy/data/fr.json, mandatedFrom
+    // 2026-09-01), not merely suggests it: this is the real, shipped shape, not a fixture, so the
+    // test proves the SERVICE hands the mandate fields straight through, unmassaged.
+    it("a French company's channel policy is pdp, MANDATED from 2026-09-01, with legal provenance", async () => {
       mockedPrisma.company.findUnique.mockResolvedValue({ country: 'France', countryCode: 'FR' });
-      const suggestions = await service.suggestedChannels('company-1');
-      expect(suggestions).toEqual([
-        { providerId: 'pdp', provenance: expect.objectContaining({ kind: 'unverified' }) },
+      const facts = await service.suggestedChannels('company-1');
+      expect(facts).toEqual([
+        expect.objectContaining({
+          providerId: 'pdp',
+          requirement: 'mandated',
+          mandatedFrom: '2026-09-01',
+          provenance: expect.objectContaining({ kind: 'legal' }),
+        }),
       ]);
     });
 
-    it('a company whose country has no suggestion file gets an empty list, not a guess', async () => {
+    it("a Polish company's channel policy is ksef, still merely SUGGESTED (no sourced mandate date yet)", async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'Poland', countryCode: 'PL' });
+      const facts = await service.suggestedChannels('company-1');
+      expect(facts).toEqual([
+        expect.objectContaining({ providerId: 'ksef', requirement: 'suggested', effectiveNow: undefined }),
+      ]);
+    });
+
+    it('a company whose country has no policy file gets an empty list, not a guess', async () => {
       mockedPrisma.company.findUnique.mockResolvedValue({ country: 'United States', countryCode: 'US' });
       await expect(service.suggestedChannels('company-1')).resolves.toEqual([]);
     });

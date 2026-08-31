@@ -1,0 +1,16 @@
+{
+  "countryCode": "FR",
+  "facts": [
+    {
+      "providerId": "pdp",
+      "requirement": "mandated",
+      "mandatedFrom": "2026-09-01",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Seule une plateforme agréée est habilitée à assurer toutes les fonctionnalités prévues.",
+        "sourceCheckedAt": "2026-08-27"
+      },
+      "notes": "Reprise TELLE QUELLE de la citation déjà sourcée au repère git `avant-refonte-documents` (compliance/profiles/data/fr.ts, note 'FR-D1' sur la transmission) : 'From 2026-09-01 the emission, transmission and reception of an in-scope invoice go through an accredited platform — \"Seule une plateforme agréée est habilitée à assurer toutes les fonctionnalités prévues\" (impots.gouv.fr, consulted 2026-08-27). Sending such an invoice by e-mail is not a lesser channel, it is a sanctioned one: CGI art.1737 III, 50 EUR per invoice capped at 15 000 EUR a year, and IV bis, 500 EUR then 1 000 EUR per quarter for persisting in not using an accredited platform.' Le même repère sourçait la date d'entrée en vigueur elle-même (2026-09-01) aux art. 289 bis/290 du CGI (Légifrance, consulté 2026-08-28) — voir aussi country-policy/data/fr.json's own 'invoice.download-xml' note, qui pointait déjà vers CET item 11 pour trancher le caractère obligatoire. Root TODO item 11 tranche donc ce caractère obligatoire ICI, avec la citation que le repère portait déjà, sans en ajouter une nouvelle qui n'aurait pas été vérifiée."
+    }
+  ]
+}
