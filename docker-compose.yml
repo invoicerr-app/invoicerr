@@ -42,9 +42,11 @@ services:
       - JWT_SECRET="your_jwt_secret" # Used for JWT authentication, can be any random string
       - BETTER_AUTH_SECRET="your_better_auth_secret" # Required, generate with: openssl rand -base64 32, falls back to JWT_SECRET if unset
 
-      # Compliance async queue (BullMQ/Redis). WORKER_INLINE=true (default here) makes this
-      # single container also consume its own queue jobs (mono/self-host deployment). For a
-      # scaled deployment with a dedicated worker service, see docker-compose.scale.yml.
+      # Document-action async queue (BullMQ/Redis, TODO.md item 22 — an async "send" and, later,
+      # recurring documents both go through it). Redis is REQUIRED for the backend to boot at all,
+      # never an optional extra. WORKER_INLINE=true (default here) makes this single container also
+      # consume its own queue jobs (mono/self-host deployment). For a scaled deployment with a
+      # dedicated worker service, see docker-compose.scale.yml.
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}

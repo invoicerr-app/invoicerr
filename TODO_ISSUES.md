@@ -18,12 +18,13 @@
 
 ## Limites consignées en cours de route
 
-- **« Sent » avant l'envoi** (découvert à la tâche 4) : le document est persisté `sent` — et parfois
-  numéroté — AVANT que le courriel ne parte. Un échec du rendu PDF ou du SMTP laisse donc un
-  enregistrement « envoyé » jamais livré. Ce n'est pas une régression (le même risque existait côté
-  SMTP), mais le corriger demande un statut intermédiaire (`sending`) que le cycle de vie déclaré
-  rend désormais facile à ajouter — à traiter avec l'item **3** déjà livré comme socle, ou lors de
-  l'item **22** (files d'attente), où l'envoi deviendra asynchrone de toute façon.
+- ~~« Sent » avant l'envoi~~ (découvert à la tâche 4) — **RÉSOLU à l'item 22** (2026-08-31) : `send`
+  déclare désormais `draft`/`send_failed` → `sending` → `sent` | `send_failed` (quote/invoice/
+  credit-note — voir actions/async-send.ts). Le numéro est pris en ENTRANT dans `sending`, avant que
+  la livraison ne soit même tentée ; un échec (PDF, SMTP, transport) après épuisement des retries
+  BullMQ laisse `send_failed` avec l'erreur enregistrée et visible (`DocumentInstance.lastActionError`)
+  — jamais `sent` sans livraison réelle. Le retry est l'action `send` elle-même, redisponible depuis
+  `send_failed`.
 
 - **`resetAndSeed` ne re-sème pas la politique pays** (découvert à la tâche 8) : les tables de
   référence sont exclues de la troncature, mais une NOUVELLE règle ajoutée aux JSON n'existe en

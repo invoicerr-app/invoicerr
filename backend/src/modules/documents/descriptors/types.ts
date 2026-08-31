@@ -295,9 +295,10 @@ export interface DocumentActionDescriptor {
   /**
    * Declares the STATUS EFFECT this action has on the ACTED-UPON record — see lifecycle.ts's header
    * for the full contract. In short: each entry's `from` names the starting status(es) it applies to
-   * ('always' = any, including a brand-new, never-saved record), `to` is the resulting status; the
-   * runtime (documents.service.ts's runAction, via lifecycle.ts's `checkTransitionResult`) refuses to
-   * let a handler persist any OTHER status once this is declared.
+   * ('always' = any, including a brand-new, never-saved record), `to` is the resulting status (or,
+   * for a transition with more than one honest outcome — see `DocumentActionTransition.to` — every
+   * status it may result in); the runtime (documents.service.ts's runAction, via lifecycle.ts's
+   * `checkTransitionResult`) refuses to let a handler persist any OTHER status once this is declared.
    *
    * Absent means this action never changes the status of the record it acts on — its effect, if any,
    * lands on a DIFFERENT record entirely ("convert-to-invoice" writes a fresh invoice; "duplicate"
@@ -319,8 +320,18 @@ export interface DocumentActionTransition {
    *  brand-new record that has no status yet (`fromStatus === undefined`) — the same "no status to
    *  match" case `isActionAvailable`'s own 'always' branch already treats as satisfied. */
   from: string[] | 'always';
-  /** The status the record must be in immediately after this action runs, given a `from` match. */
-  to: string;
+  /**
+   * The status the record must be in immediately after this action runs, given a `from` match — OR,
+   * for an action whose SAME invocation can legitimately land on more than one outcome from the SAME
+   * starting status, every status it is allowed to land on. This is what an asynchronous "send"
+   * needs (TODO item 22, documents/queue/): the exact same action, replayed by the worker once a
+   * record is already "sending", either succeeds (-> "sent") or, after every retry is exhausted,
+   * fails (-> "send_failed") — two honestly different outcomes of ONE declared transition, not two
+   * separate actions. `checkTransitionResult` (lifecycle.ts) accepts EITHER as valid; a single string
+   * stays the common case (the record's next status is fully determined by `from` alone) and every
+   * transition declared before this array form existed keeps meaning exactly what it always meant.
+   */
+  to: string | string[];
 }
 
 /**

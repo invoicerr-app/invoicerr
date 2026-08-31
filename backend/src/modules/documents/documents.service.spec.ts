@@ -65,12 +65,18 @@ function buildService() {
 
   const referenceRegistry = new EntityReferenceRegistry();
 
+  // "send" is asynchronous (TODO.md item 22, actions/async-send.ts) — a fake dispatcher, no BullMQ,
+  // no Nest, no Redis: the tests below only ever need to know WHAT was enqueued, never that it was
+  // genuinely consumed (that proof is queue/__tests__/document-action-queue.redis.spec.ts).
+  const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+
   const actionRegistry = new ActionRegistry();
   registerQuoteActions(actionRegistry, {
     clientsService: clientsService as never,
     mailService: mailService as never,
     typeRegistry,
     referenceRegistry,
+    queueDispatcher,
   });
   // "convert-to-invoice" IS registered here — see actions/convert-to-invoice.ts. It stopped being
   // the live "declared but not implemented" example the day it got a real handler; that role now
@@ -95,7 +101,7 @@ function buildService() {
     transportRegistry,
     new ContributionRegistry(),
   );
-  return { service, clientsService, mailService };
+  return { service, clientsService, mailService, queueDispatcher };
 }
 
 const validQuoteData = {
@@ -282,7 +288,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       expect(mailService.sendMail).not.toHaveBeenCalled();
     });
 
-    it('sends the email and marks the document "sent" once params are valid', async () => {
+    it('phase 1: once params are valid, persists "sending" and ENQUEUES — never calls MailService synchronously', async () => {
       (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
@@ -294,13 +300,61 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       (persistence.upsertDocument as jest.Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'quote',
-        status: 'sent',
+        status: 'sending',
         data: validQuoteData,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
 
-      const { service, mailService } = buildService();
+      const { service, mailService, queueDispatcher } = buildService();
+      const result = await service.runAction('company-1', 'quote', 'send', {
+        documentId: 'doc-1',
+        data: validQuoteData,
+        params: { recipient: 'client@example.com' },
+      });
+
+      expect(result.changed).toBe(true);
+      expect(result.document).toMatchObject({ id: 'doc-1', status: 'sending' });
+      expect(mailService.sendMail).not.toHaveBeenCalled();
+      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+        'company-1',
+        'quote',
+        'doc-1',
+        'sending',
+        validQuoteData,
+      );
+      expect(queueDispatcher.enqueueAction).toHaveBeenCalledWith({
+        companyId: 'company-1',
+        typeId: 'quote',
+        documentId: 'doc-1',
+        actionId: 'send',
+        payload: { data: validQuoteData, params: { recipient: 'client@example.com' } },
+      });
+    });
+
+    it('phase 2 (the worker\'s replay, record already "sending"): sends the email and marks the document "sent"', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sending',
+        data: validQuoteData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'QUOTE-2026-0001',
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sent',
+        data: validQuoteData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'QUOTE-2026-0001',
+      });
+
+      const { service, mailService, queueDispatcher } = buildService();
       const result = await service.runAction('company-1', 'quote', 'send', {
         documentId: 'doc-1',
         data: validQuoteData,
@@ -320,13 +374,9 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
           attachments: [expect.objectContaining({ contentType: 'application/pdf' })],
         }),
       );
-      expect(persistence.upsertDocument).toHaveBeenCalledWith(
-        'company-1',
-        'quote',
-        'doc-1',
-        'sent',
-        validQuoteData,
-      );
+      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith('company-1', 'quote', 'doc-1', 'sent');
+      // Never re-enqueued — the worker's own replay is what got here in the first place.
+      expect(queueDispatcher.enqueueAction).not.toHaveBeenCalled();
     });
 
     it("pre-fills the recipient param default from the document's client", async () => {
@@ -435,6 +485,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
         mailService: { sendMail: jest.fn() } as never,
         typeRegistry,
         referenceRegistry,
+        queueDispatcher: { enqueueAction: jest.fn() },
       });
       const actionExtensionRegistry = new ActionExtensionRegistry();
       // "send" already exists natively on the quote descriptor — this is the misconfiguration.

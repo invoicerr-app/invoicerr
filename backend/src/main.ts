@@ -71,4 +71,13 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT || 3000);
 }
-bootstrap();
+// `NestFactory.create()` above runs every `OnModuleInit` hook in the graph, including
+// `DocumentQueueRedisRequiredGuard` (modules/documents/queue/redis-required.guard.ts) — Redis is
+// required to boot at all (TODO.md item 22), never a silently-degraded synchronous fallback. Without
+// this `.catch()`, that guard's own named error would surface only as an unhandled promise
+// rejection; this turns it into a clean, logged `process.exit(1)` instead — the same treatment
+// worker.ts's own bootstrap gets for the exact same failure mode.
+bootstrap().catch((err) => {
+  console.error('Error during backend bootstrap:', err);
+  process.exit(1);
+});

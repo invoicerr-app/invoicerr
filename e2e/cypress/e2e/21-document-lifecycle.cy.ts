@@ -6,12 +6,17 @@
  *
  * Trois choses, dans l'ordre (l'état traverse les `it` de ce fichier — `resetAndSeed` ne rejoue
  * qu'une fois, dans `before`, exactement comme 17 le fait) :
- *  1. l'indication de transition ("Draft → Sent") apparaît sur une action qui en déclare une, et
+ *  1. l'indication de transition ("Draft → Sending" — item 22 a rendu "send" asynchrone : la
+ *     PREMIÈRE transition déclarée mène à "sending", pas directement à "sent", voir
+ *     quote.descriptor.ts's own SEND_TRANSITIONS) apparaît sur une action qui en déclare une, et
  *     PAS sur une action qui n'en déclare aucune (même si cette dernière reste offerte) ;
- *  2. exécuter "send" par un vrai clic fait passer le statut affiché ET enregistré à "sent" ;
+ *  2. exécuter "send" par un vrai clic fait passer le statut affiché ET enregistré à "sent",
+ *     l'écran l'affichant par SON PROPRE polling (useDocumentInstances) une fois le worker passé —
+ *     voir 28-document-async-send.cy.ts pour la preuve dédiée de cette traversée de file ;
  *  3. la restriction par statut de la politique pays (fr.json : invoice.save-draft -> ["draft"])
- *     retire le bouton à l'écran une fois la facture "sent", et l'API refuse aussi (409) pour un
- *     client scripté qui ignorerait l'écran.
+ *     retire le bouton à l'écran une fois la facture partie ("sending" suffit déjà, "draft" étant le
+ *     seul statut autorisé), et l'API refuse aussi (409) pour un client scripté qui ignorerait
+ *     l'écran.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -53,14 +58,17 @@ describe("Le cycle de vie d'un document — statuts et transitions déclarés", 
 					cy.get(`[data-cy="document-edit-button-${quoteId}"]`, { timeout: 15000 }).click();
 					cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
 
-					// "send" déclare une transition draft -> sent (quote.descriptor.ts) : le devis est
-					// actuellement "draft", donc le libellé attendu est "Draft → Sent" — déduit du
-					// descripteur reçu par l'écran, jamais écrit en dur dans ce test.
+					// "send" déclare (item 22, l'envoi asynchrone) une PREMIÈRE transition draft ->
+					// sending (quote.descriptor.ts) : le devis est actuellement "draft", donc le libellé
+					// attendu est "Draft → Sending" — déduit du descripteur reçu par l'écran, jamais
+					// écrit en dur dans ce test. Ce n'est plus "Sent" : ce serait le libellé de la
+					// SECONDE transition (sending -> sent | send_failed), qui ne s'applique qu'une fois
+					// le devis déjà "sending" — hors de portée de ce clic-ci.
 					cy.get('[data-cy="document-transition-hint-send"]', { timeout: 10000 })
 						.scrollIntoView()
 						.invoke("text")
 						.should("match", /Draft/i)
-						.and("match", /Sent/i);
+						.and("match", /Sending/i);
 
 					// "convert-to-invoice" est offerte (draft ET sent y donnent droit) mais ne déclare
 					// AUCUNE transition (elle ne change jamais le statut du DEVIS lui-même — voir
@@ -156,7 +164,15 @@ describe("Le cycle de vie d'un document — statuts et transitions déclarés", 
 								failOnStatusCode: false,
 							}).then((sent) => {
 								expect(sent.status, "facture envoyée").to.be.oneOf([200, 201]);
-								expect(sent.body?.document?.status, 'la facture est "sent"').to.eq("sent");
+								// "send" est asynchrone (item 22) : cet appel direct ne fait plus que la
+								// PREMIÈRE moitié — draft -> sending — et rend la main aussitôt ; la
+								// livraison réelle est l'affaire du worker (28-document-async-send.cy.ts en
+								// fait la preuve dédiée). La restriction par statut testée ici ("draft"
+								// uniquement) exclut aussi bien "sending" que "sent" — elle tient donc déjà,
+								// sans attendre que le worker ait fini.
+								expect(sent.body?.document?.status, 'la facture est partie ("sending")').to.eq(
+									"sending",
+								);
 
 								cy.visit("/documents/invoice");
 								// À L'ÉCRAN : le bouton "Save draft" n'est plus offert sur cette ligne — la vue

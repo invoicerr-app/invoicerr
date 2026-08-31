@@ -42,9 +42,24 @@ export function useDocumentType(typeId: string | undefined) {
   })
 }
 
+/**
+ * Polls while ANY currently-loaded instance is "sending" — the async "send" mechanism's own
+ * in-flight status (TODO.md item 22, actions/async-send.ts on the backend): a document enqueued for
+ * delivery moves to "sent"/"send_failed" entirely from the WORKER's own write, never from a
+ * follow-up click this tab makes, so nothing else would ever tell this list to refetch and notice.
+ * Stops polling the moment nothing is "sending" anymore — never an unconditional background poll for
+ * a list that has nothing in flight. Generic on purpose: reads the STATUS STRING this mechanism
+ * itself introduces, never a document type.
+ */
+const SENDING_POLL_INTERVAL_MS = 1500
+
 export function useDocumentInstances(typeId: string | undefined) {
   return useApiQuery<DocumentInstance[]>(["documents", typeId], `/api/documents?typeId=${typeId}`, {
     enabled: !!typeId,
+    refetchInterval: (query) => {
+      const instances = query.state.data as DocumentInstance[] | undefined
+      return instances?.some((instance) => instance.status === "sending") ? SENDING_POLL_INTERVAL_MS : false
+    },
   })
 }
 

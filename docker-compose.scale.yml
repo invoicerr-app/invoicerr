@@ -1,11 +1,10 @@
-# Scaled ("giga") deployment overlay — adds a dedicated, horizontally-scalable compliance
-# worker service and flips the API container to WORKER_INLINE=false so it only *enqueues*
-# (never consumes) queue jobs.
+# Scaled ("giga") deployment overlay — adds a dedicated, horizontally-scalable document-action
+# queue worker service (TODO.md item 22) and flips the API container to WORKER_INLINE=false so it
+# only *enqueues* (never consumes) queue jobs.
 #
 # Same image as the API (no second Dockerfile — the entrypoint.sh ROLE switch picks the
-# worker code path, see QUEUE_IMPL_PLAN.md §7.3/§7.4). Migrations remain API-only
-# (backend/src/prisma/sync-schema.ts, ROLE=api); the worker waits on the API's healthcheck
-# so it never races a migration.
+# worker code path). Migrations remain API-only (backend/src/prisma/sync-schema.ts, ROLE=api);
+# the worker waits on the API's healthcheck so it never races a migration.
 #
 # Usage (merge on top of the base compose file):
 #   docker compose -f docker-compose.yml -f docker-compose.scale.yml up --scale worker=3

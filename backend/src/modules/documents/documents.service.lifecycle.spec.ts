@@ -151,7 +151,7 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
       data: {},
     });
 
-    await expect(action).rejects.toThrow(/wrote status "archived".*requires "sent"/);
+    await expect(action).rejects.toThrow(/wrote status "archived".*requires one of "sent"/);
   });
 
   it('an action with NO declared transition ("annotate") does not change status — a faithful handler passes', async () => {
@@ -219,7 +219,7 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
       data: {},
     });
 
-    await expect(action).rejects.toThrow(/wrote status "draft".*requires "sent"/);
+    await expect(action).rejects.toThrow(/wrote status "draft".*requires one of "sent"/);
   });
 
   it('a brand-new record must start at the initial status — a handler creating one elsewhere is untouched', async () => {

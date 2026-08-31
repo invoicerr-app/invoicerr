@@ -95,6 +95,11 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+      mailpit:
+        image: axllent/mailpit
+        ports:
+          - "8025:8025"
+          - "1025:1025"
     steps:
       - uses: actions/checkout@v4
 
@@ -113,31 +118,32 @@ jobs:
 
       # Apply the full migration chain to the empty CI Postgres — the same path production runs via
       # syncDatabaseSchema() (prisma migrate deploy). The integration specs below create their own
-      # compliance-document fixtures against this schema, so an empty freshly-migrated DB is enough.
+      # document/company fixtures against this schema.
       - name: Apply migrations (empty dev DB)
         run: cd backend && npx prisma migrate deploy
 
-      # The real async-loop proofs: enqueue -> consume over real Redis + real Postgres (F-3
-      # credentialed poll, timer fire, sweep re-projection). These specs self-gate on REDIS_URL, so
-      # they self-skip in the offline backend-tests job and only execute here. --runInBand because
-      # they share one Redis/Postgres and would otherwise race; --forceExit because BullMQ/ioredis
-      # keep connections open past the last assertion.
-      - name: Run compliance queue integration specs (real Redis + Postgres)
-        run: cd backend && npx jest --ci --runInBand --forceExit --testPathPattern 'compliance/nest/queue/__tests__'
+      # `migrate deploy` does NOT run the seed hook (only `migrate dev`/`migrate reset`/`db seed`
+      # do) — without this, the document country-action policy table stays EMPTY and every "send"
+      # below 403s before ever reaching the queue (country-policy.ts blocks everything for a country
+      # with no rows). Same gotcha the cypress-run job's own install step already documents.
+      - name: Seed reference data (country policy, ...)
+        run: cd backend && npx prisma db seed
 
-      # P1-T06 (B4): the deterministic TOCTOU proof for the compliance-document CAS
-      # (transitionIfStatus). It was gated behind COMPLIANCE_LIVE_DB_TESTS and that flag was set
-      # only in compliance-live.yml, which is workflow_dispatch — so the CAS that the French
-      # gapless sequence depends on was never exercised automatically.
-      #
-      # Nothing had to be provisioned: this job already has Postgres 16, DATABASE_URL, and has just
-      # run `prisma migrate deploy` above. Only the flag was missing. The spec truncates the
-      # compliance tables around itself, which is why it runs after the queue specs and not
-      # alongside them.
-      - name: Run the live-DB CAS proof (real Postgres)
+      # The document-action queue's real end-to-end proof (TODO.md item 22): enqueue -> a REAL BullMQ
+      # worker consumes -> the email genuinely lands in Mailpit -> the document reaches "sent"; a
+      # forced failure (SMTP pointed nowhere) exhausts retries and lands on "send_failed" with the
+      # error recorded, then a re-`send` succeeds. Self-gated on REDIS_URL (same pattern the
+      # pre-refonte compliance queue's own specs used), so it self-skips in the offline
+      # backend-tests job and only executes here. --runInBand because every spec shares one Redis/
+      # Postgres/Mailpit and would otherwise race; --forceExit because BullMQ/ioredis keep
+      # connections open past the last assertion.
+      - name: Run document-action queue integration specs (real Redis + Postgres + Mailpit)
         env:
-          COMPLIANCE_LIVE_DB_TESTS: '1'
-        run: cd backend && npx jest --ci --runInBand --forceExit --testPathPattern 'compliance/nest/apply-signal.live.spec'
+          SMTP_HOST: localhost
+          SMTP_PORT: 1025
+          SMTP_SECURE: 'false'
+          SMTP_FROM: queue-integration@invoicerr.test
+        run: cd backend && npx jest --ci --runInBand --forceExit --testPathPattern 'modules/documents/queue/__tests__'
 
   cypress-run:
     runs-on: ubuntu-latest
@@ -159,10 +165,11 @@ jobs:
         ports:
           - "8025:8025"
           - "1025:1025"
-      # The backend requires Redis (BullMQ) to boot — WORKER_INLINE defaults to true, so the inline
-      # compliance processors + registerRepeatables() connect at startup. Without it the Nest app
-      # fails to boot and every e2e times out on a hung /api. redisConnection() defaults to
-      # localhost:6379, so no backend env change is needed.
+      # The backend requires Redis (BullMQ) to boot at all — TODO.md item 22's document-action
+      # queue's own DocumentQueueRedisRequiredGuard fails the whole boot loudly without it, and
+      # WORKER_INLINE defaults to true, so the inline document-action processor connects at startup
+      # too. Without this service the Nest app fails to boot and every e2e times out on a hung /api.
+      # redisConnection() defaults to localhost:6379, so no backend env change is needed.
       redis:
         image: redis:7
         ports:

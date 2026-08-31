@@ -24,6 +24,15 @@ interface DocumentFormProps {
    *  re-synced live via `onDocumentUpdate` once an action actually numbers it (e.g. "send"), the same
    *  way `status` already is. */
   displayNumber?: string | null
+  /** The record's own `lastActionError` — see types.ts's `DocumentInstance.lastActionError`. The
+   *  write that sets it happens entirely inside the WORKER, out of band from any click this dialog
+   *  itself triggers, so there is no action RESULT this component could ever read it back from —
+   *  unlike `status`/`displayNumber` above, this is never re-synced into local state at all, only
+   *  ever rendered straight from THIS prop, so it follows whatever the caller feeds it: the page
+   *  ([typeId].tsx) re-derives it, live, from the SAME query cache the list itself polls while the
+   *  record is "sending" (TODO.md item 22) — so it updates here too, without closing and reopening
+   *  this dialog, the moment a "send" this very form triggered actually fails. */
+  lastActionError?: string | null
   /** Fires after an action that actually changed the document — e.g. so a caller can refresh a list
    *  or "follow" the document once it exists (a fresh draft is created on the first save). Not
    *  called for an action whose result carries no document (see ActionResult on the backend). */
@@ -46,6 +55,7 @@ export function DocumentForm({
   initialData,
   status,
   displayNumber,
+  lastActionError,
   onActionSuccess,
 }: DocumentFormProps) {
   const { t } = useTranslation()
@@ -64,6 +74,14 @@ export function DocumentForm({
   // can't have yet is the record's DATA: useDocumentInstance resolves after mount, and
   // react-hook-form only applies `defaultValues` once, at mount — this is what re-applies it (and
   // the status that arrives alongside it) once the query actually resolves.
+  //
+  // This effect ALSO keeps firing for as long as the dialog stays open on the SAME record (the `key`
+  // on DocumentUpsertDialog never changes, so this never remounts): the caller ([typeId].tsx) now
+  // re-derives `status`/`displayNumber` LIVE from the same query cache the list itself polls while a
+  // record is "sending" (TODO.md item 22), so once a "send" this form triggered actually settles —
+  // "sending" -> "sent" or "send_failed" — `currentStatus` catches up here too, without closing and
+  // reopening this dialog. `initialData`'s own object reference stays the frozen snapshot the whole
+  // time (see [typeId].tsx's own comment on why), so `form.reset` never re-fires from this alone.
   useEffect(() => {
     if (initialData !== undefined) {
       form.reset(initialData)
@@ -115,6 +133,14 @@ export function DocumentForm({
           </p>
         )}
 
+        {lastActionError && (
+          // Same generic surfacing as document-list.tsx's own card — never a silent failure
+          // (TODO.md item 22). Kept live by the CALLER — see this prop's own comment above.
+          <p className="text-sm text-destructive" data-cy="document-form-last-error">
+            {t("documents.list.lastActionError", { message: lastActionError })}
+          </p>
+        )}
+
         <div className="space-y-4">
           {descriptor.fields.map((field) => (
             <DocumentField key={field.key} field={field} name={field.key} documentTypeId={descriptor.id} />
@@ -161,7 +187,13 @@ export function DocumentForm({
                         currentStatus !== undefined
                           ? statusLabel(descriptor, currentStatus)
                           : t("documents.form.transitionFromNew"),
-                      to: statusLabel(descriptor, transitionTarget),
+                      // `transitionTarget` is an ARRAY for a transition with more than one honest
+                      // outcome (the async "send" shape, TODO.md item 22: the worker's replay either
+                      // succeeds or, after every retry, fails) — joined with a translated "or" rather
+                      // than picking one arbitrarily, so the hint stays truthful about both.
+                      to: (Array.isArray(transitionTarget) ? transitionTarget : [transitionTarget])
+                        .map((status) => statusLabel(descriptor, status))
+                        .join(` ${t("documents.form.transitionOr")} `),
                     })}
                   </p>
                 )}

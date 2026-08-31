@@ -4,7 +4,8 @@ import { logger } from '@/logger/logger.service';
 import { decimalsFor, toMinor } from '@/utils/financial';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
-import { findOwnedDocument, upsertDocument } from '../persistence';
+import { findOwnedDocument } from '../persistence';
+import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { computeSettlement, describeSettlement } from '../settlement/compute-settlement';
 import { resolveCreditsForDocument, toSettlementCreditInputs } from '../settlement/credits';
 import { listPayments, recordPayment } from '../settlement/payments';
@@ -15,11 +16,50 @@ import {
   TransportRegistry,
   UnknownTransportError,
 } from '../transports/transport-registry';
+import { runAsyncSendAction } from './async-send';
 import { ActionRegistry } from './action-registry';
 import { registerSaveDraftAction } from './generic-actions';
 
 export interface InvoiceActionDeps {
   transportRegistry: TransportRegistry;
+  queueDispatcher: DocumentActionQueueDispatcher;
+}
+
+/**
+ * Resolves the ISSUING COMPANY's own configured transport, or throws the exact 501 this action
+ * always has for "no transport" / "an unknown one" — shared between the two moments this now runs at
+ * (see `registerInvoiceActions`'s own header): the phase-1 PREFLIGHT check (so a doomed send is
+ * refused before anything is persisted or queued, never a job enqueued only to fail immediately) and
+ * `deliver()` itself (re-resolved there too — the company's configuration could have changed between
+ * the two calls, which a job replayed later must still honor, not a value cached from the first one).
+ */
+async function resolveInvoiceTransport(
+  transportRegistry: TransportRegistry,
+  companyId: string,
+): Promise<DocumentTransport> {
+  const transportId = await getCompanyInvoiceTransportId(companyId);
+  if (!transportId) {
+    logger.warn('Invoice "send" blocked: no transport configured for this company', {
+      category: 'documents',
+      details: { companyId },
+    });
+    throw new NotImplementedException(
+      'No transport is configured for this company to send an invoice. ' +
+        'Configure one in company settings before sending — there is no default channel.',
+    );
+  }
+
+  try {
+    return transportRegistry.resolve(transportId);
+  } catch (error) {
+    if (error instanceof UnknownTransportError) {
+      throw new NotImplementedException(
+        `The transport "${transportId}" configured for this company is not available. ` +
+          'Choose a different one in company settings before sending.',
+      );
+    }
+    throw error;
+  }
 }
 
 /**
@@ -41,13 +81,12 @@ const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
  * mechanism the quote uses (generic-actions.ts) — persisting a draft's field values has nothing to do
  * with WHERE the document eventually travels, so sharing it is correct, unlike "send" below.
  *
- * "send" is DELIBERATELY NOT built on generic-actions.ts's registerSendAction/
- * registerSendRecipientDefaultFromClient — those are the quote's own send-by-email mechanism now
- * (see quote-actions.ts), not a shared one. An invoice's transport is a fact about the ISSUING
- * COMPANY, never about the invoice's country or the buyer's: this handler reads
- * `Company.invoiceTransportId` and asks TransportRegistry for whatever the company chose. Two
- * outcomes are deliberately treated as the SAME kind of failure as an action with no implementation
- * at all (a clear 501, never a silent fallback to email or anywhere else):
+ * "send" is DELIBERATELY NOT the quote's own send-by-email mechanism (quote-actions.ts) — an
+ * invoice's transport is a fact about the ISSUING COMPANY, never about the invoice's country or the
+ * buyer's: `resolveInvoiceTransport` above reads `Company.invoiceTransportId` and asks
+ * TransportRegistry for whatever the company chose. Two outcomes are deliberately treated as the SAME
+ * kind of failure as an action with no implementation at all (a clear 501, never a silent fallback to
+ * email or anywhere else):
  *  - the company has not configured a transport yet (`invoiceTransportId` is null/empty);
  *  - the company configured one that is no longer registered (a plugin was removed, a typo).
  * Both cases mean "this invoice cannot actually be sent right now", which is exactly what 501 means
@@ -56,6 +95,15 @@ const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
  * `data` before calling it); the block happens once inside it, deliberately worded so a user reads
  * WHY, the same discipline "export-accounting" now keeps proving for an action with no handler at all
  * (see invoice.descriptor.ts's own header — that role used to belong to "record-payment").
+ *
+ * As of TODO.md item 22, "send" is ASYNCHRONOUS — built on `runAsyncSendAction` (actions/async-send.ts),
+ * the same two-phase engine the quote's and the credit note's own "send" use. The transport check
+ * above becomes this action's `preflight`: it still runs BEFORE the record ever moves to "sending" and
+ * BEFORE anything is queued, so an unconfigured company still gets an immediate 501 with nothing
+ * persisted — exactly the behavior this action had before it became asynchronous. `deliver()`
+ * re-resolves the transport rather than closing over the preflight's result: the two calls can be
+ * seconds (or, after a retry, much longer) apart, and a job replayed later must honor whatever the
+ * company's configuration says AT THAT TIME, not a value cached from when it was first enqueued.
  *
  * "record-payment" IS registered below — see its own comment for the currency/amount guards and what
  * it hands back. "export-accounting" stays declared on the descriptor (invoice.descriptor.ts) and
@@ -68,42 +116,29 @@ const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceActionDeps): void {
   registerSaveDraftAction(registry, 'invoice');
 
-  registry.register('invoice', 'send', async ({ companyId, documentId, data }) => {
-    const transportId = await getCompanyInvoiceTransportId(companyId);
-    if (!transportId) {
-      logger.warn('Invoice "send" blocked: no transport configured for this company', {
-        category: 'documents',
-        details: { companyId },
-      });
-      throw new NotImplementedException(
-        'No transport is configured for this company to send an invoice. ' +
-          'Configure one in company settings before sending — there is no default channel.',
-      );
-    }
-
-    let transport: DocumentTransport;
-    try {
-      transport = deps.transportRegistry.resolve(transportId);
-    } catch (error) {
-      if (error instanceof UnknownTransportError) {
-        throw new NotImplementedException(
-          `The transport "${transportId}" configured for this company is not available. ` +
-            'Choose a different one in company settings before sending.',
-        );
-      }
-      throw error;
-    }
-
-    const document = await upsertDocument(companyId, 'invoice', documentId, 'sent', data);
-    // No pre-built `text` here anymore — the "email" transport (transports/email-transport.ts)
-    // composes its own subject/body from invoice.descriptor.ts's `email` template (or a company
-    // override) and attaches the PDF itself; see that file's own header and
-    // actions/send-document-email.ts for the shared "compose + attach + send" mechanics. A
-    // hypothetical transport that still wants plain text is free to build its own from `document`.
-    const result = await transport.send({ companyId, document, label: 'Invoice' });
-
-    return { document, changed: true, message: result.message };
-  });
+  registry.register('invoice', 'send', async ({ companyId, documentId, data, params }) =>
+    runAsyncSendAction({
+      companyId,
+      typeId: 'invoice',
+      documentId,
+      data,
+      params,
+      queueDispatcher: deps.queueDispatcher,
+      numberOnEnqueue: true, // invoice.descriptor.ts: numbering.onEnterStatus === 'sending'
+      preflight: async () => {
+        await resolveInvoiceTransport(deps.transportRegistry, companyId);
+      },
+      // No pre-built `text` here — the "email" transport (transports/email-transport.ts) composes
+      // its own subject/body from invoice.descriptor.ts's `email` template (or a company override)
+      // and attaches the PDF itself; see that file's own header and actions/send-document-email.ts
+      // for the shared "compose + attach + send" mechanics. A hypothetical transport that still wants
+      // plain text is free to build its own from `document`.
+      deliver: async ({ companyId: c, document }) => {
+        const transport = await resolveInvoiceTransport(deps.transportRegistry, c);
+        return transport.send({ companyId: c, document, label: 'Invoice' });
+      },
+    }),
+  );
 
   // "recipient" defaults from the client (registerEmailRecipientDefaultFromClient, quote-actions.ts)
   // is the model for this: a best-effort pre-fill, read from the CURRENT record, never required for

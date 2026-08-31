@@ -120,7 +120,13 @@ describe('sendDocumentInstanceEmail', () => {
     );
   });
 
-  it('pulls the number FORWARD (before composing the email) when the document just reached the numbering status', async () => {
+  // Since TODO.md item 22, quote.descriptor.ts's own `numbering.onEnterStatus` is "sending", not
+  // "sent" — `runAsyncSendAction` (actions/async-send.ts) only ever calls THIS function once the
+  // record is already "sending", so in the normal flow it is already numbered by then (see this
+  // file's own header, "Numbering — a defensive fallback"). This test still proves the fallback
+  // itself fires correctly for a document that reaches this function unnumbered at exactly its
+  // declared `onEnterStatus` — a legitimate defensive case, not the routine one.
+  it('pulls the number FORWARD (before composing the email) when the document is unnumbered at exactly its declared onEnterStatus', async () => {
     mockSuccessfulRender();
     (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
     (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue({
@@ -138,7 +144,7 @@ describe('sendDocumentInstanceEmail', () => {
         document: {
           id: 'doc-1',
           typeId: 'quote',
-          status: 'sent', // quote.descriptor.ts: numbering.onEnterStatus === 'sent'
+          status: 'sending', // quote.descriptor.ts: numbering.onEnterStatus === 'sending'
           data: {},
           createdAt: new Date(),
           updatedAt: new Date(),

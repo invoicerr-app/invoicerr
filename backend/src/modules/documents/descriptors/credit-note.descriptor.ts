@@ -40,9 +40,9 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *
  * Actions: "save-draft", the exact same generic mechanism every document type here shares
  * (actions/generic-actions.ts) — plus, as of item 8 of the root TODO ("le lettrage"), "send"
- * (actions/credit-note-actions.ts): a plain STATUS transition, draft -> sent, that reads and writes
- * NOTHING beyond that status — no transport, no email, no recipient. This is deliberately NOT the
- * quote's `registerEmailSendAction`/`registerEmailRecipientDefaultFromClient` mechanism, and NOT the
+ * (actions/credit-note-actions.ts): a plain STATUS transition that reads and writes NOTHING beyond
+ * that status — no transport, no email, no recipient. This is deliberately NOT the quote's
+ * `registerEmailSendAction`/`registerEmailRecipientDefaultFromClient` mechanism, and NOT the
  * invoice's own company-configured-transport one either: this type still has no "client" field (see
  * the `invoice` field's own comment above) and still no declared opinion on WHO a credit note goes to
  * or THROUGH WHICH channel — exactly the policy this file's own history already refused to invent for
@@ -53,22 +53,33 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * nothing more: it does not attempt delivery, and reusing this name (rather than, say, "issue") keeps
  * it the same verb the frontend already renders a button for on every other type (quote, invoice).
  *
- * Lifecycle: TWO statuses now, "draft" and "sent" — "save-draft" (generic-actions.ts's
- * registerSaveDraftAction) always persists "draft", from ANY current status (`from: 'always'`,
- * faithful to what the handler actually does); "send" (credit-note-actions.ts) moves "draft" ->
- * "sent", the same shape SEND_TRANSITIONS gives the quote's and the invoice's own "send".
+ * As of TODO.md item 22, "send" ALSO goes through the same asynchronous two-phase shape the quote's
+ * and the invoice's own do (actions/async-send.ts) — even though this type's own `deliver()`
+ * (credit-note-actions.ts) does nothing at all (no transport, no email — see above). This is
+ * deliberate, not an oversight: a "send" that is not asynchronous would be a SECOND declared shape for
+ * the same action id, and the whole point of `actions/async-send.ts` existing is that every type with
+ * a "send" shares ONE mechanism, whatever `deliver()` itself actually does. In practice the "sending"
+ * status is near-instantaneous here (there is nothing to await), but it is not skipped.
  *
- * Numbering: still NOT declared, even though a non-draft status now exists to hang one onto (unlike
- * when this file's own numbering comment was first written) — see types.ts's own comment on
- * `numbering`. Whether an ISSUED credit note needs a legal, sequential number of its own is a real
- * question for actual French bookkeeping, but it is a DIFFERENT task from lettrage: item 8 asks that
- * a sent credit note reduce what its invoice owes, not that it be numbered. Adding `numbering` here
- * would be exactly the kind of unrequested scope this file's own header already declines elsewhere
- * (no forced negative amounts, no required reason code) — left for whichever task actually asks for
- * it, not guessed at here.
+ * Lifecycle: FOUR statuses now — "draft", "sending", "sent", "send_failed" — the same shape
+ * quote.descriptor.ts's own lifecycle paragraph documents in full. "save-draft"
+ * (generic-actions.ts's registerSaveDraftAction) always persists "draft", from ANY current status
+ * (`from: 'always'`, faithful to what the handler actually does); "send" (credit-note-actions.ts) has
+ * the same two transition entries as the quote's and the invoice's own: "draft"/"send_failed" ->
+ * "sending", then "sending" -> "sent" OR "send_failed".
+ *
+ * Numbering: still NOT declared — see types.ts's own comment on `numbering`. Whether an ISSUED credit
+ * note needs a legal, sequential number of its own is a real question for actual French bookkeeping,
+ * but it is a DIFFERENT task from lettrage: item 8 asks that a sent credit note reduce what its
+ * invoice owes, not that it be numbered. Adding `numbering` here would be exactly the kind of
+ * unrequested scope this file's own header already declines elsewhere (no forced negative amounts, no
+ * required reason code) — left for whichever task actually asks for it, not guessed at here.
  */
 const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
-const SEND_TRANSITIONS: DocumentActionTransition[] = [{ from: ['draft'], to: 'sent' }];
+const SEND_TRANSITIONS: DocumentActionTransition[] = [
+  { from: ['draft', 'send_failed'], to: 'sending' },
+  { from: ['sending'], to: ['sent', 'send_failed'] },
+];
 
 export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
   return {
@@ -76,7 +87,9 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
     label: 'Credit note',
     statuses: [
       { id: 'draft', label: 'Draft' },
+      { id: 'sending', label: 'Sending' },
       { id: 'sent', label: 'Sent' },
+      { id: 'send_failed', label: 'Send failed' },
     ],
     initialStatus: 'draft',
     // See types.ts's own comment on `DocumentTypeDescriptor.email` — declared for consistency with

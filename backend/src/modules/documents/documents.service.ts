@@ -625,8 +625,8 @@ export class DocumentsService implements OnModuleInit {
       });
       throw new Error(
         `Action "${actionId}" of document type "${typeId}" wrote status "${violation.actualStatus}" but its ` +
-          `declared lifecycle requires "${violation.expectedStatus}" here — this is a handler bug, not ` +
-          'something a request can trigger on its own.',
+          `declared lifecycle requires one of "${violation.expectedStatuses.join('", "')}" here — this is a ` +
+          'handler bug, not something a request can trigger on its own.',
       );
     }
 

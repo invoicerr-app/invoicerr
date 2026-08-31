@@ -111,7 +111,10 @@ export interface DocumentActionDescriptor {
 export interface DocumentActionTransition {
   /** 'always' matches every status, INCLUDING a brand-new, never-saved record. */
   from: string[] | "always"
-  to: string
+  /** The resulting status — or, for a transition with more than one honest outcome (the async "send"
+   *  shape, TODO.md item 22: the worker's replay either succeeds or, after every retry, fails), every
+   *  status it may land on. Mirrors the backend's own `DocumentActionTransition.to` exactly. */
+  to: string | string[]
 }
 
 /** What running an action hands back — see the backend's ActionResult for the full contract. */
@@ -188,6 +191,11 @@ export interface DocumentInstance {
   /** `number`, already formatted through the company's own pattern at the moment it was taken — see
    *  the backend's numbering/format-number.ts. Show this verbatim; never reformat `number` yourself. */
   displayNumber?: string | null
+  /** Mirrors the backend's `DocumentInstance.lastActionError` — the error from the most recent
+   *  FAILED asynchronous action (a "send" that ended in "send_failed", TODO.md item 22). Null/absent
+   *  once cleared by any later write. Shown verbatim, never an i18n key — same convention as
+   *  `ActionResult.message`. */
+  lastActionError?: string | null
 }
 
 /**
@@ -271,9 +279,11 @@ export function isActionAvailable(action: DocumentActionDescriptor, status: stri
 
 /**
  * Mirrors the backend's own `resolveTransitionTarget` (descriptors/lifecycle.ts) exactly: the status
- * this action's declared `transitions` say a record currently at `fromStatus` (undefined = not saved
- * yet) will move to. Undefined when the action declares no `transitions` at all (its effect, if any,
- * lands on a DIFFERENT record — "convert-to-invoice", "duplicate") or none of them matches.
+ * (or, for a transition with more than one honest outcome, every status — see
+ * `DocumentActionTransition.to`'s own comment) this action's declared `transitions` say a record
+ * currently at `fromStatus` (undefined = not saved yet) will move to. Undefined when the action
+ * declares no `transitions` at all (its effect, if any, lands on a DIFFERENT record —
+ * "convert-to-invoice", "duplicate") or none of them matches.
  *
  * Display-only on this side: the backend is what actually ENFORCES the transition (runAction) — this
  * is only ever read to render the "this will move it from X to Y" hint (document-form.tsx), never to
@@ -282,7 +292,7 @@ export function isActionAvailable(action: DocumentActionDescriptor, status: stri
 export function resolveTransitionTarget(
   action: DocumentActionDescriptor,
   fromStatus: string | undefined,
-): string | undefined {
+): string | string[] | undefined {
   if (!action.transitions) return undefined
   for (const transition of action.transitions) {
     if (transition.from === "always") return transition.to

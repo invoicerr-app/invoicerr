@@ -24,8 +24,14 @@ export async function findOwnedDocument(
   return document;
 }
 
-/** Creates a new instance, or updates an existing one owned by this company — used by any action
- *  that persists the document's current field values under a given status (e.g. "save-draft"). */
+/**
+ * Creates a new instance, or updates an existing one owned by this company — used by any action
+ * that persists the document's current field values under a given status (e.g. "save-draft", and the
+ * first phase of the async "send" — actions/async-send.ts — moving "draft"/"send_failed" to
+ * "sending"). Always resets `lastActionError` to null: any ordinary write like this one means the
+ * record is moving forward again, and a stale failure message from a PREVIOUS attempt must never
+ * linger next to it — see `DocumentInstance.lastActionError`'s own schema comment.
+ */
 export async function upsertDocument(
   companyId: string,
   typeId: string,
@@ -39,13 +45,32 @@ export async function upsertDocument(
     await findOwnedDocument(companyId, typeId, documentId);
     return prisma.documentInstance.update({
       where: { id: documentId },
-      data: { status, data: jsonData },
+      data: { status, data: jsonData, lastActionError: null },
     });
   }
 
   return prisma.documentInstance.create({
-    data: { companyId, typeId, status, data: jsonData },
+    data: { companyId, typeId, status, data: jsonData, lastActionError: null },
   });
+}
+
+/**
+ * A STATUS-ONLY write — `data` is left untouched, unlike `upsertDocument` above. Used by the second
+ * phase of the async "send" (actions/async-send.ts, "sending" -> "sent": the record's field values
+ * were already correct the moment "sending" was persisted, delivery changes nothing about them) and
+ * by the terminal-failure path (queue/mark-send-failed.ts, "sending" -> "send_failed", which also
+ * needs to record WHY). `lastActionError` defaults to null (the success case); pass the error message
+ * explicitly for the failure case — never both silently disagree about which one this write means.
+ */
+export async function updateDocumentStatus(
+  companyId: string,
+  typeId: string,
+  id: string,
+  status: string,
+  lastActionError: string | null = null,
+): Promise<DocumentInstanceResult> {
+  await findOwnedDocument(companyId, typeId, id);
+  return prisma.documentInstance.update({ where: { id }, data: { status, lastActionError } });
 }
 
 /**

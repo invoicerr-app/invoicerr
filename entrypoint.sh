@@ -4,12 +4,13 @@
 cd /usr/share/nginx/backend/src
 
 # ROLE switch: same image, different process. ROLE=worker runs ONLY the dedicated
-# compliance queue worker (dist/src/worker.js) — no nginx, no frontend config, no
-# migrations (those are API-only, handled inside main.js via syncDatabaseSchema()).
-# Default (unset or "api") keeps the existing combined nginx+node backend below.
-# See QUEUE_IMPL_PLAN.md §7.1.
+# document-action queue worker (dist/src/worker.js, TODO.md item 22 — the compliance engine this
+# comment used to reference was removed by the pre-refonte demolition; this is its documents-module
+# equivalent) — no nginx, no frontend config, no migrations (those are API-only, handled inside
+# main.js via syncDatabaseSchema()). Default (unset or "api") keeps the existing combined
+# nginx+node backend below.
 if [ "${ROLE:-api}" = "worker" ]; then
-  echo "Starting compliance worker..."
+  echo "Starting document-action worker..."
   exec node worker.js
 fi
 

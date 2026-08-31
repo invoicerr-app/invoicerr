@@ -290,25 +290,33 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 								sent.status,
 								`facture réellement envoyée via le transport configuré — ${JSON.stringify(sent.body).slice(0, 220)}`,
 							).to.be.oneOf([200, 201]);
-							expect(
-								sent.body?.document?.status,
-								'la facture est maintenant "sent"',
-							).to.eq("sent");
+							// "send" est asynchrone (item 22, files d'attente) : cette réponse-ci n'est plus
+							// que la première moitié — draft -> "sending" — rendue aussitôt ; la livraison
+							// réelle (transport "email" réel, vrai Mailpit) est l'affaire du worker. Un
+							// `cy.request().its().should()` ne RE-DÉCLENCHERAIT PAS la requête pour attendre
+							// la suite — `cy.waitForDocumentStatus` poll réellement l'API jusqu'à "sent" (ou
+							// signale l'échec réel s'il en survient un).
+							cy.waitForDocumentStatus(
+								`${api}/api/documents/${id}?typeId=invoice`,
+								["sent", "send_failed"],
+							).then((doc) => {
+								expect(doc.status, 'la facture est maintenant "sent"').to.eq("sent");
 
-							cy.request({
-								method: "POST",
-								url: `${api}/api/documents/types/invoice/actions/export-accounting`,
-								body: { documentId: id, data: invoiceData },
-								failOnStatusCode: false,
-							}).then((res) => {
-								expect(
-									res.status,
-									`refusée — ${JSON.stringify(res.body).slice(0, 200)}`,
-								).to.eq(501);
-								expect(
-									String(res.body?.message ?? ""),
-									"le message nomme l'action et dit qu'elle n'a pas d'implémentation",
-								).to.match(/export-accounting/);
+								cy.request({
+									method: "POST",
+									url: `${api}/api/documents/types/invoice/actions/export-accounting`,
+									body: { documentId: id, data: invoiceData },
+									failOnStatusCode: false,
+								}).then((res) => {
+									expect(
+										res.status,
+										`refusée — ${JSON.stringify(res.body).slice(0, 200)}`,
+									).to.eq(501);
+									expect(
+										String(res.body?.message ?? ""),
+										"le message nomme l'action et dit qu'elle n'a pas d'implémentation",
+									).to.match(/export-accounting/);
+								});
 							});
 						});
 					});

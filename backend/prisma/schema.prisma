@@ -928,6 +928,17 @@ model DocumentInstance {
   number        Int?
   displayNumber String?
 
+  // The error from the most recent FAILED asynchronous action — see documents/queue/ (TODO item 22)
+  // and descriptors/lifecycle.ts's own comment on the "sending"/"send_failed" statuses a type with a
+  // "send" action declares. Set ONLY by queue/mark-send-failed.ts, once BullMQ has exhausted every
+  // retry for a document-action job; cleared (set back to null) by every ORDINARY write this
+  // instance goes through afterwards (`persistence.ts`'s `upsertDocument`, the same call "save-draft"
+  // and the first phase of "send" already make) — a stale failure from a PREVIOUS attempt must never
+  // linger next to a document that has since moved on. Never touched by a type with no "send" action
+  // at all (e.g. "expense") — nothing ever writes to this column for one. Visible on the document
+  // list and detail screens so a failed send is never a silent state only a server log knows about.
+  lastActionError String?
+
   // See DocumentPayment below (settlement/) — a payment is NOT a document type of its own (no
   // lifecycle, no draft, no send), only a record hanging off an existing document instance.
   payments DocumentPayment[]

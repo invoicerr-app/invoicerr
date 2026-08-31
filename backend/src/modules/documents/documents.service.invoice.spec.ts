@@ -58,8 +58,12 @@ function buildService(transportRegistry: TransportRegistry = new TransportRegist
   const fieldKindRegistry = new FieldKindRegistry();
   registerCoreFieldKinds(fieldKindRegistry);
 
+  // "send" is asynchronous (TODO.md item 22, actions/async-send.ts) — a fake dispatcher, no BullMQ,
+  // no Nest, no Redis needed.
+  const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+
   const actionRegistry = new ActionRegistry();
-  registerInvoiceActions(actionRegistry, { transportRegistry });
+  registerInvoiceActions(actionRegistry, { transportRegistry, queueDispatcher });
   // "record-payment" IS registered (invoice-actions.ts) — its own describe block below. "export-
   // accounting" is NOT, on purpose — see invoice.descriptor.ts.
 
@@ -75,7 +79,7 @@ function buildService(transportRegistry: TransportRegistry = new TransportRegist
     transportRegistry,
     new ContributionRegistry(),
   );
-  return { service };
+  return { service, queueDispatcher };
 }
 
 const validInvoiceData = {
@@ -500,12 +504,10 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       expect(persistence.upsertDocument).not.toHaveBeenCalled();
     });
 
-    it('delivers through the configured transport and marks the document "sent"', async () => {
+    it('phase 1: with a transport configured, persists "sending" and ENQUEUES — never calls the transport synchronously', async () => {
       (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
       const transportRegistry = new TransportRegistry();
-      const fakeTransport = {
-        send: jest.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' }),
-      };
+      const fakeTransport = { send: jest.fn() };
       transportRegistry.register('email', 'Email', fakeTransport);
 
       (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
@@ -519,13 +521,56 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       (persistence.upsertDocument as jest.Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
+        status: 'sending',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service, queueDispatcher } = buildService(transportRegistry);
+      const result = await service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      expect(result.changed).toBe(true);
+      expect(result.document).toMatchObject({ id: 'doc-1', status: 'sending' });
+      expect(fakeTransport.send).not.toHaveBeenCalled();
+      expect(queueDispatcher.enqueueAction).toHaveBeenCalledWith({
+        companyId: 'company-1',
+        typeId: 'invoice',
+        documentId: 'doc-1',
+        actionId: 'send',
+        payload: { data: validInvoiceData, params: {} },
+      });
+    });
+
+    it('phase 2 (the worker\'s replay, record already "sending"): delivers through the configured transport and marks the document "sent"', async () => {
+      (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
+      const transportRegistry = new TransportRegistry();
+      const fakeTransport = {
+        send: jest.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' }),
+      };
+      transportRegistry.register('email', 'Email', fakeTransport);
+
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
         status: 'sent',
         data: validInvoiceData,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
 
-      const { service } = buildService(transportRegistry);
+      const { service, queueDispatcher } = buildService(transportRegistry);
       const result = await service.runAction('company-1', 'invoice', 'send', {
         documentId: 'doc-1',
         data: validInvoiceData,
@@ -537,6 +582,31 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       expect(fakeTransport.send).toHaveBeenCalledWith(
         expect.objectContaining({ companyId: 'company-1', label: 'Invoice' }),
       );
+      expect(queueDispatcher.enqueueAction).not.toHaveBeenCalled();
+    });
+
+    it('phase 2: a transport that DISAPPEARED between enqueue and replay still 501s — never a silent skip', async () => {
+      // Re-resolved lazily inside `deliver()` (invoice-actions.ts's own comment on why) — a company
+      // could reconfigure (or lose) its transport between the first "send" call and the worker's
+      // later replay; this must refuse exactly as loudly as the preflight already does.
+      (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue(null);
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service } = buildService();
+      const action = service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      await expect(action).rejects.toBeInstanceOf(NotImplementedException);
+      expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
     });
 
     it('declares no params — there is no user-typed recipient, unlike the quote\'s "send"', () => {

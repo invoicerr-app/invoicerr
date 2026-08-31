@@ -73,7 +73,7 @@
 
 | # | Titre | Description |
 |---|---|---|
-| 22 | **Mode worker & files d'attente** | `worker.ts` et BullMQ supprimés. Nécessaire dès que les envois et les relances deviennent asynchrones (10). |
+| 22 ✅ | **Mode worker & files d'attente** (fait, 2026-08-31) | BullMQ recâblé (split Core/Module/Worker, `WORKER_INLINE`, `jobId` déterministe, Redis requis au boot) sur le modèle du repère. Job générique `(companyId, typeId, documentId, actionId, payload)` rejoué par `DocumentsService.runAction` — les quatre portes y compris côté worker. "send" devient asynchrone pour quote/invoice/credit-note : `draft/send_failed → sending → sent \| send_failed`, numéro pris en entrant dans `sending`. Item 5 (relances) réutilisera le même job. |
 | 23 | **Serveur MCP** | Module supprimé avec la démolition. |
 | 24 | **Liens publics de téléchargement** | `pdf-links` supprimé (partager une facture par lien). Dépend de 1. |
 | 25 ◐ | **Contributions manquantes** (contributions faites 2026-08-31 ; reste l'i18n des libellés) | Le dashboard n'a que la facture. « Les dépenses du mois », devis, avoir ; et l'i18n des libellés de descripteurs (données brutes aujourd'hui). |

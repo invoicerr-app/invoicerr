@@ -101,6 +101,22 @@ describe('resolveTransitionTarget', () => {
   it('returns undefined for an action that declares no transitions at all', () => {
     expect(resolveTransitionTarget(findAction(descriptor, 'annotate'), 'draft')).toBeUndefined();
   });
+
+  // The shape an asynchronous "send" needs (TODO item 22, documents/queue/): the SAME transition,
+  // from the SAME starting status, may honestly land on more than one outcome (delivery succeeds or,
+  // once every retry is exhausted, fails) — `to` is then an array, and this resolves to it VERBATIM
+  // (never collapsed to a single guess), so a caller can decide "is the actual status one of these".
+  it('resolves to an ARRAY of every allowed outcome when the transition declares more than one', () => {
+    const multiOutcome: DocumentActionTransition[] = [{ from: ['sending'], to: ['sent', 'send_failed'] }];
+    const action: DocumentActionDescriptor = {
+      id: 'send',
+      label: 'Send',
+      transitions: multiOutcome,
+      availableWhen: transitionsAvailableWhen(multiOutcome),
+    };
+
+    expect(resolveTransitionTarget(action, 'sending')).toEqual(['sent', 'send_failed']);
+  });
 });
 
 describe('validateLifecycle — boot-time coherence', () => {
@@ -170,6 +186,56 @@ describe('validateLifecycle — boot-time coherence', () => {
     });
 
     expect(() => validateLifecycle(broken)).toThrow(/not declared in "statuses"/);
+  });
+
+  describe('a transition with more than one honest outcome (`to` as an array)', () => {
+    it('accepts it once every one of its outcomes is a declared status', () => {
+      const multiOutcome: DocumentActionTransition[] = [
+        { from: ['draft'], to: 'sending' },
+        { from: ['sending'], to: ['sent', 'send_failed'] },
+      ];
+      const withSending = widgetDescriptor({
+        statuses: [
+          { id: 'draft', label: 'Draft' },
+          { id: 'sending', label: 'Sending' },
+          { id: 'sent', label: 'Sent' },
+          { id: 'send_failed', label: 'Send failed' },
+        ],
+        actions: [
+          {
+            id: 'send',
+            label: 'Send',
+            transitions: multiOutcome,
+            availableWhen: transitionsAvailableWhen(multiOutcome),
+          },
+        ],
+      });
+
+      expect(() => validateLifecycle(withSending)).not.toThrow();
+    });
+
+    it('fails as soon as ONE of the array outcomes is not a declared status', () => {
+      const multiOutcome: DocumentActionTransition[] = [
+        { from: ['sending'], to: ['sent', 'send_failed'] }, // "send_failed" never declared below
+      ];
+      const broken = widgetDescriptor({
+        statuses: [
+          { id: 'draft', label: 'Draft' },
+          { id: 'sending', label: 'Sending' },
+          { id: 'sent', label: 'Sent' },
+        ],
+        actions: [
+          {
+            id: 'send',
+            label: 'Send',
+            transitions: multiOutcome,
+            availableWhen: transitionsAvailableWhen(multiOutcome),
+          },
+        ],
+      });
+
+      expect(() => validateLifecycle(broken)).toThrow(/not declared in "statuses"/);
+    });
   });
 
   // Not just the pure function — the REAL wiring a descriptor actually goes through in production
@@ -273,7 +339,7 @@ describe('checkTransitionResult — request-time enforcement', () => {
       },
     );
 
-    expect(violation).toEqual({ expectedStatus: 'sent', actualStatus: 'archived' });
+    expect(violation).toEqual({ expectedStatuses: ['sent'], actualStatus: 'archived' });
   });
 
   it('an action with NO declared transition does not change status — passes when the handler leaves it alone', () => {
@@ -319,7 +385,7 @@ describe('checkTransitionResult — request-time enforcement', () => {
       },
     );
 
-    expect(violation).toEqual({ expectedStatus: 'sent', actualStatus: 'draft' });
+    expect(violation).toEqual({ expectedStatuses: ['sent'], actualStatus: 'draft' });
   });
 
   it("a brand-new record (no documentId before) must start at the type's own initialStatus", () => {
@@ -365,7 +431,7 @@ describe('checkTransitionResult — request-time enforcement', () => {
       },
     );
 
-    expect(violation).toEqual({ expectedStatus: 'draft', actualStatus: 'sent' });
+    expect(violation).toEqual({ expectedStatuses: ['draft'], actualStatus: 'sent' });
   });
 
   it('a DIFFERENT document (another id, same type) created as a side effect is checked against initialStatus too', () => {
@@ -429,6 +495,83 @@ describe('checkTransitionResult — request-time enforcement', () => {
     );
 
     expect(violation).toBeUndefined();
+  });
+
+  describe('a transition with more than one honest outcome (`to` as an array) — the async "send" shape', () => {
+    const multiOutcome: DocumentActionTransition[] = [
+      { from: ['draft'], to: 'sending' },
+      { from: ['sending'], to: ['sent', 'send_failed'] },
+    ];
+    const asyncSendDescriptor = widgetDescriptor({
+      statuses: [
+        { id: 'draft', label: 'Draft' },
+        { id: 'sending', label: 'Sending' },
+        { id: 'sent', label: 'Sent' },
+        { id: 'send_failed', label: 'Send failed' },
+      ],
+      actions: [
+        {
+          id: 'send',
+          label: 'Send',
+          transitions: multiOutcome,
+          availableWhen: transitionsAvailableWhen(multiOutcome),
+        },
+      ],
+    });
+    const sendAction = findAction(asyncSendDescriptor, 'send');
+
+    function resultAt(status: string) {
+      return {
+        changed: true,
+        document: {
+          id: 'doc-1',
+          typeId: 'widget',
+          status,
+          data: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      };
+    }
+
+    it('landing on EITHER declared outcome from the shared starting status is accepted — success', () => {
+      const violation = checkTransitionResult(
+        asyncSendDescriptor,
+        'widget',
+        sendAction,
+        'doc-1',
+        'sending',
+        resultAt('sent'),
+      );
+      expect(violation).toBeUndefined();
+    });
+
+    // THE mutation target #2 lives one layer up (queue/mark-send-failed.ts actually persisting
+    // "send_failed"), but the LIFECYCLE half of that guarantee is proven right here: this file's own
+    // job is only to confirm the declared transition genuinely ALLOWS this second outcome too.
+    it('landing on EITHER declared outcome from the shared starting status is accepted — the failure branch', () => {
+      const violation = checkTransitionResult(
+        asyncSendDescriptor,
+        'widget',
+        sendAction,
+        'doc-1',
+        'sending',
+        resultAt('send_failed'),
+      );
+      expect(violation).toBeUndefined();
+    });
+
+    it('a status OUTSIDE both declared outcomes is still caught, naming every status that WOULD have been accepted', () => {
+      const violation = checkTransitionResult(
+        asyncSendDescriptor,
+        'widget',
+        sendAction,
+        'doc-1',
+        'sending',
+        resultAt('draft'), // neither "sent" nor "send_failed"
+      );
+      expect(violation).toEqual({ expectedStatuses: ['sent', 'send_failed'], actualStatus: 'draft' });
+    });
   });
 
   it('is a no-op for a descriptor that never declares a lifecycle at all', () => {

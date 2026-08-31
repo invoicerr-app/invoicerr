@@ -118,13 +118,15 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    (see contributions/invoice-contributions.ts's own `invoiceTotal`, deliberately quantity×
  *    unitPrice only, "no VAT, no rounding rule invented on top").
  *
- * Numbering: `onEnterStatus: 'sent'` — an invoice receives its number the first time it leaves
- * "draft", the same rule the quote's own descriptor uses (see quote.descriptor.ts) and, deliberately,
- * still at ISSUANCE rather than at creation, exactly like the old, removed engine. What this does
- * NOT claim: sequential, GAPLESS, per-country invoice numbering is a LEGAL property some
- * jurisdictions attach to an issued invoice (see this file's own `invoice.save-draft` note in
- * country-policy/data/fr.json, and that file's top-level `notes`) — numbering/sequence.ts's own
- * mechanism never wastes a number, which reduces gap risk without asserting the legal claim itself.
+ * Numbering: `onEnterStatus: 'sending'` (TODO.md item 22 moved this from "sent" — see this file's own
+ * lifecycle paragraph below) — an invoice receives its number the moment it STARTS being sent, so the
+ * number is already on the record (and therefore on whatever PDF a transport attaches) before
+ * delivery is even attempted, deliberately still at ISSUANCE rather than at creation, exactly like
+ * the old, removed engine. What this does NOT claim: sequential, GAPLESS, per-country invoice
+ * numbering is a LEGAL property some jurisdictions attach to an issued invoice (see this file's own
+ * `invoice.save-draft` note in country-policy/data/fr.json, and that file's top-level `notes`) —
+ * numbering/sequence.ts's own mechanism never wastes a number, which reduces gap risk without
+ * asserting the legal claim itself.
  *
  * Actions: "save-draft" is implemented, built on the exact same generic mechanism the quote uses
  * (actions/generic-actions.ts). "send" is implemented too, but DELIBERATELY NOT the quote's mechanism
@@ -132,7 +134,9 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * ISSUING COMPANY's own configuration (TransportRegistry) rather than always being email. That is
  * also why, unlike the quote's "send", this action declares NO `params`: there is no user-typed
  * "recipient" here, because which transport runs — and what addressing it needs — is a company
- * setting, not something the person clicking "Send" types in on the spot.
+ * setting, not something the person clicking "Send" types in on the spot. Since item 22, "send" is
+ * also ASYNCHRONOUS (actions/async-send.ts) exactly like the quote's own — see this file's lifecycle
+ * paragraph below for the shape.
  *
  * "record-payment" is now IMPLEMENTED (actions/invoice-actions.ts) — payments (settlement/) landed
  * this task. Its `params` reuse the exact same field vocabulary a document's own `fields` use
@@ -152,13 +156,21 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * what they are worth for a given country, and that citation lives where the claim actually is: the
  * VAT rate catalog (vat-rates/data/fr.json), never repeated here.
  *
- * Lifecycle: two statuses, "draft" and "sent" — the only two any invoice handler ever writes today.
+ * Lifecycle: FOUR statuses — "draft", "sending", "sent", "send_failed" — grown from the original two
+ * by item 22, on the exact same model as the quote's own (see quote.descriptor.ts's lifecycle
+ * paragraph for the full design, actions/async-send.ts for the shared mechanism, and
+ * TODO_ISSUES.md for the "sent before delivery actually succeeded" limit this replaces).
  * "save-draft" (generic-actions.ts's registerSaveDraftAction) always persists "draft", from ANY
  * current status (`from: 'always'`) — faithful to the handler's actual, literal behavior, not an
- * invented rule. "send" (invoice-actions.ts) moves "draft" -> "sent". Both `availableWhen`s are
- * DERIVED from these transitions (lifecycle.ts's header).
+ * invented rule. "send" (invoice-actions.ts) now has the same two transition entries the quote's own
+ * does: "draft"/"send_failed" -> "sending" (the API's synchronous call — a fresh send or a retry),
+ * then "sending" -> "sent" OR "send_failed" (the worker's replay). `availableWhen` is DERIVED from
+ * BOTH (lifecycle.ts's header), so it includes "sending" too — see quote.descriptor.ts's own comment
+ * on why that is necessary for the worker, not an invitation for a human to re-click mid-flight.
  *
- * "record-payment" declares an explicit `availableWhen: ['sent']` and, DELIBERATELY, still NO
+ * "record-payment" declares an explicit `availableWhen: ['sent']` (deliberately UNCHANGED by item 22
+ * — a payment is only meaningful once the invoice has genuinely been delivered, never while it is
+ * still "sending" or after it "send_failed") and, DELIBERATELY, still NO
  * `transitions` — even though it is now implemented. A payment reaching (or exceeding) the invoice's
  * total does NOT flip the status to some invented "paid": the STATUS stays the declared lifecycle
  * (draft/sent), and the BALANCE (settlement/compute-settlement.ts's `computeSettlement`) is a
@@ -174,7 +186,10 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * handler behavior yet to declare a status effect for.
  */
 const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
-const SEND_TRANSITIONS: DocumentActionTransition[] = [{ from: ['draft'], to: 'sent' }];
+const SEND_TRANSITIONS: DocumentActionTransition[] = [
+  { from: ['draft', 'send_failed'], to: 'sending' },
+  { from: ['sending'], to: ['sent', 'send_failed'] },
+];
 
 /**
  * "record-payment"'s own params — the exact same field vocabulary the document's own `fields` use
@@ -245,10 +260,12 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
     label: 'Invoice',
     statuses: [
       { id: 'draft', label: 'Draft' },
+      { id: 'sending', label: 'Sending' },
       { id: 'sent', label: 'Sent' },
+      { id: 'send_failed', label: 'Send failed' },
     ],
     initialStatus: 'draft',
-    numbering: { onEnterStatus: 'sent' },
+    numbering: { onEnterStatus: 'sending' },
     // See types.ts's own comment on `DocumentTypeDescriptor.email`, and quote.descriptor.ts for the
     // same call on the sibling type — sober, plain-English default, overridable per company.
     email: {

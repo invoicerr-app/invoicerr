@@ -58,6 +58,7 @@ export function DocumentUpsertDialog({
           initialData={instance?.data}
           status={instance?.status}
           displayNumber={instance?.displayNumber}
+          lastActionError={instance?.lastActionError}
           onActionSuccess={onActionSuccess}
         />
       </DialogContent>

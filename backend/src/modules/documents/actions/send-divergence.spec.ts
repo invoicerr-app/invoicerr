@@ -30,6 +30,12 @@ jest.mock('./company-email-templates');
  * not just two functions that happen to produce the same result — so a future refactor that quietly
  * re-merges them makes THIS file go red. That is deliberate: the task that fixed this asked for
  * exactly that property.
+ *
+ * Both "send"s are now ASYNCHRONOUS (TODO.md item 22, actions/async-send.ts) — this file calls each
+ * type's registered handler directly (bypassing DocumentsService.runAction's own gates entirely, same
+ * as it always did), so every test here sets `findOwnedDocument`'s mock explicitly to whichever phase
+ * it means to exercise ("draft" for phase 1 — enqueue; "sending" for phase 2 — the worker's replay,
+ * which is where each type's own divergence — MailService vs. TransportRegistry — actually happens).
  */
 describe('quote "send" and invoice "send" do not share a path', () => {
   afterEach(() => jest.resetAllMocks());
@@ -41,8 +47,16 @@ describe('quote "send" and invoice "send" do not share a path', () => {
     lines: [{ description: 'Widget', quantity: 1, unit: 'unit', unitPrice: 10, vatRate: '20' }],
   };
 
-  it("the quote's send NEVER consults the company's transport configuration, and calls MailService directly", async () => {
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+  it("the quote's send NEVER consults the company's transport configuration, and (in phase 2) calls MailService directly", async () => {
+    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'sending',
+      data: documentData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'quote',
       status: 'sent',
@@ -72,12 +86,14 @@ describe('quote "send" and invoice "send" do not share a path', () => {
     const typeRegistry = new DocumentTypeRegistry();
     typeRegistry.register(buildQuoteDescriptor());
     const referenceRegistry = new EntityReferenceRegistry();
+    const queueDispatcher = { enqueueAction: jest.fn() };
     const registry = new ActionRegistry();
     registerQuoteActions(registry, {
       clientsService: clientsService as never,
       mailService: mailService as never,
       typeRegistry,
       referenceRegistry,
+      queueDispatcher,
     });
 
     const handler = registry.resolve('quote', 'send');
@@ -94,7 +110,15 @@ describe('quote "send" and invoice "send" do not share a path', () => {
   });
 
   it("the invoice's send NEVER calls MailService directly — it always goes through the company's chosen transport", async () => {
-    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'invoice',
+      status: 'sending',
+      data: documentData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'invoice',
       status: 'sent',
@@ -111,7 +135,7 @@ describe('quote "send" and invoice "send" do not share a path', () => {
     transportRegistry.register('fake-transport', 'Fake', fakeTransport);
 
     const registry = new ActionRegistry();
-    registerInvoiceActions(registry, { transportRegistry });
+    registerInvoiceActions(registry, { transportRegistry, queueDispatcher: { enqueueAction: jest.fn() } });
 
     const handler = registry.resolve('invoice', 'send');
     const result = await handler!({
@@ -128,8 +152,64 @@ describe('quote "send" and invoice "send" do not share a path', () => {
     expect(result.message).toBe('delivered by the fake transport');
   });
 
+  it('the quote (phase 1, "draft") persists "sending" and enqueues — never touches the transport registry either', async () => {
+    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'draft',
+      data: documentData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'sending',
+      data: documentData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const mailService = { sendMail: jest.fn() };
+    const clientsService = { getClientById: jest.fn() };
+    const typeRegistry = new DocumentTypeRegistry();
+    typeRegistry.register(buildQuoteDescriptor());
+    const referenceRegistry = new EntityReferenceRegistry();
+    const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+    const registry = new ActionRegistry();
+    registerQuoteActions(registry, {
+      clientsService: clientsService as never,
+      mailService: mailService as never,
+      typeRegistry,
+      referenceRegistry,
+      queueDispatcher,
+    });
+
+    const handler = registry.resolve('quote', 'send');
+    await handler!({
+      companyId: 'company-1',
+      typeId: 'quote',
+      documentId: 'doc-1',
+      data: documentData,
+      params: { recipient: 'client@example.com' },
+    });
+
+    expect(mailService.sendMail).not.toHaveBeenCalled();
+    expect(queueDispatcher.enqueueAction).toHaveBeenCalledWith(
+      expect.objectContaining({ typeId: 'quote', actionId: 'send' }),
+    );
+  });
+
   it('the invoice BLOCKS with a clear 501 when the company has configured NO transport — never a silent fallback to email', async () => {
     (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue(null);
+    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'invoice',
+      status: 'draft',
+      data: documentData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
 
     const transportRegistry = new TransportRegistry();
     // Registering "email" here on purpose: even when a transport DOES exist in the registry, an
@@ -138,7 +218,7 @@ describe('quote "send" and invoice "send" do not share a path', () => {
     transportRegistry.register('email', 'Email', { send: jest.fn() });
 
     const registry = new ActionRegistry();
-    registerInvoiceActions(registry, { transportRegistry });
+    registerInvoiceActions(registry, { transportRegistry, queueDispatcher: { enqueueAction: jest.fn() } });
 
     const handler = registry.resolve('invoice', 'send');
     const action = handler!({
@@ -156,9 +236,20 @@ describe('quote "send" and invoice "send" do not share a path', () => {
 
   it('the invoice BLOCKS just as clearly when it is configured for a transport nobody registered', async () => {
     (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('long-since-removed');
+    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'invoice',
+      status: 'draft',
+      data: documentData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
 
     const registry = new ActionRegistry();
-    registerInvoiceActions(registry, { transportRegistry: new TransportRegistry() });
+    registerInvoiceActions(registry, {
+      transportRegistry: new TransportRegistry(),
+      queueDispatcher: { enqueueAction: jest.fn() },
+    });
 
     const handler = registry.resolve('invoice', 'send');
     const action = handler!({
@@ -183,8 +274,12 @@ describe('quote "send" and invoice "send" do not share a path', () => {
       mailService: mailService as never,
       typeRegistry: new DocumentTypeRegistry(),
       referenceRegistry: new EntityReferenceRegistry(),
+      queueDispatcher: { enqueueAction: jest.fn() },
     });
-    registerInvoiceActions(registry, { transportRegistry: new TransportRegistry() });
+    registerInvoiceActions(registry, {
+      transportRegistry: new TransportRegistry(),
+      queueDispatcher: { enqueueAction: jest.fn() },
+    });
 
     expect(registry.resolveParamsDefaults('quote', 'send')).toBeDefined();
     expect(registry.resolveParamsDefaults('invoice', 'send')).toBeUndefined();

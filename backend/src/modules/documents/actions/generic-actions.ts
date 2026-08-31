@@ -1,11 +1,7 @@
 import { ClientsService } from '@/modules/clients/clients.service';
-import { MailService } from '@/mail/mail.service';
 
-import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import { deleteDocument, upsertDocument } from '../persistence';
-import { EntityReferenceRegistry } from '../references/reference-registry';
 import { ActionRegistry } from './action-registry';
-import { sendDocumentInstanceEmail } from './send-document-email';
 
 /**
  * "save-draft": persist `data` under status "draft", creating a new instance the first time this
@@ -46,22 +42,23 @@ export function registerDeleteAction(registry: ActionRegistry, typeId: string): 
 }
 
 /**
- * The QUOTE's OWN send-by-email mechanism — NOT a generic "how any document type sends" mechanism,
- * even though it lives in this "generic-actions.ts" file and even though its shape (a registry, a
- * typeId parameter) looks exactly as reusable as `registerSaveDraftAction` above. It used to be
- * shared with the invoice; that was the mistake this file's own history proves needs a guard against
- * repeating: an invoice's transport depends on the ISSUING COMPANY's own configuration (see
- * transports/transport-registry.ts and actions/invoice-actions.ts), never a default the framework
- * silently reaches for. A quote sending by email, unconditionally, is that type's OWN nature — a
- * design decision quote.descriptor.ts states plainly, not a fallback.
+ * The QUOTE's OWN "recipient" params-default resolver — NOT a generic "how any document type sends"
+ * mechanism, even though it lives in this "generic-actions.ts" file and even though its shape (a
+ * registry, a typeId parameter) looks exactly as reusable as `registerSaveDraftAction` above. What it
+ * pre-fills (a typed "recipient" param) used to be paired with this file's own `registerEmailSendAction`
+ * — the quote's unconditional, synchronous email send — which item 22 (TODO.md) replaced with the
+ * asynchronous two-phase shape every type with a "send" now shares (actions/async-send.ts); see
+ * quote-actions.ts for where "send" itself is registered today. This resolver survives that change
+ * UNCHANGED: pre-filling a typed recipient from the document's own client has nothing to do with
+ * whether the actual delivery is synchronous or queued.
  *
- * BEFORE reusing `registerEmailSendAction`/`registerEmailRecipientDefaultFromClient` for a new
- * document type: ask whether that type's delivery is genuinely, unconditionally "always email" the
- * way the quote's is — a signed quote going to one known counterparty by email is a defensible
- * default. The moment delivery could plausibly depend on configuration, jurisdiction, or a company
- * setting, it needs its own mechanism reading that configuration (invoice-actions.ts is the template
- * for that shape), not this one. documents.service.spec.ts's "quote and invoice use a different send
- * path" coverage is the test that is meant to go red the day this guidance is ignored.
+ * BEFORE reusing this for a new document type: ask whether that type's delivery is genuinely,
+ * unconditionally "always email" the way the quote's is — a signed quote going to one known
+ * counterparty by email is a defensible default. The moment delivery could plausibly depend on
+ * configuration, jurisdiction, or a company setting, it needs its own mechanism reading that
+ * configuration (invoice-actions.ts is the template for that shape), not this one.
+ * documents.service.spec.ts's "quote and invoice use a different send path" coverage is the test that
+ * is meant to go red the day this guidance is ignored.
  */
 export function registerEmailRecipientDefaultFromClient(
   registry: ActionRegistry,
@@ -73,50 +70,5 @@ export function registerEmailRecipientDefaultFromClient(
     if (!clientId) return {};
     const client = await clientsService.getClientById(companyId, clientId);
     return client?.contactEmail ? { recipient: client.contactEmail } : {};
-  });
-}
-
-/** Everything `registerEmailSendAction` needs to compose and deliver the email — see
- *  actions/send-document-email.ts's own header for the full "compose PDF + template + send"
- *  contract this is handed to unchanged. */
-export interface EmailSendActionDeps {
-  mailService: MailService;
-  typeRegistry: DocumentTypeRegistry;
-  referenceRegistry: EntityReferenceRegistry;
-}
-
-/**
- * Registers "send" as an unconditional email — see `registerEmailRecipientDefaultFromClient`'s
- * comment above for which document types this is actually appropriate for (the quote; deliberately
- * NOT the invoice). `label` (e.g. "Quote") is plain data used only for the confirmation message and
- * (via the email template's `{typeLabel}`) the subject — the same convention
- * DocumentTypeDescriptor.label already follows, not an i18n key.
- *
- * The actual email — PDF attached, subject/body from the type's (or company-overridden) template —
- * is composed by `sendDocumentInstanceEmail` (send-document-email.ts), shared with the invoice's
- * "email" transport; see that function's own header for the numbering-pulled-forward and
- * PDF-failure-fails-loudly behavior this action inherits by calling it.
- */
-export function registerEmailSendAction(
-  registry: ActionRegistry,
-  typeId: string,
-  label: string,
-  deps: EmailSendActionDeps,
-): void {
-  registry.register(typeId, 'send', async ({ companyId, documentId, data, params }) => {
-    // `params.recipient` is already validated (required, non-empty text) by DocumentsService.runAction
-    // before this handler ever runs — same trust boundary "save-draft" already has for `data`.
-    const recipient = params.recipient as string;
-    const document = await upsertDocument(companyId, typeId, documentId, 'sent', data);
-
-    const { message } = await sendDocumentInstanceEmail(deps, {
-      companyId,
-      typeId,
-      document,
-      recipient,
-      label,
-    });
-
-    return { document, changed: true, message };
   });
 }

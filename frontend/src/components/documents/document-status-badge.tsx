@@ -17,10 +17,14 @@ import { cn } from "@/lib/utils"
 type Tone = "neutral" | "info" | "success" | "warning" | "destructive"
 
 // Order matters: the first pattern to match wins, so a more specific word (e.g. "overdue") should
-// stay ahead of a broader one it could also satisfy.
+// stay ahead of a broader one it could also satisfy. "sending" (the async "send" mechanism's own
+// in-flight status, TODO.md item 22) is matched by "warning" ALONGSIDE "pending" — both mean "not
+// yet settled, something is actively in progress" — deliberately BEFORE "destructive"'s own "fail"
+// pattern would otherwise be reached, even though "send_failed" (a genuinely different status) is
+// correctly caught by that "fail" pattern regardless of this one's own position.
 const TONE_PATTERNS: [Tone, RegExp][] = [
   ["destructive", /cancel|reject|refus|fail|void|error/i],
-  ["warning", /overdue|pending|await|review/i],
+  ["warning", /overdue|pending|await|review|sending/i],
   ["success", /paid|sign|accept|clear|complete|approved|settl/i],
   ["info", /sent|issued|submit|transmit|progress/i],
   ["neutral", /draft/i],
@@ -41,8 +45,12 @@ const TONE_CLASSES: Record<Tone, string> = {
   destructive: "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300",
 }
 
+// Generic — never keyed to any one status name: a snake_case id (e.g. "send_failed", the async
+// "send" mechanism's own failure status, TODO.md item 22) reads as space-separated words, the same
+// way a plain one-word status already did before this case existed.
 function capitalize(value: string): string {
-  return value.length > 0 ? value[0].toUpperCase() + value.slice(1) : value
+  const spaced = value.replace(/_/g, " ")
+  return spaced.length > 0 ? spaced[0].toUpperCase() + spaced.slice(1) : spaced
 }
 
 interface DocumentStatusBadgeProps {

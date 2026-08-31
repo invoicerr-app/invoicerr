@@ -2950,7 +2950,8 @@
         "actionSuccess": "Done.",
         "actionError": "Something went wrong running this action."
       },
-      "newTitle": "New: {{label}}"
+      "newTitle": "New: {{label}}",
+      "transitionOr": "or"
     },
     "list": {
       "title": "Saved",
@@ -2981,7 +2982,9 @@
         "fallbackTitle": "{{label}} #{{id}}"
       },
       "downloadPdf": "Download PDF",
-      "downloadPdfError": "The PDF could not be generated."
+      "downloadPdfError": "The PDF could not be generated.",
+      "processing": "Processing…",
+      "lastActionError": "Last error: {{message}}"
     },
     "custom": {
       "invoicePreview": {

@@ -192,7 +192,17 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
     }
   }
 
-  const availableActions = descriptor.actions.filter((action) => isActionAvailable(action, instance.status))
+  // "sending" is the generic queue-processing status the async "send" mechanism introduces (TODO.md
+  // item 22, actions/async-send.ts on the backend) — not a per-document-type name, a property of the
+  // record itself: something is actively in flight for it, driven by the worker, not by a further
+  // click here. Hiding the declared action buttons while it lasts is what keeps the worker's own
+  // replay of "send" (which the record's `availableWhen` MUST include for the 409 gate to pass —
+  // see quote.descriptor.ts's own comment on why) from also being a button a human could click a
+  // second time mid-flight and race the queue.
+  const isProcessing = instance.status === "sending"
+  const availableActions = isProcessing
+    ? []
+    : descriptor.actions.filter((action) => isActionAvailable(action, instance.status))
   const CustomExtra = getDocumentCustomComponent(descriptor.id, "list-row-extra")
   // A disabled <button> (Button's own `disabled:pointer-events-none`, see ui/button.tsx) never
   // receives a REAL hover at all — the `tooltip` prop below still opens it for a keyboard/
@@ -236,6 +246,15 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
 
         {CustomExtra && <CustomExtra descriptor={descriptor} instance={instance} />}
 
+        {isProcessing && (
+          <span
+            className="px-2 text-xs text-muted-foreground"
+            data-cy={`document-row-processing-${instance.id}`}
+          >
+            {t("documents.list.processing")}
+          </span>
+        )}
+
         {availableActions.map((action) => (
           <Button
             key={action.id}
@@ -267,6 +286,19 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
           data-cy={`document-row-blocked-reason-${instance.id}`}
         >
           {t("documents.form.actionBlockedByPolicy", { reason: blockedReason })}
+        </p>
+      )}
+
+      {instance.lastActionError && (
+        // Never a silent failure (TODO.md item 22, TODO_ISSUES.md's own entry on the limit this
+        // replaces): a "send_failed" document names WHY, right here, not only in a server log.
+        // Generic — reads whatever the backend recorded, on ANY status, never a per-type branch.
+        <p
+          className="line-clamp-2 max-w-[220px] whitespace-normal text-right text-xs text-destructive"
+          title={instance.lastActionError}
+          data-cy={`document-row-last-error-${instance.id}`}
+        >
+          {t("documents.list.lastActionError", { message: instance.lastActionError })}
         </p>
       )}
 

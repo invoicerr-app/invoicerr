@@ -110,11 +110,18 @@ export function validateLifecycle(descriptor: DocumentTypeDescriptor): void {
   for (const action of descriptor.actions) {
     if (action.transitions) {
       for (const transition of action.transitions) {
-        if (!statusSet.has(transition.to)) {
-          throw new Error(
-            `Document type "${descriptor.id}", action "${action.id}": a transition targets status ` +
-              `"${transition.to}", which is not declared in "statuses" (${statusIds.join(', ')}).`,
-          );
+        // `to` may be a single status or, for a transition with more than one honest outcome (see
+        // `DocumentActionTransition.to`'s own comment — an async "send" that either succeeds or,
+        // after every retry, fails), every status it may land on — every one of them must be a
+        // status this type actually declares, the same as the single-string case always required.
+        const targets = Array.isArray(transition.to) ? transition.to : [transition.to];
+        for (const target of targets) {
+          if (!statusSet.has(target)) {
+            throw new Error(
+              `Document type "${descriptor.id}", action "${action.id}": a transition targets status ` +
+                `"${target}", which is not declared in "statuses" (${statusIds.join(', ')}).`,
+            );
+          }
         }
         if (transition.from !== 'always') {
           for (const from of transition.from) {
@@ -151,18 +158,20 @@ export function validateLifecycle(descriptor: DocumentTypeDescriptor): void {
 }
 
 /**
- * The status a transition-bearing action's own declared effect says a record starting at
- * `fromStatus` (undefined = brand new, never saved) must end up at. Undefined when `action` declares
- * no `transitions` at all, or when none of them matches `fromStatus` — the latter should never
- * actually happen for any status `availableWhen` allows (that's exactly what `validateLifecycle`
- * checks at boot), but this function stays a plain, independent lookup rather than trusting that
- * check ran: the same "a handler never trusts the 409 guard alone" discipline this module's own
- * action handlers already hold (see e.g. duplicate-extension.ts).
+ * The status (or, for a transition declaring more than one honest outcome — see
+ * `DocumentActionTransition.to`'s own comment — every status) a transition-bearing action's own
+ * declared effect says a record starting at `fromStatus` (undefined = brand new, never saved) must
+ * end up at. Undefined when `action` declares no `transitions` at all, or when none of them matches
+ * `fromStatus` — the latter should never actually happen for any status `availableWhen` allows
+ * (that's exactly what `validateLifecycle` checks at boot), but this function stays a plain,
+ * independent lookup rather than trusting that check ran: the same "a handler never trusts the 409
+ * guard alone" discipline this module's own action handlers already hold (see e.g.
+ * duplicate-extension.ts).
  */
 export function resolveTransitionTarget(
   action: DocumentActionDescriptor,
   fromStatus: string | undefined,
-): string | undefined {
+): string | string[] | undefined {
   if (!action.transitions) return undefined;
   for (const transition of action.transitions) {
     if (transition.from === 'always') return transition.to;
@@ -171,22 +180,30 @@ export function resolveTransitionTarget(
   return undefined;
 }
 
-/** What `checkTransitionResult` reports when a handler's write does not match the lifecycle. */
+/** What `checkTransitionResult` reports when a handler's write does not match the lifecycle. Plural
+ *  because a transition can legitimately allow more than one outcome (see `resolveTransitionTarget`)
+ *  — a violation names every status that WOULD have been acceptable, not just one. */
 export interface LifecycleViolation {
-  expectedStatus: string;
+  expectedStatuses: string[];
   actualStatus: string;
 }
 
 /**
  * Checked by documents.service.ts's runAction right after a handler returns — the ENFORCEMENT half
- * of this whole module: a handler no longer gets to persist whatever status string it likes.
+ * of this whole module: a handler no longer gets to persist whatever status string it likes. Also
+ * called OUTSIDE runAction, from the exact same place a handler's own write would otherwise land: the
+ * document-action queue's terminal-failure path (queue/mark-send-failed.ts) calls this too, once
+ * BullMQ has exhausted every retry for an async "send" — the worker never gets to persist
+ * "send_failed" without this same check confirming the type's OWN lifecycle actually allows it from
+ * wherever the record was. "Checked in two places, by the SAME function" is what keeps this
+ * enforcement one mechanism rather than a synchronous half and an unchecked asynchronous half.
  *
  *  - No document in the result, or a document of a DIFFERENT type: out of scope for THIS type's
  *    lifecycle — mirrors how field validation already never inspects a foreign write (see
  *    convert-to-invoice.ts's own comment on why the invoice it creates is never validated against
  *    the quote descriptor that triggered it).
  *  - The result's document IS `documentIdBefore` (the SAME record this action acted on): its status
- *    must equal whatever `resolveTransitionTarget` says for `statusBefore` — or, if the action
+ *    must be ONE OF whatever `resolveTransitionTarget` says for `statusBefore` — or, if the action
  *    declares no transition at all, whatever it already was (an action with no declared status
  *    effect may not silently give itself one).
  *  - Otherwise, a BRAND-NEW record of this SAME type was created (a first "save", or a third-party
@@ -210,12 +227,14 @@ export function checkTransitionResult(
   if (!doc || doc.typeId !== typeId) return undefined;
 
   const isSameRecord = documentIdBefore !== undefined && doc.id === documentIdBefore;
-  const expected = isSameRecord
+  const expectedRaw = isSameRecord
     ? (resolveTransitionTarget(action, statusBefore) ?? statusBefore)
     : descriptor.initialStatus;
 
-  if (expected === undefined || expected === doc.status) return undefined;
-  return { expectedStatus: expected, actualStatus: doc.status };
+  if (expectedRaw === undefined) return undefined;
+  const expected = Array.isArray(expectedRaw) ? expectedRaw : [expectedRaw];
+  if (expected.includes(doc.status)) return undefined;
+  return { expectedStatuses: expected, actualStatus: doc.status };
 }
 
 /**

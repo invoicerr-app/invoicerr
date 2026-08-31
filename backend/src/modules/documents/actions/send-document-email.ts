@@ -34,47 +34,50 @@ export interface SendDocumentEmailResult {
 
 /**
  * Sends ONE document instance by email WITH its PDF attached — the shared core behind the quote's
- * own unconditional "send" (generic-actions.ts's `registerEmailSendAction`) and the invoice's "email"
- * transport (transports/email-transport.ts). Neither caller is merged into the other by this: each
- * still decides ON ITS OWN whether/how it is even reachable (the quote always emails; the invoice
- * only gets here if the company chose the "email" transport — see invoice-actions.ts) and, most
+ * own unconditional "send" (quote-actions.ts) and the invoice's "email" transport
+ * (transports/email-transport.ts). Neither caller is merged into the other by this: each still
+ * decides ON ITS OWN whether/how it is even reachable (the quote always emails; the invoice only
+ * gets here if the company chose the "email" transport — see invoice-actions.ts) and, most
  * importantly, WHO the recipient is (`input.recipient` — typed by the user for the quote, resolved
  * from the client's contact email for the invoice). Only the "compose + attach + send" mechanics
  * below are actually shared — see actions/send-divergence.spec.ts for the guardrail proving the two
  * callers still never share an ADDRESSING or transport decision.
  *
- * ## Numbering, pulled forward
+ * ## Numbering — a defensive fallback, not the primary mechanism anymore
  *
- * `documents.service.ts`'s `runAction` normally takes a document's number ONLY AFTER an action
- * handler returns (see its own comment there: it needs to know the handler's ACTUAL status
- * transition first, generically, for every action of every type). The filename and the
- * `{displayNumber}` template placeholder this function builds need the number at SEND time, not
- * after — so when this type is numbered on entering the status `input.document` already carries, and
- * it has not been numbered yet, this function takes the number itself, calling the exact same
- * `takeDocumentNumberForTransition` `runAction` would otherwise call on its own. Safe to do from here
- * too: `takeDocumentNumber` (numbering/sequence.ts) is a DB-level "number IS NULL" guard — once THIS
- * call sets it, `runAction`'s own post-handler check (`result.document.number == null`) is false and
- * it skips its own call entirely. No number is ever taken twice, none is ever wasted.
+ * Before TODO.md item 22 (the async-send queue), a type's `numbering.onEnterStatus` was the SAME
+ * status "send" delivered to synchronously, so this function had to pull the number FORWARD itself
+ * (documents.service.ts's `runAction` only numbers a document AFTER its handler returns). Since item
+ * 22, `onEnterStatus` is "sending" (see e.g. quote.descriptor.ts) and BOTH callers (actions/async-send.ts's
+ * `runAsyncSendAction`) only ever invoke this function once the record is ALREADY "sending" — meaning
+ * `runAction`'s own post-handler numbering hook already ran, on the FIRST ("sending") call, strictly
+ * before this SECOND call (the actual delivery) is even reachable. In the normal flow `document` is
+ * therefore always already numbered by the time this guard is checked, and it is a no-op. It is kept,
+ * deliberately, as a defensive fallback — never load-bearing, but harmless (`takeDocumentNumberForTransition`
+ * is itself a DB-level "number IS NULL" guard, so calling it on an already-numbered document is
+ * inert) — for any caller that reaches this function DIRECTLY, outside `runAsyncSendAction` entirely
+ * (send-quote.live.spec.ts does exactly that, against a pre-numbered document, to keep this function's
+ * own coverage independent of the action-registry wiring).
  *
  * ## PDF failure — fails LOUDLY, never a silent send without the attachment
  *
  * If `renderDocumentInstance` throws (e.g. Puppeteer unavailable), this function does NOT catch it
  * and fall back to sending a bare email: the error propagates straight out, `mailService.sendMail` is
- * NEVER called, and the caller's whole "send" action fails with the render engine's own message. A
+ * NEVER called, and the caller's whole delivery attempt fails with the render engine's own message. A
  * commercial email promising a document with no document actually attached is a worse failure mode
  * than a delayed one — the same "blocked, and says so" discipline invoice-actions.ts already holds
  * for a missing transport. See actions/send-document-email.spec.ts's "a PDF failure never sends a
  * bare email" coverage — mocking `renderDocumentInstance` itself (the entry point this function calls
  * into), never this function's own internals, so the test cannot pass for the wrong reason.
  *
- * The one known, accepted gap this leaves: `input.document` is handed to this function ALREADY
- * written to its new status (both callers persist it via `upsertDocument` first, unchanged from
- * before this task) — a PDF failure here does not roll that back, so the record can be left "sent"
- * (and, if numbering ran first, numbered) with no message ever delivered. This is not a NEW gap: the
- * exact same order (persist "sent", THEN attempt delivery) already existed before this task for a
- * plain `mailService.sendMail` failure — see this file's own git history. Actually rolling it back
- * would need a transactional or "pending" intermediate status this branch's lifecycle model does not
- * have today; recorded here rather than silently accepted.
+ * This propagated error is also exactly what item 22's queue was BUILT to catch: this function is only
+ * ever called from `runAsyncSendAction`'s `deliver` closure (actions/async-send.ts), which never
+ * catches this error either — it propagates all the way out to BullMQ, which retries per its own
+ * backoff and, once every attempt is exhausted, leaves the record "send_failed" with the error
+ * recorded (queue/mark-send-failed.ts) rather than a "sent" document nobody ever received. This is the
+ * fix for the gap this comment used to document here (TODO_ISSUES.md's own entry on it) — no longer
+ * something this function's own header needs to carry, since the record is no longer written "sent"
+ * until delivery has genuinely succeeded (see async-send.ts's own header for the full sequencing).
  */
 export async function sendDocumentInstanceEmail(
   deps: SendDocumentEmailDeps,

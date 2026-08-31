@@ -26,6 +26,12 @@ export interface DocumentInstanceResult {
    *  `numbering` at all), never cleared or reassigned afterward. */
   number?: number | null;
   displayNumber?: string | null;
+  /** See `DocumentInstance.lastActionError`'s own schema comment — the error from the most recent
+   *  FAILED asynchronous action (queue/mark-send-failed.ts), or null/undefined once cleared by any
+   *  later write. Absent from a result that never re-reads this column (most action handlers don't
+   *  need to) — never assume its absence means "no error", only that this particular result didn't
+   *  carry it. */
+  lastActionError?: string | null;
 }
 
 /**

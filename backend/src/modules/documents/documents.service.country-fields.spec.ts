@@ -67,7 +67,10 @@ function buildService() {
 
   const transportRegistry = new TransportRegistry();
   const actionRegistry = new ActionRegistry();
-  registerInvoiceActions(actionRegistry, { transportRegistry });
+  registerInvoiceActions(actionRegistry, {
+    transportRegistry,
+    queueDispatcher: { enqueueAction: jest.fn() },
+  });
 
   return new DocumentsService(
     typeRegistry,

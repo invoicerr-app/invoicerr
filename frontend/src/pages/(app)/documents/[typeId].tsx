@@ -28,8 +28,41 @@ export default function DocumentTypePage() {
 
   // undefined = the dialog is closed; null = creating a brand-new draft; a DocumentInstance = editing
   // that one. The list already hands over each instance's FULL `data` (see the backend's
-  // listDocuments, which selects everything), so editing never needs a second fetch.
+  // listDocuments, which selects everything), so editing never needs a second fetch. This is a
+  // SNAPSHOT, taken once when "Edit" is clicked — deliberately never re-derived from `instances` on
+  // its own, so a background refetch (the async "send" mechanism's own polling, TODO.md item 22)
+  // never silently overwrites field values the user may still be editing in the open form.
   const [dialogTarget, setDialogTarget] = useState<DocumentInstance | null | undefined>(undefined)
+
+  // The LIVE record for whichever instance the dialog is open on — read from the SAME query cache
+  // `instances` already is (useDocumentInstances' own `refetchInterval`, which keeps polling while
+  // ANY instance is "sending"). Only `status`/`displayNumber`/`lastActionError` are taken from it
+  // (see `dialogInstance` below) — never `data`, for the reason `dialogTarget`'s own comment gives.
+  // This is what makes the dialog's own action buttons (e.g. "record-payment", only offered once an
+  // invoice is genuinely "sent") and its error banner follow the record while it stays open, instead
+  // of freezing at whatever the record looked like the moment "Edit" was clicked.
+  const liveDialogTarget = dialogTarget
+    ? instances.find((instance) => instance.id === dialogTarget.id)
+    : undefined
+  // The choice below is per-RECORD, not per-field: when `liveDialogTarget` exists, its three fields
+  // are taken AS-IS, `null` included — a live `lastActionError: null` is INFORMATION (a re-send just
+  // cleared it; see backend/src/modules/documents/persistence.ts's own comment: any ordinary write,
+  // including the "sending" write a re-send starts with, resets it to null) rather than "no value,
+  // fall back to the snapshot". A per-field `??` here would let a null LIVE error keep falling through
+  // to `dialogTarget`'s frozen one, showing a dead "send_failed" message next to a record that has
+  // already reached "sent". `dialogTarget` is only ever used whole, as the fallback for the other
+  // case — no live record at all (the instance isn't in this page's own `instances`, e.g. it belongs
+  // to a different type after a cross-type action) — which is the entire reason this fallback exists.
+  const dialogInstance: DocumentInstance | undefined = dialogTarget
+    ? liveDialogTarget
+      ? {
+          ...dialogTarget,
+          status: liveDialogTarget.status,
+          displayNumber: liveDialogTarget.displayNumber,
+          lastActionError: liveDialogTarget.lastActionError,
+        }
+      : dialogTarget
+    : undefined
 
   usePageHeader(descriptor?.label ?? typeId)
 
@@ -86,7 +119,7 @@ export default function DocumentTypePage() {
           descriptor={descriptor}
           open
           onOpenChange={(open) => !open && setDialogTarget(undefined)}
-          instance={dialogTarget ?? undefined}
+          instance={dialogInstance}
           onActionSuccess={handleActionSuccess}
         />
       )}

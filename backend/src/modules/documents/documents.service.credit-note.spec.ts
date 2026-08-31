@@ -43,8 +43,13 @@ function buildService() {
   const fieldKindRegistry = new FieldKindRegistry();
   registerCoreFieldKinds(fieldKindRegistry);
 
+  // "send" is asynchronous (TODO.md item 22, actions/async-send.ts) for every type that has one,
+  // credit-note included — see credit-note.descriptor.ts's own header on why, even though this
+  // type's own `deliver` does nothing at all. A fake dispatcher: no BullMQ, no Nest, no Redis.
+  const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+
   const actionRegistry = new ActionRegistry();
-  registerCreditNoteActions(actionRegistry);
+  registerCreditNoteActions(actionRegistry, { queueDispatcher });
 
   const service = new DocumentsService(
     typeRegistry,
@@ -55,7 +60,7 @@ function buildService() {
     new TransportRegistry(),
     new ContributionRegistry(),
   );
-  return { service };
+  return { service, queueDispatcher };
 }
 
 /** A minimal, already-saved invoice a credit note can correct — its "lines" carry the stable
@@ -108,11 +113,54 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     expect(descriptor.actions.map((a) => a.id)).toEqual(['save-draft', 'send']);
   });
 
-  it('"send" is a plain draft -> sent transition — real, via runAction, no params, no email', async () => {
+  it('"send" (phase 1): draft -> sending, enqueued — no params, no email, no delivery yet', async () => {
+    // A single shared mock, exploited the same way the rest of this file already does: runAction's
+    // own status gate-check, the row-selection cross-check against the referenced invoice, AND
+    // async-send.ts's own re-read of the credit note ALL call `findOwnedDocument` — none of them
+    // reads `.typeId` off what comes back, only `.status`/`.data`, so one fixture (status "draft")
+    // serves every purpose here, exactly like the pre-existing coverage already relied on.
     (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
       invoiceDocument('invoice-doc-1', ['line-1']),
     );
     (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      id: 'cn-1',
+      typeId: 'credit-note',
+      status: 'sending',
+      data: validCreditNoteData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service, queueDispatcher } = buildService();
+    const result = await service.runAction('company-1', 'credit-note', 'send', {
+      documentId: 'cn-1',
+      data: validCreditNoteData,
+    });
+
+    expect(result.changed).toBe(true);
+    expect(result.document).toMatchObject({ id: 'cn-1', status: 'sending' });
+    expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      'company-1',
+      'credit-note',
+      'cn-1',
+      'sending',
+      validCreditNoteData,
+    );
+    expect(queueDispatcher.enqueueAction).toHaveBeenCalledWith({
+      companyId: 'company-1',
+      typeId: 'credit-note',
+      documentId: 'cn-1',
+      actionId: 'send',
+      payload: { data: validCreditNoteData, params: {} },
+    });
+  });
+
+  it('"send" (phase 2 — the worker\'s replay): "sending" -> "sent", nothing to deliver, never re-enqueued', async () => {
+    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      ...invoiceDocument('invoice-doc-1', ['line-1']),
+      status: 'sending',
+    });
+    (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
       id: 'cn-1',
       typeId: 'credit-note',
       status: 'sent',
@@ -121,7 +169,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
       updatedAt: new Date(),
     });
 
-    const { service } = buildService();
+    const { service, queueDispatcher } = buildService();
     const result = await service.runAction('company-1', 'credit-note', 'send', {
       documentId: 'cn-1',
       data: validCreditNoteData,
@@ -129,13 +177,8 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
 
     expect(result.changed).toBe(true);
     expect(result.document).toMatchObject({ id: 'cn-1', status: 'sent' });
-    expect(persistence.upsertDocument).toHaveBeenCalledWith(
-      'company-1',
-      'credit-note',
-      'cn-1',
-      'sent',
-      validCreditNoteData,
-    );
+    expect(persistence.updateDocumentStatus).toHaveBeenCalledWith('company-1', 'credit-note', 'cn-1', 'sent');
+    expect(queueDispatcher.enqueueAction).not.toHaveBeenCalled();
   });
 
   it('"send" is not offered before the credit note has ever been saved — 409, like any other status-gated action', async () => {

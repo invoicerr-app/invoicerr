@@ -35,7 +35,10 @@ function buildService() {
 
   const transportRegistry = new TransportRegistry();
   const actionRegistry = new ActionRegistry();
-  registerInvoiceActions(actionRegistry, { transportRegistry });
+  registerInvoiceActions(actionRegistry, {
+    transportRegistry,
+    queueDispatcher: { enqueueAction: jest.fn() },
+  });
 
   const actionExtensionRegistry = new ActionExtensionRegistry();
   const referenceRegistry = new EntityReferenceRegistry();
@@ -231,8 +234,14 @@ describe('DocumentsService.runAction — composed with the country policy', () =
       expect(saveDraft?.policyBlockedReason).toBeUndefined();
       expect(send?.policyBlockedReason).toBe('forbidden for "ZZ"');
       // The underlying declared shape (label, availableWhen, …) is untouched — this is an ADDITIVE
-      // annotation, never a rewrite of the descriptor's own data.
-      expect(send).toMatchObject({ id: 'send', label: 'Send', availableWhen: ['draft'] });
+      // annotation, never a rewrite of the descriptor's own data. `availableWhen` now includes
+      // "send_failed"/"sending" too (TODO.md item 22's async two-phase "send" — see
+      // invoice.descriptor.ts's own SEND_TRANSITIONS), not just "draft".
+      expect(send).toMatchObject({
+        id: 'send',
+        label: 'Send',
+        availableWhen: ['draft', 'send_failed', 'sending'],
+      });
     });
   });
 });

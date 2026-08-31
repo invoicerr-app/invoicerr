@@ -12,6 +12,7 @@ import { CompanyModule } from './modules/company/company.module';
 import { ConfigModule } from '@nestjs/config';
 import { DangerModule } from './modules/danger/danger.module';
 import { DocumentsModule } from './modules/documents/documents.module';
+import { DocumentsQueueWorkerModule } from './modules/documents/queue/document-queue-worker.module';
 import { HealthModule } from './modules/health/health.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { MailService } from './mail/mail.service';
@@ -23,6 +24,22 @@ import { SireneModule } from './modules/sirene/sirene.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { LoggerModule } from './modules/logger/logger.module';
 import { auth } from './lib/auth';
+
+/**
+ * `DocumentsModule` (via `DocumentsCoreModule`) always imports the document-action queue's
+ * enqueue-capable half (`DocumentQueueModule`, `@Global()`) — the API process can always ENQUEUE a
+ * job, and Redis being required to boot at all (see `DocumentQueueRedisRequiredGuard`) applies
+ * regardless of this flag. What THIS flag gates is only whether the API process ALSO CONSUMES —
+ * imports `DocumentsQueueWorkerModule`, the processors themselves (TODO.md item 22, on the exact
+ * model the pre-refonte compliance engine used for its own `WORKER_INLINE`, git tag
+ * `avant-refonte-documents`).
+ *
+ * Default `true` (inline/mono): a single-container deployment (docker-compose.yml) needs no separate
+ * worker process for a document's "send" to actually leave the queue. Set `WORKER_INLINE=false` in a
+ * scaled ("giga") deployment (docker-compose.scale.yml) so the API only enqueues and dedicated
+ * `ROLE=worker` container(s) (worker.ts) are the only ones consuming — avoiding double-processing.
+ */
+const workerInline = process.env.WORKER_INLINE !== 'false';
 
 @Module({
   imports: [
@@ -48,17 +65,13 @@ import { auth } from './lib/auth';
     CompanyLookupModule,
     DangerModule,
     DocumentsModule,
+    ...(workerInline ? [DocumentsQueueWorkerModule] : []),
     PluginsModule,
     WebhooksModule,
     InvitationsModule,
     HealthModule,
     PrismaModule,
     LoggerModule,
-    // QueueModule is always imported so the API can *enqueue* (via ComplianceQueueDispatcher)
-    // imported when WORKER_INLINE !== 'false' (default: inline/mono) — NestJS only instantiates
-    // `@Processor()` classes reachable from an imported module, so gating this import gates
-    // consumption. In a scaled ("giga") deployment the API sets WORKER_INLINE=false and only the
-    // avoiding double-consumption. See QUEUE_IMPL_PLAN.md §5.5 / Décision 4.
   ],
   controllers: [],
   providers: [

@@ -23,25 +23,38 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * draft INVOICE for N% of this quote's own total, the same "acts on a quote, writes an invoice"
  * shape convert-to-invoice already has, sharing that skeleton via actions/quote-to-invoice.ts).
  *
- * Lifecycle: two statuses, "draft" and "sent" — the only two a quote's own handlers ever write
- * (actions/generic-actions.ts, actions/quote-actions.ts). "save-draft" is faithful to what
- * `registerSaveDraftAction` actually does: it persists "draft" REGARDLESS of the record's current
- * status (even from "sent" — this is the literal, if slightly surprising, behavior the handler
- * already had before this file's own `transitions` existed to name it), hence `from: 'always'`.
- * "send" moves "draft" -> "sent" (registerEmailSendAction). Both `availableWhen`s below are DERIVED
- * from these same transitions (see lifecycle.ts's header) rather than hand-typed a second time.
+ * Lifecycle: FOUR statuses — "draft", "sending", "sent", "send_failed" (grown from the original two
+ * by TODO.md item 22: the async-send mechanism, actions/async-send.ts — see its own header for the
+ * full design and TODO_ISSUES.md for the "sent before the email actually left" limit it replaces).
+ * "save-draft" is faithful to what `registerSaveDraftAction` actually does: it persists "draft"
+ * REGARDLESS of the record's current status (even from "sent" — the literal, if slightly surprising,
+ * behavior the handler already had before this file's own `transitions` existed to name it), hence
+ * `from: 'always'`. "send" now has TWO transition entries, not one:
+ *  - "draft"/"send_failed" -> "sending": the API's own synchronous call (a fresh send, or a retry —
+ *    a retry IS this same action, not a separate mechanism);
+ *  - "sending" -> "sent" OR "send_failed": the worker's REPLAY of this same action (see
+ *    queue/processors/document-action.processor.ts), which is why `to` is an ARRAY here — the same
+ *    invocation can honestly land on either outcome, and `checkTransitionResult` (lifecycle.ts)
+ *    accepts either. `availableWhen` below is DERIVED from BOTH entries (lifecycle.ts's header), so
+ *    it now includes "sending" too — necessary for the worker's replay to pass the same 409 gate a
+ *    human click would, not an invitation for a human to click it a second time mid-flight (the
+ *    frontend hides an in-flight record's own action buttons — document-list.tsx).
  * "convert-to-invoice" and "request-deposit" declare NO transition: neither ever changes the QUOTE's
  * own status — each one's entire effect is a brand-new INVOICE elsewhere (convert-to-invoice.ts,
  * request-deposit.ts) — so their `availableWhen` stays its own explicit, hand-declared fact, exactly
  * as it was for "convert-to-invoice" before this cycle mechanism existed.
  *
- * Numbering: `onEnterStatus: 'sent'` — a quote receives its number the first time it leaves "draft",
- * exactly like the old, removed engine numbered at issuance, not at creation (see numbering/ for the
- * full mechanism). "draft" -> "sent" is the ONLY transition this type's own lifecycle has, so this is
- * unambiguous: draft quotes stay unnumbered, however many times they are re-saved.
+ * Numbering: `onEnterStatus: 'sending'` (moved here from "sent" by item 22) — a quote receives its
+ * number the moment it starts being sent, not once delivery actually succeeds, so the number is
+ * already on the record (and therefore on the PDF) by the time `deliver()` ever runs — see
+ * numbering/ for the full mechanism. `number` is never cleared once set: a "send_failed" retry
+ * re-enters "sending" with the SAME number, never a fresh one (no gap, no duplicate).
  */
 const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
-const SEND_TRANSITIONS: DocumentActionTransition[] = [{ from: ['draft'], to: 'sent' }];
+const SEND_TRANSITIONS: DocumentActionTransition[] = [
+  { from: ['draft', 'send_failed'], to: 'sending' },
+  { from: ['sending'], to: ['sent', 'send_failed'] },
+];
 
 export function buildQuoteDescriptor(): DocumentTypeDescriptor {
   return {
@@ -49,10 +62,12 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
     label: 'Quote',
     statuses: [
       { id: 'draft', label: 'Draft' },
+      { id: 'sending', label: 'Sending' },
       { id: 'sent', label: 'Sent' },
+      { id: 'send_failed', label: 'Send failed' },
     ],
     initialStatus: 'draft',
-    numbering: { onEnterStatus: 'sent' },
+    numbering: { onEnterStatus: 'sending' },
     // See types.ts's own comment on `DocumentTypeDescriptor.email` — sober, plain-English default,
     // overridable per company. `recipientName` resolves from `client` below (the field the ONLY
     // 'reference' field targeting the "client" entity on this type — see
