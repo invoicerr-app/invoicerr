@@ -286,6 +286,10 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         '{totalGross}.\n\n' +
         'Best regards,\n{companyName}',
     },
+    // Root TODO item 15 ("mentions obligatoires") — see types.ts's own comment on this flag. BG-1
+    // (EN 16931's mentions block) is an invoice concept; the invoice is the first, and today the
+    // only, type that opts in.
+    usesLegalMentions: true,
     // See contributions/invoice-contributions.ts for the implementation — the first real one written
     // for this mechanism, and the model for any other type's own. Both locations, so it demonstrates
     // the small widget vocabulary on both.

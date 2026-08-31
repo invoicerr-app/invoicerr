@@ -107,6 +107,24 @@ export interface DocumentTypeDescriptor {
    * silently-borrowed default.
    */
   email?: DocumentEmailTemplate;
+  /**
+   * Root TODO item 15 ("mentions obligatoires") — opts this type into the country-mandated-mentions
+   * mechanism (`mentions/`): `rendering/render-instance-pdf.ts` resolves the seller's own country and
+   * this instance's own `issueDate` field ONLY when this flag is set, and passes the result to
+   * `rendering/render-html.ts`'s own `legalMentions` block. EN 16931's BG-1 (the mentions' natural
+   * home in the CII/UBL export — `formats/semantic/build-semantic-invoice.ts`) is an INVOICE concept;
+   * this flag is what keeps that same country-is-data mechanism from being wired, unconditionally,
+   * into a document type that has no `issueDate` field at all (e.g. "expense") or where a per-line
+   * VAT rate has a different meaning entirely — the exact same "no business code names a document
+   * type" discipline `usesVatRateCatalog` already holds for a FIELD, scaled to a document TYPE.
+   * Declared here (not inferred from the presence of an `issueDate` field) because a type could
+   * plausibly track an issue date without being one this country's law actually addresses.
+   *
+   * Only `invoice.descriptor.ts` sets this today. Absent (the default for every other type,
+   * including third-party ones) means exactly what it always meant before this flag existed: no
+   * mentions block, ever — the existing PDF of every other document type is byte-for-byte unchanged.
+   */
+  usesLegalMentions?: boolean;
 }
 
 /** One document type's default (or company-overriding) EMAIL template — see

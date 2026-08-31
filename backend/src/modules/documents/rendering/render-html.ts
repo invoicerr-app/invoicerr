@@ -145,6 +145,15 @@ function renderFieldValue(
   }
 }
 
+/** One country-mandated mention to print in the footer block — see `RenderDocumentHtmlInput.legalMentions`.
+ *  `legalRef` is deliberately UNUSED by the renderer below: it is carried so a reader of the DATA can
+ *  check it, never surfaced on the document itself — the same convention
+ *  `mentions/invoice-notes.ts#ResolvedInvoiceNote` already documents at its own source. */
+export interface RenderableLegalMention {
+  text: string;
+  legalRef: string;
+}
+
 export interface RenderDocumentHtmlInput {
   descriptor: DocumentTypeDescriptor;
   instance: {
@@ -167,6 +176,20 @@ export interface RenderDocumentHtmlInput {
   };
   referenceLabels: Record<string, string>;
   totals?: DocumentTotals;
+  /**
+   * Root TODO item 15 ("mentions obligatoires") — the country-mandated mentions to print in their
+   * OWN footer block, resolved by the caller (`render-instance-pdf.ts`, gated on
+   * `descriptor.usesLegalMentions`) from the seller's country and this instance's own issue date.
+   * Absent or empty prints NO block at all — not an empty framed section, nothing (see this file's
+   * own `renderDocumentHtml`) — so a country with no mentions, or a document type that never opts
+   * in, produces byte-for-byte the same HTML this function always produced.
+   *
+   * Deliberately a SEPARATE parameter from the descriptor's own `fields` loop below, never folded
+   * into the document's user-editable `notes` field: mixing the two would let a user delete or edit
+   * a mention whose absence is an administrative offence — this is a fact about a JURISDICTION, not
+   * about this one document instance.
+   */
+  legalMentions?: RenderableLegalMention[];
 }
 
 /**
@@ -335,6 +358,16 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       color: #e65100;
       margin-bottom: 4px;
     }
+    .legal-mentions {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid #ddd;
+    }
+    .legal-mention-item {
+      font-size: 11px;
+      color: #555;
+      margin-bottom: 4px;
+    }
   </style>
 </head>
 <body>
@@ -430,6 +463,20 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
     html += `
     </div>
 `;
+  }
+
+  // Root TODO item 15 ("mentions obligatoires") — its OWN footer block, never mixed into the fields
+  // loop above (see this parameter's own doc comment on `RenderDocumentHtmlInput.legalMentions`). A
+  // country with no mentions, or a document type that never opts in, gets NOTHING here — not an
+  // empty framed section, no `<div class="legal-mentions">` at all.
+  if (input.legalMentions && input.legalMentions.length > 0) {
+    html += `
+    <div class="legal-mentions">
+`;
+    for (const mention of input.legalMentions) {
+      html += `      <div class="legal-mention-item">${escapeHtmlSafe(mention.text)}</div>\n`;
+    }
+    html += `    </div>\n`;
   }
 
   html += `

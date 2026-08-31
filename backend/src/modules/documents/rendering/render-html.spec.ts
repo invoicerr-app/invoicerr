@@ -532,4 +532,118 @@ describe('renderDocumentHtml', () => {
       expect(html).not.toContain('no number yet');
     });
   });
+
+  // Root TODO item 15 ("mentions obligatoires") — reprises the repère's own
+  // `legal-mentions-pdf.spec.ts` intent (git tag `avant-refonte-documents`), adapted to this generic
+  // renderer: the mentions come in as a plain `legalMentions` array (already resolved for a date by
+  // `mentions/invoice-notes.ts` — this file has no opinion on WHERE they came from), and the only
+  // thing under test here is how the HTML PRESENTS them.
+  describe('legal mentions (root TODO item 15)', () => {
+    const invoiceDescriptor: DocumentTypeDescriptor = {
+      id: 'invoice',
+      label: 'Invoice',
+      fields: [{ key: 'notes', kind: 'longText', label: 'Notes' }],
+      actions: [],
+      usesLegalMentions: true,
+    };
+
+    const THREE_FR_MENTIONS = [
+      { text: 'Escompte pour paiement anticipé : néant', legalRef: 'C. com. art. L441-9' },
+      {
+        text: "Tout retard de paiement entraîne des pénalités au taux de 12,40 % l'an.",
+        legalRef: 'C. com. art. L441-10 II',
+      },
+      {
+        text: 'En cas de retard de paiement, une indemnité forfaitaire pour frais de recouvrement de 40 € est due.',
+        legalRef: 'C. com. art. L441-10, D441-5',
+      },
+    ];
+
+    it('prints every mention handed to it, in a dedicated block', () => {
+      const html = renderDocumentHtml({
+        descriptor: invoiceDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        legalMentions: THREE_FR_MENTIONS,
+      });
+
+      expect(html).toContain('class="legal-mentions"');
+      expect(html).toContain('40 €');
+      expect(html).toContain('12,40 %');
+      expect(html).toContain('Escompte pour paiement anticipé : néant');
+    });
+
+    it('legalRef is carried as data but never printed on the document itself', () => {
+      const html = renderDocumentHtml({
+        descriptor: invoiceDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        legalMentions: THREE_FR_MENTIONS,
+      });
+
+      expect(html).not.toContain('L441-9');
+      expect(html).not.toContain('D441-5');
+    });
+
+    it('sits in its own block, never mixed into the user’s own "notes" field — deleting a note must never delete a legal mention', () => {
+      const html = renderDocumentHtml({
+        descriptor: invoiceDescriptor,
+        instance: { ...baseInstance, data: { notes: 'Merci de votre confiance.' } },
+        company: baseCompany,
+        referenceLabels: {},
+        legalMentions: THREE_FR_MENTIONS,
+      });
+
+      expect(html.indexOf('Merci de votre confiance.')).toBeLessThan(html.indexOf('class="legal-mentions"'));
+    });
+
+    it('a country/type with no mentions prints no block at all — not an empty frame, nothing', () => {
+      const htmlEmpty = renderDocumentHtml({
+        descriptor: invoiceDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        legalMentions: [],
+      });
+      const htmlAbsent = renderDocumentHtml({
+        descriptor: invoiceDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(htmlEmpty).not.toContain('class="legal-mentions"');
+      expect(htmlAbsent).not.toContain('class="legal-mentions"');
+    });
+
+    it('a document type that never declares `usesLegalMentions` renders byte-for-byte the same whether or not a caller mistakenly passes mentions', () => {
+      const plainDescriptor: DocumentTypeDescriptor = {
+        id: 'expense',
+        label: 'Expense',
+        fields: [],
+        actions: [],
+      };
+      const withoutMentions = renderDocumentHtml({
+        descriptor: plainDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+      });
+      // renderDocumentHtml itself has no opinion on `usesLegalMentions` — that gate lives in the
+      // CALLER (render-instance-pdf.ts#legalMentionsFor). This test documents that boundary: were a
+      // caller to pass mentions anyway, this pure function would still print them, exactly as
+      // instructed — the flag is enforced once, upstream, not re-checked here.
+      const ifCallerMisusedIt = renderDocumentHtml({
+        descriptor: plainDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        legalMentions: THREE_FR_MENTIONS,
+      });
+      expect(withoutMentions).not.toContain('class="legal-mentions"');
+      expect(ifCallerMisusedIt).toContain('class="legal-mentions"');
+    });
+  });
 });

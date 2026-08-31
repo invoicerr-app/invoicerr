@@ -44,7 +44,10 @@ import { PDFDocument } from 'pdf-lib';
 
 import { buildInvoiceDescriptor } from '../../descriptors/invoice.descriptor';
 import { buildSemanticInvoice, SemanticPartyInput } from '../../formats/semantic/build-semantic-invoice';
-import { splitCiiIncludedNotes } from '../../formats/semantic/cii-post-process';
+import {
+  splitCiiIncludedNotes,
+  splitCiiIncludedNotesInObject,
+} from '../../formats/semantic/cii-post-process';
 import { newEuInvoiceService } from '../../formats/shared-build';
 import { validateStructural } from '../../formats/structural-check';
 import { EN16931_CII_SCH, validateSchematron } from '../../formats/vendored/validate-schematron';
@@ -161,6 +164,13 @@ describeLive('PDP live round-trip (superpdp sandbox) — Factur-X deposit accept
       format: 'Factur-X-EN16931',
       pdf: { buffer: hostPdfBytes, filename: `INV-LIVE-${timestamp}.pdf`, mimetype: 'application/pdf' },
       lang: 'en',
+      // Mirrors `facturx-provider.ts`'s own embed call EXACTLY (this spec's whole point is to run
+      // the real production recipe by hand — see this file's own header) — found NECESSARY by this
+      // very spec, live, once root TODO item 15 ("mentions obligatoires") started emitting more than
+      // one BG-1 note for a French seller: without it, superpdp's own conformity check rejects the
+      // deposit (`fr:213`) citing every mention "absente", with "Element 'ram:Content' must occur
+      // exactly 1 times" underneath — `splitCiiIncludedNotesInObject`'s own header has the full story.
+      postProcessor: async (data) => splitCiiIncludedNotesInObject(data as Record<string, unknown>),
     })) as Uint8Array;
     expect(Buffer.from(facturxPdf.slice(0, 5)).toString()).toBe('%PDF-');
     console.log('Factur-X PDF built, bytes:', facturxPdf.length);

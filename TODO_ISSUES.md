@@ -109,14 +109,28 @@
      formats. `explicitEndpointFor()`'s own header.
 
   Reste NOMMÉ de cette vague : le dépôt réussit sur l'ACCUSÉ (`api:uploaded`, identifiant non vide,
-  prouvé en réel — `transports/pdp/pdp.live.spec.ts`), jamais suivi au-delà. Un poll manuel effectué
-  pendant cette tâche (hors contrat, informationnel) a montré un `fr:213 Rejetée` quelques centaines
-  de ms après le dépôt, pour des raisons DÉJÀ documentées à l'ancien repère (mentions obligatoires
-  BG-1 : frais de recouvrement/pénalités de retard/escompte — items 15 ; BT-23 cadre de facturation
-  français, logique déjà écrite dans `business-process.ts` mais jamais branchée par pays — items
-  11/12) : ni une régression de cette tâche, ni quelque chose que le contrat de la vague 1 promettait
-  de résoudre. Construire le POLLER lui-même (l'ancien moteur avait un `InboxPoller`) est un chantier
-  à part, non commencé ici.
+  prouvé en réel — `transports/pdp/pdp.live.spec.ts`), jamais suivi au-delà. Construire le POLLER
+  lui-même (l'ancien moteur avait un `InboxPoller`) est un chantier à part, non commencé ici.
+
+  **MISE À JOUR (item 15, 2026-08-31) — les mentions BG-1 sont désormais émises, et le poll
+  informationnel a changé de motif exactement comme prévu.** Le `fr:213 Rejetée` observé par un poll
+  manuel pendant la vague 1 citait DEUX causes distinctes : les trois mentions BG-1 absentes (item 15,
+  résolu par `documents/mentions/`) et BT-23 cadre de facturation (item 12, `business-process.ts`,
+  toujours non branché — voir l'entrée dédiée ci-dessous). Une fois item 15 posé, le MÊME poll
+  informationnel ne cite plus QUE BT-23 — les trois mentions ont bien disparu du motif de rejet, la
+  preuve que ce dépôt exigeait. Un TROISIÈME bug réel trouvé par ce même poll, cette fois propre à
+  item 15 : `facturx-provider.ts` (et `pdp.live.spec.ts`'s own manual recipe) demandent à
+  `@e-invoice-eu/core` de RÉGÉNÉRER le CII en interne pour l'embarquage Factur-X, une copie que le
+  correctif texte `splitCiiIncludedNotes` (appliqué au CII "plat" que le gate structurel+Schematron
+  juge) n'atteint jamais — documenté comme "gap réel mais jamais atteint" tant que ce pont n'émettait
+  jamais plus d'une note, et RÉELLEMENT atteint dès qu'un vendeur français a porté trois mentions plus
+  sa propre note. Corrigé par `splitCiiIncludedNotesInObject` (`semantic/cii-post-process.ts`), câblé
+  via `InvoiceServiceOptions.postProcessor` — le point d'extension PUBLIC de la librairie (appelé sur
+  l'objet intermédiaire juste avant le rendu XML), jamais une resérialisation maison. Preuve OFFLINE
+  ajoutée (`facturx-provider.spec.ts`, extraction du CII embarqué via `pdf-lib`'s `decodePDFRawStream`
+  + le VRAI gate structurel+Schematron) : ce test échoue sans le correctif (vérifié en le retirant
+  temporairement) et passe avec. BT-23 reste le seul point ouvert de ce dépôt — item 12, pas 15 (voir
+  ci-dessous pourquoi le brancher n'est délibérément PAS fait ici).
 
 - **BT-151 (catégorie de TVA) : seules S et Z sont atteignables aujourd'hui** (item 12) : EN 16931
   distingue six catégories (S, Z, E, AE, K, G, O), chacune avec des exigences contradictoires (voir
@@ -139,6 +153,16 @@
   avec quelles valeurs, est l'item 11 (« canal imposé par pays ») ou 15 (« mentions obligatoires »),
   pas celui-ci — le descripteur `invoice.descriptor.ts` est délibérément sans pays, il n'a rien sur
   quoi conditionner ce branchement aujourd'hui.
+
+  **CONFIRMÉ hors du périmètre de l'item 15** (2026-08-31, en le faisant) : l'item 15 (mentions
+  obligatoires, BG-1/BT-21/BT-22) est fait et prouvé en direct — voir plus haut. Une fois BG-1 posé,
+  le poll informationnel post-dépôt PDP ne cite plus QUE BT-23 : c'est la preuve, en direct, que BT-23
+  est un fait DISTINCT (un code de cadre de facturation, pas une mention textuelle) que le mécanisme
+  de l'item 15 (données pays → texte de note, avec placeholders temporels) ne pouvait pas et ne
+  devait pas absorber sans sortir de son propre mandat. Reste donc entièrement le remainder de l'item
+  12, pour qui voudrait le prendre : dériver `SupplyType` par ligne (le descripteur n'a aucun champ
+  pour ça aujourd'hui — biens/services/mixte n'est PAS le même fait qu'un `unit` de ligne) est le vrai
+  travail, pas le branchement lui-même.
 
 - **Un vrai bug trouvé en testant contre le vrai serveur, pas contre un fixture à la main** (item
   12) : la première version du pont passait `data.issueDate` tel quel à `@e-invoice-eu/core` ; tous
@@ -188,3 +212,49 @@
      la forme `correction` que ce mode attendait (une facture rectificative FA(3) enverrait donc
      aujourd'hui une facture "VAT" ordinaire, jamais "KOR"). Item 6/8 (avoirs/lettrage) ou une future
      tâche FA(3) dédiée, pas celle-ci.
+
+- **Item 15 (mentions obligatoires) — chargement FICHIER, jamais base, choix délibéré et
+  documenté** (2026-08-31) : `documents/mentions/` suit EXACTEMENT le motif de
+  `transports/channel-policy/` (jamais celui de `country-policy/`, qui SEED une table) — un fichier
+  JSON par pays (`data/fr.json`), lu par `fs.readFileSync` au chargement du module (jamais `import`é
+  comme module TS, pour qu'éditer un taux reste un changement de DONNÉE, jamais un changement TS), et
+  RE-LU à chaque résolution (aucune table `InvoiceMention`, aucun `resetAndSeed` à tenir à jour). Deux
+  raisons, les mêmes que `channel-policy/registry.ts`'s own header donne déjà : (1) une mention se lit
+  à CHAQUE construction de document (CII/UBL/PDF), donc autant lire le fichier directement — pas de
+  cas de performance par-requête à protéger comme celui que `country-policy/`'s propre table
+  (countryCode, typeId, actionId) résout ; (2) pas de trou de reseed à surveiller, l'écueil que la
+  propre note de `country-policy/` sur ce sujet (ci-dessus, "`resetAndSeed` ne re-sème pas la
+  politique pays") existe pour prévenir. Une mention sans `legalRef` échoue au chargement — même
+  discipline que `channel-policy/schema.ts#assertValidChannelPolicyFact` pour un `mandated` sans
+  provenance `legal`.
+
+- **Item 15 — personnalisation société (taux stipulé, vrai escompte) : NON FAITE, par choix explicite
+  du brief lui-même** (2026-08-31) : les trois mentions FR sont TOUTES `statutory: true` — la loi
+  fournit le taux supplétif et l'indemnité de 40 €, et la formulation "néant" de l'escompte est celle
+  de la doctrine administrative (F31808), donc rien à demander à l'utilisateur pour ÉMETTRE ces trois
+  mentions d'office (le cœur de l'item). Offrir un champ société explicite qui REMPLACERAIT une valeur
+  par défaut (un taux stipulé différent du supplétif, un escompte réel) est resté hors de cette tâche
+  : cela toucherait le schéma Prisma de `Company` (un ou deux champs de plus), le formulaire de
+  réglages société, sa traduction i18n, ET la logique de résolution (une valeur société doit primer
+  sur le texte par défaut à la RÉSOLUTION, jamais à l'affichage seul) — plus d'une heure de travail
+  honnête pour un besoin qui n'a encore été exprimé par personne. Le mécanisme actuel (interpolation
+  par `{placeholder}`, valeurs temporelles) est déjà prêt à recevoir une TROISIÈME source de valeur
+  (société, prioritaire sur le tableau daté) le jour où ce besoin existe — voir `invoice-notes.ts`'s
+  own `resolveInvoiceNotes`, qui n'aurait qu'un paramètre de plus à accepter, jamais une réécriture.
+
+- **Un troisième bug réel trouvé EN FAISANT l'item 15, jamais anticipé par `TODO_ISSUES.md`
+  lui-même** (2026-08-31) : `facturx-provider.ts`'s propre en-tête documentait déjà, à l'item 10, un
+  "gap réel mais jamais atteint" — le correctif texte `splitCiiIncludedNotes` (`cii-provider.ts`) ne
+  s'applique jamais à la régénération CII INTERNE que `@e-invoice-eu/core` fait pour l'embarquage
+  Factur-X, invisible tant qu'aucun vendeur n'émettait plus d'une note BG-1. L'item 15 en émet
+  jusqu'à quatre pour un vendeur français (trois mentions + la note utilisateur) — le gap est devenu
+  RÉEL, prouvé par un vrai rejet superpdp (`fr:213`, les trois mentions citées "absentes" alors
+  qu'elles étaient bien dans l'`EuInvoice`) avant d'être trouvé par un test. Corrigé par
+  `splitCiiIncludedNotesInObject` (`semantic/cii-post-process.ts`), câblé via
+  `InvoiceServiceOptions.postProcessor` — le point d'extension PUBLIC de `@e-invoice-eu/core` (appelé
+  sur l'objet JS intermédiaire juste avant le rendu XML, vérifié directement contre la dépendance
+  vendorée, jamais supposé depuis sa documentation). Preuve OFFLINE ajoutée
+  (`facturx-provider.spec.ts`, extraction du CII embarqué via `pdf-lib`'s propre
+  `decodePDFRawStream` + le VRAI gate structurel+Schematron) : retirer le `postProcessor` fait tomber
+  ce test (vérifié en le retirant, puis en le restaurant) — un futur régression sur ce point échouerait
+  donc ici, offline, avant d'atteindre un vrai dépôt.

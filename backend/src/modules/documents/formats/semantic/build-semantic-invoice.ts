@@ -38,9 +38,16 @@
  *    into this bridge's input today: adding it is a one-line change once a caller has a reason to
  *    (BT-9 is optional at the base layer, so this is a completeness gap, never a validity one).
  *  - BT-22 Invoice note / BG-1         → `cbc:Note`                        (the document's own `notes`
- *    field, verbatim; no country legal-mentions resolver is wired here — that machinery
- *    (`compliance/profiles/invoice-notes.ts`) was removed with the old engine and its replacement is
- *    item 15, "mentions obligatoires", not this ticket)
+ *    field, verbatim, FOLLOWED by one entry per country-mandated mention the seller's country
+ *    requires — root TODO item 15, "mentions obligatoires". Resolved by `../../mentions/invoice-
+ *    notes.ts#resolveInvoiceNotes` against `sellerCountryCode` (below) and the document's own
+ *    `issueDate` — NEVER `new Date()`, so a re-generated export of an old invoice still carries the
+ *    rate that was in force when it was ISSUED, not the one in force today (`mentions/schema.ts`'s
+ *    own header on why). Each mention is encoded `#CODE#text` (`toUblNote`) so BT-21 (the UNTDID 4451
+ *    subject code — PMT/PMD/AAB for France) survives both syntaxes: UBL keeps it as the note's own
+ *    prefix, and CII's `splitCiiIncludedNotes` (below) recovers it into a genuine `ram:SubjectCode`.
+ *    A seller in a country with no mentions file gets exactly what this bridge always emitted:
+ *    `input.notes` alone, or nothing at all.)
  *  - BT-24 Specification identifier    → `cbc:CustomizationID` = 'urn:cen.eu:en16931:2017' (fixed —
  *    this bridge builds EXACTLY the base EN 16931 profile, never Peppol BIS or XRechnung)
  *  - BT-27 Seller name                 → `cac:AccountingSupplierParty/.../cbc:RegistrationName`
@@ -130,6 +137,8 @@ import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { getIdentifier } from '@/utils/entity-identifiers';
 
 import { DocumentTotals } from '../../totals/compute-totals';
+import { resolveInvoiceNotes, toUblNote } from '../../mentions/invoice-notes';
+import { defaultMentionsCatalog } from '../../mentions/registry';
 import { unitCodeFor } from './unit-code';
 
 export class SemanticBuildError extends Error {}
@@ -302,6 +311,17 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
   const buyerCountryCode = guessCountryCode(input.buyer.country ?? undefined) ?? 'FR';
   const isFrenchSeller = sellerCountryCode === 'FR';
 
+  // Root TODO item 15 ("mentions obligatoires") — resolved against the SAME `sellerCountryCode` the
+  // rest of this bridge already uses (including its own documented fallback-to-FR for an
+  // unresolvable seller country, see this file's own header on BT-35-BT-40): a mention is a fact
+  // about the SELLER's own jurisdiction, never the buyer's. `input.issueDate` is a plain "yyyy-mm-dd"
+  // string (`SemanticInvoiceInput`'s own doc comment) — `new Date(...)` parses it at midnight UTC,
+  // the exact instant the mention must be frozen to, never the moment this bridge happens to run.
+  const legalMentionNotes = resolveInvoiceNotes(
+    defaultMentionsCatalog.fileFor(sellerCountryCode),
+    new Date(input.issueDate),
+  ).map(toUblNote);
+
   const sellerLegalId = toSiren(
     getIdentifier({ partyIdentifiers: input.seller.partyIdentifiers }, 'LEGAL_ID'),
     isFrenchSeller,
@@ -419,7 +439,13 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
       'cbc:ID': input.displayNumber,
       'cbc:IssueDate': input.issueDate,
       'cbc:InvoiceTypeCode': '380',
-      ...(input.notes ? { 'cbc:Note': [input.notes] } : {}),
+      // The user's own free-text note FIRST, then every country-mandated mention — never the other
+      // way round: a mandatory mention must never read as if it were something the user chose to
+      // write. `legalMentionNotes` is `[]` for a seller in a country with no mentions file, so this
+      // is exactly the old, unconditional `input.notes` behaviour whenever there is nothing to add.
+      ...(input.notes || legalMentionNotes.length > 0
+        ? { 'cbc:Note': [...(input.notes ? [input.notes] : []), ...legalMentionNotes] }
+        : {}),
       'cbc:DocumentCurrencyCode': currency,
       'cac:AccountingSupplierParty': { 'cac:Party': sellerParty as never },
       'cac:AccountingCustomerParty': { 'cac:Party': buyerParty as never },

@@ -8,16 +8,45 @@
  * reason that has nothing to do with this provider's own logic. Everything else — the semantic
  * bridge, the REAL vendored EN 16931 Schematron, the REAL Factur-X embed — runs for real.
  */
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, PDFName, PDFStream } from 'pdf-lib';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { decodePDFRawStream } = require('pdf-lib/cjs/core');
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import * as renderInstancePdf from '../rendering/render-instance-pdf';
+import { validateStructural } from './structural-check';
+import { EN16931_CII_SCH, validateSchematron } from './vendored/validate-schematron';
 import { DocumentFormatParty } from './format-provider';
 import { buildFacturxFormatProvider } from './facturx-provider';
 
 jest.mock('../rendering/render-instance-pdf');
+
+/**
+ * Root TODO item 15's own regression guard for the gap this file's own header now documents as
+ * REACHED-and-FIXED (`splitCiiIncludedNotesInObject`, wired via `@e-invoice-eu/core`'s own
+ * `postProcessor` option): pulls the ACTUAL embedded CII back out of the PDF/A-3
+ * `buildFacturxFormatProvider` produces, so a future regression here fails OFFLINE, in this spec,
+ * rather than only live against a real superpdp deposit (`pdp/pdp.live.spec.ts`) the way this
+ * exact bug first surfaced. `pdf-lib` (already a dependency here) has no public "read attachments"
+ * API — `decodePDFRawStream` is its own internal stream-decoding primitive (used the same way
+ * `@e-invoice-eu/core` itself decodes streams internally), reached through the package's `cjs/core`
+ * entry point because the public one does not re-export it.
+ */
+async function extractEmbeddedCii(pdfBytes: Uint8Array): Promise<string> {
+  const loaded = await PDFDocument.load(pdfBytes, { updateMetadata: false });
+  for (const [, obj] of loaded.context.enumerateIndirectObjects()) {
+    if (!(obj instanceof PDFStream)) continue;
+    const type = obj.dict.get(PDFName.of('Type'));
+    if (type?.toString() !== '/EmbeddedFile') continue;
+    const decoded: Uint8Array = decodePDFRawStream(obj).decode();
+    return Buffer.from(decoded).toString('utf-8');
+  }
+  throw new Error(
+    'No /EmbeddedFile stream found in the generated PDF/A-3 — the Factur-X embed itself failed.',
+  );
+}
 
 const descriptor: DocumentTypeDescriptor = buildInvoiceDescriptor();
 
@@ -119,6 +148,40 @@ describe('facturx-provider — embed a CII gated the SAME way cii-provider.ts ga
       descriptor,
       document,
     );
+  }, 30_000);
+
+  // Root TODO item 15 ("mentions obligatoires") — VALID_DATA's SELLER is French, so this now embeds
+  // FOUR notes (the user's own + the three statutory mentions). The regression this test exists to
+  // catch: `@e-invoice-eu/core` regenerates the CII internally for THIS embed step, a copy the plain
+  // structural+Schematron gate above never sees — see `facturx-provider.ts`'s own header for the
+  // real superpdp `fr:213` rejection this exact gap caused before `splitCiiIncludedNotesInObject`
+  // was wired in as the embed call's own `postProcessor`.
+  it('the EMBEDDED CII (not just the plain one the gate checks) carries all three mentions and is itself Schematron-valid', async () => {
+    const document = {
+      id: 'doc-mentions',
+      data: VALID_DATA,
+      displayNumber: 'INV-2026-MENTIONS',
+      status: 'sent',
+      createdAt: new Date(),
+    };
+
+    const result = await provider.build(descriptor, document, SELLER, BUYER, 'company-1');
+    expect(result.validation.valid).toBe(true);
+
+    const embeddedCii = await extractEmbeddedCii(result.bytes);
+
+    const structural = validateStructural(embeddedCii, 'cii');
+    expect(structural.errors).toEqual([]);
+    expect(structural.valid).toBe(true);
+
+    const schematron = validateSchematron(embeddedCii, EN16931_CII_SCH);
+    expect(schematron.errors).toEqual([]);
+    expect(schematron.valid).toBe(true);
+
+    for (const code of ['PMT', 'PMD', 'AAB']) {
+      expect(embeddedCii).toContain(`<ram:SubjectCode>${code}</ram:SubjectCode>`);
+    }
+    expect(embeddedCii).toContain('Merci de votre confiance.'); // the user's own note, still there too
   }, 30_000);
 
   it('an INVALID document (BR-Z-02: zero-rated line, no seller VAT id): NEVER embeds — no PDF is even attempted', async () => {

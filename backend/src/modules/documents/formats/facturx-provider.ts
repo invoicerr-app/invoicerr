@@ -17,19 +17,30 @@
  * shape. The Factur-X embedder call that follows asks `@e-invoice-eu/core` to regenerate CII
  * internally from the SAME `euInvoice` input (there is no API to hand it a pre-built XML string
  * instead — the library takes the semantic model, not text), so the embedded copy is a
- * deterministic function of content already proven valid, MODULO one known, bounded gap: the
- * multi-note packing fix `semantic/cii-post-process.ts#splitCiiIncludedNotes` applies to the string
- * this provider validates but not to the library's own internal regeneration during the embed call.
- * That fix is a no-op whenever there is at most one note — which is all this bridge ever emits today
- * (`shared-build.ts`'s own header) — so the gap is real but unreached, the same documented scope
- * `cii-provider.ts` already carries for the identical reason.
+ * deterministic function of content already proven valid.
+ *
+ * ONE GAP THIS USED TO DOCUMENT AS "bounded but unreached" REACHED, LIVE, BY ROOT TODO ITEM 15
+ * ("mentions obligatoires"): the multi-note packing fix
+ * (`semantic/cii-post-process.ts#splitCiiIncludedNotes`) applies to the plain CII STRING this
+ * provider validates above, but that fix is string-based and has no way to reach the library's own
+ * INTERNAL regeneration during the embed call below — invisible as long as this bridge only ever
+ * emitted at most one note (true before item 15), but a French seller now carries three statutory
+ * mentions PLUS the user's own note. A real superpdp deposit surfaced this exactly as it would in
+ * production: `fr:213`, still citing every mention "absente", with the platform's own XML-schema
+ * error underneath ("Element 'ram:Content' must occur exactly 1 times") — see
+ * `pdp/pdp.live.spec.ts`'s own header for the full round-trip. FIXED by passing
+ * `splitCiiIncludedNotesInObject` as `postProcessor` on the embed call below — `@e-invoice-eu/core`'s
+ * own, PUBLIC extension point (`InvoiceServiceOptions.postProcessor`, called on the intermediate JS
+ * object right before XML rendering), which is exactly what closes this without a second, divergent
+ * regeneration or a hand-rolled CII serializer. See that function's own header for the object shape
+ * this mutates and how it was verified against the vendored dependency directly.
  */
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { renderDocumentInstance } from '../rendering/render-instance-pdf';
 import { DocumentFormatBuildResult, DocumentFormatParty, DocumentFormatProvider } from './format-provider';
-import { splitCiiIncludedNotes } from './semantic/cii-post-process';
+import { splitCiiIncludedNotes, splitCiiIncludedNotesInObject } from './semantic/cii-post-process';
 import { buildEuInvoiceForDocument, newEuInvoiceService } from './shared-build';
 import { validateStructural } from './structural-check';
 import { EN16931_CII_SCH, validateSchematron } from './vendored/validate-schematron';
@@ -104,6 +115,11 @@ export function buildFacturxFormatProvider(deps: FacturxProviderDeps): DocumentF
         mimetype: 'application/pdf',
       },
       lang: 'en',
+      // See this file's own header, "ONE GAP THIS USED TO DOCUMENT [...] REACHED, LIVE" — without
+      // this, a seller with more than one BG-1 note (any French seller since root TODO item 15) gets
+      // an embedded CII with several `ram:Content` under one `ram:IncludedNote`, invalid per the
+      // UN/CEFACT schema, exactly what a real superpdp deposit rejected.
+      postProcessor: async (data) => splitCiiIncludedNotesInObject(data as Record<string, unknown>),
     })) as Uint8Array;
 
     return { bytes: embedded, validation: { valid: true, errors: [] } };
