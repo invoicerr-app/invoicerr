@@ -40,3 +40,10 @@
   le lettrage multi-devises est voulu, il faudra un taux PAR opération (saisi au moment du paiement,
   stocké sur lui), pas le taux ambiant de la société. Les briques (table `CurrencyRate`,
   `convertMinor`) sont prêtes pour ça.
+
+- **`ClientsModule` inimportable sous ts-jest** (découvert à la tâche 22, préexistant) : la chaîne
+  `ClientsModule → WebhooksModule → drivers/discord.driver.ts → @teever/ez-hook` (paquet JSR pur
+  ESM) ne compile pas sous ts-jest. Tout futur test qui importera `ClientsModule` comme MODULE (pas
+  seulement `ClientsService` en position de type) le redécouvrira ; le test d'intégration de la file
+  (`queue/__tests__`) le contourne en construisant `DocumentsService` à la main. À trancher un jour :
+  config ESM de ts-jest, ou remplacer la dépendance du driver Discord.
