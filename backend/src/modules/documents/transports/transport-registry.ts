@@ -3,14 +3,18 @@ import { DocumentInstanceResult } from '../actions/action-registry';
 /** Everything a transport needs to deliver one document — deliberately NOT an email-shaped context
  *  (no `to`, no `subject`): a transport decides for itself how to address and format the delivery
  *  from the company/document it is handed, the same way a 'reference' field kind never assumes what
- *  its target entity looks like. `text` is the plain-text body a type's own action already built
- *  (e.g. buildInvoiceEmailText) — a transport is free to use it, wrap it, or ignore it entirely. */
+ *  its target entity looks like. `text` is OPTIONAL and, as of the built-in "email" transport,
+ *  unused: that transport now composes its own subject/body from the document type's `email`
+ *  template (descriptors/types.ts, actions/send-document-email.ts) and attaches the rendered PDF
+ *  itself, rather than trusting a plain-text body an action pre-built. Left here, optional, for a
+ *  hypothetical transport that still wants a caller-supplied plain-text fallback — a transport is
+ *  free to use it, wrap it, or ignore it entirely. */
 export interface DocumentTransportContext {
   companyId: string;
   document: DocumentInstanceResult;
   /** Plain data (not an i18n key), the same convention as DocumentTypeDescriptor.label — e.g. "Invoice". */
   label: string;
-  text: string;
+  text?: string;
 }
 
 export interface DocumentTransportResult {

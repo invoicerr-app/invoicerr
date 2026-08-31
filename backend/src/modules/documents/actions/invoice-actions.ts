@@ -9,23 +9,11 @@ import {
   TransportRegistry,
   UnknownTransportError,
 } from '../transports/transport-registry';
-import { ActionRegistry, DocumentInstanceResult } from './action-registry';
-import { formatLinesText, formatNotesText } from './email-text';
+import { ActionRegistry } from './action-registry';
 import { registerSaveDraftAction } from './generic-actions';
 
 export interface InvoiceActionDeps {
   transportRegistry: TransportRegistry;
-}
-
-/**
- * Plain-text body for an invoice's delivery — presentational only, exactly like the quote's (see
- * buildQuoteEmailText in quote-actions.ts): it lists the lines and notes exactly as entered, computes
- * nothing (no total, no tax, no rounding rule, no due-date reminder wording). A transport (see
- * transports/email-transport.ts) is free to use this text however it delivers.
- */
-export function buildInvoiceEmailText(document: Pick<DocumentInstanceResult, 'id' | 'data'>): string {
-  const data = (document.data ?? {}) as Record<string, unknown>;
-  return `Please find your invoice (${document.id}) below.\n\n${formatLinesText(data)}${formatNotesText(data)}`;
 }
 
 /**
@@ -84,12 +72,12 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
     }
 
     const document = await upsertDocument(companyId, 'invoice', documentId, 'sent', data);
-    const result = await transport.send({
-      companyId,
-      document,
-      label: 'Invoice',
-      text: buildInvoiceEmailText(document),
-    });
+    // No pre-built `text` here anymore — the "email" transport (transports/email-transport.ts)
+    // composes its own subject/body from invoice.descriptor.ts's `email` template (or a company
+    // override) and attaches the PDF itself; see that file's own header and
+    // actions/send-document-email.ts for the shared "compose + attach + send" mechanics. A
+    // hypothetical transport that still wants plain text is free to build its own from `document`.
+    const result = await transport.send({ companyId, document, label: 'Invoice' });
 
     return { document, changed: true, message: result.message };
   });

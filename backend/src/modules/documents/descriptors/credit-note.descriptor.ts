@@ -68,6 +68,20 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
     label: 'Credit note',
     statuses: [{ id: 'draft', label: 'Draft' }],
     initialStatus: 'draft',
+    // See types.ts's own comment on `DocumentTypeDescriptor.email` — declared for consistency with
+    // every other shipped type, even though this type has no "send" action yet (see this file's own
+    // "Actions" paragraph above): a future send mechanism, or a company that overrides
+    // `documentEmailTemplates` ahead of one existing, gets a sober default rather than a hole. No
+    // `{recipientName}` here — this type has no field targeting the "client" entity (only
+    // `invoice`), so that placeholder is deliberately left out of this type's OWN default (a company
+    // override that adds it anyway degrades honestly — see actions/email-template.ts).
+    email: {
+      subject: '{typeLabel} {displayNumber} from {companyName}',
+      body:
+        'Please find attached {typeLabel} {displayNumber} from {companyName}, for a total of ' +
+        '{totalGross}.\n\n' +
+        'Best regards,\n{companyName}',
+    },
     // See types.ts's own comment on `listItem`. `invoice` is required and is what a credit note
     // IS relative to (the invoice it corrects) — the natural heading for a list of credit notes.
     listItem: {

@@ -19,3 +19,12 @@
   d'équivalent dans le nouveau modèle : le kind `array` ne sait pas se pré-remplir depuis une
   entité. À traiter comme une extension du modèle (probablement avec l'item **6**, remises &
   acomptes, qui touche aussi les lignes), pas comme un correctif de test.
+
+## Limites consignées en cours de route
+
+- **« Sent » avant l'envoi** (découvert à la tâche 4) : le document est persisté `sent` — et parfois
+  numéroté — AVANT que le courriel ne parte. Un échec du rendu PDF ou du SMTP laisse donc un
+  enregistrement « envoyé » jamais livré. Ce n'est pas une régression (le même risque existait côté
+  SMTP), mais le corriger demande un statut intermédiaire (`sending`) que le cycle de vie déclaré
+  rend désormais facile à ajouter — à traiter avec l'item **3** déjà livré comme socle, ou lors de
+  l'item **22** (files d'attente), où l'envoi deviendra asynchrone de toute façon.

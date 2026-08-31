@@ -168,6 +168,6 @@ export function registerInvoiceContributions(registry: ContributionRegistry): vo
 }
 
 // Re-exported for tests that want to prove the arithmetic directly, the same way
-// quote-actions.ts/invoice-actions.ts export their email-text builders for send-quote.live.spec.ts.
+// actions/email-template.ts exports its own pure pieces for email-template.spec.ts.
 export type { Widget };
 export { invoiceTotal, monthKey, recentMonths };

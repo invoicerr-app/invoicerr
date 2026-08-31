@@ -1,5 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 
+import * as companyEmailTemplates from './actions/company-email-templates';
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
 import { registerConvertToInvoiceAction } from './actions/convert-to-invoice';
@@ -14,9 +15,17 @@ import { DocumentTypeRegistry } from './descriptors/type-registry';
 import * as takeNumber from './numbering/take-number';
 import * as persistence from './persistence';
 import { EntityReferenceRegistry } from './references/reference-registry';
+import * as renderInstancePdf from './rendering/render-instance-pdf';
 import { TransportRegistry } from './transports/transport-registry';
 
 jest.mock('./persistence');
+// The quote's "send" now renders a PDF and attaches it (actions/send-document-email.ts) — mocked at
+// its own entry point for the exact same reason `./numbering/take-number` right below already is:
+// this file is about the generic action machinery, not PDF rendering or Puppeteer (see
+// rendering/render-html.spec.ts and actions/send-document-email.spec.ts for those), and leaving it
+// unmocked would make a "send" test here hit a real database AND launch a real headless browser.
+jest.mock('./rendering/render-instance-pdf');
+jest.mock('./actions/company-email-templates');
 // The real quote descriptor now declares `numbering: { onEnterStatus: 'sent' }` (quote.descriptor.ts)
 // — mocked wholesale here for the exact same reason `./persistence` is: this file is about the
 // generic action machinery, not numbering (that mechanism has its own coverage — see
@@ -54,10 +63,14 @@ function buildService() {
   const clientsService = { getClientById: jest.fn().mockResolvedValue(null) };
   const mailService = { sendMail: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }) };
 
+  const referenceRegistry = new EntityReferenceRegistry();
+
   const actionRegistry = new ActionRegistry();
   registerQuoteActions(actionRegistry, {
     clientsService: clientsService as never,
     mailService: mailService as never,
+    typeRegistry,
+    referenceRegistry,
   });
   // "convert-to-invoice" IS registered here — see actions/convert-to-invoice.ts. It stopped being
   // the live "declared but not implemented" example the day it got a real handler; that role now
@@ -69,7 +82,6 @@ function buildService() {
   // edit to quote.descriptor.ts or quote-actions.ts was needed to add this.
   registerDuplicateExtension('quote', actionExtensionRegistry, actionRegistry);
 
-  const referenceRegistry = new EntityReferenceRegistry();
   // The quote's own actions never touch a transport — an empty registry proves that (any accidental
   // read would throw UnknownTransportError, not silently succeed).
   const transportRegistry = new TransportRegistry();
@@ -97,6 +109,25 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
   beforeEach(() => {
     (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
     (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+    // Default "send" composes fine — real PDF/company-template lookups replaced with a fake render
+    // result, same discipline as the two mocks right above. Individual tests below override these
+    // when the render outcome itself is what they're proving (none are, today — see
+    // actions/send-document-email.spec.ts for that coverage).
+    (renderInstancePdf.renderDocumentInstance as jest.Mock).mockResolvedValue({
+      pdf: Buffer.from('%PDF-fake'),
+      totals: {
+        currency: 'EUR',
+        lines: [],
+        netMinor: 0,
+        vatMinor: 0,
+        grossMinor: 0,
+        vatBreakdown: [],
+        warnings: [],
+      },
+      referenceLabels: {},
+      companyName: 'Test Co',
+    });
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
   });
   afterEach(() => jest.resetAllMocks());
 
@@ -279,8 +310,15 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       expect(result.changed).toBe(true);
       expect(result.document).toMatchObject({ id: 'doc-1', status: 'sent' });
       expect(result.message).toMatch(/client@example\.com/);
+      // Subject/body now come from quote.descriptor.ts's own `email` template, interpolated with the
+      // (mocked) render result — 'Test Co' proves the real template pipeline ran, not a re-implementation.
+      // The PDF (also mocked) is attached, never a bare text-only email.
       expect(mailService.sendMail).toHaveBeenCalledWith(
-        expect.objectContaining({ to: 'client@example.com', subject: expect.stringContaining('doc-1') }),
+        expect.objectContaining({
+          to: 'client@example.com',
+          subject: expect.stringContaining('Test Co'),
+          attachments: [expect.objectContaining({ contentType: 'application/pdf' })],
+        }),
       );
       expect(persistence.upsertDocument).toHaveBeenCalledWith(
         'company-1',
@@ -390,15 +428,17 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       typeRegistry.register(buildQuoteDescriptor());
       const fieldKindRegistry = new FieldKindRegistry();
       registerCoreFieldKinds(fieldKindRegistry);
+      const referenceRegistry = new EntityReferenceRegistry();
       const actionRegistry = new ActionRegistry();
       registerQuoteActions(actionRegistry, {
         clientsService: { getClientById: jest.fn() } as never,
         mailService: { sendMail: jest.fn() } as never,
+        typeRegistry,
+        referenceRegistry,
       });
       const actionExtensionRegistry = new ActionExtensionRegistry();
       // "send" already exists natively on the quote descriptor — this is the misconfiguration.
       actionExtensionRegistry.register('quote', { id: 'send', label: 'Rogue send', availableWhen: 'always' });
-      const referenceRegistry = new EntityReferenceRegistry();
 
       const service = new DocumentsService(
         typeRegistry,

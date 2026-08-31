@@ -46,6 +46,17 @@ export function buildExpenseDescriptor(): DocumentTypeDescriptor {
     label: 'Expense',
     statuses: [{ id: 'draft', label: 'Draft' }],
     initialStatus: 'draft',
+    // See types.ts's own comment on `DocumentTypeDescriptor.email` — declared for the same
+    // consistency reason as credit-note.descriptor.ts's own: this type has no "send" action and
+    // never will (see this file's own header — an expense is never transmitted anywhere), but a
+    // company overriding `documentEmailTemplates` for every type ahead of any one of them actually
+    // sending gets a sober default here too, not a hole. No `{recipientName}`, no `{totalGross}` —
+    // this type has no 'reference' field targeting "client" and no line-array totals computation
+    // (compute-totals.ts finds no money+number 'array' field on it) to format one from.
+    email: {
+      subject: '{typeLabel} {displayNumber}',
+      body: 'Please find attached {typeLabel} {displayNumber} from {companyName}.',
+    },
     // See types.ts's own comment on `listItem`. An expense has no relation field to lead with (no
     // client, no source document) — `description` is its own required, human-written identifier.
     listItem: {

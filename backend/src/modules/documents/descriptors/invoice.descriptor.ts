@@ -155,6 +155,16 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
     ],
     initialStatus: 'draft',
     numbering: { onEnterStatus: 'sent' },
+    // See types.ts's own comment on `DocumentTypeDescriptor.email`, and quote.descriptor.ts for the
+    // same call on the sibling type — sober, plain-English default, overridable per company.
+    email: {
+      subject: '{typeLabel} {displayNumber} from {companyName}',
+      body:
+        'Dear {recipientName},\n\n' +
+        'Please find attached {typeLabel} {displayNumber} from {companyName}, for a total of ' +
+        '{totalGross}.\n\n' +
+        'Best regards,\n{companyName}',
+    },
     // See contributions/invoice-contributions.ts for the implementation — the first real one written
     // for this mechanism, and the model for any other type's own. Both locations, so it demonstrates
     // the small widget vocabulary on both.

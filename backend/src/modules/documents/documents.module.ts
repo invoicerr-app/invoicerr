@@ -70,11 +70,26 @@ function buildFieldKindRegistry(): FieldKindRegistry {
   return registry;
 }
 
-/** The invoice's ONLY transport today. Registered exactly like a third party would register their
- *  own (TransportRegistry.register) — nothing about invoice-actions.ts treats "email" specially. */
-function buildTransportRegistry(clientsService: ClientsService, mailService: MailService): TransportRegistry {
+/**
+ * The invoice's ONLY transport today. Registered exactly like a third party would register their
+ * own (TransportRegistry.register) — nothing about invoice-actions.ts treats "email" specially.
+ * `typeRegistry`/`referenceRegistry` are what let it compose+attach a PDF (see
+ * actions/send-document-email.ts) — NEITHER depends on ACTION_REGISTRY, so wiring them here (and into
+ * buildActionRegistry below, for the quote's OWN send) never creates a circular dependency, even
+ * though ACTION_REGISTRY is where the send actions that call into this machinery are registered.
+ */
+function buildTransportRegistry(
+  clientsService: ClientsService,
+  mailService: MailService,
+  typeRegistry: DocumentTypeRegistry,
+  referenceRegistry: EntityReferenceRegistry,
+): TransportRegistry {
   const registry = new TransportRegistry();
-  registry.register('email', 'Email', buildEmailTransport(clientsService, mailService));
+  registry.register(
+    'email',
+    'Email',
+    buildEmailTransport({ clientsService, mailService, typeRegistry, referenceRegistry }),
+  );
   return registry;
 }
 
@@ -82,9 +97,11 @@ function buildActionRegistry(
   clientsService: ClientsService,
   mailService: MailService,
   transportRegistry: TransportRegistry,
+  typeRegistry: DocumentTypeRegistry,
+  referenceRegistry: EntityReferenceRegistry,
 ): ActionRegistry {
   const registry = new ActionRegistry();
-  registerQuoteActions(registry, { clientsService, mailService });
+  registerQuoteActions(registry, { clientsService, mailService, typeRegistry, referenceRegistry });
   registerConvertToInvoiceAction(registry);
   registerInvoiceActions(registry, { transportRegistry });
   registerCreditNoteActions(registry);
@@ -135,12 +152,20 @@ function buildEntityReferenceRegistry(clientsService: ClientsService): EntityRef
     {
       provide: TRANSPORT_REGISTRY,
       useFactory: buildTransportRegistry,
-      inject: [ClientsService, MailService],
+      // DOCUMENT_TYPE_REGISTRY/ENTITY_REFERENCE_REGISTRY: no circular dependency — see
+      // buildTransportRegistry's own comment above.
+      inject: [ClientsService, MailService, DOCUMENT_TYPE_REGISTRY, ENTITY_REFERENCE_REGISTRY],
     },
     {
       provide: ACTION_REGISTRY,
       useFactory: buildActionRegistry,
-      inject: [ClientsService, MailService, TRANSPORT_REGISTRY],
+      inject: [
+        ClientsService,
+        MailService,
+        TRANSPORT_REGISTRY,
+        DOCUMENT_TYPE_REGISTRY,
+        ENTITY_REFERENCE_REGISTRY,
+      ],
     },
     {
       provide: ACTION_EXTENSION_REGISTRY,

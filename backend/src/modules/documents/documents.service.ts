@@ -10,8 +10,7 @@ import {
 } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
-import { renderDocumentHtml } from './rendering/render-html';
-import { renderPdf } from './rendering/render-pdf';
+import { renderDocumentInstance } from './rendering/render-instance-pdf';
 import { computeDocumentTotals, DocumentTotals } from './totals/compute-totals';
 import prisma from '@/prisma/prisma.service';
 
@@ -656,83 +655,22 @@ export class DocumentsService implements OnModuleInit {
   }
 
   /**
-   * Renders a document instance as a PDF. Loads the instance, descriptor, company info, and resolves
-   * reference labels before generating the PDF.
+   * Renders a document instance as a PDF — a thin wrapper around
+   * rendering/render-instance-pdf.ts's `renderDocumentInstance`, the shared composition the
+   * document-SEND paths (actions/send-document-email.ts) now go through too, so an emailed PDF and
+   * this "GET .../pdf" download are always byte-for-byte the same pipeline. This method supplies the
+   * MERGED descriptor (native fields + third-party extension actions) — see that function's own
+   * header for why the send paths deliberately do not.
    */
   async renderInstancePdf(companyId: string, typeId: string, id: string): Promise<Buffer> {
-    // Load the instance, scoped by company
     const instance = await findOwnedDocument(companyId, typeId, id);
-
-    // Get the merged descriptor for this type
     const descriptor = this.mergedDescriptor(typeId);
-
-    // Load company info from Prisma
-    const company = await prisma.company.findUnique({
-      where: { id: companyId },
-      select: { name: true, address: true, city: true, postalCode: true, country: true },
-    });
-
-    if (!company) {
-      throw new NotFoundException(`Company "${companyId}" not found.`);
-    }
-
-    // Resolve reference labels for all 'reference' fields
-    const referenceLabels: Record<string, string> = {};
-    const instanceData = (instance.data as Record<string, unknown>) || {};
-
-    for (const field of descriptor.fields) {
-      if (field.kind === 'reference' && (field.entity || field.entities)) {
-        const value = instanceData[field.key];
-        if (!value) continue;
-
-        // Handle both single-target and multi-target references
-        let entityName: string | undefined;
-        let refId: string | undefined;
-
-        if (field.entities) {
-          // Multi-target reference: value is { entity, id }
-          const multiValue = value as { entity?: string; id?: string } | undefined;
-          entityName = multiValue?.entity;
-          refId = multiValue?.id;
-        } else {
-          // Single-target reference: value is just an id string
-          entityName = field.entity;
-          refId = String(value);
-        }
-
-        if (entityName && refId) {
-          try {
-            const resolved = await this.resolveReference(companyId, entityName, refId);
-            if (resolved?.label) {
-              referenceLabels[field.key] = resolved.label;
-            }
-          } catch {
-            // Gracefully fall back to raw id if resolution fails
-            referenceLabels[field.key] = refId;
-          }
-        }
-      }
-    }
-
-    // Calculate totals
-    const totals = computeDocumentTotals(descriptor, instanceData);
-
-    // Render HTML
-    const html = renderDocumentHtml({
+    const { pdf } = await renderDocumentInstance(
+      { referenceRegistry: this.referenceRegistry },
+      companyId,
       descriptor,
-      instance: {
-        id: instance.id,
-        status: instance.status,
-        data: instanceData,
-        createdAt: instance.createdAt,
-        displayNumber: instance.displayNumber,
-      },
-      company,
-      referenceLabels,
-      totals,
-    });
-
-    // Generate PDF
-    return renderPdf(html);
+      instance,
+    );
+    return pdf;
   }
 }

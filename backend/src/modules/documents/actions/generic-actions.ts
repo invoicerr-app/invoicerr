@@ -1,8 +1,11 @@
 import { ClientsService } from '@/modules/clients/clients.service';
 import { MailService } from '@/mail/mail.service';
 
+import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import { deleteDocument, upsertDocument } from '../persistence';
-import { ActionRegistry, DocumentInstanceResult } from './action-registry';
+import { EntityReferenceRegistry } from '../references/reference-registry';
+import { ActionRegistry } from './action-registry';
+import { sendDocumentInstanceEmail } from './send-document-email';
 
 /**
  * "save-draft": persist `data` under status "draft", creating a new instance the first time this
@@ -73,19 +76,32 @@ export function registerEmailRecipientDefaultFromClient(
   });
 }
 
+/** Everything `registerEmailSendAction` needs to compose and deliver the email — see
+ *  actions/send-document-email.ts's own header for the full "compose PDF + template + send"
+ *  contract this is handed to unchanged. */
+export interface EmailSendActionDeps {
+  mailService: MailService;
+  typeRegistry: DocumentTypeRegistry;
+  referenceRegistry: EntityReferenceRegistry;
+}
+
 /**
  * Registers "send" as an unconditional email — see `registerEmailRecipientDefaultFromClient`'s
  * comment above for which document types this is actually appropriate for (the quote; deliberately
- * NOT the invoice). `label` (e.g. "Quote") is plain data used only for the subject line and the
- * confirmation message — the same convention DocumentTypeDescriptor.label already follows, not an
- * i18n key.
+ * NOT the invoice). `label` (e.g. "Quote") is plain data used only for the confirmation message and
+ * (via the email template's `{typeLabel}`) the subject — the same convention
+ * DocumentTypeDescriptor.label already follows, not an i18n key.
+ *
+ * The actual email — PDF attached, subject/body from the type's (or company-overridden) template —
+ * is composed by `sendDocumentInstanceEmail` (send-document-email.ts), shared with the invoice's
+ * "email" transport; see that function's own header for the numbering-pulled-forward and
+ * PDF-failure-fails-loudly behavior this action inherits by calling it.
  */
 export function registerEmailSendAction(
   registry: ActionRegistry,
   typeId: string,
   label: string,
-  buildEmailText: (document: DocumentInstanceResult) => string,
-  mailService: MailService,
+  deps: EmailSendActionDeps,
 ): void {
   registry.register(typeId, 'send', async ({ companyId, documentId, data, params }) => {
     // `params.recipient` is already validated (required, non-empty text) by DocumentsService.runAction
@@ -93,12 +109,14 @@ export function registerEmailSendAction(
     const recipient = params.recipient as string;
     const document = await upsertDocument(companyId, typeId, documentId, 'sent', data);
 
-    await mailService.sendMail({
-      to: recipient,
-      subject: `${label} ${document.id}`,
-      text: buildEmailText(document),
+    const { message } = await sendDocumentInstanceEmail(deps, {
+      companyId,
+      typeId,
+      document,
+      recipient,
+      label,
     });
 
-    return { document, changed: true, message: `${label} sent to ${recipient}.` };
+    return { document, changed: true, message };
   });
 }

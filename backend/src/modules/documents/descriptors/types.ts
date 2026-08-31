@@ -89,6 +89,32 @@ export interface DocumentTypeDescriptor {
    * optional: a type that never declares a concern gets none of that concern's machinery.
    */
   numbering?: { onEnterStatus: string };
+  /**
+   * This type's DEFAULT email — subject/body, sent when the document is delivered by mail (the
+   * quote's own unconditional "send", the invoice's "email" transport — see actions/generic-actions.ts
+   * and transports/email-transport.ts). Plain, sober ENGLISH text, same convention as `label`: a
+   * descriptor is data, not an i18n key, and every SHIPPED type (quote/invoice/credit-note/expense)
+   * declares one so "no template configured" never actually happens for a core type.
+   *
+   * `subject`/`body` are PLAIN TEXT with `{placeholder}` interpolation — see
+   * actions/email-template.ts's `renderEmailTemplate` for the pure interpolation mechanism, and
+   * `buildEmailTemplateParts` for the fixed vocabulary it fills in (`displayNumber`, `typeLabel`,
+   * `companyName`, `totalGross`, `recipientName`). A company MAY override this per type — see
+   * `Company.documentEmailTemplates` (schema.prisma) — which takes priority over this field when
+   * present; this is only the FALLBACK a type ships with. A type that declares NO `email` at all
+   * (a third-party type, none shipped here) falls back further still, to
+   * `actions/email-template.ts`'s own `GENERIC_FALLBACK_EMAIL_TEMPLATE` — visibly, in code, never a
+   * silently-borrowed default.
+   */
+  email?: DocumentEmailTemplate;
+}
+
+/** One document type's default (or company-overriding) EMAIL template — see
+ *  `DocumentTypeDescriptor.email` and `Company.documentEmailTemplates` (schema.prisma) for the two
+ *  places this exact shape is used, and actions/email-template.ts for how it gets interpolated. */
+export interface DocumentEmailTemplate {
+  subject: string;
+  body: string;
 }
 
 /** One status a document TYPE's instances can be in — see `DocumentTypeDescriptor.statuses`. Plain

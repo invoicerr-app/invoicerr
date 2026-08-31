@@ -321,6 +321,18 @@ model Company {
   // country/jurisdiction column — the choice belongs to the company, not to where it is.
   invoiceTransportId String?
 
+  // Per-document-type EMAIL template override, keyed by DocumentTypeDescriptor.id — e.g.
+  // `{ "invoice": { "subject": "...", "body": "..." } }` (documents/descriptors/types.ts's own
+  // `DocumentEmailTemplate` shape). Same pattern as `numberFormats` right above: a type absent here
+  // falls back to that type's OWN descriptor default (documents/actions/email-template.ts's
+  // `resolveEmailTemplate`), never a hole. Deliberately NOT `MailTemplate`/`emailTemplates` below —
+  // that table is keyed by the CLOSED `MailTemplateType` enum (SIGNATURE_REQUEST, VERIFICATION_CODE,
+  // INVOICE, PAYMENT, RECEIPT) a pre-refonte module still owns (modules/company/company.service.ts),
+  // with no entry for "quote" at all and a different, double-brace interpolation vocabulary — see
+  // documents/actions/company-email-templates.ts's own header for the full reasoning. No settings
+  // screen writes this column yet (same "not yet built" state `numberFormats` was in when it shipped).
+  documentEmailTemplates Json?
+
   dateFormat String @default("dd/MM/yyyy") // Date format for quotes and invoices
 
   createdAt DateTime @default(now())

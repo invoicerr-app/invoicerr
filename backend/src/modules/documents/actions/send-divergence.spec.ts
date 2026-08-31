@@ -1,14 +1,26 @@
 import { NotImplementedException } from '@nestjs/common';
 
-import { ActionRegistry } from './action-registry';
-import { registerInvoiceActions } from './invoice-actions';
-import { registerQuoteActions } from './quote-actions';
+import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
+import { DocumentTypeRegistry } from '../descriptors/type-registry';
+import * as takeNumber from '../numbering/take-number';
+import { EntityReferenceRegistry } from '../references/reference-registry';
+import * as renderInstancePdf from '../rendering/render-instance-pdf';
 import * as companyTransport from '../transports/company-transport';
 import * as persistence from '../persistence';
 import { TransportRegistry } from '../transports/transport-registry';
+import { ActionRegistry } from './action-registry';
+import * as companyEmailTemplates from './company-email-templates';
+import { registerInvoiceActions } from './invoice-actions';
+import { registerQuoteActions } from './quote-actions';
 
 jest.mock('../persistence');
 jest.mock('../transports/company-transport');
+// The quote's "send" now renders+attaches a PDF (send-document-email.ts) — mocked at its own entry
+// point for the same reason `../persistence` is: this file is about WHICH path each type's "send"
+// takes, not PDF rendering or Puppeteer (that is send-document-email.spec.ts's job).
+jest.mock('../rendering/render-instance-pdf');
+jest.mock('../numbering/take-number');
+jest.mock('./company-email-templates');
 
 /**
  * Guardrail against the exact mistake this branch once made: generic-actions.ts used to export a
@@ -38,13 +50,34 @@ describe('quote "send" and invoice "send" do not share a path', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+    (renderInstancePdf.renderDocumentInstance as jest.Mock).mockResolvedValue({
+      pdf: Buffer.from('%PDF-fake'),
+      totals: {
+        currency: 'EUR',
+        lines: [],
+        netMinor: 0,
+        vatMinor: 0,
+        grossMinor: 0,
+        vatBreakdown: [],
+        warnings: [],
+      },
+      referenceLabels: {},
+      companyName: 'Test Co',
+    });
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
+    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
 
     const mailService = { sendMail: jest.fn().mockResolvedValue({ message: 'ok' }) };
     const clientsService = { getClientById: jest.fn().mockResolvedValue(null) };
+    const typeRegistry = new DocumentTypeRegistry();
+    typeRegistry.register(buildQuoteDescriptor());
+    const referenceRegistry = new EntityReferenceRegistry();
     const registry = new ActionRegistry();
     registerQuoteActions(registry, {
       clientsService: clientsService as never,
       mailService: mailService as never,
+      typeRegistry,
+      referenceRegistry,
     });
 
     const handler = registry.resolve('quote', 'send');
@@ -148,6 +181,8 @@ describe('quote "send" and invoice "send" do not share a path', () => {
     registerQuoteActions(registry, {
       clientsService: clientsService as never,
       mailService: mailService as never,
+      typeRegistry: new DocumentTypeRegistry(),
+      referenceRegistry: new EntityReferenceRegistry(),
     });
     registerInvoiceActions(registry, { transportRegistry: new TransportRegistry() });
 

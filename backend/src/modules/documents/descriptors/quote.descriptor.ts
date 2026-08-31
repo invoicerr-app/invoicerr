@@ -48,6 +48,18 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
     ],
     initialStatus: 'draft',
     numbering: { onEnterStatus: 'sent' },
+    // See types.ts's own comment on `DocumentTypeDescriptor.email` — sober, plain-English default,
+    // overridable per company. `recipientName` resolves from `client` below (the field the ONLY
+    // 'reference' field targeting the "client" entity on this type — see
+    // actions/email-template.ts's `buildEmailTemplateParts`).
+    email: {
+      subject: '{typeLabel} {displayNumber} from {companyName}',
+      body:
+        'Dear {recipientName},\n\n' +
+        'Please find attached {typeLabel} {displayNumber} from {companyName}, for a total of ' +
+        '{totalGross}.\n\n' +
+        'Best regards,\n{companyName}',
+    },
     // See types.ts's own comment on `listItem`. `client` is the one field a quote cannot exist
     // without (required) and the one a reader actually wants to see first in a list of quotes.
     listItem: {
