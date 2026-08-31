@@ -60,7 +60,10 @@ function monthKey(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return null;
-  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}`;
+  // UTC getters — same reasoning as expense-contributions.ts's own monthKey (see its comment: the
+  // stored date-only strings ARE UTC midnights; mixing local getters with UTC-keyed "now" made an
+  // issue dated "today" fall out of "this month" near a month boundary, caught by the battery).
+  return `${parsed.getUTCFullYear()}-${String(parsed.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
 /** The last `CURVE_MONTHS` calendar months, oldest first, each with its bucket key and a short
@@ -68,9 +71,9 @@ function monthKey(value: unknown): string | null {
 function recentMonths(now: Date): { key: string; label: string }[] {
   const months: { key: string; label: string }[] = [];
   for (let i = CURVE_MONTHS - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
     months.push({
-      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      key: `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`,
       label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
     });
   }

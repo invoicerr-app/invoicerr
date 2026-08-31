@@ -38,7 +38,14 @@ function monthKey(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return null;
-  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}`;
+  // UTC getters, deliberately — the same calendar-day convention documents/schedules/cadence.ts
+  // already documents for occurrence dates. Documents store date-only strings ("2026-09-01"),
+  // which `new Date(...)` parses as UTC midnight; reading them back with LOCAL getters while
+  // keying "now" off an ISO (UTC) string made the two disagree for the last two hours of every
+  // UTC day east of Greenwich — and on 2026-08-31 evening that window crossed a MONTH boundary,
+  // so an expense created "today" vanished from "this month" (caught live by the e2e battery).
+  // One clock for both sides of the comparison, and it is the one the stored data already uses.
+  return `${parsed.getUTCFullYear()}-${String(parsed.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
 /**

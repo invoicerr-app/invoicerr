@@ -10,6 +10,7 @@ import { buildQuoteDescriptor } from '../../descriptors/quote.descriptor';
 import { buildInvoiceDescriptor } from '../../descriptors/invoice.descriptor';
 import { buildCreditNoteDescriptor } from '../../descriptors/credit-note.descriptor';
 import { buildExpenseDescriptor } from '../../descriptors/expense.descriptor';
+import { buildReceivedInvoiceDescriptor } from '../../descriptors/received-invoice.descriptor';
 import { ALL_COUNTRY_POLICY_FILES } from './all';
 
 // The THIRD-PARTY "duplicate" extension (actions/duplicate-extension.ts) is attached to BOTH
@@ -24,9 +25,10 @@ const NATIVE_TYPE_ACTIONS: { typeId: string; actionId: string }[] = [
   { typeId: 'invoice', actionId: 'duplicate' },
   ...buildCreditNoteDescriptor().actions.map((a) => ({ typeId: 'credit-note', actionId: a.id })),
   ...buildExpenseDescriptor().actions.map((a) => ({ typeId: 'expense', actionId: a.id })),
+  ...buildReceivedInvoiceDescriptor().actions.map((a) => ({ typeId: 'received-invoice', actionId: a.id })),
 ];
 
-const ALL_DOCUMENT_TYPE_IDS = ['quote', 'invoice', 'credit-note', 'expense'];
+const ALL_DOCUMENT_TYPE_IDS = ['quote', 'invoice', 'credit-note', 'expense', 'received-invoice'];
 
 function fileFor(countryCode: string) {
   const file = ALL_COUNTRY_POLICY_FILES.find((f) => f.countryCode === countryCode);
@@ -87,20 +89,34 @@ describe('country-policy/data — the shipped FR and US files', () => {
     }
   });
 
-  // The one real, shipped example of the per-status narrowing (schema.ts's
-  // `DocumentActionRuleFact.statuses`) — see this rule's own `resolutionNote` for why it stays
-  // `unverified` (not sourced to the CGI/BOFiP text directly) rather than `legal`.
-  it('FR restricts invoice.save-draft to "draft" — the one real per-status narrowing this file ships', () => {
+  // The per-status narrowing (schema.ts's `DocumentActionRuleFact.statuses`) — TWO real, shipped
+  // examples, both `unverified` (neither is sourced to a legal text directly, see each rule's own
+  // `resolutionNote`): FR's invoice.save-draft (the original example — "an issued invoice is no
+  // longer editable"), and received-invoice.receive in BOTH shipped files (root TODO item 18 — "a
+  // reviewed [approved/rejected] received invoice's fields are no longer editable", the same shape
+  // of fact applied to a different type's own lifecycle).
+  it('invoice.save-draft (FR) and received-invoice.receive (FR+US) restrict to their own "still editable" status', () => {
     const fr = fileFor('FR');
-    const rule = fr.rules.find((r) => r.typeId === 'invoice' && r.actionId === 'save-draft');
-    expect(rule?.statuses).toEqual(['draft']);
+    const us = fileFor('US');
+    expect(fr.rules.find((r) => r.typeId === 'invoice' && r.actionId === 'save-draft')?.statuses).toEqual([
+      'draft',
+    ]);
+    expect(
+      fr.rules.find((r) => r.typeId === 'received-invoice' && r.actionId === 'receive')?.statuses,
+    ).toEqual(['received']);
+    expect(
+      us.rules.find((r) => r.typeId === 'received-invoice' && r.actionId === 'receive')?.statuses,
+    ).toEqual(['received']);
   });
 
-  it('no OTHER shipped rule declares a per-status narrowing — this stays a single, deliberate example', () => {
+  it('no OTHER shipped rule declares a per-status narrowing — these two stay the only deliberate examples', () => {
+    const isKnownNarrowing = (countryCode: string, typeId: string, actionId: string) =>
+      (typeId === 'invoice' && actionId === 'save-draft' && countryCode === 'FR') ||
+      (typeId === 'received-invoice' && actionId === 'receive');
+
     for (const file of ALL_COUNTRY_POLICY_FILES) {
       for (const rule of file.rules) {
-        if (rule.typeId === 'invoice' && rule.actionId === 'save-draft' && file.countryCode === 'FR')
-          continue;
+        if (isKnownNarrowing(file.countryCode, rule.typeId, rule.actionId)) continue;
         expect(rule.statuses ?? []).toEqual([]);
       }
     }

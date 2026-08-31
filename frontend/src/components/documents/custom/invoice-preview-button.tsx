@@ -35,6 +35,8 @@ function InvoicePreviewButton({ descriptor, instance }: DocumentCustomSlotProps)
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
 
+  if (!instance) return null // Unreachable in practice — "list-row-extra" always renders per-row.
+
   const handleDownloadPdf = async () => {
     try {
       // `authenticatedFetch`, PAS `fetch` : le front et l'API vivent sur des ports différents. Un

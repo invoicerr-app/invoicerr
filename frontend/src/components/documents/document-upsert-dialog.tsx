@@ -10,6 +10,16 @@ interface DocumentUpsertDialogProps {
   onOpenChange: (open: boolean) => void
   /** Present = editing that instance; absent = a brand-new, unsaved draft. */
   instance?: DocumentInstance
+  /**
+   * Seed values for a BRAND-NEW record's form — ignored once `instance` is set (an existing
+   * record's own `data` always wins; there is nothing left to "seed"). Generic on purpose, not tied
+   * to any one document type: the received-invoice upload flow
+   * (custom/received-invoice-upload-button.tsx, root TODO item 18) is the one real user today,
+   * pre-filling extracted fields (and the system-only `fileRef`/`fileName`/`fileMime` — see
+   * received-invoice.descriptor.ts's own header on why those are never declared `fields`) into an
+   * otherwise-blank create dialog before the user reviews and confirms.
+   */
+  initialData?: Record<string, unknown>
   onActionSuccess: (result: DocumentInstance, actionId: string) => void
 }
 
@@ -33,6 +43,7 @@ export function DocumentUpsertDialog({
   open,
   onOpenChange,
   instance,
+  initialData,
   onActionSuccess,
 }: DocumentUpsertDialogProps) {
   const { t } = useTranslation()
@@ -55,7 +66,7 @@ export function DocumentUpsertDialog({
           key={instance?.id ?? "new"}
           descriptor={descriptor}
           documentId={instance?.id}
-          initialData={instance?.data}
+          initialData={instance?.data ?? initialData}
           status={instance?.status}
           displayNumber={instance?.displayNumber}
           lastActionError={instance?.lastActionError}

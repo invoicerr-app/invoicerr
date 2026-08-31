@@ -18,11 +18,13 @@ import { registerInvoiceActions } from './actions/invoice-actions';
 import { registerQuoteActions } from './actions/quote-actions';
 import { registerRequestDepositAction } from './actions/request-deposit';
 import { registerCreditNoteActions } from './actions/credit-note-actions';
+import { registerReceivedInvoiceActions } from './actions/received-invoice-actions';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import { registerCreditNoteContributions } from './contributions/credit-note-contributions';
 import { registerExpenseContributions } from './contributions/expense-contributions';
 import { registerInvoiceContributions } from './contributions/invoice-contributions';
 import { registerQuoteContributions } from './contributions/quote-contributions';
+import { registerReceivedInvoiceContributions } from './contributions/received-invoice-contributions';
 import { CountryFieldOverlayCatalog } from './country-fields/registry';
 import { VatRateCatalog } from './vat-rates/registry';
 import { DocumentsService } from './documents.service';
@@ -32,6 +34,7 @@ import { buildCreditNoteDescriptor } from './descriptors/credit-note.descriptor'
 import { buildExpenseDescriptor } from './descriptors/expense.descriptor';
 import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
 import { buildQuoteDescriptor } from './descriptors/quote.descriptor';
+import { buildReceivedInvoiceDescriptor } from './descriptors/received-invoice.descriptor';
 import { DocumentQueueDispatcher } from './queue/document-queue.dispatcher';
 import { DocumentQueueModule } from './queue/document-queue.module';
 import { DocumentScheduleSweepRunner } from './schedules/schedule-sweep-runner';
@@ -74,6 +77,9 @@ function buildDocumentTypeRegistry(): DocumentTypeRegistry {
   registry.register(buildInvoiceDescriptor());
   registry.register(buildCreditNoteDescriptor());
   registry.register(buildExpenseDescriptor());
+  // Root TODO item 18 ("réception de factures") — the FIFTH type, and the first in the "L'entrée"
+  // category: see received-invoice.descriptor.ts for the full reasoning.
+  registry.register(buildReceivedInvoiceDescriptor());
   return registry;
 }
 
@@ -88,6 +94,7 @@ function buildContributionRegistry(): ContributionRegistry {
   registerExpenseContributions(registry);
   registerQuoteContributions(registry);
   registerCreditNoteContributions(registry);
+  registerReceivedInvoiceContributions(registry);
   return registry;
 }
 
@@ -218,6 +225,7 @@ function buildActionRegistry(
   registerInvoiceActions(registry, { transportRegistry, queueDispatcher });
   registerCreditNoteActions(registry, { queueDispatcher });
   registerExpenseActions(registry);
+  registerReceivedInvoiceActions(registry);
   // "record-payment" (invoice) IS registered — see registerInvoiceActions inside invoice-actions.ts.
   // "export-accounting" (invoice) is intentionally left unregistered here — see that file's header.
   return registry;

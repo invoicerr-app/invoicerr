@@ -1,6 +1,6 @@
 {
   "countryCode": "US",
-  "documentTypes": ["quote", "invoice", "credit-note", "expense"],
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
   "rules": [
     {
       "typeId": "quote",
@@ -130,6 +130,43 @@
       "provenance": {
         "kind": "unverified",
         "resolutionNote": "Deleting a mis-entered expense is the same capability the old `expenses` module already offered (DELETE /api/expenses/:id); no US text identified specifically governing deletion of such an entry before any accounting close. Confirm with a dedicated review if this core ever needs a \"closed period\" concept."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Recording (or correcting) a received invoice's fields is an internal bookkeeping operation — this tool only logs a fact that already happened (receiving a third party's document), never issues anything. `statuses` above restricts re-writing the fields to 'received' only: once approved or rejected, that review decision must not be silently undone by re-saving field values (same mechanic as `invoice.save-draft` above, restricted to 'draft' for an analogous reason — a decision already made should stay made). The US has no federal e-invoicing mandate and no general requirement to receive invoices through any specific channel (see invoice.download-xml's own note elsewhere in this file), so — unlike FR's own equivalent rule — there is no separate, sourced reception mandate to distinguish this workflow action from here."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marking a received invoice as approved is an internal review decision; no US text identified governing this act specifically."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marking a received invoice as rejected (a dispute, a supplier error) is an internal review decision; no US text identified governing this act specifically."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Deleting a received-invoice record before any approve/reject decision (a duplicate, a wrong file uploaded) is a product convenience, same nature as `expense.delete` above; no US text identified governing it. The descriptor already restricts this action to the 'received' status alone (see received-invoice.descriptor.ts) — deletion is no longer offered once a review decision is recorded."
       }
     }
   ],

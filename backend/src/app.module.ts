@@ -18,6 +18,7 @@ import { InvitationsModule } from './modules/invitations/invitations.module';
 import { MailService } from './mail/mail.service';
 import { Module } from '@nestjs/common';
 import { PluginsModule } from './modules/plugins/plugins.module';
+import { ReceivedInvoicesModule } from './modules/documents/received-invoices/received-invoices.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { SireneModule } from './modules/sirene/sirene.module';
@@ -65,6 +66,7 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     CompanyLookupModule,
     DangerModule,
     DocumentsModule,
+    ReceivedInvoicesModule,
     ...(workerInline ? [DocumentsQueueWorkerModule] : []),
     PluginsModule,
     WebhooksModule,

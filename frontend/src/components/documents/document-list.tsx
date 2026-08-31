@@ -553,6 +553,11 @@ export function DocumentList({
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
   const [page, setPage] = useState(1)
 
+  // See custom-slots.ts's own comment on "list-header-extra" — additive, next to the generic "New"
+  // button below, never in place of it. `instance` is deliberately omitted (this slot is per-LIST,
+  // not per-record).
+  const HeaderExtra = getDocumentCustomComponent(descriptor.id, "list-header-extra")
+
   // Status categories are DERIVED from the loaded data, never a fixed enum — the same discipline
   // DocumentStatusBadge holds for color: a status this core has never seen still gets a filter chip.
   const statusCounts = useMemo(() => {
@@ -619,6 +624,8 @@ export function DocumentList({
               {status} ({count})
             </Badge>
           ))}
+
+          {HeaderExtra && <HeaderExtra descriptor={descriptor} />}
 
           <Button onClick={onCreate} dataCy="document-create-button">
             <Plus className="h-4 w-4 mr-0 md:mr-2" />

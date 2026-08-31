@@ -45,6 +45,21 @@ describe('evaluateCountryPolicy', () => {
     expect(decision.reason).toMatch(/country-policy\/data\/de\.json/);
   });
 
+  // Root TODO item 18 ("réception de factures") — the SAME mechanism, proven again against the new
+  // type/action pair, for the exact case the task asks to prove directly: "approve refusé pour un
+  // pays sans règle → 403 nommé" (the 403 itself is documents.service.received-invoice.spec.ts's own
+  // wiring proof; THIS is the real, unmocked decision the service call above is proven to relay).
+  it('blocks "received-invoice"/"approve" for a country with no policy rows at all, and NAMES the country', async () => {
+    findCompany.mockResolvedValue({ country: 'Germany', countryCode: 'DE' });
+    findRules.mockResolvedValue([]);
+
+    const decision = await evaluateCountryPolicy('company-1', 'received-invoice', 'approve');
+
+    expect(decision.allowed).toBe(false);
+    expect(decision.reason).toMatch(/"DE"/);
+    expect(decision.reason).toMatch(/country-policy\/data\/de\.json/);
+  });
+
   it('blocks an action never declared for a country that DOES have OTHER rules — an allow-list, not a deny-list', async () => {
     findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
     findRules.mockResolvedValue([
@@ -227,7 +242,7 @@ describe('resolveAvailableDocumentTypes', () => {
 
     expect(decision.reason).toBeUndefined();
     expect(decision.typeIds.slice().sort()).toEqual(
-      ['quote', 'invoice', 'credit-note', 'expense'].slice().sort(),
+      ['quote', 'invoice', 'credit-note', 'expense', 'received-invoice'].slice().sort(),
     );
   });
 

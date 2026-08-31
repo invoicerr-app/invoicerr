@@ -333,6 +333,30 @@
   obligations ne se cumulent PAS en pratique (un texte qui le dirait), ce qu'aucune source consultée
   ne dit aujourd'hui.
 
+- **Item 18 — réception : dépôt manuel seulement, aucun canal agréé branché** (2026-09-01) : l'écran
+  uploade un fichier choisi par l'utilisateur ; il ne branche AUCUNE boîte de réception automatisée
+  (KSeF inbound, dépôt PDP/Peppol entrant) — ce poller reste le remainder nommé de l'item 10.
+  Concrètement : en France, la RÉCEPTION de factures électroniques par une plateforme agréée est
+  obligatoire pour « toutes les entreprises, quelle que soit la taille » depuis le 2026-09-01
+  (recontrôlé sur economie.gouv.fr et impots.gouv.fr le 2026-08-27 — voir le repère git
+  `avant-refonte-documents:docs/compliance/audit/03-LEGAL-VERIFICATION.md`, tableau « Calendrier »,
+  ligne Réception ; citation reprise dans `country-policy/data/fr.json`'s own
+  `received-invoice.receive` rule). Cet écran AIDE à consigner une facture reçue par n'importe quel
+  moyen, mais NE SATISFAIT PAS, à lui seul, l'obligation de réception via une plateforme agréée. Ce
+  qui rouvrirait ceci : le poller de l'item 10 (inbound KSeF/PDP), qui alimenterait ce même type de
+  document (`received-invoice`) automatiquement plutôt que par upload manuel.
+- **Item 18 — rapprochement fournisseur et OCR hors périmètre** (2026-09-01) : aucun carnet
+  fournisseurs n'existe (le champ `supplier` est un texte libre, jamais une référence), et un PDF
+  scanné n'est jamais passé à une reconnaissance de texte — un PDF pur donne toujours des champs
+  vides à saisir à la main. Ce qui rouvrirait ceci : un module carnet fournisseurs (symétrique du
+  carnet clients) pour le premier ; un service OCR (aucun credential aujourd'hui) pour le second.
+- **Item 18 — pas de lignes détaillées, montants HT/TVA/TTC seuls** (2026-09-01) : contrairement à la
+  facture émise (`invoice.descriptor.ts`'s own `lines`), une facture reçue ne porte que trois
+  montants plats (HT/TVA/TTC), saisis ou extraits — jamais une ventilation ligne par ligne. Choix
+  délibéré (v1 documente le fait qu'une facture a été reçue et pour quel montant, pas une
+  re-comptabilisation ligne à ligne du document du fournisseur) plutôt qu'un oubli : voir
+  `received-invoice.descriptor.ts`'s own header.
+
 - **Le pays VENDEUR irrésolu retombe silencieusement sur FR** (constaté à la relecture de l'item 16) :
   `tax/resolve-invoice-tax.ts` et `formats/semantic/build-semantic-invoice.ts` partagent la même
   convention `?? 'FR'` quand le pays de la SOCIÉTÉ ne se résout pas (problème de qualité de données

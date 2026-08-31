@@ -26,6 +26,11 @@ export {
 } from "./use-document-types"
 export { useDashboardWidgets, useStatisticsWidgets } from "./use-widgets"
 export {
+  useUploadReceivedInvoice,
+  type UploadReceivedInvoicePreview,
+  type UploadReceivedInvoiceVariables,
+} from "./use-received-invoices"
+export {
   useDocumentSchedules,
   useCreateDocumentSchedule,
   useSetDocumentScheduleEnabled,

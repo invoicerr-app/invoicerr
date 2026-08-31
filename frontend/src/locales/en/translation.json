@@ -3051,6 +3051,17 @@
         "previewTitle": "Data Preview",
         "previewBody": "Below is the invoice's stored data as saved. Use the button to download a rendered PDF.",
         "downloadPdf": "Download PDF"
+      },
+      "receivedInvoiceUpload": {
+        "button": "Upload",
+        "title": "Upload a received invoice",
+        "dropHint": "Drag and drop a PDF, or an XML/Factur-X invoice, here",
+        "browse": "Browse files",
+        "error": "Upload failed"
+      },
+      "receivedInvoiceDownload": {
+        "button": "Download original file",
+        "error": "Download failed"
       }
     },
     "totals": {

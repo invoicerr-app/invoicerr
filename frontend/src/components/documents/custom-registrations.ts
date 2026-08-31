@@ -14,3 +14,5 @@
  * dependency of the core" property the whole mechanism exists to guarantee.
  */
 import "./custom/invoice-preview-button"
+import "./custom/received-invoice-upload-button"
+import "./custom/received-invoice-download-button"

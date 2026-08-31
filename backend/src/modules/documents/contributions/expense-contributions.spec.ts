@@ -124,3 +124,21 @@ describe('buildExpenseStatisticsWidgets', () => {
     ]);
   });
 });
+
+describe('monthKey — one clock (UTC) on both sides of the comparison', () => {
+  const { monthKey } = require('./expense-contributions');
+
+  it('a date-only string and a full ISO instant of the same UTC day land in the same month', () => {
+    // The exact live failure of 2026-08-31 ~22:15 UTC (00:15 CEST, Sept 1 locally): the expense was
+    // dated "2026-08-31" (UTC day) while "now" keyed through LOCAL getters said September — the
+    // widget for the expense's own month silently vanished. One UTC clock for both kills it.
+    expect(monthKey('2026-08-31')).toBe('2026-08');
+    expect(monthKey('2026-08-31T22:15:00.000Z')).toBe('2026-08');
+    expect(monthKey('2026-08-31')).toBe(monthKey('2026-08-31T23:59:59.999Z'));
+  });
+
+  it('the first instant of a UTC month belongs to that month, whatever the server timezone', () => {
+    expect(monthKey('2026-09-01')).toBe('2026-09');
+    expect(monthKey('2026-09-01T00:00:00.000Z')).toBe('2026-09');
+  });
+});

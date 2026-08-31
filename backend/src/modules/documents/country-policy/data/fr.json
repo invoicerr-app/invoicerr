@@ -1,6 +1,6 @@
 {
   "countryCode": "FR",
-  "documentTypes": ["quote", "invoice", "credit-note", "expense"],
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
   "rules": [
     {
       "typeId": "quote",
@@ -137,6 +137,43 @@
       "provenance": {
         "kind": "unverified",
         "resolutionNote": "Supprimer une dépense mal saisie est la même opération que l'ancien module `expenses` offrait déjà (DELETE /api/expenses/:id) ; aucun texte identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait ici que consigner un fait déjà survenu (la réception d'un document tiers), jamais émettre quoi que ce soit. Le champ `statuses` ci-dessus restreint néanmoins la ré-écriture des champs au statut 'received' seul : une fois approuvée ou rejetée, la décision de revue ne doit plus pouvoir être silencieusement défaite par un nouvel enregistrement de champs (même mécanique que `invoice.save-draft` ci-dessus, restreint à 'draft' pour une raison analogue — la fixité d'une décision déjà prise). SUJET DISTINCT ET SOURCÉ, à ne pas confondre avec cette action : depuis le 2026-09-01, la RÉCEPTION de factures électroniques par une plateforme agréée est obligatoire pour « toutes les entreprises, quelle que soit la taille » (recontrôlé directement sur economie.gouv.fr et impots.gouv.fr [page modifiée le 2026-07-10], consultés le 2026-08-27 — voir le repère git `avant-refonte-documents:docs/compliance/audit/03-LEGAL-VERIFICATION.md`, tableau « Calendrier », ligne Réception). CE QUI TRANCHERAIT le caractère suffisant de CET écran au regard de cette obligation : cet écran est un dépôt MANUEL (l'utilisateur importe lui-même un fichier) — il ne branche AUCUN canal agréé (PDP/Peppol/Chorus Pro) ni aucune boîte de réception automatisée, ce qui reste le remainder documenté de l'item 10 (poller KSeF/PDP côté entrant). Tant que ce remainder n'est pas fait, cet écran seul ne suffit PAS à satisfaire l'obligation légale de réception — il ne fait qu'aider à la BOOKKEEPING d'une facture reçue par quelque moyen que ce soit."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte identifié n'encadre spécifiquement cet acte (à distinguer de l'obligation de RÉCEPTION elle-même, sourcée sur la règle 'receive' ci-dessus, qui porte sur le canal/format, pas sur ce workflow d'approbation interne)."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue interne à l'entreprise ; aucun texte identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet (doublon, mauvais fichier importé) est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul (voir received-invoice.descriptor.ts) — une fois une décision de revue enregistrée, la suppression n'est plus offerte."
       }
     }
   ],
