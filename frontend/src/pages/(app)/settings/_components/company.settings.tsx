@@ -9,6 +9,7 @@ import { z } from "zod"
 import ChannelConnectPrompt from "@/components/channel-connect-prompt"
 import CountrySelect from "@/components/country-select"
 import CurrencySelect from "@/components/currency-select"
+import CurrencyRatesSettings from "./currency-rates.settings"
 import { DatePicker } from "@/components/date-picker"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -165,6 +166,10 @@ export default function CompanySettings() {
     // action delivers through — "" means none chosen yet, which is a valid state (sending blocks
     // until the company picks one), not something this form needs to refuse.
     invoiceTransportId: z.string().optional(),
+    // Multi-currency consolidation (item 9, root TODO) — "" means no reference currency chosen,
+    // which is the default and stays valid forever: every dashboard aggregate simply stays grouped
+    // by currency (see backend's Company.referenceCurrency comment).
+    referenceCurrency: z.string().optional(),
   })
 
   const { data } = useGet<Company>("/api/company/info")
@@ -203,6 +208,7 @@ export default function CompanySettings() {
       peppolSchemeId: "0088",
       peppolEndpointId: "",
       invoiceTransportId: "",
+      referenceCurrency: "",
     },
   })
 
@@ -223,6 +229,7 @@ export default function CompanySettings() {
         foundedAt: new Date(data.foundedAt),
         exemptVat: !!data.exemptVat,
         invoiceTransportId: data.invoiceTransportId ?? "",
+        referenceCurrency: data.referenceCurrency ?? "",
         identifiers: (data.partyIdentifiers || [])
           .filter((pi) => pi.scheme !== "PEPPOL_ENDPOINT")
           .map((pi) => ({
@@ -317,6 +324,8 @@ export default function CompanySettings() {
         ...(values.identifiers || []).filter((i) => i.value.trim() !== ""),
         ...(peppolEntry ? [peppolEntry] : []),
       ],
+      // "" means "no reference currency chosen" in the form; stored as null, not an empty string.
+      referenceCurrency: values.referenceCurrency?.trim() ? values.referenceCurrency : null,
     }
     trigger(payload)
       .then((result) => {
@@ -1027,12 +1036,55 @@ export default function CompanySettings() {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("settings.company.currency.title", "Multi-currency")}</CardTitle>
+              <CardDescription>
+                {t(
+                  "settings.company.currency.description",
+                  "Choose a reference currency to see a consolidated total alongside your per-currency dashboard figures. Leave empty to keep every aggregate grouped by currency, unchanged.",
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FormField
+                control={form.control}
+                name="referenceCurrency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t("settings.company.form.referenceCurrency.label", "Reference currency")}
+                    </FormLabel>
+                    <FormControl>
+                      <CurrencySelect
+                        value={field.value}
+                        onChange={(value) => field.onChange(value)}
+                        data-cy="company-reference-currency-select"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        "settings.company.form.referenceCurrency.description",
+                        "Requires an exchange rate (below) for every OTHER currency you actually use before a consolidated total appears.",
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
           <div className="flex justify-end">
             <Button type="submit" disabled={isLoading} className="min-w-32" data-cy="company-submit-btn">
               {isLoading ? t("settings.company.form.saving") : t("settings.company.form.saveSettings")}
             </Button>
           </div>
         </form>
+
+        <div className="mt-6">
+          <CurrencyRatesSettings />
+        </div>
       </Form>
     </div>
   )

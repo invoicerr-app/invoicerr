@@ -335,6 +335,19 @@ model Company {
 
   dateFormat String @default("dd/MM/yyyy") // Date format for quotes and invoices
 
+  // Multi-currency consolidation (item 9, root TODO). Null — the default, and the only state every
+  // company was already in before this column existed — means NO consolidation happens anywhere:
+  // every dashboard/statistics aggregate stays grouped BY CURRENCY, exactly as
+  // contributions/expense-contributions.ts and invoice-contributions.ts already do. Setting this is
+  // an opt-in, never a migration a company is silently enrolled into.
+  //
+  // Plain `String?`, not the `Currency` enum `currency` above uses: a currency flowing through the
+  // document layer is already treated as a bare string everywhere that matters (compute-totals.ts's
+  // currency detection, DocumentPayment.currency, credit-note settlement) — the `Currency` enum is a
+  // presentation convenience for ONE dropdown (CurrencySelect), not a second source of truth this
+  // column needs to satisfy too. See CurrencyRate.from/to's own comment for the same choice.
+  referenceCurrency String?
+
   createdAt DateTime @default(now())
   emailTemplates   MailTemplate[]
   webhooks         Webhook[]
@@ -347,6 +360,54 @@ model Company {
   documents        DocumentInstance[]
   documentNumberSequences DocumentNumberSequence[]
   documentPayments DocumentPayment[]
+  currencyRates    CurrencyRate[]
+}
+
+// Manually entered exchange rates (item 9, root TODO — "le multi-devises"). The rule that governs
+// every USE of this table (contributions/currency-consolidation.ts): a conversion is INFORMATION,
+// never a replacement — the document's own amount and currency stay the truth, and a consolidated
+// aggregate built from a row here always carries the rate, its `asOf` date, and its `source`
+// alongside the converted number, never a bare converted figure.
+//
+// `source` is `"manual"` for now — there is no external exchange-rate API call anywhere in this
+// codebase, deliberately: that would be a network dependency in production and a vendor choice this
+// task does not make. The column exists so a future automated feed can identify itself without a
+// schema change; not a closed enum, since there is only one value implemented today.
+//
+// No inverse rate is ever derived (1/rate) from a stored one — that would introduce a silent
+// rounding error nobody asked for. A company wanting both EUR→USD and USD→EUR enters both rows; see
+// currency-rates/convert.ts's own `resolveLatestRate` for the exact-pair-only lookup this implies.
+//
+// Company-scoped, unlike the pre-refonte `CurrencyConversion` table (git tag
+// `avant-refonte-documents`): that one was global (no companyId), had no `asOf` or `source`, stored
+// `rate` as a `Float`, and carried an `expiresAt` TTL implying an external-API cache. None of that
+// carries over — a rate here is a fact ONE company entered, at a point in time, from a source it can
+// name, and it never expires on its own: a company wanting a fresher rate enters a new row with a
+// later `asOf`, which simply outranks the old one at resolution time (most recent `asOf <= now`).
+model CurrencyRate {
+  id        String  @id @default(cuid())
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  // Bare strings, not the `Currency` enum — see Company.referenceCurrency's own comment.
+  from String
+  to   String
+
+  // How many units of `to` one unit of `from` is worth. Decimal, not Float: a rate multiplies every
+  // converted amount, so a Float's binary rounding would compound into visibly wrong money the more
+  // it's used — the same reason every `amountMinor` column elsewhere is an integer, never a float.
+  rate Decimal
+
+  // When this rate was true — NOT when it was entered (`createdAt` already records that).
+  // Resolution (convert.ts's `resolveLatestRate`) takes the most recent row with `asOf <= now` for
+  // the exact (from, to) pair; a future-dated `asOf` is simply not eligible yet.
+  asOf DateTime
+
+  source String @default("manual")
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId, from, to, asOf])
 }
 
 // Join table linking users to the companies they belong to, with a role

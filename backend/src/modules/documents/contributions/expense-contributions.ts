@@ -1,5 +1,8 @@
+import { fromMinor, toMinor } from '@/utils/financial';
+
 import { listDocuments } from '../persistence';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
+import { consolidateByCurrency, loadCurrencyContext } from './currency-consolidation';
 import { MetricWidget, TableWidget, Widget } from './widgets';
 
 /**
@@ -93,6 +96,73 @@ export const buildExpenseDashboardWidgets: ContributionHandler = async ({ compan
 };
 
 /**
+ * Wraps `buildExpenseDashboardWidgets` with multi-currency consolidation (item 9, root TODO) — kept
+ * as a SEPARATE function, composing on the widgets the base handler already returns, rather than
+ * folded into it. This is deliberate, not cosmetic: `buildExpenseDashboardWidgets` above stays
+ * byte-for-byte what expense-contributions.spec.ts already tests directly — including that it never
+ * touches the currency-rates store — so that file's own tests remain the proof that "no
+ * `referenceCurrency` -> unchanged behavior" holds, with nothing about them needing to change for
+ * this feature to exist. `registerExpenseContributions` below registers THIS wrapper for the
+ * dashboard location, so a real request always goes through it; only the untouched spec calls the
+ * base handler directly.
+ *
+ * Purely ADDITIVE over its own input: every widget `buildExpenseDashboardWidgets` produced is
+ * returned, unmodified in `value`/`unit`, whether or not a consolidated total could be added on top
+ * — see currency-consolidation.ts's own header for the full policy, and `loadCurrencyContext`'s own
+ * comment for why a database that cannot even be reached (the offline `backend-tests` CI job) also
+ * collapses to this exact same no-op path rather than throwing.
+ */
+export const buildExpenseDashboardWidgetsWithConsolidation: ContributionHandler = async (ctx) => {
+  const widgets = await buildExpenseDashboardWidgets(ctx);
+
+  // Every per-currency metric carries its own currency in `unit` and its total (major units) in
+  // `value` — reused here rather than re-deriving totals a second time from the raw documents. The
+  // currency-less "no expenses this month" zero metric has no `unit` at all and is excluded: there is
+  // nothing to convert, and `perCurrencyWidgets.length === 0` below is exactly that case.
+  const perCurrencyWidgets = widgets.filter(
+    (widget): widget is MetricWidget => widget.kind === 'metric' && typeof widget.unit === 'string',
+  );
+  if (perCurrencyWidgets.length === 0) return widgets;
+
+  const { referenceCurrency, rates } = await loadCurrencyContext(ctx.companyId);
+  const amounts = perCurrencyWidgets.map((widget) => ({
+    currency: widget.unit as string,
+    totalMinor: toMinor(widget.value, widget.unit as string),
+  }));
+  const { consolidated, warnings } = consolidateByCurrency(amounts, referenceCurrency, rates, new Date());
+
+  if (warnings.length > 0) {
+    // No consolidated widget could be built — see consolidateByCurrency's own "never partial" rule.
+    // The warning still has to be SEEN: attached to every ordinary per-currency metric already being
+    // returned this call, so it surfaces regardless of which currency's card the reader looks at
+    // first, rather than picking one arbitrarily to carry it.
+    for (const widget of perCurrencyWidgets) widget.warnings = warnings;
+    return widgets;
+  }
+
+  if (!consolidated) {
+    return widgets; // No referenceCurrency set — the default, unchanged behavior.
+  }
+
+  const consolidatedMetric: MetricWidget = {
+    id: 'expense:this-month:consolidated',
+    kind: 'metric',
+    label: 'Expenses this month (consolidated, converted)',
+    unit: `${consolidated.currency} (converted)`,
+    // Rendered with a leading "≈" (metric-widget.tsx) — a converted figure is, by construction, an
+    // approximation of the rate it used, never claimed as exact the way an ORIGINAL currency amount
+    // is (this module's own header: a conversion is information, never a replacement).
+    approx: true,
+    value: Number(fromMinor(consolidated.totalMinor, consolidated.currency).toFixed(2)),
+    // The exact rate(s), their date, and their source — never a bare converted number. See
+    // WidgetBase.warnings' own comment (contributions/widgets.ts).
+    warnings: consolidated.notes,
+  };
+
+  return [...widgets, consolidatedMetric];
+};
+
+/**
  * STATISTICS: "tout ultra détaillé" — one row per expense: date, description, amount, currency.
  * Most recent first (by the expense's own `date`, not `updatedAt`): there is no "urgency" ordering
  * the way invoice-contributions.ts's pending list has (nearest due date first) — only recency.
@@ -130,7 +200,7 @@ export const buildExpenseStatisticsWidgets: ContributionHandler = async ({ compa
 };
 
 export function registerExpenseContributions(registry: ContributionRegistry): void {
-  registry.register('expense', 'dashboard', buildExpenseDashboardWidgets);
+  registry.register('expense', 'dashboard', buildExpenseDashboardWidgetsWithConsolidation);
   registry.register('expense', 'statistics', buildExpenseStatisticsWidgets);
 }
 

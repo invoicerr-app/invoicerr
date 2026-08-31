@@ -30,3 +30,12 @@
   base qu'après un `prisma db seed` manuel — sinon l'action est 403 en silence pour tout le monde.
   À automatiser un jour (seed au boot du backend de test, ou détection de dérive JSON↔base) ; en
   attendant, toute tâche qui touche `country-policy/data/*.json` doit re-semer les deux bases.
+
+- **Les taux existent, mais paiements et avoirs ne convertissent toujours pas** (choix consigné à la
+  tâche 9) : `record-payment` refuse toujours une devise étrangère et le lettrage ignore toujours un
+  avoir en devise étrangère (avec warning nommé). C'est délibéré, pas un oubli : la consolidation du
+  dashboard est un AFFICHAGE approximatif qui porte son taux ; un lettrage est une écriture exacte —
+  y appliquer un taux saisi à la main déciderait en silence du montant réellement soldé. Si un jour
+  le lettrage multi-devises est voulu, il faudra un taux PAR opération (saisi au moment du paiement,
+  stocké sur lui), pas le taux ambiant de la société. Les briques (table `CurrencyRate`,
+  `convertMinor`) sont prêtes pour ça.

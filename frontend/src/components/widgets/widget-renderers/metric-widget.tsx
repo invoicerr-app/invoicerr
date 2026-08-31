@@ -17,11 +17,21 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
       </CardHeader>
       <CardContent>
         <p className="text-3xl font-semibold tabular-nums">
+          {metric.approx ? "≈ " : ""}
           {metric.value.toLocaleString()}
           {metric.unit ? (
             <span className="ml-1 text-base font-normal text-muted-foreground">{metric.unit}</span>
           ) : null}
         </p>
+        {metric.warnings?.length ? (
+          <ul className="mt-2 space-y-0.5" data-cy={`widget-${metric.id}-warnings`}>
+            {metric.warnings.map((warning) => (
+              <li key={warning} className="text-xs text-muted-foreground">
+                {warning}
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </CardContent>
     </Card>
   )

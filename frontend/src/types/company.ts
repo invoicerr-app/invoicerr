@@ -43,4 +43,22 @@ export interface Company {
    *  chosen (see backend/src/modules/documents/actions/invoice-actions.ts). Never a country/channel
    *  the app infers — it is only ever this stored choice. */
   invoiceTransportId?: string | null
+  /** Opts the company INTO multi-currency consolidation (item 9, root TODO) — null/unset means every
+   *  dashboard aggregate stays grouped by currency, unchanged (see backend's Company.referenceCurrency
+   *  comment in schema.prisma). */
+  referenceCurrency?: string | null
+}
+
+/** A manually-entered exchange rate — GET/POST /api/company/currency-rates. See backend's
+ *  CurrencyRate model (schema.prisma) for the full contract: no auto-derived inverse, `asOf`
+ *  resolution picks the most recent one not in the future. */
+export interface CurrencyRate {
+  id: string
+  companyId: string
+  from: string
+  to: string
+  rate: number
+  asOf: string
+  source: string
+  createdAt: string
 }

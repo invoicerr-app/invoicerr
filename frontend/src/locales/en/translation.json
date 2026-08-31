@@ -1552,6 +1552,34 @@
         "title": "Other Settings",
         "description": "Additional settings for your company"
       },
+      "currency": {
+        "title": "Multi-currency",
+        "description": "Choose a reference currency to see a consolidated total alongside your per-currency dashboard figures. Leave empty to keep every aggregate grouped by currency, unchanged."
+      },
+      "currencyRates": {
+        "title": "Exchange rates",
+        "description": "Manually-entered rates used to consolidate dashboard totals into your reference currency above. No rate is ever derived automatically — enter both directions if you need them.",
+        "empty": "No exchange rate entered yet.",
+        "form": {
+          "from": "From",
+          "to": "To",
+          "rate": "Rate",
+          "add": "Add rate"
+        },
+        "table": {
+          "pair": "Pair",
+          "rate": "Rate",
+          "asOf": "As of",
+          "source": "Source"
+        },
+        "messages": {
+          "createSuccess": "Currency rate added",
+          "createError": "Failed to add currency rate",
+          "currenciesRequired": "Pick both currencies",
+          "sameCurrency": "The \"from\" and \"to\" currencies must differ",
+          "invalidRate": "Rate must be a positive number"
+        }
+      },
       "form": {
         "company": {
           "label": "Company Name",
@@ -1720,6 +1748,10 @@
           "label": "Invoice sending method",
           "placeholder": "Not configured",
           "description": "How an invoice is delivered once you send it. Choose from the transports registered on this instance; leave unconfigured and sending will block with a clear message."
+        },
+        "referenceCurrency": {
+          "label": "Reference currency",
+          "description": "Requires an exchange rate (below) for every OTHER currency you actually use before a consolidated total appears."
         },
         "dateFormat": {
           "label": "Date Format",

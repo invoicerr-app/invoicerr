@@ -1,3 +1,5 @@
+import { fromMinor, toMinor } from '@/utils/financial';
+
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { listDocuments } from '../persistence';
 import { computeSettlement } from '../settlement/compute-settlement';
@@ -5,6 +7,7 @@ import { creditsForInvoiceFromNotes, listCreditNotes, toSettlementCreditInputs }
 import { sumPaidMinorByDocument } from '../settlement/payments';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
+import { consolidateByCurrency, loadCurrencyContext } from './currency-consolidation';
 import { MetricWidget, ShortListWidget, TableWidget, TimeSeriesWidget, Widget } from './widgets';
 
 /**
@@ -105,15 +108,19 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
   );
   const creditNotes = await listCreditNotes(companyId);
 
-  const pendingItems = sentInvoices
-    .filter((invoice) => {
-      const data = (invoice.data ?? {}) as Record<string, unknown>;
-      const grossMinor = computeDocumentTotals(INVOICE_DESCRIPTOR, data).grossMinor;
-      const paidMinor = paidMinorByDocument.get(invoice.id) ?? 0;
-      const { credits } = creditsForInvoiceFromNotes(creditNotes, invoice.id, INVOICE_DESCRIPTOR, data);
-      return !computeSettlement(grossMinor, [{ amountMinor: paidMinor }], toSettlementCreditInputs(credits))
-        .settled;
-    })
+  // Captured as its OWN list (not inlined into the `.map` chain below) so the currency-grouped total
+  // widget right after can be derived from the exact same set of invoices without re-running the
+  // settlement predicate a second time.
+  const pendingInvoices = sentInvoices.filter((invoice) => {
+    const data = (invoice.data ?? {}) as Record<string, unknown>;
+    const grossMinor = computeDocumentTotals(INVOICE_DESCRIPTOR, data).grossMinor;
+    const paidMinor = paidMinorByDocument.get(invoice.id) ?? 0;
+    const { credits } = creditsForInvoiceFromNotes(creditNotes, invoice.id, INVOICE_DESCRIPTOR, data);
+    return !computeSettlement(grossMinor, [{ amountMinor: paidMinor }], toSettlementCreditInputs(credits))
+      .settled;
+  });
+
+  const pendingItems = pendingInvoices
     .map((invoice) => {
       const data = (invoice.data ?? {}) as Record<string, unknown>;
       const currency = typeof data.currency === 'string' ? data.currency : '';
@@ -135,6 +142,27 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
     items: pendingItems,
   };
 
+  // "le total des factures en attente" (item 9, root TODO's own multi-currency wording) — grouped by
+  // currency, same discipline as expense-contributions.ts's own monthly totals and this file's own
+  // curve above: NEVER summed across currencies. `id` is prefixed `invoice:pending-total:` so
+  // buildInvoiceDashboardWidgetsWithConsolidation (below) can find exactly these widgets, and only
+  // these, to feed multi-currency consolidation.
+  const pendingTotalsByCurrency = new Map<string, number>();
+  for (const invoice of pendingInvoices) {
+    const data = (invoice.data ?? {}) as Record<string, unknown>;
+    const currency = typeof data.currency === 'string' && data.currency ? data.currency : 'UNKNOWN';
+    pendingTotalsByCurrency.set(currency, (pendingTotalsByCurrency.get(currency) ?? 0) + invoiceTotal(data));
+  }
+  const pendingTotalWidgets: MetricWidget[] = [...pendingTotalsByCurrency.entries()]
+    .sort(([currencyA], [currencyB]) => currencyA.localeCompare(currencyB))
+    .map(([currency, total]) => ({
+      id: `invoice:pending-total:${currency}`,
+      kind: 'metric',
+      label: `Pending invoices total (${currency})`,
+      unit: currency,
+      value: Number(total.toFixed(2)),
+    }));
+
   const months = recentMonths(new Date());
   const countsByMonth = new Map<string, number>();
   for (const invoice of invoices) {
@@ -150,7 +178,56 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
     points: months.map(({ key, label }) => ({ label, value: countsByMonth.get(key) ?? 0 })),
   };
 
-  return [pendingWidget, curveWidget];
+  return [pendingWidget, curveWidget, ...pendingTotalWidgets];
+};
+
+/**
+ * Wraps `buildInvoiceDashboardWidgets` with multi-currency consolidation (item 9, root TODO) — same
+ * split, for the same reason, as expense-contributions.ts's own
+ * `buildExpenseDashboardWidgetsWithConsolidation` (see that function's own header): the base handler
+ * above stays exactly what invoice-contributions.spec.ts already tests directly — it never touches
+ * the currency-rates store — so nothing about its own tests needs to change for this feature to
+ * exist. `registerInvoiceContributions` below registers THIS wrapper for the dashboard location.
+ *
+ * Only the `invoice:pending-total:*` metrics (this file's own, just above) feed consolidation — the
+ * shortList and timeSeries widgets have no per-currency total to convert in the first place.
+ */
+export const buildInvoiceDashboardWidgetsWithConsolidation: ContributionHandler = async (ctx) => {
+  const widgets = await buildInvoiceDashboardWidgets(ctx);
+
+  const perCurrencyWidgets = widgets.filter(
+    (widget): widget is MetricWidget =>
+      widget.kind === 'metric' && widget.id.startsWith('invoice:pending-total:'),
+  );
+  if (perCurrencyWidgets.length === 0) return widgets;
+
+  const { referenceCurrency, rates } = await loadCurrencyContext(ctx.companyId);
+  const amounts = perCurrencyWidgets.map((widget) => ({
+    currency: widget.unit as string,
+    totalMinor: toMinor(widget.value, widget.unit as string),
+  }));
+  const { consolidated, warnings } = consolidateByCurrency(amounts, referenceCurrency, rates, new Date());
+
+  if (warnings.length > 0) {
+    for (const widget of perCurrencyWidgets) widget.warnings = warnings;
+    return widgets;
+  }
+
+  if (!consolidated) {
+    return widgets; // No referenceCurrency set — the default, unchanged behavior.
+  }
+
+  const consolidatedMetric: MetricWidget = {
+    id: 'invoice:pending-total:consolidated',
+    kind: 'metric',
+    label: 'Pending invoices total (consolidated, converted)',
+    unit: `${consolidated.currency} (converted)`,
+    approx: true,
+    value: Number(fromMinor(consolidated.totalMinor, consolidated.currency).toFixed(2)),
+    warnings: consolidated.notes,
+  };
+
+  return [...widgets, consolidatedMetric];
 };
 
 /**
@@ -197,7 +274,7 @@ export const buildInvoiceStatisticsWidgets: ContributionHandler = async ({ compa
 };
 
 export function registerInvoiceContributions(registry: ContributionRegistry): void {
-  registry.register('invoice', 'dashboard', buildInvoiceDashboardWidgets);
+  registry.register('invoice', 'dashboard', buildInvoiceDashboardWidgetsWithConsolidation);
   registry.register('invoice', 'statistics', buildInvoiceStatisticsWidgets);
 }
 

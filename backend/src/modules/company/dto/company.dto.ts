@@ -86,4 +86,7 @@ export class EditCompanyDto {
    *  "send" action uses — e.g. "email". Null/empty clears the choice, which blocks sending until a
    *  new one is chosen; see Company.invoiceTransportId's own comment in schema.prisma. */
   invoiceTransportId?: string | null;
+  /** Opts the company INTO multi-currency consolidation (item 9, root TODO) — null/absent keeps
+   *  every aggregate grouped by currency, unchanged; see Company.referenceCurrency's own comment. */
+  referenceCurrency?: string | null;
 }

@@ -40,7 +40,7 @@
 |---|---|---|
 | 7 ✅ | **Paiements** (fait, 2026-08-31) | `record-payment` est déclarée sur la facture et bloque en 501 — c'est le cas vivant du test de blocage. Modèle de paiement, écran, méthodes de paiement (module supprimé). |
 | 8 ✅ | **Lettrage** (fait, 2026-08-31) | Rapprocher paiements ET avoirs de la facture qu'ils soldent — le `settlementOf` d'avant était pur et vérifié par mutation, récupérable au repère. Dépend de 7. |
-| 9 | **Multi-devises** | `CurrencyConversion` supprimé. Conversion et affichage ; les décimales par devise ont déjà été sauvées dans `utils/financial.ts`. |
+| 9 ✅ | **Multi-devises** (fait, 2026-08-31) | Devise de référence opt-in (`Company.referenceCurrency`, null = rien ne change), taux saisis à la main (`CurrencyRate`, jamais d'inverse dérivé), consolidation dashboard qui porte toujours son taux — ou rien du tout si un taux manque. Une conversion est une information, jamais un remplacement : les montants d'origine restent la vérité. L'ancienne `CurrencyConversion` (globale, Float, TTL) rejetée en bloc. Le lettrage ne convertit toujours pas — choix consigné dans `TODO_ISSUES.md`. |
 
 ## C — La sortie (conformité)
 

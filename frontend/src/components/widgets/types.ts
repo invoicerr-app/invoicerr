@@ -5,12 +5,18 @@
 export interface WidgetBase {
   id: string
   label: string
+  /** Plain-English caveats about THIS widget's own numbers — e.g. the exchange rate(s) a currency
+   *  consolidation used, or which currency was missing one. Always shown, never thrown. */
+  warnings?: string[]
 }
 
 export interface MetricWidget extends WidgetBase {
   kind: "metric"
   value: number
   unit?: string
+  /** Marks `value` as a currency-converted APPROXIMATION rather than an original, exact document
+   *  amount — the renderer prefixes it with "≈". See backend's widgets.ts for the full contract. */
+  approx?: boolean
 }
 
 export interface TimeSeriesPoint {

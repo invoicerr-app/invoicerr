@@ -22,15 +22,31 @@ export interface WidgetBase {
   /** Human-facing, plain data — same convention as DocumentTypeDescriptor.label, not an i18n key: a
    *  plugin's widget can be labelled in any language. */
   label: string;
+  /** Plain-English caveats about THIS widget's own numbers — same convention as
+   *  DocumentTotals.warnings/CreditsForDocument.warnings (documents/totals, documents/settlement):
+   *  never thrown, always shown. Introduced for currency consolidation
+   *  (contributions/currency-consolidation.ts) — a converted metric names the rate(s) it used here
+   *  ("USD→EUR @ 1.0842 (manual, 2026-08-15)"), and a currency missing a rate is named here on the
+   *  ordinary per-currency widgets when no consolidated one could be built at all. Optional and
+   *  absent on every widget that has nothing to caveat — the common case, unaffected. */
+  warnings?: string[];
 }
 
 /** A single number and its label — "Pending invoices: 4", "This month's expenses: 128.00 EUR". */
 export interface MetricWidget extends WidgetBase {
   kind: 'metric';
   value: number;
-  /** Optional plain-text suffix — a currency code, a unit — shown after `value`. Never a computed
-   *  currency CONVERSION, only a label for whatever `value` already is. */
+  /** Optional plain-text suffix — a currency code, a unit — shown after `value`. For an ORDINARY
+   *  metric this is never a computed currency conversion, only a label for whatever `value` already
+   *  is — the one declared exception is `approx: true` below. */
   unit?: string;
+  /** Marks `value` as a currency-converted APPROXIMATION rather than an original, exact document
+   *  amount (contributions/currency-consolidation.ts's consolidated totals are the only producer of
+   *  this today) — the renderer (metric-widget.tsx) prefixes it with "≈". A widget carrying this MUST
+   *  also carry `warnings` naming every rate it used (this module's own header on "a conversion is
+   *  information, never a replacement"); never set on its own. Absent (falsy) on every ordinary,
+   *  un-converted metric — unchanged. */
+  approx?: boolean;
 }
 
 export interface TimeSeriesPoint {
