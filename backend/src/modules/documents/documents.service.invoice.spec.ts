@@ -12,6 +12,7 @@ import { DocumentTypeRegistry } from './descriptors/type-registry';
 import * as takeNumber from './numbering/take-number';
 import * as persistence from './persistence';
 import { EntityReferenceRegistry } from './references/reference-registry';
+import * as settlementCredits from './settlement/credits';
 import * as settlementPayments from './settlement/payments';
 import * as companyTransport from './transports/company-transport';
 import { TransportRegistry } from './transports/transport-registry';
@@ -23,6 +24,11 @@ jest.mock('./transports/company-transport');
 // the mocked `./persistence` entirely, so a test that wants to observe or control it must mock this
 // module too, not assume `./persistence`'s mock covers it.
 jest.mock('./settlement/payments');
+// Same reason, same discipline, for CREDITS (item 8, "le lettrage") — `resolveCreditsForDocument`
+// (settlement/credits.ts) also reaches Prisma directly. Defaulted to "no credits" in `beforeEach`
+// below so every pre-existing test in this file keeps meaning exactly what it always did; the
+// dedicated credits describe block overrides it to prove the balance actually changes.
+jest.mock('./settlement/credits');
 // See documents.service.spec.ts's own comment on this mock — the real invoice descriptor now
 // declares `numbering: { onEnterStatus: 'sent' }` too (invoice.descriptor.ts), and
 // `takeDocumentNumberForTransition` reaches Prisma directly, bypassing the mocked `./persistence`.
@@ -91,6 +97,13 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
   beforeEach(() => {
     (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
     (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+    (settlementCredits.resolveCreditsForDocument as jest.Mock).mockResolvedValue({
+      credits: [],
+      warnings: [],
+    });
+    (settlementCredits.toSettlementCreditInputs as jest.Mock).mockImplementation((credits) =>
+      credits.map((c: { id: string; amountMinor: number }) => ({ id: c.id, amountMinor: c.amountMinor })),
+    );
   });
   afterEach(() => jest.resetAllMocks());
 
@@ -386,6 +399,35 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
 
       expect(result.message).toMatch(/fully paid/i);
       expect(result.message).not.toMatch(/outstanding/i);
+    });
+
+    it('a PRE-EXISTING credit is folded into the balance THIS message states — never contradicting a follow-up read of the settlement screen', async () => {
+      // The invoice (GROSS_MINOR = 2376) was already credited 2000 minor before this payment —
+      // recording a further 376 must be exactly enough to settle it.
+      (settlementCredits.resolveCreditsForDocument as jest.Mock).mockResolvedValue({
+        credits: [{ id: 'cn-1', displayNumber: null, amountMinor: 2000, currency: 'EUR' }],
+        warnings: [],
+      });
+      (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
+        { id: 'payment-1', documentId: 'doc-1', amountMinor: GROSS_MINOR - 2000, currency: 'EUR' },
+      ]);
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'invoice', 'record-payment', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+        params: { amount: 3.76, currency: 'EUR', paidAt: '2026-08-30' },
+      });
+
+      expect(result.message).toMatch(/fully paid/i);
+      expect(result.message).not.toMatch(/outstanding/i);
+      expect(settlementCredits.resolveCreditsForDocument).toHaveBeenCalledWith(
+        'company-1',
+        'invoice',
+        'doc-1',
+        expect.anything(),
+        validInvoiceData,
+      );
     });
   });
 

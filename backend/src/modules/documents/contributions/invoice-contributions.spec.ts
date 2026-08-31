@@ -4,8 +4,10 @@ import {
   invoiceTotal,
 } from './invoice-contributions';
 import * as persistence from '../persistence';
+import * as settlementCredits from '../settlement/credits';
 import * as settlementPayments from '../settlement/payments';
 import { DocumentInstanceResult } from '../actions/action-registry';
+import { ROW_ID_KEY } from '../row-selection/row-selection';
 import { ShortListWidget, TableWidget, TimeSeriesWidget } from './widgets';
 
 jest.mock('../persistence');
@@ -13,9 +15,17 @@ jest.mock('../persistence');
 // way `../persistence` already is, defaulting to "nothing paid" so every pre-existing test in this
 // file keeps meaning exactly what it always did.
 jest.mock('../settlement/payments');
+// Same reason, same discipline, for CREDITS (item 8, "le lettrage") — `listCreditNotes` also reaches
+// Prisma directly. Defaulted to "no credit notes at all" so every pre-existing test keeps meaning
+// exactly what it always did; the dedicated test below overrides it.
+jest.mock('../settlement/credits', () => {
+  const actual = jest.requireActual('../settlement/credits');
+  return { ...actual, listCreditNotes: jest.fn() };
+});
 
 const listDocuments = persistence.listDocuments as jest.Mock;
 const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as jest.Mock;
+const listCreditNotes = settlementCredits.listCreditNotes as jest.Mock;
 
 function invoice(
   overrides: Partial<DocumentInstanceResult> & { data: Record<string, unknown> },
@@ -52,6 +62,7 @@ describe('buildInvoiceDashboardWidgets', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-08-30'));
     listDocuments.mockReset();
     sumPaidMinorByDocument.mockReset().mockResolvedValue(new Map());
+    listCreditNotes.mockReset().mockResolvedValue([]);
   });
 
   afterEach(() => jest.useRealTimers());
@@ -111,6 +122,50 @@ describe('buildInvoiceDashboardWidgets', () => {
 
     expect(pending.items.map((i) => i.id)).toEqual(['partial-1']);
     expect(sumPaidMinorByDocument).toHaveBeenCalledWith('c1', ['settled-1', 'partial-1']);
+  });
+
+  it('excludes a "sent" invoice that has been fully CREDITED — item 8, "le lettrage" — same function, automatically', async () => {
+    // credited-1: one 100 EUR line, no VAT rate given -> grossMinor 10000, corrected in FULL by a
+    // SENT credit note selecting that same line. still-pending-1: correctable line untouched by any
+    // credit note at all.
+    listDocuments.mockResolvedValue([
+      invoice({
+        id: 'credited-1',
+        status: 'sent',
+        data: {
+          currency: 'EUR',
+          dueDate: '2026-09-01',
+          lines: [{ [ROW_ID_KEY]: 'line-1', quantity: 1, unitPrice: 100 }],
+        },
+      }),
+      invoice({
+        id: 'still-pending-1',
+        status: 'sent',
+        data: {
+          currency: 'EUR',
+          dueDate: '2026-09-02',
+          lines: [{ [ROW_ID_KEY]: 'line-2', quantity: 1, unitPrice: 200 }],
+        },
+      }),
+    ]);
+    listCreditNotes.mockResolvedValue([
+      {
+        id: 'cn-1',
+        typeId: 'credit-note',
+        status: 'sent',
+        displayNumber: null,
+        data: { invoice: 'credited-1', currency: 'EUR', correctedLines: ['line-1'] },
+        createdAt: new Date('2026-08-01'),
+        updatedAt: new Date('2026-08-01'),
+      },
+    ]);
+
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1' });
+    const pending = widgets.find((w) => w.kind === 'shortList') as ShortListWidget;
+
+    // No `computeSettlement`/credits logic was duplicated here — the SAME function this dashboard
+    // already reused for payments is what excludes `credited-1`, "gratuit" per the task's own wording.
+    expect(pending.items.map((i) => i.id)).toEqual(['still-pending-1']);
   });
 
   it('counts invoices per issue month over the trailing window — never sums their amounts', async () => {

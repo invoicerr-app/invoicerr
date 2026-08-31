@@ -39,7 +39,7 @@
 | # | Titre | Description |
 |---|---|---|
 | 7 ✅ | **Paiements** (fait, 2026-08-31) | `record-payment` est déclarée sur la facture et bloque en 501 — c'est le cas vivant du test de blocage. Modèle de paiement, écran, méthodes de paiement (module supprimé). |
-| 8 | **Lettrage** | Rapprocher paiements ET avoirs de la facture qu'ils soldent — le `settlementOf` d'avant était pur et vérifié par mutation, récupérable au repère. Dépend de 7. |
+| 8 ✅ | **Lettrage** (fait, 2026-08-31) | Rapprocher paiements ET avoirs de la facture qu'ils soldent — le `settlementOf` d'avant était pur et vérifié par mutation, récupérable au repère. Dépend de 7. |
 | 9 | **Multi-devises** | `CurrencyConversion` supprimé. Conversion et affichage ; les décimales par devise ont déjà été sauvées dans `utils/financial.ts`. |
 
 ## C — La sortie (conformité)

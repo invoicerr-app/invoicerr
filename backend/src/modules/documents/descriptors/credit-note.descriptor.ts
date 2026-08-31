@@ -38,43 +38,56 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    built for this type alone; nothing here is specific to a credit note beyond the three hints below
  *    naming which sibling field, which entity, and which array they point at.
  *
- * Actions: "save-draft" only — implemented, the exact same generic mechanism every document type here
- * shares (actions/generic-actions.ts). Nothing else was asked for this type ("au minimum enregistrer
- * le brouillon"), so nothing else is declared: a "send" or a status-changing action here would mean
- * inventing policy (who does a credit note go to? does it need its own transport?) that was never part
- * of this task.
+ * Actions: "save-draft", the exact same generic mechanism every document type here shares
+ * (actions/generic-actions.ts) — plus, as of item 8 of the root TODO ("le lettrage"), "send"
+ * (actions/credit-note-actions.ts): a plain STATUS transition, draft -> sent, that reads and writes
+ * NOTHING beyond that status — no transport, no email, no recipient. This is deliberately NOT the
+ * quote's `registerEmailSendAction`/`registerEmailRecipientDefaultFromClient` mechanism, and NOT the
+ * invoice's own company-configured-transport one either: this type still has no "client" field (see
+ * the `invoice` field's own comment above) and still no declared opinion on WHO a credit note goes to
+ * or THROUGH WHICH channel — exactly the policy this file's own history already refused to invent for
+ * "au minimum enregistrer le brouillon". What changed is narrower than that: a credit note only
+ * REDUCES what the invoice it corrects still owes once it is no longer a draft (settlement/credits.ts
+ * — a draft is a document the user has not finished, and settles nothing), so SOME way to leave
+ * "draft" had to exist for lettrage to mean anything at all. "send" is that minimal mechanism, and
+ * nothing more: it does not attempt delivery, and reusing this name (rather than, say, "issue") keeps
+ * it the same verb the frontend already renders a button for on every other type (quote, invoice).
  *
- * Lifecycle: a SINGLE status, "draft" — the only one "save-draft" (generic-actions.ts's
- * registerSaveDraftAction) ever writes, from any current status (`from: 'always'`, trivially true
- * here since "draft" is the only status this type's own lifecycle has ever reached). No second
- * status is invented: nothing asked for one, and no handler produces one.
+ * Lifecycle: TWO statuses now, "draft" and "sent" — "save-draft" (generic-actions.ts's
+ * registerSaveDraftAction) always persists "draft", from ANY current status (`from: 'always'`,
+ * faithful to what the handler actually does); "send" (credit-note-actions.ts) moves "draft" ->
+ * "sent", the same shape SEND_TRANSITIONS gives the quote's and the invoice's own "send".
  *
- * Numbering: NOT declared, despite a real credit note plausibly needing one in actual bookkeeping —
- * see types.ts's own comment on `numbering`. `numbering.onEnterStatus` must name one of THIS type's
- * own declared `statuses` (checked by `validateLifecycle`, lifecycle.ts), and this type has only
- * "draft" — there is no non-draft status to hook a number onto, because there is no "send" (or any
- * other status-changing) action here at all (see the "Actions" paragraph above). Tried and verified,
- * not merely asserted: declaring `numbering: { onEnterStatus: 'sent' }` here throws at registration
- * with `validateLifecycle`'s own "not one of its own declared statuses" error, exactly like a typo'd
- * status would for `initialStatus`. Adding a "sent"-like status (and the action that would reach it)
- * purely to make this type numberable would be inventing lifecycle this task never asked for — see
- * this file's own "Actions" paragraph on the same restraint for a "send" action itself.
+ * Numbering: still NOT declared, even though a non-draft status now exists to hang one onto (unlike
+ * when this file's own numbering comment was first written) — see types.ts's own comment on
+ * `numbering`. Whether an ISSUED credit note needs a legal, sequential number of its own is a real
+ * question for actual French bookkeeping, but it is a DIFFERENT task from lettrage: item 8 asks that
+ * a sent credit note reduce what its invoice owes, not that it be numbered. Adding `numbering` here
+ * would be exactly the kind of unrequested scope this file's own header already declines elsewhere
+ * (no forced negative amounts, no required reason code) — left for whichever task actually asks for
+ * it, not guessed at here.
  */
 const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
+const SEND_TRANSITIONS: DocumentActionTransition[] = [{ from: ['draft'], to: 'sent' }];
 
 export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'credit-note',
     label: 'Credit note',
-    statuses: [{ id: 'draft', label: 'Draft' }],
+    statuses: [
+      { id: 'draft', label: 'Draft' },
+      { id: 'sent', label: 'Sent' },
+    ],
     initialStatus: 'draft',
     // See types.ts's own comment on `DocumentTypeDescriptor.email` — declared for consistency with
-    // every other shipped type, even though this type has no "send" action yet (see this file's own
-    // "Actions" paragraph above): a future send mechanism, or a company that overrides
-    // `documentEmailTemplates` ahead of one existing, gets a sober default rather than a hole. No
-    // `{recipientName}` here — this type has no field targeting the "client" entity (only
-    // `invoice`), so that placeholder is deliberately left out of this type's OWN default (a company
-    // override that adds it anyway degrades honestly — see actions/email-template.ts).
+    // every other shipped type, even though this type's own "send" (see this file's own "Actions"
+    // paragraph above) never actually reads it: it is a plain status transition, not an email
+    // dispatch (unlike the quote's/invoice's own "send"). A future mechanism that DOES deliver a
+    // credit note by mail, or a company that overrides `documentEmailTemplates` ahead of one
+    // existing, gets a sober default rather than a hole. No `{recipientName}` here — this type has no
+    // field targeting the "client" entity (only `invoice`), so that placeholder is deliberately left
+    // out of this type's OWN default (a company override that adds it anyway degrades honestly — see
+    // actions/email-template.ts).
     email: {
       subject: '{typeLabel} {displayNumber} from {companyName}',
       body:
@@ -138,6 +151,14 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
         label: 'Save draft',
         transitions: SAVE_DRAFT_TRANSITIONS,
         availableWhen: transitionsAvailableWhen(SAVE_DRAFT_TRANSITIONS),
+      },
+      {
+        id: 'send',
+        label: 'Send',
+        transitions: SEND_TRANSITIONS,
+        availableWhen: transitionsAvailableWhen(SEND_TRANSITIONS),
+        // No params — see this file's own "Actions" paragraph: this is a plain status transition,
+        // not a delivery, so there is no recipient (or anything else) to type in here.
       },
     ],
   };

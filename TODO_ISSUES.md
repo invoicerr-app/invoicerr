@@ -28,3 +28,9 @@
   SMTP), mais le corriger demande un statut intermédiaire (`sending`) que le cycle de vie déclaré
   rend désormais facile à ajouter — à traiter avec l'item **3** déjà livré comme socle, ou lors de
   l'item **22** (files d'attente), où l'envoi deviendra asynchrone de toute façon.
+
+- **`resetAndSeed` ne re-sème pas la politique pays** (découvert à la tâche 8) : les tables de
+  référence sont exclues de la troncature, mais une NOUVELLE règle ajoutée aux JSON n'existe en
+  base qu'après un `prisma db seed` manuel — sinon l'action est 403 en silence pour tout le monde.
+  À automatiser un jour (seed au boot du backend de test, ou détection de dérive JSON↔base) ; en
+  attendant, toute tâche qui touche `country-policy/data/*.json` doit re-semer les deux bases.

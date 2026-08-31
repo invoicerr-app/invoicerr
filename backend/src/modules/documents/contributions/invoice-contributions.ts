@@ -1,6 +1,7 @@
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { listDocuments } from '../persistence';
 import { computeSettlement } from '../settlement/compute-settlement';
+import { creditsForInvoiceFromNotes, listCreditNotes, toSettlementCreditInputs } from '../settlement/credits';
 import { sumPaidMinorByDocument } from '../settlement/payments';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
@@ -11,11 +12,11 @@ import { MetricWidget, ShortListWidget, TableWidget, TimeSeriesWidget, Widget } 
  * own comments for the reasoning, not just the shape. It covers exactly what was asked for the
  * invoice: a dashboard curve and a pending-invoices list, plus a statistics table so both locations
  * have one worked example. Everything here is ARITHMETIC (counting, summing a document's own line
- * amounts, or — since payments landed — its own recorded payments) — never a fiscal rule: no VAT
- * INVENTED here (though `computeDocumentTotals` and `computeSettlement` are reused verbatim from
- * their own modules for the "pending" filter below, not reimplemented), no rounding convention
- * invented, no numbering. See invoice.descriptor.ts's own header for the same boundary drawn for the
- * invoice's FIELDS.
+ * amounts, or — since payments (and now credits — item 8, "le lettrage") landed — its own recorded
+ * payments and the credit notes correcting it) — never a fiscal rule: no VAT INVENTED here (though
+ * `computeDocumentTotals` and `computeSettlement` are reused verbatim from their own modules for the
+ * "pending" filter below, not reimplemented), no rounding convention invented, no numbering. See
+ * invoice.descriptor.ts's own header for the same boundary drawn for the invoice's FIELDS.
  */
 
 /** The invoice's own base descriptor — see actions/invoice-actions.ts's identical constant for why a
@@ -89,23 +90,29 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
   const invoices = await listDocuments(companyId, 'invoice', CONTRIBUTION_READ_LIMIT);
 
   // A "draft" is not yet issued at all, so it is never "pending" in the sense a reader of this
-  // widget means — that part is unchanged. What changed once payments landed (settlement/): a "sent"
-  // invoice that has since been SETTLED (paid in full, or overpaid) is no longer awaiting anything
-  // either, so it is excluded too — a paid invoice sitting in "pending invoices" would be exactly the
-  // kind of stale fact this dashboard exists to avoid. `computeDocumentTotals`/`computeSettlement`
-  // are reused verbatim (never reimplemented) for this — see this file's own header.
+  // widget means — that part is unchanged. What changed once payments (and now credits — item 8,
+  // "le lettrage") landed (settlement/): a "sent" invoice that has since been SETTLED (paid in full,
+  // credited in full, or a mix that exceeds it) is no longer awaiting anything either, so it is
+  // excluded too — a fully-credited invoice sitting in "pending invoices" would be exactly the stale,
+  // still-chasing-a-customer-for-nothing fact this task exists to fix. `computeDocumentTotals`/
+  // `computeSettlement` are reused verbatim (never reimplemented) for this — see this file's own
+  // header. `listCreditNotes` is ONE extra query for every "sent" invoice at once (same "one query,
+  // many callers" shape `sumPaidMinorByDocument` already gives payments), not one per invoice.
   const sentInvoices = invoices.filter((invoice) => invoice.status === 'sent');
   const paidMinorByDocument = await sumPaidMinorByDocument(
     companyId,
     sentInvoices.map((invoice) => invoice.id),
   );
+  const creditNotes = await listCreditNotes(companyId);
 
   const pendingItems = sentInvoices
     .filter((invoice) => {
       const data = (invoice.data ?? {}) as Record<string, unknown>;
       const grossMinor = computeDocumentTotals(INVOICE_DESCRIPTOR, data).grossMinor;
       const paidMinor = paidMinorByDocument.get(invoice.id) ?? 0;
-      return !computeSettlement(grossMinor, [{ amountMinor: paidMinor }]).settled;
+      const { credits } = creditsForInvoiceFromNotes(creditNotes, invoice.id, INVOICE_DESCRIPTOR, data);
+      return !computeSettlement(grossMinor, [{ amountMinor: paidMinor }], toSettlementCreditInputs(credits))
+        .settled;
     })
     .map((invoice) => {
       const data = (invoice.data ?? {}) as Record<string, unknown>;

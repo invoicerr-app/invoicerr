@@ -14,7 +14,8 @@
  *  1. brouillon créé par l'API, envoyée par un VRAI clic (transport "email" configuré au préalable) ;
  *  2. un paiement PARTIEL de 60 € via le dialogue d'action (vrais champs) → badge "Partially paid",
  *     solde exact vérifié par l'API (calcul en dur ici, pas recopié du code) ;
- *  3. le paiement complété (60 € de plus) → badge "Paid", `outstandingMinor: 0` ;
+ *  3. le paiement complété (60 € de plus) → badge "Settled" (renommé depuis "Paid" — item 8 du TODO
+ *     racine, "le lettrage" : voir 25-document-settlement.cy.ts), `outstandingMinor: 0` ;
  *  4. un paiement dans une autre devise (USD) est refusé — visible à l'écran (message d'erreur), et
  *     sans aucun effet sur le solde déjà enregistré ;
  *  5. sur un brouillon, l'action n'est pas offerte à l'écran, et l'API la refuse aussi (409).
@@ -112,8 +113,9 @@ describe("Les paiements d'une facture — un enregistrement, pas un type de docu
 					expect(body.settlement).to.deep.equal({
 						totalGrossMinor: GROSS_MINOR,
 						paidMinor: 0,
+						creditedMinor: 0,
 						outstandingMinor: GROSS_MINOR,
-						overpaidMinor: 0,
+						excessMinor: 0,
 						settled: false,
 					});
 					expect(body.payments).to.have.length(0);
@@ -163,8 +165,9 @@ describe("Les paiements d'une facture — un enregistrement, pas un type de docu
 				expect(body.settlement).to.deep.equal({
 					totalGrossMinor: GROSS_MINOR,
 					paidMinor: 6000,
+					creditedMinor: 0,
 					outstandingMinor: 6000,
-					overpaidMinor: 0,
+					excessMinor: 0,
 					settled: false,
 				});
 				expect(body.payments).to.have.length(1);
@@ -172,7 +175,7 @@ describe("Les paiements d'une facture — un enregistrement, pas un type de docu
 			});
 	});
 
-	it('compléter le paiement fait apparaître le badge "Paid" et outstandingMinor: 0', () => {
+	it('compléter le paiement fait apparaître le badge "Settled" et outstandingMinor: 0', () => {
 		expect(invoiceId, "la facture des tests précédents existe toujours").to.be.a("string");
 
 		cy.visit("/documents/invoice");
@@ -190,7 +193,10 @@ describe("Les paiements d'une facture — un enregistrement, pas un type de docu
 		cy.get('[data-cy="document-action-params-confirm"]').click();
 		cy.get('[data-cy="document-action-params-dialog"]').should("not.exist");
 
-		cy.get('[data-cy="document-settlement-badge"]', { timeout: 15000 }).should("contain.text", "Paid");
+		// Renamed from "Paid" — see document-settlement.tsx's own header: nothing "Paid" would be true
+		// of a document settled by CREDIT instead, so the terminal badge state is named "Settled" now,
+		// regardless of how the balance actually got to zero.
+		cy.get('[data-cy="document-settlement-badge"]', { timeout: 15000 }).should("contain.text", "Settled");
 		cy.get('[data-cy="document-settlement-outstanding"]').should("contain.text", "0.00 EUR");
 
 		cy.request({ url: `${api}/api/documents/${invoiceId}/settlement?typeId=invoice` })

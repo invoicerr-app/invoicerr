@@ -2963,16 +2963,19 @@
       "gross": "Total"
     },
     "settlement": {
-      "title": "Payments",
+      "title": "Settlement",
       "paid": "Paid",
+      "credited": "Credited",
       "outstanding": "Outstanding",
-      "overpaid": "Overpaid",
+      "excess": "Excess",
       "empty": "No payments recorded yet.",
+      "paymentsTitle": "Payments",
+      "creditsTitle": "Credit notes",
+      "creditsEmpty": "No credit notes recorded yet.",
       "badge": {
         "unpaid": "Unpaid",
         "partiallyPaid": "Partially paid",
-        "paid": "Paid",
-        "overpaid": "Overpaid"
+        "settled": "Settled"
       }
     }
   }

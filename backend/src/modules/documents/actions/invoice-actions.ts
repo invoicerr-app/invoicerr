@@ -6,6 +6,7 @@ import { decimalsFor, toMinor } from '@/utils/financial';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { findOwnedDocument, upsertDocument } from '../persistence';
 import { computeSettlement, describeSettlement } from '../settlement/compute-settlement';
+import { resolveCreditsForDocument, toSettlementCreditInputs } from '../settlement/credits';
 import { listPayments, recordPayment } from '../settlement/payments';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { getCompanyInvoiceTransportId } from '../transports/company-transport';
@@ -188,7 +189,19 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
 
     const totals = computeDocumentTotals(INVOICE_DESCRIPTOR, documentData);
     const payments = await listPayments(companyId, documentId);
-    const settlement = computeSettlement(totals.grossMinor, payments);
+    // CREDITS count towards this same balance (item 8, "le lettrage") — resolved here too, not just
+    // in documents.service.ts's own GET .../settlement, so the balance THIS message states (and the
+    // "settled" fact logged below) never contradicts what a follow-up read of the settlement screen
+    // shows: an invoice already partly credited before this payment must not be reported as owing
+    // more than it actually does.
+    const { credits } = await resolveCreditsForDocument(
+      companyId,
+      'invoice',
+      documentId,
+      INVOICE_DESCRIPTOR,
+      documentData,
+    );
+    const settlement = computeSettlement(totals.grossMinor, payments, toSettlementCreditInputs(credits));
 
     logger.info('Payment recorded against an invoice', {
       category: 'documents',

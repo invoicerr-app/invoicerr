@@ -200,23 +200,40 @@ export interface DocumentPayment {
   createdAt: string
 }
 
-/** The balance computed from a document's totals and its recorded payments — mirrors the backend's
+/** The balance computed from a document's totals, its recorded payments, and the credit notes
+ *  correcting it (item 8 of the root TODO — "le lettrage") — mirrors the backend's
  *  `DocumentSettlement` (settlement/compute-settlement.ts). See that file's header on why a credit
- *  note is not one of `payments`, and why `overpaidMinor` is surfaced rather than discarded. */
+ *  note is never merged into `paidMinor`, and why the excess is ONE field (`excessMinor`, renamed
+ *  from the earlier `overpaidMinor` — an over-CREDITED document with zero payments was never
+ *  "overpaid") surfaced rather than discarded. */
 export interface DocumentSettlement {
   totalGrossMinor: number
   paidMinor: number
+  creditedMinor: number
   outstandingMinor: number
-  overpaidMinor: number
+  excessMinor: number
   settled: boolean
+}
+
+/** One credit note counted (or ignored — see `DocumentSettlementResult.warnings`) against a
+ *  document's balance — mirrors the backend's `DocumentCreditResult` (settlement/credits.ts). */
+export interface DocumentCredit {
+  id: string
+  displayNumber: string | null
+  amountMinor: number
+  currency: string
 }
 
 /** What `GET /documents/:id/settlement` returns — mirrors the backend's `DocumentSettlementView`.
  *  `totals` is narrowed to only what the settlement UI needs (never the full line-by-line breakdown
- *  DocumentTotals already renders elsewhere via totals-calculator.ts's OWN, client-side copy). */
+ *  DocumentTotals already renders elsewhere via totals-calculator.ts's OWN, client-side copy).
+ *  `credits`/`warnings` are new (item 8, "le lettrage"): always present, empty for any type that
+ *  isn't an invoice. */
 export interface DocumentSettlementResult {
   totals: { currency: string | null; grossMinor: number }
   payments: DocumentPayment[]
+  credits: DocumentCredit[]
+  warnings: string[]
   settlement: DocumentSettlement
 }
 

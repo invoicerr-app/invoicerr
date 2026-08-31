@@ -50,6 +50,11 @@ import { RunActionDto } from './dto/documents.dto';
 import { takeDocumentNumberForTransition } from './numbering/take-number';
 import { findOwnedDocument, listDocuments } from './persistence';
 import { computeSettlement, DocumentSettlement } from './settlement/compute-settlement';
+import {
+  DocumentCreditResult,
+  resolveCreditsForDocument,
+  toSettlementCreditInputs,
+} from './settlement/credits';
 import { DocumentPaymentResult, listPayments } from './settlement/payments';
 import {
   EntityReferenceOption,
@@ -105,10 +110,14 @@ export interface DocumentTypeDescriptorView extends Omit<DocumentTypeDescriptor,
 }
 
 /** What `GET /documents/:id/settlement` hands back — see `DocumentsService.getSettlement`. Same
- *  "read side of a write" pairing `DocumentTotals` already has with `computeTotals`. */
+ *  "read side of a write" pairing `DocumentTotals` already has with `computeTotals`. `credits` and
+ *  `warnings` are new (item 8, "le lettrage" — settlement/credits.ts): empty arrays for any type that
+ *  isn't an invoice, never a missing/undefined field the frontend would have to guard against. */
 export interface DocumentSettlementView {
   totals: DocumentTotals;
   payments: DocumentPaymentResult[];
+  credits: DocumentCreditResult[];
+  warnings: string[];
   settlement: DocumentSettlement;
 }
 
@@ -671,15 +680,20 @@ export class DocumentsService implements OnModuleInit {
    * of "record-payment" (actions/invoice-actions.ts writes the `DocumentPayment` rows this reads
    * back). Works for ANY document type, not only the invoice: nothing here names one, the same way
    * `computeTotals` doesn't — a type simply has no payments recorded against it if it never declares
-   * a "record-payment"-shaped action, and the settlement then trivially says "nothing paid".
+   * a "record-payment"-shaped action, and the settlement then trivially says "nothing paid". CREDITS
+   * (item 8, "le lettrage") are resolved the same way — `resolveCreditsForDocument`
+   * (settlement/credits.ts) is the one place that knows only "invoice" has any today; a quote or an
+   * expense simply gets `credits: []` back, no special-casing needed here.
    */
   async getSettlement(companyId: string, typeId: string, id: string): Promise<DocumentSettlementView> {
     const instance = await findOwnedDocument(companyId, typeId, id);
     const descriptor = this.mergedDescriptor(typeId);
-    const totals = computeDocumentTotals(descriptor, instance.data as Record<string, unknown>);
+    const data = instance.data as Record<string, unknown>;
+    const totals = computeDocumentTotals(descriptor, data);
     const payments = await listPayments(companyId, id);
-    const settlement = computeSettlement(totals.grossMinor, payments);
-    return { totals, payments, settlement };
+    const { credits, warnings } = await resolveCreditsForDocument(companyId, typeId, id, descriptor, data);
+    const settlement = computeSettlement(totals.grossMinor, payments, toSettlementCreditInputs(credits));
+    return { totals, payments, credits, warnings, settlement };
   }
 
   /**

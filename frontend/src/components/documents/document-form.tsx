@@ -99,10 +99,10 @@ export function DocumentForm({
   const availableActions = descriptor.actions.filter((action) => isActionAvailable(action, currentStatus))
   const firstRunnableAction = availableActions.find((action) => !action.policyBlockedReason)
 
-  // The "Payments" section: shown for ANY document type once "record-payment" is actually OFFERED
-  // for the record's current status — never by naming a type. A brand-new, never-saved record (no
-  // `currentDocumentId` yet) has nothing to show here either way: there is no instance to fetch a
-  // settlement FOR.
+  // The settlement section (payments, credit notes, balance — document-settlement.tsx): shown for
+  // ANY document type once "record-payment" is actually OFFERED for the record's current status —
+  // never by naming a type. A brand-new, never-saved record (no `currentDocumentId` yet) has nothing
+  // to show here either way: there is no instance to fetch a settlement FOR.
   const showSettlement =
     !!currentDocumentId && availableActions.some((action) => action.id === "record-payment")
 

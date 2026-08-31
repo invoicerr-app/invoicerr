@@ -86,6 +86,15 @@
       }
     },
     {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Faire passer un avoir de 'draft' à 'sent' dans cet outil est ce qui le rend opposable au lettrage (voir settlement/credits.ts, item 8 du TODO racine) — un mécanisme produit interne (aucune transmission, aucun email), pas en soi l'acte juridique d'émission d'un avoir. Le régime légal français d'un avoir (rectification de TVA, mentions obligatoires du CGI/BOFiP) porte sur le CONTENU du document une fois émis, pas sur ce changement de statut — même distinction que credit-note.save-draft ci-dessus. À confirmer par une revue dédiée si ce noyau venait à donner un effet légal propre à cette transition (horodatage probant, numérotation séquentielle)."
+      }
+    },
+    {
       "typeId": "expense",
       "actionId": "save-draft",
       "allowed": true,

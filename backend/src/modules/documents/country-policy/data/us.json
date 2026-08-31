@@ -79,6 +79,15 @@
       }
     },
     {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Moving a credit note from 'draft' to 'sent' in this tool is what makes it count against the invoice it corrects (see settlement/credits.ts, root TODO item 8) — an internal product mechanism (no transmission, no email), not itself an act of issuing a credit memo under any state's rules. No US text identified governing this internal status transition specifically; state sales-tax credit-memo rules, if any, would govern the document's CONTENT once issued, not this mechanism. Confirm with a dedicated review before asserting anything stronger."
+      }
+    },
+    {
       "typeId": "expense",
       "actionId": "save-draft",
       "allowed": true,

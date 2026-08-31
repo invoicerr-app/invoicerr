@@ -103,9 +103,46 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     );
   });
 
-  it('declares exactly one action: "save-draft" — "au minimum enregistrer le brouillon", nothing more', () => {
+  it('declares exactly two actions: "save-draft" and "send" — nothing more', () => {
     const descriptor = buildService().service.getType('credit-note');
-    expect(descriptor.actions.map((a) => a.id)).toEqual(['save-draft']);
+    expect(descriptor.actions.map((a) => a.id)).toEqual(['save-draft', 'send']);
+  });
+
+  it('"send" is a plain draft -> sent transition — real, via runAction, no params, no email', async () => {
+    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
+      invoiceDocument('invoice-doc-1', ['line-1']),
+    );
+    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      id: 'cn-1',
+      typeId: 'credit-note',
+      status: 'sent',
+      data: validCreditNoteData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    const result = await service.runAction('company-1', 'credit-note', 'send', {
+      documentId: 'cn-1',
+      data: validCreditNoteData,
+    });
+
+    expect(result.changed).toBe(true);
+    expect(result.document).toMatchObject({ id: 'cn-1', status: 'sent' });
+    expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      'company-1',
+      'credit-note',
+      'cn-1',
+      'sent',
+      validCreditNoteData,
+    );
+  });
+
+  it('"send" is not offered before the credit note has ever been saved — 409, like any other status-gated action', async () => {
+    await expect(
+      buildService().service.runAction('company-1', 'credit-note', 'send', { data: validCreditNoteData }),
+    ).rejects.toThrow(/not available before the document has been saved/);
+    expect(persistence.upsertDocument).not.toHaveBeenCalled();
   });
 
   it('declares "correctedLines" as a rowSelection sourced from the invoice\'s own "lines"', () => {
