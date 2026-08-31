@@ -363,6 +363,7 @@ model Company {
   documentPayments        DocumentPayment[]
   currencyRates           CurrencyRate[]
   channelConfigs          CompanyChannelConfig[]
+  signingCertificates     CompanySigningCertificate[]
 }
 
 // Manually entered exchange rates (item 9, root TODO — "le multi-devises"). The rule that governs
@@ -1202,6 +1203,45 @@ model CompanyChannelConfig {
   updatedAt   DateTime           @updatedAt
 
   @@unique([companyId, providerId, environment])
+  @@index([companyId])
+}
+
+// Root TODO item 13 ("Signature électronique — module supprimé") — a company's OPT-IN electronic
+// signing capability, reprised (schema unchanged, field-for-field) from git tag
+// `avant-refonte-documents`'s own `CompanySigningCertificate`. See
+// `modules/company/signing-certificates/signing-certificates.service.ts`'s own header for the full
+// reasoning: no jurisdiction this product ships requires a signed document today, so this table is
+// never read by anything unless a company chooses to upload a certificate here.
+//
+// `applicability` is "*" (all algorithms) or one of "XAdES"/"CAdES"/"PAdES" — a bare `String`, not an
+// enum, the same reasoning `CompanyChannelConfig.providerId` above gives (an open, provider-declared
+// vocabulary, not a closed set this schema would have to migrate for a fourth algorithm). `serial`
+// is likewise a `String` (hex, arbitrary length after node-forge strips leading zeros) — never an
+// `Int`, a certificate serial is an identifier, not a quantity.
+//
+// `encryptedPfx`/`encryptedPass` are TWO INDEPENDENT AES-256-GCM ciphertexts (`utils/secret-crypto.ts`)
+// — never one derived from the other, the same discipline `CompanyChannelConfig.config` holds for a
+// whole credentials blob. `notBefore`/`notAfter`/`serial`/`subject` are extracted from the PFX by
+// node-forge AT UPLOAD TIME (never trusted from the client) precisely so the LIST endpoint can show a
+// certificate's real validity/subject without ever decrypting it.
+model CompanySigningCertificate {
+  id            String             @id @default(cuid())
+  companyId     String
+  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  label         String
+  applicability String             @default("*") // "*" | "XAdES" | "CAdES" | "PAdES"
+  environment   ChannelEnvironment @default(TEST)
+  encryptedPfx  String // AES-256-GCM encrypted base64 PFX (secret-crypto) — never the plaintext bytes
+  encryptedPass String // AES-256-GCM encrypted PFX password (secret-crypto) — a SEPARATE ciphertext
+  notBefore     DateTime
+  notAfter      DateTime
+  serial        String
+  subject       String
+  isActive      Boolean            @default(true) // soft-delete only — see the service's own "deactivate()"
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@unique([companyId, applicability, environment])
   @@index([companyId])
 }
 

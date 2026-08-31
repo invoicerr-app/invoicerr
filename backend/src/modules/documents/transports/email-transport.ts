@@ -6,6 +6,7 @@ import { MailService } from '@/mail/mail.service';
 import { sendDocumentInstanceEmail } from '../actions/send-document-email';
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import { EntityReferenceRegistry } from '../references/reference-registry';
+import { SigningCredentialsPort } from '../signing/signing-credentials-port';
 import { DocumentTransport, DocumentTransportContext, DocumentTransportResult } from './transport-registry';
 
 export interface EmailTransportDeps {
@@ -13,6 +14,10 @@ export interface EmailTransportDeps {
   mailService: MailService;
   typeRegistry: DocumentTypeRegistry;
   referenceRegistry: EntityReferenceRegistry;
+  /** Root TODO item 13 — threaded straight through to `sendDocumentInstanceEmail`; see
+   *  `SendDocumentEmailDeps.signingCertificates`'s own header for the "optional, no-cert-is-a-no-op"
+   *  contract this preserves. */
+  signingCertificates?: SigningCredentialsPort;
 }
 
 /**
@@ -53,6 +58,7 @@ export function buildEmailTransport(deps: EmailTransportDeps): DocumentTransport
           mailService: deps.mailService,
           typeRegistry: deps.typeRegistry,
           referenceRegistry: deps.referenceRegistry,
+          signingCertificates: deps.signingCertificates,
         },
         {
           companyId: ctx.companyId,

@@ -2231,21 +2231,24 @@
       "title": "Channels"
     },
     "signing": {
-      "deleteError": "Failed to remove certificate",
-      "deleteSuccess": "Certificate removed",
-      "description": "Upload per-company PKCS#12 signing certificates for XAdES, CAdES, and PAdES electronic signatures. Files and passwords are encrypted at rest and never returned.",
-      "emptyState": "No signing certificates configured. Invoices will be transmitted unsigned.",
+      "description": "Upload a PKCS#12 (.pfx / .p12) signing certificate to have this company's document PDFs signed PAdES. This is an optional capability — nothing in this product requires a signed document.",
+      "emptyState": "No signing certificate configured — documents are served and sent unsigned.",
       "expires": "Expires",
       "serial": "Serial",
       "status": {
+        "active": "Active",
         "expired": "Expired",
         "inactive": "Inactive"
+      },
+      "messages": {
+        "deactivateError": "Failed to deactivate the certificate",
+        "deactivateSuccess": "Certificate deactivated"
       },
       "title": "Signing Certificates",
       "upload": {
         "applicability": "Applies to",
         "applicabilityAll": "All formats (*)",
-        "description": "Upload a PKCS#12 (.pfx / .p12) certificate. The file and password are encrypted at rest and never returned.",
+        "description": "The file and password are encrypted at rest and never returned by this screen.",
         "environment": "Environment",
         "error": "Upload failed",
         "file": "PFX / P12 file",
@@ -2257,8 +2260,7 @@
         "submit": "Upload",
         "success": "Certificate uploaded",
         "title": "Upload signing certificate"
-      },
-      "uploadButton": "Upload certificate"
+      }
     },
     "members": {
       "title": "Company Members",

@@ -6,6 +6,7 @@ import { ClientsModule } from '@/modules/clients/clients.module';
 import { ClientsService } from '@/modules/clients/clients.service';
 import { CompanyModule } from '@/modules/company/company.module';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
+import { SigningCertificatesService } from '@/modules/company/signing-certificates/signing-certificates.service';
 import { MailService } from '@/mail/mail.service';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
@@ -142,6 +143,12 @@ function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry)
  * `fa3FormatProvider`/`fatturapaFormatProvider` reference (both stateless, plain objects — see
  * `buildFormatProviderRegistry`'s own header) rather than sharing `FORMAT_PROVIDER_REGISTRY`'s
  * instance, for the identical "no reason to couple two registries" argument.
+ *
+ * `signingCertificates` (`SigningCertificatesService`, `modules/company/signing-certificates/`, root
+ * TODO item 13) is threaded into "email" only — the one transport that hands a human-readable PDF to
+ * someone (see `EmailTransportDeps.signingCertificates`'s own header); "pdp"/"ksef"/"sdi" transmit
+ * XML/Factur-X formats built by `formats/*-provider.ts`, which this task deliberately does NOT sign
+ * (see `sign-instance-pdf.ts`'s own header on why Factur-X's raw-PDF material is exempt).
  */
 function buildTransportRegistry(
   clientsService: ClientsService,
@@ -149,12 +156,19 @@ function buildTransportRegistry(
   typeRegistry: DocumentTypeRegistry,
   referenceRegistry: EntityReferenceRegistry,
   channelCredentials: ChannelCredentialsService,
+  signingCertificates: SigningCertificatesService,
 ): TransportRegistry {
   const registry = new TransportRegistry();
   registry.register(
     'email',
     'Email',
-    buildEmailTransport({ clientsService, mailService, typeRegistry, referenceRegistry }),
+    buildEmailTransport({
+      clientsService,
+      mailService,
+      typeRegistry,
+      referenceRegistry,
+      signingCertificates,
+    }),
   );
   registry.register(
     'pdp',
@@ -176,6 +190,10 @@ function buildTransportRegistry(
  * CONCRETE class here (never `import type` — see this repo's own DI rule) is safe: it comes from
  * `DocumentQueueModule`, `@Global()` and imported below, so Nest resolves it the same way regardless
  * of which process (API or worker) this module boots in.
+ *
+ * `signingCertificates` (root TODO item 13) is threaded into the quote's own "send" only — see
+ * `QuoteActionDeps.signingCertificates`'s own header; the invoice's "send" goes through
+ * `TRANSPORT_REGISTRY` instead (see `buildTransportRegistry` above), never through this function.
  */
 function buildActionRegistry(
   clientsService: ClientsService,
@@ -184,6 +202,7 @@ function buildActionRegistry(
   typeRegistry: DocumentTypeRegistry,
   referenceRegistry: EntityReferenceRegistry,
   queueDispatcher: DocumentQueueDispatcher,
+  signingCertificates: SigningCertificatesService,
 ): ActionRegistry {
   const registry = new ActionRegistry();
   registerQuoteActions(registry, {
@@ -192,6 +211,7 @@ function buildActionRegistry(
     typeRegistry,
     referenceRegistry,
     queueDispatcher,
+    signingCertificates,
   });
   registerConvertToInvoiceAction(registry);
   registerRequestDepositAction(registry);
@@ -276,14 +296,16 @@ function buildEntityReferenceRegistry(
       provide: TRANSPORT_REGISTRY,
       useFactory: buildTransportRegistry,
       // DOCUMENT_TYPE_REGISTRY/ENTITY_REFERENCE_REGISTRY: no circular dependency — see
-      // buildTransportRegistry's own comment above. ChannelCredentialsService comes from
-      // CompanyModule (imported above) — no cycle either: CompanyModule imports nothing from here.
+      // buildTransportRegistry's own comment above. ChannelCredentialsService/SigningCertificatesService
+      // both come from CompanyModule (imported above) — no cycle either: CompanyModule imports
+      // nothing from here.
       inject: [
         ClientsService,
         MailService,
         DOCUMENT_TYPE_REGISTRY,
         ENTITY_REFERENCE_REGISTRY,
         ChannelCredentialsService,
+        SigningCertificatesService,
       ],
     },
     {
@@ -296,6 +318,7 @@ function buildEntityReferenceRegistry(
         DOCUMENT_TYPE_REGISTRY,
         ENTITY_REFERENCE_REGISTRY,
         DocumentQueueDispatcher,
+        SigningCertificatesService,
       ],
     },
     {

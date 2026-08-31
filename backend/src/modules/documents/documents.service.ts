@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
+import { SigningCertificatesService } from '@/modules/company/signing-certificates/signing-certificates.service';
+import { signRenderedPdfIfConfigured } from './signing/sign-instance-pdf';
 import { renderDocumentInstance } from './rendering/render-instance-pdf';
 import { computeDocumentTotals, DocumentTotals } from './totals/compute-totals';
 import prisma from '@/prisma/prisma.service';
@@ -151,6 +153,15 @@ export class DocumentsService implements OnModuleInit {
     // which none of them exercise) — never a breaking change to add a new capability.
     @Inject(FORMAT_PROVIDER_REGISTRY)
     private readonly formatProviderRegistry: FormatProviderRegistry = new FormatProviderRegistry(),
+    // Root TODO item 13 ("Signature électronique") — a plain concrete-class dependency, the same
+    // pattern `ChannelsController`/`buildTransportRegistry` already use for `ChannelCredentialsService`
+    // (no string token needed: Nest resolves a concrete class by its own type). Defaulted to a fresh
+    // `SigningCertificatesService()` (no-arg constructor, same shape as `ChannelCredentialsService`)
+    // for the exact same reason every registry default above exists: the pre-existing
+    // `documents.service.*.spec.ts` files construct this service positionally and stop before this
+    // param — `renderInstancePdf` only reaches it when `CREDENTIALS_ENCRYPTION_KEY` is set (none of
+    // those specs set it), so the default is never actually exercised there.
+    private readonly signingCertificates: SigningCertificatesService = new SigningCertificatesService(),
   ) {}
 
   /**
@@ -760,7 +771,13 @@ export class DocumentsService implements OnModuleInit {
       descriptor,
       instance,
     );
-    return pdf;
+    // Root TODO item 13 — signs PAdES-BES when (and only when) this company has an active,
+    // applicable, non-expired certificate configured (`signing/sign-instance-pdf.ts`'s own header).
+    // No certificate → `pdf` returned untouched, byte-for-byte (the invariant every pre-existing
+    // `documents.service.*.spec.ts` and Cypress spec 19 already proves without knowing this call
+    // exists). A configured-but-failing signature THROWS here, same as a Puppeteer failure would —
+    // never a silently-unsigned document served to a company that turned signing on.
+    return signRenderedPdfIfConfigured(this.signingCertificates, companyId, pdf);
   }
 
   /**

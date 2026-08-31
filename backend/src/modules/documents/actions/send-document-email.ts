@@ -5,6 +5,8 @@ import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import { takeDocumentNumberForTransition } from '../numbering/take-number';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { renderDocumentInstance } from '../rendering/render-instance-pdf';
+import { NullSigningCredentials, SigningCredentialsPort } from '../signing/signing-credentials-port';
+import { signRenderedPdfIfConfigured } from '../signing/sign-instance-pdf';
 import { DocumentInstanceResult } from './action-registry';
 import { getCompanyDocumentEmailTemplates } from './company-email-templates';
 import { buildEmailTemplateParts, renderEmailTemplate, resolveEmailTemplate } from './email-template';
@@ -13,6 +15,16 @@ export interface SendDocumentEmailDeps {
   mailService: MailService;
   typeRegistry: DocumentTypeRegistry;
   referenceRegistry: EntityReferenceRegistry;
+  /**
+   * Root TODO item 13 — resolves this company's active signing certificate, if any
+   * (`SigningCertificatesService`, `modules/company/signing-certificates/`). OPTIONAL, defaulting to
+   * `NullSigningCredentials` (always unsigned) below: every pre-existing caller of this function
+   * (`send-document-email.spec.ts`, `send-quote.live.spec.ts`, `email-transport.spec.ts`) constructs
+   * `SendDocumentEmailDeps` without this field, and that MUST keep attaching the exact same unsigned
+   * PDF it always has — see `sign-instance-pdf.ts`'s own header on why "no cert" is a no-op, not a
+   * special case.
+   */
+  signingCertificates?: SigningCredentialsPort;
 }
 
 export interface SendDocumentEmailInput {
@@ -124,11 +136,22 @@ export async function sendDocumentInstanceEmail(
 
   const filename = document.displayNumber ? `${document.displayNumber}.pdf` : `${typeId}-${document.id}.pdf`;
 
+  // Root TODO item 13 — same wiring, same invariants as `documents.service.ts#renderInstancePdf`:
+  // no cert configured → `pdf` unchanged; an active cert that fails to sign THROWS here, which
+  // propagates exactly like a `renderDocumentInstance` failure already does (see this function's own
+  // header, "PDF failure — fails LOUDLY") — never a bare email sent because the signed attachment
+  // could not actually be produced.
+  const pdf = await signRenderedPdfIfConfigured(
+    deps.signingCertificates ?? new NullSigningCredentials(),
+    companyId,
+    rendered.pdf,
+  );
+
   await deps.mailService.sendMail({
     to: recipient,
     subject,
     text: body,
-    attachments: [{ filename, content: rendered.pdf, contentType: 'application/pdf' }],
+    attachments: [{ filename, content: pdf, contentType: 'application/pdf' }],
   });
 
   const message = `${label} sent to ${recipient}.${warnings.length > 0 ? ` (${warnings.join(' ')})` : ''}`;

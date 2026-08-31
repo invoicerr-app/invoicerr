@@ -4,6 +4,7 @@ import { MailService } from '@/mail/mail.service';
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { EntityReferenceRegistry } from '../references/reference-registry';
+import { SigningCredentialsPort } from '../signing/signing-credentials-port';
 import { runAsyncSendAction } from './async-send';
 import { ActionRegistry } from './action-registry';
 import { registerEmailRecipientDefaultFromClient, registerSaveDraftAction } from './generic-actions';
@@ -15,6 +16,11 @@ export interface QuoteActionDeps {
   typeRegistry: DocumentTypeRegistry;
   referenceRegistry: EntityReferenceRegistry;
   queueDispatcher: DocumentActionQueueDispatcher;
+  /** Root TODO item 13 — threaded straight through to `sendDocumentInstanceEmail`, same optional
+   *  no-op-when-absent contract as `EmailTransportDeps.signingCertificates`. A quote's own "send" is
+   *  unconditionally by email (see this file's own header), so a company with an active certificate
+   *  gets a signed quote PDF exactly the way it gets a signed invoice one. */
+  signingCertificates?: SigningCredentialsPort;
 }
 
 /**
@@ -60,6 +66,7 @@ export function registerQuoteActions(registry: ActionRegistry, deps: QuoteAction
             mailService: deps.mailService,
             typeRegistry: deps.typeRegistry,
             referenceRegistry: deps.referenceRegistry,
+            signingCertificates: deps.signingCertificates,
           },
           { companyId: c, typeId: 'quote', document, recipient, label: 'Quote' },
         );
