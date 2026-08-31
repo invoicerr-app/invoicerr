@@ -26,7 +26,7 @@ interface ChannelsResponse {
 }
 
 /** Friendly display names — same map `channels.settings.tsx` keeps for the identical reason. */
-const PROVIDER_LABELS: Record<string, string> = { pdp: "PDP" }
+const PROVIDER_LABELS: Record<string, string> = { pdp: "PDP", ksef: "KSeF", sdi: "SdI" }
 
 /**
  * Proactive nudge — item 10 (root TODO): renders a small non-blocking banner when this company's

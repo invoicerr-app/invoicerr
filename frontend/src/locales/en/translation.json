@@ -2196,14 +2196,20 @@
         "clientSecret": "Client secret",
         "environment": "Environment",
         "environmentProd": "Production",
-        "environmentTest": "Test (sandbox)"
+        "environmentTest": "Test (sandbox)",
+        "ksefNip": "NIP",
+        "ksefToken": "KSeF token",
+        "sdiCertificate": "PFX certificate (base64)",
+        "sdiCertificatePassword": "Certificate password",
+        "sdiIdTrasmittente": "IdTrasmittente"
       },
       "messages": {
         "connectError": "Failed to connect the channel",
         "connectSuccess": "Channel connected",
         "disconnectError": "Failed to disconnect the channel",
         "disconnectSuccess": "Channel disconnected",
-        "fieldsRequired": "Base URL, client ID and client secret are all required"
+        "fieldsRequired": "{{fields}} are all required",
+        "noFields": "This channel has no configurable fields yet."
       },
       "prompt": {
         "cta": "Connect now",

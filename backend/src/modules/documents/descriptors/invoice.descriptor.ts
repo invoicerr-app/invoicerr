@@ -460,6 +460,15 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
               // Root TODO item 10, wave 1 — see formats/facturx-provider.ts's own header for the
               // reuse this resolves (TODO_ISSUES.md's "Factur-X : embarqueur existant au repère").
               { value: 'facturx', label: 'Factur-X (PDF/A-3 with embedded CII)' },
+              // Root TODO item 10, wave 2 — `fa3`/`fatturapa` are TRANSPORT-only by default (see
+              // `ksef-transport.ts`/`sdi-transport.ts`'s own headers), added here too only because it
+              // costs nothing: neither builder needs anything this action doesn't already pass every
+              // other syntax (descriptor/document/company/client), so this is two more option entries,
+              // not new plumbing. NOT gated by the calling company's own country — like every other
+              // entry in this list, `download-xml` never asks "does this company's country match this
+              // syntax", the same way a French company can already download a `ubl` export today.
+              { value: 'fa3', label: 'FA(3) — Polish KSeF national schema' },
+              { value: 'fatturapa', label: 'FatturaPA — Italian SdI national schema' },
             ],
           },
         ],

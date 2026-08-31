@@ -9,7 +9,7 @@ import { join } from 'node:path';
 
 import { assertValidChannelSuggestion, CountryChannelSuggestionFile } from '../schema';
 
-const COUNTRY_FILES = ['fr'] as const;
+const COUNTRY_FILES = ['fr', 'pl', 'it'] as const;
 
 function loadCountryFile(code: string): CountryChannelSuggestionFile {
   const path = join(__dirname, `${code}.json`);

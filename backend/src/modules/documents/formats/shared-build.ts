@@ -47,8 +47,11 @@ export function newEuInvoiceService(): EuInvoiceService {
  * written as a bare date string, hiding the gap) throws a 500 the moment a document saved through
  * the ordinary form is downloaded. `new Date(...).toISOString().slice(0, 10)` normalizes EITHER
  * shape (a bare date parses to midnight UTC the same way) to the pattern the library actually wants.
+ * Exported (item 10, wave 2) — the SAME gap exists for any national format's own issue-date field
+ * (FA(3)'s `P_1`, FatturaPA's `Data`), so `formats/national/*-provider.ts` reuse this rather than
+ * re-deriving it.
  */
-function toDateOnly(value: unknown): string {
+export function toDateOnly(value: unknown): string {
   if (typeof value !== 'string' && typeof value !== 'number') return new Date().toISOString().slice(0, 10);
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return new Date().toISOString().slice(0, 10);

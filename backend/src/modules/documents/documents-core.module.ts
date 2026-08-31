@@ -40,11 +40,15 @@ import { buildClientReferenceProvider } from './references/client-reference.prov
 import { buildDocumentReferenceProvider } from './references/document-reference.provider';
 import { EntityReferenceRegistry } from './references/reference-registry';
 import { buildEmailTransport } from './transports/email-transport';
+import { buildKsefTransport } from './transports/ksef-transport';
 import { buildPdpTransport } from './transports/pdp-transport';
+import { buildSdiTransport } from './transports/sdi-transport';
 import { TransportRegistry } from './transports/transport-registry';
 import { ciiFormatProvider } from './formats/cii-provider';
 import { buildFacturxFormatProvider } from './formats/facturx-provider';
 import { FormatProviderRegistry } from './formats/format-registry';
+import { fa3FormatProvider } from './formats/national/fa3-provider';
+import { fatturapaFormatProvider } from './formats/national/fatturapa-provider';
 import { ublFormatProvider } from './formats/ubl-provider';
 import {
   ACTION_EXTENSION_REGISTRY,
@@ -99,13 +103,20 @@ function buildFieldKindRegistry(): FieldKindRegistry {
  * EN 16931 base syntaxes this ticket built (item 12) are registered today — see
  * `formats/format-registry.ts`'s own header for what stays deliberately unbranched (Peppol BIS,
  * XRechnung — item 16). Factur-X (`facturx-provider.ts`) is the THIRD, added by item 10 (wave 1) —
- * see that file's own header for the reuse `TODO_ISSUES.md` used to flag as not-yet-done.
+ * see that file's own header for the reuse `TODO_ISSUES.md` used to flag as not-yet-done. `fa3` (PL,
+ * `national/fa3-provider.ts`) and `fatturapa` (IT, `national/fatturapa-provider.ts`) are the FOURTH
+ * and FIFTH, added by item 10 (wave 2) — both TRANSPORT-only by default (see `ksef-transport.ts`/
+ * `sdi-transport.ts`), registered here too so `download-xml` can also offer them directly (see that
+ * action's own `syntax` param options). Neither needs a companyId or any extra dependency, so
+ * (unlike `facturx`) they are plain objects, not factories.
  */
 function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry): FormatProviderRegistry {
   const registry = new FormatProviderRegistry();
   registry.register(ciiFormatProvider);
   registry.register(ublFormatProvider);
   registry.register(buildFacturxFormatProvider({ referenceRegistry }));
+  registry.register(fa3FormatProvider);
+  registry.register(fatturapaFormatProvider);
   return registry;
 }
 
@@ -125,6 +136,12 @@ function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry)
  * `channelCredentials` (`ChannelCredentialsService`, `modules/company/channels/`) is what resolves
  * whether — and with what — a company actually connected PDP; `CompanyModule` is imported below
  * purely to make that injectable here, the same reuse `ClientsService`/`MailService` already get.
+ *
+ * "ksef" (PL, `transports/ksef-transport.ts`) and "sdi" (IT, `transports/sdi-transport.ts`) are the
+ * THIRD and FOURTH — item 10, wave 2. Same reasoning as "pdp": each gets its OWN
+ * `fa3FormatProvider`/`fatturapaFormatProvider` reference (both stateless, plain objects — see
+ * `buildFormatProviderRegistry`'s own header) rather than sharing `FORMAT_PROVIDER_REGISTRY`'s
+ * instance, for the identical "no reason to couple two registries" argument.
  */
 function buildTransportRegistry(
   clientsService: ClientsService,
@@ -147,6 +164,8 @@ function buildTransportRegistry(
       facturxFormatProvider: buildFacturxFormatProvider({ referenceRegistry }),
     }),
   );
+  registry.register('ksef', 'KSeF (Poland)', buildKsefTransport({ channelCredentials, fa3FormatProvider }));
+  registry.register('sdi', 'SdI (Italy)', buildSdiTransport({ channelCredentials, fatturapaFormatProvider }));
   return registry;
 }
 

@@ -150,3 +150,41 @@
   avant de tronquer), et un test de régression ajouté (`providers.spec.ts`, "a REAL saved
   document's own issueDate shape"). Consigné pour le rappel de méthode : un fixture à la main ne
   remplace jamais un aller-retour contre le vrai serveur avec une vraie donnée sauvegardée.
+
+- **Item 10, vague 2 (KSeF/SdI) — item clos, remainder nommé, pas deviné** (2026-08-31) : deux formats
+  nationaux (`formats/national/fa3-provider.ts` PL, `fatturapa-provider.ts` IT, chacun jugé par son
+  propre XSD OFFICIEL vendoré — `formats/vendored/{pl,it}/`, jamais le Schematron EN 16931) et deux
+  transports (`transports/ksef-transport.ts`, `sdi-transport.ts`). Ce qui reste, précisément :
+  1. **Ni KSeF ni SdI ne suivent le statut au-delà de l'accusé de réception** — même gap que PDP
+     (vague 1, entrée ci-dessus). `ksef-transport.ts#send()` s'arrête à "session+facture acceptées
+     par KSeF" (référence non vide, jamais un succès à référence vide — mutation #2 de cette tâche),
+     jamais à CLEARED/ksefNumber ; `sdi-transport.ts#send()` s'arrête à "idSdI accepté", jamais à une
+     notifica RC/NS/NE/DT/AT. Construire le POLLER (KSeF) ou le ROUTEUR DE NOTIFICHE entrantes (SdI)
+     est un chantier à part, non commencé ici — voir `sdi/sdi-client.ts`'s own `SdiClient.mapNotifica`,
+     REPRISE mais jamais appelée par ce wave (aucun poller pour l'invoquer).
+  2. **KSeF n'a de clé MF vendorée que pour l'environnement TEST** (`transports/ksef/certs/test/*.pem`,
+     repris du repère à l'identique) — AUCUNE clé PROD n'a jamais existé dans ce dépôt, à aucun
+     repère. `ksef-public-keys.ts#loadVendorizedKeys('prod')` échoue donc bruyamment (fail-fast, par
+     design) plutôt que de retomber silencieusement sur la clé de test contre un vrai KSeF de
+     production. Obtenir la clé PROD (`GET /api/v2/security/public-key-certificates` sur
+     `api.ksef.mf.gov.pl`) est un aller simple mais non fait ici, faute de besoin réel avant une
+     société PROD réelle.
+  3. **SdI n'a AUCUNE implémentation SOAP réelle** — ni au repère, ni ici. `sdi/sdi-client.ts#UNACCREDITED_SDI_HTTP_PORT`
+     est la SEULE implémentation de `SdiHttpPort` qui existe dans ce dépôt à ce jour ; elle échoue
+     honnêtement, immédiatement, sans réseau — "AdE (Agenzia delle Entrate) intermediary
+     accreditation... required". Tant que cette accréditation n'est pas obtenue (voir
+     `LIVE_TESTING.md`'s own "SdI prerequisites (currently deferred)"), `sdi-transport.ts#send()`
+     échoue TOUJOURS en production, quels que soient les identifiants saisis — ce n'est pas un bug de
+     cette tâche, c'est l'état réel du produit sur ce canal.
+  4. **Credentials absents aujourd'hui pour les deux live specs** — `ksef/ksef-live.spec.ts`
+     (`KSEF_LIVE=1` + `KSEF_AUTH_TOKEN`/`KSEF_NIP`) et `sdi/sdi-live.spec.ts` (`SDI_LIVE=1` +
+     `SDI_ID_TRASMITTENTE`/`SDI_CERTIFICATE`/`SDI_CERT_PASSWORD`) skippent proprement (le premier
+     parce que le jeton KSeF prouvé au repère (2026-06-28) a expiré/tourné et n'a pas été remplacé
+     dans ce checkout ni en CI ; le second parce que l'accréditation AdE, ci-dessus, n'existe pas).
+     Aucun des deux n'a été forcé au vert par un serveur ou un jeton inventé.
+  5. **Correction post-clearance (`faktura korygująca`, le mode KOR de FA(3))** : `fa-vat.ts` au
+     repère avait un mode KOR complet (voir son en-tête, M-4) ; cette vague ne le reprend PAS — le
+     descripteur `invoice.descriptor.ts` d'aujourd'hui n'a pas de lien de correction compatible avec
+     la forme `correction` que ce mode attendait (une facture rectificative FA(3) enverrait donc
+     aujourd'hui une facture "VAT" ordinaire, jamais "KOR"). Item 6/8 (avoirs/lettrage) ou une future
+     tâche FA(3) dédiée, pas celle-ci.

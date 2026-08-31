@@ -41,13 +41,104 @@ interface ChannelsResponse {
 /** Friendly display names for known providers — `TransportRegistry.list()`'s own label ("PDP
  *  (France)") is written for the invoice-transport PICKER, not this settings screen; falls back to
  *  the bare id (uppercased) for a provider this screen has no opinion about yet. */
-const PROVIDER_LABELS: Record<string, string> = { pdp: "PDP" }
+const PROVIDER_LABELS: Record<string, string> = { pdp: "PDP", ksef: "KSeF", sdi: "SdI" }
 
 /**
- * One channel's connect/disconnect card — item 10 (root TODO), wave 1. `GET/PUT/DELETE
- * /api/company/channels/:providerId` (`modules/company/channels/`): the PUT body is encrypted at
- * rest server-side and NEVER echoed back — see `channels.service.ts`'s own header — so this
- * component never has a decrypted secret to pre-fill an edit form with; "Edit" always starts blank.
+ * One provider's config field — the settings-screen half of what wave 1 (PDP) had hard-coded
+ * directly into `ChannelRow`'s own JSX. Item 10, wave 2 (KSeF/SdI) generalizes it: a THIRD PARTY
+ * provider (this screen's `providerIds` already unions `TransportRegistry.list()` with whatever is
+ * configured/suggested — see this file's own `ChannelsSettings` header) declares its config shape
+ * HERE, once, rather than needing a new branch in the render function the way PDP's own fields used
+ * to be. `environment` (TEST/PROD) is NOT one of these — it is already a generic, provider-agnostic
+ * concept every `CompanyChannelConfig` row carries (see `channels.service.ts`'s own header), rendered
+ * identically for every provider below.
+ */
+interface ChannelFieldSpec {
+  /** The key this field is stored under in the encrypted `config` blob — e.g. "clientId". */
+  key: string
+  labelKey: string
+  labelDefault: string
+  type: "text" | "password"
+  placeholder?: string
+}
+
+/** One entry per provider `TransportRegistry` can hand a company — see `ChannelFieldSpec`'s own
+ *  header. Adding a FOURTH national channel is exactly one more entry here, never a new branch in
+ *  `ChannelRow`'s render below. */
+const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
+  pdp: [
+    {
+      key: "baseUrl",
+      labelKey: "settings.channels.fields.baseUrl",
+      labelDefault: "API base URL",
+      type: "text",
+      placeholder: "https://api.superpdp.tech",
+    },
+    {
+      key: "clientId",
+      labelKey: "settings.channels.fields.clientId",
+      labelDefault: "Client ID",
+      type: "text",
+    },
+    {
+      key: "clientSecret",
+      labelKey: "settings.channels.fields.clientSecret",
+      labelDefault: "Client secret",
+      type: "password",
+    },
+  ],
+  // KSeF (PL) — item 10, wave 2. `nip`/`ksefToken` are the ONLY provider-specific fields
+  // `ksef-transport.ts#extractCredentials` reads; the environment selector below (generic, already
+  // rendered for every provider) is what the transport reads as TEST/PROD.
+  ksef: [
+    {
+      key: "nip",
+      labelKey: "settings.channels.fields.ksefNip",
+      labelDefault: "NIP",
+      type: "text",
+      placeholder: "5260001246",
+    },
+    {
+      key: "ksefToken",
+      labelKey: "settings.channels.fields.ksefToken",
+      labelDefault: "KSeF token",
+      type: "password",
+    },
+  ],
+  // SdI (IT) — item 10, wave 2. Exactly the three fields `sdi-transport.ts#extractCredentials`
+  // reads (idTrasmittente/certificate required to be "connected"; certificatePassword read through
+  // when present — see that file's own header on why it isn't required here either).
+  sdi: [
+    {
+      key: "idTrasmittente",
+      labelKey: "settings.channels.fields.sdiIdTrasmittente",
+      labelDefault: "IdTrasmittente",
+      type: "text",
+      placeholder: "IT01234567890",
+    },
+    {
+      key: "certificate",
+      labelKey: "settings.channels.fields.sdiCertificate",
+      labelDefault: "PFX certificate (base64)",
+      type: "password",
+    },
+    {
+      key: "certificatePassword",
+      labelKey: "settings.channels.fields.sdiCertificatePassword",
+      labelDefault: "Certificate password",
+      type: "password",
+    },
+  ],
+}
+
+/**
+ * One channel's connect/disconnect card — item 10 (root TODO), now GENERIC by provider (wave 1 hard-
+ * coded PDP's own three fields directly here; wave 2 needed a second and third shape, KSeF's and
+ * SdI's, so the field LIST moved to `PROVIDER_FIELDS` above and this component only ever renders
+ * whatever that list declares — no branch on `providerId` anywhere in this function). `GET/PUT/DELETE
+ * /api/company/channels/:providerId` (`modules/company/channels/`): the PUT body is encrypted at rest
+ * server-side and NEVER echoed back — see `channels.service.ts`'s own header — so this component
+ * never has a decrypted secret to pre-fill an edit form with; "Edit" always starts blank.
  */
 function ChannelRow({
   providerId,
@@ -61,9 +152,10 @@ function ChannelRow({
   onChanged: () => void
 }) {
   const { t } = useTranslation()
-  const [baseUrl, setBaseUrl] = useState("")
-  const [clientId, setClientId] = useState("")
-  const [clientSecret, setClientSecret] = useState("")
+  const fields = PROVIDER_FIELDS[providerId] ?? []
+  const [config, setConfig] = useState<Record<string, string>>(() =>
+    Object.fromEntries(fields.map((f) => [f.key, ""])),
+  )
   const [environment, setEnvironment] = useState<ChannelEnvironment>("TEST")
   const [editing, setEditing] = useState(!configured?.isActive)
 
@@ -79,19 +171,19 @@ function ChannelRow({
   )
 
   const handleConnect = async () => {
-    if (!baseUrl.trim() || !clientId.trim() || !clientSecret.trim()) {
+    const missing = fields.filter((f) => !config[f.key]?.trim())
+    if (missing.length > 0) {
       toast.error(
-        t(
-          "settings.channels.messages.fieldsRequired",
-          "Base URL, client ID and client secret are all required",
-        ),
+        t("settings.channels.messages.fieldsRequired", "{{fields}} are all required", {
+          fields: fields.map((f) => t(f.labelKey, f.labelDefault)).join(", "),
+        }),
       )
       return
     }
-    const result = await upsert({ environment, config: { baseUrl, clientId, clientSecret } })
+    const result = await upsert({ environment, config })
     if (!result) return // error already toasted by the wrapper
     toast.success(t("settings.channels.messages.connectSuccess", "Channel connected"))
-    setClientSecret("")
+    setConfig(Object.fromEntries(fields.map((f) => [f.key, ""])))
     setEditing(false)
     onChanged()
   }
@@ -169,65 +261,51 @@ function ChannelRow({
       </CardHeader>
       {editing && (
         <CardContent className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor={`${providerId}-baseurl`}>
-                {t("settings.channels.fields.baseUrl", "API base URL")}
-              </Label>
-              <Input
-                id={`${providerId}-baseurl`}
-                data-cy={`channel-${providerId}-baseurl-input`}
-                placeholder="https://api.superpdp.tech"
-                value={baseUrl}
-                onChange={(e) => setBaseUrl(e.target.value)}
-              />
+          {fields.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {t("settings.channels.messages.noFields", "This channel has no configurable fields yet.")}
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor={`${providerId}-environment`}>
+                  {t("settings.channels.fields.environment", "Environment")}
+                </Label>
+                <Select value={environment} onValueChange={(v) => setEnvironment(v as ChannelEnvironment)}>
+                  <SelectTrigger
+                    id={`${providerId}-environment`}
+                    className="w-full"
+                    data-cy={`channel-${providerId}-environment-select`}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent data-cy={`channel-${providerId}-environment-options`}>
+                    <SelectItem value="TEST" data-cy={`channel-${providerId}-environment-option-test`}>
+                      {t("settings.channels.fields.environmentTest", "Test (sandbox)")}
+                    </SelectItem>
+                    <SelectItem value="PROD" data-cy={`channel-${providerId}-environment-option-prod`}>
+                      {t("settings.channels.fields.environmentProd", "Production")}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {fields.map((field) => (
+                <div className="space-y-1.5" key={field.key}>
+                  <Label htmlFor={`${providerId}-${field.key}`}>
+                    {t(field.labelKey, field.labelDefault)}
+                  </Label>
+                  <Input
+                    id={`${providerId}-${field.key}`}
+                    data-cy={`channel-${providerId}-${field.key.toLowerCase()}-input`}
+                    type={field.type}
+                    placeholder={field.placeholder}
+                    value={config[field.key] ?? ""}
+                    onChange={(e) => setConfig((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                  />
+                </div>
+              ))}
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor={`${providerId}-environment`}>
-                {t("settings.channels.fields.environment", "Environment")}
-              </Label>
-              <Select value={environment} onValueChange={(v) => setEnvironment(v as ChannelEnvironment)}>
-                <SelectTrigger
-                  id={`${providerId}-environment`}
-                  className="w-full"
-                  data-cy={`channel-${providerId}-environment-select`}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent data-cy={`channel-${providerId}-environment-options`}>
-                  <SelectItem value="TEST" data-cy={`channel-${providerId}-environment-option-test`}>
-                    {t("settings.channels.fields.environmentTest", "Test (sandbox)")}
-                  </SelectItem>
-                  <SelectItem value="PROD" data-cy={`channel-${providerId}-environment-option-prod`}>
-                    {t("settings.channels.fields.environmentProd", "Production")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor={`${providerId}-clientid`}>
-                {t("settings.channels.fields.clientId", "Client ID")}
-              </Label>
-              <Input
-                id={`${providerId}-clientid`}
-                data-cy={`channel-${providerId}-clientid-input`}
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor={`${providerId}-clientsecret`}>
-                {t("settings.channels.fields.clientSecret", "Client secret")}
-              </Label>
-              <Input
-                id={`${providerId}-clientsecret`}
-                data-cy={`channel-${providerId}-clientsecret-input`}
-                type="password"
-                value={clientSecret}
-                onChange={(e) => setClientSecret(e.target.value)}
-              />
-            </div>
-          </div>
+          )}
           <div className="flex justify-end gap-2">
             {isConnected && (
               <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
@@ -237,7 +315,7 @@ function ChannelRow({
             <Button
               size="sm"
               onClick={handleConnect}
-              disabled={connecting}
+              disabled={connecting || fields.length === 0}
               data-cy={`channel-${providerId}-connect-button`}
             >
               {connecting ? (
@@ -258,7 +336,9 @@ function ChannelRow({
  * national transmission channel. `GET /api/company/channels` returns both what is already
  * `configured` (status only, never a secret — see `channels.service.ts`'s own header) and what this
  * company's OWN country `suggested` (advisory, item 10's "le pays suggère son canal" — the data comes
- * from `transports/channel-suggestion/data/*.json`, never a hard-coded country check here).
+ * from `transports/channel-suggestion/data/*.json`, never a hard-coded country check here — a PL
+ * company sees KSeF suggested, an IT company sees SdI, a FR company sees PDP, all from the same three
+ * lines of JSON, item 10 wave 2).
  *
  * The provider list itself is the union of every registered TRANSPORT (`GET /api/documents/
  * transports`, excluding "email" — a plain address, not a channel needing credentials) with whatever

@@ -14,6 +14,18 @@ describe('channel suggestion files — loaded, not hard-coded', () => {
     ]);
   });
 
+  it('PL suggests the "ksef" provider — item 10, wave 2, a fact read from data/pl.json', () => {
+    expect(defaultChannelSuggestionCatalog.suggestionsFor('PL')).toEqual([
+      { providerId: 'ksef', provenance: expect.objectContaining({ kind: 'unverified' }) },
+    ]);
+  });
+
+  it('IT suggests the "sdi" provider — item 10, wave 2, a fact read from data/it.json', () => {
+    expect(defaultChannelSuggestionCatalog.suggestionsFor('IT')).toEqual([
+      { providerId: 'sdi', provenance: expect.objectContaining({ kind: 'unverified' }) },
+    ]);
+  });
+
   it('lower-cased or absent country codes never crash — no suggestion, not a throw', () => {
     expect(defaultChannelSuggestionCatalog.suggestionsFor('fr')).toEqual(
       defaultChannelSuggestionCatalog.suggestionsFor('FR'),
