@@ -2888,7 +2888,10 @@
       },
       "array": {
         "addRow": "Add row",
-        "removeRow": "Remove row"
+        "removeRow": "Remove row",
+        "prefillButton": "From catalog",
+        "prefillSearchPlaceholder": "Search catalog...",
+        "prefillNoResults": "No matches"
       },
       "rowSelection": {
         "selectSourceFirst": "Select the related document above first.",

@@ -1,5 +1,5 @@
 import { ActionRegistry } from './action-registry';
-import { findOwnedDocument, upsertDocument } from '../persistence';
+import { createDraftInvoiceFromQuote } from './quote-to-invoice';
 
 /**
  * Implements the quote's "convert-to-invoice" action — declared on quote.descriptor.ts since the
@@ -15,9 +15,10 @@ import { findOwnedDocument, upsertDocument } from '../persistence';
  * a bare id, which is exactly the shape that field needed multi-target 'reference' support for
  * (types.ts's MultiTargetReferenceValue).
  *
- * Deliberately in its own file rather than quote-actions.ts or invoice-actions.ts: it belongs to
- * neither type alone — it is the one place that reads a quote's shape AND writes an invoice's, which
- * would make it an awkward fit either way.
+ * The actual "load the quote, guard it, persist a new draft invoice, return the envelope" skeleton
+ * now lives in quote-to-invoice.ts, shared with "request-deposit" (request-deposit.ts) — see that
+ * file's own header for why it was worth extracting the day a second caller needed it. This file is
+ * left with only what is genuinely its OWN: which fields the new invoice's `data` actually gets.
  *
  * What is carried over, and what is not:
  *  - `client`, `currency`, `notes`, `lines`: copied verbatim — both descriptors give these fields the
@@ -41,32 +42,20 @@ import { findOwnedDocument, upsertDocument } from '../persistence';
  * again (any later action against it DOES validate against the invoice descriptor as normal).
  */
 export function registerConvertToInvoiceAction(registry: ActionRegistry): void {
-  registry.register('quote', 'convert-to-invoice', async ({ companyId, documentId }) => {
-    if (!documentId) {
-      // Unreachable in practice — the descriptor's `availableWhen: ['draft', 'sent']` already
-      // refuses this before the handler runs (a never-saved record has no status to match) — but a
-      // handler never trusts that alone, the same discipline duplicate-extension.ts documents.
-      throw new Error('Cannot convert a quote that has not been saved yet.');
-    }
-
-    const quote = await findOwnedDocument(companyId, 'quote', documentId);
-    const quoteData = (quote.data ?? {}) as Record<string, unknown>;
-
-    const invoiceData: Record<string, unknown> = {
-      client: quoteData.client,
-      issueDate: new Date().toISOString(),
-      currency: quoteData.currency,
-      notes: quoteData.notes,
-      lines: quoteData.lines,
-      origin: { entity: 'quote', id: quote.id },
-    };
-
-    const invoice = await upsertDocument(companyId, 'invoice', undefined, 'draft', invoiceData);
-
-    return {
-      document: invoice,
-      changed: true,
-      message: `Invoice ${invoice.id} created from quote ${quote.id}.`,
-    };
-  });
+  registry.register('quote', 'convert-to-invoice', ({ companyId, documentId }) =>
+    createDraftInvoiceFromQuote(
+      companyId,
+      documentId,
+      'convert',
+      (quote, quoteData) => ({
+        client: quoteData.client,
+        issueDate: new Date().toISOString(),
+        currency: quoteData.currency,
+        notes: quoteData.notes,
+        lines: quoteData.lines,
+        origin: { entity: 'quote', id: quote.id },
+      }),
+      (quote, invoice) => `Invoice ${invoice.id} created from quote ${quote.id}.`,
+    ),
+  );
 }

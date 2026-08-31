@@ -27,9 +27,10 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * a one-line flag for whichever second country's pass has to decide whether it moves into
  * country-fields/, not a claim that it definitely will.
  *
- * A line now carries FIVE fields — désignation, quantité, unité, prix unitaire, taux de TVA — the
- * minimum the business itself imposes everywhere, per the task this descriptor was rewritten for.
- * Two of them are new:
+ * A line now carries SIX fields — désignation, quantité, unité, prix unitaire, taux de TVA, remise —
+ * the minimum the business itself imposes everywhere, per the task this descriptor was rewritten for.
+ * Two of them (`unit`, `vatRate`) were new at that pass; `discountPercent` was added in a LATER one
+ * (see below).
  *
  *  - `unit` — STRUCTURAL, not legal, so it carries no citation (see this file's own closing note on
  *    that distinction). EN 16931 (the socle format for France's e-invoicing reform — see
@@ -62,6 +63,21 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    this field REMOVED for it, not merely handed an empty catalog. Left in the trunk and required —
  *    exactly what France needs — because there is no second country's pass yet to say otherwise; a
  *    future one settles it, not a guess made here.
+ *
+ *  - `discountPercent` (kind: 'number', OPTIONAL, 0..100) — added in a later task (root TODO item 6),
+ *    once a real need showed up: a per-line discount is universal invoicing arithmetic (it reduces
+ *    the taxable base BEFORE VAT applies to it — see totals/compute-totals.ts's own header), not a
+ *    national rule, so it carries no legal citation the way `vatRate`'s RATE does — only `min`/`max`
+ *    to keep it a genuine percentage (see field-kinds.ts's 'number' validator, which already applies
+ *    to an 'array' row's own subfields the same way it does to a top-level field — validate.ts
+ *    recurses with the SAME registry per row). This is the bullet that used to say "deliberately NOT
+ *    added" for exactly this reason ("no concrete need yet"); the need arrived, so the field did.
+ *
+ * `lines` also declares `prefillFrom: { entity: 'article', map: {...} }` — lets a row's UI offer a
+ * "from catalog" button (field-renderers/array-field.tsx, frontend) that fills `description`/
+ * `unitPrice`/`vatRate` from a picked Article (articles/articles.service.ts — the ONE module that
+ * survived the pre-refactor architecture unchanged). See types.ts's own comment on `prefillFrom` for
+ * the full, entity-agnostic mechanism; this descriptor only ever supplies the map, never any code.
  *
  * What actually distinguishes an invoice from a quote here, beyond the line shape, and why each one
  * is here:
@@ -96,11 +112,6 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    business being one more entry in this array the way a free-text field would be. A structural,
  *    system-assigned fact gets a structural mechanism (a descriptor-level declaration plus its own
  *    `DocumentInstance` columns), never a field a user could edit or leave blank.
- *  - A per-line DISCOUNT ("remise"). Neither documentation/compliance/FR-France.md nor the "au
- *    minimum" list this task specified mentions one — adding it now would be exactly the kind of
- *    unrequested modeling this task's own "et rien de plus" instruction rules out. EN 16931 does
- *    have allowance/charge elements (e.g. BT-136), but reaching for them without a concrete need
- *    would be inventing scope, not following a justified one.
  *  - Any computed TAX AMOUNT or TOTAL. `vatRate` records a CHOICE the user makes about a line, not a
  *    computed figure — it costs nothing to store and nothing to derive from. Computing an actual tax
  *    amount, or a line/document total, is a fiscal or arithmetic rule this module still does not own
@@ -306,7 +317,15 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         required: true,
         min: 1,
         // See this file's own header, "The line shape — written FROM France, for now", for why each
-        // of these five fields is here and which ones are flagged as possibly France-only.
+        // of these six fields is here and which ones are flagged as possibly France-only.
+        //
+        // `description` maps from the article's `name`, not its own `description`: this line shape
+        // has one free-text designation field, not the separate name+description pair the old,
+        // removed article-line form used to have.
+        prefillFrom: {
+          entity: 'article',
+          map: { description: 'name', unitPrice: 'unitPrice', vatRate: 'vatRate' },
+        },
         fields: [
           {
             key: 'description',
@@ -349,6 +368,16 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
             allowCustomValue: true,
             usesVatRateCatalog: true,
             helpText: 'The VAT rate that applies to this line.',
+          },
+          {
+            // See this file's own header for why this is universal arithmetic, not a national rule.
+            key: 'discountPercent',
+            kind: 'number',
+            label: 'Discount %',
+            required: false,
+            min: 0,
+            max: 100,
+            helpText: 'Percentage discount applied to this line, before VAT.',
           },
         ],
       },

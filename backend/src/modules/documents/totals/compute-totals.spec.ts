@@ -233,4 +233,94 @@ describe('computeDocumentTotals', () => {
     expect(result.netMinor).toBe(5000);
     expect(result.vatMinor).toBe(1000); // 20% of 5000
   });
+
+  describe('per-line discount — applied BEFORE VAT (the discounted net is the taxable base)', () => {
+    // A descriptor whose lines carry a `discountPercent` subfield too — mirrors the real quote/
+    // invoice descriptors (descriptors/quote.descriptor.ts, invoice.descriptor.ts), not reusing
+    // `buildTestDescriptor` (every OTHER test above deliberately keeps a descriptor with no discount
+    // field at all, to prove the "absent = unaffected" case for free).
+    function buildDiscountDescriptor(): DocumentTypeDescriptor {
+      return {
+        id: 'test-type',
+        label: 'Test Type',
+        fields: [
+          { key: 'currency', kind: 'select', label: 'Currency', options: [] },
+          {
+            key: 'lines',
+            kind: 'array',
+            label: 'Lines',
+            fields: [
+              { key: 'description', kind: 'text', label: 'Description' },
+              { key: 'quantity', kind: 'number', label: 'Quantity' },
+              { key: 'unitPrice', kind: 'money', label: 'Unit Price' },
+              {
+                key: 'vatRate',
+                kind: 'select',
+                label: 'VAT Rate',
+                options: [
+                  { value: '0', label: '0%' },
+                  { value: '5.5', label: '5.5%' },
+                  { value: '20', label: '20%' },
+                ],
+              },
+              { key: 'discountPercent', kind: 'number', label: 'Discount %', min: 0, max: 100 },
+            ],
+          },
+        ],
+        actions: [],
+      };
+    }
+
+    it('a 50% discount on a single line — hand-computed: 100 EUR line, 20% VAT', () => {
+      const descriptor = buildDiscountDescriptor();
+      const data = {
+        currency: 'EUR',
+        lines: [{ description: 'Item', quantity: 1, unitPrice: 100, vatRate: '20', discountPercent: 50 }],
+      };
+
+      const result = computeDocumentTotals(descriptor, data);
+
+      // Net BEFORE discount: 100 EUR = 10000 cents. Discounted: 10000 * (1 - 50/100) = 5000 cents.
+      // VAT is computed on the DISCOUNTED base: 5000 * 20% = 1000 cents. Gross: 6000 cents.
+      // A discount applied AFTER VAT instead (mutation #1) would tax the full 10000 first (2000
+      // cents of VAT) and only discount the 12000-cent result by 50%, landing on 6000 gross too by
+      // coincidence at exactly 50% — which is why the NET/VAT split below, not just the gross, is
+      // what actually catches that mutation.
+      expect(result.netMinor).toBe(5000);
+      expect(result.vatMinor).toBe(1000);
+      expect(result.grossMinor).toBe(6000);
+      expect(result.vatBreakdown).toEqual([{ ratePercent: 20, baseMinor: 5000, vatMinor: 1000 }]);
+    });
+
+    it('0% discount and no discount field at all produce identical totals', () => {
+      const descriptor = buildDiscountDescriptor();
+      const withZero = computeDocumentTotals(descriptor, {
+        currency: 'EUR',
+        lines: [{ description: 'Item', quantity: 3, unitPrice: 10, vatRate: '20', discountPercent: 0 }],
+      });
+      const withoutField = computeDocumentTotals(descriptor, {
+        currency: 'EUR',
+        lines: [{ description: 'Item', quantity: 3, unitPrice: 10, vatRate: '20' }],
+      });
+
+      expect(withZero.netMinor).toBe(3000); // 10 EUR × 3 = 3000 cents, unaffected either way
+      expect(withZero).toEqual(withoutField);
+    });
+
+    it('a 100% discount makes the line free — netMinor is 0, never negative', () => {
+      const descriptor = buildDiscountDescriptor();
+      const data = {
+        currency: 'EUR',
+        lines: [{ description: 'Item', quantity: 2, unitPrice: 50, vatRate: '20', discountPercent: 100 }],
+      };
+
+      const result = computeDocumentTotals(descriptor, data);
+
+      expect(result.lines[0].netMinor).toBe(0);
+      expect(result.netMinor).toBe(0);
+      expect(result.vatMinor).toBe(0);
+      expect(result.grossMinor).toBe(0);
+      expect(result.netMinor).toBeGreaterThanOrEqual(0);
+    });
+  });
 });

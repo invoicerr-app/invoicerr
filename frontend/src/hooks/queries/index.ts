@@ -13,6 +13,7 @@ export {
   useResolveActionParamsDefaults,
   useReferenceSearch,
   useReferenceResolve,
+  fetchPrefillFields,
   useMultiEntityReferenceSearch,
   useDocumentTransports,
   useSelectableRows,

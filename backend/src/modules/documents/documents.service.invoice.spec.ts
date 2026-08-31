@@ -144,6 +144,52 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     expect(persistence.upsertDocument).not.toHaveBeenCalled();
   });
 
+  // The array-ROW SUBFIELD case of the SAME `min`/`max` enforcement field-kinds.spec.ts already
+  // proves for a top-level field: validateAgainstDescriptor recurses into a row with the exact same
+  // FieldKindRegistry, so a line's own `discountPercent` (0..100 — invoice.descriptor.ts) is checked
+  // no less strictly than a document-level field would be. A discount of -20 that silently INCREASED
+  // the price (via `1 - (-20)/100 = 1.2`, compute-totals.ts) would be exactly this validator's job to
+  // refuse before that arithmetic ever runs.
+  it("a line's discountPercent outside 0..100 is rejected — a -20% cannot slip through as a price increase", async () => {
+    const negativeDiscount = {
+      ...validInvoiceData,
+      lines: [{ ...validInvoiceData.lines[0], discountPercent: -20 }],
+    };
+    await expect(
+      buildService().service.runAction('company-1', 'invoice', 'save-draft', { data: negativeDiscount }),
+    ).rejects.toThrow(/Invalid document data/);
+    expect(persistence.upsertDocument).not.toHaveBeenCalled();
+
+    const tooLargeDiscount = {
+      ...validInvoiceData,
+      lines: [{ ...validInvoiceData.lines[0], discountPercent: 120 }],
+    };
+    await expect(
+      buildService().service.runAction('company-1', 'invoice', 'save-draft', { data: tooLargeDiscount }),
+    ).rejects.toThrow(/Invalid document data/);
+    expect(persistence.upsertDocument).not.toHaveBeenCalled();
+  });
+
+  it('accepts a valid in-range discountPercent on a line, and 0/absent are equally fine', async () => {
+    const withDiscount = {
+      ...validInvoiceData,
+      lines: [{ ...validInvoiceData.lines[0], discountPercent: 50 }],
+    };
+    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'invoice',
+      status: 'draft',
+      data: withDiscount,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await buildService().service.runAction('company-1', 'invoice', 'save-draft', {
+      data: withDiscount,
+    });
+    expect(result.changed).toBe(true);
+  });
+
   // The one requiredness difference from the quote (quote.descriptor.ts's dueDate is optional) —
   // same 'date' kind, no new kind needed, just a different `required` on this descriptor. The
   // per-field message lives in the exception's response body (`errors`), not in `.message` itself —

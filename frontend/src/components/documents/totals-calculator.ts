@@ -50,12 +50,16 @@ export interface ClientDocumentTotals {
 }
 
 /**
- * Compute totals from form data. Mirrors backend compute-totals.ts exactly:
+ * Compute totals from form data. Mirrors backend compute-totals.ts EXACTLY — any divergence here is
+ * a total shown on screen that disagrees with the PDF/API, which is the one thing this file exists
+ * to prevent:
  * - All amounts in minor units
- * - Line net = round(toMinor(unitPrice, currency) * quantity)
- * - VAT computed per rate on aggregated base, not per line
+ * - Line net = round(toMinor(unitPrice, currency) * quantity * (1 - discountPercent / 100))
+ * - The discount applies BEFORE VAT (the discounted net is the taxable base) — see the backend's own
+ *   compute-totals.ts header for why this is universal arithmetic, not a national rule.
+ * - VAT computed per rate on the aggregated, already-discounted base, not per line
  * - Currency from top-level field with 'currency' in key
- * - Quantity defaults to 1, VAT rate to null (counted in net only)
+ * - Quantity defaults to 1, discount defaults to 0, VAT rate to null (counted in net only)
  */
 export function computeTotals(
   lines: Array<Record<string, unknown>>,
@@ -63,6 +67,7 @@ export function computeTotals(
   moneyFieldKey: string,
   numberFieldKey: string | undefined,
   vatRateFieldKey: string | undefined,
+  discountFieldKey: string | undefined,
 ): ClientDocumentTotals {
   const warnings: string[] = [];
   const processedLines: Array<{
@@ -91,8 +96,17 @@ export function computeTotals(
       unitPriceMinor = toMinor(priceValue, currency || 'EUR');
     }
 
-    // Calculate net for this line (in minor units)
-    const netMinor = Math.round(unitPriceMinor * quantity);
+    // Extract the line's own discount (default 0 — no discount, unchanged from before this existed).
+    let discountPercent = 0;
+    if (discountFieldKey) {
+      const discountValue = line[discountFieldKey];
+      if (typeof discountValue === 'number' && Number.isFinite(discountValue)) {
+        discountPercent = discountValue;
+      }
+    }
+
+    // Calculate net for this line (in minor units) — discount applied before VAT, same as backend.
+    const netMinor = Math.round(unitPriceMinor * quantity * (1 - discountPercent / 100));
 
     // Extract VAT rate
     let vatRatePercent: number | null = null;

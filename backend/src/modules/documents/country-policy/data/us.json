@@ -32,6 +32,15 @@
       }
     },
     {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Requesting a deposit on a quote, as a draft deposit invoice, is a product convenience of the same nature as convert-to-invoice above; no US text identified that governs the act of creating this draft itself (any legal requirement — including which sales-tax rate a deposit collected against a multi-rate quote should carry, a question this mechanism deliberately leaves unanswered, see actions/request-deposit.ts — would attach to the resulting invoice once issued, not to this mechanism). Confirm with a dedicated legal review if that ever changes."
+      }
+    },
+    {
       "typeId": "invoice",
       "actionId": "save-draft",
       "allowed": true,

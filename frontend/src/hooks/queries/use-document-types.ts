@@ -124,6 +124,22 @@ export function useReferenceResolve(entity: string | undefined, id: string | und
   )
 }
 
+/**
+ * The raw field values behind a `prefillFrom`-declared row (see the backend's
+ * `DocumentFieldDescriptor.prefillFrom`, descriptors/types.ts) — e.g. an Article's own `name`/
+ * `unitPrice`/`vatRate`. `null` when the id doesn't resolve, or the entity has no prefill data to
+ * offer at all (most reference entities don't — see `EntityReferenceProvider.getFields`, an OPTIONAL
+ * method on the backend). Not a React Query hook, deliberately: this is fetched once, imperatively,
+ * the moment a row's "from catalog" picker (field-renderers/array-field.tsx) resolves a selection —
+ * there is nothing about it worth keeping live or cached.
+ */
+export async function fetchPrefillFields(
+  entity: string,
+  id: string,
+): Promise<Record<string, unknown> | null> {
+  return apiFetch<Record<string, unknown> | null>(`/api/documents/references/${entity}/${id}/fields`)
+}
+
 /** One search result from a MULTI-target 'reference' field's fan-out search, tagged with which
  *  entity it came from — this is what lets the picker show "of which type" each result is. */
 export interface EntityReferenceSearchHit extends EntityReferenceOption {

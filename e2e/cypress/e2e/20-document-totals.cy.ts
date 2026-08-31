@@ -141,6 +141,75 @@ describe("Document totals", () => {
 		cy.get('[data-cy="document-totals-gross"]').should("contain", "120");
 	});
 
+	// The per-line discount (root TODO item 6) — applied BEFORE VAT, mirrored client-side
+	// (totals-calculator.ts) and server-side (compute-totals.ts). A discount typed on screen must
+	// change BOTH the totals shown live AND the ones the API returns once saved — hard-coded numbers
+	// throughout, the same discipline as the two tests above.
+	//
+	// The document itself is created via the API first (client/currency/dates — same convention as
+	// EVERY other spec in this suite, e.g. 21-document-lifecycle.cy.ts: no cypress spec here drives
+	// the date-picker through the UI), so the ONLY thing this test actually types on screen is the
+	// discount itself — exactly what the task asks to prove, without conflating it with unrelated
+	// field-filling machinery.
+	it("a discount entered on screen changes both the displayed totals AND the API's, once saved", () => {
+		cy.request({ url: `${api}/api/documents/references/client/search` })
+			.its("body")
+			.then((clients: { id: string }[]) => {
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/quote/actions/save-draft`,
+					body: {
+						data: {
+							client: clients[0].id,
+							issueDate: "2026-08-30",
+							dueDate: "2026-09-30",
+							currency: "EUR",
+							lines: [{ description: "Item", quantity: 1, unitPrice: 100, vatRate: "20" }],
+						},
+					},
+				}).then((saved) => {
+					const id = saved.body?.document?.id;
+					expect(id).to.be.a("string");
+
+					cy.intercept("POST", `${api}/api/documents/types/quote/actions/save-draft`).as(
+						"saveDraft",
+					);
+
+					cy.visit("/documents/quote", { timeout: 20000 });
+					cy.get(`[data-cy="document-edit-button-${id}"]`, { timeout: 15000 }).click();
+					cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+
+					// Sans remise (le devis a été créé sans) : 100 EUR HT à 20% = 120 EUR TTC.
+					cy.get('[data-cy="document-totals-gross"]', { timeout: 10000 }).should(
+						"contain",
+						"120",
+					);
+
+					// Avec 50% de remise, tapée ici même : 50 EUR HT (remisé), 10 EUR de TVA (sur la
+					// base remisée), 60 EUR TTC — le fait affiché change en direct.
+					cy.get('input[name="lines.0.discountPercent"]')
+						.clear({ force: true })
+						.type("50", { force: true });
+					cy.get('[data-cy="document-totals-gross"]', { timeout: 10000 }).should(
+						"contain",
+						"60",
+					);
+
+					cy.get('[data-cy="document-action-save-draft"]').click();
+					cy.wait("@saveDraft");
+
+					// Ce que l'ÉCRAN affiche n'est une preuve de rien tant que l'API ne dit pas la
+					// même chose, une fois vraiment enregistré.
+					cy.request({ url: `${api}/api/documents/${id}/totals?typeId=quote` }).then((res) => {
+						expect(res.status).to.eq(200);
+						expect(res.body.netMinor, "50 EUR remisés = 5000 cents").to.eq(5000);
+						expect(res.body.vatMinor, "20% de la base remisée = 1000 cents").to.eq(1000);
+						expect(res.body.grossMinor, "60 EUR TTC = 6000 cents").to.eq(6000);
+					});
+				});
+			});
+	});
+
 	it("includes totals in the PDF output", () => {
 		// Create a quote with one line
 		cy.request({ url: `${api}/api/documents/references/client/search` })

@@ -39,6 +39,12 @@ export interface DocumentFieldDescriptor {
   fields?: DocumentFieldDescriptor[]
   min?: number
   max?: number
+  /** 'array' only: lets each ROW offer a "fill from catalog" button — see field-renderers/
+   *  array-field.tsx and the backend's `DocumentFieldDescriptor.prefillFrom` (descriptors/types.ts)
+   *  for the full mechanism. `entity` names the EntityReferenceRegistry entry backing the picker
+   *  (e.g. "article"); `map` pairs a ROW subfield KEY with a field name on that entity's own raw
+   *  record. Opaque to every kind but the array renderer — it never gets interpreted by field kind. */
+  prefillFrom?: { entity: string; map: Record<string, string> }
   /** 'rowSelection': the KEY of a 'reference' field elsewhere in THIS document naming the source
    *  document instance — see field-renderers/row-selection-field.tsx and the backend's
    *  row-selection/row-selection.ts for the full design. The stored value is `string[]` (the

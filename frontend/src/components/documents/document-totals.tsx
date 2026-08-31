@@ -45,7 +45,15 @@ export function DocumentTotals({ descriptor }: DocumentTotalsProps) {
     // Use the first array field for field key detection (all should have same structure)
     const firstArrayField = arrayFields[0]
     const moneyField = firstArrayField.fields?.find((f) => f.kind === "money")
-    const numberField = firstArrayField.fields?.find((f) => f.kind === "number")
+    // The QUANTITY field is the 'number' subfield whose key does NOT look like a discount — mirrors
+    // the backend's own compute-totals.ts detection exactly, so a descriptor that also declares
+    // `discountPercent` (a second 'number' subfield) is not mistaken for the quantity here.
+    const numberField = firstArrayField.fields?.find(
+      (f) => f.kind === "number" && !f.key.toLowerCase().includes("discount"),
+    )
+    const discountField = firstArrayField.fields?.find(
+      (f) => f.kind === "number" && f.key.toLowerCase().includes("discount"),
+    )
     const vatRateField = firstArrayField.fields?.find((f) => {
       if (f.kind !== "select") return false
       return f.key.toLowerCase().includes("vat") || (f.options && f.options.length > 0)
@@ -57,7 +65,14 @@ export function DocumentTotals({ descriptor }: DocumentTotalsProps) {
 
     const currency = extractCurrency(descriptor, formValues)
 
-    return computeTotals(allLines, currency, moneyField.key, numberField?.key, vatRateField?.key)
+    return computeTotals(
+      allLines,
+      currency,
+      moneyField.key,
+      numberField?.key,
+      vatRateField?.key,
+      discountField?.key,
+    )
   }, [formValues, arrayFields, descriptor])
 
   if (!totals || totals.netMinor === 0) {

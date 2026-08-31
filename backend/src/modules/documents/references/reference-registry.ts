@@ -9,6 +9,18 @@ export interface EntityReferenceOption {
 export interface EntityReferenceProvider {
   search(companyId: string, query: string): Promise<EntityReferenceOption[]>;
   resolve(companyId: string, id: string): Promise<EntityReferenceOption | null>;
+  /**
+   * OPTIONAL: the entity's own raw field values, for a 'reference'-adjacent field declaring
+   * `prefillFrom` (descriptors/types.ts) — e.g. an article's `name`/`unitPrice`/`vatRate`, keyed by
+   * exactly the field names `prefillFrom.map`'s values name. Distinct from `resolve()` on purpose:
+   * `resolve` returns the small, universal `{id, label}` shape every 'reference' field needs to
+   * DISPLAY an already-set value; this returns whatever a specific entity actually stores, which a
+   * generic field can never assume the shape of. A provider that backs no prefillable field (e.g.
+   * "client", "quote", "invoice" — nothing prefills a line FROM a client) simply never implements
+   * this; DocumentsService.getReferenceFields treats an absent implementation as "nothing to prefill
+   * from", never an error.
+   */
+  getFields?(companyId: string, id: string): Promise<Record<string, unknown> | null>;
 }
 
 export class UnknownEntityReferenceError extends Error {

@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 
+import { ArticlesModule } from '@/modules/articles/articles.module';
+import { ArticlesService } from '@/modules/articles/articles.service';
 import { ClientsModule } from '@/modules/clients/clients.module';
 import { ClientsService } from '@/modules/clients/clients.service';
 import { MailService } from '@/mail/mail.service';
@@ -11,6 +13,7 @@ import { registerDuplicateExtension } from './actions/duplicate-extension';
 import { registerExpenseActions } from './actions/expense-actions';
 import { registerInvoiceActions } from './actions/invoice-actions';
 import { registerQuoteActions } from './actions/quote-actions';
+import { registerRequestDepositAction } from './actions/request-deposit';
 import { registerCreditNoteActions } from './actions/credit-note-actions';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import { registerCreditNoteContributions } from './contributions/credit-note-contributions';
@@ -27,6 +30,7 @@ import { buildCreditNoteDescriptor } from './descriptors/credit-note.descriptor'
 import { buildExpenseDescriptor } from './descriptors/expense.descriptor';
 import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
 import { buildQuoteDescriptor } from './descriptors/quote.descriptor';
+import { buildArticleReferenceProvider } from './references/article-reference.provider';
 import { buildClientReferenceProvider } from './references/client-reference.provider';
 import { buildDocumentReferenceProvider } from './references/document-reference.provider';
 import { EntityReferenceRegistry } from './references/reference-registry';
@@ -110,6 +114,7 @@ function buildActionRegistry(
   const registry = new ActionRegistry();
   registerQuoteActions(registry, { clientsService, mailService, typeRegistry, referenceRegistry });
   registerConvertToInvoiceAction(registry);
+  registerRequestDepositAction(registry);
   registerInvoiceActions(registry, { transportRegistry });
   registerCreditNoteActions(registry);
   registerExpenseActions(registry);
@@ -129,9 +134,15 @@ function buildActionExtensionRegistry(actionRegistry: ActionRegistry): ActionExt
   return registry;
 }
 
-function buildEntityReferenceRegistry(clientsService: ClientsService): EntityReferenceRegistry {
+function buildEntityReferenceRegistry(
+  clientsService: ClientsService,
+  articlesService: ArticlesService,
+): EntityReferenceRegistry {
   const registry = new EntityReferenceRegistry();
   registry.register('client', buildClientReferenceProvider(clientsService));
+  // The catalog article picker (14-articles.cy.ts, quote/invoice line `prefillFrom`) — the only
+  // provider that implements `getFields` today (see article-reference.provider.ts).
+  registry.register('article', buildArticleReferenceProvider(articlesService));
   // The invoice's "origin" field (multi-target: quote OR another invoice) and the credit note's
   // "invoice" field are what needed these: a 'reference' field pointing at another document TYPE's
   // own instances rather than at a business entity from an existing service. One factory, called
@@ -150,7 +161,7 @@ function buildEntityReferenceRegistry(clientsService: ClientsService): EntityRef
  * editing one factory above; nothing else in this module changes.
  */
 @Module({
-  imports: [ClientsModule],
+  imports: [ClientsModule, ArticlesModule],
   controllers: [DocumentsController],
   providers: [
     DocumentsService,
@@ -183,7 +194,7 @@ function buildEntityReferenceRegistry(clientsService: ClientsService): EntityRef
     {
       provide: ENTITY_REFERENCE_REGISTRY,
       useFactory: buildEntityReferenceRegistry,
-      inject: [ClientsService],
+      inject: [ClientsService, ArticlesService],
     },
     { provide: CONTRIBUTION_REGISTRY, useFactory: buildContributionRegistry },
     // The country FIELD overlay (add/modify/remove) and the VAT rate catalog — see

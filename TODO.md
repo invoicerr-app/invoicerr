@@ -32,7 +32,7 @@
 | 3 ✅ | **Statuts & cycle de vie** (fait, 2026-08-31) | Aujourd'hui : `draft`/`sent` et guère plus. Déclarer les statuts et transitions **par type, en donnée**, et donner à la politique pays la granularité par statut qui lui manque (« corriger, mais seulement une fois parti »). |
 | 4 ✅ | **Envoi avec pièce jointe** (fait, 2026-08-31) | L'envoi joint désormais le PDF (le même moteur que l'item 1, jamais une seconde implémentation) — `<displayNumber>.pdf` une fois numéroté, `<typeId>-<id>.pdf` sinon. Gabarits de mail par type de document (`DocumentTypeDescriptor.email`), surchargeables par société (`Company.documentEmailTemplates`) — la table `MailTemplate` pré-existante n'a pas été réutilisée (enum fermé, vocabulaire différent, aucun type "quote" ; voir `actions/company-email-templates.ts`). Un échec de rendu PDF fait échouer l'envoi (jamais un courriel sans pièce jointe envoyé en silence) ; un placeholder de gabarit inconnu est laissé tel quel avec un avertissement, jamais une exception. Prouvé en vrai contre Mailpit (`send-quote.live.spec.ts`, PDF + sujet interpolé réellement reçus). |
 | 5 | **Factures récurrentes** | Module supprimé. À repenser dans le nouveau modèle — probablement une planification générique qui rejoue une action sur n'importe quel type, plutôt qu'un module facture-only. |
-| 6 | **Remises & acomptes** | L'ancien système avait la remise par ligne, la facture d'acompte et la conversion devis→facture finale. À redéclarer dans les descripteurs. |
+| 6 ✅ | **Remises & acomptes** (fait, 2026-08-31, avec le pré-remplissage catalogue) | L'ancien système avait la remise par ligne, la facture d'acompte et la conversion devis→facture finale. À redéclarer dans les descripteurs. |
 
 ## B — L'argent
 

@@ -411,6 +411,26 @@ export class DocumentsService implements OnModuleInit {
     return this.resolveReferenceProvider(entity).resolve(companyId, id);
   }
 
+  /**
+   * The raw field values behind a `prefillFrom` field (descriptors/types.ts) — e.g. an article's
+   * `name`/`unitPrice`/`vatRate`. `null` covers TWO honestly-distinct "nothing to prefill" cases the
+   * caller does not need to tell apart (the frontend degrades the same way either way — the button
+   * still opened the picker, it just filled nothing): the id doesn't resolve for this company, OR
+   * the entity is real but its provider never implemented `getFields` at all (see that method's own
+   * comment on reference-registry.ts for why that is a normal, unregistered-capability state, never
+   * a bug). An unknown ENTITY NAME is a different kind of mistake (a typo in a descriptor, a stale
+   * client) and still 404s, same as searchReferences/resolveReference above.
+   */
+  async getReferenceFields(
+    companyId: string,
+    entity: string,
+    id: string,
+  ): Promise<Record<string, unknown> | null> {
+    const provider = this.resolveReferenceProvider(entity);
+    if (!provider.getFields) return null;
+    return provider.getFields(companyId, id);
+  }
+
   private resolveReferenceProvider(entity: string) {
     try {
       return this.referenceRegistry.resolve(entity);

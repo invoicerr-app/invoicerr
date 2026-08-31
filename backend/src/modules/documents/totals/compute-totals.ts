@@ -30,16 +30,27 @@ export interface DocumentTotals {
  *
  * ## Arithmetic
  * - All amounts are in MINOR units (e.g., cents) to avoid floating-point rounding errors.
- * - Line net = round(toMinor(unitPrice, currency) * quantity)
- * - VAT is computed PER RATE on the AGGREGATED BASE, not per line (e.g., sum all nets with 20% rate,
- *   then round VAT once, not per line). This matches invoice practice: the invoice itself shows the
- *   VAT total per rate, not per line.
+ * - Line net = round(toMinor(unitPrice, currency) * quantity * (1 - discountPercent / 100))
+ * - The discount is applied to the net BEFORE VAT: the DISCOUNTED net is what VAT is computed on,
+ *   never the sticker price. This is universal invoicing arithmetic (a discounted sale is taxed on
+ *   what was actually charged, not on a price nobody paid) — not a rule any one country's tax code
+ *   invents, so it needs no `country-policy`/`vat-rates` citation the way a RATE's own value does.
+ *   `discountPercent` is optional and, when present, already constrained to [0, 100] by the 'number'
+ *   kind's own `min`/`max` (field-kinds.ts) — absent or 0 leaves the line exactly as it was before
+ *   this field existed; 100 makes the line free (netMinor 0) but the formula can never go negative
+ *   for a value inside that range, so no separate clamp is needed here.
+ * - VAT is computed PER RATE on the AGGREGATED, ALREADY-DISCOUNTED BASE, not per line (e.g., sum all
+ *   discounted nets with 20% rate, then round VAT once, not per line). This matches invoice practice:
+ *   the invoice itself shows the VAT total per rate, not per line.
  * - Individual LineTotal.vatMinor is indicative (rounded per line for display), but the official
  *   VAT sum comes from VatBreakdownEntry, which is aggregated.
  *
  * ## Field detection (generic, not hardcoded)
  * - Finds every `kind: 'array'` field in the descriptor whose subfields contain AT LEAST one
- *   'money' AND one 'number' field (not just one or the other).
+ *   'money' AND one 'number' field (not just one or the other) — the QUANTITY 'number' field is
+ *   whichever one's key does NOT contain "discount" (case-insensitive), the same substring
+ *   convention `extractVatRate` below already uses to spot the VAT-rate 'select' field. A line's
+ *   own discount, if declared, is likewise a 'number' subfield whose key DOES contain "discount".
  * - If multiple such array fields exist, all are summed together.
  *
  * ## VAT rate extraction
@@ -110,9 +121,17 @@ export function computeDocumentTotals(
     for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
       const row = rows[rowIndex];
 
-      // Find money and number subfields
+      // Find money and number subfields — the QUANTITY 'number' field is the one whose key does NOT
+      // look like a discount (see this file's own header); a descriptor with only one 'number'
+      // subfield (no discount declared at all) is unaffected, since that field never matches
+      // "discount" either.
       const moneyField = arrayField.fields?.find((f) => f.kind === 'money');
-      const numberField = arrayField.fields?.find((f) => f.kind === 'number');
+      const numberField = arrayField.fields?.find(
+        (f) => f.kind === 'number' && !f.key.toLowerCase().includes('discount'),
+      );
+      const discountField = arrayField.fields?.find(
+        (f) => f.kind === 'number' && f.key.toLowerCase().includes('discount'),
+      );
 
       if (!moneyField) continue; // Shouldn't happen given detection, but be defensive
 
@@ -132,8 +151,19 @@ export function computeDocumentTotals(
         unitPriceMinor = toMinor(priceValue, currency || 'EUR');
       }
 
-      // Calculate net for this line
-      const netMinor = Math.round(unitPriceMinor * quantity);
+      // Extract the line's own discount (default 0 — no discount, the line as it always was).
+      let discountPercent = 0;
+      if (discountField) {
+        const discountValue = row[discountField.key];
+        if (typeof discountValue === 'number' && Number.isFinite(discountValue)) {
+          discountPercent = discountValue;
+        }
+      }
+
+      // Calculate net for this line — the discount is applied HERE, before VAT ever sees this
+      // number: see this file's own header on why that ordering is universal arithmetic, not a
+      // national rule, and why no separate clamp is needed for a `discountPercent` already in [0,100].
+      const netMinor = Math.round(unitPriceMinor * quantity * (1 - discountPercent / 100));
 
       // Find VAT rate
       const vatRatePercent = extractVatRate(arrayField, row, rowIndex, globalLineNumber, warnings);

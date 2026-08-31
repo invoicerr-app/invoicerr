@@ -168,6 +168,27 @@ export class DocumentsController {
     return this.documentsService.resolveReference(companyId, entity, refId);
   }
 
+  @Get('references/:entity/:refId/fields')
+  @ApiOperation({
+    summary: "A reference entity's own raw fields, for prefilling a row",
+    description:
+      "The raw field values behind a field declaring `prefillFrom` (e.g. an article's " +
+      'name/unitPrice/vatRate) — null when the id does not resolve, or when this entity has no ' +
+      "prefill data to offer at all (most reference entities do not; see EntityReferenceProvider's " +
+      'optional `getFields`).',
+  })
+  @ApiParam({ name: 'entity', type: String })
+  @ApiParam({ name: 'refId', type: String })
+  @ApiResponse({ status: 200, description: 'Fields retrieved (or null)' })
+  @ApiResponse({ status: 404, description: 'Unknown reference entity' })
+  getReferenceFields(
+    @ActiveCompany() companyId: string,
+    @Param('entity') entity: string,
+    @Param('refId') refId: string,
+  ) {
+    return this.documentsService.getReferenceFields(companyId, entity, refId);
+  }
+
   @Post('types/:typeId/actions/:actionId')
   @ApiOperation({
     summary: 'Run a document action',

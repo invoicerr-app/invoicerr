@@ -31,6 +31,15 @@
     },
     {
       "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit — même nature que 'convert-to-invoice' ci-dessus : aucun texte n'impose ni n'interdit ce mécanisme précis en droit français (la seule contrainte légale porterait sur la facture d'acompte elle-même une fois émise — notamment le TAUX de TVA qui s'y applique, question que ce mécanisme ne tranche délibérément pas, voir actions/request-deposit.ts — pas sur l'acte de créer ce brouillon). À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la demande d'acompte elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
       "actionId": "duplicate",
       "allowed": true,
       "provenance": {

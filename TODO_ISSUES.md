@@ -12,13 +12,9 @@
 - **`16-company-lookup` : 1 test (`expected 40 to be above 100`)** — la couverture de la recherche
   d'entreprise est tombée de 118 à ~40 pays à la démolition (la liste venait des profils
   supprimés). Rattaché à l'item **20** : décider de la nouvelle source de la liste.
-- **`14-articles` : 1 test (« prefills an invoice line when an article is picked »)** — le test
-  cherche un bouton d'ajout de ligne dans l'ANCIEN formulaire de facture, supprimé à la démolition.
-  Le remplaçant existe (`document-field-lines-add-row` dans le formulaire générique), mais la
-  fonctionnalité qu'il teste — pré-remplir une ligne depuis le catalogue d'articles — n'a pas
-  d'équivalent dans le nouveau modèle : le kind `array` ne sait pas se pré-remplir depuis une
-  entité. À traiter comme une extension du modèle (probablement avec l'item **6**, remises &
-  acomptes, qui touche aussi les lignes), pas comme un correctif de test.
+- ~~`14-articles` : pré-remplissage depuis le catalogue~~ — **RÉSOLU à la tâche 6** (2026-08-31) :
+  le descripteur déclare `prefillFrom`, le formulaire générique offre « From catalog », la spec 14
+  est à 10/10. La base de rouges permanents passe de 7 à 6.
 
 ## Limites consignées en cours de route
 
