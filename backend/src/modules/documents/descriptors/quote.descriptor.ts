@@ -16,8 +16,8 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * actions/quote-actions.ts — sending a QUOTE by email is this type's own nature, not a mechanism it
  * shares with the invoice, see invoice-actions.ts) and convert-to-invoice (implemented, see
  * actions/convert-to-invoice.ts — it used to be the live "declared but not implemented" case this
- * registry proves a 501 against; that role now belongs to the invoice's "record-payment", see
- * invoice.descriptor.ts).
+ * registry proves a 501 against; that role passed to the invoice's "record-payment" next, then to
+ * "export-accounting" once "record-payment" was itself implemented — see invoice.descriptor.ts).
  *
  * Lifecycle: two statuses, "draft" and "sent" — the only two a quote's own handlers ever write
  * (actions/generic-actions.ts, actions/quote-actions.ts). "save-draft" is faithful to what

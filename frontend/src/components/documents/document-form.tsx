@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next"
 
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
 import { DocumentField } from "@/components/documents/document-field"
+import { DocumentSettlementSection } from "@/components/documents/document-settlement"
 import { DocumentTotals } from "@/components/documents/document-totals"
 import { buildZodSchema, defaultValuesFor } from "@/components/documents/schema"
 import type { DocumentInstance, DocumentTypeDescriptor } from "@/components/documents/types"
@@ -98,6 +99,13 @@ export function DocumentForm({
   const availableActions = descriptor.actions.filter((action) => isActionAvailable(action, currentStatus))
   const firstRunnableAction = availableActions.find((action) => !action.policyBlockedReason)
 
+  // The "Payments" section: shown for ANY document type once "record-payment" is actually OFFERED
+  // for the record's current status — never by naming a type. A brand-new, never-saved record (no
+  // `currentDocumentId` yet) has nothing to show here either way: there is no instance to fetch a
+  // settlement FOR.
+  const showSettlement =
+    !!currentDocumentId && availableActions.some((action) => action.id === "record-payment")
+
   return (
     <Form {...form}>
       <form className="space-y-6" data-cy="document-form" onSubmit={(e) => e.preventDefault()}>
@@ -114,6 +122,10 @@ export function DocumentForm({
         </div>
 
         <DocumentTotals descriptor={descriptor} />
+
+        {showSettlement && currentDocumentId && (
+          <DocumentSettlementSection typeId={descriptor.id} documentId={currentDocumentId} />
+        )}
 
         <div className="flex flex-wrap gap-2 border-t pt-4">
           {availableActions.map((action) => {

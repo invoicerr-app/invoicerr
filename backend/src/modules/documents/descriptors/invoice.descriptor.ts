@@ -1,6 +1,6 @@
 import { Currency } from '../../../../prisma/generated/prisma/client';
 import { transitionsAvailableWhen } from './lifecycle';
-import { DocumentActionTransition, DocumentTypeDescriptor } from './types';
+import { DocumentActionTransition, DocumentFieldDescriptor, DocumentTypeDescriptor } from './types';
 
 /** Same reused, un-invented list as the quote's — see quote.descriptor.ts. */
 const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, label: code }));
@@ -121,10 +121,19 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * ISSUING COMPANY's own configuration (TransportRegistry) rather than always being email. That is
  * also why, unlike the quote's "send", this action declares NO `params`: there is no user-typed
  * "recipient" here, because which transport runs — and what addressing it needs — is a company
- * setting, not something the person clicking "Send" types in on the spot. "record-payment" is
- * declared and deliberately NOT implemented: reconciling a payment needs a ledger/accounting pipeline
- * this branch does not build, the same discipline "convert-to-invoice" held the quote to before it
- * was implemented.
+ * setting, not something the person clicking "Send" types in on the spot.
+ *
+ * "record-payment" is now IMPLEMENTED (actions/invoice-actions.ts) — payments (settlement/) landed
+ * this task. Its `params` reuse the exact same field vocabulary a document's own `fields` use
+ * (money/select/date/text — see types.ts's `DocumentActionDescriptor.params`): `amount` (the payment
+ * itself), `currency` (checked against the invoice's own — see the handler for why a mismatch is
+ * refused rather than silently converted), `paidAt` (defaulted to today by a params-defaults
+ * resolver, the same mechanism "send"'s recipient pre-fill already uses), and `method`/`note`
+ * (product-only vocabulary, no legal weight — see the `method` field's own comment). "export-accounting"
+ * is the NEW declared-but-unimplemented example: a real future need (a chart-of-accounts mapping, a
+ * ledger export format this branch does not build), the same role "record-payment" used to hold
+ * before this task, and "convert-to-invoice" held for the quote before it was implemented. The 501
+ * mechanism this proves lives on THIS action now — see documents.service.invoice.spec.ts.
  *
  * A note on `unit`/`vatRate` NOT carrying a legal citation directly on the field: a purely
  * STRUCTURAL fact (there is a unit; there is a VAT-rate choice) is not itself a legal rule and needs
@@ -136,14 +145,88 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * "save-draft" (generic-actions.ts's registerSaveDraftAction) always persists "draft", from ANY
  * current status (`from: 'always'`) — faithful to the handler's actual, literal behavior, not an
  * invented rule. "send" (invoice-actions.ts) moves "draft" -> "sent". Both `availableWhen`s are
- * DERIVED from these transitions (lifecycle.ts's header). "record-payment" is declared with an
- * explicit `availableWhen: ['sent']` and NO transition: it has no registered implementation at all
- * (invoice-actions.ts), so there is no handler behavior to be faithful TO yet — inventing a "paid"
- * status here, before any code produces one, would be exactly the kind of unrequested state this
- * descriptor's own header already refuses to invent for fields.
+ * DERIVED from these transitions (lifecycle.ts's header).
+ *
+ * "record-payment" declares an explicit `availableWhen: ['sent']` and, DELIBERATELY, still NO
+ * `transitions` — even though it is now implemented. A payment reaching (or exceeding) the invoice's
+ * total does NOT flip the status to some invented "paid": the STATUS stays the declared lifecycle
+ * (draft/sent), and the BALANCE (settlement/compute-settlement.ts's `computeSettlement`) is a
+ * PROJECTION computed on read, displayed as a derived badge ("Paid"/"Partially paid" — see the
+ * frontend's settlement components), never a status this descriptor would have to invent a
+ * transition for. Two real designs were on the table here: (a) declare `record-payment`'s own
+ * `to: 'paid'` and accept that the FIRST euro paid would already flip a partially-paid invoice's
+ * status (transitions have no notion of "conditionally, only once the balance clears") — wrong, an
+ * invoice with one euro paid out of a thousand is not "paid"; (b) the one built: no status change at
+ * all, ever, from this action. (b) also keeps the door open for a future "paid" STATUS the day
+ * reconciliation (credit notes, item 8 — lettrage) needs one, without this task inventing it first on
+ * a guess. "export-accounting" likewise declares no `transitions`: unimplemented, so there is no
+ * handler behavior yet to declare a status effect for.
  */
 const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
 const SEND_TRANSITIONS: DocumentActionTransition[] = [{ from: ['draft'], to: 'sent' }];
+
+/**
+ * "record-payment"'s own params — the exact same field vocabulary the document's own `fields` use
+ * (see `DocumentActionDescriptor.params`'s comment in types.ts), never a second, bespoke shape.
+ *
+ *  - `amount`/`currency`: a 'money' field paired with a 'select' sibling via `currencyField`, the
+ *    identical pattern the invoice's own `lines[].unitPrice` already uses for `currency` — except
+ *    here the sibling is another PARAM (`currency`), not a document field, because a payment's own
+ *    dialog has no access to the document's `data` at all (a separate namespace — see
+ *    actions/action-registry.ts's `ActionContext`). `currency` is defaulted to the invoice's own
+ *    currency by a params-defaults resolver (invoice-actions.ts, the same mechanism "send"'s
+ *    `recipient` pre-fill already uses for the quote) — a user recording a payment never has to think
+ *    about it in the ordinary case, but a value CAN still be picked here that differs from the
+ *    invoice's own, which is exactly what the handler checks for and refuses (no conversion — that is
+ *    item 9 of the root TODO, not this one).
+ *  - `paidAt`: defaults to TODAY via the same params-defaults resolver, editable for a payment
+ *    received earlier and only just being recorded.
+ *  - `method`: PRODUCT labels, not a legal classification — "how the customer says they paid",
+ *    useful for a bookkeeper skimming a list, carrying no fiscal meaning of its own. Optional: a
+ *    payment can be recorded before its method is known or worth naming.
+ *  - `note`: free text, optional, for whatever context doesn't fit the fields above (a reference
+ *    number, "paid by the client's accountant directly", ...).
+ */
+const RECORD_PAYMENT_PARAMS: DocumentFieldDescriptor[] = [
+  {
+    key: 'amount',
+    kind: 'money',
+    label: 'Amount',
+    required: true,
+    currencyField: 'currency',
+  },
+  {
+    key: 'currency',
+    kind: 'select',
+    label: 'Currency',
+    required: true,
+    options: CURRENCY_OPTIONS,
+  },
+  {
+    key: 'paidAt',
+    kind: 'date',
+    label: 'Paid at',
+    required: true,
+  },
+  {
+    key: 'method',
+    kind: 'select',
+    label: 'Method',
+    required: false,
+    options: [
+      { value: 'bank_transfer', label: 'Bank transfer' },
+      { value: 'card', label: 'Card' },
+      { value: 'cash', label: 'Cash' },
+      { value: 'other', label: 'Other' },
+    ],
+  },
+  {
+    key: 'note',
+    kind: 'text',
+    label: 'Note',
+    required: false,
+  },
+];
 
 export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
   return {
@@ -288,9 +371,21 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
       {
         id: 'record-payment',
         label: 'Record payment',
-        // Recording a payment only makes sense once the invoice has actually been sent. NO
-        // `transitions`: see this file's own lifecycle comment above for why — unimplemented, so
-        // there is no handler behavior yet to declare a status effect FOR.
+        // Recording a payment only makes sense once the invoice has actually been sent — one cannot
+        // encash a brouillon. NO `transitions`: see this file's own lifecycle comment above for why —
+        // now IMPLEMENTED (actions/invoice-actions.ts), but its effect lands on a NEW DocumentPayment
+        // row and the projected balance, never on this record's own declared status.
+        availableWhen: ['sent'],
+        params: RECORD_PAYMENT_PARAMS,
+      },
+      {
+        id: 'export-accounting',
+        label: 'Export to accounting',
+        // The NEW declared-but-unimplemented action — see this file's own header on why this, and not
+        // "record-payment" anymore, is what documents.service.invoice.spec.ts's 501 test now targets.
+        // A real future need (a chart-of-accounts mapping, a ledger export format) this branch does
+        // not build today. Gated the same way "record-payment" is: an accounting export of a document
+        // that was never actually issued makes no sense either.
         availableWhen: ['sent'],
       },
     ],

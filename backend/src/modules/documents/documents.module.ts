@@ -113,7 +113,8 @@ function buildActionRegistry(
   registerInvoiceActions(registry, { transportRegistry });
   registerCreditNoteActions(registry);
   registerExpenseActions(registry);
-  // "record-payment" (invoice) is intentionally left unregistered here — see invoice-actions.ts.
+  // "record-payment" (invoice) IS registered — see registerInvoiceActions inside invoice-actions.ts.
+  // "export-accounting" (invoice) is intentionally left unregistered here — see that file's header.
   return registry;
 }
 

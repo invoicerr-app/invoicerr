@@ -246,6 +246,25 @@ export class DocumentsController {
     return this.documentsService.computeTotals(companyId, typeId, id);
   }
 
+  @Get(':id/settlement')
+  @ApiOperation({
+    summary: "Compute a document instance's payment settlement",
+    description:
+      'Totals, the payments recorded against this document, and the resulting balance (paid / ' +
+      'outstanding / overpaid — see settlement/compute-settlement.ts). Same mould as GET .../totals.',
+  })
+  @ApiParam({ name: 'id', type: String })
+  @ApiQuery({ name: 'typeId', required: true, type: String })
+  @ApiResponse({ status: 200, description: 'Settlement computed' })
+  @ApiResponse({ status: 404, description: 'Not found for this company/type' })
+  getSettlement(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Query('typeId') typeId: string,
+  ) {
+    return this.documentsService.getSettlement(companyId, typeId, id);
+  }
+
   @Get(':id/pdf')
   @ApiOperation({
     summary: 'Get a document instance as PDF',

@@ -5,6 +5,7 @@ import { apiFetch, useApiMutation, useApiQuery } from "@/hooks/use-api-query"
 import type {
   ActionResult,
   DocumentInstance,
+  DocumentSettlementResult,
   DocumentTypeDescriptor,
   DocumentTypeSummary,
   EntityReferenceOption,
@@ -51,6 +52,20 @@ export function useDocumentInstance(typeId: string | undefined, id: string | und
   return useApiQuery<DocumentInstance>(["documents", typeId, id], `/api/documents/${id}?typeId=${typeId}`, {
     enabled: !!typeId && !!id,
   })
+}
+
+/**
+ * A document instance's payment settlement (totals + recorded payments + balance) — see the
+ * backend's `DocumentsService.getSettlement`. Keyed under `["documents", ...]` like every other
+ * per-instance query above, so `useRunDocumentAction`'s own `invalidateKeys: [["documents"]]` sweeps
+ * this one too the moment "record-payment" runs — no separate invalidation wiring needed for it.
+ */
+export function useDocumentSettlement(typeId: string | undefined, id: string | undefined) {
+  return useApiQuery<DocumentSettlementResult>(
+    ["documents", typeId, id, "settlement"],
+    `/api/documents/${id}/settlement?typeId=${typeId}`,
+    { enabled: !!typeId && !!id },
+  )
 }
 
 interface RunActionVariables {

@@ -4,12 +4,18 @@ import {
   invoiceTotal,
 } from './invoice-contributions';
 import * as persistence from '../persistence';
+import * as settlementPayments from '../settlement/payments';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { ShortListWidget, TableWidget, TimeSeriesWidget } from './widgets';
 
 jest.mock('../persistence');
+// The "pending" shortList below now excludes SETTLED invoices (settlement/) — mocked here the same
+// way `../persistence` already is, defaulting to "nothing paid" so every pre-existing test in this
+// file keeps meaning exactly what it always did.
+jest.mock('../settlement/payments');
 
 const listDocuments = persistence.listDocuments as jest.Mock;
+const sumPaidMinorByDocument = settlementPayments.sumPaidMinorByDocument as jest.Mock;
 
 function invoice(
   overrides: Partial<DocumentInstanceResult> & { data: Record<string, unknown> },
@@ -45,6 +51,7 @@ describe('buildInvoiceDashboardWidgets', () => {
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(new Date('2026-08-30'));
     listDocuments.mockReset();
+    sumPaidMinorByDocument.mockReset().mockResolvedValue(new Map());
   });
 
   afterEach(() => jest.useRealTimers());
@@ -76,6 +83,34 @@ describe('buildInvoiceDashboardWidgets', () => {
     expect(pending.items.map((i) => i.id)).toEqual(['sent-1', 'sent-2']);
     expect(pending.items[0]).toMatchObject({ primary: '30.00 USD', secondary: '2026-09-05' });
     expect(pending.items[1]).toMatchObject({ primary: '100.00 EUR', secondary: '2026-09-10' });
+  });
+
+  it('excludes a "sent" invoice that has been SETTLED — a paid invoice is no longer pending', async () => {
+    listDocuments.mockResolvedValue([
+      invoice({
+        id: 'settled-1',
+        status: 'sent',
+        // No vatRate given: grossMinor === netMinor === 1 * 10000 minor (100.00 EUR).
+        data: { currency: 'EUR', dueDate: '2026-09-01', lines: [{ quantity: 1, unitPrice: 100 }] },
+      }),
+      invoice({
+        id: 'partial-1',
+        status: 'sent',
+        data: { currency: 'EUR', dueDate: '2026-09-02', lines: [{ quantity: 1, unitPrice: 200 }] },
+      }),
+    ]);
+    sumPaidMinorByDocument.mockResolvedValue(
+      new Map([
+        ['settled-1', 10000], // paid in full — excluded
+        ['partial-1', 5000], // half paid — still pending
+      ]),
+    );
+
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1' });
+    const pending = widgets.find((w) => w.kind === 'shortList') as ShortListWidget;
+
+    expect(pending.items.map((i) => i.id)).toEqual(['partial-1']);
+    expect(sumPaidMinorByDocument).toHaveBeenCalledWith('c1', ['settled-1', 'partial-1']);
   });
 
   it('counts invoices per issue month over the trailing window — never sums their amounts', async () => {

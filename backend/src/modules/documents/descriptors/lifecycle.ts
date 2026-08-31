@@ -36,7 +36,7 @@
  * Some real actions are gated by status yet never change ANY record's status themselves — their
  * effect, if any, lands on a DIFFERENT record entirely ("convert-to-invoice" writes a fresh invoice;
  * "duplicate", attached generically by a third-party extension, writes a fresh copy of whatever it
- * read) or they have no implementation yet to observe ("record-payment"). For these, there is nothing
+ * read) or they have no implementation yet to observe ("export-accounting"). For these, there is nothing
  * to derive `availableWhen` FROM — `transitions` stays absent and `availableWhen` remains the sole,
  * explicit, hand-declared fact, exactly as it was before this file existed.
  */

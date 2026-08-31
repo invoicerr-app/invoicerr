@@ -57,7 +57,16 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Recording a payment is an internal bookkeeping entry; no US text identified governing the act of declaring it in this tool. This action has no implementation registered at all today (see invoice-actions.ts) — the actual block is the 501, not this rule."
+        "resolutionNote": "Recording a payment is an internal bookkeeping entry; no US text identified governing the act of declaring it in this tool. The resulting balance (paid/outstanding) is a projection shown on screen, never a document status — see invoice.descriptor.ts."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporting an invoice to an accounting tool is a product convenience; no US text identified governing the act of offering this export itself (bookkeeping obligations attach to the RECIPIENT of the export, not this mechanism). This action has no implementation registered at all today (see invoice-actions.ts) — the actual block is the 501, not this rule."
       }
     },
     {

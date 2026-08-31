@@ -12,11 +12,17 @@ import { DocumentTypeRegistry } from './descriptors/type-registry';
 import * as takeNumber from './numbering/take-number';
 import * as persistence from './persistence';
 import { EntityReferenceRegistry } from './references/reference-registry';
+import * as settlementPayments from './settlement/payments';
 import * as companyTransport from './transports/company-transport';
 import { TransportRegistry } from './transports/transport-registry';
 
 jest.mock('./persistence');
 jest.mock('./transports/company-transport');
+// "record-payment" (invoice-actions.ts) writes through settlement/payments.ts, which reaches Prisma
+// directly — mocked here the same reason `./numbering/take-number` already is just below: it bypasses
+// the mocked `./persistence` entirely, so a test that wants to observe or control it must mock this
+// module too, not assume `./persistence`'s mock covers it.
+jest.mock('./settlement/payments');
 // See documents.service.spec.ts's own comment on this mock — the real invoice descriptor now
 // declares `numbering: { onEnterStatus: 'sent' }` too (invoice.descriptor.ts), and
 // `takeDocumentNumberForTransition` reaches Prisma directly, bypassing the mocked `./persistence`.
@@ -48,7 +54,8 @@ function buildService(transportRegistry: TransportRegistry = new TransportRegist
 
   const actionRegistry = new ActionRegistry();
   registerInvoiceActions(actionRegistry, { transportRegistry });
-  // "record-payment" is NOT registered here, on purpose — see invoice.descriptor.ts.
+  // "record-payment" IS registered (invoice-actions.ts) — its own describe block below. "export-
+  // accounting" is NOT, on purpose — see invoice.descriptor.ts.
 
   const actionExtensionRegistry = new ActionExtensionRegistry();
   const referenceRegistry = new EntityReferenceRegistry();
@@ -217,8 +224,11 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
 
   // The behaviour the task explicitly asks to keep proven on THIS second type, not only on the
   // quote's "convert-to-invoice": a real, declared action on the real invoice descriptor, genuinely
-  // never registered (invoice-actions.ts), is blocked with a clear 501 — never a silent no-op.
-  it('blocks "record-payment" — declared, no implementation registered — with a clear 501', async () => {
+  // never registered (invoice-actions.ts), is blocked with a clear 501 — never a silent no-op. This
+  // used to be "record-payment"'s role; it moved to "export-accounting" the day "record-payment" got
+  // a real implementation (see invoice.descriptor.ts's own header) — the live case this proves the
+  // mechanism against must always be a genuinely unregistered action, never a stale example.
+  it('blocks "export-accounting" — declared, no implementation registered — with a clear 501', async () => {
     (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
       id: 'doc-1',
       typeId: 'invoice',
@@ -229,7 +239,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     });
 
     const { service } = buildService();
-    const action = service.runAction('company-1', 'invoice', 'record-payment', {
+    const action = service.runAction('company-1', 'invoice', 'export-accounting', {
       documentId: 'doc-1',
       data: validInvoiceData,
     });
@@ -255,6 +265,128 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         data: validInvoiceData,
       }),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  describe('"record-payment" — implemented: validates, persists, and hands back the balance', () => {
+    const sentInvoice = {
+      id: 'doc-1',
+      typeId: 'invoice',
+      status: 'sent',
+      data: validInvoiceData, // currency: 'EUR'
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      // Already numbered — a "sent" invoice always is (numbering: { onEnterStatus: 'sent' }). Set
+      // here so runAction's own numbering re-check (documents.service.ts) is a no-op for these
+      // tests, which are about the payment mechanism, not numbering.
+      number: 1,
+      displayNumber: 'INV-2026-0001',
+    };
+
+    beforeEach(() => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(sentInvoice);
+      (settlementPayments.recordPayment as jest.Mock).mockResolvedValue({
+        id: 'payment-1',
+        documentId: 'doc-1',
+        amountMinor: 0,
+        currency: 'EUR',
+        method: null,
+        paidAt: new Date('2026-08-30'),
+        note: null,
+        createdAt: new Date('2026-08-30'),
+      });
+      (settlementPayments.listPayments as jest.Mock).mockResolvedValue([]);
+    });
+
+    // validInvoiceData's own lines total 2 * 9.9 = 19.8 EUR net, +20% VAT = 23.76 EUR gross —
+    // 2376 minor units. Every test below that needs the gross total spells this out rather than
+    // re-deriving it, so a change to compute-totals.ts's own rounding would fail LOUDLY here instead
+    // of silently shifting what "partial" means.
+    const GROSS_MINOR = 2376;
+
+    it('records a partial payment, converts to minor units with the DOCUMENT currency, and states the new balance', async () => {
+      (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
+        { id: 'payment-1', documentId: 'doc-1', amountMinor: 1000, currency: 'EUR' },
+      ]);
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'invoice', 'record-payment', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+        params: { amount: 10, currency: 'EUR', paidAt: '2026-08-30', method: 'bank_transfer' },
+      });
+
+      expect(settlementPayments.recordPayment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          companyId: 'company-1',
+          documentId: 'doc-1',
+          amountMinor: 1000, // 10 EUR * 100 (2 decimals)
+          currency: 'EUR',
+          method: 'bank_transfer',
+        }),
+      );
+      expect(result.changed).toBe(true);
+      expect(result.document).toEqual(sentInvoice);
+      // The result SAYS the new balance — outstanding is GROSS_MINOR - 1000 = 1376 -> 13.76 EUR.
+      expect(result.message).toMatch(/13\.76 EUR/);
+      expect(result.message).toMatch(/outstanding/i);
+    });
+
+    it("converts to minor units using the CURRENCY's OWN decimals — JPY has none, not two", async () => {
+      const jpyInvoice = { ...sentInvoice, data: { ...validInvoiceData, currency: 'JPY' } };
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(jpyInvoice);
+
+      const { service } = buildService();
+      await service.runAction('company-1', 'invoice', 'record-payment', {
+        documentId: 'doc-1',
+        data: jpyInvoice.data,
+        params: { amount: 500, currency: 'JPY', paidAt: '2026-08-30' },
+      });
+
+      expect(settlementPayments.recordPayment).toHaveBeenCalledWith(
+        expect.objectContaining({ amountMinor: 500, currency: 'JPY' }), // NOT 50000
+      );
+    });
+
+    it("refuses a payment currency that does not match the document's own — no silent conversion", async () => {
+      const { service } = buildService();
+      const action = service.runAction('company-1', 'invoice', 'record-payment', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+        params: { amount: 10, currency: 'USD', paidAt: '2026-08-30' },
+      });
+
+      await expect(action).rejects.toBeInstanceOf(BadRequestException);
+      await expect(action).rejects.toThrow(/does not match this invoice's own currency/);
+      expect(settlementPayments.recordPayment).not.toHaveBeenCalled();
+    });
+
+    it('refuses an amount that is not strictly positive', async () => {
+      const { service } = buildService();
+      const zero = service.runAction('company-1', 'invoice', 'record-payment', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+        params: { amount: 0, currency: 'EUR', paidAt: '2026-08-30' },
+      });
+      await expect(zero).rejects.toBeInstanceOf(BadRequestException);
+      await expect(zero).rejects.toThrow(/greater than zero/);
+      expect(settlementPayments.recordPayment).not.toHaveBeenCalled();
+    });
+
+    it('an EXACT full payment settles the invoice — the result says so, never "outstanding"', async () => {
+      (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
+        { id: 'payment-1', documentId: 'doc-1', amountMinor: GROSS_MINOR, currency: 'EUR' },
+      ]);
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'invoice', 'record-payment', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+        params: { amount: 23.76, currency: 'EUR', paidAt: '2026-08-30' },
+      });
+
+      expect(result.message).toMatch(/fully paid/i);
+      expect(result.message).not.toMatch(/outstanding/i);
+    });
   });
 
   describe('"send" — reads the company\'s OWN transport configuration, not the quote\'s email mechanism', () => {

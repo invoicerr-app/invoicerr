@@ -282,7 +282,7 @@ export interface DocumentActionDescriptor {
    * Absent means this action never changes the status of the record it acts on — its effect, if any,
    * lands on a DIFFERENT record entirely ("convert-to-invoice" writes a fresh invoice; "duplicate"
    * writes a fresh copy rather than modifying the source it read), or it has no implementation to
-   * observe yet ("record-payment"). `availableWhen` then stays the sole, explicit, hand-declared
+   * observe yet ("export-accounting"). `availableWhen` then stays the sole, explicit, hand-declared
    * fact about when it may run — exactly as before this field existed.
    *
    * When PRESENT, `availableWhen` must be exactly `lifecycle.ts`'s `transitionsAvailableWhen(transitions)`

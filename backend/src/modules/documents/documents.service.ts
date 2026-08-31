@@ -49,6 +49,8 @@ import { validateAgainstDescriptor } from './descriptors/validate';
 import { RunActionDto } from './dto/documents.dto';
 import { takeDocumentNumberForTransition } from './numbering/take-number';
 import { findOwnedDocument, listDocuments } from './persistence';
+import { computeSettlement, DocumentSettlement } from './settlement/compute-settlement';
+import { DocumentPaymentResult, listPayments } from './settlement/payments';
 import {
   EntityReferenceOption,
   EntityReferenceRegistry,
@@ -100,6 +102,14 @@ export interface DocumentActionDescriptorView extends DocumentActionDescriptor {
 
 export interface DocumentTypeDescriptorView extends Omit<DocumentTypeDescriptor, 'actions'> {
   actions: DocumentActionDescriptorView[];
+}
+
+/** What `GET /documents/:id/settlement` hands back — see `DocumentsService.getSettlement`. Same
+ *  "read side of a write" pairing `DocumentTotals` already has with `computeTotals`. */
+export interface DocumentSettlementView {
+  totals: DocumentTotals;
+  payments: DocumentPaymentResult[];
+  settlement: DocumentSettlement;
 }
 
 @Injectable()
@@ -652,6 +662,24 @@ export class DocumentsService implements OnModuleInit {
     const instance = await findOwnedDocument(companyId, typeId, id);
     const descriptor = this.mergedDescriptor(typeId);
     return computeDocumentTotals(descriptor, instance.data as Record<string, unknown>);
+  }
+
+  /**
+   * A document instance's PAYMENT SETTLEMENT — totals, the payments recorded against it, and the
+   * resulting balance (settlement/compute-settlement.ts). Same moulding as `computeTotals` just
+   * above (find the owned instance, resolve its merged descriptor, compute) — this is the READ side
+   * of "record-payment" (actions/invoice-actions.ts writes the `DocumentPayment` rows this reads
+   * back). Works for ANY document type, not only the invoice: nothing here names one, the same way
+   * `computeTotals` doesn't — a type simply has no payments recorded against it if it never declares
+   * a "record-payment"-shaped action, and the settlement then trivially says "nothing paid".
+   */
+  async getSettlement(companyId: string, typeId: string, id: string): Promise<DocumentSettlementView> {
+    const instance = await findOwnedDocument(companyId, typeId, id);
+    const descriptor = this.mergedDescriptor(typeId);
+    const totals = computeDocumentTotals(descriptor, instance.data as Record<string, unknown>);
+    const payments = await listPayments(companyId, id);
+    const settlement = computeSettlement(totals.grossMinor, payments);
+    return { totals, payments, settlement };
   }
 
   /**

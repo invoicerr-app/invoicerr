@@ -1,4 +1,8 @@
+import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { listDocuments } from '../persistence';
+import { computeSettlement } from '../settlement/compute-settlement';
+import { sumPaidMinorByDocument } from '../settlement/payments';
+import { computeDocumentTotals } from '../totals/compute-totals';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import { MetricWidget, ShortListWidget, TableWidget, TimeSeriesWidget, Widget } from './widgets';
 
@@ -7,9 +11,19 @@ import { MetricWidget, ShortListWidget, TableWidget, TimeSeriesWidget, Widget } 
  * own comments for the reasoning, not just the shape. It covers exactly what was asked for the
  * invoice: a dashboard curve and a pending-invoices list, plus a statistics table so both locations
  * have one worked example. Everything here is ARITHMETIC (counting, summing a document's own line
- * amounts) — never a fiscal rule: no VAT, no rounding convention, no numbering. See
- * invoice.descriptor.ts's own header for the same boundary drawn for the invoice's FIELDS.
+ * amounts, or — since payments landed — its own recorded payments) — never a fiscal rule: no VAT
+ * INVENTED here (though `computeDocumentTotals` and `computeSettlement` are reused verbatim from
+ * their own modules for the "pending" filter below, not reimplemented), no rounding convention
+ * invented, no numbering. See invoice.descriptor.ts's own header for the same boundary drawn for the
+ * invoice's FIELDS.
  */
+
+/** The invoice's own base descriptor — see actions/invoice-actions.ts's identical constant for why a
+ *  direct import is fine here: this file is already 100% invoice-specific (registered only for
+ *  `'invoice'` at the bottom), unlike a generic contribution would be. Used only to feed
+ *  `computeDocumentTotals` the field shape it needs for the "pending" filter below — `invoiceTotal`
+ *  itself (this file's own arithmetic) stays independent of it, unchanged. */
+const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 
 /** How many months the "invoices issued" curve covers — a small, fixed window; a real settings
  *  screen for this is future work, not something to half-build here for one widget. */
@@ -74,12 +88,25 @@ function recentMonths(now: Date): { key: string; label: string }[] {
 export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ companyId }) => {
   const invoices = await listDocuments(companyId, 'invoice', CONTRIBUTION_READ_LIMIT);
 
-  // "sent" is as far as this branch's invoice lifecycle goes today: "record-payment" is declared but
-  // deliberately unimplemented (invoice-actions.ts, invoice.descriptor.ts) — so a "sent" invoice is,
-  // definitionally, still awaiting payment. A "draft" is not yet issued at all, so it is not "pending"
-  // in the sense a reader of this widget means.
-  const pendingItems = invoices
-    .filter((invoice) => invoice.status === 'sent')
+  // A "draft" is not yet issued at all, so it is never "pending" in the sense a reader of this
+  // widget means — that part is unchanged. What changed once payments landed (settlement/): a "sent"
+  // invoice that has since been SETTLED (paid in full, or overpaid) is no longer awaiting anything
+  // either, so it is excluded too — a paid invoice sitting in "pending invoices" would be exactly the
+  // kind of stale fact this dashboard exists to avoid. `computeDocumentTotals`/`computeSettlement`
+  // are reused verbatim (never reimplemented) for this — see this file's own header.
+  const sentInvoices = invoices.filter((invoice) => invoice.status === 'sent');
+  const paidMinorByDocument = await sumPaidMinorByDocument(
+    companyId,
+    sentInvoices.map((invoice) => invoice.id),
+  );
+
+  const pendingItems = sentInvoices
+    .filter((invoice) => {
+      const data = (invoice.data ?? {}) as Record<string, unknown>;
+      const grossMinor = computeDocumentTotals(INVOICE_DESCRIPTOR, data).grossMinor;
+      const paidMinor = paidMinorByDocument.get(invoice.id) ?? 0;
+      return !computeSettlement(grossMinor, [{ amountMinor: paidMinor }]).settled;
+    })
     .map((invoice) => {
       const data = (invoice.data ?? {}) as Record<string, unknown>;
       const currency = typeof data.currency === 'string' ? data.currency : '';

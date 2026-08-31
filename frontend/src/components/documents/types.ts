@@ -184,6 +184,42 @@ export interface DocumentInstance {
   displayNumber?: string | null
 }
 
+/**
+ * A payment recorded against a document instance — mirrors the backend's `DocumentPaymentResult`
+ * (settlement/payments.ts). NOT a document type of its own (see that file's header): no lifecycle, no
+ * status, just a record hanging off an existing one.
+ */
+export interface DocumentPayment {
+  id: string
+  documentId: string
+  amountMinor: number
+  currency: string
+  method: string | null
+  paidAt: string
+  note: string | null
+  createdAt: string
+}
+
+/** The balance computed from a document's totals and its recorded payments — mirrors the backend's
+ *  `DocumentSettlement` (settlement/compute-settlement.ts). See that file's header on why a credit
+ *  note is not one of `payments`, and why `overpaidMinor` is surfaced rather than discarded. */
+export interface DocumentSettlement {
+  totalGrossMinor: number
+  paidMinor: number
+  outstandingMinor: number
+  overpaidMinor: number
+  settled: boolean
+}
+
+/** What `GET /documents/:id/settlement` returns — mirrors the backend's `DocumentSettlementView`.
+ *  `totals` is narrowed to only what the settlement UI needs (never the full line-by-line breakdown
+ *  DocumentTotals already renders elsewhere via totals-calculator.ts's OWN, client-side copy). */
+export interface DocumentSettlementResult {
+  totals: { currency: string | null; grossMinor: number }
+  payments: DocumentPayment[]
+  settlement: DocumentSettlement
+}
+
 export interface EntityReferenceOption {
   id: string
   label: string

@@ -8,6 +8,7 @@ export {
   useDocumentType,
   useDocumentInstances,
   useDocumentInstance,
+  useDocumentSettlement,
   useRunDocumentAction,
   useResolveActionParamsDefaults,
   useReferenceSearch,

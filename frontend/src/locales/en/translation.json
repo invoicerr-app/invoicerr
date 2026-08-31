@@ -2961,6 +2961,19 @@
       "net": "Net",
       "vat": "VAT {{rate}}% on {{base}}",
       "gross": "Total"
+    },
+    "settlement": {
+      "title": "Payments",
+      "paid": "Paid",
+      "outstanding": "Outstanding",
+      "overpaid": "Overpaid",
+      "empty": "No payments recorded yet.",
+      "badge": {
+        "unpaid": "Unpaid",
+        "partiallyPaid": "Partially paid",
+        "paid": "Paid",
+        "overpaid": "Overpaid"
+      }
     }
   }
 }

@@ -211,17 +211,19 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 	});
 
 	it("une action déclarée SANS implémentation est refusée, et l'utilisateur lit pourquoi", () => {
-		// `record-payment` est déclarée sur la facture et volontairement non implémentée.
+		// `export-accounting` est déclarée sur la facture et volontairement non implémentée.
 		//
 		// Ce n'est plus `convert-to-invoice` (devis) qui porte ce rôle : cette action a depuis été
 		// implémentée pour de vrai (elle crée une facture liée), donc l'appeler ne renvoie plus 501 —
-		// et figer ce test dessus l'aurait fait mentir sur ce que le produit fait désormais. Le
+		// et figer ce test dessus l'aurait fait mentir sur ce que le produit fait désormais.
+		// `record-payment` a ensuite tenu ce rôle à son tour, puis a été implémentée pour de vrai (les
+		// paiements — voir 24-document-payments.cy.ts) : l'appeler ne renvoie plus 501 non plus. Le
 		// mécanisme « déclarée mais non implémentée → 501, clair » n'a pas disparu pour autant :
-		// `record-payment`, sur la facture, en est maintenant la seule vitrine vivante (avec
+		// `export-accounting`, sur la facture, en est maintenant la seule vitrine vivante (avec
 		// documents.service.invoice.spec.ts côté jest).
 		//
-		// Il faut d'abord une facture au statut "sent" : `record-payment` n'est offerte qu'à partir de
-		// là (avant, c'est le 409 de disponibilité qui refuse en premier — le même garde-fou que le
+		// Il faut d'abord une facture au statut "sent" : `export-accounting` n'est offerte qu'à partir
+		// de là (avant, c'est le 409 de disponibilité qui refuse en premier — le même garde-fou que le
 		// test précédent observe, côté "send", avant même d'atteindre le 501). Pour l'atteindre sans
 		// rien simuler, ce test passe par le vrai chemin : un transport "email" réellement configuré
 		// sur la société (cette fois pour de bon — le test précédent, lui, en dépendait de l'ABSENCE),
@@ -295,7 +297,7 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 
 							cy.request({
 								method: "POST",
-								url: `${api}/api/documents/types/invoice/actions/record-payment`,
+								url: `${api}/api/documents/types/invoice/actions/export-accounting`,
 								body: { documentId: id, data: invoiceData },
 								failOnStatusCode: false,
 							}).then((res) => {
@@ -306,7 +308,7 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 								expect(
 									String(res.body?.message ?? ""),
 									"le message nomme l'action et dit qu'elle n'a pas d'implémentation",
-								).to.match(/record-payment/);
+								).to.match(/export-accounting/);
 							});
 						});
 					});

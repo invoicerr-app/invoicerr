@@ -74,7 +74,7 @@ function buildService() {
   });
   // "convert-to-invoice" IS registered here — see actions/convert-to-invoice.ts. It stopped being
   // the live "declared but not implemented" example the day it got a real handler; that role now
-  // belongs to the invoice's "record-payment" (documents.service.invoice.spec.ts).
+  // belongs to the invoice's "export-accounting" (documents.service.invoice.spec.ts).
   registerConvertToInvoiceAction(actionRegistry);
 
   const actionExtensionRegistry = new ActionExtensionRegistry();
@@ -207,7 +207,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
     ).rejects.toThrow(/has no action "archive"/);
   });
 
-  describe('"convert-to-invoice" — implemented, unlike "record-payment" on the invoice', () => {
+  describe('"convert-to-invoice" — implemented, unlike "export-accounting" on the invoice', () => {
     it('creates a new invoice draft, carrying the quote data over and linking back with `origin`', async () => {
       (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
         id: 'quote-doc-1',

@@ -131,9 +131,11 @@ describe('DocumentsService.runAction — composed with the country policy', () =
       updatedAt: new Date(),
     });
 
+    // "record-payment" is now IMPLEMENTED (invoice-actions.ts) — "export-accounting" is the current
+    // declared-but-unregistered example (see invoice.descriptor.ts's own header on the handoff).
     const service = buildService();
     await expect(
-      service.runAction('company-1', 'invoice', 'record-payment', {
+      service.runAction('company-1', 'invoice', 'export-accounting', {
         documentId: 'doc-1',
         data: validInvoiceData,
       }),

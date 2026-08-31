@@ -346,6 +346,7 @@ model Company {
   invitationCodes  InvitationCode[]
   documents        DocumentInstance[]
   documentNumberSequences DocumentNumberSequence[]
+  documentPayments DocumentPayment[]
 }
 
 // Join table linking users to the companies they belong to, with a role
@@ -866,7 +867,42 @@ model DocumentInstance {
   number        Int?
   displayNumber String?
 
+  // See DocumentPayment below (settlement/) — a payment is NOT a document type of its own (no
+  // lifecycle, no draft, no send), only a record hanging off an existing document instance.
+  payments DocumentPayment[]
+
   @@index([companyId, typeId])
+}
+
+// One PAYMENT recorded against a document instance (the invoice, today — see the "record-payment"
+// action, documents/actions/invoice-actions.ts). Deliberately NOT a document type: no `statuses`, no
+// `initialStatus`, no lifecycle at all — recording one is a single, complete act, not something that
+// moves through draft/sent. `amountMinor` is in MINOR units, same discipline as compute-totals.ts's
+// own totals, for the same reason: floats do not add up to zero. See settlement/compute-settlement.ts
+// for the balance this feeds, and that file's own comment on why a credit note is NOT one of these —
+// that reconciliation (lettrage) is separate, future work.
+model DocumentPayment {
+  id         String           @id @default(cuid())
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId  String
+  document   DocumentInstance @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId String
+
+  amountMinor Int
+  // The payment's OWN currency — always checked against the document's own before being persisted
+  // (see the "record-payment" handler); stored here too so a read never needs to re-resolve the
+  // document's field data just to know what `amountMinor` is denominated in.
+  currency String
+
+  // Plain product labels (bank_transfer / card / cash / other), never a legal classification — see
+  // invoice.descriptor.ts's own comment on the "record-payment" action's `method` param.
+  method String?
+  paidAt DateTime
+  note   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId, documentId])
 }
 
 // The per-(company, type) monotonic counter numbering/sequence.ts's `bumpSequence` advances — see

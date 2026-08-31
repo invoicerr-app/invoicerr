@@ -14,6 +14,7 @@ import "@/components/documents/custom-registrations"
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
 import { getDocumentCustomComponent } from "@/components/documents/custom-slots"
 import { DocumentFieldValue } from "@/components/documents/field-value"
+import { DocumentSettlementBadge } from "@/components/documents/document-settlement"
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
 import type {
   DocumentFieldDescriptor,
@@ -299,6 +300,11 @@ interface DocumentListCardRowProps {
  * from the descriptor.
  */
 function DocumentListCardRow({ descriptor, instance, onEdit, onActionSuccess }: DocumentListCardRowProps) {
+  // Same generic gate document-form.tsx's own settlement section uses: shown once "record-payment"
+  // is actually OFFERED for this record's current status — never by naming a document type.
+  const recordPaymentAction = descriptor.actions.find((action) => action.id === "record-payment")
+  const showSettlementBadge = !!recordPaymentAction && isActionAvailable(recordPaymentAction, instance.status)
+
   return (
     <div
       className="cursor-pointer p-4 sm:p-6"
@@ -320,6 +326,13 @@ function DocumentListCardRow({ descriptor, instance, onEdit, onActionSuccess }: 
                 <DocumentCardTitle descriptor={descriptor} instance={instance} />
               </h3>
               <DocumentStatusBadge status={instance.status} />
+              {showSettlementBadge && (
+                <DocumentSettlementBadge
+                  typeId={descriptor.id}
+                  documentId={instance.id}
+                  dataCySuffix={instance.id}
+                />
+              )}
             </div>
             <DocumentCardSecondaryInfo descriptor={descriptor} instance={instance} />
           </div>

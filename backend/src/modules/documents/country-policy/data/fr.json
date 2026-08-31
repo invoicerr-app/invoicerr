@@ -64,7 +64,16 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil (les obligations comptables portent sur la tenue des comptes eux-mêmes, pas sur ce mécanisme). Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (voir invoice-actions.ts) — le blocage réel vient du 501, pas de cette règle."
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil (les obligations comptables portent sur la tenue des comptes eux-mêmes, pas sur ce mécanisme). Le solde qui en résulte (payé/restant dû) est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte spécifique identifié qui encadrerait le fait même de proposer cet export (les obligations comptables portent sur la tenue des comptes du DESTINATAIRE de l'export, pas sur ce mécanisme). Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (voir invoice-actions.ts) — le blocage réel vient du 501, pas de cette règle."
       }
     },
     {

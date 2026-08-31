@@ -5,9 +5,10 @@ import { findOwnedDocument, upsertDocument } from '../persistence';
  * Implements the quote's "convert-to-invoice" action — declared on quote.descriptor.ts since the
  * type's own inception, deliberately left unregistered until now (see quote-actions.ts's own comment
  * on why: it was the live case documents.service.spec.ts used to prove a declared-but-unimplemented
- * action is BLOCKED, not silently ignored). That role now belongs to the invoice's "record-payment"
- * (documents.service.invoice.spec.ts) — this file is what makes "convert-to-invoice" stop needing to
- * play it.
+ * action is BLOCKED, not silently ignored). That role passed to the invoice's "record-payment" next,
+ * then to "export-accounting" once "record-payment" was itself implemented (see
+ * invoice.descriptor.ts, documents.service.invoice.spec.ts) — this file is what made
+ * "convert-to-invoice" stop needing to play it in the first place.
  *
  * Creates a brand-new INVOICE draft from the quote's current data, and records the link back with the
  * multi-target `origin` reference (invoice.descriptor.ts) — `{ entity: 'quote', id: quote.id }`, not
