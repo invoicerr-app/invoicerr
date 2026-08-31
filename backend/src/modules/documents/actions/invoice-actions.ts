@@ -126,7 +126,11 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
       queueDispatcher: deps.queueDispatcher,
       numberOnEnqueue: true, // invoice.descriptor.ts: numbering.onEnterStatus === 'sending'
       preflight: async () => {
-        await resolveInvoiceTransport(deps.transportRegistry, companyId);
+        const transport = await resolveInvoiceTransport(deps.transportRegistry, companyId);
+        // See `DocumentTransport.preflight`'s own header: an EXTRA, transport-owned readiness check
+        // (e.g. "pdp": are credentials actually connected?) the registry lookup above cannot see —
+        // absent for a transport with nothing to check ahead of time (e.g. "email").
+        await transport.preflight?.(companyId);
       },
       // No pre-built `text` here — the "email" transport (transports/email-transport.ts) composes
       // its own subject/body from invoice.descriptor.ts's `email` template (or a company override)

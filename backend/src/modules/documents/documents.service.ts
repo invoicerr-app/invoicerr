@@ -865,6 +865,7 @@ export class DocumentsService implements OnModuleInit {
         instance,
         companyToFormatParty(company),
         clientToFormatParty(client),
+        companyId,
       );
     } catch (error) {
       if (error instanceof SemanticBuildError) {
@@ -882,10 +883,15 @@ export class DocumentsService implements OnModuleInit {
       });
     }
 
+    // Every provider so far is either XML (cii/ubl) or, since facturx-provider.ts, a PDF — deriving
+    // the extension from `provider.mime` rather than hard-coding ".xml" is what keeps this switch
+    // from needing a THIRD change (beyond format-registry.ts's own registration) for a PDF-producing
+    // format the way Peppol/XRechnung (both still XML) would not have required at all.
+    const extension = provider.mime === 'application/pdf' ? 'pdf' : 'xml';
     return {
       bytes: buildResult.bytes,
       mime: provider.mime,
-      filename: `${instance.displayNumber ?? id}-${provider.id}.xml`,
+      filename: `${instance.displayNumber ?? id}-${provider.id}.${extension}`,
     };
   }
 }

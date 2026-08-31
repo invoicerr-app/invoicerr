@@ -43,5 +43,15 @@ export interface DocumentFormatProvider {
     document: Pick<DocumentInstanceResult, 'id' | 'data' | 'displayNumber' | 'status'>,
     company: DocumentFormatParty,
     client: DocumentFormatParty,
+    /**
+     * The owning company's id — OPTIONAL, and unused by `cii-provider.ts`/`ubl-provider.ts` (both
+     * already have everything they need in `company`/`client`). Added for `facturx-provider.ts`
+     * alone: embedding a Factur-X PDF reuses the SAME human-readable PDF a company downloads
+     * (`rendering/render-instance-pdf.ts#renderDocumentInstance`), which needs a company id to
+     * resolve reference labels and re-read a couple of presentation-only fields — see that
+     * provider's own header for why this is a 5th, optional parameter here rather than a second,
+     * differently-shaped interface.
+     */
+    companyId?: string,
   ): Promise<DocumentFormatBuildResult>;
 }

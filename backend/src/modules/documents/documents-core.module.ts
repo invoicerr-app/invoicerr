@@ -4,6 +4,8 @@ import { ArticlesModule } from '@/modules/articles/articles.module';
 import { ArticlesService } from '@/modules/articles/articles.service';
 import { ClientsModule } from '@/modules/clients/clients.module';
 import { ClientsService } from '@/modules/clients/clients.service';
+import { CompanyModule } from '@/modules/company/company.module';
+import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 import { MailService } from '@/mail/mail.service';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
@@ -38,8 +40,10 @@ import { buildClientReferenceProvider } from './references/client-reference.prov
 import { buildDocumentReferenceProvider } from './references/document-reference.provider';
 import { EntityReferenceRegistry } from './references/reference-registry';
 import { buildEmailTransport } from './transports/email-transport';
+import { buildPdpTransport } from './transports/pdp-transport';
 import { TransportRegistry } from './transports/transport-registry';
 import { ciiFormatProvider } from './formats/cii-provider';
+import { buildFacturxFormatProvider } from './formats/facturx-provider';
 import { FormatProviderRegistry } from './formats/format-registry';
 import { ublFormatProvider } from './formats/ubl-provider';
 import {
@@ -94,35 +98,54 @@ function buildFieldKindRegistry(): FieldKindRegistry {
  * provider here, never by touching `documents.service.ts#downloadDocumentFormat`). Only the two
  * EN 16931 base syntaxes this ticket built (item 12) are registered today — see
  * `formats/format-registry.ts`'s own header for what stays deliberately unbranched (Peppol BIS,
- * XRechnung, Factur-X/ZUGFeRD PDF/A-3 embedding — item 10/16, and the note left in
- * `TODO_ISSUES.md` on the Factur-X embedder that DOES exist, unused, at the repère).
+ * XRechnung — item 16). Factur-X (`facturx-provider.ts`) is the THIRD, added by item 10 (wave 1) —
+ * see that file's own header for the reuse `TODO_ISSUES.md` used to flag as not-yet-done.
  */
-function buildFormatProviderRegistry(): FormatProviderRegistry {
+function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry): FormatProviderRegistry {
   const registry = new FormatProviderRegistry();
   registry.register(ciiFormatProvider);
   registry.register(ublFormatProvider);
+  registry.register(buildFacturxFormatProvider({ referenceRegistry }));
   return registry;
 }
 
 /**
- * The invoice's ONLY transport today. Registered exactly like a third party would register their
- * own (TransportRegistry.register) — nothing about invoice-actions.ts treats "email" specially.
+ * The invoice's transports. "email" is registered exactly like a third party would register their
+ * own (TransportRegistry.register) — nothing about invoice-actions.ts treats it specially.
  * `typeRegistry`/`referenceRegistry` are what let it compose+attach a PDF (see
  * actions/send-document-email.ts) — NEITHER depends on ACTION_REGISTRY, so wiring them here (and into
  * buildActionRegistry below, for the quote's OWN send) never creates a circular dependency, even
  * though ACTION_REGISTRY is where the send actions that call into this machinery are registered.
+ *
+ * "pdp" (root TODO item 10, wave 1 — `transports/pdp-transport.ts`) is the SECOND. It gets its own
+ * `buildFacturxFormatProvider({ referenceRegistry })` instance rather than sharing the one
+ * `FORMAT_PROVIDER_REGISTRY` already builds below: both are stateless closures over the exact same
+ * pure function, so a second instance costs nothing and avoids making TRANSPORT_REGISTRY's own
+ * factory depend on FORMAT_PROVIDER_REGISTRY's DI token for no reason beyond convenience.
+ * `channelCredentials` (`ChannelCredentialsService`, `modules/company/channels/`) is what resolves
+ * whether — and with what — a company actually connected PDP; `CompanyModule` is imported below
+ * purely to make that injectable here, the same reuse `ClientsService`/`MailService` already get.
  */
 function buildTransportRegistry(
   clientsService: ClientsService,
   mailService: MailService,
   typeRegistry: DocumentTypeRegistry,
   referenceRegistry: EntityReferenceRegistry,
+  channelCredentials: ChannelCredentialsService,
 ): TransportRegistry {
   const registry = new TransportRegistry();
   registry.register(
     'email',
     'Email',
     buildEmailTransport({ clientsService, mailService, typeRegistry, referenceRegistry }),
+  );
+  registry.register(
+    'pdp',
+    'PDP (France)',
+    buildPdpTransport({
+      channelCredentials,
+      facturxFormatProvider: buildFacturxFormatProvider({ referenceRegistry }),
+    }),
   );
   return registry;
 }
@@ -217,7 +240,7 @@ function buildEntityReferenceRegistry(
  * boot the documents system at all without also proving Redis is reachable.
  */
 @Module({
-  imports: [ClientsModule, ArticlesModule, DocumentQueueModule],
+  imports: [ClientsModule, ArticlesModule, DocumentQueueModule, CompanyModule],
   providers: [
     DocumentsService,
     MailService,
@@ -234,8 +257,15 @@ function buildEntityReferenceRegistry(
       provide: TRANSPORT_REGISTRY,
       useFactory: buildTransportRegistry,
       // DOCUMENT_TYPE_REGISTRY/ENTITY_REFERENCE_REGISTRY: no circular dependency — see
-      // buildTransportRegistry's own comment above.
-      inject: [ClientsService, MailService, DOCUMENT_TYPE_REGISTRY, ENTITY_REFERENCE_REGISTRY],
+      // buildTransportRegistry's own comment above. ChannelCredentialsService comes from
+      // CompanyModule (imported above) — no cycle either: CompanyModule imports nothing from here.
+      inject: [
+        ClientsService,
+        MailService,
+        DOCUMENT_TYPE_REGISTRY,
+        ENTITY_REFERENCE_REGISTRY,
+        ChannelCredentialsService,
+      ],
     },
     {
       provide: ACTION_REGISTRY,
@@ -266,7 +296,11 @@ function buildEntityReferenceRegistry(
     // country-policy's own data — no factory function needed, there is nothing to inject.
     { provide: COUNTRY_FIELD_OVERLAY_REGISTRY, useValue: new CountryFieldOverlayCatalog() },
     { provide: VAT_RATE_CATALOG_REGISTRY, useValue: new VatRateCatalog() },
-    { provide: FORMAT_PROVIDER_REGISTRY, useFactory: buildFormatProviderRegistry },
+    {
+      provide: FORMAT_PROVIDER_REGISTRY,
+      useFactory: buildFormatProviderRegistry,
+      inject: [ENTITY_REFERENCE_REGISTRY],
+    },
   ],
   exports: [
     DocumentsService,

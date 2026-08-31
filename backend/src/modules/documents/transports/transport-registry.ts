@@ -20,6 +20,12 @@ export interface DocumentTransportContext {
 export interface DocumentTransportResult {
   /** Human-facing outcome string — same convention as ActionResult.message. */
   message: string;
+  /** An authority/platform-assigned reference the transport got back on delivery — e.g. the PDP
+   *  deposit id (`transports/pdp-transport.ts`). Optional: the "email" transport has no such concept
+   *  and never sets it. When present, `actions/async-send.ts`'s phase-2 delivery persists it onto
+   *  `DocumentInstance.transportRef` (see that column's own schema comment) on the SAME write that
+   *  moves the record to "sent". */
+  reference?: string;
 }
 
 /**
@@ -30,6 +36,18 @@ export interface DocumentTransportResult {
  */
 export interface DocumentTransport {
   send(ctx: DocumentTransportContext): Promise<DocumentTransportResult>;
+  /**
+   * An OPTIONAL extra gate `invoice-actions.ts`'s own phase-1 preflight runs, in addition to (never
+   * instead of) `resolveInvoiceTransport`'s "is a transport even chosen and registered" check — for a
+   * transport whose OWN readiness is a separate fact the registry cannot see (e.g. "pdp": a company
+   * can pick `invoiceTransportId: 'pdp'` without ever having connected PDP credentials —
+   * `transports/pdp-transport.ts`'s own header). Absent for the "email" transport: nothing about an
+   * email address is knowable before a specific document names a client, so there is nothing this
+   * hook could check ahead of `send()` itself. Throwing here runs BEFORE the record is ever persisted
+   * or queued — the exact same "blocked, and says so, before touching anything" behavior a missing/
+   * unregistered transport already gets (see `async-send.ts`'s own `preflight` parameter).
+   */
+  preflight?(companyId: string): Promise<void>;
 }
 
 export class UnknownTransportError extends Error {

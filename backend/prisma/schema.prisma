@@ -362,6 +362,7 @@ model Company {
   documentNumberSequences DocumentNumberSequence[]
   documentPayments        DocumentPayment[]
   currencyRates           CurrencyRate[]
+  channelConfigs          CompanyChannelConfig[]
 }
 
 // Manually entered exchange rates (item 9, root TODO — "le multi-devises"). The rule that governs
@@ -940,6 +941,16 @@ model DocumentInstance {
   // list and detail screens so a failed send is never a silent state only a server log knows about.
   lastActionError String?
 
+  // The identifier a TRANSPORT handed back on successful delivery — e.g. the PDP deposit id
+  // (`transports/pdp-transport.ts`) or superpdp's own invoice id. Generic on this table (like
+  // `lastActionError` above) rather than a PDP-specific column: any future transport that hands back
+  // a reference gets the same slot, no schema change. Absent for the "email" transport (nothing to
+  // record) and for every type with no transport at all (quote/credit-note) — set ONLY by
+  // `actions/async-send.ts`'s phase-2 delivery, on the SAME write that moves the record to "sent",
+  // never touched by an ordinary `upsertDocument` write the way `lastActionError` is (there is
+  // nothing stale to clear: a reference is only ever written once delivery actually succeeds).
+  transportRef String?
+
   // See DocumentPayment below (settlement/) — a payment is NOT a document type of its own (no
   // lifecycle, no draft, no send), only a record hanging off an existing document instance.
   payments DocumentPayment[]
@@ -1163,6 +1174,35 @@ model CountryIdentifierRequirement {
 
   @@unique([countryCode, scheme])
   @@index([countryCode])
+}
+
+// Item 10 (root TODO), "transports nationaux" — REPRISED from git tag `avant-refonte-documents`
+// (`channel-credentials.service.ts`'s own model there), same shape: one row per (company, provider,
+// environment) a company has connected a national transport for. `providerId` names a registered
+// `documents/transports/transport-registry.ts` entry (e.g. "pdp") — the value `Company.
+// invoiceTransportId` (above) is set to once connected; `channel` is the broader category
+// (`"PDP"`) that groups whatever specific provider implementation a company picked, matching
+// TODO_ISSUES.md's item-10 wave-1 scope (KSeF/SdI, item 10 wave 2, are just more rows the exact
+// same shape covers). `config` is the credential blob — AES-256-GCM encrypted at rest
+// (`utils/secret-crypto.ts`, which survived the compliance-engine demolition unchanged) — a
+// plain, unencrypted JSON column would put a client secret directly in a DB dump. `ChannelEnvironment`
+// already existed in this schema (added for the removed compliance engine, additive-only policy —
+// see the "COMPLIANCE LIFECYCLE PERSISTENCE" section below); it is reused here rather than
+// redeclared, same TEST/PROD shape the old channel-credentials service already needed.
+model CompanyChannelConfig {
+  id          String             @id @default(cuid())
+  companyId   String
+  company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  channel     String // broad category, e.g. "PDP" — see this model's own header
+  providerId  String // 'pdp' | 'ksef' | 'sdi' | … — a documents/transports/transport-registry.ts id
+  environment ChannelEnvironment @default(TEST)
+  config      String // AES-256-GCM encrypted JSON blob (credentials + non-secret config)
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([companyId, providerId, environment])
+  @@index([companyId])
 }
 
 // ======= END OF DOCUMENT DESCRIPTOR SYSTEM ======= //

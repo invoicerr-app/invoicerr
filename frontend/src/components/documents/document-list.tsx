@@ -223,7 +223,7 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
   const downloadXmlAction = descriptor.actions.find((action) => action.id === "download-xml")
   const showDownloadXml = !!downloadXmlAction && isActionAvailable(downloadXmlAction, instance.status)
 
-  const handleDownloadXml = async (syntax: "cii" | "ubl") => {
+  const handleDownloadXml = async (syntax: "cii" | "ubl" | "facturx") => {
     try {
       const response = await authenticatedFetch(
         `/api/documents/${instance.id}/formats/${syntax}?typeId=${descriptor.id}`,
@@ -335,6 +335,12 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
                 data-cy={`document-xml-ubl-${instance.id}`}
               >
                 {t("documents.list.downloadXmlUbl")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleDownloadXml("facturx")}
+                data-cy={`document-xml-facturx-${instance.id}`}
+              >
+                {t("documents.list.downloadXmlFacturx")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

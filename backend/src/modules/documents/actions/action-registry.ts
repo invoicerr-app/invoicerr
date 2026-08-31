@@ -32,6 +32,11 @@ export interface DocumentInstanceResult {
    *  need to) — never assume its absence means "no error", only that this particular result didn't
    *  carry it. */
   lastActionError?: string | null;
+  /** See `DocumentInstance.transportRef`'s own schema comment — the identifier a TRANSPORT handed
+   *  back on successful delivery (e.g. a PDP deposit id), or null/undefined for a document no
+   *  transport has ever reported one for. Same "absent ≠ no reference, only that this result didn't
+   *  carry it" convention `lastActionError` above already holds. */
+  transportRef?: string | null;
 }
 
 /**

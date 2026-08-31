@@ -254,7 +254,16 @@ describe('runAsyncSendAction', () => {
         data: baseInput.data,
         params: baseInput.params,
       });
-      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith('company-1', 'quote', 'doc-1', 'sent');
+      // `null, undefined`: no lastActionError, and no transport reference — this `deliver` result
+      // carries none (see transport-registry.ts's own `DocumentTransportResult.reference`).
+      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
+        'company-1',
+        'quote',
+        'doc-1',
+        'sent',
+        null,
+        undefined,
+      );
       expect(persistence.upsertDocument).not.toHaveBeenCalled();
       expect(takeNumber.takeDocumentNumberForTransition).not.toHaveBeenCalled();
       expect(queueDispatcher.enqueueAction).not.toHaveBeenCalled();
@@ -263,6 +272,42 @@ describe('runAsyncSendAction', () => {
         changed: true,
         message: 'Sent to client@example.com.',
       });
+    });
+
+    // Root TODO item 10 ("transports nationaux") — the "pdp" transport hands back a `reference`
+    // (the deposit id) alongside `message`; this proves it reaches `updateDocumentStatus` as
+    // `transportRef`, on the SAME write that records "sent" — see `DocumentInstance.transportRef`'s
+    // own schema comment and `transports/pdp-transport.ts`'s own header.
+    it('threads a deliver() `reference` through to updateDocumentStatus as `transportRef`', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sent',
+        transportRef: '375037',
+      });
+      const queueDispatcher = { enqueueAction: jest.fn() };
+      const deliver = jest
+        .fn()
+        .mockResolvedValue({ message: 'Deposited — deposit id 375037.', reference: '375037' });
+
+      await runAsyncSendAction({ ...baseInput, typeId: 'invoice', queueDispatcher, deliver });
+
+      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
+        'company-1',
+        'invoice',
+        'doc-1',
+        'sent',
+        null,
+        '375037',
+      );
     });
 
     // THE MUTATION TARGET #2 lives in the CALLER (queue/processors/document-action.processor.ts and

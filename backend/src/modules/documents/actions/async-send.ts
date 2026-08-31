@@ -54,7 +54,9 @@ export interface AsyncSendDeliverContext {
   params: Record<string, unknown>;
 }
 
-export type AsyncSendDeliver = (ctx: AsyncSendDeliverContext) => Promise<{ message?: string }>;
+export type AsyncSendDeliver = (
+  ctx: AsyncSendDeliverContext,
+) => Promise<{ message?: string; reference?: string }>;
 
 export interface RunAsyncSendInput {
   companyId: string;
@@ -111,8 +113,15 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
   const existing = await findOwnedDocument(companyId, typeId, documentId);
 
   if (existing.status === 'sending') {
-    const { message } = await deliver({ companyId, typeId, documentId, document: existing, data, params });
-    const sent = await updateDocumentStatus(companyId, typeId, documentId, 'sent');
+    const { message, reference } = await deliver({
+      companyId,
+      typeId,
+      documentId,
+      document: existing,
+      data,
+      params,
+    });
+    const sent = await updateDocumentStatus(companyId, typeId, documentId, 'sent', null, reference);
     return { document: sent, changed: true, message };
   }
 

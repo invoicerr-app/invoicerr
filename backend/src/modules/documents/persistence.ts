@@ -61,6 +61,12 @@ export async function upsertDocument(
  * by the terminal-failure path (queue/mark-send-failed.ts, "sending" -> "send_failed", which also
  * needs to record WHY). `lastActionError` defaults to null (the success case); pass the error message
  * explicitly for the failure case — never both silently disagree about which one this write means.
+ *
+ * `transportRef`, when passed, is what a transport handed back on successful delivery (see
+ * `DocumentInstance.transportRef`'s own schema comment and `transports/transport-registry.ts`'s
+ * `DocumentTransportResult.reference`) — `undefined` (the default) means "leave it untouched", not
+ * "clear it": unlike `lastActionError`, there is nothing stale to reset on an ordinary write, since a
+ * reference is only ever written once, on the write that records success.
  */
 export async function updateDocumentStatus(
   companyId: string,
@@ -68,9 +74,13 @@ export async function updateDocumentStatus(
   id: string,
   status: string,
   lastActionError: string | null = null,
+  transportRef?: string,
 ): Promise<DocumentInstanceResult> {
   await findOwnedDocument(companyId, typeId, id);
-  return prisma.documentInstance.update({ where: { id }, data: { status, lastActionError } });
+  return prisma.documentInstance.update({
+    where: { id },
+    data: { status, lastActionError, ...(transportRef !== undefined ? { transportRef } : {}) },
+  });
 }
 
 /**

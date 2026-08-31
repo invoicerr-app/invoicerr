@@ -83,18 +83,40 @@
   format NATIONAL (PL/ES/IT/MX, hors périmètre ici) qui voudrait un vrai XSD n'aurait qu'à reprendre
   `validateXsd` du repère (`compliance/schemas/validate.ts`) — rien ne s'y oppose.
 
-- **Factur-X : embarqueur existant au repère, NON repris** (item 12) : `@e-invoice-eu/core` (déjà
-  dans `package.json`, aucune nouvelle dépendance) sait embarquer le CII généré dans un PDF/A-3 —
-  l'ancien `BuiltEInvoice.embedInPdf` (git tag `avant-refonte-documents`,
-  `modules/invoice-rendering/invoice-rendering.service.ts`) l'appelait avec
-  `{ format: 'Factur-X-EN16931', pdf: { buffer, filename, mimetype } }`, un embarqueur trivial (pas
-  de code maison). Non repris ici : le périmètre borné de cette tâche est CII/UBL PURS (l'action
-  `download-xml` n'expose que `syntax ∈ {cii, ubl}`) ; ajouter Factur-X aurait été étendre le
-  périmètre plutôt que le construire. Reprendre consiste en : un troisième `DocumentFormatProvider`
-  (`id: 'facturx'`) qui appelle `buildEuInvoiceForDocument` (déjà partagé par `cii-provider.ts`/
-  `ubl-provider.ts`) puis `service.generate(euInvoice, { format: 'Factur-X-EN16931', pdf: {...} })`
-  avec le PDF déjà produit par `rendering/render-instance-pdf.ts` — pas de nouveau code de fond,
-  juste un provider de plus dans `formats/format-registry.ts` et une troisième option `syntax`.
+- ~~Factur-X : embarqueur existant au repère, NON repris~~ (item 12) — **RÉSOLU à l'item 10, vague 1**
+  (2026-08-31) : `formats/facturx-provider.ts` fait exactement ce que cette entrée décrivait —
+  `buildEuInvoiceForDocument` (partagé avec `cii-provider.ts`/`ubl-provider.ts`), le MÊME gate
+  Schematron EN 16931 que le provider CII (jamais un CII non validé embarqué — la validation tourne
+  sur le CII brut avant même de tenter le PDF), puis `service.generate(euInvoice, { format:
+  'Factur-X-EN16931', pdf: {...} })` avec le PDF de `rendering/render-instance-pdf.ts`. Enregistré
+  dans `format-registry.ts` (`id: 'facturx'`), troisième option `syntax` de `download-xml`, et
+  transport `pdp` (`transports/pdp-transport.ts`) l'utilise comme payload de dépôt. Deux bugs réels
+  du pont sémantique trouvés en poussant l'artefact jusqu'au VRAI dépôt PDP (jamais vus par le seul
+  Schematron vendoré, qui ne vérifie pas l'ORDRE des éléments ni le routage) et corrigés dans
+  `build-semantic-invoice.ts`, au bénéfice de CII/UBL aussi, pas seulement Factur-X :
+  1. `ApplicableHeaderTradeDelivery` (BT-72) n'était jamais émis par `@e-invoice-eu/core` en l'absence
+     de contenu — un `cac:Delivery: {}` vide ne suffit pas, il faut au moins `ActualDeliveryDate`. Le
+     schéma CII exige pourtant cet élément de séquence, present ou non-fourni par le business — sans
+     lui, superpdp refuse tout dépôt CII/Factur-X net : "ApplicableHeaderTradeSettlement... not
+     expected. Expected is ApplicableHeaderTradeDelivery". Corrigé en calant BT-72 par défaut sur la
+     date d'émission (une convention, jamais une règle fiscale — BT-72 n'a aucune incidence TVA).
+  2. `endpointFor()` dérivait toujours l'adresse électronique (BT-34/BT-49) du LEGAL_ID (SIREN) —
+     confondant l'identité légale et l'adresse de routage, deux faits EN 16931 distincts. Le SIREN
+     n'est pas toujours une adresse de routage valide (le bac à sable superpdp refusait le dépôt :
+     "receiver address <0225:...> does not accept this document"). Corrigé en lisant en priorité
+     l'identifiant `PEPPOL_ENDPOINT` déjà collecté (et déjà persisté) par `company.settings.tsx`/
+     `client-upsert.tsx` — une fonctionnalité écran existante, jamais branchée jusqu'ici au pont de
+     formats. `explicitEndpointFor()`'s own header.
+
+  Reste NOMMÉ de cette vague : le dépôt réussit sur l'ACCUSÉ (`api:uploaded`, identifiant non vide,
+  prouvé en réel — `transports/pdp/pdp.live.spec.ts`), jamais suivi au-delà. Un poll manuel effectué
+  pendant cette tâche (hors contrat, informationnel) a montré un `fr:213 Rejetée` quelques centaines
+  de ms après le dépôt, pour des raisons DÉJÀ documentées à l'ancien repère (mentions obligatoires
+  BG-1 : frais de recouvrement/pénalités de retard/escompte — items 15 ; BT-23 cadre de facturation
+  français, logique déjà écrite dans `business-process.ts` mais jamais branchée par pays — items
+  11/12) : ni une régression de cette tâche, ni quelque chose que le contrat de la vague 1 promettait
+  de résoudre. Construire le POLLER lui-même (l'ancien moteur avait un `InboxPoller`) est un chantier
+  à part, non commencé ici.
 
 - **BT-151 (catégorie de TVA) : seules S et Z sont atteignables aujourd'hui** (item 12) : EN 16931
   distingue six catégories (S, Z, E, AE, K, G, O), chacune avec des exigences contradictoires (voir

@@ -2181,39 +2181,41 @@
         "noScopes": "No scopes granted"
       }
     },
-    "audit": {
-      "export": "Export audit",
-      "exportError": "Failed to export the audit trail"
-    },
     "channels": {
       "actions": {
+        "cancel": "Cancel",
         "connect": "Connect",
-        "documentation": "Documentation",
+        "disconnect": "Disconnect",
         "edit": "Edit"
       },
-      "availableFrom": "Available from {{date}}",
-      "configure": "Configure",
-      "configureDesc": "Set credentials for",
-      "description": "Connect the transmission channels required by your company's country. Secrets are encrypted at rest.",
-      "emptyState": "No transmission channels required for your country",
+      "description": "Connect a national transmission channel — once connected, choose it below as this company's invoice transport.",
+      "emptyState": "No national channel available yet",
+      "fields": {
+        "baseUrl": "API base URL",
+        "clientId": "Client ID",
+        "clientSecret": "Client secret",
+        "environment": "Environment",
+        "environmentProd": "Production",
+        "environmentTest": "Test (sandbox)"
+      },
       "messages": {
-        "deleteError": "Failed to disconnect",
-        "deleteSuccess": "Channel disconnected",
-        "saveError": "Failed to save configuration",
-        "saveSuccess": "Channel configured"
+        "connectError": "Failed to connect the channel",
+        "connectSuccess": "Channel connected",
+        "disconnectError": "Failed to disconnect the channel",
+        "disconnectSuccess": "Channel disconnected",
+        "fieldsRequired": "Base URL, client ID and client secret are all required"
       },
       "prompt": {
         "cta": "Connect now",
-        "description": "Your country requires connecting {{channels}} to send compliant invoices.",
-        "title": "E-invoicing channel required"
+        "description": "Your country's usual channel — {{channels}} — isn't connected yet.",
+        "title": "E-invoicing channel suggested"
       },
       "status": {
-        "comingSoon": "Coming soon",
-        "connected": "Connected",
-        "notConfigured": "Not configured"
+        "connected": "Connected ({{environment}})",
+        "notConnected": "Not connected",
+        "suggested": "Suggested for your country"
       },
-      "stubNote": "This channel isn't wired to a live transmission integration yet — connecting wouldn't actually send anything.",
-      "title": "E-invoicing Channels"
+      "title": "Channels"
     },
     "signing": {
       "deleteError": "Failed to remove certificate",
@@ -3022,6 +3024,7 @@
       "downloadXml": "Download normalized XML",
       "downloadXmlCii": "CII (UN/CEFACT)",
       "downloadXmlUbl": "UBL 2.1",
+      "downloadXmlFacturx": "Factur-X (PDF/A-3)",
       "downloadXmlError": "The normalized XML export could not be generated.",
       "processing": "Processing…",
       "lastActionError": "Last error: {{message}}"

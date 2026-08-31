@@ -6,83 +6,50 @@ import { useNavigate } from "react-router"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { useCompany } from "@/hooks/queries/use-company"
 import { useGet } from "@/hooks/use-fetch"
 import { cn } from "@/lib/utils"
 
-/** Mirrors backend ProviderMaturity (transmission-provider.ts). Undefined/unknown ⇒ treat as STUB. */
-type ProviderMaturity = "PROVEN" | "IMPLEMENTED" | "STUB"
-
-interface ProviderMeta {
-  id: string
-  channel: string
-  feedback: string
-  configSchema: { fields: any[] } | null
-  /** F-8/M-16: a STUB provider has no real transport — never offer a working Connect control for it. */
-  maturity?: ProviderMaturity
+interface ChannelProvenance {
+  kind: "legal" | "unverified"
 }
-
-interface RequiredChannel {
-  type: string
+interface ConfiguredChannel {
   providerId: string
-  provider: ProviderMeta | null
-  isConfigured: boolean
-  environment: string | null
-  config: Record<string, unknown> | null
-  /** ISO date string — when this channel mandate starts. Future dates = "coming soon". */
-  availableFrom?: string
+  isActive: boolean
+}
+interface SuggestedChannel {
+  providerId: string
+  provenance: ChannelProvenance
+}
+interface ChannelsResponse {
+  configured: ConfiguredChannel[]
+  suggested: SuggestedChannel[]
 }
 
-/** Friendly display names for known providerIds. Falls back to the provider's raw channel/id. */
-const CHANNEL_LABELS: Record<string, string> = {
-  ksef: "KSeF",
-  pdp: "PDP",
-  superpdp: "PDP",
-  sdi: "SdI",
-  peppol: "Peppol",
-}
-
-function friendlyChannelName(ch: RequiredChannel): string {
-  return CHANNEL_LABELS[ch.providerId.toLowerCase()] ?? ch.provider?.channel ?? ch.providerId
-}
+/** Friendly display names — same map `channels.settings.tsx` keeps for the identical reason. */
+const PROVIDER_LABELS: Record<string, string> = { pdp: "PDP" }
 
 /**
- * Proactive nudge for e-invoicing compliance: renders a small non-blocking
- * banner when the company has at least one required transmission channel
- * that is actionable right now (live mandate, real — not STUB — provider)
- * but not yet connected. Self-fetches, self-hides (renders nothing) once
- * there's nothing actionable left, so it's safe to mount in multiple places.
- *
- * Show condition mirrors the honesty rule already enforced in
- * channels.settings.tsx (F-8/M-16): a STUB provider can't really transmit,
- * so it must never trigger this nudge.
+ * Proactive nudge — item 10 (root TODO): renders a small non-blocking banner when this company's
+ * own country SUGGESTS a channel (`GET /api/company/channels`'s own `suggested`, advisory — see
+ * `transports/channel-suggestion/schema.ts`'s header on why this is never a legal requirement) that
+ * is not yet connected. Self-fetches, self-hides once there is nothing to suggest, so it is safe to
+ * mount in multiple places (company settings, onboarding).
  */
 export default function ChannelConnectPrompt({ className }: { className?: string }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { data: company } = useCompany()
-  const companyId = company?.id
+  const { data: channels } = useGet<ChannelsResponse>("/api/company/channels")
 
-  const { data: requiredChannels } = useGet<RequiredChannel[]>(
-    companyId ? `/api/compliance/channels/companies/${companyId}/required-channels` : null,
+  const connectedIds = new Set(
+    (channels?.configured ?? []).filter((c) => c.isActive).map((c) => c.providerId),
   )
-
-  const now = Date.now()
-  const actionable = (requiredChannels ?? []).filter((ch) => {
-    const maturity = ch.provider?.maturity
-    // Only PROVEN channels may prompt the user to connect. IMPLEMENTED used to qualify here, which
-    // meant this banner told users in 17 countries that their jurisdiction "requires connecting" a
-    // channel that cannot put a byte on the wire — the registry never injects an HTTP port, so
-    // those providers hit a stub port that throws or short-circuits to SKIPPED. See F-009 in
-    // docs/compliance/audit: reachable transport and PROVEN are the same set today.
-    const isLiveProvider = maturity === "PROVEN"
-    const isLiveMandate = !ch.availableFrom || new Date(ch.availableFrom).getTime() <= now
-    return isLiveProvider && !ch.isConfigured && isLiveMandate
-  })
+  const actionable = (channels?.suggested ?? []).filter((s) => !connectedIds.has(s.providerId))
 
   if (actionable.length === 0) return null
 
-  const channelNames = actionable.map(friendlyChannelName).join(", ")
+  const channelNames = actionable
+    .map((s) => PROVIDER_LABELS[s.providerId] ?? s.providerId.toUpperCase())
+    .join(", ")
 
   return (
     <Alert
@@ -90,12 +57,12 @@ export default function ChannelConnectPrompt({ className }: { className?: string
       className={cn("border-amber-300 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20", className)}
     >
       <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
-      <AlertTitle>{t("settings.channels.prompt.title", "E-invoicing channel required")}</AlertTitle>
+      <AlertTitle>{t("settings.channels.prompt.title", "E-invoicing channel suggested")}</AlertTitle>
       <AlertDescription>
         <p>
           {t(
             "settings.channels.prompt.description",
-            "Your country requires connecting {{channels}} to send compliant invoices.",
+            "Your country's usual channel — {{channels}} — isn't connected yet.",
             { channels: channelNames },
           )}
         </p>

@@ -225,11 +225,33 @@ function toSiren(legalId: string | undefined, isFrenchSeller: boolean): string |
   return digits.length === 14 ? digits.slice(0, 9) : legalId;
 }
 
+/**
+ * BT-34/BT-49 (Seller/Buyer electronic address) — read from a `PEPPOL_ENDPOINT` party identifier
+ * (`"{schemeId}:{endpointId}"`, e.g. "0225:315143296_1421") when one is on file. Company settings
+ * and the client form (`company.settings.tsx`/`client-upsert.tsx`) already collect and PERSIST this
+ * exact identifier — it existed on both parties before this bridge ever read it back: an electronic
+ * ROUTING address is a DIFFERENT fact from a legal registration id (SIREN/EIN/…), and EN 16931 models
+ * them as separate business terms for exactly that reason (a party's routable address is not always
+ * derivable from its legal identity — e.g. a French PDP's own routing convention, which is not the
+ * SIREN at all). Without this, `endpointFor` below falls back to guessing the electronic address FROM
+ * the legal id, which is only ever an approximation.
+ */
+function explicitEndpointFor(party: SemanticPartyInput): { id: string; scheme: string } | undefined {
+  const raw = getIdentifier({ partyIdentifiers: party.partyIdentifiers }, 'PEPPOL_ENDPOINT');
+  if (!raw) return undefined;
+  const sep = raw.indexOf(':');
+  if (sep <= 0 || sep === raw.length - 1) return undefined; // malformed — fall back rather than guess
+  return { scheme: raw.slice(0, sep), id: raw.slice(sep + 1) };
+}
+
 function endpointFor(
   party: SemanticPartyInput,
   legalId: string | undefined,
   fallbackEmail: string | null | undefined,
 ) {
+  const explicit = explicitEndpointFor(party);
+  if (explicit) return explicit;
+
   const vat = getIdentifier({ partyIdentifiers: party.partyIdentifiers }, 'VAT');
   const vatEas = peppolEasForVat(vat);
   const id = legalId ?? (vatEas ? vat : undefined) ?? fallbackEmail?.trim() ?? 'unknown@local.invalid';
@@ -401,6 +423,22 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
       'cbc:DocumentCurrencyCode': currency,
       'cac:AccountingSupplierParty': { 'cac:Party': sellerParty as never },
       'cac:AccountingCustomerParty': { 'cac:Party': buyerParty as never },
+      // BT-72 (Actual delivery date) is OPTIONAL in EN 16931 — but `@e-invoice-eu/core`'s CII
+      // formatter only emits the WRAPPING `ram:ApplicableHeaderTradeDelivery` element when this
+      // business term actually carries content (an empty `cac:Delivery: {}` produces none at all —
+      // verified against the library directly, not assumed). The UN/CEFACT CII schema's own
+      // `SupplyChainTradeTransactionType` sequence requires that wrapping element to be PRESENT
+      // between Agreement and Settlement regardless of BT-72's own optionality; omitting it (this
+      // bridge's state before this fix) produced CII that our vendored SCHEMATRON — which checks
+      // content correctness, never element ORDERING — could not catch, but a real platform's own
+      // structural validation does (superpdp: "ApplicableHeaderTradeSettlement... not expected.
+      // Expected is ApplicableHeaderTradeDelivery", found running the REAL round-trip against the
+      // sandbox — `pdp/pdp.live.spec.ts` — never from a hand-built fixture). Defaulting the date to
+      // the invoice's own issue date (a conventional stand-in for "delivered on issuance" when no
+      // separate delivery date is tracked, same category of technical default `vatCategoryFor`
+      // above already makes — never a legal/fiscal claim, BT-72 has no tax consequence) is what
+      // gives the wrapper real content to serialize.
+      'cac:Delivery': { 'cbc:ActualDeliveryDate': input.issueDate },
       'cac:TaxTotal': [
         {
           'cbc:TaxAmount': fmt2(input.totals.vatMinor, currency),

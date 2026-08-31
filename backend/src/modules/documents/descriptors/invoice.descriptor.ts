@@ -457,6 +457,9 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
             options: [
               { value: 'cii', label: 'CII (UN/CEFACT Cross Industry Invoice)' },
               { value: 'ubl', label: 'UBL 2.1' },
+              // Root TODO item 10, wave 1 — see formats/facturx-provider.ts's own header for the
+              // reuse this resolves (TODO_ISSUES.md's "Factur-X : embarqueur existant au repère").
+              { value: 'facturx', label: 'Factur-X (PDF/A-3 with embedded CII)' },
             ],
           },
         ],
