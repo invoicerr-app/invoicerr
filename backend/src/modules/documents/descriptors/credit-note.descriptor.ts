@@ -82,6 +82,10 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
         '{totalGross}.\n\n' +
         'Best regards,\n{companyName}',
     },
+    // See contributions/credit-note-contributions.ts for the implementation, and its own header for
+    // why 'statistics' ONLY — deliberately no 'dashboard' entry here: a credit note is rare, and a
+    // dashboard widget that is empty nearly every time someone looks is noise, not information.
+    contributions: ['statistics'],
     // See types.ts's own comment on `listItem`. `invoice` is required and is what a credit note
     // IS relative to (the invoice it corrects) — the natural heading for a list of credit notes.
     listItem: {

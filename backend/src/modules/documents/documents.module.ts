@@ -13,7 +13,10 @@ import { registerInvoiceActions } from './actions/invoice-actions';
 import { registerQuoteActions } from './actions/quote-actions';
 import { registerCreditNoteActions } from './actions/credit-note-actions';
 import { ContributionRegistry } from './contributions/contribution-registry';
+import { registerCreditNoteContributions } from './contributions/credit-note-contributions';
+import { registerExpenseContributions } from './contributions/expense-contributions';
 import { registerInvoiceContributions } from './contributions/invoice-contributions';
+import { registerQuoteContributions } from './contributions/quote-contributions';
 import { CountryFieldOverlayCatalog } from './country-fields/registry';
 import { VatRateCatalog } from './vat-rates/registry';
 import { DocumentsController } from './documents.controller';
@@ -55,12 +58,16 @@ function buildDocumentTypeRegistry(): DocumentTypeRegistry {
 }
 
 /** The WIDGET contribution side of the same registration discipline — see
- *  contributions/contribution-registry.ts. Only the invoice contributes today (the model
- *  contribution, contributions/invoice-contributions.ts); adding another type's is exactly one more
- *  line here, the same shape `buildActionRegistry` below already has. */
+ *  contributions/contribution-registry.ts. The invoice was the first to contribute (the model
+ *  contribution, contributions/invoice-contributions.ts); the expense, the quote and the credit note
+ *  (statistics only — see its own descriptor and contribution file for why) followed, each exactly
+ *  one more line here, the same shape `buildActionRegistry` below already has. */
 function buildContributionRegistry(): ContributionRegistry {
   const registry = new ContributionRegistry();
   registerInvoiceContributions(registry);
+  registerExpenseContributions(registry);
+  registerQuoteContributions(registry);
+  registerCreditNoteContributions(registry);
   return registry;
 }
 

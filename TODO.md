@@ -76,4 +76,4 @@
 | 22 | **Mode worker & files d'attente** | `worker.ts` et BullMQ supprimés. Nécessaire dès que les envois et les relances deviennent asynchrones (10). |
 | 23 | **Serveur MCP** | Module supprimé avec la démolition. |
 | 24 | **Liens publics de téléchargement** | `pdf-links` supprimé (partager une facture par lien). Dépend de 1. |
-| 25 | **Contributions manquantes** | Le dashboard n'a que la facture. « Les dépenses du mois », devis, avoir ; et l'i18n des libellés de descripteurs (données brutes aujourd'hui). |
+| 25 ◐ | **Contributions manquantes** (contributions faites 2026-08-31 ; reste l'i18n des libellés) | Le dashboard n'a que la facture. « Les dépenses du mois », devis, avoir ; et l'i18n des libellés de descripteurs (données brutes aujourd'hui). |

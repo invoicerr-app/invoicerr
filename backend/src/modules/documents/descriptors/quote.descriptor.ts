@@ -60,6 +60,10 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
         '{totalGross}.\n\n' +
         'Best regards,\n{companyName}',
     },
+    // See contributions/quote-contributions.ts for the implementation — the THIRD real contribution
+    // written for this mechanism. Both locations: a draft-quotes shortlist on the dashboard, a
+    // "Quotes sent" count plus a fully detailed table on statistics.
+    contributions: ['dashboard', 'statistics'],
     // See types.ts's own comment on `listItem`. `client` is the one field a quote cannot exist
     // without (required) and the one a reader actually wants to see first in a list of quotes.
     listItem: {

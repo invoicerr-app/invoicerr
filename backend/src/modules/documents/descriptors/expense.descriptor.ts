@@ -57,6 +57,10 @@ export function buildExpenseDescriptor(): DocumentTypeDescriptor {
       subject: '{typeLabel} {displayNumber}',
       body: 'Please find attached {typeLabel} {displayNumber} from {companyName}.',
     },
+    // See contributions/expense-contributions.ts for the implementation — the SECOND real
+    // contribution written for this mechanism, calqued on invoice-contributions.ts. Both locations:
+    // a "this month" metric on the dashboard, a fully detailed table on statistics.
+    contributions: ['dashboard', 'statistics'],
     // See types.ts's own comment on `listItem`. An expense has no relation field to lead with (no
     // client, no source document) — `description` is its own required, human-written identifier.
     listItem: {

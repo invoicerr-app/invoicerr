@@ -428,4 +428,82 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 				cy.url().should("include", `/documents/${types[0].id}`);
 			});
 	});
+
+	it("le dashboard agrège des widgets d'au moins deux types de documents distincts, pas seulement la facture", () => {
+		// Item 25 du TODO : le dashboard n'avait que la facture ; le devis (une shortlist de
+		// brouillons) et la dépense (une métrique « ce mois-ci ») contribuent désormais aussi. Ce
+		// test le prouve à l'écran, pas seulement côté jest — voir le mécanisme dans
+		// backend/src/modules/documents/contributions/.
+		//
+		// Le JSON de GET /api/documents/dashboard n'expose PAS de champ `typeId` sur un widget
+		// implémenté (seul le marqueur « unimplemented » en porte un — voir widgets.ts côté back) :
+		// c'est un simple `id`, `label`, `kind`, etc. Chaque contribution préfixe cependant son
+		// propre `id` par le typeId qui l'a produit (`invoice:pending`, `quote:draft`,
+		// `expense:this-month`, ...) — une convention suivie par toutes, pas un contrat formel. On
+		// s'appuie donc dessus : le DOM porte le même `id` dans son `data-cy` (`widget-<id>`, voir
+		// widget-renderers/*.tsx), donc on le lit là, sur l'écran réellement rendu, plutôt que de
+		// re-fabriquer une requête API séparée.
+		cy.request({ url: `${api}/api/documents/references/client/search` })
+			.its("body")
+			.then((clients: { id: string }[]) => {
+				expect(
+					clients,
+					"le jeu d'essai contient un client",
+				).to.have.length.greaterThan(0);
+
+				// Un devis brouillon — remplit la shortlist du devis sur le dashboard.
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/quote/actions/save-draft`,
+					body: {
+						data: {
+							client: clients[0].id,
+							issueDate: "2026-08-30",
+							currency: "EUR",
+							lines: [{ description: "Conseil", quantity: 1, unitPrice: 100 }],
+						},
+					},
+					failOnStatusCode: false,
+				}).then((res) => {
+					expect(
+						res.status,
+						`brouillon de devis créé — ${JSON.stringify(res.body).slice(0, 200)}`,
+					).to.be.oneOf([200, 201]);
+				});
+
+				// Une dépense datée d'AUJOURD'HUI (jamais en dur) — remplit la métrique « ce
+				// mois-ci » de la dépense sur le dashboard, quel que soit le jour où ce test tourne.
+				const today = new Date().toISOString().slice(0, 10);
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/expense/actions/save-draft`,
+					body: {
+						data: { description: "Fournitures", amount: 42, currency: "EUR", date: today },
+					},
+					failOnStatusCode: false,
+				}).then((res) => {
+					expect(
+						res.status,
+						`dépense créée — ${JSON.stringify(res.body).slice(0, 200)}`,
+					).to.be.oneOf([200, 201]);
+				});
+			});
+
+		cy.visit("/dashboard");
+		cy.get('[data-cy^="widget-"]', { timeout: 20000 })
+			.should("have.length.greaterThan", 0)
+			.then(($widgets) => {
+				const typeIds = new Set(
+					[...$widgets]
+						.map((el) => el.getAttribute("data-cy") ?? "")
+						.filter((attr) => attr.startsWith("widget-"))
+						.map((attr) => attr.slice("widget-".length).split(":")[0]),
+				);
+
+				expect(
+					[...typeIds],
+					`au moins deux types de documents distincts contribuent au dashboard — vus : ${[...typeIds].join(", ")}`,
+				).to.have.length.of.at.least(2);
+			});
+	});
 });
