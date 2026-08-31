@@ -26,6 +26,14 @@ jest.mock('./persistence');
 // unmocked would make a "send" test here hit a real database AND launch a real headless browser.
 jest.mock('./rendering/render-instance-pdf');
 jest.mock('./actions/company-email-templates');
+// Root TODO item 14 ("archivage légal") — `actions/async-send.ts`'s phase-2 delivery now calls
+// `archiveDeliveredArtifactsIfAny` (archive/archive-on-send.ts) once "sent" is persisted, which
+// reaches PAST persistence.ts straight to Prisma (`archive/persistence.ts`, `country-policy/
+// country-policy.ts#resolveCompanyCountryCode`) — the EXACT same reason `./numbering/take-number`
+// below is mocked: this file is about the generic action machinery, not archiving (that mechanism
+// has its own coverage — see archive/*.spec.ts), and leaving it unmocked would make a "send" test
+// here hit a real database with a fake companyId/documentId.
+jest.mock('./archive/archive-on-send');
 // The real quote descriptor now declares `numbering: { onEnterStatus: 'sent' }` (quote.descriptor.ts)
 // — mocked wholesale here for the exact same reason `./persistence` is: this file is about the
 // generic action machinery, not numbering (that mechanism has its own coverage — see

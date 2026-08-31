@@ -1,4 +1,5 @@
 import { DocumentInstanceResult } from '../actions/action-registry';
+import { ArchivedArtifactInput } from '../archive/hashing';
 
 /** Everything a transport needs to deliver one document — deliberately NOT an email-shaped context
  *  (no `to`, no `subject`): a transport decides for itself how to address and format the delivery
@@ -26,6 +27,18 @@ export interface DocumentTransportResult {
    *  `DocumentInstance.transportRef` (see that column's own schema comment) on the SAME write that
    *  moves the record to "sent". */
   reference?: string;
+  /**
+   * Root TODO item 14 ("archivage légal") — the artifacts THIS transport actually delivered, in
+   * delivery order: the human-readable PDF (already signed if it was — see
+   * `signing/sign-instance-pdf.ts`) for "email", or the structured format actually
+   * deposited/submitted for "pdp"/"ksef"/"sdi" (Factur-X/FA(3)/FatturaPA — see each transport's own
+   * `send()`) — never both invented for a transport that only ever delivers one kind. Absent (or
+   * empty) means nothing conservable came out of this delivery (e.g. `credit-note-actions.ts`'s own
+   * "send", a plain status transition with no transport at all) — not a failure, simply nothing to
+   * archive. `actions/async-send.ts`'s phase-2 delivery archives EXACTLY this list, immutably and
+   * hash-encadré (`archive/hashing.ts`), the moment delivery succeeds — see `archive/archive-on-send.ts`.
+   */
+  artifacts?: ArchivedArtifactInput[];
 }
 
 /**

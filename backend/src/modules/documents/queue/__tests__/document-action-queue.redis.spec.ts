@@ -26,6 +26,10 @@
  *    SMTP_HOST between two calls in the same process would not work) lands on "send_failed" with the
  *    error recorded, and a re-`send` — after the underlying cause is fixed — succeeds.
  */
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { getQueueToken } from '@nestjs/bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Queue } from 'bullmq';
@@ -189,8 +193,17 @@ describeWithRedis('document-action queue — real Redis, real Postgres, real Mai
   let documentsService: DocumentsService;
   let queue: Queue;
   let companyId: string;
+  // Root TODO item 14 ("archivage légal") — a real "send" now really archives (archive/archive-on-send.ts).
+  // Pointed at a real os.tmpdir() subdir, NEVER this project's own cwd default (`<cwd>/.documents-archive`)
+  // — the same discipline every archive-writing jest spec in this codebase holds (see e.g.
+  // archive/storage.spec.ts), just applied here because this file is the one pre-existing spec that
+  // drives REAL "send" deliveries through a REAL DocumentsService, not because this file is otherwise
+  // about archiving at all.
+  let archiveDir: string;
 
   beforeAll(async () => {
+    archiveDir = mkdtempSync(join(tmpdir(), 'documents-archive-queue-redis-test-'));
+    process.env.DOCUMENTS_ARCHIVE_DIR = archiveDir;
     process.env.MAIL_PROVIDER = 'smtp';
     process.env.SMTP_HOST ||= 'localhost';
     process.env.SMTP_PORT ||= '1025';
@@ -240,6 +253,8 @@ describeWithRedis('document-action queue — real Redis, real Postgres, real Mai
     }
     await queue?.obliterate({ force: true }).catch(() => undefined);
     await moduleRef?.close();
+    if (archiveDir) rmSync(archiveDir, { recursive: true, force: true });
+    delete process.env.DOCUMENTS_ARCHIVE_DIR;
   });
 
   it('a quote\'s "send" traverses the real queue: draft -> sending -> a real worker delivers to Mailpit -> sent', async () => {

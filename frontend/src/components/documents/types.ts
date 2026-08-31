@@ -251,6 +251,38 @@ export interface DocumentSettlementResult {
   settlement: DocumentSettlement
 }
 
+/** Root TODO item 14 ("archivage légal ⚖") — one artifact this archive covers, mirrors the backend's
+ *  `StoredArtifactMeta` (documents/archive/persistence.ts). Never the bytes themselves. */
+export interface DocumentArchiveArtifact {
+  role: string
+  mime: string
+  byteLength: number
+  sha256: string
+}
+
+/** One row from `GET /documents/:id/archives` — mirrors the backend's `DocumentArchiveResult`. A
+ *  document can have several (one per successful delivery — a re-send after "send_failed" archives
+ *  again, see the backend's `DocumentArchive` schema comment), never a "current" singleton.
+ *  `retentionUntil`/`retentionBasis` are both null ONLY for a country with no declared retention rule
+ *  at all — `retentionBasis` is otherwise ALWAYS set, even alongside a null `retentionUntil`, saying
+ *  so plainly (never an invented duration). */
+export interface DocumentArchive {
+  id: string
+  contentHash: string
+  uri: string
+  artifacts: DocumentArchiveArtifact[]
+  archivedAt: string
+  retentionUntil: string | null
+  retentionBasis: string | null
+}
+
+/** What `POST /documents/:id/archives/:archiveId/verify` returns — mirrors the backend's
+ *  `ArchiveVerificationResult`. RE-HASHES the bytes stored on disk on every call; never a cached
+ *  verdict. */
+export type ArchiveVerificationResult =
+  | { status: "intact" }
+  | { status: "corrupted"; details: { role: string; expected: string; actual: string | null }[] }
+
 export interface EntityReferenceOption {
   id: string
   label: string

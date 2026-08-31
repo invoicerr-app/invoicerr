@@ -63,3 +63,6 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # compliance local archive provider default output dir (COMPLIANCE_ARCHIVE_DIR)
 /.compliance-archive/
+
+# documents legal-archive default output dir (DOCUMENTS_ARCHIVE_DIR) — root TODO item 14
+/.documents-archive/

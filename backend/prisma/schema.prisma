@@ -361,6 +361,7 @@ model Company {
   documentSchedules       DocumentSchedule[]
   documentNumberSequences DocumentNumberSequence[]
   documentPayments        DocumentPayment[]
+  documentArchives        DocumentArchive[]
   currencyRates           CurrencyRate[]
   channelConfigs          CompanyChannelConfig[]
   signingCertificates     CompanySigningCertificate[]
@@ -952,9 +953,30 @@ model DocumentInstance {
   // nothing stale to clear: a reference is only ever written once delivery actually succeeds).
   transportRef String?
 
+  // Root TODO item 14 ("archivage légal") — the error from the most recent FAILED archiving attempt
+  // (documents/archive/archive-on-send.ts), deliberately its OWN column, never `lastActionError`
+  // above. Two reasons: (1) `lastActionError` is reset to null by EVERY ordinary write this instance
+  // goes through (`persistence.ts`'s `upsertDocument`) — a re-send (a fresh "sending" write) would
+  // silently erase a still-true archiving failure that has nothing to do with THAT write; (2)
+  // `lastActionError` is semantically "the declared ACTION failed" (a send that never delivered) —
+  // archiving failing is a DIFFERENT fact: the delivery genuinely succeeded (the email left, the
+  // deposit was accepted), archiving it afterwards is what did not. Conflating the two would make a
+  // real, disclosed delivery look like a failed one, or bury an undisclosed archiving gap behind a
+  // send that reads as a clean success. Set ONLY by `archive-on-send.ts` (error message on failure,
+  // cleared back to null the moment a LATER archiving attempt for the same document succeeds — a
+  // re-send re-archives, see DocumentArchive below); never touched by any other write path. Visible
+  // on the document screen so a silent archiving gap is never only a server log line.
+  lastArchiveError String?
+
   // See DocumentPayment below (settlement/) — a payment is NOT a document type of its own (no
   // lifecycle, no draft, no send), only a record hanging off an existing document instance.
   payments DocumentPayment[]
+
+  // See DocumentArchive below (archive/) — one row per successful delivery that produced at least
+  // one artifact, never a "current archive" singleton: a re-send after "send_failed" archives AGAIN
+  // (archive/archive-on-send.ts's own header — "deux archives pour un même document sont deux faits
+  // datés, pas un conflit").
+  archives DocumentArchive[]
 
   @@index([companyId, typeId])
 }
@@ -1067,6 +1089,60 @@ model DocumentPayment {
   note   String?
 
   createdAt DateTime @default(now())
+
+  @@index([companyId, documentId])
+}
+
+// Root TODO item 14 ("archivage légal ⚖ — rétention par pays, intégrité"). One row per DELIVERY that
+// produced at least one artifact — written ONLY by documents/archive/archive-on-send.ts, at the
+// moment `actions/async-send.ts`'s phase-2 delivery actually succeeds (see that file's own header).
+// NOT a "current archive" singleton per document: a re-send after "send_failed" archives AGAIN — two
+// archives for the same document are two DATED FACTS (two real deliveries), never a conflict to
+// resolve or a row to overwrite.
+//
+// IMMUTABLE BY DESIGN: there is no update or delete path anywhere in this codebase for this model —
+// no controller route, no service method. This is the entire point of a legal archive: once written,
+// a row (and the bytes it points at — see `uri`) is never revised. `documents.service.ts`'s own
+// "verify" endpoint RE-HASHES the stored bytes and compares against `contentHash` on every call; it
+// never writes the result back here, so even a corruption-discovery run cannot mutate this table.
+model DocumentArchive {
+  id         String           @id @default(cuid())
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+  document   DocumentInstance @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId String
+
+  // SHA-256 (hex) over EVERY artifact in this archive, each one framed by a stable
+  // `role|mime|byteLength\n` header before its own bytes — see archive/hashing.ts's own header for
+  // why a bare concatenation would let two different artifact sets collide into the same digest, and
+  // why this framing rules that out. Covers the artifact SET as an ordered whole: reordering,
+  // mutating, adding, or removing an artifact all change this hash.
+  contentHash String
+
+  // Where the artifact bytes actually live — `file://<path>` under DOCUMENTS_ARCHIVE_DIR (defaulting
+  // to `<cwd>/.documents-archive`), content-hash-addressed so re-archiving byte-identical artifacts
+  // is idempotent. No S3/WORM object storage in this wave — see archive/storage.ts's own header for
+  // the honesty note this carries forward from `avant-refonte-documents`'s own WormS3ArchiveProvider.
+  uri String
+
+  // The artifacts THIS archive covers — role/mime/byteLength/sha256 PER ARTIFACT (its own plain
+  // hash, unframed — what `verify` names as "expected" for THAT one artifact when it reports
+  // CORRUPTED), never the bytes themselves (those live at `uri`, see storage.ts). E.g., for an
+  // invoice sent by email: `[{ role: "pdf", mime: "application/pdf", byteLength, sha256 }]`; for one
+  // deposited to the PDP: `[{ role: "facturx", mime: "application/pdf", ... }]` — never both invented
+  // for a transport that only ever delivered one (see transports/*-transport.ts's own headers).
+  artifacts Json
+
+  archivedAt DateTime @default(now())
+
+  // Root TODO item 14's own ⚖ — the country-is-data retention rule (archive/retention/, same file-
+  // per-country/provenance-mandatory mould as documents/mentions/) resolved for the ISSUING
+  // company's own country at `archivedAt`. NULL for a country with no declared retention rule at all
+  // — see retention/compute-retention.ts's own header: archiving still happens (integrity is owed to
+  // every company), but no duration is ever invented. `retentionBasis` is ALWAYS set (even when
+  // `retentionUntil` is null) — it names either the rule(s) applied or says plainly that none exist.
+  retentionUntil DateTime?
+  retentionBasis String?
 
   @@index([companyId, documentId])
 }

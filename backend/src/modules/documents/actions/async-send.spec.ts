@@ -1,9 +1,11 @@
+import * as archiveOnSend from '../archive/archive-on-send';
 import * as takeNumber from '../numbering/take-number';
 import * as persistence from '../persistence';
 import { runAsyncSendAction } from './async-send';
 
 jest.mock('../persistence');
 jest.mock('../numbering/take-number');
+jest.mock('../archive/archive-on-send');
 
 /**
  * `runAsyncSendAction` in isolation — the shared two-phase engine every type's "send" now goes
@@ -308,6 +310,68 @@ describe('runAsyncSendAction', () => {
         null,
         '375037',
       );
+    });
+
+    // Root TODO item 14 ("archivage légal") — archiving runs AFTER "sent" is persisted, fed EXACTLY
+    // what `deliver()` handed back, never before and never invented. See `archive/archive-on-send.ts`
+    // for why this call itself can never throw or undo a delivery that already succeeded.
+    it('archives the artifacts deliver() returned, AFTER "sent" is persisted, never before', async () => {
+      const callOrder: string[] = [];
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockImplementation(async () => {
+        callOrder.push('updateDocumentStatus');
+        return { id: 'doc-1', status: 'sent' };
+      });
+      (archiveOnSend.archiveDeliveredArtifactsIfAny as jest.Mock).mockImplementation(async () => {
+        callOrder.push('archiveDeliveredArtifactsIfAny');
+      });
+      const artifacts = [{ role: 'pdf', mime: 'application/pdf', bytes: new Uint8Array([1, 2, 3]) }];
+      const deliver = jest.fn().mockResolvedValue({ message: 'Sent.', artifacts });
+      const queueDispatcher = { enqueueAction: jest.fn() };
+
+      await runAsyncSendAction({ ...baseInput, queueDispatcher, deliver });
+
+      expect(callOrder).toEqual(['updateDocumentStatus', 'archiveDeliveredArtifactsIfAny']);
+      expect(archiveOnSend.archiveDeliveredArtifactsIfAny).toHaveBeenCalledWith({
+        companyId: 'company-1',
+        documentId: 'doc-1',
+        artifacts,
+      });
+    });
+
+    it('still calls archiveDeliveredArtifactsIfAny (with artifacts: undefined) for a deliver() with nothing to archive', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'cn-1',
+        typeId: 'credit-note',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({ id: 'cn-1', status: 'sent' });
+      const deliver = jest.fn().mockResolvedValue({ message: undefined });
+      const queueDispatcher = { enqueueAction: jest.fn() };
+
+      await runAsyncSendAction({
+        ...baseInput,
+        typeId: 'credit-note',
+        documentId: 'cn-1',
+        queueDispatcher,
+        deliver,
+      });
+
+      expect(archiveOnSend.archiveDeliveredArtifactsIfAny).toHaveBeenCalledWith({
+        companyId: 'company-1',
+        documentId: 'cn-1',
+        artifacts: undefined,
+      });
     });
 
     // THE MUTATION TARGET #2 lives in the CALLER (queue/processors/document-action.processor.ts and

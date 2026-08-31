@@ -184,6 +184,9 @@ describe('buildSdiTransport', () => {
 
       expect(result.reference).toBe('4242');
       expect(result.message).toContain('4242');
+      expect(result.artifacts).toEqual([
+        { role: 'fatturapa', mime: 'application/xml', bytes: Buffer.from([1]) },
+      ]);
       expect(submit).toHaveBeenCalledWith(
         expect.objectContaining({
           idTrasmittente: 'IT01234567890',

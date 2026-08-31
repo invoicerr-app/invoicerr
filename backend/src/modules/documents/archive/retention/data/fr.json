@@ -1,0 +1,18 @@
+{
+  "countryCode": "FR",
+  "rules": [
+    {
+      "label": "fiscale",
+      "years": 6,
+      "legalRef": "LPF art. L102 B",
+      "notes": "Délai de conservation des documents/pièces sur lesquels l'administration fiscale peut exercer son droit de contrôle et de reprise — 6 ans. Reprise depuis le repère git avant-refonte-documents (compliance/profiles/fr.ts), où cette durée avait été confondue avec les 10 ans commerciaux (voir docs/compliance/audit/03-LEGAL-VERIFICATION.md, entrée FR-D9, et docs/compliance/DECISIONS.md, D-001) — ce fichier corrige la confusion en les déclarant TOUS LES DEUX, jamais en en choisissant un seul."
+    },
+    {
+      "label": "commerciale",
+      "years": 10,
+      "legalRef": "C. com. art. L123-22",
+      "notes": "Délai de conservation des documents comptables (livres, registres) et des pièces justificatives — 10 ans à compter de la clôture de l'exercice. C'est la durée que le profil FR du repère appliquait déjà (10 ans), mais en la nommant par erreur \"fiscale\" — voir FR-D9 : 'la durée fiscale est de 6 ans (LPF L102 B) ; les 10 ans relèvent du droit commercial (C. com. L123-22)'."
+    }
+  ],
+  "notes": "Les deux obligations ci-dessus pèsent SIMULTANÉMENT sur la même société — ce ne sont pas deux estimations concurrentes d'une même durée, ni un choix à faire. Une facture qu'une société ne pourrait plus produire au bout de 6 ans la mettrait en défaut face à l'obligation commerciale (10 ans) si elle l'avait détruite ; le plancher de conservation EFFECTIF est donc leur MAXIMUM — voir compute-retention.ts. Ce n'est pas trancher FR-D9 en inventant une durée : c'est appliquer les deux textes cités à la fois, exactement ce que D-001 (docs/compliance/DECISIONS.md) appelait de ses vœux : 'le produit devrait probablement porter les deux plutôt que d'en choisir une'. Sources : reprises du repère git avant-refonte-documents ; LPF art. L102 B et C. com. art. L123-22 (Légifrance, consultés via docs/compliance/audit/03-LEGAL-VERIFICATION.md, entrée FR-D9, 2026-08-28)."
+}

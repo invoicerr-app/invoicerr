@@ -4,6 +4,8 @@ import { apiFetch, useApiMutation, useApiQuery } from "@/hooks/use-api-query"
 
 import type {
   ActionResult,
+  ArchiveVerificationResult,
+  DocumentArchive,
   DocumentInstance,
   DocumentSettlementResult,
   DocumentTypeDescriptor,
@@ -80,6 +82,36 @@ export function useDocumentSettlement(typeId: string | undefined, id: string | u
     ["documents", typeId, id, "settlement"],
     `/api/documents/${id}/settlement?typeId=${typeId}`,
     { enabled: !!typeId && !!id },
+  )
+}
+
+/**
+ * Root TODO item 14 ("archivage légal ⚖") — every legal archive written for this document instance,
+ * most recent first (see the backend's `DocumentArchive` schema comment: a re-send archives AGAIN,
+ * never overwriting). Keyed under `["documents", ...]` like `useDocumentSettlement` above, so nothing
+ * here needs its own invalidation wiring — a re-send's own `useRunDocumentAction` already sweeps every
+ * "documents"-keyed query.
+ */
+export function useDocumentArchives(typeId: string | undefined, id: string | undefined) {
+  return useApiQuery<DocumentArchive[]>(
+    ["documents", typeId, id, "archives"],
+    `/api/documents/${id}/archives?typeId=${typeId}`,
+    { enabled: !!typeId && !!id },
+  )
+}
+
+interface VerifyDocumentArchiveVariables {
+  typeId: string
+  documentId: string
+  archiveId: string
+}
+
+/** RE-HASHES the archive's stored bytes on the server on every call — never a cached verdict, and
+ *  never invalidates the archives LIST (verifying changes nothing about what is recorded). */
+export function useVerifyDocumentArchive() {
+  return useApiMutation<VerifyDocumentArchiveVariables, ArchiveVerificationResult>(
+    "POST",
+    (vars) => `/api/documents/${vars.documentId}/archives/${vars.archiveId}/verify?typeId=${vars.typeId}`,
   )
 }
 

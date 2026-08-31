@@ -166,6 +166,9 @@ describe('buildPdpTransport', () => {
 
       expect(result.reference).toBe('375037');
       expect(result.message).toContain('375037');
+      expect(result.artifacts).toEqual([
+        { role: 'facturx', mime: 'application/pdf', bytes: new Uint8Array([1]) },
+      ]);
       expect(mockSendInvoice).toHaveBeenCalledWith(
         expect.any(Uint8Array),
         expect.objectContaining({ externalId: 'INV-2026-0001' }),

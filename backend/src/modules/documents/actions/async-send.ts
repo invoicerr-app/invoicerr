@@ -39,6 +39,8 @@
  * exactly as before this task, just reached one hop later.
  */
 import { DocumentInstanceResult, ActionResult } from './action-registry';
+import { archiveDeliveredArtifactsIfAny } from '../archive/archive-on-send';
+import { ArchivedArtifactInput } from '../archive/hashing';
 import { takeDocumentNumberForTransition } from '../numbering/take-number';
 import { findOwnedDocument, updateDocumentStatus, upsertDocument } from '../persistence';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
@@ -56,7 +58,7 @@ export interface AsyncSendDeliverContext {
 
 export type AsyncSendDeliver = (
   ctx: AsyncSendDeliverContext,
-) => Promise<{ message?: string; reference?: string }>;
+) => Promise<{ message?: string; reference?: string; artifacts?: ArchivedArtifactInput[] }>;
 
 export interface RunAsyncSendInput {
   companyId: string;
@@ -113,7 +115,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
   const existing = await findOwnedDocument(companyId, typeId, documentId);
 
   if (existing.status === 'sending') {
-    const { message, reference } = await deliver({
+    const { message, reference, artifacts } = await deliver({
       companyId,
       typeId,
       documentId,
@@ -122,6 +124,15 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
       params,
     });
     const sent = await updateDocumentStatus(companyId, typeId, documentId, 'sent', null, reference);
+
+    // Root TODO item 14 ("archivage légal") — archived ONLY once delivery has genuinely succeeded
+    // (this line runs after `sent` is already persisted, never before): archiving a delivery that
+    // could still fail would be a lie about what was actually conserved. `archiveDeliveredArtifactsIfAny`
+    // NEVER throws (see its own header) — a storage/DB problem here must never undo a delivery that
+    // already happened (the email already left, the deposit was already accepted); it is instead
+    // recorded on the document itself (`lastArchiveError`) and logged loudly, never silently.
+    await archiveDeliveredArtifactsIfAny({ companyId, documentId, artifacts });
+
     return { document: sent, changed: true, message };
   }
 

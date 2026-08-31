@@ -178,6 +178,18 @@ export function buildPdpTransport(deps: PdpTransportDeps): DocumentTransport {
           `Deposited to the PDP — deposit id ${depositId}. Conformity status not tracked yet ` +
           "(polling is TODO_ISSUES.md's named remainder of this item).",
         reference: depositId,
+        // Root TODO item 14 ("archivage légal") — the ONLY artifact this transport ever delivers is
+        // the Factur-X actually deposited (`buildResult.bytes`, already gated valid above): never a
+        // second, separately-rendered "plain PDF" nobody actually sent anywhere through this
+        // transport. `deps.facturxFormatProvider.id`/`.mime` (not a literal) so this can never drift
+        // from what `format-registry.ts` itself calls this provider.
+        artifacts: [
+          {
+            role: deps.facturxFormatProvider.id,
+            mime: deps.facturxFormatProvider.mime,
+            bytes: buildResult.bytes,
+          },
+        ],
       };
     },
   };

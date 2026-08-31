@@ -42,6 +42,14 @@ export interface SendDocumentEmailInput {
 export interface SendDocumentEmailResult {
   /** Human-facing outcome string — same convention as ActionResult.message. */
   message: string;
+  /** Root TODO item 14 ("archivage légal") — the exact PDF bytes just attached (signed if a
+   *  certificate was configured — see `pdf` below), the ONE artifact this function ever hands back:
+   *  it never builds a structured format, only ever a human-readable PDF. Both the quote's own "send"
+   *  and the invoice's "email" transport return this straight through, so
+   *  `actions/async-send.ts`'s phase-2 delivery can archive the SAME bytes the recipient's mailbox
+   *  actually received — never a freshly re-rendered copy that could silently drift from what was
+   *  really sent. */
+  artifacts: [{ role: 'pdf'; mime: 'application/pdf'; bytes: Uint8Array }];
 }
 
 /**
@@ -155,5 +163,5 @@ export async function sendDocumentInstanceEmail(
   });
 
   const message = `${label} sent to ${recipient}.${warnings.length > 0 ? ` (${warnings.join(' ')})` : ''}`;
-  return { message };
+  return { message, artifacts: [{ role: 'pdf', mime: 'application/pdf', bytes: new Uint8Array(pdf) }] };
 }

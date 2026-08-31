@@ -3073,6 +3073,16 @@
         "partiallyPaid": "Partially paid",
         "settled": "Settled"
       }
+    },
+    "archive": {
+      "title": "Legal archive",
+      "retentionUntil": "Retain until {{date}} — {{basis}}",
+      "retentionNone": "No retention duration applies — {{basis}}",
+      "verify": "Verify",
+      "resultIntact": "Intact",
+      "resultCorrupted": "Corrupted",
+      "corruptedDetail": "{{role}}: expected {{expected}}, got {{actual}}",
+      "corruptedMissing": "file missing"
     }
   }
 }

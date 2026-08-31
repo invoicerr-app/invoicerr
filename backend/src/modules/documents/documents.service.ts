@@ -16,6 +16,12 @@ import { renderDocumentInstance } from './rendering/render-instance-pdf';
 import { computeDocumentTotals, DocumentTotals } from './totals/compute-totals';
 import prisma from '@/prisma/prisma.service';
 
+import {
+  ArchiveVerificationResult,
+  DocumentArchiveResult,
+  listDocumentArchives,
+  verifyDocumentArchive,
+} from './archive/persistence';
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry, ActionResult } from './actions/action-registry';
 import { collectWidgets } from './contributions/collect-widgets';
@@ -910,5 +916,38 @@ export class DocumentsService implements OnModuleInit {
       mime: provider.mime,
       filename: `${instance.displayNumber ?? id}-${provider.id}.${extension}`,
     };
+  }
+
+  /**
+   * "GET .../archives" — root TODO item 14 ("archivage légal ⚖"). Every archive written for this
+   * document (`archive/archive-on-send.ts`, one row per successful delivery that produced at least
+   * one artifact — see `DocumentArchive`'s own schema comment), most recent first. `findOwnedDocument`
+   * first, the same tenant/existence check every other per-document read in this class already runs
+   * — an archive is never listed for a document belonging to another company, or that doesn't exist.
+   */
+  async listDocumentArchives(
+    companyId: string,
+    typeId: string,
+    id: string,
+  ): Promise<DocumentArchiveResult[]> {
+    await findOwnedDocument(companyId, typeId, id);
+    return listDocumentArchives(companyId, id);
+  }
+
+  /**
+   * "POST .../archives/:archiveId/verify" — RE-HASHES the bytes actually stored on disk and compares
+   * them against the hash recorded at archive time (`archive/persistence.ts#verifyDocumentArchive`'s
+   * own header). Never mutates the archive row — even a run that discovers real corruption only
+   * REPORTS it, it does not record the verdict anywhere (see `DocumentArchive`'s own "immutable by
+   * design" schema comment).
+   */
+  async verifyDocumentArchive(
+    companyId: string,
+    typeId: string,
+    id: string,
+    archiveId: string,
+  ): Promise<ArchiveVerificationResult> {
+    await findOwnedDocument(companyId, typeId, id);
+    return verifyDocumentArchive(companyId, id, archiveId);
   }
 }

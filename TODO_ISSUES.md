@@ -270,3 +270,41 @@
   `decodePDFRawStream` + le VRAI gate structurel+Schematron) : retirer le `postProcessor` fait tomber
   ce test (vérifié en le retirant, puis en le restaurant) — un futur régression sur ce point échouerait
   donc ici, offline, avant d'atteindre un vrai dépôt.
+
+- **Item 14 — WORM/S3 régional : NON FAIT, aucun credential AWS dans cet environnement** (2026-08-31) :
+  le repère `avant-refonte-documents` portait déjà `WormS3ArchiveProvider`, avec sa propre NOTE
+  D'HONNÊTETÉ (`compliance/providers/archive/providers.ts`) : sans configuration S3 réelle, il
+  retombait sur la MÊME persistance locale que `LocalArchiveProvider`, en le DISANT (`log.todo`),
+  jamais un `s3://` fabriqué pour des octets qui n'ont jamais quitté la machine. `archive/storage.ts`
+  de cette tâche reprend cette honnêteté par construction plutôt que par avertissement : il n'existe
+  QU'UN provider (la persistance locale content-hash-addressed, `DOCUMENTS_ARCHIVE_DIR`), jamais un
+  second provider prétendant WORM/S3 sans jamais y écrire. Ce qui rouvrirait ceci : de vrais
+  credentials AWS (bucket, Object Lock activé) pour une jurisdiction à résidence de données (le
+  repère listait MX/BR/SA) — alors `archive/storage.ts` gagnerait un second `ArchiveProvider`
+  sélectionné par région, sans toucher au hachage encadré ni au schéma `DocumentArchive` (le champ
+  `uri` porte déjà `file://` OU pourrait porter `s3://` sans migration).
+
+- **Item 14 — le poller de conformité PDP/KSeF (item 10) n'archive PAS le VERDICT, seulement le DÉPÔT**
+  (2026-08-31) : l'artefact archivé pour "pdp"/"ksef" est le Factur-X/FA(3) au moment où le transport
+  l'a DÉPOSÉ (deposit accepté, jamais la conformité fr:201/202 ou le ksefNumber CLEARED — ce poller
+  reste le remainder nommé de l'item 10 lui-même, pas de celui-ci). Le jour où ce poller existe, le
+  verdict qu'il obtient (accepté/rejeté par l'administration) est un FAIT DATÉ DISTINCT de la
+  livraison — une SECONDE archive (ou un enrichissement de la première, à trancher alors) serait la
+  suite logique, pas une réouverture de ce qui est livré ici : ce que l'entreprise a réellement
+  ENVOYÉ, hashé et conservé, est un fait acquis dès le dépôt, indépendamment de ce que l'administration
+  en fait ensuite.
+
+- **Item 14 — la rétention FR applique les deux durées simultanément (leur MAXIMUM) plutôt que de
+  trancher FR-D9** (2026-08-31) : `docs/compliance/audit/03-LEGAL-VERIFICATION.md` (FR-D9) et
+  `docs/compliance/DECISIONS.md` (D-001) signalaient déjà la confusion entre la durée fiscale (LPF
+  art. L102 B, 6 ans) et commerciale (C. com. art. L123-22, 10 ans) dans l'ancien profil FR, sans la
+  trancher — D-001 proposait explicitement "porter les deux plutôt que d'en choisir une".
+  `archive/retention/compute-retention.ts` fait exactement ça : les deux règles sont déclarées
+  (`data/fr.json`), les deux s'appliquent SIMULTANÉMENT (deux obligations légales distinctes sur la
+  même société), et `retentionUntil` retient leur MAXIMUM (10 ans) — jamais un choix arbitraire entre
+  elles. L'alternative honnête envisagée par la tâche elle-même (retentionUntil NUL + les deux durées
+  seulement exposées) a été écartée : elle aurait réduit ce qu'un self-hosted FR voit comme échéance
+  effective par rapport à ce que le repère faisait déjà (10 ans, bien que mal nommé "fiscal" par
+  erreur — FR-D9). Ce qui rouvrirait ceci : une décision EXPLICITE du mandant tranchant que les deux
+  obligations ne se cumulent PAS en pratique (un texte qui le dirait), ce qu'aucune source consultée
+  ne dit aujourd'hui.

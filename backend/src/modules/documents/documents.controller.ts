@@ -405,6 +405,50 @@ export class DocumentsController {
     res.send(Buffer.from(bytes));
   }
 
+  @Get(':id/archives')
+  @ApiOperation({
+    summary: 'List the legal archives of a document instance',
+    description:
+      'Root TODO item 14 ("archivage légal ⚖") — every archive written for this document, most ' +
+      'recent first: one row per successful delivery that produced at least one artifact.',
+  })
+  @ApiParam({ name: 'id', type: String })
+  @ApiQuery({ name: 'typeId', required: true, type: String })
+  @ApiResponse({ status: 200, description: 'Archives retrieved (possibly empty)' })
+  @ApiResponse({ status: 404, description: 'Not found for this company/type' })
+  listDocumentArchives(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Query('typeId') typeId: string,
+  ) {
+    return this.documentsService.listDocumentArchives(companyId, typeId, id);
+  }
+
+  @Post(':id/archives/:archiveId/verify')
+  @ApiOperation({
+    summary: 'Verify one legal archive’s integrity',
+    description:
+      'RE-HASHES the bytes actually stored on disk and compares them against the hash recorded at ' +
+      'archive time — never a bare re-read of the stored hash. Never mutates the archive row, even ' +
+      'when it reports a corruption.',
+  })
+  @ApiParam({ name: 'id', type: String })
+  @ApiParam({ name: 'archiveId', type: String })
+  @ApiQuery({ name: 'typeId', required: true, type: String })
+  @ApiResponse({
+    status: 200,
+    description: '"intact", or "corrupted" with the mismatching artifact(s) named',
+  })
+  @ApiResponse({ status: 404, description: 'Not found for this company/type, or unknown archiveId' })
+  verifyDocumentArchive(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Param('archiveId') archiveId: string,
+    @Query('typeId') typeId: string,
+  ) {
+    return this.documentsService.verifyDocumentArchive(companyId, typeId, id, archiveId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a document instance', description: 'One saved document instance by id.' })
   @ApiParam({ name: 'id', type: String })

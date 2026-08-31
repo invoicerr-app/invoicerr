@@ -241,6 +241,12 @@ export function buildKsefTransport(deps: KsefTransportDeps): DocumentTransport {
           "ksefNumber) is not tracked yet — polling is TODO_ISSUES.md's named remainder of this item, " +
           "same gap as PDP's own conformity poll.",
         reference,
+        // Root TODO item 14 ("archivage légal") — the ONLY artifact this transport ever delivers is
+        // the FA(3) actually submitted (`buildResult.bytes`, already gated valid above), same
+        // reasoning as `pdp-transport.ts`'s own `artifacts`.
+        artifacts: [
+          { role: deps.fa3FormatProvider.id, mime: deps.fa3FormatProvider.mime, bytes: buildResult.bytes },
+        ],
       };
     },
   };

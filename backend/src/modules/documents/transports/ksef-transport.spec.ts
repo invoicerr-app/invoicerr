@@ -206,6 +206,9 @@ describe('buildKsefTransport', () => {
       expect(result.reference).toBe('session-ref-1|invoice-ref-1');
       expect(result.message).toContain('session-ref-1');
       expect(result.message).toContain('invoice-ref-1');
+      expect(result.artifacts).toEqual([
+        { role: 'fa3', mime: 'application/xml', bytes: new Uint8Array([1]) },
+      ]);
       expect(mockCloseSession).toHaveBeenCalledWith('session-ref-1', 'access-token-1');
     });
 

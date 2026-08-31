@@ -83,6 +83,11 @@ describe('sendDocumentInstanceEmail', () => {
       attachments: [{ filename: 'quote-doc-1.pdf', content: FAKE_PDF, contentType: 'application/pdf' }],
     });
     expect(result.message).toMatch(/client@example\.com/);
+    // Root TODO item 14 ("archivage légal") — the artifact handed back for archiving is the EXACT
+    // same bytes just attached, never a freshly re-rendered copy.
+    expect(result.artifacts).toEqual([
+      { role: 'pdf', mime: 'application/pdf', bytes: new Uint8Array(FAKE_PDF) },
+    ]);
   });
 
   it('names the attachment after displayNumber when the document is ALREADY numbered', async () => {

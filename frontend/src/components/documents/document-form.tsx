@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
+import { DocumentArchiveSection } from "@/components/documents/document-archive-section"
 import { DocumentField } from "@/components/documents/document-field"
 import { DocumentSettlementSection } from "@/components/documents/document-settlement"
 import { DocumentTotals } from "@/components/documents/document-totals"
@@ -151,6 +152,14 @@ export function DocumentForm({
 
         {showSettlement && currentDocumentId && (
           <DocumentSettlementSection typeId={descriptor.id} documentId={currentDocumentId} />
+        )}
+
+        {/* Root TODO item 14 ("archivage légal ⚖") — shown for ANY document type/status once it has
+            at least one archive (the component itself renders nothing otherwise, see its own header):
+            never gated on "sent" here, since the component's own emptiness check already carries
+            that fact (a draft has no archive yet, whatever its type). */}
+        {currentDocumentId && (
+          <DocumentArchiveSection typeId={descriptor.id} documentId={currentDocumentId} />
         )}
 
         <div className="flex flex-wrap gap-2 border-t pt-4">
